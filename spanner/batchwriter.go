@@ -33,10 +33,8 @@ import (
 // not to exceed Spanner's limits. Also, sending huge RPCs is potentially
 // unreliable.
 const (
-	kb             = 1 << 10
-	mb             = 1 << 20
-	countThreshold = 10 * kb // Spanner per-operation limit is 20K.
-	byteThreshold  = 20 * mb // Spanner per-operation limit is 100MB.
+	countThreshold = 10 * 1000    // Spanner per-operation limit is 20,000.
+	byteThreshold  = 20 * 1 << 20 // Spanner per-operation limit is 100MB.
 )
 
 // BatchWriter accumulates Spanner mutations (via AddRow) and assembles
