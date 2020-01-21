@@ -68,14 +68,19 @@ type row struct {
 
 // Fields in this struct are modified asynchronously e.g. by go routines writing
 // data to Spanner. Either hold a lock or use atomics, as detailed below.
+//
+// Note on terminology. A bad row is a row that generated an error. A dropped
+// row is a row that we didn't write to Spanner (either because it generated
+// an error, or because it was part of a batch that generate errors and we'd
+// exhausted our retry budget and didn't split the batch and try again).
 type asyncState struct {
-	writes       int64            // Number of in-progress writes; access using atomic.
-	retries      int64            // Number of retries; access using atomic.
-	lock         sync.Mutex       // Protects errors and badRows
-	errors       map[string]int64 // Errors encountered; protected by lock.
-	badRows      []*row           // Rows that generated errors; protected by lock.
-	badRowsBytes int64            // Estimate of bytes for badRows; protected by lock.
-	droppedRows  map[string]int64 // Count of dropped rows, broken down by table.
+	writes             int64            // Number of in-progress writes; access using atomic.
+	retries            int64            // Number of retries; access using atomic.
+	lock               sync.Mutex       // Protects errors and badRows
+	errors             map[string]int64 // Errors encountered; protected by lock.
+	sampleBadRows      []*row           // A sample of rows that generated errors; protected by lock.
+	sampleBadRowsBytes int64            // Estimate of bytes for sampleBadRows; protected by lock.
+	droppedRows        map[string]int64 // Count of dropped rows, broken down by table.
 }
 
 // BatchWriterConfig specifies parameters for configuring BatchWriter.
@@ -132,8 +137,9 @@ func (bw *BatchWriter) Flush() {
 	bw.wg.Wait()
 }
 
-// DroppedRows returns a map of tables to counts of dropped rows.
-func (bw *BatchWriter) DroppedRows() map[string]int64 {
+// DroppedRowsByTable returns a map of tables to counts of dropped rows.
+func (bw *BatchWriter) DroppedRowsByTable() map[string]int64 {
+	// Make a copy of bw.a.droppedRows since it is not thread-safe.
 	m := make(map[string]int64)
 	bw.a.lock.Lock()
 	defer bw.a.lock.Unlock()
@@ -144,24 +150,25 @@ func (bw *BatchWriter) DroppedRows() map[string]int64 {
 	return m
 }
 
-// BadRows returns a string-formatted list of rows that generated errors.
+// SampleBadRows returns a string-formatted list of rows that generated errors.
 // Returns at most n rows.
-func (bw *BatchWriter) BadRows(n int) []string {
+func (bw *BatchWriter) SampleBadRows(n int) []string {
 	var l []string
 	bw.a.lock.Lock()
 	defer bw.a.lock.Unlock()
-	for _, x := range bw.a.badRows {
-		l = append(l, fmt.Sprintf("table=%s cols=%v data=%v", x.table, x.cols, x.vals))
-		if len(l) > n {
+	for _, x := range bw.a.sampleBadRows {
+		if len(l) >= n {
 			break
 		}
+		l = append(l, fmt.Sprintf("table=%s cols=%v data=%v", x.table, x.cols, x.vals))
 	}
 	return l
 }
 
-// GetErrors returns a map summarizing errors encountered. Keys are error
+// Errors returns a map summarizing errors encountered. Keys are error
 // strings, and values are the count of that error.
-func (bw *BatchWriter) GetErrors() map[string]int64 {
+func (bw *BatchWriter) Errors() map[string]int64 {
+	// Make a copy of bw.a.errors since it is not thread-safe.
 	m := make(map[string]int64)
 	bw.a.lock.Lock()
 	defer bw.a.lock.Unlock()
@@ -172,7 +179,7 @@ func (bw *BatchWriter) GetErrors() map[string]int64 {
 }
 
 func (bw *BatchWriter) getBadRowsForTest() []*row {
-	return bw.a.badRows
+	return bw.a.sampleBadRows
 }
 
 // getBatch returns a slice of data from the front of bw.rows.  The slice
@@ -219,9 +226,9 @@ func (bw *BatchWriter) errorStats(rows []*row, err error, retry bool) {
 		r := rows[0]
 		n := byteSize(r)
 		// Use bw.bytesLimit to cap storage used by badRows. Keep at least one bad row.
-		if bw.a.badRowsBytes+n < bw.bytesLimit || len(bw.a.badRows) == 0 {
-			bw.a.badRows = append(bw.a.badRows, r)
-			bw.a.badRowsBytes += n
+		if bw.a.sampleBadRowsBytes+n < bw.bytesLimit || len(bw.a.sampleBadRows) == 0 {
+			bw.a.sampleBadRows = append(bw.a.sampleBadRows, r)
+			bw.a.sampleBadRowsBytes += n
 		}
 	}
 	for _, x := range rows {

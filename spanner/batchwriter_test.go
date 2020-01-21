@@ -28,7 +28,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestBatchWriter(t *testing.T) {
+// TestFlush tests NewBatchWriter, AddRow and Flush.
+func TestFlush(t *testing.T) {
 	tests := []struct {
 		count       int
 		rowSize     int
@@ -37,13 +38,13 @@ func TestBatchWriter(t *testing.T) {
 		badRowIndex map[int]bool // Identifies which rows are bad (by index).
 	}{
 		{count: 1, rowSize: 5, writeLimit: 40, name: "One write"},
-		{count: 50000, rowSize: 5, writeLimit: 40, name: "Many writes"},     // Forces split based on mutation count.
-		{count: 100, rowSize: 1 * mb, writeLimit: 40, name: "Large writes"}, // Forces split based on byte size.
-		{count: 50000, rowSize: 5, writeLimit: 5, name: "Write limit"},      // Forces write-limiting.
+		{count: 50000, rowSize: 5, writeLimit: 40, name: "Many writes"},      // Forces split based on mutation count.
+		{count: 100, rowSize: 1 << 20, writeLimit: 40, name: "Large writes"}, // Forces split based on byte size.
+		{count: 50000, rowSize: 5, writeLimit: 5, name: "Write limit"},       // Forces write-limiting.
 		{count: 50, rowSize: 5, writeLimit: 40, name: "Bad rows", badRowIndex: map[int]bool{6: true, 17: true}},
 	}
 	config := BatchWriterConfig{
-		BytesLimit: 100 * mb,
+		BytesLimit: 100 << 20,
 		Verbose:    false,
 		RetryLimit: 1000,
 	}
