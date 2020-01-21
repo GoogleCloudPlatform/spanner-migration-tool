@@ -138,6 +138,7 @@ func (bw *BatchWriter) Flush() {
 }
 
 // DroppedRowsByTable returns a map of tables to counts of dropped rows.
+// Dropped rows are rows that were not written to Spanner.
 func (bw *BatchWriter) DroppedRowsByTable() map[string]int64 {
 	// Make a copy of bw.a.droppedRows since it is not thread-safe.
 	m := make(map[string]int64)
@@ -150,8 +151,11 @@ func (bw *BatchWriter) DroppedRowsByTable() map[string]int64 {
 	return m
 }
 
-// SampleBadRows returns a string-formatted list of rows that generated errors.
-// Returns at most n rows.
+// SampleBadRows returns a string-formatted list of sample rows that
+// generated errors. Returns at most n rows.
+// Note that we split up batches to isolate errors. Each row returned
+// by SampleBadRows generated an error when sent to Spanner as a
+// single-row batch.
 func (bw *BatchWriter) SampleBadRows(n int) []string {
 	var l []string
 	bw.a.lock.Lock()
