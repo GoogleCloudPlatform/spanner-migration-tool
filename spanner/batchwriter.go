@@ -253,7 +253,7 @@ func (bw *BatchWriter) doWriteAndHandleErrors(rows []*row) {
 		bw.errorStats(rows, err, retry)
 		if !retry {
 			if hitRetryLimit && bw.verbose {
-				fmt.Printf("Have hit %d retries: will no do any more\n", atomic.LoadInt64(&bw.a.retries))
+				fmt.Printf("Have hit %d retries: will not do any more\n", atomic.LoadInt64(&bw.a.retries))
 			}
 			return
 		}
@@ -283,7 +283,7 @@ func (bw *BatchWriter) backgroundWrite(rows []*row) {
 	bw.doWriteAndHandleErrors(rows)
 }
 
-// startWrite initiates an asynchronous write of m to Spanner.
+// startWrite initiates an asynchronous write of rows to Spanner.
 func (bw *BatchWriter) startWrite(rows []*row) {
 	bw.wg.Add(1)
 	atomic.AddInt64(&bw.a.writes, 1)
