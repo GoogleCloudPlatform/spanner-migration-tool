@@ -37,12 +37,14 @@ const (
 	byteThreshold  = 20 * 1 << 20 // Spanner per-operation limit is 100MB.
 )
 
-// BatchWriter accumulates Spanner mutations (via AddRow) and assembles
-// them into batches that it asynchronously writes to Spanner. If Spanner
-// returns an error for a batch, BatchWriter splits the batch into
-// smaller chunks to retry, as it attempts to isolate which row(s) in a
-// batch is bad. BatchWriter respects Spanner's limits on byte size and
-// mutation count and has configurable limits on the number of
+// BatchWriter accumulates rows of data (via AddRow) and assembles them
+// into batches that it asynchronously writes to Spanner.  Rows are
+// written to Spanner using insert semantics i.e. if a row already exists
+// in the database, the row will fail with error 'AlreadyExists'.  If
+// Spanner returns an error for a batch, BatchWriter splits the batch
+// into smaller chunks to retry, as it attempts to isolate which row(s)
+// in a batch is bad.  BatchWriter respects Spanner's limits on byte size
+// and mutation count and has configurable limits on the number of
 // in-progress writes, amount of data buffered and retry behavior.
 // BatchWriter is not threadsafe: only one call to AddRow or Flush should
 // be active at any time.  See ExampleBatchWriter (batchwriter_test.go)
@@ -245,7 +247,7 @@ func (bw *BatchWriter) errorStats(rows []*row, err error, retry bool) {
 func (bw *BatchWriter) doWriteAndHandleErrors(rows []*row) {
 	var m []*sp.Mutation
 	for _, x := range rows {
-		m = append(m, sp.InsertOrUpdate(x.table, x.cols, x.vals))
+		m = append(m, sp.Insert(x.table, x.cols, x.vals))
 	}
 	if err := bw.write(m); err != nil {
 		hitRetryLimit := atomic.LoadInt64(&bw.a.retries) >= bw.retryLimit

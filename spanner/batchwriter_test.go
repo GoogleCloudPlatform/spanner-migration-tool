@@ -215,7 +215,7 @@ func intersect(m1 []*sp.Mutation, m2 []*sp.Mutation) bool {
 func toMutations(r []*row) []*sp.Mutation {
 	var m []*sp.Mutation
 	for _, x := range r {
-		m = append(m, sp.InsertOrUpdate(x.table, x.cols, x.vals))
+		m = append(m, sp.Insert(x.table, x.cols, x.vals))
 	}
 	return m
 }
