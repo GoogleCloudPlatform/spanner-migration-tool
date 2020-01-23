@@ -52,7 +52,7 @@ func TestFlush(t *testing.T) {
 		data, limit := generateRows(tc.count, tc.rowSize)
 		goodRows, badRows := partitionRows(tc.badRowIndex, data)
 		badMutations := toMutations(badRows)
-		var mutex = &sync.Mutex{}
+		mutex := &sync.Mutex{}
 		var writeCount int64
 		var rowsWritten []*sp.Mutation
 		config.WriteLimit = tc.writeLimit
