@@ -21,37 +21,60 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTypes(t *testing.T) {
-	check(t, "BOOL", Bool{}.PrintScalarType())
-	check(t, "INT64", Int64{}.PrintScalarType())
-	check(t, "FLOAT64", Float64{}.PrintScalarType())
-	check(t, "STRING(MAX)", String{MaxLength{}}.PrintScalarType())
-	check(t, "STRING(42)", String{Int64Length{42}}.PrintScalarType())
-	check(t, "BYTES(MAX)", Bytes{MaxLength{}}.PrintScalarType())
-	check(t, "BYTES(42)", Bytes{Int64Length{42}}.PrintScalarType())
-	check(t, "DATE", Date{}.PrintScalarType())
-	check(t, "TIMESTAMP", Timestamp{}.PrintScalarType())
+func TestPrintScalarType(t *testing.T) {
+	tests := []struct {
+		in       ScalarType
+		expected string
+	}{
+		{Bool{}, "BOOL"},
+		{Int64{}, "INT64"},
+		{Float64{}, "FLOAT64"},
+		{String{MaxLength{}}, "STRING(MAX)"},
+		{String{Int64Length{42}}, "STRING(42)"},
+		{Bytes{MaxLength{}}, "BYTES(MAX)"},
+		{Bytes{Int64Length{42}}, "BYTES(42)"},
+		{Date{}, "DATE"},
+		{Timestamp{}, "TIMESTAMP"},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, normalizeSpace(tc.expected), normalizeSpace(tc.in.PrintScalarType()))
+	}
 }
 
-func TestColumnDef(t *testing.T) {
-	c := Config{ProtectIds: false}
-	check(t, "col1 INT64", pr(c, ColumnDef{Name: "col1", T: Int64{}}))
-	check(t, "col1 ARRAY<INT64>", pr(c, ColumnDef{Name: "col1", T: Int64{}, IsArray: true}))
-	check(t, "col1 INT64 NOT NULL", pr(c, ColumnDef{Name: "col1", T: Int64{}, NotNull: true}))
-	check(t, "col1 ARRAY<INT64> NOT NULL", pr(c, ColumnDef{Name: "col1", T: Int64{}, IsArray: true, NotNull: true}))
-	c = Config{ProtectIds: true}
-	check(t, "`col1` INT64", pr(c, ColumnDef{Name: "col1", T: Int64{}}))
+func TestPrintColumnDef(t *testing.T) {
+	tests := []struct {
+		in         ColumnDef
+		protectIds bool
+		expected   string
+	}{
+		{in: ColumnDef{Name: "col1", T: Int64{}}, expected: "col1 INT64"},
+		{in: ColumnDef{Name: "col1", T: Int64{}, IsArray: true}, expected: "col1 ARRAY<INT64>"},
+		{in: ColumnDef{Name: "col1", T: Int64{}, NotNull: true}, expected: "col1 INT64 NOT NULL"},
+		{in: ColumnDef{Name: "col1", T: Int64{}, IsArray: true, NotNull: true}, expected: "col1 ARRAY<INT64> NOT NULL"},
+		{in: ColumnDef{Name: "col1", T: Int64{}}, protectIds: true, expected: "`col1` INT64"},
+	}
+	for _, tc := range tests {
+		s, _ := tc.in.PrintColumnDef(Config{ProtectIds: tc.protectIds})
+		assert.Equal(t, normalizeSpace(tc.expected), normalizeSpace(s))
+	}
 }
 
-func TestIndexKey(t *testing.T) {
-	c := Config{ProtectIds: false}
-	check(t, "col1", IndexKey{Col: "col1"}.PrintIndexKey(c))
-	check(t, "col1 DESC", IndexKey{Col: "col1", Desc: true}.PrintIndexKey(c))
-	c = Config{ProtectIds: true}
-	check(t, "`col1`", IndexKey{Col: "col1"}.PrintIndexKey(c))
+func TestPrintIndexKey(t *testing.T) {
+	tests := []struct {
+		in         IndexKey
+		protectIds bool
+		expected   string
+	}{
+		{in: IndexKey{Col: "col1"}, expected: "col1"},
+		{in: IndexKey{Col: "col1", Desc: true}, expected: "col1 DESC"},
+		{in: IndexKey{Col: "col1"}, protectIds: true, expected: "`col1`"},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, normalizeSpace(tc.expected), normalizeSpace(tc.in.PrintIndexKey(Config{ProtectIds: tc.protectIds})))
+	}
 }
 
-func TestCreateTable(t *testing.T) {
+func TestPrintCreateTable(t *testing.T) {
 	cds := make(map[string]ColumnDef)
 	cds["col1"] = ColumnDef{Name: "col1", T: Int64{}, NotNull: true}
 	cds["col2"] = ColumnDef{Name: "col2", T: String{MaxLength{}}, NotNull: false}
@@ -63,22 +86,36 @@ func TestCreateTable(t *testing.T) {
 		[]IndexKey{IndexKey{Col: "col1", Desc: true}},
 		"",
 	}
-	c := Config{ProtectIds: false}
-	check(t, "CREATE TABLE mytable (col1 INT64 NOT NULL, col2 STRING(MAX), col3 BYTES(42)) PRIMARY KEY (col1 DESC)", ct.PrintCreateTable(c))
-	c = Config{ProtectIds: true}
-	check(t, "CREATE TABLE `mytable` (`col1` INT64 NOT NULL, `col2` STRING(MAX), `col3` BYTES(42)) PRIMARY KEY (`col1` DESC)", ct.PrintCreateTable(c))
+	tests := []struct {
+		name       string
+		protectIds bool
+		expected   string
+	}{
+		{"no quote", false, "CREATE TABLE mytable (col1 INT64 NOT NULL, col2 STRING(MAX), col3 BYTES(42)) PRIMARY KEY (col1 DESC)"},
+		{"quote", true, "CREATE TABLE `mytable` (`col1` INT64 NOT NULL, `col2` STRING(MAX), `col3` BYTES(42)) PRIMARY KEY (`col1` DESC)"},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, normalizeSpace(tc.expected), normalizeSpace(ct.PrintCreateTable(Config{ProtectIds: tc.protectIds})))
+	}
 }
 
-func TestCreateIndex(t *testing.T) {
+func TestPrintCreateIndex(t *testing.T) {
 	ci := CreateIndex{
 		"myindex",
 		"mytable",
 		[]IndexKey{IndexKey{Col: "col1", Desc: true}, IndexKey{Col: "col2"}},
 	}
-	c := Config{ProtectIds: false}
-	check(t, "CREATE INDEX myindex ON mytable (col1 DESC, col2)", ci.PrintCreateIndex(c))
-	c = Config{ProtectIds: true}
-	check(t, "CREATE INDEX `myindex` ON `mytable` (`col1` DESC, `col2`)", ci.PrintCreateIndex(c))
+	tests := []struct {
+		name       string
+		protectIds bool
+		expected   string
+	}{
+		{"no quote", false, "CREATE INDEX myindex ON mytable (col1 DESC, col2)"},
+		{"quote", true, "CREATE INDEX `myindex` ON `mytable` (`col1` DESC, `col2`)"},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, normalizeSpace(tc.expected), normalizeSpace(ci.PrintCreateIndex(Config{ProtectIds: tc.protectIds})))
+	}
 }
 
 func normalizeSpace(s string) string {
@@ -87,15 +124,4 @@ func normalizeSpace(s string) string {
 	s = strings.ReplaceAll(s, "(", " ( ")
 	s = strings.ReplaceAll(s, ",", " , ")
 	return strings.Join(strings.Fields(s), " ")
-}
-
-// check verifies that actual and expected are the same, ignoring
-// variations in whitespace.
-func check(t *testing.T, expected, actual string) {
-	assert.Equal(t, normalizeSpace(expected), normalizeSpace(actual))
-}
-
-func pr(c Config, cd ColumnDef) string {
-	s, _ := cd.PrintColumnDef(c)
-	return s
 }
