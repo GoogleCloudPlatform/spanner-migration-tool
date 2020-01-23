@@ -22,15 +22,15 @@ import (
 )
 
 func TestTypes(t *testing.T) {
-	check(t, "BOOL", Bool{}.PrScalarType())
-	check(t, "INT64", Int64{}.PrScalarType())
-	check(t, "FLOAT64", Float64{}.PrScalarType())
-	check(t, "STRING(MAX)", String{MaxLength{}}.PrScalarType())
-	check(t, "STRING(42)", String{Int64Length{42}}.PrScalarType())
-	check(t, "BYTES(MAX)", Bytes{MaxLength{}}.PrScalarType())
-	check(t, "BYTES(42)", Bytes{Int64Length{42}}.PrScalarType())
-	check(t, "DATE", Date{}.PrScalarType())
-	check(t, "TIMESTAMP", Timestamp{}.PrScalarType())
+	check(t, "BOOL", Bool{}.PrintScalarType())
+	check(t, "INT64", Int64{}.PrintScalarType())
+	check(t, "FLOAT64", Float64{}.PrintScalarType())
+	check(t, "STRING(MAX)", String{MaxLength{}}.PrintScalarType())
+	check(t, "STRING(42)", String{Int64Length{42}}.PrintScalarType())
+	check(t, "BYTES(MAX)", Bytes{MaxLength{}}.PrintScalarType())
+	check(t, "BYTES(42)", Bytes{Int64Length{42}}.PrintScalarType())
+	check(t, "DATE", Date{}.PrintScalarType())
+	check(t, "TIMESTAMP", Timestamp{}.PrintScalarType())
 }
 
 func TestColumnDef(t *testing.T) {
@@ -45,10 +45,10 @@ func TestColumnDef(t *testing.T) {
 
 func TestIndexKey(t *testing.T) {
 	c := Config{ProtectIds: false}
-	check(t, "col1", IndexKey{Col: "col1"}.PrIndexKey(c))
-	check(t, "col1 DESC", IndexKey{Col: "col1", Desc: true}.PrIndexKey(c))
+	check(t, "col1", IndexKey{Col: "col1"}.PrintIndexKey(c))
+	check(t, "col1 DESC", IndexKey{Col: "col1", Desc: true}.PrintIndexKey(c))
 	c = Config{ProtectIds: true}
-	check(t, "`col1`", IndexKey{Col: "col1"}.PrIndexKey(c))
+	check(t, "`col1`", IndexKey{Col: "col1"}.PrintIndexKey(c))
 }
 
 func TestCreateTable(t *testing.T) {
@@ -64,9 +64,9 @@ func TestCreateTable(t *testing.T) {
 		"",
 	}
 	c := Config{ProtectIds: false}
-	check(t, "CREATE TABLE mytable (col1 INT64 NOT NULL, col2 STRING(MAX), col3 BYTES(42)) PRIMARY KEY (col1 DESC)", ct.PrCreateTable(c))
+	check(t, "CREATE TABLE mytable (col1 INT64 NOT NULL, col2 STRING(MAX), col3 BYTES(42)) PRIMARY KEY (col1 DESC)", ct.PrintCreateTable(c))
 	c = Config{ProtectIds: true}
-	check(t, "CREATE TABLE `mytable` (`col1` INT64 NOT NULL, `col2` STRING(MAX), `col3` BYTES(42)) PRIMARY KEY (`col1` DESC)", ct.PrCreateTable(c))
+	check(t, "CREATE TABLE `mytable` (`col1` INT64 NOT NULL, `col2` STRING(MAX), `col3` BYTES(42)) PRIMARY KEY (`col1` DESC)", ct.PrintCreateTable(c))
 }
 
 func TestCreateIndex(t *testing.T) {
@@ -76,9 +76,9 @@ func TestCreateIndex(t *testing.T) {
 		[]IndexKey{IndexKey{Col: "col1", Desc: true}, IndexKey{Col: "col2"}},
 	}
 	c := Config{ProtectIds: false}
-	check(t, "CREATE INDEX myindex ON mytable (col1 DESC, col2)", ci.PrCreateIndex(c))
+	check(t, "CREATE INDEX myindex ON mytable (col1 DESC, col2)", ci.PrintCreateIndex(c))
 	c = Config{ProtectIds: true}
-	check(t, "CREATE INDEX `myindex` ON `mytable` (`col1` DESC, `col2`)", ci.PrCreateIndex(c))
+	check(t, "CREATE INDEX `myindex` ON `mytable` (`col1` DESC, `col2`)", ci.PrintCreateIndex(c))
 }
 
 func normalizeSpace(s string) string {
@@ -96,6 +96,6 @@ func check(t *testing.T, expected, actual string) {
 }
 
 func pr(c Config, cd ColumnDef) string {
-	s, _ := cd.PrColumnDef(c)
+	s, _ := cd.PrintColumnDef(c)
 	return s
 }
