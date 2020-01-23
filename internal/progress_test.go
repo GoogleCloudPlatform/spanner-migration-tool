@@ -22,13 +22,13 @@ import (
 )
 
 func TestProgress(t *testing.T) {
-	var total int64 = 4321
+	total := int64(4321)
 	p := NewProgress(total, "Progress", false)
 	assert.Equal(t, 0, p.pct)
 	time.Sleep(500 * time.Millisecond)
-	for _, i := range []int64{1000, 2000, 3000} {
-		p.MaybeReport(i)
-		assert.Equal(t, int((100*i)/total), p.pct)
+	for _, v := range []int64{1000, 2000, 3000} {
+		p.MaybeReport(v)
+		assert.Equal(t, int((100*v)/total), p.pct)
 		time.Sleep(500 * time.Millisecond)
 	}
 	pct := p.pct
@@ -36,8 +36,14 @@ func TestProgress(t *testing.T) {
 	assert.Equal(t, pct, p.pct) // pct is monotonic.
 	p.MaybeReport(5000)
 	assert.Equal(t, 100, p.pct) // Never exceed 100%.
-	p.Done()
 	// Test corner case where total is 0.
 	p = NewProgress(0, "Progress", false)
+	assert.Equal(t, 100, p.pct)
+}
+
+func TestDone(t *testing.T) {
+	p := NewProgress(567, "Progress", false)
+	assert.Equal(t, 0, p.pct)
+	p.Done()
 	assert.Equal(t, 100, p.pct)
 }
