@@ -123,11 +123,24 @@ type ColumnDef struct {
 	Comment string
 }
 
+// Config controls how AST nodes are printed (aka unparsed).
+type Config struct {
+	Comments   bool // If true, print comments.
+	ProtectIds bool // If true, table and col names are quoted using backticks (avoids reserved-word issue).
+}
+
+func (c Config) quote(s string) string {
+	if c.ProtectIds {
+		return "`" + s + "`"
+	}
+	return s
+}
+
 // PrintColumnDef unparses ColumnDef and returns it as well as any ColumnDef
 // comment. These are returned as separate strings to support formatting
 // needs of PrintCreateTable.
 func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
-	s := fmt.Sprintf("%s %s", backtick(c)(cd.Name), cd.PrintColumnDefType())
+	s := fmt.Sprintf("%s %s", c.quote(cd.Name), cd.PrintColumnDefType())
 	if cd.NotNull {
 		s += " NOT NULL"
 	}
@@ -155,7 +168,7 @@ type IndexKey struct {
 
 // PrintIndexKey unparses the index keys.
 func (pk IndexKey) PrintIndexKey(c Config) string {
-	col := backtick(c)(pk.Col)
+	col := c.quote(pk.Col)
 	if pk.Desc {
 		return fmt.Sprintf("%s DESC", col)
 	}
@@ -173,15 +186,8 @@ type CreateTable struct {
 	Comment string
 }
 
-// Config controls unparsing.
-type Config struct {
-	Comments   bool // If true, print comments.
-	ProtectIds bool // If true, table and col names are enclosed with backticks (avoids reserved-word issue).
-}
-
 // PrintCreateTable unparses a CREATE TABLE statement.
 func (ct CreateTable) PrintCreateTable(config Config) string {
-	bt := backtick(config)
 	var col []string
 	var colComment []string
 	var keys []string
@@ -211,7 +217,7 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	if config.Comments && len(ct.Comment) > 0 {
 		tableComment = "--\n-- " + ct.Comment + "\n--\n"
 	}
-	return fmt.Sprintf("%sCREATE TABLE %s (%s\n) PRIMARY KEY (%s)", tableComment, bt(ct.Name), cols, strings.Join(keys, ", "))
+	return fmt.Sprintf("%sCREATE TABLE %s (%s\n) PRIMARY KEY (%s)", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "))
 }
 
 // CreateIndex encodes the following DDL definition:
@@ -226,12 +232,11 @@ type CreateIndex struct {
 
 // PrintCreateIndex unparses a CREATE INDEX statement.
 func (ci CreateIndex) PrintCreateIndex(c Config) string {
-	bt := backtick(c)
 	var keys []string
 	for _, p := range ci.Keys {
 		keys = append(keys, p.PrintIndexKey(c))
 	}
-	return fmt.Sprintf("CREATE INDEX %s ON %s (%s)", bt(ci.Name), bt(ci.Table), strings.Join(keys, ", "))
+	return fmt.Sprintf("CREATE INDEX %s ON %s (%s)", c.quote(ci.Name), c.quote(ci.Table), strings.Join(keys, ", "))
 }
 
 func maxStringLength(s []string) int {
@@ -242,11 +247,4 @@ func maxStringLength(s []string) int {
 		}
 	}
 	return n
-}
-
-func backtick(config Config) func(s string) string {
-	if config.ProtectIds {
-		return func(s string) string { return "`" + s + "`" }
-	}
-	return func(s string) string { return s }
 }
