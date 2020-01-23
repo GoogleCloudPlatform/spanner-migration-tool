@@ -243,7 +243,8 @@ func (bw *BatchWriter) errorStats(rows []*row, err error, retry bool) {
 	return
 }
 
-// Note: doWriteAndHandleErrors must be thread-safe.
+// Note: doWriteAndHandleErrors must be thread-safe because it is run
+// inside a go routine.
 func (bw *BatchWriter) doWriteAndHandleErrors(rows []*row) {
 	var m []*sp.Mutation
 	for _, x := range rows {
@@ -278,7 +279,8 @@ func (bw *BatchWriter) doWriteAndHandleErrors(rows []*row) {
 	}
 }
 
-// Note: backgroundWrite must be thread-safe.
+// Note: backgroundWrite must be thread-safe because it is run as
+// a go routine.
 func (bw *BatchWriter) backgroundWrite(rows []*row) {
 	defer bw.wg.Done()
 	defer atomic.AddInt64(&bw.async.writes, -1)
