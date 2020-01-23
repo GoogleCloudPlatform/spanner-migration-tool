@@ -59,7 +59,7 @@ type BatchWriter struct {
 	bytesLimit int64                      // Limit on bytes buffered. AddRow blocks if rBytes exceeded this value.
 	retryLimit int64                      // Limit on retries.
 	verbose    bool                       // If true, print out messages about each write batch.
-	a          asyncState
+	async      asyncState
 }
 
 type row struct {
@@ -102,7 +102,7 @@ func NewBatchWriter(config BatchWriterConfig) *BatchWriter {
 		bytesLimit: config.BytesLimit,
 		retryLimit: config.RetryLimit,
 		verbose:    config.Verbose,
-		a: asyncState{
+		async: asyncState{
 			errors:      make(map[string]int64),
 			droppedRows: make(map[string]int64),
 		},
@@ -125,11 +125,11 @@ func (bw *BatchWriter) AddRow(table string, cols []string, vals []interface{}) {
 // for them to complete.
 func (bw *BatchWriter) Flush() {
 	for len(bw.rows) > 0 {
-		if atomic.LoadInt64(&bw.a.writes) < bw.writeLimit {
+		if atomic.LoadInt64(&bw.async.writes) < bw.writeLimit {
 			m, count, bytes := bw.getBatch()
 			if bw.verbose {
 				fmt.Printf("Starting write of %d rows to Spanner (%d bytes, %d mutations) [%d in progress]\n",
-					len(m), bytes, count, atomic.LoadInt64(&bw.a.writes))
+					len(m), bytes, count, atomic.LoadInt64(&bw.async.writes))
 			}
 			bw.startWrite(m)
 		} else {
@@ -142,12 +142,12 @@ func (bw *BatchWriter) Flush() {
 // DroppedRowsByTable returns a map of tables to counts of dropped rows.
 // Dropped rows are rows that were not written to Spanner.
 func (bw *BatchWriter) DroppedRowsByTable() map[string]int64 {
-	// Make a copy of bw.a.droppedRows since it is not thread-safe.
+	// Make a copy of bw.async.droppedRows since it is not thread-safe.
 	m := make(map[string]int64)
-	bw.a.lock.Lock()
-	defer bw.a.lock.Unlock()
+	bw.async.lock.Lock()
+	defer bw.async.lock.Unlock()
 
-	for t, n := range bw.a.droppedRows {
+	for t, n := range bw.async.droppedRows {
 		m[t] = n
 	}
 	return m
@@ -160,9 +160,9 @@ func (bw *BatchWriter) DroppedRowsByTable() map[string]int64 {
 // single-row batch.
 func (bw *BatchWriter) SampleBadRows(n int) []string {
 	var l []string
-	bw.a.lock.Lock()
-	defer bw.a.lock.Unlock()
-	for _, x := range bw.a.sampleBadRows {
+	bw.async.lock.Lock()
+	defer bw.async.lock.Unlock()
+	for _, x := range bw.async.sampleBadRows {
 		if len(l) >= n {
 			break
 		}
@@ -174,18 +174,18 @@ func (bw *BatchWriter) SampleBadRows(n int) []string {
 // Errors returns a map summarizing errors encountered. Keys are error
 // strings, and values are the count of that error.
 func (bw *BatchWriter) Errors() map[string]int64 {
-	// Make a copy of bw.a.errors since it is not thread-safe.
+	// Make a copy of bw.async.errors since it is not thread-safe.
 	m := make(map[string]int64)
-	bw.a.lock.Lock()
-	defer bw.a.lock.Unlock()
-	for k, v := range bw.a.errors {
+	bw.async.lock.Lock()
+	defer bw.async.lock.Unlock()
+	for k, v := range bw.async.errors {
 		m[k] = v
 	}
 	return m
 }
 
 func (bw *BatchWriter) getBadRowsForTest() []*row {
-	return bw.a.sampleBadRows
+	return bw.async.sampleBadRows
 }
 
 // getBatch returns a slice of data from the front of bw.rows.  The slice
@@ -219,10 +219,10 @@ func (bw *BatchWriter) errorStats(rows []*row, err error, retry bool) {
 		fmt.Printf("Error while writing %d rows to Spanner: %v\n", len(rows), err)
 	}
 
-	bw.a.lock.Lock()
-	defer bw.a.lock.Unlock()
+	bw.async.lock.Lock()
+	defer bw.async.lock.Unlock()
 
-	bw.a.errors[err.Error()]++
+	bw.async.errors[err.Error()]++
 	if retry {
 		return
 	}
@@ -232,13 +232,13 @@ func (bw *BatchWriter) errorStats(rows []*row, err error, retry bool) {
 		r := rows[0]
 		n := byteSize(r)
 		// Use bw.bytesLimit to cap storage used by badRows. Keep at least one bad row.
-		if bw.a.sampleBadRowsBytes+n < bw.bytesLimit || len(bw.a.sampleBadRows) == 0 {
-			bw.a.sampleBadRows = append(bw.a.sampleBadRows, r)
-			bw.a.sampleBadRowsBytes += n
+		if bw.async.sampleBadRowsBytes+n < bw.bytesLimit || len(bw.async.sampleBadRows) == 0 {
+			bw.async.sampleBadRows = append(bw.async.sampleBadRows, r)
+			bw.async.sampleBadRowsBytes += n
 		}
 	}
 	for _, x := range rows {
-		bw.a.droppedRows[x.table]++
+		bw.async.droppedRows[x.table]++
 	}
 	return
 }
@@ -250,12 +250,12 @@ func (bw *BatchWriter) doWriteAndHandleErrors(rows []*row) {
 		m = append(m, sp.Insert(x.table, x.cols, x.vals))
 	}
 	if err := bw.write(m); err != nil {
-		hitRetryLimit := atomic.LoadInt64(&bw.a.retries) >= bw.retryLimit
+		hitRetryLimit := atomic.LoadInt64(&bw.async.retries) >= bw.retryLimit
 		retry := len(rows) > 1 && !hitRetryLimit
 		bw.errorStats(rows, err, retry)
 		if !retry {
 			if hitRetryLimit && bw.verbose {
-				fmt.Printf("Have hit %d retries: will not do any more\n", atomic.LoadInt64(&bw.a.retries))
+				fmt.Printf("Have hit %d retries: will not do any more\n", atomic.LoadInt64(&bw.async.retries))
 			}
 			return
 		}
@@ -272,7 +272,7 @@ func (bw *BatchWriter) doWriteAndHandleErrors(rows []*row) {
 			return j
 		}
 		for i := 0; i < len(rows); i += k {
-			atomic.AddInt64(&bw.a.retries, 1)
+			atomic.AddInt64(&bw.async.retries, 1)
 			bw.doWriteAndHandleErrors(rows[i:min(i+k, len(rows))])
 		}
 	}
@@ -281,14 +281,14 @@ func (bw *BatchWriter) doWriteAndHandleErrors(rows []*row) {
 // Note: backgroundWrite must be thread-safe.
 func (bw *BatchWriter) backgroundWrite(rows []*row) {
 	defer bw.wg.Done()
-	defer atomic.AddInt64(&bw.a.writes, -1)
+	defer atomic.AddInt64(&bw.async.writes, -1)
 	bw.doWriteAndHandleErrors(rows)
 }
 
 // startWrite initiates an asynchronous write of rows to Spanner.
 func (bw *BatchWriter) startWrite(rows []*row) {
 	bw.wg.Add(1)
-	atomic.AddInt64(&bw.a.writes, 1)
+	atomic.AddInt64(&bw.async.writes, 1)
 	go bw.backgroundWrite(rows)
 }
 
@@ -298,11 +298,11 @@ func (bw *BatchWriter) startWrite(rows []*row) {
 // It will block and re-try till either (a) or (b) holds.
 func (bw *BatchWriter) writeData() {
 	for bw.rCount > countThreshold || bw.rBytes > byteThreshold {
-		if atomic.LoadInt64(&bw.a.writes) < bw.writeLimit {
+		if atomic.LoadInt64(&bw.async.writes) < bw.writeLimit {
 			m, count, bytes := bw.getBatch()
 			if bw.verbose {
 				fmt.Printf("Starting write of %d rows to Spanner (%d bytes, %d mutations) [%d in progress]\n",
-					len(m), bytes, count, atomic.LoadInt64(&bw.a.writes))
+					len(m), bytes, count, atomic.LoadInt64(&bw.async.writes))
 			}
 			bw.startWrite(m)
 		} else {

@@ -95,10 +95,10 @@ func TestFlush(t *testing.T) {
 
 func TestDroppedRowsByTable(t *testing.T) {
 	bw := NewBatchWriter(BatchWriterConfig{})
-	bw.a.lock.Lock()
-	bw.a.droppedRows["test1"] = 22
-	bw.a.droppedRows["test2"] = 42
-	bw.a.lock.Unlock()
+	bw.async.lock.Lock()
+	bw.async.droppedRows["test1"] = 22
+	bw.async.droppedRows["test2"] = 42
+	bw.async.lock.Unlock()
 	m := bw.DroppedRowsByTable()
 	assert.Equal(t, 2, len(m))
 	assert.Equal(t, int64(22), m["test1"])
@@ -107,22 +107,22 @@ func TestDroppedRowsByTable(t *testing.T) {
 
 func TestSampleBadRows(t *testing.T) {
 	bw := NewBatchWriter(BatchWriterConfig{})
-	bw.a.lock.Lock()
-	bw.a.sampleBadRows = []*row{
+	bw.async.lock.Lock()
+	bw.async.sampleBadRows = []*row{
 		&row{"test", []string{"col1", "col2"}, []interface{}{"a", int64(42)}},
 		&row{"test", []string{"col1", "col2"}, []interface{}{"b", int64(6)}},
 	}
-	bw.a.lock.Unlock()
+	bw.async.lock.Unlock()
 	l := bw.SampleBadRows(1)
 	assert.Equal(t, l, []string{"table=test cols=[col1 col2] data=[a 42]"})
 }
 
 func TestErrors(t *testing.T) {
 	bw := NewBatchWriter(BatchWriterConfig{})
-	bw.a.lock.Lock()
-	bw.a.errors["error string 1"] = 22
-	bw.a.errors["error string 2"] = 42
-	bw.a.lock.Unlock()
+	bw.async.lock.Lock()
+	bw.async.errors["error string 1"] = 22
+	bw.async.errors["error string 2"] = 42
+	bw.async.lock.Unlock()
 	m := bw.Errors()
 	assert.Equal(t, 2, len(m))
 	assert.Equal(t, int64(22), m["error string 1"])
