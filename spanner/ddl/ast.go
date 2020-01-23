@@ -26,14 +26,14 @@
 //    ScalarType := INT | STRING( length )
 // then we use a go interface type to encode ScalarType:
 //    type ScalarType interface {
-//        PrScalarType() string  // To print ScalarTypes types.
+//        PrintScalarType() string  // To print ScalarTypes types.
 //    }
 // and struct types for each case:
 //    type Int struct { }
 //    type String struct { length int64 }
 // and finally, we define functions:
-//    func (i Int) PrScalarType() { ... }
-//    func (s String) PrScalarType() { .. }
+//    func (i Int) PrintScalarType() { ... }
+//    func (s String) PrintScalarType() { .. }
 //
 // The net result is that the only way to build a ScalarType
 // is using Int or String.
@@ -48,7 +48,7 @@ import (
 //     length:
 //        { int64_value | MAX }
 type Length interface {
-	PrLength() string
+	PrintLength() string
 }
 
 // Int64Length wraps an integer length specifier.
@@ -57,17 +57,17 @@ type Int64Length struct{ Value int64 }
 // MaxLength represents "MAX".
 type MaxLength struct{}
 
-// PrLength unparses Int64Length.
-func (i Int64Length) PrLength() string { return fmt.Sprintf("%d", i.Value) }
+// PrintLength unparses Int64Length.
+func (i Int64Length) PrintLength() string { return fmt.Sprintf("%d", i.Value) }
 
-// PrLength unparses MaxLength.
-func (m MaxLength) PrLength() string { return fmt.Sprintf("MAX") }
+// PrintLength unparses MaxLength.
+func (m MaxLength) PrintLength() string { return fmt.Sprintf("MAX") }
 
 // ScalarType encodes the following DDL definition:
 //     scalar_type:
 //        { BOOL | INT64 | FLOAT64 | STRING( length ) | BYTES( length ) | DATE | TIMESTAMP }
 type ScalarType interface {
-	PrScalarType() string
+	PrintScalarType() string
 }
 
 // Bool encodes DDL BOOL.
@@ -91,26 +91,26 @@ type String struct{ Len Length }
 // Timestamp encodes DDL TIMESTAMP.
 type Timestamp struct{}
 
-// PrScalarType unparses Bool.
-func (b Bool) PrScalarType() string { return "BOOL" }
+// PrintScalarType unparses Bool.
+func (b Bool) PrintScalarType() string { return "BOOL" }
 
-// PrScalarType unparses Bytes.
-func (b Bytes) PrScalarType() string { return fmt.Sprintf("BYTES(%s)", b.Len.PrLength()) }
+// PrintScalarType unparses Bytes.
+func (b Bytes) PrintScalarType() string { return fmt.Sprintf("BYTES(%s)", b.Len.PrintLength()) }
 
-// PrScalarType unparses Date.
-func (d Date) PrScalarType() string { return "DATE" }
+// PrintScalarType unparses Date.
+func (d Date) PrintScalarType() string { return "DATE" }
 
-// PrScalarType unparses Float64
-func (g Float64) PrScalarType() string { return "FLOAT64" }
+// PrintScalarType unparses Float64
+func (g Float64) PrintScalarType() string { return "FLOAT64" }
 
-// PrScalarType unparses Int64
-func (i Int64) PrScalarType() string { return "INT64" }
+// PrintScalarType unparses Int64
+func (i Int64) PrintScalarType() string { return "INT64" }
 
-// PrScalarType unparses String
-func (s String) PrScalarType() string { return fmt.Sprintf("STRING(%s)", s.Len.PrLength()) }
+// PrintScalarType unparses String
+func (s String) PrintScalarType() string { return fmt.Sprintf("STRING(%s)", s.Len.PrintLength()) }
 
-// PrScalarType unparses Timestamp
-func (t Timestamp) PrScalarType() string { return "TIMESTAMP" }
+// PrintScalarType unparses Timestamp
+func (t Timestamp) PrintScalarType() string { return "TIMESTAMP" }
 
 // ColumnDef encodes the following DDL definition:
 //     column_def:
@@ -123,20 +123,20 @@ type ColumnDef struct {
 	Comment string
 }
 
-// PrColumnDef unparses ColumnDef and returns it as well as any ColumnDef
+// PrintColumnDef unparses ColumnDef and returns it as well as any ColumnDef
 // comment. These are returned as separate strings to support formatting
-// needs of PrCreateTable.
-func (cd ColumnDef) PrColumnDef(c Config) (string, string) {
-	s := fmt.Sprintf("%s %s", backtick(c)(cd.Name), cd.PrColumnDefType())
+// needs of PrintCreateTable.
+func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
+	s := fmt.Sprintf("%s %s", backtick(c)(cd.Name), cd.PrintColumnDefType())
 	if cd.NotNull {
 		s += " NOT NULL"
 	}
 	return s, cd.Comment
 }
 
-// PrColumnDefType unparses the type encoded in a ColumnDef.
-func (cd ColumnDef) PrColumnDefType() string {
-	t := cd.T.PrScalarType()
+// PrintColumnDefType unparses the type encoded in a ColumnDef.
+func (cd ColumnDef) PrintColumnDefType() string {
+	t := cd.T.PrintScalarType()
 	if cd.IsArray {
 		return fmt.Sprintf("ARRAY<%s>", t)
 	}
@@ -153,8 +153,8 @@ type IndexKey struct {
 	Desc bool // Default order is ascending i.e. Desc = false.
 }
 
-// PrIndexKey unparses the index keys.
-func (pk IndexKey) PrIndexKey(c Config) string {
+// PrintIndexKey unparses the index keys.
+func (pk IndexKey) PrintIndexKey(c Config) string {
 	col := backtick(c)(pk.Col)
 	if pk.Desc {
 		return fmt.Sprintf("%s DESC", col)
@@ -179,14 +179,14 @@ type Config struct {
 	ProtectIds bool // If true, table and col names are enclosed with backticks (avoids reserved-word issue).
 }
 
-// PrCreateTable unparses a CREATE TABLE statement.
-func (ct CreateTable) PrCreateTable(config Config) string {
+// PrintCreateTable unparses a CREATE TABLE statement.
+func (ct CreateTable) PrintCreateTable(config Config) string {
 	bt := backtick(config)
 	var col []string
 	var colComment []string
 	var keys []string
 	for i, cn := range ct.Cols {
-		s, c := ct.Cds[cn].PrColumnDef(config)
+		s, c := ct.Cds[cn].PrintColumnDef(config)
 		s = "\n    " + s
 		if i < len(ct.Cols)-1 {
 			s += ","
@@ -205,7 +205,7 @@ func (ct CreateTable) PrCreateTable(config Config) string {
 		}
 	}
 	for _, p := range ct.Pks {
-		keys = append(keys, p.PrIndexKey(config))
+		keys = append(keys, p.PrintIndexKey(config))
 	}
 	var tableComment string
 	if config.Comments && len(ct.Comment) > 0 {
@@ -224,12 +224,12 @@ type CreateIndex struct {
 	// storing/interleaving clauses yet, so we omit them for now.
 }
 
-// PrCreateIndex unparses a CREATE INDEX statement.
-func (ci CreateIndex) PrCreateIndex(c Config) string {
+// PrintCreateIndex unparses a CREATE INDEX statement.
+func (ci CreateIndex) PrintCreateIndex(c Config) string {
 	bt := backtick(c)
 	var keys []string
 	for _, p := range ci.Keys {
-		keys = append(keys, p.PrIndexKey(c))
+		keys = append(keys, p.PrintIndexKey(c))
 	}
 	return fmt.Sprintf("CREATE INDEX %s ON %s (%s)", bt(ci.Name), bt(ci.Table), strings.Join(keys, ", "))
 }
