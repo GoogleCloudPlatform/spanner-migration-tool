@@ -5,13 +5,12 @@ version: 2
 jobs:
   build_and_test:
     docker:
-      - image: circleci/golang:1.9
+      - image: circleci/golang:1.13
 
     working_directory: /go/src/github.com/cloudspannerecosystem/harbourbridge
 
     steps:
       - checkout
-      - run: go get -v -t -d ./...
       - run: go test -v ./...
 
 workflows:
