@@ -31,17 +31,17 @@ import (
 // TestFlush tests NewBatchWriter, AddRow and Flush.
 func TestFlush(t *testing.T) {
 	tests := []struct {
+		name        string
 		count       int
 		rowSize     int
 		writeLimit  int64
-		name        string
 		badRowIndex map[int]bool // Identifies which rows are bad (by index).
 	}{
-		{count: 1, rowSize: 5, writeLimit: 40, name: "One write"},
-		{count: 50000, rowSize: 5, writeLimit: 40, name: "Many writes"},      // Forces split based on mutation count.
-		{count: 100, rowSize: 1 << 20, writeLimit: 40, name: "Large writes"}, // Forces split based on byte size.
-		{count: 50000, rowSize: 5, writeLimit: 5, name: "Write limit"},       // Forces write-limiting.
-		{count: 50, rowSize: 5, writeLimit: 40, name: "Bad rows", badRowIndex: map[int]bool{6: true, 17: true}},
+		{name: "One write", count: 1, rowSize: 5, writeLimit: 40},
+		{name: "Many writes", count: 50000, rowSize: 5, writeLimit: 40},      // Forces split based on mutation count.
+		{name: "Large writes", count: 100, rowSize: 1 << 20, writeLimit: 40}, // Forces split based on byte size.
+		{name: "Write limit", count: 50000, rowSize: 5, writeLimit: 5},       // Forces write-limiting.
+		{name: "Bad rows", count: 50, rowSize: 5, writeLimit: 40, badRowIndex: map[int]bool{6: true, 17: true}},
 	}
 	config := BatchWriterConfig{
 		BytesLimit: 100 << 20,
