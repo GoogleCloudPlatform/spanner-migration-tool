@@ -57,6 +57,9 @@ type Int64Length struct{ Value int64 }
 // MaxLength represents "MAX".
 type MaxLength struct{}
 
+// Interface validation for Length.
+var _ = []Length{Int64Length{}, MaxLength{}}
+
 // PrintLength unparses Int64Length.
 func (i Int64Length) PrintLength() string { return fmt.Sprintf("%d", i.Value) }
 
@@ -90,6 +93,9 @@ type String struct{ Len Length }
 
 // Timestamp encodes DDL TIMESTAMP.
 type Timestamp struct{}
+
+// Interface validation for ScalarTypes
+var _ = []ScalarType{Bool{}, Bytes{}, Date{}, Float64{}, Int64{}, String{}}
 
 // PrintScalarType unparses Bool.
 func (b Bool) PrintScalarType() string { return "BOOL" }
