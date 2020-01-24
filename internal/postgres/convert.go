@@ -282,32 +282,32 @@ func (conv *Conv) unexpected(u string) {
 	}
 }
 
-// statsAddRow increments the rows stats for table 'sTable' if b is true.
+// statsAddRow increments the rows stats for table 'spTable' if b is true.
 // This is used to avoid double counting of stats. Specifically, some code paths
 // that report row stats run in both schema-mode and data-mode e.g. statement.go.
 // To avoid double counting, we explicitly choose a mode-for-stats-collection
 // for each place where row stats are collected. When specifying this mode
 // Take care to ensure that the code actually runs in the mode you specify,
 // otherwise stats will be dropped.
-func (conv *Conv) statsAddRow(sTable string, b bool) {
+func (conv *Conv) statsAddRow(spTable string, b bool) {
 	if b {
-		conv.stats.rows[sTable]++
+		conv.stats.rows[spTable]++
 	}
 }
 
-// statsAddGoodRow increments the good-row stats for table 'sTable' if b is true.
+// statsAddGoodRow increments the good-row stats for table 'spTable' if b is true.
 // See statsAddRow comments for context.
-func (conv *Conv) statsAddGoodRow(sTable string, b bool) {
+func (conv *Conv) statsAddGoodRow(spTable string, b bool) {
 	if b {
-		conv.stats.goodRows[sTable]++
+		conv.stats.goodRows[spTable]++
 	}
 }
 
-// statsAddBadRow increments the bad-row stats for table 'sTable' if b is true.
+// statsAddBadRow increments the bad-row stats for table 'spTable' if b is true.
 // See statsAddRow comments for context.
-func (conv *Conv) statsAddBadRow(sTable string, b bool) {
+func (conv *Conv) statsAddBadRow(spTable string, b bool) {
 	if b {
-		conv.stats.badRows[sTable]++
+		conv.stats.badRows[spTable]++
 	}
 }
 
