@@ -252,16 +252,17 @@ func (conv *Conv) SetLocation(loc *time.Location) {
 	conv.location = loc
 }
 
-func (conv *Conv) buildPrimaryKey(spannerTable string) string {
+func (conv *Conv) buildPrimaryKey(spTable string) string {
 	base := "synth_id"
-	if _, ok := conv.toPostgres[spannerTable]; !ok {
-		conv.unexpected(fmt.Sprintf("toPostgres lookup fails for table %s: ", spannerTable))
+	if _, ok := conv.toPostgres[spTable]; !ok {
+		conv.unexpected(fmt.Sprintf("toPostgres lookup fails for table %s: ", spTable))
 		return base
 	}
 	count := 0
 	key := base
 	for {
-		if _, ok := conv.toPostgres[spannerTable].cols[key]; !ok {
+		// Check key isn't already a column in the table.
+		if _, ok := conv.toPostgres[spTable].cols[key]; !ok {
 			return key
 		}
 		key = fmt.Sprintf("%s%d", base, count)
