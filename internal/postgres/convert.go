@@ -27,7 +27,7 @@ import (
 
 // Conv contains all schema and data conversion state.
 type Conv struct {
-	mode           bool                       // False is schema mode, true is data mode.
+	mode           mode                       // Schema mode or data mode.
 	spSchema       map[string]ddl.CreateTable // Maps Spanner table name to Spanner schema.
 	syntheticPKeys map[string]syntheticPKey   // Maps Spanner table name to synthetic primary key (if needed).
 	pgSchema       map[string]pgTableDef      // Maps PostgreSQL table name Postgres schema information.
@@ -38,6 +38,13 @@ type Conv struct {
 	sampleBadRows  rowSamples     // Rows that generated errors during conversion.
 	stats          stats
 }
+
+type mode int
+
+const (
+	schemaOnly mode = iota
+	dataOnly
+)
 
 // syntheticPKey specifies a synthetic primary key and current sequence
 // count for a table, if needed. We use a synthetic primary key when
@@ -155,7 +162,7 @@ func (conv *Conv) SetDataSink(ds func(table string, cols []string, values []inte
 // of other statements to get an accurate count of the number of data rows
 // (used for tracking progress when writing data to Spanner).
 func (conv *Conv) SetSchemaMode() {
-	conv.mode = false
+	conv.mode = schemaOnly
 }
 
 // SetDataMode configures conv to convert data and write it to Spanner.
@@ -164,7 +171,7 @@ func (conv *Conv) SetSchemaMode() {
 // collected in each phase, so we simply reset and recollect),
 // but we don't modify the schema.
 func (conv *Conv) SetDataMode() {
-	conv.mode = true
+	conv.mode = dataOnly
 }
 
 // GetDDL Schema returns the Spanner schema that has been constructed so far.
@@ -361,9 +368,9 @@ func (conv *Conv) dataStatement(l []nodes.Node) {
 }
 
 func (conv *Conv) schemaMode() bool {
-	return !conv.mode
+	return conv.mode == schemaOnly
 }
 
 func (conv *Conv) dataMode() bool {
-	return conv.mode
+	return conv.mode == dataOnly
 }
