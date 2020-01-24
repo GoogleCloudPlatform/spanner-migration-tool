@@ -44,7 +44,7 @@ func TestSetDataMode(t *testing.T) {
 
 func TestGetDDL(t *testing.T) {
 	conv := MakeConv()
-	conv.sSchema["table1"] = ddl.CreateTable{
+	conv.spSchema["table1"] = ddl.CreateTable{
 		"table1",
 		[]string{"a", "b"},
 		map[string]ddl.ColumnDef{
@@ -54,7 +54,7 @@ func TestGetDDL(t *testing.T) {
 		[]ddl.IndexKey{ddl.IndexKey{Col: "a"}},
 		"",
 	}
-	conv.sSchema["table2"] = ddl.CreateTable{
+	conv.spSchema["table2"] = ddl.CreateTable{
 		"table2",
 		[]string{"a"},
 		map[string]ddl.ColumnDef{
@@ -122,7 +122,7 @@ func TestGetBadRows(t *testing.T) {
 
 func TestAddPrimaryKeys(t *testing.T) {
 	conv := MakeConv()
-	conv.sSchema["table"] = ddl.CreateTable{
+	conv.spSchema["table"] = ddl.CreateTable{
 		"table",
 		[]string{"a", "b"},
 		map[string]ddl.ColumnDef{
@@ -144,7 +144,7 @@ func TestAddPrimaryKeys(t *testing.T) {
 		[]ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
 		"",
 	}
-	assert.Equal(t, e, conv.sSchema["table"])
+	assert.Equal(t, e, conv.spSchema["table"])
 	assert.Equal(t, syntheticPKey{col: "synth_id", sequence: 0}, conv.syntheticPKeys["table"])
 }
 
