@@ -25,8 +25,8 @@ import (
 	nodes "github.com/lfittl/pg_query_go/nodes"
 )
 
-// Cvt contains all schema and data conversion state.
-type Cvt struct {
+// Conv contains all schema and data conversion state.
+type Conv struct {
 	mode           bool                       // False is schema mode, true is data mode.
 	sSchema        map[string]ddl.CreateTable // Maps Spanner table name to Spanner schema.
 	syntheticPKeys map[string]syntheticPKey   // Maps Spanner table name to synthetic primary key (if needed).
@@ -120,9 +120,9 @@ type statementStat struct {
 	error  int64
 }
 
-// MakeCvt returns a default-configured Cvt.
-func MakeCvt() *Cvt {
-	return &Cvt{
+// MakeConv returns a default-configured Conv.
+func MakeConv() *Conv {
+	return &Conv{
 		sSchema:        make(map[string]ddl.CreateTable),
 		syntheticPKeys: make(map[string]syntheticPKey),
 		pgSchema:       make(map[string]pgTableDef),
@@ -140,9 +140,9 @@ func MakeCvt() *Cvt {
 	}
 }
 
-// SetDataSink configures cvt to use the specified data sink.
-func (cvt *Cvt) SetDataSink(ds func(table string, cols []string, values []interface{})) {
-	cvt.dataSink = ds
+// SetDataSink configures conv to use the specified data sink.
+func (conv *Conv) SetDataSink(ds func(table string, cols []string, values []interface{})) {
+	conv.dataSink = ds
 }
 
 // Note on modes.
@@ -150,36 +150,36 @@ func (cvt *Cvt) SetDataSink(ds func(table string, cols []string, values []interf
 // build the schema, and the second pass (data mode) we write data to
 // Spanner.
 
-// SetSchemaMode configures cvt to process schema-related statements and
+// SetSchemaMode configures conv to process schema-related statements and
 // build the Spanner schema. In schema mode we also process just enough
 // of other statements to get an accurate count of the number of data rows
 // (used for tracking progress when writing data to Spanner).
-func (cvt *Cvt) SetSchemaMode() {
-	cvt.mode = false
+func (conv *Conv) SetSchemaMode() {
+	conv.mode = false
 }
 
-// SetDataMode configures cvt to convert data and write it to Spanner.
+// SetDataMode configures conv to convert data and write it to Spanner.
 // In this mode, we also do a complete re-processing of all statements
 // for stats purposes (its hard to keep track of which stats are
 // collected in each phase, so we simply reset and recollect),
 // but we don't modify the schema.
-func (cvt *Cvt) SetDataMode() {
-	cvt.mode = true
+func (conv *Conv) SetDataMode() {
+	conv.mode = true
 }
 
 // GetDDL Schema returns the Spanner schema that has been constructed so far.
-func (cvt *Cvt) GetDDL(c ddl.Config) []string {
+func (conv *Conv) GetDDL(c ddl.Config) []string {
 	var ddl []string
-	for _, ct := range cvt.sSchema {
+	for _, ct := range conv.sSchema {
 		ddl = append(ddl, ct.PrintCreateTable(c))
 	}
 	return ddl
 }
 
 // Rows returns the total count of data rows processed.
-func (cvt *Cvt) Rows() int64 {
+func (conv *Conv) Rows() int64 {
 	var n int64
-	for _, c := range cvt.stats.rows {
+	for _, c := range conv.stats.rows {
 		n += c
 	}
 	return n
@@ -187,27 +187,27 @@ func (cvt *Cvt) Rows() int64 {
 
 // BadRows returns the total count of bad rows encountered during
 // data conversion.
-func (cvt *Cvt) BadRows() int64 {
+func (conv *Conv) BadRows() int64 {
 	var n int64
-	for _, c := range cvt.stats.badRows {
+	for _, c := range conv.stats.badRows {
 		n += c
 	}
 	return n
 }
 
 // Statements returns the total number of statements processed.
-func (cvt *Cvt) Statements() int64 {
+func (conv *Conv) Statements() int64 {
 	var n int64
-	for _, x := range cvt.stats.statement {
+	for _, x := range conv.stats.statement {
 		n += x.schema + x.data + x.skip + x.error
 	}
 	return n
 }
 
 // StatementErrors returns the number of statement errors encountered.
-func (cvt *Cvt) StatementErrors() int64 {
+func (conv *Conv) StatementErrors() int64 {
 	var n int64
-	for _, x := range cvt.stats.statement {
+	for _, x := range conv.stats.statement {
 		n += x.error
 	}
 	return n
@@ -215,15 +215,15 @@ func (cvt *Cvt) StatementErrors() int64 {
 
 // Unexpecteds returns the total number of distinct unexpected conditions
 // encountered during processing.
-func (cvt *Cvt) Unexpecteds() int64 {
-	return int64(len(cvt.stats.unexpected))
+func (conv *Conv) Unexpecteds() int64 {
+	return int64(len(conv.stats.unexpected))
 }
 
 // SampleBadRows returns a string-formatted list of rows that generated errors.
 // Returns at most n rows.
-func (cvt *Cvt) SampleBadRows(n int) []string {
+func (conv *Conv) SampleBadRows(n int) []string {
 	var l []string
-	for _, x := range cvt.sampleBadRows.l {
+	for _, x := range conv.sampleBadRows.l {
 		l = append(l, fmt.Sprintf("table=%s cols=%v data=%v\n", x.table, x.cols, x.vals))
 		if len(l) > n {
 			break
@@ -232,36 +232,36 @@ func (cvt *Cvt) SampleBadRows(n int) []string {
 	return l
 }
 
-// AddPrimaryKeys analyzes all tables in cvt.schema and adds synthetic primary
+// AddPrimaryKeys analyzes all tables in conv.schema and adds synthetic primary
 // keys for any tables that don't have primary key.
-func (cvt *Cvt) AddPrimaryKeys() {
-	for t, ct := range cvt.sSchema {
+func (conv *Conv) AddPrimaryKeys() {
+	for t, ct := range conv.sSchema {
 		if len(ct.Pks) == 0 {
-			k := cvt.buildPrimaryKey(t)
+			k := conv.buildPrimaryKey(t)
 			ct.Cols = append(ct.Cols, k)
 			ct.Cds[k] = ddl.ColumnDef{Name: k, T: ddl.Int64{}}
 			ct.Pks = []ddl.IndexKey{ddl.IndexKey{Col: k}}
-			cvt.sSchema[t] = ct
-			cvt.syntheticPKeys[t] = syntheticPKey{k, 0}
+			conv.sSchema[t] = ct
+			conv.syntheticPKeys[t] = syntheticPKey{k, 0}
 		}
 	}
 }
 
 // SetLocation configures the timezone for data conversion.
-func (cvt *Cvt) SetLocation(loc *time.Location) {
-	cvt.location = loc
+func (conv *Conv) SetLocation(loc *time.Location) {
+	conv.location = loc
 }
 
-func (cvt *Cvt) buildPrimaryKey(spannerTable string) string {
+func (conv *Conv) buildPrimaryKey(spannerTable string) string {
 	base := "synth_id"
-	if _, ok := cvt.toPostgres[spannerTable]; !ok {
-		cvt.unexpected(fmt.Sprintf("toPostgres lookup fails for table %s: ", spannerTable))
+	if _, ok := conv.toPostgres[spannerTable]; !ok {
+		conv.unexpected(fmt.Sprintf("toPostgres lookup fails for table %s: ", spannerTable))
 		return base
 	}
 	count := 0
 	key := base
 	for {
-		if _, ok := cvt.toPostgres[spannerTable].cols[key]; !ok {
+		if _, ok := conv.toPostgres[spannerTable].cols[key]; !ok {
 			return key
 		}
 		key = fmt.Sprintf("%s%d", base, count)
@@ -273,12 +273,12 @@ func (cvt *Cvt) buildPrimaryKey(spannerTable string) string {
 // that were not expected. Note that the counts maybe not
 // be completely reliable due to potential double-counting
 // because we process pg_dump data twice.
-func (cvt *Cvt) unexpected(u string) {
+func (conv *Conv) unexpected(u string) {
 	internal.VerbosePrintf("Unexpected condition: %s\n", u)
 	// Limit size of unexpected map. If over limit, then only
 	// update existing entries.
-	if _, ok := cvt.stats.unexpected[u]; ok || len(cvt.stats.unexpected) < 1000 {
-		cvt.stats.unexpected[u]++
+	if _, ok := conv.stats.unexpected[u]; ok || len(conv.stats.unexpected) < 1000 {
+		conv.stats.unexpected[u]++
 	}
 }
 
@@ -289,25 +289,25 @@ func (cvt *Cvt) unexpected(u string) {
 // for each place where row stats are collected. When specifying this mode
 // Take care to ensure that the code actually runs in the mode you specify,
 // otherwise stats will be dropped.
-func (cvt *Cvt) statsAddRow(sTable string, b bool) {
+func (conv *Conv) statsAddRow(sTable string, b bool) {
 	if b {
-		cvt.stats.rows[sTable]++
+		conv.stats.rows[sTable]++
 	}
 }
 
 // statsAddGoodRow increments the good-row stats for table 'sTable' if b is true.
 // See statsAddRow comments for context.
-func (cvt *Cvt) statsAddGoodRow(sTable string, b bool) {
+func (conv *Conv) statsAddGoodRow(sTable string, b bool) {
 	if b {
-		cvt.stats.goodRows[sTable]++
+		conv.stats.goodRows[sTable]++
 	}
 }
 
 // statsAddBadRow increments the bad-row stats for table 'sTable' if b is true.
 // See statsAddRow comments for context.
-func (cvt *Cvt) statsAddBadRow(sTable string, b bool) {
+func (conv *Conv) statsAddBadRow(sTable string, b bool) {
 	if b {
-		cvt.stats.badRows[sTable]++
+		conv.stats.badRows[sTable]++
 	}
 }
 
@@ -324,45 +324,45 @@ func prNodes(l []nodes.Node) string {
 	return strings.Join(s, ".")
 }
 
-func (cvt *Cvt) getStatementStat(s string) *statementStat {
-	if cvt.stats.statement[s] == nil {
-		cvt.stats.statement[s] = &statementStat{}
+func (conv *Conv) getStatementStat(s string) *statementStat {
+	if conv.stats.statement[s] == nil {
+		conv.stats.statement[s] = &statementStat{}
 	}
-	return cvt.stats.statement[s]
+	return conv.stats.statement[s]
 }
 
-func (cvt *Cvt) skipStatement(l []nodes.Node) {
-	if cvt.schemaMode() { // Record statement stats on first pass only.
+func (conv *Conv) skipStatement(l []nodes.Node) {
+	if conv.schemaMode() { // Record statement stats on first pass only.
 		s := prNodes(l)
 		internal.VerbosePrintf("Skipping statement: %s\n", s)
-		cvt.getStatementStat(s).skip++
+		conv.getStatementStat(s).skip++
 	}
 }
 
-func (cvt *Cvt) errorInStatement(l []nodes.Node) {
-	if cvt.schemaMode() { // Record statement stats on first pass only.
+func (conv *Conv) errorInStatement(l []nodes.Node) {
+	if conv.schemaMode() { // Record statement stats on first pass only.
 		s := prNodes(l)
 		internal.VerbosePrintf("Error processing statement: %s\n", s)
-		cvt.getStatementStat(s).error++
+		conv.getStatementStat(s).error++
 	}
 }
 
-func (cvt *Cvt) schemaStatement(l []nodes.Node) {
-	if cvt.schemaMode() { // Record statement stats on first pass only.
-		cvt.getStatementStat(prNodes(l)).schema++
+func (conv *Conv) schemaStatement(l []nodes.Node) {
+	if conv.schemaMode() { // Record statement stats on first pass only.
+		conv.getStatementStat(prNodes(l)).schema++
 	}
 }
 
-func (cvt *Cvt) dataStatement(l []nodes.Node) {
-	if cvt.schemaMode() { // Record statement stats on first pass only.
-		cvt.getStatementStat(prNodes(l)).data++
+func (conv *Conv) dataStatement(l []nodes.Node) {
+	if conv.schemaMode() { // Record statement stats on first pass only.
+		conv.getStatementStat(prNodes(l)).data++
 	}
 }
 
-func (cvt *Cvt) schemaMode() bool {
-	return !cvt.mode
+func (conv *Conv) schemaMode() bool {
+	return !conv.mode
 }
 
-func (cvt *Cvt) dataMode() bool {
-	return cvt.mode
+func (conv *Conv) dataMode() bool {
+	return conv.mode
 }
