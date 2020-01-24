@@ -178,7 +178,7 @@ func (conv *Conv) GetDDL(c ddl.Config) []string {
 
 // Rows returns the total count of data rows processed.
 func (conv *Conv) Rows() int64 {
-	var n int64
+	n := int64(0)
 	for _, c := range conv.stats.rows {
 		n += c
 	}
@@ -188,7 +188,7 @@ func (conv *Conv) Rows() int64 {
 // BadRows returns the total count of bad rows encountered during
 // data conversion.
 func (conv *Conv) BadRows() int64 {
-	var n int64
+	n := int64(0)
 	for _, c := range conv.stats.badRows {
 		n += c
 	}
@@ -197,7 +197,7 @@ func (conv *Conv) BadRows() int64 {
 
 // Statements returns the total number of statements processed.
 func (conv *Conv) Statements() int64 {
-	var n int64
+	n := int64(0)
 	for _, x := range conv.stats.statement {
 		n += x.schema + x.data + x.skip + x.error
 	}
@@ -206,7 +206,7 @@ func (conv *Conv) Statements() int64 {
 
 // StatementErrors returns the number of statement errors encountered.
 func (conv *Conv) StatementErrors() int64 {
-	var n int64
+	n := int64(0)
 	for _, x := range conv.stats.statement {
 		n += x.error
 	}
