@@ -64,16 +64,17 @@ func TestGetDDL(t *testing.T) {
 		"",
 	}
 	ddl := cvt.GetDDL(ddl.Config{})
-	assert.Equal(t, 2, len(ddl))
-	normalize := func(s string) string {
-		return strings.Join(strings.Fields(s), " ")
+	normalize := func(l []string) (nl []string) {
+		for _, s := range l {
+			nl = append(nl, strings.Join(strings.Fields(s), " "))
+		}
+		return nl
 	}
-	if len(ddl) >= 2 {
-		e0 := "CREATE TABLE table1 ( a INT64, b FLOAT64 ) PRIMARY KEY (a)"
-		e1 := "CREATE TABLE table2 ( a INT64 ) PRIMARY KEY (a)"
-		assert.Equal(t, normalize(e0), normalize(ddl[0]))
-		assert.Equal(t, normalize(e1), normalize(ddl[1]))
+	e := []string{
+		"CREATE TABLE table1 ( a INT64, b FLOAT64 ) PRIMARY KEY (a)",
+		"CREATE TABLE table2 ( a INT64 ) PRIMARY KEY (a)",
 	}
+	assert.ElementsMatch(t, normalize(e), normalize(ddl))
 }
 
 func TestRows(t *testing.T) {
