@@ -87,7 +87,7 @@ type nameAndCols struct {
 }
 
 type rowSamples struct {
-	l          []*row
+	rows       []*row
 	bytes      int64 // Bytes consumed by l.
 	bytesLimit int64 // Limit on bytes consumed by l.
 }
@@ -223,7 +223,7 @@ func (conv *Conv) Unexpecteds() int64 {
 // Returns at most n rows.
 func (conv *Conv) SampleBadRows(n int) []string {
 	var l []string
-	for _, x := range conv.sampleBadRows.l {
+	for _, x := range conv.sampleBadRows.rows {
 		l = append(l, fmt.Sprintf("table=%s cols=%v data=%v\n", x.table, x.cols, x.vals))
 		if len(l) > n {
 			break

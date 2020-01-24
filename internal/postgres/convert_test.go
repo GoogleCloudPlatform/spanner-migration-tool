@@ -116,7 +116,7 @@ func TestGetBadRows(t *testing.T) {
 	conv := MakeConv()
 	row1 := row{"table", []string{"col1", "col2"}, []string{"a", "1"}}
 	row2 := row{"table", []string{"col1"}, []string{"bb"}}
-	conv.sampleBadRows.l = []*row{&row1, &row2}
+	conv.sampleBadRows.rows = []*row{&row1, &row2}
 	assert.Equal(t, 2, len(conv.SampleBadRows(100)))
 }
 
