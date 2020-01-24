@@ -28,7 +28,7 @@ import (
 // Conv contains all schema and data conversion state.
 type Conv struct {
 	mode           bool                       // False is schema mode, true is data mode.
-	spSchema       map[string]ddl.CreateTable // Maps Spanner table name to Spanner schema.
+	sSchema        map[string]ddl.CreateTable // Maps Spanner table name to Spanner schema.
 	syntheticPKeys map[string]syntheticPKey   // Maps Spanner table name to synthetic primary key (if needed).
 	pgSchema       map[string]pgTableDef      // Maps PostgreSQL table name Postgres schema information.
 	toSpanner      map[string]nameAndCols     // Maps from PostgreSQL table name to Spanner name and column mapping.
@@ -123,7 +123,7 @@ type statementStat struct {
 // MakeConv returns a default-configured Conv.
 func MakeConv() *Conv {
 	return &Conv{
-		spSchema:       make(map[string]ddl.CreateTable),
+		sSchema:        make(map[string]ddl.CreateTable),
 		syntheticPKeys: make(map[string]syntheticPKey),
 		pgSchema:       make(map[string]pgTableDef),
 		toSpanner:      make(map[string]nameAndCols),
@@ -170,7 +170,7 @@ func (conv *Conv) SetDataMode() {
 // GetDDL Schema returns the Spanner schema that has been constructed so far.
 func (conv *Conv) GetDDL(c ddl.Config) []string {
 	var ddl []string
-	for _, ct := range conv.spSchema {
+	for _, ct := range conv.sSchema {
 		ddl = append(ddl, ct.PrintCreateTable(c))
 	}
 	return ddl
@@ -235,13 +235,13 @@ func (conv *Conv) SampleBadRows(n int) []string {
 // AddPrimaryKeys analyzes all tables in conv.schema and adds synthetic primary
 // keys for any tables that don't have primary key.
 func (conv *Conv) AddPrimaryKeys() {
-	for t, ct := range conv.spSchema {
+	for t, ct := range conv.sSchema {
 		if len(ct.Pks) == 0 {
 			k := conv.buildPrimaryKey(t)
 			ct.Cols = append(ct.Cols, k)
 			ct.Cds[k] = ddl.ColumnDef{Name: k, T: ddl.Int64{}}
 			ct.Pks = []ddl.IndexKey{ddl.IndexKey{Col: k}}
-			conv.spSchema[t] = ct
+			conv.sSchema[t] = ct
 			conv.syntheticPKeys[t] = syntheticPKey{k, 0}
 		}
 	}
