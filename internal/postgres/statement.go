@@ -1,4 +1,4 @@
-// Copyright 2019 Google LLC
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,8 +16,6 @@ package postgres
 
 import (
 	"fmt"
-	"harbourbridge/internal"
-	"harbourbridge/spanner/ddl"
 	"reflect"
 	"strconv"
 	"strings"
@@ -25,6 +23,9 @@ import (
 	"unicode"
 
 	nodes "github.com/lfittl/pg_query_go/nodes"
+
+	"harbourbridge/internal"
+	"harbourbridge/spanner/ddl"
 )
 
 type copyOrInsert struct {
@@ -85,12 +86,12 @@ func processStatements(conv *Conv, statements []nodes.Node) *copyOrInsert {
 
 func processAlterTableStmt(conv *Conv, n nodes.AlterTableStmt) {
 	if n.Relation == nil {
-		statementError(conv, n, fmt.Errorf("Relation is nil"))
+		statementError(conv, n, fmt.Errorf("relation is nil"))
 		return
 	}
 	pgTable, spTable, err := getTableName(conv, *n.Relation)
 	if err != nil {
-		statementError(conv, n, fmt.Errorf("Can't get table name: %w", err))
+		statementError(conv, n, fmt.Errorf("can't get table name: %w", err))
 		return
 	}
 	if _, ok := conv.spSchema[spTable]; ok {
@@ -133,12 +134,12 @@ func processCreateStmt(conv *Conv, n nodes.CreateStmt) {
 	cds := make(map[string]ddl.ColumnDef)
 	pgCols := make(map[string]pgColDef)
 	if n.Relation == nil {
-		statementError(conv, n, fmt.Errorf("Relation is nil"))
+		statementError(conv, n, fmt.Errorf("relation is nil"))
 		return
 	}
 	pgTable, spTable, err := getTableName(conv, *n.Relation)
 	if err != nil {
-		statementError(conv, n, fmt.Errorf("Can't get table name: %w", err))
+		statementError(conv, n, fmt.Errorf("can't get table name: %w", err))
 		return
 	}
 	var constraints []constraint
@@ -173,16 +174,16 @@ func processCreateStmt(conv *Conv, n nodes.CreateStmt) {
 func processColumnDef(conv *Conv, n nodes.ColumnDef, pgTable string) (string, ddl.ColumnDef, pgColDef, []constraint, error) {
 	mods := getTypeMods(conv, n.TypeName.Typmods)
 	if n.Colname == nil {
-		return "", ddl.ColumnDef{}, pgColDef{}, nil, fmt.Errorf("Colname is nil")
+		return "", ddl.ColumnDef{}, pgColDef{}, nil, fmt.Errorf("colname is nil")
 	}
 	pgCol := *n.Colname
 	spCol, err := GetSpannerCol(conv, pgTable, pgCol, false)
 	if err != nil {
-		return "", ddl.ColumnDef{}, pgColDef{}, nil, fmt.Errorf("Can't get Spanner col: %w", err)
+		return "", ddl.ColumnDef{}, pgColDef{}, nil, fmt.Errorf("can't get Spanner col: %w", err)
 	}
 	tid, err := getTypeID(n.TypeName.Names.Items)
 	if err != nil {
-		return "", ddl.ColumnDef{}, pgColDef{}, nil, fmt.Errorf("Can't get type id for %s: %w", spCol, err)
+		return "", ddl.ColumnDef{}, pgColDef{}, nil, fmt.Errorf("can't get type id for %s: %w", spCol, err)
 	}
 	t, issues := getSpannerType(conv, tid, mods)
 
@@ -210,18 +211,18 @@ func processColumnDef(conv *Conv, n nodes.ColumnDef, pgTable string) (string, dd
 
 func processInsertStmt(conv *Conv, n nodes.InsertStmt) *copyOrInsert {
 	if n.Relation == nil {
-		statementError(conv, n, fmt.Errorf("Relation is nil"))
+		statementError(conv, n, fmt.Errorf("relation is nil"))
 		return nil
 	}
 	pgTable, spTable, err := getTableName(conv, *n.Relation)
 	if err != nil {
-		statementError(conv, n, fmt.Errorf("Can't get table name: %w", err))
+		statementError(conv, n, fmt.Errorf("can't get table name: %w", err))
 		return nil
 	}
 	conv.statsAddRow(spTable, conv.schemaMode())
 	cols, err := getCols(conv, pgTable, n.Cols.Items)
 	if err != nil {
-		statementError(conv, n, fmt.Errorf("Can't get col name: %w", err))
+		statementError(conv, n, fmt.Errorf("can't get col name: %w", err))
 		conv.statsAddBadRow(spTable, conv.schemaMode())
 		return nil
 	}
@@ -253,7 +254,7 @@ func processCopyStmt(conv *Conv, n nodes.CopyStmt) *copyOrInsert {
 			conv.unexpected(fmt.Sprintf("Processing %v statement: %s", reflect.TypeOf(n), err))
 		}
 	} else {
-		statementError(conv, n, fmt.Errorf("Relation is nil"))
+		statementError(conv, n, fmt.Errorf("relation is nil"))
 	}
 	var cols []string
 	for _, a := range n.Attlist.Items {
@@ -278,7 +279,7 @@ func processVariableSetStmt(conv *Conv, n nodes.VariableSetStmt) {
 			case nodes.A_Const:
 				tz, err := getString(c.Val)
 				if err != nil {
-					statementError(conv, n, fmt.Errorf("Can't get Arg: %w", err))
+					statementError(conv, n, fmt.Errorf("can't get Arg: %w", err))
 					return
 				}
 				loc, err := time.LoadLocation(tz)
@@ -288,7 +289,7 @@ func processVariableSetStmt(conv *Conv, n nodes.VariableSetStmt) {
 				}
 				conv.SetLocation(loc)
 			default:
-				statementError(conv, n, fmt.Errorf("Found %s node in Arg", reflect.TypeOf(c)))
+				statementError(conv, n, fmt.Errorf("found %s node in Arg", reflect.TypeOf(c)))
 				return
 			}
 		}
@@ -470,7 +471,7 @@ func getTableName(conv *Conv, n nodes.RangeVar) (string, string, error) {
 		l = append(l, *n.Schemaname)
 	}
 	if n.Relname == nil && *n.Relname == "" {
-		return "", "", fmt.Errorf("Relname is empty: can't build table name")
+		return "", "", fmt.Errorf("relname is empty: can't build table name")
 	}
 	l = append(l, *n.Relname)
 	pgTable := strings.Join(l, ".")
@@ -601,12 +602,12 @@ func getCols(conv *Conv, pgTable string, l []nodes.Node) (cols []string, err err
 			if r.Name != nil {
 				col, err := GetSpannerCol(conv, pgTable, *r.Name, true)
 				if err != nil {
-					return nil, fmt.Errorf("Can't get col name: %w", err)
+					return nil, fmt.Errorf("can't get col name: %w", err)
 				}
 				cols = append(cols, col)
 			}
 		default:
-			return nil, fmt.Errorf("Expecting ResTarget node but got %v node while processing Cols", reflect.TypeOf(r))
+			return nil, fmt.Errorf("expecting ResTarget node but got %v node while processing Cols", reflect.TypeOf(r))
 		}
 	}
 	return cols, nil
@@ -648,7 +649,7 @@ func getString(node nodes.Node) (string, error) {
 	case nodes.String:
 		return n.Str, nil
 	default:
-		return "", fmt.Errorf("Node %v is a not String node", reflect.TypeOf(node))
+		return "", fmt.Errorf("node %v is a not String node", reflect.TypeOf(node))
 	}
 }
 

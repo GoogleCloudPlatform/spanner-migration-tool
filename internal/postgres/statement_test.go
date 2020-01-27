@@ -1,4 +1,4 @@
-// Copyright 2019 Google LLC
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,11 +15,12 @@
 package postgres
 
 import (
-	"harbourbridge/spanner/ddl"
 	"testing"
 
 	pg_query "github.com/lfittl/pg_query_go"
 	"github.com/stretchr/testify/assert"
+
+	"harbourbridge/spanner/ddl"
 )
 
 // This is just a very basic smoke-test for processStatements.
