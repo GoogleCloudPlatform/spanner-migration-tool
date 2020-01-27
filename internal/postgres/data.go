@@ -112,11 +112,11 @@ func convBool(val string) (bool, error) {
 
 func convBytes(val string) ([]byte, error) {
 	if val[0:3] != `\\x` {
-		return []byte{}, fmt.Errorf("can't convert bytea data to bytes: doesn't start with \\x prefix")
+		return []byte{}, fmt.Errorf("can't convert to bytes: doesn't start with \\x prefix")
 	}
 	b, err := hex.DecodeString(val[3:])
 	if err != nil {
-		return b, fmt.Errorf("can't convert bytea data to bytes: %w", err)
+		return b, fmt.Errorf("can't convert to bytes: %w", err)
 	}
 	return b, err
 }

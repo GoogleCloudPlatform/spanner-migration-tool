@@ -81,7 +81,7 @@ func TestConvertData(t *testing.T) {
 			ddl.CreateTable{table, []string{col}, map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: ddl.Timestamp{}}}, []ddl.IndexKey{}, ""},
 			pgTableDef{map[string]pgColDef{col: pgColDef{id: tc.pgt}}})
 		loc, _ := time.LoadLocation("Australia/Sydney")
-		conv.SetLocation(loc)
+		conv.SetLocation(loc) // Set location so test is robust i.e. doesn't depent on local timezone.
 		ac, av, err := ConvertData(conv, table, table, []string{col}, []string{tc.in})
 		assert.Nil(t, err, tc.name)
 		assert.Equal(t, []string{col}, ac, tc.name+": column mismatch")
@@ -172,7 +172,7 @@ func TestConvertData(t *testing.T) {
 		{
 			name: "Error in bool",
 			cols: []string{"a", "b", "c"},
-			vals: []string{" 6", "6.6", "truee"},
+			vals: []string{"6", "6.6", "truee"},
 		},
 	}
 	for _, tc := range errorTests {
