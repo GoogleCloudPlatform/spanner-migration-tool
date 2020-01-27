@@ -1,4 +1,4 @@
-// Copyright 2019 Google LLC
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,8 +16,9 @@ package postgres
 
 import (
 	"fmt"
-	"harbourbridge/internal"
 	"strconv"
+
+	"harbourbridge/internal"
 )
 
 // GetSpannerTable maps a PostgreSQL table name into a legal Spanner table
@@ -30,7 +31,7 @@ import (
 // c) we consistently return the same name for this table.
 func GetSpannerTable(conv *Conv, pgTable string) (string, error) {
 	if pgTable == "" {
-		return "", fmt.Errorf("Bad parameter: table string is empty")
+		return "", fmt.Errorf("bad parameter: table string is empty")
 	}
 	if sp, found := conv.toSpanner[pgTable]; found {
 		return sp.name, nil
@@ -70,26 +71,26 @@ func GetSpannerTable(conv *Conv, pgTable string) (string, error) {
 // c) we consistently return the same name for the same col.
 func GetSpannerCol(conv *Conv, pgTable, pgCol string, mustExist bool) (string, error) {
 	if pgTable == "" {
-		return "", fmt.Errorf("Bad parameter: table string is empty")
+		return "", fmt.Errorf("bad parameter: table string is empty")
 	}
 	if pgCol == "" {
-		return "", fmt.Errorf("Bad parameter: col string is empty")
+		return "", fmt.Errorf("bad parameter: col string is empty")
 	}
 	sp, found := conv.toSpanner[pgTable]
 	if !found {
-		return "", fmt.Errorf("Unknown table %s", pgTable)
+		return "", fmt.Errorf("unknown table %s", pgTable)
 	}
 	// Sanity check: do reverse mapping and check consistency.
 	// Consider dropping this check.
 	pg, found := conv.toPostgres[sp.name]
 	if !found || pg.name != pgTable {
-		return "", fmt.Errorf("Internal error: table mapping inconsistency for table %s (%s)", pgTable, pg.name)
+		return "", fmt.Errorf("internal error: table mapping inconsistency for table %s (%s)", pgTable, pg.name)
 	}
 	if spCol, found := sp.cols[pgCol]; found {
 		return spCol, nil
 	}
 	if mustExist {
-		return "", fmt.Errorf("Table %s does not have a column %s", pgTable, pgCol)
+		return "", fmt.Errorf("table %s does not have a column %s", pgTable, pgCol)
 	}
 	spCol, _ := internal.FixName(pgCol)
 	if _, found := conv.toPostgres[sp.name].cols[spCol]; found {
