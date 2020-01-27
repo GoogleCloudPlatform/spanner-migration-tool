@@ -1,4 +1,4 @@
-// Copyright 2019 Google LLC
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ package postgres
 import (
 	"encoding/hex"
 	"fmt"
-	"harbourbridge/spanner/ddl"
 	"math/bits"
 	"reflect"
 	"strconv"
@@ -25,6 +24,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/civil"
+
+	"harbourbridge/spanner/ddl"
 )
 
 // ConvertData maps the PostgreSQL data in vals into Spanner data,
@@ -34,12 +35,12 @@ func ConvertData(conv *Conv, spTable, pgTable string, cols []string, vals []stri
 	spannerSchema, ok1 := conv.spSchema[spTable]
 	pgSchema, ok2 := conv.pgSchema[pgTable]
 	if !ok1 || !ok2 {
-		return []string{}, []interface{}{}, fmt.Errorf("Can't find table %s in schema", spTable)
+		return []string{}, []interface{}{}, fmt.Errorf("can't find table %s in schema", spTable)
 	}
 	var c []string
 	var v []interface{}
 	if len(cols) != len(vals) {
-		return []string{}, []interface{}{}, fmt.Errorf("Bad parameters: cols and vals have different lengths: len(cols)=%d, len(vals)=%d", len(cols), len(vals))
+		return []string{}, []interface{}{}, fmt.Errorf("bad parameters: cols and vals have different lengths: len(cols)=%d, len(vals)=%d", len(cols), len(vals))
 	}
 	for i, col := range cols {
 		if vals[i] == "\\N" { // PostgreSQL representation of empty column in COPY-FROM blocks.
@@ -47,11 +48,11 @@ func ConvertData(conv *Conv, spTable, pgTable string, cols []string, vals []stri
 		}
 		cd, ok := spannerSchema.Cds[col]
 		if !ok {
-			return []string{}, []interface{}{}, fmt.Errorf("Can't find col %s in schema", col)
+			return []string{}, []interface{}{}, fmt.Errorf("can't find col %s in schema", col)
 		}
 		pgCol, ok := pgSchema.cols[col]
 		if !ok {
-			return []string{}, []interface{}{}, fmt.Errorf("Can't find col %s in pgSchema", col)
+			return []string{}, []interface{}{}, fmt.Errorf("can't find col %s in pgSchema", col)
 		}
 		var x interface{}
 		var err error
@@ -97,25 +98,25 @@ func convScalar(spannerType ddl.ScalarType, pgType string, location *time.Locati
 	case ddl.Timestamp:
 		return convTimestamp(pgType, location, val)
 	default:
-		return val, fmt.Errorf("Data conversion not implemented for type %v", reflect.TypeOf(spannerType))
+		return val, fmt.Errorf("data conversion not implemented for type %v", reflect.TypeOf(spannerType))
 	}
 }
 
 func convBool(val string) (bool, error) {
 	b, err := strconv.ParseBool(val)
 	if err != nil {
-		return b, fmt.Errorf("Can't convert to bool: %w", err)
+		return b, fmt.Errorf("can't convert to bool: %w", err)
 	}
 	return b, err
 }
 
 func convBytes(val string) ([]byte, error) {
 	if val[0:3] != `\\x` {
-		return []byte{}, fmt.Errorf("Can't convert bytea data to bytes: doesn't start with \\x prefix")
+		return []byte{}, fmt.Errorf("can't convert bytea data to bytes: doesn't start with \\x prefix")
 	}
 	b, err := hex.DecodeString(val[3:])
 	if err != nil {
-		return b, fmt.Errorf("Can't convert bytea data to bytes: %w", err)
+		return b, fmt.Errorf("can't convert bytea data to bytes: %w", err)
 	}
 	return b, err
 }
@@ -123,7 +124,7 @@ func convBytes(val string) ([]byte, error) {
 func convDate(val string) (civil.Date, error) {
 	d, err := civil.ParseDate(val)
 	if err != nil {
-		return d, fmt.Errorf("Can't convert to date: %w", err)
+		return d, fmt.Errorf("can't convert to date: %w", err)
 	}
 	return d, err
 }
@@ -131,7 +132,7 @@ func convDate(val string) (civil.Date, error) {
 func convFloat64(val string) (float64, error) {
 	f, err := strconv.ParseFloat(val, 64)
 	if err != nil {
-		return f, fmt.Errorf("Can't convert to float64: %w", err)
+		return f, fmt.Errorf("can't convert to float64: %w", err)
 	}
 	return f, err
 }
@@ -139,7 +140,7 @@ func convFloat64(val string) (float64, error) {
 func convInt64(val string) (int64, error) {
 	i, err := strconv.ParseInt(val, 10, 64)
 	if err != nil {
-		return i, fmt.Errorf("Can't convert to int64: %w", err)
+		return i, fmt.Errorf("can't convert to int64: %w", err)
 	}
 	return i, err
 }
@@ -179,7 +180,7 @@ func convTimestamp(pgType string, location *time.Location, val string) (t time.T
 		t, err = time.Parse("2006-01-02 15:04:05", val)
 	}
 	if err != nil {
-		return t, fmt.Errorf("Can't convert to timestamp (posgres type: %s)", pgType)
+		return t, fmt.Errorf("can't convert to timestamp (posgres type: %s)", pgType)
 	}
 	return t, err
 }
@@ -187,7 +188,7 @@ func convTimestamp(pgType string, location *time.Location, val string) (t time.T
 func convArray(spannerType ddl.ScalarType, pgType pgColDef, location *time.Location, v string) (interface{}, error) {
 	v = strings.TrimSpace(v)
 	if v[0] != '{' || v[len(v)-1] != '}' {
-		return []interface{}{}, fmt.Errorf("Unrecognized data format for array: expected {v1, v2, ...}")
+		return []interface{}{}, fmt.Errorf("unrecognized data format for array: expected {v1, v2, ...}")
 	}
 	a := strings.Split(v[1:len(v)-1], ",")
 
@@ -262,5 +263,5 @@ func convArray(spannerType ddl.ScalarType, pgType pgColDef, location *time.Locat
 		}
 		return r, nil
 	}
-	return []interface{}{}, fmt.Errorf("Array type conversion not implemented for type %v", reflect.TypeOf(spannerType))
+	return []interface{}{}, fmt.Errorf("array type conversion not implemented for type %v", reflect.TypeOf(spannerType))
 }

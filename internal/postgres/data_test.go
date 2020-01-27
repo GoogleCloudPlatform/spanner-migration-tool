@@ -1,4 +1,4 @@
-// Copyright 2019 Google LLC
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,13 +16,14 @@ package postgres
 
 import (
 	"fmt"
-	"harbourbridge/spanner/ddl"
 	"math/bits"
 	"testing"
 	"time"
 
 	"cloud.google.com/go/civil"
 	"github.com/stretchr/testify/assert"
+
+	"harbourbridge/spanner/ddl"
 )
 
 func TestConvertData(t *testing.T) {
