@@ -36,7 +36,7 @@ While continuing to support the turnkey PostgreSQL evaluation use-case, we plan
 to expand to other databases and as well as evolve the HarbourBridge codebase to
 address production database migration needs:
 
-* **Support for other databases.** MySQL would be a logical next-step, but we
+* **Support for other databases.** MySQL would be a logical next step, but we
 want to go beyond that and plan for any source database that users might want to
 use. To get there, we will need to find a more scalable way to access schema and
 data from the source database. While pg_dump was a useful way to get
