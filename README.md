@@ -45,8 +45,12 @@ of how PostgreSQL is mapped to Spanner can be found in the
 This tool is part of the Cloud Spanner Ecosystem, a community contributed and
 supported open-source repository. Please [report
 issues](https://github.com/cloudspannerecosystem/harbourbridge/issues) and send
-pull requests. Note that this tool is not officially supported as part of the
-Cloud Spanner product.
+pull requests. See the [HarbourBridge
+Whitepaper](https://github.com/cloudspannerecosystem/harbourbridge/blob/master/whitepaper.md)
+for a discussion of our plans for the tool.
+
+Note that the HarbourBridge tool is not an officially supported Google product
+and is not officially supported as part of the Cloud Spanner product.
 
 ## Quickstart Guide
 
