@@ -1,5 +1,5 @@
 ***WARNING: HarbourBridge is currently under development, and not all modules
-have been checked in yet. In short, it probably won't compile right now. Please
+have been merged yet. In short, it probably won't compile right now. Please
 check back later.  Or take a look at [pending pull
 requests](https://github.com/cloudspannerecosystem/harbourbridge/pulls).***
 
