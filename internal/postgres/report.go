@@ -123,8 +123,8 @@ func buildTableReport(conv *Conv, pgTable string, badWrites map[string]int64) ta
 func buildTableReportBody(conv *Conv, pgTable string, issues map[string][]schemaIssue, spSchema ddl.CreateTable, pgSchema pgTableDef, syntheticPK *string) []tableReportBody {
 	var body []tableReportBody
 	for _, p := range []struct {
-		heading string
-		s       severity
+		heading  string
+		severity severity
 	}{
 		{"Warning", warning},
 		{"Note", note},
@@ -140,14 +140,14 @@ func buildTableReportBody(conv *Conv, pgTable string, issues map[string][]schema
 			// Warnings about synthetic primary keys must be handled as a special case
 			// because we have a Spanner column with no matching PostgreSQL col.
 			// Much of the generic code for processing issues assumes we have both.
-			if p.s == warning {
+			if p.severity == warning {
 				l = append(l, fmt.Sprintf("Column '%s' was added because this table didn't have a primary key. Spanner requires a primary key for every table", *syntheticPK))
 			}
 		}
 		issueBatcher := make(map[schemaIssue]bool)
 		for _, pgCol := range cols {
 			for _, i := range issues[pgCol] {
-				if issueDB[i].s != p.s {
+				if issueDB[i].severity != p.severity {
 					continue
 				}
 				if issueDB[i].batch {
@@ -162,7 +162,7 @@ func buildTableReportBody(conv *Conv, pgTable string, issues map[string][]schema
 				if err != nil {
 					conv.unexpected(err.Error())
 				}
-				pgType := prType(pgSchema.cols[pgCol])
+				pgType := printType(pgSchema.cols[pgCol])
 				sType := spSchema.Cds[spCol].PrintColumnDefType()
 				// A note on case: Both PostgreSQL types and Spanner types are case
 				// insensitive. PostgreSQL often uses lower case (e.g. pg_dump uses
@@ -220,19 +220,19 @@ func fillRowStats(conv *Conv, spTable string, badWrites map[string]int64, tr *ta
 // TODO: add links in these descriptions to further documentation
 // e.g. for timestamp description.
 var issueDB = map[schemaIssue]struct {
-	brief string // Short description of issue.
-	s     severity
-	batch bool // Whether multiple instances of this issue are combined.
+	brief    string // Short description of issue.
+	severity severity
+	batch    bool // Whether multiple instances of this issue are combined.
 }{
-	defaultValue:          {brief: "Some columns have default values which Spanner does not support", s: warning, batch: true},
-	foreignKey:            {brief: "Spanner does not support foreign keys", s: warning},
-	multiDimensionalArray: {brief: "Spanner doesn't support multi-dimensional arrays", s: warning},
-	noGoodType:            {brief: "No appropriate Spanner type", s: warning},
-	numeric:               {brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", s: warning},
-	numericThatFits:       {brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", s: note},
-	serial:                {brief: "Spanner does not support autoincrementing types", s: warning},
-	timestamp:             {brief: "Spanner timestamp is closer to PostgreSQL timestamptz", s: note, batch: true},
-	widened:               {brief: "Some columns will consume more storage in Spanner", s: note, batch: true},
+	defaultValue:          {brief: "Some columns have default values which Spanner does not support", severity: warning, batch: true},
+	foreignKey:            {brief: "Spanner does not support foreign keys", severity: warning},
+	multiDimensionalArray: {brief: "Spanner doesn't support multi-dimensional arrays", severity: warning},
+	noGoodType:            {brief: "No appropriate Spanner type", severity: warning},
+	numeric:               {brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", severity: warning},
+	numericThatFits:       {brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", severity: note},
+	serial:                {brief: "Spanner does not support autoincrementing types", severity: warning},
+	timestamp:             {brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: note, batch: true},
+	widened:               {brief: "Some columns will consume more storage in Spanner", severity: note, batch: true},
 }
 
 type severity int
@@ -258,9 +258,9 @@ func analyzeCols(conv *Conv, pgTable, spTable string) (map[string][]schemaIssue,
 		m[c] = pc.issues
 		for _, i := range pc.issues {
 			switch {
-			case issueDB[i].s == warning && issueDB[i].batch:
+			case issueDB[i].severity == warning && issueDB[i].batch:
 				warningBatcher[i] = true
-			case issueDB[i].s == warning && !issueDB[i].batch:
+			case issueDB[i].severity == warning && !issueDB[i].batch:
 				colWarning = true
 			}
 		}
