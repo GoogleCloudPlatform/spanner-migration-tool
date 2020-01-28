@@ -86,12 +86,12 @@ func processStatements(conv *Conv, statements []nodes.Node) *copyOrInsert {
 
 func processAlterTableStmt(conv *Conv, n nodes.AlterTableStmt) {
 	if n.Relation == nil {
-		statementError(conv, n, fmt.Errorf("relation is nil"))
+		logStmtError(conv, n, fmt.Errorf("relation is nil"))
 		return
 	}
 	pgTable, spTable, err := getTableName(conv, *n.Relation)
 	if err != nil {
-		statementError(conv, n, fmt.Errorf("can't get table name: %w", err))
+		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
 		return
 	}
 	if _, ok := conv.spSchema[spTable]; ok {
@@ -106,7 +106,7 @@ func processAlterTableStmt(conv *Conv, n nodes.AlterTableStmt) {
 				case a.Subtype == nodes.AT_AddConstraint && a.Def != nil:
 					switch d := a.Def.(type) {
 					case nodes.Constraint:
-						updateSchema(conv, spTable, pgTable, analyzeConstraints(conv, n, pgTable, []nodes.Node{d}), "ALTER TABLE")
+						updateSchema(conv, spTable, pgTable, extractConstraints(conv, n, pgTable, []nodes.Node{d}), "ALTER TABLE")
 						conv.schemaStatement([]nodes.Node{n, a, d})
 					default:
 						conv.skipStatement([]nodes.Node{n, a, d})
@@ -134,12 +134,12 @@ func processCreateStmt(conv *Conv, n nodes.CreateStmt) {
 	cds := make(map[string]ddl.ColumnDef)
 	pgCols := make(map[string]pgColDef)
 	if n.Relation == nil {
-		statementError(conv, n, fmt.Errorf("relation is nil"))
+		logStmtError(conv, n, fmt.Errorf("relation is nil"))
 		return
 	}
 	pgTable, spTable, err := getTableName(conv, *n.Relation)
 	if err != nil {
-		statementError(conv, n, fmt.Errorf("can't get table name: %w", err))
+		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
 		return
 	}
 	var constraints []constraint
@@ -148,7 +148,7 @@ func processCreateStmt(conv *Conv, n nodes.CreateStmt) {
 		case nodes.ColumnDef:
 			col, cd, pgCol, cdConstraints, err := processColumnDef(conv, i, pgTable)
 			if err != nil {
-				statementError(conv, n, err)
+				logStmtError(conv, n, err)
 				return
 			}
 			cols = append(cols, col)
@@ -159,7 +159,7 @@ func processCreateStmt(conv *Conv, n nodes.CreateStmt) {
 			// Note: there should be at most one Constraint nodes in
 			// n.TableElts.Items. We don't check this. We just keep
 			// collecting constraints.
-			constraints = analyzeConstraints(conv, n, pgTable, []nodes.Node{i})
+			constraints = extractConstraints(conv, n, pgTable, []nodes.Node{i})
 		default:
 			conv.unexpected(fmt.Sprintf("Found %s node while processing CreateStmt TableElts", prNodeType(i)))
 		}
@@ -204,25 +204,25 @@ func processColumnDef(conv *Conv, n nodes.ColumnDef, pgTable string) (string, dd
 		Name:    spCol,
 		T:       t,
 		IsArray: len(a) == 1,
-		Comment: mkColComment(pgCol, prType(pgSchema)),
+		Comment: mkColComment(pgCol, printType(pgSchema)),
 	}
 	return spCol, cd, pgSchema, constraints, nil
 }
 
 func processInsertStmt(conv *Conv, n nodes.InsertStmt) *copyOrInsert {
 	if n.Relation == nil {
-		statementError(conv, n, fmt.Errorf("relation is nil"))
+		logStmtError(conv, n, fmt.Errorf("relation is nil"))
 		return nil
 	}
 	pgTable, spTable, err := getTableName(conv, *n.Relation)
 	if err != nil {
-		statementError(conv, n, fmt.Errorf("can't get table name: %w", err))
+		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
 		return nil
 	}
 	conv.statsAddRow(spTable, conv.schemaMode())
 	cols, err := getCols(conv, pgTable, n.Cols.Items)
 	if err != nil {
-		statementError(conv, n, fmt.Errorf("can't get col name: %w", err))
+		logStmtError(conv, n, fmt.Errorf("can't get col name: %w", err))
 		conv.statsAddBadRow(spTable, conv.schemaMode())
 		return nil
 	}
@@ -254,7 +254,7 @@ func processCopyStmt(conv *Conv, n nodes.CopyStmt) *copyOrInsert {
 			conv.unexpected(fmt.Sprintf("Processing %v statement: %s", reflect.TypeOf(n), err))
 		}
 	} else {
-		statementError(conv, n, fmt.Errorf("relation is nil"))
+		logStmtError(conv, n, fmt.Errorf("relation is nil"))
 	}
 	var cols []string
 	for _, a := range n.Attlist.Items {
@@ -279,17 +279,17 @@ func processVariableSetStmt(conv *Conv, n nodes.VariableSetStmt) {
 			case nodes.A_Const:
 				tz, err := getString(c.Val)
 				if err != nil {
-					statementError(conv, n, fmt.Errorf("can't get Arg: %w", err))
+					logStmtError(conv, n, fmt.Errorf("can't get Arg: %w", err))
 					return
 				}
 				loc, err := time.LoadLocation(tz)
 				if err != nil {
-					statementError(conv, n, err)
+					logStmtError(conv, n, err)
 					return
 				}
 				conv.SetLocation(loc)
 			default:
-				statementError(conv, n, fmt.Errorf("found %s node in Arg", reflect.TypeOf(c)))
+				logStmtError(conv, n, fmt.Errorf("found %s node in Arg", reflect.TypeOf(c)))
 				return
 			}
 		}
@@ -298,9 +298,8 @@ func processVariableSetStmt(conv *Conv, n nodes.VariableSetStmt) {
 
 // getSpannerType determines the Spanner type for the scalar postgres type
 // defined by id and mods. This is the core postgres-to-Spanner type mapping.
-// getSpannerType returns the Spanner type and a bool to indicate whether
-// the conversion was successful. Unsuccessful conversions return STRING(MAX)
-// type.
+// getSpannerType returns the Spanner type and the schema issues encountered
+// during conversion.
 func getSpannerType(conv *Conv, id string, mods []int64) (ddl.ScalarType, []schemaIssue) {
 	maxExpectedMods := func(n int) {
 		if len(mods) > n {
@@ -425,7 +424,7 @@ func getTypeID(l []nodes.Node) (string, error) {
 	return strings.Join(ids, "."), nil
 }
 
-func prType(pgCol pgColDef) string {
+func printType(pgCol pgColDef) string {
 	s := pgCol.id
 	if len(pgCol.mods) > 0 {
 		var l []string
@@ -487,10 +486,10 @@ type constraint struct {
 	keys []string
 }
 
-// analyzeConstraints traverses a list of nodes (expecting them to be
+// extractConstraints traverses a list of nodes (expecting them to be
 // Constraint nodes), and collects the contraints they represent as
 // a list of constraint-type/key-list pairs.
-func analyzeConstraints(conv *Conv, n nodes.Node, pgTable string, l []nodes.Node) (cs []constraint) {
+func extractConstraints(conv *Conv, n nodes.Node, pgTable string, l []nodes.Node) (cs []constraint) {
 	for _, i := range l {
 		switch d := i.(type) {
 		case nodes.Constraint:
@@ -513,13 +512,13 @@ func analyzeConstraints(conv *Conv, n nodes.Node, pgTable string, l []nodes.Node
 	return cs
 }
 
-// analyzeColDefConstraints is like analyzeConstraints, but is specifially for
+// analyzeColDefConstraints is like extractConstraints, but is specifially for
 // ColDef constraints. These constraints don't specify a key since they
 // are constraints for the column defined by ColDef.
 func analyzeColDefConstraints(conv *Conv, n nodes.Node, pgTable string, l []nodes.Node, pgCol string) (cs []constraint) {
 	// Do generic constraint processing and then set the keys of each constraint
 	// to {pgCol}.
-	for _, c := range analyzeConstraints(conv, n, pgTable, l) {
+	for _, c := range extractConstraints(conv, n, pgTable, l) {
 		if len(c.keys) != 0 {
 			conv.unexpected("ColumnDef constraint has keys")
 		}
@@ -530,15 +529,15 @@ func analyzeColDefConstraints(conv *Conv, n nodes.Node, pgTable string, l []node
 }
 
 // getConstraint finds the constraint-type ct in the constraint list cs.
-// It returns true (along with the associated keys) if it finds ct,
-// and false otherwise.
-func getConstraint(ct nodes.ConstrType, cs []constraint) (bool, []string) {
+// It returns the keys from the constraint (if found) and a boolean to
+// indicate if the constraint was found or not.
+func getConstraint(ct nodes.ConstrType, cs []constraint) ([]string, bool) {
 	for _, c := range cs {
 		if c.ct == ct {
-			return true, c.keys
+			return c.keys, true
 		}
 	}
-	return false, []string{}
+	return []string{}, false
 }
 
 // updateSchema updates the schema for spTable based on the given constraints.
@@ -547,7 +546,7 @@ func updateSchema(conv *Conv, spTable, pgTable string, cs []constraint, s string
 	if len(cs) == 0 {
 		return
 	}
-	if found, keys := getConstraint(nodes.CONSTR_PRIMARY, cs); found {
+	if keys, found := getConstraint(nodes.CONSTR_PRIMARY, cs); found {
 		ct := conv.spSchema[spTable]
 		checkEmpty(conv, ct.Pks, s)
 		ct.Pks = toDdlPkeys(conv, pgTable, keys) // Drop any previous primary keys.
@@ -559,7 +558,7 @@ func updateSchema(conv *Conv, spTable, pgTable string, cs []constraint, s string
 		ct.Cds = setNotNull(ct.Pks, ct.Cds)
 		conv.spSchema[spTable] = ct
 	}
-	if found, keys := getConstraint(nodes.CONSTR_NOTNULL, cs); found {
+	if keys, found := getConstraint(nodes.CONSTR_NOTNULL, cs); found {
 		ct := conv.spSchema[spTable]
 		ct.Cds = setNotNull(toDdlPkeys(conv, pgTable, keys), ct.Cds)
 		conv.spSchema[spTable] = ct
@@ -639,7 +638,7 @@ func getVals(conv *Conv, l [][]nodes.Node, n nodes.InsertStmt) (values []string)
 	return values
 }
 
-func statementError(conv *Conv, n nodes.Node, err error) {
+func logStmtError(conv *Conv, n nodes.Node, err error) {
 	conv.unexpected(fmt.Sprintf("Processing %v statement: %s", reflect.TypeOf(n), err))
 	conv.errorInStatement([]nodes.Node{n})
 }
