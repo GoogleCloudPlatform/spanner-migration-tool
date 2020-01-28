@@ -1,4 +1,4 @@
-// Copyright 2019 Google LLC
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,13 +16,14 @@ package postgres
 
 import (
 	"fmt"
-	"harbourbridge/internal"
-	"harbourbridge/spanner/ddl"
 	"reflect"
 	"strings"
 	"time"
 
 	nodes "github.com/lfittl/pg_query_go/nodes"
+
+	"harbourbridge/internal"
+	"harbourbridge/spanner/ddl"
 )
 
 // Conv contains all schema and data conversion state.
