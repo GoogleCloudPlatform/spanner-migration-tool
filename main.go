@@ -80,7 +80,7 @@ func main() {
 	printPermissionsWarning()
 	f, n, err := getSeekable(os.Stdin)
 	if err != nil {
-		fmt.Printf("\nCan't get seekable input file: %v\n", err)
+		printSeekError(err)
 		panic(fmt.Errorf("can't get seekable input file"))
 	}
 	defer f.Close()
@@ -446,6 +446,14 @@ access the created database. Note that PostgreSQL table-level and row-level
 ACLs are dropped during conversion since they are not supported by Spanner.
 
 `)
+}
+
+func printSeekError(err error) {
+	fmt.Printf("\nCan't get seekable input file: %v\n", err)
+	fmt.Printf("Likely cause: not enough space in %s.\n", os.TempDir())
+	fmt.Printf("Try writing pg_dump output to a file first i.e.\n")
+	fmt.Printf("  pg_dump > tmpfile\n")
+	fmt.Printf("  harbourbridge < tmpfile\n")
 }
 
 func containsAny(s string, l []string) bool {
