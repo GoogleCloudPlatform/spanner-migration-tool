@@ -28,7 +28,7 @@ import (
 func GenerateReport(conv *Conv, w *bufio.Writer, badWrites map[string]int64) string {
 	reports := analyzeTables(conv, badWrites)
 	summary := generateSummary(conv, reports, badWrites)
-	prHeading("Summary of Conversion", w)
+	writeHeading(w, "Summary of Conversion")
 	w.WriteString(summary)
 	ignored := ignoredStatements(conv)
 	w.WriteString("\n")
@@ -51,8 +51,8 @@ func GenerateReport(conv *Conv, w *bufio.Writer, badWrites map[string]int64) str
 		if t.pgTable != t.spTable {
 			h = h + fmt.Sprintf(" (mapped to Spanner table %s)", t.spTable)
 		}
-		prHeading(h, w)
-		w.WriteString(prConvStats(t.rows, t.badRows, t.cols, t.warnings, t.syntheticPKey != "", false))
+		writeHeading(w, h)
+		w.WriteString(rateConversion(t.rows, t.badRows, t.cols, t.warnings, t.syntheticPKey != "", false))
 		w.WriteString("\n")
 		for _, x := range t.body {
 			fmt.Fprintf(w, "%s\n", x.heading)
@@ -335,7 +335,7 @@ func ok(total, badCount int64) bool {
 	return badCount < total/3
 }
 
-func prConvStats(rows, badRows, cols, warnings int64, missingPKey, summary bool) string {
+func rateConversion(rows, badRows, cols, warnings int64, missingPKey, summary bool) string {
 	return fmt.Sprintf("Schema conversion: %s.\n", rateSchema(cols, warnings, missingPKey, summary)) +
 		fmt.Sprintf("Data conversion: %s.\n", rateData(rows, badRows))
 }
@@ -365,7 +365,7 @@ func generateSummary(conv *Conv, r []tableReport, badWrites map[string]int64) st
 	for _, n := range badWrites {
 		badRows += n
 	}
-	return prConvStats(rows, badRows, cols, warnings, missingPKey, true)
+	return rateConversion(rows, badRows, cols, warnings, missingPKey, true)
 }
 
 func ignoredStatements(conv *Conv) (l []string) {
@@ -402,7 +402,7 @@ func writeStmtStats(conv *Conv, w *bufio.Writer) {
 	sort.Slice(l, func(i, j int) bool {
 		return l[i].statement < l[j].statement
 	})
-	prHeading("Statements Processed", w)
+	writeHeading(w, "Statements Processed")
 	w.WriteString("Analysis of statements in pg_dump output, broken down by statement type.\n")
 	w.WriteString("  schema: statements successfully processed for Spanner schema information.\n")
 	w.WriteString("    data: statements successfully processed for data.\n")
@@ -426,7 +426,7 @@ func writeUnexpectedConditions(conv *Conv, w *bufio.Writer) {
 			fmt.Fprintf(w, "Note: there were %d pg_dump reparse events while looking for statement boundaries.\n\n", conv.stats.reparsed)
 		}
 	}
-	prHeading("Unexpected Conditions", w)
+	writeHeading(w, "Unexpected Conditions")
 	if len(conv.stats.unexpected) == 0 {
 		w.WriteString("There were no unexpected conditions encountered during processing.\n\n")
 		reparseInfo()
@@ -488,7 +488,7 @@ func pct(total, bad int64) string {
 	return fmt.Sprintf("%2.0f", pct)
 }
 
-func prHeading(s string, w *bufio.Writer) {
+func writeHeading(w *bufio.Writer, s string) {
 	w.WriteString(strings.Join([]string{
 		"----------------------------\n",
 		s, "\n",
