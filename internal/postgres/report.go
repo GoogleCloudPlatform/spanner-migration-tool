@@ -26,16 +26,16 @@ import (
 // GenerateReport analyzes schema and data conversion stats and writes a
 // detailed report to w and returns a brief summary (as a string).
 func GenerateReport(conv *Conv, w *bufio.Writer, badWrites map[string]int64) string {
-	r := analyzeTables(conv, badWrites)
-	summary := prSummary(conv, r, badWrites)
-	w.WriteString(prHeading("Summary of Conversion"))
+	reports := analyzeTables(conv, badWrites)
+	summary := generateSummary(conv, reports, badWrites)
+	prHeading("Summary of Conversion", w)
 	w.WriteString(summary)
 	ignored := ignoredStatements(conv)
 	w.WriteString("\n")
 	if len(ignored) > 0 {
 		justifyLines(w, fmt.Sprintf("Note that the following PostgreSQL statements "+
 			"were detected but ignored: %s.",
-			strings.Join(ignored, ", ")), 80, "")
+			strings.Join(ignored, ", ")), 80, 0)
 		w.WriteString("\n\n")
 	}
 	justifyLines(w, "The remainder of this report provides stats on "+
@@ -43,26 +43,26 @@ func GenerateReport(conv *Conv, w *bufio.Writer, badWrites map[string]int64) str
 		"listing of schema and data conversion details. "+
 		"For background on the schema and data conversion process used, "+
 		"and explanations of the terms and notes used in this "+
-		"report, see HarbourBridge's README.", 80, "")
+		"report, see HarbourBridge's README.", 80, 0)
 	w.WriteString("\n\n")
-	statementStats(conv, w)
-	for _, t := range r {
+	writeStmtStats(conv, w)
+	for _, t := range reports {
 		h := fmt.Sprintf("Table %s", t.pgTable)
 		if t.pgTable != t.spTable {
 			h = h + fmt.Sprintf(" (mapped to Spanner table %s)", t.spTable)
 		}
-		w.WriteString(prHeading(h))
+		prHeading(h, w)
 		w.WriteString(prConvStats(t.rows, t.badRows, t.cols, t.warnings, t.syntheticPKey != "", false))
 		w.WriteString("\n")
 		for _, x := range t.body {
 			fmt.Fprintf(w, "%s\n", x.heading)
 			for i, l := range x.lines {
-				justifyLines(w, fmt.Sprintf("%d) %s.\n", i+1, l), 80, "   ")
+				justifyLines(w, fmt.Sprintf("%d) %s.\n", i+1, l), 80, 3)
 			}
 			w.WriteString("\n")
 		}
 	}
-	unexpectedConditions(conv, w)
+	writeUnexpectedConditions(conv, w)
 	return summary
 }
 
@@ -201,11 +201,16 @@ func buildTableReportBody(conv *Conv, pgTable string, issues map[string][]schema
 
 func fillRowStats(conv *Conv, spTable string, badWrites map[string]int64, tr *tableReport) {
 	rows := conv.stats.rows[spTable]
-	goodRows := conv.stats.goodRows[spTable]
+	goodConvRows := conv.stats.goodRows[spTable]
 	badConvRows := conv.stats.badRows[spTable]
 	badRowWrites := badWrites[spTable]
-	if rows != goodRows+badConvRows || badRowWrites > goodRows {
-		conv.unexpected(fmt.Sprintf("Inconsistent row counts for table %s: %d %d %d %d\n", spTable, rows, goodRows, badConvRows, badRowWrites))
+	// Note on rows:
+	// rows: all rows we encountered during processing.
+	// goodConvRows: rows we successfully converted.
+	// badConvRows: rows we failed to convert.
+	// badRowWrites: rows we converted, but could not write to Spanner.
+	if rows != goodConvRows+badConvRows || badRowWrites > goodConvRows {
+		conv.unexpected(fmt.Sprintf("Inconsistent row counts for table %s: %d %d %d %d\n", spTable, rows, goodConvRows, badConvRows, badRowWrites))
 	}
 	tr.rows = rows
 	tr.badRows = badConvRows + badRowWrites
@@ -335,9 +340,10 @@ func prConvStats(rows, badRows, cols, warnings int64, missingPKey, summary bool)
 		fmt.Sprintf("Data conversion: %s.\n", rateData(rows, badRows))
 }
 
-func prSummary(conv *Conv, r []tableReport, badWrites map[string]int64) string {
-	var cols, warnings int64
-	var missingPKey bool
+func generateSummary(conv *Conv, r []tableReport, badWrites map[string]int64) string {
+	cols := int64(0)
+	warnings := int64(0)
+	missingPKey := false
 	for _, t := range r {
 		weight := t.rows // Weight col data by how many rows in table.
 		if weight == 0 { // Tables without data count as if they had one row.
@@ -383,7 +389,7 @@ func ignoredStatements(conv *Conv) (l []string) {
 	return l
 }
 
-func statementStats(conv *Conv, w *bufio.Writer) {
+func writeStmtStats(conv *Conv, w *bufio.Writer) {
 	type stat struct {
 		statement string
 		count     int64
@@ -396,7 +402,7 @@ func statementStats(conv *Conv, w *bufio.Writer) {
 	sort.Slice(l, func(i, j int) bool {
 		return l[i].statement < l[j].statement
 	})
-	w.WriteString(prHeading("Statements Processed"))
+	prHeading("Statements Processed", w)
 	w.WriteString("Analysis of statements in pg_dump output, broken down by statement type.\n")
 	w.WriteString("  schema: statements successfully processed for Spanner schema information.\n")
 	w.WriteString("    data: statements successfully processed for data.\n")
@@ -414,13 +420,13 @@ func statementStats(conv *Conv, w *bufio.Writer) {
 	w.WriteString("\n")
 }
 
-func unexpectedConditions(conv *Conv, w *bufio.Writer) {
+func writeUnexpectedConditions(conv *Conv, w *bufio.Writer) {
 	reparseInfo := func() {
 		if conv.stats.reparsed > 0 {
 			fmt.Fprintf(w, "Note: there were %d pg_dump reparse events while looking for statement boundaries.\n\n", conv.stats.reparsed)
 		}
 	}
-	w.WriteString(prHeading("Unexpected Conditions"))
+	prHeading("Unexpected Conditions", w)
 	if len(conv.stats.unexpected) == 0 {
 		w.WriteString("There were no unexpected conditions encountered during processing.\n\n")
 		reparseInfo()
@@ -442,17 +448,18 @@ func unexpectedConditions(conv *Conv, w *bufio.Writer) {
 	reparseInfo()
 }
 
-// justifyLines writes data out to w, adding newlines between words
-// to keep line length under 'limit'.
-func justifyLines(w *bufio.Writer, s string, limit int, indent string) {
+// justifyLines writes s out to w, adding newlines between words
+// to keep line length under 'limit'. Newlines are indented
+// 'indent' spaces.
+func justifyLines(w *bufio.Writer, s string, limit int, indent int) {
 	n := 0
 	startOfLine := true
 	words := strings.Split(s, " ") // This only handles spaces (newlines, tabs ignored).
 	for _, x := range words {
 		if n+len(x) > limit && !startOfLine {
 			w.WriteString("\n")
-			w.WriteString(indent)
-			n = len(indent)
+			w.WriteString(strings.Repeat(" ", indent))
+			n = indent
 			startOfLine = true
 		}
 		if startOfLine {
@@ -481,9 +488,9 @@ func pct(total, bad int64) string {
 	return fmt.Sprintf("%2.0f", pct)
 }
 
-func prHeading(s string) string {
-	return strings.Join([]string{
+func prHeading(s string, w *bufio.Writer) {
+	w.WriteString(strings.Join([]string{
 		"----------------------------\n",
 		s, "\n",
-		"----------------------------\n"}, "")
+		"----------------------------\n"}, ""))
 }
