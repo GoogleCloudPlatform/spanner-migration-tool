@@ -1,8 +1,3 @@
-***WARNING: HarbourBridge is currently under development, and not all modules
-have been merged yet. In short, it probably won't compile right now. Please
-check back later.  Or take a look at [pending pull
-requests](https://github.com/cloudspannerecosystem/harbourbridge/pulls).***
-
 # HarbourBridge: Turnkey Postgres-to-Spanner Evaluation
 
 HarbourBridge is a stand-alone open-source tool for Cloud Spanner evaluation,
@@ -386,8 +381,8 @@ PGPORT
 PGUSER
 ```
 
-It is also possible to configure access via the command-line options `--host`,
-`--port` and `--username`.
+It is also possible to configure access via pg_dump's command-line options
+`--host`, `--port` and `--username`.
 
 ### 2. Verify pg_dump output
 
@@ -409,29 +404,53 @@ details about formats.
 
 ### 3. Debugging HarbourBridge
 
-The HarbourBridge tool can fail for a number of reasons
+The HarbourBridge tool can fail for a number of reasons.
 
--   Unparsable pg_dump: HarbourBridge uses the
-    [pg_query_go](https://github.com/lfittl/pg_query_go) library. It is possible
-    that the pg_dump output is corrupted or uses features that aren't parseable.
-    Parsing errors should generate an error message of the form `Error parsing
-    last 54321 line(s) of input`.
+#### 3.1 No space left on device
 
--   Credentials problems: HarbourBridge uses standard Google Cloud credential
-    mechanisms for accessing Cloud Spanner. If this is mis-configured, you may
-    see errors containing "unauthenticated", or "cannot fetch token", or "could
-    not find default credentials". You might need to run `gcloud auth
-    application-default login`. See the [Before you begin](#before-you-being)
-    section for details.
+HarbourBridge needs to read the pg_dump output twice, once to build a schema and
+once for data ingestion. When pg_dump output is directly piped to HarbourBridge,
+`stdin` is not seekable, and so we write the output to a temporary file. That
+temporary file is created via go's ioutil.TempFile. On many systems, this
+creates a file in `/tmp`, which is sometimes configured with minimal space. A
+simple workaround is to separately run pg_dump and write its output to a file in
+a directory with sufficient space.  For example, if the current working
+directory has space, then:
 
--   Can't create database: the error message printed by the tool should help
-    identify the cause. It could be an API permissions issue. For example, the
-    Cloud Spanner API may not be appropriately configured. See
-    [Before you begin](#before-you-being) section for details. Alternatively,
-    you have have hit the limit on the number of databases per instances
-    (currently 100). This can occur if you re-run the HarbourBridge tool many
-    times, since each run creates a new database. In this case you'll need to
-    [delete some databases](https://cloud.google.com/spanner/docs/getting-started/go/#delete_the_database).
+```sh
+pg_dump > tmpfile
+harbourbridge < tmpfile
+```
+
+Make sure you cleanup the tmpfile after HarbourBridge has been run. Another
+option is to set the location of go's TempFile e.g. by setting the `TMPDIR`
+environment variable.
+
+#### 3.2 Unparsable pg_dump
+
+HarbourBridge uses the [pg_query_go](https://github.com/lfittl/pg_query_go)
+library. It is possible that the pg_dump output is corrupted or uses features
+that aren't parseable.  Parsing errors should generate an error message of the
+form `Error parsing last 54321 line(s) of input`.
+
+#### 3.2 Credentials problems
+
+HarbourBridge uses standard Google Cloud credential mechanisms for accessing
+Cloud Spanner. If this is mis-configured, you may see errors containing
+"unauthenticated", or "cannot fetch token", or "could not find default
+credentials". You might need to run `gcloud auth application-default login`. See
+the [Before you begin](#before-you-being) section for details.
+
+#### 3.4 Can't create database
+
+In this case, the error message printed by the tool should help identify the
+cause. It could be an API permissions issue. For example, the Cloud Spanner API
+may not be appropriately configured. See [Before you begin](#before-you-being)
+section for details. Alternatively, you have have hit the limit on the number of
+databases per instances (currently 100). This can occur if you re-run the
+HarbourBridge tool many times, since each run creates a new database. In this
+case you'll need to [delete some
+databases](https://cloud.google.com/spanner/docs/getting-started/go/#delete_the_database).
 
 ### 4. Database-Specific Issues
 
