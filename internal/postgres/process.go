@@ -151,13 +151,13 @@ func processCopyBlock(conv *Conv, c *copyOrInsert, r *internal.Reader) {
 		// We have to read the copy-block data so that we can process the remaining
 		// pg_dump content. However, if we don't want the data, stop here.
 		// In particular, avoid the strings.Split and ProcessRow calls below, which
-		// weill be expensive for huge datasets.
+		// will be expensive for huge datasets.
 		if !conv.dataMode() {
 			continue
 		}
 		// COPY-FROM blocks use tabs to separate data items. Note that space within data
 		// items is significant e.g. if a table row contains data items "a ", " b "
-		// it will be show in the COPY-FROM block as "a \t b ".
+		// it will be shown in the COPY-FROM block as "a \t b ".
 		ProcessRow(conv, c.spTable, c.pgTable, c.cols, strings.Split(strings.Trim(string(b), "\n"), "\t"))
 	}
 }
