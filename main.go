@@ -77,12 +77,7 @@ func main() {
 		fmt.Printf("\nCan't get instance: %v\n", err)
 		panic(fmt.Errorf("can't get instance"))
 	}
-	fmt.Printf("WARNING: Please check that permissions for this instance are appropriate.\n")
-	fmt.Printf("Spanner manages access control at the database level, and the database\n")
-	fmt.Printf("created by HarbourBridge will inherit default permissions from this instance.\n")
-	fmt.Printf("All data written to Spanner will be visible to anyone who can access the\n")
-	fmt.Printf("created database. Note that PostgreSQL table-level and row-level ACLs\n")
-	fmt.Printf("are dropped during conversion since they are not supported by Spanner.\n")
+	printPermissionsWarning()
 	f, n, err := getSeekable(os.Stdin)
 	if err != nil {
 		fmt.Printf("\nCan't get seekable input file: %v\n", err)
@@ -95,7 +90,10 @@ func main() {
 		fmt.Printf("\nCan't get database name: %v\n", err)
 		panic(fmt.Errorf("can't get database name"))
 	}
-	setFilePrefix(dbName)
+	// If filePrefix not explicitly set, use dbName.
+	if filePrefix == "" {
+		filePrefix = dbName + "."
+	}
 	firstPass(f, n, conv)
 	writeSchemaFile(conv, now, filePrefix+schemaFile)
 	db, err := createDatabase(project, instance, dbName, now, conv)
@@ -129,22 +127,24 @@ func report(bw *spanner.BatchWriter, bytesRead int64, now time.Time, db string, 
 		defer f.Close()
 	}
 	w := bufio.NewWriter(f)
-	banner := fmt.Sprintf("Generated %s for db %s\n\n", now.Format("2006-01-02 15:04:05"), db)
+	banner := fmt.Sprintf("Generated at %s for db %s\n\n", now.Format("2006-01-02 15:04:05"), db)
 	w.WriteString(banner)
 	badWrites := bw.DroppedRowsByTable()
 	summary := postgres.GenerateReport(conv, w, badWrites)
 	w.Flush()
 	fmt.Printf("Processed %d bytes of pg_dump data (%d statements, %d rows of data, %d errors, %d unexpected conditions).\n",
 		bytesRead, conv.Statements(), conv.Rows(), conv.StatementErrors(), conv.Unexpecteds())
+	// We've already written summary to f (as part of GenerateReport).
+	// In the case where f is stdout, don't write a duplicate copy.
 	if f != os.Stdout {
 		fmt.Print(summary)
 		fmt.Printf("See file '%s' for details of the schema and data conversions.\n", fileName)
 	}
-	badData(bw, conv, banner, filePrefix+badDataFile)
+	writeBadData(bw, conv, banner, filePrefix+badDataFile)
 }
 
 func firstPass(f *os.File, fileSize int64, conv *postgres.Conv) {
-	p := internal.NewProgress(fileSize, fmt.Sprintf("Generating schema"), internal.Verbose())
+	p := internal.NewProgress(fileSize, "Generating schema", internal.Verbose())
 	r := internal.NewReader(bufio.NewReader(f), p)
 	conv.SetSchemaMode() // Build schema and ignore data in pg_dump.
 	conv.SetDataSink(nil)
@@ -155,7 +155,7 @@ func firstPass(f *os.File, fileSize int64, conv *postgres.Conv) {
 func secondPass(f *os.File, client *sp.Client, conv *postgres.Conv, totalRows int64) *spanner.BatchWriter {
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose())
 	r := internal.NewReader(bufio.NewReader(f), nil)
-	var rows int64
+	rows := int64(0)
 	config := spanner.BatchWriterConfig{
 		BytesLimit: 100 * 1000 * 1000,
 		WriteLimit: 40,
@@ -219,7 +219,6 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 // Spanner instance to use, generates a new Spanner DB name,
 // and call into the Spanner admin interface to create the new DB.
 func createDatabase(project, instance, dbName string, now time.Time, conv *postgres.Conv) (string, error) {
-	var err error
 	fmt.Printf("Creating new database %s in instance %s with default permissions ... ", dbName, instance)
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
@@ -346,9 +345,9 @@ func writeSchemaFile(conv *postgres.Conv, now time.Time, name string) {
 	fmt.Printf("Wrote schema to file '%s'.\n", name)
 }
 
-// badData prints summary stats about bad rows and writes detailed info
+// writeBadData prints summary stats about bad rows and writes detailed info
 // to file 'name'.
-func badData(bw *spanner.BatchWriter, conv *postgres.Conv, banner, name string) {
+func writeBadData(bw *spanner.BatchWriter, conv *postgres.Conv, banner, name string) {
 	badConversions := conv.BadRows()
 	badWrites := sum(bw.DroppedRowsByTable())
 	if badConversions == 0 && badWrites == 0 {
@@ -436,6 +435,19 @@ Sample usage:
 `, os.Args[0], os.Args[0])
 }
 
+func printPermissionsWarning() {
+	fmt.Printf(
+		`
+WARNING: Please check that permissions for this Spanner instance are
+appropriate. Spanner manages access control at the database level, and the
+database created by HarbourBridge will inherit default permissions from this
+instance. All data written to Spanner will be visible to anyone who can
+access the created database. Note that PostgreSQL table-level and row-level
+ACLs are dropped during conversion since they are not supported by Spanner.
+
+`)
+}
+
 func containsAny(s string, l []string) bool {
 	for _, a := range l {
 		if strings.Contains(s, a) {
@@ -468,12 +480,6 @@ func getSize(f *os.File) (int64, error) {
 	return info.Size(), nil
 }
 
-func setFilePrefix(dbName string) {
-	if filePrefix == "" {
-		filePrefix = dbName + "."
-	}
-}
-
 // setupLogfile configures the file used for logs.
 // By default we just drop logs on the floor. To enable them (e.g. to debug
 // Cloud Spanner client library issues), set logfile to a non-empty filename.
@@ -502,7 +508,7 @@ func close(f *os.File) {
 }
 
 func sum(m map[string]int64) int64 {
-	var n int64
+	n := int64(0)
 	for _, c := range m {
 		n += c
 	}
