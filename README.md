@@ -342,7 +342,7 @@ timezone, that timezone is respected during the conversion to UTC. If the value
 does not have a timezone, then we look for any `set timezone` statements in the
 pg_dump output and use the timezone specified. Otherwise, we use the `TZ`
 environment variable as the timezone, and failing that, we use the local system
-timezone default (as determined by go).
+timezone default (as determined by Go).
 
 In constrast, conversion of PostgreSQL `TIMESTAMP` values proceeds by ignoring
 any timezone information and just treating the value as UTC and storing it in
@@ -357,7 +357,7 @@ types) to Spanner's `STRING` type, HarbourBridge is effectively a UTF-8 based
 tool.
 
 Note that the tool itself does not do any encoding/decoding or UTF-8 checks: it
-passes through data from pg_dump to Spanner. Internally, we use go's string
+passes through data from pg_dump to Spanner. Internally, we use Go's string
 type, which supports UTF-8.
 
 ## Troubleshooting Guide
@@ -412,7 +412,7 @@ The HarbourBridge tool can fail for a number of reasons.
 HarbourBridge needs to read the pg_dump output twice, once to build a schema and
 once for data ingestion. When pg_dump output is directly piped to HarbourBridge,
 `stdin` is not seekable, and so we write the output to a temporary file. That
-temporary file is created via go's ioutil.TempFile. On many systems, this
+temporary file is created via Go's ioutil.TempFile. On many systems, this
 creates a file in `/tmp`, which is sometimes configured with minimal space. A
 simple workaround is to separately run pg_dump and write its output to a file in
 a directory with sufficient space.  For example, if the current working
@@ -424,7 +424,7 @@ harbourbridge < tmpfile
 ```
 
 Make sure you cleanup the tmpfile after HarbourBridge has been run. Another
-option is to set the location of go's TempFile e.g. by setting the `TMPDIR`
+option is to set the location of Go's TempFile e.g. by setting the `TMPDIR`
 environment variable.
 
 #### 3.2 Unparsable pg_dump
