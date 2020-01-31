@@ -500,7 +500,7 @@ func extractConstraints(conv *Conv, n nodes.Node, pgTable string, l []nodes.Node
 					keys = append(keys, k)
 				}
 				if err != nil {
-					conv.unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %w", reflect.TypeOf(n), err))
+					conv.unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(n), err.Error()))
 					conv.errorInStatement([]nodes.Node{n, d})
 				}
 			}
@@ -587,7 +587,7 @@ func toDdlPkeys(conv *Conv, pgTable string, s []string) (l []ddl.IndexKey) {
 			// We map them all into Spanner ascending primarary keys (the default).
 			l = append(l, ddl.IndexKey{Col: col})
 		} else {
-			conv.unexpected(fmt.Sprintf("Can't get Spanner col: %w", err))
+			conv.unexpected(fmt.Sprintf("Can't get Spanner col: %s", err.Error()))
 		}
 	}
 	return l
