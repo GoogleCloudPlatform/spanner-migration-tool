@@ -1,5 +1,4 @@
 # HarbourBridge: Turnkey Postgres-to-Spanner Evaluation
-[![cloudspannerecosystem](https://circleci.com/gh/cloudspannerecosystem/harbourbridge.svg?style=svg)](https://circleci.com/gh/cloudspannerecosystem/harbourbridge)
 
 HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation,
 using data from an existing PostgreSQL database. The tool ingests pg_dump
@@ -188,24 +187,24 @@ run HarbourBridge on the modified pg_dump output.
 
 HarbourBridge generates several files as it runs:
 
--   Schema file (ending in `.schema.txt`): contains the generated Spanner
+-   Schema file (ending in `schema.txt`): contains the generated Spanner
     schema, interspersed with comments that cross-reference to the relevant
     PostgreSQL schema definitions.
 
--   Report file (ending in `.report.txt`) contains a detailed analysis of the
+-   Report file (ending in `report.txt`) contains a detailed analysis of the
     PostgreSQL to Spanner migration, including table-by-table stats and an
     analysis of PostgreSQL types that don't cleanly map onto Spanner types. Note
     that PostgreSQL types that don't have a corresponding Spanner type are
     mapped to STRING(MAX).
 
--   Bad data file (ending in `.dropped.txt`): contains details of pg_dump data
+-   Bad data file (ending in `dropped.txt`): contains details of pg_dump data
     that could not be converted and written to Spanner, including sample
     bad-data rows. If there is no bad-data, this file is not written (and we
     delete any existing file with the same name from a previous run).
     
-The prefix for these file is defined by the value of the `-prefix` option, and
-defaults to the name of the Spanner database. See [Options](#options) for
-details.
+By default, these files are prefixed by the name of the Spanner database (with a
+dot separator). The file prefix can be overridden using the `-prefix`
+[option](#options).
 
 ## Options
 
@@ -221,7 +220,7 @@ appropriate instance using gcloud.
 
 `-prefix` Specifies a file prefix for the report, schema and bad-data files
 written by the tool. If no file prefix is specified, the name of the Spanner
-database is used.
+database (plus a '.') is used.
 
 `-v` Specifies verbose mode. This will cause HarbourBridge to output detailed
 messages about the conversion.
