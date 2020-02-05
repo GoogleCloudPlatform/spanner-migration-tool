@@ -1,7 +1,7 @@
 # HarbourBridge: Turnkey Postgres-to-Spanner Evaluation
 [![cloudspannerecosystem](https://circleci.com/gh/cloudspannerecosystem/harbourbridge.svg?style=svg)](https://circleci.com/gh/cloudspannerecosystem/harbourbridge)
 
-HarbourBridge is a stand-alone open-source tool for Cloud Spanner evaluation,
+HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation,
 using data from an existing PostgreSQL database. The tool ingests pg_dump
 output, automatically builds a Spanner schema, and creates a new Spanner
 database populated with data from pg_dump.
@@ -53,7 +53,7 @@ of how PostgreSQL is mapped to Spanner can be found in the
 [Schema Conversion](#schema-conversion) section.
 
 This tool is part of the Cloud Spanner Ecosystem, a community contributed and
-supported open-source repository. Please [report
+supported open source repository. Please [report
 issues](https://github.com/cloudspannerecosystem/harbourbridge/issues) and send
 pull requests. See the [HarbourBridge
 Whitepaper](https://github.com/cloudspannerecosystem/harbourbridge/blob/master/whitepaper.md)
