@@ -142,7 +142,7 @@ a look at the schema and data for the table. Next, go to the query page, and try
 some SQL statements. For example
 
 ```
-SELECT COUNT(*) from `mytable`
+SELECT COUNT(*) from mytable
 ```
 
 to check the number of rows in table `mytable`.
