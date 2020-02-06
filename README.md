@@ -11,7 +11,7 @@ bootstrap the process by getting moderate-size PostgreSQL datasets into Spanner
 (up to a few GB). Many features of PostgreSQL, especially those that don't map
 directly to Spanner features, are ignored, e.g. (non-primary) indexes,
 functions, and sequences. Types such as integers, floats, char/text, bools,
-timestamps, and (some) array types map fairly directly to Spanner, but many
+timestamps, and (some) array types, map fairly directly to Spanner, but many
 other types do not and instead are mapped to Spanner's `STRING(MAX)`.
 
 View HarbourBridge as a way to get up and running fast, so you can focus on
