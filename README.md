@@ -1,14 +1,28 @@
 # HarbourBridge: Turnkey Postgres-to-Spanner Evaluation
 [![cloudspannerecosystem](https://circleci.com/gh/cloudspannerecosystem/harbourbridge.svg?style=svg)](https://circleci.com/gh/cloudspannerecosystem/harbourbridge)
 
-HarbourBridge is a stand-alone open-source tool for Cloud Spanner evaluation,
+HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation,
 using data from an existing PostgreSQL database. The tool ingests pg_dump
 output, automatically builds a Spanner schema, and creates a new Spanner
-database populated with data from pg_dump. The tool is designed to simplify
-Spanner evaluation. It is not intended for production database migration. In
-particular, statements and features in the pg_dump output that don't map
-directly on Spanner features are simply ignored. It is also not intended for
-databases larger than a couple of GB.
+database populated with data from pg_dump.
+
+HarbourBridge is designed to simplify Spanner evaluation, and in particular to
+bootstrap the process by getting moderate-size PostgreSQL datasets into Spanner
+(up to a few GB). Many features of PostgreSQL, especially those that don't map
+directly to Spanner features, are ignored e.g. (non-primary) indexes, functions
+and sequences. Types such as integers, floats, char/text, bools, timestamps and
+(some) array types map fairly directly to Spanner, but many other types do not
+and instead are mapped to Spanner's `STRING(MAX)`.
+
+View HarbourBridge as a way to get up and running fast, so you can focus on
+critical things like tuning performance and getting the most out of
+Spanner. Expect that you'll need to tweak and enhance what HarbourBridge
+produces to complete your evaluation. For example, while HarbourBridge preserves
+primary keys, it does not currently translate other indexes. So, you'll need to
+add [Spanner secondary
+indexes](https://cloud.google.com/spanner/docs/secondary-indexes) if your SQL
+queries rely on PostgreSQL indexes that have been dropped. HarbourBridge is not
+intended for production database migration.
 
 To use the tool on a PostgreSQL database called mydb, run
 
@@ -39,7 +53,7 @@ of how PostgreSQL is mapped to Spanner can be found in the
 [Schema Conversion](#schema-conversion) section.
 
 This tool is part of the Cloud Spanner Ecosystem, a community contributed and
-supported open-source repository. Please [report
+supported open source repository. Please [report
 issues](https://github.com/cloudspannerecosystem/harbourbridge/issues) and send
 pull requests. See the [HarbourBridge
 Whitepaper](https://github.com/cloudspannerecosystem/harbourbridge/blob/master/whitepaper.md)
@@ -113,28 +127,85 @@ Spanner database will have a name of the form `pg_dump_{DATE}_{RANDOM}`, where
 See the [Troubleshooting Guide](#troubleshooting-guide) for help on debugging
 issues.
 
+HarbourBridge also [generates several files](#files-generated-by-harbourbridge)
+when it runs: a schema file, a report file (with detailed analysis of the
+conversion), and a bad data file (if any data was dropped).
+
+### Verifying Results
+
+Once the tool has completed, you can verify the new database and its content
+using the Google Cloud Console. Go to the [Cloud Spanner Instances
+page](https://console.cloud.google.com/spanner/instances), select your Spanner
+instance, and then find the database created by HarbourBridge and select
+it. This will list the tables created by HarbourBridge. Select a table, and take
+a look at its schema and data. Next, go to the query page, and try
+some SQL statements. For example
+
+```
+SELECT COUNT(*) from mytable
+```
+
+to check the number of rows in table `mytable`.
+
+### Next Steps
+
+The tables created by HarbourBridge provide a starting point for evaluation of
+Spanner. While they preserve much of the core structure of your PostgreSQL
+schema and data, many key features have been dropped, including (non-primary)
+indexes, functions, sequences, procedures, triggers, and views.
+
+As a result, the out-of-the-box performance you get from these tables could be
+slower than what you get from PostgreSQL. HarbourBridge does preserve primary
+keys, but we do not currently translate other indexes. If your SQL query
+performance relies on PostgreSQL indexes that are dropped, then the performance
+of the tables created by HarbourBridge could be significantly impaired.
+
+To improve performance, consider adding [Secondary
+Indexes](https://cloud.google.com/spanner/docs/secondary-indexes) to the tables
+created by HarbourBridge, using the existing PostgreSQL indexes as a guide. Also
+consider using [Interleaved
+Tables](https://cloud.google.com/spanner/docs/schema-and-data-model#creating-interleaved-tables)
+to tune performance.
+
+View HarbourBridge as a base set of functionaity for Spanner evalution that can
+be readily expanded. Consider forking and modifying the codebase to add the
+functionality you need. Please [file
+issues](https://github.com/cloudspannerecosystem/harbourbridge/issues) and send
+PRs for fixes and new functionality. See our backlog of [open
+issues](https://github.com/cloudspannerecosystem/harbourbridge/issues). Our
+plans and aspirations for developing HarbourBridge further are outlined in the
+[HarbourBridge
+Whitepaper](https://github.com/cloudspannerecosystem/harbourbridge/blob/master/whitepaper.md).
+
+You can also change the way HarbourBridge behaves by directly editing the
+pg_dump output. For example, suppose you want to try out different primary keys
+for a table. First run pg_dump and save the output to a file. Then modify (or
+add) the relevant `ALTER TABLE ... ADD CONSTRAINT ... PRIMARY KEY ...` statement
+in the pg_dump output file so that the primary keys match what you need. Then
+run HarbourBridge on the modified pg_dump output.
+
 ## Files Generated by HarbourBridge
 
 HarbourBridge generates several files as it runs:
 
--   Schema file (ending in `.schema.txt`): contains the generated Spanner
+-   Schema file (ending in `schema.txt`): contains the generated Spanner
     schema, interspersed with comments that cross-reference to the relevant
     PostgreSQL schema definitions.
 
--   Report file (ending in `.report.txt`) contains a detailed analysis of the
+-   Report file (ending in `report.txt`) contains a detailed analysis of the
     PostgreSQL to Spanner migration, including table-by-table stats and an
     analysis of PostgreSQL types that don't cleanly map onto Spanner types. Note
     that PostgreSQL types that don't have a corresponding Spanner type are
     mapped to STRING(MAX).
 
--   Bad data file (ending in `.dropped.txt`): contains details of pg_dump data
+-   Bad data file (ending in `dropped.txt`): contains details of pg_dump data
     that could not be converted and written to Spanner, including sample
     bad-data rows. If there is no bad-data, this file is not written (and we
     delete any existing file with the same name from a previous run).
     
-The prefix for these file is defined by the value of the `-prefix` option, and
-defaults to the name of the Spanner database. See [Options](#options) for
-details.
+By default, these files are prefixed by the name of the Spanner database (with a
+dot separator). The file prefix can be overridden using the `-prefix`
+[option](#options).
 
 ## Options
 
@@ -150,7 +221,7 @@ appropriate instance using gcloud.
 
 `-prefix` Specifies a file prefix for the report, schema and bad-data files
 written by the tool. If no file prefix is specified, the name of the Spanner
-database is used.
+database (plus a '.') is used.
 
 `-v` Specifies verbose mode. This will cause HarbourBridge to output detailed
 messages about the conversion.
@@ -215,7 +286,7 @@ The HarbourBridge tool maps PostgreSQL types to Spanner types as follows:
 | `BIGSERIAL`        | `INT64`                | a                             |
 | `BYTEA`            | `BYTES(MAX)`           |                               |
 | `CHAR`             | `STRING(MAX)`          |                               |
-| `CHAR(N)`          | `STRING(N)`            |                               |
+| `CHAR(N)`          | `STRING(N)`            | c                             |
 | `DATE`             | `DATE`                 |                               |
 | `DOUBLE PRECISION` | `FLOAT64`              |                               |
 | `INTEGER`          | `INT64`                | s                             |
@@ -227,14 +298,15 @@ The HarbourBridge tool maps PostgreSQL types to Spanner types as follows:
 | `TIMESTAMP`        | `TIMESTAMP`            | t                             |
 | `TIMESTAMPTZ`      | `TIMESTAMP`            |                               |
 | `VARCHAR`          | `STRING(MAX)`          |                               |
-| `VARCHAR(N)`       | `STRING(N)`            |                               |
+| `VARCHAR(N)`       | `STRING(N)`            | c                             |
 | `ARRAY(`pgtype`)`  | `ARRAY(`spannertype`)` | if scalar type pgtype maps to spannertype |
 
 All other types map to `STRING(MAX)`. Some of the mappings in this table
 represent loss of precision (marked p), dropped autoincrement functionality
-(marked a), differences in treatment of timezones (marked t) and changes in
-storage size (marked s). We discuss each in turn, as well as other limits and
-notes on schema conversion.
+(marked a), differences in treatment of timezones (marked t), differences in
+treatment of fixed-length character types (marked c), and changes in storage
+size (marked s). We discuss these, as well as other limits and notes on
+schema conversion, in the following sections.
 
 ### `NUMERIC`
 
@@ -272,12 +344,27 @@ In other words, mapping PostgreSQL `TIMESTAMPTZ` to `TIMESTAMP` is fairly
 straightforward, but care should be taken with PostgreSQL `TIMESTAMP` data
 because Spanner clients will not drop the timezone.
 
+### `CHAR(n) and VARCHAR(n)`
+
+The semantics of fixed-length character types differ between PostgreSQL and
+Spanner. The `CHAR(n)` type in PostgreSQL is padded with spaces. If a string
+value smaller than the limit is stored, spaces will be added to pad it out to
+the specified length. If a string longer than the specified length is stored,
+and the extra characters are all spaces, then it will be silently
+truncated. Moreover, trailing spaces are ignored when comparing two values. In
+constrast, Spanner does not give special treatment to spaces, and the specified
+length simply represents the maximum length that can be stored. This is close to
+the semantics of PostgreSQL's `VARCHAR(n)`. However there are some minor
+differences. For example, even `VARCHAR(n)` has some special treatment of
+spaces: strings longer than the specified length are silently truncated if the
+extra characters are all spaces.
+
 ### Storage Use
 
 The tool maps several PostgreSQL types to Spanner types that use more storage.
-For example, `SMALLINT` is a two-byte integer, but it maps to Spanner's
-`INT64`, an eight-byte integer. This additional storage could be significant for
-large arrays.
+For example, `SMALLINT` is a two-byte integer, but it maps to Spanner's `INT64`,
+an eight-byte integer. This additional storage could be significant for large
+arrays.
 
 ### Arrays
 
@@ -415,7 +502,7 @@ once for data ingestion. When pg_dump output is directly piped to HarbourBridge,
 temporary file is created via Go's ioutil.TempFile. On many systems, this
 creates a file in `/tmp`, which is sometimes configured with minimal space. A
 simple workaround is to separately run pg_dump and write its output to a file in
-a directory with sufficient space.  For example, if the current working
+a directory with sufficient space. For example, if the current working
 directory has space, then:
 
 ```sh
@@ -431,7 +518,7 @@ environment variable.
 
 HarbourBridge uses the [pg_query_go](https://github.com/lfittl/pg_query_go)
 library. It is possible that the pg_dump output is corrupted or uses features
-that aren't parseable.  Parsing errors should generate an error message of the
+that aren't parseable. Parsing errors should generate an error message of the
 form `Error parsing last 54321 line(s) of input`.
 
 #### 3.2 Credentials problems
