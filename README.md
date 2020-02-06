@@ -128,7 +128,7 @@ issues.
 
 HarbourBridge also [generates several files](#files-generated-by-harbourbridge)
 when it runs: a schema file, a report file (with detailed analysis of the
-conversion), and bad data file (if any data was dropped).
+conversion), and a bad data file (if any data was dropped).
 
 ### Verifying Results
 
@@ -137,7 +137,7 @@ using the Google Cloud Console. Go to the [Cloud Spanner Instances
 page](https://console.cloud.google.com/spanner/instances), select your Spanner
 instance, and then find the database created by HarbourBridge and select
 it. This will list the tables created by HarbourBridge. Select a table, and take
-a look at the schema and data for the table. Next, go to the query page, and try
+a look at its schema and data. Next, go to the query page, and try
 some SQL statements. For example
 
 ```
@@ -304,8 +304,8 @@ All other types map to `STRING(MAX)`. Some of the mappings in this table
 represent loss of precision (marked p), dropped autoincrement functionality
 (marked a), differences in treatment of timezones (marked t), differences in
 treatment of fixed-length character types (marked c), and changes in storage
-size (marked s). We discuss each in turn, as well as other limits and notes on
-schema conversion.
+size (marked s). We discuss these, as well as other limits and notes on
+schema conversion, in the following sections.
 
 ### `NUMERIC`
 
