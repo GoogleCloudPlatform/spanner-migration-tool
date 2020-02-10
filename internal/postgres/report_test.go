@@ -23,7 +23,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
 
 func TestReport(t *testing.T) {

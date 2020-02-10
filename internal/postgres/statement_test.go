@@ -20,7 +20,7 @@ import (
 	pg_query "github.com/lfittl/pg_query_go"
 	"github.com/stretchr/testify/assert"
 
-	"harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
 // This is just a very basic smoke-test for processStatements.

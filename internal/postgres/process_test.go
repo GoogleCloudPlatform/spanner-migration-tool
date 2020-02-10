@@ -25,8 +25,8 @@ import (
 	pg_query "github.com/lfittl/pg_query_go"
 	"github.com/stretchr/testify/assert"
 
-	"harbourbridge/internal"
-	"harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
 type spannerData struct {

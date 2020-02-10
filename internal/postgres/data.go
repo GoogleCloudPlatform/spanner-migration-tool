@@ -25,7 +25,7 @@ import (
 
 	"cloud.google.com/go/civil"
 
-	"harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
 // ConvertData maps the PostgreSQL data in vals into Spanner data,

@@ -40,10 +40,10 @@ import (
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
-	"harbourbridge/internal"
-	"harbourbridge/internal/postgres"
-	"harbourbridge/spanner"
-	"harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/internal/postgres"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
 var (
