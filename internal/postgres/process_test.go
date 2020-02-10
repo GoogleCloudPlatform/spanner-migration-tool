@@ -216,6 +216,18 @@ func TestProcessPgDump(t *testing.T) {
 				spannerData{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a22", "b99", int64(6)}}},
 		},
 		{
+			name: "COPY FROM with CRLF",
+			input: "CREATE TABLE test (a text, b text, n bigint);\r\n" +
+				"COPY public.test (a, b, n) FROM stdin;\r\n" +
+				"a1	b1	42\r\n" +
+				"a22	b99	6\r\n" +
+				"\\.\r\n" +
+				"ALTER TABLE ONLY test ADD CONSTRAINT test_pkey PRIMARY KEY (a, b);\r\n",
+			expectedData: []spannerData{
+				spannerData{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a1", "b1", int64(42)}},
+				spannerData{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a22", "b99", int64(6)}}},
+		},
+		{
 			name: "COPY FROM with spaces",
 			input: "CREATE TABLE test (a text NOT NULL, b text NOT NULL, n bigint);\n" +
 				"ALTER TABLE ONLY test ADD CONSTRAINT test_pkey PRIMARY KEY (a, b);" +

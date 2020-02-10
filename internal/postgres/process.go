@@ -139,7 +139,7 @@ func processCopyBlock(conv *Conv, c *copyOrInsert, r *internal.Reader) {
 	internal.VerbosePrintf("Parsing COPY-FROM stdin block starting at line=%d/fpos=%d\n", r.LineNumber, r.Offset)
 	for {
 		b := r.ReadLine()
-		if string(b) == "\\.\n" {
+		if string(b) == "\\.\n" || string(b) == "\\.\r\n" {
 			internal.VerbosePrintf("Parsed COPY-FROM stdin block ending at line=%d/fpos=%d\n", r.LineNumber, r.Offset)
 			return
 		}
@@ -158,6 +158,6 @@ func processCopyBlock(conv *Conv, c *copyOrInsert, r *internal.Reader) {
 		// COPY-FROM blocks use tabs to separate data items. Note that space within data
 		// items is significant e.g. if a table row contains data items "a ", " b "
 		// it will be shown in the COPY-FROM block as "a \t b ".
-		ProcessRow(conv, c.spTable, c.pgTable, c.cols, strings.Split(strings.Trim(string(b), "\n"), "\t"))
+		ProcessRow(conv, c.spTable, c.pgTable, c.cols, strings.Split(strings.Trim(string(b), "\r\n"), "\t"))
 	}
 }
