@@ -1,4 +1,4 @@
-module harbourbridge
+module github.com/cloudspannerecosystem/harbourbridge
 
 go 1.13
 
