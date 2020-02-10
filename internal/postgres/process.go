@@ -23,7 +23,7 @@ import (
 	pg_query "github.com/lfittl/pg_query_go"
 	nodes "github.com/lfittl/pg_query_go/nodes"
 
-	"harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
 
 // ProcessPgDump reads pg_dump data from r and does schema or data conversion,

@@ -23,7 +23,7 @@ import (
 	"cloud.google.com/go/civil"
 	"github.com/stretchr/testify/assert"
 
-	"harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
 func TestConvertData(t *testing.T) {

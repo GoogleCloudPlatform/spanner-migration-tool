@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
 
 // GetSpannerTable maps a PostgreSQL table name into a legal Spanner table

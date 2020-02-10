@@ -20,7 +20,7 @@ import (
 	"sort"
 	"strings"
 
-	"harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
 // GenerateReport analyzes schema and data conversion stats and writes a

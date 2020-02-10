@@ -22,7 +22,7 @@ import (
 	nodes "github.com/lfittl/pg_query_go/nodes"
 	"github.com/stretchr/testify/assert"
 
-	"harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
 // This file contains very basic tests of Conv API functionality.
