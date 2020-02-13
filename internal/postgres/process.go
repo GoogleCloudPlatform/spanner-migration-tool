@@ -132,7 +132,7 @@ func readAndParseChunk(conv *Conv, r *internal.Reader) ([]byte, []nodes.Node, er
 			conv.stats.reparsed++
 		}
 		if r.EOF {
-			return nil, nil, fmt.Errorf("Error parsing input: %q", l)
+			return nil, nil, fmt.Errorf("Error parsing last %d line(s) of input", len(l))
 		}
 	}
 }
