@@ -285,7 +285,7 @@ The HarbourBridge tool maps PostgreSQL types to Spanner types as follows:
 | `BIGINT`           | `INT64`                |                               |
 | `BIGSERIAL`        | `INT64`                | a                             |
 | `BYTEA`            | `BYTES(MAX)`           |                               |
-| `CHAR`             | `STRING(MAX)`          |                               |
+| `CHAR`             | `STRING(1)`            | CHAR defaults to length 1     |
 | `CHAR(N)`          | `STRING(N)`            | c                             |
 | `DATE`             | `DATE`                 |                               |
 | `DOUBLE PRECISION` | `FLOAT64`              |                               |
