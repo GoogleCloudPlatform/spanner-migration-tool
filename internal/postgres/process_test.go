@@ -530,20 +530,6 @@ func TestProcessPgDump_AddPrimaryKeys(t *testing.T) {
 	}
 }
 
-func TestProcessPgDump_WithUnparsableContent(t *testing.T) {
-	s := "This is unparsable content"
-	conv := MakeConv()
-	conv.SetLocation(time.UTC)
-	conv.SetSchemaMode()
-	err := ProcessPgDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil))
-	if err == nil {
-		t.Fatalf("Expect an error, but got nil")
-	}
-	if !strings.Contains(err.Error(), "Error parsing input") {
-		t.Fatalf("Expect a parsing error, but got %q", err)
-	}
-}
-
 func runProcessPgDump(s string) (*Conv, []spannerData) {
 	conv := MakeConv()
 	conv.SetLocation(time.UTC)

@@ -94,10 +94,7 @@ func main() {
 	if filePrefix == "" {
 		filePrefix = dbName + "."
 	}
-	err = firstPass(f, n, conv)
-	if err != nil {
-		panic(fmt.Errorf("Failed to parse the data file: %v", err))
-	}
+	firstPass(f, n, conv)
 	writeSchemaFile(conv, now, filePrefix+schemaFile)
 	db, err := createDatabase(project, instance, dbName, now, conv)
 	if err != nil {
@@ -146,17 +143,13 @@ func report(bw *spanner.BatchWriter, bytesRead int64, now time.Time, db string, 
 	writeBadData(bw, conv, banner, filePrefix+badDataFile)
 }
 
-func firstPass(f *os.File, fileSize int64, conv *postgres.Conv) error {
+func firstPass(f *os.File, fileSize int64, conv *postgres.Conv) {
 	p := internal.NewProgress(fileSize, "Generating schema", internal.Verbose())
 	r := internal.NewReader(bufio.NewReader(f), p)
 	conv.SetSchemaMode() // Build schema and ignore data in pg_dump.
 	conv.SetDataSink(nil)
-	err := postgres.ProcessPgDump(conv, r)
-	if err != nil {
-		return err
-	}
+	postgres.ProcessPgDump(conv, r)
 	p.Done()
-	return nil
 }
 
 func secondPass(f *os.File, client *sp.Client, conv *postgres.Conv, totalRows int64) *spanner.BatchWriter {

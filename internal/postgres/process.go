@@ -31,14 +31,11 @@ import (
 // In schema mode, ProcessPgDump incrementally builds a schema (updating conv).
 // In data mode, ProcessPgDump uses this schema to convert PostgreSQL data
 // and writes it to Spanner, using the data sink specified in conv.
-func ProcessPgDump(conv *Conv, r *internal.Reader) error {
+func ProcessPgDump(conv *Conv, r *internal.Reader) {
 	for {
 		startLine := r.LineNumber
 		startOffset := r.Offset
-		b, stmts, err := readAndParseChunk(conv, r)
-		if err != nil {
-			return err
-		}
+		b, stmts := readAndParseChunk(conv, r)
 		ci := processStatements(conv, stmts)
 		internal.VerbosePrintf("Parsed SQL command at line=%d/fpos=%d: %d stmts (%d lines, %d bytes) ci=%v\n", startLine, startOffset, len(stmts), r.LineNumber-startLine, len(b), ci != nil)
 		if ci != nil {
@@ -56,8 +53,6 @@ func ProcessPgDump(conv *Conv, r *internal.Reader) error {
 	if conv.schemaMode() {
 		conv.AddPrimaryKeys()
 	}
-
-	return nil
 }
 
 // ProcessRow converts a row of data and writes it out to Spanner.
@@ -103,7 +98,7 @@ func byteSize(r *row) int64 {
 
 // readAndParseChunk parses a chunk of pg_dump data, returning the bytes read,
 // the parsed AST (nil if nothing read), and whether we've hit end-of-file.
-func readAndParseChunk(conv *Conv, r *internal.Reader) ([]byte, []nodes.Node, error) {
+func readAndParseChunk(conv *Conv, r *internal.Reader) ([]byte, []nodes.Node) {
 	var l [][]byte
 	for {
 		b := r.ReadLine()
@@ -122,7 +117,7 @@ func readAndParseChunk(conv *Conv, r *internal.Reader) ([]byte, []nodes.Node, er
 			}
 			tree, err := pg_query.Parse(string(s))
 			if err == nil {
-				return s, tree.Statements, nil
+				return s, tree.Statements
 			}
 			// Likely causes of failing to parse:
 			// a) complex statements with embedded semicolons e.g. 'CREATE FUNCTION'
@@ -132,7 +127,10 @@ func readAndParseChunk(conv *Conv, r *internal.Reader) ([]byte, []nodes.Node, er
 			conv.stats.reparsed++
 		}
 		if r.EOF {
-			return nil, nil, fmt.Errorf("Error parsing last %d line(s) of input", len(l))
+			if len(l) != 0 {
+				fmt.Printf("Error parsing last %d line(s) of input\n", len(l))
+			}
+			return nil, nil
 		}
 	}
 }
