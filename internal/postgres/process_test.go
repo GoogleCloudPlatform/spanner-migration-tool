@@ -539,7 +539,7 @@ func TestProcessPgDump_WithUnparsableContent(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expect an error, but got nil")
 	}
-	if !strings.Contains(err.Error(), "Error parsing input") {
+	if !strings.Contains(err.Error(), "Error parsing") {
 		t.Fatalf("Expect a parsing error, but got %q", err)
 	}
 }
