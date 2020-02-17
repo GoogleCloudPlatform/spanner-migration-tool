@@ -1,0 +1,159 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 9.6.16
+-- Dumped by pg_dump version 12.1 (Debian 12.1-1)
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+SET default_tablespace = '';
+
+--
+-- Name: cart; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.cart (
+    productid text NOT NULL,
+    userid text NOT NULL,
+    quantity bigint
+);
+
+
+ALTER TABLE public.cart OWNER TO postgres;
+
+--
+-- Name: test; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.test (
+    id integer NOT NULL,
+    t timestamp without time zone,
+    tz timestamp with time zone
+);
+
+
+ALTER TABLE public.test OWNER TO postgres;
+
+--
+-- Name: test2; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.test2 (
+    id integer NOT NULL,
+    a date,
+    b bytea,
+    c boolean
+);
+
+
+ALTER TABLE public.test2 OWNER TO postgres;
+
+--
+-- Name: test3; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.test3 (
+    id integer NOT NULL,
+    a integer[],
+    b text[]
+);
+
+
+ALTER TABLE public.test3 OWNER TO postgres;
+
+--
+-- Data for Name: cart; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.cart (productid, userid, quantity) FROM stdin;
+1YMWWN1N4O	64e10503-9b6f-48e5-9e9c-2b7818ee322d	2
+OLJCESPC7Z	419af207-ac61-4131-b1a6-bb627405e92d	1
+OLJCESPC7Z	31ad80e3-182b-42b0-a164-b4c7ea976ce4	125
+OLJCESPC7Z	17b14ec1-5a42-4087-bb3f-3ebd32bacf2a	106
+\.
+
+
+--
+-- Data for Name: test; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.test (id, t, tz) FROM stdin;
+1	2019-10-28 15:00:00	2019-10-28 19:00:00+00
+2	2019-10-28 15:00:00	2019-10-28 15:00:00+00
+3	2019-10-28 15:00:00	2019-10-28 19:00:00+00
+4	2019-10-28 15:00:00.123457	2019-10-28 15:00:00.123457+00
+\.
+
+--
+-- Data for Name: test2; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.test2 (id, a, b, c) FROM stdin;
+1	2019-10-28	\\x00010203deadbeef	t
+2	2018-11-28	\\x00010203424344	f
+\.
+
+
+--
+-- Data for Name: test3; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.test3 (id, a, b) FROM stdin;
+1	{1,2,3}	{1,nice,foo}
+2	{6}	{i,am,not,a,number}
+\.
+
+--
+-- Name: cart cart_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.cart
+    ADD CONSTRAINT cart_pkey PRIMARY KEY (userid, productid);
+
+
+--
+-- Name: test2 test2_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.test2
+    ADD CONSTRAINT test2_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: test3 test3_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.test3
+    ADD CONSTRAINT test3_pkey PRIMARY KEY (id);
+
+--
+-- Name: test test_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.test
+    ADD CONSTRAINT test_pkey PRIMARY KEY (id);
+
+--
+-- Name: SCHEMA public; Type: ACL; Schema: -; Owner: cloudsqlsuperuser
+--
+
+REVOKE ALL ON SCHEMA public FROM cloudsqladmin;
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+GRANT ALL ON SCHEMA public TO cloudsqlsuperuser;
+GRANT ALL ON SCHEMA public TO PUBLIC;
+
+
+--
+-- PostgreSQL database dump complete
+--
+
