@@ -52,43 +52,89 @@ var (
 	reportFile       = "report.txt"
 	dbNameOverride   string
 	instanceOverride string
+	projectOverride  string
 	filePrefix       = ""
 	verbose          bool
 )
+
+func init() {
+	flag.StringVar(&dbNameOverride, "dbname", "", "dbname: name to use for Spanner db")
+	flag.StringVar(&instanceOverride, "instance", "", "instance: Spanner instance to use")
+	flag.StringVar(&projectOverride, "project", "", "project: Google Cloud project to use")
+	flag.StringVar(&filePrefix, "prefix", "", "prefix: file prefix for generated files")
+	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
+}
+
+func usage() {
+	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+	flag.PrintDefaults()
+	fmt.Fprintf(os.Stderr, `Note: input is always read from stdin.
+Sample usage:
+  pg_dump mydb | %s
+  %s < my_pg_dump_file
+`, os.Args[0], os.Args[0])
+}
 
 func main() {
 	flag.Usage = usage
 	flag.Parse()
 	internal.VerboseInit(verbose)
-	now := time.Now()
 	lf, err := setupLogFile()
 	if err != nil {
 		fmt.Printf("\nCan't set up log file: %v\n", err)
 		panic(fmt.Errorf("can't set up log file"))
 	}
 	defer close(lf)
-	project, err := getProject()
+
+	err = process(projectOverride, instanceOverride, dbNameOverride, nil)
 	if err != nil {
-		fmt.Printf("\nCan't get project: %v\n", err)
-		panic(fmt.Errorf("can't get project"))
+		panic(fmt.Errorf("failed to run the job: %v", err))
 	}
-	instance, err := getInstance(project)
-	if err != nil {
-		fmt.Printf("\nCan't get instance: %v\n", err)
-		panic(fmt.Errorf("can't get instance"))
+}
+
+type ioStreams struct {
+	in, out *os.File
+}
+
+var ioHelper = &ioStreams{os.Stdin, os.Stdout}
+
+func process(project, instance, dbName string, helper *ioStreams) error {
+	if helper != nil {
+		ioHelper = helper
 	}
+
+	now := time.Now()
+	var err error
+
+	if project == "" {
+		project, err = getProject()
+		if err != nil {
+			return fmt.Errorf("can't get project: %v", err)
+		}
+	}
+	fmt.Fprintf(ioHelper.out, "Using project: %s\n", project)
+
+	if instance == "" {
+		instance, err = getInstance(project)
+		if err != nil {
+			return fmt.Errorf("can't get instance: %v", err)
+		}
+	}
+	fmt.Fprintf(ioHelper.out, "Using Spanner instance: %s\n", instanceOverride)
 	printPermissionsWarning()
-	f, n, err := getSeekable(os.Stdin)
+	f, n, err := getSeekable(ioHelper.in)
 	if err != nil {
 		printSeekError(err)
-		panic(fmt.Errorf("can't get seekable input file"))
+		return fmt.Errorf("can't get seekable input file")
 	}
 	defer f.Close()
 	conv := postgres.MakeConv()
-	dbName, err := getDatabaseName(now)
-	if err != nil {
-		fmt.Printf("\nCan't get database name: %v\n", err)
-		panic(fmt.Errorf("can't get database name"))
+
+	if dbName == "" {
+		dbName, err = getDatabaseName(now)
+		if err != nil {
+			return fmt.Errorf("can't generate database name: %v", err)
+		}
 	}
 	// If filePrefix not explicitly set, use dbName.
 	if filePrefix == "" {
@@ -101,31 +147,29 @@ func main() {
 	writeSchemaFile(conv, now, filePrefix+schemaFile)
 	db, err := createDatabase(project, instance, dbName, now, conv)
 	if err != nil {
-		fmt.Printf("\nCan't create database: %v\n", err)
-		panic(fmt.Errorf("can't create database"))
+		return fmt.Errorf("can't create database: %v", err)
 	}
 	client, err := getClient(db)
 	if err != nil {
-		fmt.Printf("\nCan't create client for db %s: %v\n", db, err)
-		panic(fmt.Errorf("can't create Spanner client"))
+		return fmt.Errorf("Can't create client for db %s: %v", db, err)
 	}
 	_, err = f.Seek(0, 0)
 	if err != nil {
-		fmt.Printf("\nCan't seek to start of file (preparation for second pass): %v\n", err)
-		panic(fmt.Errorf("can't seek to start of file"))
+		return fmt.Errorf("can't seek to start of file (preparation for second pass): %v", err)
 	}
 	rows := conv.Rows()
 	bw := secondPass(f, client, conv, rows)
 	report(bw, n, now, db, conv)
+	return nil
 }
 
 func report(bw *spanner.BatchWriter, bytesRead int64, now time.Time, db string, conv *postgres.Conv) {
 	fileName := filePrefix + reportFile
 	f, err := os.Create(fileName)
 	if err != nil {
-		fmt.Printf("Can't write out report file %s: %v\n", fileName, err)
-		fmt.Print("Writing report to stdout\n")
-		f = os.Stdout
+		fmt.Fprintf(ioHelper.out, "Can't write out report file %s: %v\n", fileName, err)
+		fmt.Fprintf(ioHelper.out, "Writing report to stdout\n")
+		f = ioHelper.out
 	} else {
 		defer f.Close()
 	}
@@ -135,13 +179,13 @@ func report(bw *spanner.BatchWriter, bytesRead int64, now time.Time, db string, 
 	badWrites := bw.DroppedRowsByTable()
 	summary := postgres.GenerateReport(conv, w, badWrites)
 	w.Flush()
-	fmt.Printf("Processed %d bytes of pg_dump data (%d statements, %d rows of data, %d errors, %d unexpected conditions).\n",
+	fmt.Fprintf(ioHelper.out, "Processed %d bytes of pg_dump data (%d statements, %d rows of data, %d errors, %d unexpected conditions).\n",
 		bytesRead, conv.Statements(), conv.Rows(), conv.StatementErrors(), conv.Unexpecteds())
 	// We've already written summary to f (as part of GenerateReport).
 	// In the case where f is stdout, don't write a duplicate copy.
-	if f != os.Stdout {
-		fmt.Print(summary)
-		fmt.Printf("See file '%s' for details of the schema and data conversions.\n", fileName)
+	if f != ioHelper.out {
+		fmt.Fprint(ioHelper.out, summary)
+		fmt.Fprintf(ioHelper.out, "See file '%s' for details of the schema and data conversions.\n", fileName)
 	}
 	writeBadData(bw, conv, banner, filePrefix+badDataFile)
 }
@@ -226,7 +270,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 // Spanner instance to use, generates a new Spanner DB name,
 // and call into the Spanner admin interface to create the new DB.
 func createDatabase(project, instance, dbName string, now time.Time, conv *postgres.Conv) (string, error) {
-	fmt.Printf("Creating new database %s in instance %s with default permissions ... ", dbName, instance)
+	fmt.Fprintf(ioHelper.out, "Creating new database %s in instance %s with default permissions ... ", dbName, instance)
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
 	if err != nil {
@@ -248,7 +292,7 @@ func createDatabase(project, instance, dbName string, now time.Time, conv *postg
 	if _, err := op.Wait(ctx); err != nil {
 		return "", fmt.Errorf("createDatabase call failed: %w", analyzeError(err, project))
 	}
-	fmt.Printf("done.\n")
+	fmt.Fprintf(ioHelper.out, "done.\n")
 	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName), nil
 }
 
@@ -258,7 +302,6 @@ func createDatabase(project, instance, dbName string, now time.Time, conv *postg
 func getProject() (string, error) {
 	project := os.Getenv("GCLOUD_PROJECT")
 	if project != "" {
-		fmt.Printf("Using project: %s\n", project)
 		return project, nil
 	}
 	cmd := exec.Command("gcloud", "config", "list", "--format", "value(core.project)")
@@ -267,7 +310,6 @@ func getProject() (string, error) {
 		return "", fmt.Errorf("call to gcloud to get project failed: %w", err)
 	}
 	project = strings.TrimSpace(string(out))
-	fmt.Printf("Using project: %s\n", project)
 	return project, nil
 }
 
@@ -275,30 +317,26 @@ func getProject() (string, error) {
 // If the user specified instance (via flag 'instance') then use that.
 // Otherwise try to deduce the instance using gcloud.
 func getInstance(project string) (string, error) {
-	if instanceOverride != "" {
-		fmt.Printf("Using Spanner instance: %s\n", instanceOverride)
-		return instanceOverride, nil
-	}
 	l, err := getInstances(project)
 	if err != nil {
 		return "", err
 	}
 	if len(l) == 0 {
-		fmt.Printf("Could not find any Spanner instances for project %s\n", project)
+		fmt.Fprintf(ioHelper.out, "Could not find any Spanner instances for project %s\n", project)
 		return "", fmt.Errorf("no Spanner instances for %s", project)
 	}
 	// Note: we could ask for user input to select/confirm which Spanner
 	// instance to use, but that interacts poorly with piping pg_dump data
 	// to the tool via stdin.
 	if len(l) == 1 {
-		fmt.Printf("Using only available Spanner instance: %s\n", l[0])
+		fmt.Fprintf(ioHelper.out, "Using only available Spanner instance: %s\n", l[0])
 		return l[0], nil
 	}
-	fmt.Printf("Available Spanner instances:\n")
+	fmt.Fprintf(ioHelper.out, "Available Spanner instances:\n")
 	for i, x := range l {
-		fmt.Printf(" %d) %s\n", i+1, x)
+		fmt.Fprintf(ioHelper.out, " %d) %s\n", i+1, x)
 	}
-	fmt.Printf("Please pick one of the available instances and set the flag '--instance'\n\n")
+	fmt.Fprintf(ioHelper.out, "Please pick one of the available instances and set the flag '--instance'\n\n")
 	return "", fmt.Errorf("auto-selection of instance failed: project %s has more than one Spanner instance. "+
 		"Please use the flag '--instance' to select an instance", project)
 }
@@ -327,7 +365,7 @@ func getInstances(project string) ([]string, error) {
 func writeSchemaFile(conv *postgres.Conv, now time.Time, name string) {
 	f, err := os.Create(name)
 	if err != nil {
-		fmt.Printf("Can't create schema file %s: %v\n", name, err)
+		fmt.Fprintf(ioHelper.out, "Can't create schema file %s: %v\n", name, err)
 		return
 	}
 	// The schema file we write out includes comments, and doesn't add backticks
@@ -346,10 +384,10 @@ func writeSchemaFile(conv *postgres.Conv, now time.Time, name string) {
 		"\n",
 	}
 	if _, err := f.WriteString(strings.Join(l, "")); err != nil {
-		fmt.Printf("Can't write out schema file: %v\n", err)
+		fmt.Fprintf(ioHelper.out, "Can't write out schema file: %v\n", err)
 		return
 	}
-	fmt.Printf("Wrote schema to file '%s'.\n", name)
+	fmt.Fprintf(ioHelper.out, "Wrote schema to file '%s'.\n", name)
 }
 
 // writeBadData prints summary stats about bad rows and writes detailed info
@@ -363,7 +401,7 @@ func writeBadData(bw *spanner.BatchWriter, conv *postgres.Conv, banner, name str
 	}
 	f, err := os.Create(name)
 	if err != nil {
-		fmt.Printf("Can't write out bad data file: %v\n", err)
+		fmt.Fprintf(ioHelper.out, "Can't write out bad data file: %v\n", err)
 		return
 	}
 	f.WriteString(banner)
@@ -378,7 +416,7 @@ func writeBadData(bw *spanner.BatchWriter, conv *postgres.Conv, banner, name str
 		for _, r := range l {
 			_, err := f.WriteString("  " + r + "\n")
 			if err != nil {
-				fmt.Printf("Can't write out bad data file: %v\n", err)
+				fmt.Fprintf(ioHelper.out, "Can't write out bad data file: %v\n", err)
 				return
 			}
 		}
@@ -393,18 +431,15 @@ func writeBadData(bw *spanner.BatchWriter, conv *postgres.Conv, banner, name str
 		for _, r := range l {
 			_, err := f.WriteString("  " + r + "\n")
 			if err != nil {
-				fmt.Printf("Can't write out bad data file: %v\n", err)
+				fmt.Fprintf(ioHelper.out, "Can't write out bad data file: %v\n", err)
 				return
 			}
 		}
 	}
-	fmt.Printf("See file '%s' for details of bad rows\n", name)
+	fmt.Fprintf(ioHelper.out, "See file '%s' for details of bad rows\n", name)
 }
 
 func getDatabaseName(now time.Time) (string, error) {
-	if dbNameOverride != "" {
-		return dbNameOverride, nil
-	}
 	return generateName(fmt.Sprintf("pg_dump_%s", now.Format("2006-01-02")))
 }
 
@@ -432,18 +467,8 @@ instance for project %s.
 	return err
 }
 
-func usage() {
-	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-	flag.PrintDefaults()
-	fmt.Fprintf(os.Stderr, `Note: input is always read from stdin.
-Sample usage:
-  pg_dump mydb | %s
-  %s < my_pg_dump_file
-`, os.Args[0], os.Args[0])
-}
-
 func printPermissionsWarning() {
-	fmt.Printf(
+	fmt.Fprintf(ioHelper.out,
 		`
 WARNING: Please check that permissions for this Spanner instance are
 appropriate. Spanner manages access control at the database level, and the
@@ -456,11 +481,11 @@ ACLs are dropped during conversion since they are not supported by Spanner.
 }
 
 func printSeekError(err error) {
-	fmt.Printf("\nCan't get seekable input file: %v\n", err)
-	fmt.Printf("Likely cause: not enough space in %s.\n", os.TempDir())
-	fmt.Printf("Try writing pg_dump output to a file first i.e.\n")
-	fmt.Printf("  pg_dump > tmpfile\n")
-	fmt.Printf("  harbourbridge < tmpfile\n")
+	fmt.Fprintf(ioHelper.out, "\nCan't get seekable input file: %v\n", err)
+	fmt.Fprintf(ioHelper.out, "Likely cause: not enough space in %s.\n", os.TempDir())
+	fmt.Fprintf(ioHelper.out, "Try writing pg_dump output to a file first i.e.\n")
+	fmt.Fprintf(ioHelper.out, "  pg_dump > tmpfile\n")
+	fmt.Fprintf(ioHelper.out, "  harbourbridge < tmpfile\n")
 }
 
 func containsAny(s string, l []string) bool {
@@ -528,11 +553,4 @@ func sum(m map[string]int64) int64 {
 		n += c
 	}
 	return n
-}
-
-func init() {
-	flag.StringVar(&dbNameOverride, "dbname", "", "dbname: name to use for Spanner db")
-	flag.StringVar(&instanceOverride, "instance", "", "instance: Spanner instance to use")
-	flag.StringVar(&filePrefix, "prefix", "", "prefix: file prefix for generated files")
-	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
 }
