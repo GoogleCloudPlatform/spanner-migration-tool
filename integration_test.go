@@ -43,9 +43,9 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	_ = initIntegrationTests()
+	cleanup = initIntegrationTests()
 	res := m.Run()
-	// cleanup()
+	cleanup()
 	os.Exit(res)
 }
 
@@ -92,6 +92,17 @@ func dropDatabase(t *testing.T, dbPath string) {
 	}
 }
 
+func cleanupFiles(t *testing.T, files []string) {
+	for _, file := range files {
+		if _, err := os.Stat(file); err == nil {
+			err = os.Remove(file)
+			if err != nil {
+				t.Errorf("failed to delete file: %v", file)
+			}
+		}
+	}
+}
+
 func prepareIntegrationTest(t *testing.T) {
 	if databaseAdmin == nil {
 		t.Skip("Integration tests skipped")
@@ -109,12 +120,14 @@ func TestIntegration_SimpleUse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open the test data file: %v", err)
 	}
-	err = process(testProjectID, testInstanceID, dbName, &ioStreams{f, os.Stdout}, "")
+	filePrefix = dbName + "."
+	err = process(testProjectID, testInstanceID, dbName, &ioStreams{f, os.Stdout}, filePrefix)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Drop the database later.
 	defer dropDatabase(t, dbPath)
+	defer cleanupFiles(t, []string{filePrefix + schemaFile, filePrefix + reportFile, filePrefix + badDataFile})
 
 	// Make a query to check results.
 	ctx := context.Background()
