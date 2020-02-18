@@ -15,13 +15,11 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"reflect"
 	"sort"
 	"testing"
@@ -103,17 +101,16 @@ func prepareIntegrationTest(t *testing.T) {
 func TestIntegration_SimpleUse(t *testing.T) {
 	prepareIntegrationTest(t)
 
-	dataFilepath := "test_data/pg_dump.cart.test.out"
 	dbName, _ := getDatabaseName(now)
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", testProjectID, testInstanceID, dbName)
 
 	// Run the command.
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -instance %s -dbname %s < %s", testInstanceID, dbName, dataFilepath))
-	var out, stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		fmt.Printf("stderr: %q\n", stderr.String())
+	f, err := os.Open("test_data/pg_dump.cart.test.out")
+	if err != nil {
+		t.Fatalf("failed to open the test data file: %v", err)
+	}
+	err = process(testProjectID, testInstanceID, dbName, &ioStreams{f, os.Stdout}, "")
+	if err != nil {
 		t.Fatal(err)
 	}
 	// Drop the database later.

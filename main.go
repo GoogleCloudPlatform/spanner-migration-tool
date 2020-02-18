@@ -86,7 +86,7 @@ func main() {
 	}
 	defer close(lf)
 
-	err = process(projectOverride, instanceOverride, dbNameOverride, nil)
+	err = process(projectOverride, instanceOverride, dbNameOverride, nil, filePrefix)
 	if err != nil {
 		panic(fmt.Errorf("failed to run the job: %v", err))
 	}
@@ -98,7 +98,7 @@ type ioStreams struct {
 
 var ioHelper = &ioStreams{os.Stdin, os.Stdout}
 
-func process(project, instance, dbName string, helper *ioStreams) error {
+func process(projectID, instanceID, dbName string, helper *ioStreams, ouputFilePrefix string) error {
 	if helper != nil {
 		ioHelper = helper
 	}
@@ -106,21 +106,21 @@ func process(project, instance, dbName string, helper *ioStreams) error {
 	now := time.Now()
 	var err error
 
-	if project == "" {
-		project, err = getProject()
+	if projectID == "" {
+		projectID, err = getProject()
 		if err != nil {
 			return fmt.Errorf("can't get project: %v", err)
 		}
 	}
-	fmt.Fprintf(ioHelper.out, "Using project: %s\n", project)
+	fmt.Fprintf(ioHelper.out, "Using project: %s\n", projectID)
 
-	if instance == "" {
-		instance, err = getInstance(project)
+	if instanceID == "" {
+		instanceID, err = getInstance(projectID)
 		if err != nil {
 			return fmt.Errorf("can't get instance: %v", err)
 		}
 	}
-	fmt.Fprintf(ioHelper.out, "Using Spanner instance: %s\n", instanceOverride)
+	fmt.Fprintf(ioHelper.out, "Using Spanner instance: %s\n", instanceID)
 	printPermissionsWarning()
 	f, n, err := getSeekable(ioHelper.in)
 	if err != nil {
@@ -137,15 +137,15 @@ func process(project, instance, dbName string, helper *ioStreams) error {
 		}
 	}
 	// If filePrefix not explicitly set, use dbName.
-	if filePrefix == "" {
-		filePrefix = dbName + "."
+	if ouputFilePrefix == "" {
+		ouputFilePrefix = dbName + "."
 	}
 	err = firstPass(f, n, conv)
 	if err != nil {
 		panic(fmt.Errorf("Failed to parse the data file: %v", err))
 	}
-	writeSchemaFile(conv, now, filePrefix+schemaFile)
-	db, err := createDatabase(project, instance, dbName, now, conv)
+	writeSchemaFile(conv, now, ouputFilePrefix+schemaFile)
+	db, err := createDatabase(projectID, instanceID, dbName, now, conv)
 	if err != nil {
 		return fmt.Errorf("can't create database: %v", err)
 	}
@@ -159,15 +159,14 @@ func process(project, instance, dbName string, helper *ioStreams) error {
 	}
 	rows := conv.Rows()
 	bw := secondPass(f, client, conv, rows)
-	report(bw, n, now, db, conv)
+	report(bw, n, now, db, conv, ouputFilePrefix+reportFile, ouputFilePrefix+badDataFile)
 	return nil
 }
 
-func report(bw *spanner.BatchWriter, bytesRead int64, now time.Time, db string, conv *postgres.Conv) {
-	fileName := filePrefix + reportFile
-	f, err := os.Create(fileName)
+func report(bw *spanner.BatchWriter, bytesRead int64, now time.Time, db string, conv *postgres.Conv, reportFileName string, badDataFileName string) {
+	f, err := os.Create(reportFileName)
 	if err != nil {
-		fmt.Fprintf(ioHelper.out, "Can't write out report file %s: %v\n", fileName, err)
+		fmt.Fprintf(ioHelper.out, "Can't write out report file %s: %v\n", reportFileName, err)
 		fmt.Fprintf(ioHelper.out, "Writing report to stdout\n")
 		f = ioHelper.out
 	} else {
@@ -185,9 +184,9 @@ func report(bw *spanner.BatchWriter, bytesRead int64, now time.Time, db string, 
 	// In the case where f is stdout, don't write a duplicate copy.
 	if f != ioHelper.out {
 		fmt.Fprint(ioHelper.out, summary)
-		fmt.Fprintf(ioHelper.out, "See file '%s' for details of the schema and data conversions.\n", fileName)
+		fmt.Fprintf(ioHelper.out, "See file '%s' for details of the schema and data conversions.\n", reportFileName)
 	}
-	writeBadData(bw, conv, banner, filePrefix+badDataFile)
+	writeBadData(bw, conv, banner, badDataFileName)
 }
 
 func firstPass(f *os.File, fileSize int64, conv *postgres.Conv) error {
@@ -274,7 +273,7 @@ func createDatabase(project, instance, dbName string, now time.Time, conv *postg
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
 	if err != nil {
-		return "", fmt.Errorf("can't create admin client: %w", analyzeError(err, project))
+		return "", fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
 	}
 	defer adminClient.Close()
 	// The schema we send to Spanner excludes comments (since Cloud
@@ -287,10 +286,10 @@ func createDatabase(project, instance, dbName string, now time.Time, conv *postg
 		ExtraStatements: schema,
 	})
 	if err != nil {
-		return "", fmt.Errorf("can't build CreateDatabaseRequest: %w", analyzeError(err, project))
+		return "", fmt.Errorf("can't build CreateDatabaseRequest: %w", analyzeError(err, project, instance))
 	}
 	if _, err := op.Wait(ctx); err != nil {
-		return "", fmt.Errorf("createDatabase call failed: %w", analyzeError(err, project))
+		return "", fmt.Errorf("createDatabase call failed: %w", analyzeError(err, project, instance))
 	}
 	fmt.Fprintf(ioHelper.out, "done.\n")
 	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName), nil
@@ -345,7 +344,7 @@ func getInstances(project string) ([]string, error) {
 	ctx := context.Background()
 	instanceClient, err := instance.NewInstanceAdminClient(ctx)
 	if err != nil {
-		return nil, analyzeError(err, project)
+		return nil, analyzeError(err, project, "")
 	}
 	it := instanceClient.ListInstances(ctx, &instancepb.ListInstancesRequest{Parent: fmt.Sprintf("projects/%s", project)})
 	var l []string
@@ -355,7 +354,7 @@ func getInstances(project string) ([]string, error) {
 			break
 		}
 		if err != nil {
-			return nil, analyzeError(err, project)
+			return nil, analyzeError(err, project, "")
 		}
 		l = append(l, strings.TrimPrefix(resp.Name, fmt.Sprintf("projects/%s/instances/", project)))
 	}
@@ -445,7 +444,7 @@ func getDatabaseName(now time.Time) (string, error) {
 
 // analyzeError inspects an error returned from Cloud Spanner and adds information
 // about potential root causes e.g. authentication issues.
-func analyzeError(err error, project string) error {
+func analyzeError(err error, project, instance string) error {
 	e := strings.ToLower(err.Error())
 	if containsAny(e, []string{"unauthenticated", "cannot fetch token", "default credentials"}) {
 		return fmt.Errorf("%w.\n"+`
@@ -457,12 +456,12 @@ or configure environment variable GOOGLE_APPLICATION_CREDENTIALS.
 See https://cloud.google.com/docs/authentication/getting-started.
 `, err)
 	}
-	if containsAny(e, []string{"instance not found"}) && instanceOverride != "" {
+	if containsAny(e, []string{"instance not found"}) && instance != "" {
 		return fmt.Errorf("%w.\n"+`
 Possible cause: Spanner instance specified via instance option does not exist.
 Please check that '%s' is correct and that it is a valid Spanner
 instance for project %s.
-`, err, instanceOverride, project)
+`, err, instance, project)
 	}
 	return err
 }
