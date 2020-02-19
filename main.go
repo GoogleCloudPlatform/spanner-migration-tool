@@ -52,7 +52,6 @@ var (
 	reportFile       = "report.txt"
 	dbNameOverride   string
 	instanceOverride string
-	projectOverride  string
 	filePrefix       = ""
 	verbose          bool
 )
@@ -60,7 +59,6 @@ var (
 func init() {
 	flag.StringVar(&dbNameOverride, "dbname", "", "dbname: name to use for Spanner db")
 	flag.StringVar(&instanceOverride, "instance", "", "instance: Spanner instance to use")
-	flag.StringVar(&projectOverride, "project", "", "project: Google Cloud project to use")
 	flag.StringVar(&filePrefix, "prefix", "", "prefix: file prefix for generated files")
 	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
 }
@@ -86,9 +84,45 @@ func main() {
 	}
 	defer close(lf)
 
-	err = process(projectOverride, instanceOverride, dbNameOverride, nil, filePrefix)
+	// Get project ID
+	project, err := getProject()
 	if err != nil {
-		panic(fmt.Errorf("failed to run the job: %v", err))
+		fmt.Printf("\nCan't get project: %v\n", err)
+		panic(fmt.Errorf("can't get project"))
+	}
+	fmt.Printf("Using project: %s\n", project)
+
+	// Get instance ID
+	instance := instanceOverride
+	if instance == "" {
+		instance, err = getInstance(project)
+		if err != nil {
+			fmt.Printf("\nCan't get instance: %v\n", err)
+			panic(fmt.Errorf("can't get instance"))
+		}
+	}
+	fmt.Printf("Using Spanner instance: %s\n", instance)
+	printPermissionsWarning()
+
+	now := time.Now()
+	// Get database name
+	dbName := dbNameOverride
+	if dbName == "" {
+		dbName, err = getDatabaseName(now)
+		if err != nil {
+			fmt.Printf("\nCan't get database name: %v\n", err)
+			panic(fmt.Errorf("can't get database name"))
+		}
+	}
+
+	// If filePrefix not explicitly set, use dbName.
+	if filePrefix == "" {
+		filePrefix = dbName + "."
+	}
+
+	err = process(project, instance, dbName, nil, filePrefix, now)
+	if err != nil {
+		panic(err)
 	}
 }
 
@@ -98,30 +132,11 @@ type ioStreams struct {
 
 var ioHelper = &ioStreams{os.Stdin, os.Stdout}
 
-func process(projectID, instanceID, dbName string, helper *ioStreams, ouputFilePrefix string) error {
+func process(projectID, instanceID, dbName string, helper *ioStreams, ouputFilePrefix string, now time.Time) error {
 	if helper != nil {
 		ioHelper = helper
 	}
 
-	now := time.Now()
-	var err error
-
-	if projectID == "" {
-		projectID, err = getProject()
-		if err != nil {
-			return fmt.Errorf("can't get project: %v", err)
-		}
-	}
-	fmt.Fprintf(ioHelper.out, "Using project: %s\n", projectID)
-
-	if instanceID == "" {
-		instanceID, err = getInstance(projectID)
-		if err != nil {
-			return fmt.Errorf("can't get instance: %v", err)
-		}
-	}
-	fmt.Fprintf(ioHelper.out, "Using Spanner instance: %s\n", instanceID)
-	printPermissionsWarning()
 	f, n, err := getSeekable(ioHelper.in)
 	if err != nil {
 		printSeekError(err)
@@ -130,32 +145,26 @@ func process(projectID, instanceID, dbName string, helper *ioStreams, ouputFileP
 	defer f.Close()
 	conv := postgres.MakeConv()
 
-	if dbName == "" {
-		dbName, err = getDatabaseName(now)
-		if err != nil {
-			return fmt.Errorf("can't generate database name: %v", err)
-		}
-	}
-	// If filePrefix not explicitly set, use dbName.
-	if ouputFilePrefix == "" {
-		ouputFilePrefix = dbName + "."
-	}
 	err = firstPass(f, n, conv)
 	if err != nil {
-		panic(fmt.Errorf("Failed to parse the data file: %v", err))
+		fmt.Fprintf(helper.out, "Failed to parse the data file: %v", err)
+		return fmt.Errorf("failed to parse the data file")
 	}
 	writeSchemaFile(conv, now, ouputFilePrefix+schemaFile)
 	db, err := createDatabase(projectID, instanceID, dbName, now, conv)
 	if err != nil {
-		return fmt.Errorf("can't create database: %v", err)
+		fmt.Printf("\nCan't create database: %v\n", err)
+		return fmt.Errorf("can't create database")
 	}
 	client, err := getClient(db)
 	if err != nil {
-		return fmt.Errorf("Can't create client for db %s: %v", db, err)
+		fmt.Printf("\nCan't create client for db %s: %v\n", db, err)
+		return fmt.Errorf("can't create Spanner client")
 	}
 	_, err = f.Seek(0, 0)
 	if err != nil {
-		return fmt.Errorf("can't seek to start of file (preparation for second pass): %v", err)
+		fmt.Printf("\nCan't seek to start of file (preparation for second pass): %v\n", err)
+		return fmt.Errorf("can't seek to start of file")
 	}
 	rows := conv.Rows()
 	bw := secondPass(f, client, conv, rows)

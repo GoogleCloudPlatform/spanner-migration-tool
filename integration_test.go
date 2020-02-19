@@ -36,14 +36,12 @@ var (
 	testProjectID  string
 	testInstanceID string
 
-	now = time.Now()
-
 	instanceAdmin *instance.InstanceAdminClient
 	databaseAdmin *database.DatabaseAdminClient
 )
 
 func TestMain(m *testing.M) {
-	cleanup = initIntegrationTests()
+	cleanup := initIntegrationTests()
 	res := m.Run()
 	cleanup()
 	os.Exit(res)
@@ -112,6 +110,7 @@ func prepareIntegrationTest(t *testing.T) {
 func TestIntegration_SimpleUse(t *testing.T) {
 	prepareIntegrationTest(t)
 
+	now := time.Now()
 	dbName, _ := getDatabaseName(now)
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", testProjectID, testInstanceID, dbName)
 
@@ -121,7 +120,7 @@ func TestIntegration_SimpleUse(t *testing.T) {
 		t.Fatalf("failed to open the test data file: %v", err)
 	}
 	filePrefix = dbName + "."
-	err = process(testProjectID, testInstanceID, dbName, &ioStreams{f, os.Stdout}, filePrefix)
+	err = process(testProjectID, testInstanceID, dbName, &ioStreams{f, os.Stdout}, filePrefix, now)
 	if err != nil {
 		t.Fatal(err)
 	}
