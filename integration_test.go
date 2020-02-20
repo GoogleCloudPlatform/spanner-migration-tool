@@ -109,6 +109,8 @@ func prepareIntegrationTest(t *testing.T) {
 }
 
 func TestIntegration_SimpleUse(t *testing.T) {
+	t.Parallel()
+
 	prepareIntegrationTest(t)
 
 	now := time.Now()
@@ -133,6 +135,8 @@ func TestIntegration_SimpleUse(t *testing.T) {
 }
 
 func TestIntegration_Command(t *testing.T) {
+	t.Parallel()
+
 	prepareIntegrationTest(t)
 
 	now := time.Now()
