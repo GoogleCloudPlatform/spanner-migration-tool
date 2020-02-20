@@ -19,9 +19,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -102,23 +104,29 @@ func cleanupFiles(t *testing.T, files []string) {
 	}
 }
 
-func prepareIntegrationTest(t *testing.T) {
+func prepareIntegrationTest(t *testing.T) string {
 	if databaseAdmin == nil {
 		t.Skip("Integration tests skipped")
 	}
+	tmpdir, err := ioutil.TempDir(".", "int-test-")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return tmpdir
 }
 
 func TestIntegration_SimpleUse(t *testing.T) {
 	t.Parallel()
 
-	prepareIntegrationTest(t)
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
 	dbName, _ := getDatabaseName(now)
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", testProjectID, testInstanceID, dbName)
 
 	dataFilepath := "test_data/pg_dump.test.out"
-	filePrefix = dbName + "."
+	filePrefix = filepath.Join(tmpdir, dbName+".")
 	f, err := os.Open(dataFilepath)
 	if err != nil {
 		t.Fatalf("failed to open the test data file: %v", err)
@@ -129,7 +137,6 @@ func TestIntegration_SimpleUse(t *testing.T) {
 	}
 	// Drop the database later.
 	defer dropDatabase(t, dbPath)
-	defer cleanupFiles(t, []string{filePrefix + schemaFile, filePrefix + reportFile, filePrefix + badDataFile})
 
 	checkResults(t, dbPath)
 }
@@ -137,14 +144,15 @@ func TestIntegration_SimpleUse(t *testing.T) {
 func TestIntegration_Command(t *testing.T) {
 	t.Parallel()
 
-	prepareIntegrationTest(t)
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
 	dbName, _ := getDatabaseName(now)
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", testProjectID, testInstanceID, dbName)
 
 	dataFilepath := "test_data/pg_dump.test.out"
-	filePrefix = dbName + "."
+	filePrefix = filepath.Join(tmpdir, dbName+".")
 	// Be aware that when testing with the command, the time `now` might be
 	// different between file prefixes and the contents in the files. This
 	// is because file prefixes use `now` from here (the test function) and
@@ -164,7 +172,6 @@ func TestIntegration_Command(t *testing.T) {
 	}
 	// Drop the database later.
 	defer dropDatabase(t, dbPath)
-	defer cleanupFiles(t, []string{filePrefix + schemaFile, filePrefix + reportFile, filePrefix + badDataFile})
 
 	checkResults(t, dbPath)
 }
