@@ -151,7 +151,7 @@ func process(projectID, instanceID, dbName string, helper *ioStreams, ouputFileP
 		return fmt.Errorf("failed to parse the data file")
 	}
 	writeSchemaFile(conv, now, ouputFilePrefix+schemaFile)
-	db, err := createDatabase(projectID, instanceID, dbName, now, conv)
+	db, err := createDatabase(projectID, instanceID, dbName, conv)
 	if err != nil {
 		fmt.Printf("\nCan't create database: %v\n", err)
 		return fmt.Errorf("can't create database")
@@ -277,7 +277,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 // It automatically determines an appropriate project, selects a
 // Spanner instance to use, generates a new Spanner DB name,
 // and call into the Spanner admin interface to create the new DB.
-func createDatabase(project, instance, dbName string, now time.Time, conv *postgres.Conv) (string, error) {
+func createDatabase(project, instance, dbName string, conv *postgres.Conv) (string, error) {
 	fmt.Fprintf(ioHelper.out, "Creating new database %s in instance %s with default permissions ... ", dbName, instance)
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)

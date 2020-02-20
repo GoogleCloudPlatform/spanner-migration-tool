@@ -15,13 +15,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"reflect"
-	"sort"
 	"testing"
 	"time"
 
@@ -114,12 +115,12 @@ func TestIntegration_SimpleUse(t *testing.T) {
 	dbName, _ := getDatabaseName(now)
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", testProjectID, testInstanceID, dbName)
 
-	// Run the command.
-	f, err := os.Open("test_data/pg_dump.cart.test.out")
+	dataFilepath := "test_data/pg_dump.test.out"
+	filePrefix = dbName + "."
+	f, err := os.Open(dataFilepath)
 	if err != nil {
 		t.Fatalf("failed to open the test data file: %v", err)
 	}
-	filePrefix = dbName + "."
 	err = process(testProjectID, testInstanceID, dbName, &ioStreams{f, os.Stdout}, filePrefix, now)
 	if err != nil {
 		t.Fatal(err)
@@ -128,6 +129,43 @@ func TestIntegration_SimpleUse(t *testing.T) {
 	defer dropDatabase(t, dbPath)
 	defer cleanupFiles(t, []string{filePrefix + schemaFile, filePrefix + reportFile, filePrefix + badDataFile})
 
+	checkResults(t, dbPath)
+}
+
+func TestIntegration_Command(t *testing.T) {
+	prepareIntegrationTest(t)
+
+	now := time.Now()
+	dbName, _ := getDatabaseName(now)
+	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", testProjectID, testInstanceID, dbName)
+
+	dataFilepath := "test_data/pg_dump.test.out"
+	filePrefix = dbName + "."
+	// Be aware that when testing with the command, the time `now` might be
+	// different between file prefixes and the contents in the files. This
+	// is because file prefixes use `now` from here (the test function) and
+	// the generated time in the files uses a `now` inside the command, which
+	// can be different.
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -instance %s -dbname %s -prefix %s < %s", testInstanceID, dbName, filePrefix, dataFilepath))
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("GCLOUD_PROJECT=%s", testProjectID),
+	)
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("stdout: %q\n", out.String())
+		fmt.Printf("stderr: %q\n", stderr.String())
+		t.Fatal(err)
+	}
+	// Drop the database later.
+	defer dropDatabase(t, dbPath)
+	defer cleanupFiles(t, []string{filePrefix + schemaFile, filePrefix + reportFile, filePrefix + badDataFile})
+
+	checkResults(t, dbPath)
+}
+
+func checkResults(t *testing.T, dbPath string) {
 	// Make a query to check results.
 	ctx := context.Background()
 	client, err := spanner.NewClient(ctx, dbPath)
@@ -136,9 +174,15 @@ func TestIntegration_SimpleUse(t *testing.T) {
 	}
 	defer client.Close()
 
-	var quantities []int64
+	checkBigInt(ctx, t, client)
+	checkTimestamps(ctx, t, client)
+	checkDateBytesBool(ctx, t, client)
+	checkArrays(ctx, t, client)
+}
 
-	iter := client.Single().Read(ctx, "cart", spanner.AllKeys(), []string{"quantity"})
+func checkBigInt(ctx context.Context, t *testing.T, client *spanner.Client) {
+	var quantity int64
+	iter := client.Single().Read(ctx, "cart", spanner.Key{"31ad80e3-182b-42b0-a164-b4c7ea976ce4", "OLJCESPC7Z"}, []string{"quantity"})
 	defer iter.Stop()
 	for {
 		row, err := iter.Next()
@@ -148,17 +192,89 @@ func TestIntegration_SimpleUse(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		var quantity int64
 		if err := row.Columns(&quantity); err != nil {
 			t.Fatal(err)
 		}
-		quantities = append(quantities, quantity)
 	}
-
-	// Sort a slice of int64 because sort.Ints() does not work for int64.
-	sort.Slice(quantities, func(i, j int) bool { return quantities[i] < quantities[j] })
-
-	if got, want := quantities, []int64{1, 2, 106, 125}; !reflect.DeepEqual(got, want) {
+	if got, want := quantity, int64(125); got != want {
 		t.Fatalf("quantities are not correct: got %v, want %v", got, want)
+	}
+}
+
+func checkTimestamps(ctx context.Context, t *testing.T, client *spanner.Client) {
+	var ts, tsWithZone time.Time
+	iter := client.Single().Read(ctx, "test", spanner.Key{4}, []string{"t", "tz"})
+	defer iter.Stop()
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := row.Columns(&ts, &tsWithZone); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got, want := ts.Format(time.RFC3339Nano), "2019-10-28T15:00:00.123457Z"; got != want {
+		t.Fatalf("timestamp is not correct: got %v, want %v", got, want)
+	}
+	if got, want := tsWithZone.Format(time.RFC3339Nano), "2019-10-28T15:00:00.123457Z"; got != want {
+		t.Fatalf("timestamp with time zone is not correct: got %v, want %v", got, want)
+	}
+}
+
+func checkDateBytesBool(ctx context.Context, t *testing.T, client *spanner.Client) {
+	var date spanner.NullDate
+	var bytesVal []byte
+	var boolVal bool
+	iter := client.Single().Read(ctx, "test2", spanner.Key{1}, []string{"a", "b", "c"})
+	defer iter.Stop()
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := row.Columns(&date, &bytesVal, &boolVal); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got, want := date.String(), "\"2019-10-28\""; got != want {
+		t.Fatalf("date is not correct: got %v, want %v", got, want)
+	}
+	if got, want := string(bytesVal), "\x00\x01\x02\x03ޭ\xbe\xef"; got != want {
+		t.Fatalf("bytes are not correct: got %v, want %v", got, want)
+	}
+	if got, want := boolVal, true; got != want {
+		t.Fatalf("bool value is not correct: got %v, want %v", got, want)
+	}
+}
+
+func checkArrays(ctx context.Context, t *testing.T, client *spanner.Client) {
+	var ints []int64
+	var strs []string
+	iter := client.Single().Read(ctx, "test3", spanner.Key{1}, []string{"a", "b"})
+	defer iter.Stop()
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := row.Columns(&ints, &strs); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got, want := ints, []int64{1, 2, 3}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("integer array is not correct: got %v, want %v", got, want)
+	}
+	if got, want := strs, []string{"1", "nice", "foo"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("string array is not correct: got %v, want %v", got, want)
 	}
 }
