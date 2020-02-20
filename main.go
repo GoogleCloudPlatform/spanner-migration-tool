@@ -84,7 +84,6 @@ func main() {
 	}
 	defer close(lf)
 
-	// Get project ID
 	project, err := getProject()
 	if err != nil {
 		fmt.Printf("\nCan't get project: %v\n", err)
@@ -92,7 +91,6 @@ func main() {
 	}
 	fmt.Printf("Using project: %s\n", project)
 
-	// Get instance ID
 	instance := instanceOverride
 	if instance == "" {
 		instance, err = getInstance(project)
@@ -105,7 +103,6 @@ func main() {
 	printPermissionsWarning()
 
 	now := time.Now()
-	// Get database name
 	dbName := dbNameOverride
 	if dbName == "" {
 		dbName, err = getDatabaseName(now)
@@ -168,6 +165,8 @@ func process(projectID, instanceID, dbName string, helper *ioStreams, ouputFileP
 	}
 	rows := conv.Rows()
 	bw := secondPass(f, client, conv, rows)
+	// TODO(hengfeng): When we refactor `process` into a separate module, and
+	// the parameters will capture everything we need from main.
 	report(bw, n, now, db, conv, ouputFilePrefix+reportFile, ouputFilePrefix+badDataFile)
 	return nil
 }

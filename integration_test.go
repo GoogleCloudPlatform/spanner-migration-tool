@@ -36,8 +36,8 @@ import (
 )
 
 var (
-	testProjectID  string
-	testInstanceID string
+	projectID  string
+	instanceID string
 
 	instanceAdmin *instance.InstanceAdminClient
 	databaseAdmin *database.DatabaseAdminClient
@@ -51,8 +51,8 @@ func TestMain(m *testing.M) {
 }
 
 func initIntegrationTests() (cleanup func()) {
-	testProjectID = os.Getenv("HARBOURBRIDGE_TESTS_GCLOUD_PROJECT_ID")
-	testInstanceID = os.Getenv("HARBOURBRIDGE_TESTS_GCLOUD_INSTANCE_ID")
+	projectID = os.Getenv("HARBOURBRIDGE_TESTS_GCLOUD_PROJECT_ID")
+	instanceID = os.Getenv("HARBOURBRIDGE_TESTS_GCLOUD_INSTANCE_ID")
 
 	ctx := context.Background()
 	flag.Parse() // Needed for testing.Short().
@@ -63,12 +63,12 @@ func initIntegrationTests() (cleanup func()) {
 		return noop
 	}
 
-	if testProjectID == "" {
+	if projectID == "" {
 		log.Println("Integration tests skipped: HARBOURBRIDGE_TESTS_GCLOUD_PROJECT_ID is missing")
 		return noop
 	}
 
-	if testInstanceID == "" {
+	if instanceID == "" {
 		log.Println("Integration tests skipped: HARBOURBRIDGE_TESTS_GCLOUD_INSTANCE_ID is missing")
 		return noop
 	}
@@ -123,7 +123,7 @@ func TestIntegration_SimpleUse(t *testing.T) {
 
 	now := time.Now()
 	dbName, _ := getDatabaseName(now)
-	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", testProjectID, testInstanceID, dbName)
+	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 
 	dataFilepath := "test_data/pg_dump.test.out"
 	filePrefix = filepath.Join(tmpdir, dbName+".")
@@ -131,7 +131,7 @@ func TestIntegration_SimpleUse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open the test data file: %v", err)
 	}
-	err = process(testProjectID, testInstanceID, dbName, &ioStreams{f, os.Stdout}, filePrefix, now)
+	err = process(projectID, instanceID, dbName, &ioStreams{f, os.Stdout}, filePrefix, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +149,7 @@ func TestIntegration_Command(t *testing.T) {
 
 	now := time.Now()
 	dbName, _ := getDatabaseName(now)
-	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", testProjectID, testInstanceID, dbName)
+	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 
 	dataFilepath := "test_data/pg_dump.test.out"
 	filePrefix = filepath.Join(tmpdir, dbName+".")
@@ -158,12 +158,12 @@ func TestIntegration_Command(t *testing.T) {
 	// is because file prefixes use `now` from here (the test function) and
 	// the generated time in the files uses a `now` inside the command, which
 	// can be different.
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -instance %s -dbname %s -prefix %s < %s", testInstanceID, dbName, filePrefix, dataFilepath))
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -instance %s -dbname %s -prefix %s < %s", instanceID, dbName, filePrefix, dataFilepath))
 	var out, stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 	cmd.Env = append(os.Environ(),
-		fmt.Sprintf("GCLOUD_PROJECT=%s", testProjectID),
+		fmt.Sprintf("GCLOUD_PROJECT=%s", projectID),
 	)
 	if err := cmd.Run(); err != nil {
 		fmt.Printf("stdout: %q\n", out.String())
