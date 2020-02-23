@@ -23,6 +23,7 @@ import (
 	nodes "github.com/lfittl/pg_query_go/nodes"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -32,12 +33,15 @@ type Conv struct {
 	spSchema       map[string]ddl.CreateTable // Maps Spanner table name to Spanner schema.
 	syntheticPKeys map[string]syntheticPKey   // Maps Spanner table name to synthetic primary key (if needed).
 	pgSchema       map[string]pgTableDef      // Maps PostgreSQL table name Postgres schema information.
-	toSpanner      map[string]nameAndCols     // Maps from PostgreSQL table name to Spanner name and column mapping.
-	toPostgres     map[string]nameAndCols     // Maps from Spanner table name to PostgreSQL name and column mapping.
-	dataSink       func(table string, cols []string, values []interface{})
-	location       *time.Location // Timezone (for timestamp conversion).
-	sampleBadRows  rowSamples     // Rows that generated errors during conversion.
-	stats          stats
+	// srcSchema and issues are new components of Conv that will eventually replace pgSchema
+	srcSchema     map[string]schema.Table             // Maps Source table name to schema information.
+	issues        map[string]map[string][]schemaIssue // Maps Source table/col to list of schema conversion issues.
+	toSpanner     map[string]nameAndCols              // Maps from PostgreSQL table name to Spanner name and column mapping.
+	toPostgres    map[string]nameAndCols              // Maps from Spanner table name to PostgreSQL name and column mapping.
+	dataSink      func(table string, cols []string, values []interface{})
+	location      *time.Location // Timezone (for timestamp conversion).
+	sampleBadRows rowSamples     // Rows that generated errors during conversion.
+	stats         stats
 }
 
 type mode int
@@ -134,6 +138,8 @@ func MakeConv() *Conv {
 		spSchema:       make(map[string]ddl.CreateTable),
 		syntheticPKeys: make(map[string]syntheticPKey),
 		pgSchema:       make(map[string]pgTableDef),
+		srcSchema:      make(map[string]schema.Table),
+		issues:         make(map[string]map[string][]schemaIssue),
 		toSpanner:      make(map[string]nameAndCols),
 		toPostgres:     make(map[string]nameAndCols),
 		location:       time.Local, // By default, use go's local time, which uses $TZ (when set).

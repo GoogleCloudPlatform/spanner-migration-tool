@@ -1,0 +1,77 @@
+// Copyright 2020 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package postgres
+
+import (
+	"testing"
+
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/stretchr/testify/assert"
+)
+
+// This is just a very basic smoke-test for toSpannerType.
+// The real testing of toSpannerType happens in process_test.go
+// via the public API ProcessPgDump (see TestProcessPgDump).
+func TestToSpannerType(t *testing.T) {
+	conv := MakeConv()
+	conv.SetSchemaMode()
+	name := "test"
+	srcSchema := schema.Table{
+		Name:     name,
+		ColNames: []string{"a", "b", "c", "d", "e", "f"},
+		ColDef: map[string]schema.Column{
+			"a": schema.Column{Name: "a", Type: schema.Type{Id: "int8"}},
+			"b": schema.Column{Name: "b", Type: schema.Type{Id: "float4"}},
+			"c": schema.Column{Name: "c", Type: schema.Type{Id: "bool"}},
+			"d": schema.Column{Name: "d", Type: schema.Type{Id: "varchar", Mods: []int64{6}}},
+			"e": schema.Column{Name: "e", Type: schema.Type{Id: "numeric"}},
+			"f": schema.Column{Name: "f", Type: schema.Type{Id: "timestamptz"}},
+		},
+		PrimaryKeys: []schema.Key{schema.Key{Column: "a"}}}
+	conv.srcSchema[name] = srcSchema
+	assert.Nil(t, schemaToDDL(conv))
+	actual := conv.spSchema[name]
+	dropComments(&actual) // Don't test comment.
+	expected := ddl.CreateTable{
+		name,
+		[]string{"a", "b", "c", "d", "e", "f"},
+		map[string]ddl.ColumnDef{
+			"a": ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
+			"b": ddl.ColumnDef{Name: "b", T: ddl.Float64{}},
+			"c": ddl.ColumnDef{Name: "c", T: ddl.Bool{}},
+			"d": ddl.ColumnDef{Name: "d", T: ddl.String{ddl.Int64Length{6}}},
+			"e": ddl.ColumnDef{Name: "e", T: ddl.Float64{}},
+			"f": ddl.ColumnDef{Name: "f", T: ddl.Timestamp{}},
+		},
+		[]ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+		"",
+	}
+	assert.Equal(t, expected, actual)
+	expectedIssues := map[string][]schemaIssue{
+		"b": []schemaIssue{widened},
+		"e": []schemaIssue{numeric},
+	}
+	assert.Equal(t, expectedIssues, conv.issues[name])
+}
+
+func dropComments(t *ddl.CreateTable) {
+	t.Comment = ""
+	for _, c := range t.Cols {
+		cd := t.Cds[c]
+		cd.Comment = ""
+		t.Cds[c] = cd
+	}
+}
