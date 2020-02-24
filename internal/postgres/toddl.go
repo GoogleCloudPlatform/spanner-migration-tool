@@ -24,8 +24,9 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// schemaToDDL converts the source schema from conv.srcSchema to
-// a Spanner schema and stores the result in conv.spSchema.
+// schemaToDDL performs schema conversion from the source DB schema to
+// Spanner. It uses the source schema in conv.srcSchema, and writes
+// the Spanner schema to conv.spSchema.
 func schemaToDDL(conv *Conv) error {
 	for _, srcTable := range conv.srcSchema {
 		spTableName, err := GetSpannerTable(conv, srcTable.Name)
@@ -172,8 +173,6 @@ func prType(ty schema.Type) string {
 	return s
 }
 
-// quoteIfNeeded returns true if we need to quote this name before
-// printing it as part of schema comments.
 func quoteIfNeeded(s string) string {
 	for _, r := range s {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsPunct(r) {

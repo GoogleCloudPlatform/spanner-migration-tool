@@ -46,9 +46,9 @@ func TestToSpannerType(t *testing.T) {
 	actual := conv.spSchema[name]
 	dropComments(&actual) // Don't test comment.
 	expected := ddl.CreateTable{
-		name,
-		[]string{"a", "b", "c", "d", "e", "f"},
-		map[string]ddl.ColumnDef{
+		Name: name,
+		Cols: []string{"a", "b", "c", "d", "e", "f"},
+		Cds: map[string]ddl.ColumnDef{
 			"a": ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
 			"b": ddl.ColumnDef{Name: "b", T: ddl.Float64{}},
 			"c": ddl.ColumnDef{Name: "c", T: ddl.Bool{}},
@@ -56,8 +56,7 @@ func TestToSpannerType(t *testing.T) {
 			"e": ddl.ColumnDef{Name: "e", T: ddl.Float64{}},
 			"f": ddl.ColumnDef{Name: "f", T: ddl.Timestamp{}},
 		},
-		[]ddl.IndexKey{ddl.IndexKey{Col: "a"}},
-		"",
+		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
 	}
 	assert.Equal(t, expected, actual)
 	expectedIssues := map[string][]schemaIssue{

@@ -34,41 +34,38 @@ type Table struct {
 	Indexes     []Index
 }
 
-type Key struct {
-	Column string
-	Desc   bool // By default, order is ASC. Set to true to specifiy DESC.
-}
-
-type Index struct {
-	Name string
-	Keys []Key
-}
-
 // Column represents a database column.
+// TODO: add support for foreign keys.
 type Column struct {
 	Name    string
 	Type    Type
 	NotNull bool
 	Unique  bool
-	// 	ForeignKey []ForeignKey
 	Ignored Ignored
 }
 
+// Key respresents a primary key or index key.
+type Key struct {
+	Column string
+	Desc   bool // By default, order is ASC. Set to true to specifiy DESC.
+}
+
+// Index represents a database index.
+type Index struct {
+	Name string
+	Keys []Key
+}
+
+// Type represents the type of a column.
 type Type struct {
 	Id          string
 	Mods        []int64 // List of modifiers (aka type parameters e.g. varchar(8) or numeric(6, 4).
 	ArrayBounds []int64 // Empty for scalar types.
 }
 
-// TODO: not used yet.
-type ForeignKey struct {
-	Table  string
-	Column string
-	// TODO: Add what happens on delete e.g. CASCADE, RESTRICT.
-}
-
-// Ignored column properties/constraints. We drop the details, but retain
-// presence/absence for reporting purposes.
+// Ignored represents column properties/constraints that are not
+// represented. We drop the details, but retain presence/absence for
+// reporting purposes.
 type Ignored struct {
 	Check      bool
 	Identity   bool
