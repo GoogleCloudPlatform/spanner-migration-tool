@@ -61,12 +61,12 @@ func ProcessPgDump(conv *Conv, r *internal.Reader) error {
 }
 
 // ProcessRow converts a row of data and writes it out to Spanner.
-// spTable and pgTable are the Spanner and PostgreSQL table names respectively
+// spTable and srcTable are the Spanner and source DB table names respectively
 // (typically they are the same), cols are Spanner cols, and vals contains
 // string data to be converted to appropriate types to send to Spanner.
 // ProcessRow is only called in dataMode.
-func ProcessRow(conv *Conv, spTable, pgTable string, cols, vals []string) {
-	c, v, err := ConvertData(conv, spTable, pgTable, cols, vals)
+func ProcessRow(conv *Conv, spTable, srcTable string, cols, vals []string) {
+	c, v, err := ConvertData(conv, spTable, srcTable, cols, vals)
 	if err != nil {
 		conv.unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
 		conv.statsAddBadRow(spTable, conv.dataMode())

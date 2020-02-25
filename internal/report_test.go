@@ -109,8 +109,8 @@ Warnings
    type.
 
 Note
-1) Some columns will consume more storage in Spanner e.g. for column 'b',
-   PostgreSQL type int4 is mapped to Spanner type int64.
+1) Some columns will consume more storage in Spanner e.g. for column 'b', source
+   DB type int4 is mapped to Spanner type int64.
 
 ----------------------------
 Table default_value
@@ -148,8 +148,8 @@ Warning
    Spanner requires a primary key for every table.
 
 Note
-1) Some columns will consume more storage in Spanner e.g. for column 'b',
-   PostgreSQL type int4 is mapped to Spanner type int64.
+1) Some columns will consume more storage in Spanner e.g. for column 'b', source
+   DB type int4 is mapped to Spanner type int64.
 
 ----------------------------
 Unexpected Conditions

@@ -23,10 +23,10 @@ import (
 func TestGetSpannerTable(t *testing.T) {
 	conv := MakeConv()
 	basicTests := []struct {
-		name    string // Name of test.
-		pgTable string // PostgreSQL table name to test.
-		error   bool   // Whether an error is expected.
-		spTable string // Expected Spanner table name.
+		name     string // Name of test.
+		srcTable string // Source DB table name to test.
+		error    bool   // Whether an error is expected.
+		spTable  string // Expected Spanner table name.
 	}{
 		{"Empty", "", true, ""},
 		{"Good name", "table", false, "table"},
@@ -41,14 +41,14 @@ func TestGetSpannerTable(t *testing.T) {
 		{"Illegal start character with collision (2)", "\ntable", false, "Atable_9"},
 	}
 	for _, tc := range basicTests {
-		spTable, err := GetSpannerTable(conv, tc.pgTable)
+		spTable, err := GetSpannerTable(conv, tc.srcTable)
 		if tc.error {
 			assert.NotNil(t, err, tc.name)
 			continue
 		}
 		assert.Equal(t, tc.spTable, spTable, tc.name)
 		// Run again to check we get same result.
-		s2, err := GetSpannerTable(conv, tc.pgTable)
+		s2, err := GetSpannerTable(conv, tc.srcTable)
 		assert.Nil(t, err, tc.name)
 		assert.Equal(t, spTable, s2, tc.name)
 	}
@@ -57,11 +57,11 @@ func TestGetSpannerTable(t *testing.T) {
 func TestGetSpannerCol(t *testing.T) {
 	conv := MakeConv()
 	basicTests := []struct {
-		name    string // Name of test.
-		pgTable string // PostgreSQL table name to test.
-		pgCol   string // PostgreSQL col name to test.
-		error   bool   // Whether an error is expected.
-		spCol   string // Expected Spanner column name.
+		name     string // Name of test.
+		srcTable string // Source DB table name to test.
+		srcCol   string // Source DB col name to test.
+		error    bool   // Whether an error is expected.
+		spCol    string // Expected Spanner column name.
 	}{
 		{"Empty table", "", "col", true, ""},
 		{"Empty col", "table", "", true, ""},
@@ -78,15 +78,15 @@ func TestGetSpannerCol(t *testing.T) {
 		{"table1 collision 3", "table1", "c?ol", false, "c_ol_8"},
 	}
 	for _, tc := range basicTests {
-		_, err1 := GetSpannerTable(conv, tc.pgTable) // Ensure table is known.
-		spCol, err2 := GetSpannerCol(conv, tc.pgTable, tc.pgCol, false)
+		_, err1 := GetSpannerTable(conv, tc.srcTable) // Ensure table is known.
+		spCol, err2 := GetSpannerCol(conv, tc.srcTable, tc.srcCol, false)
 		if tc.error {
 			assert.True(t, err1 != nil || err2 != nil, tc.name)
 			continue
 		}
 		assert.Equal(t, tc.spCol, spCol, tc.name)
 		// Run again to check we get same result.
-		spCol2, err := GetSpannerCol(conv, tc.pgTable, tc.pgCol, false)
+		spCol2, err := GetSpannerCol(conv, tc.srcTable, tc.srcCol, false)
 		assert.Nil(t, err, tc.name)
 		assert.Equal(t, spCol, spCol2, tc.name)
 	}

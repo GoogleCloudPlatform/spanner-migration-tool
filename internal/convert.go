@@ -36,8 +36,8 @@ type Conv struct {
 	// srcSchema and issues are new components of Conv that will eventually replace pgSchema
 	srcSchema     map[string]schema.Table             // Maps Source table name to schema information.
 	issues        map[string]map[string][]schemaIssue // Maps Source table/col to list of schema conversion issues.
-	toSpanner     map[string]nameAndCols              // Maps from PostgreSQL table name to Spanner name and column mapping.
-	toPostgres    map[string]nameAndCols              // Maps from Spanner table name to PostgreSQL name and column mapping.
+	toSpanner     map[string]nameAndCols              // Maps from source DB table name to Spanner name and column mapping.
+	toSource      map[string]nameAndCols              // Maps from Spanner table name to source DB name and column mapping.
 	dataSink      func(table string, cols []string, values []interface{})
 	location      *time.Location // Timezone (for timestamp conversion).
 	sampleBadRows rowSamples     // Rows that generated errors during conversion.
@@ -53,7 +53,7 @@ const (
 
 // syntheticPKey specifies a synthetic primary key and current sequence
 // count for a table, if needed. We use a synthetic primary key when
-// a PostgreSQL table has no primary key.
+// the source DB table has no primary key.
 type syntheticPKey struct {
 	col      string
 	sequence int64
@@ -61,11 +61,13 @@ type syntheticPKey struct {
 
 // pgTableDef captures data about a table's PostgreSQL schema.
 // Note: we only keep a minimal set of PostgreSQL schema information.
+// TODO: delete pgTableDef.
 type pgTableDef struct {
 	cols map[string]pgColDef
 }
 
 // pgColDef collects key PostgreSQL schema parameters for a table column.
+// TODO: delete pgColDef.
 type pgColDef struct {
 	id     string        // Type id.
 	mods   []int64       // List of modifiers (aka type parameters e.g. varchar(8) or numeric(6, 4).
@@ -76,8 +78,8 @@ type pgColDef struct {
 type schemaIssue int
 
 // Defines all of the schema issues we track. Includes issues
-// with type mappings, as well as features (such as PostgreSQL
-// constraints) that aren't supported in Spanner.
+// with type mappings, as well as features (such as source
+// DB schema constraints) that aren't supported in Spanner.
 const (
 	defaultValue schemaIssue = iota
 	foreignKey
@@ -92,7 +94,7 @@ const (
 )
 
 // nameAndCols contains the name of a table and its columns.
-// Used to map between PostgreSQL and Spanner table and column names.
+// Used to map between source DB and Spanner table and column names.
 type nameAndCols struct {
 	name string
 	cols map[string]string
@@ -141,7 +143,7 @@ func MakeConv() *Conv {
 		srcSchema:      make(map[string]schema.Table),
 		issues:         make(map[string]map[string][]schemaIssue),
 		toSpanner:      make(map[string]nameAndCols),
-		toPostgres:     make(map[string]nameAndCols),
+		toSource:       make(map[string]nameAndCols),
 		location:       time.Local, // By default, use go's local time, which uses $TZ (when set).
 		sampleBadRows:  rowSamples{bytesLimit: 10 * 1000 * 1000},
 		stats: stats{
@@ -268,15 +270,15 @@ func (conv *Conv) SetLocation(loc *time.Location) {
 
 func (conv *Conv) buildPrimaryKey(spTable string) string {
 	base := "synth_id"
-	if _, ok := conv.toPostgres[spTable]; !ok {
-		conv.unexpected(fmt.Sprintf("toPostgres lookup fails for table %s: ", spTable))
+	if _, ok := conv.toSource[spTable]; !ok {
+		conv.unexpected(fmt.Sprintf("toSource lookup fails for table %s: ", spTable))
 		return base
 	}
 	count := 0
 	key := base
 	for {
 		// Check key isn't already a column in the table.
-		if _, ok := conv.toPostgres[spTable].cols[key]; !ok {
+		if _, ok := conv.toSource[spTable].cols[key]; !ok {
 			return key
 		}
 		key = fmt.Sprintf("%s%d", base, count)

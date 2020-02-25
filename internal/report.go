@@ -33,7 +33,7 @@ func GenerateReport(conv *Conv, w *bufio.Writer, badWrites map[string]int64) str
 	ignored := ignoredStatements(conv)
 	w.WriteString("\n")
 	if len(ignored) > 0 {
-		justifyLines(w, fmt.Sprintf("Note that the following PostgreSQL statements "+
+		justifyLines(w, fmt.Sprintf("Note that the following source DB statements "+
 			"were detected but ignored: %s.",
 			strings.Join(ignored, ", ")), 80, 0)
 		w.WriteString("\n\n")
@@ -47,8 +47,8 @@ func GenerateReport(conv *Conv, w *bufio.Writer, badWrites map[string]int64) str
 	w.WriteString("\n\n")
 	writeStmtStats(conv, w)
 	for _, t := range reports {
-		h := fmt.Sprintf("Table %s", t.pgTable)
-		if t.pgTable != t.spTable {
+		h := fmt.Sprintf("Table %s", t.srcTable)
+		if t.srcTable != t.spTable {
 			h = h + fmt.Sprintf(" (mapped to Spanner table %s)", t.spTable)
 		}
 		writeHeading(w, h)
@@ -67,7 +67,7 @@ func GenerateReport(conv *Conv, w *bufio.Writer, badWrites map[string]int64) str
 }
 
 type tableReport struct {
-	pgTable       string
+	srcTable      string
 	spTable       string
 	rows          int64
 	badRows       int64
@@ -90,37 +90,37 @@ func analyzeTables(conv *Conv, badWrites map[string]int64) (r []tableReport) {
 		tables = append(tables, t)
 	}
 	sort.Strings(tables)
-	for _, pgTable := range tables {
-		r = append(r, buildTableReport(conv, pgTable, badWrites))
+	for _, srcTable := range tables {
+		r = append(r, buildTableReport(conv, srcTable, badWrites))
 	}
 	return r
 }
 
-func buildTableReport(conv *Conv, pgTable string, badWrites map[string]int64) tableReport {
-	spTable, err := GetSpannerTable(conv, pgTable)
-	pgSchema, ok1 := conv.pgSchema[pgTable]
+func buildTableReport(conv *Conv, srcTable string, badWrites map[string]int64) tableReport {
+	spTable, err := GetSpannerTable(conv, srcTable)
+	srcSchema, ok1 := conv.pgSchema[srcTable]
 	spSchema, ok2 := conv.spSchema[spTable]
-	tr := tableReport{pgTable: pgTable, spTable: spTable}
+	tr := tableReport{srcTable: srcTable, spTable: spTable}
 	if err != nil || !ok1 || !ok2 {
-		m := "bad PostgreSQL-to-Spanner table mapping or Spanner schema"
+		m := "bad source DB-to-Spanner table mapping or Spanner schema"
 		conv.unexpected("report: " + m)
 		tr.body = []tableReportBody{tableReportBody{heading: "Internal error: " + m}}
 		return tr
 	}
-	issues, cols, warnings := analyzeCols(conv, pgTable, spTable)
+	issues, cols, warnings := analyzeCols(conv, srcTable, spTable)
 	tr.cols = cols
 	tr.warnings = warnings
 	if pk, ok := conv.syntheticPKeys[spTable]; ok {
 		tr.syntheticPKey = pk.col
-		tr.body = buildTableReportBody(conv, pgTable, issues, spSchema, pgSchema, &pk.col)
+		tr.body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, &pk.col)
 	} else {
-		tr.body = buildTableReportBody(conv, pgTable, issues, spSchema, pgSchema, nil)
+		tr.body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, nil)
 	}
 	fillRowStats(conv, spTable, badWrites, &tr)
 	return tr
 }
 
-func buildTableReportBody(conv *Conv, pgTable string, issues map[string][]schemaIssue, spSchema ddl.CreateTable, pgSchema pgTableDef, syntheticPK *string) []tableReportBody {
+func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]schemaIssue, spSchema ddl.CreateTable, srcSchema pgTableDef, syntheticPK *string) []tableReportBody {
 	var body []tableReportBody
 	for _, p := range []struct {
 		heading  string
@@ -138,15 +138,15 @@ func buildTableReportBody(conv *Conv, pgTable string, issues map[string][]schema
 		var l []string
 		if syntheticPK != nil {
 			// Warnings about synthetic primary keys must be handled as a special case
-			// because we have a Spanner column with no matching PostgreSQL col.
+			// because we have a Spanner column with no matching source DB col.
 			// Much of the generic code for processing issues assumes we have both.
 			if p.severity == warning {
 				l = append(l, fmt.Sprintf("Column '%s' was added because this table didn't have a primary key. Spanner requires a primary key for every table", *syntheticPK))
 			}
 		}
 		issueBatcher := make(map[schemaIssue]bool)
-		for _, pgCol := range cols {
-			for _, i := range issues[pgCol] {
+		for _, srcCol := range cols {
+			for _, i := range issues[srcCol] {
 				if issueDB[i].severity != p.severity {
 					continue
 				}
@@ -158,32 +158,33 @@ func buildTableReportBody(conv *Conv, pgTable string, issues map[string][]schema
 					}
 					issueBatcher[i] = true
 				}
-				spCol, err := GetSpannerCol(conv, pgTable, pgCol, true)
+				spCol, err := GetSpannerCol(conv, srcTable, srcCol, true)
 				if err != nil {
 					conv.unexpected(err.Error())
 				}
-				pgType := printType(pgSchema.cols[pgCol])
-				sType := spSchema.Cds[spCol].PrintColumnDefType()
-				// A note on case: Both PostgreSQL types and Spanner types are case
-				// insensitive. PostgreSQL often uses lower case (e.g. pg_dump uses
-				// lower case) and pg_query uses lower case, so pgType is lower-case.
-				// However Spanner defaults to upper case, and the Spanner AST uses
-				// upper case, so sType is upper case. When printing PostgreSQL and
+				srcType := printType(srcSchema.cols[srcCol])
+				spType := spSchema.Cds[spCol].PrintColumnDefType()
+				// A note on case: Spanner types are case insensitive, but
+				// default to upper case. In particular, the Spanner AST uses
+				// upper case, so spType is upper case. Many source DBs
+				// default to lower case. When printing source DB and
 				// Spanner types for comparison purposes, this can be distracting.
 				// Hence we switch to lower-case for Spanner types here.
-				sType = strings.ToLower(sType)
+				// TODO: add logic to choose case for Spanner types based
+				// on case of srcType.
+				spType = strings.ToLower(spType)
 				switch i {
 				case defaultValue:
-					l = append(l, fmt.Sprintf("%s e.g. column '%s'", issueDB[i].brief, pgCol))
+					l = append(l, fmt.Sprintf("%s e.g. column '%s'", issueDB[i].brief, srcCol))
 				case foreignKey:
-					l = append(l, fmt.Sprintf("Column '%s' uses foreign keys which Spanner does not support", pgCol))
+					l = append(l, fmt.Sprintf("Column '%s' uses foreign keys which Spanner does not support", srcCol))
 				case timestamp:
 					// Avoid the confusing "timestamp is mapped to timestamp" message.
-					l = append(l, fmt.Sprintf("Some columns have PostgreSQL type 'timestamp without timezone' which is mapped to Spanner type timestamp e.g. column '%s'. %s", pgCol, issueDB[i].brief))
+					l = append(l, fmt.Sprintf("Some columns have source DB type 'timestamp without timezone' which is mapped to Spanner type timestamp e.g. column '%s'. %s", srcCol, issueDB[i].brief))
 				case widened:
-					l = append(l, fmt.Sprintf("%s e.g. for column '%s', PostgreSQL type %s is mapped to Spanner type %s", issueDB[i].brief, pgCol, pgType, sType))
+					l = append(l, fmt.Sprintf("%s e.g. for column '%s', source DB type %s is mapped to Spanner type %s", issueDB[i].brief, srcCol, srcType, spType))
 				default:
-					l = append(l, fmt.Sprintf("Column '%s': type %s is mapped to %s. %s", pgCol, pgType, sType, issueDB[i].brief))
+					l = append(l, fmt.Sprintf("Column '%s': type %s is mapped to %s. %s", srcCol, srcType, spType, issueDB[i].brief))
 				}
 			}
 		}
@@ -248,9 +249,9 @@ const (
 )
 
 // analyzeCols returns information about the quality of schema mappings
-// for table 'pgTable'. It assumes 'pgTable' is in the conv.pgSchema map.
-func analyzeCols(conv *Conv, pgTable, spTable string) (map[string][]schemaIssue, int64, int64) {
-	pgSchema := conv.pgSchema[pgTable]
+// for table 'srcTable'. It assumes 'srcTable' is in the conv.pgSchema map.
+func analyzeCols(conv *Conv, srcTable, spTable string) (map[string][]schemaIssue, int64, int64) {
+	srcSchema := conv.pgSchema[srcTable]
 	m := make(map[string][]schemaIssue)
 	warnings := int64(0)
 	warningBatcher := make(map[schemaIssue]bool)
@@ -258,7 +259,7 @@ func analyzeCols(conv *Conv, pgTable, spTable string) (map[string][]schemaIssue,
 	// per column and/or multiple warnings per table.
 	// non-batched warnings: count at most one warning per column.
 	// batched warnings: count at most one warning per table.
-	for c, pc := range pgSchema.cols {
+	for c, pc := range srcSchema.cols {
 		colWarning := false
 		m[c] = pc.issues
 		for _, i := range pc.issues {
@@ -274,14 +275,14 @@ func analyzeCols(conv *Conv, pgTable, spTable string) (map[string][]schemaIssue,
 		}
 	}
 	warnings += int64(len(warningBatcher))
-	return m, int64(len(pgSchema.cols)), warnings
+	return m, int64(len(srcSchema.cols)), warnings
 }
 
-// rateSchema returns an string summarizing the quality of PostgreSQL
+// rateSchema returns an string summarizing the quality of source DB
 // to Spanner schema conversion. 'cols' and 'warnings' are respectively
 // the number of columns converted and the warnings encountered
 // (both weighted by number of data rows).
-// 'missingPKey' indicates whether the PostgreSQL schema had a primary key.
+// 'missingPKey' indicates whether the source DB schema had a primary key.
 // 'summary' indicates whether this is a per-table rating or an overall
 // summary rating.
 func rateSchema(cols, warnings int64, missingPKey, summary bool) string {

@@ -29,9 +29,9 @@ import (
 func TestConvertData(t *testing.T) {
 	singleColTests := []struct {
 		name    string
-		t       ddl.ScalarType
+		ty      ddl.ScalarType
 		isArray bool
-		pgt     string      // Postgres type (used by e.g. timestamp conversions).
+		srcTy   string      // Source DB type (used by e.g. timestamp conversions).
 		in      string      // Input value for conversion.
 		e       interface{} // Expected result.
 	}{
@@ -56,18 +56,18 @@ func TestConvertData(t *testing.T) {
 		table := "testtable"
 		col := "a"
 		conv := buildConv(table,
-			ddl.CreateTable{table, []string{col}, map[string]ddl.ColumnDef{col: ddl.ColumnDef{col, tc.t, tc.isArray, false, ""}}, []ddl.IndexKey{}, ""},
-			pgTableDef{map[string]pgColDef{col: pgColDef{id: tc.pgt}}})
+			ddl.CreateTable{table, []string{col}, map[string]ddl.ColumnDef{col: ddl.ColumnDef{col, tc.ty, tc.isArray, false, ""}}, []ddl.IndexKey{}, ""},
+			pgTableDef{map[string]pgColDef{col: pgColDef{id: tc.srcTy}}})
 		conv.SetLocation(time.UTC)
 		ac, av, err := ConvertData(conv, table, table, []string{col}, []string{tc.in})
 		checkResults(t, ac, av, err, []string{col}, []interface{}{tc.e}, tc.name)
 	}
 
 	timestampTests := []struct {
-		name string
-		pgt  string
-		in   string
-		e    interface{}
+		name  string
+		srcTy string
+		in    string
+		e     interface{}
 	}{
 		{"timestamptz hour timezone", "timestamptz", "2019-10-29 05:30:00+10:00", getTime(t, "2019-10-29T05:30:00+10:00")},
 		{"timestamptz hour/min timezone", "timestamptz", "2019-10-29 05:30:00+10:30", getTime(t, "2019-10-29T05:30:00+10:30")},
@@ -79,7 +79,7 @@ func TestConvertData(t *testing.T) {
 		col := "a"
 		conv := buildConv(table,
 			ddl.CreateTable{table, []string{col}, map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: ddl.Timestamp{}}}, []ddl.IndexKey{}, ""},
-			pgTableDef{map[string]pgColDef{col: pgColDef{id: tc.pgt}}})
+			pgTableDef{map[string]pgColDef{col: pgColDef{id: tc.srcTy}}})
 		loc, _ := time.LoadLocation("Australia/Sydney")
 		conv.SetLocation(loc) // Set location so test is robust i.e. doesn't depent on local timezone.
 		ac, av, err := ConvertData(conv, table, table, []string{col}, []string{tc.in})
@@ -142,14 +142,14 @@ func TestConvertData(t *testing.T) {
 		[]ddl.IndexKey{},
 		"",
 	}
-	pgSchema := pgTableDef{
+	srcSchema := pgTableDef{
 		map[string]pgColDef{
 			"a": pgColDef{id: "int8"},
 			"b": pgColDef{id: "float8"},
 			"c": pgColDef{id: "bool"},
 		}}
 	for _, tc := range multiColTests {
-		conv := buildConv(spSchema.Name, spSchema, pgSchema)
+		conv := buildConv(spSchema.Name, spSchema, srcSchema)
 		acols, avals, err := ConvertData(conv, spSchema.Name, spSchema.Name, tc.cols, tc.vals)
 		checkResults(t, acols, avals, err, tc.ecols, tc.evals, tc.name)
 	}
@@ -176,7 +176,7 @@ func TestConvertData(t *testing.T) {
 		},
 	}
 	for _, tc := range errorTests {
-		conv := buildConv(spSchema.Name, spSchema, pgSchema)
+		conv := buildConv(spSchema.Name, spSchema, srcSchema)
 		acols, avals, err := ConvertData(conv, spSchema.Name, spSchema.Name, tc.cols, tc.vals)
 		assert.NotNil(t, err, tc.name)
 		assert.Equal(t, []string{}, acols, tc.name+": column mismatch")
@@ -205,7 +205,7 @@ func TestConvertData(t *testing.T) {
 			evals: []interface{}{int64(7), int64(bits.Reverse64(1))},
 		},
 	}
-	conv := buildConv(spSchema.Name, spSchema, pgSchema)
+	conv := buildConv(spSchema.Name, spSchema, srcSchema)
 	conv.syntheticPKeys[spSchema.Name] = syntheticPKey{col: "synth_id", sequence: 0}
 	for _, tc := range syntheticPKeyTests {
 		acols, avals, err := ConvertData(conv, spSchema.Name, spSchema.Name, tc.cols, tc.vals)
@@ -213,10 +213,10 @@ func TestConvertData(t *testing.T) {
 	}
 }
 
-func buildConv(table string, spSchema ddl.CreateTable, pgSchema pgTableDef) *Conv {
+func buildConv(table string, spSchema ddl.CreateTable, srcSchema pgTableDef) *Conv {
 	conv := MakeConv()
 	conv.spSchema[table] = spSchema
-	conv.pgSchema[table] = pgSchema
+	conv.pgSchema[table] = srcSchema
 	return conv
 }
 
