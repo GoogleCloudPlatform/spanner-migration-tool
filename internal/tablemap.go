@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package postgres
+package internal
 
 import (
 	"fmt"
 	"strconv"
-
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
 
 // GetSpannerTable maps a source DB table name into a legal Spanner table
@@ -36,7 +34,7 @@ func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
 	if sp, found := conv.toSpanner[srcTable]; found {
 		return sp.name, nil
 	}
-	spTable, _ := internal.FixName(srcTable)
+	spTable, _ := FixName(srcTable)
 	if _, found := conv.toSource[spTable]; found {
 		// s has been used before i.e. FixName caused a collision.
 		// Add unique postfix: use number of tables so far.
@@ -53,7 +51,7 @@ func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
 		}
 	}
 	if spTable != srcTable {
-		internal.VerbosePrintf("Mapping source DB table %s to Spanner table %s\n", srcTable, spTable)
+		VerbosePrintf("Mapping source DB table %s to Spanner table %s\n", srcTable, spTable)
 	}
 	conv.toSpanner[srcTable] = nameAndCols{name: spTable, cols: make(map[string]string)}
 	conv.toSource[spTable] = nameAndCols{name: srcTable, cols: make(map[string]string)}
@@ -92,7 +90,7 @@ func GetSpannerCol(conv *Conv, srcTable, srcCol string, mustExist bool) (string,
 	if mustExist {
 		return "", fmt.Errorf("table %s does not have a column %s", srcTable, srcCol)
 	}
-	spCol, _ := internal.FixName(srcCol)
+	spCol, _ := FixName(srcCol)
 	if _, found := conv.toSource[sp.name].cols[spCol]; found {
 		// spCol has been used before i.e. FixName caused a collision.
 		// Add unique postfix: use number of cols in this table so far.
@@ -109,7 +107,7 @@ func GetSpannerCol(conv *Conv, srcTable, srcCol string, mustExist bool) (string,
 		}
 	}
 	if spCol != srcCol {
-		internal.VerbosePrintf("Mapping source DB col %s (table %s) to Spanner col %s\n", srcCol, srcTable, spCol)
+		VerbosePrintf("Mapping source DB col %s (table %s) to Spanner col %s\n", srcCol, srcTable, spCol)
 	}
 	conv.toSpanner[srcTable].cols[srcCol] = spCol
 	conv.toSource[sp.name].cols[spCol] = srcCol

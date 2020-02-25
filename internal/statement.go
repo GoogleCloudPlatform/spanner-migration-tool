@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package postgres
+package internal
 
 import (
 	"fmt"
@@ -24,7 +24,6 @@ import (
 
 	nodes "github.com/lfittl/pg_query_go/nodes"
 
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -125,7 +124,7 @@ func processAlterTableStmt(conv *Conv, n nodes.AlterTableStmt) {
 		// For debugging purposes we log the lookup failure if we're
 		// in verbose mode, but otherwise  we just skip these statements.
 		conv.skipStatement([]nodes.Node{n})
-		internal.VerbosePrintf("Processing %v statement: table %s not found", reflect.TypeOf(n), spTable)
+		VerbosePrintf("Processing %v statement: table %s not found", reflect.TypeOf(n), spTable)
 	}
 }
 

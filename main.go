@@ -41,7 +41,6 @@ import (
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/internal/postgres"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -140,7 +139,7 @@ func process(projectID, instanceID, dbName string, helper *ioStreams, ouputFileP
 		return fmt.Errorf("can't get seekable input file")
 	}
 	defer f.Close()
-	conv := postgres.MakeConv()
+	conv := internal.MakeConv()
 
 	err = firstPass(f, n, conv)
 	if err != nil {
@@ -171,7 +170,7 @@ func process(projectID, instanceID, dbName string, helper *ioStreams, ouputFileP
 	return nil
 }
 
-func report(bw *spanner.BatchWriter, bytesRead int64, now time.Time, db string, conv *postgres.Conv, reportFileName string, badDataFileName string) {
+func report(bw *spanner.BatchWriter, bytesRead int64, now time.Time, db string, conv *internal.Conv, reportFileName string, badDataFileName string) {
 	f, err := os.Create(reportFileName)
 	if err != nil {
 		fmt.Fprintf(ioHelper.out, "Can't write out report file %s: %v\n", reportFileName, err)
@@ -184,7 +183,7 @@ func report(bw *spanner.BatchWriter, bytesRead int64, now time.Time, db string, 
 	banner := fmt.Sprintf("Generated at %s for db %s\n\n", now.Format("2006-01-02 15:04:05"), db)
 	w.WriteString(banner)
 	badWrites := bw.DroppedRowsByTable()
-	summary := postgres.GenerateReport(conv, w, badWrites)
+	summary := internal.GenerateReport(conv, w, badWrites)
 	w.Flush()
 	fmt.Fprintf(ioHelper.out, "Processed %d bytes of pg_dump data (%d statements, %d rows of data, %d errors, %d unexpected conditions).\n",
 		bytesRead, conv.Statements(), conv.Rows(), conv.StatementErrors(), conv.Unexpecteds())
@@ -197,12 +196,12 @@ func report(bw *spanner.BatchWriter, bytesRead int64, now time.Time, db string, 
 	writeBadData(bw, conv, banner, badDataFileName)
 }
 
-func firstPass(f *os.File, fileSize int64, conv *postgres.Conv) error {
+func firstPass(f *os.File, fileSize int64, conv *internal.Conv) error {
 	p := internal.NewProgress(fileSize, "Generating schema", internal.Verbose())
 	r := internal.NewReader(bufio.NewReader(f), p)
 	conv.SetSchemaMode() // Build schema and ignore data in pg_dump.
 	conv.SetDataSink(nil)
-	err := postgres.ProcessPgDump(conv, r)
+	err := internal.ProcessPgDump(conv, r)
 	if err != nil {
 		return err
 	}
@@ -210,7 +209,7 @@ func firstPass(f *os.File, fileSize int64, conv *postgres.Conv) error {
 	return nil
 }
 
-func secondPass(f *os.File, client *sp.Client, conv *postgres.Conv, totalRows int64) *spanner.BatchWriter {
+func secondPass(f *os.File, client *sp.Client, conv *internal.Conv, totalRows int64) *spanner.BatchWriter {
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose())
 	r := internal.NewReader(bufio.NewReader(f), nil)
 	rows := int64(0)
@@ -235,7 +234,7 @@ func secondPass(f *os.File, client *sp.Client, conv *postgres.Conv, totalRows in
 		func(table string, cols []string, vals []interface{}) {
 			writer.AddRow(table, cols, vals)
 		})
-	postgres.ProcessPgDump(conv, r)
+	internal.ProcessPgDump(conv, r)
 	writer.Flush()
 	p.Done()
 	return writer
@@ -276,7 +275,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 // It automatically determines an appropriate project, selects a
 // Spanner instance to use, generates a new Spanner DB name,
 // and call into the Spanner admin interface to create the new DB.
-func createDatabase(project, instance, dbName string, conv *postgres.Conv) (string, error) {
+func createDatabase(project, instance, dbName string, conv *internal.Conv) (string, error) {
 	fmt.Fprintf(ioHelper.out, "Creating new database %s in instance %s with default permissions ... ", dbName, instance)
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
@@ -369,7 +368,7 @@ func getInstances(project string) ([]string, error) {
 	return l, nil
 }
 
-func writeSchemaFile(conv *postgres.Conv, now time.Time, name string) {
+func writeSchemaFile(conv *internal.Conv, now time.Time, name string) {
 	f, err := os.Create(name)
 	if err != nil {
 		fmt.Fprintf(ioHelper.out, "Can't create schema file %s: %v\n", name, err)
@@ -399,7 +398,7 @@ func writeSchemaFile(conv *postgres.Conv, now time.Time, name string) {
 
 // writeBadData prints summary stats about bad rows and writes detailed info
 // to file 'name'.
-func writeBadData(bw *spanner.BatchWriter, conv *postgres.Conv, banner, name string) {
+func writeBadData(bw *spanner.BatchWriter, conv *internal.Conv, banner, name string) {
 	badConversions := conv.BadRows()
 	badWrites := sum(bw.DroppedRowsByTable())
 	if badConversions == 0 && badWrites == 0 {

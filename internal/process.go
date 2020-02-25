@@ -14,7 +14,7 @@
 
 // Package postgres implements PostgreSQL-specific schema conversion
 // and data conversion for HarbourBridge.
-package postgres
+package internal
 
 import (
 	"fmt"
@@ -22,8 +22,6 @@ import (
 
 	pg_query "github.com/lfittl/pg_query_go"
 	nodes "github.com/lfittl/pg_query_go/nodes"
-
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
 
 // ProcessPgDump reads pg_dump data from r and does schema or data conversion,
@@ -31,7 +29,7 @@ import (
 // In schema mode, ProcessPgDump incrementally builds a schema (updating conv).
 // In data mode, ProcessPgDump uses this schema to convert PostgreSQL data
 // and writes it to Spanner, using the data sink specified in conv.
-func ProcessPgDump(conv *Conv, r *internal.Reader) error {
+func ProcessPgDump(conv *Conv, r *Reader) error {
 	for {
 		startLine := r.LineNumber
 		startOffset := r.Offset
@@ -40,7 +38,7 @@ func ProcessPgDump(conv *Conv, r *internal.Reader) error {
 			return err
 		}
 		ci := processStatements(conv, stmts)
-		internal.VerbosePrintf("Parsed SQL command at line=%d/fpos=%d: %d stmts (%d lines, %d bytes) ci=%v\n", startLine, startOffset, len(stmts), r.LineNumber-startLine, len(b), ci != nil)
+		VerbosePrintf("Parsed SQL command at line=%d/fpos=%d: %d stmts (%d lines, %d bytes) ci=%v\n", startLine, startOffset, len(stmts), r.LineNumber-startLine, len(b), ci != nil)
 		if ci != nil {
 			switch ci.stmt {
 			case copyFrom:
@@ -80,7 +78,7 @@ func ProcessRow(conv *Conv, spTable, srcTable string, cols, vals []string) {
 	} else {
 		if conv.dataSink == nil {
 			msg := "Internal error: ProcessRow called but dataSink not configured"
-			internal.VerbosePrintf("%s\n", msg)
+			VerbosePrintf("%s\n", msg)
 			conv.unexpected(msg)
 			conv.statsAddBadRow(spTable, conv.dataMode())
 		} else {
@@ -103,7 +101,7 @@ func byteSize(r *row) int64 {
 
 // readAndParseChunk parses a chunk of pg_dump data, returning the bytes read,
 // the parsed AST (nil if nothing read), and whether we've hit end-of-file.
-func readAndParseChunk(conv *Conv, r *internal.Reader) ([]byte, []nodes.Node, error) {
+func readAndParseChunk(conv *Conv, r *Reader) ([]byte, []nodes.Node, error) {
 	var l [][]byte
 	for {
 		b := r.ReadLine()
@@ -137,12 +135,12 @@ func readAndParseChunk(conv *Conv, r *internal.Reader) ([]byte, []nodes.Node, er
 	}
 }
 
-func processCopyBlock(conv *Conv, c *copyOrInsert, r *internal.Reader) {
-	internal.VerbosePrintf("Parsing COPY-FROM stdin block starting at line=%d/fpos=%d\n", r.LineNumber, r.Offset)
+func processCopyBlock(conv *Conv, c *copyOrInsert, r *Reader) {
+	VerbosePrintf("Parsing COPY-FROM stdin block starting at line=%d/fpos=%d\n", r.LineNumber, r.Offset)
 	for {
 		b := r.ReadLine()
 		if string(b) == "\\.\n" || string(b) == "\\.\r\n" {
-			internal.VerbosePrintf("Parsed COPY-FROM stdin block ending at line=%d/fpos=%d\n", r.LineNumber, r.Offset)
+			VerbosePrintf("Parsed COPY-FROM stdin block ending at line=%d/fpos=%d\n", r.LineNumber, r.Offset)
 			return
 		}
 		if r.EOF {

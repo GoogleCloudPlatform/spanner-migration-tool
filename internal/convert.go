@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package postgres
+package internal
 
 import (
 	"fmt"
@@ -22,7 +22,6 @@ import (
 
 	nodes "github.com/lfittl/pg_query_go/nodes"
 
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -291,7 +290,7 @@ func (conv *Conv) buildPrimaryKey(spTable string) string {
 // be completely reliable due to potential double-counting
 // because we process pg_dump data twice.
 func (conv *Conv) unexpected(u string) {
-	internal.VerbosePrintf("Unexpected condition: %s\n", u)
+	VerbosePrintf("Unexpected condition: %s\n", u)
 	// Limit size of unexpected map. If over limit, then only
 	// update existing entries.
 	if _, ok := conv.stats.unexpected[u]; ok || len(conv.stats.unexpected) < 1000 {
@@ -351,7 +350,7 @@ func (conv *Conv) getStatementStat(s string) *statementStat {
 func (conv *Conv) skipStatement(l []nodes.Node) {
 	if conv.schemaMode() { // Record statement stats on first pass only.
 		s := prNodes(l)
-		internal.VerbosePrintf("Skipping statement: %s\n", s)
+		VerbosePrintf("Skipping statement: %s\n", s)
 		conv.getStatementStat(s).skip++
 	}
 }
@@ -359,7 +358,7 @@ func (conv *Conv) skipStatement(l []nodes.Node) {
 func (conv *Conv) errorInStatement(l []nodes.Node) {
 	if conv.schemaMode() { // Record statement stats on first pass only.
 		s := prNodes(l)
-		internal.VerbosePrintf("Error processing statement: %s\n", s)
+		VerbosePrintf("Error processing statement: %s\n", s)
 		conv.getStatementStat(s).error++
 	}
 }

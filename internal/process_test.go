@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package postgres
+package internal
 
 import (
 	"bufio"
@@ -25,7 +25,6 @@ import (
 	pg_query "github.com/lfittl/pg_query_go"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -535,7 +534,7 @@ func TestProcessPgDump_WithUnparsableContent(t *testing.T) {
 	conv := MakeConv()
 	conv.SetLocation(time.UTC)
 	conv.SetSchemaMode()
-	err := ProcessPgDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil))
+	err := ProcessPgDump(conv, NewReader(bufio.NewReader(strings.NewReader(s)), nil))
 	if err == nil {
 		t.Fatalf("Expect an error, but got nil")
 	}
@@ -548,14 +547,14 @@ func runProcessPgDump(s string) (*Conv, []spannerData) {
 	conv := MakeConv()
 	conv.SetLocation(time.UTC)
 	conv.SetSchemaMode()
-	ProcessPgDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil))
+	ProcessPgDump(conv, NewReader(bufio.NewReader(strings.NewReader(s)), nil))
 	conv.SetDataMode()
 	var rows []spannerData
 	conv.SetDataSink(
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	ProcessPgDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil))
+	ProcessPgDump(conv, NewReader(bufio.NewReader(strings.NewReader(s)), nil))
 	return conv, rows
 }
 
