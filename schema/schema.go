@@ -58,7 +58,7 @@ type Index struct {
 
 // Type represents the type of a column.
 type Type struct {
-	Id          string
+	Name        string
 	Mods        []int64 // List of modifiers (aka type parameters e.g. varchar(8) or numeric(6, 4).
 	ArrayBounds []int64 // Empty for scalar types.
 }

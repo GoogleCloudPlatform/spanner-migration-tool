@@ -44,9 +44,9 @@ func schemaToDDL(conv *Conv) error {
 			if err != nil {
 				return fmt.Errorf("can't get Spanner col: %w", err)
 			}
-			ty, issues := toSpannerType(conv, srcCol.Type.Id, srcCol.Type.Mods)
+			ty, issues := toSpannerType(conv, srcCol.Type.Name, srcCol.Type.Mods)
 			if len(srcCol.Type.ArrayBounds) > 1 {
-				ty = ddl.String{ddl.MaxLength{}}
+				ty = ddl.String{Len: ddl.MaxLength{}}
 				issues = append(issues, multiDimensionalArray)
 			}
 			// TODO: add issues for all elements of srcCol.Ignored.
@@ -64,11 +64,16 @@ func schemaToDDL(conv *Conv) error {
 				T:       ty,
 				IsArray: len(srcCol.Type.ArrayBounds) == 1,
 				NotNull: srcCol.NotNull,
-				Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + prType(srcCol.Type),
+				Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + printSourceType(srcCol.Type),
 			}
 		}
 		comment := "Spanner schema for source table " + quoteIfNeeded(srcTable.Name)
-		conv.spSchema[spTableName] = ddl.CreateTable{spTableName, spColNames, spColDef, cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys), comment}
+		conv.spSchema[spTableName] = ddl.CreateTable{
+			Name:    spTableName,
+			Cols:    spColNames,
+			Cds:     spColDef,
+			Pks:     cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
+			Comment: comment}
 	}
 	return nil
 }
@@ -93,13 +98,13 @@ func toSpannerType(conv *Conv, id string, mods []int64) (ddl.ScalarType, []schem
 	case "bpchar": // Note: Postgres internal name for char is bpchar (aka blank padded char).
 		maxExpectedMods(1)
 		if len(mods) > 0 {
-			return ddl.String{ddl.Int64Length{mods[0]}}, nil
+			return ddl.String{Len: ddl.Int64Length{Value: mods[0]}}, nil
 		}
 		// Note: bpchar without length specifier is equivalent to bpchar(1)
-		return ddl.String{ddl.Int64Length{1}}, nil
+		return ddl.String{Len: ddl.Int64Length{Value: 1}}, nil
 	case "bytea":
 		maxExpectedMods(0)
-		return ddl.Bytes{ddl.MaxLength{}}, nil
+		return ddl.Bytes{Len: ddl.MaxLength{}}, nil
 	case "date":
 		maxExpectedMods(0)
 		return ddl.Date{}, nil
@@ -132,7 +137,7 @@ func toSpannerType(conv *Conv, id string, mods []int64) (ddl.ScalarType, []schem
 		return ddl.Int64{}, []schemaIssue{serial}
 	case "text":
 		maxExpectedMods(0)
-		return ddl.String{ddl.MaxLength{}}, nil
+		return ddl.String{Len: ddl.MaxLength{}}, nil
 	case "timestamptz":
 		maxExpectedMods(1)
 		return ddl.Timestamp{}, nil
@@ -143,15 +148,15 @@ func toSpannerType(conv *Conv, id string, mods []int64) (ddl.ScalarType, []schem
 	case "varchar":
 		maxExpectedMods(1)
 		if len(mods) > 0 {
-			return ddl.String{ddl.Int64Length{mods[0]}}, nil
+			return ddl.String{Len: ddl.Int64Length{Value: mods[0]}}, nil
 		}
-		return ddl.String{ddl.MaxLength{}}, nil
+		return ddl.String{Len: ddl.MaxLength{}}, nil
 	}
-	return ddl.String{ddl.MaxLength{}}, []schemaIssue{noGoodType}
+	return ddl.String{Len: ddl.MaxLength{}}, []schemaIssue{noGoodType}
 }
 
-func prType(ty schema.Type) string {
-	s := ty.Id
+func printSourceType(ty schema.Type) string {
+	s := ty.Name
 	if len(ty.Mods) > 0 {
 		var l []string
 		for _, x := range ty.Mods {
@@ -189,8 +194,9 @@ func cvtPrimaryKeys(conv *Conv, srcTable string, srcKeys []schema.Key) []ddl.Ind
 		spCol, err := GetSpannerCol(conv, srcTable, k.Column, true)
 		if err != nil {
 			conv.unexpected(fmt.Sprintf("Can't map key for table %s", srcTable))
+			continue
 		}
-		spKeys = append(spKeys, ddl.IndexKey{spCol, k.Desc})
+		spKeys = append(spKeys, ddl.IndexKey{Col: spCol, Desc: k.Desc})
 	}
 	return spKeys
 }

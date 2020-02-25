@@ -33,12 +33,12 @@ func TestToSpannerType(t *testing.T) {
 		Name:     name,
 		ColNames: []string{"a", "b", "c", "d", "e", "f"},
 		ColDef: map[string]schema.Column{
-			"a": schema.Column{Name: "a", Type: schema.Type{Id: "int8"}},
-			"b": schema.Column{Name: "b", Type: schema.Type{Id: "float4"}},
-			"c": schema.Column{Name: "c", Type: schema.Type{Id: "bool"}},
-			"d": schema.Column{Name: "d", Type: schema.Type{Id: "varchar", Mods: []int64{6}}},
-			"e": schema.Column{Name: "e", Type: schema.Type{Id: "numeric"}},
-			"f": schema.Column{Name: "f", Type: schema.Type{Id: "timestamptz"}},
+			"a": schema.Column{Name: "a", Type: schema.Type{Name: "int8"}},
+			"b": schema.Column{Name: "b", Type: schema.Type{Name: "float4"}},
+			"c": schema.Column{Name: "c", Type: schema.Type{Name: "bool"}},
+			"d": schema.Column{Name: "d", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+			"e": schema.Column{Name: "e", Type: schema.Type{Name: "numeric"}},
+			"f": schema.Column{Name: "f", Type: schema.Type{Name: "timestamptz"}},
 		},
 		PrimaryKeys: []schema.Key{schema.Key{Column: "a"}}}
 	conv.srcSchema[name] = srcSchema
@@ -52,7 +52,7 @@ func TestToSpannerType(t *testing.T) {
 			"a": ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
 			"b": ddl.ColumnDef{Name: "b", T: ddl.Float64{}},
 			"c": ddl.ColumnDef{Name: "c", T: ddl.Bool{}},
-			"d": ddl.ColumnDef{Name: "d", T: ddl.String{ddl.Int64Length{6}}},
+			"d": ddl.ColumnDef{Name: "d", T: ddl.String{Len: ddl.Int64Length{Value: 6}}},
 			"e": ddl.ColumnDef{Name: "e", T: ddl.Float64{}},
 			"f": ddl.ColumnDef{Name: "f", T: ddl.Timestamp{}},
 		},
