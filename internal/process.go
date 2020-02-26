@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package postgres implements PostgreSQL-specific schema conversion
-// and data conversion for HarbourBridge.
 package internal
 
 import (
@@ -42,9 +40,9 @@ func ProcessPgDump(conv *Conv, r *Reader) error {
 		if ci != nil {
 			switch ci.stmt {
 			case copyFrom:
-				processCopyBlock(conv, ci, r)
+				processCopyBlock(conv, ci.table, ci.cols, r)
 			case insert:
-				ProcessRow(conv, ci.spTable, ci.pgTable, ci.cols, ci.vals)
+				ProcessRow(conv, ci.table, ci.cols, ci.vals)
 			}
 		}
 		if r.EOF {
@@ -52,6 +50,7 @@ func ProcessPgDump(conv *Conv, r *Reader) error {
 		}
 	}
 	if conv.schemaMode() {
+		schemaToDDL(conv)
 		conv.AddPrimaryKeys()
 	}
 
@@ -59,16 +58,15 @@ func ProcessPgDump(conv *Conv, r *Reader) error {
 }
 
 // ProcessRow converts a row of data and writes it out to Spanner.
-// spTable and srcTable are the Spanner and source DB table names respectively
-// (typically they are the same), cols are Spanner cols, and vals contains
-// string data to be converted to appropriate types to send to Spanner.
-// ProcessRow is only called in dataMode.
-func ProcessRow(conv *Conv, spTable, srcTable string, cols, vals []string) {
-	c, v, err := ConvertData(conv, spTable, srcTable, cols, vals)
+// srcTable and srcCols are the source table and columns respectively,
+// and vals contains string data to be converted to appropriate types
+// to send to Spanner.  ProcessRow is only called in dataMode.
+func ProcessRow(conv *Conv, srcTable string, srcCols, vals []string) {
+	t, c, v, err := ConvertData(conv, srcTable, srcCols, vals)
 	if err != nil {
 		conv.unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
-		conv.statsAddBadRow(spTable, conv.dataMode())
-		r := &row{table: spTable, cols: cols, vals: vals}
+		conv.statsAddBadRow(t, conv.dataMode())
+		r := &row{table: srcTable, cols: srcCols, vals: vals}
 		bytes := byteSize(r)
 		// Cap storage used by badRows. Keep at least one bad row.
 		if len(conv.sampleBadRows.rows) == 0 || bytes+conv.sampleBadRows.bytes < conv.sampleBadRows.bytesLimit {
@@ -80,10 +78,10 @@ func ProcessRow(conv *Conv, spTable, srcTable string, cols, vals []string) {
 			msg := "Internal error: ProcessRow called but dataSink not configured"
 			VerbosePrintf("%s\n", msg)
 			conv.unexpected(msg)
-			conv.statsAddBadRow(spTable, conv.dataMode())
+			conv.statsAddBadRow(t, conv.dataMode())
 		} else {
-			conv.dataSink(spTable, c, v)
-			conv.statsAddGoodRow(spTable, conv.dataMode())
+			conv.dataSink(t, c, v)
+			conv.statsAddGoodRow(t, conv.dataMode())
 		}
 	}
 }
@@ -135,7 +133,7 @@ func readAndParseChunk(conv *Conv, r *Reader) ([]byte, []nodes.Node, error) {
 	}
 }
 
-func processCopyBlock(conv *Conv, c *copyOrInsert, r *Reader) {
+func processCopyBlock(conv *Conv, srcTable string, srcCols []string, r *Reader) {
 	VerbosePrintf("Parsing COPY-FROM stdin block starting at line=%d/fpos=%d\n", r.LineNumber, r.Offset)
 	for {
 		b := r.ReadLine()
@@ -147,7 +145,7 @@ func processCopyBlock(conv *Conv, c *copyOrInsert, r *Reader) {
 			conv.unexpected("Reached eof while parsing copy-block")
 			return
 		}
-		conv.statsAddRow(c.spTable, conv.schemaMode())
+		conv.statsAddRow(srcTable, conv.schemaMode())
 		// We have to read the copy-block data so that we can process the remaining
 		// pg_dump content. However, if we don't want the data, stop here.
 		// In particular, avoid the strings.Split and ProcessRow calls below, which
@@ -158,6 +156,6 @@ func processCopyBlock(conv *Conv, c *copyOrInsert, r *Reader) {
 		// COPY-FROM blocks use tabs to separate data items. Note that space within data
 		// items is significant e.g. if a table row contains data items "a ", " b "
 		// it will be shown in the COPY-FROM block as "a \t b ".
-		ProcessRow(conv, c.spTable, c.pgTable, c.cols, strings.Split(strings.Trim(string(b), "\r\n"), "\t"))
+		ProcessRow(conv, srcTable, srcCols, strings.Split(strings.Trim(string(b), "\r\n"), "\t"))
 	}
 }

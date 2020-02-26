@@ -23,6 +23,7 @@ import (
 	"cloud.google.com/go/civil"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -36,31 +37,35 @@ func TestConvertData(t *testing.T) {
 		e       interface{} // Expected result.
 	}{
 		{"bool", ddl.Bool{}, false, "", "true", true},
-		{"bytes", ddl.Bytes{ddl.MaxLength{}}, false, "", `\\x0001beef`, []byte{0x0, 0x1, 0xbe, 0xef}},
+		{"bytes", ddl.Bytes{Len: ddl.MaxLength{}}, false, "", `\\x0001beef`, []byte{0x0, 0x1, 0xbe, 0xef}},
 		{"date", ddl.Date{}, false, "", "2019-10-29", getDate("2019-10-29")},
 		{"float64", ddl.Float64{}, false, "", "42.6", float64(42.6)},
 		{"int64", ddl.Int64{}, false, "", "42", int64(42)},
-		{"string", ddl.String{ddl.MaxLength{}}, false, "", "eh", "eh"},
+		{"string", ddl.String{Len: ddl.MaxLength{}}, false, "", "eh", "eh"},
 		{"timestamptz", ddl.Timestamp{}, false, "timestamptz", "2019-10-29 05:30:00+10", getTime(t, "2019-10-29T05:30:00+10:00")},
 		{"timestamp", ddl.Timestamp{}, false, "timestamp", "2019-10-29 05:30:00", getTime(t, "2019-10-29T05:30:00Z")},
 		// Add cases for each array type, since each is a separate code path.
 		{"bool array", ddl.Bool{}, true, "", "{true,false}", []bool{true, false}},
-		{"bytes array", ddl.Bytes{ddl.MaxLength{}}, true, "", `{\\x0001beef}`, [][]byte{{0x0, 0x1, 0xbe, 0xef}}},
+		{"bytes array", ddl.Bytes{Len: ddl.MaxLength{}}, true, "", `{\\x0001beef}`, [][]byte{{0x0, 0x1, 0xbe, 0xef}}},
 		{"date array", ddl.Date{}, true, "", "{2019-10-29,2019-10-28}", []civil.Date{getDate("2019-10-29"), getDate("2019-10-28")}},
 		{"float64 array", ddl.Float64{}, true, "", "{1.1,2.2,3.3}", []float64{1.1, 2.2, 3.3}},
 		{"int64 array", ddl.Int64{}, true, "", "{1,2,3}", []int64{1, 2, 3}},
-		{"string array", ddl.String{ddl.MaxLength{}}, true, "", "{1,2,3}", []string{"1", "2", "3"}},
+		{"string array", ddl.String{Len: ddl.MaxLength{}}, true, "", "{1,2,3}", []string{"1", "2", "3"}},
 		{"timestamp array", ddl.Timestamp{}, true, "timestamptz", "{2019-10-29 05:30:00+10}", []time.Time{getTime(t, "2019-10-29T05:30:00+10:00")}},
 	}
 	for _, tc := range singleColTests {
 		table := "testtable"
 		col := "a"
 		conv := buildConv(table,
-			ddl.CreateTable{table, []string{col}, map[string]ddl.ColumnDef{col: ddl.ColumnDef{col, tc.ty, tc.isArray, false, ""}}, []ddl.IndexKey{}, ""},
-			pgTableDef{map[string]pgColDef{col: pgColDef{id: tc.srcTy}}})
+			ddl.CreateTable{
+				Name: table,
+				Cols: []string{col},
+				Cds:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: tc.ty, IsArray: tc.isArray, NotNull: false}},
+				Pks:  []ddl.IndexKey{}},
+			schema.Table{Name: table, ColNames: []string{col}, ColDef: map[string]schema.Column{col: schema.Column{Type: schema.Type{Name: tc.srcTy}}}})
 		conv.SetLocation(time.UTC)
-		ac, av, err := ConvertData(conv, table, table, []string{col}, []string{tc.in})
-		checkResults(t, ac, av, err, []string{col}, []interface{}{tc.e}, tc.name)
+		at, ac, av, err := ConvertData(conv, table, []string{col}, []string{tc.in})
+		checkResults(t, at, ac, av, err, table, []string{col}, []interface{}{tc.e}, tc.name)
 	}
 
 	timestampTests := []struct {
@@ -78,12 +83,19 @@ func TestConvertData(t *testing.T) {
 		table := "testtable"
 		col := "a"
 		conv := buildConv(table,
-			ddl.CreateTable{table, []string{col}, map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: ddl.Timestamp{}}}, []ddl.IndexKey{}, ""},
-			pgTableDef{map[string]pgColDef{col: pgColDef{id: tc.srcTy}}})
+			ddl.CreateTable{
+				Name: table,
+				Cols: []string{col},
+				Cds:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: ddl.Timestamp{}}}},
+			schema.Table{
+				Name:     table,
+				ColNames: []string{col},
+				ColDef:   map[string]schema.Column{col: schema.Column{Type: schema.Type{Name: tc.srcTy}}}})
 		loc, _ := time.LoadLocation("Australia/Sydney")
 		conv.SetLocation(loc) // Set location so test is robust i.e. doesn't depent on local timezone.
-		ac, av, err := ConvertData(conv, table, table, []string{col}, []string{tc.in})
+		atable, ac, av, err := ConvertData(conv, table, []string{col}, []string{tc.in})
 		assert.Nil(t, err, tc.name)
+		assert.Equal(t, atable, table, tc.name+": table mismatch")
 		assert.Equal(t, []string{col}, ac, tc.name+": column mismatch")
 		// Avoid assert.Equal for time.Time (it forces location equality).
 		// Instead use Time.Equals, which determines equality based on whether
@@ -131,27 +143,25 @@ func TestConvertData(t *testing.T) {
 			evals: []interface{}{int64(6)},
 		},
 	}
+	table := "testtable"
 	spSchema := ddl.CreateTable{
-		"testtable",
-		[]string{"a", "b", "c"},
-		map[string]ddl.ColumnDef{
+		Name: table,
+		Cols: []string{"a", "b", "c"},
+		Cds: map[string]ddl.ColumnDef{
 			"a": ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
 			"b": ddl.ColumnDef{Name: "b", T: ddl.Float64{}},
 			"c": ddl.ColumnDef{Name: "c", T: ddl.Bool{}},
-		},
-		[]ddl.IndexKey{},
-		"",
-	}
-	srcSchema := pgTableDef{
-		map[string]pgColDef{
-			"a": pgColDef{id: "int8"},
-			"b": pgColDef{id: "float8"},
-			"c": pgColDef{id: "bool"},
+		}}
+	srcSchema := schema.Table{
+		ColDef: map[string]schema.Column{
+			"a": schema.Column{Type: schema.Type{Name: "int8"}},
+			"b": schema.Column{Type: schema.Type{Name: "float8"}},
+			"c": schema.Column{Type: schema.Type{Name: "bool"}},
 		}}
 	for _, tc := range multiColTests {
 		conv := buildConv(spSchema.Name, spSchema, srcSchema)
-		acols, avals, err := ConvertData(conv, spSchema.Name, spSchema.Name, tc.cols, tc.vals)
-		checkResults(t, acols, avals, err, tc.ecols, tc.evals, tc.name)
+		atable, acols, avals, err := ConvertData(conv, spSchema.Name, tc.cols, tc.vals)
+		checkResults(t, atable, acols, avals, err, table, tc.ecols, tc.evals, tc.name)
 	}
 
 	errorTests := []struct {
@@ -177,10 +187,8 @@ func TestConvertData(t *testing.T) {
 	}
 	for _, tc := range errorTests {
 		conv := buildConv(spSchema.Name, spSchema, srcSchema)
-		acols, avals, err := ConvertData(conv, spSchema.Name, spSchema.Name, tc.cols, tc.vals)
+		_, _, _, err := ConvertData(conv, spSchema.Name, tc.cols, tc.vals)
 		assert.NotNil(t, err, tc.name)
-		assert.Equal(t, []string{}, acols, tc.name+": column mismatch")
-		assert.Equal(t, []interface{}{}, avals, tc.name+": value mismatch")
 	}
 
 	syntheticPKeyTests := []struct {
@@ -208,20 +216,27 @@ func TestConvertData(t *testing.T) {
 	conv := buildConv(spSchema.Name, spSchema, srcSchema)
 	conv.syntheticPKeys[spSchema.Name] = syntheticPKey{col: "synth_id", sequence: 0}
 	for _, tc := range syntheticPKeyTests {
-		acols, avals, err := ConvertData(conv, spSchema.Name, spSchema.Name, tc.cols, tc.vals)
-		checkResults(t, acols, avals, err, tc.ecols, tc.evals, tc.name)
+		atable, acols, avals, err := ConvertData(conv, spSchema.Name, tc.cols, tc.vals)
+		checkResults(t, atable, acols, avals, err, table, tc.ecols, tc.evals, tc.name)
 	}
 }
 
-func buildConv(table string, spSchema ddl.CreateTable, srcSchema pgTableDef) *Conv {
+func buildConv(table string, spSchema ddl.CreateTable, srcSchema schema.Table) *Conv {
 	conv := MakeConv()
 	conv.spSchema[table] = spSchema
-	conv.pgSchema[table] = srcSchema
+	conv.srcSchema[table] = srcSchema
+	conv.toSource[table] = nameAndCols{name: table, cols: make(map[string]string)}
+	conv.toSpanner[table] = nameAndCols{name: table, cols: make(map[string]string)}
+	for _, c := range spSchema.Cols {
+		conv.toSource[table].cols[c] = c
+		conv.toSpanner[table].cols[c] = c
+	}
 	return conv
 }
 
-func checkResults(t *testing.T, acols []string, avals []interface{}, err error, ecols []string, evals []interface{}, name string) {
+func checkResults(t *testing.T, atable string, acols []string, avals []interface{}, err error, etable string, ecols []string, evals []interface{}, name string) {
 	assert.Nil(t, err, name)
+	assert.Equal(t, atable, etable, name+": table mismatch")
 	assert.Equal(t, ecols, acols, name+": column mismatch")
 	assert.Equal(t, evals, avals, name+": value mismatch")
 }

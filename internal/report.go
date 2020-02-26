@@ -20,6 +20,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -86,7 +87,7 @@ func analyzeTables(conv *Conv, badWrites map[string]int64) (r []tableReport) {
 	// Process tables in alphabetical order. This ensures that tables
 	// appear in alphabetical order in report.txt.
 	var tables []string
-	for t := range conv.pgSchema {
+	for t := range conv.srcSchema {
 		tables = append(tables, t)
 	}
 	sort.Strings(tables)
@@ -98,11 +99,11 @@ func analyzeTables(conv *Conv, badWrites map[string]int64) (r []tableReport) {
 
 func buildTableReport(conv *Conv, srcTable string, badWrites map[string]int64) tableReport {
 	spTable, err := GetSpannerTable(conv, srcTable)
-	srcSchema, ok1 := conv.pgSchema[srcTable]
+	srcSchema, ok1 := conv.srcSchema[srcTable]
 	spSchema, ok2 := conv.spSchema[spTable]
 	tr := tableReport{srcTable: srcTable, spTable: spTable}
 	if err != nil || !ok1 || !ok2 {
-		m := "bad source DB-to-Spanner table mapping or Spanner schema"
+		m := "bad source-DB-to-Spanner table mapping or Spanner schema"
 		conv.unexpected("report: " + m)
 		tr.body = []tableReportBody{tableReportBody{heading: "Internal error: " + m}}
 		return tr
@@ -116,11 +117,11 @@ func buildTableReport(conv *Conv, srcTable string, badWrites map[string]int64) t
 	} else {
 		tr.body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, nil)
 	}
-	fillRowStats(conv, spTable, badWrites, &tr)
+	fillRowStats(conv, srcTable, badWrites, &tr)
 	return tr
 }
 
-func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]schemaIssue, spSchema ddl.CreateTable, srcSchema pgTableDef, syntheticPK *string) []tableReportBody {
+func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]schemaIssue, spSchema ddl.CreateTable, srcSchema schema.Table, syntheticPK *string) []tableReportBody {
 	var body []tableReportBody
 	for _, p := range []struct {
 		heading  string
@@ -162,7 +163,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]schem
 				if err != nil {
 					conv.unexpected(err.Error())
 				}
-				srcType := printType(srcSchema.cols[srcCol])
+				srcType := printSourceType(srcSchema.ColDef[srcCol].Type)
 				spType := spSchema.Cds[spCol].PrintColumnDefType()
 				// A note on case: Spanner types are case insensitive, but
 				// default to upper case. In particular, the Spanner AST uses
@@ -200,18 +201,18 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]schem
 	return body
 }
 
-func fillRowStats(conv *Conv, spTable string, badWrites map[string]int64, tr *tableReport) {
-	rows := conv.stats.rows[spTable]
-	goodConvRows := conv.stats.goodRows[spTable]
-	badConvRows := conv.stats.badRows[spTable]
-	badRowWrites := badWrites[spTable]
+func fillRowStats(conv *Conv, srcTable string, badWrites map[string]int64, tr *tableReport) {
+	rows := conv.stats.rows[srcTable]
+	goodConvRows := conv.stats.goodRows[srcTable]
+	badConvRows := conv.stats.badRows[srcTable]
+	badRowWrites := badWrites[srcTable]
 	// Note on rows:
 	// rows: all rows we encountered during processing.
 	// goodConvRows: rows we successfully converted.
 	// badConvRows: rows we failed to convert.
 	// badRowWrites: rows we converted, but could not write to Spanner.
 	if rows != goodConvRows+badConvRows || badRowWrites > goodConvRows {
-		conv.unexpected(fmt.Sprintf("Inconsistent row counts for table %s: %d %d %d %d\n", spTable, rows, goodConvRows, badConvRows, badRowWrites))
+		conv.unexpected(fmt.Sprintf("Inconsistent row counts for table %s: %d %d %d %d\n", srcTable, rows, goodConvRows, badConvRows, badRowWrites))
 	}
 	tr.rows = rows
 	tr.badRows = badConvRows + badRowWrites
@@ -249,9 +250,9 @@ const (
 )
 
 // analyzeCols returns information about the quality of schema mappings
-// for table 'srcTable'. It assumes 'srcTable' is in the conv.pgSchema map.
+// for table 'srcTable'. It assumes 'srcTable' is in the conv.srcSchema map.
 func analyzeCols(conv *Conv, srcTable, spTable string) (map[string][]schemaIssue, int64, int64) {
-	srcSchema := conv.pgSchema[srcTable]
+	srcSchema := conv.srcSchema[srcTable]
 	m := make(map[string][]schemaIssue)
 	warnings := int64(0)
 	warningBatcher := make(map[schemaIssue]bool)
@@ -259,10 +260,10 @@ func analyzeCols(conv *Conv, srcTable, spTable string) (map[string][]schemaIssue
 	// per column and/or multiple warnings per table.
 	// non-batched warnings: count at most one warning per column.
 	// batched warnings: count at most one warning per table.
-	for c, pc := range srcSchema.cols {
+	for c, l := range conv.issues[srcTable] {
 		colWarning := false
-		m[c] = pc.issues
-		for _, i := range pc.issues {
+		m[c] = l
+		for _, i := range l {
 			switch {
 			case issueDB[i].severity == warning && issueDB[i].batch:
 				warningBatcher[i] = true
@@ -275,7 +276,7 @@ func analyzeCols(conv *Conv, srcTable, spTable string) (map[string][]schemaIssue
 		}
 	}
 	warnings += int64(len(warningBatcher))
-	return m, int64(len(srcSchema.cols)), warnings
+	return m, int64(len(srcSchema.ColDef)), warnings
 }
 
 // rateSchema returns an string summarizing the quality of source DB

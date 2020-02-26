@@ -31,7 +31,8 @@ func schemaToDDL(conv *Conv) error {
 	for _, srcTable := range conv.srcSchema {
 		spTableName, err := GetSpannerTable(conv, srcTable.Name)
 		if err != nil {
-			return err
+			conv.unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
+			continue
 		}
 		var spColNames []string
 		spColDef := make(map[string]ddl.ColumnDef)
@@ -40,10 +41,11 @@ func schemaToDDL(conv *Conv) error {
 		for _, srcColName := range srcTable.ColNames {
 			srcCol := srcTable.ColDef[srcColName]
 			colName, err := GetSpannerCol(conv, srcTable.Name, srcCol.Name, false)
-			spColNames = append(spColNames, colName)
 			if err != nil {
-				return fmt.Errorf("can't get Spanner col: %w", err)
+				conv.unexpected(fmt.Sprintf("Couldn't map source column %s of table %s to Spanner: %s", srcTable.Name, srcCol.Name, err))
+				continue
 			}
+			spColNames = append(spColNames, colName)
 			ty, issues := toSpannerType(conv, srcCol.Type.Name, srcCol.Type.Mods)
 			if len(srcCol.Type.ArrayBounds) > 1 {
 				ty = ddl.String{Len: ddl.MaxLength{}}

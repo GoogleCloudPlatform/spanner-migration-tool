@@ -34,6 +34,7 @@ func TestProcessStatements(t *testing.T) {
 	tree, err := pg_query.Parse(s)
 	assert.Nil(t, err, "Failed to parse")
 	ci := processStatements(conv, tree.Statements)
+	schemaToDDL(conv)
 	assert.Nil(t, ci, "Unexpected COPY-FROM or INSERT")
 	assert.Equal(t, []string{"productid", "userid", "quantity"}, conv.spSchema["cart"].Cols)
 	assert.Equal(t, 3, len(conv.spSchema["cart"].Cds))

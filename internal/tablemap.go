@@ -113,3 +113,17 @@ func GetSpannerCol(conv *Conv, srcTable, srcCol string, mustExist bool) (string,
 	conv.toSource[sp.name].cols[spCol] = srcCol
 	return spCol, nil
 }
+
+// GetSpannerCols maps a slice of source columns into their corresponding
+// Spanner columns using GetSpannerCol.
+func GetSpannerCols(conv *Conv, srcTable string, srcCols []string) ([]string, error) {
+	var spCols []string
+	for _, srcCol := range srcCols {
+		spCol, err := GetSpannerCol(conv, srcTable, srcCol, false)
+		if err != nil {
+			return nil, err
+		}
+		spCols = append(spCols, spCol)
+	}
+	return spCols, nil
+}

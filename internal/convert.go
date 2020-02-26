@@ -28,19 +28,17 @@ import (
 
 // Conv contains all schema and data conversion state.
 type Conv struct {
-	mode           mode                       // Schema mode or data mode.
-	spSchema       map[string]ddl.CreateTable // Maps Spanner table name to Spanner schema.
-	syntheticPKeys map[string]syntheticPKey   // Maps Spanner table name to synthetic primary key (if needed).
-	pgSchema       map[string]pgTableDef      // Maps PostgreSQL table name Postgres schema information.
-	// srcSchema and issues are new components of Conv that will eventually replace pgSchema
-	srcSchema     map[string]schema.Table             // Maps Source table name to schema information.
-	issues        map[string]map[string][]schemaIssue // Maps Source table/col to list of schema conversion issues.
-	toSpanner     map[string]nameAndCols              // Maps from source DB table name to Spanner name and column mapping.
-	toSource      map[string]nameAndCols              // Maps from Spanner table name to source DB name and column mapping.
-	dataSink      func(table string, cols []string, values []interface{})
-	location      *time.Location // Timezone (for timestamp conversion).
-	sampleBadRows rowSamples     // Rows that generated errors during conversion.
-	stats         stats
+	mode           mode                                // Schema mode or data mode.
+	spSchema       map[string]ddl.CreateTable          // Maps Spanner table name to Spanner schema.
+	syntheticPKeys map[string]syntheticPKey            // Maps Spanner table name to synthetic primary key (if needed).
+	srcSchema      map[string]schema.Table             // Maps source-DB table name to schema information.
+	issues         map[string]map[string][]schemaIssue // Maps source-DB table/col to list of schema conversion issues.
+	toSpanner      map[string]nameAndCols              // Maps from source-DB table name to Spanner name and column mapping.
+	toSource       map[string]nameAndCols              // Maps from Spanner table name to source-DB table name and column mapping.
+	dataSink       func(table string, cols []string, values []interface{})
+	location       *time.Location // Timezone (for timestamp conversion).
+	sampleBadRows  rowSamples     // Rows that generated errors during conversion.
+	stats          stats
 }
 
 type mode int
@@ -58,27 +56,11 @@ type syntheticPKey struct {
 	sequence int64
 }
 
-// pgTableDef captures data about a table's PostgreSQL schema.
-// Note: we only keep a minimal set of PostgreSQL schema information.
-// TODO: delete pgTableDef.
-type pgTableDef struct {
-	cols map[string]pgColDef
-}
-
-// pgColDef collects key PostgreSQL schema parameters for a table column.
-// TODO: delete pgColDef.
-type pgColDef struct {
-	id     string        // Type id.
-	mods   []int64       // List of modifiers (aka type parameters e.g. varchar(8) or numeric(6, 4).
-	array  []int64       // Array bound information. Empty for scalar types.
-	issues []schemaIssue // List of issues encountered mapping this col to Spanner.
-}
-
 type schemaIssue int
 
 // Defines all of the schema issues we track. Includes issues
-// with type mappings, as well as features (such as source
-// DB schema constraints) that aren't supported in Spanner.
+// with type mappings, as well as features (such as PostgreSQL
+// constraints) that aren't supported in Spanner.
 const (
 	defaultValue schemaIssue = iota
 	foreignKey
@@ -118,9 +100,9 @@ type row struct {
 // c) successfully converted, but an error occurs when writing the row to Spanner.
 // d) unsuccessfully converted (we won't try to write such rows to Spanner).
 type stats struct {
-	rows       map[string]int64          // Count of rows encountered during processing (a + b + c + d), broken down by Spanner table.
-	goodRows   map[string]int64          // Count of rows successfully converted (b + c), broken down by Spanner table.
-	badRows    map[string]int64          // Count of rows where conversion failed (d), broken down by Spanner table.
+	rows       map[string]int64          // Count of rows encountered during processing (a + b + c + d), broken down by source table.
+	goodRows   map[string]int64          // Count of rows successfully converted (b + c), broken down by source table.
+	badRows    map[string]int64          // Count of rows where conversion failed (d), broken down by source table.
 	statement  map[string]*statementStat // Count of processed statements, broken down by statement type.
 	unexpected map[string]int64          // Count of unexpected conditions, broken down by condition description.
 	reparsed   int64                     // Count of times we re-parse pg_dump data looking for end-of-statement.
@@ -138,7 +120,6 @@ func MakeConv() *Conv {
 	return &Conv{
 		spSchema:       make(map[string]ddl.CreateTable),
 		syntheticPKeys: make(map[string]syntheticPKey),
-		pgSchema:       make(map[string]pgTableDef),
 		srcSchema:      make(map[string]schema.Table),
 		issues:         make(map[string]map[string][]schemaIssue),
 		toSpanner:      make(map[string]nameAndCols),
@@ -298,32 +279,33 @@ func (conv *Conv) unexpected(u string) {
 	}
 }
 
-// statsAddRow increments the rows stats for table 'spTable' if b is true.
-// This is used to avoid double counting of stats. Specifically, some code paths
-// that report row stats run in both schema-mode and data-mode e.g. statement.go.
-// To avoid double counting, we explicitly choose a mode-for-stats-collection
-// for each place where row stats are collected. When specifying this mode
-// Take care to ensure that the code actually runs in the mode you specify,
+// statsAddRow increments the count of rows for 'srcTable' if b is
+// true.  The boolean arg 'b' is used to avoid double counting of
+// stats. Specifically, some code paths that report row stats run in
+// both schema-mode and data-mode e.g. statement.go.  To avoid double
+// counting, we explicitly choose a mode-for-stats-collection for each
+// place where row stats are collected. When specifying this mode take
+// care to ensure that the code actually runs in the mode you specify,
 // otherwise stats will be dropped.
-func (conv *Conv) statsAddRow(spTable string, b bool) {
+func (conv *Conv) statsAddRow(srcTable string, b bool) {
 	if b {
-		conv.stats.rows[spTable]++
+		conv.stats.rows[srcTable]++
 	}
 }
 
-// statsAddGoodRow increments the good-row stats for table 'spTable' if b is true.
-// See statsAddRow comments for context.
-func (conv *Conv) statsAddGoodRow(spTable string, b bool) {
+// statsAddGoodRow increments the good-row stats for 'srcTable' if b
+// is true.  See statsAddRow comments for context.
+func (conv *Conv) statsAddGoodRow(srcTable string, b bool) {
 	if b {
-		conv.stats.goodRows[spTable]++
+		conv.stats.goodRows[srcTable]++
 	}
 }
 
-// statsAddBadRow increments the bad-row stats for table 'spTable' if b is true.
-// See statsAddRow comments for context.
-func (conv *Conv) statsAddBadRow(spTable string, b bool) {
+// statsAddBadRow increments the bad-row stats for 'srcTable' if b is
+// true.  See statsAddRow comments for context.
+func (conv *Conv) statsAddBadRow(srcTable string, b bool) {
 	if b {
-		conv.stats.badRows[spTable]++
+		conv.stats.badRows[srcTable]++
 	}
 }
 
