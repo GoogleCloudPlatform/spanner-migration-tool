@@ -59,8 +59,8 @@ type syntheticPKey struct {
 type schemaIssue int
 
 // Defines all of the schema issues we track. Includes issues
-// with type mappings, as well as features (such as PostgreSQL
-// constraints) that aren't supported in Spanner.
+// with type mappings, as well as features (such as source
+// DB constraints) that aren't supported in Spanner.
 const (
 	defaultValue schemaIssue = iota
 	foreignKey
