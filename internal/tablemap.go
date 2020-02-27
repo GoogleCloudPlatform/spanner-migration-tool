@@ -12,32 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package postgres
+package internal
 
 import (
 	"fmt"
 	"strconv"
-
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
 
-// GetSpannerTable maps a PostgreSQL table name into a legal Spanner table
-// name. Note that PostgreSQL column names can be essentially any string, but
+// GetSpannerTable maps a source DB table name into a legal Spanner table
+// name. Note that source DB column names can be essentially any string, but
 // Spanner column names must use a limited character set. This means that
 // getSpannerTable may have to change a name to make it legal, we must ensure
 // that:
 // a) the new table name is legal
 // b) the new table name doesn't clash with other Spanner table names
 // c) we consistently return the same name for this table.
-func GetSpannerTable(conv *Conv, pgTable string) (string, error) {
-	if pgTable == "" {
+func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
+	if srcTable == "" {
 		return "", fmt.Errorf("bad parameter: table string is empty")
 	}
-	if sp, found := conv.toSpanner[pgTable]; found {
+	if sp, found := conv.toSpanner[srcTable]; found {
 		return sp.name, nil
 	}
-	spTable, _ := internal.FixName(pgTable)
-	if _, found := conv.toPostgres[spTable]; found {
+	spTable, _ := FixName(srcTable)
+	if _, found := conv.toSource[spTable]; found {
 		// s has been used before i.e. FixName caused a collision.
 		// Add unique postfix: use number of tables so far.
 		// However, there is a chance this has already been used,
@@ -45,55 +43,55 @@ func GetSpannerTable(conv *Conv, pgTable string) (string, error) {
 		id := len(conv.toSpanner)
 		for {
 			t := spTable + "_" + strconv.Itoa(id)
-			if _, found := conv.toPostgres[t]; !found {
+			if _, found := conv.toSource[t]; !found {
 				spTable = t
 				break
 			}
 			id++
 		}
 	}
-	if spTable != pgTable {
-		internal.VerbosePrintf("Mapping PostgreSQL table %s to Spanner table %s\n", pgTable, spTable)
+	if spTable != srcTable {
+		VerbosePrintf("Mapping source DB table %s to Spanner table %s\n", srcTable, spTable)
 	}
-	conv.toSpanner[pgTable] = nameAndCols{name: spTable, cols: make(map[string]string)}
-	conv.toPostgres[spTable] = nameAndCols{name: pgTable, cols: make(map[string]string)}
+	conv.toSpanner[srcTable] = nameAndCols{name: spTable, cols: make(map[string]string)}
+	conv.toSource[spTable] = nameAndCols{name: srcTable, cols: make(map[string]string)}
 	return spTable, nil
 }
 
-// GetSpannerCol maps a PostgreSQL table/column into a legal Spanner column
+// GetSpannerCol maps a source DB table/column into a legal Spanner column
 // name. If mustExist is true, we return error if the column is new.
-// Note that PostgreSQL column names can be essentially any string, but
+// Note that source DB column names can be essentially any string, but
 // Spanner column names must use a limited character set. This means that
 // getSpannerCol may have to change a name to make it legal, we must ensure
 // that:
 // a) the new col name is legal
 // b) the new col name doesn't clash with other col names in the same table
 // c) we consistently return the same name for the same col.
-func GetSpannerCol(conv *Conv, pgTable, pgCol string, mustExist bool) (string, error) {
-	if pgTable == "" {
+func GetSpannerCol(conv *Conv, srcTable, srcCol string, mustExist bool) (string, error) {
+	if srcTable == "" {
 		return "", fmt.Errorf("bad parameter: table string is empty")
 	}
-	if pgCol == "" {
+	if srcCol == "" {
 		return "", fmt.Errorf("bad parameter: col string is empty")
 	}
-	sp, found := conv.toSpanner[pgTable]
+	sp, found := conv.toSpanner[srcTable]
 	if !found {
-		return "", fmt.Errorf("unknown table %s", pgTable)
+		return "", fmt.Errorf("unknown table %s", srcTable)
 	}
 	// Sanity check: do reverse mapping and check consistency.
 	// Consider dropping this check.
-	pg, found := conv.toPostgres[sp.name]
-	if !found || pg.name != pgTable {
-		return "", fmt.Errorf("internal error: table mapping inconsistency for table %s (%s)", pgTable, pg.name)
+	src, found := conv.toSource[sp.name]
+	if !found || src.name != srcTable {
+		return "", fmt.Errorf("internal error: table mapping inconsistency for table %s (%s)", srcTable, src.name)
 	}
-	if spCol, found := sp.cols[pgCol]; found {
+	if spCol, found := sp.cols[srcCol]; found {
 		return spCol, nil
 	}
 	if mustExist {
-		return "", fmt.Errorf("table %s does not have a column %s", pgTable, pgCol)
+		return "", fmt.Errorf("table %s does not have a column %s", srcTable, srcCol)
 	}
-	spCol, _ := internal.FixName(pgCol)
-	if _, found := conv.toPostgres[sp.name].cols[spCol]; found {
+	spCol, _ := FixName(srcCol)
+	if _, found := conv.toSource[sp.name].cols[spCol]; found {
 		// spCol has been used before i.e. FixName caused a collision.
 		// Add unique postfix: use number of cols in this table so far.
 		// However, there is a chance this has already been used,
@@ -101,17 +99,31 @@ func GetSpannerCol(conv *Conv, pgTable, pgCol string, mustExist bool) (string, e
 		id := len(sp.cols)
 		for {
 			c := spCol + "_" + strconv.Itoa(id)
-			if _, found := conv.toPostgres[sp.name].cols[c]; !found {
+			if _, found := conv.toSource[sp.name].cols[c]; !found {
 				spCol = c
 				break
 			}
 			id++
 		}
 	}
-	if spCol != pgCol {
-		internal.VerbosePrintf("Mapping PostgreSQL col %s (table %s) to Spanner col %s\n", pgCol, pgTable, spCol)
+	if spCol != srcCol {
+		VerbosePrintf("Mapping source DB col %s (table %s) to Spanner col %s\n", srcCol, srcTable, spCol)
 	}
-	conv.toSpanner[pgTable].cols[pgCol] = spCol
-	conv.toPostgres[sp.name].cols[spCol] = pgCol
+	conv.toSpanner[srcTable].cols[srcCol] = spCol
+	conv.toSource[sp.name].cols[spCol] = srcCol
 	return spCol, nil
+}
+
+// GetSpannerCols maps a slice of source columns into their corresponding
+// Spanner columns using GetSpannerCol.
+func GetSpannerCols(conv *Conv, srcTable string, srcCols []string) ([]string, error) {
+	var spCols []string
+	for _, srcCol := range srcCols {
+		spCol, err := GetSpannerCol(conv, srcTable, srcCol, false)
+		if err != nil {
+			return nil, err
+		}
+		spCols = append(spCols, spCol)
+	}
+	return spCols, nil
 }

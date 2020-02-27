@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package postgres
+package internal
 
 import (
 	"encoding/hex"
@@ -28,44 +28,85 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// ConvertData maps the PostgreSQL data in vals into Spanner data,
-// based on the specified Spanner and PostgreSQL schemas. Note that since entries
-// in vals may be empty, we also return the list of columns (empty cols are dropped).
-func ConvertData(conv *Conv, spTable, pgTable string, cols []string, vals []string) ([]string, []interface{}, error) {
-	spannerSchema, ok1 := conv.spSchema[spTable]
-	pgSchema, ok2 := conv.pgSchema[pgTable]
+// ProcessDataRow converts a row of data and writes it out to Spanner.
+// srcTable and srcCols are the source table and columns respectively,
+// and vals contains string data to be converted to appropriate types
+// to send to Spanner.  ProcessDataRow is only called in dataMode.
+func ProcessDataRow(conv *Conv, srcTable string, srcCols, vals []string) {
+	spTable, spCols, spVals, err := ConvertData(conv, srcTable, srcCols, vals)
+	if err != nil {
+		conv.unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
+		conv.statsAddBadRow(srcTable, conv.dataMode())
+		r := &row{table: srcTable, cols: srcCols, vals: vals}
+		bytes := byteSize(r)
+		// Cap storage used by badRows. Keep at least one bad row.
+		if len(conv.sampleBadRows.rows) == 0 || bytes+conv.sampleBadRows.bytes < conv.sampleBadRows.bytesLimit {
+			conv.sampleBadRows.rows = append(conv.sampleBadRows.rows, r)
+			conv.sampleBadRows.bytes += bytes
+		}
+	} else {
+		if conv.dataSink == nil {
+			msg := "Internal error: ProcessDataRow called but dataSink not configured"
+			VerbosePrintf("%s\n", msg)
+			conv.unexpected(msg)
+			conv.statsAddBadRow(srcTable, conv.dataMode())
+		} else {
+			conv.dataSink(spTable, spCols, spVals)
+			conv.statsAddGoodRow(srcTable, conv.dataMode())
+		}
+	}
+}
+
+// ConvertData maps the source DB data in vals into Spanner data,
+// based on the Spanner and source DB schemas. Note that since entries
+// in vals may be empty, we also return the list of columns (empty
+// cols are dropped).
+func ConvertData(conv *Conv, srcTable string, srcCols []string, vals []string) (string, []string, []interface{}, error) {
+	// Note: if there are many rows for the same srcTable/srcCols,
+	// then the following functionality will be (redundantly)
+	// repeated for every row converted. If this becomes a
+	// performance issue, we could consider moving this block of
+	// code to the callers of ConverData to avoid the redundancy.
+	spTable, err := GetSpannerTable(conv, srcTable)
+	if err != nil {
+		return "", []string{}, []interface{}{}, fmt.Errorf("can't map source table %s", srcTable)
+	}
+	spCols, err := GetSpannerCols(conv, srcTable, srcCols)
+	if err != nil {
+		return "", []string{}, []interface{}{}, fmt.Errorf("can't map source columns %v", srcCols)
+	}
+	spSchema, ok1 := conv.spSchema[spTable]
+	srcSchema, ok2 := conv.srcSchema[srcTable]
 	if !ok1 || !ok2 {
-		return []string{}, []interface{}{}, fmt.Errorf("can't find table %s in schema", spTable)
+		return "", []string{}, []interface{}{}, fmt.Errorf("can't find table %s in schema", spTable)
 	}
 	var c []string
 	var v []interface{}
-	if len(cols) != len(vals) {
-		return []string{}, []interface{}{}, fmt.Errorf("bad parameters: cols and vals have different lengths: len(cols)=%d, len(vals)=%d", len(cols), len(vals))
+	if len(spCols) != len(srcCols) || len(spCols) != len(vals) {
+		return "", []string{}, []interface{}{}, fmt.Errorf("ConvertData: spCols, srcCols and vals don't all have the same lengths: len(spCols)=%d, len(srcCols)=%d, len(vals)=%d", len(spCols), len(srcCols), len(vals))
 	}
-	for i, col := range cols {
+	for i, spCol := range spCols {
+		srcCol := srcCols[i]
 		if vals[i] == "\\N" { // PostgreSQL representation of empty column in COPY-FROM blocks.
 			continue
 		}
-		cd, ok := spannerSchema.Cds[col]
-		if !ok {
-			return []string{}, []interface{}{}, fmt.Errorf("can't find col %s in schema", col)
-		}
-		pgCol, ok := pgSchema.cols[col]
-		if !ok {
-			return []string{}, []interface{}{}, fmt.Errorf("can't find col %s in pgSchema", col)
+		spColDef, ok1 := spSchema.ColDefs[spCol]
+		srcColDef, ok2 := srcSchema.ColDefs[srcCol]
+		if !ok1 || !ok2 {
+			return "", []string{}, []interface{}{}, fmt.Errorf("can't find Spanner and source-db schema for col %s", spCol)
 		}
 		var x interface{}
 		var err error
-		if cd.IsArray {
-			x, err = convArray(cd.T, pgCol, conv.location, vals[i])
+		if spColDef.IsArray {
+			x, err = convArray(spColDef.T, srcColDef.Type.Name, conv.location, vals[i])
 		} else {
-			x, err = convScalar(cd.T, pgCol.id, conv.location, vals[i])
+			x, err = convScalar(spColDef.T, srcColDef.Type.Name, conv.location, vals[i])
 		}
 		if err != nil {
-			return []string{}, []interface{}{}, err
+			return "", []string{}, []interface{}{}, err
 		}
 		v = append(v, x)
-		c = append(c, col)
+		c = append(c, spCol)
 	}
 	if aux, ok := conv.syntheticPKeys[spTable]; ok {
 		c = append(c, aux.col)
@@ -73,10 +114,10 @@ func ConvertData(conv *Conv, spTable, pgTable string, cols []string, vals []stri
 		aux.sequence++
 		conv.syntheticPKeys[spTable] = aux
 	}
-	return c, v, nil
+	return spTable, c, v, nil
 }
 
-func convScalar(spannerType ddl.ScalarType, pgType string, location *time.Location, val string) (interface{}, error) {
+func convScalar(spannerType ddl.ScalarType, srcTypeName string, location *time.Location, val string) (interface{}, error) {
 	// Whitespace within the val string is considered part of the data value.
 	// Note that many of the underlying conversions functions we use (like
 	// strconv.ParseFloat and strconv.ParseInt) return "invalid syntax"
@@ -96,7 +137,7 @@ func convScalar(spannerType ddl.ScalarType, pgType string, location *time.Locati
 	case ddl.String:
 		return val, nil
 	case ddl.Timestamp:
-		return convTimestamp(pgType, location, val)
+		return convTimestamp(srcTypeName, location, val)
 	default:
 		return val, fmt.Errorf("data conversion not implemented for type %v", reflect.TypeOf(spannerType))
 	}
@@ -145,7 +186,7 @@ func convInt64(val string) (int64, error) {
 	return i, err
 }
 
-// convTimestamp maps a PostgreSQL timestamp into a go Time (which
+// convTimestamp maps a source DB timestamp into a go Time (which
 // is translated to a Spanner timestamp by the go Spanner client library).
 // It handles both timestamptz and timestamp conversions.
 // Note that PostgreSQL supports a wide variety of different timestamp
@@ -153,11 +194,11 @@ func convInt64(val string) (int64, error) {
 // We don't attempt to support all of these timestamp formats. Our goal
 // is more modest: we just need to support the formats generated by
 // pg_dump.
-func convTimestamp(pgType string, location *time.Location, val string) (t time.Time, err error) {
+func convTimestamp(srcTypeName string, location *time.Location, val string) (t time.Time, err error) {
 	// pg_dump outputs timestamps as ISO 8601, except:
 	// a) it uses space instead of T
 	// b) timezones are abbreviated to just hour (minute is specified only if non-zero).
-	if pgType == "timestamptz" {
+	if srcTypeName == "timestamptz" {
 		// PostgreSQL abbreviates timezone to just hour where possible.
 		t, err = time.Parse("2006-01-02 15:04:05Z07", val)
 		if err != nil {
@@ -180,12 +221,12 @@ func convTimestamp(pgType string, location *time.Location, val string) (t time.T
 		t, err = time.Parse("2006-01-02 15:04:05", val)
 	}
 	if err != nil {
-		return t, fmt.Errorf("can't convert to timestamp (posgres type: %s)", pgType)
+		return t, fmt.Errorf("can't convert to timestamp (posgres type: %s)", srcTypeName)
 	}
 	return t, err
 }
 
-func convArray(spannerType ddl.ScalarType, pgType pgColDef, location *time.Location, v string) (interface{}, error) {
+func convArray(spannerType ddl.ScalarType, srcTypeName string, location *time.Location, v string) (interface{}, error) {
 	v = strings.TrimSpace(v)
 	if v[0] != '{' || v[len(v)-1] != '}' {
 		return []interface{}{}, fmt.Errorf("unrecognized data format for array: expected {v1, v2, ...}")
@@ -255,7 +296,7 @@ func convArray(spannerType ddl.ScalarType, pgType pgColDef, location *time.Locat
 	case ddl.Timestamp:
 		var r []time.Time
 		for _, s := range a {
-			t, err := convTimestamp(pgType.id, location, s)
+			t, err := convTimestamp(srcTypeName, location, s)
 			if err != nil {
 				return []time.Time{}, err
 			}
@@ -264,4 +305,15 @@ func convArray(spannerType ddl.ScalarType, pgType pgColDef, location *time.Locat
 		return r, nil
 	}
 	return []interface{}{}, fmt.Errorf("array type conversion not implemented for type %v", reflect.TypeOf(spannerType))
+}
+
+func byteSize(r *row) int64 {
+	n := int64(len(r.table))
+	for _, c := range r.cols {
+		n += int64(len(c))
+	}
+	for _, v := range r.vals {
+		n += int64(len(v))
+	}
+	return n
 }

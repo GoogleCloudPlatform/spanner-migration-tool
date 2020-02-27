@@ -185,11 +185,11 @@ func (pk IndexKey) PrintIndexKey(c Config) string {
 // CreateTable encodes the following DDL definition:
 //     create_table: CREATE TABLE table_name ([column_def, ...] ) primary_key [, cluster]
 type CreateTable struct {
-	Name    string
-	Cols    []string             // Provides names and order of columns
-	Cds     map[string]ColumnDef // Provides definition of columns (a map for simpler/faster lookup during type processing)
-	Pks     []IndexKey
-	Comment string
+	Name     string
+	ColNames []string             // Provides names and order of columns
+	ColDefs  map[string]ColumnDef // Provides definition of columns (a map for simpler/faster lookup during type processing)
+	Pks      []IndexKey
+	Comment  string
 }
 
 // PrintCreateTable unparses a CREATE TABLE statement.
@@ -197,10 +197,10 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	var col []string
 	var colComment []string
 	var keys []string
-	for i, cn := range ct.Cols {
-		s, c := ct.Cds[cn].PrintColumnDef(config)
+	for i, cn := range ct.ColNames {
+		s, c := ct.ColDefs[cn].PrintColumnDef(config)
 		s = "\n    " + s
-		if i < len(ct.Cols)-1 {
+		if i < len(ct.ColNames)-1 {
 			s += ","
 		} else {
 			s += " "

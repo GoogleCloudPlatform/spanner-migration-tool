@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package postgres
+package internal
 
 import (
 	"bufio"
@@ -22,8 +22,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
 
 func TestReport(t *testing.T) {
@@ -48,7 +46,7 @@ func TestReport(t *testing.T) {
             c text);`
 	conv := MakeConv()
 	conv.SetSchemaMode()
-	ProcessPgDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil))
+	ProcessPgDump(conv, NewReader(bufio.NewReader(strings.NewReader(s)), nil))
 	conv.stats.rows = map[string]int64{"bad_schema": 1000, "no_pk": 5000}
 	conv.stats.goodRows = map[string]int64{"bad_schema": 990, "no_pk": 3000}
 	conv.stats.badRows = map[string]int64{"bad_schema": 10, "no_pk": 2000}
@@ -109,8 +107,8 @@ Warnings
    type.
 
 Note
-1) Some columns will consume more storage in Spanner e.g. for column 'b',
-   PostgreSQL type int4 is mapped to Spanner type int64.
+1) Some columns will consume more storage in Spanner e.g. for column 'b', source
+   DB type int4 is mapped to Spanner type int64.
 
 ----------------------------
 Table default_value
@@ -148,8 +146,8 @@ Warning
    Spanner requires a primary key for every table.
 
 Note
-1) Some columns will consume more storage in Spanner e.g. for column 'b',
-   PostgreSQL type int4 is mapped to Spanner type int64.
+1) Some columns will consume more storage in Spanner e.g. for column 'b', source
+   DB type int4 is mapped to Spanner type int64.
 
 ----------------------------
 Unexpected Conditions
