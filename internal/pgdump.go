@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	pg_query "github.com/lfittl/pg_query_go"
 	nodes "github.com/lfittl/pg_query_go/nodes"
 
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
@@ -39,6 +40,104 @@ const (
 	copyFrom stmtType = iota
 	insert
 )
+
+// ProcessPgDump reads pg_dump data from r and does schema or data conversion,
+// depending on whether conv is configured for schema mode or data mode.
+// In schema mode, ProcessPgDump incrementally builds a schema (updating conv).
+// In data mode, ProcessPgDump uses this schema to convert PostgreSQL data
+// and writes it to Spanner, using the data sink specified in conv.
+func ProcessPgDump(conv *Conv, r *Reader) error {
+	for {
+		startLine := r.LineNumber
+		startOffset := r.Offset
+		b, stmts, err := readAndParseChunk(conv, r)
+		if err != nil {
+			return err
+		}
+		ci := processStatements(conv, stmts)
+		VerbosePrintf("Parsed SQL command at line=%d/fpos=%d: %d stmts (%d lines, %d bytes) ci=%v\n", startLine, startOffset, len(stmts), r.LineNumber-startLine, len(b), ci != nil)
+		if ci != nil {
+			switch ci.stmt {
+			case copyFrom:
+				processCopyBlock(conv, ci.table, ci.cols, r)
+			case insert:
+				ProcessDataRow(conv, ci.table, ci.cols, ci.vals)
+			}
+		}
+		if r.EOF {
+			break
+		}
+	}
+	if conv.schemaMode() {
+		schemaToDDL(conv)
+		conv.AddPrimaryKeys()
+	}
+
+	return nil
+}
+
+// readAndParseChunk parses a chunk of pg_dump data, returning the bytes read,
+// the parsed AST (nil if nothing read), and whether we've hit end-of-file.
+func readAndParseChunk(conv *Conv, r *Reader) ([]byte, []nodes.Node, error) {
+	var l [][]byte
+	for {
+		b := r.ReadLine()
+		l = append(l, b)
+		// If we see a semicolon or eof, we're likely to have a command, so try to parse it.
+		// Note: we could just parse every iteration, but that would mean more attempts at parsing.
+		if strings.Contains(string(b), ";") || r.EOF {
+			n := 0
+			for i := range l {
+				n += len(l[i])
+			}
+			s := make([]byte, n)
+			n = 0
+			for i := range l {
+				n += copy(s[n:], l[i])
+			}
+			tree, err := pg_query.Parse(string(s))
+			if err == nil {
+				return s, tree.Statements, nil
+			}
+			// Likely causes of failing to parse:
+			// a) complex statements with embedded semicolons e.g. 'CREATE FUNCTION'
+			// b) a semicolon embedded in a multi-line comment, or
+			// c) a semicolon embedded a string constant or column/table name.
+			// We deal with this case by reading another line and trying again.
+			conv.stats.reparsed++
+		}
+		if r.EOF {
+			return nil, nil, fmt.Errorf("Error parsing last %d line(s) of input", len(l))
+		}
+	}
+}
+
+func processCopyBlock(conv *Conv, srcTable string, srcCols []string, r *Reader) {
+	VerbosePrintf("Parsing COPY-FROM stdin block starting at line=%d/fpos=%d\n", r.LineNumber, r.Offset)
+	for {
+		b := r.ReadLine()
+		if string(b) == "\\.\n" || string(b) == "\\.\r\n" {
+			VerbosePrintf("Parsed COPY-FROM stdin block ending at line=%d/fpos=%d\n", r.LineNumber, r.Offset)
+			return
+		}
+		if r.EOF {
+			conv.unexpected("Reached eof while parsing copy-block")
+			return
+		}
+		conv.statsAddRow(srcTable, conv.schemaMode())
+		// We have to read the copy-block data so that we can process the remaining
+		// pg_dump content. However, if we don't want the data, stop here.
+		// In particular, avoid the strings.Split and ProcessDataRow calls below, which
+		// will be expensive for huge datasets.
+		if !conv.dataMode() {
+			continue
+		}
+		// COPY-FROM blocks use tabs to separate data items. Note that space within data
+		// items is significant e.g. if a table row contains data items "a ", " b "
+		// it will be shown in the COPY-FROM block as "a \t b ".
+		ProcessDataRow(conv, srcTable, srcCols, strings.Split(strings.Trim(string(b), "\r\n"), "\t"))
+	}
+}
 
 // processStatements extracts schema information and data from PostgreSQL
 // statements, updating Conv with new schema information, and returning

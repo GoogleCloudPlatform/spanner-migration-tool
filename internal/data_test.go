@@ -27,6 +27,38 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
+// Basic smoke test of ProcessDataRow. The core part of this code path
+// (ConvertData) is tested in TestConvertData.
+func TestProcessDataRow(t *testing.T) {
+	tableName := "testtable"
+	cols := []string{"a", "b", "c"}
+	conv := buildConv(
+		ddl.CreateTable{
+			Name:     tableName,
+			ColNames: cols,
+			ColDefs: map[string]ddl.ColumnDef{
+				"a": ddl.ColumnDef{Name: "a", T: ddl.Float64{}},
+				"b": ddl.ColumnDef{Name: "b", T: ddl.Int64{}},
+				"c": ddl.ColumnDef{Name: "c", T: ddl.String{Len: ddl.MaxLength{}}},
+			}},
+		schema.Table{
+			Name:     tableName,
+			ColNames: cols,
+			ColDefs: map[string]schema.Column{
+				"a": schema.Column{Name: "a", Type: schema.Type{Name: "float4"}},
+				"b": schema.Column{Name: "b", Type: schema.Type{Name: "int8"}},
+				"c": schema.Column{Name: "c", Type: schema.Type{Name: "text"}},
+			}})
+	conv.SetDataMode()
+	var rows []spannerData
+	conv.SetDataSink(
+		func(table string, cols []string, vals []interface{}) {
+			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
+		})
+	ProcessDataRow(conv, tableName, cols, []string{"4.2", "6", "prisoner zero"})
+	assert.Equal(t, []spannerData{spannerData{table: tableName, cols: cols, vals: []interface{}{float64(4.2), int64(6), "prisoner zero"}}}, rows)
+}
+
 func TestConvertData(t *testing.T) {
 	singleColTests := []struct {
 		name    string

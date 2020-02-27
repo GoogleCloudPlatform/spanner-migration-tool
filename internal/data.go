@@ -28,6 +28,35 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
+// ProcessDataRow converts a row of data and writes it out to Spanner.
+// srcTable and srcCols are the source table and columns respectively,
+// and vals contains string data to be converted to appropriate types
+// to send to Spanner.  ProcessDataRow is only called in dataMode.
+func ProcessDataRow(conv *Conv, srcTable string, srcCols, vals []string) {
+	spTable, spCols, spVals, err := ConvertData(conv, srcTable, srcCols, vals)
+	if err != nil {
+		conv.unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
+		conv.statsAddBadRow(srcTable, conv.dataMode())
+		r := &row{table: srcTable, cols: srcCols, vals: vals}
+		bytes := byteSize(r)
+		// Cap storage used by badRows. Keep at least one bad row.
+		if len(conv.sampleBadRows.rows) == 0 || bytes+conv.sampleBadRows.bytes < conv.sampleBadRows.bytesLimit {
+			conv.sampleBadRows.rows = append(conv.sampleBadRows.rows, r)
+			conv.sampleBadRows.bytes += bytes
+		}
+	} else {
+		if conv.dataSink == nil {
+			msg := "Internal error: ProcessDataRow called but dataSink not configured"
+			VerbosePrintf("%s\n", msg)
+			conv.unexpected(msg)
+			conv.statsAddBadRow(srcTable, conv.dataMode())
+		} else {
+			conv.dataSink(spTable, spCols, spVals)
+			conv.statsAddGoodRow(srcTable, conv.dataMode())
+		}
+	}
+}
+
 // ConvertData maps the source DB data in vals into Spanner data,
 // based on the Spanner and source DB schemas. Note that since entries
 // in vals may be empty, we also return the list of columns (empty
@@ -276,4 +305,15 @@ func convArray(spannerType ddl.ScalarType, srcTypeName string, location *time.Lo
 		return r, nil
 	}
 	return []interface{}{}, fmt.Errorf("array type conversion not implemented for type %v", reflect.TypeOf(spannerType))
+}
+
+func byteSize(r *row) int64 {
+	n := int64(len(r.table))
+	for _, c := range r.cols {
+		n += int64(len(c))
+	}
+	for _, v := range r.vals {
+		n += int64(len(v))
+	}
+	return n
 }
