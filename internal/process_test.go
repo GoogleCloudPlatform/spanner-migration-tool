@@ -69,7 +69,7 @@ func TestProcessPgDump(t *testing.T) {
 	for _, tc := range scalarTests {
 		conv, _ := runProcessPgDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
 		noIssues(conv, t, "Scalar type: "+tc.ty)
-		assert.Equal(t, conv.spSchema["t"].Cds["a"].T, tc.expected, "Scalar type: "+tc.ty)
+		assert.Equal(t, conv.spSchema["t"].ColDefs["a"].T, tc.expected, "Scalar type: "+tc.ty)
 	}
 	// Next test array types and not null.
 	singleColTests := []struct {
@@ -86,7 +86,7 @@ func TestProcessPgDump(t *testing.T) {
 	for _, tc := range singleColTests {
 		conv, _ := runProcessPgDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
 		noIssues(conv, t, "Not null: "+tc.ty)
-		cd := conv.spSchema["t"].Cds["a"]
+		cd := conv.spSchema["t"].ColDefs["a"]
 		cd.Comment = ""
 		assert.Equal(t, tc.expected, cd, "Not null: "+tc.ty)
 	}
@@ -104,9 +104,9 @@ func TestProcessPgDump(t *testing.T) {
 				"ALTER TABLE ONLY cart ADD CONSTRAINT cart_pkey PRIMARY KEY (productid, userid);\n",
 			expectedSchema: map[string]ddl.CreateTable{
 				"cart": ddl.CreateTable{
-					Name: "cart",
-					Cols: []string{"productid", "userid", "quantity"},
-					Cds: map[string]ddl.ColumnDef{
+					Name:     "cart",
+					ColNames: []string{"productid", "userid", "quantity"},
+					ColDefs: map[string]ddl.ColumnDef{
 						"productid": ddl.ColumnDef{Name: "productid", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
 						"userid":    ddl.ColumnDef{Name: "userid", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
 						"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Int64{}},
@@ -118,9 +118,9 @@ func TestProcessPgDump(t *testing.T) {
 			input: "CREATE TABLE cart (productid text, userid text NOT NULL, quantity bigint);\n",
 			expectedSchema: map[string]ddl.CreateTable{
 				"cart": ddl.CreateTable{
-					Name: "cart",
-					Cols: []string{"productid", "userid", "quantity", "synth_id"},
-					Cds: map[string]ddl.ColumnDef{
+					Name:     "cart",
+					ColNames: []string{"productid", "userid", "quantity", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
 						"productid": ddl.ColumnDef{Name: "productid", T: ddl.String{Len: ddl.MaxLength{}}},
 						"userid":    ddl.ColumnDef{Name: "userid", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
 						"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Int64{}},
@@ -133,9 +133,9 @@ func TestProcessPgDump(t *testing.T) {
 			input: "CREATE TABLE test (a text PRIMARY KEY, b text);\n",
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
-					Name: "test",
-					Cols: []string{"a", "b"},
-					Cds: map[string]ddl.ColumnDef{
+					Name:     "test",
+					ColNames: []string{"a", "b"},
+					ColDefs: map[string]ddl.ColumnDef{
 						"a": ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
 						"b": ddl.ColumnDef{Name: "b", T: ddl.String{Len: ddl.MaxLength{}}},
 					},
@@ -146,9 +146,9 @@ func TestProcessPgDump(t *testing.T) {
 			input: "CREATE TABLE test (a text, b text, n bigint, PRIMARY KEY (a, b) );\n",
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
-					Name: "test",
-					Cols: []string{"a", "b", "n"},
-					Cds: map[string]ddl.ColumnDef{
+					Name:     "test",
+					ColNames: []string{"a", "b", "n"},
+					ColDefs: map[string]ddl.ColumnDef{
 						"a": ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
 						"b": ddl.ColumnDef{Name: "b", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
 						"n": ddl.ColumnDef{Name: "n", T: ddl.Int64{}},
@@ -160,9 +160,9 @@ func TestProcessPgDump(t *testing.T) {
 			input: "CREATE TABLE myschema.test (a text PRIMARY KEY, b text);\n",
 			expectedSchema: map[string]ddl.CreateTable{
 				"myschema_test": ddl.CreateTable{
-					Name: "myschema_test",
-					Cols: []string{"a", "b"},
-					Cds: map[string]ddl.ColumnDef{
+					Name:     "myschema_test",
+					ColNames: []string{"a", "b"},
+					ColDefs: map[string]ddl.ColumnDef{
 						"a": ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
 						"b": ddl.ColumnDef{Name: "b", T: ddl.String{Len: ddl.MaxLength{}}},
 					},
@@ -174,9 +174,9 @@ func TestProcessPgDump(t *testing.T) {
 				"ALTER TABLE test ALTER COLUMN b SET NOT NULL;\n",
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
-					Name: "test",
-					Cols: []string{"a", "b"},
-					Cds: map[string]ddl.ColumnDef{
+					Name:     "test",
+					ColNames: []string{"a", "b"},
+					ColDefs: map[string]ddl.ColumnDef{
 						"a": ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
 						"b": ddl.ColumnDef{Name: "b", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
 					},
@@ -189,16 +189,16 @@ func TestProcessPgDump(t *testing.T) {
 				"ALTER TABLE ONLY t2 ADD CONSTRAINT t2_pkey PRIMARY KEY (c);",
 			expectedSchema: map[string]ddl.CreateTable{
 				"t1": ddl.CreateTable{
-					Name: "t1",
-					Cols: []string{"a", "b"},
-					Cds: map[string]ddl.ColumnDef{
+					Name:     "t1",
+					ColNames: []string{"a", "b"},
+					ColDefs: map[string]ddl.ColumnDef{
 						"a": ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
 						"b": ddl.ColumnDef{Name: "b", T: ddl.String{Len: ddl.MaxLength{}}}},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}},
 				"t2": ddl.CreateTable{
-					Name: "t2",
-					Cols: []string{"c"},
-					Cds: map[string]ddl.ColumnDef{
+					Name:     "t2",
+					ColNames: []string{"c"},
+					ColDefs: map[string]ddl.ColumnDef{
 						"c": ddl.ColumnDef{Name: "c", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true}},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "c"}}}},
 		},
@@ -308,9 +308,9 @@ func TestProcessPgDump(t *testing.T) {
 				spannerData{table: "te_s_t", cols: []string{"a__", "b_b", "n_n"}, vals: []interface{}{"a", "b", int64(2)}}},
 			expectedSchema: map[string]ddl.CreateTable{
 				"te_s_t": ddl.CreateTable{
-					Name: "te_s_t",
-					Cols: []string{"a__", "b_b", "n_n"},
-					Cds: map[string]ddl.ColumnDef{
+					Name:     "te_s_t",
+					ColNames: []string{"a__", "b_b", "n_n"},
+					ColDefs: map[string]ddl.ColumnDef{
 						"a__": ddl.ColumnDef{Name: "a__", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
 						"b_b": ddl.ColumnDef{Name: "b_b", T: ddl.String{Len: ddl.MaxLength{}}},
 						"n_n": ddl.ColumnDef{Name: "n_n", T: ddl.Int64{}},
@@ -326,9 +326,9 @@ func TestProcessPgDump(t *testing.T) {
 				spannerData{table: "te_s_t", cols: []string{"a__", "b_b", "n_n"}, vals: []interface{}{"a", "b", int64(2)}}},
 			expectedSchema: map[string]ddl.CreateTable{
 				"te_s_t": ddl.CreateTable{
-					Name: "te_s_t",
-					Cols: []string{"a__", "b_b", "n_n"},
-					Cds: map[string]ddl.ColumnDef{
+					Name:     "te_s_t",
+					ColNames: []string{"a__", "b_b", "n_n"},
+					ColDefs: map[string]ddl.ColumnDef{
 						"a__": ddl.ColumnDef{Name: "a__", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
 						"b_b": ddl.ColumnDef{Name: "b_b", T: ddl.String{Len: ddl.MaxLength{}}},
 						"n_n": ddl.ColumnDef{Name: "n_n", T: ddl.Int64{}},
@@ -494,9 +494,9 @@ func TestProcessPgDump_AddPrimaryKeys(t *testing.T) {
 			input: "CREATE TABLE cart (productid text, userid text, quantity bigint);",
 			expectedSchema: map[string]ddl.CreateTable{
 				"cart": ddl.CreateTable{
-					Name: "cart",
-					Cols: []string{"productid", "userid", "quantity", "synth_id"},
-					Cds: map[string]ddl.ColumnDef{
+					Name:     "cart",
+					ColNames: []string{"productid", "userid", "quantity", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
 						"productid": ddl.ColumnDef{Name: "productid", T: ddl.String{Len: ddl.MaxLength{}}},
 						"userid":    ddl.ColumnDef{Name: "userid", T: ddl.String{Len: ddl.MaxLength{}}},
 						"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Int64{}},
@@ -509,9 +509,9 @@ func TestProcessPgDump_AddPrimaryKeys(t *testing.T) {
 			input: "CREATE TABLE test (synth_id text, synth_id0 text, synth_id1 bigint);",
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
-					Name: "test",
-					Cols: []string{"synth_id", "synth_id0", "synth_id1", "synth_id2"},
-					Cds: map[string]ddl.ColumnDef{
+					Name:     "test",
+					ColNames: []string{"synth_id", "synth_id0", "synth_id1", "synth_id2"},
+					ColDefs: map[string]ddl.ColumnDef{
 						"synth_id":  ddl.ColumnDef{Name: "synth_id", T: ddl.String{Len: ddl.MaxLength{}}},
 						"synth_id0": ddl.ColumnDef{Name: "synth_id0", T: ddl.String{Len: ddl.MaxLength{}}},
 						"synth_id1": ddl.ColumnDef{Name: "synth_id1", T: ddl.Int64{}},
@@ -578,9 +578,9 @@ func noIssues(conv *Conv, t *testing.T, name string) {
 // are often changed and are not a core part of conversion functionality.
 func stripSchemaComments(spSchema map[string]ddl.CreateTable) map[string]ddl.CreateTable {
 	for t, ct := range spSchema {
-		for c, cd := range ct.Cds {
+		for c, cd := range ct.ColDefs {
 			cd.Comment = ""
-			ct.Cds[c] = cd
+			ct.ColDefs[c] = cd
 		}
 		ct.Comment = ""
 		spSchema[t] = ct

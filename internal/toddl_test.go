@@ -32,7 +32,7 @@ func TestToSpannerType(t *testing.T) {
 	srcSchema := schema.Table{
 		Name:     name,
 		ColNames: []string{"a", "b", "c", "d", "e", "f"},
-		ColDef: map[string]schema.Column{
+		ColDefs: map[string]schema.Column{
 			"a": schema.Column{Name: "a", Type: schema.Type{Name: "int8"}},
 			"b": schema.Column{Name: "b", Type: schema.Type{Name: "float4"}},
 			"c": schema.Column{Name: "c", Type: schema.Type{Name: "bool"}},
@@ -46,9 +46,9 @@ func TestToSpannerType(t *testing.T) {
 	actual := conv.spSchema[name]
 	dropComments(&actual) // Don't test comment.
 	expected := ddl.CreateTable{
-		Name: name,
-		Cols: []string{"a", "b", "c", "d", "e", "f"},
-		Cds: map[string]ddl.ColumnDef{
+		Name:     name,
+		ColNames: []string{"a", "b", "c", "d", "e", "f"},
+		ColDefs: map[string]ddl.ColumnDef{
 			"a": ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
 			"b": ddl.ColumnDef{Name: "b", T: ddl.Float64{}},
 			"c": ddl.ColumnDef{Name: "c", T: ddl.Bool{}},
@@ -68,9 +68,9 @@ func TestToSpannerType(t *testing.T) {
 
 func dropComments(t *ddl.CreateTable) {
 	t.Comment = ""
-	for _, c := range t.Cols {
-		cd := t.Cds[c]
+	for _, c := range t.ColNames {
+		cd := t.ColDefs[c]
 		cd.Comment = ""
-		t.Cds[c] = cd
+		t.ColDefs[c] = cd
 	}
 }

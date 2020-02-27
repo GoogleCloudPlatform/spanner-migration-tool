@@ -33,17 +33,18 @@ import (
 // in vals may be empty, we also return the list of columns (empty
 // cols are dropped).
 func ConvertData(conv *Conv, srcTable string, srcCols []string, vals []string) (string, []string, []interface{}, error) {
-	// Note: the following functionality gets repeated for every
-	// row.  We could factor this out when we have many rows for
-	// the same srcTable/srcCols if cost of this repetition is an
-	// issue.
+	// Note: if there are many rows for the same srcTable/srcCols,
+	// then the following functionality will be (redundantly)
+	// repeated for every row converted. If this becomes a
+	// performance issue, we could consider moving this block of
+	// code to the callers of ConverData to avoid the redundancy.
 	spTable, err := GetSpannerTable(conv, srcTable)
 	if err != nil {
 		return "", []string{}, []interface{}{}, fmt.Errorf("can't map source table %s", srcTable)
 	}
 	spCols, err := GetSpannerCols(conv, srcTable, srcCols)
 	if err != nil {
-		return "", []string{}, []interface{}{}, fmt.Errorf("can't map source columsn %v", srcCols)
+		return "", []string{}, []interface{}{}, fmt.Errorf("can't map source columns %v", srcCols)
 	}
 	spSchema, ok1 := conv.spSchema[spTable]
 	srcSchema, ok2 := conv.srcSchema[srcTable]
@@ -60,8 +61,8 @@ func ConvertData(conv *Conv, srcTable string, srcCols []string, vals []string) (
 		if vals[i] == "\\N" { // PostgreSQL representation of empty column in COPY-FROM blocks.
 			continue
 		}
-		spColDef, ok1 := spSchema.Cds[spCol]
-		srcColDef, ok2 := srcSchema.ColDef[srcCol]
+		spColDef, ok1 := spSchema.ColDefs[spCol]
+		srcColDef, ok2 := srcSchema.ColDefs[srcCol]
 		if !ok1 || !ok2 {
 			return "", []string{}, []interface{}{}, fmt.Errorf("can't find Spanner and source-db schema for col %s", spCol)
 		}

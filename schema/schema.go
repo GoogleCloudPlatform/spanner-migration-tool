@@ -29,7 +29,7 @@ package schema
 type Table struct {
 	Name        string
 	ColNames    []string          // List of column names (for predictable iteration order e.g. printing).
-	ColDef      map[string]Column // Details of columns.
+	ColDefs     map[string]Column // Details of columns.
 	PrimaryKeys []Key
 	Indexes     []Index
 }

@@ -39,7 +39,7 @@ func schemaToDDL(conv *Conv) error {
 		conv.issues[srcTable.Name] = make(map[string][]schemaIssue)
 		// Iterate over columns using ColNames order.
 		for _, srcColName := range srcTable.ColNames {
-			srcCol := srcTable.ColDef[srcColName]
+			srcCol := srcTable.ColDefs[srcColName]
 			colName, err := GetSpannerCol(conv, srcTable.Name, srcCol.Name, false)
 			if err != nil {
 				conv.unexpected(fmt.Sprintf("Couldn't map source column %s of table %s to Spanner: %s", srcTable.Name, srcCol.Name, err))
@@ -71,11 +71,11 @@ func schemaToDDL(conv *Conv) error {
 		}
 		comment := "Spanner schema for source table " + quoteIfNeeded(srcTable.Name)
 		conv.spSchema[spTableName] = ddl.CreateTable{
-			Name:    spTableName,
-			Cols:    spColNames,
-			Cds:     spColDef,
-			Pks:     cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
-			Comment: comment}
+			Name:     spTableName,
+			ColNames: spColNames,
+			ColDefs:  spColDef,
+			Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
+			Comment:  comment}
 	}
 	return nil
 }

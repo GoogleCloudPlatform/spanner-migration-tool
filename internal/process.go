@@ -62,10 +62,10 @@ func ProcessPgDump(conv *Conv, r *Reader) error {
 // and vals contains string data to be converted to appropriate types
 // to send to Spanner.  ProcessRow is only called in dataMode.
 func ProcessRow(conv *Conv, srcTable string, srcCols, vals []string) {
-	t, c, v, err := ConvertData(conv, srcTable, srcCols, vals)
+	spTable, spCols, spVals, err := ConvertData(conv, srcTable, srcCols, vals)
 	if err != nil {
 		conv.unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
-		conv.statsAddBadRow(t, conv.dataMode())
+		conv.statsAddBadRow(srcTable, conv.dataMode())
 		r := &row{table: srcTable, cols: srcCols, vals: vals}
 		bytes := byteSize(r)
 		// Cap storage used by badRows. Keep at least one bad row.
@@ -78,10 +78,10 @@ func ProcessRow(conv *Conv, srcTable string, srcCols, vals []string) {
 			msg := "Internal error: ProcessRow called but dataSink not configured"
 			VerbosePrintf("%s\n", msg)
 			conv.unexpected(msg)
-			conv.statsAddBadRow(t, conv.dataMode())
+			conv.statsAddBadRow(srcTable, conv.dataMode())
 		} else {
-			conv.dataSink(t, c, v)
-			conv.statsAddGoodRow(t, conv.dataMode())
+			conv.dataSink(spTable, spCols, spVals)
+			conv.statsAddGoodRow(srcTable, conv.dataMode())
 		}
 	}
 }

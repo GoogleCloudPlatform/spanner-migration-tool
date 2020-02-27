@@ -234,8 +234,8 @@ func (conv *Conv) AddPrimaryKeys() {
 	for t, ct := range conv.spSchema {
 		if len(ct.Pks) == 0 {
 			k := conv.buildPrimaryKey(t)
-			ct.Cols = append(ct.Cols, k)
-			ct.Cds[k] = ddl.ColumnDef{Name: k, T: ddl.Int64{}}
+			ct.ColNames = append(ct.ColNames, k)
+			ct.ColDefs[k] = ddl.ColumnDef{Name: k, T: ddl.Int64{}}
 			ct.Pks = []ddl.IndexKey{ddl.IndexKey{Col: k}}
 			conv.spSchema[t] = ct
 			conv.syntheticPKeys[t] = syntheticPKey{k, 0}

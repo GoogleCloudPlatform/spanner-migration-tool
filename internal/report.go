@@ -163,8 +163,8 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]schem
 				if err != nil {
 					conv.unexpected(err.Error())
 				}
-				srcType := printSourceType(srcSchema.ColDef[srcCol].Type)
-				spType := spSchema.Cds[spCol].PrintColumnDefType()
+				srcType := printSourceType(srcSchema.ColDefs[srcCol].Type)
+				spType := spSchema.ColDefs[spCol].PrintColumnDefType()
 				// A note on case: Spanner types are case insensitive, but
 				// default to upper case. In particular, the Spanner AST uses
 				// upper case, so spType is upper case. Many source DBs
@@ -276,7 +276,7 @@ func analyzeCols(conv *Conv, srcTable, spTable string) (map[string][]schemaIssue
 		}
 	}
 	warnings += int64(len(warningBatcher))
-	return m, int64(len(srcSchema.ColDef)), warnings
+	return m, int64(len(srcSchema.ColDefs)), warnings
 }
 
 // rateSchema returns an string summarizing the quality of source DB

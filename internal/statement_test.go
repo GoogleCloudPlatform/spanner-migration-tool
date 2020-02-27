@@ -36,7 +36,7 @@ func TestProcessStatements(t *testing.T) {
 	ci := processStatements(conv, tree.Statements)
 	schemaToDDL(conv)
 	assert.Nil(t, ci, "Unexpected COPY-FROM or INSERT")
-	assert.Equal(t, []string{"productid", "userid", "quantity"}, conv.spSchema["cart"].Cols)
-	assert.Equal(t, 3, len(conv.spSchema["cart"].Cds))
+	assert.Equal(t, []string{"productid", "userid", "quantity"}, conv.spSchema["cart"].ColNames)
+	assert.Equal(t, 3, len(conv.spSchema["cart"].ColDefs))
 	assert.Equal(t, []ddl.IndexKey{ddl.IndexKey{Col: "productid"}, ddl.IndexKey{Col: "userid"}}, conv.spSchema["cart"].Pks)
 }

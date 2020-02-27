@@ -163,7 +163,7 @@ func processCreateStmt(conv *Conv, n nodes.CreateStmt) {
 	conv.srcSchema[table] = schema.Table{
 		Name:     table,
 		ColNames: colNames,
-		ColDef:   colDef}
+		ColDefs:  colDef}
 	// Note: constraints contains all info about primary keys and not-null keys.
 	updateSchema(conv, table, constraints, "CREATE TABLE")
 }
@@ -408,11 +408,11 @@ func updateSchema(conv *Conv, table string, cs []constraint, s string) {
 			// In PostgreSQL, the primary key constraint is a combination of
 			// NOT NULL and UNIQUE i.e. primary keys must be NOT NULL.
 			// We preserve PostgreSQL semantics and enforce NOT NULL.
-			updateCols(nodes.CONSTR_NOTNULL, c.cols, ct.ColDef)
+			updateCols(nodes.CONSTR_NOTNULL, c.cols, ct.ColDefs)
 			conv.srcSchema[table] = ct
 		default:
 			ct := conv.srcSchema[table]
-			updateCols(c.ct, c.cols, ct.ColDef)
+			updateCols(c.ct, c.cols, ct.ColDefs)
 			conv.srcSchema[table] = ct
 		}
 	}

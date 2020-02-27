@@ -53,19 +53,19 @@ func TestConvertData(t *testing.T) {
 		{"string array", ddl.String{Len: ddl.MaxLength{}}, true, "", "{1,2,3}", []string{"1", "2", "3"}},
 		{"timestamp array", ddl.Timestamp{}, true, "timestamptz", "{2019-10-29 05:30:00+10}", []time.Time{getTime(t, "2019-10-29T05:30:00+10:00")}},
 	}
+	tableName := "testtable"
 	for _, tc := range singleColTests {
-		table := "testtable"
 		col := "a"
-		conv := buildConv(table,
+		conv := buildConv(
 			ddl.CreateTable{
-				Name: table,
-				Cols: []string{col},
-				Cds:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: tc.ty, IsArray: tc.isArray, NotNull: false}},
-				Pks:  []ddl.IndexKey{}},
-			schema.Table{Name: table, ColNames: []string{col}, ColDef: map[string]schema.Column{col: schema.Column{Type: schema.Type{Name: tc.srcTy}}}})
+				Name:     tableName,
+				ColNames: []string{col},
+				ColDefs:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: tc.ty, IsArray: tc.isArray, NotNull: false}},
+				Pks:      []ddl.IndexKey{}},
+			schema.Table{Name: tableName, ColNames: []string{col}, ColDefs: map[string]schema.Column{col: schema.Column{Type: schema.Type{Name: tc.srcTy}}}})
 		conv.SetLocation(time.UTC)
-		at, ac, av, err := ConvertData(conv, table, []string{col}, []string{tc.in})
-		checkResults(t, at, ac, av, err, table, []string{col}, []interface{}{tc.e}, tc.name)
+		at, ac, av, err := ConvertData(conv, tableName, []string{col}, []string{tc.in})
+		checkResults(t, at, ac, av, err, tableName, []string{col}, []interface{}{tc.e}, tc.name)
 	}
 
 	timestampTests := []struct {
@@ -80,22 +80,21 @@ func TestConvertData(t *testing.T) {
 		{"timestamp", "timestamp", "2019-10-29 05:30:00", getTime(t, "2019-10-29T05:30:00Z")},
 	}
 	for _, tc := range timestampTests {
-		table := "testtable"
 		col := "a"
-		conv := buildConv(table,
+		conv := buildConv(
 			ddl.CreateTable{
-				Name: table,
-				Cols: []string{col},
-				Cds:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: ddl.Timestamp{}}}},
-			schema.Table{
-				Name:     table,
+				Name:     tableName,
 				ColNames: []string{col},
-				ColDef:   map[string]schema.Column{col: schema.Column{Type: schema.Type{Name: tc.srcTy}}}})
+				ColDefs:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: ddl.Timestamp{}}}},
+			schema.Table{
+				Name:     tableName,
+				ColNames: []string{col},
+				ColDefs:  map[string]schema.Column{col: schema.Column{Type: schema.Type{Name: tc.srcTy}}}})
 		loc, _ := time.LoadLocation("Australia/Sydney")
 		conv.SetLocation(loc) // Set location so test is robust i.e. doesn't depent on local timezone.
-		atable, ac, av, err := ConvertData(conv, table, []string{col}, []string{tc.in})
+		atable, ac, av, err := ConvertData(conv, tableName, []string{col}, []string{tc.in})
 		assert.Nil(t, err, tc.name)
-		assert.Equal(t, atable, table, tc.name+": table mismatch")
+		assert.Equal(t, atable, tableName, tc.name+": table mismatch")
 		assert.Equal(t, []string{col}, ac, tc.name+": column mismatch")
 		// Avoid assert.Equal for time.Time (it forces location equality).
 		// Instead use Time.Equals, which determines equality based on whether
@@ -143,25 +142,26 @@ func TestConvertData(t *testing.T) {
 			evals: []interface{}{int64(6)},
 		},
 	}
-	table := "testtable"
-	spSchema := ddl.CreateTable{
-		Name: table,
-		Cols: []string{"a", "b", "c"},
-		Cds: map[string]ddl.ColumnDef{
+	spTable := ddl.CreateTable{
+		Name:     tableName,
+		ColNames: []string{"a", "b", "c"},
+		ColDefs: map[string]ddl.ColumnDef{
 			"a": ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
 			"b": ddl.ColumnDef{Name: "b", T: ddl.Float64{}},
 			"c": ddl.ColumnDef{Name: "c", T: ddl.Bool{}},
 		}}
-	srcSchema := schema.Table{
-		ColDef: map[string]schema.Column{
+	srcTable := schema.Table{
+		Name:     tableName,
+		ColNames: []string{"a", "b", "c"},
+		ColDefs: map[string]schema.Column{
 			"a": schema.Column{Type: schema.Type{Name: "int8"}},
 			"b": schema.Column{Type: schema.Type{Name: "float8"}},
 			"c": schema.Column{Type: schema.Type{Name: "bool"}},
 		}}
 	for _, tc := range multiColTests {
-		conv := buildConv(spSchema.Name, spSchema, srcSchema)
-		atable, acols, avals, err := ConvertData(conv, spSchema.Name, tc.cols, tc.vals)
-		checkResults(t, atable, acols, avals, err, table, tc.ecols, tc.evals, tc.name)
+		conv := buildConv(spTable, srcTable)
+		atable, acols, avals, err := ConvertData(conv, spTable.Name, tc.cols, tc.vals)
+		checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
 	}
 
 	errorTests := []struct {
@@ -186,8 +186,8 @@ func TestConvertData(t *testing.T) {
 		},
 	}
 	for _, tc := range errorTests {
-		conv := buildConv(spSchema.Name, spSchema, srcSchema)
-		_, _, _, err := ConvertData(conv, spSchema.Name, tc.cols, tc.vals)
+		conv := buildConv(spTable, srcTable)
+		_, _, _, err := ConvertData(conv, spTable.Name, tc.cols, tc.vals)
 		assert.NotNil(t, err, tc.name)
 	}
 
@@ -213,23 +213,23 @@ func TestConvertData(t *testing.T) {
 			evals: []interface{}{int64(7), int64(bits.Reverse64(1))},
 		},
 	}
-	conv := buildConv(spSchema.Name, spSchema, srcSchema)
-	conv.syntheticPKeys[spSchema.Name] = syntheticPKey{col: "synth_id", sequence: 0}
+	conv := buildConv(spTable, srcTable)
+	conv.syntheticPKeys[spTable.Name] = syntheticPKey{col: "synth_id", sequence: 0}
 	for _, tc := range syntheticPKeyTests {
-		atable, acols, avals, err := ConvertData(conv, spSchema.Name, tc.cols, tc.vals)
-		checkResults(t, atable, acols, avals, err, table, tc.ecols, tc.evals, tc.name)
+		atable, acols, avals, err := ConvertData(conv, spTable.Name, tc.cols, tc.vals)
+		checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
 	}
 }
 
-func buildConv(table string, spSchema ddl.CreateTable, srcSchema schema.Table) *Conv {
+func buildConv(spTable ddl.CreateTable, srcTable schema.Table) *Conv {
 	conv := MakeConv()
-	conv.spSchema[table] = spSchema
-	conv.srcSchema[table] = srcSchema
-	conv.toSource[table] = nameAndCols{name: table, cols: make(map[string]string)}
-	conv.toSpanner[table] = nameAndCols{name: table, cols: make(map[string]string)}
-	for _, c := range spSchema.Cols {
-		conv.toSource[table].cols[c] = c
-		conv.toSpanner[table].cols[c] = c
+	conv.spSchema[spTable.Name] = spTable
+	conv.srcSchema[srcTable.Name] = srcTable
+	conv.toSource[spTable.Name] = nameAndCols{name: srcTable.Name, cols: make(map[string]string)}
+	conv.toSpanner[srcTable.Name] = nameAndCols{name: spTable.Name, cols: make(map[string]string)}
+	for _, c := range spTable.ColNames {
+		conv.toSource[spTable.Name].cols[c] = c
+		conv.toSpanner[srcTable.Name].cols[c] = c
 	}
 	return conv
 }
