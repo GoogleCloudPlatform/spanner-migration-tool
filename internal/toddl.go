@@ -91,13 +91,13 @@ func toSpannerType(conv *Conv, id string, mods []int64) (ddl.ScalarType, []schem
 		}
 	}
 	switch id {
-	case "bool":
+	case "bool", "boolean":
 		maxExpectedMods(0)
 		return ddl.Bool{}, nil
 	case "bigserial":
 		maxExpectedMods(0)
 		return ddl.Int64{}, []schemaIssue{serial}
-	case "bpchar": // Note: Postgres internal name for char is bpchar (aka blank padded char).
+	case "bpchar", "character": // Note: Postgres internal name for char is bpchar (aka blank padded char).
 		maxExpectedMods(1)
 		if len(mods) > 0 {
 			return ddl.String{Len: ddl.Int64Length{Value: mods[0]}}, nil
@@ -110,19 +110,19 @@ func toSpannerType(conv *Conv, id string, mods []int64) (ddl.ScalarType, []schem
 	case "date":
 		maxExpectedMods(0)
 		return ddl.Date{}, nil
-	case "float8":
+	case "float8", "double precision":
 		maxExpectedMods(0)
 		return ddl.Float64{}, nil
-	case "float4":
+	case "float4", "real":
 		maxExpectedMods(0)
 		return ddl.Float64{}, []schemaIssue{widened}
-	case "int8":
+	case "int8", "bigint":
 		maxExpectedMods(0)
 		return ddl.Int64{}, nil
-	case "int4":
+	case "int4", "integer":
 		maxExpectedMods(0)
 		return ddl.Int64{}, []schemaIssue{widened}
-	case "int2":
+	case "int2", "smallint":
 		maxExpectedMods(0)
 		return ddl.Int64{}, []schemaIssue{widened}
 	case "numeric": // Map all numeric types to float64.
@@ -140,14 +140,14 @@ func toSpannerType(conv *Conv, id string, mods []int64) (ddl.ScalarType, []schem
 	case "text":
 		maxExpectedMods(0)
 		return ddl.String{Len: ddl.MaxLength{}}, nil
-	case "timestamptz":
+	case "timestamptz", "timestamp with time zone":
 		maxExpectedMods(1)
 		return ddl.Timestamp{}, nil
-	case "timestamp":
+	case "timestamp", "timestamp without time zone":
 		maxExpectedMods(1)
 		// Map timestamp without timezone to Spanner timestamp.
 		return ddl.Timestamp{}, []schemaIssue{timestamp}
-	case "varchar":
+	case "varchar", "character varying":
 		maxExpectedMods(1)
 		if len(mods) > 0 {
 			return ddl.String{Len: ddl.Int64Length{Value: mods[0]}}, nil

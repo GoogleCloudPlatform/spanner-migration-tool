@@ -54,7 +54,7 @@ func TestReport(t *testing.T) {
 	conv.stats.unexpected["Testing unexpected messages"] = 5
 	buf := new(bytes.Buffer)
 	w := bufio.NewWriter(buf)
-	GenerateReport(conv, w, badWrites)
+	GenerateReport(true, conv, w, badWrites)
 	w.Flush()
 	// Print copy of report to stdout (shows up when running go test -v).
 	fmt.Print(buf.String())

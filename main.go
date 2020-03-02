@@ -52,13 +52,16 @@ var (
 	dbNameOverride   string
 	instanceOverride string
 	filePrefix       = ""
+	driverName       = ""
 	verbose          bool
+	fromPgDump       bool
 )
 
 func init() {
-	flag.StringVar(&dbNameOverride, "dbname", "", "dbname: name to use for Spanner db")
+	flag.StringVar(&dbNameOverride, "dbname", "", "dbname: name to use for Spanner DB")
 	flag.StringVar(&instanceOverride, "instance", "", "instance: Spanner instance to use")
 	flag.StringVar(&filePrefix, "prefix", "", "prefix: file prefix for generated files")
+	flag.StringVar(&driverName, "driver", "", "driver name: experimental flag for accessing soruce DB via driver")
 	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
 }
 
@@ -116,10 +119,40 @@ func main() {
 		filePrefix = dbName + "."
 	}
 
-	err = process(project, instance, dbName, nil, filePrefix, now)
+	// If driverName specified, access source DB via database/sql
+	// driver. Otherwise read pgdump data from stdin.
+	fromPgDump = driverName == ""
+	if fromPgDump {
+		err = pgDumpToSpanner(project, instance, dbName, nil, filePrefix, now)
+	} else {
+		err = sourceToSpanner(driverName, project, instance, dbName, filePrefix, now)
+	}
+
 	if err != nil {
 		panic(err)
 	}
+}
+
+// sourceToSpanner migrates a source DB (accessed via a database/sql
+// driver) to Spanner.  The source DB must support the
+// information_schema standard (for information about tables, views,
+// columns etc). Data is accessed via SELECT statements.
+// TODO: add data conversion.
+func sourceToSpanner(driver, projectID, instanceID, dbName string, outputFilePrefix string, now time.Time) error {
+	conv := internal.MakeConv()
+	err := internal.ProcessInfoSchema(conv, driver)
+	if err != nil {
+		return err
+	}
+	writeSchemaFile(conv, now, outputFilePrefix+schemaFile)
+	db, err := createDatabase(projectID, instanceID, dbName, conv)
+	if err != nil {
+		fmt.Printf("\nCan't create database: %v\n", err)
+		return fmt.Errorf("can't create database")
+	}
+	bw := spanner.NewBatchWriter(spanner.BatchWriterConfig{})
+	report(bw, 0, now, db, conv, outputFilePrefix+reportFile, outputFilePrefix+badDataFile)
+	return nil
 }
 
 type ioStreams struct {
@@ -128,7 +161,7 @@ type ioStreams struct {
 
 var ioHelper = &ioStreams{os.Stdin, os.Stdout}
 
-func process(projectID, instanceID, dbName string, helper *ioStreams, ouputFilePrefix string, now time.Time) error {
+func pgDumpToSpanner(projectID, instanceID, dbName string, helper *ioStreams, outputFilePrefix string, now time.Time) error {
 	if helper != nil {
 		ioHelper = helper
 	}
@@ -146,7 +179,7 @@ func process(projectID, instanceID, dbName string, helper *ioStreams, ouputFileP
 		fmt.Fprintf(helper.out, "Failed to parse the data file: %v", err)
 		return fmt.Errorf("failed to parse the data file")
 	}
-	writeSchemaFile(conv, now, ouputFilePrefix+schemaFile)
+	writeSchemaFile(conv, now, outputFilePrefix+schemaFile)
 	db, err := createDatabase(projectID, instanceID, dbName, conv)
 	if err != nil {
 		fmt.Printf("\nCan't create database: %v\n", err)
@@ -166,7 +199,7 @@ func process(projectID, instanceID, dbName string, helper *ioStreams, ouputFileP
 	bw := secondPass(f, client, conv, rows)
 	// TODO(hengfeng): When we refactor `process` into a separate module, and
 	// the parameters will capture everything we need from main.
-	report(bw, n, now, db, conv, ouputFilePrefix+reportFile, ouputFilePrefix+badDataFile)
+	report(bw, n, now, db, conv, outputFilePrefix+reportFile, outputFilePrefix+badDataFile)
 	return nil
 }
 
@@ -183,10 +216,15 @@ func report(bw *spanner.BatchWriter, bytesRead int64, now time.Time, db string, 
 	banner := fmt.Sprintf("Generated at %s for db %s\n\n", now.Format("2006-01-02 15:04:05"), db)
 	w.WriteString(banner)
 	badWrites := bw.DroppedRowsByTable()
-	summary := internal.GenerateReport(conv, w, badWrites)
+	summary := internal.GenerateReport(fromPgDump, conv, w, badWrites)
 	w.Flush()
-	fmt.Fprintf(ioHelper.out, "Processed %d bytes of pg_dump data (%d statements, %d rows of data, %d errors, %d unexpected conditions).\n",
-		bytesRead, conv.Statements(), conv.Rows(), conv.StatementErrors(), conv.Unexpecteds())
+	if fromPgDump {
+		fmt.Fprintf(ioHelper.out, "Processed %d bytes of pg_dump data (%d statements, %d rows of data, %d errors, %d unexpected conditions).\n",
+			bytesRead, conv.Statements(), conv.Rows(), conv.StatementErrors(), conv.Unexpecteds())
+	} else {
+		fmt.Fprintf(ioHelper.out, "Processed source database via %s driver (%d rows of data, %d unexpected conditions).\n",
+			driverName, conv.Rows(), conv.Unexpecteds())
+	}
 	// We've already written summary to f (as part of GenerateReport).
 	// In the case where f is stdout, don't write a duplicate copy.
 	if f != ioHelper.out {
