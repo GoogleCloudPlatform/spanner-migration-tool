@@ -17,6 +17,7 @@ package internal
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -164,10 +165,16 @@ func (conv *Conv) SetDataMode() {
 }
 
 // GetDDL Schema returns the Spanner schema that has been constructed so far.
+// Return DDL in alphabetical table order.
 func (conv *Conv) GetDDL(c ddl.Config) []string {
+	var tables []string
+	for t := range conv.spSchema {
+		tables = append(tables, t)
+	}
+	sort.Strings(tables)
 	var ddl []string
-	for _, ct := range conv.spSchema {
-		ddl = append(ddl, ct.PrintCreateTable(c))
+	for _, t := range tables {
+		ddl = append(ddl, conv.spSchema[t].PrintCreateTable(c))
 	}
 	return ddl
 }
