@@ -61,7 +61,7 @@ func init() {
 	flag.StringVar(&dbNameOverride, "dbname", "", "dbname: name to use for Spanner DB")
 	flag.StringVar(&instanceOverride, "instance", "", "instance: Spanner instance to use")
 	flag.StringVar(&filePrefix, "prefix", "", "prefix: file prefix for generated files")
-	flag.StringVar(&driverName, "driver", "", "driver name: experimental flag for accessing source DB via database/sql driver (only accepted values is \"postgres\")")
+	flag.StringVar(&driverName, "driver", "", "driver name: experimental flag for accessing source DB via database/sql driver (only accepted value is \"postgres\")")
 	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
 }
 
