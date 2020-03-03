@@ -40,8 +40,7 @@ func ProcessInfoSchema(conv *Conv, driver string) error {
 		return fmt.Errorf("Could not connect to source database")
 	}
 	password := getPassword()
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", server, port, user, password, dbname)
-	sql, err := sql.Open(driver, psqlInfo)
+	db, err := sql.Open(driver, fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", server, port, user, password, dbname))
 	if err != nil {
 		return err
 	}
@@ -51,8 +50,12 @@ func ProcessInfoSchema(conv *Conv, driver string) error {
 	// (pg_dump does something similar). When we add SELECT
 	// queries to get data, we should wrap those in the same
 	// transaction to ensure consistency of schema and data.
-	for _, t := range getTables(sql) {
-		processTable(conv, sql, t)
+	tables, err := getTables(db)
+	if err != nil {
+		return err
+	}
+	for _, t := range tables {
+		processTable(conv, db, t)
 	}
 	schemaToDDL(conv)
 	conv.AddPrimaryKeys()
@@ -60,6 +63,10 @@ func ProcessInfoSchema(conv *Conv, driver string) error {
 }
 
 func getPassword() string {
+	password := os.Getenv("PGPASSWORD")
+	if password != "" {
+		return password
+	}
 	fmt.Print("Enter Password: ")
 	bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
 	if err != nil {
@@ -75,17 +82,17 @@ type schemaAndName struct {
 	name   string
 }
 
-func getTables(sql *sql.DB) []schemaAndName {
+func getTables(db *sql.DB) ([]schemaAndName, error) {
 	ignoredSchemas := make(map[string]bool)
 	for _, s := range []string{"information_schema", "postgres", "pg_catalog", "pg_temp_1", "pg_toast", "pg_toast_temp_1"} {
 		ignoredSchemas[s] = true
 	}
 	q := "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'"
-	rows, err := sql.Query(q)
+	rows, err := db.Query(q)
 	if err != nil {
-		fmt.Printf("Couldn't get tables: %v\n", err)
-		return nil
+		return nil, fmt.Errorf("Couldn't get tables: %w\n", err)
 	}
+	defer rows.Close()
 	var tableSchema, tableName string
 	var tables []schemaAndName
 	for rows.Next() {
@@ -94,8 +101,7 @@ func getTables(sql *sql.DB) []schemaAndName {
 			tables = append(tables, schemaAndName{schema: tableSchema, name: tableName})
 		}
 	}
-	rows.Close()
-	return tables
+	return tables, nil
 }
 
 func processTable(conv *Conv, db *sql.DB, table schemaAndName) error {
@@ -103,12 +109,12 @@ func processTable(conv *Conv, db *sql.DB, table schemaAndName) error {
 	if err != nil {
 		return fmt.Errorf("Couldn't get schema for table %s.%s: %s\n", table.schema, table.name, err)
 	}
+	defer cols.Close()
 	primaryKeys, constraints, err := getConstraints(conv, db, table)
 	if err != nil {
 		return fmt.Errorf("Couldn't get constraints for table %s.%s: %s\n", table.schema, table.name, err)
 	}
-	colDefs, colNames := processColumns(cols, constraints)
-	cols.Close()
+	colDefs, colNames := processColumns(conv, cols, constraints)
 	name := fmt.Sprintf("%s.%s", table.schema, table.name)
 	if table.schema == "public" { // Drop 'public' prefix.
 		name = table.name
@@ -134,7 +140,7 @@ func getColumns(table schemaAndName, db *sql.DB) (*sql.Rows, error) {
 	return db.Query(q, table.schema, table.name)
 }
 
-func processColumns(cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string) {
+func processColumns(conv *Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string) {
 	colDefs := make(map[string]schema.Column)
 	var colNames []string
 	var colName, dataType, isNullable string
@@ -165,14 +171,13 @@ func processColumns(cols *sql.Rows, constraints map[string][]string) (map[string
 		c := schema.Column{
 			Name:    colName,
 			Type:    toType(dataType, elementDataType, charMaxLen, numericPrecision, numericScale),
-			NotNull: toNotNull(isNullable),
+			NotNull: toNotNull(conv, isNullable),
 			Unique:  unique,
 			Ignored: ignored,
 		}
 		colDefs[colName] = c
 		colNames = append(colNames, colName)
 	}
-	cols.Close()
 	return colDefs, colNames
 }
 
@@ -189,6 +194,7 @@ func getConstraints(conv *Conv, db *sql.DB, table schemaAndName) ([]string, map[
 	if err != nil {
 		return nil, nil, err
 	}
+	defer rows.Close()
 	var primaryKeys []string
 	var col, constraint string
 	m := make(map[string][]string)
@@ -229,12 +235,13 @@ func toType(dataType string, elementDataType sql.NullString, charLen sql.NullInt
 	}
 }
 
-func toNotNull(isNullable string) bool {
+func toNotNull(conv *Conv, isNullable string) bool {
 	switch isNullable {
 	case "YES":
 		return false
 	case "NO":
 		return true
 	}
+	conv.unexpected(fmt.Sprintf("isNullable column has unknown value: %s", isNullable))
 	return false
 }

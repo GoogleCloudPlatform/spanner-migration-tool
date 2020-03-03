@@ -61,7 +61,7 @@ func init() {
 	flag.StringVar(&dbNameOverride, "dbname", "", "dbname: name to use for Spanner DB")
 	flag.StringVar(&instanceOverride, "instance", "", "instance: Spanner instance to use")
 	flag.StringVar(&filePrefix, "prefix", "", "prefix: file prefix for generated files")
-	flag.StringVar(&driverName, "driver", "", "driver name: experimental flag for accessing soruce DB via driver")
+	flag.StringVar(&driverName, "driver", "", "driver name: experimental flag for accessing source DB via database/sql driver (only accepted values is \"postgres\")")
 	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
 }
 
@@ -139,6 +139,14 @@ func main() {
 // columns etc). Data is accessed via SELECT statements.
 // TODO: add data conversion.
 func sourceToSpanner(driver, projectID, instanceID, dbName string, outputFilePrefix string, now time.Time) error {
+	fmt.Println(`###################################################################
+Accessing a source DB via an database/sql driver is an experimental
+feature that is not fully implemented. Currently we only do schema
+conversion and we only support postgres.
+###################################################################`)
+	if driver != "postgres" {
+		return fmt.Errorf("Driver %s not supported", driver)
+	}
 	conv := internal.MakeConv()
 	err := internal.ProcessInfoSchema(conv, driver)
 	if err != nil {
@@ -150,8 +158,9 @@ func sourceToSpanner(driver, projectID, instanceID, dbName string, outputFilePre
 		fmt.Printf("\nCan't create database: %v\n", err)
 		return fmt.Errorf("can't create database")
 	}
-	bw := spanner.NewBatchWriter(spanner.BatchWriterConfig{})
-	report(bw, 0, now, db, conv, outputFilePrefix+reportFile, outputFilePrefix+badDataFile)
+	badWrites := make(map[string]int64) // Empty bad writes since no data conversion yet.
+	banner := getBanner(now, db)
+	report(badWrites, 0, banner, conv, outputFilePrefix+reportFile)
 	return nil
 }
 
@@ -197,13 +206,15 @@ func pgDumpToSpanner(projectID, instanceID, dbName string, helper *ioStreams, ou
 	}
 	rows := conv.Rows()
 	bw := secondPass(f, client, conv, rows)
+	banner := getBanner(now, db)
 	// TODO(hengfeng): When we refactor `process` into a separate module, and
 	// the parameters will capture everything we need from main.
-	report(bw, n, now, db, conv, outputFilePrefix+reportFile, outputFilePrefix+badDataFile)
+	report(bw.DroppedRowsByTable(), n, banner, conv, outputFilePrefix+reportFile)
+	writeBadData(bw, conv, banner, outputFilePrefix+badDataFile)
 	return nil
 }
 
-func report(bw *spanner.BatchWriter, bytesRead int64, now time.Time, db string, conv *internal.Conv, reportFileName string, badDataFileName string) {
+func report(badWrites map[string]int64, bytesRead int64, banner string, conv *internal.Conv, reportFileName string) {
 	f, err := os.Create(reportFileName)
 	if err != nil {
 		fmt.Fprintf(ioHelper.out, "Can't write out report file %s: %v\n", reportFileName, err)
@@ -213,9 +224,7 @@ func report(bw *spanner.BatchWriter, bytesRead int64, now time.Time, db string, 
 		defer f.Close()
 	}
 	w := bufio.NewWriter(f)
-	banner := fmt.Sprintf("Generated at %s for db %s\n\n", now.Format("2006-01-02 15:04:05"), db)
 	w.WriteString(banner)
-	badWrites := bw.DroppedRowsByTable()
 	summary := internal.GenerateReport(fromPgDump, conv, w, badWrites)
 	w.Flush()
 	if fromPgDump {
@@ -231,7 +240,6 @@ func report(bw *spanner.BatchWriter, bytesRead int64, now time.Time, db string, 
 		fmt.Fprint(ioHelper.out, summary)
 		fmt.Fprintf(ioHelper.out, "See file '%s' for details of the schema and data conversions.\n", reportFileName)
 	}
-	writeBadData(bw, conv, banner, badDataFileName)
 }
 
 func firstPass(f *os.File, fileSize int64, conv *internal.Conv) error {
@@ -597,4 +605,8 @@ func sum(m map[string]int64) int64 {
 		n += c
 	}
 	return n
+}
+
+func getBanner(now time.Time, db string) string {
+	return fmt.Sprintf("Generated at %s for db %s\n\n", now.Format("2006-01-02 15:04:05"), db)
 }
