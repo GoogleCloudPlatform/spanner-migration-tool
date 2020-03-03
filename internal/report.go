@@ -26,7 +26,7 @@ import (
 
 // GenerateReport analyzes schema and data conversion stats and writes a
 // detailed report to w and returns a brief summary (as a string).
-func GenerateReport(conv *Conv, w *bufio.Writer, badWrites map[string]int64) string {
+func GenerateReport(fromPgDump bool, conv *Conv, w *bufio.Writer, badWrites map[string]int64) string {
 	reports := analyzeTables(conv, badWrites)
 	summary := generateSummary(conv, reports, badWrites)
 	writeHeading(w, "Summary of Conversion")
@@ -39,14 +39,19 @@ func GenerateReport(conv *Conv, w *bufio.Writer, badWrites map[string]int64) str
 			strings.Join(ignored, ", ")), 80, 0)
 		w.WriteString("\n\n")
 	}
-	justifyLines(w, "The remainder of this report provides stats on "+
-		"the pg_dump statements processed, followed by a table-by-table "+
-		"listing of schema and data conversion details. "+
+	statementsMsg := ""
+	if fromPgDump {
+		statementsMsg = "stats on the pg_dump statements processed, followed by "
+	}
+	justifyLines(w, "The remainder of this report provides "+statementsMsg+
+		"a table-by-table listing of schema and data conversion details. "+
 		"For background on the schema and data conversion process used, "+
 		"and explanations of the terms and notes used in this "+
 		"report, see HarbourBridge's README.", 80, 0)
 	w.WriteString("\n\n")
-	writeStmtStats(conv, w)
+	if fromPgDump {
+		writeStmtStats(conv, w)
+	}
 	for _, t := range reports {
 		h := fmt.Sprintf("Table %s", t.srcTable)
 		if t.srcTable != t.spTable {

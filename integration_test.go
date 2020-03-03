@@ -131,7 +131,7 @@ func TestIntegration_SimpleUse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open the test data file: %v", err)
 	}
-	err = process(projectID, instanceID, dbName, &ioStreams{f, os.Stdout}, filePrefix, now)
+	err = pgDumpToSpanner(projectID, instanceID, dbName, &ioStreams{f, os.Stdout}, filePrefix, now)
 	if err != nil {
 		t.Fatal(err)
 	}
