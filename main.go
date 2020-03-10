@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"flag"
 	"fmt"
 	"io"
@@ -36,6 +37,8 @@ import (
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
+	_ "github.com/lib/pq"
+	"golang.org/x/crypto/ssh/terminal"
 	"google.golang.org/api/iterator"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
@@ -142,24 +145,37 @@ func sourceToSpanner(driver, projectID, instanceID, dbName string, outputFilePre
 	fmt.Println(`###################################################################
 Accessing a source DB via an database/sql driver is an experimental
 feature that is not fully implemented. Currently we only do schema
-conversion and we only support postgres.
+conversion and we only support PostgreSQL.
 ###################################################################`)
 	if driver != "postgres" {
 		return fmt.Errorf("Driver %s not supported", driver)
 	}
+	server := os.Getenv("PGHOST")
+	port := os.Getenv("PGPORT")
+	user := os.Getenv("PGUSER")
+	dbname := os.Getenv("PGDATABASE")
+	if server == "" || port == "" || user == "" || dbname == "" {
+		fmt.Printf("Please specify host, port, user and database using PGHOST, PGPORT, PGUSER and PGDATABASE environment variables\n")
+		return fmt.Errorf("Could not connect to source database")
+	}
+	password := getPassword()
+	sourceDB, err := sql.Open(driver, fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", server, port, user, password, dbname))
+	if err != nil {
+		return err
+	}
 	conv := internal.MakeConv()
-	err := internal.ProcessInfoSchema(conv, driver)
+	err = internal.ProcessInfoSchema(conv, sourceDB)
 	if err != nil {
 		return err
 	}
 	writeSchemaFile(conv, now, outputFilePrefix+schemaFile)
-	db, err := createDatabase(projectID, instanceID, dbName, conv)
+	spannerDB, err := createDatabase(projectID, instanceID, dbName, conv)
 	if err != nil {
 		fmt.Printf("\nCan't create database: %v\n", err)
 		return fmt.Errorf("can't create database")
 	}
 	badWrites := make(map[string]int64) // Empty bad writes since no data conversion yet.
-	banner := getBanner(now, db)
+	banner := getBanner(now, spannerDB)
 	report(badWrites, 0, banner, conv, outputFilePrefix+reportFile)
 	return nil
 }
@@ -493,6 +509,21 @@ func writeBadData(bw *spanner.BatchWriter, conv *internal.Conv, banner, name str
 
 func getDatabaseName(now time.Time) (string, error) {
 	return generateName(fmt.Sprintf("pg_dump_%s", now.Format("2006-01-02")))
+}
+
+func getPassword() string {
+	password := os.Getenv("PGPASSWORD")
+	if password != "" {
+		return password
+	}
+	fmt.Print("Enter Password: ")
+	bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
+	if err != nil {
+		fmt.Println("\nCoudln't read password")
+		return ""
+	}
+	fmt.Printf("\n")
+	return strings.TrimSpace(string(bytePassword))
 }
 
 // analyzeError inspects an error returned from Cloud Spanner and adds information

@@ -17,33 +17,17 @@ package internal
 import (
 	"database/sql"
 	"fmt"
-	"os"
-	"strings"
-	"syscall"
 
 	_ "github.com/lib/pq"
-	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 )
 
-// ProcessInfoSchema performs schema conversion for source database.
-// Schema information is obtained from the information_schema tables.
-// The driver used to access the database is specified by 'driver'.
-func ProcessInfoSchema(conv *Conv, driver string) error {
-	server := os.Getenv("PGHOST")
-	port := os.Getenv("PGPORT")
-	user := os.Getenv("PGUSER")
-	dbname := os.Getenv("PGDATABASE")
-	if server == "" || port == "" || user == "" || dbname == "" {
-		fmt.Printf("Please specify host, port, user and database using PGHOST, PGPORT, PGUSER and PGDATABASE environment variables\n")
-		return fmt.Errorf("Could not connect to source database")
-	}
-	password := getPassword()
-	db, err := sql.Open(driver, fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", server, port, user, password, dbname))
-	if err != nil {
-		return err
-	}
+// ProcessInfoSchema performs schema conversion for source database
+// 'db'. We assume that the source database supports information
+// schema tables. These tables are a broadly supported ANSI standard,
+// and we use them to obtain source database's schema information.
+func ProcessInfoSchema(conv *Conv, db *sql.DB) error {
 	// TODO: All of the queries to get tables and table data
 	// should be in a single transaction to ensure we obtain a
 	// consistent snapshot of schema information across tables
@@ -55,37 +39,25 @@ func ProcessInfoSchema(conv *Conv, driver string) error {
 		return err
 	}
 	for _, t := range tables {
-		processTable(conv, db, t)
+		if err := processTable(conv, db, t); err != nil {
+			return err
+		}
 	}
 	schemaToDDL(conv)
 	conv.AddPrimaryKeys()
 	return nil
 }
 
-func getPassword() string {
-	password := os.Getenv("PGPASSWORD")
-	if password != "" {
-		return password
-	}
-	fmt.Print("Enter Password: ")
-	bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
-	if err != nil {
-		fmt.Println("\nCoudln't read password")
-		return ""
-	}
-	fmt.Printf("\n")
-	return strings.TrimSpace(string(bytePassword))
-}
-
 type schemaAndName struct {
-	schema string
+	schema string // PostgreSQL schema (aka namespace for PostgreSQL objects).
 	name   string
 }
 
 func getTables(db *sql.DB) ([]schemaAndName, error) {
-	ignoredSchemas := make(map[string]bool)
+	ignored := make(map[string]bool)
+	// Ignore all system tables: we just want to convert user tables.
 	for _, s := range []string{"information_schema", "postgres", "pg_catalog", "pg_temp_1", "pg_toast", "pg_toast_temp_1"} {
-		ignoredSchemas[s] = true
+		ignored[s] = true
 	}
 	q := "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'"
 	rows, err := db.Query(q)
@@ -97,7 +69,7 @@ func getTables(db *sql.DB) ([]schemaAndName, error) {
 	var tables []schemaAndName
 	for rows.Next() {
 		rows.Scan(&tableSchema, &tableName)
-		if !ignoredSchemas[tableSchema] {
+		if !ignored[tableSchema] {
 			tables = append(tables, schemaAndName{schema: tableSchema, name: tableName})
 		}
 	}
