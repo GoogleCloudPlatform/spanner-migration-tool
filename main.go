@@ -48,6 +48,13 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
+const (
+	// PGDUMP is the driver name for pg_dump.
+	PGDUMP string = "pgdump"
+	// POSTGRES is the driver name for postgresSQL.
+	POSTGRES string = "posgres"
+)
+
 var (
 	badDataFile      = "dropped.txt"
 	schemaFile       = "schema.txt"
@@ -89,6 +96,7 @@ func main() {
 	}
 	defer close(lf)
 
+	ioHelper := &ioStreams{in: os.Stdin, out: os.Stdout}
 	project, err := getProject()
 	if err != nil {
 		fmt.Printf("\nCan't get project: %v\n", err)
@@ -98,14 +106,14 @@ func main() {
 
 	instance := instanceOverride
 	if instance == "" {
-		instance, err = getInstance(project)
+		instance, err = getInstance(project, ioHelper.out)
 		if err != nil {
 			fmt.Printf("\nCan't get instance: %v\n", err)
 			panic(fmt.Errorf("can't get instance"))
 		}
 	}
 	fmt.Printf("Using Spanner instance: %s\n", instance)
-	printPermissionsWarning()
+	printPermissionsWarning(ioHelper.out)
 
 	now := time.Now()
 	dbName := dbNameOverride
@@ -124,118 +132,174 @@ func main() {
 
 	// If driverName specified, access source DB via database/sql
 	// driver. Otherwise read pgdump data from stdin.
-	fromPgDump = driverName == ""
-	if fromPgDump {
-		err = pgDumpToSpanner(project, instance, dbName, nil, filePrefix, now)
-	} else {
-		err = sourceToSpanner(driverName, project, instance, dbName, filePrefix, now)
+	if driverName == "" {
+		driverName = PGDUMP
 	}
-
+	err = toSpanner(driverName, project, instance, dbName, ioHelper, filePrefix, now)
 	if err != nil {
 		panic(err)
 	}
 }
 
-// sourceToSpanner migrates a source DB (accessed via a database/sql
-// driver) to Spanner.  The source DB must support the
-// information_schema standard (for information about tables, views,
-// columns etc). Data is accessed via SELECT statements.
-// TODO: add data conversion.
-func sourceToSpanner(driver, projectID, instanceID, dbName string, outputFilePrefix string, now time.Time) error {
-	fmt.Println(`###################################################################
-Accessing a source DB via an database/sql driver is an experimental
-feature that is not fully implemented. Currently we only do schema
-conversion and we only support PostgreSQL.
-###################################################################`)
-	if driver != "postgres" {
-		return fmt.Errorf("Driver %s not supported", driver)
+// toSpanner is the main entrance of the entire conversion, which runs the
+// following steps:
+//   1. Run schema conversion
+//   2. Create database
+//   3. Run data conversion
+//   4. Generate report
+func toSpanner(driver, projectID, instanceID, dbName string, ioHelper *ioStreams, outputFilePrefix string, now time.Time) error {
+	conv, err := schemaConv(driver, ioHelper)
+	if err != nil {
+		return err
 	}
+	// close the seekable file
+	if ioHelper.seekableIn != nil {
+		defer ioHelper.in.Close()
+	}
+
+	writeSchemaFile(conv, now, outputFilePrefix+schemaFile, ioHelper.out)
+	db, err := createDatabase(projectID, instanceID, dbName, conv, ioHelper.out)
+	if err != nil {
+		fmt.Printf("\nCan't create database: %v\n", err)
+		return fmt.Errorf("can't create database")
+	}
+
+	client, err := getClient(db)
+	if err != nil {
+		fmt.Printf("\nCan't create client for db %s: %v\n", db, err)
+		return fmt.Errorf("can't create Spanner client")
+	}
+
+	bw, err := dataConv(driver, ioHelper, client, conv)
+	if err != nil {
+		fmt.Printf("\nCan't finish data conversion for db %s: %v\n", db, err)
+		return fmt.Errorf("can't finish data conversion")
+	}
+	banner := getBanner(now, db)
+	report(bw.DroppedRowsByTable(), 0, banner, conv, outputFilePrefix+reportFile, ioHelper.out)
+	writeBadData(bw, conv, banner, outputFilePrefix+badDataFile, ioHelper.out)
+	return nil
+}
+
+func schemaConv(driver string, ioHelper *ioStreams) (*internal.Conv, error) {
+	switch driver {
+	case POSTGRES:
+		return schemaConvFromSourceDB(driver)
+	case PGDUMP:
+		return schemaConvFromFileStream(ioHelper)
+	default:
+		return nil, fmt.Errorf("schema conversion for driver %s not supported", driver)
+	}
+}
+
+func dataConv(driver string, ioHelper *ioStreams, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
+	switch driver {
+	case POSTGRES:
+		return dataConvFromSourceDB(ioHelper, client, conv)
+	case PGDUMP:
+		return dataConvFromFileStream(ioHelper, client, conv)
+	default:
+		return nil, fmt.Errorf("data conversion for driver %s not supported", driver)
+	}
+}
+
+func driverConfig(driver string) (string, error) {
+	switch driver {
+	case POSTGRES:
+		return pgDriverConfig()
+	default:
+		return "", fmt.Errorf("Driver %s not supported", driver)
+	}
+}
+
+func pgDriverConfig() (string, error) {
 	server := os.Getenv("PGHOST")
 	port := os.Getenv("PGPORT")
 	user := os.Getenv("PGUSER")
 	dbname := os.Getenv("PGDATABASE")
 	if server == "" || port == "" || user == "" || dbname == "" {
 		fmt.Printf("Please specify host, port, user and database using PGHOST, PGPORT, PGUSER and PGDATABASE environment variables\n")
-		return fmt.Errorf("Could not connect to source database")
+		return "", fmt.Errorf("Could not connect to source database")
 	}
 	password := getPassword()
-	sourceDB, err := sql.Open(driver, fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", server, port, user, password, dbname))
+	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", server, port, user, password, dbname), nil
+}
+
+func schemaConvFromSourceDB(driver string) (*internal.Conv, error) {
+	fmt.Println(`###################################################################
+	Accessing a source DB via an database/sql driver is an experimental
+	feature that is not fully implemented. Currently we only do schema
+	conversion and we only support PostgreSQL.
+	###################################################################`)
+
+	driverConfig, err := driverConfig(driver)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	sourceDB, err := sql.Open(driver, driverConfig)
+	if err != nil {
+		return nil, err
 	}
 	conv := internal.MakeConv()
 	err = internal.ProcessInfoSchema(conv, sourceDB)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	writeSchemaFile(conv, now, outputFilePrefix+schemaFile)
-	spannerDB, err := createDatabase(projectID, instanceID, dbName, conv)
-	if err != nil {
-		fmt.Printf("\nCan't create database: %v\n", err)
-		return fmt.Errorf("can't create database")
+	return conv, nil
+}
+
+func dataConvFromSourceDB(ioHelper *ioStreams, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
+	config := spanner.BatchWriterConfig{
+		BytesLimit: 100 * 1000 * 1000,
+		WriteLimit: 40,
+		RetryLimit: 1000,
+		Verbose:    internal.Verbose(),
+		Write: func(m []*sp.Mutation) error {
+			return nil
+		},
 	}
-	badWrites := make(map[string]int64) // Empty bad writes since no data conversion yet.
-	banner := getBanner(now, spannerDB)
-	report(badWrites, 0, banner, conv, outputFilePrefix+reportFile)
-	return nil
+	return spanner.NewBatchWriter(config), nil
 }
 
 type ioStreams struct {
-	in, out *os.File
+	in, seekableIn, out *os.File
+	bytesRead           int64
 }
 
-var ioHelper = &ioStreams{os.Stdin, os.Stdout}
-
-func pgDumpToSpanner(projectID, instanceID, dbName string, helper *ioStreams, outputFilePrefix string, now time.Time) error {
-	if helper != nil {
-		ioHelper = helper
-	}
-
+func schemaConvFromFileStream(ioHelper *ioStreams) (*internal.Conv, error) {
 	f, n, err := getSeekable(ioHelper.in)
 	if err != nil {
-		printSeekError(err)
-		return fmt.Errorf("can't get seekable input file")
+		printSeekError(err, ioHelper.out)
+		return nil, fmt.Errorf("can't get seekable input file")
 	}
-	defer f.Close()
+	ioHelper.seekableIn = f
+	ioHelper.bytesRead = n
 	conv := internal.MakeConv()
 
 	err = firstPass(f, n, conv)
 	if err != nil {
-		fmt.Fprintf(helper.out, "Failed to parse the data file: %v", err)
-		return fmt.Errorf("failed to parse the data file")
+		fmt.Fprintf(ioHelper.out, "Failed to parse the data file: %v", err)
+		return nil, fmt.Errorf("failed to parse the data file")
 	}
-	writeSchemaFile(conv, now, outputFilePrefix+schemaFile)
-	db, err := createDatabase(projectID, instanceID, dbName, conv)
-	if err != nil {
-		fmt.Printf("\nCan't create database: %v\n", err)
-		return fmt.Errorf("can't create database")
-	}
-	client, err := getClient(db)
-	if err != nil {
-		fmt.Printf("\nCan't create client for db %s: %v\n", db, err)
-		return fmt.Errorf("can't create Spanner client")
-	}
-	_, err = f.Seek(0, 0)
-	if err != nil {
-		fmt.Printf("\nCan't seek to start of file (preparation for second pass): %v\n", err)
-		return fmt.Errorf("can't seek to start of file")
-	}
-	rows := conv.Rows()
-	bw := secondPass(f, client, conv, rows)
-	banner := getBanner(now, db)
-	// TODO(hengfeng): When we refactor `process` into a separate module, and
-	// the parameters will capture everything we need from main.
-	report(bw.DroppedRowsByTable(), n, banner, conv, outputFilePrefix+reportFile)
-	writeBadData(bw, conv, banner, outputFilePrefix+badDataFile)
-	return nil
+	return conv, nil
 }
 
-func report(badWrites map[string]int64, bytesRead int64, banner string, conv *internal.Conv, reportFileName string) {
+func dataConvFromFileStream(ioHelper *ioStreams, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
+	_, err := ioHelper.seekableIn.Seek(0, 0)
+	if err != nil {
+		fmt.Printf("\nCan't seek to start of file (preparation for second pass): %v\n", err)
+		return nil, fmt.Errorf("can't seek to start of file")
+	}
+	rows := conv.Rows()
+	return secondPass(ioHelper.seekableIn, client, conv, rows), nil
+}
+
+func report(badWrites map[string]int64, bytesRead int64, banner string, conv *internal.Conv, reportFileName string, out *os.File) {
 	f, err := os.Create(reportFileName)
 	if err != nil {
-		fmt.Fprintf(ioHelper.out, "Can't write out report file %s: %v\n", reportFileName, err)
-		fmt.Fprintf(ioHelper.out, "Writing report to stdout\n")
-		f = ioHelper.out
+		fmt.Fprintf(out, "Can't write out report file %s: %v\n", reportFileName, err)
+		fmt.Fprintf(out, "Writing report to stdout\n")
+		f = out
 	} else {
 		defer f.Close()
 	}
@@ -244,17 +308,17 @@ func report(badWrites map[string]int64, bytesRead int64, banner string, conv *in
 	summary := internal.GenerateReport(fromPgDump, conv, w, badWrites)
 	w.Flush()
 	if fromPgDump {
-		fmt.Fprintf(ioHelper.out, "Processed %d bytes of pg_dump data (%d statements, %d rows of data, %d errors, %d unexpected conditions).\n",
+		fmt.Fprintf(out, "Processed %d bytes of pg_dump data (%d statements, %d rows of data, %d errors, %d unexpected conditions).\n",
 			bytesRead, conv.Statements(), conv.Rows(), conv.StatementErrors(), conv.Unexpecteds())
 	} else {
-		fmt.Fprintf(ioHelper.out, "Processed source database via %s driver (%d rows of data, %d unexpected conditions).\n",
+		fmt.Fprintf(out, "Processed source database via %s driver (%d rows of data, %d unexpected conditions).\n",
 			driverName, conv.Rows(), conv.Unexpecteds())
 	}
 	// We've already written summary to f (as part of GenerateReport).
 	// In the case where f is stdout, don't write a duplicate copy.
-	if f != ioHelper.out {
-		fmt.Fprint(ioHelper.out, summary)
-		fmt.Fprintf(ioHelper.out, "See file '%s' for details of the schema and data conversions.\n", reportFileName)
+	if f != out {
+		fmt.Fprint(out, summary)
+		fmt.Fprintf(out, "See file '%s' for details of the schema and data conversions.\n", reportFileName)
 	}
 }
 
@@ -337,8 +401,8 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 // It automatically determines an appropriate project, selects a
 // Spanner instance to use, generates a new Spanner DB name,
 // and call into the Spanner admin interface to create the new DB.
-func createDatabase(project, instance, dbName string, conv *internal.Conv) (string, error) {
-	fmt.Fprintf(ioHelper.out, "Creating new database %s in instance %s with default permissions ... ", dbName, instance)
+func createDatabase(project, instance, dbName string, conv *internal.Conv, out *os.File) (string, error) {
+	fmt.Fprintf(out, "Creating new database %s in instance %s with default permissions ... ", dbName, instance)
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
 	if err != nil {
@@ -360,7 +424,7 @@ func createDatabase(project, instance, dbName string, conv *internal.Conv) (stri
 	if _, err := op.Wait(ctx); err != nil {
 		return "", fmt.Errorf("createDatabase call failed: %w", analyzeError(err, project, instance))
 	}
-	fmt.Fprintf(ioHelper.out, "done.\n")
+	fmt.Fprintf(out, "done.\n")
 	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName), nil
 }
 
@@ -384,27 +448,27 @@ func getProject() (string, error) {
 // getInstance returns the Spanner instance we should use for creating DBs.
 // If the user specified instance (via flag 'instance') then use that.
 // Otherwise try to deduce the instance using gcloud.
-func getInstance(project string) (string, error) {
+func getInstance(project string, out *os.File) (string, error) {
 	l, err := getInstances(project)
 	if err != nil {
 		return "", err
 	}
 	if len(l) == 0 {
-		fmt.Fprintf(ioHelper.out, "Could not find any Spanner instances for project %s\n", project)
+		fmt.Fprintf(out, "Could not find any Spanner instances for project %s\n", project)
 		return "", fmt.Errorf("no Spanner instances for %s", project)
 	}
 	// Note: we could ask for user input to select/confirm which Spanner
 	// instance to use, but that interacts poorly with piping pg_dump data
 	// to the tool via stdin.
 	if len(l) == 1 {
-		fmt.Fprintf(ioHelper.out, "Using only available Spanner instance: %s\n", l[0])
+		fmt.Fprintf(out, "Using only available Spanner instance: %s\n", l[0])
 		return l[0], nil
 	}
-	fmt.Fprintf(ioHelper.out, "Available Spanner instances:\n")
+	fmt.Fprintf(out, "Available Spanner instances:\n")
 	for i, x := range l {
-		fmt.Fprintf(ioHelper.out, " %d) %s\n", i+1, x)
+		fmt.Fprintf(out, " %d) %s\n", i+1, x)
 	}
-	fmt.Fprintf(ioHelper.out, "Please pick one of the available instances and set the flag '--instance'\n\n")
+	fmt.Fprintf(out, "Please pick one of the available instances and set the flag '--instance'\n\n")
 	return "", fmt.Errorf("auto-selection of instance failed: project %s has more than one Spanner instance. "+
 		"Please use the flag '--instance' to select an instance", project)
 }
@@ -430,10 +494,10 @@ func getInstances(project string) ([]string, error) {
 	return l, nil
 }
 
-func writeSchemaFile(conv *internal.Conv, now time.Time, name string) {
+func writeSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.File) {
 	f, err := os.Create(name)
 	if err != nil {
-		fmt.Fprintf(ioHelper.out, "Can't create schema file %s: %v\n", name, err)
+		fmt.Fprintf(out, "Can't create schema file %s: %v\n", name, err)
 		return
 	}
 	// The schema file we write out includes comments, and doesn't add backticks
@@ -452,15 +516,15 @@ func writeSchemaFile(conv *internal.Conv, now time.Time, name string) {
 		"\n",
 	}
 	if _, err := f.WriteString(strings.Join(l, "")); err != nil {
-		fmt.Fprintf(ioHelper.out, "Can't write out schema file: %v\n", err)
+		fmt.Fprintf(out, "Can't write out schema file: %v\n", err)
 		return
 	}
-	fmt.Fprintf(ioHelper.out, "Wrote schema to file '%s'.\n", name)
+	fmt.Fprintf(out, "Wrote schema to file '%s'.\n", name)
 }
 
 // writeBadData prints summary stats about bad rows and writes detailed info
 // to file 'name'.
-func writeBadData(bw *spanner.BatchWriter, conv *internal.Conv, banner, name string) {
+func writeBadData(bw *spanner.BatchWriter, conv *internal.Conv, banner, name string, out *os.File) {
 	badConversions := conv.BadRows()
 	badWrites := sum(bw.DroppedRowsByTable())
 	if badConversions == 0 && badWrites == 0 {
@@ -469,7 +533,7 @@ func writeBadData(bw *spanner.BatchWriter, conv *internal.Conv, banner, name str
 	}
 	f, err := os.Create(name)
 	if err != nil {
-		fmt.Fprintf(ioHelper.out, "Can't write out bad data file: %v\n", err)
+		fmt.Fprintf(out, "Can't write out bad data file: %v\n", err)
 		return
 	}
 	f.WriteString(banner)
@@ -484,7 +548,7 @@ func writeBadData(bw *spanner.BatchWriter, conv *internal.Conv, banner, name str
 		for _, r := range l {
 			_, err := f.WriteString("  " + r + "\n")
 			if err != nil {
-				fmt.Fprintf(ioHelper.out, "Can't write out bad data file: %v\n", err)
+				fmt.Fprintf(out, "Can't write out bad data file: %v\n", err)
 				return
 			}
 		}
@@ -499,12 +563,12 @@ func writeBadData(bw *spanner.BatchWriter, conv *internal.Conv, banner, name str
 		for _, r := range l {
 			_, err := f.WriteString("  " + r + "\n")
 			if err != nil {
-				fmt.Fprintf(ioHelper.out, "Can't write out bad data file: %v\n", err)
+				fmt.Fprintf(out, "Can't write out bad data file: %v\n", err)
 				return
 			}
 		}
 	}
-	fmt.Fprintf(ioHelper.out, "See file '%s' for details of bad rows\n", name)
+	fmt.Fprintf(out, "See file '%s' for details of bad rows\n", name)
 }
 
 func getDatabaseName(now time.Time) (string, error) {
@@ -550,8 +614,8 @@ instance for project %s.
 	return err
 }
 
-func printPermissionsWarning() {
-	fmt.Fprintf(ioHelper.out,
+func printPermissionsWarning(out *os.File) {
+	fmt.Fprintf(out,
 		`
 WARNING: Please check that permissions for this Spanner instance are
 appropriate. Spanner manages access control at the database level, and the
@@ -563,12 +627,12 @@ ACLs are dropped during conversion since they are not supported by Spanner.
 `)
 }
 
-func printSeekError(err error) {
-	fmt.Fprintf(ioHelper.out, "\nCan't get seekable input file: %v\n", err)
-	fmt.Fprintf(ioHelper.out, "Likely cause: not enough space in %s.\n", os.TempDir())
-	fmt.Fprintf(ioHelper.out, "Try writing pg_dump output to a file first i.e.\n")
-	fmt.Fprintf(ioHelper.out, "  pg_dump > tmpfile\n")
-	fmt.Fprintf(ioHelper.out, "  harbourbridge < tmpfile\n")
+func printSeekError(err error, out *os.File) {
+	fmt.Fprintf(out, "\nCan't get seekable input file: %v\n", err)
+	fmt.Fprintf(out, "Likely cause: not enough space in %s.\n", os.TempDir())
+	fmt.Fprintf(out, "Try writing pg_dump output to a file first i.e.\n")
+	fmt.Fprintf(out, "  pg_dump > tmpfile\n")
+	fmt.Fprintf(out, "  harbourbridge < tmpfile\n")
 }
 
 func containsAny(s string, l []string) bool {
