@@ -51,7 +51,7 @@ import (
 const (
 	// PGDUMP is the driver name for pg_dump.
 	PGDUMP string = "pgdump"
-	// POSTGRES is the driver name for postgresSQL.
+	// POSTGRES is the driver name for PostgreSQL.
 	POSTGRES string = "posgres"
 )
 
@@ -184,20 +184,26 @@ func toSpanner(driver, projectID, instanceID, dbName string, ioHelper *ioStreams
 func schemaConv(driver string, ioHelper *ioStreams) (*internal.Conv, error) {
 	switch driver {
 	case POSTGRES:
-		return schemaConvFromSourceDB(driver)
+		return schemaFromSQL(driver)
 	case PGDUMP:
-		return schemaConvFromFileStream(ioHelper)
+		return schemaFromPgDump(ioHelper)
 	default:
 		return nil, fmt.Errorf("schema conversion for driver %s not supported", driver)
 	}
 }
 
 func dataConv(driver string, ioHelper *ioStreams, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
+	config := spanner.BatchWriterConfig{
+		BytesLimit: 100 * 1000 * 1000,
+		WriteLimit: 40,
+		RetryLimit: 1000,
+		Verbose:    internal.Verbose(),
+	}
 	switch driver {
 	case POSTGRES:
-		return dataConvFromSourceDB(ioHelper, client, conv)
+		return dataFromSQL(config, client, conv)
 	case PGDUMP:
-		return dataConvFromFileStream(ioHelper, client, conv)
+		return dataFromPgDump(config, ioHelper, client, conv)
 	default:
 		return nil, fmt.Errorf("data conversion for driver %s not supported", driver)
 	}
@@ -225,7 +231,7 @@ func pgDriverConfig() (string, error) {
 	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", server, port, user, password, dbname), nil
 }
 
-func schemaConvFromSourceDB(driver string) (*internal.Conv, error) {
+func schemaFromSQL(driver string) (*internal.Conv, error) {
 	fmt.Println(`###################################################################
 	Accessing a source DB via an database/sql driver is an experimental
 	feature that is not fully implemented. Currently we only do schema
@@ -248,16 +254,7 @@ func schemaConvFromSourceDB(driver string) (*internal.Conv, error) {
 	return conv, nil
 }
 
-func dataConvFromSourceDB(ioHelper *ioStreams, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
-	config := spanner.BatchWriterConfig{
-		BytesLimit: 100 * 1000 * 1000,
-		WriteLimit: 40,
-		RetryLimit: 1000,
-		Verbose:    internal.Verbose(),
-		Write: func(m []*sp.Mutation) error {
-			return nil
-		},
-	}
+func dataFromSQL(config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
 	return spanner.NewBatchWriter(config), nil
 }
 
@@ -266,7 +263,7 @@ type ioStreams struct {
 	bytesRead           int64
 }
 
-func schemaConvFromFileStream(ioHelper *ioStreams) (*internal.Conv, error) {
+func schemaFromPgDump(ioHelper *ioStreams) (*internal.Conv, error) {
 	f, n, err := getSeekable(ioHelper.in)
 	if err != nil {
 		printSeekError(err, ioHelper.out)
@@ -275,23 +272,50 @@ func schemaConvFromFileStream(ioHelper *ioStreams) (*internal.Conv, error) {
 	ioHelper.seekableIn = f
 	ioHelper.bytesRead = n
 	conv := internal.MakeConv()
-
-	err = firstPass(f, n, conv)
+	p := internal.NewProgress(n, "Generating schema", internal.Verbose())
+	r := internal.NewReader(bufio.NewReader(f), p)
+	conv.SetSchemaMode() // Build schema and ignore data in pg_dump.
+	conv.SetDataSink(nil)
+	err = internal.ProcessPgDump(conv, r)
 	if err != nil {
 		fmt.Fprintf(ioHelper.out, "Failed to parse the data file: %v", err)
 		return nil, fmt.Errorf("failed to parse the data file")
 	}
+	p.Done()
 	return conv, nil
 }
 
-func dataConvFromFileStream(ioHelper *ioStreams, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
+func dataFromPgDump(config spanner.BatchWriterConfig, ioHelper *ioStreams, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
 	_, err := ioHelper.seekableIn.Seek(0, 0)
 	if err != nil {
 		fmt.Printf("\nCan't seek to start of file (preparation for second pass): %v\n", err)
 		return nil, fmt.Errorf("can't seek to start of file")
 	}
-	rows := conv.Rows()
-	return secondPass(ioHelper.seekableIn, client, conv, rows), nil
+	totalRows := conv.Rows()
+
+	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose())
+	r := internal.NewReader(bufio.NewReader(ioHelper.seekableIn), nil)
+	rows := int64(0)
+	config.Write = func(m []*sp.Mutation) error {
+		_, err := client.Apply(context.Background(), m)
+		if err != nil {
+			return err
+		}
+		atomic.AddInt64(&rows, int64(len(m)))
+		p.MaybeReport(atomic.LoadInt64(&rows))
+		return nil
+	}
+	writer := spanner.NewBatchWriter(config)
+	conv.SetDataMode() // Process data in pg_dump; schema is unchanged.
+	conv.SetDataSink(
+		func(table string, cols []string, vals []interface{}) {
+			writer.AddRow(table, cols, vals)
+		})
+	internal.ProcessPgDump(conv, r)
+	writer.Flush()
+	p.Done()
+
+	return writer, nil
 }
 
 func report(badWrites map[string]int64, bytesRead int64, banner string, conv *internal.Conv, reportFileName string, out *os.File) {
@@ -320,50 +344,6 @@ func report(badWrites map[string]int64, bytesRead int64, banner string, conv *in
 		fmt.Fprint(out, summary)
 		fmt.Fprintf(out, "See file '%s' for details of the schema and data conversions.\n", reportFileName)
 	}
-}
-
-func firstPass(f *os.File, fileSize int64, conv *internal.Conv) error {
-	p := internal.NewProgress(fileSize, "Generating schema", internal.Verbose())
-	r := internal.NewReader(bufio.NewReader(f), p)
-	conv.SetSchemaMode() // Build schema and ignore data in pg_dump.
-	conv.SetDataSink(nil)
-	err := internal.ProcessPgDump(conv, r)
-	if err != nil {
-		return err
-	}
-	p.Done()
-	return nil
-}
-
-func secondPass(f *os.File, client *sp.Client, conv *internal.Conv, totalRows int64) *spanner.BatchWriter {
-	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose())
-	r := internal.NewReader(bufio.NewReader(f), nil)
-	rows := int64(0)
-	config := spanner.BatchWriterConfig{
-		BytesLimit: 100 * 1000 * 1000,
-		WriteLimit: 40,
-		RetryLimit: 1000,
-		Verbose:    internal.Verbose(),
-		Write: func(m []*sp.Mutation) error {
-			_, err := client.Apply(context.Background(), m)
-			if err != nil {
-				return err
-			}
-			atomic.AddInt64(&rows, int64(len(m)))
-			p.MaybeReport(atomic.LoadInt64(&rows))
-			return nil
-		},
-	}
-	writer := spanner.NewBatchWriter(config)
-	conv.SetDataMode() // Process data in pg_dump; schema is unchanged.
-	conv.SetDataSink(
-		func(table string, cols []string, vals []interface{}) {
-			writer.AddRow(table, cols, vals)
-		})
-	internal.ProcessPgDump(conv, r)
-	writer.Flush()
-	p.Done()
-	return writer
 }
 
 // getSeekable returns a seekable file (with same content as f) and the size of the content (in bytes).
