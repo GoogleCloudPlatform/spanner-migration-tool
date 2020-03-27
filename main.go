@@ -54,7 +54,7 @@ const (
 	// PGDUMP is the driver name for pg_dump.
 	PGDUMP string = "pgdump"
 	// POSTGRES is the driver name for PostgreSQL.
-	POSTGRES string = "posgres"
+	POSTGRES string = "postgres"
 )
 
 var (
