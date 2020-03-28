@@ -254,7 +254,7 @@ func checkDateBytesBool(ctx context.Context, t *testing.T, client *spanner.Clien
 			t.Fatal(err)
 		}
 	}
-	if got, want := date.String(), "\"2019-10-28\""; got != want {
+	if got, want := date.String(), "2019-10-28"; got != want {
 		t.Fatalf("date is not correct: got %v, want %v", got, want)
 	}
 	if got, want := string(bytesVal), "\x00\x01\x02\x03ޭ\xbe\xef"; got != want {
