@@ -118,6 +118,10 @@ func ConvertData(conv *Conv, srcTable string, srcCols []string, vals []string) (
 	return spTable, c, v, nil
 }
 
+// convScalar converts a source database string value to an
+// appropriate Spanner value. It is the caller's responsibility to
+// detect and handle NULL values: convScalar will return error if a
+// NULL value is passed.
 func convScalar(spannerType ddl.ScalarType, srcTypeName string, location *time.Location, val string) (interface{}, error) {
 	// Whitespace within the val string is considered part of the data value.
 	// Note that many of the underlying conversions functions we use (like
@@ -227,6 +231,12 @@ func convTimestamp(srcTypeName string, location *time.Location, val string) (t t
 	return t, err
 }
 
+// convArray converts a source database string value (representing an
+// array) to an appropriate Spanner array value. It is the caller's
+// responsibility to detect and handle the case where the entire array
+// is NULL. However, convArray does handle the case where individual
+// array elements are NULL. In other words, convArray handles "{1,
+// NULL, 2}", but it does not handle "NULL" (it returns error).
 func convArray(spannerType ddl.ScalarType, srcTypeName string, location *time.Location, v string) (interface{}, error) {
 	v = strings.TrimSpace(v)
 	// Handle empty array. Note that we use an empty NullString array

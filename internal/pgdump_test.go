@@ -433,7 +433,7 @@ COPY test (id, a, b, c, d, e) FROM stdin;
 					table: "test", cols: []string{"int8", "float8", "bool", "timestamp", "date", "bytea", "arr", "synth_id"},
 					vals: []interface{}{int64(7), float64(42.1), true, getTime(t, "2019-10-29T05:30:00Z"),
 						getDate("2019-10-29"), []byte{0x0, 0x1, 0xbe, 0xef},
-						[]spanner.NullInt64{spanner.NullInt64{Int64: 42, Valid: true}, spanner.NullInt64{Int64: 6, Valid: true}},
+						[]spanner.NullInt64{{Int64: 42, Valid: true}, {Int64: 6, Valid: true}},
 						bitReverse(0)}},
 				spannerData{table: "test", cols: []string{"int8", "synth_id"}, vals: []interface{}{int64(7), bitReverse(1)}},
 				spannerData{table: "test", cols: []string{"float8", "synth_id"}, vals: []interface{}{float64(42.1), bitReverse(2)}},
@@ -442,11 +442,7 @@ COPY test (id, a, b, c, d, e) FROM stdin;
 				spannerData{table: "test", cols: []string{"date", "synth_id"}, vals: []interface{}{getDate("2019-10-29"), bitReverse(5)}},
 				spannerData{table: "test", cols: []string{"bytea", "synth_id"}, vals: []interface{}{[]byte{0x0, 0x1, 0xbe, 0xef}, bitReverse(6)}},
 				spannerData{table: "test", cols: []string{"arr", "synth_id"},
-					vals: []interface{}{
-						[]spanner.NullInt64{
-							spanner.NullInt64{Int64: 42, Valid: true},
-							spanner.NullInt64{Int64: 6, Valid: true}},
-						bitReverse(7)}},
+					vals: []interface{}{[]spanner.NullInt64{{Int64: 42, Valid: true}, {Int64: 6, Valid: true}}, bitReverse(7)}},
 			},
 		},
 	}
