@@ -216,6 +216,18 @@ func TestProcessPgDump(t *testing.T) {
 				spannerData{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a22", "b99", int64(6)}}},
 		},
 		{
+			name: "COPY FROM with renamed table/cols",
+			input: "CREATE TABLE _test (_a text, b text, n bigint);\n" +
+				"ALTER TABLE ONLY _test ADD CONSTRAINT test_pkey PRIMARY KEY (_a, b);" +
+				"COPY public._test (_a, b, n) FROM stdin;\n" +
+				"a1	b1	42\n" +
+				"a22	b99	6\n" +
+				"\\.\n",
+			expectedData: []spannerData{
+				spannerData{table: "Atest", cols: []string{"Aa", "b", "n"}, vals: []interface{}{"a1", "b1", int64(42)}},
+				spannerData{table: "Atest", cols: []string{"Aa", "b", "n"}, vals: []interface{}{"a22", "b99", int64(6)}}},
+		},
+		{
 			name: "COPY FROM with CRLF",
 			input: "CREATE TABLE test (a text, b text, n bigint);\r\n" +
 				"COPY public.test (a, b, n) FROM stdin;\r\n" +
