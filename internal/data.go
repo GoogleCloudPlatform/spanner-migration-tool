@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/civil"
+	"cloud.google.com/go/spanner"
 
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -117,6 +118,10 @@ func ConvertData(conv *Conv, srcTable string, srcCols []string, vals []string) (
 	return spTable, c, v, nil
 }
 
+// convScalar converts a source database string value to an
+// appropriate Spanner value. It is the caller's responsibility to
+// detect and handle NULL values: convScalar will return error if a
+// NULL value is passed.
 func convScalar(spannerType ddl.ScalarType, srcTypeName string, location *time.Location, val string) (interface{}, error) {
 	// Whitespace within the val string is considered part of the data value.
 	// Note that many of the underlying conversions functions we use (like
@@ -152,10 +157,10 @@ func convBool(val string) (bool, error) {
 }
 
 func convBytes(val string) ([]byte, error) {
-	if val[0:3] != `\\x` {
+	if val[0:2] != `\x` {
 		return []byte{}, fmt.Errorf("can't convert to bytes: doesn't start with \\x prefix")
 	}
-	b, err := hex.DecodeString(val[3:])
+	b, err := hex.DecodeString(val[2:])
 	if err != nil {
 		return b, fmt.Errorf("can't convert to bytes: %w", err)
 	}
@@ -226,8 +231,20 @@ func convTimestamp(srcTypeName string, location *time.Location, val string) (t t
 	return t, err
 }
 
+// convArray converts a source database string value (representing an
+// array) to an appropriate Spanner array value. It is the caller's
+// responsibility to detect and handle the case where the entire array
+// is NULL. However, convArray does handle the case where individual
+// array elements are NULL. In other words, convArray handles "{1,
+// NULL, 2}", but it does not handle "NULL" (it returns error).
 func convArray(spannerType ddl.ScalarType, srcTypeName string, location *time.Location, v string) (interface{}, error) {
 	v = strings.TrimSpace(v)
+	// Handle empty array. Note that we use an empty NullString array
+	// for all Spanner array types since this will be converted to the
+	// appropriate type by the Spanner client.
+	if v == "{}" {
+		return []spanner.NullString{}, nil
+	}
 	if v[0] != '{' || v[len(v)-1] != '}' {
 		return []interface{}{}, fmt.Errorf("unrecognized data format for array: expected {v1, v2, ...}")
 	}
@@ -238,18 +255,34 @@ func convArray(spannerType ddl.ScalarType, srcTypeName string, location *time.Lo
 	// Hence we have to do the following case analysis.
 	switch spannerType.(type) {
 	case ddl.Bool:
-		var r []bool
+		var r []spanner.NullBool
 		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, spanner.NullBool{Valid: false})
+				continue
+			}
+			s, err := processQuote(s)
+			if err != nil {
+				return []spanner.NullBool{}, err
+			}
 			b, err := convBool(s)
 			if err != nil {
-				return []bool{}, err
+				return []spanner.NullBool{}, err
 			}
-			r = append(r, b)
+			r = append(r, spanner.NullBool{Bool: b, Valid: true})
 		}
 		return r, nil
 	case ddl.Bytes:
 		var r [][]byte
 		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, nil)
+				continue
+			}
+			s, err := processQuote(s)
+			if err != nil {
+				return [][]byte{}, err
+			}
 			b, err := convBytes(s)
 			if err != nil {
 				return [][]byte{}, err
@@ -258,53 +291,108 @@ func convArray(spannerType ddl.ScalarType, srcTypeName string, location *time.Lo
 		}
 		return r, nil
 	case ddl.Date:
-		var r []civil.Date
+		var r []spanner.NullDate
 		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, spanner.NullDate{Valid: false})
+				continue
+			}
+			s, err := processQuote(s)
+			if err != nil {
+				return []spanner.NullDate{}, err
+			}
 			d, err := convDate(s)
 			if err != nil {
-				return []civil.Date{}, err
+				return []spanner.NullDate{}, err
 			}
-			r = append(r, d)
+			r = append(r, spanner.NullDate{Date: d, Valid: true})
 		}
 		return r, nil
 	case ddl.Float64:
-		var r []float64
+		var r []spanner.NullFloat64
 		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, spanner.NullFloat64{Valid: false})
+				continue
+			}
+			s, err := processQuote(s)
+			if err != nil {
+				return []spanner.NullFloat64{}, err
+			}
 			f, err := convFloat64(s)
 			if err != nil {
-				return []float64{}, err
+				return []spanner.NullFloat64{}, err
 			}
-			r = append(r, f)
+			r = append(r, spanner.NullFloat64{Float64: f, Valid: true})
 		}
 		return r, nil
 	case ddl.Int64:
-		var r []int64
+		var r []spanner.NullInt64
 		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, spanner.NullInt64{Valid: false})
+				continue
+			}
+			s, err := processQuote(s)
+			if err != nil {
+				return []spanner.NullInt64{}, err
+			}
 			i, err := convInt64(s)
 			if err != nil {
 				return r, err
 			}
-			r = append(r, i)
+			r = append(r, spanner.NullInt64{Int64: i, Valid: true})
 		}
 		return r, nil
 	case ddl.String:
-		var r []string
+		var r []spanner.NullString
 		for _, s := range a {
-			r = append(r, s)
+			if s == "NULL" {
+				r = append(r, spanner.NullString{Valid: false})
+				continue
+			}
+			s, err := processQuote(s)
+			if err != nil {
+				return []spanner.NullString{}, err
+			}
+			r = append(r, spanner.NullString{StringVal: s, Valid: true})
 		}
 		return r, nil
 	case ddl.Timestamp:
-		var r []time.Time
+		var r []spanner.NullTime
 		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, spanner.NullTime{Valid: false})
+				continue
+			}
+			s, err := processQuote(s)
+			if err != nil {
+				return []spanner.NullTime{}, err
+			}
 			t, err := convTimestamp(srcTypeName, location, s)
 			if err != nil {
-				return []time.Time{}, err
+				return []spanner.NullTime{}, err
 			}
-			r = append(r, t)
+			r = append(r, spanner.NullTime{Time: t, Valid: true})
 		}
 		return r, nil
 	}
 	return []interface{}{}, fmt.Errorf("array type conversion not implemented for type %v", reflect.TypeOf(spannerType))
+}
+
+// processQuote returns the unquoted version of s.
+// Note: The element values of PostgreSQL arrays may have double
+// quotes around them.  The array output routine will put double
+// quotes around element values if they are empty strings, contain
+// curly braces, delimiter characters, double quotes, backslashes, or
+// white space, or match the word NULL. Double quotes and backslashes
+// embedded in element values will be backslash-escaped.  See section
+// 8.14.6.of www.postgresql.org/docs/9.1/arrays.html.
+func processQuote(s string) (string, error) {
+	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+		return strconv.Unquote(s)
+	}
+	return s, nil
 }
 
 func byteSize(r *row) int64 {

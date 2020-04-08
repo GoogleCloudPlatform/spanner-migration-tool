@@ -132,10 +132,15 @@ func processCopyBlock(conv *Conv, srcTable string, srcCols []string, r *Reader) 
 		if !conv.dataMode() {
 			continue
 		}
+		// Pgdump escapes backslash in copy-block statements. For example:
+		// a) a\"b becomes a\\"b in COPY-BLOCK (but 'a\"b' in INSERT-INTO)
+		// b) {"a\"b"} becomes {"a\\"b"} in COPY-BLOCK (but '{"a\"b"}' in INSERT-INTO)
+		// Note: a'b and {a'b} are unchanged in COPY-BLOCK and INSERT-INTO.
+		s := strings.ReplaceAll(string(b), `\\`, `\`)
 		// COPY-FROM blocks use tabs to separate data items. Note that space within data
 		// items is significant e.g. if a table row contains data items "a ", " b "
 		// it will be shown in the COPY-FROM block as "a \t b ".
-		ProcessDataRow(conv, srcTable, srcCols, strings.Split(strings.Trim(string(b), "\r\n"), "\t"))
+		ProcessDataRow(conv, srcTable, srcCols, strings.Split(strings.Trim(s, "\r\n"), "\t"))
 	}
 }
 
