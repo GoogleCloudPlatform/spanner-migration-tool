@@ -31,10 +31,8 @@ import (
 
 // TODO: All of the queries to get tables and table data should be in
 // a single transaction to ensure we obtain a consistent snapshot of
-// schema information across tables (pg_dump does something
-// similar). When we add SELECT queries to get data, we should wrap
-// those in the same transaction to ensure consistency of schema and
-// data.
+// schema information and table data (pg_dump does something
+// similar).
 
 // ProcessInfoSchema performs schema conversion for source database
 // 'db'. We assume that the source database supports information
