@@ -54,11 +54,10 @@ func ProcessInfoSchema(conv *Conv, db *sql.DB) error {
 }
 
 // ProcessSqlData performs data conversion for source database
-// 'db'. For each table with a source schema, we extract data using a
-// "select *" query, convert the data to Spanner data (based on the
-// source and Spanner schemas), and write it to Spanner.  If we can't
-// get/process data for a table, we skip that table and process the
-// remaining tables.
+// 'db'. For each table, we extract data using a "SELECT *" query,
+// convert the data to Spanner data (based on the source and Spanner
+// schemas), and write it to Spanner.  If we can't get/process data
+// for a table, we skip that table and process the remaining tables.
 //
 // Note that the database/sql library has a somewhat complex model for
 // returning data from rows.Scan. Scalar values can be returned using
@@ -68,7 +67,7 @@ func ProcessInfoSchema(conv *Conv, db *sql.DB) error {
 // encoding of the array values. This string encoding is
 // database/driver specific. For example, for PostgreSQL, array values
 // are returned in the form "{v1,v2,..,vn}", where each v1,v2,...,vn
-// are PostgreSQL encodings of the indivdual array values.
+// is a PostgreSQL encoding of the respective array value.
 //
 // We choose to do all type conversions explicitly ourselves so that
 // we can generate more targeted error messages: hence we pass
@@ -83,7 +82,7 @@ func ProcessSqlData(conv *Conv, db *sql.DB) {
 	}
 	for _, t := range tables {
 		// PostgreSQL schema and name can be arbitrary strings.
-		// Ideally we would pass the table name as a query parameter,
+		// Ideally we would pass schema/name as a query parameter,
 		// but PostgreSQL doesn't support this. So we quote it instead.
 		q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, t.schema, t.name)
 		rows, err := db.Query(q)
@@ -98,13 +97,13 @@ func ProcessSqlData(conv *Conv, db *sql.DB) {
 		spCols, err3 := GetSpannerCols(conv, srcTable, srcCols)
 		spSchema, ok1 := conv.spSchema[spTable]
 		srcSchema, ok2 := conv.srcSchema[srcTable]
-		v, iv := buildVals(len(srcCols))
 		if err1 != nil || err2 != nil || err3 != nil || !ok1 || !ok2 {
 			conv.statsAddBadRows(srcTable, conv.stats.rows[srcTable])
 			conv.unexpected(fmt.Sprintf("Can't get cols and schemas for table %s: err1=%s, err2=%s, err3=%s, ok1=%t, ok2=%t",
 				srcTable, err1, err2, err3, ok1, ok2))
 			continue
 		}
+		v, iv := buildVals(len(srcCols))
 		for rows.Next() {
 			err := rows.Scan(iv...)
 			if err != nil {
@@ -176,7 +175,7 @@ func SetRowStats(conv *Conv, db *sql.DB) {
 	}
 	for _, t := range tables {
 		// PostgreSQL schema and name can be arbitrary strings.
-		// Ideally we would pass the table name as a query parameter,
+		// Ideally we would pass schema/name as a query parameter,
 		// but PostgreSQL doesn't support this. So we quote it instead.
 		q := fmt.Sprintf(`SELECT COUNT(*) FROM "%s"."%s";`, t.schema, t.name)
 		tableName := buildTableName(t.schema, t.name)

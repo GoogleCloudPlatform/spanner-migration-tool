@@ -252,9 +252,10 @@ func schemaFromSQL(driver string) (*internal.Conv, error) {
 
 func dataFromSQL(config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv, driver string) (*spanner.BatchWriter, error) {
 	// TODO: Refactor to avoid redundant calls to driverConfig and
-	// Open in schemaFromSQL and dataFromSQL. Use single
-	// transaction for reading schema and data from source db to
-	// get consistent dump.
+	// Open in schemaFromSQL and dataFromSQL. Also refactor to
+	// share code with dataFromPgDump. Use single transaction for
+	// reading schema and data from source db to get consistent
+	// dump.
 	driverConfig, err := driverConfig(driver)
 	if err != nil {
 		return nil, err
