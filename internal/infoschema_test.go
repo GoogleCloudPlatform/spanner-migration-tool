@@ -15,25 +15,20 @@
 package internal
 
 import (
+	"database/sql"
 	"database/sql/driver"
 	"testing"
+	"time"
 
+	"cloud.google.com/go/spanner"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestProcessInfoSchema(t *testing.T) {
-	type mockSpec struct {
-		query string
-		args  []driver.Value   // Query args.
-		cols  []string         // Columns names for returned rows.
-		rows  [][]driver.Value // Set of rows returned.
-	}
-	db, mock, err := sqlmock.New()
-	assert.Nil(t, err)
-
-	for _, m := range []mockSpec{
+	ms := []mockSpec{
 		{
 			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
 			cols:  []string{"table_schema", "table_name"},
@@ -88,19 +83,10 @@ func TestProcessInfoSchema(t *testing.T) {
 			cols:  []string{"column_name", "constraint_type"},
 			rows:  [][]driver.Value{{"id", "PRIMARY KEY"}},
 		},
-	} {
-		rows := sqlmock.NewRows(m.cols)
-		for _, r := range m.rows {
-			rows.AddRow(r...)
-		}
-		if len(m.args) > 0 {
-			mock.ExpectQuery(m.query).WithArgs(m.args...).WillReturnRows(rows)
-		} else {
-			mock.ExpectQuery(m.query).WillReturnRows(rows)
-		}
 	}
+	db := mkMockDB(t, ms)
 	conv := MakeConv()
-	err = ProcessInfoSchema(conv, db)
+	err := ProcessInfoSchema(conv, db)
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"cart": ddl.CreateTable{
@@ -153,4 +139,237 @@ func TestProcessInfoSchema(t *testing.T) {
 		"ts":   []schemaIssue{timestamp},
 	}
 	assert.Equal(t, expectedIssues, conv.issues["test"])
+	assert.Equal(t, int64(0), conv.Unexpecteds())
+}
+
+// TestProcessSqlData is a basic test of ProcessSqlData that checks
+// handling of bad rows and table and column renaming. The core data
+// conversion work of ProcessSqlData is done by ConvertData, which is
+// extensively is tested by TestConvertSqlRow.
+func TestProcessSqlData(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
+			cols:  []string{"table_schema", "table_name"},
+			rows:  [][]driver.Value{{"public", "te st"}},
+		}, {
+			query: `SELECT [*] FROM "public"."te st"`, // query is a regexp!
+			cols:  []string{"a a", " b", " c "},
+			rows: [][]driver.Value{
+				{42.3, 3, "cat"},
+				{6.6, 22, "dog"},
+				{6.6, "2006-01-02", "dog"}}, // Test bad row logic.
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := buildConv(
+		ddl.CreateTable{
+			Name:     "te_st",
+			ColNames: []string{"a a", " b", " c "},
+			ColDefs: map[string]ddl.ColumnDef{
+				"a_a": ddl.ColumnDef{Name: "a_a", T: ddl.Float64{}},
+				"Ab":  ddl.ColumnDef{Name: "Ab", T: ddl.Int64{}},
+				"Ac_": ddl.ColumnDef{Name: "Ac_", T: ddl.String{Len: ddl.MaxLength{}}},
+			}},
+		schema.Table{
+			Name:     "te st",
+			ColNames: []string{"a_a", "_b", "_c_"},
+			ColDefs: map[string]schema.Column{
+				"a a": schema.Column{Name: "a a", Type: schema.Type{Name: "float4"}},
+				" b":  schema.Column{Name: " b", Type: schema.Type{Name: "int8"}},
+				" c ": schema.Column{Name: " c ", Type: schema.Type{Name: "text"}},
+			}})
+	conv.SetDataMode()
+	var rows []spannerData
+	conv.SetDataSink(
+		func(table string, cols []string, vals []interface{}) {
+			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
+		})
+	ProcessSqlData(conv, db)
+	assert.Equal(t,
+		[]spannerData{
+			spannerData{table: "te_st", cols: []string{"a a", " b", " c "}, vals: []interface{}{float64(42.3), int64(3), "cat"}},
+			spannerData{table: "te_st", cols: []string{"a a", " b", " c "}, vals: []interface{}{float64(6.6), int64(22), "dog"}},
+		},
+		rows)
+	assert.Equal(t, conv.BadRows(), int64(1))
+	assert.Equal(t, conv.SampleBadRows(10), []string{"table=te st cols=[a a  b  c ] data=[6.6 2006-01-02 dog]\n"})
+	assert.Equal(t, int64(1), conv.Unexpecteds()) // Bad row generates an entry in unexpected.
+}
+
+func TestConvertSqlRow(t *testing.T) {
+	tDate, _ := time.Parse("2006-01-02", "2019-10-29")
+	singleColTests := []struct {
+		name    string
+		srcType schema.Type
+		spType  ddl.ScalarType
+		isArray bool
+		in      interface{} // Input value for conversion.
+		e       interface{} // Expected result.
+	}{
+		{name: "bool", srcType: schema.Type{Name: "bool"}, spType: ddl.Bool{}, in: true, e: true},
+		{name: "bool string", srcType: schema.Type{Name: "bool"}, spType: ddl.Bool{}, in: "true", e: true},
+		{name: "bytes", srcType: schema.Type{Name: "bytea"}, spType: ddl.Bytes{Len: ddl.MaxLength{}}, in: []byte{0x0, 0x1, 0xbe, 0xef}, e: []byte{0x0, 0x1, 0xbe, 0xef}},
+		{name: "date", srcType: schema.Type{Name: "date"}, spType: ddl.Date{}, in: tDate, e: getDate("2019-10-29")},
+		{name: "date string", srcType: schema.Type{Name: "date"}, spType: ddl.Date{}, in: "2019-10-29", e: getDate("2019-10-29")},
+		{name: "int64", srcType: schema.Type{Name: "bigint"}, spType: ddl.Int64{}, in: int64(42), e: int64(42)},
+		{name: "int64 string", srcType: schema.Type{Name: "text"}, spType: ddl.Int64{}, in: "42", e: int64(42)},
+		{name: "int64 float64", srcType: schema.Type{Name: "float8"}, spType: ddl.Int64{}, in: float64(42), e: int64(42)},
+		{name: "int64 byte", srcType: schema.Type{Name: "bytea"}, spType: ddl.Int64{}, in: []byte("42"), e: int64(42)},
+		{name: "float64", srcType: schema.Type{Name: "float8"}, spType: ddl.Float64{}, in: float64(42.6), e: float64(42.6)},
+		{name: "float64 string", srcType: schema.Type{Name: "text"}, spType: ddl.Float64{}, in: "42.6", e: float64(42.6)},
+		{name: "float64 int", srcType: schema.Type{Name: "bigint"}, spType: ddl.Float64{}, in: int64(42), e: float64(42)},
+		{name: "float64 byte", srcType: schema.Type{Name: "numeric"}, spType: ddl.Float64{}, in: []byte("42.6"), e: float64(42.6)},
+		{name: "string", srcType: schema.Type{Name: "text"}, spType: ddl.String{Len: ddl.MaxLength{}}, in: "eh", e: "eh"},
+		{name: "string bool", srcType: schema.Type{Name: "bool"}, spType: ddl.String{Len: ddl.MaxLength{}}, in: true, e: "true"},
+		{name: "string byte", srcType: schema.Type{Name: "bytea"}, spType: ddl.String{Len: ddl.MaxLength{}}, in: []byte("abc"), e: "abc"},
+		{name: "string int64", srcType: schema.Type{Name: "bigint"}, spType: ddl.String{Len: ddl.MaxLength{}}, in: int64(42), e: "42"},
+		{name: "string float64", srcType: schema.Type{Name: "float8"}, spType: ddl.String{Len: ddl.MaxLength{}}, in: float64(42.3), e: "42.3"},
+		{name: "string time", srcType: schema.Type{Name: "timestamp"}, spType: ddl.String{Len: ddl.MaxLength{}},
+			in: getTime(t, "2019-10-29T05:30:00+10:00"), e: "2019-10-29 05:30:00 +1000 +1000"},
+		{name: "timestamptz", srcType: schema.Type{Name: "timestamptz"}, spType: ddl.Timestamp{},
+			in: getTime(t, "2019-10-29T05:30:00+10:00"), e: getTime(t, "2019-10-29T05:30:00+10:00")},
+		{name: "timestamptz string", srcType: schema.Type{Name: "timestamptz"}, spType: ddl.Timestamp{},
+			in: "2019-10-29 05:30:00+10:00", e: getTime(t, "2019-10-29T05:30:00+10:00")},
+		{name: "timestamp", srcType: schema.Type{Name: "timestamptz"}, spType: ddl.Timestamp{},
+			in: getTime(t, "2019-10-29T05:30:00Z"), e: getTime(t, "2019-10-29T05:30:00Z")},
+		{name: "timestamp string", srcType: schema.Type{Name: "timestamptz"}, spType: ddl.Timestamp{},
+			in: "2019-10-29 05:30:00", e: getTime(t, "2019-10-29T05:30:00Z")},
+
+		// ConvertSqlRow uses convArray for conversion of array types.
+		// Since convArray is extensively tested in data_test.go, we
+		// only test a few cases here.
+		{name: "array bool", srcType: schema.Type{Name: "bool", ArrayBounds: []int64{-1}}, spType: ddl.Bool{}, isArray: true,
+			in: []byte("{true,false,NULL}"), e: []spanner.NullBool{
+				spanner.NullBool{Bool: true, Valid: true},
+				spanner.NullBool{Bool: false, Valid: true},
+				spanner.NullBool{Valid: false}}},
+		{name: "timestamp array", srcType: schema.Type{Name: "timestamptz", ArrayBounds: []int64{-1}}, spType: ddl.Timestamp{}, isArray: true,
+			in: []byte(`{"2019-10-29 05:30:00+10",NULL}`),
+			e: []spanner.NullTime{
+				spanner.NullTime{Time: getTime(t, "2019-10-29T05:30:00+10:00"), Valid: true},
+				spanner.NullTime{Valid: false}}},
+	}
+	tableName := "testtable"
+	for _, tc := range singleColTests {
+		col := "a"
+		conv := MakeConv()
+		conv.SetLocation(time.UTC)
+		cols := []string{col}
+		srcSchema := schema.Table{Name: tableName, ColNames: []string{col}, ColDefs: map[string]schema.Column{col: schema.Column{Type: tc.srcType}}}
+		spSchema := ddl.CreateTable{
+			Name:     tableName,
+			ColNames: []string{col},
+			ColDefs:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: tc.spType, IsArray: tc.isArray}}}
+		ac, av, err := ConvertSqlRow(conv, tableName, cols, srcSchema, tableName, cols, spSchema, []interface{}{tc.in})
+		assert.Equal(t, cols, ac)
+		assert.Equal(t, []interface{}{tc.e}, av)
+		assert.Nil(t, err)
+	}
+
+	// End-to-end test: builds schema from information_schema
+	// tables and does data conversion from SQL query data.  Also
+	// tests null columns and synthetic keys.
+	ms := []mockSpec{
+		{
+			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
+			cols:  []string{"table_schema", "table_name"},
+			rows:  [][]driver.Value{{"public", "test"}},
+		}, {
+			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			args:  []driver.Value{"public", "test"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			rows: [][]driver.Value{
+				{"a", "text", nil, "NO", nil, nil, nil, nil},
+				{"b", "double precision", nil, "YES", nil, nil, 53, nil},
+				{"c", "bigint", nil, "YES", nil, nil, 64, 0}},
+		},
+		{
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
+			args:  []driver.Value{"public", "test"},
+			cols:  []string{"column_name", "constraint_type"},
+			rows:  [][]driver.Value{}, // No primary key --> force generation of synthetic key.
+		},
+		// Note: go-sqlmock mocks specify an ordered sequence
+		// of queries and results.  This (repeated) entry is
+		// needed because ProcessSqlData (redundantly) gets
+		// the set of tables via a SQL query.
+		{
+			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
+			cols:  []string{"table_schema", "table_name"},
+			rows:  [][]driver.Value{{"public", "test"}},
+		}, {
+			query: `SELECT [*] FROM "public"."test"`, // query is a regexp!
+			cols:  []string{"a", "b", "c"},
+			rows: [][]driver.Value{
+				{"cat", 42.3, nil},
+				{"dog", nil, 22}},
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := MakeConv()
+	err := ProcessInfoSchema(conv, db)
+	assert.Nil(t, err)
+	conv.SetDataMode()
+	var rows []spannerData
+	conv.SetDataSink(
+		func(table string, cols []string, vals []interface{}) {
+			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
+		})
+	ProcessSqlData(conv, db)
+	assert.Equal(t, []spannerData{
+		{table: "test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), int64(0)}},
+		{table: "test", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), int64(-9223372036854775808)}}},
+		rows)
+	assert.Equal(t, int64(0), conv.Unexpecteds())
+}
+
+func TestSetRowStats(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
+			cols:  []string{"table_schema", "table_name"},
+			rows:  [][]driver.Value{{"public", "test1"}, {"public", "test2"}},
+		}, {
+			query: `SELECT COUNT[(][*][)] FROM "public"."test1"`,
+			cols:  []string{"count"},
+			rows:  [][]driver.Value{{5}},
+		}, {
+			query: `SELECT COUNT[(][*][)] FROM "public"."test2"`,
+			cols:  []string{"count"},
+			rows:  [][]driver.Value{{142}},
+		},
+	}
+	db := mkMockDB(t, ms)
+	conv := MakeConv()
+	conv.SetDataMode()
+	SetRowStats(conv, db)
+	assert.Equal(t, int64(5), conv.stats.rows["test1"])
+	assert.Equal(t, int64(142), conv.stats.rows["test2"])
+	assert.Equal(t, int64(0), conv.Unexpecteds())
+}
+
+type mockSpec struct {
+	query string
+	args  []driver.Value   // Query args.
+	cols  []string         // Columns names for returned rows.
+	rows  [][]driver.Value // Set of rows returned.
+}
+
+func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
+	db, mock, err := sqlmock.New()
+	assert.Nil(t, err)
+	for _, m := range ms {
+		rows := sqlmock.NewRows(m.cols)
+		for _, r := range m.rows {
+			rows.AddRow(r...)
+		}
+		if len(m.args) > 0 {
+			mock.ExpectQuery(m.query).WithArgs(m.args...).WillReturnRows(rows)
+		} else {
+			mock.ExpectQuery(m.query).WillReturnRows(rows)
+		}
+
+	}
+	return db
 }

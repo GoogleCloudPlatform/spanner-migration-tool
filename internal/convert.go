@@ -179,6 +179,19 @@ func (conv *Conv) GetDDL(c ddl.Config) []string {
 	return ddl
 }
 
+// WriteRow calls dataSink and updates row stats.
+func (conv *Conv) WriteRow(srcTable, spTable string, spCols []string, spVals []interface{}) {
+	if conv.dataSink == nil {
+		msg := "Internal error: ProcessDataRow called but dataSink not configured"
+		VerbosePrintf("%s\n", msg)
+		conv.unexpected(msg)
+		conv.statsAddBadRow(srcTable, conv.dataMode())
+	} else {
+		conv.dataSink(spTable, spCols, spVals)
+		conv.statsAddGoodRow(srcTable, conv.dataMode())
+	}
+}
+
 // Rows returns the total count of data rows processed.
 func (conv *Conv) Rows() int64 {
 	n := int64(0)
@@ -220,6 +233,18 @@ func (conv *Conv) StatementErrors() int64 {
 // encountered during processing.
 func (conv *Conv) Unexpecteds() int64 {
 	return int64(len(conv.stats.unexpected))
+}
+
+// CollectBadRows updates the list of bad rows, while respecting
+// the byte limit for bad rows.
+func (conv *Conv) CollectBadRow(srcTable string, srcCols, vals []string) {
+	r := &row{table: srcTable, cols: srcCols, vals: vals}
+	bytes := byteSize(r)
+	// Cap storage used by badRows. Keep at least one bad row.
+	if len(conv.sampleBadRows.rows) == 0 || bytes+conv.sampleBadRows.bytes < conv.sampleBadRows.bytesLimit {
+		conv.sampleBadRows.rows = append(conv.sampleBadRows.rows, r)
+		conv.sampleBadRows.bytes += bytes
+	}
 }
 
 // SampleBadRows returns a string-formatted list of rows that generated errors.
@@ -300,6 +325,10 @@ func (conv *Conv) statsAddRow(srcTable string, b bool) {
 	}
 }
 
+func (conv *Conv) statsAddRows(srcTable string, count int64) {
+	conv.stats.rows[srcTable] += count
+}
+
 // statsAddGoodRow increments the good-row stats for 'srcTable' if b
 // is true.  See statsAddRow comments for context.
 func (conv *Conv) statsAddGoodRow(srcTable string, b bool) {
@@ -308,12 +337,20 @@ func (conv *Conv) statsAddGoodRow(srcTable string, b bool) {
 	}
 }
 
+func (conv *Conv) statsAddGoodRows(srcTable string, count int64) {
+	conv.stats.goodRows[srcTable] += count
+}
+
 // statsAddBadRow increments the bad-row stats for 'srcTable' if b is
 // true.  See statsAddRow comments for context.
 func (conv *Conv) statsAddBadRow(srcTable string, b bool) {
 	if b {
 		conv.stats.badRows[srcTable]++
 	}
+}
+
+func (conv *Conv) statsAddBadRows(srcTable string, count int64) {
+	conv.stats.badRows[srcTable] += count
 }
 
 func prNodeType(n nodes.Node) string {

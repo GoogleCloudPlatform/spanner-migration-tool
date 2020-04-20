@@ -17,23 +17,30 @@ package internal
 import (
 	"database/sql"
 	"fmt"
+	"math/bits"
+	"reflect"
+	"strconv"
+	"time"
 
+	"cloud.google.com/go/civil"
 	_ "github.com/lib/pq"
 
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
+
+// TODO: All of the queries to get tables and table data should be in
+// a single transaction to ensure we obtain a consistent snapshot of
+// schema information across tables (pg_dump does something
+// similar). When we add SELECT queries to get data, we should wrap
+// those in the same transaction to ensure consistency of schema and
+// data.
 
 // ProcessInfoSchema performs schema conversion for source database
 // 'db'. We assume that the source database supports information
 // schema tables. These tables are a broadly supported ANSI standard,
 // and we use them to obtain source database's schema information.
 func ProcessInfoSchema(conv *Conv, db *sql.DB) error {
-	// TODO: All of the queries to get tables and table data
-	// should be in a single transaction to ensure we obtain a
-	// consistent snapshot of schema information across tables
-	// (pg_dump does something similar). When we add SELECT
-	// queries to get data, we should wrap those in the same
-	// transaction to ensure consistency of schema and data.
 	tables, err := getTables(db)
 	if err != nil {
 		return err
@@ -46,6 +53,151 @@ func ProcessInfoSchema(conv *Conv, db *sql.DB) error {
 	schemaToDDL(conv)
 	conv.AddPrimaryKeys()
 	return nil
+}
+
+// ProcessSqlData performs data conversion for source database
+// 'db'. For each table with a source schema, we extract data using a
+// "select *" query, convert the data to Spanner data (based on the
+// source and Spanner schemas), and write it to Spanner.  If we can't
+// get/process data for a table, we skip that table and process the
+// remaining tables.
+//
+// Note that the database/sql library has a somewhat complex model for
+// returning data from rows.Scan. Scalar values can be returned using
+// the native value used by the underlying driver (by passing
+// *interface{} to rows.Scan), or they can be converted to specific go
+// types. Array values are always returned as []byte, a string
+// encoding of the array values. This string encoding is
+// database/driver specific. For example, for PostgreSQL, array values
+// are returned in the form "{v1,v2,..,vn}", where each v1,v2,...,vn
+// are PostgreSQL encodings of the indivdual array values.
+//
+// We choose to do all type conversions explicitly ourselves so that
+// we can generate more targeted error messages: hence we pass
+// *interface{} parameters to row.Scan.
+func ProcessSqlData(conv *Conv, db *sql.DB) {
+	// TODO: refactor to use the set of tables computed by
+	// ProcessInfoSchema instead of computing them again.
+	tables, err := getTables(db)
+	if err != nil {
+		conv.unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
+		return
+	}
+	for _, t := range tables {
+		// PostgreSQL schema and name can be arbitrary strings.
+		// Ideally we would pass the table name as a query parameter,
+		// but PostgreSQL doesn't support this. So we quote it instead.
+		q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, t.schema, t.name)
+		rows, err := db.Query(q)
+		if err != nil {
+			conv.unexpected(fmt.Sprintf("Couldn't get data for table: %s", err))
+			continue
+		}
+		defer rows.Close()
+		srcTable := buildTableName(t.schema, t.name)
+		srcCols, err1 := rows.Columns()
+		spTable, err2 := GetSpannerTable(conv, srcTable)
+		spCols, err3 := GetSpannerCols(conv, srcTable, srcCols)
+		spSchema, ok1 := conv.spSchema[spTable]
+		srcSchema, ok2 := conv.srcSchema[srcTable]
+		v, iv := buildVals(len(srcCols))
+		if err1 != nil || err2 != nil || err3 != nil || !ok1 || !ok2 {
+			conv.statsAddBadRows(srcTable, conv.stats.rows[srcTable])
+			conv.unexpected(fmt.Sprintf("Can't get cols and schemas for table %s: err1=%s, err2=%s, err3=%s, ok1=%t, ok2=%t",
+				srcTable, err1, err2, err3, ok1, ok2))
+			continue
+		}
+		for rows.Next() {
+			err := rows.Scan(iv...)
+			if err != nil {
+				conv.unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
+				// Scan failed, so we don't have any data to add to bad rows.
+				conv.statsAddBadRow(srcTable, conv.dataMode())
+				continue
+			}
+			cvtCols, cvtVals, err := ConvertSqlRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, v)
+			if err != nil {
+				conv.unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
+				conv.statsAddBadRow(srcTable, conv.dataMode())
+				conv.CollectBadRow(srcTable, srcCols, valsToStrings(v))
+				continue
+			}
+			conv.WriteRow(srcTable, spTable, cvtCols, cvtVals)
+		}
+	}
+}
+
+// ConvertSqlRow performs data conversion for a single row of data
+// returned from a 'SELECT *' query. ConvertSqlRow assumes that
+// srcCols, spCols and srcVals all have the same length. Note that
+// ConvertSqlRow returns cols as well as converted values. This is
+// because cols can change when we add a column (synthetic primary
+// key) or because we drop columns (handling of NULL values).
+func ConvertSqlRow(conv *Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, srcVals []interface{}) ([]string, []interface{}, error) {
+	var vs []interface{}
+	var cs []string
+	for i := range srcCols {
+		srcCd, ok1 := srcSchema.ColDefs[srcCols[i]]
+		spCd, ok2 := spSchema.ColDefs[spCols[i]]
+		if !ok1 || !ok2 {
+			return nil, nil, fmt.Errorf("data conversion: can't find schema for column %s of table %s", srcCols[i], srcTable)
+		}
+		if srcVals[i] == nil {
+			continue // Skip NULL values (nil is used by database/sql to represent NULL values).
+		}
+		var spVal interface{}
+		var err error
+		if spCd.IsArray {
+			spVal, err = cvtSqlArray(conv, srcCd, spCd, srcVals[i])
+		} else {
+			spVal, err = cvtSqlScalar(conv, srcCd, spCd, srcVals[i])
+		}
+		if err != nil { // Skip entire row if we hit error.
+			return nil, nil, fmt.Errorf("can't convert sql data for column %s of table %s: %w", srcCols[i], srcTable, err)
+		}
+		vs = append(vs, spVal)
+		cs = append(cs, srcCols[i])
+	}
+	if aux, ok := conv.syntheticPKeys[spTable]; ok {
+		cs = append(cs, aux.col)
+		vs = append(vs, int64(bits.Reverse64(uint64(aux.sequence))))
+		aux.sequence++
+		conv.syntheticPKeys[spTable] = aux
+	}
+	return cs, vs, nil
+}
+
+// SetRowStats populates conv with the number of rows in each table.
+func SetRowStats(conv *Conv, db *sql.DB) {
+	// TODO: refactor to use the set of tables computed by
+	// ProcessInfoSchema instead of computing them again.
+	tables, err := getTables(db)
+	if err != nil {
+		conv.unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
+		return
+	}
+	for _, t := range tables {
+		// PostgreSQL schema and name can be arbitrary strings.
+		// Ideally we would pass the table name as a query parameter,
+		// but PostgreSQL doesn't support this. So we quote it instead.
+		q := fmt.Sprintf(`SELECT COUNT(*) FROM "%s"."%s";`, t.schema, t.name)
+		tableName := buildTableName(t.schema, t.name)
+		rows, err := db.Query(q)
+		if err != nil {
+			conv.unexpected(fmt.Sprintf("Couldn't get number of rows for table %s", tableName))
+			continue
+		}
+		defer rows.Close()
+		var count int64
+		if rows.Next() {
+			err := rows.Scan(&count)
+			if err != nil {
+				fmt.Printf("Can't get row count: %s\n", err)
+				continue
+			}
+			conv.statsAddRows(tableName, count)
+		}
+	}
 }
 
 type schemaAndName struct {
@@ -62,7 +214,7 @@ func getTables(db *sql.DB) ([]schemaAndName, error) {
 	q := "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'"
 	rows, err := db.Query(q)
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't get tables: %w\n", err)
+		return nil, fmt.Errorf("couldn't get tables: %w\n", err)
 	}
 	defer rows.Close()
 	var tableSchema, tableName string
@@ -79,18 +231,15 @@ func getTables(db *sql.DB) ([]schemaAndName, error) {
 func processTable(conv *Conv, db *sql.DB, table schemaAndName) error {
 	cols, err := getColumns(table, db)
 	if err != nil {
-		return fmt.Errorf("Couldn't get schema for table %s.%s: %s\n", table.schema, table.name, err)
+		return fmt.Errorf("couldn't get schema for table %s.%s: %s\n", table.schema, table.name, err)
 	}
 	defer cols.Close()
 	primaryKeys, constraints, err := getConstraints(conv, db, table)
 	if err != nil {
-		return fmt.Errorf("Couldn't get constraints for table %s.%s: %s\n", table.schema, table.name, err)
+		return fmt.Errorf("couldn't get constraints for table %s.%s: %s\n", table.schema, table.name, err)
 	}
 	colDefs, colNames := processColumns(conv, cols, constraints)
-	name := fmt.Sprintf("%s.%s", table.schema, table.name)
-	if table.schema == "public" { // Drop 'public' prefix.
-		name = table.name
-	}
+	name := buildTableName(table.schema, table.name)
 	var schemaPKeys []schema.Key
 	for _, k := range primaryKeys {
 		schemaPKeys = append(schemaPKeys, schema.Key{Column: k})
@@ -216,4 +365,138 @@ func toNotNull(conv *Conv, isNullable string) bool {
 	}
 	conv.unexpected(fmt.Sprintf("isNullable column has unknown value: %s", isNullable))
 	return false
+}
+
+func cvtSqlArray(conv *Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {
+	a, ok := val.([]byte)
+	if !ok {
+		return nil, fmt.Errorf("can't convert array values to []byte")
+	}
+	return convArray(spCd.T, srcCd.Type.Name, conv.location, string(a))
+}
+
+// cvtSqlScalar converts a values returned from a SQL query to a
+// Spanner value.  In principle, we could just hand the values we get
+// from the driver over to Spanner and have the Spanner client handle
+// conversions and errors. However we handle the conversions
+// explicitly ourselves so that we can generate more targeted error
+// messages. Note that the caller is responsible for handling nil
+// values (used to represent NULL). We handle each of the remaining
+// cases of values returned by the database/sql library:
+//    bool
+//    []byte
+//    int64
+//    float64
+//    string
+//    time.Time
+func cvtSqlScalar(conv *Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {
+	switch spCd.T.(type) {
+	case ddl.Bool:
+		switch v := val.(type) {
+		case bool:
+			return v, nil
+		case string:
+			return convBool(v)
+		}
+	case ddl.Bytes:
+		switch v := val.(type) {
+		case []byte:
+			return v, nil
+		}
+	case ddl.Date:
+		// The PostgreSQL driver uses time.Time to represent
+		// dates.  Note that the database/sql library doesn't
+		// document how dates are represented, so maybe this
+		// isn't a driver issue, but a generic database/sql
+		// issue.  We explicitly convert from time.Time to
+		// civil.Date (used by the Spanner client library).
+		switch v := val.(type) {
+		case string:
+			return convDate(v)
+		case time.Time:
+			return civil.DateOf(v), nil
+		}
+	case ddl.Int64:
+		switch v := val.(type) {
+		case []byte: // Parse as int64.
+			return convInt64(string(v))
+		case int64:
+			return v, nil
+		case float64: // Truncate.
+			return int64(v), nil
+		case string: // Parse as int64.
+			return convInt64(v)
+		}
+	case ddl.Float64:
+		switch v := val.(type) {
+		case []byte: // Note: PostgreSQL uses []byte for numeric.
+			return convFloat64(string(v))
+		case int64:
+			return float64(v), nil
+		case float64:
+			return v, nil
+		case string:
+			return convFloat64(v)
+		}
+	case ddl.String:
+		switch v := val.(type) {
+		case bool:
+			return strconv.FormatBool(v), nil
+		case []byte:
+			return string(v), nil
+		case int64:
+			return strconv.FormatInt(v, 10), nil
+		case float64:
+			return strconv.FormatFloat(v, 'g', -1, 64), nil
+		case string:
+			return v, nil
+		case time.Time:
+			return v.String(), nil
+		}
+	case ddl.Timestamp:
+		switch v := val.(type) {
+		case string:
+			return convTimestamp(srcCd.Type.Name, conv.location, v)
+		case time.Time:
+			return v, nil
+		}
+	}
+	return nil, fmt.Errorf("can't convert value of type %s to Spanner type %s", reflect.TypeOf(val), reflect.TypeOf(spCd.T))
+}
+
+// buildVals contructs interface{} value containers to scan row
+// results into.  Returns both the underlying containers (as a slice)
+// as well as an interface{} of pointers to containers to pass to
+// rows.Scan.
+func buildVals(n int) (v []interface{}, iv []interface{}) {
+	v = make([]interface{}, n)
+	for i := range v {
+		iv = append(iv, &v[i])
+	}
+	return v, iv
+}
+
+func valsToStrings(vals []interface{}) []string {
+	toString := func(val interface{}) string {
+		if val == nil {
+			return "NULL"
+		}
+		switch v := val.(type) {
+		case *interface{}:
+			val = *v
+		}
+		return fmt.Sprintf("%v", val)
+	}
+	var s []string
+	for _, v := range vals {
+		s = append(s, toString(v))
+	}
+	return s
+}
+
+func buildTableName(schema, name string) string {
+	if schema == "public" { // Drop 'public' prefix.
+		return name
+	}
+	return fmt.Sprintf("%s.%s", schema, name)
 }
