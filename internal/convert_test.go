@@ -46,24 +46,20 @@ func TestSetDataMode(t *testing.T) {
 func TestGetDDL(t *testing.T) {
 	conv := MakeConv()
 	conv.spSchema["table1"] = ddl.CreateTable{
-		"table1",
-		[]string{"a", "b"},
-		map[string]ddl.ColumnDef{
+		Name:     "table1",
+		ColNames: []string{"a", "b"},
+		ColDefs: map[string]ddl.ColumnDef{
 			"a": ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
 			"b": ddl.ColumnDef{Name: "b", T: ddl.Float64{}},
 		},
-		[]ddl.IndexKey{ddl.IndexKey{Col: "a"}},
-		"",
-	}
+		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}}
 	conv.spSchema["table2"] = ddl.CreateTable{
-		"table2",
-		[]string{"a"},
-		map[string]ddl.ColumnDef{
+		Name:     "table2",
+		ColNames: []string{"a"},
+		ColDefs: map[string]ddl.ColumnDef{
 			"a": ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
 		},
-		[]ddl.IndexKey{ddl.IndexKey{Col: "a"}},
-		"",
-	}
+		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}}
 	ddl := conv.GetDDL(ddl.Config{})
 	normalize := func(l []string) (nl []string) {
 		for _, s := range l {
@@ -124,27 +120,23 @@ func TestGetBadRows(t *testing.T) {
 func TestAddPrimaryKeys(t *testing.T) {
 	conv := MakeConv()
 	conv.spSchema["table"] = ddl.CreateTable{
-		"table",
-		[]string{"a", "b"},
-		map[string]ddl.ColumnDef{
+		Name:     "table",
+		ColNames: []string{"a", "b"},
+		ColDefs: map[string]ddl.ColumnDef{
 			"a": ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
 			"b": ddl.ColumnDef{Name: "b", T: ddl.Float64{}},
 		},
-		[]ddl.IndexKey{},
-		"",
-	}
+		Pks: []ddl.IndexKey{}}
 	conv.AddPrimaryKeys()
 	e := ddl.CreateTable{
-		"table",
-		[]string{"a", "b", "synth_id"},
-		map[string]ddl.ColumnDef{
+		Name:     "table",
+		ColNames: []string{"a", "b", "synth_id"},
+		ColDefs: map[string]ddl.ColumnDef{
 			"a":        ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
 			"b":        ddl.ColumnDef{Name: "b", T: ddl.Float64{}},
 			"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Int64{}},
 		},
-		[]ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-		"",
-	}
+		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}}}
 	assert.Equal(t, e, conv.spSchema["table"])
 	assert.Equal(t, syntheticPKey{col: "synth_id", sequence: 0}, conv.syntheticPKeys["table"])
 }
