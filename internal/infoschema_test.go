@@ -27,6 +27,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type mockSpec struct {
+	query string
+	args  []driver.Value   // Query args.
+	cols  []string         // Columns names for returned rows.
+	rows  [][]driver.Value // Set of rows returned.
+}
+
 func TestProcessInfoSchema(t *testing.T) {
 	ms := []mockSpec{
 		{
@@ -197,9 +204,9 @@ func TestProcessSqlData(t *testing.T) {
 	assert.Equal(t, int64(1), conv.Unexpecteds()) // Bad row generates an entry in unexpected.
 }
 
-func TestConvertSqlRow(t *testing.T) {
+func TestConvertSqlRow_SingleCol(t *testing.T) {
 	tDate, _ := time.Parse("2006-01-02", "2019-10-29")
-	singleColTests := []struct {
+	tc := []struct {
 		name    string
 		srcType schema.Type
 		spType  ddl.ScalarType
@@ -251,7 +258,7 @@ func TestConvertSqlRow(t *testing.T) {
 				spanner.NullTime{Valid: false}}},
 	}
 	tableName := "testtable"
-	for _, tc := range singleColTests {
+	for _, tc := range tc {
 		col := "a"
 		conv := MakeConv()
 		conv.SetLocation(time.UTC)
@@ -266,10 +273,14 @@ func TestConvertSqlRow(t *testing.T) {
 		assert.Equal(t, []interface{}{tc.e}, av)
 		assert.Nil(t, err)
 	}
+}
 
-	// End-to-end test: builds schema from information_schema
-	// tables and does data conversion from SQL query data.  Also
-	// tests null columns and synthetic keys.
+func TestConvertSqlRow_MultiCol(t *testing.T) {
+	// Tests multi-column behavior of ConvertSqlRow (including
+	// handling of null columns and synthetic keys). Also tests
+	// the combination of ProcessInfoSchema and ConvertSqlRow
+	// i.e. ConvertSqlRow uses the schemas built by
+	// ProcessInfoSchema.
 	ms := []mockSpec{
 		{
 			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
@@ -347,13 +358,6 @@ func TestSetRowStats(t *testing.T) {
 	assert.Equal(t, int64(5), conv.stats.rows["test1"])
 	assert.Equal(t, int64(142), conv.stats.rows["test2"])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
-}
-
-type mockSpec struct {
-	query string
-	args  []driver.Value   // Query args.
-	cols  []string         // Columns names for returned rows.
-	rows  [][]driver.Value // Set of rows returned.
 }
 
 func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
