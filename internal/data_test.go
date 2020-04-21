@@ -283,9 +283,9 @@ func buildConv(spTable ddl.CreateTable, srcTable schema.Table) *Conv {
 	conv.srcSchema[srcTable.Name] = srcTable
 	conv.toSource[spTable.Name] = nameAndCols{name: srcTable.Name, cols: make(map[string]string)}
 	conv.toSpanner[srcTable.Name] = nameAndCols{name: spTable.Name, cols: make(map[string]string)}
-	for _, c := range spTable.ColNames {
-		conv.toSource[spTable.Name].cols[c] = c
-		conv.toSpanner[srcTable.Name].cols[c] = c
+	for i := range spTable.ColNames {
+		conv.toSource[spTable.Name].cols[spTable.ColNames[i]] = srcTable.ColNames[i]
+		conv.toSpanner[srcTable.Name].cols[srcTable.ColNames[i]] = spTable.ColNames[i]
 	}
 	return conv
 }

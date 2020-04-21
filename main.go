@@ -203,7 +203,7 @@ func dataConv(driver string, ioHelper *ioStreams, client *sp.Client, conv *inter
 	}
 	switch driver {
 	case POSTGRES:
-		return dataFromSQL(config, client, conv)
+		return dataFromSQL(config, client, conv, driver)
 	case PGDUMP:
 		return dataFromPgDump(config, ioHelper, client, conv)
 	default:
@@ -234,12 +234,6 @@ func pgDriverConfig() (string, error) {
 }
 
 func schemaFromSQL(driver string) (*internal.Conv, error) {
-	fmt.Println(`###################################################################
-	Accessing a source DB via an database/sql driver is an experimental
-	feature that is not fully implemented. Currently we only do schema
-	conversion and we only support PostgreSQL.
-	###################################################################`)
-
 	driverConfig, err := driverConfig(driver)
 	if err != nil {
 		return nil, err
@@ -256,8 +250,43 @@ func schemaFromSQL(driver string) (*internal.Conv, error) {
 	return conv, nil
 }
 
-func dataFromSQL(config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
-	return spanner.NewBatchWriter(config), nil
+func dataFromSQL(config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv, driver string) (*spanner.BatchWriter, error) {
+	// TODO: Refactor to avoid redundant calls to driverConfig and
+	// Open in schemaFromSQL and dataFromSQL. Also refactor to
+	// share code with dataFromPgDump. Use single transaction for
+	// reading schema and data from source db to get consistent
+	// dump.
+	driverConfig, err := driverConfig(driver)
+	if err != nil {
+		return nil, err
+	}
+	sourceDB, err := sql.Open(driver, driverConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	internal.SetRowStats(conv, sourceDB)
+	totalRows := conv.Rows()
+	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose())
+	rows := int64(0)
+	config.Write = func(m []*sp.Mutation) error {
+		_, err := client.Apply(context.Background(), m)
+		if err != nil {
+			return err
+		}
+		atomic.AddInt64(&rows, int64(len(m)))
+		p.MaybeReport(atomic.LoadInt64(&rows))
+		return nil
+	}
+	writer := spanner.NewBatchWriter(config)
+	conv.SetDataMode()
+	conv.SetDataSink(
+		func(table string, cols []string, vals []interface{}) {
+			writer.AddRow(table, cols, vals)
+		})
+	internal.ProcessSqlData(conv, sourceDB)
+	writer.Flush()
+	return writer, nil
 }
 
 type ioStreams struct {

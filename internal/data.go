@@ -38,23 +38,9 @@ func ProcessDataRow(conv *Conv, srcTable string, srcCols, vals []string) {
 	if err != nil {
 		conv.unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
 		conv.statsAddBadRow(srcTable, conv.dataMode())
-		r := &row{table: srcTable, cols: srcCols, vals: vals}
-		bytes := byteSize(r)
-		// Cap storage used by badRows. Keep at least one bad row.
-		if len(conv.sampleBadRows.rows) == 0 || bytes+conv.sampleBadRows.bytes < conv.sampleBadRows.bytesLimit {
-			conv.sampleBadRows.rows = append(conv.sampleBadRows.rows, r)
-			conv.sampleBadRows.bytes += bytes
-		}
+		conv.CollectBadRow(srcTable, srcCols, vals)
 	} else {
-		if conv.dataSink == nil {
-			msg := "Internal error: ProcessDataRow called but dataSink not configured"
-			VerbosePrintf("%s\n", msg)
-			conv.unexpected(msg)
-			conv.statsAddBadRow(srcTable, conv.dataMode())
-		} else {
-			conv.dataSink(spTable, spCols, spVals)
-			conv.statsAddGoodRow(srcTable, conv.dataMode())
-		}
+		conv.WriteRow(srcTable, spTable, spCols, spVals)
 	}
 }
 
@@ -203,7 +189,7 @@ func convTimestamp(srcTypeName string, location *time.Location, val string) (t t
 	// pg_dump outputs timestamps as ISO 8601, except:
 	// a) it uses space instead of T
 	// b) timezones are abbreviated to just hour (minute is specified only if non-zero).
-	if srcTypeName == "timestamptz" {
+	if srcTypeName == "timestamptz" || srcTypeName == "timestamp with time zone" {
 		// PostgreSQL abbreviates timezone to just hour where possible.
 		t, err = time.Parse("2006-01-02 15:04:05Z07", val)
 		if err != nil {
