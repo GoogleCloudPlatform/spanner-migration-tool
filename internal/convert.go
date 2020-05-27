@@ -16,12 +16,8 @@ package internal
 
 import (
 	"fmt"
-	"reflect"
 	"sort"
-	"strings"
 	"time"
-
-	nodes "github.com/lfittl/pg_query_go/nodes"
 
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -30,16 +26,17 @@ import (
 // Conv contains all schema and data conversion state.
 type Conv struct {
 	mode           mode                                // Schema mode or data mode.
-	spSchema       map[string]ddl.CreateTable          // Maps Spanner table name to Spanner schema.
-	syntheticPKeys map[string]syntheticPKey            // Maps Spanner table name to synthetic primary key (if needed).
-	srcSchema      map[string]schema.Table             // Maps source-DB table name to schema information.
-	issues         map[string]map[string][]schemaIssue // Maps source-DB table/col to list of schema conversion issues.
-	toSpanner      map[string]nameAndCols              // Maps from source-DB table name to Spanner name and column mapping.
-	toSource       map[string]nameAndCols              // Maps from Spanner table name to source-DB table name and column mapping.
+	SpSchema       map[string]ddl.CreateTable          // Maps Spanner table name to Spanner schema.
+	SyntheticPKeys map[string]SyntheticPKey            // Maps Spanner table name to synthetic primary key (if needed).
+	SrcSchema      map[string]schema.Table             // Maps source-DB table name to schema information.
+	Issues         map[string]map[string][]SchemaIssue // Maps source-DB table/col to list of schema conversion issues.
+	ToSpanner      map[string]NameAndCols              // Maps from source-DB table name to Spanner name and column mapping.
+	ToSource       map[string]NameAndCols              // Maps from Spanner table name to source-DB table name and column mapping.
 	dataSink       func(table string, cols []string, values []interface{})
-	location       *time.Location // Timezone (for timestamp conversion).
+	Location       *time.Location // Timezone (for timestamp conversion).
 	sampleBadRows  rowSamples     // Rows that generated errors during conversion.
-	stats          stats
+	Stats          stats
+	TimezoneOffset string // Timezone offset for timestamp conversion.
 }
 
 type mode int
@@ -49,37 +46,37 @@ const (
 	dataOnly
 )
 
-// syntheticPKey specifies a synthetic primary key and current sequence
+// SyntheticPKey specifies a synthetic primary key and current sequence
 // count for a table, if needed. We use a synthetic primary key when
 // the source DB table has no primary key.
-type syntheticPKey struct {
-	col      string
-	sequence int64
+type SyntheticPKey struct {
+	Col      string
+	Sequence int64
 }
 
-type schemaIssue int
+type SchemaIssue int
 
 // Defines all of the schema issues we track. Includes issues
 // with type mappings, as well as features (such as source
 // DB constraints) that aren't supported in Spanner.
 const (
-	defaultValue schemaIssue = iota
-	foreignKey
-	missingPrimaryKey
-	multiDimensionalArray
-	noGoodType
-	numeric
-	numericThatFits
-	serial
-	timestamp
-	widened
+	DefaultValue SchemaIssue = iota
+	ForeignKey
+	MissingPrimaryKey
+	MultiDimensionalArray
+	NoGoodType
+	Numeric
+	NumericThatFits
+	Serial
+	Timestamp
+	Widened
 )
 
-// nameAndCols contains the name of a table and its columns.
+// NameAndCols contains the name of a table and its columns.
 // Used to map between source DB and Spanner table and column names.
-type nameAndCols struct {
-	name string
-	cols map[string]string
+type NameAndCols struct {
+	Name string
+	Cols map[string]string
 }
 
 type rowSamples struct {
@@ -101,39 +98,40 @@ type row struct {
 // c) successfully converted, but an error occurs when writing the row to Spanner.
 // d) unsuccessfully converted (we won't try to write such rows to Spanner).
 type stats struct {
-	rows       map[string]int64          // Count of rows encountered during processing (a + b + c + d), broken down by source table.
-	goodRows   map[string]int64          // Count of rows successfully converted (b + c), broken down by source table.
-	badRows    map[string]int64          // Count of rows where conversion failed (d), broken down by source table.
-	statement  map[string]*statementStat // Count of processed statements, broken down by statement type.
-	unexpected map[string]int64          // Count of unexpected conditions, broken down by condition description.
-	reparsed   int64                     // Count of times we re-parse pg_dump data looking for end-of-statement.
+	Rows       map[string]int64          // Count of rows encountered during processing (a + b + c + d), broken down by source table.
+	GoodRows   map[string]int64          // Count of rows successfully converted (b + c), broken down by source table.
+	BadRows    map[string]int64          // Count of rows where conversion failed (d), broken down by source table.
+	Statement  map[string]*statementStat // Count of processed statements, broken down by statement type.
+	Unexpected map[string]int64          // Count of unexpected conditions, broken down by condition description.
+	Reparsed   int64                     // Count of times we re-parse dump data looking for end-of-statement.
 }
 
 type statementStat struct {
 	schema int64
 	data   int64
 	skip   int64
-	error  int64
+	Error  int64
 }
 
 // MakeConv returns a default-configured Conv.
 func MakeConv() *Conv {
 	return &Conv{
-		spSchema:       make(map[string]ddl.CreateTable),
-		syntheticPKeys: make(map[string]syntheticPKey),
-		srcSchema:      make(map[string]schema.Table),
-		issues:         make(map[string]map[string][]schemaIssue),
-		toSpanner:      make(map[string]nameAndCols),
-		toSource:       make(map[string]nameAndCols),
-		location:       time.Local, // By default, use go's local time, which uses $TZ (when set).
+		SpSchema:       make(map[string]ddl.CreateTable),
+		SyntheticPKeys: make(map[string]SyntheticPKey),
+		SrcSchema:      make(map[string]schema.Table),
+		Issues:         make(map[string]map[string][]SchemaIssue),
+		ToSpanner:      make(map[string]NameAndCols),
+		ToSource:       make(map[string]NameAndCols),
+		Location:       time.Local, // By default, use go's local time, which uses $TZ (when set).
 		sampleBadRows:  rowSamples{bytesLimit: 10 * 1000 * 1000},
-		stats: stats{
-			rows:       make(map[string]int64),
-			goodRows:   make(map[string]int64),
-			badRows:    make(map[string]int64),
-			statement:  make(map[string]*statementStat),
-			unexpected: make(map[string]int64),
+		Stats: stats{
+			Rows:       make(map[string]int64),
+			GoodRows:   make(map[string]int64),
+			BadRows:    make(map[string]int64),
+			Statement:  make(map[string]*statementStat),
+			Unexpected: make(map[string]int64),
 		},
+		TimezoneOffset: "+00:00", // By default, use +00:00 offset which is equal to UTC timezone
 	}
 }
 
@@ -168,13 +166,13 @@ func (conv *Conv) SetDataMode() {
 // Return DDL in alphabetical table order.
 func (conv *Conv) GetDDL(c ddl.Config) []string {
 	var tables []string
-	for t := range conv.spSchema {
+	for t := range conv.SpSchema {
 		tables = append(tables, t)
 	}
 	sort.Strings(tables)
 	var ddl []string
 	for _, t := range tables {
-		ddl = append(ddl, conv.spSchema[t].PrintCreateTable(c))
+		ddl = append(ddl, conv.SpSchema[t].PrintCreateTable(c))
 	}
 	return ddl
 }
@@ -184,18 +182,18 @@ func (conv *Conv) WriteRow(srcTable, spTable string, spCols []string, spVals []i
 	if conv.dataSink == nil {
 		msg := "Internal error: ProcessDataRow called but dataSink not configured"
 		VerbosePrintf("%s\n", msg)
-		conv.unexpected(msg)
-		conv.statsAddBadRow(srcTable, conv.dataMode())
+		conv.Unexpected(msg)
+		conv.StatsAddBadRow(srcTable, conv.DataMode())
 	} else {
 		conv.dataSink(spTable, spCols, spVals)
-		conv.statsAddGoodRow(srcTable, conv.dataMode())
+		conv.statsAddGoodRow(srcTable, conv.DataMode())
 	}
 }
 
 // Rows returns the total count of data rows processed.
 func (conv *Conv) Rows() int64 {
 	n := int64(0)
-	for _, c := range conv.stats.rows {
+	for _, c := range conv.Stats.Rows {
 		n += c
 	}
 	return n
@@ -205,7 +203,7 @@ func (conv *Conv) Rows() int64 {
 // data conversion.
 func (conv *Conv) BadRows() int64 {
 	n := int64(0)
-	for _, c := range conv.stats.badRows {
+	for _, c := range conv.Stats.BadRows {
 		n += c
 	}
 	return n
@@ -214,8 +212,8 @@ func (conv *Conv) BadRows() int64 {
 // Statements returns the total number of statements processed.
 func (conv *Conv) Statements() int64 {
 	n := int64(0)
-	for _, x := range conv.stats.statement {
-		n += x.schema + x.data + x.skip + x.error
+	for _, x := range conv.Stats.Statement {
+		n += x.schema + x.data + x.skip + x.Error
 	}
 	return n
 }
@@ -223,8 +221,8 @@ func (conv *Conv) Statements() int64 {
 // StatementErrors returns the number of statement errors encountered.
 func (conv *Conv) StatementErrors() int64 {
 	n := int64(0)
-	for _, x := range conv.stats.statement {
-		n += x.error
+	for _, x := range conv.Stats.Statement {
+		n += x.Error
 	}
 	return n
 }
@@ -232,7 +230,7 @@ func (conv *Conv) StatementErrors() int64 {
 // Unexpecteds returns the total number of distinct unexpected conditions
 // encountered during processing.
 func (conv *Conv) Unexpecteds() int64 {
-	return int64(len(conv.stats.unexpected))
+	return int64(len(conv.Stats.Unexpected))
 }
 
 // CollectBadRows updates the list of bad rows, while respecting
@@ -263,34 +261,34 @@ func (conv *Conv) SampleBadRows(n int) []string {
 // AddPrimaryKeys analyzes all tables in conv.schema and adds synthetic primary
 // keys for any tables that don't have primary key.
 func (conv *Conv) AddPrimaryKeys() {
-	for t, ct := range conv.spSchema {
+	for t, ct := range conv.SpSchema {
 		if len(ct.Pks) == 0 {
 			k := conv.buildPrimaryKey(t)
 			ct.ColNames = append(ct.ColNames, k)
 			ct.ColDefs[k] = ddl.ColumnDef{Name: k, T: ddl.Int64{}}
 			ct.Pks = []ddl.IndexKey{ddl.IndexKey{Col: k}}
-			conv.spSchema[t] = ct
-			conv.syntheticPKeys[t] = syntheticPKey{k, 0}
+			conv.SpSchema[t] = ct
+			conv.SyntheticPKeys[t] = SyntheticPKey{k, 0}
 		}
 	}
 }
 
 // SetLocation configures the timezone for data conversion.
 func (conv *Conv) SetLocation(loc *time.Location) {
-	conv.location = loc
+	conv.Location = loc
 }
 
 func (conv *Conv) buildPrimaryKey(spTable string) string {
 	base := "synth_id"
-	if _, ok := conv.toSource[spTable]; !ok {
-		conv.unexpected(fmt.Sprintf("toSource lookup fails for table %s: ", spTable))
+	if _, ok := conv.ToSource[spTable]; !ok {
+		conv.Unexpected(fmt.Sprintf("ToSource lookup fails for table %s: ", spTable))
 		return base
 	}
 	count := 0
 	key := base
 	for {
 		// Check key isn't already a column in the table.
-		if _, ok := conv.toSource[spTable].cols[key]; !ok {
+		if _, ok := conv.ToSource[spTable].Cols[key]; !ok {
 			return key
 		}
 		key = fmt.Sprintf("%s%d", base, count)
@@ -301,17 +299,17 @@ func (conv *Conv) buildPrimaryKey(spTable string) string {
 // unexpected records stats about corner-cases and conditions
 // that were not expected. Note that the counts maybe not
 // be completely reliable due to potential double-counting
-// because we process pg_dump data twice.
-func (conv *Conv) unexpected(u string) {
+// because we process dump data twice.
+func (conv *Conv) Unexpected(u string) {
 	VerbosePrintf("Unexpected condition: %s\n", u)
 	// Limit size of unexpected map. If over limit, then only
 	// update existing entries.
-	if _, ok := conv.stats.unexpected[u]; ok || len(conv.stats.unexpected) < 1000 {
-		conv.stats.unexpected[u]++
+	if _, ok := conv.Stats.Unexpected[u]; ok || len(conv.Stats.Unexpected) < 1000 {
+		conv.Stats.Unexpected[u]++
 	}
 }
 
-// statsAddRow increments the count of rows for 'srcTable' if b is
+// StatsAddRow increments the count of rows for 'srcTable' if b is
 // true.  The boolean arg 'b' is used to avoid double counting of
 // stats. Specifically, some code paths that report row stats run in
 // both schema-mode and data-mode e.g. statement.go.  To avoid double
@@ -319,92 +317,76 @@ func (conv *Conv) unexpected(u string) {
 // place where row stats are collected. When specifying this mode take
 // care to ensure that the code actually runs in the mode you specify,
 // otherwise stats will be dropped.
-func (conv *Conv) statsAddRow(srcTable string, b bool) {
+func (conv *Conv) StatsAddRow(srcTable string, b bool) {
 	if b {
-		conv.stats.rows[srcTable]++
+		conv.Stats.Rows[srcTable]++
 	}
-}
-
-func (conv *Conv) statsAddRows(srcTable string, count int64) {
-	conv.stats.rows[srcTable] += count
 }
 
 // statsAddGoodRow increments the good-row stats for 'srcTable' if b
-// is true.  See statsAddRow comments for context.
+// is true.  See StatsAddRow comments for context.
 func (conv *Conv) statsAddGoodRow(srcTable string, b bool) {
 	if b {
-		conv.stats.goodRows[srcTable]++
+		conv.Stats.GoodRows[srcTable]++
 	}
 }
 
-func (conv *Conv) statsAddGoodRows(srcTable string, count int64) {
-	conv.stats.goodRows[srcTable] += count
-}
-
-// statsAddBadRow increments the bad-row stats for 'srcTable' if b is
-// true.  See statsAddRow comments for context.
-func (conv *Conv) statsAddBadRow(srcTable string, b bool) {
+// StatsAddBadRow increments the bad-row stats for 'srcTable' if b is
+// true.  See StatsAddRow comments for context.
+func (conv *Conv) StatsAddBadRow(srcTable string, b bool) {
 	if b {
-		conv.stats.badRows[srcTable]++
+		conv.Stats.BadRows[srcTable]++
 	}
-}
-
-func (conv *Conv) statsAddBadRows(srcTable string, count int64) {
-	conv.stats.badRows[srcTable] += count
-}
-
-func prNodeType(n nodes.Node) string {
-	// Strip off "pg_query." prefix from nodes.Nodes type.
-	return strings.TrimPrefix(reflect.TypeOf(n).Name(), "pg_query.")
-}
-
-func prNodes(l []nodes.Node) string {
-	var s []string
-	for _, n := range l {
-		s = append(s, prNodeType(n))
-	}
-	return strings.Join(s, ".")
 }
 
 func (conv *Conv) getStatementStat(s string) *statementStat {
-	if conv.stats.statement[s] == nil {
-		conv.stats.statement[s] = &statementStat{}
+	if conv.Stats.Statement[s] == nil {
+		conv.Stats.Statement[s] = &statementStat{}
 	}
-	return conv.stats.statement[s]
+	return conv.Stats.Statement[s]
 }
 
-func (conv *Conv) skipStatement(l []nodes.Node) {
-	if conv.schemaMode() { // Record statement stats on first pass only.
-		s := prNodes(l)
-		VerbosePrintf("Skipping statement: %s\n", s)
-		conv.getStatementStat(s).skip++
-	}
-}
-
-func (conv *Conv) errorInStatement(l []nodes.Node) {
-	if conv.schemaMode() { // Record statement stats on first pass only.
-		s := prNodes(l)
-		VerbosePrintf("Error processing statement: %s\n", s)
-		conv.getStatementStat(s).error++
+func (conv *Conv) SkipStatement(stmtType string) {
+	if conv.SchemaMode() { // Record statement stats on first pass only.
+		VerbosePrintf("Skipping statement: %s\n", stmtType)
+		conv.getStatementStat(stmtType).skip++
 	}
 }
 
-func (conv *Conv) schemaStatement(l []nodes.Node) {
-	if conv.schemaMode() { // Record statement stats on first pass only.
-		conv.getStatementStat(prNodes(l)).schema++
+func (conv *Conv) ErrorInStatement(stmtType string) {
+	if conv.SchemaMode() { // Record statement stats on first pass only.
+		VerbosePrintf("Error processing statement: %s\n", stmtType)
+		conv.getStatementStat(stmtType).Error++
 	}
 }
 
-func (conv *Conv) dataStatement(l []nodes.Node) {
-	if conv.schemaMode() { // Record statement stats on first pass only.
-		conv.getStatementStat(prNodes(l)).data++
+func (conv *Conv) SchemaStatement(stmtType string) {
+	if conv.SchemaMode() { // Record statement stats on first pass only.
+		conv.getStatementStat(stmtType).schema++
 	}
 }
 
-func (conv *Conv) schemaMode() bool {
+func (conv *Conv) DataStatement(stmtType string) {
+	if conv.SchemaMode() { // Record statement stats on first pass only.
+		conv.getStatementStat(stmtType).data++
+	}
+}
+
+func (conv *Conv) SchemaMode() bool {
 	return conv.mode == schemaOnly
 }
 
-func (conv *Conv) dataMode() bool {
+func (conv *Conv) DataMode() bool {
 	return conv.mode == dataOnly
+}
+
+func byteSize(r *row) int64 {
+	n := int64(len(r.table))
+	for _, c := range r.cols {
+		n += int64(len(c))
+	}
+	for _, v := range r.vals {
+		n += int64(len(v))
+	}
+	return n
 }

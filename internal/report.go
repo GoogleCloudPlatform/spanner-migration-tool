@@ -58,7 +58,7 @@ func GenerateReport(fromPgDump bool, conv *Conv, w *bufio.Writer, badWrites map[
 			h = h + fmt.Sprintf(" (mapped to Spanner table %s)", t.spTable)
 		}
 		writeHeading(w, h)
-		w.WriteString(rateConversion(t.rows, t.badRows, t.cols, t.warnings, t.syntheticPKey != "", false))
+		w.WriteString(rateConversion(t.rows, t.badRows, t.cols, t.warnings, t.SyntheticPKey != "", false))
 		w.WriteString("\n")
 		for _, x := range t.body {
 			fmt.Fprintf(w, "%s\n", x.heading)
@@ -79,7 +79,7 @@ type tableReport struct {
 	badRows       int64
 	cols          int64
 	warnings      int64
-	syntheticPKey string // Empty string means no synthetic primary key was needed.
+	SyntheticPKey string // Empty string means no synthetic primary key was needed.
 	body          []tableReportBody
 }
 
@@ -92,7 +92,7 @@ func analyzeTables(conv *Conv, badWrites map[string]int64) (r []tableReport) {
 	// Process tables in alphabetical order. This ensures that tables
 	// appear in alphabetical order in report.txt.
 	var tables []string
-	for t := range conv.srcSchema {
+	for t := range conv.SrcSchema {
 		tables = append(tables, t)
 	}
 	sort.Strings(tables)
@@ -104,21 +104,21 @@ func analyzeTables(conv *Conv, badWrites map[string]int64) (r []tableReport) {
 
 func buildTableReport(conv *Conv, srcTable string, badWrites map[string]int64) tableReport {
 	spTable, err := GetSpannerTable(conv, srcTable)
-	srcSchema, ok1 := conv.srcSchema[srcTable]
-	spSchema, ok2 := conv.spSchema[spTable]
+	srcSchema, ok1 := conv.SrcSchema[srcTable]
+	spSchema, ok2 := conv.SpSchema[spTable]
 	tr := tableReport{srcTable: srcTable, spTable: spTable}
 	if err != nil || !ok1 || !ok2 {
 		m := "bad source-DB-to-Spanner table mapping or Spanner schema"
-		conv.unexpected("report: " + m)
+		conv.Unexpected("report: " + m)
 		tr.body = []tableReportBody{tableReportBody{heading: "Internal error: " + m}}
 		return tr
 	}
 	issues, cols, warnings := analyzeCols(conv, srcTable, spTable)
 	tr.cols = cols
 	tr.warnings = warnings
-	if pk, ok := conv.syntheticPKeys[spTable]; ok {
-		tr.syntheticPKey = pk.col
-		tr.body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, &pk.col)
+	if pk, ok := conv.SyntheticPKeys[spTable]; ok {
+		tr.SyntheticPKey = pk.Col
+		tr.body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, &pk.Col)
 	} else {
 		tr.body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, nil)
 	}
@@ -126,7 +126,7 @@ func buildTableReport(conv *Conv, srcTable string, badWrites map[string]int64) t
 	return tr
 }
 
-func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]schemaIssue, spSchema ddl.CreateTable, srcSchema schema.Table, syntheticPK *string) []tableReportBody {
+func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]SchemaIssue, spSchema ddl.CreateTable, srcSchema schema.Table, syntheticPK *string) []tableReportBody {
 	var body []tableReportBody
 	for _, p := range []struct {
 		heading  string
@@ -150,7 +150,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]schem
 				l = append(l, fmt.Sprintf("Column '%s' was added because this table didn't have a primary key. Spanner requires a primary key for every table", *syntheticPK))
 			}
 		}
-		issueBatcher := make(map[schemaIssue]bool)
+		issueBatcher := make(map[SchemaIssue]bool)
 		for _, srcCol := range cols {
 			for _, i := range issues[srcCol] {
 				if issueDB[i].severity != p.severity {
@@ -166,7 +166,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]schem
 				}
 				spCol, err := GetSpannerCol(conv, srcTable, srcCol, true)
 				if err != nil {
-					conv.unexpected(err.Error())
+					conv.Unexpected(err.Error())
 				}
 				srcType := printSourceType(srcSchema.ColDefs[srcCol].Type)
 				spType := spSchema.ColDefs[spCol].PrintColumnDefType()
@@ -180,14 +180,14 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]schem
 				// on case of srcType.
 				spType = strings.ToLower(spType)
 				switch i {
-				case defaultValue:
+				case DefaultValue:
 					l = append(l, fmt.Sprintf("%s e.g. column '%s'", issueDB[i].brief, srcCol))
-				case foreignKey:
+				case ForeignKey:
 					l = append(l, fmt.Sprintf("Column '%s' uses foreign keys which Spanner does not support", srcCol))
-				case timestamp:
+				case Timestamp:
 					// Avoid the confusing "timestamp is mapped to timestamp" message.
 					l = append(l, fmt.Sprintf("Some columns have source DB type 'timestamp without timezone' which is mapped to Spanner type timestamp e.g. column '%s'. %s", srcCol, issueDB[i].brief))
-				case widened:
+				case Widened:
 					l = append(l, fmt.Sprintf("%s e.g. for column '%s', source DB type %s is mapped to Spanner type %s", issueDB[i].brief, srcCol, srcType, spType))
 				default:
 					l = append(l, fmt.Sprintf("Column '%s': type %s is mapped to %s. %s", srcCol, srcType, spType, issueDB[i].brief))
@@ -207,9 +207,9 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]schem
 }
 
 func fillRowStats(conv *Conv, srcTable string, badWrites map[string]int64, tr *tableReport) {
-	rows := conv.stats.rows[srcTable]
-	goodConvRows := conv.stats.goodRows[srcTable]
-	badConvRows := conv.stats.badRows[srcTable]
+	rows := conv.Stats.Rows[srcTable]
+	goodConvRows := conv.Stats.GoodRows[srcTable]
+	badConvRows := conv.Stats.BadRows[srcTable]
 	badRowWrites := badWrites[srcTable]
 	// Note on rows:
 	// rows: all rows we encountered during processing.
@@ -217,7 +217,7 @@ func fillRowStats(conv *Conv, srcTable string, badWrites map[string]int64, tr *t
 	// badConvRows: rows we failed to convert.
 	// badRowWrites: rows we converted, but could not write to Spanner.
 	if rows != goodConvRows+badConvRows || badRowWrites > goodConvRows {
-		conv.unexpected(fmt.Sprintf("Inconsistent row counts for table %s: %d %d %d %d\n", srcTable, rows, goodConvRows, badConvRows, badRowWrites))
+		conv.Unexpected(fmt.Sprintf("Inconsistent row counts for table %s: %d %d %d %d\n", srcTable, rows, goodConvRows, badConvRows, badRowWrites))
 	}
 	tr.rows = rows
 	tr.badRows = badConvRows + badRowWrites
@@ -231,20 +231,20 @@ func fillRowStats(conv *Conv, srcTable string, badWrites map[string]int64, tr *t
 // for assessing warnings, and we give only the first instance in the report.
 // TODO: add links in these descriptions to further documentation
 // e.g. for timestamp description.
-var issueDB = map[schemaIssue]struct {
+var issueDB = map[SchemaIssue]struct {
 	brief    string // Short description of issue.
 	severity severity
 	batch    bool // Whether multiple instances of this issue are combined.
 }{
-	defaultValue:          {brief: "Some columns have default values which Spanner does not support", severity: warning, batch: true},
-	foreignKey:            {brief: "Spanner does not support foreign keys", severity: warning},
-	multiDimensionalArray: {brief: "Spanner doesn't support multi-dimensional arrays", severity: warning},
-	noGoodType:            {brief: "No appropriate Spanner type", severity: warning},
-	numeric:               {brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", severity: warning},
-	numericThatFits:       {brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", severity: note},
-	serial:                {brief: "Spanner does not support autoincrementing types", severity: warning},
-	timestamp:             {brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: note, batch: true},
-	widened:               {brief: "Some columns will consume more storage in Spanner", severity: note, batch: true},
+	DefaultValue:          {brief: "Some columns have default values which Spanner does not support", severity: warning, batch: true},
+	ForeignKey:            {brief: "Spanner does not support foreign keys", severity: warning},
+	MultiDimensionalArray: {brief: "Spanner doesn't support multi-dimensional arrays", severity: warning},
+	NoGoodType:            {brief: "No appropriate Spanner type", severity: warning},
+	Numeric:               {brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", severity: warning},
+	NumericThatFits:       {brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", severity: note},
+	Serial:                {brief: "Spanner does not support autoincrementing types", severity: warning},
+	Timestamp:             {brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: note, batch: true},
+	Widened:               {brief: "Some columns will consume more storage in Spanner", severity: note, batch: true},
 }
 
 type severity int
@@ -255,17 +255,17 @@ const (
 )
 
 // analyzeCols returns information about the quality of schema mappings
-// for table 'srcTable'. It assumes 'srcTable' is in the conv.srcSchema map.
-func analyzeCols(conv *Conv, srcTable, spTable string) (map[string][]schemaIssue, int64, int64) {
-	srcSchema := conv.srcSchema[srcTable]
-	m := make(map[string][]schemaIssue)
+// for table 'srcTable'. It assumes 'srcTable' is in the conv.SrcSchema map.
+func analyzeCols(conv *Conv, srcTable, spTable string) (map[string][]SchemaIssue, int64, int64) {
+	srcSchema := conv.SrcSchema[srcTable]
+	m := make(map[string][]SchemaIssue)
 	warnings := int64(0)
-	warningBatcher := make(map[schemaIssue]bool)
+	warningBatcher := make(map[SchemaIssue]bool)
 	// Note on how we count warnings when there are multiple warnings
 	// per column and/or multiple warnings per table.
 	// non-batched warnings: count at most one warning per column.
 	// batched warnings: count at most one warning per table.
-	for c, l := range conv.issues[srcTable] {
+	for c, l := range conv.Issues[srcTable] {
 		colWarning := false
 		m[c] = l
 		for _, i := range l {
@@ -358,7 +358,7 @@ func generateSummary(conv *Conv, r []tableReport, badWrites map[string]int64) st
 		}
 		cols += t.cols * weight
 		warnings += t.warnings * weight
-		if t.syntheticPKey != "" {
+		if t.SyntheticPKey != "" {
 			missingPKey = true
 		}
 	}
@@ -376,7 +376,7 @@ func generateSummary(conv *Conv, r []tableReport, badWrites map[string]int64) st
 }
 
 func ignoredStatements(conv *Conv) (l []string) {
-	for s := range conv.stats.statement {
+	for s := range conv.Stats.Statement {
 		switch s {
 		case "CreateFunctionStmt":
 			l = append(l, "functions")
@@ -402,8 +402,8 @@ func writeStmtStats(conv *Conv, w *bufio.Writer) {
 		count     int64
 	}
 	var l []stat
-	for s, x := range conv.stats.statement {
-		l = append(l, stat{s, x.schema + x.data + x.skip + x.error})
+	for s, x := range conv.Stats.Statement {
+		l = append(l, stat{s, x.schema + x.data + x.skip + x.Error})
 	}
 	// Sort by alphabetical order of statements.
 	sort.Slice(l, func(i, j int) bool {
@@ -419,8 +419,8 @@ func writeStmtStats(conv *Conv, w *bufio.Writer) {
 	fmt.Fprintf(w, "  %6s %6s %6s %6s  %s\n", "schema", "data", "skip", "error", "statement")
 	w.WriteString("  --------------------------------------\n")
 	for _, x := range l {
-		s := conv.stats.statement[x.statement]
-		fmt.Fprintf(w, "  %6d %6d %6d %6d  %s\n", s.schema, s.data, s.skip, s.error, x.statement)
+		s := conv.Stats.Statement[x.statement]
+		fmt.Fprintf(w, "  %6d %6d %6d %6d  %s\n", s.schema, s.data, s.skip, s.Error, x.statement)
 	}
 	w.WriteString("See github.com/lfittl/pg_query_go/nodes for definitions of statement types\n")
 	w.WriteString("(lfittl/pg_query_go is the library we use for parsing pg_dump output).\n")
@@ -429,12 +429,12 @@ func writeStmtStats(conv *Conv, w *bufio.Writer) {
 
 func writeUnexpectedConditions(conv *Conv, w *bufio.Writer) {
 	reparseInfo := func() {
-		if conv.stats.reparsed > 0 {
-			fmt.Fprintf(w, "Note: there were %d pg_dump reparse events while looking for statement boundaries.\n\n", conv.stats.reparsed)
+		if conv.Stats.Reparsed > 0 {
+			fmt.Fprintf(w, "Note: there were %d pg_dump reparse events while looking for statement boundaries.\n\n", conv.Stats.Reparsed)
 		}
 	}
 	writeHeading(w, "Unexpected Conditions")
-	if len(conv.stats.unexpected) == 0 {
+	if len(conv.Stats.Unexpected) == 0 {
 		w.WriteString("There were no unexpected conditions encountered during processing.\n\n")
 		reparseInfo()
 		return
@@ -448,7 +448,7 @@ func writeUnexpectedConditions(conv *Conv, w *bufio.Writer) {
 	w.WriteString("  --------------------------------------\n")
 	fmt.Fprintf(w, "  %6s  %s\n", "count", "condition")
 	w.WriteString("  --------------------------------------\n")
-	for s, n := range conv.stats.unexpected {
+	for s, n := range conv.Stats.Unexpected {
 		fmt.Fprintf(w, "  %6d  %s\n", n, s)
 	}
 	w.WriteString("\n")

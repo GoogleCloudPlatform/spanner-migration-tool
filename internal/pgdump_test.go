@@ -70,7 +70,7 @@ func TestProcessPgDump(t *testing.T) {
 	for _, tc := range scalarTests {
 		conv, _ := runProcessPgDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
 		noIssues(conv, t, "Scalar type: "+tc.ty)
-		assert.Equal(t, conv.spSchema["t"].ColDefs["a"].T, tc.expected, "Scalar type: "+tc.ty)
+		assert.Equal(t, conv.SpSchema["t"].ColDefs["a"].T, tc.expected, "Scalar type: "+tc.ty)
 	}
 	// Next test array types and not null.
 	singleColTests := []struct {
@@ -87,7 +87,7 @@ func TestProcessPgDump(t *testing.T) {
 	for _, tc := range singleColTests {
 		conv, _ := runProcessPgDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
 		noIssues(conv, t, "Not null: "+tc.ty)
-		cd := conv.spSchema["t"].ColDefs["a"]
+		cd := conv.SpSchema["t"].ColDefs["a"]
 		cd.Comment = ""
 		assert.Equal(t, tc.expected, cd, "Not null: "+tc.ty)
 	}
@@ -400,7 +400,7 @@ COPY test (id, a, b, c, d, e) FROM stdin;
 			noIssues(conv, t, tc.name)
 		}
 		if tc.expectedSchema != nil {
-			assert.Equal(t, tc.expectedSchema, stripSchemaComments(conv.spSchema), tc.name+": Schema did not match")
+			assert.Equal(t, tc.expectedSchema, stripSchemaComments(conv.SpSchema), tc.name+": Schema did not match")
 		}
 		if tc.expectedData != nil {
 			assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
@@ -410,7 +410,7 @@ COPY test (id, a, b, c, d, e) FROM stdin;
 	{ // Test set timezone statement.
 		conv, _ := runProcessPgDump("set timezone='US/Eastern';")
 		loc, _ := time.LoadLocation("US/Eastern")
-		assert.Equal(t, conv.location, loc, "Set timezone")
+		assert.Equal(t, conv.Location, loc, "Set timezone")
 	}
 
 	// Finally test data conversion errors.
@@ -540,7 +540,7 @@ func TestProcessPgDump_AddPrimaryKeys(t *testing.T) {
 		conv, _ := runProcessPgDump(tc.input)
 		conv.AddPrimaryKeys()
 		if tc.expectedSchema != nil {
-			assert.Equal(t, tc.expectedSchema, stripSchemaComments(conv.spSchema), tc.name+": Schema did not match")
+			assert.Equal(t, tc.expectedSchema, stripSchemaComments(conv.SpSchema), tc.name+": Schema did not match")
 		}
 	}
 }
@@ -579,14 +579,14 @@ func runProcessPgDump(s string) (*Conv, []spannerData) {
 // many tests are issue-free, but several explicitly test handling of
 // various issues (so don't call nonIssue for them!).
 func noIssues(conv *Conv, t *testing.T, name string) {
-	assert.Zero(t, len(conv.stats.unexpected), fmt.Sprintf("'%s' generated unexpected conditions: %v", name, conv.stats.unexpected))
-	for s, stat := range conv.stats.statement {
-		assert.Zero(t, stat.error, fmt.Sprintf("'%s' generated %d errors for %s statements", name, stat.error, s))
-		if stat.error > 0 {
+	assert.Zero(t, len(conv.Stats.Unexpected), fmt.Sprintf("'%s' generated unexpected conditions: %v", name, conv.Stats.Unexpected))
+	for s, stat := range conv.Stats.Statement {
+		assert.Zero(t, stat.Error, fmt.Sprintf("'%s' generated %d errors for %s statements", name, stat.Error, s))
+		if stat.Error > 0 {
 		}
 	}
-	assert.Zero(t, len(conv.stats.badRows), fmt.Sprintf("'%s' generated bad rows: %v", name, conv.stats.badRows))
-	assert.Zero(t, conv.stats.reparsed, fmt.Sprintf("'%s' generated %d reparse events", name, conv.stats.reparsed))
+	assert.Zero(t, len(conv.Stats.BadRows), fmt.Sprintf("'%s' generated bad rows: %v", name, conv.Stats.BadRows))
+	assert.Zero(t, conv.Stats.Reparsed, fmt.Sprintf("'%s' generated %d reparse events", name, conv.Stats.Reparsed))
 }
 
 // stripSchemaComments returns a schema with all comments removed.

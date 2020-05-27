@@ -25,41 +25,41 @@ import (
 )
 
 // schemaToDDL performs schema conversion from the source DB schema to
-// Spanner. It uses the source schema in conv.srcSchema, and writes
-// the Spanner schema to conv.spSchema.
+// Spanner. It uses the source schema in conv.SrcSchema, and writes
+// the Spanner schema to conv.SpSchema.
 func schemaToDDL(conv *Conv) error {
-	for _, srcTable := range conv.srcSchema {
+	for _, srcTable := range conv.SrcSchema {
 		spTableName, err := GetSpannerTable(conv, srcTable.Name)
 		if err != nil {
-			conv.unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
+			conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
 			continue
 		}
 		var spColNames []string
 		spColDef := make(map[string]ddl.ColumnDef)
-		conv.issues[srcTable.Name] = make(map[string][]schemaIssue)
+		conv.Issues[srcTable.Name] = make(map[string][]SchemaIssue)
 		// Iterate over columns using ColNames order.
 		for _, srcColName := range srcTable.ColNames {
 			srcCol := srcTable.ColDefs[srcColName]
 			colName, err := GetSpannerCol(conv, srcTable.Name, srcCol.Name, false)
 			if err != nil {
-				conv.unexpected(fmt.Sprintf("Couldn't map source column %s of table %s to Spanner: %s", srcTable.Name, srcCol.Name, err))
+				conv.Unexpected(fmt.Sprintf("Couldn't map source column %s of table %s to Spanner: %s", srcTable.Name, srcCol.Name, err))
 				continue
 			}
 			spColNames = append(spColNames, colName)
 			ty, issues := toSpannerType(conv, srcCol.Type.Name, srcCol.Type.Mods)
 			if len(srcCol.Type.ArrayBounds) > 1 {
 				ty = ddl.String{Len: ddl.MaxLength{}}
-				issues = append(issues, multiDimensionalArray)
+				issues = append(issues, MultiDimensionalArray)
 			}
 			// TODO: add issues for all elements of srcCol.Ignored.
 			if srcCol.Ignored.ForeignKey {
-				issues = append(issues, foreignKey)
+				issues = append(issues, ForeignKey)
 			}
 			if srcCol.Ignored.Default {
-				issues = append(issues, defaultValue)
+				issues = append(issues, DefaultValue)
 			}
 			if len(issues) > 0 {
-				conv.issues[srcTable.Name][srcCol.Name] = issues
+				conv.Issues[srcTable.Name][srcCol.Name] = issues
 			}
 			spColDef[colName] = ddl.ColumnDef{
 				Name:    colName,
@@ -70,7 +70,7 @@ func schemaToDDL(conv *Conv) error {
 			}
 		}
 		comment := "Spanner schema for source table " + quoteIfNeeded(srcTable.Name)
-		conv.spSchema[spTableName] = ddl.CreateTable{
+		conv.SpSchema[spTableName] = ddl.CreateTable{
 			Name:     spTableName,
 			ColNames: spColNames,
 			ColDefs:  spColDef,
@@ -84,10 +84,10 @@ func schemaToDDL(conv *Conv) error {
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
-func toSpannerType(conv *Conv, id string, mods []int64) (ddl.ScalarType, []schemaIssue) {
+func toSpannerType(conv *Conv, id string, mods []int64) (ddl.ScalarType, []SchemaIssue) {
 	maxExpectedMods := func(n int) {
 		if len(mods) > n {
-			conv.unexpected(fmt.Sprintf("Found %d mods while processing type id=%s", len(mods), id))
+			conv.Unexpected(fmt.Sprintf("Found %d mods while processing type id=%s", len(mods), id))
 		}
 	}
 	switch id {
@@ -96,7 +96,7 @@ func toSpannerType(conv *Conv, id string, mods []int64) (ddl.ScalarType, []schem
 		return ddl.Bool{}, nil
 	case "bigserial":
 		maxExpectedMods(0)
-		return ddl.Int64{}, []schemaIssue{serial}
+		return ddl.Int64{}, []SchemaIssue{Serial}
 	case "bpchar", "character": // Note: Postgres internal name for char is bpchar (aka blank padded char).
 		maxExpectedMods(1)
 		if len(mods) > 0 {
@@ -115,28 +115,28 @@ func toSpannerType(conv *Conv, id string, mods []int64) (ddl.ScalarType, []schem
 		return ddl.Float64{}, nil
 	case "float4", "real":
 		maxExpectedMods(0)
-		return ddl.Float64{}, []schemaIssue{widened}
+		return ddl.Float64{}, []SchemaIssue{Widened}
 	case "int8", "bigint":
 		maxExpectedMods(0)
 		return ddl.Int64{}, nil
 	case "int4", "integer":
 		maxExpectedMods(0)
-		return ddl.Int64{}, []schemaIssue{widened}
+		return ddl.Int64{}, []SchemaIssue{Widened}
 	case "int2", "smallint":
 		maxExpectedMods(0)
-		return ddl.Int64{}, []schemaIssue{widened}
+		return ddl.Int64{}, []SchemaIssue{Widened}
 	case "numeric": // Map all numeric types to float64.
 		maxExpectedMods(2)
 		if len(mods) > 0 && mods[0] <= 15 {
 			// float64 can represent this numeric type faithfully.
 			// Note: int64 has 53 bits for mantissa, which is ~15.96
 			// decimal digits.
-			return ddl.Float64{}, []schemaIssue{numericThatFits}
+			return ddl.Float64{}, []SchemaIssue{NumericThatFits}
 		}
-		return ddl.Float64{}, []schemaIssue{numeric}
+		return ddl.Float64{}, []SchemaIssue{Numeric}
 	case "serial":
 		maxExpectedMods(0)
-		return ddl.Int64{}, []schemaIssue{serial}
+		return ddl.Int64{}, []SchemaIssue{Serial}
 	case "text":
 		maxExpectedMods(0)
 		return ddl.String{Len: ddl.MaxLength{}}, nil
@@ -146,7 +146,7 @@ func toSpannerType(conv *Conv, id string, mods []int64) (ddl.ScalarType, []schem
 	case "timestamp", "timestamp without time zone":
 		maxExpectedMods(1)
 		// Map timestamp without timezone to Spanner timestamp.
-		return ddl.Timestamp{}, []schemaIssue{timestamp}
+		return ddl.Timestamp{}, []SchemaIssue{Timestamp}
 	case "varchar", "character varying":
 		maxExpectedMods(1)
 		if len(mods) > 0 {
@@ -154,7 +154,7 @@ func toSpannerType(conv *Conv, id string, mods []int64) (ddl.ScalarType, []schem
 		}
 		return ddl.String{Len: ddl.MaxLength{}}, nil
 	}
-	return ddl.String{Len: ddl.MaxLength{}}, []schemaIssue{noGoodType}
+	return ddl.String{Len: ddl.MaxLength{}}, []SchemaIssue{NoGoodType}
 }
 
 func printSourceType(ty schema.Type) string {
@@ -195,7 +195,7 @@ func cvtPrimaryKeys(conv *Conv, srcTable string, srcKeys []schema.Key) []ddl.Ind
 	for _, k := range srcKeys {
 		spCol, err := GetSpannerCol(conv, srcTable, k.Column, true)
 		if err != nil {
-			conv.unexpected(fmt.Sprintf("Can't map key for table %s", srcTable))
+			conv.Unexpected(fmt.Sprintf("Can't map key for table %s", srcTable))
 			continue
 		}
 		spKeys = append(spKeys, ddl.IndexKey{Col: spCol, Desc: k.Desc})
