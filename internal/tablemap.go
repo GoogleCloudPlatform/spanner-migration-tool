@@ -31,19 +31,19 @@ func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
 	if srcTable == "" {
 		return "", fmt.Errorf("bad parameter: table string is empty")
 	}
-	if sp, found := conv.toSpanner[srcTable]; found {
-		return sp.name, nil
+	if sp, found := conv.ToSpanner[srcTable]; found {
+		return sp.Name, nil
 	}
 	spTable, _ := FixName(srcTable)
-	if _, found := conv.toSource[spTable]; found {
+	if _, found := conv.ToSource[spTable]; found {
 		// s has been used before i.e. FixName caused a collision.
 		// Add unique postfix: use number of tables so far.
 		// However, there is a chance this has already been used,
 		// so need to iterate.
-		id := len(conv.toSpanner)
+		id := len(conv.ToSpanner)
 		for {
 			t := spTable + "_" + strconv.Itoa(id)
-			if _, found := conv.toSource[t]; !found {
+			if _, found := conv.ToSource[t]; !found {
 				spTable = t
 				break
 			}
@@ -53,8 +53,8 @@ func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
 	if spTable != srcTable {
 		VerbosePrintf("Mapping source DB table %s to Spanner table %s\n", srcTable, spTable)
 	}
-	conv.toSpanner[srcTable] = nameAndCols{name: spTable, cols: make(map[string]string)}
-	conv.toSource[spTable] = nameAndCols{name: srcTable, cols: make(map[string]string)}
+	conv.ToSpanner[srcTable] = NameAndCols{Name: spTable, Cols: make(map[string]string)}
+	conv.ToSource[spTable] = NameAndCols{Name: srcTable, Cols: make(map[string]string)}
 	return spTable, nil
 }
 
@@ -74,32 +74,32 @@ func GetSpannerCol(conv *Conv, srcTable, srcCol string, mustExist bool) (string,
 	if srcCol == "" {
 		return "", fmt.Errorf("bad parameter: col string is empty")
 	}
-	sp, found := conv.toSpanner[srcTable]
+	sp, found := conv.ToSpanner[srcTable]
 	if !found {
 		return "", fmt.Errorf("unknown table %s", srcTable)
 	}
 	// Sanity check: do reverse mapping and check consistency.
 	// Consider dropping this check.
-	src, found := conv.toSource[sp.name]
-	if !found || src.name != srcTable {
-		return "", fmt.Errorf("internal error: table mapping inconsistency for table %s (%s)", srcTable, src.name)
+	src, found := conv.ToSource[sp.Name]
+	if !found || src.Name != srcTable {
+		return "", fmt.Errorf("internal error: table mapping inconsistency for table %s (%s)", srcTable, src.Name)
 	}
-	if spCol, found := sp.cols[srcCol]; found {
+	if spCol, found := sp.Cols[srcCol]; found {
 		return spCol, nil
 	}
 	if mustExist {
 		return "", fmt.Errorf("table %s does not have a column %s", srcTable, srcCol)
 	}
 	spCol, _ := FixName(srcCol)
-	if _, found := conv.toSource[sp.name].cols[spCol]; found {
+	if _, found := conv.ToSource[sp.Name].Cols[spCol]; found {
 		// spCol has been used before i.e. FixName caused a collision.
 		// Add unique postfix: use number of cols in this table so far.
 		// However, there is a chance this has already been used,
 		// so need to iterate.
-		id := len(sp.cols)
+		id := len(sp.Cols)
 		for {
 			c := spCol + "_" + strconv.Itoa(id)
-			if _, found := conv.toSource[sp.name].cols[c]; !found {
+			if _, found := conv.ToSource[sp.Name].Cols[c]; !found {
 				spCol = c
 				break
 			}
@@ -109,8 +109,8 @@ func GetSpannerCol(conv *Conv, srcTable, srcCol string, mustExist bool) (string,
 	if spCol != srcCol {
 		VerbosePrintf("Mapping source DB col %s (table %s) to Spanner col %s\n", srcCol, srcTable, spCol)
 	}
-	conv.toSpanner[srcTable].cols[srcCol] = spCol
-	conv.toSource[sp.name].cols[spCol] = srcCol
+	conv.ToSpanner[srcTable].Cols[srcCol] = spCol
+	conv.ToSource[sp.Name].Cols[spCol] = srcCol
 	return spCol, nil
 }
 

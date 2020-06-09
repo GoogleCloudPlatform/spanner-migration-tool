@@ -270,7 +270,7 @@ func TestConvertData(t *testing.T) {
 		},
 	}
 	conv := buildConv(spTable, srcTable)
-	conv.syntheticPKeys[spTable.Name] = syntheticPKey{col: "synth_id", sequence: 0}
+	conv.SyntheticPKeys[spTable.Name] = SyntheticPKey{Col: "synth_id", Sequence: 0}
 	for _, tc := range syntheticPKeyTests {
 		atable, acols, avals, err := ConvertData(conv, spTable.Name, tc.cols, tc.vals)
 		checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
@@ -279,13 +279,13 @@ func TestConvertData(t *testing.T) {
 
 func buildConv(spTable ddl.CreateTable, srcTable schema.Table) *Conv {
 	conv := MakeConv()
-	conv.spSchema[spTable.Name] = spTable
-	conv.srcSchema[srcTable.Name] = srcTable
-	conv.toSource[spTable.Name] = nameAndCols{name: srcTable.Name, cols: make(map[string]string)}
-	conv.toSpanner[srcTable.Name] = nameAndCols{name: spTable.Name, cols: make(map[string]string)}
+	conv.SpSchema[spTable.Name] = spTable
+	conv.SrcSchema[srcTable.Name] = srcTable
+	conv.ToSource[spTable.Name] = NameAndCols{Name: srcTable.Name, Cols: make(map[string]string)}
+	conv.ToSpanner[srcTable.Name] = NameAndCols{Name: spTable.Name, Cols: make(map[string]string)}
 	for i := range spTable.ColNames {
-		conv.toSource[spTable.Name].cols[spTable.ColNames[i]] = srcTable.ColNames[i]
-		conv.toSpanner[srcTable.Name].cols[srcTable.ColNames[i]] = spTable.ColNames[i]
+		conv.ToSource[spTable.Name].Cols[spTable.ColNames[i]] = srcTable.ColNames[i]
+		conv.ToSpanner[srcTable.Name].Cols[srcTable.ColNames[i]] = spTable.ColNames[i]
 	}
 	return conv
 }

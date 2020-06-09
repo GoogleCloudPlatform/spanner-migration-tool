@@ -36,8 +36,8 @@ import (
 func ProcessDataRow(conv *Conv, srcTable string, srcCols, vals []string) {
 	spTable, spCols, spVals, err := ConvertData(conv, srcTable, srcCols, vals)
 	if err != nil {
-		conv.unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
-		conv.statsAddBadRow(srcTable, conv.dataMode())
+		conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
+		conv.StatsAddBadRow(srcTable, conv.DataMode())
 		conv.CollectBadRow(srcTable, srcCols, vals)
 	} else {
 		conv.WriteRow(srcTable, spTable, spCols, spVals)
@@ -62,8 +62,8 @@ func ConvertData(conv *Conv, srcTable string, srcCols []string, vals []string) (
 	if err != nil {
 		return "", []string{}, []interface{}{}, fmt.Errorf("can't map source columns %v", srcCols)
 	}
-	spSchema, ok1 := conv.spSchema[spTable]
-	srcSchema, ok2 := conv.srcSchema[srcTable]
+	spSchema, ok1 := conv.SpSchema[spTable]
+	srcSchema, ok2 := conv.SrcSchema[srcTable]
 	if !ok1 || !ok2 {
 		return "", []string{}, []interface{}{}, fmt.Errorf("can't find table %s in schema", spTable)
 	}
@@ -85,9 +85,9 @@ func ConvertData(conv *Conv, srcTable string, srcCols []string, vals []string) (
 		var x interface{}
 		var err error
 		if spColDef.IsArray {
-			x, err = convArray(spColDef.T, srcColDef.Type.Name, conv.location, vals[i])
+			x, err = convArray(spColDef.T, srcColDef.Type.Name, conv.Location, vals[i])
 		} else {
-			x, err = convScalar(spColDef.T, srcColDef.Type.Name, conv.location, vals[i])
+			x, err = convScalar(spColDef.T, srcColDef.Type.Name, conv.Location, vals[i])
 		}
 		if err != nil {
 			return "", []string{}, []interface{}{}, err
@@ -95,11 +95,11 @@ func ConvertData(conv *Conv, srcTable string, srcCols []string, vals []string) (
 		v = append(v, x)
 		c = append(c, spCol)
 	}
-	if aux, ok := conv.syntheticPKeys[spTable]; ok {
-		c = append(c, aux.col)
-		v = append(v, int64(bits.Reverse64(uint64(aux.sequence))))
-		aux.sequence++
-		conv.syntheticPKeys[spTable] = aux
+	if aux, ok := conv.SyntheticPKeys[spTable]; ok {
+		c = append(c, aux.Col)
+		v = append(v, int64(bits.Reverse64(uint64(aux.Sequence))))
+		aux.Sequence++
+		conv.SyntheticPKeys[spTable] = aux
 	}
 	return spTable, c, v, nil
 }
@@ -379,15 +379,4 @@ func processQuote(s string) (string, error) {
 		return strconv.Unquote(s)
 	}
 	return s, nil
-}
-
-func byteSize(r *row) int64 {
-	n := int64(len(r.table))
-	for _, c := range r.cols {
-		n += int64(len(c))
-	}
-	for _, v := range r.vals {
-		n += int64(len(v))
-	}
-	return n
 }

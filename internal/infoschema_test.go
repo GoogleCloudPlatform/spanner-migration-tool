@@ -133,19 +133,19 @@ func TestProcessInfoSchema(t *testing.T) {
 			},
 			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "id"}}},
 	}
-	assert.Equal(t, expectedSchema, stripSchemaComments(conv.spSchema))
-	assert.Equal(t, len(conv.issues["cart"]), 0)
-	expectedIssues := map[string][]schemaIssue{
-		"aint": []schemaIssue{widened},
-		"bs":   []schemaIssue{defaultValue},
-		"f4":   []schemaIssue{widened},
-		"i4":   []schemaIssue{widened},
-		"i2":   []schemaIssue{widened},
-		"num":  []schemaIssue{numeric},
-		"s":    []schemaIssue{widened, defaultValue},
-		"ts":   []schemaIssue{timestamp},
+	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
+	assert.Equal(t, len(conv.Issues["cart"]), 0)
+	expectedIssues := map[string][]SchemaIssue{
+		"aint": []SchemaIssue{Widened},
+		"bs":   []SchemaIssue{DefaultValue},
+		"f4":   []SchemaIssue{Widened},
+		"i4":   []SchemaIssue{Widened},
+		"i2":   []SchemaIssue{Widened},
+		"num":  []SchemaIssue{Numeric},
+		"s":    []SchemaIssue{Widened, DefaultValue},
+		"ts":   []SchemaIssue{Timestamp},
 	}
-	assert.Equal(t, expectedIssues, conv.issues["test"])
+	assert.Equal(t, expectedIssues, conv.Issues["test"])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 
@@ -355,8 +355,8 @@ func TestSetRowStats(t *testing.T) {
 	conv := MakeConv()
 	conv.SetDataMode()
 	SetRowStats(conv, db)
-	assert.Equal(t, int64(5), conv.stats.rows["test1"])
-	assert.Equal(t, int64(142), conv.stats.rows["test2"])
+	assert.Equal(t, int64(5), conv.Stats.Rows["test1"])
+	assert.Equal(t, int64(142), conv.Stats.Rows["test2"])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 

@@ -77,7 +77,7 @@ func ProcessSqlData(conv *Conv, db *sql.DB) {
 	// ProcessInfoSchema instead of computing them again.
 	tables, err := getTables(db)
 	if err != nil {
-		conv.unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
+		conv.Unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
 		return
 	}
 	for _, t := range tables {
@@ -87,7 +87,7 @@ func ProcessSqlData(conv *Conv, db *sql.DB) {
 		q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, t.schema, t.name)
 		rows, err := db.Query(q)
 		if err != nil {
-			conv.unexpected(fmt.Sprintf("Couldn't get data for table: %s", err))
+			conv.Unexpected(fmt.Sprintf("Couldn't get data for table: %s", err))
 			continue
 		}
 		defer rows.Close()
@@ -95,11 +95,11 @@ func ProcessSqlData(conv *Conv, db *sql.DB) {
 		srcCols, err1 := rows.Columns()
 		spTable, err2 := GetSpannerTable(conv, srcTable)
 		spCols, err3 := GetSpannerCols(conv, srcTable, srcCols)
-		spSchema, ok1 := conv.spSchema[spTable]
-		srcSchema, ok2 := conv.srcSchema[srcTable]
+		spSchema, ok1 := conv.SpSchema[spTable]
+		srcSchema, ok2 := conv.SrcSchema[srcTable]
 		if err1 != nil || err2 != nil || err3 != nil || !ok1 || !ok2 {
-			conv.statsAddBadRows(srcTable, conv.stats.rows[srcTable])
-			conv.unexpected(fmt.Sprintf("Can't get cols and schemas for table %s: err1=%s, err2=%s, err3=%s, ok1=%t, ok2=%t",
+			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
+			conv.Unexpected(fmt.Sprintf("Can't get cols and schemas for table %s: err1=%s, err2=%s, err3=%s, ok1=%t, ok2=%t",
 				srcTable, err1, err2, err3, ok1, ok2))
 			continue
 		}
@@ -107,15 +107,15 @@ func ProcessSqlData(conv *Conv, db *sql.DB) {
 		for rows.Next() {
 			err := rows.Scan(iv...)
 			if err != nil {
-				conv.unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
+				conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
 				// Scan failed, so we don't have any data to add to bad rows.
-				conv.statsAddBadRow(srcTable, conv.dataMode())
+				conv.StatsAddBadRow(srcTable, conv.DataMode())
 				continue
 			}
 			cvtCols, cvtVals, err := ConvertSqlRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, v)
 			if err != nil {
-				conv.unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
-				conv.statsAddBadRow(srcTable, conv.dataMode())
+				conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
+				conv.StatsAddBadRow(srcTable, conv.DataMode())
 				conv.CollectBadRow(srcTable, srcCols, valsToStrings(v))
 				continue
 			}
@@ -155,11 +155,11 @@ func ConvertSqlRow(conv *Conv, srcTable string, srcCols []string, srcSchema sche
 		vs = append(vs, spVal)
 		cs = append(cs, srcCols[i])
 	}
-	if aux, ok := conv.syntheticPKeys[spTable]; ok {
-		cs = append(cs, aux.col)
-		vs = append(vs, int64(bits.Reverse64(uint64(aux.sequence))))
-		aux.sequence++
-		conv.syntheticPKeys[spTable] = aux
+	if aux, ok := conv.SyntheticPKeys[spTable]; ok {
+		cs = append(cs, aux.Col)
+		vs = append(vs, int64(bits.Reverse64(uint64(aux.Sequence))))
+		aux.Sequence++
+		conv.SyntheticPKeys[spTable] = aux
 	}
 	return cs, vs, nil
 }
@@ -170,7 +170,7 @@ func SetRowStats(conv *Conv, db *sql.DB) {
 	// ProcessInfoSchema instead of computing them again.
 	tables, err := getTables(db)
 	if err != nil {
-		conv.unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
+		conv.Unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
 		return
 	}
 	for _, t := range tables {
@@ -181,7 +181,7 @@ func SetRowStats(conv *Conv, db *sql.DB) {
 		tableName := buildTableName(t.schema, t.name)
 		rows, err := db.Query(q)
 		if err != nil {
-			conv.unexpected(fmt.Sprintf("Couldn't get number of rows for table %s", tableName))
+			conv.Unexpected(fmt.Sprintf("Couldn't get number of rows for table %s", tableName))
 			continue
 		}
 		defer rows.Close()
@@ -192,7 +192,7 @@ func SetRowStats(conv *Conv, db *sql.DB) {
 				fmt.Printf("Can't get row count: %s\n", err)
 				continue
 			}
-			conv.statsAddRows(tableName, count)
+			conv.Stats.Rows[tableName] += count
 		}
 	}
 }
@@ -241,7 +241,7 @@ func processTable(conv *Conv, db *sql.DB, table schemaAndName) error {
 	for _, k := range primaryKeys {
 		schemaPKeys = append(schemaPKeys, schema.Key{Column: k})
 	}
-	conv.srcSchema[name] = schema.Table{
+	conv.SrcSchema[name] = schema.Table{
 		Name:        name,
 		ColNames:    colNames,
 		ColDefs:     colDefs,
@@ -360,7 +360,7 @@ func toNotNull(conv *Conv, isNullable string) bool {
 	case "NO":
 		return true
 	}
-	conv.unexpected(fmt.Sprintf("isNullable column has unknown value: %s", isNullable))
+	conv.Unexpected(fmt.Sprintf("isNullable column has unknown value: %s", isNullable))
 	return false
 }
 
@@ -369,7 +369,7 @@ func cvtSqlArray(conv *Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interf
 	if !ok {
 		return nil, fmt.Errorf("can't convert array values to []byte")
 	}
-	return convArray(spCd.T, srcCd.Type.Name, conv.location, string(a))
+	return convArray(spCd.T, srcCd.Type.Name, conv.Location, string(a))
 }
 
 // cvtSqlScalar converts a values returned from a SQL query to a
@@ -453,7 +453,7 @@ func cvtSqlScalar(conv *Conv, srcCd schema.Column, spCd ddl.ColumnDef, val inter
 	case ddl.Timestamp:
 		switch v := val.(type) {
 		case string:
-			return convTimestamp(srcCd.Type.Name, conv.location, v)
+			return convTimestamp(srcCd.Type.Name, conv.Location, v)
 		case time.Time:
 			return v, nil
 		}

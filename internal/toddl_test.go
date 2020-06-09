@@ -41,9 +41,9 @@ func TestToSpannerType(t *testing.T) {
 			"f": schema.Column{Name: "f", Type: schema.Type{Name: "timestamptz"}},
 		},
 		PrimaryKeys: []schema.Key{schema.Key{Column: "a"}}}
-	conv.srcSchema[name] = srcSchema
+	conv.SrcSchema[name] = srcSchema
 	assert.Nil(t, schemaToDDL(conv))
-	actual := conv.spSchema[name]
+	actual := conv.SpSchema[name]
 	dropComments(&actual) // Don't test comment.
 	expected := ddl.CreateTable{
 		Name:     name,
@@ -59,11 +59,11 @@ func TestToSpannerType(t *testing.T) {
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
 	}
 	assert.Equal(t, expected, actual)
-	expectedIssues := map[string][]schemaIssue{
-		"b": []schemaIssue{widened},
-		"e": []schemaIssue{numeric},
+	expectedIssues := map[string][]SchemaIssue{
+		"b": []SchemaIssue{Widened},
+		"e": []SchemaIssue{Numeric},
 	}
-	assert.Equal(t, expectedIssues, conv.issues[name])
+	assert.Equal(t, expectedIssues, conv.Issues[name])
 }
 
 func dropComments(t *ddl.CreateTable) {

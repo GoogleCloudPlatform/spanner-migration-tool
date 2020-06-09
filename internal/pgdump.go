@@ -68,7 +68,7 @@ func ProcessPgDump(conv *Conv, r *Reader) error {
 			break
 		}
 	}
-	if conv.schemaMode() {
+	if conv.SchemaMode() {
 		schemaToDDL(conv)
 		conv.AddPrimaryKeys()
 	}
@@ -104,7 +104,7 @@ func readAndParseChunk(conv *Conv, r *Reader) ([]byte, []nodes.Node, error) {
 			// b) a semicolon embedded in a multi-line comment, or
 			// c) a semicolon embedded a string constant or column/table name.
 			// We deal with this case by reading another line and trying again.
-			conv.stats.reparsed++
+			conv.Stats.Reparsed++
 		}
 		if r.EOF {
 			return nil, nil, fmt.Errorf("Error parsing last %d line(s) of input", len(l))
@@ -121,15 +121,15 @@ func processCopyBlock(conv *Conv, srcTable string, srcCols []string, r *Reader) 
 			return
 		}
 		if r.EOF {
-			conv.unexpected("Reached eof while parsing copy-block")
+			conv.Unexpected("Reached eof while parsing copy-block")
 			return
 		}
-		conv.statsAddRow(srcTable, conv.schemaMode())
+		conv.StatsAddRow(srcTable, conv.SchemaMode())
 		// We have to read the copy-block data so that we can process the remaining
 		// pg_dump content. However, if we don't want the data, stop here.
 		// In particular, avoid the strings.Split and ProcessDataRow calls below, which
 		// will be expensive for huge datasets.
-		if !conv.dataMode() {
+		if !conv.DataMode() {
 			continue
 		}
 		// Pgdump escapes backslash in copy-block statements. For example:
@@ -159,27 +159,27 @@ func processStatements(conv *Conv, statements []nodes.Node) *copyOrInsert {
 		}
 		switch n := node.(type) {
 		case nodes.AlterTableStmt:
-			if conv.schemaMode() {
+			if conv.SchemaMode() {
 				processAlterTableStmt(conv, n)
 			}
 		case nodes.CopyStmt:
 			if i != len(statements)-1 {
-				conv.unexpected("CopyFrom is not the last statement in batch: ignoring following statements")
-				conv.errorInStatement([]nodes.Node{node})
+				conv.Unexpected("CopyFrom is not the last statement in batch: ignoring following statements")
+				conv.ErrorInStatement(prNodes([]nodes.Node{node}))
 			}
 			return processCopyStmt(conv, n)
 		case nodes.CreateStmt:
-			if conv.schemaMode() {
+			if conv.SchemaMode() {
 				processCreateStmt(conv, n)
 			}
 		case nodes.InsertStmt:
 			return processInsertStmt(conv, n)
 		case nodes.VariableSetStmt:
-			if conv.schemaMode() {
+			if conv.SchemaMode() {
 				processVariableSetStmt(conv, n)
 			}
 		default:
-			conv.skipStatement([]nodes.Node{node})
+			conv.SkipStatement(prNodes([]nodes.Node{node}))
 		}
 	}
 	return nil
@@ -195,7 +195,7 @@ func processAlterTableStmt(conv *Conv, n nodes.AlterTableStmt) {
 		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
 		return
 	}
-	if _, ok := conv.srcSchema[table]; ok {
+	if _, ok := conv.SrcSchema[table]; ok {
 		for _, i := range n.Cmds.Items {
 			switch a := i.(type) {
 			case nodes.AlterTableCmd:
@@ -203,20 +203,20 @@ func processAlterTableStmt(conv *Conv, n nodes.AlterTableStmt) {
 				case a.Subtype == nodes.AT_SetNotNull && a.Name != nil:
 					c := constraint{ct: nodes.CONSTR_NOTNULL, cols: []string{*a.Name}}
 					updateSchema(conv, table, []constraint{c}, "ALTER TABLE")
-					conv.schemaStatement([]nodes.Node{n, a})
+					conv.SchemaStatement(prNodes([]nodes.Node{n, a}))
 				case a.Subtype == nodes.AT_AddConstraint && a.Def != nil:
 					switch d := a.Def.(type) {
 					case nodes.Constraint:
 						updateSchema(conv, table, extractConstraints(conv, n, table, []nodes.Node{d}), "ALTER TABLE")
-						conv.schemaStatement([]nodes.Node{n, a, d})
+						conv.SchemaStatement(prNodes([]nodes.Node{n, a, d}))
 					default:
-						conv.skipStatement([]nodes.Node{n, a, d})
+						conv.SkipStatement(prNodes([]nodes.Node{n, a, d}))
 					}
 				default:
-					conv.skipStatement([]nodes.Node{n, a})
+					conv.SkipStatement(prNodes([]nodes.Node{n, a}))
 				}
 			default:
-				conv.skipStatement([]nodes.Node{n, a})
+				conv.SkipStatement(prNodes([]nodes.Node{n, a}))
 			}
 		}
 	} else {
@@ -225,7 +225,7 @@ func processAlterTableStmt(conv *Conv, n nodes.AlterTableStmt) {
 		// track tables created by "CREATE TABLE", this lookup can fail.
 		// For debugging purposes we log the lookup failure if we're
 		// in verbose mode, but otherwise  we just skip these statements.
-		conv.skipStatement([]nodes.Node{n})
+		conv.SkipStatement(prNodes([]nodes.Node{n}))
 		VerbosePrintf("Processing %v statement: table %s not found", reflect.TypeOf(n), table)
 	}
 }
@@ -260,11 +260,11 @@ func processCreateStmt(conv *Conv, n nodes.CreateStmt) {
 			// collecting constraints.
 			constraints = extractConstraints(conv, n, table, []nodes.Node{i})
 		default:
-			conv.unexpected(fmt.Sprintf("Found %s node while processing CreateStmt TableElts", prNodeType(i)))
+			conv.Unexpected(fmt.Sprintf("Found %s node while processing CreateStmt TableElts", PrNodeType(i)))
 		}
 	}
-	conv.schemaStatement([]nodes.Node{n})
-	conv.srcSchema[table] = schema.Table{
+	conv.SchemaStatement(prNodes([]nodes.Node{n}))
+	conv.SrcSchema[table] = schema.Table{
 		Name:     table,
 		ColNames: colNames,
 		ColDefs:  colDef}
@@ -299,23 +299,23 @@ func processInsertStmt(conv *Conv, n nodes.InsertStmt) *copyOrInsert {
 		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
 		return nil
 	}
-	conv.statsAddRow(table, conv.schemaMode())
+	conv.StatsAddRow(table, conv.SchemaMode())
 	colNames, err := getCols(conv, table, n.Cols.Items)
 	if err != nil {
 		logStmtError(conv, n, fmt.Errorf("can't get col name: %w", err))
-		conv.statsAddBadRow(table, conv.schemaMode())
+		conv.StatsAddBadRow(table, conv.SchemaMode())
 		return nil
 	}
 	var values []string
 	switch sel := n.SelectStmt.(type) {
 	case nodes.SelectStmt:
 		values = getVals(conv, sel.ValuesLists, n)
-		conv.dataStatement([]nodes.Node{n})
-		if conv.dataMode() {
+		conv.DataStatement(prNodes([]nodes.Node{n}))
+		if conv.DataMode() {
 			return &copyOrInsert{stmt: insert, table: table, cols: colNames, vals: values}
 		}
 	default:
-		conv.unexpected(fmt.Sprintf("Found %s node while processing InsertStmt SelectStmt", prNodeType(sel)))
+		conv.Unexpected(fmt.Sprintf("Found %s node while processing InsertStmt SelectStmt", PrNodeType(sel)))
 	}
 	return nil
 }
@@ -330,7 +330,7 @@ func processCopyStmt(conv *Conv, n nodes.CopyStmt) *copyOrInsert {
 	if n.Relation != nil {
 		table, err = getTableName(conv, *n.Relation)
 		if err != nil {
-			conv.unexpected(fmt.Sprintf("Processing %v statement: %s", reflect.TypeOf(n), err))
+			conv.Unexpected(fmt.Sprintf("Processing %v statement: %s", reflect.TypeOf(n), err))
 		}
 	} else {
 		logStmtError(conv, n, fmt.Errorf("relation is nil"))
@@ -339,12 +339,12 @@ func processCopyStmt(conv *Conv, n nodes.CopyStmt) *copyOrInsert {
 	for _, a := range n.Attlist.Items {
 		s, err := getString(a)
 		if err != nil {
-			conv.unexpected(fmt.Sprintf("Processing %v statement Attlist: %s", reflect.TypeOf(n), err))
+			conv.Unexpected(fmt.Sprintf("Processing %v statement Attlist: %s", reflect.TypeOf(n), err))
 			s = "BOGUS_COPY_FROM_COLUMN"
 		}
 		cols = append(cols, s)
 	}
-	conv.dataStatement([]nodes.Node{n})
+	conv.DataStatement(prNodes([]nodes.Node{n}))
 	return &copyOrInsert{stmt: copyFrom, table: table, cols: cols}
 }
 
@@ -380,10 +380,10 @@ func getTypeMods(conv *Conv, t nodes.List) (l []int64) {
 			case nodes.Integer:
 				l = append(l, t2.Ival)
 			default:
-				conv.unexpected(fmt.Sprintf("Found %s node while processing Typmods", prNodeType(t1.Val)))
+				conv.Unexpected(fmt.Sprintf("Found %s node while processing Typmods", PrNodeType(t1.Val)))
 			}
 		default:
-			conv.unexpected(fmt.Sprintf("Found %s node while processing Typmods", prNodeType(x)))
+			conv.Unexpected(fmt.Sprintf("Found %s node while processing Typmods", PrNodeType(x)))
 		}
 	}
 	return l
@@ -396,7 +396,7 @@ func getArrayBounds(conv *Conv, t nodes.List) (l []int64) {
 			// 'Ival' provides the array bound (-1 for an array where bound is not specified).
 			l = append(l, t.Ival)
 		default:
-			conv.unexpected(fmt.Sprintf("Found %s node while processing ArrayBounds", prNodeType(x)))
+			conv.Unexpected(fmt.Sprintf("Found %s node while processing ArrayBounds", PrNodeType(x)))
 		}
 	}
 	return l
@@ -470,13 +470,13 @@ func extractConstraints(conv *Conv, n nodes.Node, table string, l []nodes.Node) 
 					cols = append(cols, k)
 				}
 				if err != nil {
-					conv.unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(n), err.Error()))
-					conv.errorInStatement([]nodes.Node{n, d})
+					conv.Unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(n), err.Error()))
+					conv.ErrorInStatement(prNodes([]nodes.Node{n, d}))
 				}
 			}
 			cs = append(cs, constraint{ct: d.Contype, cols: cols})
 		default:
-			conv.unexpected(fmt.Sprintf("Processing %v statement: found %s node while processing constraints\n", reflect.TypeOf(n), reflect.TypeOf(d)))
+			conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node while processing constraints\n", reflect.TypeOf(n), reflect.TypeOf(d)))
 		}
 	}
 	return cs
@@ -490,7 +490,7 @@ func analyzeColDefConstraints(conv *Conv, n nodes.Node, table string, l []nodes.
 	// to {pgCol}.
 	for _, c := range extractConstraints(conv, n, table, l) {
 		if len(c.cols) != 0 {
-			conv.unexpected("ColumnDef constraint has keys")
+			conv.Unexpected("ColumnDef constraint has keys")
 		}
 		c.cols = []string{pgCol}
 		cs = append(cs, c)
@@ -504,7 +504,7 @@ func updateSchema(conv *Conv, table string, cs []constraint, s string) {
 	for _, c := range cs {
 		switch c.ct {
 		case nodes.CONSTR_PRIMARY:
-			ct := conv.srcSchema[table]
+			ct := conv.SrcSchema[table]
 			checkEmpty(conv, ct.PrimaryKeys, s)
 			ct.PrimaryKeys = toSchemaKeys(conv, table, c.cols) // Drop any previous primary keys.
 			// In Spanner, primary key columns are usually annotated with NOT NULL,
@@ -513,11 +513,11 @@ func updateSchema(conv *Conv, table string, cs []constraint, s string) {
 			// NOT NULL and UNIQUE i.e. primary keys must be NOT NULL.
 			// We preserve PostgreSQL semantics and enforce NOT NULL.
 			updateCols(nodes.CONSTR_NOTNULL, c.cols, ct.ColDefs)
-			conv.srcSchema[table] = ct
+			conv.SrcSchema[table] = ct
 		default:
-			ct := conv.srcSchema[table]
+			ct := conv.SrcSchema[table]
 			updateCols(c.ct, c.cols, ct.ColDefs)
-			conv.srcSchema[table] = ct
+			conv.SrcSchema[table] = ct
 		}
 	}
 }
@@ -582,10 +582,10 @@ func getVals(conv *Conv, l [][]nodes.Node, n nodes.InsertStmt) (values []string)
 					// here to avoid the int64 -> string -> int64 conversions.
 					values = append(values, strconv.FormatInt(st.Ival, 10))
 				default:
-					conv.unexpected(fmt.Sprintf("Processing %v statement: found %s node for A_Const Val", reflect.TypeOf(n), reflect.TypeOf(c.Val)))
+					conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node for A_Const Val", reflect.TypeOf(n), reflect.TypeOf(c.Val)))
 				}
 			default:
-				conv.unexpected(fmt.Sprintf("Processing %v statement: found %s node in ValuesList", reflect.TypeOf(n), reflect.TypeOf(v)))
+				conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node in ValuesList", reflect.TypeOf(n), reflect.TypeOf(v)))
 			}
 		}
 	}
@@ -593,8 +593,8 @@ func getVals(conv *Conv, l [][]nodes.Node, n nodes.InsertStmt) (values []string)
 }
 
 func logStmtError(conv *Conv, n nodes.Node, err error) {
-	conv.unexpected(fmt.Sprintf("Processing %v statement: %s", reflect.TypeOf(n), err))
-	conv.errorInStatement([]nodes.Node{n})
+	conv.Unexpected(fmt.Sprintf("Processing %v statement: %s", reflect.TypeOf(n), err))
+	conv.ErrorInStatement(prNodes([]nodes.Node{n}))
 }
 
 func getString(node nodes.Node) (string, error) {
@@ -610,6 +610,19 @@ func getString(node nodes.Node) (string, error) {
 // PostgreSQL explicitly forbids multiple primary keys.
 func checkEmpty(conv *Conv, pkeys []schema.Key, s string) {
 	if len(pkeys) != 0 {
-		conv.unexpected(fmt.Sprintf("%s statement is adding a second primary key", s))
+		conv.Unexpected(fmt.Sprintf("%s statement is adding a second primary key", s))
 	}
+}
+
+func PrNodeType(n nodes.Node) string {
+	// Strip off "pg_query." prefix from nodes.Nodes type.
+	return strings.TrimPrefix(reflect.TypeOf(n).Name(), "pg_query.")
+}
+
+func prNodes(l []nodes.Node) string {
+	var s []string
+	for _, n := range l {
+		s = append(s, PrNodeType(n))
+	}
+	return strings.Join(s, ".")
 }
