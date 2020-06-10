@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal
+package postgres
 
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"unicode"
 
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -27,20 +27,20 @@ import (
 // schemaToDDL performs schema conversion from the source DB schema to
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
-func schemaToDDL(conv *Conv) error {
+func schemaToDDL(conv *internal.Conv) error {
 	for _, srcTable := range conv.SrcSchema {
-		spTableName, err := GetSpannerTable(conv, srcTable.Name)
+		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
 			continue
 		}
 		var spColNames []string
 		spColDef := make(map[string]ddl.ColumnDef)
-		conv.Issues[srcTable.Name] = make(map[string][]SchemaIssue)
+		conv.Issues[srcTable.Name] = make(map[string][]internal.SchemaIssue)
 		// Iterate over columns using ColNames order.
 		for _, srcColName := range srcTable.ColNames {
 			srcCol := srcTable.ColDefs[srcColName]
-			colName, err := GetSpannerCol(conv, srcTable.Name, srcCol.Name, false)
+			colName, err := internal.GetSpannerCol(conv, srcTable.Name, srcCol.Name, false)
 			if err != nil {
 				conv.Unexpected(fmt.Sprintf("Couldn't map source column %s of table %s to Spanner: %s", srcTable.Name, srcCol.Name, err))
 				continue
@@ -49,14 +49,14 @@ func schemaToDDL(conv *Conv) error {
 			ty, issues := toSpannerType(conv, srcCol.Type.Name, srcCol.Type.Mods)
 			if len(srcCol.Type.ArrayBounds) > 1 {
 				ty = ddl.String{Len: ddl.MaxLength{}}
-				issues = append(issues, MultiDimensionalArray)
+				issues = append(issues, internal.MultiDimensionalArray)
 			}
 			// TODO: add issues for all elements of srcCol.Ignored.
 			if srcCol.Ignored.ForeignKey {
-				issues = append(issues, ForeignKey)
+				issues = append(issues, internal.ForeignKey)
 			}
 			if srcCol.Ignored.Default {
-				issues = append(issues, DefaultValue)
+				issues = append(issues, internal.DefaultValue)
 			}
 			if len(issues) > 0 {
 				conv.Issues[srcTable.Name][srcCol.Name] = issues
@@ -66,7 +66,7 @@ func schemaToDDL(conv *Conv) error {
 				T:       ty,
 				IsArray: len(srcCol.Type.ArrayBounds) == 1,
 				NotNull: srcCol.NotNull,
-				Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + printSourceType(srcCol.Type),
+				Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
 			}
 		}
 		comment := "Spanner schema for source table " + quoteIfNeeded(srcTable.Name)
@@ -84,7 +84,7 @@ func schemaToDDL(conv *Conv) error {
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
-func toSpannerType(conv *Conv, id string, mods []int64) (ddl.ScalarType, []SchemaIssue) {
+func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.ScalarType, []internal.SchemaIssue) {
 	maxExpectedMods := func(n int) {
 		if len(mods) > n {
 			conv.Unexpected(fmt.Sprintf("Found %d mods while processing type id=%s", len(mods), id))
@@ -96,7 +96,7 @@ func toSpannerType(conv *Conv, id string, mods []int64) (ddl.ScalarType, []Schem
 		return ddl.Bool{}, nil
 	case "bigserial":
 		maxExpectedMods(0)
-		return ddl.Int64{}, []SchemaIssue{Serial}
+		return ddl.Int64{}, []internal.SchemaIssue{internal.Serial}
 	case "bpchar", "character": // Note: Postgres internal name for char is bpchar (aka blank padded char).
 		maxExpectedMods(1)
 		if len(mods) > 0 {
@@ -115,28 +115,28 @@ func toSpannerType(conv *Conv, id string, mods []int64) (ddl.ScalarType, []Schem
 		return ddl.Float64{}, nil
 	case "float4", "real":
 		maxExpectedMods(0)
-		return ddl.Float64{}, []SchemaIssue{Widened}
+		return ddl.Float64{}, []internal.SchemaIssue{internal.Widened}
 	case "int8", "bigint":
 		maxExpectedMods(0)
 		return ddl.Int64{}, nil
 	case "int4", "integer":
 		maxExpectedMods(0)
-		return ddl.Int64{}, []SchemaIssue{Widened}
+		return ddl.Int64{}, []internal.SchemaIssue{internal.Widened}
 	case "int2", "smallint":
 		maxExpectedMods(0)
-		return ddl.Int64{}, []SchemaIssue{Widened}
+		return ddl.Int64{}, []internal.SchemaIssue{internal.Widened}
 	case "numeric": // Map all numeric types to float64.
 		maxExpectedMods(2)
 		if len(mods) > 0 && mods[0] <= 15 {
 			// float64 can represent this numeric type faithfully.
 			// Note: int64 has 53 bits for mantissa, which is ~15.96
 			// decimal digits.
-			return ddl.Float64{}, []SchemaIssue{NumericThatFits}
+			return ddl.Float64{}, []internal.SchemaIssue{internal.NumericThatFits}
 		}
-		return ddl.Float64{}, []SchemaIssue{Numeric}
+		return ddl.Float64{}, []internal.SchemaIssue{internal.Numeric}
 	case "serial":
 		maxExpectedMods(0)
-		return ddl.Int64{}, []SchemaIssue{Serial}
+		return ddl.Int64{}, []internal.SchemaIssue{internal.Serial}
 	case "text":
 		maxExpectedMods(0)
 		return ddl.String{Len: ddl.MaxLength{}}, nil
@@ -146,7 +146,7 @@ func toSpannerType(conv *Conv, id string, mods []int64) (ddl.ScalarType, []Schem
 	case "timestamp", "timestamp without time zone":
 		maxExpectedMods(1)
 		// Map timestamp without timezone to Spanner timestamp.
-		return ddl.Timestamp{}, []SchemaIssue{Timestamp}
+		return ddl.Timestamp{}, []internal.SchemaIssue{internal.Timestamp}
 	case "varchar", "character varying":
 		maxExpectedMods(1)
 		if len(mods) > 0 {
@@ -154,30 +154,7 @@ func toSpannerType(conv *Conv, id string, mods []int64) (ddl.ScalarType, []Schem
 		}
 		return ddl.String{Len: ddl.MaxLength{}}, nil
 	}
-	return ddl.String{Len: ddl.MaxLength{}}, []SchemaIssue{NoGoodType}
-}
-
-func printSourceType(ty schema.Type) string {
-	s := ty.Name
-	if len(ty.Mods) > 0 {
-		var l []string
-		for _, x := range ty.Mods {
-			l = append(l, strconv.FormatInt(x, 10))
-		}
-		s = fmt.Sprintf("%s(%s)", s, strings.Join(l, ","))
-	}
-	if len(ty.ArrayBounds) > 0 {
-		l := []string{s}
-		for _, x := range ty.ArrayBounds {
-			if x == -1 {
-				l = append(l, "[]")
-			} else {
-				l = append(l, fmt.Sprintf("[%d]", x))
-			}
-		}
-		s = strings.Join(l, "")
-	}
-	return s
+	return ddl.String{Len: ddl.MaxLength{}}, []internal.SchemaIssue{internal.NoGoodType}
 }
 
 func quoteIfNeeded(s string) string {
@@ -190,10 +167,10 @@ func quoteIfNeeded(s string) string {
 	return s
 }
 
-func cvtPrimaryKeys(conv *Conv, srcTable string, srcKeys []schema.Key) []ddl.IndexKey {
+func cvtPrimaryKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Key) []ddl.IndexKey {
 	var spKeys []ddl.IndexKey
 	for _, k := range srcKeys {
-		spCol, err := GetSpannerCol(conv, srcTable, k.Column, true)
+		spCol, err := internal.GetSpannerCol(conv, srcTable, k.Column, true)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't map key for table %s", srcTable))
 			continue

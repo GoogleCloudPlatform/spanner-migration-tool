@@ -168,7 +168,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 				if err != nil {
 					conv.Unexpected(err.Error())
 				}
-				srcType := printSourceType(srcSchema.ColDefs[srcCol].Type)
+				srcType := srcSchema.ColDefs[srcCol].Type.Print()
 				spType := spSchema.ColDefs[spCol].PrintColumnDefType()
 				// A note on case: Spanner types are case insensitive, but
 				// default to upper case. In particular, the Spanner AST uses

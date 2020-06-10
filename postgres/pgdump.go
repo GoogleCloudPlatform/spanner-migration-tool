@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal
+package postgres
 
 import (
 	"fmt"
@@ -24,6 +24,7 @@ import (
 	pg_query "github.com/lfittl/pg_query_go"
 	nodes "github.com/lfittl/pg_query_go/nodes"
 
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 )
 
@@ -46,7 +47,7 @@ const (
 // In schema mode, ProcessPgDump incrementally builds a schema (updating conv).
 // In data mode, ProcessPgDump uses this schema to convert PostgreSQL data
 // and writes it to Spanner, using the data sink specified in conv.
-func ProcessPgDump(conv *Conv, r *Reader) error {
+func ProcessPgDump(conv *internal.Conv, r *internal.Reader) error {
 	for {
 		startLine := r.LineNumber
 		startOffset := r.Offset
@@ -55,7 +56,7 @@ func ProcessPgDump(conv *Conv, r *Reader) error {
 			return err
 		}
 		ci := processStatements(conv, stmts)
-		VerbosePrintf("Parsed SQL command at line=%d/fpos=%d: %d stmts (%d lines, %d bytes) ci=%v\n", startLine, startOffset, len(stmts), r.LineNumber-startLine, len(b), ci != nil)
+		internal.VerbosePrintf("Parsed SQL command at line=%d/fpos=%d: %d stmts (%d lines, %d bytes) ci=%v\n", startLine, startOffset, len(stmts), r.LineNumber-startLine, len(b), ci != nil)
 		if ci != nil {
 			switch ci.stmt {
 			case copyFrom:
@@ -78,7 +79,7 @@ func ProcessPgDump(conv *Conv, r *Reader) error {
 
 // readAndParseChunk parses a chunk of pg_dump data, returning the bytes read,
 // the parsed AST (nil if nothing read), and whether we've hit end-of-file.
-func readAndParseChunk(conv *Conv, r *Reader) ([]byte, []nodes.Node, error) {
+func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []nodes.Node, error) {
 	var l [][]byte
 	for {
 		b := r.ReadLine()
@@ -112,12 +113,12 @@ func readAndParseChunk(conv *Conv, r *Reader) ([]byte, []nodes.Node, error) {
 	}
 }
 
-func processCopyBlock(conv *Conv, srcTable string, srcCols []string, r *Reader) {
-	VerbosePrintf("Parsing COPY-FROM stdin block starting at line=%d/fpos=%d\n", r.LineNumber, r.Offset)
+func processCopyBlock(conv *internal.Conv, srcTable string, srcCols []string, r *internal.Reader) {
+	internal.VerbosePrintf("Parsing COPY-FROM stdin block starting at line=%d/fpos=%d\n", r.LineNumber, r.Offset)
 	for {
 		b := r.ReadLine()
 		if string(b) == "\\.\n" || string(b) == "\\.\r\n" {
-			VerbosePrintf("Parsed COPY-FROM stdin block ending at line=%d/fpos=%d\n", r.LineNumber, r.Offset)
+			internal.VerbosePrintf("Parsed COPY-FROM stdin block ending at line=%d/fpos=%d\n", r.LineNumber, r.Offset)
 			return
 		}
 		if r.EOF {
@@ -149,7 +150,7 @@ func processCopyBlock(conv *Conv, srcTable string, srcCols []string, r *Reader) 
 // copyOrInsert if a COPY-FROM or INSERT statement is encountered.
 // Note that the actual parsing/processing of COPY-FROM data blocks is
 // handled elsewhere (see process.go).
-func processStatements(conv *Conv, statements []nodes.Node) *copyOrInsert {
+func processStatements(conv *internal.Conv, statements []nodes.Node) *copyOrInsert {
 	// Typically we'll have only one statement, but we handle the general case.
 	for i, node := range statements {
 		switch n := node.(type) {
@@ -185,7 +186,7 @@ func processStatements(conv *Conv, statements []nodes.Node) *copyOrInsert {
 	return nil
 }
 
-func processAlterTableStmt(conv *Conv, n nodes.AlterTableStmt) {
+func processAlterTableStmt(conv *internal.Conv, n nodes.AlterTableStmt) {
 	if n.Relation == nil {
 		logStmtError(conv, n, fmt.Errorf("relation is nil"))
 		return
@@ -226,11 +227,11 @@ func processAlterTableStmt(conv *Conv, n nodes.AlterTableStmt) {
 		// For debugging purposes we log the lookup failure if we're
 		// in verbose mode, but otherwise  we just skip these statements.
 		conv.SkipStatement(prNodes([]nodes.Node{n}))
-		VerbosePrintf("Processing %v statement: table %s not found", reflect.TypeOf(n), table)
+		internal.VerbosePrintf("Processing %v statement: table %s not found", reflect.TypeOf(n), table)
 	}
 }
 
-func processCreateStmt(conv *Conv, n nodes.CreateStmt) {
+func processCreateStmt(conv *internal.Conv, n nodes.CreateStmt) {
 	var colNames []string
 	colDef := make(map[string]schema.Column)
 	if n.Relation == nil {
@@ -272,7 +273,7 @@ func processCreateStmt(conv *Conv, n nodes.CreateStmt) {
 	updateSchema(conv, table, constraints, "CREATE TABLE")
 }
 
-func processColumn(conv *Conv, n nodes.ColumnDef, table string) (string, schema.Column, []constraint, error) {
+func processColumn(conv *internal.Conv, n nodes.ColumnDef, table string) (string, schema.Column, []constraint, error) {
 	mods := getTypeMods(conv, n.TypeName.Typmods)
 	if n.Colname == nil {
 		return "", schema.Column{}, nil, fmt.Errorf("colname is nil")
@@ -289,7 +290,7 @@ func processColumn(conv *Conv, n nodes.ColumnDef, table string) (string, schema.
 	return name, schema.Column{Name: name, Type: ty}, analyzeColDefConstraints(conv, n, table, n.Constraints.Items, name), nil
 }
 
-func processInsertStmt(conv *Conv, n nodes.InsertStmt) *copyOrInsert {
+func processInsertStmt(conv *internal.Conv, n nodes.InsertStmt) *copyOrInsert {
 	if n.Relation == nil {
 		logStmtError(conv, n, fmt.Errorf("relation is nil"))
 		return nil
@@ -320,7 +321,7 @@ func processInsertStmt(conv *Conv, n nodes.InsertStmt) *copyOrInsert {
 	return nil
 }
 
-func processCopyStmt(conv *Conv, n nodes.CopyStmt) *copyOrInsert {
+func processCopyStmt(conv *internal.Conv, n nodes.CopyStmt) *copyOrInsert {
 	// Always return a copyOrInsert{stmt: copyFrom, ...} even if we
 	// encounter errors. Otherwise we won't be able to parse
 	// the data portion of the COPY-FROM statement, and we'll
@@ -348,7 +349,7 @@ func processCopyStmt(conv *Conv, n nodes.CopyStmt) *copyOrInsert {
 	return &copyOrInsert{stmt: copyFrom, table: table, cols: cols}
 }
 
-func processVariableSetStmt(conv *Conv, n nodes.VariableSetStmt) {
+func processVariableSetStmt(conv *internal.Conv, n nodes.VariableSetStmt) {
 	if n.Name != nil && *n.Name == "timezone" {
 		if len(n.Args.Items) == 1 {
 			switch c := n.Args.Items[0].(type) {
@@ -372,7 +373,7 @@ func processVariableSetStmt(conv *Conv, n nodes.VariableSetStmt) {
 	}
 }
 
-func getTypeMods(conv *Conv, t nodes.List) (l []int64) {
+func getTypeMods(conv *internal.Conv, t nodes.List) (l []int64) {
 	for _, x := range t.Items {
 		switch t1 := x.(type) {
 		case nodes.A_Const:
@@ -389,7 +390,7 @@ func getTypeMods(conv *Conv, t nodes.List) (l []int64) {
 	return l
 }
 
-func getArrayBounds(conv *Conv, t nodes.List) (l []int64) {
+func getArrayBounds(conv *internal.Conv, t nodes.List) (l []int64) {
 	for _, x := range t.Items {
 		switch t := x.(type) {
 		case nodes.Integer:
@@ -425,7 +426,7 @@ func getTypeID(l []nodes.Node) (string, error) {
 
 // getTableName extracts the table name from RangeVar n, and returns
 // the raw extracted name (the PostgreSQL table name).
-func getTableName(conv *Conv, n nodes.RangeVar) (string, error) {
+func getTableName(conv *internal.Conv, n nodes.RangeVar) (string, error) {
 	// RangeVar is used to represent table names. It consists of three components:
 	//  Catalogname: database name; either not specified or the current database
 	//  Schemaname: schemas are PostgreSql namepaces; often unspecified; defaults to "public"
@@ -459,7 +460,7 @@ type constraint struct {
 // extractConstraints traverses a list of nodes (expecting them to be
 // Constraint nodes), and collects the contraints they represent as
 // a list of constraint-type/column-names pairs.
-func extractConstraints(conv *Conv, n nodes.Node, table string, l []nodes.Node) (cs []constraint) {
+func extractConstraints(conv *internal.Conv, n nodes.Node, table string, l []nodes.Node) (cs []constraint) {
 	for _, i := range l {
 		switch d := i.(type) {
 		case nodes.Constraint:
@@ -485,7 +486,7 @@ func extractConstraints(conv *Conv, n nodes.Node, table string, l []nodes.Node) 
 // analyzeColDefConstraints is like extractConstraints, but is specifially for
 // ColDef constraints. These constraints don't specify a key since they
 // are constraints for the column defined by ColDef.
-func analyzeColDefConstraints(conv *Conv, n nodes.Node, table string, l []nodes.Node, pgCol string) (cs []constraint) {
+func analyzeColDefConstraints(conv *internal.Conv, n nodes.Node, table string, l []nodes.Node, pgCol string) (cs []constraint) {
 	// Do generic constraint processing and then set the keys of each constraint
 	// to {pgCol}.
 	for _, c := range extractConstraints(conv, n, table, l) {
@@ -500,7 +501,7 @@ func analyzeColDefConstraints(conv *Conv, n nodes.Node, table string, l []nodes.
 
 // updateSchema updates the schema for table based on the given constraints.
 // 's' is the statement type being processed, and is used for debug messages.
-func updateSchema(conv *Conv, table string, cs []constraint, s string) {
+func updateSchema(conv *internal.Conv, table string, cs []constraint, s string) {
 	for _, c := range cs {
 		switch c.ct {
 		case nodes.CONSTR_PRIMARY:
@@ -542,7 +543,7 @@ func updateCols(ct nodes.ConstrType, colNames []string, colDef map[string]schema
 
 // toSchemaKeys converts a string list of PostgreSQL primary keys to
 // schema primary keys.
-func toSchemaKeys(conv *Conv, table string, s []string) (l []schema.Key) {
+func toSchemaKeys(conv *internal.Conv, table string, s []string) (l []schema.Key) {
 	for _, k := range s {
 		// PostgreSQL primary keys have no notation of ascending/descending.
 		// We map them all into ascending primarary keys.
@@ -552,7 +553,7 @@ func toSchemaKeys(conv *Conv, table string, s []string) (l []schema.Key) {
 }
 
 // getCols extracts and returns the column names for an InsertStatement.
-func getCols(conv *Conv, table string, l []nodes.Node) (cols []string, err error) {
+func getCols(conv *internal.Conv, table string, l []nodes.Node) (cols []string, err error) {
 	for _, n := range l {
 		switch r := n.(type) {
 		case nodes.ResTarget:
@@ -567,7 +568,7 @@ func getCols(conv *Conv, table string, l []nodes.Node) (cols []string, err error
 }
 
 // getVals extracts and returns the values for an InsertStatement.
-func getVals(conv *Conv, l [][]nodes.Node, n nodes.InsertStmt) (values []string) {
+func getVals(conv *internal.Conv, l [][]nodes.Node, n nodes.InsertStmt) (values []string) {
 	for _, vl := range l {
 		for _, v := range vl {
 			switch c := v.(type) {
@@ -592,7 +593,7 @@ func getVals(conv *Conv, l [][]nodes.Node, n nodes.InsertStmt) (values []string)
 	return values
 }
 
-func logStmtError(conv *Conv, n nodes.Node, err error) {
+func logStmtError(conv *internal.Conv, n nodes.Node, err error) {
 	conv.Unexpected(fmt.Sprintf("Processing %v statement: %s", reflect.TypeOf(n), err))
 	conv.ErrorInStatement(prNodes([]nodes.Node{n}))
 }
@@ -608,7 +609,7 @@ func getString(node nodes.Node) (string, error) {
 
 // checkEmpty verifies that pkeys is empty and generates a warning if it isn't.
 // PostgreSQL explicitly forbids multiple primary keys.
-func checkEmpty(conv *Conv, pkeys []schema.Key, s string) {
+func checkEmpty(conv *internal.Conv, pkeys []schema.Key, s string) {
 	if len(pkeys) != 0 {
 		conv.Unexpected(fmt.Sprintf("%s statement is adding a second primary key", s))
 	}

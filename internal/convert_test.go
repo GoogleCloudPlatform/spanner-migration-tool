@@ -90,16 +90,16 @@ func TestBadRows(t *testing.T) {
 
 func TestStatements(t *testing.T) {
 	conv := MakeConv()
-	conv.ErrorInStatement(prNodes(parse(t, "CREATE TABLE cart (pid text NOT NULL);")))
-	conv.SchemaStatement(prNodes(parse(t, "CREATE TABLE cart (pid text NOT NULL);")))
-	conv.DataStatement(prNodes(parse(t, "INSERT INTO cart (pid) VALUES ('p42');")))
-	conv.SkipStatement(prNodes(parse(t, "GRANT ALL ON SCHEMA public TO PUBLIC;")))
+	conv.ErrorInStatement("Error statement")
+	conv.SchemaStatement("Schema statement")
+	conv.DataStatement("Data statement")
+	conv.SkipStatement("Skip statement")
 	assert.Equal(t, int64(4), conv.Statements())
 }
 
 func TestStatementErrors(t *testing.T) {
 	conv := MakeConv()
-	conv.ErrorInStatement(prNodes(parse(t, "CREATE TABLE cart (pid text NOT NULL);")))
+	conv.ErrorInStatement("Error statement")
 	assert.Equal(t, int64(1), conv.StatementErrors())
 }
 

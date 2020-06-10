@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal
+package postgres
 
 import (
 	"testing"
 
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +27,7 @@ import (
 // The real testing of toSpannerType happens in process_test.go
 // via the public API ProcessPgDump (see TestProcessPgDump).
 func TestToSpannerType(t *testing.T) {
-	conv := MakeConv()
+	conv := internal.MakeConv()
 	conv.SetSchemaMode()
 	name := "test"
 	srcSchema := schema.Table{
@@ -59,9 +60,9 @@ func TestToSpannerType(t *testing.T) {
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
 	}
 	assert.Equal(t, expected, actual)
-	expectedIssues := map[string][]SchemaIssue{
-		"b": []SchemaIssue{Widened},
-		"e": []SchemaIssue{Numeric},
+	expectedIssues := map[string][]internal.SchemaIssue{
+		"b": []internal.SchemaIssue{internal.Widened},
+		"e": []internal.SchemaIssue{internal.Numeric},
 	}
 	assert.Equal(t, expectedIssues, conv.Issues[name])
 }
