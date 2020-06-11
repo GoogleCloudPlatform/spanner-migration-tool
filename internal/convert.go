@@ -67,9 +67,13 @@ const (
 	NoGoodType
 	Numeric
 	NumericThatFits
+	Decimal
+	DecimalThatFits
 	Serial
 	Timestamp
+	Datetime
 	Widened
+	Time
 )
 
 // NameAndCols contains the name of a table and its columns.

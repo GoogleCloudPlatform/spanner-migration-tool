@@ -26,7 +26,7 @@ import (
 
 // GenerateReport analyzes schema and data conversion stats and writes a
 // detailed report to w and returns a brief summary (as a string).
-func GenerateReport(fromPgDump bool, conv *Conv, w *bufio.Writer, badWrites map[string]int64) string {
+func GenerateReport(isDump bool, driverName string, conv *Conv, w *bufio.Writer, badWrites map[string]int64) string {
 	reports := analyzeTables(conv, badWrites)
 	summary := generateSummary(conv, reports, badWrites)
 	writeHeading(w, "Summary of Conversion")
@@ -40,8 +40,8 @@ func GenerateReport(fromPgDump bool, conv *Conv, w *bufio.Writer, badWrites map[
 		w.WriteString("\n\n")
 	}
 	statementsMsg := ""
-	if fromPgDump {
-		statementsMsg = "stats on the pg_dump statements processed, followed by "
+	if isDump {
+		statementsMsg = "stats on the " + driverName + " statements processed, followed by "
 	}
 	justifyLines(w, "The remainder of this report provides "+statementsMsg+
 		"a table-by-table listing of schema and data conversion details. "+
@@ -49,8 +49,8 @@ func GenerateReport(fromPgDump bool, conv *Conv, w *bufio.Writer, badWrites map[
 		"and explanations of the terms and notes used in this "+
 		"report, see HarbourBridge's README.", 80, 0)
 	w.WriteString("\n\n")
-	if fromPgDump {
-		writeStmtStats(conv, w)
+	if isDump {
+		writeStmtStats(conv, w, driverName)
 	}
 	for _, t := range reports {
 		h := fmt.Sprintf("Table %s", t.srcTable)
@@ -58,7 +58,7 @@ func GenerateReport(fromPgDump bool, conv *Conv, w *bufio.Writer, badWrites map[
 			h = h + fmt.Sprintf(" (mapped to Spanner table %s)", t.spTable)
 		}
 		writeHeading(w, h)
-		w.WriteString(rateConversion(t.rows, t.badRows, t.cols, t.warnings, t.SyntheticPKey != "", false))
+		w.WriteString(rateConversion(t.rows, t.badRows, t.cols, t.warnings, t.syntheticPKey != "", false))
 		w.WriteString("\n")
 		for _, x := range t.body {
 			fmt.Fprintf(w, "%s\n", x.heading)
@@ -68,7 +68,7 @@ func GenerateReport(fromPgDump bool, conv *Conv, w *bufio.Writer, badWrites map[
 			w.WriteString("\n")
 		}
 	}
-	writeUnexpectedConditions(conv, w)
+	writeUnexpectedConditions(conv, w, driverName)
 	return summary
 }
 
@@ -79,7 +79,7 @@ type tableReport struct {
 	badRows       int64
 	cols          int64
 	warnings      int64
-	SyntheticPKey string // Empty string means no synthetic primary key was needed.
+	syntheticPKey string // Empty string means no synthetic primary key was needed.
 	body          []tableReportBody
 }
 
@@ -117,7 +117,7 @@ func buildTableReport(conv *Conv, srcTable string, badWrites map[string]int64) t
 	tr.cols = cols
 	tr.warnings = warnings
 	if pk, ok := conv.SyntheticPKeys[spTable]; ok {
-		tr.SyntheticPKey = pk.Col
+		tr.syntheticPKey = pk.Col
 		tr.body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, &pk.Col)
 	} else {
 		tr.body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, nil)
@@ -187,6 +187,9 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 				case Timestamp:
 					// Avoid the confusing "timestamp is mapped to timestamp" message.
 					l = append(l, fmt.Sprintf("Some columns have source DB type 'timestamp without timezone' which is mapped to Spanner type timestamp e.g. column '%s'. %s", srcCol, issueDB[i].brief))
+				case Datetime:
+					// Avoid the confusing "timestamp is mapped to timestamp" message.
+					l = append(l, fmt.Sprintf("Some columns have source DB type 'datetime' which is mapped to Spanner type timestamp e.g. column '%s'. %s", srcCol, issueDB[i].brief))
 				case Widened:
 					l = append(l, fmt.Sprintf("%s e.g. for column '%s', source DB type %s is mapped to Spanner type %s", issueDB[i].brief, srcCol, srcType, spType))
 				default:
@@ -242,8 +245,12 @@ var issueDB = map[SchemaIssue]struct {
 	NoGoodType:            {brief: "No appropriate Spanner type", severity: warning},
 	Numeric:               {brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", severity: warning},
 	NumericThatFits:       {brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", severity: note},
+	Decimal:               {brief: "Spanner does not support decimal. This type mapping could lose precision and is not recommended for production use", severity: warning},
+	DecimalThatFits:       {brief: "Spanner does not support decimal, but this type mapping preserves the numeric's specified precision", severity: note},
 	Serial:                {brief: "Spanner does not support autoincrementing types", severity: warning},
 	Timestamp:             {brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: note, batch: true},
+	Datetime:              {brief: "Spanner timestamp is closer to MySQL timestamp", severity: note, batch: true},
+	Time:                  {brief: "Spanner does not support time/year types", severity: note, batch: true},
 	Widened:               {brief: "Some columns will consume more storage in Spanner", severity: note, batch: true},
 }
 
@@ -358,14 +365,14 @@ func generateSummary(conv *Conv, r []tableReport, badWrites map[string]int64) st
 		}
 		cols += t.cols * weight
 		warnings += t.warnings * weight
-		if t.SyntheticPKey != "" {
+		if t.syntheticPKey != "" {
 			missingPKey = true
 		}
 	}
 	// Don't use tableReport for rows/badRows stats because tableReport
 	// provides per-table stats for each table in the schema i.e. it omits
 	// rows for tables not in the schema. To handle this corner-case, use
-	// the source of truth for row stats: conv.stats.
+	// the source of truth for row stats: conv.Stats.
 	rows := conv.Rows()
 	badRows := conv.BadRows() // Bad rows encountered during data conversion.
 	// Add in bad rows while writing to Spanner.
@@ -396,7 +403,7 @@ func ignoredStatements(conv *Conv) (l []string) {
 	return l
 }
 
-func writeStmtStats(conv *Conv, w *bufio.Writer) {
+func writeStmtStats(conv *Conv, w *bufio.Writer, driverName string) {
 	type stat struct {
 		statement string
 		count     int64
@@ -410,7 +417,7 @@ func writeStmtStats(conv *Conv, w *bufio.Writer) {
 		return l[i].statement < l[j].statement
 	})
 	writeHeading(w, "Statements Processed")
-	w.WriteString("Analysis of statements in pg_dump output, broken down by statement type.\n")
+	w.WriteString("Analysis of statements in " + driverName + " output, broken down by statement type.\n")
 	w.WriteString("  schema: statements successfully processed for Spanner schema information.\n")
 	w.WriteString("    data: statements successfully processed for data.\n")
 	w.WriteString("    skip: statements not relevant for Spanner schema or data.\n")
@@ -422,15 +429,21 @@ func writeStmtStats(conv *Conv, w *bufio.Writer) {
 		s := conv.Stats.Statement[x.statement]
 		fmt.Fprintf(w, "  %6d %6d %6d %6d  %s\n", s.schema, s.data, s.skip, s.Error, x.statement)
 	}
-	w.WriteString("See github.com/lfittl/pg_query_go/nodes for definitions of statement types\n")
-	w.WriteString("(lfittl/pg_query_go is the library we use for parsing pg_dump output).\n")
-	w.WriteString("\n")
+	if driverName == "pgdump" {
+		w.WriteString("See github.com/lfittl/pg_query_go/nodes for definitions of statement types\n")
+		w.WriteString("(lfittl/pg_query_go is the library we use for parsing pg_dump output).\n")
+		w.WriteString("\n")
+	} else if driverName == "mysqldump" {
+		w.WriteString("See https://github.com/pingcap/parser for definitions of statement types\n")
+		w.WriteString("(pingcap/parser is the library we use for parsing mysqldump output).\n")
+		w.WriteString("\n")
+	}
 }
 
-func writeUnexpectedConditions(conv *Conv, w *bufio.Writer) {
+func writeUnexpectedConditions(conv *Conv, w *bufio.Writer, driverName string) {
 	reparseInfo := func() {
 		if conv.Stats.Reparsed > 0 {
-			fmt.Fprintf(w, "Note: there were %d pg_dump reparse events while looking for statement boundaries.\n\n", conv.Stats.Reparsed)
+			fmt.Fprintf(w, "Note: there were %d %s reparse events while looking for statement boundaries.\n\n", conv.Stats.Reparsed, driverName)
 		}
 	}
 	writeHeading(w, "Unexpected Conditions")
@@ -439,12 +452,26 @@ func writeUnexpectedConditions(conv *Conv, w *bufio.Writer) {
 		reparseInfo()
 		return
 	}
-	w.WriteString("For debugging only. This section provides details of unexpected conditions\n")
-	w.WriteString("encountered as we processed the pg_dump data. In particular, the AST node\n")
-	w.WriteString("representation used by the lfittl/pg_query_go library used for parsing\n")
-	w.WriteString("pg_dump output is highly permissive: almost any construct can appear at\n")
-	w.WriteString("any node in the AST tree. The list details all unexpected nodes and\n")
-	w.WriteString("conditions.\n")
+	if driverName == "mysqldump" {
+		w.WriteString("For debugging only. This section provides details of unexpected conditions\n")
+		w.WriteString("encountered as we processed the mysqldump data. In particular, the AST node\n")
+		w.WriteString("representation used by the pingcap/parser library used for parsing\n")
+		w.WriteString("mysqldump output is highly permissive: almost any construct can appear at\n")
+		w.WriteString("any node in the AST tree. The list details all unexpected nodes and\n")
+		w.WriteString("conditions.\n")
+	} else if driverName == "pgdump" {
+		w.WriteString("For debugging only. This section provides details of unexpected conditions\n")
+		w.WriteString("encountered as we processed the pg_dump data. In particular, the AST node\n")
+		w.WriteString("representation used by the lfittl/pg_query_go library used for parsing\n")
+		w.WriteString("pg_dump output is highly permissive: almost any construct can appear at\n")
+		w.WriteString("any node in the AST tree. The list details all unexpected nodes and\n")
+		w.WriteString("conditions.\n")
+	} else if driverName == "mysql" || driverName == "postgres" {
+		w.WriteString("For debugging only. This section provides details of unexpected conditions\n")
+		w.WriteString("encountered as we processed the " + driverName + " data. The list details\n")
+		w.WriteString("all unexpected conditions\n")
+	}
+
 	w.WriteString("  --------------------------------------\n")
 	fmt.Fprintf(w, "  %6s  %s\n", "count", "condition")
 	w.WriteString("  --------------------------------------\n")
