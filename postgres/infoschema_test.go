@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal
+package postgres
 
 import (
 	"database/sql"
@@ -22,6 +22,7 @@ import (
 
 	"cloud.google.com/go/spanner"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/stretchr/testify/assert"
@@ -92,7 +93,7 @@ func TestProcessInfoSchema(t *testing.T) {
 		},
 	}
 	db := mkMockDB(t, ms)
-	conv := MakeConv()
+	conv := internal.MakeConv()
 	err := ProcessInfoSchema(conv, db)
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -135,15 +136,15 @@ func TestProcessInfoSchema(t *testing.T) {
 	}
 	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	assert.Equal(t, len(conv.Issues["cart"]), 0)
-	expectedIssues := map[string][]SchemaIssue{
-		"aint": []SchemaIssue{Widened},
-		"bs":   []SchemaIssue{DefaultValue},
-		"f4":   []SchemaIssue{Widened},
-		"i4":   []SchemaIssue{Widened},
-		"i2":   []SchemaIssue{Widened},
-		"num":  []SchemaIssue{Numeric},
-		"s":    []SchemaIssue{Widened, DefaultValue},
-		"ts":   []SchemaIssue{Timestamp},
+	expectedIssues := map[string][]internal.SchemaIssue{
+		"aint": []internal.SchemaIssue{internal.Widened},
+		"bs":   []internal.SchemaIssue{internal.DefaultValue},
+		"f4":   []internal.SchemaIssue{internal.Widened},
+		"i4":   []internal.SchemaIssue{internal.Widened},
+		"i2":   []internal.SchemaIssue{internal.Widened},
+		"num":  []internal.SchemaIssue{internal.Numeric},
+		"s":    []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
+		"ts":   []internal.SchemaIssue{internal.Timestamp},
 	}
 	assert.Equal(t, expectedIssues, conv.Issues["test"])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
@@ -193,6 +194,7 @@ func TestProcessSqlData(t *testing.T) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
 	ProcessSqlData(conv, db)
+
 	assert.Equal(t,
 		[]spannerData{
 			spannerData{table: "te_st", cols: []string{"a a", " b", " c "}, vals: []interface{}{float64(42.3), int64(3), "cat"}},
@@ -260,7 +262,7 @@ func TestConvertSqlRow_SingleCol(t *testing.T) {
 	tableName := "testtable"
 	for _, tc := range tc {
 		col := "a"
-		conv := MakeConv()
+		conv := internal.MakeConv()
 		conv.SetLocation(time.UTC)
 		cols := []string{col}
 		srcSchema := schema.Table{Name: tableName, ColNames: []string{col}, ColDefs: map[string]schema.Column{col: schema.Column{Type: tc.srcType}}}
@@ -318,7 +320,7 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 		},
 	}
 	db := mkMockDB(t, ms)
-	conv := MakeConv()
+	conv := internal.MakeConv()
 	err := ProcessInfoSchema(conv, db)
 	assert.Nil(t, err)
 	conv.SetDataMode()
@@ -352,7 +354,7 @@ func TestSetRowStats(t *testing.T) {
 		},
 	}
 	db := mkMockDB(t, ms)
-	conv := MakeConv()
+	conv := internal.MakeConv()
 	conv.SetDataMode()
 	SetRowStats(conv, db)
 	assert.Equal(t, int64(5), conv.Stats.Rows["test1"])

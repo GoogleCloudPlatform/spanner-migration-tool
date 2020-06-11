@@ -46,6 +46,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/postgres"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -243,7 +244,7 @@ func schemaFromSQL(driver string) (*internal.Conv, error) {
 		return nil, err
 	}
 	conv := internal.MakeConv()
-	err = internal.ProcessInfoSchema(conv, sourceDB)
+	err = postgres.ProcessInfoSchema(conv, sourceDB)
 	if err != nil {
 		return nil, err
 	}
@@ -265,7 +266,7 @@ func dataFromSQL(config spanner.BatchWriterConfig, client *sp.Client, conv *inte
 		return nil, err
 	}
 
-	internal.SetRowStats(conv, sourceDB)
+	postgres.SetRowStats(conv, sourceDB)
 	totalRows := conv.Rows()
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose())
 	rows := int64(0)
@@ -284,7 +285,7 @@ func dataFromSQL(config spanner.BatchWriterConfig, client *sp.Client, conv *inte
 		func(table string, cols []string, vals []interface{}) {
 			writer.AddRow(table, cols, vals)
 		})
-	internal.ProcessSqlData(conv, sourceDB)
+	postgres.ProcessSqlData(conv, sourceDB)
 	writer.Flush()
 	return writer, nil
 }
@@ -307,7 +308,7 @@ func schemaFromPgDump(ioHelper *ioStreams) (*internal.Conv, error) {
 	r := internal.NewReader(bufio.NewReader(f), p)
 	conv.SetSchemaMode() // Build schema and ignore data in pg_dump.
 	conv.SetDataSink(nil)
-	err = internal.ProcessPgDump(conv, r)
+	err = postgres.ProcessPgDump(conv, r)
 	if err != nil {
 		fmt.Fprintf(ioHelper.out, "Failed to parse the data file: %v", err)
 		return nil, fmt.Errorf("failed to parse the data file")
@@ -342,7 +343,7 @@ func dataFromPgDump(config spanner.BatchWriterConfig, ioHelper *ioStreams, clien
 		func(table string, cols []string, vals []interface{}) {
 			writer.AddRow(table, cols, vals)
 		})
-	internal.ProcessPgDump(conv, r)
+	postgres.ProcessPgDump(conv, r)
 	writer.Flush()
 	p.Done()
 

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal
+package postgres
 
 import (
 	"database/sql"
@@ -25,6 +25,7 @@ import (
 	"cloud.google.com/go/civil"
 	_ "github.com/lib/pq"
 
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -38,7 +39,7 @@ import (
 // 'db'. We assume that the source database supports information
 // schema tables. These tables are a broadly supported ANSI standard,
 // and we use them to obtain source database's schema information.
-func ProcessInfoSchema(conv *Conv, db *sql.DB) error {
+func ProcessInfoSchema(conv *internal.Conv, db *sql.DB) error {
 	tables, err := getTables(db)
 	if err != nil {
 		return err
@@ -72,7 +73,7 @@ func ProcessInfoSchema(conv *Conv, db *sql.DB) error {
 // We choose to do all type conversions explicitly ourselves so that
 // we can generate more targeted error messages: hence we pass
 // *interface{} parameters to row.Scan.
-func ProcessSqlData(conv *Conv, db *sql.DB) {
+func ProcessSqlData(conv *internal.Conv, db *sql.DB) {
 	// TODO: refactor to use the set of tables computed by
 	// ProcessInfoSchema instead of computing them again.
 	tables, err := getTables(db)
@@ -93,8 +94,8 @@ func ProcessSqlData(conv *Conv, db *sql.DB) {
 		defer rows.Close()
 		srcTable := buildTableName(t.schema, t.name)
 		srcCols, err1 := rows.Columns()
-		spTable, err2 := GetSpannerTable(conv, srcTable)
-		spCols, err3 := GetSpannerCols(conv, srcTable, srcCols)
+		spTable, err2 := internal.GetSpannerTable(conv, srcTable)
+		spCols, err3 := internal.GetSpannerCols(conv, srcTable, srcCols)
 		spSchema, ok1 := conv.SpSchema[spTable]
 		srcSchema, ok2 := conv.SrcSchema[srcTable]
 		if err1 != nil || err2 != nil || err3 != nil || !ok1 || !ok2 {
@@ -130,7 +131,7 @@ func ProcessSqlData(conv *Conv, db *sql.DB) {
 // ConvertSqlRow returns cols as well as converted values. This is
 // because cols can change when we add a column (synthetic primary
 // key) or because we drop columns (handling of NULL values).
-func ConvertSqlRow(conv *Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, srcVals []interface{}) ([]string, []interface{}, error) {
+func ConvertSqlRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, srcVals []interface{}) ([]string, []interface{}, error) {
 	var vs []interface{}
 	var cs []string
 	for i := range srcCols {
@@ -165,7 +166,7 @@ func ConvertSqlRow(conv *Conv, srcTable string, srcCols []string, srcSchema sche
 }
 
 // SetRowStats populates conv with the number of rows in each table.
-func SetRowStats(conv *Conv, db *sql.DB) {
+func SetRowStats(conv *internal.Conv, db *sql.DB) {
 	// TODO: refactor to use the set of tables computed by
 	// ProcessInfoSchema instead of computing them again.
 	tables, err := getTables(db)
@@ -225,7 +226,7 @@ func getTables(db *sql.DB) ([]schemaAndName, error) {
 	return tables, nil
 }
 
-func processTable(conv *Conv, db *sql.DB, table schemaAndName) error {
+func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName) error {
 	cols, err := getColumns(table, db)
 	if err != nil {
 		return fmt.Errorf("couldn't get schema for table %s.%s: %s\n", table.schema, table.name, err)
@@ -258,7 +259,7 @@ func getColumns(table schemaAndName, db *sql.DB) (*sql.Rows, error) {
 	return db.Query(q, table.schema, table.name)
 }
 
-func processColumns(conv *Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string) {
+func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string) {
 	colDefs := make(map[string]schema.Column)
 	var colNames []string
 	var colName, dataType, isNullable string
@@ -302,7 +303,7 @@ func processColumns(conv *Conv, cols *sql.Rows, constraints map[string][]string)
 // getConstraints returns a list of primary keys and by-column map of
 // other constraints.  Note: we need to preserve ordinal order of
 // columns in primary key constraints.
-func getConstraints(conv *Conv, db *sql.DB, table schemaAndName) ([]string, map[string][]string, error) {
+func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]string, map[string][]string, error) {
 	q := `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
               FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
                 INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
@@ -353,7 +354,7 @@ func toType(dataType string, elementDataType sql.NullString, charLen sql.NullInt
 	}
 }
 
-func toNotNull(conv *Conv, isNullable string) bool {
+func toNotNull(conv *internal.Conv, isNullable string) bool {
 	switch isNullable {
 	case "YES":
 		return false
@@ -364,7 +365,7 @@ func toNotNull(conv *Conv, isNullable string) bool {
 	return false
 }
 
-func cvtSqlArray(conv *Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {
+func cvtSqlArray(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {
 	a, ok := val.([]byte)
 	if !ok {
 		return nil, fmt.Errorf("can't convert array values to []byte")
@@ -386,7 +387,7 @@ func cvtSqlArray(conv *Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interf
 //    float64
 //    string
 //    time.Time
-func cvtSqlScalar(conv *Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {
+func cvtSqlScalar(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {
 	switch spCd.T.(type) {
 	case ddl.Bool:
 		switch v := val.(type) {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal
+package postgres
 
 import (
 	"fmt"
@@ -22,10 +22,10 @@ import (
 
 	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner"
-	"github.com/stretchr/testify/assert"
-
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/stretchr/testify/assert"
 )
 
 // Basic smoke test of ProcessDataRow. The core part of this code path
@@ -270,19 +270,19 @@ func TestConvertData(t *testing.T) {
 		},
 	}
 	conv := buildConv(spTable, srcTable)
-	conv.SyntheticPKeys[spTable.Name] = SyntheticPKey{Col: "synth_id", Sequence: 0}
+	conv.SyntheticPKeys[spTable.Name] = internal.SyntheticPKey{Col: "synth_id", Sequence: 0}
 	for _, tc := range syntheticPKeyTests {
 		atable, acols, avals, err := ConvertData(conv, spTable.Name, tc.cols, tc.vals)
 		checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
 	}
 }
 
-func buildConv(spTable ddl.CreateTable, srcTable schema.Table) *Conv {
-	conv := MakeConv()
+func buildConv(spTable ddl.CreateTable, srcTable schema.Table) *internal.Conv {
+	conv := internal.MakeConv()
 	conv.SpSchema[spTable.Name] = spTable
 	conv.SrcSchema[srcTable.Name] = srcTable
-	conv.ToSource[spTable.Name] = NameAndCols{Name: srcTable.Name, Cols: make(map[string]string)}
-	conv.ToSpanner[srcTable.Name] = NameAndCols{Name: spTable.Name, Cols: make(map[string]string)}
+	conv.ToSource[spTable.Name] = internal.NameAndCols{Name: srcTable.Name, Cols: make(map[string]string)}
+	conv.ToSpanner[srcTable.Name] = internal.NameAndCols{Name: spTable.Name, Cols: make(map[string]string)}
 	for i := range spTable.ColNames {
 		conv.ToSource[spTable.Name].Cols[spTable.ColNames[i]] = srcTable.ColNames[i]
 		conv.ToSpanner[srcTable.Name].Cols[srcTable.ColNames[i]] = spTable.ColNames[i]

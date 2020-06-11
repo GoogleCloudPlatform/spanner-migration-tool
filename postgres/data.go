@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal
+package postgres
 
 import (
 	"encoding/hex"
@@ -26,14 +26,15 @@ import (
 	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner"
 
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
 // ProcessDataRow converts a row of data and writes it out to Spanner.
 // srcTable and srcCols are the source table and columns respectively,
 // and vals contains string data to be converted to appropriate types
-// to send to Spanner.  ProcessDataRow is only called in dataMode.
-func ProcessDataRow(conv *Conv, srcTable string, srcCols, vals []string) {
+// to send to Spanner.  ProcessDataRow is only called in DataMode.
+func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols, vals []string) {
 	spTable, spCols, spVals, err := ConvertData(conv, srcTable, srcCols, vals)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
@@ -48,17 +49,17 @@ func ProcessDataRow(conv *Conv, srcTable string, srcCols, vals []string) {
 // based on the Spanner and source DB schemas. Note that since entries
 // in vals may be empty, we also return the list of columns (empty
 // cols are dropped).
-func ConvertData(conv *Conv, srcTable string, srcCols []string, vals []string) (string, []string, []interface{}, error) {
+func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, vals []string) (string, []string, []interface{}, error) {
 	// Note: if there are many rows for the same srcTable/srcCols,
 	// then the following functionality will be (redundantly)
 	// repeated for every row converted. If this becomes a
 	// performance issue, we could consider moving this block of
 	// code to the callers of ConverData to avoid the redundancy.
-	spTable, err := GetSpannerTable(conv, srcTable)
+	spTable, err := internal.GetSpannerTable(conv, srcTable)
 	if err != nil {
 		return "", []string{}, []interface{}{}, fmt.Errorf("can't map source table %s", srcTable)
 	}
-	spCols, err := GetSpannerCols(conv, srcTable, srcCols)
+	spCols, err := internal.GetSpannerCols(conv, srcTable, srcCols)
 	if err != nil {
 		return "", []string{}, []interface{}{}, fmt.Errorf("can't map source columns %v", srcCols)
 	}

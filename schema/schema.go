@@ -25,6 +25,12 @@
 // schema, and potentially get rid of the ddl package.
 package schema
 
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
+
 // Table represents a database table.
 type Table struct {
 	Name        string
@@ -72,4 +78,27 @@ type Ignored struct {
 	Default    bool
 	Exclusion  bool
 	ForeignKey bool
+}
+
+func (ty Type) Print() string {
+	s := ty.Name
+	if len(ty.Mods) > 0 {
+		var l []string
+		for _, x := range ty.Mods {
+			l = append(l, strconv.FormatInt(x, 10))
+		}
+		s = fmt.Sprintf("%s(%s)", s, strings.Join(l, ","))
+	}
+	if len(ty.ArrayBounds) > 0 {
+		l := []string{s}
+		for _, x := range ty.ArrayBounds {
+			if x == -1 {
+				l = append(l, "[]")
+			} else {
+				l = append(l, fmt.Sprintf("[%d]", x))
+			}
+		}
+		s = strings.Join(l, "")
+	}
+	return s
 }
