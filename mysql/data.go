@@ -34,7 +34,7 @@ import (
 // ProcessDataRow converts a row of data and writes it out to Spanner.
 // srcTable and srcCols are the source table and columns respectively,
 // and vals contains string data to be converted to appropriate types
-// to send to Spanner.  ProcessDataRow is only called in DataMode.
+// to send to Spanner. ProcessDataRow is only called in DataMode.
 func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, vals []string) {
 	spTable, cvtCols, cvtVals, err := ConvertData(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, vals)
 	if err != nil {
@@ -60,8 +60,9 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 	for i, spCol := range spCols {
 		srcCol := srcCols[i]
 		// Null values are represented as nil in go.
-		// While converting to string it is represented as <nil> for mysqldump
-		// It is represented as NULL for Information schema as we retrieve values in string directly.
+		// While converting to string, it is represented as
+		// <nil> for mysqldump. It is represented as NULL for
+		// Information schema as we retrieve values in string directly.
 		if vals[i] == "<nil>" || vals[i] == "NULL" {
 			continue
 		}
@@ -131,7 +132,9 @@ func convBool(val string) (bool, error) {
 }
 
 func convBytes(val string) ([]byte, error) {
-	hx := hex.EncodeToString([]byte(val)) //first convert string to byte array which is actually output, but still we convert to hex and decode to detect any error
+	// Converting string to byte array is the required output,
+	// still we convert it to hex and then decode it to detect any error
+	hx := hex.EncodeToString([]byte(val))
 	b, err := hex.DecodeString(hx)
 	if err != nil {
 		return b, fmt.Errorf("can't convert to bytes: %w", err)
@@ -166,17 +169,24 @@ func convInt64(val string) (int64, error) {
 // convTimestamp maps a source DB timestamp into a go Time Spanner timestamp
 // It handles both datetime and timestamp conversions.
 func convTimestamp(srcTypeName string, TimezoneOffset string, val string) (t time.Time, err error) {
-	//Mysql dump outputs time in "2006-01-02 15:04:05" format
-	//we consider timezone for  timestamp type, for datetime type it is considered UTC
+	// mysqldump outputs timestamps as ISO 8601, except
+	// it uses space instead of T.
 	if srcTypeName == "timestamp" {
+		// We consider timezone for timestamp datatype.
+		// If timezone is not specified in mysqldump, we consider UTC time.
 		if TimezoneOffset == "" {
-			TimezoneOffset = "+00:00" // if timezone is not specified in mysqldump, we consider UTC time
+			TimezoneOffset = "+00:00"
 		}
-		time_new := strings.Split(val, " ") // convert time from format "2006-01-02 15:04:05" to "2006-01-02T15:04:05+00:00"
+		// convert timestamp from format "2006-01-02 15:04:05" to
+		// "2006-01-02T15:04:05+00:00".
+		time_new := strings.Split(val, " ")
 		time_joined := strings.Join(time_new, "T")
-		time_joined = time_joined + "" + TimezoneOffset
+		time_joined = time_joined + TimezoneOffset
 		t, err = time.Parse(time.RFC3339, time_joined)
 	} else {
+		// datetime: data should just consist of date and time.
+		// timestamp conversion should ignore timezone. We mimic this using Parse
+		// i.e. treat it as UTC, so it will be stored 'as-is' in Spanner.
 		t, err = time.Parse("2006-01-02 15:04:05", val)
 	}
 	if err != nil {
@@ -203,11 +213,10 @@ func convArray(spannerType ddl.ScalarType, srcTypeName string, v string) (interf
 	a := strings.Split(v, ",")
 
 	// The Spanner client for go does not accept []interface{} for arrays.
-	// Instead it only accepts slices of a specific type eg : []string
+	// Instead it only accepts slices of a specific type eg: []string
 	// Hence we have to do the following case analysis
-	// NOTE : Mysql only support array<string>
+	// NOTE: Mysql only support array<string>
 	switch spannerType.(type) {
-
 	case ddl.String:
 		var r []spanner.NullString
 		for _, s := range a {
@@ -228,7 +237,7 @@ func convArray(spannerType ddl.ScalarType, srcTypeName string, v string) (interf
 
 // processQuote returns the unquoted version of s.
 // Note: The element values of MySQL arrays may have double
-// quotes around them.  The array output routine will put double
+// quotes around them. The array output routine will put double
 // quotes around element values if they are empty strings, contain
 // curly braces, delimiter characters, double quotes, backslashes, or
 // white space, or match the word NULL. Double quotes and backslashes

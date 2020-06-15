@@ -1,16 +1,16 @@
-// // Copyright 2020 Google LLC
-// //
-// // Licensed under the Apache License, Version 2.0 (the "License");
-// // you may not use this file except in compliance with the License.
-// // You may obtain a copy of the License at
-// //
-// //      http://www.apache.org/licenses/LICENSE-2.0
-// //
-// // Unless required by applicable law or agreed to in writing, software
-// // distributed under the License is distributed on an "AS IS" BASIS,
-// // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// // See the License for the specific language governing permissions and
-// // limitations under the License.
+// Copyright 2020 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package mysql
 
@@ -59,10 +59,9 @@ func TestProcessDataRow(t *testing.T) {
 			}})
 	conv.SetDataMode()
 	var rows []spannerData
-	conv.SetDataSink(
-		func(table string, cols []string, vals []interface{}) {
-			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
-		})
+	conv.SetDataSink(func(table string, cols []string, vals []interface{}) {
+		rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
+	})
 	ProcessDataRow(conv, tableName, cols, conv.SrcSchema[tableName], tableName, cols, conv.SpSchema[tableName], []string{"4.2", "6", "prisoner zero"})
 	assert.Equal(t, []spannerData{spannerData{table: tableName, cols: cols, vals: []interface{}{float64(4.2), int64(6), "prisoner zero"}}}, rows)
 }
@@ -104,7 +103,9 @@ func TestConvertData(t *testing.T) {
 		at, ac, av, err := ConvertData(conv, tableName, []string{col}, conv.SrcSchema[tableName], tableName, []string{col}, conv.SpSchema[tableName], []string{tc.in})
 		checkResults(t, at, ac, av, err, tableName, []string{col}, []interface{}{tc.e}, tc.name)
 	}
+}
 
+func TestConvertTimestampData(t *testing.T) {
 	timestampTests := []struct {
 		name  string
 		srcTy string
@@ -114,6 +115,7 @@ func TestConvertData(t *testing.T) {
 		{"timestampt", "timestamp", "2019-10-29 05:30:00", getTime(t, "2019-10-29T05:30:00+10:00")},
 		{"datetime", "datetime", "2019-10-29 05:30:00", getTimeWithoutTimezone(t, "2019-10-29 05:30:00")},
 	}
+	tableName := "testtable"
 	for _, tc := range timestampTests {
 		col := "a"
 		conv := buildConv(
@@ -136,7 +138,9 @@ func TestConvertData(t *testing.T) {
 		assert.True(t, ok1 && ok2, tc.name+": cast to Time failed")
 		assert.True(t, at.Equal(et), tc.name+": value mismatch")
 	}
+}
 
+func TestConvertMultiColData(t *testing.T) {
 	multiColTests := []struct {
 		name  string
 		cols  []string      // Input columns.
@@ -173,6 +177,7 @@ func TestConvertData(t *testing.T) {
 			evals: []interface{}{int64(6)},
 		},
 	}
+	tableName := "testtable"
 	spTable := ddl.CreateTable{
 		Name:     tableName,
 		ColNames: []string{"a", "b", "c"},
@@ -194,7 +199,9 @@ func TestConvertData(t *testing.T) {
 		atable, acols, avals, err := ConvertData(conv, srcTable.Name, tc.cols, conv.SrcSchema[tableName], spTable.Name, tc.cols, conv.SpSchema[tableName], tc.vals)
 		checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
 	}
+}
 
+func TestConvertError(t *testing.T) {
 	errorTests := []struct {
 		name string
 		cols []string // Input columns.
@@ -216,12 +223,31 @@ func TestConvertData(t *testing.T) {
 			vals: []string{"6", "6.6", "truee"},
 		},
 	}
+	tableName := "testtable"
+	spTable := ddl.CreateTable{
+		Name:     tableName,
+		ColNames: []string{"a", "b", "c"},
+		ColDefs: map[string]ddl.ColumnDef{
+			"a": ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
+			"b": ddl.ColumnDef{Name: "b", T: ddl.Float64{}},
+			"c": ddl.ColumnDef{Name: "c", T: ddl.Bool{}},
+		}}
+	srcTable := schema.Table{
+		Name:     tableName,
+		ColNames: []string{"a", "b", "c"},
+		ColDefs: map[string]schema.Column{
+			"a": schema.Column{Type: schema.Type{Name: "int"}},
+			"b": schema.Column{Type: schema.Type{Name: "float"}},
+			"c": schema.Column{Type: schema.Type{Name: "bool"}},
+		}}
 	for _, tc := range errorTests {
 		conv := buildConv(spTable, srcTable)
 		_, _, _, err := ConvertData(conv, srcTable.Name, tc.cols, conv.SrcSchema[tableName], spTable.Name, tc.cols, conv.SpSchema[tableName], tc.vals)
 		assert.NotNil(t, err, tc.name)
 	}
+}
 
+func TestConvertsyntheticPKey(t *testing.T) {
 	syntheticPKeyTests := []struct {
 		name  string
 		cols  []string      // Input columns.
@@ -244,6 +270,23 @@ func TestConvertData(t *testing.T) {
 			evals: []interface{}{int64(7), int64(bits.Reverse64(1))},
 		},
 	}
+	tableName := "testtable"
+	spTable := ddl.CreateTable{
+		Name:     tableName,
+		ColNames: []string{"a", "b", "c"},
+		ColDefs: map[string]ddl.ColumnDef{
+			"a": ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
+			"b": ddl.ColumnDef{Name: "b", T: ddl.Float64{}},
+			"c": ddl.ColumnDef{Name: "c", T: ddl.Bool{}},
+		}}
+	srcTable := schema.Table{
+		Name:     tableName,
+		ColNames: []string{"a", "b", "c"},
+		ColDefs: map[string]schema.Column{
+			"a": schema.Column{Type: schema.Type{Name: "int"}},
+			"b": schema.Column{Type: schema.Type{Name: "float"}},
+			"c": schema.Column{Type: schema.Type{Name: "bool"}},
+		}}
 	conv := buildConv(spTable, srcTable)
 	conv.SyntheticPKeys[spTable.Name] = internal.SyntheticPKey{Col: "synth_id", Sequence: 0}
 	for _, tc := range syntheticPKeyTests {

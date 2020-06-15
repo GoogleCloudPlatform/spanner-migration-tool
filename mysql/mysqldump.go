@@ -29,6 +29,9 @@ import (
 	driver "github.com/pingcap/tidb/types/parser_driver"
 )
 
+var valuesRegexp = regexp.MustCompile("\\((.*?)\\)")
+var insertRegexp = regexp.MustCompile("INSERT\\sINTO\\s(.*?)\\sVALUES\\s")
+
 // ProcessMySQLDump reads mysqldump data from r and does schema or data conversion,
 // depending on whether conv is configured for schema mode or data mode.
 // In schema mode, ProcessMySQLDump incrementally builds a schema (updating conv).
@@ -280,16 +283,16 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 
 // getTableName extracts the table name from *ast.TableName table, and returns
 // the raw extracted name (the MySQL table name).
+// *ast.TableName is used to represent table names. It consists of two components:
+//  Schema: schemas are MySQL db often unspecified;
+//  Name: name of the table
+// We build a table name from these components as follows:
+// a) nil components are dropped.
+// b) if more than one component is specified, they are joined using "."
+//    (Note that Spanner doesn't allow "." in table names, so this
+//    will eventually get re-mapped when we construct the Spanner table name).
+// c) return error if Table is nil or "".
 func getTableName(table *ast.TableName) (string, error) {
-	// *ast.TableName is used to represent table names. It consists of two components:
-	//  Schema: schemas are MySQL db often unspecified;
-	//  Name: name of the table
-	// We build a table name from these components as follows:
-	// a) nil components are dropped.
-	// b) if more than one component is specified, they are joined using "."
-	//    (Note that Spanner doesn't allow "." in table names, so this
-	//    will eventually get re-mapped when we construct the Spanner table name).
-	// d) return error if Table is nil or "".
 	var l []string
 
 	if table.Schema.String() != "" {
@@ -347,11 +350,11 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 	return isPk
 }
 
-//getTypeModsAndID returns ID and mods of column datatype
+// getTypeModsAndID returns ID and mods of column datatype
 func getTypeModsAndID(columnType string) (string, []int64) {
-	//There are no methods in pincap parser to retirieve ID and mods
-	//We will process columnType eg:'varchar(40)' and split ID from the string.
-	//We retrieve mods using regex expression and convert it to INT64
+	// There are no methods in pincap parser to retirieve ID and mods
+	// We will process columnType eg:'varchar(40)' and split ID from the string.
+	// We retrieve mods using regex expression and convert it to INT64
 	id := columnType
 	var mods []int64
 	if strings.Contains(columnType, "(") {
@@ -360,8 +363,7 @@ func getTypeModsAndID(columnType string) (string, []int64) {
 		if id == "set" || id == "enum" {
 			return id, nil
 		}
-		r, _ := regexp.Compile("\\((.*?)\\)")
-		values := r.FindString(columnType)
+		values := valuesRegexp.FindString(columnType)
 		strMods := strings.Split(values[1:len(values)-1], ",")
 		for _, i := range strMods {
 			j, err := strconv.ParseInt(i, 10, 64)
@@ -384,8 +386,7 @@ func getTypeModsAndID(columnType string) (string, []int64) {
 func handleParseError(conv *internal.Conv, query string, err error, l [][]byte) ([]ast.StmtNode, bool) {
 	new_query := query
 	// Check if error is due to Insert statement.
-	r, _ := regexp.Compile("INSERT\\sINTO\\s(.*?)\\sVALUES\\s")
-	insert_stmt := r.FindString(new_query)
+	insert_stmt := insertRegexp.FindString(new_query)
 	if insert_stmt != "" {
 		// Likely causes of failing to parse Insert statement:
 		// a) Due to some invalid value
@@ -409,12 +410,12 @@ func handleParseError(conv *internal.Conv, query string, err error, l [][]byte) 
 	return nil, true
 }
 
-// We deal with this case by extracting all rows and create extended insert statements.
-// Then parse one Insert statement at a time, ensuring no size issue and skipping only invalid entries.
+// We deal with this case by extracting all rows and create
+// extended insert statements. Then parse one Insert statement
+// at a time, ensuring no size issue and skipping only invalid entries.
 func handleInsertStatement(conv *internal.Conv, query, insert_stmt string) ([]ast.StmtNode, bool) {
 	var stmts []ast.StmtNode
-	r, _ := regexp.Compile("\\((.*?)\\)")
-	values := r.FindAllString(query, -1)
+	values := valuesRegexp.FindAllString(query, -1)
 	if len(values) == 0 {
 		return nil, true
 	}
@@ -449,8 +450,8 @@ func handleSpatialDatatype(conv *internal.Conv, query string, l [][]byte) ([]ast
 	return nil, false
 }
 
-// we calculate array bound for only set type
-// we do not expect multidimensional array
+// We calculate array bound for only set type
+// we do not expect multidimensional array.
 func getArrayBounds(ft string, elem []string) []int64 {
 	var arraybound []int64
 	if strings.HasPrefix(ft, "set") {
@@ -543,24 +544,19 @@ func getVals(row []ast.ExprNode) ([]string, error) {
 
 func getTableNameInsert(stmt *ast.TableRefsClause) (string, error) {
 	if stmt.TableRefs == nil {
-		return "", fmt.Errorf("tablerefs is empty, can't build table name")
+		return "", fmt.Errorf("can't build table name as tablerefs is empty")
 	}
-
 	if stmt.TableRefs.Left == nil {
-		return "", fmt.Errorf("tablerefs.Left is empty, can't build table name")
+		return "", fmt.Errorf("can't build table name as Tablerefs.Left is empty")
 	}
-
-	switch table := stmt.TableRefs.Left.(type) {
-	case *ast.TableSource:
-		switch tablenode := table.Source.(type) {
-		case *ast.TableName:
+	if table, ok := stmt.TableRefs.Left.(*ast.TableSource); ok {
+		if tablenode, ok := table.Source.(*ast.TableName); ok {
 			return getTableName(tablenode)
-		default:
-			return "", fmt.Errorf("table.Source is different type, can't build table name")
+		} else {
+			return "", fmt.Errorf("Can't build table name as table source is of different type")
 		}
-	default:
+	} else {
 		return "", fmt.Errorf("stmt.TableRefs.Left is different type, can't build table name")
-
 	}
 }
 

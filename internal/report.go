@@ -26,7 +26,7 @@ import (
 
 // GenerateReport analyzes schema and data conversion stats and writes a
 // detailed report to w and returns a brief summary (as a string).
-func GenerateReport(isDump bool, driverName string, conv *Conv, w *bufio.Writer, badWrites map[string]int64) string {
+func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites map[string]int64) string {
 	reports := analyzeTables(conv, badWrites)
 	summary := generateSummary(conv, reports, badWrites)
 	writeHeading(w, "Summary of Conversion")
@@ -40,6 +40,10 @@ func GenerateReport(isDump bool, driverName string, conv *Conv, w *bufio.Writer,
 		w.WriteString("\n\n")
 	}
 	statementsMsg := ""
+	var isDump bool
+	if strings.Contains(driverName, "dump") {
+		isDump = true
+	}
 	if isDump {
 		statementsMsg = "stats on the " + driverName + " statements processed, followed by "
 	}
@@ -50,7 +54,7 @@ func GenerateReport(isDump bool, driverName string, conv *Conv, w *bufio.Writer,
 		"report, see HarbourBridge's README.", 80, 0)
 	w.WriteString("\n\n")
 	if isDump {
-		writeStmtStats(conv, w, driverName)
+		writeStmtStats(driverName, conv, w)
 	}
 	for _, t := range reports {
 		h := fmt.Sprintf("Table %s", t.srcTable)
@@ -68,7 +72,7 @@ func GenerateReport(isDump bool, driverName string, conv *Conv, w *bufio.Writer,
 			w.WriteString("\n")
 		}
 	}
-	writeUnexpectedConditions(conv, w, driverName)
+	writeUnexpectedConditions(driverName, conv, w)
 	return summary
 }
 
@@ -188,7 +192,6 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					// Avoid the confusing "timestamp is mapped to timestamp" message.
 					l = append(l, fmt.Sprintf("Some columns have source DB type 'timestamp without timezone' which is mapped to Spanner type timestamp e.g. column '%s'. %s", srcCol, issueDB[i].brief))
 				case Datetime:
-					// Avoid the confusing "timestamp is mapped to timestamp" message.
 					l = append(l, fmt.Sprintf("Some columns have source DB type 'datetime' which is mapped to Spanner type timestamp e.g. column '%s'. %s", srcCol, issueDB[i].brief))
 				case Widened:
 					l = append(l, fmt.Sprintf("%s e.g. for column '%s', source DB type %s is mapped to Spanner type %s", issueDB[i].brief, srcCol, srcType, spType))
@@ -403,7 +406,7 @@ func ignoredStatements(conv *Conv) (l []string) {
 	return l
 }
 
-func writeStmtStats(conv *Conv, w *bufio.Writer, driverName string) {
+func writeStmtStats(driverName string, conv *Conv, w *bufio.Writer) {
 	type stat struct {
 		statement string
 		count     int64
@@ -440,7 +443,7 @@ func writeStmtStats(conv *Conv, w *bufio.Writer, driverName string) {
 	}
 }
 
-func writeUnexpectedConditions(conv *Conv, w *bufio.Writer, driverName string) {
+func writeUnexpectedConditions(driverName string, conv *Conv, w *bufio.Writer) {
 	reparseInfo := func() {
 		if conv.Stats.Reparsed > 0 {
 			fmt.Fprintf(w, "Note: there were %d %s reparse events while looking for statement boundaries.\n\n", conv.Stats.Reparsed, driverName)
@@ -452,26 +455,26 @@ func writeUnexpectedConditions(conv *Conv, w *bufio.Writer, driverName string) {
 		reparseInfo()
 		return
 	}
-	if driverName == "mysqldump" {
+	switch driverName {
+	case "mysqldump":
 		w.WriteString("For debugging only. This section provides details of unexpected conditions\n")
 		w.WriteString("encountered as we processed the mysqldump data. In particular, the AST node\n")
 		w.WriteString("representation used by the pingcap/parser library used for parsing\n")
 		w.WriteString("mysqldump output is highly permissive: almost any construct can appear at\n")
 		w.WriteString("any node in the AST tree. The list details all unexpected nodes and\n")
 		w.WriteString("conditions.\n")
-	} else if driverName == "pgdump" {
+	case "pgdump":
 		w.WriteString("For debugging only. This section provides details of unexpected conditions\n")
 		w.WriteString("encountered as we processed the pg_dump data. In particular, the AST node\n")
 		w.WriteString("representation used by the lfittl/pg_query_go library used for parsing\n")
 		w.WriteString("pg_dump output is highly permissive: almost any construct can appear at\n")
 		w.WriteString("any node in the AST tree. The list details all unexpected nodes and\n")
 		w.WriteString("conditions.\n")
-	} else if driverName == "mysql" || driverName == "postgres" {
+	default:
 		w.WriteString("For debugging only. This section provides details of unexpected conditions\n")
 		w.WriteString("encountered as we processed the " + driverName + " data. The list details\n")
 		w.WriteString("all unexpected conditions\n")
 	}
-
 	w.WriteString("  --------------------------------------\n")
 	fmt.Fprintf(w, "  %6s  %s\n", "count", "condition")
 	w.WriteString("  --------------------------------------\n")

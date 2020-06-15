@@ -1,16 +1,16 @@
-// // Copyright 2020 Google LLC
-// //
-// // Licensed under the Apache License, Version 2.0 (the "License");
-// // you may not use this file except in compliance with the License.
-// // You may obtain a copy of the License at
-// //
-// //      http://www.apache.org/licenses/LICENSE-2.0
-// //
-// // Unless required by applicable law or agreed to in writing, software
-// // distributed under the License is distributed on an "AS IS" BASIS,
-// // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// // See the License for the specific language governing permissions and
-// // limitations under the License.
+// Copyright 2020 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package mysql
 
@@ -28,7 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestProcessMySQLDump(t *testing.T) {
+func TestProcessMySQLDump_Scalar(t *testing.T) {
 	// First, test scalar types.
 	scalarTests := []struct {
 		ty       string
@@ -64,12 +64,16 @@ func TestProcessMySQLDump(t *testing.T) {
 		noIssues(conv, t, "Scalar type: "+tc.ty)
 		assert.Equal(t, conv.SpSchema["t"].ColDefs["a"].T, tc.expected, "Scalar type: "+tc.ty)
 	}
-	// Next test array types and not null.
+}
+
+func TestProcessMySQLDump_SingleCol(t *testing.T) {
+	// Test array types and not null.
 	singleColTests := []struct {
 		ty       string
 		expected ddl.ColumnDef
 	}{
 		{"set('a','b','c')", ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}, IsArray: true}},
+		{"text NOT NULL", ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true}},
 	}
 	for _, tc := range singleColTests {
 		conv, _ := runProcessMySQLDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
@@ -78,6 +82,9 @@ func TestProcessMySQLDump(t *testing.T) {
 		cd.Comment = ""
 		assert.Equal(t, tc.expected, cd, "Not null: "+tc.ty)
 	}
+}
+
+func TestProcessMySQLDump_MultiCol(t *testing.T) {
 	// Next test more general cases: multi-column schemas and data conversion.
 	multiColTests := []struct {
 		name           string
@@ -325,7 +332,6 @@ func TestProcessMySQLDump(t *testing.T) {
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a__"}}}},
 		},
 		// The "Data conversion: ..." cases check data conversion for each type.
-		// test remains for binary type
 		{
 			name: "Data conversion: bool, bigint, char, blob",
 			input: `
@@ -376,12 +382,15 @@ func TestProcessMySQLDump(t *testing.T) {
 			assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
 		}
 	}
+}
 
-	{ // Test set timezone statement.
-		conv, _ := runProcessMySQLDump("SET TIME_ZONE='+02:30';")
-		assert.Equal(t, conv.TimezoneOffset, "+02:30", "Set timezone")
-	}
+func TestProcessMySQLDump_TimeZone(t *testing.T) {
+	// Test set timezone statement.
+	conv, _ := runProcessMySQLDump("SET TIME_ZONE='+02:30';")
+	assert.Equal(t, conv.TimezoneOffset, "+02:30", "Set timezone")
+}
 
+func TestProcessMySQLDump_DataError(t *testing.T) {
 	// Finally test data conversion errors.
 	dataErrorTests := []struct {
 		name         string
@@ -437,9 +446,9 @@ func TestProcessMySQLDump_GetDDL(t *testing.T) {
 		"userid STRING(MAX) NOT NULL,\n" +
 		"quantity INT64\n" +
 		") PRIMARY KEY (productid, userid)"
+	c := ddl.Config{}
 	// normalizeSpace isn't perfect, but it handles most of the
 	// usual discretionary space issues.
-	c := ddl.Config{}
 	assert.Equal(t, normalizeSpace(expected), normalizeSpace(strings.Join(conv.GetDDL(c), " ")))
 }
 
@@ -514,10 +523,9 @@ func runProcessMySQLDump(s string) (*internal.Conv, []spannerData) {
 	ProcessMySQLDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil))
 	conv.SetDataMode()
 	var rows []spannerData
-	conv.SetDataSink(
-		func(table string, cols []string, vals []interface{}) {
-			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
-		})
+	conv.SetDataSink(func(table string, cols []string, vals []interface{}) {
+		rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
+	})
 	ProcessMySQLDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil))
 	return conv, rows
 }

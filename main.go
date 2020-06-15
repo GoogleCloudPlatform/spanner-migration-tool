@@ -73,8 +73,6 @@ var (
 	filePrefix       = ""
 	driverName       = ""
 	verbose          bool
-	isDump           bool
-	SQL              string
 )
 
 func init() {
@@ -108,12 +106,6 @@ func main() {
 
 	ioHelper := &ioStreams{in: os.Stdin, out: os.Stdout}
 
-	SQL, err = getSQL()
-	if err != nil {
-		fmt.Printf("\nDriver issue : %v\n", err)
-		panic(fmt.Errorf("Driver issue"))
-	}
-
 	project, err := getProject()
 	if err != nil {
 		fmt.Printf("\nCan't get project: %v\n", err)
@@ -135,7 +127,7 @@ func main() {
 	now := time.Now()
 	dbName := dbNameOverride
 	if dbName == "" {
-		dbName, err = getDatabaseName(SQL, now)
+		dbName, err = getDatabaseName(driverName, now)
 		if err != nil {
 			fmt.Printf("\nCan't get database name: %v\n", err)
 			panic(fmt.Errorf("can't get database name"))
@@ -191,7 +183,7 @@ func toSpanner(driver, projectID, instanceID, dbName string, ioHelper *ioStreams
 		return fmt.Errorf("can't finish data conversion")
 	}
 	banner := getBanner(now, db)
-	report(bw.DroppedRowsByTable(), 0, banner, conv, outputFilePrefix+reportFile, ioHelper.out)
+	report(bw.DroppedRowsByTable(), ioHelper.bytesRead, banner, conv, outputFilePrefix+reportFile, ioHelper.out)
 	writeBadData(bw, conv, banner, outputFilePrefix+badDataFile, ioHelper.out)
 	return nil
 }
@@ -331,7 +323,7 @@ type ioStreams struct {
 func schemaFromDump(ioHelper *ioStreams) (*internal.Conv, error) {
 	f, n, err := getSeekable(ioHelper.in)
 	if err != nil {
-		printSeekError(err, ioHelper.out)
+		printSeekError(driverName, err, ioHelper.out)
 		return nil, fmt.Errorf("can't get seekable input file")
 	}
 	ioHelper.seekableIn = f
@@ -341,7 +333,7 @@ func schemaFromDump(ioHelper *ioStreams) (*internal.Conv, error) {
 	r := internal.NewReader(bufio.NewReader(f), p)
 	conv.SetSchemaMode() // Build schema and ignore data in dump.
 	conv.SetDataSink(nil)
-	err = ProcessDump(SQL, conv, r)
+	err = ProcessDump(conv, r)
 	if err != nil {
 		fmt.Fprintf(ioHelper.out, "Failed to parse the data file: %v", err)
 		return nil, fmt.Errorf("failed to parse the data file")
@@ -376,7 +368,7 @@ func dataFromDump(config spanner.BatchWriterConfig, ioHelper *ioStreams, client 
 		func(table string, cols []string, vals []interface{}) {
 			writer.AddRow(table, cols, vals)
 		})
-	ProcessDump(SQL, conv, r)
+	ProcessDump(conv, r)
 	writer.Flush()
 	p.Done()
 
@@ -394,14 +386,16 @@ func report(badWrites map[string]int64, bytesRead int64, banner string, conv *in
 	}
 	w := bufio.NewWriter(f)
 	w.WriteString(banner)
-	if driverName == MYSQLDUMP || driverName == PGDUMP {
+
+	summary := internal.GenerateReport(driverName, conv, w, badWrites)
+	w.Flush()
+	var isDump bool
+	if strings.Contains(driverName, "dump") {
 		isDump = true
 	}
-	summary := internal.GenerateReport(isDump, driverName, conv, w, badWrites)
-	w.Flush()
 	if isDump {
-		fmt.Fprintf(out, "Processed %d bytes of pg_dump data (%d statements, %d rows of data, %d errors, %d unexpected conditions).\n",
-			bytesRead, conv.Statements(), conv.Rows(), conv.StatementErrors(), conv.Unexpecteds())
+		fmt.Fprintf(out, "Processed %d bytes of %s data (%d statements, %d rows of data, %d errors, %d unexpected conditions).\n",
+			bytesRead, driverName, conv.Statements(), conv.Rows(), conv.StatementErrors(), conv.Unexpecteds())
 	} else {
 		fmt.Fprintf(out, "Processed source database via %s driver (%d rows of data, %d unexpected conditions).\n",
 			driverName, conv.Rows(), conv.Unexpecteds())
@@ -488,7 +482,7 @@ func createDatabase(project, instance, dbName string, conv *internal.Conv, out *
 
 // getSQL return database type which is to be used for conversion.
 // Returns error if --driver flag is not set or database is not supported
-func getSQL() (string, error) {
+func getSqlType() (string, error) {
 	switch driverName {
 	case MYSQL, MYSQLDUMP:
 		return MYSQL, nil
@@ -644,15 +638,8 @@ func writeBadData(bw *spanner.BatchWriter, conv *internal.Conv, banner, name str
 	fmt.Fprintf(out, "See file '%s' for details of bad rows\n", name)
 }
 
-func getDatabaseName(SQL string, now time.Time) (string, error) {
-	switch SQL {
-	case MYSQL:
-		return generateName(fmt.Sprintf("mysql_%s", now.Format("2006-01-02")))
-	case POSTGRES:
-		return generateName(fmt.Sprintf("pg_dump_%s", now.Format("2006-01-02")))
-	default:
-		return "", fmt.Errorf("Couldn't generate database name for %s", SQL)
-	}
+func getDatabaseName(driverName string, now time.Time) (string, error) {
+	return generateName(fmt.Sprintf("%s_%s", driverName, now.Format("2006-01-02")))
 }
 
 func getPassword() string {
@@ -691,19 +678,24 @@ instance for project %s.
 }
 
 func printPermissionsWarning(out *os.File) {
+	sqlType, err := getSqlType()
+	if err != nil {
+		fmt.Printf("\nDriver issue : %v\n", err)
+		panic(fmt.Errorf("Driver issue"))
+	}
 	fmt.Fprintf(out,
 		`
 WARNING: Please check that permissions for this Spanner instance are
 appropriate. Spanner manages access control at the database level, and the
 database created by HarbourBridge will inherit default permissions from this
 instance. All data written to Spanner will be visible to anyone who can
-access the created database. Note that `+SQL+` table-level and row-level
+access the created database. Note that `+sqlType+` table-level and row-level
 ACLs are dropped during conversion since they are not supported by Spanner.
 
 `)
 }
 
-func printSeekError(err error, out *os.File) {
+func printSeekError(driverName string, err error, out *os.File) {
 	fmt.Fprintf(out, "\nCan't get seekable input file: %v\n", err)
 	fmt.Fprintf(out, "Likely cause: not enough space in %s.\n", os.TempDir())
 	fmt.Fprintf(out, "Try writing "+driverName+" output to a file first i.e.\n")
@@ -782,13 +774,18 @@ func getBanner(now time.Time, db string) string {
 	return fmt.Sprintf("Generated at %s for db %s\n\n", now.Format("2006-01-02 15:04:05"), db)
 }
 
-func ProcessDump(SQL string, conv *internal.Conv, r *internal.Reader) error {
-	switch SQL {
+func ProcessDump(conv *internal.Conv, r *internal.Reader) error {
+	sqlType, err := getSqlType()
+	if err != nil {
+		fmt.Printf("\nDriver issue : %v\n", err)
+		panic(fmt.Errorf("Driver issue"))
+	}
+	switch sqlType {
 	case MYSQL:
 		return mysql.ProcessMySQLDump(conv, r)
 	case POSTGRES:
 		return postgres.ProcessPgDump(conv, r)
 	default:
-		return fmt.Errorf("schema conversion for driver %s not supported", SQL)
+		return fmt.Errorf("schema conversion for driver %s not supported", sqlType)
 	}
 }

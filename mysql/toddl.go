@@ -51,7 +51,7 @@ func schemaToDDL(conv *internal.Conv) error {
 				ty = ddl.String{Len: ddl.MaxLength{}}
 				issues = append(issues, internal.MultiDimensionalArray)
 			}
-			// TODO: add issues for all elements of srcCol.Ignored.
+			// TODO(hengfeng): add issues for all elements of srcCol.Ignored.
 			if srcCol.Ignored.ForeignKey {
 				issues = append(issues, internal.ForeignKey)
 			}
