@@ -60,9 +60,11 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 		{"varchar(42)", ddl.String{Len: ddl.Int64Length{Value: 42}}},
 	}
 	for _, tc := range scalarTests {
-		conv, _ := runProcessMySQLDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
-		noIssues(conv, t, "Scalar type: "+tc.ty)
-		assert.Equal(t, conv.SpSchema["t"].ColDefs["a"].T, tc.expected, "Scalar type: "+tc.ty)
+		t.Run(tc.ty, func(t *testing.T) {
+			conv, _ := runProcessMySQLDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
+			noIssues(conv, t, "Scalar type: "+tc.ty)
+			assert.Equal(t, conv.SpSchema["t"].ColDefs["a"].T, tc.expected, "Scalar type: "+tc.ty)
+		})
 	}
 }
 
@@ -76,11 +78,13 @@ func TestProcessMySQLDump_SingleCol(t *testing.T) {
 		{"text NOT NULL", ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true}},
 	}
 	for _, tc := range singleColTests {
-		conv, _ := runProcessMySQLDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
-		noIssues(conv, t, "Not null: "+tc.ty)
-		cd := conv.SpSchema["t"].ColDefs["a"]
-		cd.Comment = ""
-		assert.Equal(t, tc.expected, cd, "Not null: "+tc.ty)
+		t.Run(tc.ty, func(t *testing.T) {
+			conv, _ := runProcessMySQLDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
+			noIssues(conv, t, "Not null: "+tc.ty)
+			cd := conv.SpSchema["t"].ColDefs["a"]
+			cd.Comment = ""
+			assert.Equal(t, tc.expected, cd, "Not null: "+tc.ty)
+		})
 	}
 }
 
@@ -371,16 +375,18 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 		},
 	}
 	for _, tc := range multiColTests {
-		conv, rows := runProcessMySQLDump(tc.input)
-		if !tc.expectIssues {
-			noIssues(conv, t, tc.name)
-		}
-		if tc.expectedSchema != nil {
-			assert.Equal(t, tc.expectedSchema, stripSchemaComments(conv.SpSchema), tc.name+": Schema did not match")
-		}
-		if tc.expectedData != nil {
-			assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			conv, rows := runProcessMySQLDump(tc.input)
+			if !tc.expectIssues {
+				noIssues(conv, t, tc.name)
+			}
+			if tc.expectedSchema != nil {
+				assert.Equal(t, tc.expectedSchema, stripSchemaComments(conv.SpSchema), tc.name+": Schema did not match")
+			}
+			if tc.expectedData != nil {
+				assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
+			}
+		})
 	}
 }
 
@@ -508,11 +514,13 @@ func TestProcessMySQLDump_AddPrimaryKeys(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		conv, _ := runProcessMySQLDump(tc.input)
-		conv.AddPrimaryKeys()
-		if tc.expectedSchema != nil {
-			assert.Equal(t, tc.expectedSchema, stripSchemaComments(conv.SpSchema), tc.name+": Schema did not match")
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			conv, _ := runProcessMySQLDump(tc.input)
+			conv.AddPrimaryKeys()
+			if tc.expectedSchema != nil {
+				assert.Equal(t, tc.expectedSchema, stripSchemaComments(conv.SpSchema), tc.name+": Schema did not match")
+			}
+		})
 	}
 }
 

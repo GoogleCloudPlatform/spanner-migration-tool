@@ -100,8 +100,10 @@ func TestConvertData(t *testing.T) {
 				Pks:      []ddl.IndexKey{}},
 			schema.Table{Name: tableName, ColNames: []string{col}, ColDefs: map[string]schema.Column{col: schema.Column{Type: schema.Type{Name: tc.srcTy}}}})
 		conv.TimezoneOffset = "+05:30"
-		at, ac, av, err := ConvertData(conv, tableName, []string{col}, conv.SrcSchema[tableName], tableName, []string{col}, conv.SpSchema[tableName], []string{tc.in})
-		checkResults(t, at, ac, av, err, tableName, []string{col}, []interface{}{tc.e}, tc.name)
+		t.Run(tc.in, func(t *testing.T) {
+			at, ac, av, err := ConvertData(conv, tableName, []string{col}, conv.SrcSchema[tableName], tableName, []string{col}, conv.SpSchema[tableName], []string{tc.in})
+			checkResults(t, at, ac, av, err, tableName, []string{col}, []interface{}{tc.e}, tc.name)
+		})
 	}
 }
 
@@ -128,15 +130,17 @@ func TestConvertTimestampData(t *testing.T) {
 				ColNames: []string{col},
 				ColDefs:  map[string]schema.Column{col: schema.Column{Type: schema.Type{Name: tc.srcTy}}}})
 		conv.TimezoneOffset = "+10:00" // Set offset so test is robust i.e. doesn't depent on local timezone.
-		atable, ac, av, err := ConvertData(conv, tableName, []string{col}, conv.SrcSchema[tableName], tableName, []string{col}, conv.SpSchema[tableName], []string{tc.in})
-		assert.Nil(t, err, tc.name)
-		assert.Equal(t, atable, tableName, tc.name+": table mismatch")
-		assert.Equal(t, []string{col}, ac, tc.name+": column mismatch")
-		assert.Equal(t, 1, len(av))
-		at, ok1 := av[0].(time.Time)
-		et, ok2 := tc.e.(time.Time)
-		assert.True(t, ok1 && ok2, tc.name+": cast to Time failed")
-		assert.True(t, at.Equal(et), tc.name+": value mismatch")
+		t.Run(tc.in, func(t *testing.T) {
+			atable, ac, av, err := ConvertData(conv, tableName, []string{col}, conv.SrcSchema[tableName], tableName, []string{col}, conv.SpSchema[tableName], []string{tc.in})
+			assert.Nil(t, err, tc.name)
+			assert.Equal(t, atable, tableName, tc.name+": table mismatch")
+			assert.Equal(t, []string{col}, ac, tc.name+": column mismatch")
+			assert.Equal(t, 1, len(av))
+			at, ok1 := av[0].(time.Time)
+			et, ok2 := tc.e.(time.Time)
+			assert.True(t, ok1 && ok2, tc.name+": cast to Time failed")
+			assert.True(t, at.Equal(et), tc.name+": value mismatch")
+		})
 	}
 }
 
@@ -195,9 +199,11 @@ func TestConvertMultiColData(t *testing.T) {
 			"c": schema.Column{Type: schema.Type{Name: "bool"}},
 		}}
 	for _, tc := range multiColTests {
-		conv := buildConv(spTable, srcTable)
-		atable, acols, avals, err := ConvertData(conv, srcTable.Name, tc.cols, conv.SrcSchema[tableName], spTable.Name, tc.cols, conv.SpSchema[tableName], tc.vals)
-		checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			conv := buildConv(spTable, srcTable)
+			atable, acols, avals, err := ConvertData(conv, srcTable.Name, tc.cols, conv.SrcSchema[tableName], spTable.Name, tc.cols, conv.SpSchema[tableName], tc.vals)
+			checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
+		})
 	}
 }
 
@@ -241,9 +247,11 @@ func TestConvertError(t *testing.T) {
 			"c": schema.Column{Type: schema.Type{Name: "bool"}},
 		}}
 	for _, tc := range errorTests {
-		conv := buildConv(spTable, srcTable)
-		_, _, _, err := ConvertData(conv, srcTable.Name, tc.cols, conv.SrcSchema[tableName], spTable.Name, tc.cols, conv.SpSchema[tableName], tc.vals)
-		assert.NotNil(t, err, tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			conv := buildConv(spTable, srcTable)
+			_, _, _, err := ConvertData(conv, srcTable.Name, tc.cols, conv.SrcSchema[tableName], spTable.Name, tc.cols, conv.SpSchema[tableName], tc.vals)
+			assert.NotNil(t, err, tc.name)
+		})
 	}
 }
 
@@ -290,8 +298,10 @@ func TestConvertsyntheticPKey(t *testing.T) {
 	conv := buildConv(spTable, srcTable)
 	conv.SyntheticPKeys[spTable.Name] = internal.SyntheticPKey{Col: "synth_id", Sequence: 0}
 	for _, tc := range syntheticPKeyTests {
-		atable, acols, avals, err := ConvertData(conv, srcTable.Name, tc.cols, conv.SrcSchema[tableName], spTable.Name, tc.cols, conv.SpSchema[tableName], tc.vals)
-		checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			atable, acols, avals, err := ConvertData(conv, srcTable.Name, tc.cols, conv.SrcSchema[tableName], spTable.Name, tc.cols, conv.SpSchema[tableName], tc.vals)
+			checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
+		})
 	}
 }
 
