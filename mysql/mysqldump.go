@@ -31,6 +31,7 @@ import (
 
 var valuesRegexp = regexp.MustCompile("\\((.*?)\\)")
 var insertRegexp = regexp.MustCompile("INSERT\\sINTO\\s(.*?)\\sVALUES\\s")
+var MysqlSpatialDataTypes = []string{"geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"}
 
 // ProcessMySQLDump reads mysqldump data from r and does schema or data conversion,
 // depending on whether conv is configured for schema mode or data mode.
@@ -396,7 +397,7 @@ func handleParseError(conv *internal.Conv, query string, err error, l [][]byte) 
 
 	// Check if error is due to spatial datatype as it is not supported by Pingcap parser.
 	var isSpatial bool
-	for _, spatial := range internal.Spatial {
+	for _, spatial := range MysqlSpatialDataTypes {
 		if strings.Contains(strings.ToLower(err.Error()), spatial) && isSpatial == false {
 			isSpatial = true
 			conv.Unexpected(fmt.Sprintf("Unsupported datatype '%s' encountered while parsing following statement at line number %d : \n%s", spatial, len(l), query))
@@ -437,7 +438,7 @@ func handleInsertStatement(conv *internal.Conv, query, insert_stmt string) ([]as
 // If error is due to spatial datatype then try to replace it with 'text' and parse query again.
 func handleSpatialDatatype(conv *internal.Conv, query string, l [][]byte) ([]ast.StmtNode, bool) {
 	if conv.SchemaMode() {
-		for _, spatial := range internal.Spatial {
+		for _, spatial := range MysqlSpatialDataTypes {
 			query = strings.Replace(strings.ToLower(query), " "+spatial, " text", -1)
 		}
 		new_tree, _, err := parser.New().Parse(query, "", "")
