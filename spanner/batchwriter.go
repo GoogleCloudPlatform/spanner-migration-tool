@@ -191,7 +191,7 @@ func (bw *BatchWriter) getBadRowsForTest() []*row {
 // getBatch returns a slice of data from the front of bw.rows.  The slice
 // returned is the largest one not exceeding countThreshold and byteThreshold.
 func (bw *BatchWriter) getBatch() (rows []*row, count int64, bytes int64) {
-	for i, _ := range bw.rows {
+	for i := range bw.rows {
 		c := count + int64(len(bw.rows[i].cols))
 		b := bytes + byteSize(bw.rows[i])
 		// If next row puts us over the thresholds, then stop. But make sure

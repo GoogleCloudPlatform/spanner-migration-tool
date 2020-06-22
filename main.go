@@ -310,7 +310,7 @@ func dataFromSQL(driver string, config spanner.BatchWriterConfig, client *sp.Cli
 		func(table string, cols []string, vals []interface{}) {
 			writer.AddRow(table, cols, vals)
 		})
-	postgres.ProcessSqlData(conv, sourceDB)
+	postgres.ProcessSQLData(conv, sourceDB)
 	writer.Flush()
 	return writer, nil
 }
@@ -754,6 +754,7 @@ func getBanner(now time.Time, db string) string {
 	return fmt.Sprintf("Generated at %s for db %s\n\n", now.Format("2006-01-02 15:04:05"), db)
 }
 
+// ProcessDump invokes process dump function from a sql package based on driver selected.
 func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 	switch driver {
 	case MYSQLDUMP:

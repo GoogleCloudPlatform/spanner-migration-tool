@@ -179,10 +179,10 @@ func convTimestamp(srcTypeName string, TimezoneOffset string, val string) (t tim
 		}
 		// convert timestamp from format "2006-01-02 15:04:05" to
 		// "2006-01-02T15:04:05+00:00".
-		time_new := strings.Split(val, " ")
-		time_joined := strings.Join(time_new, "T")
-		time_joined = time_joined + TimezoneOffset
-		t, err = time.Parse(time.RFC3339, time_joined)
+		timeNew := strings.Split(val, " ")
+		timeJoined := strings.Join(timeNew, "T")
+		timeJoined = timeJoined + TimezoneOffset
+		t, err = time.Parse(time.RFC3339, timeJoined)
 	} else {
 		// datetime: data should just consist of date and time.
 		// timestamp conversion should ignore timezone. We mimic this using Parse

@@ -615,8 +615,8 @@ func checkEmpty(conv *internal.Conv, pkeys []schema.Key, s string) {
 	}
 }
 
+// PrNodeType strips off "pg_query." prefix from nodes.Nodes type.
 func PrNodeType(n nodes.Node) string {
-	// Strip off "pg_query." prefix from nodes.Nodes type.
 	return strings.TrimPrefix(reflect.TypeOf(n).Name(), "pg_query.")
 }
 

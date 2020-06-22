@@ -30,6 +30,8 @@ import (
 
 var valuesRegexp = regexp.MustCompile("\\((.*?)\\)")
 var insertRegexp = regexp.MustCompile("INSERT\\sINTO\\s(.*?)\\sVALUES\\s")
+
+// MysqlSpatialDataTypes is an array of all mysql spatial data types.
 var MysqlSpatialDataTypes = []string{"geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"}
 
 // ProcessMySQLDump reads mysqldump data from r and does schema or data conversion,

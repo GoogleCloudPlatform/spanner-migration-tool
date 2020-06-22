@@ -54,6 +54,7 @@ type SyntheticPKey struct {
 	Sequence int64
 }
 
+// SchemaIssue specifies a schema conversion issue.
 type SchemaIssue int
 
 // Defines all of the schema issues we track. Includes issues
@@ -145,7 +146,7 @@ func (conv *Conv) SetDataSink(ds func(table string, cols []string, values []inte
 }
 
 // Note on modes.
-// We process the pg_dump output twice. In the first pass (schema mode) we
+// We process the dump output twice. In the first pass (schema mode) we
 // build the schema, and the second pass (data mode) we write data to
 // Spanner.
 
@@ -237,7 +238,7 @@ func (conv *Conv) Unexpecteds() int64 {
 	return int64(len(conv.Stats.Unexpected))
 }
 
-// CollectBadRows updates the list of bad rows, while respecting
+// CollectBadRow updates the list of bad rows, while respecting
 // the byte limit for bad rows.
 func (conv *Conv) CollectBadRow(srcTable string, srcCols, vals []string) {
 	r := &row{table: srcTable, cols: srcCols, vals: vals}
@@ -300,7 +301,7 @@ func (conv *Conv) buildPrimaryKey(spTable string) string {
 	}
 }
 
-// unexpected records stats about corner-cases and conditions
+// Unexpected records stats about corner-cases and conditions
 // that were not expected. Note that the counts maybe not
 // be completely reliable due to potential double-counting
 // because we process dump data twice.
@@ -350,6 +351,7 @@ func (conv *Conv) getStatementStat(s string) *statementStat {
 	return conv.Stats.Statement[s]
 }
 
+// SkipStatement increments the skip statement stats for 'stmtType'.
 func (conv *Conv) SkipStatement(stmtType string) {
 	if conv.SchemaMode() { // Record statement stats on first pass only.
 		VerbosePrintf("Skipping statement: %s\n", stmtType)
@@ -357,6 +359,7 @@ func (conv *Conv) SkipStatement(stmtType string) {
 	}
 }
 
+// ErrorInStatement increments the error statement stats for 'stmtType'.
 func (conv *Conv) ErrorInStatement(stmtType string) {
 	if conv.SchemaMode() { // Record statement stats on first pass only.
 		VerbosePrintf("Error processing statement: %s\n", stmtType)
@@ -364,22 +367,26 @@ func (conv *Conv) ErrorInStatement(stmtType string) {
 	}
 }
 
+// SchemaStatement increments the schema statement stats for 'stmtType'.
 func (conv *Conv) SchemaStatement(stmtType string) {
 	if conv.SchemaMode() { // Record statement stats on first pass only.
 		conv.getStatementStat(stmtType).schema++
 	}
 }
 
+// DataStatement increments the data statement stats for 'stmtType'.
 func (conv *Conv) DataStatement(stmtType string) {
 	if conv.SchemaMode() { // Record statement stats on first pass only.
 		conv.getStatementStat(stmtType).data++
 	}
 }
 
+// SchemaMode returns true if conv is configured to schemaOnly.
 func (conv *Conv) SchemaMode() bool {
 	return conv.mode == schemaOnly
 }
 
+// DataMode returns true if conv is configured to dataOnly.
 func (conv *Conv) DataMode() bool {
 	return conv.mode == dataOnly
 }

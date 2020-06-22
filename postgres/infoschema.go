@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/civil"
-	_ "github.com/lib/pq"
+	_ "github.com/lib/pq" // we will use database/sql package instead of using this package directly
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
@@ -54,7 +54,7 @@ func ProcessInfoSchema(conv *internal.Conv, db *sql.DB) error {
 	return nil
 }
 
-// ProcessSqlData performs data conversion for source database
+// ProcessSQLData performs data conversion for source database
 // 'db'. For each table, we extract data using a "SELECT *" query,
 // convert the data to Spanner data (based on the source and Spanner
 // schemas), and write it to Spanner.  If we can't get/process data
@@ -73,7 +73,7 @@ func ProcessInfoSchema(conv *internal.Conv, db *sql.DB) error {
 // We choose to do all type conversions explicitly ourselves so that
 // we can generate more targeted error messages: hence we pass
 // *interface{} parameters to row.Scan.
-func ProcessSqlData(conv *internal.Conv, db *sql.DB) {
+func ProcessSQLData(conv *internal.Conv, db *sql.DB) {
 	// TODO: refactor to use the set of tables computed by
 	// ProcessInfoSchema instead of computing them again.
 	tables, err := getTables(db)
@@ -113,7 +113,7 @@ func ProcessSqlData(conv *internal.Conv, db *sql.DB) {
 				conv.StatsAddBadRow(srcTable, conv.DataMode())
 				continue
 			}
-			cvtCols, cvtVals, err := ConvertSqlRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, v)
+			cvtCols, cvtVals, err := ConvertSQLRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, v)
 			if err != nil {
 				conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
 				conv.StatsAddBadRow(srcTable, conv.DataMode())
@@ -125,13 +125,13 @@ func ProcessSqlData(conv *internal.Conv, db *sql.DB) {
 	}
 }
 
-// ConvertSqlRow performs data conversion for a single row of data
-// returned from a 'SELECT *' query. ConvertSqlRow assumes that
+// ConvertSQLRow performs data conversion for a single row of data
+// returned from a 'SELECT *' query. ConvertSQLRow assumes that
 // srcCols, spCols and srcVals all have the same length. Note that
-// ConvertSqlRow returns cols as well as converted values. This is
+// ConvertSQLRow returns cols as well as converted values. This is
 // because cols can change when we add a column (synthetic primary
 // key) or because we drop columns (handling of NULL values).
-func ConvertSqlRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, srcVals []interface{}) ([]string, []interface{}, error) {
+func ConvertSQLRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, srcVals []interface{}) ([]string, []interface{}, error) {
 	var vs []interface{}
 	var cs []string
 	for i := range srcCols {
@@ -146,9 +146,9 @@ func ConvertSqlRow(conv *internal.Conv, srcTable string, srcCols []string, srcSc
 		var spVal interface{}
 		var err error
 		if spCd.IsArray {
-			spVal, err = cvtSqlArray(conv, srcCd, spCd, srcVals[i])
+			spVal, err = cvtSQLArray(conv, srcCd, spCd, srcVals[i])
 		} else {
-			spVal, err = cvtSqlScalar(conv, srcCd, spCd, srcVals[i])
+			spVal, err = cvtSQLScalar(conv, srcCd, spCd, srcVals[i])
 		}
 		if err != nil { // Skip entire row if we hit error.
 			return nil, nil, fmt.Errorf("can't convert sql data for column %s of table %s: %w", srcCols[i], srcTable, err)
@@ -212,7 +212,7 @@ func getTables(db *sql.DB) ([]schemaAndName, error) {
 	q := "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'"
 	rows, err := db.Query(q)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't get tables: %w\n", err)
+		return nil, fmt.Errorf("couldn't get tables: %w", err)
 	}
 	defer rows.Close()
 	var tableSchema, tableName string
@@ -229,12 +229,12 @@ func getTables(db *sql.DB) ([]schemaAndName, error) {
 func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName) error {
 	cols, err := getColumns(table, db)
 	if err != nil {
-		return fmt.Errorf("couldn't get schema for table %s.%s: %s\n", table.schema, table.name, err)
+		return fmt.Errorf("couldn't get schema for table %s.%s: %s", table.schema, table.name, err)
 	}
 	defer cols.Close()
 	primaryKeys, constraints, err := getConstraints(conv, db, table)
 	if err != nil {
-		return fmt.Errorf("couldn't get constraints for table %s.%s: %s\n", table.schema, table.name, err)
+		return fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.schema, table.name, err)
 	}
 	colDefs, colNames := processColumns(conv, cols, constraints)
 	name := buildTableName(table.schema, table.name)
@@ -365,7 +365,7 @@ func toNotNull(conv *internal.Conv, isNullable string) bool {
 	return false
 }
 
-func cvtSqlArray(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {
+func cvtSQLArray(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {
 	a, ok := val.([]byte)
 	if !ok {
 		return nil, fmt.Errorf("can't convert array values to []byte")
@@ -373,7 +373,7 @@ func cvtSqlArray(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, v
 	return convArray(spCd.T, srcCd.Type.Name, conv.Location, string(a))
 }
 
-// cvtSqlScalar converts a values returned from a SQL query to a
+// cvtSQLScalar converts a values returned from a SQL query to a
 // Spanner value.  In principle, we could just hand the values we get
 // from the driver over to Spanner and have the Spanner client handle
 // conversions and errors. However we handle the conversions
@@ -387,7 +387,7 @@ func cvtSqlArray(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, v
 //    float64
 //    string
 //    time.Time
-func cvtSqlScalar(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {
+func cvtSQLScalar(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {
 	switch spCd.T.(type) {
 	case ddl.Bool:
 		switch v := val.(type) {
