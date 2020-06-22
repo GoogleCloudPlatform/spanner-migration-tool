@@ -25,7 +25,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/pingcap/parser"
 	"github.com/pingcap/parser/ast"
-	_ "github.com/pingcap/tidb/types/parser_driver"
 	driver "github.com/pingcap/tidb/types/parser_driver"
 )
 
@@ -47,7 +46,7 @@ func ProcessMySQLDump(conv *internal.Conv, r *internal.Reader) error {
 			return err
 		}
 		for _, stmt := range stmts {
-			isInsert := processStatements(conv, stmt)
+			isInsert := processStatement(conv, stmt)
 			internal.VerbosePrintf("Parsed SQL command at line=%d/fpos=%d: %d stmts (%d lines, %d bytes) Insert Statement=%v\n", startLine, startOffset, 1, r.LineNumber-startLine, len(b), isInsert)
 			if isInsert {
 				switch ddlstmt := stmt.(type) {
@@ -90,11 +89,10 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []ast.S
 			tree, _, err := parser.New().Parse(query, "", "")
 			if err == nil {
 				return s, tree, nil
-			} else {
-				new_tree, err := handleParseError(conv, query, err, l)
-				if err == false {
-					return s, new_tree, nil
-				}
+			}
+			newTree, err1 := handleParseError(conv, query, err, l)
+			if err1 == false {
+				return s, newTree, nil
 			}
 			// Likely causes of failing to parse:
 			// a) complex statements with embedded semicolons e.g. 'CREATE FUNCTION'
@@ -109,10 +107,10 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []ast.S
 	}
 }
 
-// processStatements extracts schema information from MYSQL
+// processStatement extracts schema information from MYSQL
 // statements, updating Conv with new schema information, and returning
 // true if INSERT statement is encountered.
-func processStatements(conv *internal.Conv, stmt ast.StmtNode) bool {
+func processStatement(conv *internal.Conv, stmt ast.StmtNode) bool {
 
 	switch ddlStmt := stmt.(type) {
 	case *ast.CreateTableStmt:
@@ -382,17 +380,18 @@ func getTypeModsAndID(columnType string) (string, []int64) {
 	return id, mods
 }
 
-// Error can be due to unsupported Spatial datatypes in Create statement or some invalid entries
-// in insert statement. handleParseError attempts at creating parsable query.
+// handleParseError handles error while parsing mysqldump
+// statements and attempts at creating parsable query.
+// Error can be due to insert statement or unsupported Spatial
+// datatypes in create statement.
 func handleParseError(conv *internal.Conv, query string, err error, l [][]byte) ([]ast.StmtNode, bool) {
-	new_query := query
 	// Check if error is due to Insert statement.
-	insert_stmt := insertRegexp.FindString(new_query)
-	if insert_stmt != "" {
+	insertStmt := insertRegexp.FindString(query)
+	if insertStmt != "" {
 		// Likely causes of failing to parse Insert statement:
 		// a) Due to some invalid value
 		// b) Query size is more than what pingcap parser could handle (more than 40MB in size)
-		return handleInsertStatement(conv, query, insert_stmt)
+		return handleInsertStatement(conv, query, insertStmt)
 	}
 
 	// Check if error is due to spatial datatype as it is not supported by Pingcap parser.
@@ -400,8 +399,10 @@ func handleParseError(conv *internal.Conv, query string, err error, l [][]byte) 
 	for _, spatial := range MysqlSpatialDataTypes {
 		if strings.Contains(strings.ToLower(err.Error()), spatial) && isSpatial == false {
 			isSpatial = true
-			conv.Unexpected(fmt.Sprintf("Unsupported datatype '%s' encountered while parsing following statement at line number %d : \n%s", spatial, len(l), query))
-			internal.VerbosePrintf("Converting datatype '%s' to 'Text' and retrying to parse the statement\n", spatial)
+			if conv.SchemaMode() {
+				conv.Unexpected(fmt.Sprintf("Unsupported datatype '%s' encountered while parsing following statement at line number %d : \n%s", spatial, len(l), query))
+				internal.VerbosePrintf("Converting datatype '%s' to 'Text' and retrying to parse the statement\n", spatial)
+			}
 		}
 	}
 	if isSpatial {
@@ -411,18 +412,19 @@ func handleParseError(conv *internal.Conv, query string, err error, l [][]byte) 
 	return nil, true
 }
 
-// We deal with this case by extracting all rows and create
-// extended insert statements. Then parse one Insert statement
+// handleInsertStatement handles error in parsing the insert statement.
+// We deal with this case by extracting all rows and creating
+// extended insert statements. Then we parse one Insert statement
 // at a time, ensuring no size issue and skipping only invalid entries.
-func handleInsertStatement(conv *internal.Conv, query, insert_stmt string) ([]ast.StmtNode, bool) {
+func handleInsertStatement(conv *internal.Conv, query, insertStmt string) ([]ast.StmtNode, bool) {
 	var stmts []ast.StmtNode
 	values := valuesRegexp.FindAllString(query, -1)
 	if len(values) == 0 {
 		return nil, true
 	}
 	for _, value := range values {
-		query = insert_stmt + value + ";"
-		new_tree, _, err := parser.New().Parse(query, "", "")
+		query = insertStmt + value + ";"
+		newTree, _, err := parser.New().Parse(query, "", "")
 		if err != nil {
 			if conv.SchemaMode() {
 				conv.Unexpected(fmt.Sprintf("Either unsupported value is encountered or syntax is incorrect for following statement : \n%s", query))
@@ -430,29 +432,30 @@ func handleInsertStatement(conv *internal.Conv, query, insert_stmt string) ([]as
 			conv.SkipStatement("*ast.InsertStmt")
 			continue
 		}
-		stmts = append(stmts, new_tree[0])
+		stmts = append(stmts, newTree[0])
 	}
 	return stmts, false
 }
 
-// If error is due to spatial datatype then try to replace it with 'text' and parse query again.
+// handleSpatialDatatype handles error in parsing spatial datatype.
+// We try to replace spatial datatype with 'text' and parse query again.
 func handleSpatialDatatype(conv *internal.Conv, query string, l [][]byte) ([]ast.StmtNode, bool) {
 	if conv.SchemaMode() {
 		for _, spatial := range MysqlSpatialDataTypes {
 			query = strings.Replace(strings.ToLower(query), " "+spatial, " text", -1)
 		}
-		new_tree, _, err := parser.New().Parse(query, "", "")
+		newTree, _, err := parser.New().Parse(query, "", "")
 		if err != nil {
 			conv.SkipStatement(query)
 			return nil, false
 		}
-		return new_tree, false
+		return newTree, false
 	}
 	return nil, false
 }
 
-// We calculate array bound for only set type
-// we do not expect multidimensional array.
+// getArrayBounds calculate array bound for only set data type
+// and we do not expect multidimensional array.
 func getArrayBounds(ft string, elem []string) []int64 {
 	var arraybound []int64
 	if strings.HasPrefix(ft, "set") {
@@ -553,12 +556,10 @@ func getTableNameInsert(stmt *ast.TableRefsClause) (string, error) {
 	if table, ok := stmt.TableRefs.Left.(*ast.TableSource); ok {
 		if tablenode, ok := table.Source.(*ast.TableName); ok {
 			return getTableName(tablenode)
-		} else {
-			return "", fmt.Errorf("Can't build table name as table source is of different type")
 		}
-	} else {
-		return "", fmt.Errorf("stmt.TableRefs.Left is different type, can't build table name")
+		return "", fmt.Errorf("Can't build table name as table source is of different type")
 	}
+	return "", fmt.Errorf("stmt.TableRefs.Left is different type, can't build table name")
 }
 
 func logStmtError(conv *internal.Conv, stmt ast.StmtNode, err error) {
