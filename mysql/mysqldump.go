@@ -28,6 +28,9 @@ import (
 	driver "github.com/pingcap/tidb/types/parser_driver"
 )
 
+// TODO: consider refactoring mysqldump.go and pgdump.go to extract
+// common code-paths/logic into a shared set of utils.
+
 var valuesRegexp = regexp.MustCompile("\\((.*?)\\)")
 var insertRegexp = regexp.MustCompile("INSERT\\sINTO\\s(.*?)\\sVALUES\\s")
 
@@ -50,12 +53,6 @@ func ProcessMySQLDump(conv *internal.Conv, r *internal.Reader) error {
 		for _, stmt := range stmts {
 			isInsert := processStatement(conv, stmt)
 			internal.VerbosePrintf("Parsed SQL command at line=%d/fpos=%d: %d stmts (%d lines, %d bytes) Insert Statement=%v\n", startLine, startOffset, 1, r.LineNumber-startLine, len(b), isInsert)
-			if isInsert {
-				switch ddlstmt := stmt.(type) {
-				case *ast.InsertStmt:
-					processInsertStmt(conv, ddlstmt)
-				}
-			}
 		}
 		if r.EOF {
 			break
@@ -87,13 +84,13 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []ast.S
 			for i := range l {
 				n += copy(s[n:], l[i])
 			}
-			query := string(s)
-			tree, _, err := parser.New().Parse(query, "", "")
+			chunk := string(s)
+			tree, _, err := parser.New().Parse(chunk, "", "")
 			if err == nil {
 				return s, tree, nil
 			}
-			newTree, err1 := handleParseError(conv, query, err, l)
-			if err1 == false {
+			newTree, ok := handleParseError(conv, chunk, err, l)
+			if ok {
 				return s, newTree, nil
 			}
 			// Likely causes of failing to parse:
@@ -114,20 +111,21 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []ast.S
 // true if INSERT statement is encountered.
 func processStatement(conv *internal.Conv, stmt ast.StmtNode) bool {
 
-	switch ddlStmt := stmt.(type) {
+	switch s := stmt.(type) {
 	case *ast.CreateTableStmt:
 		if conv.SchemaMode() {
-			processCreateTable(conv, ddlStmt)
+			processCreateTable(conv, s)
 		}
 	case *ast.AlterTableStmt:
 		if conv.SchemaMode() {
-			processAlterTable(conv, ddlStmt)
+			processAlterTable(conv, s)
 		}
 	case *ast.SetStmt:
 		if conv.SchemaMode() {
-			processSetStmt(conv, ddlStmt)
+			processSetStmt(conv, s)
 		}
 	case *ast.InsertStmt:
+		processInsertStmt(conv, s)
 		return true
 	default:
 		conv.SkipStatement(reflect.TypeOf(stmt).String())
@@ -157,8 +155,6 @@ func processSetStmt(conv *internal.Conv, stmt *ast.SetStmt) {
 }
 
 func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
-	var colNames []string
-	colDef := make(map[string]schema.Column)
 	if stmt.Table == nil {
 		logStmtError(conv, stmt, fmt.Errorf("table is nil"))
 		return
@@ -168,9 +164,10 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 		logStmtError(conv, stmt, fmt.Errorf("can't get table name: %w", err))
 		return
 	}
-	columns := stmt.Cols
+	var colNames []string
+	colDef := make(map[string]schema.Column)
 	var keys []schema.Key
-	for _, element := range columns {
+	for _, element := range stmt.Cols {
 		colname, col, isPk, err := processColumn(conv, tableName, element)
 		if err != nil {
 			logStmtError(conv, stmt, err)
@@ -193,17 +190,17 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 	}
 }
 
-func processConstraint(conv *internal.Conv, table string, constraint *ast.Constraint, s string) {
+func processConstraint(conv *internal.Conv, table string, constraint *ast.Constraint, stmtType string) {
 	st := conv.SrcSchema[table]
 	switch ct := constraint.Tp; ct {
 	case ast.ConstraintPrimaryKey:
-		checkEmpty(conv, st.PrimaryKeys, s) // Drop any previous primary keys.
+		checkEmpty(conv, st.PrimaryKeys, stmtType) // Drop any previous primary keys.
 		st.PrimaryKeys = toSchemaKeys(constraint.Keys)
 		// In Spanner, primary key columns are usually annotated with NOT NULL,
 		// but this can be omitted to allow NULL values in key columns.
 		// In MySQL, the primary key constraint is a combination of
-		// NOT NULL and UNIQUE i.e. primary keys must be NOT NULL.
-		// We preserve MySQL semantics and enforce NOT NULL.
+		// NOT NULL and UNIQUE i.e. primary keys must be NOT NULL and UNIQUE.
+		// We preserve MySQL semantics and enforce NOT NULL and UNIQUE.
 		updateCols(conv, ast.ConstraintPrimaryKey, constraint.Keys, st.ColDefs, table)
 	default:
 		updateCols(conv, ct, constraint.Keys, st.ColDefs, table)
@@ -235,6 +232,7 @@ func updateCols(conv *internal.Conv, ct ast.ConstraintType, colNames []*ast.Inde
 			cd.Ignored.Check = true
 		case ast.ConstraintPrimaryKey:
 			cd.NotNull = true
+			cd.Unique = true
 		default:
 			conv.Unexpected(fmt.Sprintf("Found constraint type of const value `%v` in table : %s , column : %s. Mapping of ConstraintType can be found here: 'https://godoc.org/github.com/pingcap/parser/ast#ConstraintType'", ct, tableName, colName))
 		}
@@ -259,16 +257,16 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 				processConstraint(conv, tableName, item.Constraint, "ALTER TABLE")
 				conv.SchemaStatement(reflect.TypeOf(stmt).String())
 			case ast.AlterTableModifyColumn:
-				var keys []schema.Key
 				colname, col, isPk, err := processColumn(conv, tableName, item.NewColumns[0])
 				if err != nil {
 					logStmtError(conv, stmt, err)
+					return
 				}
 				conv.SrcSchema[tableName].ColDefs[colname] = col
 				if isPk {
-					keys = append(keys, schema.Key{Column: colname})
 					ctable := conv.SrcSchema[tableName]
-					ctable.PrimaryKeys = keys
+					checkEmpty(conv, ctable.PrimaryKeys, "ALTER TABLE")
+					ctable.PrimaryKeys = []schema.Key{{Column: colname}}
 					conv.SrcSchema[tableName] = ctable
 				}
 				conv.SchemaStatement(reflect.TypeOf(stmt).String())
@@ -285,7 +283,7 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 // getTableName extracts the table name from *ast.TableName table, and returns
 // the raw extracted name (the MySQL table name).
 // *ast.TableName is used to represent table names. It consists of two components:
-//  Schema: schemas are MySQL db often unspecified;
+//  Schema: schemas in MySQL db often unspecified;
 //  Name: name of the table
 // We build a table name from these components as follows:
 // a) nil components are dropped.
@@ -314,7 +312,7 @@ func processColumn(conv *internal.Conv, tableName string, col *ast.ColumnDef) (s
 	if col.Tp == nil {
 		return "", schema.Column{}, false, fmt.Errorf("can't get column type for %s: %w", name, fmt.Errorf("found nil *ast.ColumnDef.Tp"))
 	}
-	tid, mods := getTypeModsAndID(col.Tp.String())
+	tid, mods := getTypeModsAndID(conv, col.Tp.String())
 	ty := schema.Type{
 		Name:        tid,
 		Mods:        mods,
@@ -331,6 +329,7 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 		switch op := elem.Tp; op {
 		case ast.ColumnOptionPrimaryKey:
 			column.NotNull = true
+			column.Unique = true
 			// If primary key is defined in a column then `isPk` will be true
 			// and this column will be added in colDef as primary keys
 			isPk = true
@@ -351,16 +350,16 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 	return isPk
 }
 
-// getTypeModsAndID returns ID and mods of column datatype
-func getTypeModsAndID(columnType string) (string, []int64) {
-	// There are no methods in pincap parser to retirieve ID and mods
+// getTypeModsAndID returns ID and mods of column datatype.
+func getTypeModsAndID(conv *internal.Conv, columnType string) (string, []int64) {
+	// There are no methods in pincap parser to retirieve ID and mods.
 	// We will process columnType eg:'varchar(40)' and split ID from the string.
-	// We retrieve mods using regex expression and convert it to INT64
+	// We retrieve mods using regex expression and convert it to INT64.
 	id := columnType
 	var mods []int64
 	if strings.Contains(columnType, "(") {
 		id = strings.Split(columnType, "(")[0]
-		// For 'set' and 'enum' datatypes, values provided are not maxLength
+		// For 'set' and 'enum' datatypes, values provided are not maxLength.
 		if id == "set" || id == "enum" {
 			return id, nil
 		}
@@ -369,91 +368,93 @@ func getTypeModsAndID(columnType string) (string, []int64) {
 		for _, i := range strMods {
 			j, err := strconv.ParseInt(i, 10, 64)
 			if err != nil {
-				panic(err)
+				conv.Unexpected(fmt.Sprintf("Unable to get modifiers for `%s` datatype.", id))
+				return id, nil
 			}
 			mods = append(mods, j)
 		}
 	}
-	// 'BINARY' keyword will be added to all blob datatypes by parser.
-	// Eg: mediumblob BINARY. It needs to be ignored to retrieve ID
+	// 'BINARY' keyword suffix will be added to all blob datatypes by parser.
+	// Eg: mediumblob BINARY. It needs to be trimmed to retrieve ID.
 	if strings.Contains(id, " ") {
-		id = strings.Split(columnType, " ")[0]
+		id = strings.TrimSuffix(columnType, " BINARY")
 	}
 	return id, mods
 }
 
 // handleParseError handles error while parsing mysqldump
-// statements and attempts at creating parsable query.
+// statements and attempts at creating parsable chunk.
 // Error can be due to insert statement or unsupported Spatial
 // datatypes in create statement.
-func handleParseError(conv *internal.Conv, query string, err error, l [][]byte) ([]ast.StmtNode, bool) {
+func handleParseError(conv *internal.Conv, chunk string, err error, l [][]byte) ([]ast.StmtNode, bool) {
 	// Check if error is due to Insert statement.
-	insertStmt := insertRegexp.FindString(query)
-	if insertStmt != "" {
+	insertStmtPrefix := insertRegexp.FindString(chunk)
+	if insertStmtPrefix != "" {
 		// Likely causes of failing to parse Insert statement:
-		// a) Due to some invalid value
-		// b) Query size is more than what pingcap parser could handle (more than 40MB in size)
-		return handleInsertStatement(conv, query, insertStmt)
+		// a) Due to some invalid value.
+		// b) chunk size is more than what pingcap parser could handle (more than 40MB in size).
+		return handleInsertStatement(conv, chunk, insertStmtPrefix)
 	}
 
 	// Check if error is due to spatial datatype as it is not supported by Pingcap parser.
 	var isSpatial bool
 	for _, spatial := range MysqlSpatialDataTypes {
-		if strings.Contains(strings.ToLower(err.Error()), spatial) && isSpatial == false {
+		if strings.Contains(strings.ToLower(err.Error()), spatial) {
 			isSpatial = true
 			if conv.SchemaMode() {
-				conv.Unexpected(fmt.Sprintf("Unsupported datatype '%s' encountered while parsing following statement at line number %d : \n%s", spatial, len(l), query))
+				conv.Unexpected(fmt.Sprintf("Unsupported datatype '%s' encountered while parsing following statement at line number %d : \n%s", spatial, len(l), chunk))
 				internal.VerbosePrintf("Converting datatype '%s' to 'Text' and retrying to parse the statement\n", spatial)
 			}
+			break
 		}
 	}
 	if isSpatial {
-		return handleSpatialDatatype(conv, query, l)
+		return handleSpatialDatatype(conv, strings.ToLower(chunk), l)
 	}
 
-	return nil, true
+	return nil, false
 }
 
 // handleInsertStatement handles error in parsing the insert statement.
 // We deal with this case by extracting all rows and creating
 // extended insert statements. Then we parse one Insert statement
 // at a time, ensuring no size issue and skipping only invalid entries.
-func handleInsertStatement(conv *internal.Conv, query, insertStmt string) ([]ast.StmtNode, bool) {
+func handleInsertStatement(conv *internal.Conv, chunk, insertStmtPrefix string) ([]ast.StmtNode, bool) {
 	var stmts []ast.StmtNode
-	values := valuesRegexp.FindAllString(query, -1)
+	values := valuesRegexp.FindAllString(chunk, -1)
 	if len(values) == 0 {
-		return nil, true
+		return nil, false
 	}
 	for _, value := range values {
-		query = insertStmt + value + ";"
-		newTree, _, err := parser.New().Parse(query, "", "")
+		chunk = insertStmtPrefix + value + ";"
+		newTree, _, err := parser.New().Parse(chunk, "", "")
 		if err != nil {
 			if conv.SchemaMode() {
-				conv.Unexpected(fmt.Sprintf("Either unsupported value is encountered or syntax is incorrect for following statement : \n%s", query))
+				conv.Unexpected(fmt.Sprintf("Either unsupported value is encountered or syntax is incorrect for following statement : \n%s", chunk))
 			}
 			conv.SkipStatement("*ast.InsertStmt")
 			continue
 		}
 		stmts = append(stmts, newTree[0])
 	}
-	return stmts, false
+	return stmts, true
 }
 
 // handleSpatialDatatype handles error in parsing spatial datatype.
-// We try to replace spatial datatype with 'text' and parse query again.
-func handleSpatialDatatype(conv *internal.Conv, query string, l [][]byte) ([]ast.StmtNode, bool) {
-	if conv.SchemaMode() {
-		for _, spatial := range MysqlSpatialDataTypes {
-			query = strings.Replace(strings.ToLower(query), " "+spatial, " text", -1)
-		}
-		newTree, _, err := parser.New().Parse(query, "", "")
-		if err != nil {
-			conv.SkipStatement(query)
-			return nil, false
-		}
-		return newTree, false
+// We try to replace spatial datatype with 'text' and parse chunk again.
+func handleSpatialDatatype(conv *internal.Conv, chunk string, l [][]byte) ([]ast.StmtNode, bool) {
+	if !conv.SchemaMode() {
+		return nil, true
 	}
-	return nil, false
+	for _, spatial := range MysqlSpatialDataTypes {
+		chunk = strings.ReplaceAll(chunk, " "+spatial, " text")
+	}
+	newTree, _, err := parser.New().Parse(chunk, "", "")
+	if err != nil {
+		conv.SkipStatement("Unparsable statement")
+		return nil, true
+	}
+	return newTree, true
 }
 
 // getArrayBounds calculate array bound for only set data type
@@ -537,7 +538,6 @@ func getVals(row []ast.ExprNode) ([]string, error) {
 	}
 	var values []string
 	for _, item := range row {
-
 		switch valueNode := item.(type) {
 		case *driver.ValueExpr:
 			values = append(values, fmt.Sprintf("%v", valueNode.GetValue()))
@@ -571,8 +571,8 @@ func logStmtError(conv *internal.Conv, stmt ast.StmtNode, err error) {
 
 // checkEmpty verifies that pkeys is empty and generates a warning if it isn't.
 // MySql explicitly forbids multiple primary keys.
-func checkEmpty(conv *internal.Conv, pkeys []schema.Key, s string) {
+func checkEmpty(conv *internal.Conv, pkeys []schema.Key, stmtType string) {
 	if len(pkeys) != 0 {
-		conv.Unexpected(fmt.Sprintf("Multiple primary keys found. `%s` statement is overwriting primary key", s))
+		conv.Unexpected(fmt.Sprintf("Multiple primary keys found. `%s` statement is overwriting primary key", stmtType))
 	}
 }

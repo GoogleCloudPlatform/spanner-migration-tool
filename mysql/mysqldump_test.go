@@ -155,7 +155,7 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}, ddl.IndexKey{Col: "b"}}}},
 		},
 		{
-			name:  "Create table with pg schema",
+			name:  "Create table with mysql schema",
 			input: "CREATE TABLE myschema.test (a text PRIMARY KEY, b text);\n",
 			expectedSchema: map[string]ddl.CreateTable{
 				"myschema_test": ddl.CreateTable{

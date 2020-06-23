@@ -501,12 +501,12 @@ func analyzeColDefConstraints(conv *internal.Conv, n nodes.Node, table string, l
 
 // updateSchema updates the schema for table based on the given constraints.
 // 's' is the statement type being processed, and is used for debug messages.
-func updateSchema(conv *internal.Conv, table string, cs []constraint, s string) {
+func updateSchema(conv *internal.Conv, table string, cs []constraint, stmtType string) {
 	for _, c := range cs {
 		switch c.ct {
 		case nodes.CONSTR_PRIMARY:
 			ct := conv.SrcSchema[table]
-			checkEmpty(conv, ct.PrimaryKeys, s)
+			checkEmpty(conv, ct.PrimaryKeys, stmtType)
 			ct.PrimaryKeys = toSchemaKeys(conv, table, c.cols) // Drop any previous primary keys.
 			// In Spanner, primary key columns are usually annotated with NOT NULL,
 			// but this can be omitted to allow NULL values in key columns.
@@ -609,9 +609,9 @@ func getString(node nodes.Node) (string, error) {
 
 // checkEmpty verifies that pkeys is empty and generates a warning if it isn't.
 // PostgreSQL explicitly forbids multiple primary keys.
-func checkEmpty(conv *internal.Conv, pkeys []schema.Key, s string) {
+func checkEmpty(conv *internal.Conv, pkeys []schema.Key, stmtType string) {
 	if len(pkeys) != 0 {
-		conv.Unexpected(fmt.Sprintf("%s statement is adding a second primary key", s))
+		conv.Unexpected(fmt.Sprintf("%s statement is adding a second primary key", stmtType))
 	}
 }
 
