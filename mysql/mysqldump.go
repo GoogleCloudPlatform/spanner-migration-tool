@@ -116,7 +116,6 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []ast.S
 // statements, updating Conv with new schema information, and returning
 // true if INSERT statement is encountered.
 func processStatement(conv *internal.Conv, stmt ast.StmtNode) bool {
-
 	switch s := stmt.(type) {
 	case *ast.CreateTableStmt:
 		if conv.SchemaMode() {
@@ -405,20 +404,15 @@ func handleParseError(conv *internal.Conv, chunk string, err error, l [][]byte) 
 		return handleInsertStatement(conv, valuesChunk, insertStmtPrefix)
 	}
 
-	// Check if error is due to spatial datatype as it is not supported by Pingcap parser.
-	var isSpatial bool
+	// Handle error if it is due to spatial datatype as it is not supported by Pingcap parser.
 	for _, spatial := range MysqlSpatialDataTypes {
 		if strings.Contains(strings.ToLower(err.Error()), spatial) {
-			isSpatial = true
 			if conv.SchemaMode() {
 				conv.Unexpected(fmt.Sprintf("Unsupported datatype '%s' encountered while parsing following statement at line number %d : \n%s", spatial, len(l), chunk))
 				internal.VerbosePrintf("Converting datatype '%s' to 'Text' and retrying to parse the statement\n", spatial)
 			}
-			break
+			return handleSpatialDatatype(conv, strings.ToLower(chunk), l)
 		}
-	}
-	if isSpatial {
-		return handleSpatialDatatype(conv, strings.ToLower(chunk), l)
 	}
 
 	return nil, false
@@ -464,8 +458,7 @@ func handleSpatialDatatype(conv *internal.Conv, chunk string, l [][]byte) ([]ast
 	}
 	newTree, _, err := parser.New().Parse(chunk, "", "")
 	if err != nil {
-		conv.SkipStatement("Unparsable statement")
-		return nil, true
+		return nil, false
 	}
 	return newTree, true
 }
