@@ -24,6 +24,10 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
+// TODO: refactor this file to avoid the duplication with postgres/toddl.go.
+// The core difference between the two files is toSpannerType, which maps
+// type ids (which differ between MySQL and PostgreSQL) to Spanner types.
+
 // schemaToDDL performs schema conversion from the source DB schema to
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.

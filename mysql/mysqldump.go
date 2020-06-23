@@ -67,6 +67,12 @@ func ProcessMySQLDump(conv *internal.Conv, r *internal.Reader) error {
 
 // readAndParseChunk parses a chunk of mysqldump data, returning the bytes read,
 // the parsed AST (nil if nothing read), error and whether we've hit end-of-file.
+// In effect, we proceed through the file, statement by statement. Many
+// statements (e.g. DDL statements) are small, but insert statements can
+// be large. Fortunately mysqldump limits the size of insert statements
+// (default is 24MB, but configurable via --max-allowed-packet), and so
+// the chunks of file we read/parse are manageable, even for mysqldump
+// files containing tens or hundreds of GB of data.
 func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []ast.StmtNode, error) {
 	var l [][]byte
 	for {
