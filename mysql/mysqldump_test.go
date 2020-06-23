@@ -409,11 +409,11 @@ func TestProcessMySQLDump_DataError(t *testing.T) {
 			input: "CREATE TABLE test (a int, b float, c bool, d date, e blob, f set('42','6'));\n" +
 				`INSERT INTO test (a, b, c, d, e, f) VALUES (7,42.1,1,'2019-10-29',_binary '` + string([]byte{137, 80}) + `','42,6');` + // Baseline (good)
 				"INSERT INTO test (a, b, c, d, e, f) VALUES (7,NULL,NULL,NULL,NULL,NULL);\n" + // Good
-				"INSERT INTO test (a, b, c, d, e, f) VALUES (7-,NULL,NULL,NULL,NULL,NULL);\n" + // Error
+				"INSERT INTO test (a, b, c, d, e, f) VALUES (7.1,NULL,NULL,NULL,NULL,NULL);\n" + // Error
 				"INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,42.1,NULL,NULL,NULL,NULL);\n" + // Good
-				"INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,4.2.1,NULL,NULL,NULL,NULL);\n" + // Error
+				"INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,'42-1',NULL,NULL,NULL,NULL);\n" + // Error
 				"INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,NULL,true,NULL,NULL,NULL);\n" + // Good
-				"INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,NULL,truefalse,NULL,NULL,NULL);\n" + // Error
+				"INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,NULL,'truefalse',NULL,NULL,NULL);\n" + // Error
 				"INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,NULL,NULL,'2019-10-29',NULL,NULL);\n" + // Good
 				"INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,NULL,NULL,'2019-10-42',NULL,NULL);\n" + // Error
 				`INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,NULL,NULL,NULL,_binary '` + string([]byte{137, 80}) + `',NULL);` + // Good

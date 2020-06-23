@@ -322,7 +322,7 @@ func processColumn(conv *internal.Conv, tableName string, col *ast.ColumnDef) (s
 }
 
 // updateColsByOption is specifially for ColDef constraints.
-// ColumnOption type is used for parsing column constraint info from MySQL
+// ColumnOption type is used for parsing column constraint info from MySQL.
 func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDef, column *schema.Column) bool {
 	isPk := false
 	for _, elem := range col.Options {
@@ -331,7 +331,7 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 			column.NotNull = true
 			column.Unique = true
 			// If primary key is defined in a column then `isPk` will be true
-			// and this column will be added in colDef as primary keys
+			// and this column will be added in colDef as primary keys.
 			isPk = true
 		case ast.ColumnOptionNotNull:
 			column.NotNull = true
@@ -390,10 +390,13 @@ func handleParseError(conv *internal.Conv, chunk string, err error, l [][]byte) 
 	// Check if error is due to Insert statement.
 	insertStmtPrefix := insertRegexp.FindString(chunk)
 	if insertStmtPrefix != "" {
-		// Likely causes of failing to parse Insert statement:
-		// a) Due to some invalid value.
-		// b) chunk size is more than what pingcap parser could handle (more than 40MB in size).
-		return handleInsertStatement(conv, chunk, insertStmtPrefix)
+		// Sending chunk as list of values and insertStmtPrefix separately
+		// to avoid column names being treated as values by valuesRegexp.
+		// Eg : INSERT INTO mytable (a, b c) VALUES (1, 2, 3),(4, 5, 6);
+		// insertStmtPrefix = INSERT INTO mytable (a, b c) VALUES
+		// valuesChunk = (1, 2, 3),(4, 5, 6);
+		valuesChunk := insertRegexp.Split(chunk, 2)[1] // stripping off insertStmtPrefix
+		return handleInsertStatement(conv, valuesChunk, insertStmtPrefix)
 	}
 
 	// Check if error is due to spatial datatype as it is not supported by Pingcap parser.
@@ -416,12 +419,16 @@ func handleParseError(conv *internal.Conv, chunk string, err error, l [][]byte) 
 }
 
 // handleInsertStatement handles error in parsing the insert statement.
-// We deal with this case by extracting all rows and creating
+// Likely causes of failing to parse Insert statement:
+// 	a) Due to some invalid value.
+// 	b) chunk size is more than what pingcap parser could handle (more than 40MB in size).
+// We deal with this cases by extracting all rows and creating
 // extended insert statements. Then we parse one Insert statement
 // at a time, ensuring no size issue and skipping only invalid entries.
 func handleInsertStatement(conv *internal.Conv, chunk, insertStmtPrefix string) ([]ast.StmtNode, bool) {
 	var stmts []ast.StmtNode
 	values := valuesRegexp.FindAllString(chunk, -1)
+
 	if len(values) == 0 {
 		return nil, false
 	}
@@ -496,7 +503,7 @@ func processInsertStmt(conv *internal.Conv, stmt *ast.InsertStmt) {
 	srcCols, err2 := getCols(stmt)
 	if err2 != nil {
 		// In MySQL, column names might not be specified in insert statement so instead of
-		// throwing error we will try to retrieve columns from source schema
+		// throwing error we will try to retrieve columns from source schema.
 		srcCols = conv.SrcSchema[srcTable].ColNames
 		if len(srcCols) == 0 {
 			conv.Unexpected(fmt.Sprintf("Can't get columns for table %s", srcTable))
@@ -506,7 +513,7 @@ func processInsertStmt(conv *internal.Conv, stmt *ast.InsertStmt) {
 	}
 	spCols, err3 := internal.GetSpannerCols(conv, srcTable, srcCols)
 	if err3 != nil {
-		conv.Unexpected(fmt.Sprintf("Can't get spanner columnss for table %s: err=%s", srcTable, err3))
+		conv.Unexpected(fmt.Sprintf("Can't get spanner columns for table %s: err=%s", srcTable, err3))
 		conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
 		return
 	}
