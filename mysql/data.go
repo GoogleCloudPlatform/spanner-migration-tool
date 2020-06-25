@@ -15,7 +15,6 @@
 package mysql
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math/bits"
 	"reflect"
@@ -30,6 +29,10 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
+
+// TODO: mysql/data.go and postgres/data.go share significant chunks of common code.
+// The key differences are in convArray and convTimestamp. Consider refactoring using
+// a go interface that provides the basic conv functions for each type.
 
 // ProcessDataRow converts a row of data and writes it out to Spanner.
 // srcTable and srcCols are the source table and columns respectively,
@@ -51,7 +54,6 @@ func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols []string, srcS
 // in vals may be empty, we also return the list of columns (empty
 // cols are dropped).
 func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, vals []string) (string, []string, []interface{}, error) {
-
 	var c []string
 	var v []interface{}
 	if len(spCols) != len(srcCols) || len(spCols) != len(vals) {
@@ -59,10 +61,10 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 	}
 	for i, spCol := range spCols {
 		srcCol := srcCols[i]
-		// Null values are represented as nil in go.
-		// While converting to string, it is represented as
-		// <nil> for mysqldump. It is represented as NULL for
-		// Information schema as we retrieve values in string directly.
+		// Skip columns with 'NULL' values. When processing data rows from mysqldump, these values
+		// are represented as nil (by pingcap/tidb/types/parser_driver's ValueExpr), which is
+		// converted to the string '<nil>'. When processing data rows obtained from the MySQL driver,
+		// 'NULL' values are represented as "NULL" (because we retrieve the values as strings).
 		if vals[i] == "<nil>" || vals[i] == "NULL" {
 			continue
 		}
@@ -132,14 +134,9 @@ func convBool(val string) (bool, error) {
 }
 
 func convBytes(val string) ([]byte, error) {
-	// Converting string to byte array is the required output,
-	// still we convert it to hex and then decode it to detect any error
-	hx := hex.EncodeToString([]byte(val))
-	b, err := hex.DecodeString(hx)
-	if err != nil {
-		return b, fmt.Errorf("can't convert to bytes: %w", err)
-	}
-	return b, err
+	// convert a string to a byte slice.
+	b := []byte(val)
+	return b, nil
 }
 
 func convDate(val string) (civil.Date, error) {
@@ -201,6 +198,7 @@ func convTimestamp(srcTypeName string, TimezoneOffset string, val string) (t tim
 // is NULL. However, convArray does handle the case where individual
 // array elements are NULL. In other words, convArray handles "{1,
 // NULL, 2}", but it does not handle "NULL" (it returns error).
+// NOTE : convArray would only be called when MySQL 'SET' datatype is encountered.
 func convArray(spannerType ddl.ScalarType, srcTypeName string, v string) (interface{}, error) {
 	v = strings.TrimSpace(v)
 	// Handle empty array. Note that we use an empty NullString array
@@ -214,8 +212,9 @@ func convArray(spannerType ddl.ScalarType, srcTypeName string, v string) (interf
 
 	// The Spanner client for go does not accept []interface{} for arrays.
 	// Instead it only accepts slices of a specific type eg: []string
-	// Hence we have to do the following case analysis
-	// NOTE: Mysql only support array<string>
+	// Hence we have to do the following case analysis.
+	// NOTE: MySQL only supports SET of string which will be translated
+	// to spanner array<string>.
 	switch spannerType.(type) {
 	case ddl.String:
 		var r []spanner.NullString
@@ -236,7 +235,7 @@ func convArray(spannerType ddl.ScalarType, srcTypeName string, v string) (interf
 }
 
 // processQuote returns the unquoted version of s.
-// Note: The element values of MySQL arrays may have double
+// Note: The element values of a MySQL array ('SET' datatype) may have double
 // quotes around them. The array output routine will put double
 // quotes around element values if they are empty strings, contain
 // curly braces, delimiter characters, double quotes, backslashes, or

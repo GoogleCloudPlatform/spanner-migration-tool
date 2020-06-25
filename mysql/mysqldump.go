@@ -34,7 +34,7 @@ import (
 var valuesRegexp = regexp.MustCompile("\\((.*?)\\)")
 var insertRegexp = regexp.MustCompile("INSERT\\sINTO\\s(.*?)\\sVALUES\\s")
 
-// MysqlSpatialDataTypes is an array of all mysql spatial data types.
+// MysqlSpatialDataTypes is an array of all MySQL spatial data types.
 var MysqlSpatialDataTypes = []string{"geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"}
 
 // ProcessMySQLDump reads mysqldump data from r and does schema or data conversion,
@@ -112,7 +112,7 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []ast.S
 	}
 }
 
-// processStatement extracts schema information from MYSQL
+// processStatement extracts schema information from MySQL
 // statements, updating Conv with new schema information, and returning
 // true if INSERT statement is encountered.
 func processStatement(conv *internal.Conv, stmt ast.StmtNode) bool {
@@ -466,11 +466,10 @@ func handleSpatialDatatype(conv *internal.Conv, chunk string, l [][]byte) ([]ast
 // getArrayBounds calculate array bound for only set data type
 // and we do not expect multidimensional array.
 func getArrayBounds(ft string, elem []string) []int64 {
-	var arraybound []int64
 	if strings.HasPrefix(ft, "set") {
-		arraybound = append(arraybound, int64(len(elem)))
+		return []int64{int64(len(elem))}
 	}
-	return arraybound
+	return nil
 }
 
 func processInsertStmt(conv *internal.Conv, stmt *ast.InsertStmt) {
@@ -576,7 +575,7 @@ func logStmtError(conv *internal.Conv, stmt ast.StmtNode, err error) {
 }
 
 // checkEmpty verifies that pkeys is empty and generates a warning if it isn't.
-// MySql explicitly forbids multiple primary keys.
+// MySQL explicitly forbids multiple primary keys.
 func checkEmpty(conv *internal.Conv, pkeys []schema.Key, stmtType string) {
 	if len(pkeys) != 0 {
 		conv.Unexpected(fmt.Sprintf("Multiple primary keys found. `%s` statement is overwriting primary key", stmtType))

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package main implements HarbourBridge, a stand-alone tool for Cloud Spanner
-// evaluation, using data from an existing PostgreSQL/MYSQL database. See README.md
+// evaluation, using data from an existing PostgreSQL/MySQL database. See README.md
 // for details.
 package main
 
@@ -58,9 +58,9 @@ const (
 	PGDUMP string = "pgdump"
 	// POSTGRES is the driver name for PostgreSQL.
 	POSTGRES string = "postgres"
-	// MYSQLDUMP is the driver name for mysql dump.
+	// MYSQLDUMP is the driver name for mysqldump.
 	MYSQLDUMP string = "mysqldump"
-	// MYSQL is the driver name for Mysql.
+	// MYSQL is the driver name for MySQL.
 	MYSQL string = "mysql"
 )
 

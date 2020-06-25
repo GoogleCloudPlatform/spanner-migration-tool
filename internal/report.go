@@ -249,7 +249,7 @@ var issueDB = map[SchemaIssue]struct {
 	Numeric:               {brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", severity: warning},
 	NumericThatFits:       {brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", severity: note},
 	Decimal:               {brief: "Spanner does not support decimal. This type mapping could lose precision and is not recommended for production use", severity: warning},
-	DecimalThatFits:       {brief: "Spanner does not support decimal, but this type mapping preserves the numeric's specified precision", severity: note},
+	DecimalThatFits:       {brief: "Spanner does not support decimal, but this type mapping preserves the decimal's specified precision", severity: note},
 	Serial:                {brief: "Spanner does not support autoincrementing types", severity: warning},
 	Timestamp:             {brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: note, batch: true},
 	Datetime:              {brief: "Spanner timestamp is closer to MySQL timestamp", severity: note, batch: true},
