@@ -223,7 +223,7 @@ func toMutations(r []*row) []*sp.Mutation {
 // partitionRows splits data into goodRows and badRows based on badRowIndex,
 // which specifies the indices of bad rows.
 func partitionRows(badRowIndex map[int]bool, data []*row) (goodRows []*row, badRows []*row) {
-	for i, _ := range data {
+	for i := range data {
 		if badRowIndex[i] {
 			badRows = append(badRows, data[i])
 		} else {

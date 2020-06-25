@@ -80,6 +80,7 @@ type Ignored struct {
 	ForeignKey bool
 }
 
+// Print converts ty to a string suitable for printing.
 func (ty Type) Print() string {
 	s := ty.Name
 	if len(ty.Mods) > 0 {

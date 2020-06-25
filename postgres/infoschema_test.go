@@ -193,7 +193,7 @@ func TestProcessSqlData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	ProcessSqlData(conv, db)
+	ProcessSQLData(conv, db)
 
 	assert.Equal(t,
 		[]spannerData{
@@ -270,7 +270,7 @@ func TestConvertSqlRow_SingleCol(t *testing.T) {
 			Name:     tableName,
 			ColNames: []string{col},
 			ColDefs:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: tc.spType, IsArray: tc.isArray}}}
-		ac, av, err := ConvertSqlRow(conv, tableName, cols, srcSchema, tableName, cols, spSchema, []interface{}{tc.in})
+		ac, av, err := ConvertSQLRow(conv, tableName, cols, srcSchema, tableName, cols, spSchema, []interface{}{tc.in})
 		assert.Equal(t, cols, ac)
 		assert.Equal(t, []interface{}{tc.e}, av)
 		assert.Nil(t, err)
@@ -329,7 +329,7 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	ProcessSqlData(conv, db)
+	ProcessSQLData(conv, db)
 	assert.Equal(t, []spannerData{
 		{table: "test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), int64(0)}},
 		{table: "test", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), int64(-9223372036854775808)}}},

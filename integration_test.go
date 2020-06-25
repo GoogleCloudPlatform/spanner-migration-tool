@@ -122,9 +122,8 @@ func TestIntegration_SimpleUse(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
-	dbName, _ := getDatabaseName(now)
+	dbName, _ := getDatabaseName("pgdump", now)
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-
 	dataFilepath := "test_data/pg_dump.test.out"
 	filePrefix = filepath.Join(tmpdir, dbName+".")
 	f, err := os.Open(dataFilepath)
@@ -148,7 +147,7 @@ func TestIntegration_Command(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
-	dbName, _ := getDatabaseName(now)
+	dbName, _ := getDatabaseName("pgdump", now)
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 
 	dataFilepath := "test_data/pg_dump.test.out"
