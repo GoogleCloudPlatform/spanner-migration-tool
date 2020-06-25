@@ -71,7 +71,7 @@ var (
 	dbNameOverride   string
 	instanceOverride string
 	filePrefix       = ""
-	driverName       = ""
+	driverName       = PGDUMP
 	verbose          bool
 )
 
@@ -79,7 +79,7 @@ func init() {
 	flag.StringVar(&dbNameOverride, "dbname", "", "dbname: name to use for Spanner DB")
 	flag.StringVar(&instanceOverride, "instance", "", "instance: Spanner instance to use")
 	flag.StringVar(&filePrefix, "prefix", "", "prefix: file prefix for generated files")
-	flag.StringVar(&driverName, "driver", "", "driver name: experimental flag for accessing source DB or dump files (accepted values are \"pgdump\", \"postgres\", \"mysqldump\", and \"mysql\")")
+	flag.StringVar(&driverName, "driver", "pgdump", "driver name: flag for accessing source DB or dump files (accepted values are \"pgdump\", \"postgres\", \"mysqldump\", and \"mysql\")")
 	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
 }
 
