@@ -157,7 +157,7 @@ func TestIntegration_Command(t *testing.T) {
 	// is because file prefixes use `now` from here (the test function) and
 	// the generated time in the files uses a `now` inside the command, which
 	// can be different.
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -instance %s -dbname %s -prefix %s < %s", instanceID, dbName, filePrefix, dataFilepath))
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -driver %s -instance %s -dbname %s -prefix %s < %s", "pgdump", instanceID, dbName, filePrefix, dataFilepath))
 	var out, stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
