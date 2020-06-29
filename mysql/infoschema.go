@@ -62,8 +62,8 @@ func ProcessSQLData(conv *internal.Conv, db *sql.DB) {
 	}
 	for _, t := range tables {
 		srcTable := buildTableName(t.schema, t.name)
-		srcSchema, ok1 := conv.SrcSchema[srcTable]
-		if !ok1 {
+		srcSchema, ok := conv.SrcSchema[srcTable]
+		if !ok {
 			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
 			conv.Unexpected(fmt.Sprintf("Can't get schemas for table %s", srcTable))
 			continue
@@ -94,8 +94,8 @@ func ProcessSQLData(conv *internal.Conv, db *sql.DB) {
 			conv.Unexpected(fmt.Sprintf("Couldn't get spanner columns for table %s : err = %s", t.name, err))
 			continue
 		}
-		spSchema, ok2 := conv.SpSchema[spTable]
-		if !ok2 {
+		spSchema, ok := conv.SpSchema[spTable]
+		if !ok {
 			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
 			conv.Unexpected(fmt.Sprintf("Can't get schemas for table %s", srcTable))
 			continue
@@ -159,7 +159,7 @@ func SetRowStats(conv *internal.Conv, db *sql.DB) {
 		if rows.Next() {
 			err := rows.Scan(&count)
 			if err != nil {
-				fmt.Printf("Can't get row count: %s\n", err)
+				conv.Unexpected(fmt.Sprintf("Can't get row count: %s", err))
 				continue
 			}
 			conv.Stats.Rows[tableName] += count
@@ -222,7 +222,7 @@ func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName) error {
 func getColumns(table schemaAndName, db *sql.DB) (*sql.Rows, error) {
 	q := `SELECT c.column_name, c.data_type, c.column_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale
               FROM information_schema.COLUMNS c
-              where table_schema = ? and table_name = ? ORDER BY c.ordinal_position;`
+              where table_schema = $1 and table_name = $2 ORDER BY c.ordinal_position;`
 	return db.Query(q, table.schema, table.name)
 }
 
@@ -235,7 +235,7 @@ func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string]
 	for cols.Next() {
 		err := cols.Scan(&colName, &dataType, &columnType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale)
 		if err != nil {
-			fmt.Printf("Can't scan: %v\n", err)
+			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
 		unique := false
@@ -286,11 +286,11 @@ func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]str
 	for rows.Next() {
 		err := rows.Scan(&col, &constraint)
 		if err != nil {
-			fmt.Printf("Can't scan: %v\n", err)
+			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
 		if col == "" || constraint == "" {
-			fmt.Printf("Got empty col or constraint\n")
+			conv.Unexpected(fmt.Sprintf("Got empty col or constraint"))
 			continue
 		}
 		switch constraint {
@@ -329,12 +329,11 @@ func toNotNull(conv *internal.Conv, isNullable string) bool {
 	return false
 }
 
-// buildVals contructs interface{} value containers to scan row
+// buildVals constructs []sql.RawBytes value containers to scan row
 // results into.  Returns both the underlying containers (as a slice)
 // as well as an interface{} of pointers to containers to pass to
 // rows.Scan.
 func buildVals(n int) (v []sql.RawBytes, iv []interface{}) {
-	// Make a slice for the values
 	v = make([]sql.RawBytes, n)
 	// rows.Scan wants '[]interface{}' as an argument, so we must copy the
 	// references into such a slice.
