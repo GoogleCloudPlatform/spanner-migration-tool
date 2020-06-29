@@ -84,6 +84,7 @@ func ProcessSQLData(conv *internal.Conv, db *sql.DB) {
 			continue
 		}
 		defer rows.Close()
+		srcCols, _ = rows.Columns()
 		spTable, err := internal.GetSpannerTable(conv, srcTable)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't get spanner table : %s", err))
@@ -222,7 +223,7 @@ func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName) error {
 func getColumns(table schemaAndName, db *sql.DB) (*sql.Rows, error) {
 	q := `SELECT c.column_name, c.data_type, c.column_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale
               FROM information_schema.COLUMNS c
-              where table_schema = $1 and table_name = $2 ORDER BY c.ordinal_position;`
+              where table_schema = ? and table_name = ? ORDER BY c.ordinal_position;`
 	return db.Query(q, table.schema, table.name)
 }
 

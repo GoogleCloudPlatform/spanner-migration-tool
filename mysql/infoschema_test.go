@@ -19,7 +19,6 @@ import (
 	"database/sql/driver"
 	"testing"
 
-	"cloud.google.com/go/spanner"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
@@ -143,53 +142,59 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 
-// TODO : Remove this test (Not needed)
-// This test is not required as this case is covered in mysql/data_test.go.
-// Because we have merged data conversion functionality for info_schema
-// and dump in mysql/data.go. Thus, we are calling ProcessDataRow() directly from Infoschema
-// which calls ConvertData() for data conversion.
-func TestConvertSqlRow_SingleCol(t *testing.T) {
-	tc := []struct {
-		name    string
-		spType  ddl.ScalarType
-		isArray bool
-		srcTy   string
-		in      string      // Input value for conversion.
-		e       interface{} // Expected result.
-	}{
-		{"bool", ddl.Bool{}, false, "", "1", true},
-		{"bytes", ddl.Bytes{Len: ddl.MaxLength{}}, false, "", string([]byte{137, 80}), []byte{0x89, 0x50}},
-		{"date", ddl.Date{}, false, "", "2019-10-29", getDate("2019-10-29")},
-		{"float64", ddl.Float64{}, false, "", "42.6", float64(42.6)},
-		{"int64", ddl.Int64{}, false, "", "42", int64(42)},
-		{"string", ddl.String{Len: ddl.MaxLength{}}, false, "", "eh", "eh"},
-		{"datetime", ddl.Timestamp{}, false, "datetime", "2019-10-29 05:30:00", getTimeWithoutTimezone(t, "2019-10-29 05:30:00")},
-		{"timestamp", ddl.Timestamp{}, false, "timestamp", "2019-10-29 05:30:00", getTime(t, "2019-10-29T05:30:00+05:30")},
-		{"string array(set)", ddl.String{Len: ddl.MaxLength{}}, true, "", "1,Travel,3,Dance", []spanner.NullString{
-			spanner.NullString{StringVal: "1", Valid: true},
-			spanner.NullString{StringVal: "Travel", Valid: true},
-			spanner.NullString{StringVal: "3", Valid: true},
-			spanner.NullString{StringVal: "Dance", Valid: true}}},
+func TestProcessSQLData(t *testing.T) {
+	ms := []mockSpec{
+		{
+			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
+			cols:  []string{"table_schema", "table_name"},
+			rows:  [][]driver.Value{{"test", "te st"}},
+		}, {
+			query: "SELECT (.+) FROM test.te st",
+			cols:  []string{"a a", " b", " c "},
+			rows: [][]driver.Value{
+				{42.3, 3, "cat"},
+				{6.6, 22, "dog"},
+				{6.6, "2006-01-02", "dog"}}, // Test bad row logic.
+		},
 	}
-	tableName := "testtable"
-	for _, tc := range tc {
-		col := "a"
-		conv := internal.MakeConv()
-		cols := []string{col}
-		srcSchema := schema.Table{Name: tableName, ColNames: []string{col}, ColDefs: map[string]schema.Column{col: schema.Column{Type: schema.Type{Name: tc.srcTy}}}}
-		spSchema := ddl.CreateTable{
-			Name:     tableName,
-			ColNames: []string{col},
-			ColDefs:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: tc.spType, IsArray: tc.isArray}}}
-		conv.TimezoneOffset = "+05:30"
-		_, ac, av, err := ConvertData(conv, tableName, cols, srcSchema, tableName, cols, spSchema, []string{tc.in})
-		assert.Equal(t, cols, ac)
-		assert.Equal(t, []interface{}{tc.e}, av)
-		assert.Nil(t, err)
-	}
+	db := mkMockDB(t, ms)
+	conv := buildConv(
+		ddl.CreateTable{
+			Name:     "test_te_st",
+			ColNames: []string{"a a", " b", " c "},
+			ColDefs: map[string]ddl.ColumnDef{
+				"a_a": ddl.ColumnDef{Name: "a_a", T: ddl.Float64{}},
+				"Ab":  ddl.ColumnDef{Name: "Ab", T: ddl.Int64{}},
+				"Ac_": ddl.ColumnDef{Name: "Ac_", T: ddl.String{Len: ddl.MaxLength{}}},
+			}},
+		schema.Table{
+			Name:     "test.te st",
+			ColNames: []string{"a_a", "_b", "_c_"},
+			ColDefs: map[string]schema.Column{
+				"a a": schema.Column{Name: "a a", Type: schema.Type{Name: "float"}},
+				" b":  schema.Column{Name: " b", Type: schema.Type{Name: "int"}},
+				" c ": schema.Column{Name: " c ", Type: schema.Type{Name: "text"}},
+			}})
+
+	conv.SetDataMode()
+	var rows []spannerData
+	conv.SetDataSink(
+		func(table string, cols []string, vals []interface{}) {
+			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
+		})
+	ProcessSQLData(conv, db)
+	assert.Equal(t,
+		[]spannerData{
+			spannerData{table: "test_te_st", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(42.3), int64(3), "cat"}},
+			spannerData{table: "test_te_st", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(6.6), int64(22), "dog"}},
+		},
+		rows)
+	assert.Equal(t, conv.BadRows(), int64(1))
+	assert.Equal(t, conv.SampleBadRows(10), []string{"table=test.te st cols=[a a  b  c ] data=[6.6 2006-01-02 dog]\n"})
+	assert.Equal(t, int64(1), conv.Unexpecteds()) // Bad row generates an entry in unexpected.
 }
 
-func TestConvertSqlRow_MultiCol(t *testing.T) {
+func TestProcessSQLData_MultiCol(t *testing.T) {
 	// Tests multi-column behavior of ProcessSQLData (including
 	// handling of null columns and synthetic keys). Also tests
 	// the combination of ProcessInfoSchema and ProcessSQLData
