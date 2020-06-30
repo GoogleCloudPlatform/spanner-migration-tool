@@ -190,7 +190,7 @@ func SetRowStats(conv *internal.Conv, db *sql.DB) {
 		if rows.Next() {
 			err := rows.Scan(&count)
 			if err != nil {
-				fmt.Printf("Can't get row count: %s\n", err)
+				conv.Unexpected(fmt.Sprintf("Can't get row count: %s", err))
 				continue
 			}
 			conv.Stats.Rows[tableName] += count
@@ -268,7 +268,7 @@ func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string]
 	for cols.Next() {
 		err := cols.Scan(&colName, &dataType, &elementDataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale)
 		if err != nil {
-			fmt.Printf("Can't scan: %v\n", err)
+			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
 		unique := false
@@ -320,11 +320,11 @@ func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]str
 	for rows.Next() {
 		err := rows.Scan(&col, &constraint)
 		if err != nil {
-			fmt.Printf("Can't scan: %v\n", err)
+			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
 		if col == "" || constraint == "" {
-			fmt.Printf("Got empty col or constraint\n")
+			conv.Unexpected(fmt.Sprintf("Got empty col or constraint"))
 			continue
 		}
 		switch constraint {
