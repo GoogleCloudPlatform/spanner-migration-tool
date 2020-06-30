@@ -189,7 +189,7 @@ func toSpanner(driver, projectID, instanceID, dbName string, ioHelper *ioStreams
 }
 
 func schemaConv(driver string, ioHelper *ioStreams) (*internal.Conv, error) {
-	fmt.Println("dirver:", driver)
+	fmt.Println("driver:", driver)
 	switch driver {
 	case POSTGRES, MYSQL:
 		return schemaFromSQL(driver)
