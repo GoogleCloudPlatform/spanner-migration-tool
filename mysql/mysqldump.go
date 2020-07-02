@@ -341,7 +341,15 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 		case ast.ColumnOptionNotNull:
 			column.NotNull = true
 		case ast.ColumnOptionDefaultValue:
-			column.Ignored.Default = true
+			// If a data type specification includes no explicit DEFAULT
+			// value, MySQL determines if the column can take NULL as a value
+			// and the column is defined with DEFAULT NULL clause in mysqldump.
+			// This case is ignored from issue reporting of 'Default' value.
+			v, ok := elem.Expr.(*driver.ValueExpr)
+			nullDefault := ok && v.GetValue() == nil
+			if !nullDefault {
+				column.Ignored.Default = true
+			}
 		case ast.ColumnOptionUniqKey:
 			column.Unique = true
 		case ast.ColumnOptionCheck:
