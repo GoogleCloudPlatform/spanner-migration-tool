@@ -105,13 +105,13 @@ func main() {
 	defer close(lf)
 
 	ioHelper := &ioStreams{in: os.Stdin, out: os.Stdout}
-
+	fmt.Println("Using driver (source DB):", driverName)
 	project, err := getProject()
 	if err != nil {
 		fmt.Printf("\nCan't get project: %v\n", err)
 		panic(fmt.Errorf("can't get project"))
 	}
-	fmt.Printf("Using project: %s\n", project)
+	fmt.Println("Using Google Cloud project:", project)
 
 	instance := instanceOverride
 	if instance == "" {
@@ -121,7 +121,7 @@ func main() {
 			panic(fmt.Errorf("can't get instance"))
 		}
 	}
-	fmt.Printf("Using Spanner instance: %s\n", instance)
+	fmt.Println("Using Cloud Spanner instance:", instance)
 	printPermissionsWarning(driverName, ioHelper.out)
 
 	now := time.Now()
@@ -189,7 +189,6 @@ func toSpanner(driver, projectID, instanceID, dbName string, ioHelper *ioStreams
 }
 
 func schemaConv(driver string, ioHelper *ioStreams) (*internal.Conv, error) {
-	fmt.Println("driver:", driver)
 	switch driver {
 	case POSTGRES, MYSQL:
 		return schemaFromSQL(driver)
