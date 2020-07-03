@@ -29,6 +29,9 @@ intended for production database migration.
 To use the tool on a PostgreSQL database called mydb, run
 
 ```sh
+# By default, the driver is "pgdump".
+pg_dump mydb | harbourbridge
+# Or,
 pg_dump mydb | harbourbridge -driver=pgdump
 ```
 
@@ -239,7 +242,7 @@ created in this instance. If not specified, the tool automatically determines an
 appropriate instance using gcloud.
 
 `-driver` Specifies the driver to use for schema and data conversion. Supported drivers
-are _'postgres'_, _'pgdump'_, _'mysql'_ and _'mysqldump'_.
+are _'postgres'_, _'pgdump'_, _'mysql'_ and _'mysqldump'_. By default, the driver is _'pgdump'_.
 
 `-prefix` Specifies a file prefix for the report, schema, and bad-data files
 written by the tool. If no file prefix is specified, the name of the Spanner
@@ -250,17 +253,9 @@ messages about the conversion.
 
 ## Example Usage
 
-Driver types (source DB) that are supported by Harbourbridge:
-
-1. postgres
-2. pgdump
-3. mysql
-4. mysqldump
-
-Please refer below mentioned links for example usage of PostgreSQL and MySQL database:
-
-- [PostgreSQL example usage](postgres/README.md#example-postgresql-usage)
-- [MySQL example usage](mysql/README.md#example-mysql-usage)
+Details on HarbourBridge example usage for PostgreSQL and MySQL can be
+found in the [PostgreSQL example usage](postgres/README.md#example-postgresql-usage)
+and [MySQL example usage](mysql/README.md#example-mysql-usage)respectively.
 
 ## Schema Conversion
 
@@ -273,11 +268,10 @@ and [MySQL schema conversion](mysql/README.md#schema-conversion) sections respec
 HarbourBridge converts PostgreSQL/MySQL data to Spanner data based on the Spanner
 schema it constructs. Conversion for most data types is fairly straightforward,
 but several types deserve discussion. Note that HarbourBridge is not intended
-for databases larger than a couple of GB. Please refer to the links below for details on
-data conversion of PostgreSQL and MySQL database:
-
-- [PostgreSQL data conversion](postgres/README.md#data-conversion)
-- [MySQL data conversion](mysql/README.md#data-conversion)
+for databases larger than a couple of GB. Details on HarbourBridge data conversion
+for PostgreSQL and MySQL can be found in the
+[PostgreSQL data conversion](postgres/README.md#data-conversion)
+and [MySQL data conversion](mysql/README.md#data-conversion) sections respectively.
 
 ## Troubleshooting Guide
 
