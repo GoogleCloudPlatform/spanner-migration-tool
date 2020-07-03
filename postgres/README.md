@@ -1,9 +1,21 @@
-## PostgreSQL Example Usage
+# HarbourBridge: Turnkey PostgreSQL-to-Spanner Evaluation
+
+HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation,
+using data from an existing PostgreSQL or MySQL database. This README provides
+details of the tool's PostgreSQL capabilities. For general HarbourBridge information
+see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbourbridge-turnkey-spanner-evaluation).
+
+## Example PostgreSQL Usage
 
 The following examples assume `harbourbridge` has been added to your PATH
 environment variable.
 
-To use HarbourBridge on a PostgreSQL database called mydb using pgdump output, run:
+HarbourBridge can either be used with pg_dump or it can be run directly
+on a PostgreSQL database (via go's database/sql package).
+
+### Using HarbourBridge with pg_dump
+
+To use HarbourBridge on a PostgreSQL database called mydb using pg_dump output,run:
 
 ```sh
 pg_dump mydb | harbourbridge -driver=pgdump
@@ -46,18 +58,20 @@ pg_dump mydb | harbourbridge -driver=pgdump -prefix ~/spanner-eval-mydb/
 would write the files into the directory `~/spanner-eval-mydb/`. Note
 that HarbourBridge will not create directories as it writes these files.
 
+### Directly connecting to a PostgreSQL database
+
 To use the tool directly on a PostgresSQL database called mydb, run
 
 ```sh
 harbourbridge -driver=postgres
 ```
 
-It is assumed that PostgresSQL database supports information schema tables
-and _PGHOST_, _PGPORT_, _PGUSER_, _PGDATABASE_ environments variables are set.
-Password can be specified either in the _PGPASSWORD_ environment variable or
-need to enter password when prompted by harbourbridge.
+It is assumed that _PGHOST_, _PGPORT_, _PGUSER_, _PGDATABASE_ environment
+variables are set. Password can be specified either in the _PGPASSWORD_ environment
+variable or provided at the password prompt.
 
-Rest of the above mentioned usage of options also apply to Information schema approach.
+Note that all of the options described in the previous section on using pg_dump can
+also be used with "-driver=postgres".
 
 ## Schema Conversion
 
@@ -109,7 +123,7 @@ and the autoincrementing functionality is dropped.
 ### `TIMESTAMP`
 
 PosgreSQL has two timestamp types: `TIMESTAMP` and `TIMESTAMPTZ`. Both have an 8
-byte data representation and provide microsecond resolultion, but neither
+byte data representation and provide microsecond resolution, but neither
 actually stores a timezone with the data. The key difference between the two
 types is how string literals are converted to timestamps and queries return
 data. For `TIMESTAMP`, all timezone information is dropped, and data is returned

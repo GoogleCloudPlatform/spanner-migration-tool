@@ -1,7 +1,19 @@
-## MySQL Example Usage
+# HarbourBridge: Turnkey MySQL-to-Spanner Evaluation
+
+HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation,
+using data from an existing PostgreSQL or MySQL database. This README provides
+details of the tool's MySQL capabilities. For general HarbourBridge information
+see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbourbridge-turnkey-spanner-evaluation).
+
+## Example MySQL Usage
 
 The following examples assume `harbourbridge` has been added to your PATH
 environment variable.
+
+HarbourBridge can either be used with mysqldump or it can be run directly
+on a MySQL database (via go's database/sql package).
+
+### Using HarbourBridge with mysqldump
 
 To use HarbourBridge on a MySQL database called mydb using mysqldump, run:
 
@@ -46,18 +58,20 @@ mysqldump mydb | harbourbridge -prefix ~/spanner-eval-mydb/ -driver=mysqldump
 would write the files into the directory `~/spanner-eval-mydb/`. Note
 that HarbourBridge will not create directories as it writes these files.
 
+### Directly connecting to a MySQL database
+
 To use the tool directly on a MySQL database called mydb, run
 
 ```sh
 harbourbridge -driver=mysql
 ```
 
-It is assumed that MySQL database supports information schema tables and
-_MYSQLHOST_, _MYSQLPORT_, _MYSQLUSER_, _MYSQLDATABASE_ environments variables are set.
-Password can be specified either in the _MYSQL_PWD_ environment variable or need to
-enter password when prompted by harbourbridge.
+It is assumed that _MYSQLHOST_, _MYSQLPORT_, _MYSQLUSER_, _MYSQLDATABASE_ environment
+variables are set. Password can be specified either in the _MYSQL_PWD_ environment
+variable or provided at the password prompt.
 
-Rest of the above mentioned usage of options also apply to Information schema approach.
+Note that all of the options described in the previous section on using mysqldump
+can also be used with "-driver=mysql".
 
 ## Schema Conversion
 
@@ -104,9 +118,12 @@ use. Note that in MySQL, NUMERIC is implemented as DECIMAL, so the remarks about
 
 ### `TIMESTAMP` and `DATETIME`
 
-MySQL has two timestamp types: `TIMESTAMP` and `DATETIME`. Both provide microsecond resolultion, but neither
-actually stores a timezone with the data. The key difference between the two types is that MySQL converts `TIMESTAMP` values from the current time zone to UTC for storage, and back from UTC to the current time zone for retrieval. This does not occur `DATETIME` and data is returned
-without a timezone. For `TIMESTAMP`, timezone can be set by time zone offset parameter.
+MySQL has two timestamp types: `TIMESTAMP` and `DATETIME`. Both provide
+microsecond resolution, but neither actually stores a timezone with the data.
+The key difference between the two types is that MySQL converts `TIMESTAMP` values
+from the current time zone to UTC for storage, and back from UTC to the current time
+zone for retrieval. This does not occur for `DATETIME` and data is returned without a
+timezone. For `TIMESTAMP`, timezone can be set by time zone offset parameter.
 
 Spanner has a single timestamp type. Data is stored as UTC (there is no separate
 timezone) Spanner client libraries convert timestamps to UTC before sending them
@@ -137,16 +154,16 @@ prior to insertion and a warning is generated.
 
 MySQL `SET` is a string object that can hold muliple values, each of which must be
 chosen from a list of permitted values specified when the table is created. `SET`
-is being mapped to `ARRAY<STRING>` spanner type. Validation of `SET` element values
-will be dropped in spanner. Thus for production use, validation needs to be done
+is being mapped to Spanner type `ARRAY<STRING>`. Validation of `SET` element values
+will be dropped in Spanner. Thus for production use, validation needs to be done
 in the application.
 
 ### `Spatial datatype`
 
-MySQL spatial datatypes are used to represent geographic feature/geospatial feature.
+MySQL spatial datatypes are used to represent geographic feature.
 It includes `GEOMETRY`, `POINT`, `LINESTRING`, `POLYGON`, `MULTIPOINT`, `MULTIPOLYGON`
-and `GEOMETRYCOLLECTION` datatypes. Spanner does not support Geospatial data types.
-This datatype are currently mapped to standard `STRING` spanner datatype.
+and `GEOMETRYCOLLECTION` datatypes. Spanner does not support spatial data types.
+This datatype are currently mapped to standard `STRING` Spanner datatype.
 
 ### Storage Use
 
@@ -216,17 +233,17 @@ type, which supports UTF-8.
 ### Spatial datatypes support
 
 As noted earlier when discussing [schema conversion of
-Spatial datatype](#spatial-datatype), spanner does not support spatial datatypes and are
-mapped to `STRING(MAX)` spanner type. Data conversion for spatial datatypes is different
+Spatial datatype](#spatial-datatype), Spanner does not support spatial datatypes and are
+mapped to `STRING(MAX)` Spanner type. Data conversion for spatial datatypes is different
 for both `mysql` and `mysqldump` driver.
 
 - MySQL information schema approach (`-driver=mysql`) : Data from MySQL is fetched using
   'ST_AsText(g)' function which converts a value in internal geometry format to its WKT(Well-Known Text)
-  representation and returns the string result. This value will be stored as `STRING` in spanner.
+  representation and returns the string result. This value will be stored as `STRING` in Spanner.
 - MySQL dump approach (`-driver=mysqldump`) : Mysqldump will have the internal geometry data in
   binary format. It cannot be converted to WKT format and there is no proper method for mysqldump
   generation of spatial datatypes also. Thus, this value will just be fetched as a `TEXT` type and
-  converted to `STRING` spanner type.
+  converted to Spanner type `STRING`.
 
 Note that mysql information schema approach would be the recommended approach for data conversion of
 spatial datatypes. For production use, you must store this data using standard data types, and implement
