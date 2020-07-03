@@ -264,18 +264,16 @@ Please refer below mentioned links for example usage of PostgreSQL and MySQL dat
 
 ## Schema Conversion
 
-Please refer below mentioned links for details on schema conversion of PostgreSQL
-and MySQL database:
-
-- [PostgreSQL schema conversion](postgres/README.md#schema-conversion)
-- [MySQL schema conversion](mysql/README.md#schema-conversion)
+Details on HarbourBridge schema conversion for PostgreSQL and MySQL can be
+found in the [PostgreSQL schema conversion](postgres/README.md#schema-conversion)
+and [MySQL schema conversion](mysql/README.md#schema-conversion) sections respectively.
 
 ## Data Conversion
 
 HarbourBridge converts PostgreSQL/MySQL data to Spanner data based on the Spanner
 schema it constructs. Conversion for most data types is fairly straightforward,
 but several types deserve discussion. Note that HarbourBridge is not intended
-for databases larger than a couple of GB. Please refer below mentioned links for details on
+for databases larger than a couple of GB. Please refer to the links below for details on
 data conversion of PostgreSQL and MySQL database:
 
 - [PostgreSQL data conversion](postgres/README.md#data-conversion)
@@ -288,14 +286,16 @@ HarbourBridge.
 
 ### 1. Verify driver configuration
 
-If you are using the dump approach then check that pg_dump/mysqldump is correctly
-configured to connect to your PostgreSQL/MySQL database. If you are using the information
-schema approach then check that environment variables are correctly configured to connect
-to your PostgreSQL/MySQL database. Also note the below mentioned points:
+First, check that the driver is correctly configured to connect to your
+database. Driver configuration varies depending on the driver used.
 
-- **pgdump**: pg_dump uses the same options as psql to connect to your
-  database. See the [psql](https://www.postgresql.org/docs/9.3/app-psql.html) and
-  [pg_dump](https://www.postgresql.org/docs/9.3/app-pgdump.html) documentation.
+#### 1.1 pgdump
+
+If you are using pg_dump (-driver=pgdump), check that pg_dump is
+correctly configured to connect to your PostgreSQL
+database. Note that pg_dump uses the same options as psql to connect to your
+database. See the [psql](https://www.postgresql.org/docs/9.3/app-psql.html) and
+[pg_dump](https://www.postgresql.org/docs/9.3/app-pgdump.html) documentation.
 
 Access to a PostgreSQL database is typically configured using the following
 environment variables, which are standard across PostgreSQL utilities including
@@ -311,27 +311,32 @@ PGDATABASE
 It is also possible to configure access via pg_dump's command-line options
 `--host`, `--port`, and `--username`.
 
-- **postgres**: In postgres information schema approach, tool connects to PostgreSQL
-  database to retrieve table and column details from information schema.
+#### 1.2 Direct access to PostgreSQL
 
-It is assumed that PostgresSQL database supports information schema tables and _PGHOST_,
-_PGPORT_, _PGUSER_, _PGDATABASE_ environments variables are set. Password can be specified
-either in the _PGPASSWORD_ environment variable or need to enter password when prompted
-by harbourbridge.
+In this case, HarbourBridge connects directly to the PostgreSQL
+database to retrieve table schema and data using the setting of
+standard _PGHOST_, _PGPORT_, _PGUSER_, _PGDATABASE_ environment
+variables. Password can be specified either in the _PGPASSWORD_
+environment variable or provided at the password prompt.
 
-- **mysqldump**: mysqldump uses the same options as mysql to connect to your
-  database. See the [mysql](https://dev.mysql.com/doc/refman/8.0/en/mysql-commands.html) and
-  [mysqldump](https://dev.mysql.com/doc/refman/8.0/en/mysqldump.html) documentation.
+#### 1.3 mysqldump
 
-Access to a MySQL database is configured using mysqldump's command-line options
-`--host`, `--port`, and `--user`.
+If you are using mysqldump (-driver=mysqldump), check that mysqldump is
+correctly configured to connect to your MySQL
+database. Note that mysqldump uses the same options as mysql to connect to your
+database. See the [mysql](https://dev.mysql.com/doc/refman/8.0/en/mysql-commands.html) and
+[mysqldump](https://dev.mysql.com/doc/refman/8.0/en/mysqldump.html) documentation.
 
-- **mysql**: In mysql information schema approach, tool connects to MySQL database to retrieve
-  table and column details from information schema.
+Access to a MySQL database is configured via mysqldump's command-line options `--host`,
+`--port`, and `--user`.
 
-It is assumed that MySQL database supports information schema tables and _MYSQLHOST_, _MYSQLPORT_,
-_MYSQLUSER_, _MYSQLDATABASE_ environments variables are set. Password can be specified either in
-the _MYSQL_PWD_ environment variable or need to enter password when prompted by harbourbridge.
+#### 1.4 Direct access to MySQL
+
+In this case, HarbourBridge connects directly to the MySQL
+database to retrieve table schema and data using the setting of
+_MYSQLHOST_, _MYSQLPORT_, _MYSQLUSER_, _MYSQLDATABASE_ environment
+variables. Password can be specified either in the _MYSQL_PWD_
+environment variable or provided at the password prompt.
 
 ### 2. Verify dump output
 
