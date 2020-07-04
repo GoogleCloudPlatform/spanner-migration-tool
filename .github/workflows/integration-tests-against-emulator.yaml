@@ -1,0 +1,39 @@
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+name: integration-tests-against-emulator
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      emulator:
+        image: gcr.io/cloud-spanner-emulator/emulator:0.8.0
+        ports:
+          - 9010:9010
+          - 9020:9020
+
+    steps:
+      - uses: actions/checkout@v2
+      
+      - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        with:
+          version: '290.0.1'
+      - run: gcloud info
+      - run: gcloud config configurations create emulator
+      - run: gcloud config set auth/disable_credentials true
+      - run: gcloud config set project emulator-test-project
+      - run: gcloud config set api_endpoint_overrides/spanner http://localhost:9020/
+      - run: gcloud spanner instances create test-instance --config=emulator-config --description="Test Instance" --nodes=1
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.13'
+      - run: go version
+      - run: go test -v ./...
+        env:
+          SPANNER_EMULATOR_HOST: localhost:9010
+          HARBOURBRIDGE_TESTS_GCLOUD_PROJECT_ID: emulator-test-project
+          HARBOURBRIDGE_TESTS_GCLOUD_INSTANCE_ID: test-instance
