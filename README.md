@@ -124,13 +124,13 @@ The tool should now be installed as `$GOPATH/bin/harbourbridge`
 To use the tool on a PostgreSQL database called mydb, run
 
 ```sh
-pg_dump mydb | harbourbridge -driver=pgdump
+pg_dump mydb | $GOPATH/bin/harbourbridge -driver=pgdump
 ```
 
 To use the tool on a MySQL database called mydb, run
 
 ```sh
-mysqldump mydb | harbourbridge -driver=mysqldump
+mysqldump mydb | $GOPATH/bin/harbourbridge -driver=mysqldump
 ```
 
 More details on running harbourbridge can be found in [Example usage](#example-usage) section.
@@ -255,7 +255,7 @@ messages about the conversion.
 
 Details on HarbourBridge example usage for PostgreSQL and MySQL can be
 found in the [PostgreSQL example usage](postgres/README.md#example-postgresql-usage)
-and [MySQL example usage](mysql/README.md#example-mysql-usage)respectively.
+and [MySQL example usage](mysql/README.md#example-mysql-usage) sections respectively.
 
 ## Schema Conversion
 
@@ -268,7 +268,7 @@ and [MySQL schema conversion](mysql/README.md#schema-conversion) sections respec
 HarbourBridge converts PostgreSQL/MySQL data to Spanner data based on the Spanner
 schema it constructs. Conversion for most data types is fairly straightforward,
 but several types deserve discussion. Note that HarbourBridge is not intended
-for databases larger than a couple of GB. Details on HarbourBridge data conversion
+for databases larger than few tens of GB. Details on HarbourBridge data conversion
 for PostgreSQL and MySQL can be found in the
 [PostgreSQL data conversion](postgres/README.md#data-conversion)
 and [MySQL data conversion](mysql/README.md#data-conversion) sections respectively.
@@ -291,16 +291,9 @@ database. Note that pg_dump uses the same options as psql to connect to your
 database. See the [psql](https://www.postgresql.org/docs/9.3/app-psql.html) and
 [pg_dump](https://www.postgresql.org/docs/9.3/app-pgdump.html) documentation.
 
-Access to a PostgreSQL database is typically configured using the following
-environment variables, which are standard across PostgreSQL utilities including
-pg_dump:
-
-```sh
-PGHOST
-PGPORT
-PGUSER
-PGDATABASE
-```
+Access to a PostgreSQL database is typically configured using the
+_PGHOST_, _PGPORT_, _PGUSER_, _PGDATABASE_ environment variables,
+which are standard across PostgreSQL utilities.
 
 It is also possible to configure access via pg_dump's command-line options
 `--host`, `--port`, and `--username`.
@@ -317,19 +310,17 @@ environment variable or provided at the password prompt.
 
 If you are using mysqldump (-driver=mysqldump), check that mysqldump is
 correctly configured to connect to your MySQL
-database. Note that mysqldump uses the same options as mysql to connect to your
+database via the command-line options `--host`, `--port`, and `--user`.
+Note that mysqldump uses the same options as mysql to connect to your
 database. See the [mysql](https://dev.mysql.com/doc/refman/8.0/en/mysql-commands.html) and
 [mysqldump](https://dev.mysql.com/doc/refman/8.0/en/mysqldump.html) documentation.
-
-Access to a MySQL database is configured via mysqldump's command-line options `--host`,
-`--port`, and `--user`.
 
 #### 1.4 Direct access to MySQL
 
 In this case, HarbourBridge connects directly to the MySQL
 database to retrieve table schema and data using the setting of
 _MYSQLHOST_, _MYSQLPORT_, _MYSQLUSER_, _MYSQLDATABASE_ environment
-variables. Password can be specified either in the _MYSQL_PWD_
+variables. Password can be specified either in the _MYSQLPWD_
 environment variable or provided at the password prompt.
 
 ### 2. Verify dump output

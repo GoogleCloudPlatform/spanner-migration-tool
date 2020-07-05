@@ -252,7 +252,7 @@ func mysqlDriverConfig() (string, error) {
 		fmt.Printf("Please specify host, port, user and database using MYSQLHOST, MYSQLPORT, MYSQLUSER and MYSQLDATABASE environment variables\n")
 		return "", fmt.Errorf("Could not connect to source database")
 	}
-	password := os.Getenv("MYSQL_PWD")
+	password := os.Getenv("MYSQLPWD")
 	if password == "" {
 		password = getPassword()
 	}

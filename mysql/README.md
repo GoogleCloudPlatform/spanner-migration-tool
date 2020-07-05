@@ -67,7 +67,7 @@ harbourbridge -driver=mysql
 ```
 
 It is assumed that _MYSQLHOST_, _MYSQLPORT_, _MYSQLUSER_, _MYSQLDATABASE_ environment
-variables are set. Password can be specified either in the _MYSQL_PWD_ environment
+variables are set. Password can be specified either in the _MYSQLPWD_ environment
 variable or provided at the password prompt.
 
 Note that all of the options described in the previous section on using mysqldump
