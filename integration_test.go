@@ -115,14 +115,14 @@ func prepareIntegrationTest(t *testing.T) string {
 	return tmpdir
 }
 
-func TestIntegration_SimpleUse(t *testing.T) {
+func TestIntegration_PGDUMP_SimpleUse(t *testing.T) {
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
-	dbName, _ := getDatabaseName("pgdump", now)
+	dbName, _ := getDatabaseName(PGDUMP, now)
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	dataFilepath := "test_data/pg_dump.test.out"
 	filePrefix = filepath.Join(tmpdir, dbName+".")
@@ -130,7 +130,7 @@ func TestIntegration_SimpleUse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open the test data file: %v", err)
 	}
-	err = toSpanner("pgdump", projectID, instanceID, dbName, &ioStreams{in: f, out: os.Stdout}, filePrefix, now)
+	err = toSpanner(PGDUMP, projectID, instanceID, dbName, &ioStreams{in: f, out: os.Stdout}, filePrefix, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,14 +140,14 @@ func TestIntegration_SimpleUse(t *testing.T) {
 	checkResults(t, dbPath)
 }
 
-func TestIntegration_Command(t *testing.T) {
+func TestIntegration_PGDUMP_Command(t *testing.T) {
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
-	dbName, _ := getDatabaseName("pgdump", now)
+	dbName, _ := getDatabaseName(PGDUMP, now)
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 
 	dataFilepath := "test_data/pg_dump.test.out"
@@ -158,6 +158,58 @@ func TestIntegration_Command(t *testing.T) {
 	// the generated time in the files uses a `now` inside the command, which
 	// can be different.
 	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -instance %s -dbname %s -prefix %s < %s", instanceID, dbName, filePrefix, dataFilepath))
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("GCLOUD_PROJECT=%s", projectID),
+	)
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("stdout: %q\n", out.String())
+		fmt.Printf("stderr: %q\n", stderr.String())
+		t.Fatal(err)
+	}
+	// Drop the database later.
+	defer dropDatabase(t, dbPath)
+
+	checkResults(t, dbPath)
+}
+
+func TestIntegration_POSTGRES_SimpleUse(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	t.Parallel()
+
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	now := time.Now()
+	dbName, _ := getDatabaseName(POSTGRES, now)
+	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	filePrefix = filepath.Join(tmpdir, dbName+".")
+
+	err := toSpanner(POSTGRES, projectID, instanceID, dbName, &ioStreams{out: os.Stdout}, filePrefix, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Drop the database later.
+	defer dropDatabase(t, dbPath)
+
+	checkResults(t, dbPath)
+}
+
+func TestIntegration_POSTGRES_Command(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	t.Parallel()
+
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	now := time.Now()
+	dbName, _ := getDatabaseName(POSTGRES, now)
+	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	filePrefix = filepath.Join(tmpdir, dbName+".")
+
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -instance %s -dbname %s -prefix %s -driver %s", instanceID, dbName, filePrefix, POSTGRES))
 	var out, stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
@@ -286,5 +338,11 @@ func checkArrays(ctx context.Context, t *testing.T, client *spanner.Client) {
 	}
 	if got, want := strs, []string{"1", "nice", "foo"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("string array is not correct: got %v, want %v", got, want)
+	}
+}
+
+func onlyRunForEmulatorTest(t *testing.T) {
+	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
+		t.Skip("Skipping tests only running against the emulator.")
 	}
 }

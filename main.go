@@ -41,10 +41,8 @@ import (
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/ssh/terminal"
 	"google.golang.org/api/iterator"
-	"google.golang.org/api/option"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
-	"google.golang.org/grpc"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/mysql"
@@ -451,17 +449,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 func createDatabase(project, instance, dbName string, conv *internal.Conv, out *os.File) (string, error) {
 	fmt.Fprintf(out, "Creating new database %s in instance %s with default permissions ... ", dbName, instance)
 	ctx := context.Background()
-	var opts []option.ClientOption
-	// Append emulator options if SPANNER_EMULATOR_HOST has been set.
-	if emulatorAddr := os.Getenv("SPANNER_EMULATOR_HOST"); emulatorAddr != "" {
-		emulatorOpts := []option.ClientOption{
-			option.WithEndpoint(emulatorAddr),
-			option.WithGRPCDialOption(grpc.WithInsecure()),
-			option.WithoutAuthentication(),
-		}
-		opts = append(opts, emulatorOpts...)
-	}
-	adminClient, err := database.NewDatabaseAdminClient(ctx, opts...)
+	adminClient, err := database.NewDatabaseAdminClient(ctx)
 	if err != nil {
 		return "", fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
 	}
