@@ -26,8 +26,7 @@ import (
 )
 
 // ProcessInfoSchema performs schema conversion for source database
-// 'db'. We assume that the source database supports information
-// schema tables. These tables are a broadly supported ANSI standard,
+// 'db'. Information schema tables are a broadly supported ANSI standard,
 // and we use them to obtain source database's schema information.
 func ProcessInfoSchema(conv *internal.Conv, db *sql.DB) error {
 	tables, err := getTables(db)
