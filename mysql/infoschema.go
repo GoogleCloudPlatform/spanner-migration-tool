@@ -28,8 +28,8 @@ import (
 // ProcessInfoSchema performs schema conversion for source database
 // 'db'. Information schema tables are a broadly supported ANSI standard,
 // and we use them to obtain source database's schema information.
-func ProcessInfoSchema(conv *internal.Conv, db *sql.DB, tableSchema string) error {
-	tables, err := getTables(db, tableSchema)
+func ProcessInfoSchema(conv *internal.Conv, db *sql.DB, dbName string) error {
+	tables, err := getTables(db, dbName)
 	if err != nil {
 		return err
 	}
@@ -51,10 +51,10 @@ func ProcessInfoSchema(conv *internal.Conv, db *sql.DB, tableSchema string) erro
 //
 // Using database/sql library we pass *sql.RawBytes to rows.scan.
 // RawBytes is a byte slice and values can be easily converted to string.
-func ProcessSQLData(conv *internal.Conv, db *sql.DB, tableSchema string) {
+func ProcessSQLData(conv *internal.Conv, db *sql.DB, dbName string) {
 	// TODO: refactor to use the set of tables computed by
 	// ProcessInfoSchema instead of computing them again.
-	tables, err := getTables(db, tableSchema)
+	tables, err := getTables(db, dbName)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
 		return
@@ -137,8 +137,8 @@ func buildColNameList(srcSchema schema.Table, srcColName []string) string {
 }
 
 // SetRowStats populates conv with the number of rows in each table.
-func SetRowStats(conv *internal.Conv, db *sql.DB, tableSchema string) {
-	tables, err := getTables(db, tableSchema)
+func SetRowStats(conv *internal.Conv, db *sql.DB, dbName string) {
+	tables, err := getTables(db, dbName)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
 		return
@@ -172,9 +172,13 @@ type schemaAndName struct {
 	name   string
 }
 
-func getTables(db *sql.DB, tableSchema string) ([]schemaAndName, error) {
+// getTables return list of tables in the selected database.
+// Note that sql.DB already effectively has the dbName
+// embedded within it (dbName is part of the DSN passed to sql.Open),
+// but unfortunately there is no way to extract it from sql.DB.
+func getTables(db *sql.DB, dbName string) ([]schemaAndName, error) {
 	q := "SELECT table_name FROM information_schema.tables where table_type = 'BASE TABLE' and table_schema=?"
-	rows, err := db.Query(q, tableSchema)
+	rows, err := db.Query(q, dbName)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get tables: %w", err)
 	}
@@ -183,7 +187,7 @@ func getTables(db *sql.DB, tableSchema string) ([]schemaAndName, error) {
 	var tables []schemaAndName
 	for rows.Next() {
 		rows.Scan(&tableName)
-		tables = append(tables, schemaAndName{schema: tableSchema, name: tableName})
+		tables = append(tables, schemaAndName{schema: dbName, name: tableName})
 	}
 	return tables, nil
 }
