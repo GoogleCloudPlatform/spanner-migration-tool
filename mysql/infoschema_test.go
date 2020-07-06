@@ -36,11 +36,12 @@ type mockSpec struct {
 func TestProcessInfoSchemaMYSQL(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
-			cols:  []string{"table_schema", "table_name"},
+			query: "SELECT (.+) FROM information_schema.tables where table_type = 'BASE TABLE'  and (.+)",
+			args:  []driver.Value{"test"},
+			cols:  []string{"table_name"},
 			rows: [][]driver.Value{
-				{"test", "cart"},
-				{"test", "test"}},
+				{"cart"},
+				{"test"}},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"test", "cart"},
@@ -90,11 +91,11 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
-	err := ProcessInfoSchema(conv, db)
+	err := ProcessInfoSchema(conv, db, "test")
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
-		"test_cart": ddl.CreateTable{
-			Name:     "test_cart",
+		"cart": ddl.CreateTable{
+			Name:     "cart",
 			ColNames: []string{"productid", "userid", "quantity"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"productid": ddl.ColumnDef{Name: "productid", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
@@ -102,8 +103,8 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 				"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Int64{}},
 			},
 			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "productid"}, ddl.IndexKey{Col: "userid"}}},
-		"test_test": ddl.CreateTable{
-			Name:     "test_test",
+		"test": ddl.CreateTable{
+			Name:     "test",
 			ColNames: []string{"id", "s", "txt", "b", "bs", "bl", "c", "c8", "d", "f8", "f4", "i8", "i4", "i2", "si", "ts", "tz", "vc", "vc6"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"id":  ddl.ColumnDef{Name: "id", T: ddl.Int64{}, NotNull: true},
@@ -129,7 +130,7 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "id"}}},
 	}
 	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
-	assert.Equal(t, len(conv.Issues["test.cart"]), 0)
+	assert.Equal(t, len(conv.Issues["cart"]), 0)
 	expectedIssues := map[string][]internal.SchemaIssue{
 		"bs": []internal.SchemaIssue{internal.DefaultValue},
 		"f4": []internal.SchemaIssue{internal.Widened},
@@ -138,16 +139,17 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 		"si": []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
 		"ts": []internal.SchemaIssue{internal.Datetime},
 	}
-	assert.Equal(t, expectedIssues, conv.Issues["test.test"])
+	assert.Equal(t, expectedIssues, conv.Issues["test"])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 
 func TestProcessSQLData(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
-			cols:  []string{"table_schema", "table_name"},
-			rows:  [][]driver.Value{{"test", "te st"}},
+			query: "SELECT table_name FROM information_schema.tables where table_type = 'BASE TABLE' and (.+)",
+			args:  []driver.Value{"test"},
+			cols:  []string{"table_name"},
+			rows:  [][]driver.Value{{"te st"}},
 		}, {
 			query: "SELECT (.+) FROM test.te st",
 			cols:  []string{"a a", " b", " c "},
@@ -160,7 +162,7 @@ func TestProcessSQLData(t *testing.T) {
 	db := mkMockDB(t, ms)
 	conv := buildConv(
 		ddl.CreateTable{
-			Name:     "test_te_st",
+			Name:     "te_st",
 			ColNames: []string{"a a", " b", " c "},
 			ColDefs: map[string]ddl.ColumnDef{
 				"a_a": ddl.ColumnDef{Name: "a_a", T: ddl.Float64{}},
@@ -168,7 +170,7 @@ func TestProcessSQLData(t *testing.T) {
 				"Ac_": ddl.ColumnDef{Name: "Ac_", T: ddl.String{Len: ddl.MaxLength{}}},
 			}},
 		schema.Table{
-			Name:     "test.te st",
+			Name:     "te st",
 			ColNames: []string{"a_a", "_b", "_c_"},
 			ColDefs: map[string]schema.Column{
 				"a a": schema.Column{Name: "a a", Type: schema.Type{Name: "float"}},
@@ -182,15 +184,15 @@ func TestProcessSQLData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	ProcessSQLData(conv, db)
+	ProcessSQLData(conv, db, "test")
 	assert.Equal(t,
 		[]spannerData{
-			spannerData{table: "test_te_st", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(42.3), int64(3), "cat"}},
-			spannerData{table: "test_te_st", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(6.6), int64(22), "dog"}},
+			spannerData{table: "te_st", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(42.3), int64(3), "cat"}},
+			spannerData{table: "te_st", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(6.6), int64(22), "dog"}},
 		},
 		rows)
 	assert.Equal(t, conv.BadRows(), int64(1))
-	assert.Equal(t, conv.SampleBadRows(10), []string{"table=test.te st cols=[a a  b  c ] data=[6.6 2006-01-02 dog]\n"})
+	assert.Equal(t, conv.SampleBadRows(10), []string{"table=te st cols=[a a  b  c ] data=[6.6 2006-01-02 dog]\n"})
 	assert.Equal(t, int64(1), conv.Unexpecteds()) // Bad row generates an entry in unexpected.
 }
 
@@ -202,9 +204,10 @@ func TestProcessSQLData_MultiCol(t *testing.T) {
 	// ProcessInfoSchema.
 	ms := []mockSpec{
 		{
-			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
-			cols:  []string{"table_schema", "table_name"},
-			rows:  [][]driver.Value{{"test", "test"}},
+			query: "SELECT table_name FROM information_schema.tables where table_type = 'BASE TABLE' and (.+)",
+			args:  []driver.Value{"test"},
+			cols:  []string{"table_name"},
+			rows:  [][]driver.Value{{"test"}},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"test", "test"},
@@ -218,12 +221,17 @@ func TestProcessSQLData_MultiCol(t *testing.T) {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"test", "test"},
 			cols:  []string{"column_name", "constraint_type"},
-			rows:  [][]driver.Value{},
+			rows:  [][]driver.Value{}, // No primary key --> force generation of synthetic key.
 		},
+		// Note: go-sqlmock mocks specify an ordered sequence
+		// of queries and results.  This (repeated) entry is
+		// needed because ProcessSQLData (redundantly) gets
+		// the set of tables via a SQL query.
 		{
-			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
-			cols:  []string{"table_schema", "table_name"},
-			rows:  [][]driver.Value{{"test", "test"}},
+			query: "SELECT table_name FROM information_schema.tables where table_type = 'BASE TABLE' and (.+)",
+			args:  []driver.Value{"test"},
+			cols:  []string{"table_name"},
+			rows:  [][]driver.Value{{"test"}},
 		}, {
 			query: "SELECT (.+) FROM test.test",
 			cols:  []string{"a", "b", "c"},
@@ -234,11 +242,11 @@ func TestProcessSQLData_MultiCol(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
-	err := ProcessInfoSchema(conv, db)
+	err := ProcessInfoSchema(conv, db, "test")
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
-		"test_test": ddl.CreateTable{
-			Name:     "test_test",
+		"test": ddl.CreateTable{
+			Name:     "test",
 			ColNames: []string{"a", "b", "c", "synth_id"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"a":        ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
@@ -250,7 +258,7 @@ func TestProcessSQLData_MultiCol(t *testing.T) {
 	}
 	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	expectedIssues := map[string][]internal.SchemaIssue{}
-	assert.Equal(t, expectedIssues, conv.Issues["test.test"])
+	assert.Equal(t, expectedIssues, conv.Issues["test"])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 	conv.SetDataMode()
 	var rows []spannerData
@@ -258,10 +266,10 @@ func TestProcessSQLData_MultiCol(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	ProcessSQLData(conv, db)
+	ProcessSQLData(conv, db, "test")
 	assert.Equal(t, []spannerData{
-		{table: "test_test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), int64(0)}},
-		{table: "test_test", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), int64(-9223372036854775808)}}},
+		{table: "test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), int64(0)}},
+		{table: "test", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), int64(-9223372036854775808)}}},
 		rows)
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
@@ -269,9 +277,10 @@ func TestProcessSQLData_MultiCol(t *testing.T) {
 func TestSetRowStats(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
-			cols:  []string{"table_schema", "table_name"},
-			rows:  [][]driver.Value{{"test", "test1"}, {"test", "test2"}},
+			query: "SELECT table_name FROM information_schema.tables where table_type = 'BASE TABLE' and (.+)",
+			args:  []driver.Value{"test"},
+			cols:  []string{"table_name"},
+			rows:  [][]driver.Value{{"test1"}, {"test2"}},
 		}, {
 			query: `SELECT COUNT[(][*][)] FROM test.test1`,
 			cols:  []string{"count"},
@@ -285,9 +294,9 @@ func TestSetRowStats(t *testing.T) {
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
 	conv.SetDataMode()
-	SetRowStats(conv, db)
-	assert.Equal(t, int64(5), conv.Stats.Rows["test.test1"])
-	assert.Equal(t, int64(142), conv.Stats.Rows["test.test2"])
+	SetRowStats(conv, db, "test")
+	assert.Equal(t, int64(5), conv.Stats.Rows["test1"])
+	assert.Equal(t, int64(142), conv.Stats.Rows["test2"])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 

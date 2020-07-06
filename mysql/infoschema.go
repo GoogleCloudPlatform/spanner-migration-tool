@@ -28,8 +28,8 @@ import (
 // ProcessInfoSchema performs schema conversion for source database
 // 'db'. Information schema tables are a broadly supported ANSI standard,
 // and we use them to obtain source database's schema information.
-func ProcessInfoSchema(conv *internal.Conv, db *sql.DB) error {
-	tables, err := getTables(db)
+func ProcessInfoSchema(conv *internal.Conv, db *sql.DB, tableSchema string) error {
+	tables, err := getTables(db, tableSchema)
 	if err != nil {
 		return err
 	}
@@ -51,16 +51,16 @@ func ProcessInfoSchema(conv *internal.Conv, db *sql.DB) error {
 //
 // Using database/sql library we pass *sql.RawBytes to rows.scan.
 // RawBytes is a byte slice and values can be easily converted to string.
-func ProcessSQLData(conv *internal.Conv, db *sql.DB) {
+func ProcessSQLData(conv *internal.Conv, db *sql.DB, tableSchema string) {
 	// TODO: refactor to use the set of tables computed by
 	// ProcessInfoSchema instead of computing them again.
-	tables, err := getTables(db)
+	tables, err := getTables(db, tableSchema)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
 		return
 	}
 	for _, t := range tables {
-		srcTable := buildTableName(t.schema, t.name)
+		srcTable := t.name
 		srcSchema, ok := conv.SrcSchema[srcTable]
 		if !ok {
 			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
@@ -137,8 +137,8 @@ func buildColNameList(srcSchema schema.Table, srcColName []string) string {
 }
 
 // SetRowStats populates conv with the number of rows in each table.
-func SetRowStats(conv *internal.Conv, db *sql.DB) {
-	tables, err := getTables(db)
+func SetRowStats(conv *internal.Conv, db *sql.DB, tableSchema string) {
+	tables, err := getTables(db, tableSchema)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
 		return
@@ -148,7 +148,7 @@ func SetRowStats(conv *internal.Conv, db *sql.DB) {
 		// Ideally we would pass schema/name as a query parameter,
 		// but MySQL doesn't support this. So we quote it instead.
 		q := fmt.Sprintf(`SELECT COUNT(*) FROM %s.%s;`, t.schema, t.name)
-		tableName := buildTableName(t.schema, t.name)
+		tableName := t.name
 		rows, err := db.Query(q)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't get number of rows for table %s", tableName))
@@ -172,25 +172,18 @@ type schemaAndName struct {
 	name   string
 }
 
-func getTables(db *sql.DB) ([]schemaAndName, error) {
-	ignored := make(map[string]bool)
-	// Ignore all system tables: we just want to convert user tables.
-	for _, s := range []string{"information_schema", "mysql", "performance_schema", "sys"} {
-		ignored[s] = true
-	}
-	q := "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'"
-	rows, err := db.Query(q)
+func getTables(db *sql.DB, tableSchema string) ([]schemaAndName, error) {
+	q := "SELECT table_name FROM information_schema.tables where table_type = 'BASE TABLE' and table_schema=?"
+	rows, err := db.Query(q, tableSchema)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get tables: %w", err)
 	}
 	defer rows.Close()
-	var tableSchema, tableName string
+	var tableName string
 	var tables []schemaAndName
 	for rows.Next() {
-		rows.Scan(&tableSchema, &tableName)
-		if !ignored[tableSchema] {
-			tables = append(tables, schemaAndName{schema: tableSchema, name: tableName})
-		}
+		rows.Scan(&tableName)
+		tables = append(tables, schemaAndName{schema: tableSchema, name: tableName})
 	}
 	return tables, nil
 }
@@ -206,7 +199,7 @@ func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName) error {
 		return fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.schema, table.name, err)
 	}
 	colDefs, colNames := processColumns(conv, cols, constraints)
-	name := buildTableName(table.schema, table.name)
+	name := table.name
 	var schemaPKeys []schema.Key
 	for _, k := range primaryKeys {
 		schemaPKeys = append(schemaPKeys, schema.Key{Column: k})
@@ -356,8 +349,4 @@ func valsToStrings(vals []sql.RawBytes) []string {
 		s = append(s, toString(v))
 	}
 	return s
-}
-
-func buildTableName(schema, name string) string {
-	return fmt.Sprintf("%s.%s", schema, name)
 }

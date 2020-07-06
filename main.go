@@ -269,7 +269,8 @@ func schemaFromSQL(driver string) (*internal.Conv, error) {
 		return nil, err
 	}
 	conv := internal.MakeConv()
-	err = ProcessInfoSchema(driver, conv, sourceDB)
+	tableSchema := os.Getenv("MYSQLDATABASE")
+	err = ProcessInfoSchema(driver, conv, sourceDB, tableSchema)
 	if err != nil {
 		return nil, err
 	}
@@ -290,7 +291,8 @@ func dataFromSQL(driver string, config spanner.BatchWriterConfig, client *sp.Cli
 	if err != nil {
 		return nil, err
 	}
-	err = SetRowStats(driver, conv, sourceDB)
+	tableSchema := os.Getenv("MYSQLDATABASE")
+	err = SetRowStats(driver, conv, sourceDB, tableSchema)
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +314,7 @@ func dataFromSQL(driver string, config spanner.BatchWriterConfig, client *sp.Cli
 		func(table string, cols []string, vals []interface{}) {
 			writer.AddRow(table, cols, vals)
 		})
-	err = ProcessSQLData(driver, conv, sourceDB)
+	err = ProcessSQLData(driver, conv, sourceDB, tableSchema)
 	if err != nil {
 		return nil, err
 	}
@@ -772,10 +774,10 @@ func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 }
 
 // ProcessInfoSchema invokes process infoschema function from a sql package based on driver selected.
-func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB) error {
+func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB, tableSchema string) error {
 	switch driver {
 	case MYSQL:
-		return mysql.ProcessInfoSchema(conv, db)
+		return mysql.ProcessInfoSchema(conv, db, tableSchema)
 	case POSTGRES:
 		return postgres.ProcessInfoSchema(conv, db)
 	default:
@@ -784,10 +786,10 @@ func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB) error {
 }
 
 // SetRowStats invokes SetRowStats function from a sql package based on driver selected.
-func SetRowStats(driver string, conv *internal.Conv, db *sql.DB) error {
+func SetRowStats(driver string, conv *internal.Conv, db *sql.DB, tableSchema string) error {
 	switch driver {
 	case MYSQL:
-		mysql.SetRowStats(conv, db)
+		mysql.SetRowStats(conv, db, tableSchema)
 	case POSTGRES:
 		postgres.SetRowStats(conv, db)
 	default:
@@ -797,10 +799,10 @@ func SetRowStats(driver string, conv *internal.Conv, db *sql.DB) error {
 }
 
 // ProcessSQLData invokes ProcessSQLData function from a sql package based on driver selected.
-func ProcessSQLData(driver string, conv *internal.Conv, db *sql.DB) error {
+func ProcessSQLData(driver string, conv *internal.Conv, db *sql.DB, tableSchema string) error {
 	switch driver {
 	case MYSQL:
-		mysql.ProcessSQLData(conv, db)
+		mysql.ProcessSQLData(conv, db, tableSchema)
 	case POSTGRES:
 		postgres.ProcessSQLData(conv, db)
 	default:
