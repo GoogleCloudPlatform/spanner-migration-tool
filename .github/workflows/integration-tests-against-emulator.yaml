@@ -1,0 +1,70 @@
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+name: integration-tests-against-emulator
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      emulator:
+        image: gcr.io/cloud-spanner-emulator/emulator:0.8.0
+        ports:
+          - 9010:9010
+          - 9020:9020
+      postgres:
+        image: postgres:9.6
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+        - 5432:5432
+        # needed because the postgres container does not provide a healthcheck
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v2
+
+      # set PostgreSQL related environment variables
+      - uses: allenevans/set-env@v1.0.0
+        with:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: postgres
+          PGPASSWORD: postgres
+
+      # init a PostgresSQL database from the test_data
+      - name: Install PostgreSQL 12 client required for loading .sql files
+        run: |
+          sudo bash -c "echo deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main >> /etc/apt/sources.list.d/pgdg.list"
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          sudo apt-get update
+          sudo apt-get -yq install libpq-dev postgresql-client-12
+      - run: psql --version
+      - run: psql -f test_data/pg_dump.test.out
+
+      # create a spanner instance
+      - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        with:
+          version: '290.0.1'
+      - run: gcloud info
+      - run: gcloud config configurations create emulator
+      - run: gcloud config set auth/disable_credentials true
+      - run: gcloud config set project emulator-test-project
+      - run: gcloud config set api_endpoint_overrides/spanner http://localhost:9020/
+      - run: gcloud spanner instances create test-instance --config=emulator-config --description="Test Instance" --nodes=1
+
+      # run tests
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.13'
+      - run: go version
+      - run: go test -v ./...
+        env:
+          SPANNER_EMULATOR_HOST: localhost:9010
+          HARBOURBRIDGE_TESTS_GCLOUD_PROJECT_ID: emulator-test-project
+          HARBOURBRIDGE_TESTS_GCLOUD_INSTANCE_ID: test-instance

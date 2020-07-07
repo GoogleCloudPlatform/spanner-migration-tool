@@ -3,8 +3,8 @@ module github.com/cloudspannerecosystem/harbourbridge
 go 1.13
 
 require (
-	cloud.google.com/go v0.55.0
-	cloud.google.com/go/spanner v1.4.0
+	cloud.google.com/go v0.60.0
+	cloud.google.com/go/spanner v1.7.0
 	github.com/DATA-DOG/go-sqlmock v1.4.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-sql-driver/mysql v1.5.0
@@ -20,7 +20,7 @@ require (
 	github.com/sirupsen/logrus v1.5.0 // indirect
 	github.com/stretchr/testify v1.4.0
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413
-	google.golang.org/api v0.20.0
-	google.golang.org/genproto v0.0.0-20200318110522-7735f76e9fa5
-	google.golang.org/grpc v1.28.0
+	google.golang.org/api v0.28.0
+	google.golang.org/genproto v0.0.0-20200626011028-ee7919e894b5
+	google.golang.org/grpc v1.29.1
 )
