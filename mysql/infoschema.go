@@ -177,6 +177,7 @@ type schemaAndName struct {
 // embedded within it (dbName is part of the DSN passed to sql.Open),
 // but unfortunately there is no way to extract it from sql.DB.
 func getTables(db *sql.DB, dbName string) ([]schemaAndName, error) {
+	// In MySQL, schema is the same as database name.
 	q := "SELECT table_name FROM information_schema.tables where table_type = 'BASE TABLE' and table_schema=?"
 	rows, err := db.Query(q, dbName)
 	if err != nil {

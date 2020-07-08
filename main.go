@@ -774,7 +774,6 @@ func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 // ProcessInfoSchema invokes process infoschema function from a sql package based on driver selected.
 func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
-	// In MySQL, schema is the same as database name.
 	case MYSQL:
 		return mysql.ProcessInfoSchema(conv, db, os.Getenv("MYSQLDATABASE"))
 	case POSTGRES:
