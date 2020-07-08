@@ -146,12 +146,16 @@ func processSetStmt(conv *internal.Conv, stmt *ast.SetStmt) {
 				switch val := value.(type) {
 				case *driver.ValueExpr:
 					if val.GetValue() == nil {
-						logStmtError(conv, stmt, fmt.Errorf("found nil value in set statement"))
+						logStmtError(conv, stmt, fmt.Errorf("found nil value in 'SET TIME_ZONE' statement"))
 						return
 					}
 					conv.TimezoneOffset = fmt.Sprintf("%v", val.GetValue())
 				default:
-					logStmtError(conv, stmt, fmt.Errorf("found %s type value in set statement", reflect.TypeOf(val)))
+					// mysqldump saves the value of TIME_ZONE (in OLD_TIME_ZONE) at
+					// the start of the dump, changes TIME_ZONE, dumps table schema
+					// and data, and then restores TIME_ZONE using OLD_TIME_ZONE at the
+					// end of the dump file. We track the setting of TIME_ZONE, but
+					// ignore the restore statements.
 					return
 				}
 			}

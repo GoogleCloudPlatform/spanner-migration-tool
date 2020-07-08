@@ -763,7 +763,7 @@ func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
 	case MYSQL:
-		return mysql.ProcessInfoSchema(conv, db)
+		return mysql.ProcessInfoSchema(conv, db, os.Getenv("MYSQLDATABASE"))
 	case POSTGRES:
 		return postgres.ProcessInfoSchema(conv, db)
 	default:
@@ -775,7 +775,7 @@ func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB) error {
 func SetRowStats(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
 	case MYSQL:
-		mysql.SetRowStats(conv, db)
+		mysql.SetRowStats(conv, db, os.Getenv("MYSQLDATABASE"))
 	case POSTGRES:
 		postgres.SetRowStats(conv, db)
 	default:
@@ -788,7 +788,7 @@ func SetRowStats(driver string, conv *internal.Conv, db *sql.DB) error {
 func ProcessSQLData(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
 	case MYSQL:
-		mysql.ProcessSQLData(conv, db)
+		mysql.ProcessSQLData(conv, db, os.Getenv("MYSQLDATABASE"))
 	case POSTGRES:
 		postgres.ProcessSQLData(conv, db)
 	default:
