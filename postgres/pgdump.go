@@ -133,7 +133,7 @@ func processCopyBlock(conv *internal.Conv, srcTable string, srcCols []string, r 
 		if !conv.DataMode() {
 			continue
 		}
-		// Pgdump escapes backslash in copy-block statements. For example:
+		// pg_dump escapes backslash in copy-block statements. For example:
 		// a) a\"b becomes a\\"b in COPY-BLOCK (but 'a\"b' in INSERT-INTO)
 		// b) {"a\"b"} becomes {"a\\"b"} in COPY-BLOCK (but '{"a\"b"}' in INSERT-INTO)
 		// Note: a'b and {a'b} are unchanged in COPY-BLOCK and INSERT-INTO.

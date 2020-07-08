@@ -55,7 +55,7 @@ func TestReport(t *testing.T) {
 	conv.Stats.Unexpected["Testing unexpected messages"] = 5
 	buf := new(bytes.Buffer)
 	w := bufio.NewWriter(buf)
-	internal.GenerateReport("pgdump", conv, w, badWrites)
+	internal.GenerateReport("pg_dump", conv, w, badWrites)
 	w.Flush()
 	// Print copy of report to stdout (shows up when running go test -v).
 	fmt.Print(buf.String())
@@ -70,7 +70,7 @@ Summary of Conversion
 Schema conversion: OK (some columns did not map cleanly + some missing primary keys).
 Data conversion: POOR (66% of 6000 rows written to Spanner).
 
-The remainder of this report provides stats on the pgdump statements processed,
+The remainder of this report provides stats on the pg_dump statements processed,
 followed by a table-by-table listing of schema and data conversion details. For
 background on the schema and data conversion process used, and explanations of
 the terms and notes used in this report, see HarbourBridge's README.
@@ -78,7 +78,7 @@ the terms and notes used in this report, see HarbourBridge's README.
 ----------------------------
 Statements Processed
 ----------------------------
-Analysis of statements in pgdump output, broken down by statement type.
+Analysis of statements in pg_dump output, broken down by statement type.
   schema: statements successfully processed for Spanner schema information.
     data: statements successfully processed for data.
     skip: statements not relevant for Spanner schema or data.

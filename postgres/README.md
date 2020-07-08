@@ -18,26 +18,26 @@ on a PostgreSQL database (via go's database/sql package).
 To use HarbourBridge on a PostgreSQL database called mydb using pg_dump output,run:
 
 ```sh
-pg_dump mydb | harbourbridge -driver=pgdump
+pg_dump mydb | harbourbridge -driver=pg_dump
 ```
 
 The tool can also be applied to an existing pg_dump file:
 
 ```sh
-harbourbridge -driver=pgdump < my_pg_dump_file
+harbourbridge -driver=pg_dump < my_pg_dump_file
 ```
 
 To specify a particular Spanner instance to use, run:
 
 ```sh
-pg_dump mydb | harbourbridge -driver=pgdump -instance my-spanner-instance
+pg_dump mydb | harbourbridge -driver=pg_dump -instance my-spanner-instance
 ```
 
 By default, HarbourBridge will generate a new Spanner database name to populate.
 You can override this and specify the database name to use by:
 
 ```sh
-pg_dump mydb | harbourbridge -driver=pgdump -dbname my-spanner-database-name
+pg_dump mydb | harbourbridge -driver=pg_dump -dbname my-spanner-database-name
 ```
 
 HarbourBridge generates a report file, a schema file, and a bad-data file (if
@@ -45,14 +45,14 @@ there are bad-data rows). You can control where these files are written by
 specifying a file prefix. For example,
 
 ```sh
-pg_dump mydb | harbourbridge -driver=pgdump -prefix mydb.
+pg_dump mydb | harbourbridge -driver=pg_dump -prefix mydb.
 ```
 
 will write files `mydb.report.txt`, `mydb.schema.txt`, and
 `mydb.dropped.txt`. The prefix can also be a directory. For example,
 
 ```sh
-pg_dump mydb | harbourbridge -driver=pgdump -prefix ~/spanner-eval-mydb/
+pg_dump mydb | harbourbridge -driver=pg_dump -prefix ~/spanner-eval-mydb/
 ```
 
 would write the files into the directory `~/spanner-eval-mydb/`. Note
