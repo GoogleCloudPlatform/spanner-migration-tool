@@ -4,7 +4,7 @@
 
 HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation,
 using data from an existing PostgreSQL or MySQL database. The tool ingests schema
-and data from either a pgdump/mysqldump file or directly from the source database,
+and data from either a pg_dump/mysqldump file or directly from the source database,
 automatically builds a Spanner schema, and creates a new Spanner database populated
 with data from the source database.
 
@@ -29,10 +29,10 @@ intended for production database migration.
 To use the tool on a PostgreSQL database called mydb, run
 
 ```sh
-# By default, the driver is "pgdump".
+# By default, the driver is "pg_dump".
 pg_dump mydb | harbourbridge
 # Or,
-pg_dump mydb | harbourbridge -driver=pgdump
+pg_dump mydb | harbourbridge -driver=pg_dump
 ```
 
 To use the tool on a MySQL database called mydb, run
@@ -124,7 +124,7 @@ The tool should now be installed as `$GOPATH/bin/harbourbridge`
 To use the tool on a PostgreSQL database called mydb, run
 
 ```sh
-pg_dump mydb | $GOPATH/bin/harbourbridge -driver=pgdump
+pg_dump mydb | $GOPATH/bin/harbourbridge -driver=pg_dump
 ```
 
 To use the tool on a MySQL database called mydb, run
@@ -242,7 +242,7 @@ created in this instance. If not specified, the tool automatically determines an
 appropriate instance using gcloud.
 
 `-driver` Specifies the driver to use for schema and data conversion. Supported drivers
-are _'postgres'_, _'pgdump'_, _'mysql'_ and _'mysqldump'_. By default, the driver is _'pgdump'_.
+are _'postgres'_, _'pg_dump'_, _'mysql'_ and _'mysqldump'_. By default, the driver is _'pg_dump'_.
 
 `-prefix` Specifies a file prefix for the report, schema, and bad-data files
 written by the tool. If no file prefix is specified, the name of the Spanner
@@ -283,9 +283,9 @@ HarbourBridge.
 First, check that the driver is correctly configured to connect to your
 database. Driver configuration varies depending on the driver used.
 
-#### 1.1 pgdump
+#### 1.1 pg_dump
 
-If you are using pg_dump (-driver=pgdump), check that pg_dump is
+If you are using pg_dump (-driver=pg_dump), check that pg_dump is
 correctly configured to connect to your PostgreSQL
 database. Note that pg_dump uses the same options as psql to connect to your
 database. See the [psql](https://www.postgresql.org/docs/9.3/app-psql.html) and

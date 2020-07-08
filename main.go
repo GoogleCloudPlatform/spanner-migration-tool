@@ -53,7 +53,7 @@ import (
 
 const (
 	// PGDUMP is the driver name for pg_dump.
-	PGDUMP string = "pgdump"
+	PGDUMP string = "pg_dump"
 	// POSTGRES is the driver name for PostgreSQL.
 	POSTGRES string = "postgres"
 	// MYSQLDUMP is the driver name for mysqldump.
@@ -77,7 +77,7 @@ func init() {
 	flag.StringVar(&dbNameOverride, "dbname", "", "dbname: name to use for Spanner DB")
 	flag.StringVar(&instanceOverride, "instance", "", "instance: Spanner instance to use")
 	flag.StringVar(&filePrefix, "prefix", "", "prefix: file prefix for generated files")
-	flag.StringVar(&driverName, "driver", "pgdump", "driver name: flag for accessing source DB or dump files (accepted values are \"pgdump\", \"postgres\", \"mysqldump\", and \"mysql\")")
+	flag.StringVar(&driverName, "driver", "pg_dump", "driver name: flag for accessing source DB or dump files (accepted values are \"pg_dump\", \"postgres\", \"mysqldump\", and \"mysql\")")
 	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
 }
 
@@ -421,7 +421,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 	internal.VerbosePrintln("Creating a tmp file with a copy of stdin because stdin is not seekable.")
 
 	// Create file in os.TempDir. Its not clear this is a good idea e.g. if the
-	// pg_dump/mysql_dump output is large (tens of GBs) and os.TempDir points to a directory
+	// pg_dump/mysqldump output is large (tens of GBs) and os.TempDir points to a directory
 	// (such as /tmp) that's configured with a small amount of disk space.
 	// To workaround such limits on Unix, set $TMPDIR to a directory with lots
 	// of disk space.
