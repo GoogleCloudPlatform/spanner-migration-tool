@@ -218,7 +218,7 @@ func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName) error {
 }
 
 func getColumns(table schemaAndName, db *sql.DB) (*sql.Rows, error) {
-	q := `SELECT c.column_name, c.data_type, c.column_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale
+	q := `SELECT c.column_name, c.data_type, c.column_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, c.extra
               FROM information_schema.COLUMNS c
               where table_schema = ? and table_name = ? ORDER BY c.ordinal_position;`
 	return db.Query(q, table.schema, table.name)
@@ -228,10 +228,10 @@ func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string]
 	colDefs := make(map[string]schema.Column)
 	var colNames []string
 	var colName, dataType, isNullable, columnType string
-	var colDefault sql.NullString
+	var colDefault, colExtra sql.NullString
 	var charMaxLen, numericPrecision, numericScale sql.NullInt64
 	for cols.Next() {
-		err := cols.Scan(&colName, &dataType, &columnType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale)
+		err := cols.Scan(&colName, &dataType, &columnType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &colExtra)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
@@ -251,6 +251,9 @@ func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string]
 			}
 		}
 		ignored.Default = colDefault.Valid
+		if colExtra.String == "auto_increment" {
+			ignored.AutoIncrement = true
+		}
 		c := schema.Column{
 			Name:    colName,
 			Type:    toType(dataType, columnType, charMaxLen, numericPrecision, numericScale),

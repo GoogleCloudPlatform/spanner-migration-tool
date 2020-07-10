@@ -73,11 +73,12 @@ type Type struct {
 // represented. We drop the details, but retain presence/absence for
 // reporting purposes.
 type Ignored struct {
-	Check      bool
-	Identity   bool
-	Default    bool
-	Exclusion  bool
-	ForeignKey bool
+	Check         bool
+	Identity      bool
+	Default       bool
+	Exclusion     bool
+	ForeignKey    bool
+	AutoIncrement bool
 }
 
 // Print converts ty to a string suitable for printing.

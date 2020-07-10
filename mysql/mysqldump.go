@@ -344,6 +344,8 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 			isPk = true
 		case ast.ColumnOptionNotNull:
 			column.NotNull = true
+		case ast.ColumnOptionAutoIncrement:
+			column.Ignored.AutoIncrement = true
 		case ast.ColumnOptionDefaultValue:
 			// If a data type specification includes no explicit DEFAULT
 			// value, MySQL determines if the column can take NULL as a value

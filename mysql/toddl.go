@@ -62,6 +62,9 @@ func schemaToDDL(conv *internal.Conv) error {
 			if srcCol.Ignored.Default {
 				issues = append(issues, internal.DefaultValue)
 			}
+			if srcCol.Ignored.AutoIncrement {
+				issues = append(issues, internal.AutoIncrement)
+			}
 			if len(issues) > 0 {
 				conv.Issues[srcTable.Name][srcCol.Name] = issues
 			}

@@ -188,6 +188,8 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					l = append(l, fmt.Sprintf("%s e.g. column '%s'", issueDB[i].brief, srcCol))
 				case ForeignKey:
 					l = append(l, fmt.Sprintf("Column '%s' uses foreign keys which Spanner does not support", srcCol))
+				case AutoIncrement:
+					l = append(l, fmt.Sprintf("Column '%s' is an autoincrement column. %s", srcCol, issueDB[i].brief))
 				case Timestamp:
 					// Avoid the confusing "timestamp is mapped to timestamp" message.
 					l = append(l, fmt.Sprintf("Some columns have source DB type 'timestamp without timezone' which is mapped to Spanner type timestamp e.g. column '%s'. %s", srcCol, issueDB[i].brief))
@@ -251,6 +253,7 @@ var issueDB = map[SchemaIssue]struct {
 	Decimal:               {brief: "Spanner does not support decimal. This type mapping could lose precision and is not recommended for production use", severity: warning},
 	DecimalThatFits:       {brief: "Spanner does not support decimal, but this type mapping preserves the decimal's specified precision", severity: note},
 	Serial:                {brief: "Spanner does not support autoincrementing types", severity: warning},
+	AutoIncrement:         {brief: "Spanner does not support auto_increment attribute", severity: warning},
 	Timestamp:             {brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: note, batch: true},
 	Datetime:              {brief: "Spanner timestamp is closer to MySQL timestamp", severity: note, batch: true},
 	Time:                  {brief: "Spanner does not support time/year types", severity: note, batch: true},
