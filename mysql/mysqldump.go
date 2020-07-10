@@ -423,7 +423,7 @@ func handleParseError(conv *internal.Conv, chunk string, err error, l [][]byte) 
 				conv.Unexpected(fmt.Sprintf("Unsupported datatype '%s' encountered while parsing following statement at line number %d : \n%s", spatial, len(l), chunk))
 				internal.VerbosePrintf("Converting datatype '%s' to 'Text' and retrying to parse the statement\n", spatial)
 			}
-			return handleSpatialDatatype(conv, strings.ToLower(chunk), l)
+			return handleSpatialDatatype(conv, chunk, l)
 		}
 	}
 
@@ -466,7 +466,8 @@ func handleSpatialDatatype(conv *internal.Conv, chunk string, l [][]byte) ([]ast
 		return nil, true
 	}
 	for _, spatial := range MysqlSpatialDataTypes {
-		chunk = strings.ReplaceAll(chunk, " "+spatial, " text")
+		spatialRegexp := regexp.MustCompile("(?i)" + " " + spatial)
+		chunk = spatialRegexp.ReplaceAllString(chunk, " text")
 	}
 	newTree, _, err := parser.New().Parse(chunk, "", "")
 	if err != nil {
