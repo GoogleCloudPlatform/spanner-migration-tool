@@ -76,7 +76,7 @@ func ProcessSQLData(conv *internal.Conv, db *sql.DB, dbName string) {
 		// MySQL schema and name can be arbitrary strings.
 		// Ideally we would pass schema/name as a query parameter,
 		// but MySQL doesn't support this. So we quote it instead.
-		q := fmt.Sprintf(`SELECT %s FROM %s.%s;`, colNameList, t.schema, t.name)
+		q := fmt.Sprintf("SELECT %s FROM `%s`.`%s`;", colNameList, t.schema, t.name)
 		rows, err := db.Query(q)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", t.name, err))
@@ -147,7 +147,7 @@ func SetRowStats(conv *internal.Conv, db *sql.DB, dbName string) {
 		// MySQL schema and name can be arbitrary strings.
 		// Ideally we would pass schema/name as a query parameter,
 		// but MySQL doesn't support this. So we quote it instead.
-		q := fmt.Sprintf(`SELECT COUNT(*) FROM %s.%s;`, t.schema, t.name)
+		q := fmt.Sprintf("SELECT COUNT(*) FROM `%s`.`%s`;", t.schema, t.name)
 		tableName := t.name
 		rows, err := db.Query(q)
 		if err != nil {

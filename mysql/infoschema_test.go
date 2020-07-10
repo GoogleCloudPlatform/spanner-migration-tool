@@ -151,7 +151,7 @@ func TestProcessSQLData(t *testing.T) {
 			cols:  []string{"table_name"},
 			rows:  [][]driver.Value{{"te st"}},
 		}, {
-			query: "SELECT (.+) FROM test.te st",
+			query: "SELECT (.+) FROM `test`.`te st`",
 			cols:  []string{"a a", " b", " c "},
 			rows: [][]driver.Value{
 				{42.3, 3, "cat"},
@@ -233,7 +233,7 @@ func TestProcessSQLData_MultiCol(t *testing.T) {
 			cols:  []string{"table_name"},
 			rows:  [][]driver.Value{{"test"}},
 		}, {
-			query: "SELECT (.+) FROM test.test",
+			query: "SELECT (.+) FROM `test`.`test`",
 			cols:  []string{"a", "b", "c"},
 			rows: [][]driver.Value{
 				{"cat", 42.3, nil},
@@ -282,11 +282,11 @@ func TestSetRowStats(t *testing.T) {
 			cols:  []string{"table_name"},
 			rows:  [][]driver.Value{{"test1"}, {"test2"}},
 		}, {
-			query: `SELECT COUNT[(][*][)] FROM test.test1`,
+			query: "SELECT COUNT[(][*][)] FROM `test`.`test1`",
 			cols:  []string{"count"},
 			rows:  [][]driver.Value{{5}},
 		}, {
-			query: `SELECT COUNT[(][*][)] FROM test.test2`,
+			query: "SELECT COUNT[(][*][)] FROM `test`.`test2`",
 			cols:  []string{"count"},
 			rows:  [][]driver.Value{{142}},
 		},
