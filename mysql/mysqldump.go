@@ -36,6 +36,13 @@ var insertRegexp = regexp.MustCompile("INSERT\\sINTO\\s(.*?)\\sVALUES\\s")
 
 // MysqlSpatialDataTypes is an array of all MySQL spatial data types.
 var MysqlSpatialDataTypes = []string{"geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"}
+var spatialRegexps = func() []*regexp.Regexp {
+	l := make([]*regexp.Regexp, len(MysqlSpatialDataTypes))
+	for i, spatial := range MysqlSpatialDataTypes {
+		l[i] = regexp.MustCompile("(?i)" + " " + spatial)
+	}
+	return l
+}()
 
 // ProcessMySQLDump reads mysqldump data from r and does schema or data conversion,
 // depending on whether conv is configured for schema mode or data mode.
@@ -467,8 +474,7 @@ func handleSpatialDatatype(conv *internal.Conv, chunk string, l [][]byte) ([]ast
 	if !conv.SchemaMode() {
 		return nil, true
 	}
-	for _, spatial := range MysqlSpatialDataTypes {
-		spatialRegexp := regexp.MustCompile("(?i)" + " " + spatial)
+	for _, spatialRegexp := range spatialRegexps {
 		chunk = spatialRegexp.ReplaceAllString(chunk, " text")
 	}
 	newTree, _, err := parser.New().Parse(chunk, "", "")
