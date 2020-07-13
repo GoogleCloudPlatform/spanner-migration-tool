@@ -33,6 +33,7 @@ import (
 
 var valuesRegexp = regexp.MustCompile("\\((.*?)\\)")
 var insertRegexp = regexp.MustCompile("INSERT\\sINTO\\s(.*?)\\sVALUES\\s")
+var unsupportedRegexp = regexp.MustCompile("function|procedure|trigger")
 
 // MysqlSpatialDataTypes is an array of all MySQL spatial data types.
 var MysqlSpatialDataTypes = []string{"geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"}
@@ -43,6 +44,8 @@ var spatialRegexps = func() []*regexp.Regexp {
 	}
 	return l
 }()
+var spatialIndexRegex = regexp.MustCompile("(?i)\\sSPATIAL\\s")
+var spatialSridRegex = regexp.MustCompile("(?i)\\sSRID\\s\\d*")
 
 // ProcessMySQLDump reads mysqldump data from r and does schema or data conversion,
 // depending on whether conv is configured for schema mode or data mode.
@@ -140,7 +143,7 @@ func processStatement(conv *internal.Conv, stmt ast.StmtNode) bool {
 		processInsertStmt(conv, s)
 		return true
 	default:
-		conv.SkipStatement(reflect.TypeOf(stmt).String())
+		conv.SkipStatement(NodeType(stmt))
 	}
 	return false
 }
@@ -195,7 +198,7 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 			keys = append(keys, schema.Key{Column: colname})
 		}
 	}
-	conv.SchemaStatement(reflect.TypeOf(stmt).String())
+	conv.SchemaStatement(NodeType(stmt))
 	conv.SrcSchema[tableName] = schema.Table{
 		Name:        tableName,
 		ColNames:    colNames,
@@ -249,8 +252,6 @@ func updateCols(conv *internal.Conv, ct ast.ConstraintType, colNames []*ast.Inde
 		case ast.ConstraintPrimaryKey:
 			cd.NotNull = true
 			cd.Unique = true
-		default:
-			conv.Unexpected(fmt.Sprintf("Found constraint type of const value `%v` in table : %s , column : %s. Mapping of ConstraintType can be found here: 'https://godoc.org/github.com/pingcap/parser/ast#ConstraintType'", ct, tableName, colName))
 		}
 		colDef[colName] = cd
 	}
@@ -271,7 +272,7 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 			switch alterType := item.Tp; alterType {
 			case ast.AlterTableAddConstraint:
 				processConstraint(conv, tableName, item.Constraint, "ALTER TABLE")
-				conv.SchemaStatement(reflect.TypeOf(stmt).String())
+				conv.SchemaStatement(NodeType(stmt))
 			case ast.AlterTableModifyColumn:
 				colname, col, isPk, err := processColumn(conv, tableName, item.NewColumns[0])
 				if err != nil {
@@ -285,14 +286,13 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 					ctable.PrimaryKeys = []schema.Key{{Column: colname}}
 					conv.SrcSchema[tableName] = ctable
 				}
-				conv.SchemaStatement(reflect.TypeOf(stmt).String())
+				conv.SchemaStatement(NodeType(stmt))
 			default:
-				conv.SkipStatement(reflect.TypeOf(stmt).String())
+				conv.SkipStatement(NodeType(stmt))
 			}
 		}
-
 	} else {
-		conv.SkipStatement(reflect.TypeOf(stmt).String())
+		conv.SkipStatement(NodeType(stmt))
 	}
 }
 
@@ -369,8 +369,6 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 			column.Ignored.Check = true
 		case ast.ColumnOptionReference:
 			column.Ignored.ForeignKey = true
-		default:
-			conv.Unexpected(fmt.Sprintf("Not supported type option of const value `%v` found in table : %s , column : %s. Mapping of columnOptionType can be found here: 'https://godoc.org/github.com/pingcap/parser/ast#ColumnOptionType'", op, tableName, column.Name))
 		}
 	}
 	return isPk
@@ -410,9 +408,27 @@ func getTypeModsAndID(conv *internal.Conv, columnType string) (string, []int64) 
 
 // handleParseError handles error while parsing mysqldump
 // statements and attempts at creating parsable chunk.
-// Error can be due to insert statement or unsupported Spatial
-// datatypes in create statement.
+// Error can be due to insert statement, unsupported Spatial
+// datatypes in create statement or unsupported stored programs.
 func handleParseError(conv *internal.Conv, chunk string, err error, l [][]byte) ([]ast.StmtNode, bool) {
+	// Check error for statements that are not supported by Pingcap parser
+	// such as delimiter, function, procedures and triggers.
+	// If the error is due to a delimiter, we reparse till the chunk
+	// contains 2 delimiters, which is the typical way delimiters
+	// are used by mysqldump e.g.
+	// DELIMITER ;; - First one redefines delimiter to something unusual.
+	// - What follows is the definition of a function, procedure
+	// - or trigger, which can freely use ';' in its body.
+	// DELIMITER ; - Second one restores default delimiter.
+	// We also handle the case of functions, procedures or triggers
+	// without a delimiter statement.
+	errMsg := strings.ToLower(err.Error())
+	if unsupportedRegexp.MatchString(errMsg) || strings.Contains(errMsg, "delimiter") {
+		if strings.Count(strings.ToLower(chunk), "delimiter") == 1 {
+			return nil, false
+		}
+		return nil, skipUnsupported(conv, strings.ToLower(chunk))
+	}
 	// Check if error is due to Insert statement.
 	insertStmtPrefix := insertRegexp.FindString(chunk)
 	if insertStmtPrefix != "" {
@@ -424,10 +440,9 @@ func handleParseError(conv *internal.Conv, chunk string, err error, l [][]byte) 
 		valuesChunk := insertRegexp.Split(chunk, 2)[1] // stripping off insertStmtPrefix
 		return handleInsertStatement(conv, valuesChunk, insertStmtPrefix)
 	}
-
 	// Handle error if it is due to spatial datatype as it is not supported by Pingcap parser.
 	for _, spatial := range MysqlSpatialDataTypes {
-		if strings.Contains(strings.ToLower(err.Error()), spatial) {
+		if strings.Contains(errMsg, `near "`+spatial) {
 			if conv.SchemaMode() {
 				conv.Unexpected(fmt.Sprintf("Unsupported datatype '%s' encountered while parsing following statement at line number %d : \n%s", spatial, len(l), chunk))
 				internal.VerbosePrintf("Converting datatype '%s' to 'Text' and retrying to parse the statement\n", spatial)
@@ -435,7 +450,6 @@ func handleParseError(conv *internal.Conv, chunk string, err error, l [][]byte) 
 			return handleSpatialDatatype(conv, chunk, l)
 		}
 	}
-
 	return nil, false
 }
 
@@ -460,7 +474,7 @@ func handleInsertStatement(conv *internal.Conv, chunk, insertStmtPrefix string) 
 			if conv.SchemaMode() {
 				conv.Unexpected(fmt.Sprintf("Either unsupported value is encountered or syntax is incorrect for following statement : \n%s", chunk))
 			}
-			conv.SkipStatement("*ast.InsertStmt")
+			conv.SkipStatement("InsertStmt")
 			continue
 		}
 		stmts = append(stmts, newTree[0])
@@ -469,7 +483,10 @@ func handleInsertStatement(conv *internal.Conv, chunk, insertStmtPrefix string) 
 }
 
 // handleSpatialDatatype handles error in parsing spatial datatype.
-// We try to replace spatial datatype with 'text' and parse chunk again.
+// We parse chunk again after taking these actions:
+// a) Replace spatial datatype with 'text'.
+// b) Remove 'SPATIAL' keyword from Index/Key.
+// c) Remove SRID(spatial reference identifier) attribute.
 func handleSpatialDatatype(conv *internal.Conv, chunk string, l [][]byte) ([]ast.StmtNode, bool) {
 	if !conv.SchemaMode() {
 		return nil, true
@@ -477,11 +494,33 @@ func handleSpatialDatatype(conv *internal.Conv, chunk string, l [][]byte) ([]ast
 	for _, spatialRegexp := range spatialRegexps {
 		chunk = spatialRegexp.ReplaceAllString(chunk, " text")
 	}
+	chunk = spatialIndexRegex.ReplaceAllString(chunk, "")
+	chunk = spatialSridRegex.ReplaceAllString(chunk, "")
 	newTree, _, err := parser.New().Parse(chunk, "", "")
 	if err != nil {
 		return nil, false
 	}
 	return newTree, true
+}
+
+// skipUnsupported skips the stored programs that are not supported
+// by pingcap parser.
+func skipUnsupported(conv *internal.Conv, chunk string) bool {
+	createOrdrop := "Create"
+	if strings.Contains(chunk, "drop") {
+		createOrdrop = "Drop"
+	}
+	switch {
+	case strings.Contains(chunk, "trigger"):
+		conv.SkipStatement(createOrdrop + "TrigStmt")
+	case strings.Contains(chunk, "procedure"):
+		conv.SkipStatement(createOrdrop + "ProcedureStmt")
+	case strings.Contains(chunk, "function"):
+		conv.SkipStatement(createOrdrop + "FunctionStmt")
+	default:
+		return false
+	}
+	return true
 }
 
 // getArrayBounds calculate array bound for only set data type
@@ -505,6 +544,7 @@ func processInsertStmt(conv *internal.Conv, stmt *ast.InsertStmt) {
 	}
 	if conv.SchemaMode() {
 		conv.Stats.Rows[srcTable] += int64(len(stmt.Lists))
+		conv.DataStatement(NodeType(stmt))
 		return
 	}
 	spTable, err1 := internal.GetSpannerTable(conv, srcTable)
@@ -592,7 +632,7 @@ func getTableNameInsert(stmt *ast.TableRefsClause) (string, error) {
 
 func logStmtError(conv *internal.Conv, stmt ast.StmtNode, err error) {
 	conv.Unexpected(fmt.Sprintf("Processing %v statement: %s", reflect.TypeOf(stmt), err))
-	conv.ErrorInStatement(reflect.TypeOf(stmt).String())
+	conv.ErrorInStatement(NodeType(stmt))
 }
 
 // checkEmpty verifies that pkeys is empty and generates a warning if it isn't.
@@ -601,4 +641,9 @@ func checkEmpty(conv *internal.Conv, pkeys []schema.Key, stmtType string) {
 	if len(pkeys) != 0 {
 		conv.Unexpected(fmt.Sprintf("Multiple primary keys found. `%s` statement is overwriting primary key", stmtType))
 	}
+}
+
+// NodeType strips off "ast." prefix from ast.StmtNode type.
+func NodeType(n ast.StmtNode) string {
+	return strings.TrimPrefix(reflect.TypeOf(n).String(), "*ast.")
 }

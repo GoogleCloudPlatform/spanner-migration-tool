@@ -91,7 +91,7 @@ Analysis of statements in mysqldump output, broken down by statement type.
   --------------------------------------
   schema   data   skip  error  statement
   --------------------------------------
-       5      0      0      0  *ast.CreateTableStmt
+       5      0      0      0  CreateTableStmt
 See https://github.com/pingcap/parser for definitions of statement types
 (pingcap/parser is the library we use for parsing mysqldump output).
 

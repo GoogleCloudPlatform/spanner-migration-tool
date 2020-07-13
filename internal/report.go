@@ -393,15 +393,15 @@ func ignoredStatements(conv *Conv) (l []string) {
 		switch s {
 		case "CreateFunctionStmt":
 			l = append(l, "functions")
-		case "CreateSeqStmt":
+		case "CreateSeqStmt", "CreateSequenceStmt":
 			l = append(l, "sequences")
-		case "CreatePLangStmt":
+		case "CreatePLangStmt", "CreateProcedureStmt":
 			l = append(l, "procedures")
 		case "CreateTrigStmt":
 			l = append(l, "triggers")
-		case "IndexStmt":
+		case "IndexStmt", "CreateIndexStmt":
 			l = append(l, "(non-primary) indexes")
-		case "ViewStmt":
+		case "ViewStmt", "CreateViewStmt":
 			l = append(l, "views")
 		}
 	}
