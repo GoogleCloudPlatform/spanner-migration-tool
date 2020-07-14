@@ -71,6 +71,7 @@ const (
 	Decimal
 	DecimalThatFits
 	Serial
+	AutoIncrement
 	Timestamp
 	Datetime
 	Widened

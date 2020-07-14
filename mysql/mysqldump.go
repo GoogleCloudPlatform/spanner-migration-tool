@@ -36,6 +36,13 @@ var insertRegexp = regexp.MustCompile("INSERT\\sINTO\\s(.*?)\\sVALUES\\s")
 
 // MysqlSpatialDataTypes is an array of all MySQL spatial data types.
 var MysqlSpatialDataTypes = []string{"geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"}
+var spatialRegexps = func() []*regexp.Regexp {
+	l := make([]*regexp.Regexp, len(MysqlSpatialDataTypes))
+	for i, spatial := range MysqlSpatialDataTypes {
+		l[i] = regexp.MustCompile("(?i)" + " " + spatial)
+	}
+	return l
+}()
 
 // ProcessMySQLDump reads mysqldump data from r and does schema or data conversion,
 // depending on whether conv is configured for schema mode or data mode.
@@ -344,6 +351,8 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 			isPk = true
 		case ast.ColumnOptionNotNull:
 			column.NotNull = true
+		case ast.ColumnOptionAutoIncrement:
+			column.Ignored.AutoIncrement = true
 		case ast.ColumnOptionDefaultValue:
 			// If a data type specification includes no explicit DEFAULT
 			// value, MySQL determines if the column can take NULL as a value
@@ -423,7 +432,7 @@ func handleParseError(conv *internal.Conv, chunk string, err error, l [][]byte) 
 				conv.Unexpected(fmt.Sprintf("Unsupported datatype '%s' encountered while parsing following statement at line number %d : \n%s", spatial, len(l), chunk))
 				internal.VerbosePrintf("Converting datatype '%s' to 'Text' and retrying to parse the statement\n", spatial)
 			}
-			return handleSpatialDatatype(conv, strings.ToLower(chunk), l)
+			return handleSpatialDatatype(conv, chunk, l)
 		}
 	}
 
@@ -465,8 +474,8 @@ func handleSpatialDatatype(conv *internal.Conv, chunk string, l [][]byte) ([]ast
 	if !conv.SchemaMode() {
 		return nil, true
 	}
-	for _, spatial := range MysqlSpatialDataTypes {
-		chunk = strings.ReplaceAll(chunk, " "+spatial, " text")
+	for _, spatialRegexp := range spatialRegexps {
+		chunk = spatialRegexp.ReplaceAllString(chunk, " text")
 	}
 	newTree, _, err := parser.New().Parse(chunk, "", "")
 	if err != nil {

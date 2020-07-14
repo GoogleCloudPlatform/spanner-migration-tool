@@ -45,11 +45,11 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"test", "cart"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
 			rows: [][]driver.Value{
-				{"productid", "text", "text", "NO", nil, nil, nil, nil},
-				{"userid", "text", "text", "NO", nil, nil, nil, nil},
-				{"quantity", "bigint", "bigint", "YES", nil, nil, 64, 0}},
+				{"productid", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"userid", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"quantity", "bigint", "bigint", "YES", nil, nil, 64, 0, nil}},
 		}, {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"test", "cart"},
@@ -60,33 +60,34 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"test", "test"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
 			rows: [][]driver.Value{
-				{"id", "bigint", "bigint", "NO", nil, nil, 64, 0},
-				{"s", "set", "set", "YES", nil, nil, nil, nil},
-				{"txt", "text", "text", "NO", nil, nil, nil, nil},
-				{"b", "boolean", "boolean", "YES", nil, nil, nil, nil},
-				{"bs", "bigint", "bigint", "NO", "nextval('test11_bs_seq'::regclass)", nil, 64, 0},
-				{"bl", "blob", "blob", "YES", nil, nil, nil, nil},
-				{"c", "char", "char(1)", "YES", nil, 1, nil, nil},
-				{"c8", "char", "char(8)", "YES", nil, 8, nil, nil},
-				{"d", "date", "date", "YES", nil, nil, nil, nil},
-				{"f8", "double", "double", "YES", nil, nil, 53, nil},
-				{"f4", "float", "float", "YES", nil, nil, 24, nil},
-				{"i8", "bigint", "bigint", "YES", nil, nil, 64, 0},
-				{"i4", "integer", "integer", "YES", nil, nil, 32, 0},
-				{"i2", "smallint", "smallint", "YES", nil, nil, 16, 0},
-				{"si", "integer", "integer", "NO", "nextval('test11_s_seq'::regclass)", nil, 32, 0},
-				{"ts", "datetime", "datetime", "YES", nil, nil, nil, nil},
-				{"tz", "timestamp", "timestamp", "YES", nil, nil, nil, nil},
-				{"vc", "varchar", "varchar", "YES", nil, nil, nil, nil},
-				{"vc6", "varchar", "varchar(6)", "YES", nil, 6, nil, nil}},
+				{"id", "bigint", "bigint", "NO", nil, nil, 64, 0, nil},
+				{"s", "set", "set", "YES", nil, nil, nil, nil, nil},
+				{"txt", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"b", "boolean", "boolean", "YES", nil, nil, nil, nil, nil},
+				{"bs", "bigint", "bigint", "NO", "nextval('test11_bs_seq'::regclass)", nil, 64, 0, nil},
+				{"bl", "blob", "blob", "YES", nil, nil, nil, nil, nil},
+				{"c", "char", "char(1)", "YES", nil, 1, nil, nil, nil},
+				{"c8", "char", "char(8)", "YES", nil, 8, nil, nil, nil},
+				{"d", "date", "date", "YES", nil, nil, nil, nil, nil},
+				{"dec", "decimal", "decimal(20,5)", "YES", nil, nil, 20, 5, nil},
+				{"f8", "double", "double", "YES", nil, nil, 53, nil, nil},
+				{"f4", "float", "float", "YES", nil, nil, 24, nil, nil},
+				{"i8", "bigint", "bigint", "YES", nil, nil, 64, 0, nil},
+				{"i4", "integer", "integer", "YES", nil, nil, 32, 0, "auto_increment"},
+				{"i2", "smallint", "smallint", "YES", nil, nil, 16, 0, nil},
+				{"si", "integer", "integer", "NO", "nextval('test11_s_seq'::regclass)", nil, 32, 0, nil},
+				{"ts", "datetime", "datetime", "YES", nil, nil, nil, nil, nil},
+				{"tz", "timestamp", "timestamp", "YES", nil, nil, nil, nil, nil},
+				{"vc", "varchar", "varchar", "YES", nil, nil, nil, nil, nil},
+				{"vc6", "varchar", "varchar(6)", "YES", nil, 6, nil, nil, nil}},
 		},
 		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"test", "test"},
 			cols:  []string{"column_name", "constraint_type"},
-			rows:  [][]driver.Value{{"id", "PRIMARY KEY"}},
+			rows:  [][]driver.Value{{"id", "PRIMARY KEY"}, {"id", "FOREIGN KEY"}},
 		},
 	}
 	db := mkMockDB(t, ms)
@@ -105,7 +106,7 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "productid"}, ddl.IndexKey{Col: "userid"}}},
 		"test": ddl.CreateTable{
 			Name:     "test",
-			ColNames: []string{"id", "s", "txt", "b", "bs", "bl", "c", "c8", "d", "f8", "f4", "i8", "i4", "i2", "si", "ts", "tz", "vc", "vc6"},
+			ColNames: []string{"id", "s", "txt", "b", "bs", "bl", "c", "c8", "d", "dec", "f8", "f4", "i8", "i4", "i2", "si", "ts", "tz", "vc", "vc6"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"id":  ddl.ColumnDef{Name: "id", T: ddl.Int64{}, NotNull: true},
 				"s":   ddl.ColumnDef{Name: "s", T: ddl.String{Len: ddl.MaxLength{}}, IsArray: true},
@@ -116,6 +117,7 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 				"c":   ddl.ColumnDef{Name: "c", T: ddl.String{Len: ddl.Int64Length{Value: 1}}},
 				"c8":  ddl.ColumnDef{Name: "c8", T: ddl.String{Len: ddl.Int64Length{Value: 8}}},
 				"d":   ddl.ColumnDef{Name: "d", T: ddl.Date{}},
+				"dec": ddl.ColumnDef{Name: "dec", T: ddl.Float64{}},
 				"f8":  ddl.ColumnDef{Name: "f8", T: ddl.Float64{}},
 				"f4":  ddl.ColumnDef{Name: "f4", T: ddl.Float64{}},
 				"i8":  ddl.ColumnDef{Name: "i8", T: ddl.Int64{}},
@@ -132,12 +134,14 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	assert.Equal(t, len(conv.Issues["cart"]), 0)
 	expectedIssues := map[string][]internal.SchemaIssue{
-		"bs": []internal.SchemaIssue{internal.DefaultValue},
-		"f4": []internal.SchemaIssue{internal.Widened},
-		"i4": []internal.SchemaIssue{internal.Widened},
-		"i2": []internal.SchemaIssue{internal.Widened},
-		"si": []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
-		"ts": []internal.SchemaIssue{internal.Datetime},
+		"id":  []internal.SchemaIssue{internal.ForeignKey},
+		"bs":  []internal.SchemaIssue{internal.DefaultValue},
+		"dec": []internal.SchemaIssue{internal.Decimal},
+		"f4":  []internal.SchemaIssue{internal.Widened},
+		"i4":  []internal.SchemaIssue{internal.Widened, internal.AutoIncrement},
+		"i2":  []internal.SchemaIssue{internal.Widened},
+		"si":  []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
+		"ts":  []internal.SchemaIssue{internal.Datetime},
 	}
 	assert.Equal(t, expectedIssues, conv.Issues["test"])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
@@ -211,11 +215,11 @@ func TestProcessSQLData_MultiCol(t *testing.T) {
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"test", "test"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
 			rows: [][]driver.Value{
-				{"a", "text", "text", "NO", nil, nil, nil, nil},
-				{"b", "double", "double", "YES", nil, nil, 53, nil},
-				{"c", "bigint", "bigint", "YES", nil, nil, 64, 0}},
+				{"a", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"b", "double", "double", "YES", nil, nil, 53, nil, nil},
+				{"c", "bigint", "bigint", "YES", nil, nil, 64, 0, nil}},
 		},
 		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
