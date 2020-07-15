@@ -168,6 +168,41 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}}},
 		},
 		{
+			name: "Create table with function, trigger and procedure",
+			input: `
+DELIMITER ;;
+CREATE PROCEDURE test_procedure( x INT )
+    DETERMINISTIC
+BEGIN
+  SELECT concat(x, ' is a nice number');
+END ;;
+DELIMITER ;
+
+DELIMITER ;;
+CREATE FUNCTION test_function( x INT ) RETURNS int(11)
+    DETERMINISTIC
+BEGIN
+  RETURN x + 42;
+END ;;
+DELIMITER ;
+
+DELIMITER ;;
+/*!50003 CREATE TRIGGER test_trigger BEFORE INSERT ON MyTable FOR EACH ROW If NEW.id < 0 THEN SET NEW.id = -NEW.id; END IF */;;
+DELIMITER ;
+
+CREATE TABLE test (a text PRIMARY KEY, b text);`,
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.String{Len: ddl.MaxLength{}}},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}}},
+			expectIssues: true, // conv.Stats.Reparsed != 0
+		},
+		{
 			name: "ALTER TABLE SET NOT NULL",
 			input: "CREATE TABLE test (a text PRIMARY KEY, b text);\n" +
 				"ALTER TABLE test MODIFY b text NOT NULL;\n",
