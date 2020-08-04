@@ -279,7 +279,7 @@ and [MySQL data conversion](mysql/README.md#data-conversion) sections respective
 
 HarbourBridge is written using the Go module system, and so it must be
 installed in [module-aware mode](https://golang.org/cmd/go/#hdr-Module_support).
-This can be achived by setting the environment variable GO111MODULE to on
+This can be achived by setting the environment variable `GO111MODULE` to `on`
 before calling "go get" e.g.
 
 ```sh
@@ -296,7 +296,7 @@ pg_dump mydb | go run github.com/cloudspannerecosystem/harbourbridge -driver=pg_
 
 ```
 
-This workflow also allows you to modify/customize the HarbourBridge codebase.
+This workflow also allows you to modify or customize the HarbourBridge codebase.
 
 The following steps can help diagnose common issues encountered while running
 HarbourBridge.
