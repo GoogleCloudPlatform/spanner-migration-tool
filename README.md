@@ -114,10 +114,12 @@ variable if it is not already configured, and
 Download the tool to your machine and install it.
 
 ```sh
-go get github.com/cloudspannerecosystem/harbourbridge
+GO111MODULE=on go get github.com/cloudspannerecosystem/harbourbridge
 ```
 
-The tool should now be installed as `$GOPATH/bin/harbourbridge`
+The tool should now be installed as `$GOPATH/bin/harbourbridge`.
+See the [Troubleshooting Guide](#troubleshooting-guide) if you run
+into any issues.
 
 ### Running HarbourBridge
 
@@ -274,6 +276,27 @@ for PostgreSQL and MySQL can be found in the
 and [MySQL data conversion](mysql/README.md#data-conversion) sections respectively.
 
 ## Troubleshooting Guide
+
+HarbourBridge is written using the Go module system, and so it must be
+installed in [module-aware mode](https://golang.org/cmd/go/#hdr-Module_support).
+This can be achived by setting the environment variable GO111MODULE to on
+before calling "go get" e.g.
+
+```sh
+GO111MODULE=on go get github.com/cloudspannerecosystem/harbourbridge
+```
+
+As an alternative to "go get", you can make a copy of the HarbourBridge
+codebase from the github repository and use "go run":
+
+```sh
+git clone https://github.com/cloudspannerecosystem/harbourbridge
+cd harbourbridge
+pg_dump mydb | go run github.com/cloudspannerecosystem/harbourbridge -driver=pg_dump
+
+```
+
+This workflow also allows you to modify/customize the HarbourBridge codebase.
 
 The following steps can help diagnose common issues encountered while running
 HarbourBridge.
