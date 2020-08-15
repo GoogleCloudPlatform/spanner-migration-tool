@@ -82,19 +82,19 @@ func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.ScalarType
 	}
 	maxExpectedMods(0)
 	switch id {
-	case dyTypeNumberInt:
+	case typeNumberInt:
 		return ddl.Int64{}, false, nil
-	case dyTypeNumberFloat, dyTypeString, dyTypeList, dyTypeMap:
+	case typeNumberFloat, typeString, typeList, typeMap:
 		return ddl.String{Len: ddl.MaxLength{}}, false, nil
-	case dyTypeBool:
+	case typeBool:
 		return ddl.Bool{}, false, nil
-	case dyTypeBinary:
+	case typeBinary:
 		return ddl.Bytes{Len: ddl.MaxLength{}}, false, nil
-	case dyTypeStringSet, dyTypeNumberFloatSet:
+	case typeStringSet, typeNumberFloatSet:
 		return ddl.String{Len: ddl.MaxLength{}}, true, nil
-	case dyTypeNumberIntSet:
+	case typeNumberIntSet:
 		return ddl.Int64{}, true, nil
-	case dyTypeBinarySet:
+	case typeBinarySet:
 		return ddl.Bytes{Len: ddl.MaxLength{}}, true, nil
 	default:
 		return ddl.String{Len: ddl.MaxLength{}}, false, []internal.SchemaIssue{internal.NoGoodType}
