@@ -37,6 +37,8 @@ import (
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
+	"github.com/aws/aws-sdk-go/aws/session"
+	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/ssh/terminal"
@@ -331,7 +333,9 @@ func dataFromSQL(driver string, config spanner.BatchWriterConfig, client *sp.Cli
 func schemaFromDynamoDB() (*internal.Conv, error) {
 	tables := []string{}
 	conv := internal.MakeConv()
-	err := dynamodb.ProcessSchema(conv, tables, int64(10000))
+	mySession := session.Must(session.NewSession())
+	svc := dydb.New(mySession)
+	err := dynamodb.ProcessSchema(conv, svc, tables, int64(10000))
 	if err != nil {
 		return nil, err
 	}

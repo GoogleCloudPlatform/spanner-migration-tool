@@ -21,7 +21,6 @@ import (
 	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
@@ -41,26 +40,28 @@ const (
 	typeBinarySet      = "BinarySet"
 )
 
+type dynamoClient interface {
+	ListTables(input *dynamodb.ListTablesInput) (*dynamodb.ListTablesOutput, error)
+	DescribeTable(input *dynamodb.DescribeTableInput) (*dynamodb.DescribeTableOutput, error)
+	Scan(input *dynamodb.ScanInput) (*dynamodb.ScanOutput, error)
+}
+
 // ProcessSchema performs schema conversion for source tables in a DynamoDB
 // database. We use the standard APIs to obtain source table's schema
 // information, including primary keys and secondary indexes. DynamoDB is a
 // schemaless database that some optional attributes can be missed or has
 // different data types in some rows. Therefore, we have to sample a number of
 // rows to infer the schema for optional attributes.
-func ProcessSchema(conv *internal.Conv, tables []string, sampleSize int64) error {
-	mySession := session.Must(session.NewSession())
-	svc := dynamodb.New(mySession)
-
+func ProcessSchema(conv *internal.Conv, client dynamoClient, tables []string, sampleSize int64) error {
 	if len(tables) == 0 {
 		var err error
-		tables, err = listTables(svc)
+		tables, err = listTables(client)
 		if err != nil {
 			return err
 		}
 	}
-
 	for _, t := range tables {
-		if err := processTable(conv, svc, t); err != nil {
+		if err := processTable(conv, client, t); err != nil {
 			return err
 		}
 	}
@@ -69,7 +70,7 @@ func ProcessSchema(conv *internal.Conv, tables []string, sampleSize int64) error
 	return nil
 }
 
-func listTables(client *dynamodb.DynamoDB) ([]string, error) {
+func listTables(client dynamoClient) ([]string, error) {
 	var tables []string
 	var lastEvaluatedTableName *string
 
@@ -94,7 +95,7 @@ func listTables(client *dynamodb.DynamoDB) ([]string, error) {
 	}
 }
 
-func processTable(conv *internal.Conv, client *dynamodb.DynamoDB, table string) error {
+func processTable(conv *internal.Conv, client dynamoClient, table string) error {
 	dySchema := dynamoDBSchema{TableName: table}
 	err := dySchema.parsePKeySecIndex(client)
 	if err != nil {
@@ -116,7 +117,7 @@ type dynamoDBSchema struct {
 	GlobalSecondaryIndexes [][]string
 }
 
-func (s *dynamoDBSchema) parsePKeySecIndex(client *dynamodb.DynamoDB) error {
+func (s *dynamoDBSchema) parsePKeySecIndex(client dynamoClient) error {
 	input := &dynamodb.DescribeTableInput{
 		TableName: aws.String(s.TableName),
 	}
@@ -143,7 +144,7 @@ func (s *dynamoDBSchema) parsePKeySecIndex(client *dynamodb.DynamoDB) error {
 	return nil
 }
 
-func (s *dynamoDBSchema) inferSchema(client *dynamodb.DynamoDB) error {
+func (s *dynamoDBSchema) inferSchema(client dynamoClient) error {
 	// A map from column name to a count map of possible data types.
 	stats := make(map[string]map[string]int64)
 	var lastEvaluatedKey map[string]*dynamodb.AttributeValue
@@ -246,30 +247,37 @@ func (s *dynamoDBSchema) inferDataTypes(stats map[string]map[string]int64) {
 }
 
 func (s *dynamoDBSchema) genericSchema() schema.Table {
-	var schemaPKeys []schema.Key
 	colDefs := make(map[string]schema.Column)
 
 	for i, colType := range s.ColumnTypes {
 		colName := s.ColumnNames[i]
-		isNullable := true
-		for _, pKey := range s.PrimaryKeys {
-			if colName == pKey {
-				isNullable = false
-				schemaPKeys = append(schemaPKeys, schema.Key{Column: colName})
-				break
-			}
-		}
 		colDef := schema.Column{
-			Name:    colName,
-			Type:    schema.Type{Name: colType},
-			NotNull: !isNullable,
+			Name: colName,
+			Type: schema.Type{Name: colType},
 		}
 		colDefs[colName] = colDef
 	}
 
+	// Sort column names in increasing order.
+	colNames := make([]string, len(s.ColumnNames))
+	copy(colNames, s.ColumnNames)
+	sort.Strings(colNames)
+
+	// The order of primary keys is important.
+	var schemaPKeys []schema.Key
+	for _, colName := range s.PrimaryKeys {
+		schemaPKeys = append(schemaPKeys, schema.Key{Column: colName})
+		colDef := colDefs[colName]
+		colDefs[colName] = schema.Column{
+			Name:    colName,
+			Type:    colDef.Type,
+			NotNull: true,
+		}
+	}
+
 	return schema.Table{
 		Name:        s.TableName,
-		ColNames:    s.ColumnNames,
+		ColNames:    colNames,
 		ColDefs:     colDefs,
 		PrimaryKeys: schemaPKeys,
 	}
