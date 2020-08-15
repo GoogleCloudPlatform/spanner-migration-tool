@@ -44,6 +44,7 @@ import (
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
+	"github.com/cloudspannerecosystem/harbourbridge/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/postgres"
@@ -60,6 +61,8 @@ const (
 	MYSQLDUMP string = "mysqldump"
 	// MYSQL is the driver name for MySQL.
 	MYSQL string = "mysql"
+	// DYNAMODB is the driver name for AWS DynamoDB.
+	DYNAMODB string = "dynamodb"
 )
 
 var (
@@ -163,26 +166,28 @@ func toSpanner(driver, projectID, instanceID, dbName string, ioHelper *ioStreams
 
 	writeSchemaFile(conv, now, outputFilePrefix+schemaFile, ioHelper.out)
 
-	db, err := createDatabase(projectID, instanceID, dbName, conv, ioHelper.out)
-	if err != nil {
-		fmt.Printf("\nCan't create database: %v\n", err)
-		return fmt.Errorf("can't create database")
-	}
+	// TODO(hengfeng): uncomment the following code for converting data.
 
-	client, err := getClient(db)
-	if err != nil {
-		fmt.Printf("\nCan't create client for db %s: %v\n", db, err)
-		return fmt.Errorf("can't create Spanner client")
-	}
+	// db, err := createDatabase(projectID, instanceID, dbName, conv, ioHelper.out)
+	// if err != nil {
+	// 	fmt.Printf("\nCan't create database: %v\n", err)
+	// 	return fmt.Errorf("can't create database")
+	// }
 
-	bw, err := dataConv(driver, ioHelper, client, conv)
-	if err != nil {
-		fmt.Printf("\nCan't finish data conversion for db %s: %v\n", db, err)
-		return fmt.Errorf("can't finish data conversion")
-	}
-	banner := getBanner(now, db)
-	report(driver, bw.DroppedRowsByTable(), ioHelper.bytesRead, banner, conv, outputFilePrefix+reportFile, ioHelper.out)
-	writeBadData(bw, conv, banner, outputFilePrefix+badDataFile, ioHelper.out)
+	// client, err := getClient(db)
+	// if err != nil {
+	// 	fmt.Printf("\nCan't create client for db %s: %v\n", db, err)
+	// 	return fmt.Errorf("can't create Spanner client")
+	// }
+
+	// bw, err := dataConv(driver, ioHelper, client, conv)
+	// if err != nil {
+	// 	fmt.Printf("\nCan't finish data conversion for db %s: %v\n", db, err)
+	// 	return fmt.Errorf("can't finish data conversion")
+	// }
+	// banner := getBanner(now, db)
+	// report(driver, bw.DroppedRowsByTable(), ioHelper.bytesRead, banner, conv, outputFilePrefix+reportFile, ioHelper.out)
+	// writeBadData(bw, conv, banner, outputFilePrefix+badDataFile, ioHelper.out)
 	return nil
 }
 
@@ -192,6 +197,8 @@ func schemaConv(driver string, ioHelper *ioStreams) (*internal.Conv, error) {
 		return schemaFromSQL(driver)
 	case PGDUMP, MYSQLDUMP:
 		return schemaFromDump(driver, ioHelper)
+	case DYNAMODB:
+		return schemaFromDynamoDB()
 	default:
 		return nil, fmt.Errorf("schema conversion for driver %s not supported", driver)
 	}
@@ -316,6 +323,16 @@ func dataFromSQL(driver string, config spanner.BatchWriterConfig, client *sp.Cli
 	}
 	writer.Flush()
 	return writer, nil
+}
+
+func schemaFromDynamoDB() (*internal.Conv, error) {
+	tables := []string{}
+	conv := internal.MakeConv()
+	err := dynamodb.ProcessSchema(conv, tables, int64(10000))
+	if err != nil {
+		return nil, err
+	}
+	return conv, nil
 }
 
 type ioStreams struct {
