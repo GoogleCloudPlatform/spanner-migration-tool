@@ -20,6 +20,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/stretchr/testify/assert"
 )
@@ -263,6 +264,29 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 	}
 	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	assert.Equal(t, int64(0), conv.Unexpecteds())
+}
+
+func TestGenericSchema(t *testing.T) {
+	dySchema := dynamoDBSchema{TableName: "test"}
+	dySchema.ColumnNames = []string{"a", "b", "c"}
+	dySchema.ColumnTypes = []string{"String", "NumberInt", "Bool"}
+	dySchema.PrimaryKeys = []string{"b", "a"}
+	dySchema.SecIndexes = [][]string{{"c", "b"}}
+	s := dySchema.genericSchema()
+	expectedSchema := schema.Table{
+		Name:     "test",
+		ColNames: []string{"a", "b", "c"},
+		ColDefs: map[string]schema.Column{
+			"a": {Name: "a", Type: schema.Type{Name: "String"}, NotNull: true},
+			"b": {Name: "b", Type: schema.Type{Name: "NumberInt"}, NotNull: true},
+			"c": {Name: "c", Type: schema.Type{Name: "Bool"}},
+		},
+		PrimaryKeys: []schema.Key{{Column: "b"}, {Column: "a"}},
+		Indexes: []schema.Index{
+			{Name: "index_c_b", Keys: []schema.Key{{Column: "c"}, {Column: "b"}}},
+		},
+	}
+	assert.Equal(t, expectedSchema, s)
 }
 
 func stripSchemaComments(spSchema map[string]ddl.CreateTable) map[string]ddl.CreateTable {

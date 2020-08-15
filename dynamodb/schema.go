@@ -19,6 +19,7 @@ import (
 	"log"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -110,11 +111,11 @@ func processTable(conv *internal.Conv, client dynamoClient, table string) error 
 }
 
 type dynamoDBSchema struct {
-	TableName              string
-	ColumnNames            []string
-	ColumnTypes            []string
-	PrimaryKeys            []string
-	GlobalSecondaryIndexes [][]string
+	TableName   string
+	ColumnNames []string
+	ColumnTypes []string
+	PrimaryKeys []string
+	SecIndexes  [][]string
 }
 
 func (s *dynamoDBSchema) parsePKeySecIndex(client dynamoClient) error {
@@ -138,7 +139,7 @@ func (s *dynamoDBSchema) parsePKeySecIndex(client dynamoClient) error {
 		for _, j := range i.KeySchema {
 			secIndex = append(secIndex, *j.AttributeName)
 		}
-		s.GlobalSecondaryIndexes = append(s.GlobalSecondaryIndexes, secIndex)
+		s.SecIndexes = append(s.SecIndexes, secIndex)
 	}
 
 	return nil
@@ -275,11 +276,26 @@ func (s *dynamoDBSchema) genericSchema() schema.Table {
 		}
 	}
 
+	// Record secondary indexes.
+	var indexes []schema.Index
+	for _, ks := range s.SecIndexes {
+		var keys []schema.Key
+		for _, k := range ks {
+			keys = append(keys, schema.Key{Column: k})
+		}
+		index := schema.Index{
+			Name: fmt.Sprintf("index_%v", strings.Join(ks, "_")),
+			Keys: keys,
+		}
+		indexes = append(indexes, index)
+	}
+
 	return schema.Table{
 		Name:        s.TableName,
 		ColNames:    colNames,
 		ColDefs:     colDefs,
 		PrimaryKeys: schemaPKeys,
+		Indexes:     indexes,
 	}
 }
 
