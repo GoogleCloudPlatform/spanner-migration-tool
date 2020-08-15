@@ -166,28 +166,31 @@ func toSpanner(driver, projectID, instanceID, dbName string, ioHelper *ioStreams
 
 	writeSchemaFile(conv, now, outputFilePrefix+schemaFile, ioHelper.out)
 
-	// TODO(hengfeng): uncomment the following code for converting data.
+	// TODO(hengfeng): delete the following code after data conversion is done.
+	if driver == DYNAMODB {
+		return nil
+	}
 
-	// db, err := createDatabase(projectID, instanceID, dbName, conv, ioHelper.out)
-	// if err != nil {
-	// 	fmt.Printf("\nCan't create database: %v\n", err)
-	// 	return fmt.Errorf("can't create database")
-	// }
+	db, err := createDatabase(projectID, instanceID, dbName, conv, ioHelper.out)
+	if err != nil {
+		fmt.Printf("\nCan't create database: %v\n", err)
+		return fmt.Errorf("can't create database")
+	}
 
-	// client, err := getClient(db)
-	// if err != nil {
-	// 	fmt.Printf("\nCan't create client for db %s: %v\n", db, err)
-	// 	return fmt.Errorf("can't create Spanner client")
-	// }
+	client, err := getClient(db)
+	if err != nil {
+		fmt.Printf("\nCan't create client for db %s: %v\n", db, err)
+		return fmt.Errorf("can't create Spanner client")
+	}
 
-	// bw, err := dataConv(driver, ioHelper, client, conv)
-	// if err != nil {
-	// 	fmt.Printf("\nCan't finish data conversion for db %s: %v\n", db, err)
-	// 	return fmt.Errorf("can't finish data conversion")
-	// }
-	// banner := getBanner(now, db)
-	// report(driver, bw.DroppedRowsByTable(), ioHelper.bytesRead, banner, conv, outputFilePrefix+reportFile, ioHelper.out)
-	// writeBadData(bw, conv, banner, outputFilePrefix+badDataFile, ioHelper.out)
+	bw, err := dataConv(driver, ioHelper, client, conv)
+	if err != nil {
+		fmt.Printf("\nCan't finish data conversion for db %s: %v\n", db, err)
+		return fmt.Errorf("can't finish data conversion")
+	}
+	banner := getBanner(now, db)
+	report(driver, bw.DroppedRowsByTable(), ioHelper.bytesRead, banner, conv, outputFilePrefix+reportFile, ioHelper.out)
+	writeBadData(bw, conv, banner, outputFilePrefix+badDataFile, ioHelper.out)
 	return nil
 }
 
