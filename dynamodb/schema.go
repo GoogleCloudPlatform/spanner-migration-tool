@@ -27,23 +27,18 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 )
 
-type statItem struct {
-	Type  string
-	Count int64
-}
-
 const (
-	dyTypeString         = "String"
-	dyTypeBool           = "Bool"
-	dyTypeNumberInt      = "NumberInt"
-	dyTypeNumberFloat    = "NumberFloat"
-	dyTypeBinary         = "Binary"
-	dyTypeList           = "List"
-	dyTypeMap            = "Map"
-	dyTypeStringSet      = "StringSet"
-	dyTypeNumberIntSet   = "NumberIntSet"
-	dyTypeNumberFloatSet = "NumberFloatSet"
-	dyTypeBinarySet      = "BinarySet"
+	typeString         = "String"
+	typeBool           = "Bool"
+	typeNumberInt      = "NumberInt"
+	typeNumberFloat    = "NumberFloat"
+	typeBinary         = "Binary"
+	typeList           = "List"
+	typeMap            = "Map"
+	typeStringSet      = "StringSet"
+	typeNumberIntSet   = "NumberIntSet"
+	typeNumberFloatSet = "NumberFloatSet"
+	typeBinarySet      = "BinarySet"
 )
 
 // ProcessSchema performs schema conversion for source tables in a DynamoDB
@@ -190,39 +185,44 @@ func (s *dynamoDBSchema) inferSchema(client *dynamodb.DynamoDB) error {
 
 func incDyDataTypeCount(attrName string, attr *dynamodb.AttributeValue, s map[string]int64) {
 	if attr.S != nil {
-		incCount(s, dyTypeString)
+		incCount(s, typeString)
 	} else if attr.BOOL != nil {
-		incCount(s, dyTypeBool)
+		incCount(s, typeBool)
 	} else if attr.N != nil {
 		if int64Parsable(*attr.N) {
-			incCount(s, dyTypeNumberInt)
+			incCount(s, typeNumberInt)
 		} else {
-			incCount(s, dyTypeNumberFloat)
+			incCount(s, typeNumberFloat)
 		}
 	} else if len(attr.B) != 0 {
-		incCount(s, dyTypeBinary)
+		incCount(s, typeBinary)
 	} else if attr.NULL != nil {
 		// Skip because all optional attributes are nullable.
 	} else if len(attr.L) != 0 {
-		incCount(s, dyTypeList)
+		incCount(s, typeList)
 	} else if len(attr.M) != 0 {
-		incCount(s, dyTypeMap)
+		incCount(s, typeMap)
 	} else if len(attr.SS) != 0 {
-		incCount(s, dyTypeStringSet)
+		incCount(s, typeStringSet)
 	} else if len(attr.NS) != 0 {
 		if int64Parsable(*attr.NS[0]) {
-			incCount(s, dyTypeNumberIntSet)
+			incCount(s, typeNumberIntSet)
 		} else {
-			incCount(s, dyTypeNumberFloatSet)
+			incCount(s, typeNumberFloatSet)
 		}
 	} else if len(attr.BS) != 0 {
-		incCount(s, dyTypeBinarySet)
+		incCount(s, typeBinarySet)
 	} else {
 		log.Printf("Invalid DynamoDB data type: %v - %v", attrName, attr)
 	}
 }
 
 func (s *dynamoDBSchema) inferDataTypes(stats map[string]map[string]int64) {
+	type statItem struct {
+		Type  string
+		Count int64
+	}
+
 	for col, countMap := range stats {
 		var statItems []statItem
 		for k, v := range countMap {
