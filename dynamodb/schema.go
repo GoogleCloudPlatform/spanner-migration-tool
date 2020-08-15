@@ -27,13 +27,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 )
 
-type dynamoDBSchema struct {
-	ColumnNames            []string
-	ColumnTypes            []string
-	PrimaryKeys            []string
-	GlobalSecondaryIndexes [][]string
-}
-
 type statItem struct {
 	Type  string
 	Count int64
@@ -107,20 +100,40 @@ func listTables(client *dynamodb.DynamoDB) ([]string, error) {
 }
 
 func processTable(conv *internal.Conv, client *dynamodb.DynamoDB, table string) error {
+	dySchema := dynamoDBSchema{TableName: table}
+	err := dySchema.parsePKeySecIndex(client)
+	if err != nil {
+		return err
+	}
+	err = dySchema.inferSchema(client)
+	if err != nil {
+		return err
+	}
+	conv.SrcSchema[table] = dySchema.genericSchema()
+	return nil
+}
+
+type dynamoDBSchema struct {
+	TableName              string
+	ColumnNames            []string
+	ColumnTypes            []string
+	PrimaryKeys            []string
+	GlobalSecondaryIndexes [][]string
+}
+
+func (s *dynamoDBSchema) parsePKeySecIndex(client *dynamodb.DynamoDB) error {
 	input := &dynamodb.DescribeTableInput{
-		TableName: aws.String(table),
+		TableName: aws.String(s.TableName),
 	}
 
 	result, err := client.DescribeTable(input)
 	if err != nil {
-		return fmt.Errorf("failed to make a DescribeTable API call for table %v: %v", table, err)
+		return fmt.Errorf("failed to make a DescribeTable API call for table %v: %v", s.TableName, err)
 	}
-
-	dySchema := dynamoDBSchema{}
 
 	// Primary keys
 	for _, i := range result.Table.KeySchema {
-		dySchema.PrimaryKeys = append(dySchema.PrimaryKeys, *i.AttributeName)
+		s.PrimaryKeys = append(s.PrimaryKeys, *i.AttributeName)
 	}
 
 	// Secondary indexes
@@ -129,72 +142,87 @@ func processTable(conv *internal.Conv, client *dynamodb.DynamoDB, table string) 
 		for _, j := range i.KeySchema {
 			secIndex = append(secIndex, *j.AttributeName)
 		}
-		dySchema.GlobalSecondaryIndexes = append(dySchema.GlobalSecondaryIndexes, secIndex)
+		s.GlobalSecondaryIndexes = append(s.GlobalSecondaryIndexes, secIndex)
 	}
 
+	return nil
+}
+
+func (s *dynamoDBSchema) inferSchema(client *dynamodb.DynamoDB) error {
+	// A map from column name to a count map of possible data types.
 	stats := make(map[string]map[string]int64)
 	var lastEvaluatedKey map[string]*dynamodb.AttributeValue
 
 	for {
 		// Build the query input parameters
 		params := &dynamodb.ScanInput{
-			TableName: aws.String(table),
+			TableName: aws.String(s.TableName),
 		}
 		if lastEvaluatedKey != nil {
 			params.ExclusiveStartKey = lastEvaluatedKey
 		}
 
 		// Make the DynamoDB Query API call
-		rlt, err := client.Scan(params)
+		result, err := client.Scan(params)
 		if err != nil {
-			return fmt.Errorf("failed to make Query API call for table %v: %v", table, err)
+			return fmt.Errorf("failed to make Query API call for table %v: %v", s.TableName, err)
 		}
 
-		// Print out the items returned
-		for _, i := range rlt.Items {
-			for k, v := range i {
-				if _, ok := stats[k]; !ok {
-					stats[k] = map[string]int64{}
+		// Iterate the items returned
+		for _, attrsMap := range result.Items {
+			for attrName, attr := range attrsMap {
+				if _, ok := stats[attrName]; !ok {
+					stats[attrName] = make(map[string]int64)
 				}
-				if v.S != nil {
-					incCount(stats[k], dyTypeString)
-				} else if v.BOOL != nil {
-					incCount(stats[k], dyTypeBool)
-				} else if v.N != nil {
-					if int64Parsable(*v.N) {
-						incCount(stats[k], dyTypeNumberInt)
-					} else {
-						incCount(stats[k], dyTypeNumberFloat)
-					}
-				} else if len(v.B) != 0 {
-					incCount(stats[k], dyTypeBinary)
-				} else if v.NULL != nil {
-					// Skip because all optional attributes are nullable.
-				} else if len(v.L) != 0 {
-					incCount(stats[k], dyTypeList)
-				} else if len(v.M) != 0 {
-					incCount(stats[k], dyTypeMap)
-				} else if len(v.SS) != 0 {
-					incCount(stats[k], dyTypeStringSet)
-				} else if len(v.NS) != 0 {
-					if int64Parsable(*v.NS[0]) {
-						incCount(stats[k], dyTypeNumberIntSet)
-					} else {
-						incCount(stats[k], dyTypeNumberFloatSet)
-					}
-				} else if len(v.BS) != 0 {
-					incCount(stats[k], dyTypeBinarySet)
-				} else {
-					log.Printf("Unrecognized type: %v - %v", k, v)
-				}
+				incDyDataTypeCount(attrName, attr, stats[attrName])
 			}
 		}
-		if rlt.LastEvaluatedKey == nil {
+		if result.LastEvaluatedKey == nil {
 			break
 		}
-		lastEvaluatedKey = rlt.LastEvaluatedKey
+		// If there are more rows, then continue.
+		lastEvaluatedKey = result.LastEvaluatedKey
 	}
 
+	s.inferDataTypes(stats)
+	return nil
+}
+
+func incDyDataTypeCount(attrName string, attr *dynamodb.AttributeValue, s map[string]int64) {
+	if attr.S != nil {
+		incCount(s, dyTypeString)
+	} else if attr.BOOL != nil {
+		incCount(s, dyTypeBool)
+	} else if attr.N != nil {
+		if int64Parsable(*attr.N) {
+			incCount(s, dyTypeNumberInt)
+		} else {
+			incCount(s, dyTypeNumberFloat)
+		}
+	} else if len(attr.B) != 0 {
+		incCount(s, dyTypeBinary)
+	} else if attr.NULL != nil {
+		// Skip because all optional attributes are nullable.
+	} else if len(attr.L) != 0 {
+		incCount(s, dyTypeList)
+	} else if len(attr.M) != 0 {
+		incCount(s, dyTypeMap)
+	} else if len(attr.SS) != 0 {
+		incCount(s, dyTypeStringSet)
+	} else if len(attr.NS) != 0 {
+		if int64Parsable(*attr.NS[0]) {
+			incCount(s, dyTypeNumberIntSet)
+		} else {
+			incCount(s, dyTypeNumberFloatSet)
+		}
+	} else if len(attr.BS) != 0 {
+		incCount(s, dyTypeBinarySet)
+	} else {
+		log.Printf("Invalid DynamoDB data type: %v - %v", attrName, attr)
+	}
+}
+
+func (s *dynamoDBSchema) inferDataTypes(stats map[string]map[string]int64) {
 	for col, countMap := range stats {
 		var statItems []statItem
 		for k, v := range countMap {
@@ -212,24 +240,25 @@ func processTable(conv *internal.Conv, client *dynamodb.DynamoDB, table string) 
 			return statItems[i].Count > statItems[j].Count
 		})
 
-		dySchema.ColumnNames = append(dySchema.ColumnNames, col)
-		dySchema.ColumnTypes = append(dySchema.ColumnTypes, statItems[0].Type)
+		s.ColumnNames = append(s.ColumnNames, col)
+		s.ColumnTypes = append(s.ColumnTypes, statItems[0].Type)
 	}
+}
 
+func (s *dynamoDBSchema) genericSchema() schema.Table {
 	var schemaPKeys []schema.Key
 	colDefs := make(map[string]schema.Column)
 
-	for i, colType := range dySchema.ColumnTypes {
-		colName := dySchema.ColumnNames[i]
+	for i, colType := range s.ColumnTypes {
+		colName := s.ColumnNames[i]
 		isNullable := true
-		for _, pKey := range dySchema.PrimaryKeys {
+		for _, pKey := range s.PrimaryKeys {
 			if colName == pKey {
 				isNullable = false
 				schemaPKeys = append(schemaPKeys, schema.Key{Column: colName})
 				break
 			}
 		}
-
 		colDef := schema.Column{
 			Name:    colName,
 			Type:    schema.Type{Name: colType},
@@ -238,13 +267,12 @@ func processTable(conv *internal.Conv, client *dynamodb.DynamoDB, table string) 
 		colDefs[colName] = colDef
 	}
 
-	conv.SrcSchema[table] = schema.Table{
-		Name:        table,
-		ColNames:    dySchema.ColumnNames,
+	return schema.Table{
+		Name:        s.TableName,
+		ColNames:    s.ColumnNames,
 		ColDefs:     colDefs,
 		PrimaryKeys: schemaPKeys,
 	}
-	return nil
 }
 
 func int64Parsable(n string) bool {
