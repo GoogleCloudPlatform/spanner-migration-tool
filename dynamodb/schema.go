@@ -113,7 +113,7 @@ func processTable(conv *internal.Conv, client dynamoClient, table string) error 
 type dynamoDBSchema struct {
 	TableName   string
 	ColumnNames []string
-	ColumnTypes []string
+	ColumnTypes map[string]string
 	PrimaryKeys []string
 	SecIndexes  [][]string
 }
@@ -225,6 +225,10 @@ func (s *dynamoDBSchema) inferDataTypes(stats map[string]map[string]int64) {
 		Count int64
 	}
 
+	if s.ColumnTypes == nil {
+		s.ColumnTypes = make(map[string]string)
+	}
+
 	for col, countMap := range stats {
 		var statItems []statItem
 		for k, v := range countMap {
@@ -232,26 +236,35 @@ func (s *dynamoDBSchema) inferDataTypes(stats map[string]map[string]int64) {
 		}
 
 		if len(statItems) == 0 {
-			log.Printf("Skip column: %v", col)
+			log.Printf("Skip empty column %v", col)
 			continue
 		}
 
 		// Sort the slice reversely so the most frequent data type will be
 		// placed first.
 		sort.Slice(statItems, func(i, j int) bool {
+			// If counts are equal, then sort by names in alphabetical order.
+			if statItems[i].Count == statItems[j].Count {
+				return statItems[i].Type < statItems[j].Type
+			}
 			return statItems[i].Count > statItems[j].Count
 		})
 
+		if statItems[0].Count == 0 {
+			log.Printf("Skip column %v with no data records", col)
+			continue
+		}
+
 		s.ColumnNames = append(s.ColumnNames, col)
-		s.ColumnTypes = append(s.ColumnTypes, statItems[0].Type)
+		s.ColumnTypes[col] = statItems[0].Type
 	}
 }
 
 func (s *dynamoDBSchema) genericSchema() schema.Table {
 	colDefs := make(map[string]schema.Column)
 
-	for i, colType := range s.ColumnTypes {
-		colName := s.ColumnNames[i]
+	for _, colName := range s.ColumnNames {
+		colType := s.ColumnTypes[colName]
 		colDef := schema.Column{
 			Name: colName,
 			Type: schema.Type{Name: colType},

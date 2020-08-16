@@ -269,7 +269,11 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 func TestGenericSchema(t *testing.T) {
 	dySchema := dynamoDBSchema{TableName: "test"}
 	dySchema.ColumnNames = []string{"a", "b", "c"}
-	dySchema.ColumnTypes = []string{"String", "NumberInt", "Bool"}
+	dySchema.ColumnTypes = map[string]string{
+		"a": "String",
+		"b": "NumberInt",
+		"c": "Bool",
+	}
 	dySchema.PrimaryKeys = []string{"b", "a"}
 	dySchema.SecIndexes = [][]string{{"c", "b"}}
 	s := dySchema.genericSchema()
@@ -287,6 +291,34 @@ func TestGenericSchema(t *testing.T) {
 		},
 	}
 	assert.Equal(t, expectedSchema, s)
+}
+
+func TestInferDataTypes(t *testing.T) {
+	dySchema := dynamoDBSchema{TableName: "test"}
+	stats := map[string]map[string]int64{
+		"a": {
+			"String": 3,
+		},
+		"b": {
+			"String":    1,
+			"NumberInt": 3,
+		},
+		"c": {
+			"String":    2,
+			"NumberInt": 2,
+		},
+		"d": {
+			"String": 0,
+		},
+		"e": {},
+	}
+	dySchema.inferDataTypes(stats)
+	assert.ElementsMatch(t, []string{"a", "b", "c"}, dySchema.ColumnNames)
+	assert.Equal(t, map[string]string{
+		"a": "String",
+		"b": "NumberInt",
+		"c": "NumberInt",
+	}, dySchema.ColumnTypes)
 }
 
 func stripSchemaComments(spSchema map[string]ddl.CreateTable) map[string]ddl.CreateTable {
