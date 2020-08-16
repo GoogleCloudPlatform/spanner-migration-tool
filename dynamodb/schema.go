@@ -19,7 +19,6 @@ import (
 	"log"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -98,14 +97,15 @@ func listTables(client dynamoClient) ([]string, error) {
 
 func processTable(conv *internal.Conv, client dynamoClient, table string) error {
 	dySchema := dynamoDBSchema{TableName: table}
-	err := dySchema.parsePKeySecIndex(client)
+	err := dySchema.parseIndexes(client)
 	if err != nil {
 		return err
 	}
-	err = dySchema.inferSchema(client)
+	stats, err := dySchema.scanSampleData(client)
 	if err != nil {
 		return err
 	}
+	dySchema.inferDataTypes(stats)
 	conv.SrcSchema[table] = dySchema.genericSchema()
 	return nil
 }
@@ -115,10 +115,15 @@ type dynamoDBSchema struct {
 	ColumnNames []string
 	ColumnTypes map[string]string
 	PrimaryKeys []string
-	SecIndexes  [][]string
+	SecIndexes  []index
 }
 
-func (s *dynamoDBSchema) parsePKeySecIndex(client dynamoClient) error {
+type index struct {
+	Name string
+	Keys []string
+}
+
+func (s *dynamoDBSchema) parseIndexes(client dynamoClient) error {
 	input := &dynamodb.DescribeTableInput{
 		TableName: aws.String(s.TableName),
 	}
@@ -135,17 +140,17 @@ func (s *dynamoDBSchema) parsePKeySecIndex(client dynamoClient) error {
 
 	// Secondary indexes
 	for _, i := range result.Table.GlobalSecondaryIndexes {
-		var secIndex []string
+		var keys []string
 		for _, j := range i.KeySchema {
-			secIndex = append(secIndex, *j.AttributeName)
+			keys = append(keys, *j.AttributeName)
 		}
-		s.SecIndexes = append(s.SecIndexes, secIndex)
+		s.SecIndexes = append(s.SecIndexes, index{Name: *i.IndexName, Keys: keys})
 	}
 
 	return nil
 }
 
-func (s *dynamoDBSchema) inferSchema(client dynamoClient) error {
+func (s *dynamoDBSchema) scanSampleData(client dynamoClient) (map[string]map[string]int64, error) {
 	// A map from column name to a count map of possible data types.
 	stats := make(map[string]map[string]int64)
 	var lastEvaluatedKey map[string]*dynamodb.AttributeValue
@@ -162,7 +167,7 @@ func (s *dynamoDBSchema) inferSchema(client dynamoClient) error {
 		// Make the DynamoDB Query API call
 		result, err := client.Scan(params)
 		if err != nil {
-			return fmt.Errorf("failed to make Query API call for table %v: %v", s.TableName, err)
+			return nil, fmt.Errorf("failed to make Query API call for table %v: %v", s.TableName, err)
 		}
 
 		// Iterate the items returned
@@ -180,9 +185,7 @@ func (s *dynamoDBSchema) inferSchema(client dynamoClient) error {
 		// If there are more rows, then continue.
 		lastEvaluatedKey = result.LastEvaluatedKey
 	}
-
-	s.inferDataTypes(stats)
-	return nil
+	return stats, nil
 }
 
 func incDyDataTypeCount(attrName string, attr *dynamodb.AttributeValue, s map[string]int64) {
@@ -291,13 +294,13 @@ func (s *dynamoDBSchema) genericSchema() schema.Table {
 
 	// Record secondary indexes.
 	var indexes []schema.Index
-	for _, ks := range s.SecIndexes {
+	for _, ind := range s.SecIndexes {
 		var keys []schema.Key
-		for _, k := range ks {
+		for _, k := range ind.Keys {
 			keys = append(keys, schema.Key{Column: k})
 		}
 		index := schema.Index{
-			Name: fmt.Sprintf("index_%v", strings.Join(ks, "_")),
+			Name: ind.Name,
 			Keys: keys,
 		}
 		indexes = append(indexes, index)

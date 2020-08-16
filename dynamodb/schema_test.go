@@ -138,7 +138,7 @@ func TestProcessSchema(t *testing.T) {
 		},
 	}
 
-	svc := &mockDynamoClient{
+	client := &mockDynamoClient{
 		listTableOutputs:     listTableOutputs,
 		describeTableOutputs: describeTableOutputs,
 		scanOutputs:          scanOutputs,
@@ -147,7 +147,7 @@ func TestProcessSchema(t *testing.T) {
 	sampleSize := int64(10000)
 
 	conv := internal.MakeConv()
-	err := ProcessSchema(conv, svc, tables, sampleSize)
+	err := ProcessSchema(conv, client, tables, sampleSize)
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -230,7 +230,7 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 		},
 	}
 
-	svc := &mockDynamoClient{
+	client := &mockDynamoClient{
 		listTableOutputs:     listTableOutputs,
 		describeTableOutputs: describeTableOutputs,
 		scanOutputs:          scanOutputs,
@@ -239,7 +239,7 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 	sampleSize := int64(10000)
 
 	conv := internal.MakeConv()
-	err := ProcessSchema(conv, svc, tables, sampleSize)
+	err := ProcessSchema(conv, client, tables, sampleSize)
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -275,7 +275,7 @@ func TestGenericSchema(t *testing.T) {
 		"c": "Bool",
 	}
 	dySchema.PrimaryKeys = []string{"b", "a"}
-	dySchema.SecIndexes = [][]string{{"c", "b"}}
+	dySchema.SecIndexes = []index{{Name: "index_c_b", Keys: []string{"c", "b"}}}
 	s := dySchema.genericSchema()
 	expectedSchema := schema.Table{
 		Name:     "test",
@@ -319,6 +319,115 @@ func TestInferDataTypes(t *testing.T) {
 		"b": "NumberInt",
 		"c": "NumberInt",
 	}, dySchema.ColumnTypes)
+}
+
+func TestScanSampleData(t *testing.T) {
+	strA := "str-1"
+	strB := "str-2"
+	numStr := "10"
+	scanOutputs := []dynamodb.ScanOutput{
+		{
+			Items: []map[string]*dynamodb.AttributeValue{
+				{
+					"a": {S: &strA},
+				},
+				{
+					"a": {N: &numStr},
+				},
+			},
+			LastEvaluatedKey: map[string]*dynamodb.AttributeValue{
+				"a": {S: &strA},
+			},
+		},
+		{
+			Items: []map[string]*dynamodb.AttributeValue{
+				{
+					"a": {S: &strB},
+					"b": {N: &numStr},
+				},
+			},
+		},
+	}
+
+	client := &mockDynamoClient{
+		scanOutputs: scanOutputs,
+	}
+
+	dySchema := dynamoDBSchema{TableName: "test"}
+	stats, err := dySchema.scanSampleData(client)
+	assert.Nil(t, err)
+
+	expectedStats := map[string]map[string]int64{
+		"a": {
+			"String":    2,
+			"NumberInt": 1,
+		},
+		"b": {
+			"NumberInt": 1,
+		},
+	}
+	assert.Equal(t, expectedStats, stats)
+}
+
+func TestParseIndexes(t *testing.T) {
+	tableName := "test"
+	attrNameA := "a"
+	attrNameB := "b"
+	attrNameC := "c"
+	hashKeyType := "HASH"
+	sortKeyType := "RANGE"
+	indexName := "secondary_index_c"
+	describeTableOutputs := []dynamodb.DescribeTableOutput{
+		{
+			Table: &dynamodb.TableDescription{
+				TableName: &tableName,
+				KeySchema: []*dynamodb.KeySchemaElement{
+					{AttributeName: &attrNameA, KeyType: &hashKeyType},
+					{AttributeName: &attrNameB, KeyType: &sortKeyType},
+				},
+				GlobalSecondaryIndexes: []*dynamodb.GlobalSecondaryIndexDescription{
+					{
+						IndexName: &indexName,
+						KeySchema: []*dynamodb.KeySchemaElement{
+							{AttributeName: &attrNameC, KeyType: &hashKeyType},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	client := &mockDynamoClient{
+		describeTableOutputs: describeTableOutputs,
+	}
+
+	dySchema := dynamoDBSchema{TableName: "test"}
+
+	err := dySchema.parseIndexes(client)
+	assert.Nil(t, err)
+
+	pKeys := []string{"a", "b"}
+	assert.Equal(t, pKeys, dySchema.PrimaryKeys)
+	secIndexes := []index{{Name: "secondary_index_c", Keys: []string{"c"}}}
+	assert.Equal(t, secIndexes, dySchema.SecIndexes)
+}
+
+func TestListTables(t *testing.T) {
+	tableNameA := "table-a"
+	tableNameB := "table-b"
+
+	listTableOutputs := []dynamodb.ListTablesOutput{
+		{TableNames: []*string{&tableNameA}, LastEvaluatedTableName: &tableNameA},
+		{TableNames: []*string{&tableNameB}},
+	}
+
+	client := &mockDynamoClient{
+		listTableOutputs: listTableOutputs,
+	}
+
+	tables, err := listTables(client)
+	assert.Nil(t, err)
+	assert.Equal(t, []string{"table-a", "table-b"}, tables)
 }
 
 func stripSchemaComments(spSchema map[string]ddl.CreateTable) map[string]ddl.CreateTable {
