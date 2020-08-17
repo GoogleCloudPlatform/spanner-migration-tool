@@ -76,6 +76,7 @@ var (
 	filePrefix       = ""
 	driverName       = PGDUMP
 	tables           string
+	schemaSampleSize = int64(0)
 	verbose          bool
 )
 
@@ -85,6 +86,7 @@ func init() {
 	flag.StringVar(&filePrefix, "prefix", "", "prefix: file prefix for generated files")
 	flag.StringVar(&driverName, "driver", "pg_dump", "driver name: flag for accessing source DB or dump files (accepted values are \"pg_dump\", \"postgres\", \"mysqldump\", and \"mysql\")")
 	flag.StringVar(&tables, "tables", "", "tables: tables to use for migration (only for DynamoDB)")
+	flag.Int64Var(&schemaSampleSize, "schema-sample-size", int64(100000), "schema-sample-size: the number of rows to use for inferring schema (only for DynamoDB)")
 	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
 }
 
@@ -144,7 +146,7 @@ func main() {
 		filePrefix = dbName + "."
 	}
 
-	err = toSpanner(driverName, project, instance, dbName, tables, ioHelper, filePrefix, now)
+	err = toSpanner(driverName, project, instance, dbName, tables, schemaSampleSize, ioHelper, filePrefix, now)
 	if err != nil {
 		panic(err)
 	}
@@ -157,8 +159,8 @@ func main() {
 //   2. Create database
 //   3. Run data conversion
 //   4. Generate report
-func toSpanner(driver, projectID, instanceID, dbName, tables string, ioHelper *ioStreams, outputFilePrefix string, now time.Time) error {
-	conv, err := schemaConv(driver, tables, ioHelper)
+func toSpanner(driver, projectID, instanceID, dbName, tables string, sampleSize int64, ioHelper *ioStreams, outputFilePrefix string, now time.Time) error {
+	conv, err := schemaConv(driver, tables, sampleSize, ioHelper)
 	if err != nil {
 		return err
 	}
@@ -198,14 +200,14 @@ func toSpanner(driver, projectID, instanceID, dbName, tables string, ioHelper *i
 	return nil
 }
 
-func schemaConv(driver, tables string, ioHelper *ioStreams) (*internal.Conv, error) {
+func schemaConv(driver, tables string, sampleSize int64, ioHelper *ioStreams) (*internal.Conv, error) {
 	switch driver {
 	case POSTGRES, MYSQL:
 		return schemaFromSQL(driver)
 	case PGDUMP, MYSQLDUMP:
 		return schemaFromDump(driver, ioHelper)
 	case DYNAMODB:
-		return schemaFromDynamoDB(tables)
+		return schemaFromDynamoDB(tables, sampleSize)
 	default:
 		return nil, fmt.Errorf("schema conversion for driver %s not supported", driver)
 	}
@@ -332,12 +334,15 @@ func dataFromSQL(driver string, config spanner.BatchWriterConfig, client *sp.Cli
 	return writer, nil
 }
 
-func schemaFromDynamoDB(t string) (*internal.Conv, error) {
-	tables := strings.Split(t, ",")
+func schemaFromDynamoDB(t string, sampleSize int64) (*internal.Conv, error) {
+	tables := []string{}
+	if t != "" {
+		tables = strings.Split(t, ",")
+	}
 	conv := internal.MakeConv()
 	mySession := session.Must(session.NewSession())
 	client := dydb.New(mySession)
-	err := dynamodb.ProcessSchema(conv, client, tables, int64(10000))
+	err := dynamodb.ProcessSchema(conv, client, tables, sampleSize)
 	if err != nil {
 		return nil, err
 	}

@@ -345,6 +345,11 @@ func TestScanSampleData(t *testing.T) {
 					"a": {S: &strB},
 					"b": {N: &numStr},
 				},
+				{
+					// This will not be scaned due to the sample size.
+					"a": {N: &numStr},
+					"b": {S: &strB},
+				},
 			},
 		},
 	}
@@ -354,7 +359,7 @@ func TestScanSampleData(t *testing.T) {
 	}
 
 	dySchema := dynamoDBSchema{TableName: "test"}
-	stats, err := dySchema.scanSampleData(client)
+	stats, err := dySchema.scanSampleData(client, 3)
 	assert.Nil(t, err)
 
 	expectedStats := map[string]map[string]int64{

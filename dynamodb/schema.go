@@ -59,9 +59,12 @@ func ProcessSchema(conv *internal.Conv, client dynamoClient, tables []string, sa
 		if err != nil {
 			return err
 		}
+		if len(tables) == 0 {
+			return fmt.Errorf("no DynamoDB table exists under this account")
+		}
 	}
 	for _, t := range tables {
-		if err := processTable(conv, client, t); err != nil {
+		if err := processTable(conv, client, t, sampleSize); err != nil {
 			return err
 		}
 	}
@@ -95,13 +98,13 @@ func listTables(client dynamoClient) ([]string, error) {
 	}
 }
 
-func processTable(conv *internal.Conv, client dynamoClient, table string) error {
+func processTable(conv *internal.Conv, client dynamoClient, table string, sampleSize int64) error {
 	dySchema := dynamoDBSchema{TableName: table}
 	err := dySchema.parseIndexes(client)
 	if err != nil {
 		return err
 	}
-	stats, err := dySchema.scanSampleData(client)
+	stats, err := dySchema.scanSampleData(client, sampleSize)
 	if err != nil {
 		return err
 	}
@@ -150,10 +153,11 @@ func (s *dynamoDBSchema) parseIndexes(client dynamoClient) error {
 	return nil
 }
 
-func (s *dynamoDBSchema) scanSampleData(client dynamoClient) (map[string]map[string]int64, error) {
+func (s *dynamoDBSchema) scanSampleData(client dynamoClient, sampleSize int64) (map[string]map[string]int64, error) {
 	// A map from column name to a count map of possible data types.
 	stats := make(map[string]map[string]int64)
 	var lastEvaluatedKey map[string]*dynamodb.AttributeValue
+	var count int64
 
 	for {
 		// Build the query input parameters
@@ -177,6 +181,11 @@ func (s *dynamoDBSchema) scanSampleData(client dynamoClient) (map[string]map[str
 					stats[attrName] = make(map[string]int64)
 				}
 				incDyDataTypeCount(attrName, attr, stats[attrName])
+			}
+
+			count++
+			if count >= sampleSize {
+				return stats, nil
 			}
 		}
 		if result.LastEvaluatedKey == nil {
