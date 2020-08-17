@@ -130,7 +130,7 @@ func TestIntegration_PGDUMP_SimpleUse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open the test data file: %v", err)
 	}
-	err = toSpanner(PGDUMP, projectID, instanceID, dbName, &ioStreams{in: f, out: os.Stdout}, filePrefix, now)
+	err = toSpanner(PGDUMP, projectID, instanceID, dbName, "", &ioStreams{in: f, out: os.Stdout}, filePrefix, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +187,7 @@ func TestIntegration_POSTGRES_SimpleUse(t *testing.T) {
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix = filepath.Join(tmpdir, dbName+".")
 
-	err := toSpanner(POSTGRES, projectID, instanceID, dbName, &ioStreams{out: os.Stdout}, filePrefix, now)
+	err := toSpanner(POSTGRES, projectID, instanceID, dbName, "", &ioStreams{out: os.Stdout}, filePrefix, now)
 	if err != nil {
 		t.Fatal(err)
 	}

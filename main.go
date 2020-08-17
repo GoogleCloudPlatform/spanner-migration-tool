@@ -75,6 +75,7 @@ var (
 	instanceOverride string
 	filePrefix       = ""
 	driverName       = PGDUMP
+	tables           string
 	verbose          bool
 )
 
@@ -83,6 +84,7 @@ func init() {
 	flag.StringVar(&instanceOverride, "instance", "", "instance: Spanner instance to use")
 	flag.StringVar(&filePrefix, "prefix", "", "prefix: file prefix for generated files")
 	flag.StringVar(&driverName, "driver", "pg_dump", "driver name: flag for accessing source DB or dump files (accepted values are \"pg_dump\", \"postgres\", \"mysqldump\", and \"mysql\")")
+	flag.StringVar(&tables, "tables", "", "tables: tables to use for migration (only for DynamoDB)")
 	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
 }
 
@@ -142,7 +144,7 @@ func main() {
 		filePrefix = dbName + "."
 	}
 
-	err = toSpanner(driverName, project, instance, dbName, ioHelper, filePrefix, now)
+	err = toSpanner(driverName, project, instance, dbName, tables, ioHelper, filePrefix, now)
 	if err != nil {
 		panic(err)
 	}
@@ -155,8 +157,8 @@ func main() {
 //   2. Create database
 //   3. Run data conversion
 //   4. Generate report
-func toSpanner(driver, projectID, instanceID, dbName string, ioHelper *ioStreams, outputFilePrefix string, now time.Time) error {
-	conv, err := schemaConv(driver, ioHelper)
+func toSpanner(driver, projectID, instanceID, dbName, tables string, ioHelper *ioStreams, outputFilePrefix string, now time.Time) error {
+	conv, err := schemaConv(driver, tables, ioHelper)
 	if err != nil {
 		return err
 	}
@@ -196,14 +198,14 @@ func toSpanner(driver, projectID, instanceID, dbName string, ioHelper *ioStreams
 	return nil
 }
 
-func schemaConv(driver string, ioHelper *ioStreams) (*internal.Conv, error) {
+func schemaConv(driver, tables string, ioHelper *ioStreams) (*internal.Conv, error) {
 	switch driver {
 	case POSTGRES, MYSQL:
 		return schemaFromSQL(driver)
 	case PGDUMP, MYSQLDUMP:
 		return schemaFromDump(driver, ioHelper)
 	case DYNAMODB:
-		return schemaFromDynamoDB()
+		return schemaFromDynamoDB(tables)
 	default:
 		return nil, fmt.Errorf("schema conversion for driver %s not supported", driver)
 	}
@@ -330,12 +332,12 @@ func dataFromSQL(driver string, config spanner.BatchWriterConfig, client *sp.Cli
 	return writer, nil
 }
 
-func schemaFromDynamoDB() (*internal.Conv, error) {
-	tables := []string{}
+func schemaFromDynamoDB(t string) (*internal.Conv, error) {
+	tables := strings.Split(t, ",")
 	conv := internal.MakeConv()
 	mySession := session.Must(session.NewSession())
-	svc := dydb.New(mySession)
-	err := dynamodb.ProcessSchema(conv, svc, tables, int64(10000))
+	client := dydb.New(mySession)
+	err := dynamodb.ProcessSchema(conv, client, tables, int64(10000))
 	if err != nil {
 		return nil, err
 	}
