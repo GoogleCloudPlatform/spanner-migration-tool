@@ -226,6 +226,9 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 					"j": &dynamodb.AttributeValue{NS: []*string{&numIntStr}},
 					"k": &dynamodb.AttributeValue{NS: []*string{&numFloatStr}},
 				},
+				// The following empty row is needed to make all optional
+				// columns nullable.
+				{},
 			},
 		},
 	}
@@ -269,10 +272,10 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 func TestGenericSchema(t *testing.T) {
 	dySchema := dynamoDBSchema{TableName: "test"}
 	dySchema.ColumnNames = []string{"a", "b", "c"}
-	dySchema.ColumnTypes = map[string]string{
-		"a": "String",
-		"b": "NumberInt",
-		"c": "Bool",
+	dySchema.ColumnTypes = map[string]colType{
+		"a": {Name: "String", Nullable: false},
+		"b": {Name: "NumberInt", Nullable: false},
+		"c": {Name: "Bool", Nullable: true},
 	}
 	dySchema.PrimaryKeys = []string{"b", "a"}
 	dySchema.SecIndexes = []index{{Name: "index_c_b", Keys: []string{"c", "b"}}}
@@ -296,28 +299,67 @@ func TestGenericSchema(t *testing.T) {
 func TestInferDataTypes(t *testing.T) {
 	dySchema := dynamoDBSchema{TableName: "test"}
 	stats := map[string]map[string]int64{
-		"a": {
-			"String": 3,
+		"all_rows_not_null": {
+			"NumberInt": 1000,
 		},
-		"b": {
-			"String":    1,
-			"NumberInt": 3,
+		"err_row": {
+			"NumberFloat": 1,
+			"NumberInt":   999,
 		},
-		"c": {
-			"String":    2,
-			"NumberInt": 2,
+		"err_null_row": {
+			"NumberInt": 999,
 		},
-		"d": {
+		"enough_null_row": {
+			"NumberInt": 900,
+		},
+		"not_conflict_row": {
+			"String":    50,
+			"NumberInt": 950,
+		},
+		"conflict_row": {
+			"String":    51,
+			"NumberInt": 949,
+		},
+		"equal_conflict_rows": {
+			"String":    500,
+			"NumberInt": 500,
+		},
+		"not_conflict_row_after_norm": {
+			"String":    40,
+			"NumberInt": 760,
+		},
+		"conflict_row_after_norm": {
+			"String":    41,
+			"NumberInt": 759,
+		},
+		"equal_conflict_row_after_norm": {
+			"String":    400,
+			"NumberInt": 400,
+		},
+		"empty_records": {
 			"String": 0,
 		},
-		"e": {},
+		"empty_stats": {},
 	}
-	dySchema.inferDataTypes(stats)
-	assert.ElementsMatch(t, []string{"a", "b", "c"}, dySchema.ColumnNames)
-	assert.Equal(t, map[string]string{
-		"a": "String",
-		"b": "NumberInt",
-		"c": "NumberInt",
+	dySchema.inferDataTypes(stats, 1000)
+	expectColNames := []string{
+		"all_rows_not_null", "err_row", "err_null_row", "enough_null_row",
+		"not_conflict_row", "conflict_row", "equal_conflict_rows",
+		"not_conflict_row_after_norm", "conflict_row_after_norm",
+		"equal_conflict_row_after_norm",
+	}
+	assert.ElementsMatch(t, expectColNames, dySchema.ColumnNames)
+	assert.Equal(t, map[string]colType{
+		"all_rows_not_null":             {Name: "NumberInt", Nullable: false},
+		"err_row":                       {Name: "NumberInt", Nullable: false},
+		"err_null_row":                  {Name: "NumberInt", Nullable: false},
+		"enough_null_row":               {Name: "NumberInt", Nullable: true},
+		"not_conflict_row":              {Name: "NumberInt", Nullable: false},
+		"conflict_row":                  {Name: "String", Nullable: false},
+		"equal_conflict_rows":           {Name: "String", Nullable: false},
+		"not_conflict_row_after_norm":   {Name: "NumberInt", Nullable: true},
+		"conflict_row_after_norm":       {Name: "String", Nullable: true},
+		"equal_conflict_row_after_norm": {Name: "String", Nullable: true},
 	}, dySchema.ColumnTypes)
 }
 
@@ -359,7 +401,7 @@ func TestScanSampleData(t *testing.T) {
 	}
 
 	dySchema := dynamoDBSchema{TableName: "test"}
-	stats, err := dySchema.scanSampleData(client, 3)
+	stats, _, err := dySchema.scanSampleData(client, 3)
 	assert.Nil(t, err)
 
 	expectedStats := map[string]map[string]int64{

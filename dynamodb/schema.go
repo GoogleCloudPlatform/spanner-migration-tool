@@ -38,6 +38,9 @@ const (
 	typeNumberIntSet   = "NumberIntSet"
 	typeNumberFloatSet = "NumberFloatSet"
 	typeBinarySet      = "BinarySet"
+
+	errThreshold      = float64(0.001)
+	conflictThreshold = float64(0.05)
 )
 
 type dynamoClient interface {
@@ -104,11 +107,11 @@ func processTable(conv *internal.Conv, client dynamoClient, table string, sample
 	if err != nil {
 		return err
 	}
-	stats, err := dySchema.scanSampleData(client, sampleSize)
+	stats, count, err := dySchema.scanSampleData(client, sampleSize)
 	if err != nil {
 		return err
 	}
-	dySchema.inferDataTypes(stats)
+	dySchema.inferDataTypes(stats, count)
 	conv.SrcSchema[table] = dySchema.genericSchema()
 	return nil
 }
@@ -116,9 +119,14 @@ func processTable(conv *internal.Conv, client dynamoClient, table string, sample
 type dynamoDBSchema struct {
 	TableName   string
 	ColumnNames []string
-	ColumnTypes map[string]string
+	ColumnTypes map[string]colType
 	PrimaryKeys []string
 	SecIndexes  []index
+}
+
+type colType struct {
+	Name     string
+	Nullable bool
 }
 
 type index struct {
@@ -153,7 +161,7 @@ func (s *dynamoDBSchema) parseIndexes(client dynamoClient) error {
 	return nil
 }
 
-func (s *dynamoDBSchema) scanSampleData(client dynamoClient, sampleSize int64) (map[string]map[string]int64, error) {
+func (s *dynamoDBSchema) scanSampleData(client dynamoClient, sampleSize int64) (map[string]map[string]int64, int64, error) {
 	// A map from column name to a count map of possible data types.
 	stats := make(map[string]map[string]int64)
 	var lastEvaluatedKey map[string]*dynamodb.AttributeValue
@@ -171,7 +179,7 @@ func (s *dynamoDBSchema) scanSampleData(client dynamoClient, sampleSize int64) (
 		// Make the DynamoDB Query API call
 		result, err := client.Scan(params)
 		if err != nil {
-			return nil, fmt.Errorf("failed to make Query API call for table %v: %v", s.TableName, err)
+			return nil, 0, fmt.Errorf("failed to make Query API call for table %v: %v", s.TableName, err)
 		}
 
 		// Iterate the items returned
@@ -185,7 +193,7 @@ func (s *dynamoDBSchema) scanSampleData(client dynamoClient, sampleSize int64) (
 
 			count++
 			if count >= sampleSize {
-				return stats, nil
+				return stats, count, nil
 			}
 		}
 		if result.LastEvaluatedKey == nil {
@@ -194,7 +202,7 @@ func (s *dynamoDBSchema) scanSampleData(client dynamoClient, sampleSize int64) (
 		// If there are more rows, then continue.
 		lastEvaluatedKey = result.LastEvaluatedKey
 	}
-	return stats, nil
+	return stats, count, nil
 }
 
 func incDyDataTypeCount(attrName string, attr *dynamodb.AttributeValue, s map[string]int64) {
@@ -211,7 +219,7 @@ func incDyDataTypeCount(attrName string, attr *dynamodb.AttributeValue, s map[st
 	} else if len(attr.B) != 0 {
 		incCount(s, typeBinary)
 	} else if attr.NULL != nil {
-		// Skip because all optional attributes are nullable.
+		// Skip, if not present, it means nullable.
 	} else if len(attr.L) != 0 {
 		incCount(s, typeList)
 	} else if len(attr.M) != 0 {
@@ -231,44 +239,54 @@ func incDyDataTypeCount(attrName string, attr *dynamodb.AttributeValue, s map[st
 	}
 }
 
-func (s *dynamoDBSchema) inferDataTypes(stats map[string]map[string]int64) {
-	type statItem struct {
-		Type  string
-		Count int64
-	}
+type statItem struct {
+	Type  string
+	Count int64
+}
 
+func (s *dynamoDBSchema) inferDataTypes(stats map[string]map[string]int64, rows int64) {
 	if s.ColumnTypes == nil {
-		s.ColumnTypes = make(map[string]string)
+		s.ColumnTypes = make(map[string]colType)
 	}
 
 	for col, countMap := range stats {
-		var statItems []statItem
+		var statItems, candidates []statItem
+		var presentRows, normRows int64
 		for k, v := range countMap {
-			statItems = append(statItems, statItem{Type: k, Count: v})
-		}
-
-		if len(statItems) == 0 {
-			log.Printf("Skip empty column %v", col)
-			continue
-		}
-
-		// Sort the slice reversely so the most frequent data type will be
-		// placed first.
-		sort.Slice(statItems, func(i, j int) bool {
-			// If counts are equal, then sort by names in alphabetical order.
-			if statItems[i].Count == statItems[j].Count {
-				return statItems[i].Type < statItems[j].Type
+			presentRows += v
+			if float64(v)/float64(rows) <= errThreshold {
+				// If the percentage is less than the error threshold, then
+				// this data type has a high chance to be mistakenly inserted
+				// and we should discard it.
+				continue
 			}
-			return statItems[i].Count > statItems[j].Count
-		})
-
-		if statItems[0].Count == 0 {
+			statItems = append(statItems, statItem{Type: k, Count: v})
+			normRows += v
+		}
+		if normRows == 0 {
 			log.Printf("Skip column %v with no data records", col)
 			continue
 		}
 
+		nullable := float64(rows-presentRows)/float64(rows) > errThreshold
+
+		for _, si := range statItems {
+			if float64(si.Count)/float64(normRows) > conflictThreshold {
+				// If the normalized percentage is greater than the conflicting
+				// threshold, we should consider this data type as a candidate.
+				candidates = append(candidates, si)
+			}
+		}
+
 		s.ColumnNames = append(s.ColumnNames, col)
-		s.ColumnTypes[col] = statItems[0].Type
+		if len(candidates) == 1 {
+			s.ColumnTypes[col] = colType{Name: candidates[0].Type, Nullable: nullable}
+		} else {
+			// If there is no any candidate or more than a single candidate,
+			// this column has a significant conflict on data types and then
+			// defaults to a String type.
+			s.ColumnTypes[col] = colType{Name: typeString, Nullable: nullable}
+		}
 	}
 }
 
@@ -278,8 +296,9 @@ func (s *dynamoDBSchema) genericSchema() schema.Table {
 	for _, colName := range s.ColumnNames {
 		colType := s.ColumnTypes[colName]
 		colDef := schema.Column{
-			Name: colName,
-			Type: schema.Type{Name: colType},
+			Name:    colName,
+			Type:    schema.Type{Name: colType.Name},
+			NotNull: !colType.Nullable,
 		}
 		colDefs[colName] = colDef
 	}
