@@ -203,11 +203,6 @@ func toSpanner(driver, projectID, instanceID, dbName string, ioHelper *ioStreams
 		}
 	}
 
-	// TODO(hengfeng): delete the following code after data conversion is done.
-	if driver == DYNAMODB {
-		return nil
-	}
-
 	db, err := createDatabase(projectID, instanceID, dbName, conv, ioHelper.out)
 	if err != nil {
 		fmt.Printf("\nCan't create database: %v\n", err)
@@ -256,6 +251,8 @@ func dataConv(driver string, ioHelper *ioStreams, client *sp.Client, conv *inter
 		return dataFromSQL(driver, config, client, conv)
 	case PGDUMP, MYSQLDUMP:
 		return dataFromDump(driver, config, ioHelper, client, conv)
+	case DYNAMODB:
+		return dataFromDynamoDB(config, client, conv)
 	default:
 		return nil, fmt.Errorf("data conversion for driver %s not supported", driver)
 	}
@@ -374,6 +371,43 @@ func schemaFromDynamoDB(sampleSize int64) (*internal.Conv, error) {
 		return nil, err
 	}
 	return conv, nil
+}
+
+func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
+	// TODO(hengfeng@): set the total rows.
+	// err = SetRowStats(driver, conv, sourceDB)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// totalRows := conv.Rows()
+	// p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose())
+
+	rows := int64(0)
+	config.Write = func(m []*sp.Mutation) error {
+		_, err := client.Apply(context.Background(), m)
+		if err != nil {
+			return err
+		}
+		atomic.AddInt64(&rows, int64(len(m)))
+		// TODO(hengfeng@): report the progress.
+		// p.MaybeReport(atomic.LoadInt64(&rows))
+		return nil
+	}
+	writer := spanner.NewBatchWriter(config)
+	conv.SetDataMode()
+	conv.SetDataSink(
+		func(table string, cols []string, vals []interface{}) {
+			writer.AddRow(table, cols, vals)
+		})
+
+	mySession := session.Must(session.NewSession())
+	dyclient := dydb.New(mySession)
+	err := dynamodb.ProcessData(conv, dyclient)
+	if err != nil {
+		return nil, err
+	}
+	writer.Flush()
+	return writer, nil
 }
 
 type ioStreams struct {
