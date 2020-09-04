@@ -271,7 +271,7 @@ func (conv *Conv) AddPrimaryKeys() {
 		if len(ct.Pks) == 0 {
 			k := conv.buildPrimaryKey(t)
 			ct.ColNames = append(ct.ColNames, k)
-			ct.ColDefs[k] = ddl.ColumnDef{Name: k, T: ddl.Int64{}}
+			ct.ColDefs[k] = ddl.ColumnDef{Name: k, T: ddl.Type{Name: ddl.Int64}}
 			ct.Pks = []ddl.IndexKey{ddl.IndexKey{Col: k}}
 			conv.SpSchema[t] = ct
 			conv.SyntheticPKeys[t] = SyntheticPKey{k, 0}

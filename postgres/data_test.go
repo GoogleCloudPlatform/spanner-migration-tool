@@ -38,9 +38,9 @@ func TestProcessDataRow(t *testing.T) {
 			Name:     tableName,
 			ColNames: cols,
 			ColDefs: map[string]ddl.ColumnDef{
-				"a": ddl.ColumnDef{Name: "a", T: ddl.Float64{}},
-				"b": ddl.ColumnDef{Name: "b", T: ddl.Int64{}},
-				"c": ddl.ColumnDef{Name: "c", T: ddl.String{Len: ddl.MaxLength{}}},
+				"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Float64}},
+				"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}},
+				"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			}},
 		schema.Table{
 			Name:     tableName,
@@ -63,51 +63,51 @@ func TestProcessDataRow(t *testing.T) {
 func TestConvertData(t *testing.T) {
 	singleColTests := []struct {
 		name    string
-		ty      ddl.ScalarType
+		ty      ddl.Type
 		isArray bool
 		srcTy   string      // Source DB type (used by e.g. timestamp conversions).
 		in      string      // Input value for conversion.
 		e       interface{} // Expected result.
 	}{
-		{"bool", ddl.Bool{}, false, "", "true", true},
-		{"bytes", ddl.Bytes{Len: ddl.MaxLength{}}, false, "", `\x0001beef`, []byte{0x0, 0x1, 0xbe, 0xef}},
-		{"date", ddl.Date{}, false, "", "2019-10-29", getDate("2019-10-29")},
-		{"float64", ddl.Float64{}, false, "", "42.6", float64(42.6)},
-		{"int64", ddl.Int64{}, false, "", "42", int64(42)},
-		{"string", ddl.String{Len: ddl.MaxLength{}}, false, "", "eh", "eh"},
-		{"timestamptz", ddl.Timestamp{}, false, "timestamptz", "2019-10-29 05:30:00+10", getTime(t, "2019-10-29T05:30:00+10:00")},
-		{"timestamp", ddl.Timestamp{}, false, "timestamp", "2019-10-29 05:30:00", getTime(t, "2019-10-29T05:30:00Z")},
+		{"bool", ddl.Type{Name: ddl.Bool}, false, "", "true", true},
+		{"bytes", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, false, "", `\x0001beef`, []byte{0x0, 0x1, 0xbe, 0xef}},
+		{"date", ddl.Type{Name: ddl.Date}, false, "", "2019-10-29", getDate("2019-10-29")},
+		{"float64", ddl.Type{Name: ddl.Float64}, false, "", "42.6", float64(42.6)},
+		{"int64", ddl.Type{Name: ddl.Int64}, false, "", "42", int64(42)},
+		{"string", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, false, "", "eh", "eh"},
+		{"timestamptz", ddl.Type{Name: ddl.Timestamp}, false, "timestamptz", "2019-10-29 05:30:00+10", getTime(t, "2019-10-29T05:30:00+10:00")},
+		{"timestamp", ddl.Type{Name: ddl.Timestamp}, false, "timestamp", "2019-10-29 05:30:00", getTime(t, "2019-10-29T05:30:00Z")},
 
 		// Add cases for each array type, since each is a separate code path.
 		// Note: the PostgreSQL array output routine puts double quotes around
 		// elements if they have white space e.g. timestamps, bytea arrays.
-		{"bool array", ddl.Bool{}, true, "", "{true,false,NULL}", []spanner.NullBool{
+		{"bool array", ddl.Type{Name: ddl.Bool}, true, "", "{true,false,NULL}", []spanner.NullBool{
 			spanner.NullBool{Bool: true, Valid: true}, spanner.NullBool{Bool: false, Valid: true},
 			spanner.NullBool{Valid: false}}},
-		{"bytes array", ddl.Bytes{Len: ddl.MaxLength{}}, true, "", `{"\\x0001beef",NULL}`, [][]byte{{0x0, 0x1, 0xbe, 0xef}, nil}},
-		{"date array", ddl.Date{}, true, "", "{2019-10-29,NULL,2019-10-28}", []spanner.NullDate{
+		{"bytes array", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, true, "", `{"\\x0001beef",NULL}`, [][]byte{{0x0, 0x1, 0xbe, 0xef}, nil}},
+		{"date array", ddl.Type{Name: ddl.Date}, true, "", "{2019-10-29,NULL,2019-10-28}", []spanner.NullDate{
 			spanner.NullDate{Date: getDate("2019-10-29"), Valid: true},
 			spanner.NullDate{Valid: false},
 			spanner.NullDate{Date: getDate("2019-10-28"), Valid: true}}},
-		{"float64 array", ddl.Float64{}, true, "", "{1.1,NULL,2.2,3.3}", []spanner.NullFloat64{
+		{"float64 array", ddl.Type{Name: ddl.Float64}, true, "", "{1.1,NULL,2.2,3.3}", []spanner.NullFloat64{
 			spanner.NullFloat64{Float64: 1.1, Valid: true},
 			spanner.NullFloat64{Valid: false},
 			spanner.NullFloat64{Float64: 2.2, Valid: true},
 			spanner.NullFloat64{Float64: 3.3, Valid: true}}},
-		{"int64 array", ddl.Int64{}, true, "", "{NULL,1,2,3}", []spanner.NullInt64{
+		{"int64 array", ddl.Type{Name: ddl.Int64}, true, "", "{NULL,1,2,3}", []spanner.NullInt64{
 			spanner.NullInt64{Valid: false},
 			spanner.NullInt64{Int64: 1, Valid: true},
 			spanner.NullInt64{Int64: 2, Valid: true},
 			spanner.NullInt64{Int64: 3, Valid: true}}},
-		{"string array", ddl.String{Len: ddl.MaxLength{}}, true, "", `{1,NULL,3,"NULL"}`, []spanner.NullString{
+		{"string array", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, true, "", `{1,NULL,3,"NULL"}`, []spanner.NullString{
 			spanner.NullString{StringVal: "1", Valid: true},
 			spanner.NullString{Valid: false},
 			spanner.NullString{StringVal: "3", Valid: true},
 			spanner.NullString{StringVal: "NULL", Valid: true}}},
-		{"timestamp array", ddl.Timestamp{}, true, "timestamptz", `{"2019-10-29 05:30:00+10",NULL}`, []spanner.NullTime{
+		{"timestamp array", ddl.Type{Name: ddl.Timestamp}, true, "timestamptz", `{"2019-10-29 05:30:00+10",NULL}`, []spanner.NullTime{
 			spanner.NullTime{Time: getTime(t, "2019-10-29T05:30:00+10:00"), Valid: true},
 			spanner.NullTime{Valid: false}}},
-		{"empty array", ddl.String{Len: ddl.MaxLength{}}, true, "", "{}", []spanner.NullString{}},
+		{"empty array", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, true, "", "{}", []spanner.NullString{}},
 	}
 	tableName := "testtable"
 	for _, tc := range singleColTests {
@@ -141,7 +141,7 @@ func TestConvertData(t *testing.T) {
 			ddl.CreateTable{
 				Name:     tableName,
 				ColNames: []string{col},
-				ColDefs:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: ddl.Timestamp{}}}},
+				ColDefs:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: ddl.Type{Name: ddl.Timestamp}}}},
 			schema.Table{
 				Name:     tableName,
 				ColNames: []string{col},
@@ -202,9 +202,9 @@ func TestConvertData(t *testing.T) {
 		Name:     tableName,
 		ColNames: []string{"a", "b", "c"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
-			"b": ddl.ColumnDef{Name: "b", T: ddl.Float64{}},
-			"c": ddl.ColumnDef{Name: "c", T: ddl.Bool{}},
+			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
+			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 		}}
 	srcTable := schema.Table{
 		Name:     tableName,

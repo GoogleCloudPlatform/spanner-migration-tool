@@ -18,25 +18,6 @@
 //
 // Definitions are from
 // https://cloud.google.com/spanner/docs/data-definition-language.
-// Before defining each type, we give the snippet from this definition.
-//
-// We use go interface types to preserve the structural constraints of
-// Spanner DDL. For example, suppose ScalarType could be either
-// an INT or a STRING with a length specifier:
-//    ScalarType := INT | STRING( length )
-// then we use a go interface type to encode ScalarType:
-//    type ScalarType interface {
-//        PrintScalarType() string  // To print ScalarTypes types.
-//    }
-// and struct types for each case:
-//    type Int struct { }
-//    type String struct { length int64 }
-// and finally, we define functions:
-//    func (i Int) PrintScalarType() { ... }
-//    func (s String) PrintScalarType() { .. }
-//
-// The net result is that the only way to build a ScalarType
-// is using Int or String.
 package ddl
 
 import (
@@ -44,86 +25,55 @@ import (
 	"strings"
 )
 
-// Length encodes the following Spanner DDL definition:
-//     length:
-//        { int64_value | MAX }
-type Length interface {
-	PrintLength() string
+const (
+	// Bool represent BOOL type.
+	Bool string = "BOOL"
+	// Bytes represent BYTES type.
+	Bytes string = "BYTES"
+	// Date represent DATE type.
+	Date string = "DATE"
+	// Float64 represent FLOAT64 type.
+	Float64 string = "FLOAT64"
+	// Int64 represent INT64 type.
+	Int64 string = "INT64"
+	// String represent STRING type.
+	String string = "STRING"
+	// Timestamp represent TIMESTAMP type.
+	Timestamp string = "TIMESTAMP"
+	// MaxLength represent "MAX" length of column type.
+	MaxLength string = "MAX"
+)
+
+// PrintLength unparses length of a Type.
+func PrintLength(m interface{}) string {
+	return fmt.Sprintf("%v", m)
 }
 
-// Int64Length wraps an integer length specifier.
-type Int64Length struct{ Value int64 }
-
-// MaxLength represents "MAX".
-type MaxLength struct{}
-
-// Interface validation for Length.
-var _ = []Length{Int64Length{}, MaxLength{}}
-
-// PrintLength unparses Int64Length.
-func (i Int64Length) PrintLength() string { return fmt.Sprintf("%d", i.Value) }
-
-// PrintLength unparses MaxLength.
-func (m MaxLength) PrintLength() string { return fmt.Sprintf("MAX") }
-
-// ScalarType encodes the following DDL definition:
-//     scalar_type:
+// Type represents the type of a column.
+//     type:
 //        { BOOL | INT64 | FLOAT64 | STRING( length ) | BYTES( length ) | DATE | TIMESTAMP }
-type ScalarType interface {
-	PrintScalarType() string
+type Type struct {
+	Name string
+	// Len encodes the following Spanner DDL definition:
+	//     length:
+	//        { int64_value | MAX }
+	Len interface{}
 }
 
-// Bool encodes DDL BOOL.
-type Bool struct{}
-
-// Bytes encodes DDL BYTES( length ).
-type Bytes struct{ Len Length }
-
-// Date encodes DDL DATE.
-type Date struct{}
-
-// Float64 encodes DDL FLOAT64.
-type Float64 struct{}
-
-// Int64 encodes DDL INT64.
-type Int64 struct{}
-
-// String encodes DDL STRING.
-type String struct{ Len Length }
-
-// Timestamp encodes DDL TIMESTAMP.
-type Timestamp struct{}
-
-// Interface validation for ScalarTypes
-var _ = []ScalarType{Bool{}, Bytes{}, Date{}, Float64{}, Int64{}, String{}}
-
-// PrintScalarType unparses Bool.
-func (b Bool) PrintScalarType() string { return "BOOL" }
-
-// PrintScalarType unparses Bytes.
-func (b Bytes) PrintScalarType() string { return fmt.Sprintf("BYTES(%s)", b.Len.PrintLength()) }
-
-// PrintScalarType unparses Date.
-func (d Date) PrintScalarType() string { return "DATE" }
-
-// PrintScalarType unparses Float64
-func (g Float64) PrintScalarType() string { return "FLOAT64" }
-
-// PrintScalarType unparses Int64
-func (i Int64) PrintScalarType() string { return "INT64" }
-
-// PrintScalarType unparses String
-func (s String) PrintScalarType() string { return fmt.Sprintf("STRING(%s)", s.Len.PrintLength()) }
-
-// PrintScalarType unparses Timestamp
-func (t Timestamp) PrintScalarType() string { return "TIMESTAMP" }
+// PrintType unparses Type of a column.
+func (ty Type) PrintType() string {
+	if ty.Len == nil {
+		return ty.Name
+	}
+	return fmt.Sprintf("%s(%s)", ty.Name, PrintLength(ty.Len))
+}
 
 // ColumnDef encodes the following DDL definition:
 //     column_def:
-//       column_name {scalar_type | array_type} [NOT NULL] [options_def]
+//       column_name type [NOT NULL] [options_def]
 type ColumnDef struct {
 	Name    string
-	T       ScalarType
+	T       Type
 	IsArray bool // When false, this column has type T; when true, it is an array of type T.
 	NotNull bool
 	Comment string
@@ -155,7 +105,7 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 
 // PrintColumnDefType unparses the type encoded in a ColumnDef.
 func (cd ColumnDef) PrintColumnDefType() string {
-	t := cd.T.PrintScalarType()
+	t := cd.T.PrintType()
 	if cd.IsArray {
 		return fmt.Sprintf("ARRAY<%s>", t)
 	}

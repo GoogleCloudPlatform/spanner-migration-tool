@@ -40,33 +40,33 @@ func TestProcessPgDump(t *testing.T) {
 	// First, test scalar types.
 	scalarTests := []struct {
 		ty       string
-		expected ddl.ScalarType
+		expected ddl.Type
 	}{
-		{"bigint", ddl.Int64{}},
-		{"bool", ddl.Bool{}},
-		{"boolean", ddl.Bool{}},
-		{"bytea", ddl.Bytes{Len: ddl.MaxLength{}}},
-		{"char(42)", ddl.String{Len: ddl.Int64Length{Value: 42}}},
-		{"date", ddl.Date{}},
-		{"decimal", ddl.Float64{}}, // pg parser maps this to numeric.
-		{"double precision", ddl.Float64{}},
-		{"float8", ddl.Float64{}},
-		{"float4", ddl.Float64{}},
-		{"integer", ddl.Int64{}},
-		{"numeric", ddl.Float64{}},
-		{"numeric(4)", ddl.Float64{}},
-		{"numeric(6, 4)", ddl.Float64{}},
-		{"real", ddl.Float64{}},
-		{"smallint", ddl.Int64{}},
-		{"text", ddl.String{Len: ddl.MaxLength{}}},
-		{"timestamp", ddl.Timestamp{}},
-		{"timestamp without time zone", ddl.Timestamp{}},
-		{"timestamp(5)", ddl.Timestamp{}},
-		{"timestamptz", ddl.Timestamp{}},
-		{"timestamp with time zone", ddl.Timestamp{}},
-		{"timestamptz(5)", ddl.Timestamp{}},
-		{"varchar", ddl.String{Len: ddl.MaxLength{}}},
-		{"varchar(42)", ddl.String{Len: ddl.Int64Length{Value: 42}}},
+		{"bigint", ddl.Type{Name: ddl.Int64}},
+		{"bool", ddl.Type{Name: ddl.Bool}},
+		{"boolean", ddl.Type{Name: ddl.Bool}},
+		{"bytea", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+		{"char(42)", ddl.Type{Name: ddl.String, Len: int64(42)}},
+		{"date", ddl.Type{Name: ddl.Date}},
+		{"decimal", ddl.Type{Name: ddl.Float64}}, // pg parser maps this to numeric.
+		{"double precision", ddl.Type{Name: ddl.Float64}},
+		{"float8", ddl.Type{Name: ddl.Float64}},
+		{"float4", ddl.Type{Name: ddl.Float64}},
+		{"integer", ddl.Type{Name: ddl.Int64}},
+		{"numeric", ddl.Type{Name: ddl.Float64}},
+		{"numeric(4)", ddl.Type{Name: ddl.Float64}},
+		{"numeric(6, 4)", ddl.Type{Name: ddl.Float64}},
+		{"real", ddl.Type{Name: ddl.Float64}},
+		{"smallint", ddl.Type{Name: ddl.Int64}},
+		{"text", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"timestamp", ddl.Type{Name: ddl.Timestamp}},
+		{"timestamp without time zone", ddl.Type{Name: ddl.Timestamp}},
+		{"timestamp(5)", ddl.Type{Name: ddl.Timestamp}},
+		{"timestamptz", ddl.Type{Name: ddl.Timestamp}},
+		{"timestamp with time zone", ddl.Type{Name: ddl.Timestamp}},
+		{"timestamptz(5)", ddl.Type{Name: ddl.Timestamp}},
+		{"varchar", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"varchar(42)", ddl.Type{Name: ddl.String, Len: int64(42)}},
 	}
 	for _, tc := range scalarTests {
 		conv, _ := runProcessPgDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
@@ -78,12 +78,12 @@ func TestProcessPgDump(t *testing.T) {
 		ty       string
 		expected ddl.ColumnDef
 	}{
-		{"text", ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}}},
-		{"text NOT NULL", ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true}},
-		{"text array[4]", ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}, IsArray: true}},
-		{"text[4]", ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}, IsArray: true}},
-		{"text[]", ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}, IsArray: true}},
-		{"text[][]", ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}}}, // Unrecognized array type mapped to string.
+		{"text", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}},
+		{"text NOT NULL", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
+		{"text array[4]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, IsArray: true}},
+		{"text[4]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, IsArray: true}},
+		{"text[]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, IsArray: true}},
+		{"text[][]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}}, // Unrecognized array type mapped to string.
 	}
 	for _, tc := range singleColTests {
 		conv, _ := runProcessPgDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
@@ -109,9 +109,9 @@ func TestProcessPgDump(t *testing.T) {
 					Name:     "cart",
 					ColNames: []string{"productid", "userid", "quantity"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"productid": ddl.ColumnDef{Name: "productid", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
-						"userid":    ddl.ColumnDef{Name: "userid", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
-						"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Int64{}},
+						"productid": ddl.ColumnDef{Name: "productid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"userid":    ddl.ColumnDef{Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "productid"}, ddl.IndexKey{Col: "userid"}}}},
 		},
@@ -123,10 +123,10 @@ func TestProcessPgDump(t *testing.T) {
 					Name:     "cart",
 					ColNames: []string{"productid", "userid", "quantity", "synth_id"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"productid": ddl.ColumnDef{Name: "productid", T: ddl.String{Len: ddl.MaxLength{}}},
-						"userid":    ddl.ColumnDef{Name: "userid", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
-						"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Int64{}},
-						"synth_id":  ddl.ColumnDef{Name: "synth_id", T: ddl.Int64{}},
+						"productid": ddl.ColumnDef{Name: "productid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"userid":    ddl.ColumnDef{Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
+						"synth_id":  ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}}}},
 		},
@@ -138,8 +138,8 @@ func TestProcessPgDump(t *testing.T) {
 					Name:     "test",
 					ColNames: []string{"a", "b"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.String{Len: ddl.MaxLength{}}},
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}}},
 		},
@@ -151,9 +151,9 @@ func TestProcessPgDump(t *testing.T) {
 					Name:     "test",
 					ColNames: []string{"a", "b", "n"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
-						"n": ddl.ColumnDef{Name: "n", T: ddl.Int64{}},
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"n": ddl.ColumnDef{Name: "n", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}, ddl.IndexKey{Col: "b"}}}},
 		},
@@ -165,8 +165,8 @@ func TestProcessPgDump(t *testing.T) {
 					Name:     "myschema_test",
 					ColNames: []string{"a", "b"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.String{Len: ddl.MaxLength{}}},
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}}},
 		},
@@ -179,8 +179,8 @@ func TestProcessPgDump(t *testing.T) {
 					Name:     "test",
 					ColNames: []string{"a", "b"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 					},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}}},
 		},
@@ -194,14 +194,14 @@ func TestProcessPgDump(t *testing.T) {
 					Name:     "t1",
 					ColNames: []string{"a", "b"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.String{Len: ddl.MaxLength{}}}},
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}},
 				"t2": ddl.CreateTable{
 					Name:     "t2",
 					ColNames: []string{"c"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"c": ddl.ColumnDef{Name: "c", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true}},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "c"}}}},
 		},
 		{
@@ -325,9 +325,9 @@ func TestProcessPgDump(t *testing.T) {
 					Name:     "te_s_t",
 					ColNames: []string{"a__", "b_b", "n_n"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a__": ddl.ColumnDef{Name: "a__", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
-						"b_b": ddl.ColumnDef{Name: "b_b", T: ddl.String{Len: ddl.MaxLength{}}},
-						"n_n": ddl.ColumnDef{Name: "n_n", T: ddl.Int64{}},
+						"a__": ddl.ColumnDef{Name: "a__", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"b_b": ddl.ColumnDef{Name: "b_b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"n_n": ddl.ColumnDef{Name: "n_n", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a__"}}}},
 		},
@@ -343,9 +343,9 @@ func TestProcessPgDump(t *testing.T) {
 					Name:     "te_s_t",
 					ColNames: []string{"a__", "b_b", "n_n"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a__": ddl.ColumnDef{Name: "a__", T: ddl.String{Len: ddl.MaxLength{}}, NotNull: true},
-						"b_b": ddl.ColumnDef{Name: "b_b", T: ddl.String{Len: ddl.MaxLength{}}},
-						"n_n": ddl.ColumnDef{Name: "n_n", T: ddl.Int64{}},
+						"a__": ddl.ColumnDef{Name: "a__", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"b_b": ddl.ColumnDef{Name: "b_b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"n_n": ddl.ColumnDef{Name: "n_n", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a__"}}}},
 		},
@@ -514,10 +514,10 @@ func TestProcessPgDump_AddPrimaryKeys(t *testing.T) {
 					Name:     "cart",
 					ColNames: []string{"productid", "userid", "quantity", "synth_id"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"productid": ddl.ColumnDef{Name: "productid", T: ddl.String{Len: ddl.MaxLength{}}},
-						"userid":    ddl.ColumnDef{Name: "userid", T: ddl.String{Len: ddl.MaxLength{}}},
-						"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Int64{}},
-						"synth_id":  ddl.ColumnDef{Name: "synth_id", T: ddl.Int64{}},
+						"productid": ddl.ColumnDef{Name: "productid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"userid":    ddl.ColumnDef{Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
+						"synth_id":  ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}}}},
 		},
@@ -529,10 +529,10 @@ func TestProcessPgDump_AddPrimaryKeys(t *testing.T) {
 					Name:     "test",
 					ColNames: []string{"synth_id", "synth_id0", "synth_id1", "synth_id2"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"synth_id":  ddl.ColumnDef{Name: "synth_id", T: ddl.String{Len: ddl.MaxLength{}}},
-						"synth_id0": ddl.ColumnDef{Name: "synth_id0", T: ddl.String{Len: ddl.MaxLength{}}},
-						"synth_id1": ddl.ColumnDef{Name: "synth_id1", T: ddl.Int64{}},
-						"synth_id2": ddl.ColumnDef{Name: "synth_id2", T: ddl.Int64{}},
+						"synth_id":  ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id0": ddl.ColumnDef{Name: "synth_id0", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id1": ddl.ColumnDef{Name: "synth_id1", T: ddl.Type{Name: ddl.Int64}},
+						"synth_id2": ddl.ColumnDef{Name: "synth_id2", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id2"}}}},
 		},

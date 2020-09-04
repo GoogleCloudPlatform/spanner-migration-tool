@@ -49,15 +49,15 @@ func TestGetDDL(t *testing.T) {
 		Name:     "table1",
 		ColNames: []string{"a", "b"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
-			"b": ddl.ColumnDef{Name: "b", T: ddl.Float64{}},
+			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
 		},
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}}
 	conv.SpSchema["table2"] = ddl.CreateTable{
 		Name:     "table2",
 		ColNames: []string{"a"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
+			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
 		},
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}}
 	ddl := conv.GetDDL(ddl.Config{})
@@ -123,8 +123,8 @@ func TestAddPrimaryKeys(t *testing.T) {
 		Name:     "table",
 		ColNames: []string{"a", "b"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
-			"b": ddl.ColumnDef{Name: "b", T: ddl.Float64{}},
+			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
 		},
 		Pks: []ddl.IndexKey{}}
 	conv.AddPrimaryKeys()
@@ -132,9 +132,9 @@ func TestAddPrimaryKeys(t *testing.T) {
 		Name:     "table",
 		ColNames: []string{"a", "b", "synth_id"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"a":        ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
-			"b":        ddl.ColumnDef{Name: "b", T: ddl.Float64{}},
-			"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Int64{}},
+			"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+			"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
+			"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 		},
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}}}
 	assert.Equal(t, e, conv.SpSchema["table"])

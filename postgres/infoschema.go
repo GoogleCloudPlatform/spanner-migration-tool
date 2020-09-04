@@ -387,7 +387,7 @@ func cvtSQLArray(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, v
 //    string
 //    time.Time
 func cvtSQLScalar(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {
-	switch spCd.T.(type) {
+	switch spCd.T.Name {
 	case ddl.Bool:
 		switch v := val.(type) {
 		case bool:

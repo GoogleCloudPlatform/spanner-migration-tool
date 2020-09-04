@@ -52,7 +52,7 @@ func schemaToDDL(conv *internal.Conv) error {
 			spColNames = append(spColNames, colName)
 			ty, issues := toSpannerType(conv, srcCol.Type.Name, srcCol.Type.Mods)
 			if len(srcCol.Type.ArrayBounds) > 1 {
-				ty = ddl.String{Len: ddl.MaxLength{}}
+				ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 				issues = append(issues, internal.MultiDimensionalArray)
 			}
 			// TODO(hengfeng): add issues for all elements of srcCol.Ignored.
@@ -91,7 +91,7 @@ func schemaToDDL(conv *internal.Conv) error {
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
-func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.ScalarType, []internal.SchemaIssue) {
+func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
 	maxExpectedMods := func(n int) {
 		if len(mods) > n {
 			conv.Unexpected(fmt.Sprintf("Found %d mods while processing type id=%s", len(mods), id))
@@ -100,73 +100,73 @@ func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.ScalarType
 	switch id {
 	case "bool", "boolean":
 		maxExpectedMods(0)
-		return ddl.Bool{}, nil
+		return ddl.Type{Name: ddl.Bool}, nil
 	case "tinyint":
 		maxExpectedMods(1)
 		// tinyint(1) is a bool in MySQL
 		if len(mods) > 0 && mods[0] == 1 {
-			return ddl.Bool{}, nil
+			return ddl.Type{Name: ddl.Bool}, nil
 		}
-		return ddl.Int64{}, []internal.SchemaIssue{internal.Widened}
+		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 	case "double":
 		maxExpectedMods(2)
-		return ddl.Float64{}, nil
+		return ddl.Type{Name: ddl.Float64}, nil
 	case "float":
 		maxExpectedMods(2)
-		return ddl.Float64{}, []internal.SchemaIssue{internal.Widened}
+		return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
 	case "numeric", "decimal": // Map all numeric and decimal types to float64.
 		maxExpectedMods(2)
 		if len(mods) > 0 && mods[0] <= 15 {
 			// float64 can represent this numeric type faithfully.
 			// Note: int64 has 53 bits for mantissa, which is ~15.96
 			// decimal digits.
-			return ddl.Float64{}, []internal.SchemaIssue{internal.DecimalThatFits}
+			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.DecimalThatFits}
 		}
-		return ddl.Float64{}, []internal.SchemaIssue{internal.Decimal}
+		return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Decimal}
 	case "bigint":
 		maxExpectedMods(1)
-		return ddl.Int64{}, nil
+		return ddl.Type{Name: ddl.Int64}, nil
 	case "smallint", "mediumint", "integer", "int":
 		maxExpectedMods(1)
-		return ddl.Int64{}, []internal.SchemaIssue{internal.Widened}
+		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 	case "bit":
 		maxExpectedMods(1)
-		return ddl.Bytes{Len: ddl.MaxLength{}}, nil
+		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 	case "varchar", "char":
 		maxExpectedMods(1)
 		if len(mods) > 0 {
-			return ddl.String{Len: ddl.Int64Length{Value: mods[0]}}, nil
+			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
 		}
-		return ddl.String{Len: ddl.MaxLength{}}, nil
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "text", "tinytext", "mediumtext", "longtext":
 		maxExpectedMods(1)
-		return ddl.String{Len: ddl.MaxLength{}}, nil
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "set", "enum":
 		maxExpectedMods(1)
-		return ddl.String{Len: ddl.MaxLength{}}, nil
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "json":
 		maxExpectedMods(0)
-		return ddl.String{Len: ddl.MaxLength{}}, nil
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "binary", "varbinary":
 		maxExpectedMods(1)
-		return ddl.Bytes{Len: ddl.MaxLength{}}, nil
+		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 	case "tinyblob", "mediumblob", "blob", "longblob":
 		maxExpectedMods(1)
-		return ddl.Bytes{Len: ddl.MaxLength{}}, nil
+		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 	case "date":
 		maxExpectedMods(1)
-		return ddl.Date{}, nil
+		return ddl.Type{Name: ddl.Date}, nil
 	case "datetime":
 		maxExpectedMods(1)
-		return ddl.Timestamp{}, []internal.SchemaIssue{internal.Datetime}
+		return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Datetime}
 	case "timestamp":
 		maxExpectedMods(1)
-		return ddl.Timestamp{}, nil
+		return ddl.Type{Name: ddl.Timestamp}, nil
 	case "time", "year":
 		maxExpectedMods(1)
-		return ddl.String{Len: ddl.MaxLength{}}, []internal.SchemaIssue{internal.Time}
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Time}
 	}
-	return ddl.String{Len: ddl.MaxLength{}}, []internal.SchemaIssue{internal.NoGoodType}
+	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 }
 
 func quoteIfNeeded(s string) string {

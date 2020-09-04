@@ -25,7 +25,6 @@ import (
 
 	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner"
-
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -109,13 +108,13 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, vals []
 // appropriate Spanner value. It is the caller's responsibility to
 // detect and handle NULL values: convScalar will return error if a
 // NULL value is passed.
-func convScalar(spannerType ddl.ScalarType, srcTypeName string, location *time.Location, val string) (interface{}, error) {
+func convScalar(spannerType ddl.Type, srcTypeName string, location *time.Location, val string) (interface{}, error) {
 	// Whitespace within the val string is considered part of the data value.
 	// Note that many of the underlying conversions functions we use (like
 	// strconv.ParseFloat and strconv.ParseInt) return "invalid syntax"
 	// errors if whitespace were to appear at the start or end of a string.
 	// We do not expect pg_dump to generate such output.
-	switch spannerType.(type) {
+	switch spannerType.Name {
 	case ddl.Bool:
 		return convBool(val)
 	case ddl.Bytes:
@@ -131,7 +130,7 @@ func convScalar(spannerType ddl.ScalarType, srcTypeName string, location *time.L
 	case ddl.Timestamp:
 		return convTimestamp(srcTypeName, location, val)
 	default:
-		return val, fmt.Errorf("data conversion not implemented for type %v", reflect.TypeOf(spannerType))
+		return val, fmt.Errorf("data conversion not implemented for type %v", spannerType.Name)
 	}
 }
 
@@ -224,7 +223,7 @@ func convTimestamp(srcTypeName string, location *time.Location, val string) (t t
 // is NULL. However, convArray does handle the case where individual
 // array elements are NULL. In other words, convArray handles "{1,
 // NULL, 2}", but it does not handle "NULL" (it returns error).
-func convArray(spannerType ddl.ScalarType, srcTypeName string, location *time.Location, v string) (interface{}, error) {
+func convArray(spannerType ddl.Type, srcTypeName string, location *time.Location, v string) (interface{}, error) {
 	v = strings.TrimSpace(v)
 	// Handle empty array. Note that we use an empty NullString array
 	// for all Spanner array types since this will be converted to the
@@ -240,7 +239,7 @@ func convArray(spannerType ddl.ScalarType, srcTypeName string, location *time.Lo
 	// The Spanner client for go does not accept []interface{} for arrays.
 	// Instead it only accepts slices of a specific type e.g. []int64, []string.
 	// Hence we have to do the following case analysis.
-	switch spannerType.(type) {
+	switch spannerType.Name {
 	case ddl.Bool:
 		var r []spanner.NullBool
 		for _, s := range a {
