@@ -73,7 +73,7 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 		}
 		var x interface{}
 		var err error
-		if spColDef.IsArray {
+		if spColDef.T.IsArray {
 			x, err = convArray(spColDef.T, srcColDef.Type.Name, vals[i])
 		} else {
 			x, err = convScalar(spColDef.T, srcColDef.Type.Name, conv.TimezoneOffset, vals[i])

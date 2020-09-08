@@ -74,7 +74,7 @@ func TestProcessMySQLDump_SingleCol(t *testing.T) {
 		ty       string
 		expected ddl.ColumnDef
 	}{
-		{"set('a','b','c')", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, IsArray: true}},
+		{"set('a','b','c')", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}}},
 		{"text NOT NULL", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
 	}
 	for _, tc := range singleColTests {

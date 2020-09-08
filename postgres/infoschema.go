@@ -144,7 +144,7 @@ func ConvertSQLRow(conv *internal.Conv, srcTable string, srcCols []string, srcSc
 		}
 		var spVal interface{}
 		var err error
-		if spCd.IsArray {
+		if spCd.T.IsArray {
 			spVal, err = cvtSQLArray(conv, srcCd, spCd, srcVals[i])
 		} else {
 			spVal, err = cvtSQLScalar(conv, srcCd, spCd, srcVals[i])

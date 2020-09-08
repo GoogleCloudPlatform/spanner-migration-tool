@@ -84,7 +84,7 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, vals []
 		}
 		var x interface{}
 		var err error
-		if spColDef.IsArray {
+		if spColDef.T.IsArray {
 			x, err = convArray(spColDef.T, srcColDef.Type.Name, conv.Location, vals[i])
 		} else {
 			x, err = convScalar(spColDef.T, srcColDef.Type.Name, conv.Location, vals[i])

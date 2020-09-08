@@ -111,8 +111,8 @@ func TestProcessInfoSchema(t *testing.T) {
 			ColNames: []string{"id", "aint", "atext", "b", "bs", "by", "c", "c8", "d", "f8", "f4", "i8", "i4", "i2", "num", "s", "ts", "tz", "txt", "vc", "vc6"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"id":    ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-				"aint":  ddl.ColumnDef{Name: "aint", T: ddl.Type{Name: ddl.Int64}, IsArray: true},
-				"atext": ddl.ColumnDef{Name: "atext", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, IsArray: true},
+				"aint":  ddl.ColumnDef{Name: "aint", T: ddl.Type{Name: ddl.Int64, IsArray: true}},
+				"atext": ddl.ColumnDef{Name: "atext", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}},
 				"b":     ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Bool}},
 				"bs":    ddl.ColumnDef{Name: "bs", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 				"by":    ddl.ColumnDef{Name: "by", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
@@ -212,7 +212,6 @@ func TestConvertSqlRow_SingleCol(t *testing.T) {
 		name    string
 		srcType schema.Type
 		spType  ddl.Type
-		isArray bool
 		in      interface{} // Input value for conversion.
 		e       interface{} // Expected result.
 	}{
@@ -248,12 +247,12 @@ func TestConvertSqlRow_SingleCol(t *testing.T) {
 		// ConvertSqlRow uses convArray for conversion of array types.
 		// Since convArray is extensively tested in data_test.go, we
 		// only test a few cases here.
-		{name: "array bool", srcType: schema.Type{Name: "bool", ArrayBounds: []int64{-1}}, spType: ddl.Type{Name: ddl.Bool}, isArray: true,
+		{name: "array bool", srcType: schema.Type{Name: "bool", ArrayBounds: []int64{-1}}, spType: ddl.Type{Name: ddl.Bool, IsArray: true},
 			in: []byte("{true,false,NULL}"), e: []spanner.NullBool{
 				spanner.NullBool{Bool: true, Valid: true},
 				spanner.NullBool{Bool: false, Valid: true},
 				spanner.NullBool{Valid: false}}},
-		{name: "timestamp array", srcType: schema.Type{Name: "timestamptz", ArrayBounds: []int64{-1}}, spType: ddl.Type{Name: ddl.Timestamp}, isArray: true,
+		{name: "timestamp array", srcType: schema.Type{Name: "timestamptz", ArrayBounds: []int64{-1}}, spType: ddl.Type{Name: ddl.Timestamp, IsArray: true},
 			in: []byte(`{"2019-10-29 05:30:00+10",NULL}`),
 			e: []spanner.NullTime{
 				spanner.NullTime{Time: getTime(t, "2019-10-29T05:30:00+10:00"), Valid: true},
@@ -269,7 +268,7 @@ func TestConvertSqlRow_SingleCol(t *testing.T) {
 		spSchema := ddl.CreateTable{
 			Name:     tableName,
 			ColNames: []string{col},
-			ColDefs:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: tc.spType, IsArray: tc.isArray}}}
+			ColDefs:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: tc.spType}}}
 		ac, av, err := ConvertSQLRow(conv, tableName, cols, srcSchema, tableName, cols, spSchema, []interface{}{tc.in})
 		assert.Equal(t, cols, ac)
 		assert.Equal(t, []interface{}{tc.e}, av)

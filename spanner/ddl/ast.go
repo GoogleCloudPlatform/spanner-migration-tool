@@ -58,6 +58,9 @@ type Type struct {
 	//     length:
 	//        { int64_value | MAX }
 	Len interface{}
+	// IsArray represents if Type is an array_type or not
+	// When false, column has type T; when true, it is an array of type T.
+	IsArray bool
 }
 
 // PrintType unparses Type of a column.
@@ -74,7 +77,6 @@ func (ty Type) PrintType() string {
 type ColumnDef struct {
 	Name    string
 	T       Type
-	IsArray bool // When false, this column has type T; when true, it is an array of type T.
 	NotNull bool
 	Comment string
 }
@@ -106,7 +108,7 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 // PrintColumnDefType unparses the type encoded in a ColumnDef.
 func (cd ColumnDef) PrintColumnDefType() string {
 	t := cd.T.PrintType()
-	if cd.IsArray {
+	if cd.T.IsArray {
 		return fmt.Sprintf("ARRAY<%s>", t)
 	}
 	return t

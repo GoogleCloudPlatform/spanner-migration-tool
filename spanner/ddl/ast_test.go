@@ -48,9 +48,9 @@ func TestPrintColumnDef(t *testing.T) {
 		expected   string
 	}{
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, expected: "col1 INT64"},
-		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}, IsArray: true}, expected: "col1 ARRAY<INT64>"},
+		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}}, expected: "col1 ARRAY<INT64>"},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}, NotNull: true}, expected: "col1 INT64 NOT NULL"},
-		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}, IsArray: true, NotNull: true}, expected: "col1 ARRAY<INT64> NOT NULL"},
+		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}, NotNull: true}, expected: "col1 ARRAY<INT64> NOT NULL"},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, protectIds: true, expected: "`col1` INT64"},
 	}
 	for _, tc := range tests {

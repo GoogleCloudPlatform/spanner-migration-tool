@@ -109,7 +109,7 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 			ColNames: []string{"id", "s", "txt", "b", "bs", "bl", "c", "c8", "d", "dec", "f8", "f4", "i8", "i4", "i2", "si", "ts", "tz", "vc", "vc6"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"id":  ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-				"s":   ddl.ColumnDef{Name: "s", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, IsArray: true},
+				"s":   ddl.ColumnDef{Name: "s", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}},
 				"txt": ddl.ColumnDef{Name: "txt", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"b":   ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Bool}},
 				"bs":  ddl.ColumnDef{Name: "bs", T: ddl.Type{Name: ddl.Int64}, NotNull: true},

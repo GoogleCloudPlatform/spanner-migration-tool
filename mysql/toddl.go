@@ -68,10 +68,10 @@ func schemaToDDL(conv *internal.Conv) error {
 			if len(issues) > 0 {
 				conv.Issues[srcTable.Name][srcCol.Name] = issues
 			}
+			ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
 			spColDef[colName] = ddl.ColumnDef{
 				Name:    colName,
 				T:       ty,
-				IsArray: len(srcCol.Type.ArrayBounds) == 1,
 				NotNull: srcCol.NotNull,
 				Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
 			}
