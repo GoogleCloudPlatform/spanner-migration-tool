@@ -48,6 +48,7 @@ func TestReport(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
 	ProcessPgDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil))
+	conv.SetDataMode()
 	conv.Stats.Rows = map[string]int64{"bad_schema": 1000, "no_pk": 5000}
 	conv.Stats.GoodRows = map[string]int64{"bad_schema": 990, "no_pk": 3000}
 	conv.Stats.BadRows = map[string]int64{"bad_schema": 10, "no_pk": 2000}

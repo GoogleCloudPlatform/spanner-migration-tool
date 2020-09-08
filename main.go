@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -64,13 +65,15 @@ const (
 
 var (
 	badDataFile      = "dropped.txt"
-	schemaFile       = "schema.txt"
+	schemaDDLFile    = "schema.ddl.txt"
+	schemaConvFile   = "schema.conv.json"
 	reportFile       = "report.txt"
 	dbNameOverride   string
 	instanceOverride string
 	filePrefix       = ""
 	driverName       = PGDUMP
 	verbose          bool
+	schemaOnly       bool
 )
 
 func init() {
@@ -79,6 +82,8 @@ func init() {
 	flag.StringVar(&filePrefix, "prefix", "", "prefix: file prefix for generated files")
 	flag.StringVar(&driverName, "driver", "pg_dump", "driver name: flag for accessing source DB or dump files (accepted values are \"pg_dump\", \"postgres\", \"mysqldump\", and \"mysql\")")
 	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
+	flag.BoolVar(&schemaOnly, "schema-only", false, "schema-only: mode for schema only conversion to Spanner")
+
 }
 
 func usage() {
@@ -104,23 +109,26 @@ func main() {
 
 	ioHelper := &ioStreams{in: os.Stdin, out: os.Stdout}
 	fmt.Println("Using driver (source DB):", driverName)
-	project, err := getProject()
-	if err != nil {
-		fmt.Printf("\nCan't get project: %v\n", err)
-		panic(fmt.Errorf("can't get project"))
-	}
-	fmt.Println("Using Google Cloud project:", project)
-
-	instance := instanceOverride
-	if instance == "" {
-		instance, err = getInstance(project, ioHelper.out)
+	var project, instance string
+	if !schemaOnly {
+		project, err = getProject()
 		if err != nil {
-			fmt.Printf("\nCan't get instance: %v\n", err)
-			panic(fmt.Errorf("can't get instance"))
+			fmt.Printf("\nCan't get project: %v\n", err)
+			panic(fmt.Errorf("can't get project"))
 		}
+		fmt.Println("Using Google Cloud project:", project)
+
+		instance = instanceOverride
+		if instance == "" {
+			instance, err = getInstance(project, ioHelper.out)
+			if err != nil {
+				fmt.Printf("\nCan't get instance: %v\n", err)
+				panic(fmt.Errorf("can't get instance"))
+			}
+		}
+		fmt.Println("Using Cloud Spanner instance:", instance)
+		printPermissionsWarning(driverName, ioHelper.out)
 	}
-	fmt.Println("Using Cloud Spanner instance:", instance)
-	printPermissionsWarning(driverName, ioHelper.out)
 
 	now := time.Now()
 	dbName := dbNameOverride
@@ -161,7 +169,12 @@ func toSpanner(driver, projectID, instanceID, dbName string, ioHelper *ioStreams
 		defer ioHelper.in.Close()
 	}
 
-	writeSchemaFile(conv, now, outputFilePrefix+schemaFile, ioHelper.out)
+	writeSchemaDDLFile(conv, now, outputFilePrefix+schemaDDLFile, ioHelper.out)
+	if schemaOnly {
+		writeSchemaConvFile(conv, now, outputFilePrefix+schemaConvFile, ioHelper.out)
+		report(driver, nil, ioHelper.bytesRead, "", conv, outputFilePrefix+reportFile, ioHelper.out)
+		return nil
+	}
 
 	db, err := createDatabase(projectID, instanceID, dbName, conv, ioHelper.out)
 	if err != nil {
@@ -539,10 +552,10 @@ func getInstances(project string) ([]string, error) {
 	return l, nil
 }
 
-func writeSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.File) {
+func writeSchemaDDLFile(conv *internal.Conv, now time.Time, name string, out *os.File) {
 	f, err := os.Create(name)
 	if err != nil {
-		fmt.Fprintf(out, "Can't create schema file %s: %v\n", name, err)
+		fmt.Fprintf(out, "Can't create schema DDL file %s: %v\n", name, err)
 		return
 	}
 	// The schema file we write out includes comments, and doesn't add backticks
@@ -561,10 +574,28 @@ func writeSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 		"\n",
 	}
 	if _, err := f.WriteString(strings.Join(l, "")); err != nil {
-		fmt.Fprintf(out, "Can't write out schema file: %v\n", err)
+		fmt.Fprintf(out, "Can't write out schema DDL file: %v\n", err)
 		return
 	}
-	fmt.Fprintf(out, "Wrote schema to file '%s'.\n", name)
+	fmt.Fprintf(out, "Wrote schema DDL to file '%s'.\n", name)
+}
+
+func writeSchemaConvFile(conv *internal.Conv, now time.Time, name string, out *os.File) {
+	f, err := os.Create(name)
+	if err != nil {
+		fmt.Fprintf(out, "Can't create schema conversion file %s: %v\n", name, err)
+		return
+	}
+	convJSON, err := json.MarshalIndent(conv, "", " ")
+	if err != nil {
+		fmt.Fprintf(out, "Can't encode schema conversion to JSON: %v\n", err)
+		return
+	}
+	if _, err := f.Write(convJSON); err != nil {
+		fmt.Fprintf(out, "Can't write out schema conversion file: %v\n", err)
+		return
+	}
+	fmt.Fprintf(out, "Wrote schema conversion to file '%s'.\n", name)
 }
 
 // writeBadData prints summary stats about bad rows and writes detailed info
