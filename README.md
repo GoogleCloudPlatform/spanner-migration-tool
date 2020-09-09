@@ -171,6 +171,24 @@ SELECT COUNT(*) from mytable
 
 to check the number of rows in table `mytable`.
 
+### Sample Dump Files
+
+If you don't have ready access to a MySQL or PostgreSQL database, some example
+dump files can be found [here](examples). The files
+[cart.mysqldump](examples/cart.mysqldump] and
+[cart.pg_dump](examples/cart.pg_dump) contain mysqldump and pg_dump output for a
+very basic shopping cart application (just two tables, one for products and one
+for user carts). The files [singers.mysqldump](examples/singers.mysqldump) and
+[singers.pg_dump](examples/singers.pg_dump) contain mysqldump and pg_dump output
+for a version of the [Cloud Spanner
+singers](https://cloud.google.com/spanner/docs/schema-and-data-model#creating_a_table)
+example. To use HarbourBridge on cart.mysqldump, download the file locally and
+run
+
+```
+$GOPATH/bin/harbourbridge -driver=mysqldump < cart.mysqldump
+```
+
 ### Next Steps
 
 The tables created by HarbourBridge provide a starting point for evaluation of
