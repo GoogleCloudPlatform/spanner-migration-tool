@@ -155,22 +155,6 @@ HarbourBridge also [generates several files](#files-generated-by-harbourbridge)
 when it runs: a schema file, a report file (with detailed analysis of the
 conversion), and a bad data file (if any data was dropped).
 
-### Verifying Results
-
-Once the tool has completed, you can verify the new database and its content
-using the Google Cloud Console. Go to the [Cloud Spanner Instances
-page](https://console.cloud.google.com/spanner/instances), select your Spanner
-instance, and then find the database created by HarbourBridge and select
-it. This will list the tables created by HarbourBridge. Select a table, and take
-a look at its schema and data. Next, go to the query page, and try
-some SQL statements. For example
-
-```
-SELECT COUNT(*) from mytable
-```
-
-to check the number of rows in table `mytable`.
-
 ### Sample Dump Files
 
 If you don't have ready access to a MySQL or PostgreSQL database, some example
@@ -188,6 +172,22 @@ run
 ```
 $GOPATH/bin/harbourbridge -driver=mysqldump < cart.mysqldump
 ```
+
+### Verifying Results
+
+Once the tool has completed, you can verify the new database and its content
+using the Google Cloud Console. Go to the [Cloud Spanner Instances
+page](https://console.cloud.google.com/spanner/instances), select your Spanner
+instance, and then find the database created by HarbourBridge and select
+it. This will list the tables created by HarbourBridge. Select a table, and take
+a look at its schema and data. Next, go to the query page, and try
+some SQL statements. For example
+
+```
+SELECT COUNT(*) from mytable
+```
+
+to check the number of rows in table `mytable`.
 
 ### Next Steps
 
