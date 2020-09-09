@@ -1,0 +1,100 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 9.6.18
+-- Dumped by pg_dump version 12.3 (Debian 12.3-1)
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+SET default_tablespace = '';
+
+--
+-- Name: cart; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.cart (
+    user_id character varying(20) NOT NULL,
+    product_id character varying(20) NOT NULL,
+    quantity bigint,
+    last_modified timestamp without time zone
+);
+
+
+ALTER TABLE public.cart OWNER TO postgres;
+
+--
+-- Name: products; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.products (
+    product_id character varying(20) NOT NULL,
+    description character varying(1000),
+    price numeric(10,2),
+    date_added date
+);
+
+
+ALTER TABLE public.products OWNER TO postgres;
+
+--
+-- Data for Name: cart; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.cart (user_id, product_id, quantity, last_modified) FROM stdin;
+901e-a6cfc2b502dc	abc-123	1	2020-07-20 05:10:26
+901e-a6cfc2b502dc	axd-673	2	2020-07-20 05:10:43
+a86b-82493320a775	zxi-631	5	2020-07-20 05:10:46
+\.
+
+
+--
+-- Data for Name: products; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.products (product_id, description, price, date_added) FROM stdin;
+abc-123	Blue suede shoes	141.99	2020-06-06
+axd-673	Antique typewriter	99.99	2020-06-07
+zxi-631	Glass vase	55.50	2020-06-10
+\.
+
+
+--
+-- Name: cart cart_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.cart
+    ADD CONSTRAINT cart_pkey PRIMARY KEY (user_id, product_id);
+
+
+--
+-- Name: products products_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_pkey PRIMARY KEY (product_id);
+
+
+--
+-- Name: SCHEMA public; Type: ACL; Schema: -; Owner: cloudsqlsuperuser
+--
+
+REVOKE ALL ON SCHEMA public FROM cloudsqladmin;
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+GRANT ALL ON SCHEMA public TO cloudsqlsuperuser;
+GRANT ALL ON SCHEMA public TO PUBLIC;
+
+
+--
+-- PostgreSQL database dump complete
+--
+

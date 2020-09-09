@@ -1,0 +1,145 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 9.6.16
+-- Dumped by pg_dump version 12.2 (Debian 12.2-4)
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+SET default_tablespace = '';
+
+--
+-- Name: albums; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.albums (
+    singerid bigint NOT NULL,
+    albumid bigint NOT NULL,
+    albumtitle text,
+    releasedate date
+);
+
+
+ALTER TABLE public.albums OWNER TO postgres;
+
+--
+-- Name: singers; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.singers (
+    singerid bigint NOT NULL,
+    firstname text,
+    lastname text,
+    birthdate date
+);
+
+
+ALTER TABLE public.singers OWNER TO postgres;
+
+--
+-- Name: songs; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.songs (
+    singerid bigint NOT NULL,
+    albumid bigint NOT NULL,
+    trackid bigint NOT NULL,
+    songname text
+);
+
+
+ALTER TABLE public.songs OWNER TO postgres;
+
+--
+-- Data for Name: albums; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.albums (singerid, albumid, albumtitle, releasedate) FROM stdin;
+1	1	Total Junk	2014-03-02
+1	2	Go Go Go	2011-02-09
+2	1	Green	2012-09-17
+2	2	Forever Hold Your Peace	2010-10-15
+2	3	Terrified	2008-06-07
+3	1	Nothing To Do With Me	2014-04-29
+4	1	Play	2013-12-21
+\.
+
+
+--
+-- Data for Name: singers; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.singers (singerid, firstname, lastname, birthdate) FROM stdin;
+1	Marc	Richards	1970-09-03
+2	Catalina	Smith	1990-08-17
+3	Alice	Trentor	1991-10-02
+4	Lea	Martin	1991-11-09
+5	David	Lomond	1977-01-29
+\.
+
+
+--
+-- Data for Name: songs; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.songs (singerid, albumid, trackid, songname) FROM stdin;
+2	1	1	Let's Get Back Together
+2	1	3	I Knew You Were Magic
+2	1	6	Nothing Is The Same
+2	1	7	The Second Time
+2	3	1	Fight Story
+3	1	1	Not About The Guitar
+2	1	2	Starting Again
+2	1	5	Blue
+2	1	4	42
+\.
+
+
+--
+-- Name: albums albums_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.albums
+    ADD CONSTRAINT albums_pkey PRIMARY KEY (singerid, albumid);
+
+
+--
+-- Name: singers singers_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.singers
+    ADD CONSTRAINT singers_pkey PRIMARY KEY (singerid);
+
+
+--
+-- Name: songs songs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.songs
+    ADD CONSTRAINT songs_pkey PRIMARY KEY (singerid, albumid, trackid);
+
+
+--
+-- Name: SCHEMA public; Type: ACL; Schema: -; Owner: cloudsqlsuperuser
+--
+
+REVOKE ALL ON SCHEMA public FROM cloudsqladmin;
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+GRANT ALL ON SCHEMA public TO cloudsqlsuperuser;
+GRANT ALL ON SCHEMA public TO PUBLIC;
+
+
+--
+-- PostgreSQL database dump complete
+--
+

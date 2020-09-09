@@ -155,6 +155,24 @@ HarbourBridge also [generates several files](#files-generated-by-harbourbridge)
 when it runs: a schema file, a report file (with detailed analysis of the
 conversion), and a bad data file (if any data was dropped).
 
+### Sample Dump Files
+
+If you don't have ready access to a PostgreSQL or MySQL database, some example
+dump files can be found [here](examples). The files
+[cart.pg_dump](examples/cart.pg_dump) and
+[cart.mysqldump](examples/cart.mysqldump] contain pg_dump and mysqldump output
+for a very basic shopping cart application (just two tables, one for products
+and one for user carts). The files [singers.pg_dump](examples/singers.pg_dump)
+and [singers.mysqldump](examples/singers.mysqldump) contain pg_dump and
+mysqldump output for a version of the [Cloud Spanner
+singers](https://cloud.google.com/spanner/docs/schema-and-data-model#creating_a_table)
+example. To use HarbourBridge on cart.pg_dump, download the file locally and
+run
+
+```
+$GOPATH/bin/harbourbridge -driver=pg_dump < cart.pg_dump
+```
+
 ### Verifying Results
 
 Once the tool has completed, you can verify the new database and its content
