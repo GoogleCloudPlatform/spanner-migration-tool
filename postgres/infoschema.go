@@ -144,7 +144,7 @@ func ConvertSQLRow(conv *internal.Conv, srcTable string, srcCols []string, srcSc
 		}
 		var spVal interface{}
 		var err error
-		if spCd.IsArray {
+		if spCd.T.IsArray {
 			spVal, err = cvtSQLArray(conv, srcCd, spCd, srcVals[i])
 		} else {
 			spVal, err = cvtSQLScalar(conv, srcCd, spCd, srcVals[i])
@@ -387,7 +387,7 @@ func cvtSQLArray(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, v
 //    string
 //    time.Time
 func cvtSQLScalar(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {
-	switch spCd.T.(type) {
+	switch spCd.T.Name {
 	case ddl.Bool:
 		switch v := val.(type) {
 		case bool:

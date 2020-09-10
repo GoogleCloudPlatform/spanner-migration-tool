@@ -45,9 +45,9 @@ func TestProcessDataRow(t *testing.T) {
 			Name:     tableName,
 			ColNames: cols,
 			ColDefs: map[string]ddl.ColumnDef{
-				"a": ddl.ColumnDef{Name: "a", T: ddl.Float64{}},
-				"b": ddl.ColumnDef{Name: "b", T: ddl.Int64{}},
-				"c": ddl.ColumnDef{Name: "c", T: ddl.String{Len: ddl.MaxLength{}}},
+				"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Float64}},
+				"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}},
+				"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			}},
 		schema.Table{
 			Name:     tableName,
@@ -68,22 +68,21 @@ func TestProcessDataRow(t *testing.T) {
 
 func TestConvertData(t *testing.T) {
 	singleColTests := []struct {
-		name    string
-		ty      ddl.ScalarType
-		isArray bool
-		srcTy   string      // Source DB type (Used by e.g. timestamp conversions).
-		in      string      // Input value for conversion.
-		e       interface{} // Expected result.
+		name  string
+		ty    ddl.Type
+		srcTy string      // Source DB type (Used by e.g. timestamp conversions).
+		in    string      // Input value for conversion.
+		e     interface{} // Expected result.
 	}{
-		{"bool", ddl.Bool{}, false, "", "1", true},
-		{"bytes", ddl.Bytes{Len: ddl.MaxLength{}}, false, "", string([]byte{137, 80}), []byte{0x89, 0x50}}, // need some other approach to testblob type
-		{"date", ddl.Date{}, false, "", "2019-10-29", getDate("2019-10-29")},
-		{"float64", ddl.Float64{}, false, "", "42.6", float64(42.6)},
-		{"int64", ddl.Int64{}, false, "", "42", int64(42)},
-		{"string", ddl.String{Len: ddl.MaxLength{}}, false, "", "eh", "eh"},
-		{"datetime", ddl.Timestamp{}, false, "datetime", "2019-10-29 05:30:00", getTimeWithoutTimezone(t, "2019-10-29 05:30:00")},
-		{"timestamp", ddl.Timestamp{}, false, "timestamp", "2019-10-29 05:30:00", getTime(t, "2019-10-29T05:30:00+05:30")},
-		{"string array(set)", ddl.String{Len: ddl.MaxLength{}}, true, "", "1,Travel,3,Dance", []spanner.NullString{
+		{"bool", ddl.Type{Name: ddl.Bool}, "", "1", true},
+		{"bytes", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, "", string([]byte{137, 80}), []byte{0x89, 0x50}}, // need some other approach to testblob type
+		{"date", ddl.Type{Name: ddl.Date}, "", "2019-10-29", getDate("2019-10-29")},
+		{"float64", ddl.Type{Name: ddl.Float64}, "", "42.6", float64(42.6)},
+		{"int64", ddl.Type{Name: ddl.Int64}, "", "42", int64(42)},
+		{"string", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, "", "eh", "eh"},
+		{"datetime", ddl.Type{Name: ddl.Timestamp}, "datetime", "2019-10-29 05:30:00", getTimeWithoutTimezone(t, "2019-10-29 05:30:00")},
+		{"timestamp", ddl.Type{Name: ddl.Timestamp}, "timestamp", "2019-10-29 05:30:00", getTime(t, "2019-10-29T05:30:00+05:30")},
+		{"string array(set)", ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}, "", "1,Travel,3,Dance", []spanner.NullString{
 			spanner.NullString{StringVal: "1", Valid: true},
 			spanner.NullString{StringVal: "Travel", Valid: true},
 			spanner.NullString{StringVal: "3", Valid: true},
@@ -96,7 +95,7 @@ func TestConvertData(t *testing.T) {
 			ddl.CreateTable{
 				Name:     tableName,
 				ColNames: []string{col},
-				ColDefs:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: tc.ty, IsArray: tc.isArray, NotNull: false}},
+				ColDefs:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: tc.ty, NotNull: false}},
 				Pks:      []ddl.IndexKey{}},
 			schema.Table{Name: tableName, ColNames: []string{col}, ColDefs: map[string]schema.Column{col: schema.Column{Type: schema.Type{Name: tc.srcTy}}}})
 		conv.TimezoneOffset = "+05:30"
@@ -124,7 +123,7 @@ func TestConvertTimestampData(t *testing.T) {
 			ddl.CreateTable{
 				Name:     tableName,
 				ColNames: []string{col},
-				ColDefs:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: ddl.Timestamp{}}}},
+				ColDefs:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: ddl.Type{Name: ddl.Timestamp}}}},
 			schema.Table{
 				Name:     tableName,
 				ColNames: []string{col},
@@ -186,9 +185,9 @@ func TestConvertMultiColData(t *testing.T) {
 		Name:     tableName,
 		ColNames: []string{"a", "b", "c"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
-			"b": ddl.ColumnDef{Name: "b", T: ddl.Float64{}},
-			"c": ddl.ColumnDef{Name: "c", T: ddl.Bool{}},
+			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
+			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 		}}
 	srcTable := schema.Table{
 		Name:     tableName,
@@ -234,9 +233,9 @@ func TestConvertError(t *testing.T) {
 		Name:     tableName,
 		ColNames: []string{"a", "b", "c"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
-			"b": ddl.ColumnDef{Name: "b", T: ddl.Float64{}},
-			"c": ddl.ColumnDef{Name: "c", T: ddl.Bool{}},
+			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
+			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 		}}
 	srcTable := schema.Table{
 		Name:     tableName,
@@ -283,9 +282,9 @@ func TestConvertsyntheticPKey(t *testing.T) {
 		Name:     tableName,
 		ColNames: []string{"a", "b", "c"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
-			"b": ddl.ColumnDef{Name: "b", T: ddl.Float64{}},
-			"c": ddl.ColumnDef{Name: "c", T: ddl.Bool{}},
+			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
+			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 		}}
 	srcTable := schema.Table{
 		Name:     tableName,

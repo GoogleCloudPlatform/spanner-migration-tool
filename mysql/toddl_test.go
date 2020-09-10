@@ -48,12 +48,12 @@ func TestToSpannerType(t *testing.T) {
 		Name:     name,
 		ColNames: []string{"a", "b", "c", "d", "e", "f"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": ddl.ColumnDef{Name: "a", T: ddl.Int64{}},
-			"b": ddl.ColumnDef{Name: "b", T: ddl.Float64{}},
-			"c": ddl.ColumnDef{Name: "c", T: ddl.Bool{}},
-			"d": ddl.ColumnDef{Name: "d", T: ddl.String{Len: ddl.Int64Length{Value: 6}}},
-			"e": ddl.ColumnDef{Name: "e", T: ddl.Float64{}},
-			"f": ddl.ColumnDef{Name: "f", T: ddl.Timestamp{}},
+			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
+			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
+			"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
+			"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Float64}},
+			"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
 		},
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
 	}

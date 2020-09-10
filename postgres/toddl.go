@@ -48,7 +48,7 @@ func schemaToDDL(conv *internal.Conv) error {
 			spColNames = append(spColNames, colName)
 			ty, issues := toSpannerType(conv, srcCol.Type.Name, srcCol.Type.Mods)
 			if len(srcCol.Type.ArrayBounds) > 1 {
-				ty = ddl.String{Len: ddl.MaxLength{}}
+				ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 				issues = append(issues, internal.MultiDimensionalArray)
 			}
 			// TODO: add issues for all elements of srcCol.Ignored.
@@ -61,10 +61,10 @@ func schemaToDDL(conv *internal.Conv) error {
 			if len(issues) > 0 {
 				conv.Issues[srcTable.Name][srcCol.Name] = issues
 			}
+			ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
 			spColDef[colName] = ddl.ColumnDef{
 				Name:    colName,
 				T:       ty,
-				IsArray: len(srcCol.Type.ArrayBounds) == 1,
 				NotNull: srcCol.NotNull,
 				Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
 			}
@@ -84,7 +84,7 @@ func schemaToDDL(conv *internal.Conv) error {
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
-func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.ScalarType, []internal.SchemaIssue) {
+func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
 	maxExpectedMods := func(n int) {
 		if len(mods) > n {
 			conv.Unexpected(fmt.Sprintf("Found %d mods while processing type id=%s", len(mods), id))
@@ -93,68 +93,68 @@ func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.ScalarType
 	switch id {
 	case "bool", "boolean":
 		maxExpectedMods(0)
-		return ddl.Bool{}, nil
+		return ddl.Type{Name: ddl.Bool}, nil
 	case "bigserial":
 		maxExpectedMods(0)
-		return ddl.Int64{}, []internal.SchemaIssue{internal.Serial}
+		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Serial}
 	case "bpchar", "character": // Note: Postgres internal name for char is bpchar (aka blank padded char).
 		maxExpectedMods(1)
 		if len(mods) > 0 {
-			return ddl.String{Len: ddl.Int64Length{Value: mods[0]}}, nil
+			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
 		}
 		// Note: bpchar without length specifier is equivalent to bpchar(1)
-		return ddl.String{Len: ddl.Int64Length{Value: 1}}, nil
+		return ddl.Type{Name: ddl.String, Len: 1}, nil
 	case "bytea":
 		maxExpectedMods(0)
-		return ddl.Bytes{Len: ddl.MaxLength{}}, nil
+		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 	case "date":
 		maxExpectedMods(0)
-		return ddl.Date{}, nil
+		return ddl.Type{Name: ddl.Date}, nil
 	case "float8", "double precision":
 		maxExpectedMods(0)
-		return ddl.Float64{}, nil
+		return ddl.Type{Name: ddl.Float64}, nil
 	case "float4", "real":
 		maxExpectedMods(0)
-		return ddl.Float64{}, []internal.SchemaIssue{internal.Widened}
+		return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
 	case "int8", "bigint":
 		maxExpectedMods(0)
-		return ddl.Int64{}, nil
+		return ddl.Type{Name: ddl.Int64}, nil
 	case "int4", "integer":
 		maxExpectedMods(0)
-		return ddl.Int64{}, []internal.SchemaIssue{internal.Widened}
+		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 	case "int2", "smallint":
 		maxExpectedMods(0)
-		return ddl.Int64{}, []internal.SchemaIssue{internal.Widened}
+		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 	case "numeric": // Map all numeric types to float64.
 		maxExpectedMods(2)
 		if len(mods) > 0 && mods[0] <= 15 {
 			// float64 can represent this numeric type faithfully.
 			// Note: int64 has 53 bits for mantissa, which is ~15.96
 			// decimal digits.
-			return ddl.Float64{}, []internal.SchemaIssue{internal.NumericThatFits}
+			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.NumericThatFits}
 		}
-		return ddl.Float64{}, []internal.SchemaIssue{internal.Numeric}
+		return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Numeric}
 	case "serial":
 		maxExpectedMods(0)
-		return ddl.Int64{}, []internal.SchemaIssue{internal.Serial}
+		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Serial}
 	case "text":
 		maxExpectedMods(0)
-		return ddl.String{Len: ddl.MaxLength{}}, nil
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "timestamptz", "timestamp with time zone":
 		maxExpectedMods(1)
-		return ddl.Timestamp{}, nil
+		return ddl.Type{Name: ddl.Timestamp}, nil
 	case "timestamp", "timestamp without time zone":
 		maxExpectedMods(1)
 		// Map timestamp without timezone to Spanner timestamp.
-		return ddl.Timestamp{}, []internal.SchemaIssue{internal.Timestamp}
+		return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Timestamp}
 	case "varchar", "character varying":
 		maxExpectedMods(1)
 		if len(mods) > 0 {
-			return ddl.String{Len: ddl.Int64Length{Value: mods[0]}}, nil
+			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
 		}
-		return ddl.String{Len: ddl.MaxLength{}}, nil
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	}
-	return ddl.String{Len: ddl.MaxLength{}}, []internal.SchemaIssue{internal.NoGoodType}
+	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 }
 
 func quoteIfNeeded(s string) string {

@@ -8,6 +8,8 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.4.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-sql-driver/mysql v1.5.0
+	github.com/gorilla/handlers v1.5.0
+	github.com/gorilla/mux v1.7.3
 	github.com/goware/modvendor v0.0.0-20190516042800-ce72b408a8fe // indirect
 	github.com/juju/errors v0.0.0-20200330140219-3fe23663418f
 	github.com/lfittl/pg_query_go v1.0.0
