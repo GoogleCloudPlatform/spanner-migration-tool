@@ -22,6 +22,8 @@ package ddl
 
 import (
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 )
 
@@ -40,14 +42,9 @@ const (
 	String string = "STRING"
 	// Timestamp represent TIMESTAMP type.
 	Timestamp string = "TIMESTAMP"
-	// MaxLength represent "MAX" length of column type.
-	MaxLength string = "MAX"
+	// MaxLength is a sentinel for Type's Len field, representing the MAX value.
+	MaxLength = math.MaxInt64
 )
-
-// PrintLength unparses length of a Type.
-func PrintLength(m interface{}) string {
-	return fmt.Sprintf("%v", m)
-}
 
 // Type represents the type of a column.
 //     type:
@@ -57,18 +54,28 @@ type Type struct {
 	// Len encodes the following Spanner DDL definition:
 	//     length:
 	//        { int64_value | MAX }
-	Len interface{}
+	Len int64
 	// IsArray represents if Type is an array_type or not
 	// When false, column has type T; when true, it is an array of type T.
 	IsArray bool
 }
 
-// PrintType unparses Type of a column.
-func (ty Type) PrintType() string {
-	if ty.Len == nil {
-		return ty.Name
+// PrintColumnDefType unparses the type encoded in a ColumnDef.
+func (ty Type) PrintColumnDefType() string {
+	str := ty.Name
+	if ty.Name == String || ty.Name == Bytes {
+		str += "("
+		if ty.Len == MaxLength {
+			str += "MAX"
+		} else {
+			str += strconv.FormatInt(ty.Len, 10)
+		}
+		str += ")"
 	}
-	return fmt.Sprintf("%s(%s)", ty.Name, PrintLength(ty.Len))
+	if ty.IsArray {
+		str = "ARRAY<" + str + ">"
+	}
+	return str
 }
 
 // ColumnDef encodes the following DDL definition:
@@ -98,20 +105,11 @@ func (c Config) quote(s string) string {
 // comment. These are returned as separate strings to support formatting
 // needs of PrintCreateTable.
 func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
-	s := fmt.Sprintf("%s %s", c.quote(cd.Name), cd.PrintColumnDefType())
+	s := fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
 	if cd.NotNull {
 		s += " NOT NULL"
 	}
 	return s, cd.Comment
-}
-
-// PrintColumnDefType unparses the type encoded in a ColumnDef.
-func (cd ColumnDef) PrintColumnDefType() string {
-	t := cd.T.PrintType()
-	if cd.T.IsArray {
-		return fmt.Sprintf("ARRAY<%s>", t)
-	}
-	return t
 }
 
 // IndexKey encodes the following DDL definition:

@@ -37,7 +37,7 @@ func TestPrintScalarType(t *testing.T) {
 		{Type{Name: Timestamp}, "TIMESTAMP"},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, normalizeSpace(tc.expected), normalizeSpace(tc.in.PrintType()))
+		assert.Equal(t, normalizeSpace(tc.expected), normalizeSpace(tc.in.PrintColumnDefType()))
 	}
 }
 
