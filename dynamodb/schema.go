@@ -50,11 +50,9 @@ type dynamoClient interface {
 }
 
 // ProcessSchema performs schema conversion for source tables in a DynamoDB
-// database. We use the standard APIs to obtain source table's schema
-// information, including primary keys and secondary indexes. DynamoDB is a
-// schemaless database that some optional attributes can be missed or has
-// different data types in some rows. Therefore, we have to sample a number of
-// rows to infer the schema for optional attributes.
+// database. Since DynamoDB is a schemaless database, this process is imprecise.
+// We obtain schema information from two sources: from the table's metadata,
+// and from analyzing a sample of the table's rows.
 func ProcessSchema(conv *internal.Conv, client dynamoClient, tables []string, sampleSize int64) error {
 	if len(tables) == 0 {
 		var err error
@@ -78,14 +76,8 @@ func ProcessSchema(conv *internal.Conv, client dynamoClient, tables []string, sa
 
 func listTables(client dynamoClient) ([]string, error) {
 	var tables []string
-	var lastEvaluatedTableName *string
-
+	input := &dynamodb.ListTablesInput{}
 	for {
-		input := &dynamodb.ListTablesInput{}
-		if lastEvaluatedTableName != nil {
-			input.ExclusiveStartTableName = lastEvaluatedTableName
-		}
-
 		result, err := client.ListTables(input)
 		if err != nil {
 			return nil, err
@@ -97,13 +89,13 @@ func listTables(client dynamoClient) ([]string, error) {
 		if result.LastEvaluatedTableName == nil {
 			return tables, nil
 		}
-		lastEvaluatedTableName = result.LastEvaluatedTableName
+		input.ExclusiveStartTableName = result.LastEvaluatedTableName
 	}
 }
 
 func processTable(conv *internal.Conv, client dynamoClient, table string, sampleSize int64) error {
 	dySchema := dynamoDBSchema{TableName: table}
-	err := dySchema.parseIndexes(client)
+	err := dySchema.analyzeMetadata(client)
 	if err != nil {
 		return err
 	}
@@ -134,7 +126,7 @@ type index struct {
 	Keys []string
 }
 
-func (s *dynamoDBSchema) parseIndexes(client dynamoClient) error {
+func (s *dynamoDBSchema) analyzeMetadata(client dynamoClient) error {
 	input := &dynamodb.DescribeTableInput{
 		TableName: aws.String(s.TableName),
 	}
@@ -164,18 +156,14 @@ func (s *dynamoDBSchema) parseIndexes(client dynamoClient) error {
 func (s *dynamoDBSchema) scanSampleData(client dynamoClient, sampleSize int64) (map[string]map[string]int64, int64, error) {
 	// A map from column name to a count map of possible data types.
 	stats := make(map[string]map[string]int64)
-	var lastEvaluatedKey map[string]*dynamodb.AttributeValue
+	// var lastEvaluatedKey map[string]*dynamodb.AttributeValue
 	var count int64
+	// Build the query input parameters
+	params := &dynamodb.ScanInput{
+		TableName: aws.String(s.TableName),
+	}
 
 	for {
-		// Build the query input parameters
-		params := &dynamodb.ScanInput{
-			TableName: aws.String(s.TableName),
-		}
-		if lastEvaluatedKey != nil {
-			params.ExclusiveStartKey = lastEvaluatedKey
-		}
-
 		// Make the DynamoDB Query API call
 		result, err := client.Scan(params)
 		if err != nil {
@@ -188,7 +176,7 @@ func (s *dynamoDBSchema) scanSampleData(client dynamoClient, sampleSize int64) (
 				if _, ok := stats[attrName]; !ok {
 					stats[attrName] = make(map[string]int64)
 				}
-				incDyDataTypeCount(attrName, attr, stats[attrName])
+				incTypeCount(attrName, attr, stats[attrName])
 			}
 
 			count++
@@ -200,41 +188,42 @@ func (s *dynamoDBSchema) scanSampleData(client dynamoClient, sampleSize int64) (
 			break
 		}
 		// If there are more rows, then continue.
-		lastEvaluatedKey = result.LastEvaluatedKey
+		params.ExclusiveStartKey = result.LastEvaluatedKey
 	}
 	return stats, count, nil
 }
 
-func incDyDataTypeCount(attrName string, attr *dynamodb.AttributeValue, s map[string]int64) {
-	if attr.S != nil {
-		incCount(s, typeString)
-	} else if attr.BOOL != nil {
-		incCount(s, typeBool)
-	} else if attr.N != nil {
+func incTypeCount(attrName string, attr *dynamodb.AttributeValue, s map[string]int64) {
+	switch {
+	case attr.S != nil:
+		s[typeString]++
+	case attr.BOOL != nil:
+		s[typeBool]++
+	case attr.N != nil:
 		if int64Parsable(*attr.N) {
-			incCount(s, typeNumberInt)
+			s[typeNumberInt]++
 		} else {
-			incCount(s, typeNumberFloat)
+			s[typeNumberFloat]++
 		}
-	} else if len(attr.B) != 0 {
-		incCount(s, typeBinary)
-	} else if attr.NULL != nil {
+	case len(attr.B) != 0:
+		s[typeBinary]++
+	case attr.NULL != nil:
 		// Skip, if not present, it means nullable.
-	} else if len(attr.L) != 0 {
-		incCount(s, typeList)
-	} else if len(attr.M) != 0 {
-		incCount(s, typeMap)
-	} else if len(attr.SS) != 0 {
-		incCount(s, typeStringSet)
-	} else if len(attr.NS) != 0 {
+	case len(attr.L) != 0:
+		s[typeList]++
+	case len(attr.M) != 0:
+		s[typeMap]++
+	case len(attr.SS) != 0:
+		s[typeStringSet]++
+	case len(attr.NS) != 0:
 		if int64Parsable(*attr.NS[0]) {
-			incCount(s, typeNumberIntSet)
+			s[typeNumberIntSet]++
 		} else {
-			incCount(s, typeNumberFloatSet)
+			s[typeNumberFloatSet]++
 		}
-	} else if len(attr.BS) != 0 {
-		incCount(s, typeBinarySet)
-	} else {
+	case len(attr.BS) != 0:
+		s[typeBinarySet]++
+	default:
 		log.Printf("Invalid DynamoDB data type: %v - %v", attrName, attr)
 	}
 }
@@ -348,11 +337,4 @@ func int64Parsable(n string) bool {
 		return true
 	}
 	return false
-}
-
-func incCount(m map[string]int64, key string) {
-	if _, ok := m[key]; !ok {
-		m[key] = 0
-	}
-	m[key]++
 }

@@ -450,7 +450,7 @@ func TestParseIndexes(t *testing.T) {
 
 	dySchema := dynamoDBSchema{TableName: "test"}
 
-	err := dySchema.parseIndexes(client)
+	err := dySchema.analyzeMetadata(client)
 	assert.Nil(t, err)
 
 	pKeys := []string{"a", "b"}
