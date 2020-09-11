@@ -46,7 +46,7 @@ func schemaToDDL(conv *internal.Conv) error {
 				continue
 			}
 			spColNames = append(spColNames, colName)
-			ty, isArray, issues := toSpannerType(conv, srcCol.Type.Name, srcCol.Type.Mods)
+			ty, issues := toSpannerType(conv, srcCol.Type.Name, srcCol.Type.Mods)
 
 			if len(issues) > 0 {
 				conv.Issues[srcTable.Name][srcCol.Name] = issues
@@ -54,7 +54,6 @@ func schemaToDDL(conv *internal.Conv) error {
 			spColDef[colName] = ddl.ColumnDef{
 				Name:    colName,
 				T:       ty,
-				IsArray: isArray,
 				NotNull: srcCol.NotNull,
 				Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
 			}
@@ -74,7 +73,7 @@ func schemaToDDL(conv *internal.Conv) error {
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
-func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.ScalarType, bool, []internal.SchemaIssue) {
+func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
 	maxExpectedMods := func(n int) {
 		if len(mods) > n {
 			conv.Unexpected(fmt.Sprintf("Found %d mods while processing type id=%s", len(mods), id))
@@ -83,21 +82,21 @@ func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.ScalarType
 	maxExpectedMods(0)
 	switch id {
 	case typeNumberInt:
-		return ddl.Int64{}, false, nil
+		return ddl.Type{Name: ddl.Int64}, nil
 	case typeNumberFloat, typeString, typeList, typeMap:
-		return ddl.String{Len: ddl.MaxLength{}}, false, nil
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case typeBool:
-		return ddl.Bool{}, false, nil
+		return ddl.Type{Name: ddl.Bool}, nil
 	case typeBinary:
-		return ddl.Bytes{Len: ddl.MaxLength{}}, false, nil
+		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 	case typeStringSet, typeNumberFloatSet:
-		return ddl.String{Len: ddl.MaxLength{}}, true, nil
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}, nil
 	case typeNumberIntSet:
-		return ddl.Int64{}, true, nil
+		return ddl.Type{Name: ddl.Int64, IsArray: true}, nil
 	case typeBinarySet:
-		return ddl.Bytes{Len: ddl.MaxLength{}}, true, nil
+		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength, IsArray: true}, nil
 	default:
-		return ddl.String{Len: ddl.MaxLength{}}, false, []internal.SchemaIssue{internal.NoGoodType}
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 	}
 }
 
