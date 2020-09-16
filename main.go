@@ -65,8 +65,8 @@ const (
 
 var (
 	badDataFile      = "dropped.txt"
-	schemaDDLFile    = "schema.ddl.txt"
-	schemaConvFile   = "schema.conv.json"
+	schemaFile       = "schema.txt"
+	sessionFile      = "session.json"
 	reportFile       = "report.txt"
 	dbNameOverride   string
 	instanceOverride string
@@ -169,9 +169,9 @@ func toSpanner(driver, projectID, instanceID, dbName string, ioHelper *ioStreams
 		defer ioHelper.in.Close()
 	}
 
-	writeSchemaDDLFile(conv, now, outputFilePrefix+schemaDDLFile, ioHelper.out)
+	writeSchemaFile(conv, now, outputFilePrefix+schemaFile, ioHelper.out)
+	writeSessionFile(conv, now, outputFilePrefix+sessionFile, ioHelper.out)
 	if schemaOnly {
-		writeSchemaConvFile(conv, now, outputFilePrefix+schemaConvFile, ioHelper.out)
 		report(driver, nil, ioHelper.bytesRead, "", conv, outputFilePrefix+reportFile, ioHelper.out)
 		return nil
 	}
@@ -552,10 +552,10 @@ func getInstances(project string) ([]string, error) {
 	return l, nil
 }
 
-func writeSchemaDDLFile(conv *internal.Conv, now time.Time, name string, out *os.File) {
+func writeSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.File) {
 	f, err := os.Create(name)
 	if err != nil {
-		fmt.Fprintf(out, "Can't create schema DDL file %s: %v\n", name, err)
+		fmt.Fprintf(out, "Can't create schema file %s: %v\n", name, err)
 		return
 	}
 	// The schema file we write out includes comments, and doesn't add backticks
@@ -574,28 +574,30 @@ func writeSchemaDDLFile(conv *internal.Conv, now time.Time, name string, out *os
 		"\n",
 	}
 	if _, err := f.WriteString(strings.Join(l, "")); err != nil {
-		fmt.Fprintf(out, "Can't write out schema DDL file: %v\n", err)
+		fmt.Fprintf(out, "Can't write out schema file: %v\n", err)
 		return
 	}
-	fmt.Fprintf(out, "Wrote schema DDL to file '%s'.\n", name)
+	fmt.Fprintf(out, "Wrote schema to file '%s'.\n", name)
 }
 
-func writeSchemaConvFile(conv *internal.Conv, now time.Time, name string, out *os.File) {
+func writeSessionFile(conv *internal.Conv, now time.Time, name string, out *os.File) {
 	f, err := os.Create(name)
 	if err != nil {
-		fmt.Fprintf(out, "Can't create schema conversion file %s: %v\n", name, err)
+		fmt.Fprintf(out, "Can't create session file %s: %v\n", name, err)
 		return
 	}
+	// Session file will basically contain 'conv' struct in JSON format.
+	// It contains all the information for schema and data conversion state.
 	convJSON, err := json.MarshalIndent(conv, "", " ")
 	if err != nil {
-		fmt.Fprintf(out, "Can't encode schema conversion to JSON: %v\n", err)
+		fmt.Fprintf(out, "Can't encode session state to JSON: %v\n", err)
 		return
 	}
 	if _, err := f.Write(convJSON); err != nil {
-		fmt.Fprintf(out, "Can't write out schema conversion file: %v\n", err)
+		fmt.Fprintf(out, "Can't write out session file: %v\n", err)
 		return
 	}
-	fmt.Fprintf(out, "Wrote schema conversion to file '%s'.\n", name)
+	fmt.Fprintf(out, "Wrote session to file '%s'.\n", name)
 }
 
 // writeBadData prints summary stats about bad rows and writes detailed info
