@@ -291,6 +291,14 @@ func TestProcessPgDump(t *testing.T) {
 				spannerData{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a42", "b6", int64(2)}}},
 		},
 		{
+			name: "INSERT with no cols",
+			input: "CREATE TABLE test (a text NOT NULL, b text NOT NULL, n bigint);\n" +
+				"ALTER TABLE ONLY test ADD CONSTRAINT test_pkey PRIMARY KEY (a, b);" +
+				"INSERT INTO test VALUES ('a42', 'b6', 2);",
+			expectedData: []spannerData{
+				spannerData{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a42", "b6", int64(2)}}},
+		},
+		{
 			name: "INSERT with no primary key",
 			input: "CREATE TABLE test (a text NOT NULL, b text NOT NULL, n bigint);\n" +
 				"INSERT INTO test (a, b, n) VALUES ('a42', 'b6', 2);",
