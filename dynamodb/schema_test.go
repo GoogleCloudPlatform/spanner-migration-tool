@@ -488,3 +488,46 @@ func stripSchemaComments(spSchema map[string]ddl.CreateTable) map[string]ddl.Cre
 	}
 	return spSchema
 }
+
+func TestIncTypeCount_Numeric(t *testing.T) {
+	for _, test := range []struct {
+		desc     string
+		in       string
+		wantType string
+	}{
+		{desc: "a positive case", in: "1234.56789", wantType: typeNumber},
+		{desc: "a negative case", in: "-1234.56789", wantType: typeNumber},
+		{desc: "min of numeric", in: "-99999999999999999999999999999.999999999", wantType: typeNumber},
+		{desc: "max of numeric", in: "99999999999999999999999999999.999999999", wantType: typeNumber},
+		{desc: "larger precision", in: "199999999999999999999999999999.999999999", wantType: typeNumberString},
+		{desc: "larger scale", in: "99999999999999999999999999999.9999999991", wantType: typeNumberString},
+		{desc: "smaller precision", in: "-199999999999999999999999999999.999999999", wantType: typeNumberString},
+		{desc: "smaller scale", in: "-99999999999999999999999999999.9999999991", wantType: typeNumberString},
+	} {
+		s := make(map[string]int64)
+		attr := &dynamodb.AttributeValue{N: &test.in}
+		incTypeCount("Revenue", attr, s)
+		assert.Equal(t, s[test.wantType], int64(1))
+	}
+}
+
+func TestIncTypeCount_NumericArray(t *testing.T) {
+	num1 := "1234.56789"
+	num2 := "-1234.56789"
+	num3 := "199999999999999999999999999999.999999999"
+	num4 := "-199999999999999999999999999999.999999999"
+	for _, test := range []struct {
+		desc     string
+		in       []*string
+		wantType string
+	}{
+		{desc: "all valid", in: []*string{&num1, &num2}, wantType: typeNumberSet},
+		{desc: "not valid", in: []*string{&num3, &num4}, wantType: typeNumberStringSet},
+		{desc: "one of the elments is invalid", in: []*string{&num1, &num2, &num3}, wantType: typeNumberStringSet},
+	} {
+		s := make(map[string]int64)
+		attr := &dynamodb.AttributeValue{NS: test.in}
+		incTypeCount("Revenue", attr, s)
+		assert.Equal(t, s[test.wantType], int64(1))
+	}
+}

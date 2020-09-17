@@ -17,9 +17,10 @@ package dynamodb
 import (
 	"fmt"
 	"log"
+	"math/big"
 	"sort"
-	"strconv"
 
+	sp "cloud.google.com/go/spanner"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -27,17 +28,17 @@ import (
 )
 
 const (
-	typeString         = "String"
-	typeBool           = "Bool"
-	typeNumberInt      = "NumberInt"
-	typeNumberFloat    = "NumberFloat"
-	typeBinary         = "Binary"
-	typeList           = "List"
-	typeMap            = "Map"
-	typeStringSet      = "StringSet"
-	typeNumberIntSet   = "NumberIntSet"
-	typeNumberFloatSet = "NumberFloatSet"
-	typeBinarySet      = "BinarySet"
+	typeString          = "String"
+	typeBool            = "Bool"
+	typeNumber          = "Number"
+	typeNumberString    = "NumberString"
+	typeBinary          = "Binary"
+	typeList            = "List"
+	typeMap             = "Map"
+	typeStringSet       = "StringSet"
+	typeNumberSet       = "NumberSet"
+	typeNumberStringSet = "NumberStringSet"
+	typeBinarySet       = "BinarySet"
 
 	errThreshold      = float64(0.001)
 	conflictThreshold = float64(0.05)
@@ -156,7 +157,6 @@ func (s *dynamoDBSchema) analyzeMetadata(client dynamoClient) error {
 func (s *dynamoDBSchema) scanSampleData(client dynamoClient, sampleSize int64) (map[string]map[string]int64, int64, error) {
 	// A map from column name to a count map of possible data types.
 	stats := make(map[string]map[string]int64)
-	// var lastEvaluatedKey map[string]*dynamodb.AttributeValue
 	var count int64
 	// Build the query input parameters
 	params := &dynamodb.ScanInput{
@@ -200,10 +200,10 @@ func incTypeCount(attrName string, attr *dynamodb.AttributeValue, s map[string]i
 	case attr.BOOL != nil:
 		s[typeBool]++
 	case attr.N != nil:
-		if int64Parsable(*attr.N) {
-			s[typeNumberInt]++
+		if numericParsable(*attr.N) {
+			s[typeNumber]++
 		} else {
-			s[typeNumberFloat]++
+			s[typeNumberString]++
 		}
 	case len(attr.B) != 0:
 		s[typeBinary]++
@@ -216,10 +216,17 @@ func incTypeCount(attrName string, attr *dynamodb.AttributeValue, s map[string]i
 	case len(attr.SS) != 0:
 		s[typeStringSet]++
 	case len(attr.NS) != 0:
-		if int64Parsable(*attr.NS[0]) {
-			s[typeNumberIntSet]++
+		parsable := true
+		for _, n := range attr.NS {
+			if !numericParsable(*n) {
+				parsable = false
+				break
+			}
+		}
+		if parsable {
+			s[typeNumberSet]++
 		} else {
-			s[typeNumberFloatSet]++
+			s[typeNumberStringSet]++
 		}
 	case len(attr.BS) != 0:
 		s[typeBinarySet]++
@@ -332,9 +339,29 @@ func (s *dynamoDBSchema) genericSchema() schema.Table {
 	}
 }
 
-func int64Parsable(n string) bool {
-	if _, err := strconv.ParseInt(n, 10, 64); err == nil {
-		return true
+func numericParsable(n string) bool {
+	y, ok := (&big.Rat{}).SetString(n)
+	if !ok {
+		return false
 	}
-	return false
+	numLen := len(y.Num().Text(10))
+	if y.Num().Sign() == -1 {
+		numLen--
+	}
+	if numLen > sp.NumericPrecisionDigits {
+		return false
+	}
+
+	// Remove a digit because the length of denominator would have one more
+	// digit than the expected scale. E.g., 0.999 will become 999/1000 and the
+	// length of denominator is 4 instead of 3.
+	denomLen := len(y.Denom().Text(10)) - 1
+	if y.Denom().Sign() == -1 {
+		denomLen--
+	}
+	if denomLen > sp.NumericScaleDigits {
+		return false
+	}
+
+	return true
 }

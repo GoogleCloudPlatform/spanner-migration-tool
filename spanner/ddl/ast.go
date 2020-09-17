@@ -42,13 +42,15 @@ const (
 	String string = "STRING"
 	// Timestamp represent TIMESTAMP type.
 	Timestamp string = "TIMESTAMP"
+	// Numeric represent NUMERIC type.
+	Numeric string = "NUMERIC"
 	// MaxLength is a sentinel for Type's Len field, representing the MAX value.
 	MaxLength = math.MaxInt64
 )
 
 // Type represents the type of a column.
 //     type:
-//        { BOOL | INT64 | FLOAT64 | STRING( length ) | BYTES( length ) | DATE | TIMESTAMP }
+//        { BOOL | INT64 | FLOAT64 | STRING( length ) | BYTES( length ) | DATE | TIMESTAMP | NUMERIC }
 type Type struct {
 	Name string
 	// Len encodes the following Spanner DDL definition:
