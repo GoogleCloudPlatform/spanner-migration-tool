@@ -184,13 +184,13 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 	sortKeyType := "RANGE"
 
 	str := "str"
-	numIntStr := "10"
-	numFloatStr := "11.0"
+	numStr := "1234.56789"
+	invalidNumStr := "199999999999999999999999999999.999999999"
 	boolVal := true
 	binaryVal := []byte("ABC")
 	listVal := []*dynamodb.AttributeValue{
 		{S: &str},
-		{N: &numIntStr},
+		{N: &numStr},
 	}
 	mapVal := map[string]*dynamodb.AttributeValue{
 		"list": {L: listVal},
@@ -215,16 +215,16 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 			Items: []map[string]*dynamodb.AttributeValue{
 				{
 					"a": &dynamodb.AttributeValue{S: &str},
-					"b": &dynamodb.AttributeValue{N: &numIntStr},
-					"c": &dynamodb.AttributeValue{N: &numFloatStr},
+					"b": &dynamodb.AttributeValue{N: &numStr},
+					"c": &dynamodb.AttributeValue{N: &invalidNumStr},
 					"d": &dynamodb.AttributeValue{BOOL: &boolVal},
 					"e": &dynamodb.AttributeValue{B: binaryVal},
 					"f": &dynamodb.AttributeValue{L: listVal},
 					"g": &dynamodb.AttributeValue{M: mapVal},
 					"h": &dynamodb.AttributeValue{SS: []*string{&str}},
 					"i": &dynamodb.AttributeValue{BS: [][]byte{binaryVal}},
-					"j": &dynamodb.AttributeValue{NS: []*string{&numIntStr}},
-					"k": &dynamodb.AttributeValue{NS: []*string{&numFloatStr}},
+					"j": &dynamodb.AttributeValue{NS: []*string{&numStr}},
+					"k": &dynamodb.AttributeValue{NS: []*string{&invalidNumStr}},
 				},
 				// The following empty row is needed to make all optional
 				// columns nullable.
@@ -251,7 +251,7 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 			ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+				"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
 				"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 				"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
 				"e": {Name: "e", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
@@ -259,7 +259,7 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 				"g": {Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 				"h": {Name: "h", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}},
 				"i": {Name: "i", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength, IsArray: true}},
-				"j": {Name: "j", T: ddl.Type{Name: ddl.Int64, IsArray: true}},
+				"j": {Name: "j", T: ddl.Type{Name: ddl.Numeric, IsArray: true}},
 				"k": {Name: "k", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}},
 			},
 			Pks: []ddl.IndexKey{{Col: "a"}, {Col: "b"}},
@@ -406,11 +406,11 @@ func TestScanSampleData(t *testing.T) {
 
 	expectedStats := map[string]map[string]int64{
 		"a": {
-			"String":    2,
-			"NumberInt": 1,
+			typeString: 2,
+			typeNumber: 1,
 		},
 		"b": {
-			"NumberInt": 1,
+			typeNumber: 1,
 		},
 	}
 	assert.Equal(t, expectedStats, stats)
