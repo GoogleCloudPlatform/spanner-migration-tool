@@ -62,7 +62,13 @@ func ProcessPgDump(conv *internal.Conv, r *internal.Reader) error {
 			case copyFrom:
 				processCopyBlock(conv, ci.table, ci.cols, r)
 			case insert:
-				ProcessDataRow(conv, ci.table, ci.cols, ci.vals)
+				// Handle INSERT statements where columns are not
+				// specified i.e. an insert for all table columns.
+				if len(ci.cols) == 0 {
+					ProcessDataRow(conv, ci.table, conv.SrcSchema[ci.table].ColNames, ci.vals)
+				} else {
+					ProcessDataRow(conv, ci.table, ci.cols, ci.vals)
+				}
 			}
 		}
 		if r.EOF {
