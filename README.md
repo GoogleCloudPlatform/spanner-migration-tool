@@ -235,7 +235,7 @@ HarbourBridge generates several files as it runs:
   PostgreSQL/MySQL schema definitions.
 
 - Session file (ending in `session.json`): contains all schema and data
-conversion state endcoded as JSON. It is basically a snapshot of the session.
+  conversion state endcoded as JSON. It is basically a snapshot of the session.
 
 - Report file (ending in `report.txt`): contains a detailed analysis of the
   PostgreSQL/MySQL to Spanner migration, including table-by-table stats and an
@@ -274,8 +274,8 @@ database (plus a '.') is used.
 `-v` Specifies verbose mode. This will cause HarbourBridge to output detailed
 messages about the conversion.
 
-`-schema-only` Specifies that conversion would be schema-only and will
-exclude data conversion.
+`-schema-only` Specifies that only schema processing will be performed.
+Any data in the source database will be ignored.
 
 ## Example Usage
 
