@@ -113,9 +113,9 @@ type stats struct {
 }
 
 type statementStat struct {
-	schema int64
-	data   int64
-	skip   int64
+	Schema int64
+	Data   int64
+	Skip   int64
 	Error  int64
 }
 
@@ -219,7 +219,7 @@ func (conv *Conv) BadRows() int64 {
 func (conv *Conv) Statements() int64 {
 	n := int64(0)
 	for _, x := range conv.Stats.Statement {
-		n += x.schema + x.data + x.skip + x.Error
+		n += x.Schema + x.Data + x.Skip + x.Error
 	}
 	return n
 }
@@ -356,7 +356,7 @@ func (conv *Conv) getStatementStat(s string) *statementStat {
 func (conv *Conv) SkipStatement(stmtType string) {
 	if conv.SchemaMode() { // Record statement stats on first pass only.
 		VerbosePrintf("Skipping statement: %s\n", stmtType)
-		conv.getStatementStat(stmtType).skip++
+		conv.getStatementStat(stmtType).Skip++
 	}
 }
 
@@ -371,14 +371,14 @@ func (conv *Conv) ErrorInStatement(stmtType string) {
 // SchemaStatement increments the schema statement stats for 'stmtType'.
 func (conv *Conv) SchemaStatement(stmtType string) {
 	if conv.SchemaMode() { // Record statement stats on first pass only.
-		conv.getStatementStat(stmtType).schema++
+		conv.getStatementStat(stmtType).Schema++
 	}
 }
 
 // DataStatement increments the data statement stats for 'stmtType'.
 func (conv *Conv) DataStatement(stmtType string) {
 	if conv.SchemaMode() { // Record statement stats on first pass only.
-		conv.getStatementStat(stmtType).data++
+		conv.getStatementStat(stmtType).Data++
 	}
 }
 

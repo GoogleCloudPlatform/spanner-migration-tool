@@ -62,7 +62,7 @@ func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites ma
 			h = h + fmt.Sprintf(" (mapped to Spanner table %s)", t.spTable)
 		}
 		writeHeading(w, h)
-		w.WriteString(rateConversion(t.rows, t.badRows, t.cols, t.warnings, t.syntheticPKey != "", false))
+		w.WriteString(rateConversion(t.rows, t.badRows, t.cols, t.warnings, t.syntheticPKey != "", false, conv.SchemaMode()))
 		w.WriteString("\n")
 		for _, x := range t.body {
 			fmt.Fprintf(w, "%s\n", x.heading)
@@ -126,7 +126,9 @@ func buildTableReport(conv *Conv, srcTable string, badWrites map[string]int64) t
 	} else {
 		tr.body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, nil)
 	}
-	fillRowStats(conv, srcTable, badWrites, &tr)
+	if !conv.SchemaMode() {
+		fillRowStats(conv, srcTable, badWrites, &tr)
+	}
 	return tr
 }
 
@@ -355,9 +357,12 @@ func ok(total, badCount int64) bool {
 	return badCount < total/3
 }
 
-func rateConversion(rows, badRows, cols, warnings int64, missingPKey, summary bool) string {
-	return fmt.Sprintf("Schema conversion: %s.\n", rateSchema(cols, warnings, missingPKey, summary)) +
-		fmt.Sprintf("Data conversion: %s.\n", rateData(rows, badRows))
+func rateConversion(rows, badRows, cols, warnings int64, missingPKey, summary bool, schemaOnly bool) string {
+	rate := fmt.Sprintf("Schema conversion: %s.\n", rateSchema(cols, warnings, missingPKey, summary))
+	if !schemaOnly {
+		rate = rate + fmt.Sprintf("Data conversion: %s.\n", rateData(rows, badRows))
+	}
+	return rate
 }
 
 func generateSummary(conv *Conv, r []tableReport, badWrites map[string]int64) string {
@@ -385,7 +390,7 @@ func generateSummary(conv *Conv, r []tableReport, badWrites map[string]int64) st
 	for _, n := range badWrites {
 		badRows += n
 	}
-	return rateConversion(rows, badRows, cols, warnings, missingPKey, true)
+	return rateConversion(rows, badRows, cols, warnings, missingPKey, true, conv.SchemaMode())
 }
 
 func ignoredStatements(conv *Conv) (l []string) {
@@ -416,7 +421,7 @@ func writeStmtStats(driverName string, conv *Conv, w *bufio.Writer) {
 	}
 	var l []stat
 	for s, x := range conv.Stats.Statement {
-		l = append(l, stat{s, x.schema + x.data + x.skip + x.Error})
+		l = append(l, stat{s, x.Schema + x.Data + x.Skip + x.Error})
 	}
 	// Sort by alphabetical order of statements.
 	sort.Slice(l, func(i, j int) bool {
@@ -433,7 +438,7 @@ func writeStmtStats(driverName string, conv *Conv, w *bufio.Writer) {
 	w.WriteString("  --------------------------------------\n")
 	for _, x := range l {
 		s := conv.Stats.Statement[x.statement]
-		fmt.Fprintf(w, "  %6d %6d %6d %6d  %s\n", s.schema, s.data, s.skip, s.Error, x.statement)
+		fmt.Fprintf(w, "  %6d %6d %6d %6d  %s\n", s.Schema, s.Data, s.Skip, s.Error, x.statement)
 	}
 	if driverName == "pg_dump" {
 		w.WriteString("See github.com/lfittl/pg_query_go/nodes for definitions of statement types\n")
