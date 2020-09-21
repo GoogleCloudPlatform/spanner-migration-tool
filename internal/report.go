@@ -189,7 +189,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 				case DefaultValue:
 					l = append(l, fmt.Sprintf("%s e.g. column '%s'", issueDB[i].brief, srcCol))
 				case ForeignKey:
-					l = append(l, fmt.Sprintf("Column '%s' uses foreign keys which Spanner does not support", srcCol))
+					l = append(l, fmt.Sprintf("Column '%s' uses foreign keys which HarbourBridge does not support yet", srcCol))
 				case AutoIncrement:
 					l = append(l, fmt.Sprintf("Column '%s' is an autoincrement column. %s", srcCol, issueDB[i].brief))
 				case Timestamp:
