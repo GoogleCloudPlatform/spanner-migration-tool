@@ -200,6 +200,12 @@ func incTypeCount(attrName string, attr *dynamodb.AttributeValue, s map[string]i
 	case attr.BOOL != nil:
 		s[typeBool]++
 	case attr.N != nil:
+		// We map the DynamoDB Number type into Spanner's NUMERIC type
+		// if it fits and STRING otherwise. Note that DyanamoDB's Number
+		// type has more precision/range than Spanner's NUMERIC.
+		// We could potentially do a more detailed analysis and see if
+		// the number fits in an INT64 or FLOAT64, but we've chosen to
+		// keep the analysis simple for the moment.
 		if numericParsable(*attr.N) {
 			s[typeNumber]++
 		} else {
@@ -338,12 +344,18 @@ func (s *dynamoDBSchema) genericSchema() schema.Table {
 	}
 }
 
+// numericParsable determines whether its argument is a valid Spanner numeric
+// values. This is based on the definition of the NUMERIC type in Cloud Spanner:
+// a NUMERIC type with 38 digits of precision and 9 digits of scale. It can
+// support 29 digits before the decimal point and 9 digits after that.
 func numericParsable(n string) bool {
 	y, ok := (&big.Rat{}).SetString(n)
 	if !ok {
 		return false
 	}
+	// Get the length of numerator in text (base-10).
 	numLen := len(y.Num().Text(10))
+	// Remove the sign `-` if it exists.
 	if y.Num().Sign() == -1 {
 		numLen--
 	}
@@ -351,10 +363,12 @@ func numericParsable(n string) bool {
 		return false
 	}
 
-	// Remove a digit because the length of denominator would have one more
-	// digit than the expected scale. E.g., 0.999 will become 999/1000 and the
-	// length of denominator is 4 instead of 3.
+	// Get the length of denominator in text (base-10). Remove a digit because
+	// the length of denominator would have one mor digit than the expected
+	// scale. E.g., 0.999 will become 999/1000 and the length of denominator is
+	// 4 instead of 3.
 	denomLen := len(y.Denom().Text(10)) - 1
+	// Remove the sign `-` if it exists.
 	if y.Denom().Sign() == -1 {
 		denomLen--
 	}

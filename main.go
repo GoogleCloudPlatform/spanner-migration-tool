@@ -146,7 +146,7 @@ func main() {
 		filePrefix = dbName + "."
 	}
 
-	err = toSpanner(driverName, project, instance, dbName, tables, schemaSampleSize, ioHelper, filePrefix, now)
+	err = toSpanner(driverName, project, instance, dbName, tables, ioHelper, filePrefix, now)
 	if err != nil {
 		panic(err)
 	}
@@ -159,8 +159,8 @@ func main() {
 //   2. Create database
 //   3. Run data conversion
 //   4. Generate report
-func toSpanner(driver, projectID, instanceID, dbName, tables string, sampleSize int64, ioHelper *ioStreams, outputFilePrefix string, now time.Time) error {
-	conv, err := schemaConv(driver, tables, sampleSize, ioHelper)
+func toSpanner(driver, projectID, instanceID, dbName, tables string, ioHelper *ioStreams, outputFilePrefix string, now time.Time) error {
+	conv, err := schemaConv(driver, tables, ioHelper)
 	if err != nil {
 		return err
 	}
@@ -200,14 +200,14 @@ func toSpanner(driver, projectID, instanceID, dbName, tables string, sampleSize 
 	return nil
 }
 
-func schemaConv(driver, tables string, sampleSize int64, ioHelper *ioStreams) (*internal.Conv, error) {
+func schemaConv(driver, tables string, ioHelper *ioStreams) (*internal.Conv, error) {
 	switch driver {
 	case POSTGRES, MYSQL:
 		return schemaFromSQL(driver)
 	case PGDUMP, MYSQLDUMP:
 		return schemaFromDump(driver, ioHelper)
 	case DYNAMODB:
-		return schemaFromDynamoDB(tables, sampleSize)
+		return schemaFromDynamoDB(tables, schemaSampleSize)
 	default:
 		return nil, fmt.Errorf("schema conversion for driver %s not supported", driver)
 	}
@@ -334,15 +334,15 @@ func dataFromSQL(driver string, config spanner.BatchWriterConfig, client *sp.Cli
 	return writer, nil
 }
 
-func schemaFromDynamoDB(t string, sampleSize int64) (*internal.Conv, error) {
-	tables := []string{}
-	if t != "" {
-		tables = strings.Split(t, ",")
+func schemaFromDynamoDB(tables string, sampleSize int64) (*internal.Conv, error) {
+	tablesList := []string{}
+	if tables != "" {
+		tablesList = strings.Split(tables, ",")
 	}
 	conv := internal.MakeConv()
 	mySession := session.Must(session.NewSession())
 	client := dydb.New(mySession)
-	err := dynamodb.ProcessSchema(conv, client, tables, sampleSize)
+	err := dynamodb.ProcessSchema(conv, client, tablesList, sampleSize)
 	if err != nil {
 		return nil, err
 	}
