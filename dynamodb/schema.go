@@ -95,79 +95,66 @@ func listTables(client dynamoClient) ([]string, error) {
 }
 
 func processTable(conv *internal.Conv, client dynamoClient, table string, sampleSize int64) error {
-	dySchema := dynamoDBSchema{TableName: table}
-	err := dySchema.analyzeMetadata(client)
+	dySchema := schema.Table{Name: table}
+	err := analyzeMetadata(client, &dySchema)
 	if err != nil {
 		return err
 	}
-	stats, count, err := dySchema.scanSampleData(client, sampleSize)
+	stats, count, err := scanSampleData(client, sampleSize, dySchema.Name)
 	if err != nil {
 		return err
 	}
-	dySchema.inferDataTypes(stats, count)
-	conv.SrcSchema[table] = dySchema.genericSchema()
+	inferDataTypes(stats, count, &dySchema)
+
+	// Sort column names in increasing order, because the server may return them
+	// in a random order.
+	sort.Strings(dySchema.ColNames)
+	conv.SrcSchema[table] = dySchema
 	return nil
 }
 
-type dynamoDBSchema struct {
-	TableName   string
-	ColumnNames []string
-	ColumnTypes map[string]colType
-	PrimaryKeys []string
-	SecIndexes  []index
-}
-
-type colType struct {
-	Name     string
-	Nullable bool
-}
-
-type index struct {
-	Name string
-	Keys []string
-}
-
-func (s *dynamoDBSchema) analyzeMetadata(client dynamoClient) error {
+func analyzeMetadata(client dynamoClient, s *schema.Table) error {
 	input := &dynamodb.DescribeTableInput{
-		TableName: aws.String(s.TableName),
+		TableName: aws.String(s.Name),
 	}
 
 	result, err := client.DescribeTable(input)
 	if err != nil {
-		return fmt.Errorf("failed to make a DescribeTable API call for table %v: %v", s.TableName, err)
+		return fmt.Errorf("failed to make a DescribeTable API call for table %v: %v", s.Name, err)
 	}
 
 	// Primary keys
 	for _, i := range result.Table.KeySchema {
-		s.PrimaryKeys = append(s.PrimaryKeys, *i.AttributeName)
+		s.PrimaryKeys = append(s.PrimaryKeys, schema.Key{Column: *i.AttributeName})
 	}
 
 	// Secondary indexes
 	for _, i := range result.Table.GlobalSecondaryIndexes {
-		var keys []string
+		var keys []schema.Key
 		for _, j := range i.KeySchema {
-			keys = append(keys, *j.AttributeName)
+			keys = append(keys, schema.Key{Column: *j.AttributeName})
 		}
-		s.SecIndexes = append(s.SecIndexes, index{Name: *i.IndexName, Keys: keys})
+		// s.SecIndexes = append(s.SecIndexes, index{Name: *i.IndexName, Keys: keys})
+		s.Indexes = append(s.Indexes, schema.Index{Name: *i.IndexName, Keys: keys})
 	}
 
 	return nil
 }
 
-func (s *dynamoDBSchema) scanSampleData(client dynamoClient, sampleSize int64) (map[string]map[string]int64, int64, error) {
+func scanSampleData(client dynamoClient, sampleSize int64, table string) (map[string]map[string]int64, int64, error) {
 	// A map from column name to a count map of possible data types.
 	stats := make(map[string]map[string]int64)
 	var count int64
 	// Build the query input parameters
 	params := &dynamodb.ScanInput{
-		TableName: aws.String(s.TableName),
+		TableName: aws.String(table),
 	}
 
 	for {
 		// Make the DynamoDB Query API call
 		result, err := client.Scan(params)
 		if err != nil {
-			return nil, 0, fmt.Errorf("failed to make Query API call for table %v: %v", s.TableName, err)
+			return nil, 0, fmt.Errorf("failed to make Query API call for table %v: %v", table, err)
 		}
 
 		// Iterate the items returned
@@ -246,9 +233,9 @@ type statItem struct {
 	Count int64
 }
 
-func (s *dynamoDBSchema) inferDataTypes(stats map[string]map[string]int64, rows int64) {
-	if s.ColumnTypes == nil {
-		s.ColumnTypes = make(map[string]colType)
+func inferDataTypes(stats map[string]map[string]int64, rows int64, s *schema.Table) {
+	if s.ColDefs == nil {
+		s.ColDefs = make(map[string]schema.Column)
 	}
 
 	for col, countMap := range stats {
@@ -269,7 +256,20 @@ func (s *dynamoDBSchema) inferDataTypes(stats map[string]map[string]int64, rows 
 			continue
 		}
 
-		nullable := float64(rows-presentRows)/float64(rows) > errThreshold
+		// Check if the column is a part of a primary key.
+		isPKey := false
+		for _, pk := range s.PrimaryKeys {
+			if pk.Column == col {
+				isPKey = true
+				break
+			}
+		}
+
+		// If this column is in the primary key, then it cannot be null.
+		nullable := false
+		if !isPKey {
+			nullable = float64(rows-presentRows)/float64(rows) > errThreshold
+		}
 
 		for _, si := range statItems {
 			if float64(si.Count)/float64(rows) > conflictThreshold {
@@ -279,68 +279,15 @@ func (s *dynamoDBSchema) inferDataTypes(stats map[string]map[string]int64, rows 
 			}
 		}
 
-		s.ColumnNames = append(s.ColumnNames, col)
+		s.ColNames = append(s.ColNames, col)
 		if len(candidates) == 1 {
-			s.ColumnTypes[col] = colType{Name: candidates[0].Type, Nullable: nullable}
+			s.ColDefs[col] = schema.Column{Name: col, Type: schema.Type{Name: candidates[0].Type}, NotNull: !nullable}
 		} else {
 			// If there is no any candidate or more than a single candidate,
 			// this column has a significant conflict on data types and then
 			// defaults to a String type.
-			s.ColumnTypes[col] = colType{Name: typeString, Nullable: nullable}
+			s.ColDefs[col] = schema.Column{Name: col, Type: schema.Type{Name: typeString}, NotNull: !nullable}
 		}
-	}
-}
-
-func (s *dynamoDBSchema) genericSchema() schema.Table {
-	colDefs := make(map[string]schema.Column)
-
-	for _, colName := range s.ColumnNames {
-		colType := s.ColumnTypes[colName]
-		colDef := schema.Column{
-			Name:    colName,
-			Type:    schema.Type{Name: colType.Name},
-			NotNull: !colType.Nullable,
-		}
-		colDefs[colName] = colDef
-	}
-
-	// Sort column names in increasing order.
-	colNames := make([]string, len(s.ColumnNames))
-	copy(colNames, s.ColumnNames)
-	sort.Strings(colNames)
-
-	// The order of primary keys is important.
-	var schemaPKeys []schema.Key
-	for _, colName := range s.PrimaryKeys {
-		schemaPKeys = append(schemaPKeys, schema.Key{Column: colName})
-		colDef := colDefs[colName]
-		colDefs[colName] = schema.Column{
-			Name:    colName,
-			Type:    colDef.Type,
-			NotNull: true,
-		}
-	}
-
-	// Record secondary indexes.
-	var indexes []schema.Index
-	for _, ind := range s.SecIndexes {
-		var keys []schema.Key
-		for _, k := range ind.Keys {
-			keys = append(keys, schema.Key{Column: k})
-		}
-		index := schema.Index{
-			Name: ind.Name,
-			Keys: keys,
-		}
-		indexes = append(indexes, index)
-	}
-
-	return schema.Table{
-		Name:        s.TableName,
-		ColNames:    colNames,
-		ColDefs:     colDefs,
-		PrimaryKeys: schemaPKeys,
-		Indexes:     indexes,
 	}
 }
 

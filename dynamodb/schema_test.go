@@ -269,35 +269,8 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 
-func TestGenericSchema(t *testing.T) {
-	dySchema := dynamoDBSchema{TableName: "test"}
-	dySchema.ColumnNames = []string{"a", "b", "c"}
-	dySchema.ColumnTypes = map[string]colType{
-		"a": {Name: "String", Nullable: false},
-		"b": {Name: "NumberInt", Nullable: false},
-		"c": {Name: "Bool", Nullable: true},
-	}
-	dySchema.PrimaryKeys = []string{"b", "a"}
-	dySchema.SecIndexes = []index{{Name: "index_c_b", Keys: []string{"c", "b"}}}
-	s := dySchema.genericSchema()
-	expectedSchema := schema.Table{
-		Name:     "test",
-		ColNames: []string{"a", "b", "c"},
-		ColDefs: map[string]schema.Column{
-			"a": {Name: "a", Type: schema.Type{Name: "String"}, NotNull: true},
-			"b": {Name: "b", Type: schema.Type{Name: "NumberInt"}, NotNull: true},
-			"c": {Name: "c", Type: schema.Type{Name: "Bool"}},
-		},
-		PrimaryKeys: []schema.Key{{Column: "b"}, {Column: "a"}},
-		Indexes: []schema.Index{
-			{Name: "index_c_b", Keys: []schema.Key{{Column: "c"}, {Column: "b"}}},
-		},
-	}
-	assert.Equal(t, expectedSchema, s)
-}
-
 func TestInferDataTypes(t *testing.T) {
-	dySchema := dynamoDBSchema{TableName: "test"}
+	dySchema := schema.Table{Name: "test"}
 	stats := map[string]map[string]int64{
 		"all_rows_not_null": {
 			"Number": 1000,
@@ -344,26 +317,26 @@ func TestInferDataTypes(t *testing.T) {
 		},
 		"empty_stats": {},
 	}
-	dySchema.inferDataTypes(stats, 1000)
+	inferDataTypes(stats, 1000, &dySchema)
 	expectColNames := []string{
 		"all_rows_not_null", "err_row", "err_null_row", "enough_null_row",
 		"not_conflict_row", "conflict_row", "equal_conflict_rows",
 		"not_conflict_row_with_noise", "conflict_row_with_noise",
 		"equal_conflict_row_with_noise",
 	}
-	assert.ElementsMatch(t, expectColNames, dySchema.ColumnNames)
-	assert.Equal(t, map[string]colType{
-		"all_rows_not_null":             {Name: "Number", Nullable: false},
-		"err_row":                       {Name: "Number", Nullable: false},
-		"err_null_row":                  {Name: "Number", Nullable: false},
-		"enough_null_row":               {Name: "Number", Nullable: true},
-		"not_conflict_row":              {Name: "Number", Nullable: false},
-		"conflict_row":                  {Name: "String", Nullable: false},
-		"equal_conflict_rows":           {Name: "String", Nullable: false},
-		"not_conflict_row_with_noise":   {Name: "Number", Nullable: true},
-		"conflict_row_with_noise":       {Name: "String", Nullable: true},
-		"equal_conflict_row_with_noise": {Name: "String", Nullable: true},
-	}, dySchema.ColumnTypes)
+	assert.ElementsMatch(t, expectColNames, dySchema.ColNames)
+	assert.Equal(t, map[string]schema.Column{
+		"all_rows_not_null":             {Name: "all_rows_not_null", Type: schema.Type{Name: "Number"}, NotNull: true},
+		"err_row":                       {Name: "err_row", Type: schema.Type{Name: "Number"}, NotNull: true},
+		"err_null_row":                  {Name: "err_null_row", Type: schema.Type{Name: "Number"}, NotNull: true},
+		"enough_null_row":               {Name: "enough_null_row", Type: schema.Type{Name: "Number"}, NotNull: false},
+		"not_conflict_row":              {Name: "not_conflict_row", Type: schema.Type{Name: "Number"}, NotNull: true},
+		"conflict_row":                  {Name: "conflict_row", Type: schema.Type{Name: "String"}, NotNull: true},
+		"equal_conflict_rows":           {Name: "equal_conflict_rows", Type: schema.Type{Name: "String"}, NotNull: true},
+		"not_conflict_row_with_noise":   {Name: "not_conflict_row_with_noise", Type: schema.Type{Name: "Number"}, NotNull: false},
+		"conflict_row_with_noise":       {Name: "conflict_row_with_noise", Type: schema.Type{Name: "String"}, NotNull: false},
+		"equal_conflict_row_with_noise": {Name: "equal_conflict_row_with_noise", Type: schema.Type{Name: "String"}, NotNull: false},
+	}, dySchema.ColDefs)
 }
 
 func TestScanSampleData(t *testing.T) {
@@ -403,8 +376,7 @@ func TestScanSampleData(t *testing.T) {
 		scanOutputs: scanOutputs,
 	}
 
-	dySchema := dynamoDBSchema{TableName: "test"}
-	stats, _, err := dySchema.scanSampleData(client, 3)
+	stats, _, err := scanSampleData(client, 3, "test")
 	assert.Nil(t, err)
 
 	expectedStats := map[string]map[string]int64{
@@ -451,15 +423,15 @@ func TestParseIndexes(t *testing.T) {
 		describeTableOutputs: describeTableOutputs,
 	}
 
-	dySchema := dynamoDBSchema{TableName: "test"}
+	dySchema := schema.Table{Name: "test"}
 
-	err := dySchema.analyzeMetadata(client)
+	err := analyzeMetadata(client, &dySchema)
 	assert.Nil(t, err)
 
-	pKeys := []string{"a", "b"}
+	pKeys := []schema.Key{{Column: "a"}, {Column: "b"}}
 	assert.Equal(t, pKeys, dySchema.PrimaryKeys)
-	secIndexes := []index{{Name: "secondary_index_c", Keys: []string{"c"}}}
-	assert.Equal(t, secIndexes, dySchema.SecIndexes)
+	secIndexes := []schema.Index{{Name: "secondary_index_c", Keys: []schema.Key{{Column: "c"}}}}
+	assert.Equal(t, secIndexes, dySchema.Indexes)
 }
 
 func TestListTables(t *testing.T) {
