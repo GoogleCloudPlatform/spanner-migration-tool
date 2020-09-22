@@ -133,7 +133,7 @@ Schema conversion: POOR (many columns did not map cleanly).
 Data conversion: NONE (no data rows found).
 
 Warning
-1) Column 'a' uses foreign keys which Spanner does not support.
+1) Column 'a' uses foreign keys which HarbourBridge does not support yet.
 
 ----------------------------
 Table no_pk
