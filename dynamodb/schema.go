@@ -247,7 +247,7 @@ func (s *dynamoDBSchema) inferDataTypes(stats map[string]map[string]int64, rows 
 
 	for col, countMap := range stats {
 		var statItems, candidates []statItem
-		var presentRows, normRows int64
+		var presentRows int64
 		for k, v := range countMap {
 			presentRows += v
 			if float64(v)/float64(rows) <= errThreshold {
@@ -257,9 +257,8 @@ func (s *dynamoDBSchema) inferDataTypes(stats map[string]map[string]int64, rows 
 				continue
 			}
 			statItems = append(statItems, statItem{Type: k, Count: v})
-			normRows += v
 		}
-		if normRows == 0 {
+		if len(statItems) == 0 {
 			log.Printf("Skip column %v with no data records", col)
 			continue
 		}
@@ -267,7 +266,7 @@ func (s *dynamoDBSchema) inferDataTypes(stats map[string]map[string]int64, rows 
 		nullable := float64(rows-presentRows)/float64(rows) > errThreshold
 
 		for _, si := range statItems {
-			if float64(si.Count)/float64(normRows) > conflictThreshold {
+			if float64(si.Count)/float64(rows) > conflictThreshold {
 				// If the normalized percentage is greater than the conflicting
 				// threshold, we should consider this data type as a candidate.
 				candidates = append(candidates, si)

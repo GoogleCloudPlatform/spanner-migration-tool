@@ -300,41 +300,44 @@ func TestInferDataTypes(t *testing.T) {
 	dySchema := dynamoDBSchema{TableName: "test"}
 	stats := map[string]map[string]int64{
 		"all_rows_not_null": {
-			"NumberInt": 1000,
+			"Number": 1000,
 		},
 		"err_row": {
-			"NumberFloat": 1,
-			"NumberInt":   999,
+			"NumberString": 1,
+			"Number":       999,
 		},
 		"err_null_row": {
-			"NumberInt": 999,
+			"Number": 999,
 		},
 		"enough_null_row": {
-			"NumberInt": 900,
+			"Number": 900,
 		},
 		"not_conflict_row": {
-			"String":    50,
-			"NumberInt": 950,
+			"String": 50,
+			"Number": 950,
 		},
 		"conflict_row": {
-			"String":    51,
-			"NumberInt": 949,
+			"String": 51,
+			"Number": 949,
 		},
 		"equal_conflict_rows": {
-			"String":    500,
-			"NumberInt": 500,
+			"String": 500,
+			"Number": 500,
 		},
-		"not_conflict_row_after_norm": {
-			"String":    40,
-			"NumberInt": 760,
+		"not_conflict_row_with_noise": {
+			"String":       40,
+			"Number":       760,
+			"NumberString": 10,
 		},
-		"conflict_row_after_norm": {
-			"String":    41,
-			"NumberInt": 759,
+		"conflict_row_with_noise": {
+			"String":       51,
+			"Number":       760,
+			"NumberString": 10,
 		},
-		"equal_conflict_row_after_norm": {
-			"String":    400,
-			"NumberInt": 400,
+		"equal_conflict_row_with_noise": {
+			"String":       400,
+			"Number":       400,
+			"NumberString": 10,
 		},
 		"empty_records": {
 			"String": 0,
@@ -345,21 +348,21 @@ func TestInferDataTypes(t *testing.T) {
 	expectColNames := []string{
 		"all_rows_not_null", "err_row", "err_null_row", "enough_null_row",
 		"not_conflict_row", "conflict_row", "equal_conflict_rows",
-		"not_conflict_row_after_norm", "conflict_row_after_norm",
-		"equal_conflict_row_after_norm",
+		"not_conflict_row_with_noise", "conflict_row_with_noise",
+		"equal_conflict_row_with_noise",
 	}
 	assert.ElementsMatch(t, expectColNames, dySchema.ColumnNames)
 	assert.Equal(t, map[string]colType{
-		"all_rows_not_null":             {Name: "NumberInt", Nullable: false},
-		"err_row":                       {Name: "NumberInt", Nullable: false},
-		"err_null_row":                  {Name: "NumberInt", Nullable: false},
-		"enough_null_row":               {Name: "NumberInt", Nullable: true},
-		"not_conflict_row":              {Name: "NumberInt", Nullable: false},
+		"all_rows_not_null":             {Name: "Number", Nullable: false},
+		"err_row":                       {Name: "Number", Nullable: false},
+		"err_null_row":                  {Name: "Number", Nullable: false},
+		"enough_null_row":               {Name: "Number", Nullable: true},
+		"not_conflict_row":              {Name: "Number", Nullable: false},
 		"conflict_row":                  {Name: "String", Nullable: false},
 		"equal_conflict_rows":           {Name: "String", Nullable: false},
-		"not_conflict_row_after_norm":   {Name: "NumberInt", Nullable: true},
-		"conflict_row_after_norm":       {Name: "String", Nullable: true},
-		"equal_conflict_row_after_norm": {Name: "String", Nullable: true},
+		"not_conflict_row_with_noise":   {Name: "Number", Nullable: true},
+		"conflict_row_with_noise":       {Name: "String", Nullable: true},
+		"equal_conflict_row_with_noise": {Name: "String", Nullable: true},
 	}, dySchema.ColumnTypes)
 }
 
