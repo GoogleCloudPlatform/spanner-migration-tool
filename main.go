@@ -38,6 +38,8 @@ import (
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
+	"github.com/aws/aws-sdk-go/aws/session"
+	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/ssh/terminal"
@@ -45,6 +47,7 @@ import (
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
+	"github.com/cloudspannerecosystem/harbourbridge/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/postgres"
@@ -61,6 +64,9 @@ const (
 	MYSQLDUMP string = "mysqldump"
 	// MYSQL is the driver name for MySQL.
 	MYSQL string = "mysql"
+	// DYNAMODB is the driver name for AWS DynamoDB.
+	// This is an experimental driver; implementation in progress.
+	DYNAMODB string = "dynamodb"
 )
 
 var (
@@ -72,6 +78,7 @@ var (
 	instanceOverride string
 	filePrefix       = ""
 	driverName       = PGDUMP
+	schemaSampleSize = int64(0)
 	verbose          bool
 	schemaOnly       bool
 )
@@ -81,6 +88,7 @@ func init() {
 	flag.StringVar(&instanceOverride, "instance", "", "instance: Spanner instance to use")
 	flag.StringVar(&filePrefix, "prefix", "", "prefix: file prefix for generated files")
 	flag.StringVar(&driverName, "driver", "pg_dump", "driver name: flag for accessing source DB or dump files (accepted values are \"pg_dump\", \"postgres\", \"mysqldump\", and \"mysql\")")
+	flag.Int64Var(&schemaSampleSize, "schema-sample-size", int64(100000), "schema-sample-size: the number of rows to use for inferring schema (only for DynamoDB)")
 	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
 	flag.BoolVar(&schemaOnly, "schema-only", false, "schema-only: mode for schema only conversion to Spanner")
 
@@ -176,6 +184,11 @@ func toSpanner(driver, projectID, instanceID, dbName string, ioHelper *ioStreams
 		return nil
 	}
 
+	// TODO(hengfeng): delete the following code after data conversion is done.
+	if driver == DYNAMODB {
+		return nil
+	}
+
 	db, err := createDatabase(projectID, instanceID, dbName, conv, ioHelper.out)
 	if err != nil {
 		fmt.Printf("\nCan't create database: %v\n", err)
@@ -205,6 +218,8 @@ func schemaConv(driver string, ioHelper *ioStreams) (*internal.Conv, error) {
 		return schemaFromSQL(driver)
 	case PGDUMP, MYSQLDUMP:
 		return schemaFromDump(driver, ioHelper)
+	case DYNAMODB:
+		return schemaFromDynamoDB(schemaSampleSize)
 	default:
 		return nil, fmt.Errorf("schema conversion for driver %s not supported", driver)
 	}
@@ -329,6 +344,17 @@ func dataFromSQL(driver string, config spanner.BatchWriterConfig, client *sp.Cli
 	}
 	writer.Flush()
 	return writer, nil
+}
+
+func schemaFromDynamoDB(sampleSize int64) (*internal.Conv, error) {
+	conv := internal.MakeConv()
+	mySession := session.Must(session.NewSession())
+	client := dydb.New(mySession)
+	err := dynamodb.ProcessSchema(conv, client, []string{}, sampleSize)
+	if err != nil {
+		return nil, err
+	}
+	return conv, nil
 }
 
 type ioStreams struct {
