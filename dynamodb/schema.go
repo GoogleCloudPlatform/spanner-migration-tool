@@ -272,7 +272,7 @@ func inferDataTypes(stats map[string]map[string]int64, rows int64, s *schema.Tab
 		}
 
 		for _, si := range statItems {
-			if float64(si.Count)/float64(rows) > conflictThreshold {
+			if float64(si.Count)/float64(presentRows) > conflictThreshold {
 				// If the normalized percentage is greater than the conflicting
 				// threshold, we should consider this data type as a candidate.
 				candidates = append(candidates, si)

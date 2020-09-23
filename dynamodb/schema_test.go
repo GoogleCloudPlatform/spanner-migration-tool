@@ -303,8 +303,8 @@ func TestInferDataTypes(t *testing.T) {
 			"NumberString": 10,
 		},
 		"conflict_row_with_noise": {
-			"String":       51,
-			"Number":       760,
+			"String":       41,
+			"Number":       759,
 			"NumberString": 10,
 		},
 		"equal_conflict_row_with_noise": {

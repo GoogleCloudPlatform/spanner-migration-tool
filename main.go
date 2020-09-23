@@ -64,6 +64,7 @@ const (
 	// MYSQL is the driver name for MySQL.
 	MYSQL string = "mysql"
 	// DYNAMODB is the driver name for AWS DynamoDB.
+	// This is an experimental driver; implementation in progress.
 	DYNAMODB string = "dynamodb"
 )
 
