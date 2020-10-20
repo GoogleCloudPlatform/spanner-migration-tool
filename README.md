@@ -277,6 +277,13 @@ messages about the conversion.
 `-schema-only` Specifies that only schema processing will be performed.
 Any data in the source database will be ignored.
 
+`-data-only` Specifies that only data migration will be performed.
+A spanner database will be created based on the schema state provided
+by a session file (`-session`) and data will be migrated.
+
+`-session` Specifies a session file that contains all schema and data 
+conversion state endcoded as JSON.
+
 ## Example Usage
 
 Details on HarbourBridge example usage for PostgreSQL and MySQL can be

@@ -81,6 +81,8 @@ var (
 	schemaSampleSize = int64(0)
 	verbose          bool
 	schemaOnly       bool
+	dataOnly         bool
+	sessionJSON      string
 )
 
 func init() {
@@ -90,8 +92,9 @@ func init() {
 	flag.StringVar(&driverName, "driver", "pg_dump", "driver name: flag for accessing source DB or dump files (accepted values are \"pg_dump\", \"postgres\", \"mysqldump\", and \"mysql\")")
 	flag.Int64Var(&schemaSampleSize, "schema-sample-size", int64(100000), "schema-sample-size: the number of rows to use for inferring schema (only for DynamoDB)")
 	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
-	flag.BoolVar(&schemaOnly, "schema-only", false, "schema-only: mode for schema only conversion to Spanner")
-
+	flag.BoolVar(&schemaOnly, "schema-only", false, "schema-only: in this mode we do schema conversion, but skip data conversion")
+	flag.BoolVar(&dataOnly, "data-only", false, "data-only: in this mode we skip schema conversion and just do data conversion (use the session flag to specify the session file for schema and data mapping)")
+	flag.StringVar(&sessionJSON, "session", "", "session: specifies the file we restore session state from (used in schema-only to provide schema and data mapping)")
 }
 
 func usage() {
@@ -153,6 +156,14 @@ func main() {
 		filePrefix = dbName + "."
 	}
 
+	if schemaOnly && dataOnly {
+		panic(fmt.Errorf("can't use both schema-only and data-only modes at once"))
+	}
+
+	if dataOnly && sessionJSON == "" {
+		panic(fmt.Errorf("when using data-only mode, the session must specify the session file to use"))
+	}
+
 	err = toSpanner(driverName, project, instance, dbName, ioHelper, filePrefix, now)
 	if err != nil {
 		panic(err)
@@ -167,21 +178,29 @@ func main() {
 //   3. Run data conversion
 //   4. Generate report
 func toSpanner(driver, projectID, instanceID, dbName string, ioHelper *ioStreams, outputFilePrefix string, now time.Time) error {
-	conv, err := schemaConv(driver, ioHelper)
-	if err != nil {
-		return err
-	}
-	// close the seekable file
+	var conv *internal.Conv
+	var err error
+	if !dataOnly {
+		conv, err = schemaConv(driver, ioHelper)
+		if err != nil {
+			return err
+		}
+		if ioHelper.seekableIn != nil {
+			defer ioHelper.in.Close()
+		}
 
-	if ioHelper.seekableIn != nil {
-		defer ioHelper.in.Close()
-	}
-
-	writeSchemaFile(conv, now, outputFilePrefix+schemaFile, ioHelper.out)
-	writeSessionFile(conv, now, outputFilePrefix+sessionFile, ioHelper.out)
-	if schemaOnly {
-		report(driver, nil, ioHelper.bytesRead, "", conv, outputFilePrefix+reportFile, ioHelper.out)
-		return nil
+		writeSchemaFile(conv, now, outputFilePrefix+schemaFile, ioHelper.out)
+		writeSessionFile(conv, now, outputFilePrefix+sessionFile, ioHelper.out)
+		if schemaOnly {
+			report(driver, nil, ioHelper.bytesRead, "", conv, outputFilePrefix+reportFile, ioHelper.out)
+			return nil
+		}
+	} else {
+		conv = internal.MakeConv()
+		err = readSessionFile(conv)
+		if err != nil {
+			return err
+		}
 	}
 
 	// TODO(hengfeng): delete the following code after data conversion is done.
@@ -385,10 +404,24 @@ func schemaFromDump(driver string, ioHelper *ioStreams) (*internal.Conv, error) 
 }
 
 func dataFromDump(driver string, config spanner.BatchWriterConfig, ioHelper *ioStreams, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
-	_, err := ioHelper.seekableIn.Seek(0, 0)
-	if err != nil {
-		fmt.Printf("\nCan't seek to start of file (preparation for second pass): %v\n", err)
-		return nil, fmt.Errorf("can't seek to start of file")
+	// TODO: refactor of the way we handle getSeekable
+	// to avoid the code duplication here
+	if !dataOnly {
+		_, err := ioHelper.seekableIn.Seek(0, 0)
+		if err != nil {
+			fmt.Printf("\nCan't seek to start of file (preparation for second pass): %v\n", err)
+			return nil, fmt.Errorf("can't seek to start of file")
+		}
+	} else {
+		// Note: input file is kept seekable to plan for future
+		// changes in showing progress for data migration.
+		f, n, err := getSeekable(ioHelper.in)
+		if err != nil {
+			printSeekError(driver, err, ioHelper.out)
+			return nil, fmt.Errorf("can't get seekable input file")
+		}
+		ioHelper.seekableIn = f
+		ioHelper.bytesRead = n
 	}
 	totalRows := conv.Rows()
 
@@ -624,6 +657,20 @@ func writeSessionFile(conv *internal.Conv, now time.Time, name string, out *os.F
 		return
 	}
 	fmt.Fprintf(out, "Wrote session to file '%s'.\n", name)
+}
+
+// readSessionFile reads a session JSON file and
+// unmarshal it's content into *internal.Conv.
+func readSessionFile(conv *internal.Conv) error {
+	s, err := ioutil.ReadFile(sessionJSON)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(s, &conv)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // writeBadData prints summary stats about bad rows and writes detailed info
