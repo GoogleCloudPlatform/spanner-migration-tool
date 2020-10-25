@@ -37,6 +37,7 @@ type Table struct {
 	ColNames    []string          // List of column names (for predictable iteration order e.g. printing).
 	ColDefs     map[string]Column // Details of columns.
 	PrimaryKeys []Key
+	ForeignKeys []Fkey
 	Indexes     []Index
 }
 
@@ -48,6 +49,15 @@ type Column struct {
 	NotNull bool
 	Unique  bool
 	Ignored Ignored
+	//ForeignKey Fkey
+}
+
+// Fkey respresents a foreign key.
+type Fkey struct {
+	Column      []string
+	Name        string
+	ReferTable  string
+	ReferColumn []string
 }
 
 // Key respresents a primary key or index key.

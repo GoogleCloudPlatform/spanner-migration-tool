@@ -92,8 +92,9 @@ type ColumnDef struct {
 
 // Config controls how AST nodes are printed (aka unparsed).
 type Config struct {
-	Comments   bool // If true, print comments.
-	ProtectIds bool // If true, table and col names are quoted using backticks (avoids reserved-word issue).
+	Comments    bool // If true, print comments.
+	ProtectIds  bool // If true, table and col names are quoted using backticks (avoids reserved-word issue).
+	ForeignKeys bool // If true, print foreign key constraints.
 }
 
 func (c Config) quote(s string) string {
@@ -134,6 +135,28 @@ func (pk IndexKey) PrintIndexKey(c Config) string {
 	return col
 }
 
+// Foreignkey respresents a foreign key.
+type Foreignkey struct {
+	Name        string
+	Column      []string
+	ReferTable  string
+	ReferColumn []string
+}
+
+// PrintCreateIndex unparses a CREATE INDEX statement.
+func (fk Foreignkey) PrintForeignKey(c Config) string {
+	var cols, referCols []string
+	for i, col := range fk.Column {
+		cols = append(cols, c.quote(col))
+		referCols = append(referCols, c.quote(fk.ReferColumn[i]))
+	}
+	var s string
+	if fk.Name != "" {
+		s = fmt.Sprintf("CONSTRAINT %s ", fk.Name)
+	}
+	return s + fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s (%s)", strings.Join(cols, ", "), fk.ReferTable, strings.Join(referCols, ", "))
+}
+
 // CreateTable encodes the following DDL definition:
 //     create_table: CREATE TABLE table_name ([column_def, ...] ) primary_key [, cluster]
 type CreateTable struct {
@@ -141,6 +164,7 @@ type CreateTable struct {
 	ColNames []string             // Provides names and order of columns
 	ColDefs  map[string]ColumnDef // Provides definition of columns (a map for simpler/faster lookup during type processing)
 	Pks      []IndexKey
+	Fks      []Foreignkey
 	Comment  string
 }
 
@@ -155,7 +179,11 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 		if i < len(ct.ColNames)-1 {
 			s += ","
 		} else {
-			s += " "
+			if len(ct.Fks) > 0 && config.ForeignKeys {
+				s += ","
+			} else {
+				s += " "
+			}
 		}
 		col = append(col, s)
 		colComment = append(colComment, c)
@@ -171,11 +199,24 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	for _, p := range ct.Pks {
 		keys = append(keys, p.PrintIndexKey(config))
 	}
+	var fkeys string
+	if config.ForeignKeys {
+		for i, f := range ct.Fks {
+			fk := f.PrintForeignKey(config)
+			fk = "\n    " + fk
+			if i < len(ct.Fks)-1 {
+				fk += ","
+			} else {
+				fk += " "
+			}
+			fkeys += fk
+		}
+	}
 	var tableComment string
 	if config.Comments && len(ct.Comment) > 0 {
 		tableComment = "--\n-- " + ct.Comment + "\n--\n"
 	}
-	return fmt.Sprintf("%sCREATE TABLE %s (%s\n) PRIMARY KEY (%s)", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "))
+	return fmt.Sprintf("%sCREATE TABLE %s (%s\n) PRIMARY KEY (%s)", tableComment, config.quote(ct.Name), cols+fkeys, strings.Join(keys, ", "))
 }
 
 // CreateIndex encodes the following DDL definition:

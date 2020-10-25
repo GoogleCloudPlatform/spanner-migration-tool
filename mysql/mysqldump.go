@@ -221,6 +221,28 @@ func processConstraint(conv *internal.Conv, table string, constraint *ast.Constr
 		// NOT NULL and UNIQUE i.e. primary keys must be NOT NULL and UNIQUE.
 		// We preserve MySQL semantics and enforce NOT NULL and UNIQUE.
 		updateCols(conv, ast.ConstraintPrimaryKey, constraint.Keys, st.ColDefs, table)
+	case ast.ConstraintForeignKey:
+		// fmt.Println(table)
+		// fmt.Println(constraint.Name)
+		// switch constraint.Refer.OnDelete.ReferOpt {
+		// case ast.ReferOptionRestrict:
+		// 	fmt.Println("RESTRICT")
+		// case ast.ReferOptionCascade:
+		// 	fmt.Println("CASCADE")
+		// case ast.ReferOptionSetNull:
+		// 	fmt.Println("SET NULL")
+		// case ast.ReferOptionNoAction:
+		// 	fmt.Println("NO ACTION")
+		// case ast.ReferOptionSetDefault:
+		// 	fmt.Println("SET DEFAULT")
+		// }
+		// fmt.Println(getTableName(constraint.Refer.Table))
+		// for _, x := range constraint.Refer.IndexPartSpecifications {
+		// 	fmt.Println(x.Column.OrigColName())
+		// }
+		//updateCols(conv, ct, constraint.Keys, st.ColDefs, table)
+		st.ForeignKeys = append(st.ForeignKeys, toForeignKeys(constraint))
+		//fmt.Println(st.ColDefs)
 	default:
 		updateCols(conv, ct, constraint.Keys, st.ColDefs, table)
 	}
@@ -238,12 +260,32 @@ func toSchemaKeys(columns []*ast.IndexPartSpecification) (keys []schema.Key) {
 	return keys
 }
 
+// toForeignKeys converts a list of MySQL foreign keys to
+// schema foreign keys.
+func toForeignKeys(fk *ast.Constraint) (fkey schema.Fkey) {
+	columns := fk.Keys
+	referTable, _ := getTableName(fk.Refer.Table)
+	referColumns := fk.Refer.IndexPartSpecifications
+	var colNames, referColNames []string
+	for i, column := range columns {
+		colNames = append(colNames, column.Column.Name.String())
+		referColNames = append(referColNames, referColumns[i].Column.Name.String())
+	}
+	fkey = schema.Fkey{Column: colNames,
+		Name:        fk.Name,
+		ReferTable:  referTable,
+		ReferColumn: referColNames}
+	return fkey
+}
+
 func updateCols(conv *internal.Conv, ct ast.ConstraintType, colNames []*ast.IndexPartSpecification, colDef map[string]schema.Column, tableName string) {
 	for _, column := range colNames {
 		colName := column.Column.OrigColName()
 		cd := colDef[colName]
 		switch ct {
 		case ast.ConstraintForeignKey:
+			fmt.Println(colName)
+			fmt.Println("----------")
 			cd.Ignored.ForeignKey = true
 		case ast.ConstraintUniq:
 			cd.Unique = true
