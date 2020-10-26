@@ -17,8 +17,7 @@ package dynamodb
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
-	"strconv"
+	"math/big"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -96,7 +95,7 @@ func ProcessData(conv *internal.Conv, client dynamoClient) error {
 }
 
 func cvtColValue(attrVal *dynamodb.AttributeValue, srcCd schema.Column, spCd ddl.ColumnDef) (interface{}, error) {
-	switch spCd.T.(type) {
+	switch spCd.T.Name {
 	case ddl.Bool:
 		switch srcCd.Type.Name {
 		case typeBool:
@@ -109,35 +108,8 @@ func cvtColValue(attrVal *dynamodb.AttributeValue, srcCd schema.Column, spCd ddl
 		case typeBinarySet:
 			return attrVal.BS, nil
 		}
-	case ddl.Int64:
-		switch srcCd.Type.Name {
-		case typeNumberInt:
-			n, err := strconv.ParseInt(*attrVal.N, 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert '%v' to INT64", *attrVal.N)
-			}
-			return n, nil
-		case typeNumberIntSet:
-			var intArr []int64
-			for _, s := range attrVal.NS {
-				n, err := strconv.ParseInt(*s, 10, 64)
-				if err != nil {
-					return nil, fmt.Errorf("failed to convert '%v' to an INT64 array", attrVal.NS)
-				}
-				intArr = append(intArr, n)
-			}
-			return intArr, nil
-		}
 	case ddl.String:
 		switch srcCd.Type.Name {
-		case typeNumberFloat:
-			return *attrVal.N, nil
-		case typeNumberFloatSet:
-			var strArr []string
-			for _, s := range attrVal.NS {
-				strArr = append(strArr, *s)
-			}
-			return strArr, nil
 		case typeMap:
 			b, err := json.Marshal(attrVal.M)
 			if err != nil {
@@ -158,7 +130,35 @@ func cvtColValue(attrVal *dynamodb.AttributeValue, srcCd schema.Column, spCd ddl
 				strArr = append(strArr, *s)
 			}
 			return strArr, nil
+		case typeNumberString:
+			return *attrVal.N, nil
+		case typeNumberStringSet:
+			var strArr []string
+			for _, s := range attrVal.NS {
+				strArr = append(strArr, *s)
+			}
+			return strArr, nil
+		}
+	case ddl.Numeric:
+		switch srcCd.Type.Name {
+		case typeNumber:
+			s := *attrVal.N
+			val, ok := (&big.Rat{}).SetString(s)
+			if !ok {
+				return nil, fmt.Errorf("failed to convert '%v' to an NUMERIC type", s)
+			}
+			return val, nil
+		case typeNumberSet:
+			var numArr []*big.Rat
+			for _, s := range attrVal.NS {
+				val, ok := (&big.Rat{}).SetString(*s)
+				if !ok {
+					return nil, fmt.Errorf("failed to convert '%v' to an NUMERIC array", attrVal.NS)
+				}
+				numArr = append(numArr, val)
+			}
+			return numArr, nil
 		}
 	}
-	return nil, fmt.Errorf("can't convert value of type %s to Spanner type %s", attrVal.GoString(), reflect.TypeOf(spCd.T))
+	return nil, fmt.Errorf("can't convert value of type %s to Spanner type %s", attrVal.GoString(), spCd.T.Name)
 }
