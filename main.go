@@ -529,6 +529,7 @@ func createDatabase(project, instance, dbName string, conv *internal.Conv, out *
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
+	// We also exclude foreign keys from the schema sent to Spanner.
 	schema := conv.GetDDL(ddl.Config{Comments: false, ProtectIds: true, ForeignKeys: false})
 	op, err := adminClient.CreateDatabase(ctx, &adminpb.CreateDatabaseRequest{
 		Parent:          fmt.Sprintf("projects/%s/instances/%s", project, instance),
@@ -617,12 +618,12 @@ func writeSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 		fmt.Fprintf(out, "Can't create schema file %s: %v\n", name, err)
 		return
 	}
-	// The schema file we write out includes comments, and doesn't add backticks
-	// around table and column names. This file is intended for explanatory
-	// and documentation purposes, and is not strictly legal Cloud Spanner DDL
-	// (Cloud Spanner doesn't currently support comments). Change 'Comments'
-	// to false and 'ProtectIds' to true to write out a schema file that is
-	// legal Cloud Spanner DDL.
+	// The schema file we write out includes comments, includes foreign keys
+	// and doesn't add backticks around table and column names. This file is
+	// intended for explanatory and documentation purposes, and is not strictly
+	// legal Cloud Spanner DDL (Cloud Spanner doesn't currently support comments).
+	// Change 'Comments' to false and 'ProtectIds' to true to write out a
+	// schema file that is legal Cloud Spanner DDL.
 	ddl := conv.GetDDL(ddl.Config{Comments: true, ProtectIds: false, ForeignKeys: true})
 	if len(ddl) == 0 {
 		ddl = []string{"\n-- Schema is empty -- no tables found\n"}

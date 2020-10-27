@@ -131,10 +131,10 @@ func processStatement(conv *internal.Conv, stmt ast.StmtNode) bool {
 		if conv.SchemaMode() {
 			processCreateTable(conv, s)
 		}
-	// case *ast.AlterTableStmt:
-	// 	if conv.SchemaMode() {
-	// 		processAlterTable(conv, s)
-	// 	}
+	case *ast.AlterTableStmt:
+		if conv.SchemaMode() {
+			processAlterTable(conv, s)
+		}
 	case *ast.SetStmt:
 		if conv.SchemaMode() {
 			processSetStmt(conv, s)
@@ -228,7 +228,7 @@ func processConstraint(conv *internal.Conv, table string, constraint *ast.Constr
 		updateCols(conv, ast.ConstraintPrimaryKey, constraint.Keys, st.ColDefs, table)
 	case ast.ConstraintForeignKey:
 		st.ForeignKeys = append(st.ForeignKeys, toForeignKeys(constraint))
-		//updateCols(conv, ast.ConstraintForeignKey, constraint.Keys, st.ColDefs, table)
+		updateCols(conv, ast.ConstraintForeignKey, constraint.Keys, st.ColDefs, table)
 	default:
 		updateCols(conv, ct, constraint.Keys, st.ColDefs, table)
 	}
@@ -285,44 +285,45 @@ func updateCols(conv *internal.Conv, ct ast.ConstraintType, colNames []*ast.Inde
 	}
 }
 
-// func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
-// 	if stmt.Table == nil {
-// 		logStmtError(conv, stmt, fmt.Errorf("table is nil"))
-// 		return
-// 	}
-// 	tableName, err := getTableName(stmt.Table)
-// 	if err != nil {
-// 		logStmtError(conv, stmt, fmt.Errorf("can't get table name: %w", err))
-// 		return
-// 	}
-// 	if _, ok := conv.SrcSchema[tableName]; ok {
-// 		for _, item := range stmt.Specs {
-// 			switch alterType := item.Tp; alterType {
-// 			case ast.AlterTableAddConstraint:
-// 				processConstraint(conv, tableName, item.Constraint, "ALTER TABLE")
-// 				conv.SchemaStatement(NodeType(stmt))
-// 			case ast.AlterTableModifyColumn:
-// 				colname, col, isPk, err := processColumn(conv, tableName, item.NewColumns[0])
-// 				if err != nil {
-// 					logStmtError(conv, stmt, err)
-// 					return
-// 				}
-// 				conv.SrcSchema[tableName].ColDefs[colname] = col
-// 				if isPk {
-// 					ctable := conv.SrcSchema[tableName]
-// 					checkEmpty(conv, ctable.PrimaryKeys, "ALTER TABLE")
-// 					ctable.PrimaryKeys = []schema.Key{{Column: colname}}
-// 					conv.SrcSchema[tableName] = ctable
-// 				}
-// 				conv.SchemaStatement(NodeType(stmt))
-// 			default:
-// 				conv.SkipStatement(NodeType(stmt))
-// 			}
-// 		}
-// 	} else {
-// 		conv.SkipStatement(NodeType(stmt))
-// 	}
-// }
+func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
+	if stmt.Table == nil {
+		logStmtError(conv, stmt, fmt.Errorf("table is nil"))
+		return
+	}
+	tableName, err := getTableName(stmt.Table)
+	if err != nil {
+		logStmtError(conv, stmt, fmt.Errorf("can't get table name: %w", err))
+		return
+	}
+	if _, ok := conv.SrcSchema[tableName]; ok {
+		for _, item := range stmt.Specs {
+			switch alterType := item.Tp; alterType {
+			case ast.AlterTableAddConstraint:
+				processConstraint(conv, tableName, item.Constraint, "ALTER TABLE")
+				conv.SchemaStatement(NodeType(stmt))
+			case ast.AlterTableModifyColumn:
+				colname, col, constraint, err := processColumn(conv, tableName, item.NewColumns[0])
+				if err != nil {
+					logStmtError(conv, stmt, err)
+					return
+				}
+				conv.SrcSchema[tableName].ColDefs[colname] = col
+				if constraint.isPk {
+					ctable := conv.SrcSchema[tableName]
+					checkEmpty(conv, ctable.PrimaryKeys, "ALTER TABLE")
+					ctable.PrimaryKeys = []schema.Key{{Column: colname}}
+					conv.SrcSchema[tableName] = ctable
+				}
+				// TODO: Handle foreign key
+				conv.SchemaStatement(NodeType(stmt))
+			default:
+				conv.SkipStatement(NodeType(stmt))
+			}
+		}
+	} else {
+		conv.SkipStatement(NodeType(stmt))
+	}
+}
 
 // getTableName extracts the table name from *ast.TableName table, and returns
 // the raw extracted name (the MySQL table name).
@@ -401,16 +402,12 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 		case ast.ColumnOptionCheck:
 			column.Ignored.Check = true
 		case ast.ColumnOptionReference:
-			fmt.Println("----------------")
-			columns := col.Name.String()
+			column := col.Name.String()
 			referTable, _ := getTableName(elem.Refer.Table)
-			referColumns := elem.Refer.IndexPartSpecifications[0].Column.Name.String()
-			var colNames, referColNames []string
-			colNames = append(colNames, columns)
-			referColNames = append(referColNames, referColumns)
-			fkey := schema.Fkey{Column: colNames,
+			referColumn := elem.Refer.IndexPartSpecifications[0].Column.Name.String()
+			fkey := schema.Fkey{Column: []string{column},
 				ReferTable:  referTable,
-				ReferColumn: referColNames,
+				ReferColumn: []string{referColumn},
 				OnDelete:    elem.Refer.OnDelete.ReferOpt.String(),
 				OnUpdate:    elem.Refer.OnUpdate.ReferOpt.String()}
 			cc.fk = fkey

@@ -84,6 +84,7 @@ func TestPrintCreateTable(t *testing.T) {
 		[]string{"col1", "col2", "col3"},
 		cds,
 		[]IndexKey{IndexKey{Col: "col1", Desc: true}},
+		nil,
 		"",
 	}
 	tests := []struct {

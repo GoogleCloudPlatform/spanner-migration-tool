@@ -73,7 +73,8 @@ func schemaToDDL(conv *internal.Conv) error {
 				Name:    colName,
 				T:       ty,
 				NotNull: srcCol.NotNull,
-				Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print()}
+				Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
+			}
 		}
 		comment := "Spanner schema for source table " + quoteIfNeeded(srcTable.Name)
 		conv.SpSchema[spTableName] = ddl.CreateTable{

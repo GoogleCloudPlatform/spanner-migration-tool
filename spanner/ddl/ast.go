@@ -135,7 +135,9 @@ func (pk IndexKey) PrintIndexKey(c Config) string {
 	return col
 }
 
-// Foreignkey respresents a foreign key.
+// Foreignkey encodes the following DDL definition:
+//    [ CONSTRAINT constraint_name ]
+// 	  FOREIGN KEY ( column_name [, ... ] ) REFERENCES ref_table ( ref_column [, ... ] ) }
 type Foreignkey struct {
 	Name        string
 	Column      []string
@@ -143,7 +145,7 @@ type Foreignkey struct {
 	ReferColumn []string
 }
 
-// PrintCreateIndex unparses a CREATE INDEX statement.
+// PrintForeignKey unparses the foreign keys.
 func (fk Foreignkey) PrintForeignKey(c Config) string {
 	var cols, referCols []string
 	for i, col := range fk.Column {
