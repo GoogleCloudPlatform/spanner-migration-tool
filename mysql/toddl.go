@@ -32,8 +32,7 @@ import (
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
 func schemaToDDL(conv *internal.Conv) error {
-	for i, srcTable := range conv.SrcSchema {
-		fmt.Println(conv.SrcSchema[i].Name)
+	for _, srcTable := range conv.SrcSchema {
 		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
@@ -75,7 +74,6 @@ func schemaToDDL(conv *internal.Conv) error {
 				T:       ty,
 				NotNull: srcCol.NotNull,
 				Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print()}
-			//ForeignKey: cvtForeignKey(conv, srcTable.Name, srcCol)}
 		}
 		comment := "Spanner schema for source table " + quoteIfNeeded(srcTable.Name)
 		conv.SpSchema[spTableName] = ddl.CreateTable{
@@ -206,7 +204,6 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcFkeys []schema.Fkey
 		for i, col := range fk.Column {
 			spCol, err1 := internal.GetSpannerCol(conv, srcTable, col, false)
 			spReferCol, err2 := internal.GetSpannerCol(conv, fk.ReferTable, fk.ReferColumn[i], false)
-			//spReferCol, found := spReferTable.Cols[fk.ReferColumn[i]]
 			if err1 != nil || err2 != nil {
 				conv.Unexpected(fmt.Sprintf("Can't map foreign key for table: %s, referenced table: %s, column: %s", srcTable, fk.ReferTable, col))
 				continue
@@ -220,24 +217,5 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcFkeys []schema.Fkey
 			ReferColumn: spReferCols}
 		spFkeys = append(spFkeys, spFkey)
 	}
-	// if srcFkey.ReferTable == "" || srcFkey.ReferColumn == "" {
-	// 	return spFkey
-	// }
-	// spReferTable, found := conv.ToSpanner[srcFkey.ReferTable]
-	// if !found {
-	// 	conv.Unexpected(fmt.Sprintf("Can't map foreign key for table(%s):column(%s)", srcTable, srcCol.Name))
-	// 	return spFkey
-	// }
-	// spReferColumn, found := spReferTable.Cols[srcFkey.ReferColumn]
-	// if !found {
-	// 	conv.Unexpected(fmt.Sprintf("Can't map foreign key for table(%s):column(%s)", srcTable, srcCol.Name))
-	// 	return spFkey
-	// }
-	//spReferTable := conv.ToSpanner[srcFkey.ReferTable]
-	//spReferColumn := spReferTable.Cols[srcFkey.ReferColumn]
-	// spFkey = ddl.Fkey{
-	// 	Name:        srcFkey.Name,
-	// 	ReferTable:  spReferTable.Name,
-	// 	ReferColumn: spReferColumn}
 	return spFkeys
 }

@@ -49,7 +49,6 @@ type Column struct {
 	NotNull bool
 	Unique  bool
 	Ignored Ignored
-	//ForeignKey Fkey
 }
 
 // Fkey respresents a foreign key.
@@ -58,6 +57,8 @@ type Fkey struct {
 	Name        string
 	ReferTable  string
 	ReferColumn []string
+	OnDelete    string
+	OnUpdate    string
 }
 
 // Key respresents a primary key or index key.
