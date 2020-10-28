@@ -22,7 +22,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -44,10 +43,6 @@ func ProcessData(conv *internal.Conv, client dynamoClient) error {
 		}
 
 		var lastEvaluatedKey map[string]*dynamodb.AttributeValue
-		var count int64
-
-		sampleSize := int64(1000)
-		conv.Stats.Rows[srcTable] += sampleSize
 
 		for {
 			// Build the query input parameters
@@ -64,18 +59,20 @@ func ProcessData(conv *internal.Conv, client dynamoClient) error {
 				return fmt.Errorf("failed to make Query API call for table %v: %v", srcTable, err)
 			}
 
+			var count int64
 			// Iterate the items returned
 			for _, attrsMap := range result.Items {
-				if count >= sampleSize {
-					return nil
-				}
-
 				var cvtVals []interface{}
 				for i, srcColName := range srcSchema.ColNames {
-					// Convert data to the target type
-					cvtVal, err := cvtColValue(attrsMap[srcColName], srcSchema.ColDefs[srcColName], spSchema.ColDefs[spCols[i]])
-					if err != nil {
-						return fmt.Errorf("failed to convert column: %v to %v", attrsMap[srcColName], spSchema.ColDefs[spCols[i]])
+					var cvtVal interface{}
+					if attrsMap[srcColName] == nil {
+						cvtVal = nil
+					} else {
+						// Convert data to the target type
+						cvtVal, err = cvtColValue(attrsMap[srcColName], srcSchema.ColDefs[srcColName].Type.Name, spSchema.ColDefs[spCols[i]].T.Name)
+						if err != nil {
+							return fmt.Errorf("failed to convert column: %v to %v", attrsMap[srcColName], spSchema.ColDefs[spCols[i]])
+						}
 					}
 					cvtVals = append(cvtVals, cvtVal)
 				}
@@ -83,6 +80,9 @@ func ProcessData(conv *internal.Conv, client dynamoClient) error {
 				conv.WriteRow(srcTable, spTable, spCols, cvtVals)
 				count++
 			}
+
+			conv.Stats.Rows[srcTable] += count
+
 			if result.LastEvaluatedKey == nil {
 				break
 			}
@@ -94,30 +94,30 @@ func ProcessData(conv *internal.Conv, client dynamoClient) error {
 	return nil
 }
 
-func cvtColValue(attrVal *dynamodb.AttributeValue, srcCd schema.Column, spCd ddl.ColumnDef) (interface{}, error) {
-	switch spCd.T.Name {
+func cvtColValue(attrVal *dynamodb.AttributeValue, srcType string, spType string) (interface{}, error) {
+	switch spType {
 	case ddl.Bool:
-		switch srcCd.Type.Name {
+		switch srcType {
 		case typeBool:
 			return *attrVal.BOOL, nil
 		}
 	case ddl.Bytes:
-		switch srcCd.Type.Name {
+		switch srcType {
 		case typeBinary:
 			return attrVal.B, nil
 		case typeBinarySet:
 			return attrVal.BS, nil
 		}
 	case ddl.String:
-		switch srcCd.Type.Name {
+		switch srcType {
 		case typeMap:
-			b, err := json.Marshal(attrVal.M)
+			b, err := json.Marshal(attrVal)
 			if err != nil {
 				return nil, fmt.Errorf("failed to encode a map object: %v to a json string", attrVal.GoString())
 			}
 			return string(b), nil
 		case typeList:
-			b, err := json.Marshal(attrVal.L)
+			b, err := json.Marshal(attrVal)
 			if err != nil {
 				return nil, fmt.Errorf("failed to encode a list object: %v to a json string", attrVal.GoString())
 			}
@@ -140,7 +140,7 @@ func cvtColValue(attrVal *dynamodb.AttributeValue, srcCd schema.Column, spCd ddl
 			return strArr, nil
 		}
 	case ddl.Numeric:
-		switch srcCd.Type.Name {
+		switch srcType {
 		case typeNumber:
 			s := *attrVal.N
 			val, ok := (&big.Rat{}).SetString(s)
@@ -160,5 +160,5 @@ func cvtColValue(attrVal *dynamodb.AttributeValue, srcCd schema.Column, spCd ddl
 			return numArr, nil
 		}
 	}
-	return nil, fmt.Errorf("can't convert value of type %s to Spanner type %s", attrVal.GoString(), spCd.T.Name)
+	return nil, fmt.Errorf("can't convert value of type %s to Spanner type %s", attrVal.GoString(), spType)
 }
