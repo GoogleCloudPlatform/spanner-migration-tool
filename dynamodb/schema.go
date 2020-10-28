@@ -325,3 +325,30 @@ func numericParsable(n string) bool {
 
 	return true
 }
+
+// SetRowStats populates conv with the number of rows in each table. In
+// DynamoDB, we use describe_table api to get the number of total rows, but this
+// number is updated approximately every six hours. Recent changes might not be
+// reflected in this value.
+func SetRowStats(conv *internal.Conv, client dynamoClient) {
+	tables, err := listTables(client)
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
+		return
+	}
+	if len(tables) == 0 {
+		conv.Unexpected("no DynamoDB table exists under this account")
+		return
+	}
+	for _, t := range tables {
+		input := &dynamodb.DescribeTableInput{
+			TableName: aws.String(t),
+		}
+		result, err := client.DescribeTable(input)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("failed to make a DescribeTable API call for table %v: %v", t, err))
+			return
+		}
+		conv.Stats.Rows[t] += *result.Table.ItemCount
+	}
+}

@@ -374,13 +374,12 @@ func schemaFromDynamoDB(sampleSize int64) (*internal.Conv, error) {
 }
 
 func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
-	// TODO(hengfeng@): set the total rows.
-	// err = SetRowStats(driver, conv, sourceDB)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// totalRows := conv.Rows()
-	// p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose())
+	mySession := session.Must(session.NewSession())
+	dyclient := dydb.New(mySession)
+
+	dynamodb.SetRowStats(conv, dyclient)
+	totalRows := conv.Rows()
+	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose())
 
 	rows := int64(0)
 	config.Write = func(m []*sp.Mutation) error {
@@ -389,8 +388,7 @@ func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv 
 			return err
 		}
 		atomic.AddInt64(&rows, int64(len(m)))
-		// TODO(hengfeng@): report the progress.
-		// p.MaybeReport(atomic.LoadInt64(&rows))
+		p.MaybeReport(atomic.LoadInt64(&rows))
 		return nil
 	}
 	writer := spanner.NewBatchWriter(config)
@@ -400,8 +398,6 @@ func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv 
 			writer.AddRow(table, cols, vals)
 		})
 
-	mySession := session.Must(session.NewSession())
-	dyclient := dydb.New(mySession)
 	err := dynamodb.ProcessData(conv, dyclient)
 	if err != nil {
 		return nil, err

@@ -59,7 +59,6 @@ func ProcessData(conv *internal.Conv, client dynamoClient) error {
 				return fmt.Errorf("failed to make Query API call for table %v: %v", srcTable, err)
 			}
 
-			var count int64
 			// Iterate the items returned
 			for _, attrsMap := range result.Items {
 				var cvtVals []interface{}
@@ -78,10 +77,7 @@ func ProcessData(conv *internal.Conv, client dynamoClient) error {
 				}
 
 				conv.WriteRow(srcTable, spTable, spCols, cvtVals)
-				count++
 			}
-
-			conv.Stats.Rows[srcTable] += count
 
 			if result.LastEvaluatedKey == nil {
 				break
