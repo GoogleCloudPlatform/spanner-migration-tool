@@ -30,7 +30,7 @@ import (
 // on the source and Spanner schemas), and write it to Spanner. If we can't
 // get/process data for a table, we skip that table and process the remaining
 // tables.
-func ProcessData(conv *internal.Conv, client dynamoClient) error {
+func ProcessData(conv *internal.Conv, client dynamoClient, consistentRead bool) error {
 	for srcTable, srcSchema := range conv.SrcSchema {
 		spTable, err1 := internal.GetSpannerTable(conv, srcTable)
 		spCols, err2 := internal.GetSpannerCols(conv, srcTable, srcSchema.ColNames)
@@ -47,7 +47,8 @@ func ProcessData(conv *internal.Conv, client dynamoClient) error {
 		for {
 			// Build the query input parameters
 			params := &dynamodb.ScanInput{
-				TableName: aws.String(srcTable),
+				TableName:      aws.String(srcTable),
+				ConsistentRead: &consistentRead,
 			}
 			if lastEvaluatedKey != nil {
 				params.ExclusiveStartKey = lastEvaluatedKey

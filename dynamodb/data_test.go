@@ -99,7 +99,7 @@ func TestProcessData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	ProcessData(conv, client)
+	ProcessData(conv, client, false)
 	assert.Equal(t,
 		[]spannerData{
 			{

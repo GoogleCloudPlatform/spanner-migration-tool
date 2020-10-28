@@ -147,7 +147,7 @@ func TestProcessSchema(t *testing.T) {
 	sampleSize := int64(10000)
 
 	conv := internal.MakeConv()
-	err := ProcessSchema(conv, client, tables, sampleSize)
+	err := ProcessSchema(conv, client, tables, sampleSize, false)
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -242,7 +242,7 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 	sampleSize := int64(10000)
 
 	conv := internal.MakeConv()
-	err := ProcessSchema(conv, client, tables, sampleSize)
+	err := ProcessSchema(conv, client, tables, sampleSize, false)
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -376,7 +376,7 @@ func TestScanSampleData(t *testing.T) {
 		scanOutputs: scanOutputs,
 	}
 
-	stats, _, err := scanSampleData(client, 3, "test")
+	stats, _, err := scanSampleData(client, 3, "test", false)
 	assert.Nil(t, err)
 
 	expectedStats := map[string]map[string]int64{

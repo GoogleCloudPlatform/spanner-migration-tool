@@ -54,7 +54,7 @@ type dynamoClient interface {
 // database. Since DynamoDB is a schemaless database, this process is imprecise.
 // We obtain schema information from two sources: from the table's metadata,
 // and from analyzing a sample of the table's rows.
-func ProcessSchema(conv *internal.Conv, client dynamoClient, tables []string, sampleSize int64) error {
+func ProcessSchema(conv *internal.Conv, client dynamoClient, tables []string, sampleSize int64, consistentRead bool) error {
 	if len(tables) == 0 {
 		var err error
 		tables, err = listTables(client)
@@ -66,7 +66,7 @@ func ProcessSchema(conv *internal.Conv, client dynamoClient, tables []string, sa
 		}
 	}
 	for _, t := range tables {
-		if err := processTable(conv, client, t, sampleSize); err != nil {
+		if err := processTable(conv, client, t, sampleSize, consistentRead); err != nil {
 			return err
 		}
 	}
@@ -94,13 +94,13 @@ func listTables(client dynamoClient) ([]string, error) {
 	}
 }
 
-func processTable(conv *internal.Conv, client dynamoClient, table string, sampleSize int64) error {
+func processTable(conv *internal.Conv, client dynamoClient, table string, sampleSize int64, consistentRead bool) error {
 	dySchema := schema.Table{Name: table}
 	err := analyzeMetadata(client, &dySchema)
 	if err != nil {
 		return err
 	}
-	stats, count, err := scanSampleData(client, sampleSize, dySchema.Name)
+	stats, count, err := scanSampleData(client, sampleSize, dySchema.Name, consistentRead)
 	if err != nil {
 		return err
 	}
@@ -141,13 +141,14 @@ func analyzeMetadata(client dynamoClient, s *schema.Table) error {
 	return nil
 }
 
-func scanSampleData(client dynamoClient, sampleSize int64, table string) (map[string]map[string]int64, int64, error) {
+func scanSampleData(client dynamoClient, sampleSize int64, table string, consistentRead bool) (map[string]map[string]int64, int64, error) {
 	// A map from column name to a count map of possible data types.
 	stats := make(map[string]map[string]int64)
 	var count int64
 	// Build the query input parameters
 	params := &dynamodb.ScanInput{
-		TableName: aws.String(table),
+		TableName:      aws.String(table),
+		ConsistentRead: &consistentRead,
 	}
 
 	for {
