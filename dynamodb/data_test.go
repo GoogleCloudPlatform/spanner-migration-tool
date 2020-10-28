@@ -38,6 +38,9 @@ func TestProcessData(t *testing.T) {
 	numStr1 := "10.1"
 	numStr2 := "12.34"
 	numStr3 := "89.0"
+	numVal1 := big.NewRat(101, 10)
+	numVal2 := big.NewRat(89, 1)
+
 	boolVal := true
 	scanOutputs := []dynamodb.ScanOutput{
 		{
@@ -105,12 +108,12 @@ func TestProcessData(t *testing.T) {
 			{
 				table: tableName,
 				cols:  cols,
-				vals:  []interface{}{"str-1", big.NewRat(101, 10), "12.34", true},
+				vals:  []interface{}{"str-1", *numVal1, "12.34", true},
 			},
 			{
 				table: tableName,
 				cols:  cols,
-				vals:  []interface{}{"str-2", big.NewRat(89, 1), nil, nil},
+				vals:  []interface{}{"str-2", *numVal2, nil, nil},
 			},
 		},
 		rows,
@@ -131,6 +134,7 @@ func TestCvtColValue(t *testing.T) {
 		"list": {L: listVal},
 	}
 	stringSetVal := []*string{&str}
+	numVal := big.NewRat(123456789, 100000)
 
 	testcases := []struct {
 		name    string
@@ -148,8 +152,8 @@ func TestCvtColValue(t *testing.T) {
 		{"string set", typeStringSet, ddl.String, &dynamodb.AttributeValue{SS: stringSetVal}, []string{str}},
 		{"number string", typeNumberString, ddl.String, &dynamodb.AttributeValue{N: &numStr}, numStr},
 		{"number string set", typeNumberStringSet, ddl.String, &dynamodb.AttributeValue{NS: []*string{&numStr}}, []string{numStr}},
-		{"number", typeNumber, ddl.Numeric, &dynamodb.AttributeValue{N: &numStr}, big.NewRat(123456789, 100000)},
-		{"number set", typeNumberSet, ddl.Numeric, &dynamodb.AttributeValue{NS: []*string{&numStr}}, []*big.Rat{big.NewRat(123456789, 100000)}},
+		{"number", typeNumber, ddl.Numeric, &dynamodb.AttributeValue{N: &numStr}, *numVal},
+		{"number set", typeNumberSet, ddl.Numeric, &dynamodb.AttributeValue{NS: []*string{&numStr}}, []big.Rat{*numVal}},
 	}
 
 	for _, tc := range testcases {

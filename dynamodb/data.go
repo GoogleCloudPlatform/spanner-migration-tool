@@ -144,15 +144,15 @@ func cvtColValue(attrVal *dynamodb.AttributeValue, srcType string, spType string
 			if !ok {
 				return nil, fmt.Errorf("failed to convert '%v' to an NUMERIC type", s)
 			}
-			return val, nil
+			return *val, nil
 		case typeNumberSet:
-			var numArr []*big.Rat
+			var numArr []big.Rat
 			for _, s := range attrVal.NS {
 				val, ok := (&big.Rat{}).SetString(*s)
 				if !ok {
 					return nil, fmt.Errorf("failed to convert '%v' to an NUMERIC array", attrVal.NS)
 				}
-				numArr = append(numArr, val)
+				numArr = append(numArr, *val)
 			}
 			return numArr, nil
 		}
