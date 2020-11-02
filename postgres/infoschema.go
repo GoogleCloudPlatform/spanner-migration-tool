@@ -235,6 +235,10 @@ func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName) error {
 	if err != nil {
 		return fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.schema, table.name, err)
 	}
+	foreignKeys, err := getForeignKeys(conv, db, table)
+	if err != nil {
+		return fmt.Errorf("couldn't get foreign key constraints for table %s.%s: %s", table.schema, table.name, err)
+	}
 	colDefs, colNames := processColumns(conv, cols, constraints)
 	name := buildTableName(table.schema, table.name)
 	var schemaPKeys []schema.Key
@@ -245,7 +249,8 @@ func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName) error {
 		Name:        name,
 		ColNames:    colNames,
 		ColDefs:     colDefs,
-		PrimaryKeys: schemaPKeys}
+		PrimaryKeys: schemaPKeys,
+		ForeignKeys: foreignKeys}
 	return nil
 }
 
@@ -302,6 +307,7 @@ func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string]
 // getConstraints returns a list of primary keys and by-column map of
 // other constraints.  Note: we need to preserve ordinal order of
 // columns in primary key constraints.
+// Note that foreign key constraints are handled in getForeignKeys.
 func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]string, map[string][]string, error) {
 	q := `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
               FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
@@ -334,6 +340,87 @@ func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]str
 		}
 	}
 	return primaryKeys, m, nil
+}
+
+// getForeignKeys return list all the foreign keys constraints.
+func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (foreignKeys []schema.Fkey, err error) {
+	refTables, err := getRefTables(db, table)
+	if err != nil {
+		return nil, err
+	}
+	for _, refTable := range refTables {
+		fkey, err := getForeignKey(conv, db, table, refTable)
+		if err != nil {
+			return nil, err
+		}
+		foreignKeys = append(foreignKeys, fkey)
+	}
+	return foreignKeys, nil
+}
+
+// getRefTables return the list of referenced tables for
+// the selected schema and table.
+func getRefTables(db *sql.DB, table schemaAndName) ([]schemaAndName, error) {
+	q := `SELECT c.TABLE_SCHEMA,c.TABLE_NAME 
+		FROM INFORMATION_SCHEMA.constraint_table_usage c
+		INNER JOIN INFORMATION_SCHEMA.table_constraints t
+			ON c.CONSTRAINT_NAME = t.CONSTRAINT_NAME
+		WHERE constraint_type='FOREIGN KEY' 
+			AND t.table_schema=$1
+			AND t.table_name=$2`
+	rows, err := db.Query(q, table.schema, table.name)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get reference tables: %w", err)
+	}
+	defer rows.Close()
+	var refTableSchema, refTableName string
+	var refTables []schemaAndName
+	for rows.Next() {
+		rows.Scan(&refTableSchema, &refTableName)
+		refTables = append(refTables, schemaAndName{schema: refTableSchema, name: refTableName})
+	}
+	return refTables, nil
+}
+
+// getForeignKey returns the foreign key constraint for
+// a particular referenced table in the selected table
+// and database.
+func getForeignKey(conv *internal.Conv, db *sql.DB, table schemaAndName, refTable schemaAndName) (schema.Fkey, error) {
+	q := `SELECT k.column_name,ref.column_name
+		FROM INFORMATION_SCHEMA.referential_constraints as r
+		INNER JOIN INFORMATION_SCHEMA.key_column_usage as ref
+			ON  ref.constraint_catalog = r.unique_constraint_catalog
+			AND ref.constraint_schema = r.unique_constraint_schema
+			AND ref.constraint_name = r.unique_constraint_name
+		INNER JOIN INFORMATION_SCHEMA.key_column_usage as k
+			ON  k.constraint_catalog = r.constraint_catalog
+			AND k.constraint_schema = r.constraint_schema
+			AND k.constraint_name = r.constraint_name
+			AND k.position_in_unique_constraint = ref.ordinal_position
+		WHERE k.table_schema=$1 
+			AND k.table_name=$2
+			AND ref.table_schema=$3 
+			AND ref.table_name=$4
+		ORDER BY ref.ordinal_position`
+	rows, err := db.Query(q, table.schema, table.name, refTable.schema, refTable.name)
+	if err != nil {
+		return schema.Fkey{}, err
+	}
+	defer rows.Close()
+	var col, refCol string
+	var cols, refCols []string
+	for rows.Next() {
+		err := rows.Scan(&col, &refCol)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+			continue
+		}
+		cols = append(cols, col)
+		refCols = append(refCols, refCol)
+	}
+	return schema.Fkey{Column: cols,
+		ReferTable:  buildTableName(refTable.schema, refTable.name),
+		ReferColumn: refCols}, nil
 }
 
 func toType(dataType string, elementDataType sql.NullString, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {

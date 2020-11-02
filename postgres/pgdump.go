@@ -265,7 +265,7 @@ func processCreateStmt(conv *internal.Conv, n nodes.CreateStmt) {
 			// Note: there should be at most one Constraint node in
 			// n.TableElts.Items. We don't check this. We just keep
 			// collecting constraints.
-			constraints = extractConstraints(conv, n, table, []nodes.Node{i})
+			constraints = append(constraints, extractConstraints(conv, n, table, []nodes.Node{i})...)
 		default:
 			conv.Unexpected(fmt.Sprintf("Found %s node while processing CreateStmt TableElts", PrNodeType(i)))
 		}
@@ -275,7 +275,8 @@ func processCreateStmt(conv *internal.Conv, n nodes.CreateStmt) {
 		Name:     table,
 		ColNames: colNames,
 		ColDefs:  colDef}
-	// Note: constraints contains all info about primary keys and not-null keys.
+	// Note: constraints contains all info about primary keys,
+	// not-null keys and foreign keys.
 	updateSchema(conv, table, constraints, "CREATE TABLE")
 }
 
@@ -461,6 +462,9 @@ func getTableName(conv *internal.Conv, n nodes.RangeVar) (string, error) {
 type constraint struct {
 	ct   nodes.ConstrType
 	cols []string
+	/* Fields used for FOREIGN KEY constraints: */
+	referCols  []string
+	referTable string
 }
 
 // extractConstraints traverses a list of nodes (expecting them to be
@@ -470,18 +474,52 @@ func extractConstraints(conv *internal.Conv, n nodes.Node, table string, l []nod
 	for _, i := range l {
 		switch d := i.(type) {
 		case nodes.Constraint:
-			var cols []string
-			for _, j := range d.Keys.Items {
-				k, err := getString(j)
+			var cols, referCols []string
+			var referTable string
+			switch d.Contype {
+			case nodes.CONSTR_FOREIGN:
+				t, err := getTableName(conv, *d.Pktable)
 				if err == nil {
-					cols = append(cols, k)
+					referTable = t
 				}
 				if err != nil {
 					conv.Unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(n), err.Error()))
 					conv.ErrorInStatement(prNodes([]nodes.Node{n, d}))
+					continue
+				}
+				for i := range d.FkAttrs.Items {
+					k, err := getString(d.FkAttrs.Items[i])
+					if err == nil {
+						cols = append(cols, k)
+					}
+					if err != nil {
+						conv.Unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(n), err.Error()))
+						conv.ErrorInStatement(prNodes([]nodes.Node{n, d}))
+					}
+				}
+				for i := range d.PkAttrs.Items {
+					f, err := getString(d.PkAttrs.Items[i])
+					if err == nil {
+						referCols = append(referCols, f)
+					}
+					if err != nil {
+						conv.Unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(n), err.Error()))
+						conv.ErrorInStatement(prNodes([]nodes.Node{n, d}))
+					}
+				}
+			default:
+				for _, j := range d.Keys.Items {
+					k, err := getString(j)
+					if err == nil {
+						cols = append(cols, k)
+					}
+					if err != nil {
+						conv.Unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(n), err.Error()))
+						conv.ErrorInStatement(prNodes([]nodes.Node{n, d}))
+					}
 				}
 			}
-			cs = append(cs, constraint{ct: d.Contype, cols: cols})
+			cs = append(cs, constraint{ct: d.Contype, cols: cols, referCols: referCols, referTable: referTable})
 		default:
 			conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node while processing constraints\n", reflect.TypeOf(n), reflect.TypeOf(d)))
 		}
@@ -521,6 +559,11 @@ func updateSchema(conv *internal.Conv, table string, cs []constraint, stmtType s
 			// We preserve PostgreSQL semantics and enforce NOT NULL.
 			updateCols(nodes.CONSTR_NOTNULL, c.cols, ct.ColDefs)
 			conv.SrcSchema[table] = ct
+		case nodes.CONSTR_FOREIGN:
+			ct := conv.SrcSchema[table]
+			ct.ForeignKeys = append(ct.ForeignKeys, toForeignKeys(c)) // Append to previous foreign jeys.
+			updateCols(nodes.CONSTR_FOREIGN, c.cols, ct.ColDefs)
+			conv.SrcSchema[table] = ct
 		default:
 			ct := conv.SrcSchema[table]
 			updateCols(c.ct, c.cols, ct.ColDefs)
@@ -556,6 +599,15 @@ func toSchemaKeys(conv *internal.Conv, table string, s []string) (l []schema.Key
 		l = append(l, schema.Key{Column: k})
 	}
 	return l
+}
+
+// toForeignKeys converts a string list of PostgreSQL foreign keys to
+// schema foreign keys.
+func toForeignKeys(fk constraint) (fkey schema.Fkey) {
+	fkey = schema.Fkey{Column: fk.cols,
+		ReferTable:  fk.referTable,
+		ReferColumn: fk.referCols}
+	return fkey
 }
 
 // getCols extracts and returns the column names for an InsertStatement.

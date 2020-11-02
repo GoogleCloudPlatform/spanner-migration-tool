@@ -195,25 +195,25 @@ func cvtPrimaryKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Key) 
 
 func cvtForeignKeys(conv *internal.Conv, srcTable string, srcFkeys []schema.Fkey) []ddl.Foreignkey {
 	var spFkeys []ddl.Foreignkey
-	for _, fk := range srcFkeys {
-		spReferTable, err := internal.GetSpannerTable(conv, fk.ReferTable)
+	for _, fkey := range srcFkeys {
+		spReferTable, err := internal.GetSpannerTable(conv, fkey.ReferTable)
 		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Can't map foreign key for source table: %s, referenced table: %s", srcTable, fk.ReferTable))
+			conv.Unexpected(fmt.Sprintf("Can't map foreign key for source table: %s, referenced table: %s", srcTable, fkey.ReferTable))
 			continue
 		}
 		var spCols, spReferCols []string
-		for i, col := range fk.Column {
+		for i, col := range fkey.Column {
 			spCol, err1 := internal.GetSpannerCol(conv, srcTable, col, false)
-			spReferCol, err2 := internal.GetSpannerCol(conv, fk.ReferTable, fk.ReferColumn[i], false)
+			spReferCol, err2 := internal.GetSpannerCol(conv, fkey.ReferTable, fkey.ReferColumn[i], false)
 			if err1 != nil || err2 != nil {
-				conv.Unexpected(fmt.Sprintf("Can't map foreign key for table: %s, referenced table: %s, column: %s", srcTable, fk.ReferTable, col))
+				conv.Unexpected(fmt.Sprintf("Can't map foreign key for table: %s, referenced table: %s, column: %s", srcTable, fkey.ReferTable, col))
 				continue
 			}
 			spCols = append(spCols, spCol)
 			spReferCols = append(spReferCols, spReferCol)
 		}
 		spFkey := ddl.Foreignkey{Column: spCols,
-			Name:        fk.Name,
+			Name:        fkey.Name,
 			ReferTable:  spReferTable,
 			ReferColumn: spReferCols}
 		spFkeys = append(spFkeys, spFkey)
