@@ -15,6 +15,7 @@
 package dynamodb
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"testing"
@@ -146,8 +147,8 @@ func TestCvtColValue(t *testing.T) {
 		{"bool", typeBool, ddl.Bool, &dynamodb.AttributeValue{BOOL: &boolVal}, true},
 		{"binary", typeBinary, ddl.Bytes, &dynamodb.AttributeValue{B: binaryVal}, binaryVal},
 		{"binary set", typeBinarySet, ddl.Bytes, &dynamodb.AttributeValue{BS: binarySetVal}, binarySetVal},
-		{"map", typeMap, ddl.String, &dynamodb.AttributeValue{M: mapVal}, "{\"B\":null,\"BOOL\":null,\"BS\":null,\"L\":null,\"M\":{\"list\":{\"B\":null,\"BOOL\":null,\"BS\":null,\"L\":[{\"B\":null,\"BOOL\":null,\"BS\":null,\"L\":null,\"M\":null,\"N\":null,\"NS\":null,\"NULL\":null,\"S\":\"str-1\",\"SS\":null},{\"B\":null,\"BOOL\":null,\"BS\":null,\"L\":null,\"M\":null,\"N\":\"1234.56789\",\"NS\":null,\"NULL\":null,\"S\":null,\"SS\":null}],\"M\":null,\"N\":null,\"NS\":null,\"NULL\":null,\"S\":null,\"SS\":null}},\"N\":null,\"NS\":null,\"NULL\":null,\"S\":null,\"SS\":null}"},
-		{"list", typeList, ddl.String, &dynamodb.AttributeValue{L: listVal}, "{\"B\":null,\"BOOL\":null,\"BS\":null,\"L\":[{\"B\":null,\"BOOL\":null,\"BS\":null,\"L\":null,\"M\":null,\"N\":null,\"NS\":null,\"NULL\":null,\"S\":\"str-1\",\"SS\":null},{\"B\":null,\"BOOL\":null,\"BS\":null,\"L\":null,\"M\":null,\"N\":\"1234.56789\",\"NS\":null,\"NULL\":null,\"S\":null,\"SS\":null}],\"M\":null,\"N\":null,\"NS\":null,\"NULL\":null,\"S\":null,\"SS\":null}"},
+		{"map", typeMap, ddl.String, &dynamodb.AttributeValue{M: mapVal}, "{\"list\":[\"str-1\",\"1234.56789\"]}"},
+		{"list", typeList, ddl.String, &dynamodb.AttributeValue{L: listVal}, "[\"str-1\",\"1234.56789\"]"},
 		{"string", typeString, ddl.String, &dynamodb.AttributeValue{S: &str}, str},
 		{"string set", typeStringSet, ddl.String, &dynamodb.AttributeValue{SS: stringSetVal}, []string{str}},
 		{"number string", typeNumberString, ddl.String, &dynamodb.AttributeValue{N: &numStr}, numStr},
@@ -160,6 +161,62 @@ func TestCvtColValue(t *testing.T) {
 		cvtVal, err := cvtColValue(tc.in, tc.srcType, tc.spType)
 		assert.Nil(t, err, fmt.Sprintf("Failed to convert %v from %s to %s", tc.in, typeString, ddl.String))
 		assert.Equal(t, tc.want, cvtVal, tc.name)
+	}
+}
+
+func TestMarshalAttrValue(t *testing.T) {
+	str := "str-1"
+	numStr := "1234.56789"
+	boolTrue := true
+	boolFalse := false
+	binaryVal := []byte("ABC")
+	binarySetVal := [][]byte{binaryVal}
+	stringSetVal := []*string{&str}
+	numberSetVal := []*string{&numStr}
+	listVal1 := []*dynamodb.AttributeValue{
+		{S: &str},
+	}
+	mapVal1 := map[string]*dynamodb.AttributeValue{
+		"list": {L: listVal1},
+	}
+	listVal2 := []*dynamodb.AttributeValue{
+		{B: binaryVal},
+		{S: &str},
+		{N: &numStr},
+		{BOOL: &boolTrue},
+		{SS: stringSetVal},
+		{BS: binarySetVal},
+		{NS: numberSetVal},
+		{NULL: &boolFalse},
+		{L: listVal1},
+		{M: mapVal1},
+	}
+	mapVal2 := map[string]*dynamodb.AttributeValue{
+		"list": {L: listVal2},
+	}
+
+	testcases := []struct {
+		name string
+		in   *dynamodb.AttributeValue // Input value for conversion.
+		want string                   // Expected result.
+	}{
+		{"binary", &dynamodb.AttributeValue{B: binaryVal}, "\"ABC\""},
+		{"string", &dynamodb.AttributeValue{S: &str}, "\"str-1\""},
+		{"number", &dynamodb.AttributeValue{N: &numStr}, "\"1234.56789\""},
+		{"bool", &dynamodb.AttributeValue{BOOL: &boolTrue}, "true"},
+		{"string set", &dynamodb.AttributeValue{SS: stringSetVal}, "[\"str-1\"]"},
+		{"binary set", &dynamodb.AttributeValue{BS: binarySetVal}, "[\"ABC\"]"},
+		{"number set", &dynamodb.AttributeValue{NS: []*string{&numStr}}, "[\"1234.56789\"]"},
+		{"null", &dynamodb.AttributeValue{NULL: &boolFalse}, "false"},
+		{"list", &dynamodb.AttributeValue{L: listVal2}, "[\"ABC\",\"str-1\",\"1234.56789\",true,[\"str-1\"],[\"ABC\"],[\"1234.56789\"],false,[\"str-1\"],{\"list\":[\"str-1\"]}]"},
+		{"map", &dynamodb.AttributeValue{M: mapVal2}, "{\"list\":[\"ABC\",\"str-1\",\"1234.56789\",true,[\"str-1\"],[\"ABC\"],[\"1234.56789\"],false,[\"str-1\"],{\"list\":[\"str-1\"]}]}"},
+	}
+	for _, tc := range testcases {
+		s, err := marshalAttrValue(tc.in)
+		assert.Nil(t, err, fmt.Sprintf("Failed to marshal an attribute value: %v", tc.in))
+		b, err := json.Marshal(s)
+		assert.Nil(t, err, fmt.Sprintf("Failed to marshal to a json string: %v", s))
+		assert.Equal(t, tc.want, string(b), tc.name)
 	}
 }
 

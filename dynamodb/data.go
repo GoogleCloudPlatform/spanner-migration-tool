@@ -111,16 +111,17 @@ func cvtColValue(attrVal *dynamodb.AttributeValue, srcType string, spType string
 		}
 	case ddl.String:
 		switch srcType {
-		case typeMap:
-			b, err := json.Marshal(attrVal)
+		case typeMap, typeList:
+			val, err := marshalAttrValue(attrVal)
 			if err != nil {
-				return nil, fmt.Errorf("failed to convert a map object: %v to a json string", attrVal.GoString())
+				return nil, fmt.Errorf("failed to convert %v to a go struct", attrVal.GoString())
 			}
-			return string(b), nil
-		case typeList:
-			b, err := json.Marshal(attrVal)
+			// If the original representation is preferred, then comment the
+			// above code and change the following line to:
+			//   b, err := json.Marshal(attrVal)
+			b, err := json.Marshal(val)
 			if err != nil {
-				return nil, fmt.Errorf("failed to convert a list object: %v to a json string", attrVal.GoString())
+				return nil, fmt.Errorf("failed to convert %v to a json string", attrVal.GoString())
 			}
 			return string(b), nil
 		case typeString:
@@ -162,4 +163,55 @@ func cvtColValue(attrVal *dynamodb.AttributeValue, srcType string, spType string
 		}
 	}
 	return nil, fmt.Errorf("can't convert value of type %s to Spanner type %s", attrVal.GoString(), spType)
+}
+
+// marshalAttrValue converts a dynamodb.AttributeValue to a Go struct which can
+// be easily encoded to a json string. If we use the normal json encoder, it
+// will have many null values. The purpose of this function is to remove the
+// null values in the json string.
+func marshalAttrValue(a *dynamodb.AttributeValue) (interface{}, error) {
+	var err error
+	switch {
+	case a.M != nil:
+		cvtMap := make(map[string]interface{})
+		for k, v := range a.M {
+			cvtMap[k], err = marshalAttrValue(v)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return cvtMap, nil
+	case a.L != nil:
+		var cvtList []interface{}
+		for _, v := range a.L {
+			c, err := marshalAttrValue(v)
+			if err != nil {
+				return nil, err
+			}
+			cvtList = append(cvtList, c)
+		}
+		return cvtList, nil
+	case a.B != nil:
+		return string(a.B), nil
+	case a.BOOL != nil:
+		return a.BOOL, nil
+	case a.BS != nil:
+		var bs []string
+		for _, b := range a.BS {
+			bs = append(bs, string(b))
+		}
+		return bs, nil
+	case a.N != nil:
+		return *a.N, nil
+	case a.NS != nil:
+		return a.NS, nil
+	case a.NULL != nil:
+		return a.NULL, nil
+	case a.S != nil:
+		return *a.S, nil
+	case a.SS != nil:
+		return a.SS, nil
+	default:
+		return nil, fmt.Errorf("unknown type of AttributeValue: %v", a)
+	}
 }
