@@ -61,7 +61,7 @@ func ProcessData(conv *internal.Conv, client dynamoClient, consistentRead bool) 
 
 			// Iterate the items returned.
 			for _, attrsMap := range result.Items {
-				var srcStrVals []string
+				var srcCols, srcStrVals []string
 				var cvtVals []interface{}
 				var cvtErrs map[string]string
 				for i, srcColName := range srcSchema.ColNames {
@@ -74,8 +74,8 @@ func ProcessData(conv *internal.Conv, client dynamoClient, consistentRead bool) 
 						if err != nil {
 							cvtErrs[srcColName] = fmt.Sprintf("failed to convert column: %v", srcColName)
 						}
+						srcStrVals = append(srcStrVals, attrsMap[srcColName].GoString())
 					}
-					srcStrVals = append(srcStrVals, attrsMap[srcColName].GoString())
 					cvtVals = append(cvtVals, cvtVal)
 				}
 				if len(cvtErrs) == 0 {
@@ -83,7 +83,7 @@ func ProcessData(conv *internal.Conv, client dynamoClient, consistentRead bool) 
 				} else {
 					conv.Unexpected(fmt.Sprintf("Errors while converting data: %s\n", cvtErrs))
 					conv.StatsAddBadRow(srcTable, conv.DataMode())
-					conv.CollectBadRow(srcTable, srcSchema.ColNames, srcStrVals)
+					conv.CollectBadRow(srcTable, srcCols, srcStrVals)
 				}
 			}
 			if result.LastEvaluatedKey == nil {
