@@ -43,9 +43,8 @@ func ProcessData(conv *internal.Conv, client dynamoClient, consistentRead bool) 
 		}
 
 		var lastEvaluatedKey map[string]*dynamodb.AttributeValue
-
 		for {
-			// Build the query input parameters
+			// Build the query input parameters.
 			params := &dynamodb.ScanInput{
 				TableName:      aws.String(srcTable),
 				ConsistentRead: &consistentRead,
@@ -54,32 +53,39 @@ func ProcessData(conv *internal.Conv, client dynamoClient, consistentRead bool) 
 				params.ExclusiveStartKey = lastEvaluatedKey
 			}
 
-			// Make the DynamoDB Query API call
+			// Make the DynamoDB Query API call.
 			result, err := client.Scan(params)
 			if err != nil {
 				return fmt.Errorf("failed to make Query API call for table %v: %v", srcTable, err)
 			}
 
-			// Iterate the items returned
+			// Iterate the items returned.
 			for _, attrsMap := range result.Items {
+				var srcStrVals []string
 				var cvtVals []interface{}
+				var cvtErrs map[string]string
 				for i, srcColName := range srcSchema.ColNames {
 					var cvtVal interface{}
 					if attrsMap[srcColName] == nil {
 						cvtVal = nil
 					} else {
-						// Convert data to the target type
+						// Convert data to the target type.
 						cvtVal, err = cvtColValue(attrsMap[srcColName], srcSchema.ColDefs[srcColName].Type.Name, spSchema.ColDefs[spCols[i]].T.Name)
 						if err != nil {
-							return fmt.Errorf("failed to convert column: %v to %v", attrsMap[srcColName], spSchema.ColDefs[spCols[i]])
+							cvtErrs[srcColName] = fmt.Sprintf("failed to convert column: %v", srcColName)
 						}
 					}
+					srcStrVals = append(srcStrVals, attrsMap[srcColName].GoString())
 					cvtVals = append(cvtVals, cvtVal)
 				}
-
-				conv.WriteRow(srcTable, spTable, spCols, cvtVals)
+				if len(cvtErrs) == 0 {
+					conv.WriteRow(srcTable, spTable, spCols, cvtVals)
+				} else {
+					conv.Unexpected(fmt.Sprintf("Errors while converting data: %s\n", cvtErrs))
+					conv.StatsAddBadRow(srcTable, conv.DataMode())
+					conv.CollectBadRow(srcTable, srcSchema.ColNames, srcStrVals)
+				}
 			}
-
 			if result.LastEvaluatedKey == nil {
 				break
 			}
@@ -87,7 +93,6 @@ func ProcessData(conv *internal.Conv, client dynamoClient, consistentRead bool) 
 			lastEvaluatedKey = result.LastEvaluatedKey
 		}
 	}
-
 	return nil
 }
 
@@ -110,13 +115,13 @@ func cvtColValue(attrVal *dynamodb.AttributeValue, srcType string, spType string
 		case typeMap:
 			b, err := json.Marshal(attrVal)
 			if err != nil {
-				return nil, fmt.Errorf("failed to encode a map object: %v to a json string", attrVal.GoString())
+				return nil, fmt.Errorf("failed to convert a map object: %v to a json string", attrVal.GoString())
 			}
 			return string(b), nil
 		case typeList:
 			b, err := json.Marshal(attrVal)
 			if err != nil {
-				return nil, fmt.Errorf("failed to encode a list object: %v to a json string", attrVal.GoString())
+				return nil, fmt.Errorf("failed to convert a list object: %v to a json string", attrVal.GoString())
 			}
 			return string(b), nil
 		case typeString:

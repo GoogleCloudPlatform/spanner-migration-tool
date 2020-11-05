@@ -329,8 +329,11 @@ func numericParsable(n string) bool {
 
 // SetRowStats populates conv with the number of rows in each table. In
 // DynamoDB, we use describe_table api to get the number of total rows, but this
-// number is updated approximately every six hours. Recent changes might not be
-// reflected in this value.
+// number is updated approximately every six hours. This means that our row
+// count could be out of date by up to six hours. One of the primary uses of
+// row count is for calculating progress during data conversion. As a result, if
+// there have been huge changes in the number of rows in a table over the last
+// six hours, the progress calculation could be inaccurate.
 func SetRowStats(conv *internal.Conv, client dynamoClient) {
 	tables, err := listTables(client)
 	if err != nil {
@@ -350,6 +353,6 @@ func SetRowStats(conv *internal.Conv, client dynamoClient) {
 			conv.Unexpected(fmt.Sprintf("failed to make a DescribeTable API call for table %v: %v", t, err))
 			return
 		}
-		conv.Stats.Rows[t] += *result.Table.ItemCount
+		conv.Stats.Rows[t] = *result.Table.ItemCount
 	}
 }
