@@ -83,7 +83,6 @@ var (
 	schemaOnly       bool
 	dataOnly         bool
 	sessionJSON      string
-	consistentRead   bool
 )
 
 func init() {
@@ -92,7 +91,6 @@ func init() {
 	flag.StringVar(&filePrefix, "prefix", "", "prefix: file prefix for generated files")
 	flag.StringVar(&driverName, "driver", "pg_dump", "driver name: flag for accessing source DB or dump files (accepted values are \"pg_dump\", \"postgres\", \"mysqldump\", and \"mysql\")")
 	flag.Int64Var(&schemaSampleSize, "schema-sample-size", int64(100000), "schema-sample-size: the number of rows to use for inferring schema (only for DynamoDB)")
-	flag.BoolVar(&consistentRead, "consistent-read", false, "consistent-read: enable the 'consistent read' mode when scanning data but it causes more api quota usage (only for DynamoDB)")
 	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
 	flag.BoolVar(&schemaOnly, "schema-only", false, "schema-only: in this mode we do schema conversion, but skip data conversion")
 	flag.BoolVar(&dataOnly, "data-only", false, "data-only: in this mode we skip schema conversion and just do data conversion (use the session flag to specify the session file for schema and data mapping)")
@@ -368,7 +366,7 @@ func schemaFromDynamoDB(sampleSize int64) (*internal.Conv, error) {
 	conv := internal.MakeConv()
 	mySession := session.Must(session.NewSession())
 	client := dydb.New(mySession)
-	err := dynamodb.ProcessSchema(conv, client, []string{}, sampleSize, consistentRead)
+	err := dynamodb.ProcessSchema(conv, client, []string{}, sampleSize)
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +398,7 @@ func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv 
 			writer.AddRow(table, cols, vals)
 		})
 
-	err := dynamodb.ProcessData(conv, dyclient, consistentRead)
+	err := dynamodb.ProcessData(conv, dyclient)
 	if err != nil {
 		return nil, err
 	}
