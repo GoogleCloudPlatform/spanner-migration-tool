@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -42,57 +43,76 @@ func ProcessData(conv *internal.Conv, client dynamoClient) error {
 			continue
 		}
 
-		var lastEvaluatedKey map[string]*dynamodb.AttributeValue
-		for {
-			// Build the query input parameters.
-			params := &dynamodb.ScanInput{
-				TableName: aws.String(srcTable),
+		err := scan(srcTable, client, func(m map[string]*dynamodb.AttributeValue) {
+			cvtVals, cvtErrs, srcStrVals := cvtRow(m, srcSchema, spSchema, spCols)
+			if len(cvtErrs) == 0 {
+				conv.WriteRow(srcTable, spTable, spCols, cvtVals)
+			} else {
+				conv.Unexpected(fmt.Sprintf("Errors while converting data: %s\n", cvtErrs))
+				conv.StatsAddBadRow(srcTable, conv.DataMode())
+				conv.CollectBadRow(srcTable, srcSchema.ColNames, srcStrVals)
 			}
-			if lastEvaluatedKey != nil {
-				params.ExclusiveStartKey = lastEvaluatedKey
-			}
-
-			// Make the DynamoDB Query API call.
-			result, err := client.Scan(params)
-			if err != nil {
-				return fmt.Errorf("failed to make Query API call for table %v: %v", srcTable, err)
-			}
-
-			// Iterate the items returned.
-			for _, attrsMap := range result.Items {
-				var srcCols, srcStrVals []string
-				var cvtVals []interface{}
-				var cvtErrs map[string]string
-				for i, srcColName := range srcSchema.ColNames {
-					var cvtVal interface{}
-					if attrsMap[srcColName] == nil {
-						cvtVal = nil
-					} else {
-						// Convert data to the target type.
-						cvtVal, err = cvtColValue(attrsMap[srcColName], srcSchema.ColDefs[srcColName].Type.Name, spSchema.ColDefs[spCols[i]].T.Name)
-						if err != nil {
-							cvtErrs[srcColName] = fmt.Sprintf("failed to convert column: %v", srcColName)
-						}
-						srcStrVals = append(srcStrVals, attrsMap[srcColName].GoString())
-					}
-					cvtVals = append(cvtVals, cvtVal)
-				}
-				if len(cvtErrs) == 0 {
-					conv.WriteRow(srcTable, spTable, spCols, cvtVals)
-				} else {
-					conv.Unexpected(fmt.Sprintf("Errors while converting data: %s\n", cvtErrs))
-					conv.StatsAddBadRow(srcTable, conv.DataMode())
-					conv.CollectBadRow(srcTable, srcCols, srcStrVals)
-				}
-			}
-			if result.LastEvaluatedKey == nil {
-				break
-			}
-			// If there are more rows, then continue.
-			lastEvaluatedKey = result.LastEvaluatedKey
+		})
+		if err != nil {
+			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
+			conv.Unexpected(fmt.Sprintf("Can't scan the data for table %s: %s", srcTable, err))
 		}
 	}
 	return nil
+}
+
+func scan(table string, client dynamoClient, f func(map[string]*dynamodb.AttributeValue)) error {
+	var lastEvaluatedKey map[string]*dynamodb.AttributeValue
+	for {
+		// Build the query input parameters.
+		params := &dynamodb.ScanInput{
+			TableName: aws.String(table),
+		}
+		if lastEvaluatedKey != nil {
+			params.ExclusiveStartKey = lastEvaluatedKey
+		}
+
+		// Make the DynamoDB Query API call.
+		result, err := client.Scan(params)
+		if err != nil {
+			return fmt.Errorf("failed to make Query API call for table %v: %v", table, err)
+		}
+
+		// Iterate the items returned.
+		for _, attrsMap := range result.Items {
+			f(attrsMap)
+		}
+		if result.LastEvaluatedKey == nil {
+			return nil
+		}
+		// If there are more rows, then continue.
+		lastEvaluatedKey = result.LastEvaluatedKey
+	}
+}
+
+func cvtRow(attrsMap map[string]*dynamodb.AttributeValue, srcSchema schema.Table, spSchema ddl.CreateTable, spCols []string) ([]interface{}, map[string]string, []string) {
+	var err error
+	var srcStrVals []string
+	var cvtVals []interface{}
+	var cvtErrs map[string]string
+	for i, srcCol := range srcSchema.ColNames {
+		var cvtVal interface{}
+		var srcStrVal string
+		if attrsMap[srcCol] == nil {
+			cvtVal = nil
+			srcStrVal = "null"
+		} else {
+			// Convert data to the target type.
+			cvtVal, err = cvtColValue(attrsMap[srcCol], srcSchema.ColDefs[srcCol].Type.Name, spSchema.ColDefs[spCols[i]].T.Name)
+			if err != nil {
+				cvtErrs[srcCol] = fmt.Sprintf("failed to convert column: %v", srcCol)
+			}
+			srcStrVal = attrsMap[srcCol].GoString()
+		}
+		srcStrVals = append(srcStrVals, srcStrVal)
+		cvtVals = append(cvtVals, cvtVal)
+	}
+	return cvtVals, cvtErrs, srcStrVals
 }
 
 func cvtColValue(attrVal *dynamodb.AttributeValue, srcType string, spType string) (interface{}, error) {
