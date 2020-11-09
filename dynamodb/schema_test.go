@@ -506,3 +506,39 @@ func TestIncTypeCount_NumericArray(t *testing.T) {
 		assert.Equal(t, s[test.wantType], int64(1))
 	}
 }
+
+func TestSetRowStats(t *testing.T) {
+	tableNameA := "test_a"
+	tableNameB := "test_b"
+	tableItemCountA := int64(10)
+	tableItemCountB := int64(20)
+
+	listTableOutputs := []dynamodb.ListTablesOutput{
+		{TableNames: []*string{&tableNameA, &tableNameB}},
+	}
+	describeTableOutputs := []dynamodb.DescribeTableOutput{
+		{
+			Table: &dynamodb.TableDescription{
+				TableName: &tableNameA,
+				ItemCount: &tableItemCountA,
+			},
+		},
+		{
+			Table: &dynamodb.TableDescription{
+				TableName: &tableNameB,
+				ItemCount: &tableItemCountB,
+			},
+		},
+	}
+
+	conv := internal.MakeConv()
+	client := &mockDynamoClient{
+		listTableOutputs:     listTableOutputs,
+		describeTableOutputs: describeTableOutputs,
+	}
+
+	SetRowStats(conv, client)
+
+	assert.Equal(t, tableItemCountA, conv.Stats.Rows[tableNameA])
+	assert.Equal(t, tableItemCountB, conv.Stats.Rows[tableNameB])
+}
