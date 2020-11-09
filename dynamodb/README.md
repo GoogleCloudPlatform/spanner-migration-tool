@@ -103,7 +103,7 @@ read has a size limit up to 1MB. By using the returned token, we make a
 subsequent call to continue retrieving data from the table.
 
 The row result contains the data type and data itself. According to our
-[inferred schema](#schema_inference), we will parse the row to a format that
+[inferred schema](#schema-inference), we will parse the row to a format that
 Cloud Spanner can support. If the value parsing fails, we would drop the entire
 row and record it as bad data in the report. If a column does not appear or 
 column has a NULL data type, we would process this as a NULL value in Cloud Spanner. 
