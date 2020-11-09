@@ -121,6 +121,34 @@ func TestProcessData(t *testing.T) {
 	)
 }
 
+func TestCvtRowWithError(t *testing.T) {
+	tableName := "testtable"
+	cols := []string{"a"}
+	spSchema := ddl.CreateTable{
+		Name:     tableName,
+		ColNames: cols,
+		ColDefs: map[string]ddl.ColumnDef{
+			// Give a wrong target type.
+			"a": {Name: "a", T: ddl.Type{Name: ddl.Float64}},
+		},
+	}
+	srcSchema := schema.Table{
+		Name:     tableName,
+		ColNames: cols,
+		ColDefs: map[string]schema.Column{
+			"a": {Name: "a", Type: schema.Type{Name: typeString}},
+		},
+	}
+	strA := "str-1"
+	attrs := map[string]*dynamodb.AttributeValue{
+		"a": {S: &strA},
+	}
+	_, badCols, srcStrVals := cvtRow(attrs, srcSchema, spSchema, cols)
+
+	assert.Equal(t, []string{"a"}, badCols)
+	assert.Equal(t, []string{attrs["a"].GoString()}, srcStrVals)
+}
+
 func TestCvtColValue(t *testing.T) {
 	str := "str-1"
 	numStr := "1234.56789"
@@ -212,7 +240,7 @@ func TestMarshalAttrValue(t *testing.T) {
 		{"map", &dynamodb.AttributeValue{M: mapVal2}, "{\"list\":[\"ABC\",\"str-1\",\"1234.56789\",true,[\"str-1\"],[\"ABC\"],[\"1234.56789\"],false,[\"str-1\"],{\"list\":[\"str-1\"]}]}"},
 	}
 	for _, tc := range testcases {
-		s, err := marshalAttrValue(tc.in)
+		s, err := stripNull(tc.in)
 		assert.Nil(t, err, fmt.Sprintf("Failed to marshal an attribute value: %v", tc.in))
 		b, err := json.Marshal(s)
 		assert.Nil(t, err, fmt.Sprintf("Failed to marshal to a json string: %v", s))

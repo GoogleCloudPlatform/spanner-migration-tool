@@ -44,11 +44,11 @@ func ProcessData(conv *internal.Conv, client dynamoClient) error {
 		}
 
 		err := scan(srcTable, client, func(m map[string]*dynamodb.AttributeValue) {
-			cvtVals, cvtErrs, srcStrVals := cvtRow(m, srcSchema, spSchema, spCols)
-			if len(cvtErrs) == 0 {
-				conv.WriteRow(srcTable, spTable, spCols, cvtVals)
+			spVals, badCols, srcStrVals := cvtRow(m, srcSchema, spSchema, spCols)
+			if len(badCols) == 0 {
+				conv.WriteRow(srcTable, spTable, spCols, spVals)
 			} else {
-				conv.Unexpected(fmt.Sprintf("Errors while converting data: %s\n", cvtErrs))
+				conv.Unexpected(fmt.Sprintf("Data conversion error for table %s in column(s) %s\n", srcTable, badCols))
 				conv.StatsAddBadRow(srcTable, conv.DataMode())
 				conv.CollectBadRow(srcTable, srcSchema.ColNames, srcStrVals)
 			}
@@ -90,29 +90,29 @@ func scan(table string, client dynamoClient, f func(map[string]*dynamodb.Attribu
 	}
 }
 
-func cvtRow(attrsMap map[string]*dynamodb.AttributeValue, srcSchema schema.Table, spSchema ddl.CreateTable, spCols []string) ([]interface{}, map[string]string, []string) {
+func cvtRow(attrsMap map[string]*dynamodb.AttributeValue, srcSchema schema.Table, spSchema ddl.CreateTable, spCols []string) ([]interface{}, []string, []string) {
 	var err error
 	var srcStrVals []string
-	var cvtVals []interface{}
-	var cvtErrs map[string]string
+	var spVals []interface{}
+	var badCols []string
 	for i, srcCol := range srcSchema.ColNames {
-		var cvtVal interface{}
+		var spVal interface{}
 		var srcStrVal string
 		if attrsMap[srcCol] == nil {
-			cvtVal = nil
+			spVal = nil
 			srcStrVal = "null"
 		} else {
 			// Convert data to the target type.
-			cvtVal, err = cvtColValue(attrsMap[srcCol], srcSchema.ColDefs[srcCol].Type.Name, spSchema.ColDefs[spCols[i]].T.Name)
+			spVal, err = cvtColValue(attrsMap[srcCol], srcSchema.ColDefs[srcCol].Type.Name, spSchema.ColDefs[spCols[i]].T.Name)
 			if err != nil {
-				cvtErrs[srcCol] = fmt.Sprintf("failed to convert column: %v", srcCol)
+				badCols = append(badCols, srcCol)
 			}
 			srcStrVal = attrsMap[srcCol].GoString()
 		}
 		srcStrVals = append(srcStrVals, srcStrVal)
-		cvtVals = append(cvtVals, cvtVal)
+		spVals = append(spVals, spVal)
 	}
-	return cvtVals, cvtErrs, srcStrVals
+	return spVals, badCols, srcStrVals
 }
 
 func cvtColValue(attrVal *dynamodb.AttributeValue, srcType string, spType string) (interface{}, error) {
@@ -132,13 +132,18 @@ func cvtColValue(attrVal *dynamodb.AttributeValue, srcType string, spType string
 	case ddl.String:
 		switch srcType {
 		case typeMap, typeList:
-			val, err := marshalAttrValue(attrVal)
+			// For typeMap and typeList, attrVal is a very verbose data
+			// structure that contains null entries for unused type cases. We
+			// strip these out using marshallAttrValue. If it important that the
+			// Spanner values can be easily unmarshalled back to
+			// dynamodb.AttributeValue types, then replace the following five
+			// lines with just:
+			// b, err := json.Marshal(attrVal)
+			// but note that this will consume extra Spanner storage.
+			val, err := stripNull(attrVal)
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert %v to a go struct", attrVal.GoString())
 			}
-			// If the original representation is preferred, then comment the
-			// above code and change the following line to:
-			//   b, err := json.Marshal(attrVal)
 			b, err := json.Marshal(val)
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert %v to a json string", attrVal.GoString())
@@ -185,17 +190,17 @@ func cvtColValue(attrVal *dynamodb.AttributeValue, srcType string, spType string
 	return nil, fmt.Errorf("can't convert value of type %s to Spanner type %s", attrVal.GoString(), spType)
 }
 
-// marshalAttrValue converts a dynamodb.AttributeValue to a Go struct which can
+// stripNull converts a dynamodb.AttributeValue to a Go struct which can
 // be easily encoded to a json string. If we use the normal json encoder, it
 // will have many null values. The purpose of this function is to remove the
 // null values in the json string.
-func marshalAttrValue(a *dynamodb.AttributeValue) (interface{}, error) {
+func stripNull(a *dynamodb.AttributeValue) (interface{}, error) {
 	var err error
 	switch {
 	case a.M != nil:
 		cvtMap := make(map[string]interface{})
 		for k, v := range a.M {
-			cvtMap[k], err = marshalAttrValue(v)
+			cvtMap[k], err = stripNull(v)
 			if err != nil {
 				return nil, err
 			}
@@ -204,7 +209,7 @@ func marshalAttrValue(a *dynamodb.AttributeValue) (interface{}, error) {
 	case a.L != nil:
 		var cvtList []interface{}
 		for _, v := range a.L {
-			c, err := marshalAttrValue(v)
+			c, err := stripNull(v)
 			if err != nil {
 				return nil, err
 			}
