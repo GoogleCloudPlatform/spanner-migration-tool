@@ -192,7 +192,7 @@ func TestCvtColValue(t *testing.T) {
 	}
 }
 
-func TestMarshalAttrValue(t *testing.T) {
+func TestStripNull(t *testing.T) {
 	str := "str-1"
 	numStr := "1234.56789"
 	boolTrue := true

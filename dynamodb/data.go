@@ -134,7 +134,7 @@ func cvtColValue(attrVal *dynamodb.AttributeValue, srcType string, spType string
 		case typeMap, typeList:
 			// For typeMap and typeList, attrVal is a very verbose data
 			// structure that contains null entries for unused type cases. We
-			// strip these out using marshallAttrValue. If it important that the
+			// strip these out using stripNull. If it important that the
 			// Spanner values can be easily unmarshalled back to
 			// dynamodb.AttributeValue types, then replace the following five
 			// lines with just:
