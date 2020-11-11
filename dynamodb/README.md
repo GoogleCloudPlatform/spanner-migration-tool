@@ -94,6 +94,30 @@ In Cloud Spanner, the most similar type to List and Map is
 is not a valid column type (available for query but not for storage).
 Therefore, we encode them into a json string. 
 
+# Occasional Errors
+
+As no schema is forced when writing to a DynamoDB table, it can happen that a
+small number of data rows are incorrectly inserted. People do not realize that
+these data exist or their application can auto-fix these data. In Cloud Spanner,
+we have a strict schema for writes and we can’t write records with different
+data types. We define an error threshold - if the percentage of the data type is
+lower than or equal to an extremely low value (0.1%), then we consider the data
+type as an occasional error. It would not be considered as a candidate type for
+the column. In this case, we can filter a certain amount of noise when modeling
+the real schema. 
+
+# Multi-type Columns
+
+For a special scenario, we may get a column that has equal distribution of two
+data types. E.g., a column has 40% rows in String and 60% rows in Number. If we
+choose Number as its type, it may lead to 40% data loss in the data conversion.
+In the migration, we define a conflicting threshold on normalized rows (after
+removing Null data types and rows that the attribute is not present). By
+default, the conflicting threshold is 5% and if the percentages of two or more
+data types are greater than it, we would consider that the column has
+conflicting data types. As a safe choice, we define this column as a STRING type
+in Cloud Spanner. 
+
 ## Data Conversion
 
 ### A Scan for Entire Table
