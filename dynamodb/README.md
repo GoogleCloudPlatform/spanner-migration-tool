@@ -94,7 +94,7 @@ In Cloud Spanner, the most similar type to List and Map is
 is not a valid column type (available for query but not for storage).
 Therefore, we encode them into a json string. 
 
-# Occasional Errors
+### Occasional Errors
 
 As no schema is forced when writing to a DynamoDB table, it can happen that a
 small number of data rows are incorrectly inserted. People do not realize that
@@ -106,7 +106,7 @@ type as an occasional error. It would not be considered as a candidate type for
 the column. In this case, we can filter a certain amount of noise when modeling
 the real schema. 
 
-# Multi-type Columns
+### Multi-type Columns
 
 For a special scenario, we may get a column that has equal distribution of two
 data types. E.g., a column has 40% rows in String and 60% rows in Number. If we
