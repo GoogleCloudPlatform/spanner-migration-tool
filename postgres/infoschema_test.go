@@ -59,6 +59,10 @@ func TestProcessInfoSchema(t *testing.T) {
 				{"productid", "PRIMARY KEY"},
 				{"userid", "PRIMARY KEY"}},
 		}, {
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.CONSTRAINT_TABLE_USAGE (.+)",
+			args:  []driver.Value{"public", "cart"},
+			cols:  []string{"table_schema", "table_name"},
+		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -84,12 +88,15 @@ func TestProcessInfoSchema(t *testing.T) {
 				{"txt", "text", nil, "YES", nil, nil, nil, nil},
 				{"vc", "character varying", nil, "YES", nil, nil, nil, nil},
 				{"vc6", "character varying", nil, "YES", nil, 6, nil, nil}},
-		},
-		{
+		}, {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"column_name", "constraint_type"},
 			rows:  [][]driver.Value{{"id", "PRIMARY KEY"}},
+		}, {
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.CONSTRAINT_TABLE_USAGE (.+)",
+			args:  []driver.Value{"public", "test"},
+			cols:  []string{"table_schema", "table_name"},
 		},
 	}
 	db := mkMockDB(t, ms)
@@ -301,6 +308,11 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"column_name", "constraint_type"},
 			rows:  [][]driver.Value{}, // No primary key --> force generation of synthetic key.
+		},
+		{
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.CONSTRAINT_TABLE_USAGE (.+)",
+			args:  []driver.Value{"public", "test"},
+			cols:  []string{"table_schema", "table_name"},
 		},
 		// Note: go-sqlmock mocks specify an ordered sequence
 		// of queries and results.  This (repeated) entry is

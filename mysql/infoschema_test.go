@@ -58,6 +58,10 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 				{"productid", "PRIMARY KEY"},
 				{"userid", "PRIMARY KEY"}},
 		}, {
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+)",
+			args:  []driver.Value{"test", "cart"},
+			cols:  []string{"REFERENCED_TABLE_NAME"},
+		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"test", "test"},
 			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
@@ -82,12 +86,15 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 				{"tz", "timestamp", "timestamp", "YES", nil, nil, nil, nil, nil},
 				{"vc", "varchar", "varchar", "YES", nil, nil, nil, nil, nil},
 				{"vc6", "varchar", "varchar(6)", "YES", nil, 6, nil, nil, nil}},
-		},
-		{
+		}, {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"test", "test"},
 			cols:  []string{"column_name", "constraint_type"},
 			rows:  [][]driver.Value{{"id", "PRIMARY KEY"}, {"id", "FOREIGN KEY"}},
+		}, {
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+)",
+			args:  []driver.Value{"test", "test"},
+			cols:  []string{"REFERENCED_TABLE_NAME"},
 		},
 	}
 	db := mkMockDB(t, ms)
@@ -226,6 +233,10 @@ func TestProcessSQLData_MultiCol(t *testing.T) {
 			args:  []driver.Value{"test", "test"},
 			cols:  []string{"column_name", "constraint_type"},
 			rows:  [][]driver.Value{}, // No primary key --> force generation of synthetic key.
+		}, {
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+)",
+			args:  []driver.Value{"test", "test"},
+			cols:  []string{"REFERENCED_TABLE_NAME"},
 		},
 		// Note: go-sqlmock mocks specify an ordered sequence
 		// of queries and results.  This (repeated) entry is

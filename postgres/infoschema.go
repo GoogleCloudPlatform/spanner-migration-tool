@@ -362,8 +362,8 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 // the selected schema and table.
 func getRefTables(db *sql.DB, table schemaAndName) ([]schemaAndName, error) {
 	q := `SELECT c.TABLE_SCHEMA,c.TABLE_NAME 
-		FROM INFORMATION_SCHEMA.constraint_table_usage c
-		INNER JOIN INFORMATION_SCHEMA.table_constraints t
+		FROM INFORMATION_SCHEMA.CONSTRAINT_TABLE_USAGE c
+		INNER JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS t
 			ON c.CONSTRAINT_NAME = t.CONSTRAINT_NAME
 		WHERE constraint_type='FOREIGN KEY' 
 			AND t.table_schema=$1

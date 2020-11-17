@@ -329,7 +329,7 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 // getRefTables return the list of referenced tables for
 // the selected database and table.
 func getRefTables(db *sql.DB, table schemaAndName) ([]schemaAndName, error) {
-	q := "select REFERENCED_TABLE_NAME FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=? and TABLE_NAME=?;"
+	q := "SELECT REFERENCED_TABLE_NAME FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=? and TABLE_NAME=?;"
 	rows, err := db.Query(q, table.schema, table.name)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get reference tables: %w", err)
