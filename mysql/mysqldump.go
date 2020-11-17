@@ -186,7 +186,7 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 	var colNames []string
 	colDef := make(map[string]schema.Column)
 	var keys []schema.Key
-	var fkeys []schema.Fkey
+	var fkeys []schema.ForeignKey
 	for _, element := range stmt.Cols {
 		colname, col, constraint, err := processColumn(conv, tableName, element)
 		if err != nil {
@@ -198,7 +198,7 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 		if constraint.isPk {
 			keys = append(keys, schema.Key{Column: colname})
 		}
-		if constraint.fk.Column != nil {
+		if constraint.fk.Columns != nil {
 			fkeys = append(fkeys, constraint.fk)
 		}
 	}
@@ -248,7 +248,7 @@ func toSchemaKeys(columns []*ast.IndexPartSpecification) (keys []schema.Key) {
 
 // toForeignKeys converts a string list of MySQL foreign keys to
 // schema foreign keys.
-func toForeignKeys(fk *ast.Constraint) (fkey schema.Fkey) {
+func toForeignKeys(fk *ast.Constraint) (fkey schema.ForeignKey) {
 	columns := fk.Keys
 	referTable, _ := getTableName(fk.Refer.Table)
 	referColumns := fk.Refer.IndexPartSpecifications
@@ -257,12 +257,12 @@ func toForeignKeys(fk *ast.Constraint) (fkey schema.Fkey) {
 		colNames = append(colNames, column.Column.Name.String())
 		referColNames = append(referColNames, referColumns[i].Column.Name.String())
 	}
-	fkey = schema.Fkey{Column: colNames,
-		Name:        fk.Name,
-		ReferTable:  referTable,
-		ReferColumn: referColNames,
-		OnDelete:    fk.Refer.OnDelete.ReferOpt.String(),
-		OnUpdate:    fk.Refer.OnUpdate.ReferOpt.String()}
+	fkey = schema.ForeignKey{Columns: colNames,
+		Name:         fk.Name,
+		ReferTable:   referTable,
+		ReferColumns: referColNames,
+		OnDelete:     fk.Refer.OnDelete.ReferOpt.String(),
+		OnUpdate:     fk.Refer.OnUpdate.ReferOpt.String()}
 	return fkey
 }
 
@@ -368,7 +368,7 @@ func processColumn(conv *internal.Conv, tableName string, col *ast.ColumnDef) (s
 
 type columnConstraint struct {
 	isPk bool
-	fk   schema.Fkey
+	fk   schema.ForeignKey
 }
 
 // updateColsByOption is specifially for ColDef constraints.
@@ -405,11 +405,11 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 			column := col.Name.String()
 			referTable, _ := getTableName(elem.Refer.Table)
 			referColumn := elem.Refer.IndexPartSpecifications[0].Column.Name.String()
-			fkey := schema.Fkey{Column: []string{column},
-				ReferTable:  referTable,
-				ReferColumn: []string{referColumn},
-				OnDelete:    elem.Refer.OnDelete.ReferOpt.String(),
-				OnUpdate:    elem.Refer.OnUpdate.ReferOpt.String()}
+			fkey := schema.ForeignKey{Columns: []string{column},
+				ReferTable:   referTable,
+				ReferColumns: []string{referColumn},
+				OnDelete:     elem.Refer.OnDelete.ReferOpt.String(),
+				OnUpdate:     elem.Refer.OnUpdate.ReferOpt.String()}
 			cc.fk = fkey
 		}
 	}

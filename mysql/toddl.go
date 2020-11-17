@@ -193,30 +193,30 @@ func cvtPrimaryKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Key) 
 	return spKeys
 }
 
-func cvtForeignKeys(conv *internal.Conv, srcTable string, srcFkeys []schema.Fkey) []ddl.Foreignkey {
-	var spFkeys []ddl.Foreignkey
-	for _, fkey := range srcFkeys {
-		spReferTable, err := internal.GetSpannerTable(conv, fkey.ReferTable)
+func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.ForeignKey) []ddl.Foreignkey {
+	var spKeys []ddl.Foreignkey
+	for _, key := range srcKeys {
+		spReferTable, err := internal.GetSpannerTable(conv, key.ReferTable)
 		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Can't map foreign key for source table: %s, referenced table: %s", srcTable, fkey.ReferTable))
+			conv.Unexpected(fmt.Sprintf("Can't map foreign key for source table: %s, referenced table: %s", srcTable, key.ReferTable))
 			continue
 		}
 		var spCols, spReferCols []string
-		for i, col := range fkey.Column {
+		for i, col := range key.Columns {
 			spCol, err1 := internal.GetSpannerCol(conv, srcTable, col, false)
-			spReferCol, err2 := internal.GetSpannerCol(conv, fkey.ReferTable, fkey.ReferColumn[i], false)
+			spReferCol, err2 := internal.GetSpannerCol(conv, key.ReferTable, key.ReferColumns[i], false)
 			if err1 != nil || err2 != nil {
-				conv.Unexpected(fmt.Sprintf("Can't map foreign key for table: %s, referenced table: %s, column: %s", srcTable, fkey.ReferTable, col))
+				conv.Unexpected(fmt.Sprintf("Can't map foreign key for table: %s, referenced table: %s, column: %s", srcTable, key.ReferTable, col))
 				continue
 			}
 			spCols = append(spCols, spCol)
 			spReferCols = append(spReferCols, spReferCol)
 		}
-		spFkey := ddl.Foreignkey{Column: spCols,
-			Name:        fkey.Name,
-			ReferTable:  spReferTable,
-			ReferColumn: spReferCols}
-		spFkeys = append(spFkeys, spFkey)
+		spKey := ddl.Foreignkey{Columns: spCols,
+			Name:         key.Name,
+			ReferTable:   spReferTable,
+			ReferColumns: spReferCols}
+		spKeys = append(spKeys, spKey)
 	}
-	return spFkeys
+	return spKeys
 }

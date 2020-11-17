@@ -139,24 +139,24 @@ func (pk IndexKey) PrintIndexKey(c Config) string {
 //    [ CONSTRAINT constraint_name ]
 // 	  FOREIGN KEY ( column_name [, ... ] ) REFERENCES ref_table ( ref_column [, ... ] ) }
 type Foreignkey struct {
-	Name        string
-	Column      []string
-	ReferTable  string
-	ReferColumn []string
+	Name         string
+	Columns      []string
+	ReferTable   string
+	ReferColumns []string
 }
 
 // PrintForeignKey unparses the foreign keys.
-func (fk Foreignkey) PrintForeignKey(c Config) string {
+func (k Foreignkey) PrintForeignKey(c Config) string {
 	var cols, referCols []string
-	for i, col := range fk.Column {
+	for i, col := range k.Columns {
 		cols = append(cols, c.quote(col))
-		referCols = append(referCols, c.quote(fk.ReferColumn[i]))
+		referCols = append(referCols, c.quote(k.ReferColumns[i]))
 	}
 	var s string
-	if fk.Name != "" {
-		s = fmt.Sprintf("CONSTRAINT %s ", fk.Name)
+	if k.Name != "" {
+		s = fmt.Sprintf("CONSTRAINT %s ", k.Name)
 	}
-	return s + fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s (%s)", strings.Join(cols, ", "), fk.ReferTable, strings.Join(referCols, ", "))
+	return s + fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s (%s)", strings.Join(cols, ", "), k.ReferTable, strings.Join(referCols, ", "))
 }
 
 // CreateTable encodes the following DDL definition:
@@ -204,14 +204,14 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	var fkeys string
 	if config.ForeignKeys {
 		for i, f := range ct.Fks {
-			fk := f.PrintForeignKey(config)
-			fk = "\n    " + fk
+			k := f.PrintForeignKey(config)
+			k = "\n    " + k
 			if i < len(ct.Fks)-1 {
-				fk += ","
+				k += ","
 			} else {
-				fk += " "
+				k += " "
 			}
-			fkeys += fk
+			fkeys += k
 		}
 	}
 	var tableComment string

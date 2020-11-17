@@ -603,10 +603,10 @@ func toSchemaKeys(conv *internal.Conv, table string, s []string) (l []schema.Key
 
 // toForeignKeys converts a string list of PostgreSQL foreign keys to
 // schema foreign keys.
-func toForeignKeys(fk constraint) (fkey schema.Fkey) {
-	fkey = schema.Fkey{Column: fk.cols,
-		ReferTable:  fk.referTable,
-		ReferColumn: fk.referCols}
+func toForeignKeys(fk constraint) (fkey schema.ForeignKey) {
+	fkey = schema.ForeignKey{Columns: fk.cols,
+		ReferTable:   fk.referTable,
+		ReferColumns: fk.referCols}
 	return fkey
 }
 

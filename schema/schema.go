@@ -37,7 +37,7 @@ type Table struct {
 	ColNames    []string          // List of column names (for predictable iteration order e.g. printing).
 	ColDefs     map[string]Column // Details of columns.
 	PrimaryKeys []Key
-	ForeignKeys []Fkey
+	ForeignKeys []ForeignKey
 	Indexes     []Index
 }
 
@@ -51,14 +51,14 @@ type Column struct {
 	Ignored Ignored
 }
 
-// Fkey respresents a foreign key.
-type Fkey struct {
-	Column      []string
-	Name        string
-	ReferTable  string
-	ReferColumn []string
-	OnDelete    string
-	OnUpdate    string
+// ForeignKey respresents a foreign key.
+type ForeignKey struct {
+	Columns      []string
+	Name         string
+	ReferTable   string
+	ReferColumns []string // len(ReferColumns) must be same as len(Columns)
+	OnDelete     string
+	OnUpdate     string
 }
 
 // Key respresents a primary key or index key.

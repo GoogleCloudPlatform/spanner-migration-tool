@@ -311,7 +311,7 @@ func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]str
 }
 
 // getForeignKeys return list all the foreign keys constraints.
-func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (foreignKeys []schema.Fkey, err error) {
+func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (foreignKeys []schema.ForeignKey, err error) {
 	refTables, err := getRefTables(db, table)
 	if err != nil {
 		return nil, err
@@ -347,7 +347,7 @@ func getRefTables(db *sql.DB, table schemaAndName) ([]schemaAndName, error) {
 // getForeignKey returns the foreign key constraint for
 // a particular referenced table in the selected table
 // and database.
-func getForeignKey(conv *internal.Conv, db *sql.DB, table schemaAndName, refTable schemaAndName) (schema.Fkey, error) {
+func getForeignKey(conv *internal.Conv, db *sql.DB, table schemaAndName, refTable schemaAndName) (schema.ForeignKey, error) {
 	q := `SELECT k.COLUMN_NAME,k.REFERENCED_COLUMN_NAME 
 		FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t 
 		INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k 
@@ -363,7 +363,7 @@ func getForeignKey(conv *internal.Conv, db *sql.DB, table schemaAndName, refTabl
 			k.ordinal_position;`
 	rows, err := db.Query(q, table.schema, table.name, refTable.name)
 	if err != nil {
-		return schema.Fkey{}, err
+		return schema.ForeignKey{}, err
 	}
 	defer rows.Close()
 	var col, refCol string
@@ -377,9 +377,9 @@ func getForeignKey(conv *internal.Conv, db *sql.DB, table schemaAndName, refTabl
 		cols = append(cols, col)
 		refCols = append(refCols, refCol)
 	}
-	return schema.Fkey{Column: cols,
-		ReferTable:  refTable.name,
-		ReferColumn: refCols}, nil
+	return schema.ForeignKey{Columns: cols,
+		ReferTable:   refTable.name,
+		ReferColumns: refCols}, nil
 }
 
 func toType(dataType string, columnType string, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {
