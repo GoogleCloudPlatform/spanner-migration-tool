@@ -7,6 +7,13 @@ name: integration-tests-against-emulator
 jobs:
   test:
     runs-on: ubuntu-latest
+    # set PostgreSQL related environment variables
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGDATABASE: postgres
+      PGPASSWORD: postgres
 
     services:
       emulator:
@@ -27,15 +34,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-
-      # set PostgreSQL related environment variables
-      - uses: allenevans/set-env@v1.0.0
-        with:
-          PGHOST: localhost
-          PGPORT: 5432
-          PGUSER: postgres
-          PGDATABASE: postgres
-          PGPASSWORD: postgres
 
       # init a PostgresSQL database from the test_data
       - name: Install PostgreSQL 12 client required for loading .sql files
