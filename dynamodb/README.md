@@ -53,7 +53,7 @@ following sections.
 
 ### Schema Inference
 
-DynamoDB is schemaless database: other than a primary index and optional
+DynamoDB is a schemaless database: other than a primary index and optional
 secondary index, column names and types are essentially unconstrained
 and can vary from one row to the next.
 
@@ -100,15 +100,12 @@ Therefore, we encode them into a json string.
 
 #### Occasional Errors
 
-As no schema is forced when writing to a DynamoDB table, it can happen that a
-small number of data rows are incorrectly inserted. People do not realize that
-these data exist or their application can auto-fix these data. In Cloud Spanner,
-we have a strict schema for writes and we can’t write records with different
-data types. We define an error threshold - if the percentage of the data type is
-lower than or equal to an extremely low value (0.1%), then we consider the data
-type as an occasional error. It would not be considered as a candidate type for
-the column. In this case, we can filter a certain amount of noise when modeling
-the real schema. 
+To prevent a few spurious rows from impacting schema construction, we define an
+error threshold: when building a type for a column, if the percentage of rows
+with a specific data type is lower than or equal to an extremely low
+value (0.1%), then we treat those rows as likely errors. Such rows are ignored
+for schema construction: their type is not considered a candidate type for the
+column.
 
 #### Multi-type Columns
 
