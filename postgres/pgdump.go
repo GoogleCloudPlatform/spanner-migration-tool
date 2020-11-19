@@ -489,34 +489,31 @@ func extractConstraints(conv *internal.Conv, n nodes.Node, table string, l []nod
 				}
 				for i := range d.FkAttrs.Items {
 					k, err := getString(d.FkAttrs.Items[i])
-					if err == nil {
-						cols = append(cols, k)
-					}
 					if err != nil {
 						conv.Unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(n), err.Error()))
 						conv.ErrorInStatement(prNodes([]nodes.Node{n, d}))
+						continue
 					}
+					cols = append(cols, k)
 				}
 				for i := range d.PkAttrs.Items {
 					f, err := getString(d.PkAttrs.Items[i])
-					if err == nil {
-						referCols = append(referCols, f)
-					}
 					if err != nil {
 						conv.Unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(n), err.Error()))
 						conv.ErrorInStatement(prNodes([]nodes.Node{n, d}))
+						continue
 					}
+					referCols = append(referCols, f)
 				}
 			default:
 				for _, j := range d.Keys.Items {
 					k, err := getString(j)
-					if err == nil {
-						cols = append(cols, k)
-					}
 					if err != nil {
 						conv.Unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(n), err.Error()))
 						conv.ErrorInStatement(prNodes([]nodes.Node{n, d}))
+						continue
 					}
+					cols = append(cols, k)
 				}
 			}
 			cs = append(cs, constraint{ct: d.Contype, cols: cols, referCols: referCols, referTable: referTable})

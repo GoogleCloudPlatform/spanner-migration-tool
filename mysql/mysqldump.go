@@ -227,7 +227,7 @@ func processConstraint(conv *internal.Conv, table string, constraint *ast.Constr
 		// We preserve MySQL semantics and enforce NOT NULL and UNIQUE.
 		updateCols(conv, ast.ConstraintPrimaryKey, constraint.Keys, st.ColDefs, table)
 	case ast.ConstraintForeignKey:
-		st.ForeignKeys = append(st.ForeignKeys, toForeignKeys(constraint))
+		st.ForeignKeys = append(st.ForeignKeys, toForeignKeys(conv, constraint))
 		updateCols(conv, ast.ConstraintForeignKey, constraint.Keys, st.ColDefs, table)
 	default:
 		updateCols(conv, ct, constraint.Keys, st.ColDefs, table)
@@ -248,9 +248,13 @@ func toSchemaKeys(columns []*ast.IndexPartSpecification) (keys []schema.Key) {
 
 // toForeignKeys converts a string list of MySQL foreign keys to
 // schema foreign keys.
-func toForeignKeys(fk *ast.Constraint) (fkey schema.ForeignKey) {
+func toForeignKeys(conv *internal.Conv, fk *ast.Constraint) (fkey schema.ForeignKey) {
 	columns := fk.Keys
-	referTable, _ := getTableName(fk.Refer.Table)
+	referTable, err := getTableName(fk.Refer.Table)
+	if err != nil {
+		conv.Unexpected(err.Error())
+		return schema.ForeignKey{}
+	}
 	referColumns := fk.Refer.IndexPartSpecifications
 	var colNames, referColNames []string
 	for i, column := range columns {
@@ -403,7 +407,11 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 			column.Ignored.Check = true
 		case ast.ColumnOptionReference:
 			column := col.Name.String()
-			referTable, _ := getTableName(elem.Refer.Table)
+			referTable, err := getTableName(elem.Refer.Table)
+			if err != nil {
+				conv.Unexpected(err.Error())
+				continue
+			}
 			referColumn := elem.Refer.IndexPartSpecifications[0].Column.Name.String()
 			fkey := schema.ForeignKey{Columns: []string{column},
 				ReferTable:   referTable,

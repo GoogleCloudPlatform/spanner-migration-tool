@@ -53,8 +53,8 @@ type Column struct {
 
 // ForeignKey respresents a foreign key.
 type ForeignKey struct {
-	Columns      []string
 	Name         string
+	Columns      []string
 	ReferTable   string
 	ReferColumns []string // len(ReferColumns) must be same as len(Columns)
 	OnDelete     string

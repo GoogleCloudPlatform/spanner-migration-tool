@@ -184,6 +184,10 @@ func cvtPrimaryKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Key) 
 func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.ForeignKey) []ddl.Foreignkey {
 	var spKeys []ddl.Foreignkey
 	for _, key := range srcKeys {
+		if len(key.Columns) != len(key.ReferColumns) {
+			conv.Unexpected(fmt.Sprintf("ConvertForeignKeys: columns and referColumns don't have the same lengths: len(columns)=%d, len(referColumns)=%d for source table: %s, referenced table: %s", len(key.Columns), len(key.ReferColumns), srcTable, key.ReferTable))
+			continue
+		}
 		spReferTable, err := internal.GetSpannerTable(conv, key.ReferTable)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't map foreign key for source table: %s, referenced table: %s", srcTable, key.ReferTable))
