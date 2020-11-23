@@ -479,14 +479,12 @@ func extractConstraints(conv *internal.Conv, n nodes.Node, table string, l []nod
 			switch d.Contype {
 			case nodes.CONSTR_FOREIGN:
 				t, err := getTableName(conv, *d.Pktable)
-				if err == nil {
-					referTable = t
-				}
 				if err != nil {
 					conv.Unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(n), err.Error()))
 					conv.ErrorInStatement(prNodes([]nodes.Node{n, d}))
 					continue
 				}
+				referTable = t
 				for i := range d.FkAttrs.Items {
 					k, err := getString(d.FkAttrs.Items[i])
 					if err != nil {
