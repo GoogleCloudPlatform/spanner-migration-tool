@@ -95,6 +95,7 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"test", "test"},
 			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME", "ordinal_position"},
+			rows:  [][]driver.Value{{"test_ref", "id", "ref_id", 0}},
 		},
 	}
 	db := mkMockDB(t, ms)
@@ -136,7 +137,8 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 				"vc":  ddl.ColumnDef{Name: "vc", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 				"vc6": ddl.ColumnDef{Name: "vc6", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
 			},
-			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "id"}}},
+			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "id"}},
+			Fks: []ddl.Foreignkey{ddl.Foreignkey{Columns: []string{"id"}, ReferTable: "test_ref", ReferColumns: []string{"ref_id"}}}},
 	}
 	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	assert.Equal(t, len(conv.Issues["cart"]), 0)

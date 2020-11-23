@@ -155,6 +155,65 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}, ddl.IndexKey{Col: "b"}}}},
 		},
 		{
+			name: "Create table with single foreign key",
+			input: "CREATE TABLE test (a SMALLINT, b text, PRIMARY KEY (a) );\n" +
+				"CREATE TABLE test2 (c SMALLINT, d SMALLINT, CONSTRAINT `fk_test` FOREIGN KEY (d) REFERENCES test (a) ON DELETE RESTRICT ON UPDATE CASCADE );",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}},
+				"test2": ddl.CreateTable{
+					Name:     "test2",
+					ColNames: []string{"c", "d", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
+						"d":        ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Int64}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}}}}},
+		},
+		{
+			name: "Create table with multiple foreign keys",
+			input: "CREATE TABLE test (a SMALLINT, b text, PRIMARY KEY (a) );\n" +
+				"CREATE TABLE test2 (c SMALLINT, d text, PRIMARY KEY (c) );\n" +
+				"CREATE TABLE test3 (e SMALLINT, f SMALLINT, g text, CONSTRAINT `fk_test` FOREIGN KEY (e) REFERENCES test (a) ON DELETE RESTRICT ON UPDATE CASCADE,CONSTRAINT `fk_test2` FOREIGN KEY (f) REFERENCES test2 (c) ON DELETE RESTRICT ON UPDATE CASCADE );",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}},
+				"test2": ddl.CreateTable{
+					Name:     "test2",
+					ColNames: []string{"c", "d"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "c"}}},
+				"test3": ddl.CreateTable{
+					Name:     "test3",
+					ColNames: []string{"e", "f", "g", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"e":        ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Int64}},
+						"f":        ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Int64}},
+						"g":        ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"e"}, ReferTable: "test", ReferColumns: []string{"a"}},
+						ddl.Foreignkey{Name: "fk_test2", Columns: []string{"f"}, ReferTable: "test2", ReferColumns: []string{"c"}}}}},
+		},
+		{
 			name:  "Create table with mysql schema",
 			input: "CREATE TABLE myschema.test (a text PRIMARY KEY, b text);\n",
 			expectedSchema: map[string]ddl.CreateTable{
