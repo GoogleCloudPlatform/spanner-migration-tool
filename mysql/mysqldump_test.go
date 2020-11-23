@@ -179,6 +179,56 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}}}}},
 		},
 		{
+			name: "Alter table add foreign key",
+			input: "CREATE TABLE test (a SMALLINT, b text, PRIMARY KEY (a) );\n" +
+				"CREATE TABLE test2 (c SMALLINT, d SMALLINT );\n" +
+				"ALTER TABLE test2 ADD FOREIGN KEY (d) REFERENCES test(a);\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}},
+				"test2": ddl.CreateTable{
+					Name:     "test2",
+					ColNames: []string{"c", "d", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
+						"d":        ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Int64}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Fks: []ddl.Foreignkey{ddl.Foreignkey{Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}}}}},
+		},
+		{
+			name: "Alter table add constraint foreign key",
+			input: "CREATE TABLE test (a SMALLINT, b text, PRIMARY KEY (a) );\n" +
+				"CREATE TABLE test2 (c SMALLINT, d SMALLINT );\n" +
+				"ALTER TABLE test2 ADD CONSTRAINT fk_test FOREIGN KEY (d) REFERENCES test(a);\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}},
+				"test2": ddl.CreateTable{
+					Name:     "test2",
+					ColNames: []string{"c", "d", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
+						"d":        ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Int64}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}}}}},
+		},
+		{
 			name: "Create table with multiple foreign keys",
 			input: "CREATE TABLE test (a SMALLINT, b text, PRIMARY KEY (a) );\n" +
 				"CREATE TABLE test2 (c SMALLINT, d text, PRIMARY KEY (c) );\n" +

@@ -316,7 +316,11 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 					ctable.PrimaryKeys = []schema.Key{{Column: colname}}
 					conv.SrcSchema[tableName] = ctable
 				}
-				// TODO: Handle foreign key
+				if constraint.fk.Columns != nil {
+					ctable := conv.SrcSchema[tableName]
+					ctable.ForeignKeys = append(ctable.ForeignKeys, constraint.fk)
+					conv.SrcSchema[tableName] = ctable
+				}
 				conv.SchemaStatement(NodeType(stmt))
 			default:
 				conv.SkipStatement(NodeType(stmt))
