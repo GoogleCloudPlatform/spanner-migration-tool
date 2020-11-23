@@ -580,8 +580,6 @@ func updateCols(ct nodes.ConstrType, colNames []string, colDef map[string]schema
 			cd.NotNull = true
 		case nodes.CONSTR_DEFAULT:
 			cd.Ignored.Default = true
-		case nodes.CONSTR_FOREIGN:
-			cd.Ignored.ForeignKey = true
 		}
 		colDef[c] = cd
 	}

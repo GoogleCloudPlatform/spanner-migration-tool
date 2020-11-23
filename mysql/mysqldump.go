@@ -275,8 +275,6 @@ func updateCols(conv *internal.Conv, ct ast.ConstraintType, colNames []*ast.Inde
 		colName := column.Column.OrigColName()
 		cd := colDef[colName]
 		switch ct {
-		case ast.ConstraintForeignKey:
-			cd.Ignored.ForeignKey = true
 		case ast.ConstraintUniq:
 			cd.Unique = true
 		case ast.ConstraintCheck:
