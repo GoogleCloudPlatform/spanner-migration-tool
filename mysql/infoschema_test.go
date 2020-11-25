@@ -60,7 +60,7 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 		}, {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"test", "cart"},
-			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME", "ordinal_position"},
+			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME"},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"test", "test"},
@@ -94,8 +94,8 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 		}, {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"test", "test"},
-			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME", "ordinal_position"},
-			rows:  [][]driver.Value{{"test_ref", "id", "ref_id", 0}},
+			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME"},
+			rows:  [][]driver.Value{{"test_ref", "id", "ref_id"}},
 		},
 	}
 	db := mkMockDB(t, ms)

@@ -364,11 +364,11 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 	}
 	defer rows.Close()
 	var refTable schemaAndName
-	var col, refCol, pos string
+	var col, refCol string
 	mCols := make(map[schemaAndName][]string)
 	mRefCols := make(map[schemaAndName][]string)
 	for rows.Next() {
-		err := rows.Scan(&refTable.schema, &refTable.name, &col, &refCol, &pos)
+		err := rows.Scan(&refTable.schema, &refTable.name, &col, &refCol)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
