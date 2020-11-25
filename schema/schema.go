@@ -51,7 +51,12 @@ type Column struct {
 	Ignored Ignored
 }
 
-// ForeignKey respresents a foreign key.
+// ForeignKey represents a foreign key.
+// Note that the fields onDelete and onUpdate describe actions
+// for when keys are deleted or updated. Different source databases
+// support different actions. For example, mysql supports RESTRICT,
+// CASCADE, SET NULL, NO ACTION, and SET DEFAULT
+// (see https://dev.mysql.com/doc/refman/5.6/en/create-table-foreign-keys.html).
 type ForeignKey struct {
 	Name         string
 	Columns      []string
