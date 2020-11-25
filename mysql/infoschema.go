@@ -316,7 +316,7 @@ func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]str
 // of HarbourBridge focuses on a specific database) and so we can't handle
 // them effectively.
 func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (foreignKeys []schema.ForeignKey, err error) {
-	q := `SELECT distinct k.REFERENCED_TABLE_NAME,k.COLUMN_NAME,k.REFERENCED_COLUMN_NAME, k.ordinal_position 
+	q := `SELECT k.REFERENCED_TABLE_NAME,k.COLUMN_NAME,k.REFERENCED_COLUMN_NAME
 		FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t 
 		INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k 
 			ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 

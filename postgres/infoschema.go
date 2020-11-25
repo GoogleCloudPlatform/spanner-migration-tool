@@ -344,7 +344,7 @@ func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]str
 
 // getForeignKeys return list all the foreign keys constraints.
 func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (foreignKeys []schema.ForeignKey, err error) {
-	q := `SELECT distinct ref.table_schema,ref.table_name,k.column_name,ref.column_name, ref.ordinal_position
+	q := `SELECT ref.table_schema,ref.table_name,k.column_name,ref.column_name
 		FROM INFORMATION_SCHEMA.referential_constraints as r
 		INNER JOIN INFORMATION_SCHEMA.key_column_usage as ref
 			ON  ref.constraint_catalog = r.unique_constraint_catalog
