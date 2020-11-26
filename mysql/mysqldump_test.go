@@ -179,9 +179,11 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}}}}},
 		},
 		{
-			name: "Create table with single foreign key test constraint name",
+			name: "Create table with multiple foreign key test constraint name",
 			input: "CREATE TABLE test (a SMALLINT, b text, PRIMARY KEY (a) );\n" +
-				"CREATE TABLE test2 (c SMALLINT, d SMALLINT, CONSTRAINT `1fk_test` FOREIGN KEY (d) REFERENCES test (a) ON DELETE RESTRICT ON UPDATE CASCADE );",
+				"CREATE TABLE test3 (e SMALLINT, f text, PRIMARY KEY (e) );\n" +
+				"CREATE TABLE test2 (c SMALLINT, d SMALLINT, CONSTRAINT `1_fk_test_2` FOREIGN KEY (d) REFERENCES test (a) ON DELETE RESTRICT ON UPDATE CASCADE );\n" +
+				"ALTER TABLE test2 ADD CONSTRAINT __fk_test_2 FOREIGN KEY (c) REFERENCES test3(e);\n",
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
 					Name:     "test",
@@ -191,6 +193,14 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}},
+				"test3": ddl.CreateTable{
+					Name:     "test3",
+					ColNames: []string{"e", "f"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "e"}}},
 				"test2": ddl.CreateTable{
 					Name:     "test2",
 					ColNames: []string{"c", "d", "synth_id"},
@@ -200,7 +210,8 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "Afk_test", Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}}}}},
+					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "A_fk_test_2", Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}},
+						ddl.Foreignkey{Name: "A_fk_test_2_1", Columns: []string{"c"}, ReferTable: "test3", ReferColumns: []string{"e"}}}}},
 		},
 		{
 			name: "Alter table add foreign key",

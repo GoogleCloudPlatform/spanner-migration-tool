@@ -32,6 +32,7 @@ import (
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
 func schemaToDDL(conv *internal.Conv) error {
+	schemaForeignKeys := make(map[string]bool)
 	for _, srcTable := range conv.SrcSchema {
 		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
 		if err != nil {
@@ -82,7 +83,7 @@ func schemaToDDL(conv *internal.Conv) error {
 			ColNames: spColNames,
 			ColDefs:  spColDef,
 			Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
-			Fks:      cvtForeignKeys(conv, srcTable.Name, srcTable.ForeignKeys),
+			Fks:      cvtForeignKeys(conv, srcTable.Name, srcTable.ForeignKeys, schemaForeignKeys),
 			Comment:  comment}
 	}
 	return nil
@@ -193,7 +194,7 @@ func cvtPrimaryKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Key) 
 	return spKeys
 }
 
-func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.ForeignKey) []ddl.Foreignkey {
+func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.ForeignKey, schemaForeignKeys map[string]bool) []ddl.Foreignkey {
 	var spKeys []ddl.Foreignkey
 	for _, key := range srcKeys {
 		if len(key.Columns) != len(key.ReferColumns) {
@@ -216,7 +217,7 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 			spCols = append(spCols, spCol)
 			spReferCols = append(spReferCols, spReferCol)
 		}
-		spKeyName, err := internal.GetSpannerKeyName(conv, key.Name, spKeys)
+		spKeyName, err := internal.GetSpannerKeyName(conv, key.Name, schemaForeignKeys)
 
 		spKey := ddl.Foreignkey{
 			Name:         spKeyName,

@@ -17,8 +17,6 @@ package internal
 import (
 	"fmt"
 	"strconv"
-
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
 // GetSpannerTable maps a source DB table name into a legal Spanner table
@@ -140,38 +138,23 @@ func GetSpannerCols(conv *Conv, srcTable string, srcCols []string) ([]string, er
 // b) the new foreign key name doesn't clash with other Spanner
 //    foreignkey names
 // c) we consistently return the same key name.
-func GetSpannerKeyName(conv *Conv, srcKeyName string, spKeys []ddl.Foreignkey) (string, error) {
+func GetSpannerKeyName(conv *Conv, srcKeyName string, schemaForeignKeys map[string]bool) (string, error) {
 	if srcKeyName == "" {
 		return "", nil
 	}
 	spKeyName, _ := FixName(srcKeyName)
 
-	// check wether the spKeyName is used before
-	found := false
-	for _, spKey := range spKeys {
-		if spKey.Name == spKeyName {
-			found = true
-			break
-		}
-	}
 	// spKeyName has been used before i.e. FixName caused a collision.
-	// Add unique postfix: use number of foreign keys in this table so far.
+	// Add unique postfix: use number of foreign keys so far.
 	// However, there is a chance this has already been used,
 	// so need to iterate.
-	if found {
-		id := len(spKeys)
+	if _, found := schemaForeignKeys[spKeyName]; found {
+		id := len(schemaForeignKeys)
 		for {
 			c := spKeyName + "_" + strconv.Itoa(id)
 
 			// check wether the spKeyName is used before
-			found = false
-			for _, spKey := range spKeys {
-				if spKey.Name == c {
-					found = true
-					break
-				}
-			}
-			if !found {
+			if _, found := schemaForeignKeys[c]; !found {
 				spKeyName = c
 				break
 			}
@@ -179,5 +162,8 @@ func GetSpannerKeyName(conv *Conv, srcKeyName string, spKeys []ddl.Foreignkey) (
 		}
 	}
 
+	if spKeyName != "" {
+		schemaForeignKeys[spKeyName] = true
+	}
 	return spKeyName, nil
 }

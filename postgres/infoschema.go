@@ -357,7 +357,9 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 			AND k.POSITION_IN_UNIQUE_CONSTRAINT = ref.ORDINAL_POSITION
 		WHERE k.TABLE_SCHEMA=$1 
 			AND k.TABLE_NAME=$2
-		ORDER BY ref.ORDINAL_POSITION`
+		ORDER BY 
+			ref.TABLE_NAME,
+			ref.ORDINAL_POSITION;`
 	rows, err := db.Query(q, table.schema, table.name)
 	if err != nil {
 		return nil, err
