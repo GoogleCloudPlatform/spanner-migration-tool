@@ -35,13 +35,37 @@ type mockSpec struct {
 
 func TestProcessInfoSchemaMYSQL(t *testing.T) {
 	ms := []mockSpec{
+
 		{
 			query: "SELECT (.+) FROM information_schema.tables where table_type = 'BASE TABLE'  and (.+)",
 			args:  []driver.Value{"test"},
 			cols:  []string{"table_name"},
 			rows: [][]driver.Value{
+				{"user"},
 				{"cart"},
 				{"test"}},
+		}, {
+			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			args:  []driver.Value{"test", "user"},
+			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
+			rows: [][]driver.Value{
+				{"user_id", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"name", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"addressid", "bigint", "bigint", "YES", nil, nil, nil, nil, nil}},
+		}, {
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
+			args:  []driver.Value{"test", "user"},
+			cols:  []string{"column_name", "constraint_type"},
+			rows: [][]driver.Value{
+				{"user_id", "PRIMARY KEY"},
+				{"addressid", "FOREIGN KEY"}},
+		}, {
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
+			args:  []driver.Value{"test", "user"},
+			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME"},
+			rows: [][]driver.Value{
+				{"address", "addressid", "address_id"},
+			},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"test", "cart"},
@@ -61,6 +85,9 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"test", "cart"},
 			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME"},
+			rows: [][]driver.Value{
+				{"product", "productid", "product_id"},
+				{"user", "userid", "user_id"}},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"test", "test"},
@@ -103,6 +130,16 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 	err := ProcessInfoSchema(conv, db, "test")
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
+		"user": ddl.CreateTable{
+			Name:     "user",
+			ColNames: []string{"user_id", "name", "addressid"},
+			ColDefs: map[string]ddl.ColumnDef{
+				"user_id":   ddl.ColumnDef{Name: "user_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"name":      ddl.ColumnDef{Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"addressid": ddl.ColumnDef{Name: "addressid", T: ddl.Type{Name: ddl.Int64}},
+			},
+			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "user_id"}},
+			Fks: []ddl.Foreignkey{ddl.Foreignkey{Columns: []string{"addressid"}, ReferTable: "address", ReferColumns: []string{"address_id"}}}},
 		"cart": ddl.CreateTable{
 			Name:     "cart",
 			ColNames: []string{"productid", "userid", "quantity"},
@@ -111,7 +148,9 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 				"userid":    ddl.ColumnDef{Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
 			},
-			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "productid"}, ddl.IndexKey{Col: "userid"}}},
+			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "productid"}, ddl.IndexKey{Col: "userid"}},
+			Fks: []ddl.Foreignkey{ddl.Foreignkey{Columns: []string{"productid"}, ReferTable: "product", ReferColumns: []string{"product_id"}},
+				ddl.Foreignkey{Columns: []string{"userid"}, ReferTable: "user", ReferColumns: []string{"user_id"}}}},
 		"test": ddl.CreateTable{
 			Name:     "test",
 			ColNames: []string{"id", "s", "txt", "b", "bs", "bl", "c", "c8", "d", "dec", "f8", "f4", "i8", "i4", "i2", "si", "ts", "tz", "vc", "vc6"},

@@ -160,6 +160,31 @@ func TestProcessPgDump(t *testing.T) {
 		{
 			name: "Create table with single foreign key",
 			input: "CREATE TABLE test (a bigint PRIMARY KEY, b text );\n" +
+				"CREATE TABLE test2 (c bigint, d bigint, CONSTRAINT fk_test FOREIGN KEY(d) REFERENCES test(a));\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}},
+				"test2": ddl.CreateTable{
+					Name:     "test2",
+					ColNames: []string{"c", "d", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
+						"d":        ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Int64}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Fks: []ddl.Foreignkey{ddl.Foreignkey{Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}}},
+				}},
+		},
+		{
+			name: "Alter table with single foreign key",
+			input: "CREATE TABLE test (a bigint PRIMARY KEY, b text );\n" +
 				"CREATE TABLE test2 (c bigint, d bigint);\n" +
 				"ALTER TABLE ONLY test2 ADD CONSTRAINT fk_test FOREIGN KEY (d) REFERENCES test(a) ON UPDATE CASCADE ON DELETE RESTRICT;\n",
 			expectedSchema: map[string]ddl.CreateTable{
