@@ -284,10 +284,10 @@ func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string]
 			switch c {
 			case "UNIQUE":
 				unique = true
-			case "FOREIGN KEY":
-				ignored.ForeignKey = true
 			case "CHECK":
 				ignored.Check = true
+			case "FOREIGN KEY", "PRIMARY KEY":
+				// Nothing to do here -- these are both handled elsewhere.
 			}
 		}
 		ignored.Default = colDefault.Valid
@@ -344,20 +344,20 @@ func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]str
 
 // getForeignKeys return list all the foreign keys constraints.
 func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (foreignKeys []schema.ForeignKey, err error) {
-	q := `SELECT ref.table_schema,ref.table_name,k.column_name,ref.column_name
-		FROM INFORMATION_SCHEMA.referential_constraints as r
-		INNER JOIN INFORMATION_SCHEMA.key_column_usage as ref
-			ON  ref.constraint_catalog = r.unique_constraint_catalog
-			AND ref.constraint_schema = r.unique_constraint_schema
-			AND ref.constraint_name = r.unique_constraint_name
-		INNER JOIN INFORMATION_SCHEMA.key_column_usage as k
-			ON  k.constraint_catalog = r.constraint_catalog
-			AND k.constraint_schema = r.constraint_schema
-			AND k.constraint_name = r.constraint_name
-			AND k.position_in_unique_constraint = ref.ordinal_position
-		WHERE k.table_schema=$1 
-			AND k.table_name=$2
-		ORDER BY ref.ordinal_position`
+	q := `SELECT ref.TABLE_SCHEMA,ref.TABLE_NAME,k.COLUMN_NAME,ref.COLUMN_NAME
+		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS as r
+		INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE as ref
+			ON  ref.CONSTRAINT_CATALOG = r.UNIQUE_CONSTRAINT_CATALOG
+			AND ref.CONSTRAINT_SCHEMA = r.UNIQUE_CONSTRAINT_SCHEMA
+			AND ref.CONSTRAINT_NAME = r.UNIQUE_CONSTRAINT_NAME
+		INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE as k
+			ON  k.CONSTRAINT_CATALOG = r.CONSTRAINT_CATALOG
+			AND k.CONSTRAINT_SCHEMA = r.CONSTRAINT_SCHEMA
+			AND k.CONSTRAINT_NAME = r.CONSTRAINT_NAME
+			AND k.POSITION_IN_UNIQUE_CONSTRAINT = ref.ORDINAL_POSITION
+		WHERE k.TABLE_SCHEMA=$1 
+			AND k.TABLE_NAME=$2
+		ORDER BY ref.ORDINAL_POSITION`
 	rows, err := db.Query(q, table.schema, table.name)
 	if err != nil {
 		return nil, err
@@ -381,87 +381,6 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 	}
 	return foreignKeys, nil
 }
-
-// // getForeignKeys return list all the foreign keys constraints.
-// func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (foreignKeys []schema.ForeignKey, err error) {
-// 	refTables, err := getRefTables(db, table)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	for _, refTable := range refTables {
-// 		fkey, err := getForeignKey(conv, db, table, refTable)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		foreignKeys = append(foreignKeys, fkey)
-// 	}
-// 	return foreignKeys, nil
-// }
-
-// // getRefTables return the list of referenced tables for
-// // the selected schema and table.
-// func getRefTables(db *sql.DB, table schemaAndName) ([]schemaAndName, error) {
-// 	q := `SELECT c.TABLE_SCHEMA,c.TABLE_NAME
-// 		FROM INFORMATION_SCHEMA.CONSTRAINT_TABLE_USAGE c
-// 		INNER JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS t
-// 			ON c.CONSTRAINT_NAME = t.CONSTRAINT_NAME
-// 		WHERE constraint_type='FOREIGN KEY'
-// 			AND t.table_schema=$1
-// 			AND t.table_name=$2`
-// 	rows, err := db.Query(q, table.schema, table.name)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("couldn't get reference tables: %w", err)
-// 	}
-// 	defer rows.Close()
-// 	var refTableSchema, refTableName string
-// 	var refTables []schemaAndName
-// 	for rows.Next() {
-// 		rows.Scan(&refTableSchema, &refTableName)
-// 		refTables = append(refTables, schemaAndName{schema: refTableSchema, name: refTableName})
-// 	}
-// 	return refTables, nil
-// }
-
-// // getForeignKey returns the foreign key constraint for
-// // a particular referenced table in the selected table
-// // and database.
-// func getForeignKey(conv *internal.Conv, db *sql.DB, table schemaAndName, refTable schemaAndName) (schema.ForeignKey, error) {
-// 	q := `SELECT k.column_name,ref.column_name
-// 		FROM INFORMATION_SCHEMA.referential_constraints as r
-// 		INNER JOIN INFORMATION_SCHEMA.key_column_usage as ref
-// 			ON  ref.constraint_catalog = r.unique_constraint_catalog
-// 			AND ref.constraint_schema = r.unique_constraint_schema
-// 			AND ref.constraint_name = r.unique_constraint_name
-// 		INNER JOIN INFORMATION_SCHEMA.key_column_usage as k
-// 			ON  k.constraint_catalog = r.constraint_catalog
-// 			AND k.constraint_schema = r.constraint_schema
-// 			AND k.constraint_name = r.constraint_name
-// 			AND k.position_in_unique_constraint = ref.ordinal_position
-// 		WHERE k.table_schema=$1
-// 			AND k.table_name=$2
-// 			AND ref.table_schema=$3
-// 			AND ref.table_name=$4
-// 		ORDER BY ref.ordinal_position`
-// 	rows, err := db.Query(q, table.schema, table.name, refTable.schema, refTable.name)
-// 	if err != nil {
-// 		return schema.ForeignKey{}, err
-// 	}
-// 	defer rows.Close()
-// 	var col, refCol string
-// 	var cols, refCols []string
-// 	for rows.Next() {
-// 		err := rows.Scan(&col, &refCol)
-// 		if err != nil {
-// 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
-// 			continue
-// 		}
-// 		cols = append(cols, col)
-// 		refCols = append(refCols, refCol)
-// 	}
-// 	return schema.ForeignKey{Columns: cols,
-// 		ReferTable:   buildTableName(refTable.schema, refTable.name),
-// 		ReferColumns: refCols}, nil
-// }
 
 func toType(dataType string, elementDataType sql.NullString, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {
 	switch {

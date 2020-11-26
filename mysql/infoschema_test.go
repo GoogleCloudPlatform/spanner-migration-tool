@@ -143,7 +143,6 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	assert.Equal(t, len(conv.Issues["cart"]), 0)
 	expectedIssues := map[string][]internal.SchemaIssue{
-		"id":  []internal.SchemaIssue{internal.ForeignKey},
 		"bs":  []internal.SchemaIssue{internal.DefaultValue},
 		"dec": []internal.SchemaIssue{internal.Decimal},
 		"f4":  []internal.SchemaIssue{internal.Widened},
