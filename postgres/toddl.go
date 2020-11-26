@@ -204,8 +204,9 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 			spCols = append(spCols, spCol)
 			spReferCols = append(spReferCols, spReferCol)
 		}
-		spKey := ddl.Foreignkey{Columns: spCols,
+		spKey := ddl.Foreignkey{
 			Name:         key.Name,
+			Columns:      spCols,
 			ReferTable:   spReferTable,
 			ReferColumns: spReferCols}
 		spKeys = append(spKeys, spKey)
