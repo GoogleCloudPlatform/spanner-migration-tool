@@ -228,7 +228,6 @@ func processConstraint(conv *internal.Conv, table string, constraint *ast.Constr
 		updateCols(conv, ast.ConstraintPrimaryKey, constraint.Keys, st.ColDefs, table)
 	case ast.ConstraintForeignKey:
 		st.ForeignKeys = append(st.ForeignKeys, toForeignKeys(conv, constraint))
-		updateCols(conv, ast.ConstraintForeignKey, constraint.Keys, st.ColDefs, table)
 	default:
 		updateCols(conv, ct, constraint.Keys, st.ColDefs, table)
 	}
@@ -246,7 +245,7 @@ func toSchemaKeys(columns []*ast.IndexPartSpecification) (keys []schema.Key) {
 	return keys
 }
 
-// toForeignKeys converts a string list of MySQL foreign keys to
+// toForeignKeys converts a MySQL ast foreign key constraint to
 // schema foreign keys.
 func toForeignKeys(conv *internal.Conv, fk *ast.Constraint) (fkey schema.ForeignKey) {
 	columns := fk.Keys
@@ -261,8 +260,9 @@ func toForeignKeys(conv *internal.Conv, fk *ast.Constraint) (fkey schema.Foreign
 		colNames = append(colNames, column.Column.Name.String())
 		referColNames = append(referColNames, referColumns[i].Column.Name.String())
 	}
-	fkey = schema.ForeignKey{Columns: colNames,
+	fkey = schema.ForeignKey{
 		Name:         fk.Name,
+		Columns:      colNames,
 		ReferTable:   referTable,
 		ReferColumns: referColNames,
 		OnDelete:     fk.Refer.OnDelete.ReferOpt.String(),
@@ -415,7 +415,8 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 				continue
 			}
 			referColumn := elem.Refer.IndexPartSpecifications[0].Column.Name.String()
-			fkey := schema.ForeignKey{Columns: []string{column},
+			fkey := schema.ForeignKey{
+				Columns:      []string{column},
 				ReferTable:   referTable,
 				ReferColumns: []string{referColumn},
 				OnDelete:     elem.Refer.OnDelete.ReferOpt.String(),

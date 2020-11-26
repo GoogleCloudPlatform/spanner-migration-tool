@@ -557,7 +557,6 @@ func updateSchema(conv *internal.Conv, table string, cs []constraint, stmtType s
 		case nodes.CONSTR_FOREIGN:
 			ct := conv.SrcSchema[table]
 			ct.ForeignKeys = append(ct.ForeignKeys, toForeignKeys(c)) // Append to previous foreign jeys.
-			updateCols(nodes.CONSTR_FOREIGN, c.cols, ct.ColDefs)
 			conv.SrcSchema[table] = ct
 		default:
 			ct := conv.SrcSchema[table]
