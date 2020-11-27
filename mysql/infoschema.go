@@ -17,6 +17,7 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -337,6 +338,7 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 	var col, refCol, refTable string
 	mCols := make(map[string][]string)
 	mRefCols := make(map[string][]string)
+	mColsKeys := make([]string, 0)
 	for rows.Next() {
 		err := rows.Scan(&refTable, &col, &refCol)
 		if err != nil {
@@ -345,9 +347,11 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 		}
 		mCols[refTable] = append(mCols[refTable], col)
 		mRefCols[refTable] = append(mRefCols[refTable], refCol)
+		mColsKeys = append(mColsKeys, refTable)
 	}
-	for k, v := range mCols {
-		foreignKeys = append(foreignKeys, schema.ForeignKey{Columns: v, ReferTable: k, ReferColumns: mRefCols[k]})
+	sort.Strings(mColsKeys)
+	for _, k := range mColsKeys {
+		foreignKeys = append(foreignKeys, schema.ForeignKey{Columns: mCols[k], ReferTable: k, ReferColumns: mRefCols[k]})
 	}
 	return foreignKeys, nil
 }

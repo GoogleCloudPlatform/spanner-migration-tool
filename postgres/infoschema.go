@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math/bits"
 	"reflect"
+	"sort"
 	"strconv"
 	"time"
 
@@ -367,19 +368,23 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 	defer rows.Close()
 	var refTable schemaAndName
 	var col, refCol string
-	mCols := make(map[schemaAndName][]string)
-	mRefCols := make(map[schemaAndName][]string)
+	mCols := make(map[string][]string)
+	mRefCols := make(map[string][]string)
+	mColsKeys := make([]string, 0)
 	for rows.Next() {
 		err := rows.Scan(&refTable.schema, &refTable.name, &col, &refCol)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-		mCols[refTable] = append(mCols[refTable], col)
-		mRefCols[refTable] = append(mRefCols[refTable], refCol)
+		tableName := buildTableName(refTable.schema, refTable.name)
+		mCols[tableName] = append(mCols[tableName], col)
+		mRefCols[tableName] = append(mRefCols[tableName], refCol)
+		mColsKeys = append(mColsKeys, tableName)
 	}
-	for k, v := range mCols {
-		foreignKeys = append(foreignKeys, schema.ForeignKey{Columns: v, ReferTable: buildTableName(k.schema, k.name), ReferColumns: mRefCols[k]})
+	sort.Strings(mColsKeys)
+	for _, k := range mColsKeys {
+		foreignKeys = append(foreignKeys, schema.ForeignKey{Columns: mCols[k], ReferTable: k, ReferColumns: mRefCols[k]})
 	}
 	return foreignKeys, nil
 }
