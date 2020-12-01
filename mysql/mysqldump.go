@@ -415,6 +415,9 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 				continue
 			}
 			referColumn := elem.Refer.IndexPartSpecifications[0].Column.Name.String()
+
+			// Note that foreign key constraints that are part of a column definition
+			// have no name, so we leave fkey.Name as the empty string.
 			fkey := schema.ForeignKey{
 				Columns:      []string{column},
 				ReferTable:   referTable,
