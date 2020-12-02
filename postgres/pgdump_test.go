@@ -179,7 +179,7 @@ func TestProcessPgDump(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Fks: []ddl.Foreignkey{ddl.Foreignkey{Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}}},
+					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}}},
 				}},
 		},
 		{
@@ -205,7 +205,7 @@ func TestProcessPgDump(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Fks: []ddl.Foreignkey{ddl.Foreignkey{Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}}},
+					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}}},
 				}},
 		},
 		{
@@ -242,8 +242,8 @@ func TestProcessPgDump(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Fks: []ddl.Foreignkey{ddl.Foreignkey{Columns: []string{"e"}, ReferTable: "test", ReferColumns: []string{"a"}},
-						ddl.Foreignkey{Columns: []string{"f"}, ReferTable: "test2", ReferColumns: []string{"c"}}}}},
+					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"e"}, ReferTable: "test", ReferColumns: []string{"a"}},
+						ddl.Foreignkey{Name: "fk_test2", Columns: []string{"f"}, ReferTable: "test2", ReferColumns: []string{"c"}}}}},
 		},
 		{
 			name:  "Create table with pg schema",

@@ -463,6 +463,7 @@ type constraint struct {
 	ct   nodes.ConstrType
 	cols []string
 	/* Fields used for FOREIGN KEY constraints: */
+	name       string
 	referCols  []string
 	referTable string
 }
@@ -476,6 +477,7 @@ func extractConstraints(conv *internal.Conv, n nodes.Node, table string, l []nod
 		case nodes.Constraint:
 			var cols, referCols []string
 			var referTable string
+			var fkName string
 			switch d.Contype {
 			case nodes.CONSTR_FOREIGN:
 				t, err := getTableName(conv, *d.Pktable)
@@ -485,6 +487,9 @@ func extractConstraints(conv *internal.Conv, n nodes.Node, table string, l []nod
 					continue
 				}
 				referTable = t
+				if d.Conname != nil {
+					fkName = *d.Conname
+				}
 				for i := range d.FkAttrs.Items {
 					k, err := getString(d.FkAttrs.Items[i])
 					if err != nil {
@@ -514,7 +519,7 @@ func extractConstraints(conv *internal.Conv, n nodes.Node, table string, l []nod
 					cols = append(cols, k)
 				}
 			}
-			cs = append(cs, constraint{ct: d.Contype, cols: cols, referCols: referCols, referTable: referTable})
+			cs = append(cs, constraint{ct: d.Contype, cols: cols, name: fkName, referCols: referCols, referTable: referTable})
 		default:
 			conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node while processing constraints\n", reflect.TypeOf(n), reflect.TypeOf(d)))
 		}
@@ -595,10 +600,9 @@ func toSchemaKeys(conv *internal.Conv, table string, s []string) (l []schema.Key
 
 // toForeignKeys converts a string list of PostgreSQL foreign keys to
 // schema foreign keys.
-// Note that we don't get name of the foreign key from pgdump parser,
-// so we leave fkey.Name as the empty string.
 func toForeignKeys(fk constraint) (fkey schema.ForeignKey) {
 	fkey = schema.ForeignKey{
+		Name:         fk.name,
 		Columns:      fk.cols,
 		ReferTable:   fk.referTable,
 		ReferColumns: fk.referCols}
