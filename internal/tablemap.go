@@ -129,31 +129,32 @@ func GetSpannerCols(conv *Conv, srcTable string, srcCols []string) ([]string, er
 }
 
 // GetSpannerKeyName maps source foreign key name to
-// legal Spanner foreign key name
+// legal Spanner foreign key name.
 // If the srcKeyName is empty string we can just return
 // empty string without error.
 // If the srcKeyName is not empty we need to make sure
 // of the following things:
 // a) the new foreign key name is legal
 // b) the new foreign key name doesn't clash with other Spanner
-//    foreignkey names
-// c) we consistently return the same key name.
-func GetSpannerKeyName(conv *Conv, srcKeyName string, schemaForeignKeys map[string]bool) (string, error) {
+//    foreign key names
+// Note that foreign key names are always unique,
+// so we don't need to consistently return the same key name
+// (as we do for table and column mapping).
+func GetSpannerKeyName(srcKeyName string, schemaForeignKeys map[string]bool) string {
 	if srcKeyName == "" {
-		return "", nil
+		return ""
 	}
 	spKeyName, _ := FixName(srcKeyName)
 
-	// spKeyName has been used before i.e. FixName caused a collision.
-	// Add unique postfix: use number of foreign keys so far.
-	// However, there is a chance this has already been used,
-	// so need to iterate.
 	if _, found := schemaForeignKeys[spKeyName]; found {
+		// spKeyName has been used before i.e. FixName caused a collision.
+		// Add unique postfix: use number of foreign keys so far.
+		// However, there is a chance this has already been used,
+		// so need to iterate.
 		id := len(schemaForeignKeys)
 		for {
 			c := spKeyName + "_" + strconv.Itoa(id)
 
-			// check wether the spKeyName is used before
 			if _, found := schemaForeignKeys[c]; !found {
 				spKeyName = c
 				break
@@ -165,5 +166,5 @@ func GetSpannerKeyName(conv *Conv, srcKeyName string, schemaForeignKeys map[stri
 	if spKeyName != "" {
 		schemaForeignKeys[spKeyName] = true
 	}
-	return spKeyName, nil
+	return spKeyName
 }

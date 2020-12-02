@@ -205,7 +205,7 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 			spCols = append(spCols, spCol)
 			spReferCols = append(spReferCols, spReferCol)
 		}
-		spKeyName, err := internal.GetSpannerKeyName(conv, key.Name, schemaForeignKeys)
+		spKeyName := internal.GetSpannerKeyName(key.Name, schemaForeignKeys)
 
 		spKey := ddl.Foreignkey{
 			Name:         spKeyName,

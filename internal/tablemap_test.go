@@ -93,7 +93,6 @@ func TestGetSpannerCol(t *testing.T) {
 }
 
 func TestGetSpannerKeyName(t *testing.T) {
-	conv := MakeConv()
 	schemaForeignKeys := make(map[string]bool)
 
 	basicTests := []struct {
@@ -117,8 +116,7 @@ func TestGetSpannerKeyName(t *testing.T) {
 		{"Bad name with collision 3", "fk?test", false, "fk_test_11"},
 	}
 	for _, tc := range basicTests {
-		spKeyName, err2 := GetSpannerKeyName(conv, tc.srcKeyName, schemaForeignKeys)
-		assert.Nil(t, err2, tc.name)
+		spKeyName := GetSpannerKeyName(tc.srcKeyName, schemaForeignKeys)
 		assert.Equal(t, tc.spKeyName, spKeyName, tc.name)
 	}
 }
