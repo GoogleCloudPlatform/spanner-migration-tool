@@ -201,24 +201,11 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	for _, p := range ct.Pks {
 		keys = append(keys, p.PrintIndexKey(config))
 	}
-	var fkeys string
-	if config.ForeignKeys {
-		for i, f := range ct.Fks {
-			k := f.PrintForeignKey(config)
-			k = "\n    " + k
-			if i < len(ct.Fks)-1 {
-				k += ","
-			} else {
-				k += " "
-			}
-			fkeys += k
-		}
-	}
 	var tableComment string
 	if config.Comments && len(ct.Comment) > 0 {
 		tableComment = "--\n-- " + ct.Comment + "\n--\n"
 	}
-	return fmt.Sprintf("%sCREATE TABLE %s (%s\n) PRIMARY KEY (%s)", tableComment, config.quote(ct.Name), cols+fkeys, strings.Join(keys, ", "))
+	return fmt.Sprintf("%sCREATE TABLE %s (%s\n) PRIMARY KEY (%s)", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "))
 }
 
 // CreateIndex encodes the following DDL definition:
@@ -238,6 +225,20 @@ func (ci CreateIndex) PrintCreateIndex(c Config) string {
 		keys = append(keys, p.PrintIndexKey(c))
 	}
 	return fmt.Sprintf("CREATE INDEX %s ON %s (%s)", c.quote(ci.Name), c.quote(ci.Table), strings.Join(keys, ", "))
+}
+
+// PrintForeignKeyAlterTable unparses the foreign keys using ALTER TABLE.
+func (k Foreignkey) PrintForeignKeyAlterTable(c Config, tableName string) string {
+	var cols, referCols []string
+	for i, col := range k.Columns {
+		cols = append(cols, c.quote(col))
+		referCols = append(referCols, c.quote(k.ReferColumns[i]))
+	}
+	var s string
+	if k.Name != "" {
+		s = fmt.Sprintf("CONSTRAINT %s ", k.Name)
+	}
+	return fmt.Sprintf("ALTER TABLE %s ADD %s FOREIGN KEY (%s) REFERENCES %s (%s)", tableName, s, strings.Join(cols, ", "), k.ReferTable, strings.Join(referCols, ", "))
 }
 
 func maxStringLength(s []string) int {

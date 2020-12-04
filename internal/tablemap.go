@@ -137,9 +137,10 @@ func GetSpannerCols(conv *Conv, srcTable string, srcCols []string) ([]string, er
 // a) the new foreign key name is legal
 // b) the new foreign key name doesn't clash with other Spanner
 //    foreign key names
-// Note that foreign key names in postgres can be duplicate in schema
-// but spanner foreign key names must be unique, so we need to map
-// source key name to unique spanner key name.
+// Note that foreign key constraint names in Spanner have to be globally unique
+// (across the database). But in some source databases, such as PostgreSQL,
+// they only have to be unique for a table. Hence we must map each source
+// constraint name to a unique spanner constraint name.
 func GetSpannerKeyName(srcKeyName string, schemaForeignKeys map[string]bool) string {
 	if srcKeyName == "" {
 		return ""

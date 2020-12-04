@@ -61,11 +61,11 @@ func TestProcessInfoSchema(t *testing.T) {
 				{"user_id", "PRIMARY KEY"},
 				{"addressid", "FOREIGN KEY"}},
 		}, {
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+)",
+			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
 			args:  []driver.Value{"public", "user"},
-			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "COLUMN_NAME"},
+			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 			rows: [][]driver.Value{
-				{"public", "address", "addressid", "address_id"},
+				{"public", "address", "addressid", "address_id", "fk_test"},
 			},
 		},
 		{
@@ -84,12 +84,12 @@ func TestProcessInfoSchema(t *testing.T) {
 				{"productid", "PRIMARY KEY"},
 				{"userid", "PRIMARY KEY"}},
 		}, {
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+)",
+			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
 			args:  []driver.Value{"public", "cart"},
-			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "COLUMN_NAME"},
+			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 			rows: [][]driver.Value{
-				{"public", "product", "productid", "product_id"},
-				{"public", "user", "userid", "user_id"}},
+				{"public", "product", "productid", "product_id", "fk_test2"},
+				{"public", "user", "userid", "user_id", "fk_test3"}},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "test"},
@@ -122,9 +122,11 @@ func TestProcessInfoSchema(t *testing.T) {
 			cols:  []string{"column_name", "constraint_type"},
 			rows:  [][]driver.Value{{"id", "PRIMARY KEY"}},
 		}, {
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+)",
+			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
 			args:  []driver.Value{"public", "test"},
-			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "COLUMN_NAME"},
+			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
+			rows: [][]driver.Value{{"public", "test_ref", "id", "ref_id", "fk_test4"},
+				{"public", "test_ref", "bs", "ref_bs", "fk_test4"}},
 		},
 	}
 	db := mkMockDB(t, ms)
@@ -141,7 +143,7 @@ func TestProcessInfoSchema(t *testing.T) {
 				"addressid": ddl.ColumnDef{Name: "addressid", T: ddl.Type{Name: ddl.Int64}},
 			},
 			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "user_id"}},
-			Fks: []ddl.Foreignkey{ddl.Foreignkey{Columns: []string{"addressid"}, ReferTable: "address", ReferColumns: []string{"address_id"}}}},
+			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"addressid"}, ReferTable: "address", ReferColumns: []string{"address_id"}}}},
 		"cart": ddl.CreateTable{
 			Name:     "cart",
 			ColNames: []string{"productid", "userid", "quantity"},
@@ -151,8 +153,8 @@ func TestProcessInfoSchema(t *testing.T) {
 				"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
 			},
 			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "productid"}, ddl.IndexKey{Col: "userid"}},
-			Fks: []ddl.Foreignkey{ddl.Foreignkey{Columns: []string{"productid"}, ReferTable: "product", ReferColumns: []string{"product_id"}},
-				ddl.Foreignkey{Columns: []string{"userid"}, ReferTable: "user", ReferColumns: []string{"user_id"}}}},
+			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test2", Columns: []string{"productid"}, ReferTable: "product", ReferColumns: []string{"product_id"}},
+				ddl.Foreignkey{Name: "fk_test3", Columns: []string{"userid"}, ReferTable: "user", ReferColumns: []string{"user_id"}}}},
 		"test": ddl.CreateTable{
 			Name:     "test",
 			ColNames: []string{"id", "aint", "atext", "b", "bs", "by", "c", "c8", "d", "f8", "f4", "i8", "i4", "i2", "num", "s", "ts", "tz", "txt", "vc", "vc6"},
@@ -180,6 +182,7 @@ func TestProcessInfoSchema(t *testing.T) {
 				"vc6":   ddl.ColumnDef{Name: "vc6", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
 			},
 			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "id"}},
+			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test4", Columns: []string{"id", "bs"}, ReferTable: "test_ref", ReferColumns: []string{"ref_id", "ref_bs"}}},
 		},
 	}
 	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
@@ -351,9 +354,9 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			rows:  [][]driver.Value{}, // No primary key --> force generation of synthetic key.
 		},
 		{
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (.+)",
+			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
 			args:  []driver.Value{"public", "test"},
-			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "COLUMN_NAME"},
+			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 		},
 		// Note: go-sqlmock mocks specify an ordered sequence
 		// of queries and results.  This (repeated) entry is

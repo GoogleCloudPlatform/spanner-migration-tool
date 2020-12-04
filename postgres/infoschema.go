@@ -343,48 +343,83 @@ func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]str
 	return primaryKeys, m, nil
 }
 
+type fkConstraint struct {
+	name    string
+	table   string
+	refcols []string
+	cols    []string
+}
+
 // getForeignKeys return list all the foreign keys constraints.
 func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (foreignKeys []schema.ForeignKey, err error) {
-	q := `SELECT ref.TABLE_SCHEMA,ref.TABLE_NAME,k.COLUMN_NAME,ref.COLUMN_NAME
-		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS as r
-		INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE as ref
-			ON  ref.CONSTRAINT_CATALOG = r.UNIQUE_CONSTRAINT_CATALOG
-			AND ref.CONSTRAINT_SCHEMA = r.UNIQUE_CONSTRAINT_SCHEMA
-			AND ref.CONSTRAINT_NAME = r.UNIQUE_CONSTRAINT_NAME
-		INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE as k
-			ON  k.CONSTRAINT_CATALOG = r.CONSTRAINT_CATALOG
-			AND k.CONSTRAINT_SCHEMA = r.CONSTRAINT_SCHEMA
-			AND k.CONSTRAINT_NAME = r.CONSTRAINT_NAME
-			AND k.POSITION_IN_UNIQUE_CONSTRAINT = ref.ORDINAL_POSITION
-		WHERE k.TABLE_SCHEMA=$1 
-			AND k.TABLE_NAME=$2
-		ORDER BY 
-			ref.TABLE_NAME,
-			ref.ORDINAL_POSITION;`
+	q := `SELECT
+				schema_name AS "TABLE_SCHEMA",
+ 				cl.relname AS "TABLE_NAME",
+    			att2.attname AS "COLUMN_NAME",
+    			att.attname AS "REF_COLUMN_NAME",
+    			conname AS "CONSTRAINT_NAME"
+			FROM
+   				(SELECT
+        				UNNEST(con1.conkey) AS "parent",
+        				UNNEST(con1.confkey) AS "child",
+        				con1.confrelid,
+        				con1.conrelid,
+        				con1.conname,
+        				ns.nspname AS schema_name
+    				FROM PG_CLASS cl
+        				JOIN PG_NAMESPACE ns ON cl.relnamespace = ns.oid
+        				JOIN PG_CONSTRAINT con1 ON con1.conrelid = cl.oid
+    				WHERE
+						ns.nspname = $1
+						AND cl.relname = $2 
+        				AND con1.contype = 'f'
+   				) con
+   			JOIN PG_ATTRIBUTE att ON
+       				att.attrelid = con.confrelid AND att.attnum = con.child
+   			JOIN PG_CLASS cl ON
+       				cl.oid = con.confrelid
+   			JOIN PG_ATTRIBUTE att2 ON
+       				att2.attrelid = con.conrelid AND att2.attnum = con.parent;`
+
 	rows, err := db.Query(q, table.schema, table.name)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var refTable schemaAndName
-	var col, refCol string
-	mCols := make(map[string][]string)
-	mRefCols := make(map[string][]string)
-	mColsKeys := make([]string, 0)
+	var col, refCol, fKeyName string
+	fKeys := make(map[string]fkConstraint)
+	var keyNames []string
 	for rows.Next() {
-		err := rows.Scan(&refTable.schema, &refTable.name, &col, &refCol)
+		err := rows.Scan(&refTable.schema, &refTable.name, &col, &refCol, &fKeyName)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
 		tableName := buildTableName(refTable.schema, refTable.name)
-		mCols[tableName] = append(mCols[tableName], col)
-		mRefCols[tableName] = append(mRefCols[tableName], refCol)
-		mColsKeys = append(mColsKeys, tableName)
+		if _, found := fKeys[fKeyName]; found {
+			fk := fKeys[fKeyName]
+			fk.cols = append(fk.cols, col)
+			fk.refcols = append(fk.refcols, refCol)
+			fKeys[fKeyName] = fk
+			continue
+		}
+		var mCols []string
+		var mRefCols []string
+		mCols = append(mCols, col)
+		mRefCols = append(mRefCols, refCol)
+		fKeys[fKeyName] = fkConstraint{name: fKeyName, table: tableName, refcols: mRefCols, cols: mCols}
+		keyNames = append(keyNames, fKeyName)
 	}
-	sort.Strings(mColsKeys)
-	for _, k := range mColsKeys {
-		foreignKeys = append(foreignKeys, schema.ForeignKey{Columns: mCols[k], ReferTable: k, ReferColumns: mRefCols[k]})
+
+	sort.Strings(keyNames)
+	for _, k := range keyNames {
+		foreignKeys = append(foreignKeys,
+			schema.ForeignKey{
+				Name:         fKeys[k].name,
+				Columns:      fKeys[k].cols,
+				ReferTable:   fKeys[k].table,
+				ReferColumns: fKeys[k].refcols})
 	}
 	return foreignKeys, nil
 }

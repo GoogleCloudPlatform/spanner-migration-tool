@@ -311,13 +311,20 @@ func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]str
 	return primaryKeys, m, nil
 }
 
+type fkConstraint struct {
+	name    string
+	table   string
+	refcols []string
+	cols    []string
+}
+
 // getForeignKeys return list all the foreign keys constraints.
 // MySQL supports cross-database foreign key constraints. We ignore
 // them because HarbourBridge works database at a time (a specific run
 // of HarbourBridge focuses on a specific database) and so we can't handle
 // them effectively.
 func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (foreignKeys []schema.ForeignKey, err error) {
-	q := `SELECT k.REFERENCED_TABLE_NAME,k.COLUMN_NAME,k.REFERENCED_COLUMN_NAME
+	q := `SELECT k.REFERENCED_TABLE_NAME,k.COLUMN_NAME,k.REFERENCED_COLUMN_NAME,k.CONSTRAINT_NAME
 		FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t 
 		INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k 
 			ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
@@ -329,29 +336,45 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 			AND t.CONSTRAINT_TYPE = "FOREIGN KEY" 
 		ORDER BY
 			k.REFERENCED_TABLE_NAME,
+			k.COLUMN_NAME,
 			k.ORDINAL_POSITION;`
 	rows, err := db.Query(q, table.schema, table.name)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var col, refCol, refTable string
-	mCols := make(map[string][]string)
-	mRefCols := make(map[string][]string)
-	mColsKeys := make([]string, 0)
+	var col, refCol, refTable, fKeyName string
+	fKeys := make(map[string]fkConstraint)
+	var keyNames []string
+
 	for rows.Next() {
-		err := rows.Scan(&refTable, &col, &refCol)
+		err := rows.Scan(&refTable, &col, &refCol, &fKeyName)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-		mCols[refTable] = append(mCols[refTable], col)
-		mRefCols[refTable] = append(mRefCols[refTable], refCol)
-		mColsKeys = append(mColsKeys, refTable)
+		if _, found := fKeys[fKeyName]; found {
+			fk := fKeys[fKeyName]
+			fk.cols = append(fk.cols, col)
+			fk.refcols = append(fk.refcols, refCol)
+			fKeys[fKeyName] = fk
+			continue
+		}
+		var mCols []string
+		var mRefCols []string
+		mCols = append(mCols, col)
+		mRefCols = append(mRefCols, refCol)
+		fKeys[fKeyName] = fkConstraint{name: fKeyName, table: refTable, refcols: mRefCols, cols: mCols}
+		keyNames = append(keyNames, fKeyName)
 	}
-	sort.Strings(mColsKeys)
-	for _, k := range mColsKeys {
-		foreignKeys = append(foreignKeys, schema.ForeignKey{Columns: mCols[k], ReferTable: k, ReferColumns: mRefCols[k]})
+	sort.Strings(keyNames)
+	for _, k := range keyNames {
+		foreignKeys = append(foreignKeys,
+			schema.ForeignKey{
+				Name:         fKeys[k].name,
+				Columns:      fKeys[k].cols,
+				ReferTable:   fKeys[k].table,
+				ReferColumns: fKeys[k].refcols})
 	}
 	return foreignKeys, nil
 }

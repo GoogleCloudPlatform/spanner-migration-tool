@@ -180,6 +180,15 @@ func (conv *Conv) GetDDL(c ddl.Config) []string {
 	for _, t := range tables {
 		ddl = append(ddl, conv.SpSchema[t].PrintCreateTable(c))
 	}
+
+	// Append foreign key constraints to DDL.
+	if c.ForeignKeys {
+		for _, t := range tables {
+			for _, fk := range conv.SpSchema[t].Fks {
+				ddl = append(ddl, fk.PrintForeignKeyAlterTable(c, t))
+			}
+		}
+	}
 	return ddl
 }
 
