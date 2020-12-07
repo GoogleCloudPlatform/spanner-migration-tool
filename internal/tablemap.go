@@ -146,7 +146,6 @@ func GetSpannerKeyName(srcKeyName string, schemaForeignKeys map[string]bool) str
 		return ""
 	}
 	spKeyName, _ := FixName(srcKeyName)
-
 	if _, found := schemaForeignKeys[spKeyName]; found {
 		// spKeyName has been used before i.e. FixName caused a collision.
 		// Add unique postfix: use number of foreign keys so far.
@@ -155,7 +154,6 @@ func GetSpannerKeyName(srcKeyName string, schemaForeignKeys map[string]bool) str
 		id := len(schemaForeignKeys)
 		for {
 			c := spKeyName + "_" + strconv.Itoa(id)
-
 			if _, found := schemaForeignKeys[c]; !found {
 				spKeyName = c
 				break
@@ -163,8 +161,6 @@ func GetSpannerKeyName(srcKeyName string, schemaForeignKeys map[string]bool) str
 			id++
 		}
 	}
-
 	schemaForeignKeys[spKeyName] = true
-
 	return spKeyName
 }

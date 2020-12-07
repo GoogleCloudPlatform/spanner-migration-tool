@@ -404,11 +404,7 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 			fKeys[fKeyName] = fk
 			continue
 		}
-		var mCols []string
-		var mRefCols []string
-		mCols = append(mCols, col)
-		mRefCols = append(mRefCols, refCol)
-		fKeys[fKeyName] = fkConstraint{name: fKeyName, table: tableName, refcols: mRefCols, cols: mCols}
+		fKeys[fKeyName] = fkConstraint{name: fKeyName, table: tableName, refcols: []string{refCol}, cols: []string{col}}
 		keyNames = append(keyNames, fKeyName)
 	}
 

@@ -154,9 +154,9 @@ func (k Foreignkey) PrintForeignKey(c Config) string {
 	}
 	var s string
 	if k.Name != "" {
-		s = fmt.Sprintf("CONSTRAINT %s ", k.Name)
+		s = fmt.Sprintf("CONSTRAINT %s ", c.quote(k.Name))
 	}
-	return s + fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s (%s)", strings.Join(cols, ", "), k.ReferTable, strings.Join(referCols, ", "))
+	return s + fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s (%s)", strings.Join(cols, ", "), c.quote(k.ReferTable), strings.Join(referCols, ", "))
 }
 
 // CreateTable encodes the following DDL definition:
@@ -181,11 +181,7 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 		if i < len(ct.ColNames)-1 {
 			s += ","
 		} else {
-			if len(ct.Fks) > 0 && config.ForeignKeys {
-				s += ","
-			} else {
-				s += " "
-			}
+			s += " "
 		}
 		col = append(col, s)
 		colComment = append(colComment, c)
@@ -236,9 +232,9 @@ func (k Foreignkey) PrintForeignKeyAlterTable(c Config, tableName string) string
 	}
 	var s string
 	if k.Name != "" {
-		s = fmt.Sprintf("CONSTRAINT %s ", k.Name)
+		s = fmt.Sprintf("CONSTRAINT %s ", c.quote(k.Name))
 	}
-	return fmt.Sprintf("ALTER TABLE %s ADD %s FOREIGN KEY (%s) REFERENCES %s (%s)", tableName, s, strings.Join(cols, ", "), k.ReferTable, strings.Join(referCols, ", "))
+	return fmt.Sprintf("ALTER TABLE %s ADD %s FOREIGN KEY (%s) REFERENCES %s (%s)", c.quote(tableName), s, strings.Join(cols, ", "), c.quote(k.ReferTable), strings.Join(referCols, ", "))
 }
 
 func maxStringLength(s []string) int {

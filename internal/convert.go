@@ -182,6 +182,11 @@ func (conv *Conv) GetDDL(c ddl.Config) []string {
 	}
 
 	// Append foreign key constraints to DDL.
+	// We always use alter table statements for foreign key constraints.
+	// The alternative of putting foreign key constraints in-line as part of create
+	// table statements is tricky because of table order (need to define tables
+	// before they are referenced by foreign key constraints) and the possibility
+	// of circular foreign keys definitions. We opt for simplicity.
 	if c.ForeignKeys {
 		for _, t := range tables {
 			for _, fk := range conv.SpSchema[t].Fks {
