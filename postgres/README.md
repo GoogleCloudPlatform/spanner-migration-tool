@@ -189,9 +189,13 @@ primary key columns to be `NOT NULL`. However, in PostgreSQL, a primary key is a
 combination of `NOT NULL` and `UNIQUE`, and so primary key columns from
 PostgreSQL will be mapped to Spanner columns that are both primary keys and `NOT NULL`.
 
-### Foreign Keys and Default Values
+### Foreign Keys
 
-Spanner does not currently support foreign keys or default values. We drop these
+Spanner requires foreign key constraint name to be unique accross database while in postgres it has to be unique for a table only, so we map the foreign key constraint name to a unique constraint name for spanner. spanner doesn't support `ON DELETE` and `ON UPDATE` rules in foreign keys, so we skip those rules. We handle foreign keys using ALTER TABLE statement after all the tables are created, this helps us avoid cyclic dependencies in foreign keys.
+
+### Default Values
+
+Spanner does not currently support default values. We drop these
 PostgreSQL features during conversion.
 
 ### Other PostgreSQL features

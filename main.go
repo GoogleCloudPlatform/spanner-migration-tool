@@ -530,7 +530,7 @@ func createDatabase(project, instance, dbName string, conv *internal.Conv, out *
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
 	// We also exclude foreign keys from the schema sent to Spanner.
-	schema := conv.GetDDL(ddl.Config{Comments: false, ProtectIds: true, ForeignKeys: false})
+	schema := conv.GetDDL(ddl.Config{Comments: false, ProtectIds: true, ForeignKeys: true})
 	op, err := adminClient.CreateDatabase(ctx, &adminpb.CreateDatabaseRequest{
 		Parent:          fmt.Sprintf("projects/%s/instances/%s", project, instance),
 		CreateStatement: "CREATE DATABASE `" + dbName + "`",
