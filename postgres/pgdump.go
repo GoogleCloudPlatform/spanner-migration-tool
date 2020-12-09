@@ -250,9 +250,9 @@ func processCreateStmt(conv *internal.Conv, n nodes.CreateStmt) {
 		return
 	}
 	if len(n.InhRelations.Items) > 0 {
-		// We currently skip the inherited tables in processing. so we log this
-		// behaviour in verbose mode, and skip the statement.
+		// Skip inherited tables.
 		conv.SkipStatement(prNodes([]nodes.Node{n}))
+		conv.Unexpected(fmt.Sprintf("Found inherited table %s -- we do not currently handle inherited tables", table))
 		internal.VerbosePrintf("Processing %v statement: table %s is inherited table", reflect.TypeOf(n), table)
 		return
 	}
@@ -315,10 +315,9 @@ func processInsertStmt(conv *internal.Conv, n nodes.InsertStmt) *copyOrInsert {
 		return nil
 	}
 	if _, ok := conv.SrcSchema[table]; !ok {
-		// Insert statement can be applied on inherited tables. Since we are skipping
-		// inherited tables created by CREATE TABLE statement, processing insert
-		// statement can fail. For debugging purposes we log the lookup failure
-		// if we're in verbose mode, but otherwise  we just skip these statements.
+		// If we don't have schema information for a table, we drop all insert
+		// statements for it. The most likely reason we don't have schema information
+		// for a table is that it is an inherited table - we skip all inherited tables.
 		conv.SkipStatement(prNodes([]nodes.Node{n}))
 		internal.VerbosePrintf("Processing %v statement: table %s not found", reflect.TypeOf(n), table)
 		return nil
@@ -360,13 +359,12 @@ func processCopyStmt(conv *internal.Conv, n nodes.CopyStmt) *copyOrInsert {
 		logStmtError(conv, n, fmt.Errorf("relation is nil"))
 	}
 	if _, ok := conv.SrcSchema[table]; !ok {
-		// Copy statement can be applied on inherited tables. Since we are skipping
-		// inherited tables created by CREATE TABLE statement, processing insert
-		// statement can fail. For debugging purposes we log the lookup failure
-		// if we're in verbose mode, but otherwise  we just skip these statements.
+		// If we don't have schema information for a table, we drop all copy
+		// statements for it. The most likely reason we don't have schema information
+		// for a table is that it is an inherited table - we skip all inherited tables.
 		conv.SkipStatement(prNodes([]nodes.Node{n}))
 		internal.VerbosePrintf("Processing %v statement: table %s not found", reflect.TypeOf(n), table)
-		return nil
+		return &copyOrInsert{stmt: copyFrom, table: table, cols: []string{}}
 	}
 	var cols []string
 	for _, a := range n.Attlist.Items {
