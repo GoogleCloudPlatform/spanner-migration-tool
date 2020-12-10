@@ -189,7 +189,7 @@ MySQL will be mapped to Spanner columns that are both primary keys and `NOT NULL
 ### Foreign Keys
 
 The tool maps MySQL foreign key constraints into Spanner foreign key constraints, and
-preserves constraints names where possible. Since Spanner doesn't support `ON DELETE`
+preserves constraint names where possible. Since Spanner doesn't support `ON DELETE`
 and `ON UPDATE` actions, we drop them.
 
 ### Default Values

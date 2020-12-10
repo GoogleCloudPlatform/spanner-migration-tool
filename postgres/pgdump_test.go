@@ -209,6 +209,33 @@ func TestProcessPgDump(t *testing.T) {
 				}},
 		},
 		{
+			name: "Alter table with single foreign key multiple column",
+			input: "CREATE TABLE test (a bigint PRIMARY KEY, b bigint, c text );\n" +
+				"CREATE TABLE test2 (c bigint, d bigint);\n" +
+				"ALTER TABLE ONLY test2 ADD CONSTRAINT fk_test FOREIGN KEY (c,d) REFERENCES test(a,b) ON UPDATE CASCADE ON DELETE RESTRICT;\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b", "c"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}},
+				"test2": ddl.CreateTable{
+					Name:     "test2",
+					ColNames: []string{"c", "d", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
+						"d":        ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Int64}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"c", "d"}, ReferTable: "test", ReferColumns: []string{"a", "b"}}},
+				}},
+		},
+		{
 			name: "Alter table with multiple foreign keys",
 			input: "CREATE TABLE test (a bigint PRIMARY KEY, b text );\n" +
 				"CREATE TABLE test2 (c bigint PRIMARY KEY, d text );\n" +

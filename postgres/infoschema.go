@@ -350,36 +350,31 @@ type fkConstraint struct {
 	cols    []string
 }
 
-// getForeignKeys return list all the foreign keys constraints.
+// getForeignKeys returns a list of all the foreign key constraints.
 func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (foreignKeys []schema.ForeignKey, err error) {
-	q := `SELECT
-				schema_name AS "TABLE_SCHEMA",
- 				cl.relname AS "TABLE_NAME",
-    			att2.attname AS "COLUMN_NAME",
-    			att.attname AS "REF_COLUMN_NAME",
-    			conname AS "CONSTRAINT_NAME"
-			FROM
-   				(SELECT
-        				UNNEST(con1.conkey) AS "parent",
-        				UNNEST(con1.confkey) AS "child",
-        				con1.confrelid,
-        				con1.conrelid,
-        				con1.conname,
-        				ns.nspname AS schema_name
-    				FROM PG_CLASS cl
-        				JOIN PG_NAMESPACE ns ON cl.relnamespace = ns.oid
-        				JOIN PG_CONSTRAINT con1 ON con1.conrelid = cl.oid
-    				WHERE
-						ns.nspname = $1
-						AND cl.relname = $2 
-        				AND con1.contype = 'f'
-   				) con
-   			JOIN PG_ATTRIBUTE att ON
-       				att.attrelid = con.confrelid AND att.attnum = con.child
-   			JOIN PG_CLASS cl ON
-       				cl.oid = con.confrelid
-   			JOIN PG_ATTRIBUTE att2 ON
-       				att2.attrelid = con.conrelid AND att2.attnum = con.parent;`
+	q := `SELECT 
+		schema_name AS "TABLE_SCHEMA", 
+		cl.relname AS "TABLE_NAME", 
+		att2.attname AS "COLUMN_NAME", 
+		att.attname AS "REF_COLUMN_NAME", 
+		conname AS "CONSTRAINT_NAME"
+		FROM (SELECT 
+			UNNEST(con1.conkey) AS "parent", 
+			UNNEST(con1.confkey) AS "child", 
+			con1.confrelid, 
+			con1.conrelid, 
+			con1.conname, 
+			ns.nspname AS schema_name
+    		FROM PG_CLASS cl
+        		JOIN PG_NAMESPACE ns ON cl.relnamespace = ns.oid
+        		JOIN PG_CONSTRAINT con1 ON con1.conrelid = cl.oid
+    			WHERE ns.nspname = $1 AND cl.relname = $2 AND con1.contype = 'f') con
+   		JOIN PG_ATTRIBUTE att ON
+       		att.attrelid = con.confrelid AND att.attnum = con.child
+   		JOIN PG_CLASS cl ON
+       		cl.oid = con.confrelid
+   		JOIN PG_ATTRIBUTE att2 ON
+       		att2.attrelid = con.conrelid AND att2.attnum = con.parent;`
 
 	rows, err := db.Query(q, table.schema, table.name)
 	if err != nil {

@@ -299,6 +299,33 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						ddl.Foreignkey{Name: "fk_test2", Columns: []string{"f"}, ReferTable: "test2", ReferColumns: []string{"c"}}}}},
 		},
 		{
+			name: "Create table with single foreign key multiple column",
+			input: "CREATE TABLE test (a SMALLINT, b SMALLINT, c text, PRIMARY KEY (a) );\n" +
+				"CREATE TABLE test2 (e SMALLINT, f SMALLINT, g text, CONSTRAINT `fk_test` FOREIGN KEY (e,f) REFERENCES test (a,b) ON DELETE RESTRICT ON UPDATE CASCADE );",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b", "c"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}},
+
+				"test2": ddl.CreateTable{
+					Name:     "test2",
+					ColNames: []string{"e", "f", "g", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"e":        ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Int64}},
+						"f":        ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Int64}},
+						"g":        ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"e", "f"}, ReferTable: "test", ReferColumns: []string{"a", "b"}}}}},
+		},
+		{
 			name:  "Create table with mysql schema",
 			input: "CREATE TABLE myschema.test (a text PRIMARY KEY, b text);\n",
 			expectedSchema: map[string]ddl.CreateTable{
