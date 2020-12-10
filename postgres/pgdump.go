@@ -492,8 +492,7 @@ type constraint struct {
 }
 
 // extractConstraints traverses a list of nodes (expecting them to be
-// Constraint nodes), and collects the contraints they represent as
-// a list of constraint-type/column-names pairs.
+// Constraint nodes), and collects the constraints they represent.
 func extractConstraints(conv *internal.Conv, n nodes.Node, table string, l []nodes.Node) (cs []constraint) {
 	for _, i := range l {
 		switch d := i.(type) {
@@ -584,7 +583,7 @@ func updateSchema(conv *internal.Conv, table string, cs []constraint, stmtType s
 			conv.SrcSchema[table] = ct
 		case nodes.CONSTR_FOREIGN:
 			ct := conv.SrcSchema[table]
-			ct.ForeignKeys = append(ct.ForeignKeys, toForeignKeys(c)) // Append to previous foreign jeys.
+			ct.ForeignKeys = append(ct.ForeignKeys, toForeignKeys(c)) // Append to previous foreign keys.
 			conv.SrcSchema[table] = ct
 		default:
 			ct := conv.SrcSchema[table]
