@@ -191,7 +191,11 @@ PostgreSQL will be mapped to Spanner columns that are both primary keys and `NOT
 
 ### Foreign Keys
 
-Spanner requires foreign key constraint name to be unique accross database while in postgres it has to be unique for a table only, so we map the foreign key constraint name to a unique constraint name for spanner. spanner doesn't support `ON DELETE` and `ON UPDATE` rules in foreign keys, so we skip those rules. We handle foreign keys using ALTER TABLE statement after all the tables are created, this helps us avoid cyclic dependencies in foreign keys.
+The tool maps PostgreSQL foreign key constraints into Spanner foreign key constraints, and
+preserves constraints names where possible. Note that Spanner requires foreign key
+constraint names to be globally unique (within a database), but in postgres they only
+have to be unique for a table, so we add a uniqueness suffix to a name if needed.
+Spanner doesn't support `ON DELETE` and `ON UPDATE` actions, so we drop these.
 
 ### Default Values
 

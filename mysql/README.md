@@ -188,7 +188,9 @@ MySQL will be mapped to Spanner columns that are both primary keys and `NOT NULL
 
 ### Foreign Keys
 
-Spanner doesn't support `ON DELETE` and `ON UPDATE` rules in foreign keys, so we skip those rules. We handle foreign keys using ALTER TABLE statement after all the tables are created, this helps us avoid cyclic dependencies in foreign keys.
+The tool maps MySQL foreign key constraints into Spanner foreign key constraints, and
+preserves constraints names where possible. Since Spanner doesn't support `ON DELETE`
+and `ON UPDATE` actions, we drop them.
 
 ### Default Values
 

@@ -147,7 +147,7 @@ func GetSpannerKeyName(srcKeyName string, schemaForeignKeys map[string]bool) str
 	}
 	spKeyName, _ := FixName(srcKeyName)
 	if _, found := schemaForeignKeys[spKeyName]; found {
-		// spKeyName has been used before i.e. FixName caused a collision.
+		// spKeyName has been used before.
 		// Add unique postfix: use number of foreign keys so far.
 		// However, there is a chance this has already been used,
 		// so need to iterate.
