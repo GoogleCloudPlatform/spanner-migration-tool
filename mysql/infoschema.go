@@ -17,6 +17,7 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -203,6 +204,10 @@ func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName) error {
 	if err != nil {
 		return fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.schema, table.name, err)
 	}
+	foreignKeys, err := getForeignKeys(conv, db, table)
+	if err != nil {
+		return fmt.Errorf("couldn't get foreign key constraints for table %s.%s: %s", table.schema, table.name, err)
+	}
 	colDefs, colNames := processColumns(conv, cols, constraints)
 	name := table.name
 	var schemaPKeys []schema.Key
@@ -213,7 +218,8 @@ func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName) error {
 		Name:        name,
 		ColNames:    colNames,
 		ColDefs:     colDefs,
-		PrimaryKeys: schemaPKeys}
+		PrimaryKeys: schemaPKeys,
+		ForeignKeys: foreignKeys}
 	return nil
 }
 
@@ -244,10 +250,10 @@ func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string]
 			switch c {
 			case "UNIQUE":
 				unique = true
-			case "FOREIGN KEY":
-				ignored.ForeignKey = true
 			case "CHECK":
 				ignored.Check = true
+			case "FOREIGN KEY", "PRIMARY KEY":
+				// Nothing to do here -- these are both handled elsewhere.
 			}
 		}
 		ignored.Default = colDefault.Valid
@@ -270,6 +276,7 @@ func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string]
 // getConstraints returns a list of primary keys and by-column map of
 // other constraints.  Note: we need to preserve ordinal order of
 // columns in primary key constraints.
+// Note that foreign key constraints are handled in getForeignKeys.
 func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]string, map[string][]string, error) {
 	q := `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
               FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
@@ -302,6 +309,70 @@ func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]str
 		}
 	}
 	return primaryKeys, m, nil
+}
+
+type fkConstraint struct {
+	name    string
+	table   string
+	refcols []string
+	cols    []string
+}
+
+// getForeignKeys return list all the foreign keys constraints.
+// MySQL supports cross-database foreign key constraints. We ignore
+// them because HarbourBridge works database at a time (a specific run
+// of HarbourBridge focuses on a specific database) and so we can't handle
+// them effectively.
+func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (foreignKeys []schema.ForeignKey, err error) {
+	q := `SELECT k.REFERENCED_TABLE_NAME,k.COLUMN_NAME,k.REFERENCED_COLUMN_NAME,k.CONSTRAINT_NAME
+		FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t 
+		INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k 
+			ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
+			AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA 
+			AND t.TABLE_NAME = k.TABLE_NAME 
+			AND k.REFERENCED_TABLE_SCHEMA = k.TABLE_SCHEMA
+		WHERE k.TABLE_SCHEMA = ? 
+			AND k.TABLE_NAME = ? 
+			AND t.CONSTRAINT_TYPE = "FOREIGN KEY" 
+		ORDER BY
+			k.REFERENCED_TABLE_NAME,
+			k.COLUMN_NAME,
+			k.ORDINAL_POSITION;`
+	rows, err := db.Query(q, table.schema, table.name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var col, refCol, refTable, fKeyName string
+	fKeys := make(map[string]fkConstraint)
+	var keyNames []string
+
+	for rows.Next() {
+		err := rows.Scan(&refTable, &col, &refCol, &fKeyName)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+			continue
+		}
+		if _, found := fKeys[fKeyName]; found {
+			fk := fKeys[fKeyName]
+			fk.cols = append(fk.cols, col)
+			fk.refcols = append(fk.refcols, refCol)
+			fKeys[fKeyName] = fk
+			continue
+		}
+		fKeys[fKeyName] = fkConstraint{name: fKeyName, table: refTable, refcols: []string{refCol}, cols: []string{col}}
+		keyNames = append(keyNames, fKeyName)
+	}
+	sort.Strings(keyNames)
+	for _, k := range keyNames {
+		foreignKeys = append(foreignKeys,
+			schema.ForeignKey{
+				Name:         fKeys[k].name,
+				Columns:      fKeys[k].cols,
+				ReferTable:   fKeys[k].table,
+				ReferColumns: fKeys[k].refcols})
+	}
+	return foreignKeys, nil
 }
 
 func toType(dataType string, columnType string, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {

@@ -84,6 +84,7 @@ func TestPrintCreateTable(t *testing.T) {
 		[]string{"col1", "col2", "col3"},
 		cds,
 		[]IndexKey{IndexKey{Col: "col1", Desc: true}},
+		nil,
 		"",
 	}
 	tests := []struct {
@@ -115,6 +116,66 @@ func TestPrintCreateIndex(t *testing.T) {
 	}
 	for _, tc := range tests {
 		assert.Equal(t, normalizeSpace(tc.expected), normalizeSpace(ci.PrintCreateIndex(Config{ProtectIds: tc.protectIds})))
+	}
+}
+
+func TestPrintForeignKey(t *testing.T) {
+	fk := []Foreignkey{
+		Foreignkey{
+			"fk_test",
+			[]string{"c1", "c2"},
+			"ref_table",
+			[]string{"ref_c1", "ref_c2"},
+		},
+		Foreignkey{
+			"",
+			[]string{"c1"},
+			"ref_table",
+			[]string{"ref_c1"},
+		},
+	}
+	tests := []struct {
+		name       string
+		protectIds bool
+		expected   string
+		fk         Foreignkey
+	}{
+		{"no quote", false, "CONSTRAINT fk_test FOREIGN KEY (c1,c2) REFERENCES ref_table (ref_c1,ref_c2)", fk[0]},
+		{"quote", true, "CONSTRAINT `fk_test` FOREIGN KEY (`c1`,`c2`) REFERENCES `ref_table` (`ref_c1`,`ref_c2`)", fk[0]},
+		{"no constraint name", false, "FOREIGN KEY (c1) REFERENCES ref_table (ref_c1)", fk[1]},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, normalizeSpace(tc.expected), normalizeSpace(tc.fk.PrintForeignKey(Config{ProtectIds: tc.protectIds})))
+	}
+}
+func TestPrintForeignKeyAlterTable(t *testing.T) {
+	fk := []Foreignkey{
+		Foreignkey{
+			"fk_test",
+			[]string{"c1", "c2"},
+			"ref_table",
+			[]string{"ref_c1", "ref_c2"},
+		},
+		Foreignkey{
+			"",
+			[]string{"c1"},
+			"ref_table",
+			[]string{"ref_c1"},
+		},
+	}
+	tests := []struct {
+		name       string
+		table      string
+		protectIds bool
+		expected   string
+		fk         Foreignkey
+	}{
+		{"no quote", "table1", false, "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (c1,c2) REFERENCES ref_table (ref_c1,ref_c2)", fk[0]},
+		{"quote", "table1", true, "ALTER TABLE `table1` ADD CONSTRAINT `fk_test` FOREIGN KEY (`c1`,`c2`) REFERENCES `ref_table` (`ref_c1`,`ref_c2`)", fk[0]},
+		{"no constraint name", "table1", false, "ALTER TABLE table1 ADD FOREIGN KEY (c1) REFERENCES ref_table (ref_c1)", fk[1]},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, normalizeSpace(tc.expected), normalizeSpace(tc.fk.PrintForeignKeyAlterTable(Config{ProtectIds: tc.protectIds}, tc.table)))
 	}
 }
 

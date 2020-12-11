@@ -37,6 +37,7 @@ type Table struct {
 	ColNames    []string          // List of column names (for predictable iteration order e.g. printing).
 	ColDefs     map[string]Column // Details of columns.
 	PrimaryKeys []Key
+	ForeignKeys []ForeignKey
 	Indexes     []Index
 }
 
@@ -48,6 +49,21 @@ type Column struct {
 	NotNull bool
 	Unique  bool
 	Ignored Ignored
+}
+
+// ForeignKey represents a foreign key.
+// Note that the fields onDelete and onUpdate describe actions
+// for when keys are deleted or updated. Different source databases
+// support different actions. For example, mysql supports RESTRICT,
+// CASCADE, SET NULL, NO ACTION, and SET DEFAULT
+// (see https://dev.mysql.com/doc/refman/5.6/en/create-table-foreign-keys.html).
+type ForeignKey struct {
+	Name         string
+	Columns      []string
+	ReferTable   string
+	ReferColumns []string // len(ReferColumns) must be same as len(Columns)
+	OnDelete     string
+	OnUpdate     string
 }
 
 // Key respresents a primary key or index key.

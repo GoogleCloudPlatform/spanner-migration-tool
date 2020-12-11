@@ -91,3 +91,31 @@ func TestGetSpannerCol(t *testing.T) {
 		assert.Equal(t, spCol, spCol2, tc.name)
 	}
 }
+
+func TestGetSpannerKeyName(t *testing.T) {
+	schemaForeignKeys := make(map[string]bool)
+
+	basicTests := []struct {
+		name       string // Name of test.
+		srcKeyName string // Source foreign key name.
+		spKeyName  string // Expected Spanner foreign key name.
+	}{
+		{"Good name", "fktest", "fktest"},
+		{"Empty name", "", ""},
+		{"Collision", "fktest", "fktest_1"},
+		{"Collision 2", "fktest", "fktest_2"},
+		{"Bad name", "fk\ntest", "fk_test"},
+		{"Bad name 2", "f\nk\ntest", "f_k_test"},
+		{"Collision 3", "fktest", "fktest_5"},
+		{"Collision 4", "fktest", "fktest_6"},
+		{"Good name", "fk_test_5", "fk_test_5"},
+		{"Collision 5", "fktest_6", "fktest_6_8"},
+		{"Bad name with collision", "fk\ttest", "fk_test_9"},
+		{"Bad name with collision 2", "fk\ntest", "fk_test_10"},
+		{"Bad name with collision 3", "fk?test", "fk_test_11"},
+	}
+	for _, tc := range basicTests {
+		spKeyName := GetSpannerKeyName(tc.srcKeyName, schemaForeignKeys)
+		assert.Equal(t, tc.spKeyName, spKeyName, tc.name)
+	}
+}

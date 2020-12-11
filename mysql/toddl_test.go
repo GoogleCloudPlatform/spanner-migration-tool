@@ -39,7 +39,9 @@ func TestToSpannerType(t *testing.T) {
 			"e": schema.Column{Name: "e", Type: schema.Type{Name: "double"}},
 			"f": schema.Column{Name: "f", Type: schema.Type{Name: "timestamp"}},
 		},
-		PrimaryKeys: []schema.Key{schema.Key{Column: "a"}}}
+		PrimaryKeys: []schema.Key{schema.Key{Column: "a"}},
+		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"b"}}},
+	}
 	conv.SrcSchema[name] = srcSchema
 	assert.Nil(t, schemaToDDL(conv))
 	actual := conv.SpSchema[name]
@@ -56,6 +58,7 @@ func TestToSpannerType(t *testing.T) {
 			"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
 		},
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"b"}}},
 	}
 	assert.Equal(t, expected, actual)
 	expectedIssues := map[string][]internal.SchemaIssue{

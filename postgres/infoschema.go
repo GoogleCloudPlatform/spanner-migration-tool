@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math/bits"
 	"reflect"
+	"sort"
 	"strconv"
 	"time"
 
@@ -235,6 +236,10 @@ func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName) error {
 	if err != nil {
 		return fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.schema, table.name, err)
 	}
+	foreignKeys, err := getForeignKeys(conv, db, table)
+	if err != nil {
+		return fmt.Errorf("couldn't get foreign key constraints for table %s.%s: %s", table.schema, table.name, err)
+	}
 	colDefs, colNames := processColumns(conv, cols, constraints)
 	name := buildTableName(table.schema, table.name)
 	var schemaPKeys []schema.Key
@@ -245,7 +250,8 @@ func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName) error {
 		Name:        name,
 		ColNames:    colNames,
 		ColDefs:     colDefs,
-		PrimaryKeys: schemaPKeys}
+		PrimaryKeys: schemaPKeys,
+		ForeignKeys: foreignKeys}
 	return nil
 }
 
@@ -279,10 +285,10 @@ func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string]
 			switch c {
 			case "UNIQUE":
 				unique = true
-			case "FOREIGN KEY":
-				ignored.ForeignKey = true
 			case "CHECK":
 				ignored.Check = true
+			case "FOREIGN KEY", "PRIMARY KEY":
+				// Nothing to do here -- these are both handled elsewhere.
 			}
 		}
 		ignored.Default = colDefault.Valid
@@ -302,6 +308,7 @@ func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string]
 // getConstraints returns a list of primary keys and by-column map of
 // other constraints.  Note: we need to preserve ordinal order of
 // columns in primary key constraints.
+// Note that foreign key constraints are handled in getForeignKeys.
 func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]string, map[string][]string, error) {
 	q := `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
               FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
@@ -334,6 +341,78 @@ func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]str
 		}
 	}
 	return primaryKeys, m, nil
+}
+
+type fkConstraint struct {
+	name    string
+	table   string
+	refcols []string
+	cols    []string
+}
+
+// getForeignKeys returns a list of all the foreign key constraints.
+func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (foreignKeys []schema.ForeignKey, err error) {
+	q := `SELECT 
+		schema_name AS "TABLE_SCHEMA", 
+		cl.relname AS "TABLE_NAME", 
+		att2.attname AS "COLUMN_NAME", 
+		att.attname AS "REF_COLUMN_NAME", 
+		conname AS "CONSTRAINT_NAME"
+		FROM (SELECT 
+			UNNEST(con1.conkey) AS "parent", 
+			UNNEST(con1.confkey) AS "child", 
+			con1.confrelid, 
+			con1.conrelid, 
+			con1.conname, 
+			ns.nspname AS schema_name
+    		FROM PG_CLASS cl
+        		JOIN PG_NAMESPACE ns ON cl.relnamespace = ns.oid
+        		JOIN PG_CONSTRAINT con1 ON con1.conrelid = cl.oid
+    			WHERE ns.nspname = $1 AND cl.relname = $2 AND con1.contype = 'f') con
+   		JOIN PG_ATTRIBUTE att ON
+       		att.attrelid = con.confrelid AND att.attnum = con.child
+   		JOIN PG_CLASS cl ON
+       		cl.oid = con.confrelid
+   		JOIN PG_ATTRIBUTE att2 ON
+       		att2.attrelid = con.conrelid AND att2.attnum = con.parent;`
+
+	rows, err := db.Query(q, table.schema, table.name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var refTable schemaAndName
+	var col, refCol, fKeyName string
+	fKeys := make(map[string]fkConstraint)
+	var keyNames []string
+	for rows.Next() {
+		err := rows.Scan(&refTable.schema, &refTable.name, &col, &refCol, &fKeyName)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+			continue
+		}
+		tableName := buildTableName(refTable.schema, refTable.name)
+		if _, found := fKeys[fKeyName]; found {
+			fk := fKeys[fKeyName]
+			fk.cols = append(fk.cols, col)
+			fk.refcols = append(fk.refcols, refCol)
+			fKeys[fKeyName] = fk
+			continue
+		}
+		fKeys[fKeyName] = fkConstraint{name: fKeyName, table: tableName, refcols: []string{refCol}, cols: []string{col}}
+		keyNames = append(keyNames, fKeyName)
+	}
+
+	sort.Strings(keyNames)
+	for _, k := range keyNames {
+		foreignKeys = append(foreignKeys,
+			schema.ForeignKey{
+				Name:         fKeys[k].name,
+				Columns:      fKeys[k].cols,
+				ReferTable:   fKeys[k].table,
+				ReferColumns: fKeys[k].refcols})
+	}
+	return foreignKeys, nil
 }
 
 func toType(dataType string, elementDataType sql.NullString, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {

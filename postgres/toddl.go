@@ -28,6 +28,7 @@ import (
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
 func schemaToDDL(conv *internal.Conv) error {
+	schemaForeignKeys := make(map[string]bool)
 	for _, srcTable := range conv.SrcSchema {
 		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
 		if err != nil {
@@ -75,6 +76,7 @@ func schemaToDDL(conv *internal.Conv) error {
 			ColNames: spColNames,
 			ColDefs:  spColDef,
 			Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
+			Fks:      cvtForeignKeys(conv, srcTable.Name, srcTable.ForeignKeys, schemaForeignKeys),
 			Comment:  comment}
 	}
 	return nil
@@ -176,6 +178,41 @@ func cvtPrimaryKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Key) 
 			continue
 		}
 		spKeys = append(spKeys, ddl.IndexKey{Col: spCol, Desc: k.Desc})
+	}
+	return spKeys
+}
+
+func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.ForeignKey, schemaForeignKeys map[string]bool) []ddl.Foreignkey {
+	var spKeys []ddl.Foreignkey
+	for _, key := range srcKeys {
+		if len(key.Columns) != len(key.ReferColumns) {
+			conv.Unexpected(fmt.Sprintf("ConvertForeignKeys: columns and referColumns don't have the same lengths: len(columns)=%d, len(referColumns)=%d for source table: %s, referenced table: %s", len(key.Columns), len(key.ReferColumns), srcTable, key.ReferTable))
+			continue
+		}
+		spReferTable, err := internal.GetSpannerTable(conv, key.ReferTable)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't map foreign key for source table: %s, referenced table: %s", srcTable, key.ReferTable))
+			continue
+		}
+		var spCols, spReferCols []string
+		for i, col := range key.Columns {
+			spCol, err1 := internal.GetSpannerCol(conv, srcTable, col, false)
+			spReferCol, err2 := internal.GetSpannerCol(conv, key.ReferTable, key.ReferColumns[i], false)
+			if err1 != nil || err2 != nil {
+				conv.Unexpected(fmt.Sprintf("Can't map foreign key for table: %s, referenced table: %s, column: %s", srcTable, key.ReferTable, col))
+				continue
+			}
+			spCols = append(spCols, spCol)
+			spReferCols = append(spReferCols, spReferCol)
+		}
+		spKeyName := internal.GetSpannerKeyName(key.Name, schemaForeignKeys)
+
+		spKey := ddl.Foreignkey{
+			Name:         spKeyName,
+			Columns:      spCols,
+			ReferTable:   spReferTable,
+			ReferColumns: spReferCols}
+		spKeys = append(spKeys, spKey)
 	}
 	return spKeys
 }

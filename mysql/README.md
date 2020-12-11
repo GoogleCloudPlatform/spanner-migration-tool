@@ -186,9 +186,15 @@ primary key columns to be `NOT NULL`. However, in MySQL, a primary key is a
 combination of `NOT NULL` and `UNIQUE`, and so primary key columns from
 MySQL will be mapped to Spanner columns that are both primary keys and `NOT NULL`.
 
-### Foreign Keys and Default Values
+### Foreign Keys
 
-Spanner does not currently support foreign keys or default values. We drop these
+The tool maps MySQL foreign key constraints into Spanner foreign key constraints, and
+preserves constraint names where possible. Since Spanner doesn't support `ON DELETE`
+and `ON UPDATE` actions, we drop them.
+
+### Default Values
+
+Spanner does not currently support default values. We drop these
 MySQL features during conversion.
 
 ### Other MySQL features

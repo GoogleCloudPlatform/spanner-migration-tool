@@ -131,11 +131,8 @@ Data conversion: NONE (no data rows found).
 ----------------------------
 Table foreign_key
 ----------------------------
-Schema conversion: POOR (many columns did not map cleanly).
+Schema conversion: EXCELLENT (all columns mapped cleanly).
 Data conversion: NONE (no data rows found).
-
-Warning
-1) Column 'a' uses foreign keys which HarbourBridge does not support yet.
 
 ----------------------------
 Table no_pk
