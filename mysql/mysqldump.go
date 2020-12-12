@@ -142,10 +142,44 @@ func processStatement(conv *internal.Conv, stmt ast.StmtNode) bool {
 	case *ast.InsertStmt:
 		processInsertStmt(conv, s)
 		return true
+	case *ast.CreateIndexStmt:
+		if conv.SchemaMode() {
+			processCreateIndex(conv, s)
+		}
+
+		//fmt.Println(s.IndexName)
+
+		//fmt.Println(s.KeyType)
+		// // Index key types.
+		// const (
+		// 	IndexKeyTypeNone IndexKeyType = iota
+		// 	IndexKeyTypeUnique
+		// 	IndexKeyTypeSpatial
+		// 	IndexKeyTypeFullText
+		// )
 	default:
 		conv.SkipStatement(NodeType(stmt))
 	}
 	return false
+}
+
+func processCreateIndex(conv *internal.Conv, stmt *ast.CreateIndexStmt) {
+	if stmt.Table == nil {
+		logStmtError(conv, stmt, fmt.Errorf("table is nil"))
+		return
+	}
+	tableName, err := getTableName(stmt.Table)
+	if err != nil {
+		logStmtError(conv, stmt, fmt.Errorf("can't get table name: %w", err))
+		return
+	}
+	if _, ok := conv.SrcSchema[tableName]; ok {
+		ctable := conv.SrcSchema[tableName]
+		ctable.Indexes = append(ctable.Indexes, schema.Index{Name: stmt.IndexName, Keys: toSchemaKeys(stmt.IndexPartSpecifications)})
+		conv.SrcSchema[tableName] = ctable
+	} else {
+		conv.SkipStatement(NodeType(stmt))
+	}
 }
 
 func processSetStmt(conv *internal.Conv, stmt *ast.SetStmt) {
@@ -228,6 +262,8 @@ func processConstraint(conv *internal.Conv, table string, constraint *ast.Constr
 		updateCols(conv, ast.ConstraintPrimaryKey, constraint.Keys, st.ColDefs, table)
 	case ast.ConstraintForeignKey:
 		st.ForeignKeys = append(st.ForeignKeys, toForeignKeys(conv, constraint))
+	case ast.ConstraintIndex:
+		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Keys: toSchemaKeys(constraint.Keys)})
 	default:
 		updateCols(conv, ct, constraint.Keys, st.ColDefs, table)
 	}

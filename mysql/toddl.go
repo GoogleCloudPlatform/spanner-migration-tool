@@ -15,6 +15,7 @@
 package mysql
 
 import (
+	"crypto/rand"
 	"fmt"
 	"strconv"
 	"unicode"
@@ -84,6 +85,7 @@ func schemaToDDL(conv *internal.Conv) error {
 			ColDefs:  spColDef,
 			Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
 			Fks:      cvtForeignKeys(conv, srcTable.Name, srcTable.ForeignKeys, schemaForeignKeys),
+			Indexes:  cvtIndexes(conv, srcTable.Name, srcTable.Indexes),
 			Comment:  comment}
 	}
 	return nil
@@ -227,4 +229,36 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 		spKeys = append(spKeys, spKey)
 	}
 	return spKeys
+}
+
+func cvtIndexes(conv *internal.Conv, srcTable string, srcIndexes []schema.Index) []ddl.CreateIndex {
+	var spIndexes []ddl.CreateIndex
+	for _, srcIndex := range srcIndexes {
+		var spKeys []ddl.IndexKey
+		for _, k := range srcIndex.Keys {
+			spCol, err := internal.GetSpannerCol(conv, srcTable, k.Column, true)
+			if err != nil {
+				conv.Unexpected(fmt.Sprintf("Can't map index for table %s", srcTable))
+				continue
+			}
+			spKeys = append(spKeys, ddl.IndexKey{Col: spCol, Desc: k.Desc})
+		}
+		if srcIndex.Name == "" {
+			b := make([]byte, 4)
+			_, err := rand.Read(b)
+			if err != nil {
+				conv.Unexpected(fmt.Sprintf("Can't map index for table %s", srcTable))
+				continue
+			}
+			srcIndex.Name = fmt.Sprintf("Index_%s_%x-%x", srcTable, b[0:2], b[2:4])
+		}
+
+		spKeyName, err := internal.GetSpannerIndexKeyName(conv, srcIndex.Name, spIndexes)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't map source index name for spanner index name %s", srcIndex.Name))
+			continue
+		}
+		spIndexes = append(spIndexes, ddl.CreateIndex{Name: spKeyName, Keys: spKeys})
+	}
+	return spIndexes
 }

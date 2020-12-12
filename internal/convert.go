@@ -179,6 +179,9 @@ func (conv *Conv) GetDDL(c ddl.Config) []string {
 	var ddl []string
 	for _, t := range tables {
 		ddl = append(ddl, conv.SpSchema[t].PrintCreateTable(c))
+		for _, i := range conv.SpSchema[t].Indexes {
+			ddl = append(ddl, i.PrintCreateIndex(conv.SpSchema[t].Name, c))
+		}
 	}
 
 	// Append foreign key constraints to DDL.

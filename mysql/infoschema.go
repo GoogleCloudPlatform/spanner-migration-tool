@@ -208,6 +208,10 @@ func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName) error {
 	if err != nil {
 		return fmt.Errorf("couldn't get foreign key constraints for table %s.%s: %s", table.schema, table.name, err)
 	}
+	indexes, err := getIndexes(conv, db, table)
+	if err != nil {
+		return fmt.Errorf("couldn't get indexes for table %s.%s: %s", table.schema, table.name, err)
+	}
 	colDefs, colNames := processColumns(conv, cols, constraints)
 	name := table.name
 	var schemaPKeys []schema.Key
@@ -219,6 +223,7 @@ func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName) error {
 		ColNames:    colNames,
 		ColDefs:     colDefs,
 		PrimaryKeys: schemaPKeys,
+		Indexes:     indexes,
 		ForeignKeys: foreignKeys}
 	return nil
 }
@@ -375,6 +380,38 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 	return foreignKeys, nil
 }
 
+// getIndexes return list all the indexes.
+func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) (indexes []schema.Index, err error) {
+	q := `SELECT DISTINCT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION
+		FROM INFORMATION_SCHEMA.STATISTICS 
+		WHERE TABLE_SCHEMA = ?
+			AND TABLE_NAME = ?
+			AND INDEX_NAME != 'PRIMARY' 
+		ORDER BY SEQ_IN_INDEX;`
+	rows, err := db.Query(q, table.schema, table.name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var name, col, seq, collation string
+	m := make(map[string][]schema.Key)
+	for rows.Next() {
+		err := rows.Scan(&name, &col, &seq, &collation)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+			continue
+		}
+		isDesc := false
+		if collation == "D" {
+			isDesc = true
+		}
+		m[name] = append(m[name], schema.Key{Column: col, Desc: isDesc})
+	}
+	for k, v := range m {
+		indexes = append(indexes, schema.Index{Name: k, Keys: v})
+	}
+	return indexes, nil
+}
 func toType(dataType string, columnType string, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {
 	switch {
 	case dataType == "set":

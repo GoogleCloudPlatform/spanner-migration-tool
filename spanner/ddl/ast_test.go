@@ -85,6 +85,7 @@ func TestPrintCreateTable(t *testing.T) {
 		cds,
 		[]IndexKey{IndexKey{Col: "col1", Desc: true}},
 		nil,
+		nil,
 		"",
 	}
 	tests := []struct {
@@ -103,19 +104,19 @@ func TestPrintCreateTable(t *testing.T) {
 func TestPrintCreateIndex(t *testing.T) {
 	ci := CreateIndex{
 		"myindex",
-		"mytable",
 		[]IndexKey{IndexKey{Col: "col1", Desc: true}, IndexKey{Col: "col2"}},
 	}
 	tests := []struct {
 		name       string
+		table      string
 		protectIds bool
 		expected   string
 	}{
-		{"no quote", false, "CREATE INDEX myindex ON mytable (col1 DESC, col2)"},
-		{"quote", true, "CREATE INDEX `myindex` ON `mytable` (`col1` DESC, `col2`)"},
+		{"no quote", "mytable", false, "CREATE INDEX myindex ON mytable (col1 DESC, col2)"},
+		{"quote", "mytable", true, "CREATE INDEX `myindex` ON `mytable` (`col1` DESC, `col2`)"},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, normalizeSpace(tc.expected), normalizeSpace(ci.PrintCreateIndex(Config{ProtectIds: tc.protectIds})))
+		assert.Equal(t, normalizeSpace(tc.expected), normalizeSpace(ci.PrintCreateIndex(tc.table, Config{ProtectIds: tc.protectIds})))
 	}
 }
 

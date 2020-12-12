@@ -185,11 +185,46 @@ func processStatements(conv *internal.Conv, statements []nodes.Node) *copyOrInse
 			if conv.SchemaMode() {
 				processVariableSetStmt(conv, n)
 			}
+		case nodes.IndexStmt:
+			if conv.SchemaMode() {
+				processIndexStmt(conv, n)
+			}
 		default:
 			conv.SkipStatement(prNodes([]nodes.Node{node}))
 		}
 	}
 	return nil
+}
+
+func toSchemaIndexKeys(indexParams nodes.List) (keys []schema.Key) {
+	var schemaKeys []schema.Key
+	for _, ip := range indexParams.Items {
+		schemaKeys = append(schemaKeys, schema.Key{Column: *ip.(nodes.IndexElem).Name})
+	}
+	return schemaKeys
+}
+
+func processIndexStmt(conv *internal.Conv, n nodes.IndexStmt) {
+	if n.Relation == nil {
+		logStmtError(conv, n, fmt.Errorf("relation is nil"))
+		return
+	}
+	tableName, err := getTableName(conv, *n.Relation)
+	if err != nil {
+		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
+		return
+	}
+	if _, ok := conv.SrcSchema[tableName]; ok {
+		ctable := conv.SrcSchema[tableName]
+		var cols []string
+		for _, ip := range n.IndexParams.Items {
+			cols = append(cols, *ip.(nodes.IndexElem).Name)
+		}
+		ctable.Indexes = append(ctable.Indexes, schema.Index{Name: *n.Idxname, Keys: toIndexKeys(conv, tableName, n.IndexParams.Items)})
+		conv.SrcSchema[tableName] = ctable
+	} else {
+		conv.SkipStatement(prNodes([]nodes.Node{n}))
+	}
 }
 
 func processAlterTableStmt(conv *internal.Conv, n nodes.AlterTableStmt) {
@@ -616,6 +651,19 @@ func toSchemaKeys(conv *internal.Conv, table string, s []string) (l []schema.Key
 		// PostgreSQL primary keys have no notation of ascending/descending.
 		// We map them all into ascending primarary keys.
 		l = append(l, schema.Key{Column: k})
+	}
+	return l
+}
+
+// toIndexKeys converts a string list of PostgreSQL primary keys to
+// schema Index keys.
+func toIndexKeys(conv *internal.Conv, table string, s []nodes.Node) (l []schema.Key) {
+	for _, k := range s {
+		desc := false
+		if k.(nodes.IndexElem).Ordering == nodes.SORTBY_DESC {
+			desc = true
+		}
+		l = append(l, schema.Key{Column: *k.(nodes.IndexElem).Name, Desc: desc})
 	}
 	return l
 }

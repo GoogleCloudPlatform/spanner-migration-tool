@@ -17,6 +17,8 @@ package internal
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
 // GetSpannerTable maps a source DB table name into a legal Spanner table
@@ -163,4 +165,56 @@ func GetSpannerKeyName(srcKeyName string, schemaForeignKeys map[string]bool) str
 	}
 	schemaForeignKeys[spKeyName] = true
 	return spKeyName
+}
+
+// GetSpannerKeyName maps source foreign key name to
+// legal Spanner foreign key name
+// If the srcKeyName is empty string we can just return
+// empty string without error.
+// If the srcKeyName is not empty we need to make sure
+// of the following things:
+// a) the new foreign key name is legal
+// b) the new foreign key name doesn't clash with other Spanner
+//    foreignkey names
+// c) we consistently return the same key name.
+func GetSpannerIndexKeyName(conv *Conv, srcKeyName string, spKeys []ddl.CreateIndex) (string, error) {
+	if srcKeyName == "" {
+		return "", fmt.Errorf("bad parameter: indexName is empty")
+	}
+	spKeyName, _ := FixName(srcKeyName)
+
+	// check wether the spKeyName is used before
+	found := false
+	for _, spKey := range spKeys {
+		if spKey.Name == spKeyName {
+			found = true
+			break
+		}
+	}
+	// spKeyName has been used before i.e. FixName caused a collision.
+	// Add unique postfix: use number of foreign keys in this table so far.
+	// However, there is a chance this has already been used,
+	// so need to iterate.
+	if found {
+		id := len(spKeys)
+		for {
+			c := spKeyName + "_" + strconv.Itoa(id)
+
+			// check wether the spKeyName is used before
+			found = false
+			for _, spKey := range spKeys {
+				if spKey.Name == c {
+					found = true
+					break
+				}
+			}
+			if !found {
+				spKeyName = c
+				break
+			}
+			id++
+		}
+	}
+
+	return spKeyName, nil
 }

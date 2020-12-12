@@ -240,6 +240,10 @@ func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName) error {
 	if err != nil {
 		return fmt.Errorf("couldn't get foreign key constraints for table %s.%s: %s", table.schema, table.name, err)
 	}
+	indexes, err := getIndexes(conv, db, table)
+	if err != nil {
+		return fmt.Errorf("couldn't get indexes for table %s.%s: %s", table.schema, table.name, err)
+	}
 	colDefs, colNames := processColumns(conv, cols, constraints)
 	name := buildTableName(table.schema, table.name)
 	var schemaPKeys []schema.Key
@@ -251,6 +255,7 @@ func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName) error {
 		ColNames:    colNames,
 		ColDefs:     colDefs,
 		PrimaryKeys: schemaPKeys,
+		Indexes:     indexes,
 		ForeignKeys: foreignKeys}
 	return nil
 }
@@ -413,6 +418,45 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 				ReferColumns: fKeys[k].refcols})
 	}
 	return foreignKeys, nil
+}
+
+// getIndexes return list all the indexes.
+func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) (indexes []schema.Index, err error) {
+	q := `SELECT
+    			i.relname AS index_name,
+    			a.attname AS column_name,
+    			1 + array_position(ix.indkey, a.attnum) as column_position
+			FROM
+     			pg_catalog.pg_class t
+				JOIN pg_catalog.pg_attribute a ON t.oid    =      a.attrelid
+				JOIN pg_catalog.pg_index ix    ON t.oid    =     ix.indrelid
+				JOIN pg_catalog.pg_class i     ON a.attnum = any(ix.indkey)
+                              AND i.oid    =     ix.indexrelid
+				JOIN pg_catalog.pg_namespace n ON n.oid    =      t.relnamespace
+			WHERE t.relkind = 'r' AND ix.indisprimary = false AND n.nspname=$1 AND t.relname=$2
+			ORDER BY
+    			t.relname,
+    			i.relname,
+    			array_position(ix.indkey, a.attnum);`
+	rows, err := db.Query(q, table.schema, table.name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var name, col, seq string
+	m := make(map[string][]schema.Key)
+	for rows.Next() {
+		err := rows.Scan(&name, &col, &seq)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+			continue
+		}
+		m[name] = append(m[name], schema.Key{Column: col})
+	}
+	for k, v := range m {
+		indexes = append(indexes, schema.Index{Name: k, Keys: v})
+	}
+	return indexes, nil
 }
 
 func toType(dataType string, elementDataType sql.NullString, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {

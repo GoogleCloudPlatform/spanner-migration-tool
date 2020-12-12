@@ -273,6 +273,27 @@ func TestProcessPgDump(t *testing.T) {
 						ddl.Foreignkey{Name: "fk_test2", Columns: []string{"f"}, ReferTable: "test2", ReferColumns: []string{"c"}}}}},
 		},
 		{
+			name: "Create index statement",
+			input: "CREATE TABLE test (" +
+				"a smallint," +
+				"b text," +
+				"c text" +
+				");\n" +
+				"CREATE INDEX custom_index ON test (b, c);\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b", "c", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+		},
+		{
 			name:  "Create table with pg schema",
 			input: "CREATE TABLE myschema.test (a text PRIMARY KEY, b text);\n",
 			expectedSchema: map[string]ddl.CreateTable{
