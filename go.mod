@@ -21,6 +21,7 @@ require (
 	github.com/pingcap/tidb v1.1.0-beta.0.20200423105559-af376db3dc46
 	github.com/pingcap/tipb v0.0.0-20200417094153-7316d94df1ee // indirect
 	github.com/sirupsen/logrus v1.5.0 // indirect
+	github.com/stevenle/topsort v0.0.0-20130922064739-8130c1d7596b
 	github.com/stretchr/testify v1.5.1
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/sys v0.0.0-20200916084744-dbad9cb7cb7a // indirect

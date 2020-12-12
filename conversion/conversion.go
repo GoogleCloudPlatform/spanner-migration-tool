@@ -1,29 +1,10 @@
-// Copyright 2020 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-// Package main implements HarbourBridge, a stand-alone tool for Cloud Spanner
-// evaluation, using data from an existing PostgreSQL/MySQL database. See README.md
-// for details.
-package main
+package conversion
 
 import (
 	"bufio"
 	"context"
 	"crypto/rand"
 	"database/sql"
-	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -38,8 +19,6 @@ import (
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
-	"github.com/aws/aws-sdk-go/aws/session"
-	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/ssh/terminal"
@@ -47,13 +26,11 @@ import (
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
-	"github.com/cloudspannerecosystem/harbourbridge/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/postgres"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/web"
 )
 
 const (
@@ -65,188 +42,20 @@ const (
 	MYSQLDUMP string = "mysqldump"
 	// MYSQL is the driver name for MySQL.
 	MYSQL string = "mysql"
-	// DYNAMODB is the driver name for AWS DynamoDB.
-	// This is an experimental driver; implementation in progress.
-	DYNAMODB string = "dynamodb"
 )
 
-var (
-	badDataFile      = "dropped.txt"
-	schemaFile       = "schema.txt"
-	sessionFile      = "session.json"
-	reportFile       = "report.txt"
-	dbNameOverride   string
-	instanceOverride string
-	filePrefix       = ""
-	driverName       = PGDUMP
-	schemaSampleSize = int64(0)
-	verbose          bool
-	schemaOnly       bool
-	dataOnly         bool
-	sessionJSON      string
-	w                bool
-)
-
-func init() {
-	flag.StringVar(&dbNameOverride, "dbname", "", "dbname: name to use for Spanner DB")
-	flag.StringVar(&instanceOverride, "instance", "", "instance: Spanner instance to use")
-	flag.StringVar(&filePrefix, "prefix", "", "prefix: file prefix for generated files")
-	flag.StringVar(&driverName, "driver", "pg_dump", "driver name: flag for accessing source DB or dump files (accepted values are \"pg_dump\", \"postgres\", \"mysqldump\", and \"mysql\")")
-	flag.Int64Var(&schemaSampleSize, "schema-sample-size", int64(100000), "schema-sample-size: the number of rows to use for inferring schema (only for DynamoDB)")
-	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
-	flag.BoolVar(&schemaOnly, "schema-only", false, "schema-only: in this mode we do schema conversion, but skip data conversion")
-	flag.BoolVar(&dataOnly, "data-only", false, "data-only: in this mode we skip schema conversion and just do data conversion (use the session flag to specify the session file for schema and data mapping)")
-	flag.StringVar(&sessionJSON, "session", "", "session: specifies the file we restore session state from (used in schema-only to provide schema and data mapping)")
-	flag.BoolVar(&w, "web", false, "web: run the web interface")
-}
-
-func usage() {
-	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-	flag.PrintDefaults()
-	fmt.Fprintf(os.Stderr, `Note: input is always read from stdin.
-Sample usage:
-  pg_dump mydb | %s
-  %s < my_pg_dump_file
-`, os.Args[0], os.Args[0])
-}
-
-func main() {
-	flag.Usage = usage
-	flag.Parse()
-	if w {
-		web.WebApp()
-		return
-	}
-	internal.VerboseInit(verbose)
-	lf, err := setupLogFile()
-	if err != nil {
-		fmt.Printf("\nCan't set up log file: %v\n", err)
-		panic(fmt.Errorf("can't set up log file"))
-	}
-	defer close(lf)
-
-	ioHelper := &ioStreams{in: os.Stdin, out: os.Stdout}
-	fmt.Println("Using driver (source DB):", driverName)
-	var project, instance string
-	if !schemaOnly {
-		project, err = getProject()
-		if err != nil {
-			fmt.Printf("\nCan't get project: %v\n", err)
-			panic(fmt.Errorf("can't get project"))
-		}
-		fmt.Println("Using Google Cloud project:", project)
-
-		instance = instanceOverride
-		if instance == "" {
-			instance, err = getInstance(project, ioHelper.out)
-			if err != nil {
-				fmt.Printf("\nCan't get instance: %v\n", err)
-				panic(fmt.Errorf("can't get instance"))
-			}
-		}
-		fmt.Println("Using Cloud Spanner instance:", instance)
-		printPermissionsWarning(driverName, ioHelper.out)
-	}
-
-	now := time.Now()
-	dbName := dbNameOverride
-	if dbName == "" {
-		dbName, err = getDatabaseName(driverName, now)
-		if err != nil {
-			fmt.Printf("\nCan't get database name: %v\n", err)
-			panic(fmt.Errorf("can't get database name"))
-		}
-	}
-
-	// If filePrefix not explicitly set, use dbName.
-	if filePrefix == "" {
-		filePrefix = dbName + "."
-	}
-
-	if schemaOnly && dataOnly {
-		panic(fmt.Errorf("can't use both schema-only and data-only modes at once"))
-	}
-
-	if dataOnly && sessionJSON == "" {
-		panic(fmt.Errorf("when using data-only mode, the session must specify the session file to use"))
-	}
-
-	err = toSpanner(driverName, project, instance, dbName, ioHelper, filePrefix, now)
-	if err != nil {
-		panic(err)
-	}
-
-}
-
-// toSpanner is the main entrance of the entire conversion, which runs the
-// following steps:
-//   1. Run schema conversion
-//   2. Create database
-//   3. Run data conversion
-//   4. Generate report
-func toSpanner(driver, projectID, instanceID, dbName string, ioHelper *ioStreams, outputFilePrefix string, now time.Time) error {
-	var conv *internal.Conv
-	var err error
-	if !dataOnly {
-		conv, err = schemaConv(driver, ioHelper)
-		if err != nil {
-			return err
-		}
-		if ioHelper.seekableIn != nil {
-			defer ioHelper.in.Close()
-		}
-
-		writeSchemaFile(conv, now, outputFilePrefix+schemaFile, ioHelper.out)
-		writeSessionFile(conv, now, outputFilePrefix+sessionFile, ioHelper.out)
-		if schemaOnly {
-			report(driver, nil, ioHelper.bytesRead, "", conv, outputFilePrefix+reportFile, ioHelper.out)
-			return nil
-		}
-	} else {
-		conv = internal.MakeConv()
-		err = readSessionFile(conv)
-		if err != nil {
-			return err
-		}
-	}
-
-	db, err := createDatabase(projectID, instanceID, dbName, conv, ioHelper.out)
-	if err != nil {
-		fmt.Printf("\nCan't create database: %v\n", err)
-		return fmt.Errorf("can't create database")
-	}
-
-	client, err := getClient(db)
-	if err != nil {
-		fmt.Printf("\nCan't create client for db %s: %v\n", db, err)
-		return fmt.Errorf("can't create Spanner client")
-	}
-
-	bw, err := dataConv(driver, ioHelper, client, conv)
-	if err != nil {
-		fmt.Printf("\nCan't finish data conversion for db %s: %v\n", db, err)
-		return fmt.Errorf("can't finish data conversion")
-	}
-	banner := getBanner(now, db)
-	report(driver, bw.DroppedRowsByTable(), ioHelper.bytesRead, banner, conv, outputFilePrefix+reportFile, ioHelper.out)
-	writeBadData(bw, conv, banner, outputFilePrefix+badDataFile, ioHelper.out)
-	return nil
-}
-
-func schemaConv(driver string, ioHelper *ioStreams) (*internal.Conv, error) {
+func SchemaConv(driver string, ioHelper *IOStreams) (*internal.Conv, error) {
 	switch driver {
 	case POSTGRES, MYSQL:
 		return schemaFromSQL(driver)
 	case PGDUMP, MYSQLDUMP:
 		return schemaFromDump(driver, ioHelper)
-	case DYNAMODB:
-		return schemaFromDynamoDB(schemaSampleSize)
 	default:
 		return nil, fmt.Errorf("schema conversion for driver %s not supported", driver)
 	}
 }
 
-func dataConv(driver string, ioHelper *ioStreams, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
+func DataConv(driver string, ioHelper *IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*spanner.BatchWriter, error) {
 	config := spanner.BatchWriterConfig{
 		BytesLimit: 100 * 1000 * 1000,
 		WriteLimit: 40,
@@ -257,9 +66,7 @@ func dataConv(driver string, ioHelper *ioStreams, client *sp.Client, conv *inter
 	case POSTGRES, MYSQL:
 		return dataFromSQL(driver, config, client, conv)
 	case PGDUMP, MYSQLDUMP:
-		return dataFromDump(driver, config, ioHelper, client, conv)
-	case DYNAMODB:
-		return dataFromDynamoDB(config, client, conv)
+		return dataFromDump(driver, config, ioHelper, client, conv, dataOnly)
 	default:
 		return nil, fmt.Errorf("data conversion for driver %s not supported", driver)
 	}
@@ -369,63 +176,19 @@ func dataFromSQL(driver string, config spanner.BatchWriterConfig, client *sp.Cli
 	return writer, nil
 }
 
-func schemaFromDynamoDB(sampleSize int64) (*internal.Conv, error) {
-	conv := internal.MakeConv()
-	mySession := session.Must(session.NewSession())
-	client := dydb.New(mySession)
-	err := dynamodb.ProcessSchema(conv, client, []string{}, sampleSize)
-	if err != nil {
-		return nil, err
-	}
-	return conv, nil
+type IOStreams struct {
+	In, SeekableIn, Out *os.File
+	BytesRead           int64
 }
 
-func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
-	mySession := session.Must(session.NewSession())
-	dyclient := dydb.New(mySession)
-
-	dynamodb.SetRowStats(conv, dyclient)
-	totalRows := conv.Rows()
-	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose())
-
-	rows := int64(0)
-	config.Write = func(m []*sp.Mutation) error {
-		_, err := client.Apply(context.Background(), m)
-		if err != nil {
-			return err
-		}
-		atomic.AddInt64(&rows, int64(len(m)))
-		p.MaybeReport(atomic.LoadInt64(&rows))
-		return nil
-	}
-	writer := spanner.NewBatchWriter(config)
-	conv.SetDataMode()
-	conv.SetDataSink(
-		func(table string, cols []string, vals []interface{}) {
-			writer.AddRow(table, cols, vals)
-		})
-
-	err := dynamodb.ProcessData(conv, dyclient)
+func schemaFromDump(driver string, ioHelper *IOStreams) (*internal.Conv, error) {
+	f, n, err := getSeekable(ioHelper.In)
 	if err != nil {
-		return nil, err
-	}
-	writer.Flush()
-	return writer, nil
-}
-
-type ioStreams struct {
-	in, seekableIn, out *os.File
-	bytesRead           int64
-}
-
-func schemaFromDump(driver string, ioHelper *ioStreams) (*internal.Conv, error) {
-	f, n, err := getSeekable(ioHelper.in)
-	if err != nil {
-		printSeekError(driver, err, ioHelper.out)
+		printSeekError(driver, err, ioHelper.Out)
 		return nil, fmt.Errorf("can't get seekable input file")
 	}
-	ioHelper.seekableIn = f
-	ioHelper.bytesRead = n
+	ioHelper.SeekableIn = f
+	ioHelper.BytesRead = n
 	conv := internal.MakeConv()
 	p := internal.NewProgress(n, "Generating schema", internal.Verbose())
 	r := internal.NewReader(bufio.NewReader(f), p)
@@ -433,18 +196,18 @@ func schemaFromDump(driver string, ioHelper *ioStreams) (*internal.Conv, error) 
 	conv.SetDataSink(nil)
 	err = ProcessDump(driver, conv, r)
 	if err != nil {
-		fmt.Fprintf(ioHelper.out, "Failed to parse the data file: %v", err)
+		fmt.Fprintf(ioHelper.Out, "Failed to parse the data file: %v", err)
 		return nil, fmt.Errorf("failed to parse the data file")
 	}
 	p.Done()
 	return conv, nil
 }
 
-func dataFromDump(driver string, config spanner.BatchWriterConfig, ioHelper *ioStreams, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
+func dataFromDump(driver string, config spanner.BatchWriterConfig, ioHelper *IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*spanner.BatchWriter, error) {
 	// TODO: refactor of the way we handle getSeekable
 	// to avoid the code duplication here
 	if !dataOnly {
-		_, err := ioHelper.seekableIn.Seek(0, 0)
+		_, err := ioHelper.SeekableIn.Seek(0, 0)
 		if err != nil {
 			fmt.Printf("\nCan't seek to start of file (preparation for second pass): %v\n", err)
 			return nil, fmt.Errorf("can't seek to start of file")
@@ -452,18 +215,18 @@ func dataFromDump(driver string, config spanner.BatchWriterConfig, ioHelper *ioS
 	} else {
 		// Note: input file is kept seekable to plan for future
 		// changes in showing progress for data migration.
-		f, n, err := getSeekable(ioHelper.in)
+		f, n, err := getSeekable(ioHelper.In)
 		if err != nil {
-			printSeekError(driver, err, ioHelper.out)
+			printSeekError(driver, err, ioHelper.Out)
 			return nil, fmt.Errorf("can't get seekable input file")
 		}
-		ioHelper.seekableIn = f
-		ioHelper.bytesRead = n
+		ioHelper.SeekableIn = f
+		ioHelper.BytesRead = n
 	}
 	totalRows := conv.Rows()
 
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose())
-	r := internal.NewReader(bufio.NewReader(ioHelper.seekableIn), nil)
+	r := internal.NewReader(bufio.NewReader(ioHelper.SeekableIn), nil)
 	rows := int64(0)
 	config.Write = func(m []*sp.Mutation) error {
 		_, err := client.Apply(context.Background(), m)
@@ -487,7 +250,7 @@ func dataFromDump(driver string, config spanner.BatchWriterConfig, ioHelper *ioS
 	return writer, nil
 }
 
-func report(driver string, badWrites map[string]int64, bytesRead int64, banner string, conv *internal.Conv, reportFileName string, out *os.File) {
+func Report(driver string, badWrites map[string]int64, BytesRead int64, banner string, conv *internal.Conv, reportFileName string, out *os.File) {
 	f, err := os.Create(reportFileName)
 	if err != nil {
 		fmt.Fprintf(out, "Can't write out report file %s: %v\n", reportFileName, err)
@@ -507,7 +270,7 @@ func report(driver string, badWrites map[string]int64, bytesRead int64, banner s
 	}
 	if isDump {
 		fmt.Fprintf(out, "Processed %d bytes of %s data (%d statements, %d rows of data, %d errors, %d unexpected conditions).\n",
-			bytesRead, driver, conv.Statements(), conv.Rows(), conv.StatementErrors(), conv.Unexpecteds())
+			BytesRead, driver, conv.Statements(), conv.Rows(), conv.StatementErrors(), conv.Unexpecteds())
 	} else {
 		fmt.Fprintf(out, "Processed source database via %s driver (%d rows of data, %d unexpected conditions).\n",
 			driver, conv.Rows(), conv.Unexpecteds())
@@ -555,7 +318,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 // It automatically determines an appropriate project, selects a
 // Spanner instance to use, generates a new Spanner DB name,
 // and call into the Spanner admin interface to create the new DB.
-func createDatabase(project, instance, dbName string, conv *internal.Conv, out *os.File) (string, error) {
+func CreateDatabase(project, instance, dbName string, conv *internal.Conv, out *os.File) (string, error) {
 	fmt.Fprintf(out, "Creating new database %s in instance %s with default permissions ... ", dbName, instance)
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
@@ -566,8 +329,7 @@ func createDatabase(project, instance, dbName string, conv *internal.Conv, out *
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
-	// We also exclude foreign keys from the schema sent to Spanner.
-	schema := conv.GetDDL(ddl.Config{Comments: false, ProtectIds: true, ForeignKeys: true})
+	schema := conv.GetDDL(ddl.Config{Comments: false, ProtectIds: true})
 	op, err := adminClient.CreateDatabase(ctx, &adminpb.CreateDatabaseRequest{
 		Parent:          fmt.Sprintf("projects/%s/instances/%s", project, instance),
 		CreateStatement: "CREATE DATABASE `" + dbName + "`",
@@ -586,7 +348,7 @@ func createDatabase(project, instance, dbName string, conv *internal.Conv, out *
 // getProject returns the cloud project we should use for accessing Spanner.
 // Use environment variable GCLOUD_PROJECT if it is set.
 // Otherwise, use the default project returned from gcloud.
-func getProject() (string, error) {
+func GetProject() (string, error) {
 	project := os.Getenv("GCLOUD_PROJECT")
 	if project != "" {
 		return project, nil
@@ -603,7 +365,7 @@ func getProject() (string, error) {
 // getInstance returns the Spanner instance we should use for creating DBs.
 // If the user specified instance (via flag 'instance') then use that.
 // Otherwise try to deduce the instance using gcloud.
-func getInstance(project string, out *os.File) (string, error) {
+func GetInstance(project string, out *os.File) (string, error) {
 	l, err := getInstances(project)
 	if err != nil {
 		return "", err
@@ -649,19 +411,19 @@ func getInstances(project string) ([]string, error) {
 	return l, nil
 }
 
-func writeSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.File) {
+func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.File) {
 	f, err := os.Create(name)
 	if err != nil {
 		fmt.Fprintf(out, "Can't create schema file %s: %v\n", name, err)
 		return
 	}
-	// The schema file we write out includes comments, includes foreign keys
-	// and doesn't add backticks around table and column names. This file is
-	// intended for explanatory and documentation purposes, and is not strictly
-	// legal Cloud Spanner DDL (Cloud Spanner doesn't currently support comments).
-	// Change 'Comments' to false and 'ProtectIds' to true to write out a
-	// schema file that is legal Cloud Spanner DDL.
-	ddl := conv.GetDDL(ddl.Config{Comments: true, ProtectIds: false, ForeignKeys: true})
+	// The schema file we write out includes comments, and doesn't add backticks
+	// around table and column names. This file is intended for explanatory
+	// and documentation purposes, and is not strictly legal Cloud Spanner DDL
+	// (Cloud Spanner doesn't currently support comments). Change 'Comments'
+	// to false and 'ProtectIds' to true to write out a schema file that is
+	// legal Cloud Spanner DDL.
+	ddl := conv.GetDDL(ddl.Config{Comments: true, ProtectIds: false})
 	if len(ddl) == 0 {
 		ddl = []string{"\n-- Schema is empty -- no tables found\n"}
 	}
@@ -677,43 +439,9 @@ func writeSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 	fmt.Fprintf(out, "Wrote schema to file '%s'.\n", name)
 }
 
-func writeSessionFile(conv *internal.Conv, now time.Time, name string, out *os.File) {
-	f, err := os.Create(name)
-	if err != nil {
-		fmt.Fprintf(out, "Can't create session file %s: %v\n", name, err)
-		return
-	}
-	// Session file will basically contain 'conv' struct in JSON format.
-	// It contains all the information for schema and data conversion state.
-	convJSON, err := json.MarshalIndent(conv, "", " ")
-	if err != nil {
-		fmt.Fprintf(out, "Can't encode session state to JSON: %v\n", err)
-		return
-	}
-	if _, err := f.Write(convJSON); err != nil {
-		fmt.Fprintf(out, "Can't write out session file: %v\n", err)
-		return
-	}
-	fmt.Fprintf(out, "Wrote session to file '%s'.\n", name)
-}
-
-// readSessionFile reads a session JSON file and
-// unmarshal it's content into *internal.Conv.
-func readSessionFile(conv *internal.Conv) error {
-	s, err := ioutil.ReadFile(sessionJSON)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(s, &conv)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // writeBadData prints summary stats about bad rows and writes detailed info
 // to file 'name'.
-func writeBadData(bw *spanner.BatchWriter, conv *internal.Conv, banner, name string, out *os.File) {
+func WriteBadData(bw *spanner.BatchWriter, conv *internal.Conv, banner, name string, out *os.File) {
 	badConversions := conv.BadRows()
 	badWrites := sum(bw.DroppedRowsByTable())
 	if badConversions == 0 && badWrites == 0 {
@@ -760,7 +488,7 @@ func writeBadData(bw *spanner.BatchWriter, conv *internal.Conv, banner, name str
 	fmt.Fprintf(out, "See file '%s' for details of bad rows\n", name)
 }
 
-func getDatabaseName(driver string, now time.Time) (string, error) {
+func GetDatabaseName(driver string, now time.Time) (string, error) {
 	return generateName(fmt.Sprintf("%s_%s", driver, now.Format("2006-01-02")))
 }
 
@@ -799,7 +527,7 @@ instance for project %s.
 	return err
 }
 
-func printPermissionsWarning(driver string, out *os.File) {
+func PrintPermissionsWarning(driver string, out *os.File) {
 	fmt.Fprintf(out,
 		`
 WARNING: Please check that permissions for this Spanner instance are
@@ -839,7 +567,7 @@ func generateName(prefix string) (string, error) {
 	return fmt.Sprintf("%s_%x-%x", prefix, b[0:2], b[2:4]), nil
 }
 
-func getClient(db string) (*sp.Client, error) {
+func GetClient(db string) (*sp.Client, error) {
 	ctx := context.Background()
 	return sp.NewClient(ctx, db)
 }
@@ -858,7 +586,7 @@ func getSize(f *os.File) (int64, error) {
 // Note: this tool itself doesn't generate logs, but some of the libraries it
 // uses do. If we don't set the log file, we see a number of unhelpful and
 // unactionable logs spamming stdout, which is annoying and confusing.
-func setupLogFile() (*os.File, error) {
+func SetupLogFile() (*os.File, error) {
 	// To enable debug logs, set logfile to a non-empty filename.
 	logfile := ""
 	if logfile == "" {
@@ -873,7 +601,7 @@ func setupLogFile() (*os.File, error) {
 	return f, nil
 }
 
-func close(f *os.File) {
+func Close(f *os.File) {
 	if f != nil {
 		f.Close()
 	}
@@ -887,7 +615,7 @@ func sum(m map[string]int64) int64 {
 	return n
 }
 
-func getBanner(now time.Time, db string) string {
+func GetBanner(now time.Time, db string) string {
 	return fmt.Sprintf("Generated at %s for db %s\n\n", now.Format("2006-01-02 15:04:05"), db)
 }
 
