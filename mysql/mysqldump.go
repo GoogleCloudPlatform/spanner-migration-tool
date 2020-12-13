@@ -236,7 +236,7 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 		if constraint.fk.Columns != nil {
 			fkeys = append(fkeys, constraint.fk)
 		}
-		if col.Unique {
+		if constraint.isUniqueKey {
 			index = append(index, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{Column: colname, Desc: false}}})
 		}
 	}
@@ -364,7 +364,7 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 					ctable.ForeignKeys = append(ctable.ForeignKeys, constraint.fk)
 					conv.SrcSchema[tableName] = ctable
 				}
-				if col.Unique {
+				if constraint.isUniqueKey {
 					ctable := conv.SrcSchema[tableName]
 					ctable.Indexes = append(ctable.Indexes, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{Column: colname, Desc: false}}})
 					conv.SrcSchema[tableName] = ctable
@@ -421,8 +421,9 @@ func processColumn(conv *internal.Conv, tableName string, col *ast.ColumnDef) (s
 }
 
 type columnConstraint struct {
-	isPk bool
-	fk   schema.ForeignKey
+	isPk        bool
+	isUniqueKey bool
+	fk          schema.ForeignKey
 }
 
 // updateColsByOption is specifially for ColDef constraints.
@@ -453,6 +454,7 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 			}
 		case ast.ColumnOptionUniqKey:
 			column.Unique = true
+			cc.isUniqueKey = true
 		case ast.ColumnOptionCheck:
 			column.Ignored.Check = true
 		case ast.ColumnOptionReference:

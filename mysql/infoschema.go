@@ -387,7 +387,7 @@ func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) (indexes [
 		WHERE TABLE_SCHEMA = ?
 			AND TABLE_NAME = ?
 			AND INDEX_NAME != 'PRIMARY' 
-		ORDER BY SEQ_IN_INDEX;`
+		ORDER BY INDEX_NAME, SEQ_IN_INDEX;`
 	rows, err := db.Query(q, table.schema, table.name)
 	if err != nil {
 		return nil, err

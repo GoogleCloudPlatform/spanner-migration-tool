@@ -454,7 +454,7 @@ GROUP BY   tnsp.nspname,
            a.attname,
            array_position(i.indkey, a.attnum),
            o.OPTION,i.indisunique
-ORDER BY array_position(i.indkey, a.attnum);`
+ORDER BY  irel.relname, array_position(i.indkey, a.attnum);`
 	rows, err := db.Query(q, table.schema, table.name)
 	if err != nil {
 		return nil, err

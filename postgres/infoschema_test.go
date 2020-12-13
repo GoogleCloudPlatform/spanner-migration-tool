@@ -68,9 +68,9 @@ func TestProcessInfoSchema(t *testing.T) {
 				{"public", "address", "addressid", "address_id", "fk_test"},
 			},
 		}, {
-			query: "SELECT (.+) JOIN pg_catalog.pg_index (.+)",
+			query: "SELECT (.+) FROM       pg_index (.+)",
 			args:  []driver.Value{"public", "user"},
-			cols:  []string{"index_name", "column_name", "column_position"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
 		},
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
@@ -95,10 +95,10 @@ func TestProcessInfoSchema(t *testing.T) {
 				{"public", "product", "productid", "product_id", "fk_test2"},
 				{"public", "user", "userid", "user_id", "fk_test3"}},
 		}, {
-			query: "SELECT (.+) JOIN pg_catalog.pg_index (.+)",
+			query: "SELECT (.+) FROM       pg_index (.+)",
 			args:  []driver.Value{"public", "cart"},
-			cols:  []string{"index_name", "column_name", "column_position"},
-			rows:  [][]driver.Value{{"index1", "userid", 1}, {"index2", "userid", 1}, {"index2", "productid", 2}},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
+			rows:  [][]driver.Value{{"index1", "userid", 1, "f", "ASC"}, {"index2", "userid", 1, "t", "ASC"}, {"index2", "productid", 2, "t", "DESC"}},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "test"},
@@ -137,9 +137,9 @@ func TestProcessInfoSchema(t *testing.T) {
 			rows: [][]driver.Value{{"public", "test_ref", "id", "ref_id", "fk_test4"},
 				{"public", "test_ref", "bs", "ref_bs", "fk_test4"}},
 		}, {
-			query: "SELECT (.+) JOIN pg_catalog.pg_index (.+)",
+			query: "SELECT (.+) FROM       pg_index (.+)",
 			args:  []driver.Value{"public", "test"},
-			cols:  []string{"index_name", "column_name", "column_position"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
 		},
 	}
 	db := mkMockDB(t, ms)
@@ -168,8 +168,8 @@ func TestProcessInfoSchema(t *testing.T) {
 			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "productid"}, ddl.IndexKey{Col: "userid"}},
 			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test2", Columns: []string{"productid"}, ReferTable: "product", ReferColumns: []string{"product_id"}},
 				ddl.Foreignkey{Name: "fk_test3", Columns: []string{"userid"}, ReferTable: "user", ReferColumns: []string{"user_id"}}},
-			Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", Keys: []ddl.IndexKey{ddl.IndexKey{Col: "userid", Desc: false}}},
-				ddl.CreateIndex{Name: "index2", Keys: []ddl.IndexKey{ddl.IndexKey{Col: "userid", Desc: false}, ddl.IndexKey{Col: "productid", Desc: false}}}},
+			Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "userid", Desc: false}}},
+				ddl.CreateIndex{Name: "index2", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "userid", Desc: false}, ddl.IndexKey{Col: "productid", Desc: true}}}},
 		},
 		"test": ddl.CreateTable{
 			Name:     "test",
@@ -375,9 +375,9 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 		},
 		{
-			query: "SELECT (.+) JOIN pg_catalog.pg_index (.+)",
+			query: "SELECT (.+) FROM       pg_index (.+)",
 			args:  []driver.Value{"public", "test"},
-			cols:  []string{"index_name", "column_name", "column_position"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
 		},
 		// Note: go-sqlmock mocks specify an ordered sequence
 		// of queries and results.  This (repeated) entry is

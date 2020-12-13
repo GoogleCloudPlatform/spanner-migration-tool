@@ -69,7 +69,7 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 		}, {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
 			args:  []driver.Value{"test", "user"},
-			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION"},
+			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
 		},
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
@@ -96,8 +96,8 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 		}, {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
 			args:  []driver.Value{"test", "cart"},
-			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION"},
-			rows:  [][]driver.Value{{"index1", "userid", 1, "A"}, {"index2", "userid", 1, "A"}, {"index2", "productid", 2, "A"}},
+			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
+			rows:  [][]driver.Value{{"index1", "userid", 1, "A", "0"}, {"index2", "userid", 1, "A", "1"}, {"index2", "productid", 2, "D", "1"}},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"test", "test"},
@@ -137,7 +137,7 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 		}, {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
 			args:  []driver.Value{"test", "test"},
-			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION"},
+			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
 		},
 	}
 	db := mkMockDB(t, ms)
@@ -166,8 +166,8 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "productid"}, ddl.IndexKey{Col: "userid"}},
 			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test2", Columns: []string{"productid"}, ReferTable: "product", ReferColumns: []string{"product_id"}},
 				ddl.Foreignkey{Name: "fk_test3", Columns: []string{"userid"}, ReferTable: "user", ReferColumns: []string{"user_id"}}},
-			Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", Keys: []ddl.IndexKey{ddl.IndexKey{Col: "userid", Desc: false}}},
-				ddl.CreateIndex{Name: "index2", Keys: []ddl.IndexKey{ddl.IndexKey{Col: "userid", Desc: false}, ddl.IndexKey{Col: "productid", Desc: false}}}}},
+			Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "userid", Desc: false}}},
+				ddl.CreateIndex{Name: "index2", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "userid", Desc: false}, ddl.IndexKey{Col: "productid", Desc: true}}}}},
 		"test": ddl.CreateTable{
 			Name:     "test",
 			ColNames: []string{"id", "s", "txt", "b", "bs", "bl", "c", "c8", "d", "dec", "f8", "f4", "i8", "i4", "i2", "si", "ts", "tz", "vc", "vc6"},
@@ -297,7 +297,7 @@ func TestProcessSQLData_MultiCol(t *testing.T) {
 		}, {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
 			args:  []driver.Value{"test", "test"},
-			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION"},
+			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
 		},
 		// Note: go-sqlmock mocks specify an ordered sequence
 		// of queries and results.  This (repeated) entry is
