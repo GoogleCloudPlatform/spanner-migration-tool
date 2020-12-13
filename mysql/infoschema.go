@@ -382,7 +382,7 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 
 // getIndexes return list all the indexes.
 func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) (indexes []schema.Index, err error) {
-	q := `SELECT DISTINCT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION
+	q := `SELECT DISTINCT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION,NON_UNIQUE
 		FROM INFORMATION_SCHEMA.STATISTICS 
 		WHERE TABLE_SCHEMA = ?
 			AND TABLE_NAME = ?
@@ -393,10 +393,11 @@ func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) (indexes [
 		return nil, err
 	}
 	defer rows.Close()
-	var name, col, seq, collation string
+	var name, col, seq, collation, nonUnique string
 	m := make(map[string][]schema.Key)
+	unique := make(map[string]bool)
 	for rows.Next() {
-		err := rows.Scan(&name, &col, &seq, &collation)
+		err := rows.Scan(&name, &col, &seq, &collation, &nonUnique)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
@@ -405,10 +406,13 @@ func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) (indexes [
 		if collation == "D" {
 			isDesc = true
 		}
+		if nonUnique == "0" {
+			unique[name] = true
+		}
 		m[name] = append(m[name], schema.Key{Column: col, Desc: isDesc})
 	}
 	for k, v := range m {
-		indexes = append(indexes, schema.Index{Name: k, Keys: v})
+		indexes = append(indexes, schema.Index{Name: k, Unique: unique[k], Keys: v})
 	}
 	return indexes, nil
 }

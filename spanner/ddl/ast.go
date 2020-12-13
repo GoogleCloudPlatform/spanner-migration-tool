@@ -212,7 +212,8 @@ type CreateIndex struct {
 	/* Since CreateIndex is part of CreateTable,
 	storing Table name is not required */
 	// Table string
-	Keys []IndexKey
+	Unique bool
+	Keys   []IndexKey
 	// We have no requirements for unique and null-filtered options and
 	// storing/interleaving clauses yet, so we omit them for now.
 }
@@ -223,7 +224,11 @@ func (ci CreateIndex) PrintCreateIndex(Table string, c Config) string {
 	for _, p := range ci.Keys {
 		keys = append(keys, p.PrintIndexKey(c))
 	}
-	return fmt.Sprintf("CREATE INDEX %s ON %s (%s)", c.quote(ci.Name), c.quote(Table), strings.Join(keys, ", "))
+	var unique string
+	if ci.Unique == true {
+		unique = "UNIQUE"
+	}
+	return fmt.Sprintf("CREATE %s INDEX %s ON %s (%s)", unique, c.quote(ci.Name), c.quote(Table), strings.Join(keys, ", "))
 }
 
 // PrintForeignKeyAlterTable unparses the foreign keys using ALTER TABLE.

@@ -220,7 +220,7 @@ func processIndexStmt(conv *internal.Conv, n nodes.IndexStmt) {
 		for _, ip := range n.IndexParams.Items {
 			cols = append(cols, *ip.(nodes.IndexElem).Name)
 		}
-		ctable.Indexes = append(ctable.Indexes, schema.Index{Name: *n.Idxname, Keys: toIndexKeys(conv, tableName, n.IndexParams.Items)})
+		ctable.Indexes = append(ctable.Indexes, schema.Index{Name: *n.Idxname, Unique: *&n.Unique, Keys: toIndexKeys(conv, tableName, n.IndexParams.Items)})
 		conv.SrcSchema[tableName] = ctable
 	} else {
 		conv.SkipStatement(prNodes([]nodes.Node{n}))
@@ -619,6 +619,10 @@ func updateSchema(conv *internal.Conv, table string, cs []constraint, stmtType s
 		case nodes.CONSTR_FOREIGN:
 			ct := conv.SrcSchema[table]
 			ct.ForeignKeys = append(ct.ForeignKeys, toForeignKeys(c)) // Append to previous foreign keys.
+			conv.SrcSchema[table] = ct
+		case nodes.CONSTR_UNIQUE:
+			ct := conv.SrcSchema[table]
+			ct.Indexes = append(ct.Indexes, schema.Index{Name: "", Unique: true, Keys: toSchemaKeys(conv, table, c.cols)})
 			conv.SrcSchema[table] = ct
 		default:
 			ct := conv.SrcSchema[table]

@@ -245,7 +245,7 @@ func cvtIndexes(conv *internal.Conv, srcTable string, srcIndexes []schema.Index)
 			conv.Unexpected(fmt.Sprintf("Can't map source index name for spanner index name %s", srcIndex.Name))
 			continue
 		}
-		spIndexes = append(spIndexes, ddl.CreateIndex{Name: spKeyName, Keys: spKeys})
+		spIndexes = append(spIndexes, ddl.CreateIndex{Name: spKeyName, Unique: srcIndex.Unique, Keys: spKeys})
 	}
 	return spIndexes
 }

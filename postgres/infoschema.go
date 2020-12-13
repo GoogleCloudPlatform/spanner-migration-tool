@@ -422,39 +422,64 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 
 // getIndexes return list all the indexes.
 func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) (indexes []schema.Index, err error) {
-	q := `SELECT
-    			i.relname AS index_name,
-    			a.attname AS column_name,
-    			1 + array_position(ix.indkey, a.attnum) as column_position
-			FROM
-     			pg_catalog.pg_class t
-				JOIN pg_catalog.pg_attribute a ON t.oid    =      a.attrelid
-				JOIN pg_catalog.pg_index ix    ON t.oid    =     ix.indrelid
-				JOIN pg_catalog.pg_class i     ON a.attnum = any(ix.indkey)
-                              AND i.oid    =     ix.indexrelid
-				JOIN pg_catalog.pg_namespace n ON n.oid    =      t.relnamespace
-			WHERE t.relkind = 'r' AND ix.indisprimary = false AND n.nspname=$1 AND t.relname=$2
-			ORDER BY
-    			t.relname,
-    			i.relname,
-    			array_position(ix.indkey, a.attnum);`
+	q := `SELECT     
+           irel.relname                           AS index_name,
+           a.attname                              AS column_name,
+           1 + Array_position(i.indkey, a.attnum) AS column_position,
+ 			i.indisunique AS is_unique,
+           CASE o.OPTION
+                                 & 1
+                      WHEN 1 THEN 'DESC'
+                      ELSE 'ASC'
+           END      AS order
+FROM       pg_index AS i
+join       pg_class AS trel
+ON         trel.oid = i.indrelid
+join       pg_namespace AS tnsp
+ON         trel.relnamespace = tnsp.oid
+join       pg_class AS irel
+ON         irel.oid = i.indexrelid
+cross join lateral unnest (i.indkey) WITH ordinality    AS c (colnum, ordinality)
+left join  lateral unnest (i.indoption) WITH ordinality AS o (OPTION, ordinality)
+ON         c.ordinality = o.ordinality
+join       pg_attribute AS a
+ON         trel.oid = a.attrelid
+AND        a.attnum = c.colnum
+WHERE      tnsp.nspname= $1
+AND        trel.relname= $2
+AND        i.indisprimary = false
+GROUP BY   tnsp.nspname,
+           trel.relname,
+           irel.relname,
+           a.attname,
+           array_position(i.indkey, a.attnum),
+           o.OPTION,i.indisunique
+ORDER BY array_position(i.indkey, a.attnum);`
 	rows, err := db.Query(q, table.schema, table.name)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var name, col, seq string
+	var name, col, seq, isUnique, collation string
 	m := make(map[string][]schema.Key)
+	unique := make(map[string]bool)
 	for rows.Next() {
-		err := rows.Scan(&name, &col, &seq)
+		err := rows.Scan(&name, &col, &seq, &isUnique, &collation)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-		m[name] = append(m[name], schema.Key{Column: col})
+		isDesc := false
+		if collation == "DESC" {
+			isDesc = true
+		}
+		if isUnique == "t" {
+			unique[name] = true
+		}
+		m[name] = append(m[name], schema.Key{Column: col, Desc: isDesc})
 	}
 	for k, v := range m {
-		indexes = append(indexes, schema.Index{Name: k, Keys: v})
+		indexes = append(indexes, schema.Index{Name: k, Unique: unique[k], Keys: v})
 	}
 	return indexes, nil
 }

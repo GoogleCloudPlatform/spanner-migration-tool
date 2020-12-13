@@ -221,6 +221,7 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 	colDef := make(map[string]schema.Column)
 	var keys []schema.Key
 	var fkeys []schema.ForeignKey
+	var index []schema.Index
 	for _, element := range stmt.Cols {
 		colname, col, constraint, err := processColumn(conv, tableName, element)
 		if err != nil {
@@ -235,6 +236,9 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 		if constraint.fk.Columns != nil {
 			fkeys = append(fkeys, constraint.fk)
 		}
+		if col.Unique {
+			index = append(index, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{Column: colname, Desc: false}}})
+		}
 	}
 	conv.SchemaStatement(NodeType(stmt))
 	conv.SrcSchema[tableName] = schema.Table{
@@ -242,7 +246,8 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 		ColNames:    colNames,
 		ColDefs:     colDef,
 		PrimaryKeys: keys,
-		ForeignKeys: fkeys}
+		ForeignKeys: fkeys,
+		Indexes:     index}
 	for _, constraint := range stmt.Constraints {
 		processConstraint(conv, tableName, constraint, "CREATE TABLE")
 	}
@@ -264,6 +269,8 @@ func processConstraint(conv *internal.Conv, table string, constraint *ast.Constr
 		st.ForeignKeys = append(st.ForeignKeys, toForeignKeys(conv, constraint))
 	case ast.ConstraintIndex:
 		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Keys: toSchemaKeys(constraint.Keys)})
+	case ast.ConstraintUniq:
+		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Unique: true, Keys: toSchemaKeys(constraint.Keys)})
 	default:
 		updateCols(conv, ct, constraint.Keys, st.ColDefs, table)
 	}
@@ -355,6 +362,11 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 				if constraint.fk.Columns != nil {
 					ctable := conv.SrcSchema[tableName]
 					ctable.ForeignKeys = append(ctable.ForeignKeys, constraint.fk)
+					conv.SrcSchema[tableName] = ctable
+				}
+				if col.Unique {
+					ctable := conv.SrcSchema[tableName]
+					ctable.Indexes = append(ctable.Indexes, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{Column: colname, Desc: false}}})
 					conv.SrcSchema[tableName] = ctable
 				}
 				conv.SchemaStatement(NodeType(stmt))
