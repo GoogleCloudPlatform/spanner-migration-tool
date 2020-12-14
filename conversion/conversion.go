@@ -423,7 +423,7 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 	// (Cloud Spanner doesn't currently support comments). Change 'Comments'
 	// to false and 'ProtectIds' to true to write out a schema file that is
 	// legal Cloud Spanner DDL.
-	ddl := conv.GetDDL(ddl.Config{Comments: true, ProtectIds: false})
+	ddl := conv.GetDDL(ddl.Config{Comments: true, ProtectIds: false, ForeignKeys: true})
 	if len(ddl) == 0 {
 		ddl = []string{"\n-- Schema is empty -- no tables found\n"}
 	}

@@ -162,16 +162,17 @@ func (k Foreignkey) PrintForeignKey(c Config) string {
 // CreateTable encodes the following DDL definition:
 //     create_table: CREATE TABLE table_name ([column_def, ...] ) primary_key [, cluster]
 type CreateTable struct {
-	Name     string
-	ColNames []string             // Provides names and order of columns
-	ColDefs  map[string]ColumnDef // Provides definition of columns (a map for simpler/faster lookup during type processing)
-	Pks      []IndexKey
-	Fks      []Foreignkey
-	Comment  string
+	Name           string
+	ColNames       []string             // Provides names and order of columns
+	ColDefs        map[string]ColumnDef // Provides definition of columns (a map for simpler/faster lookup during type processing)
+	Pks            []IndexKey
+	Fks            []Foreignkey
+	InterleaveInto string //if not empty, this table will be interleaved
+	Comment        string
 }
 
 // PrintCreateTable unparses a CREATE TABLE statement.
-func (ct CreateTable) PrintCreateTable(config Config) string {
+func (ct CreateTable) PrintCreateTable(interleavedInto string, config Config) string {
 	var col []string
 	var colComment []string
 	var keys []string
@@ -201,7 +202,11 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	if config.Comments && len(ct.Comment) > 0 {
 		tableComment = "--\n-- " + ct.Comment + "\n--\n"
 	}
-	return fmt.Sprintf("%sCREATE TABLE %s (%s\n) PRIMARY KEY (%s)", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "))
+	var interleave string
+	if interleavedInto != "" {
+		interleave = ",\nINTERLEAVE IN PARENT " + config.quote(interleavedInto) + " ON DELETE CASCADE"
+	}
+	return fmt.Sprintf("%sCREATE TABLE %s (%s\n) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 }
 
 // CreateIndex encodes the following DDL definition:

@@ -168,27 +168,51 @@ func (conv *Conv) SetDataMode() {
 	conv.mode = dataOnly
 }
 
+func dequeue(queue []string) []string {
+	return queue[1:]
+}
+
 // GetDDL Schema returns the Spanner schema that has been constructed so far.
 // Return DDL in alphabetical table order.
 func (conv *Conv) GetDDL(c ddl.Config) []string {
 	var tables []string
+	var tablesFk []string
 	for t := range conv.SpSchema {
 		tables = append(tables, t)
+		tablesFk = append(tablesFk, t)
 	}
 	sort.Strings(tables)
 	var ddl []string
-	for _, t := range tables {
-		ddl = append(ddl, conv.SpSchema[t].PrintCreateTable(c))
+	printed := make(map[string]bool)
+	for len(tables) > 0 {
+		t := tables[0]
+		if conv.SpSchema[t].InterleaveInto == "" {
+			ddl = append(ddl, conv.SpSchema[t].PrintCreateTable(conv.SpSchema[t].InterleaveInto, c))
+			printed[t] = true
+			tables = dequeue(tables)
+			continue
+		}
+		if _, found := printed[conv.SpSchema[t].InterleaveInto]; found {
+			ddl = append(ddl, conv.SpSchema[t].PrintCreateTable(conv.SpSchema[t].InterleaveInto, c))
+			printed[t] = true
+			tables = dequeue(tables)
+			continue
+		}
+		tables = dequeue(tables)
+		tables = append(tables, t)
 	}
 
-	// Append foreign key constraints to DDL.
+	// Append foreign key constraints to DDL if table is not interleaved.
 	// We always use alter table statements for foreign key constraints.
 	// The alternative of putting foreign key constraints in-line as part of create
 	// table statements is tricky because of table order (need to define tables
 	// before they are referenced by foreign key constraints) and the possibility
 	// of circular foreign keys definitions. We opt for simplicity.
 	if c.ForeignKeys {
-		for _, t := range tables {
+		for _, t := range tablesFk {
+			if conv.SpSchema[t].InterleaveInto != "" {
+				continue
+			}
 			for _, fk := range conv.SpSchema[t].Fks {
 				ddl = append(ddl, fk.PrintForeignKeyAlterTable(c, t))
 			}

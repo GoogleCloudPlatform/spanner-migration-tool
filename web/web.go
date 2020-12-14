@@ -155,7 +155,7 @@ func getDDL(w http.ResponseWriter, r *http.Request) {
 	sort.Strings(tables)
 	ddl := make(map[string]string)
 	for _, t := range tables {
-		ddl[t] = app.conv.SpSchema[t].PrintCreateTable(c)
+		ddl[t] = app.conv.SpSchema[t].PrintCreateTable(app.conv.SpSchema[t].InterleaveInto, c)
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(ddl)
@@ -634,6 +634,11 @@ func getConversionRate(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(rate)
 }
 
+type schemaAndReportFile struct {
+	Report string
+	Schema string
+}
+
 func getSchemaAndReportFile(w http.ResponseWriter, r *http.Request) {
 	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
 	dbName := app.dbName
@@ -652,7 +657,7 @@ func getSchemaAndReportFile(w http.ResponseWriter, r *http.Request) {
 	}
 	reportFileName := "frontend/" + filePrefix + "report.txt"
 	schemaFileName := "frontend/" + filePrefix + "schema.txt"
-	response := make(map[string]string)
+	response := &schemaAndReportFile{}
 	conversion.WriteSchemaFile(app.conv, now, schemaFileName, ioHelper.Out)
 	conversion.Report(app.driver, nil, ioHelper.BytesRead, "", app.conv, reportFileName, ioHelper.Out)
 	reportAbsPath, err := filepath.Abs(reportFileName)
@@ -660,8 +665,8 @@ func getSchemaAndReportFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Can not create absolute path : %v", err), 500)
 	}
 	schemaAbsPath, err := filepath.Abs(schemaFileName)
-	response["reportFilePath"] = reportAbsPath
-	response["schemaFilePath"] = schemaAbsPath
+	response.Report = reportAbsPath
+	response.Schema = schemaAbsPath
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
@@ -708,8 +713,16 @@ func checkCyclicDependency(table string, refTable string, tableInterleaveIssues 
 	}
 	res, err := graph.TopSort(refTable)
 	if err != nil {
-		tableInterleaveIssues.Possible = false
-		tableInterleaveIssues.Comment = "cyclic dependency"
+		cycle := strings.Split(fmt.Sprintf("%v", err), ":")
+		cycle = strings.Split(cycle[1], "->")
+		for _, ctable := range cycle {
+			t := strings.TrimSpace(ctable)
+			if t == table {
+				tableInterleaveIssues.Possible = false
+				tableInterleaveIssues.Comment = "cyclic dependency"
+				break
+			}
+		}
 	}
 	if tableInterleaveIssues.Possible == true {
 		for _, visTables := range res {
@@ -755,6 +768,9 @@ func checkForInterleavedTables(w http.ResponseWriter, r *http.Request) {
 	}
 	if tableInterleaveIssues.Possible == true {
 		tableInterleaveIssues.Parent = refTable
+		sp := app.conv.SpSchema[table]
+		sp.InterleaveInto = refTable
+		app.conv.SpSchema[table] = sp
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(tableInterleaveIssues)
