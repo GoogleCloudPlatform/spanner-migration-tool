@@ -98,7 +98,12 @@ func TestProcessInfoSchema(t *testing.T) {
 			query: "SELECT (.+) FROM pg_index (.+)",
 			args:  []driver.Value{"public", "cart"},
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
-			rows:  [][]driver.Value{{"index1", "userid", 1, "f", "ASC"}, {"index2", "userid", 1, "t", "ASC"}, {"index2", "productid", 2, "t", "DESC"}},
+			rows: [][]driver.Value{{"index1", "userid", 1, "f", "ASC"},
+				{"index2", "userid", 1, "t", "ASC"},
+				{"index2", "productid", 2, "t", "DESC"},
+				{"index3", "productid", 1, "t", "DESC"},
+				{"index3", "userid", 2, "t", "ASC"},
+			},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "test"},
@@ -169,7 +174,8 @@ func TestProcessInfoSchema(t *testing.T) {
 			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test2", Columns: []string{"productid"}, ReferTable: "product", ReferColumns: []string{"product_id"}},
 				ddl.Foreignkey{Name: "fk_test3", Columns: []string{"userid"}, ReferTable: "user", ReferColumns: []string{"user_id"}}},
 			Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "userid", Desc: false}}},
-				ddl.CreateIndex{Name: "index2", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "userid", Desc: false}, ddl.IndexKey{Col: "productid", Desc: true}}}},
+				ddl.CreateIndex{Name: "index2", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "userid", Desc: false}, ddl.IndexKey{Col: "productid", Desc: true}}},
+				ddl.CreateIndex{Name: "index3", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "productid", Desc: true}, ddl.IndexKey{Col: "userid", Desc: false}}}},
 		},
 		"test": ddl.CreateTable{
 			Name:     "test",

@@ -344,7 +344,51 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+		},
+		{
+			name: "Create table with unique index keys",
+			input: "CREATE TABLE test (" +
+				"a smallint DEFAULT NULL," +
+				"b text DEFAULT NULL," +
+				"c text DEFAULT NULL," +
+				"UNIQUE KEY custom_index (b, c)" +
+				");\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b", "c", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+		},
+		{
+			name: "Create table with multiple index keys with different order",
+			input: "CREATE TABLE test (" +
+				"a smallint DEFAULT NULL," +
+				"b text DEFAULT NULL," +
+				"c text DEFAULT NULL," +
+				"UNIQUE KEY custom_index (b, c)," +
+				"KEY custom_index2 (c, a)" +
+				");\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b", "c", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}},
+						ddl.CreateIndex{Name: "custom_index2", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "c", Desc: false}, ddl.IndexKey{Col: "a", Desc: false}}}}}},
 		},
 		{
 			name: "Alter table add index keys",
@@ -365,7 +409,7 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
 		},
 		{
 			name: "Create index statement",
@@ -386,7 +430,7 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
 		},
 		{
 			name:  "Create table with mysql schema",
