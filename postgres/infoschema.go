@@ -422,35 +422,35 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 
 // getIndexes return list of all the indexes.
 func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) (indexes []schema.Index, err error) {
-	q := `SELECT     
-           irel.relname AS index_name,
-           a.attname AS column_name,
-           1 + Array_position(i.indkey, a.attnum) AS column_position,
- 		   i.indisunique AS is_unique,
-           CASE o.OPTION & 1 WHEN 1 THEN 'DESC' ELSE 'ASC' END AS order
-	FROM pg_index AS i
-	JOIN pg_class AS trel
-	ON trel.oid = i.indrelid
-	JOIN pg_namespace AS tnsp
-	ON trel.relnamespace = tnsp.oid
-	JOIN pg_class AS irel
-	ON irel.oid = i.indexrelid
-	CROSS JOIN LATERAL UNNEST (i.indkey) WITH ordinality AS c (colnum, ordinality)
-	LEFT JOIN LATERAL UNNEST (i.indoption) WITH ordinality AS o (OPTION, ordinality)
-	ON c.ordinality = o.ordinality
-	JOIN pg_attribute AS a
-	ON trel.oid = a.attrelid
-	AND a.attnum = c.colnum
-	WHERE tnsp.nspname= $1
-	AND trel.relname= $2
-	AND i.indisprimary = false
-	GROUP BY tnsp.nspname,
-           trel.relname,
-           irel.relname,
-           a.attname,
-           array_position(i.indkey, a.attnum),
-           o.OPTION,i.indisunique
-	ORDER BY irel.relname, array_position(i.indkey, a.attnum);`
+	q := `SELECT
+			irel.relname AS index_name,
+			a.attname AS column_name,
+			1 + Array_position(i.indkey, a.attnum) AS column_position,
+			i.indisunique AS is_unique,
+			CASE o.OPTION & 1 WHEN 1 THEN 'DESC' ELSE 'ASC' END AS order
+		FROM pg_index AS i
+		JOIN pg_class AS trel
+		ON trel.oid = i.indrelid
+		JOIN pg_namespace AS tnsp
+		ON trel.relnamespace = tnsp.oid
+		JOIN pg_class AS irel
+		ON irel.oid = i.indexrelid
+		CROSS JOIN LATERAL UNNEST (i.indkey) WITH ordinality AS c (colnum, ordinality)
+		LEFT JOIN LATERAL UNNEST (i.indoption) WITH ordinality AS o (OPTION, ordinality)
+		ON c.ordinality = o.ordinality
+		JOIN pg_attribute AS a
+		ON trel.oid = a.attrelid
+			AND a.attnum = c.colnum
+		WHERE tnsp.nspname= $1
+			AND trel.relname= $2
+			AND i.indisprimary = false
+		GROUP BY tnsp.nspname,
+           		trel.relname,
+           		irel.relname,
+           		a.attname,
+           		array_position(i.indkey, a.attnum),
+           		o.OPTION,i.indisunique
+		ORDER BY irel.relname, array_position(i.indkey, a.attnum);`
 	rows, err := db.Query(q, table.schema, table.name)
 	if err != nil {
 		return nil, err
