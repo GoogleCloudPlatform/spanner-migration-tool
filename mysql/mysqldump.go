@@ -279,6 +279,10 @@ func processConstraint(conv *internal.Conv, table string, constraint *ast.Constr
 
 // toSchemaKeys converts a string list of MySQL primary keys to
 // schema primary keys.
+// This function is also used for converting MySQL index key to
+// schema index keys, mysqldump parser is not able to parse order
+// of the key (i.e, ascending/descending), so we map all keys to
+// ascending.
 func toSchemaKeys(columns []*ast.IndexPartSpecification) (keys []schema.Key) {
 	for _, colname := range columns {
 		// MySQL primary keys have no notation of ascending/descending.
