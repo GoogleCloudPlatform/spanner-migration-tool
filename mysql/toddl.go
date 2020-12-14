@@ -34,6 +34,8 @@ import (
 // the Spanner schema to conv.SpSchema.
 func schemaToDDL(conv *internal.Conv) error {
 	schemaForeignKeys := make(map[string]bool)
+	schemaIndexKeys := make(map[string]bool)
+
 	for _, srcTable := range conv.SrcSchema {
 		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
 		if err != nil {
@@ -85,7 +87,7 @@ func schemaToDDL(conv *internal.Conv) error {
 			ColDefs:  spColDef,
 			Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
 			Fks:      cvtForeignKeys(conv, srcTable.Name, srcTable.ForeignKeys, schemaForeignKeys),
-			Indexes:  cvtIndexes(conv, srcTable.Name, srcTable.Indexes),
+			Indexes:  cvtIndexes(conv, srcTable.Name, srcTable.Indexes, schemaIndexKeys),
 			Comment:  comment}
 	}
 	return nil
@@ -231,7 +233,7 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 	return spKeys
 }
 
-func cvtIndexes(conv *internal.Conv, srcTable string, srcIndexes []schema.Index) []ddl.CreateIndex {
+func cvtIndexes(conv *internal.Conv, srcTable string, srcIndexes []schema.Index, schemaIndexKeys map[string]bool) []ddl.CreateIndex {
 	var spIndexes []ddl.CreateIndex
 	for _, srcIndex := range srcIndexes {
 		var spKeys []ddl.IndexKey
@@ -253,11 +255,7 @@ func cvtIndexes(conv *internal.Conv, srcTable string, srcIndexes []schema.Index)
 			srcIndex.Name = fmt.Sprintf("Index_%s_%x-%x", srcTable, b[0:2], b[2:4])
 		}
 
-		spKeyName, err := internal.GetSpannerIndexKeyName(conv, srcIndex.Name, spIndexes)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Can't map source index name for spanner index name %s", srcIndex.Name))
-			continue
-		}
+		spKeyName := internal.GetSpannerIndexKeyName(srcIndex.Name, schemaIndexKeys)
 		spIndexes = append(spIndexes, ddl.CreateIndex{Name: spKeyName, Unique: srcIndex.Unique, Keys: spKeys})
 	}
 	return spIndexes

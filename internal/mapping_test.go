@@ -119,3 +119,30 @@ func TestGetSpannerKeyName(t *testing.T) {
 		assert.Equal(t, tc.spKeyName, spKeyName, tc.name)
 	}
 }
+
+func TestGetSpannerIndexKeyName(t *testing.T) {
+	schemaIndexKeys := make(map[string]bool)
+
+	basicTests := []struct {
+		name       string // Name of test.
+		srcKeyName string // Source index key name.
+		spKeyName  string // Expected Spanner index key name.
+	}{
+		{"Good name", "index1", "index1"},
+		{"Collision", "index1", "index1_1"},
+		{"Collision 2", "index1", "index1_2"},
+		{"Bad name", "in\ndex", "in_dex"},
+		{"Bad name 2", "i\nn\ndex", "i_n_dex"},
+		{"Collision 3", "index", "index"},
+		{"Collision 4", "index", "index_6"},
+		{"Good name", "in_dex", "in_dex_7"},
+		{"Collision 5", "index_6", "index_6_8"},
+		{"Bad name with collision", "in\tdex", "in_dex_9"},
+		{"Bad name with collision 2", "in\ndex", "in_dex_10"},
+		{"Bad name with collision 3", "in?dex", "in_dex_11"},
+	}
+	for _, tc := range basicTests {
+		spKeyName := GetSpannerIndexKeyName(tc.srcKeyName, schemaIndexKeys)
+		assert.Equal(t, tc.spKeyName, spKeyName, tc.name)
+	}
+}
