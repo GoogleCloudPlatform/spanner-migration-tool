@@ -66,7 +66,6 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), 400)
 		return
 	}
-
 	var dataSourceName string
 	switch config.Driver {
 	case "postgres":
@@ -77,7 +76,6 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", config.Driver), 400)
 		return
 	}
-
 	sourceDB, err := sql.Open(config.Driver, dataSourceName)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("SQL connection error : %v", err), 500)
@@ -144,7 +142,6 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	}
 	app.conv = conv
 	app.driver = dc.Driver
-
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(conv)
 }
@@ -214,7 +211,6 @@ func resumeSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer f.Close()
-
 	sessionJSON, _ := ioutil.ReadAll(f)
 	json.Unmarshal(sessionJSON, &app.conv)
 	app.driver = s.Driver
@@ -225,7 +221,6 @@ func getSummary(w http.ResponseWriter, r *http.Request) {
 	reports := internal.AnalyzeTables(app.conv, nil)
 	summary := make(map[string]string)
 	for _, t := range reports {
-
 		// h := fmt.Sprintf("Table %s", t.SrcTable)
 		// if t.SrcTable != t.SpTable {
 		// 	h = h + fmt.Sprintf(" (mapped to Spanner table %s)", t.SpTable)
@@ -294,7 +289,6 @@ func getOverview(w http.ResponseWriter, r *http.Request) {
 	overview := writeHeading("Summary of Conversion")
 	overview = overview + summary + "\n"
 	ignored := internal.IgnoredStatements(app.conv)
-
 	if len(ignored) > 0 {
 		overview = overview + fmt.Sprintf("Note that the following source DB statements "+
 			"were detected but ignored: %s.\n\n",
@@ -328,12 +322,10 @@ const (
 )
 
 func getTypeMap(w http.ResponseWriter, r *http.Request) {
-
 	if app.conv == nil || app.driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), 404)
 		return
 	}
-
 	var editTypeMap map[string][]typeIssue
 	switch app.driver {
 	case "mysql", "mysqldump":
@@ -344,7 +336,6 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), 400)
 		return
 	}
-
 	// return a list of type-mapping for only the data-types
 	// that are used in source schema.
 	typeMap := make(map[string][]typeIssue)
@@ -356,7 +347,6 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 			typeMap[colDef.Type.Name] = editTypeMap[colDef.Type.Name]
 		}
 	}
-
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(typeMap)
 }
@@ -394,7 +384,6 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 						http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), 400)
 						return
 					}
-
 					if len(srcCol.Type.ArrayBounds) > 1 {
 						ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 						issues = append(issues, internal.MultiDimensionalArray)
@@ -656,16 +645,13 @@ func getSchemaAndReportFile(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Can not create database name : %v", err), 500)
 		}
 	}
-
 	filePrefix := dbName + "."
-
 	if err != nil {
 		fmt.Printf("\nCan't get database name: %v\n", err)
 		panic(fmt.Errorf("can't get database name"))
 	}
-	reportFileName := filePrefix + "report.txt"
-	schemaFileName := filePrefix + "schema.txt"
-
+	reportFileName := "frontend/" + filePrefix + "report.txt"
+	schemaFileName := "frontend/" + filePrefix + "schema.txt"
 	response := make(map[string]string)
 	conversion.WriteSchemaFile(app.conv, now, schemaFileName, ioHelper.Out)
 	conversion.Report(app.driver, nil, ioHelper.BytesRead, "", app.conv, reportFileName, ioHelper.Out)
@@ -676,105 +662,102 @@ func getSchemaAndReportFile(w http.ResponseWriter, r *http.Request) {
 	schemaAbsPath, err := filepath.Abs(schemaFileName)
 	response["reportFilePath"] = reportAbsPath
 	response["schemaFilePath"] = schemaAbsPath
-
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
 
 type tableInterleaveStatus struct {
-	notPossible bool
-	parent      string
-	comment     string
+	Possible bool
+	Parent   string
+	Comment  string
+}
+
+func checkPrimaryKeyPrefix(table string, refTable string, tableInterleaveIssues *tableInterleaveStatus) {
+	childPks := app.conv.SpSchema[table].Pks
+	parentPks := app.conv.SpSchema[refTable].Pks
+	var referedCols []string
+	for _, fk := range app.conv.SpSchema[table].Fks {
+		for _, col := range fk.ReferColumns {
+			referedCols = append(referedCols, col)
+		}
+	}
+	if len(childPks) > len(parentPks) {
+		for i, pk := range parentPks {
+			if pk.Col != referedCols[i] || pk.Col != childPks[i].Col {
+				tableInterleaveIssues.Possible = false
+				tableInterleaveIssues.Comment = "prefix key doesn't match"
+				break
+			}
+		}
+	} else {
+		tableInterleaveIssues.Possible = false
+		tableInterleaveIssues.Comment = "prefix key doesn't match"
+	}
+
+}
+
+func checkCyclicDependency(table string, refTable string, tableInterleaveIssues *tableInterleaveStatus) {
+	graph := toposort.NewGraph()
+	for t := range app.conv.SpSchema {
+		graph.AddNode(t)
+	}
+	for t := range app.conv.SpSchema {
+		for _, fk := range app.conv.SpSchema[t].Fks {
+			graph.AddEdge(t, fk.ReferTable)
+		}
+	}
+	res, err := graph.TopSort(refTable)
+	if err != nil {
+		tableInterleaveIssues.Possible = false
+		tableInterleaveIssues.Comment = "cyclic dependency"
+	}
+	if tableInterleaveIssues.Possible == true {
+		for _, visTables := range res {
+			if visTables == table {
+				tableInterleaveIssues.Possible = false
+				tableInterleaveIssues.Comment = "cyclic dependency"
+				break
+			}
+		}
+	}
 }
 
 // Work in progress
 func checkForInterleavedTables(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
-	graph := toposort.NewGraph()
-	tableInterleaveIssues := make(map[string]string)
-	tableInterleaveIssues["notPossible"] = "false"
+	if table == "" {
+		http.Error(w, fmt.Sprintf("Table name is empty"), 400)
+	}
+	tableInterleaveIssues := &tableInterleaveStatus{Possible: true}
 	tablesUsed := make(map[string]bool)
 	var refTable string
 	for _, fk := range app.conv.SpSchema[table].Fks {
 		tablesUsed[fk.ReferTable] = true
 		refTable = fk.ReferTable
 	}
-
 	if len(tablesUsed) != 1 {
-		tableInterleaveIssues["notPossible"] = "true"
-		tableInterleaveIssues["comment"] = "multiple or no parent"
+		tableInterleaveIssues.Possible = false
+		tableInterleaveIssues.Comment = "multiple or no parent"
 	}
-
 	if _, found := app.conv.SyntheticPKeys[table]; found {
-		tableInterleaveIssues["notPossible"] = "true"
-		tableInterleaveIssues["comment"] = "has synthetic pk"
+		tableInterleaveIssues.Possible = false
+		tableInterleaveIssues.Comment = "has synthetic pk"
 	}
 	if _, found := app.conv.SyntheticPKeys[refTable]; found {
-		tableInterleaveIssues["notPossible"] = "true"
-		tableInterleaveIssues["comment"] = "parent has synthetic pk"
+		tableInterleaveIssues.Possible = false
+		tableInterleaveIssues.Comment = "parent has synthetic pk"
 	}
-
-	if tableInterleaveIssues["notPossible"] == "false" {
-		childPks := app.conv.SpSchema[table].Pks
-		parentPks := app.conv.SpSchema[refTable].Pks
-		var referedCols []string
-
-		for _, fk := range app.conv.SpSchema[table].Fks {
-			for _, col := range fk.ReferColumns {
-				referedCols = append(referedCols, col)
-			}
-		}
-
-		if len(childPks) > len(parentPks) {
-			for i, pk := range parentPks {
-
-				if pk.Col != referedCols[i] || pk.Col != childPks[i].Col {
-					tableInterleaveIssues["notPossible"] = "true"
-					tableInterleaveIssues["comment"] = "prefix key doesn't match"
-					break
-				}
-
-			}
-		} else {
-			tableInterleaveIssues["notPossible"] = "true"
-			tableInterleaveIssues["comment"] = "prefix key doesn't match"
-		}
-
+	if tableInterleaveIssues.Possible == true {
+		checkPrimaryKeyPrefix(table, refTable, tableInterleaveIssues)
 	}
-
-	if tableInterleaveIssues["notPossible"] == "false" {
-
-		for t := range app.conv.SpSchema {
-			graph.AddNode(t)
-		}
-		for t := range app.conv.SpSchema {
-			for _, fk := range app.conv.SpSchema[t].Fks {
-				graph.AddEdge(t, fk.ReferTable)
-			}
-		}
-
-		res, err := graph.TopSort(refTable)
-
-		if err != nil {
-			tableInterleaveIssues["notPossible"] = "true"
-			tableInterleaveIssues["comment"] = "cyclic dependency"
-		}
-		if tableInterleaveIssues["notPossible"] == "false" {
-			for _, visTables := range res {
-				if visTables == table {
-					tableInterleaveIssues["notPossible"] = "true"
-					tableInterleaveIssues["comment"] = "cyclic dependency"
-					break
-				}
-			}
-		}
+	if tableInterleaveIssues.Possible == true {
+		checkCyclicDependency(table, refTable, tableInterleaveIssues)
 	}
-
-	if tableInterleaveIssues["notPossible"] == "false" {
-		tableInterleaveIssues["parent"] = refTable
+	if tableInterleaveIssues.Possible == true {
+		tableInterleaveIssues.Parent = refTable
 	}
-	json.NewEncoder(w).Encode(tableInterleaveIssues)
 	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(tableInterleaveIssues)
 }
 
 type App struct {
