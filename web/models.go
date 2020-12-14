@@ -53,11 +53,11 @@ type typeIssue struct {
 }
 
 type updateCol struct {
-	Removed    bool     `json:"Removed"`
-	Rename     string   `json:"Rename"`
-	PK         string   `json:"PK"`
-	Constraint []string `json:"Constraint"`
-	ToType     string   `json:"ToType"`
+	Removed bool   `json:"Removed"`
+	Rename  string `json:"Rename"`
+	PK      string `json:"PK"`
+	NotNull string `json:"NotNull"`
+	ToType  string `json:"ToType"`
 }
 type updateTable struct {
 	UpdateCols map[string]updateCol `json:"UpdateCols"`

@@ -363,34 +363,6 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 
 type setT map[string]string
 
-// func setTypeMap(w http.ResponseWriter, r *http.Request) {
-// 	reqBody, err := ioutil.ReadAll(r.Body)
-// 	if err != nil {
-// 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), 500)
-// 		return
-// 	}
-// 	var t setT
-// 	err = json.Unmarshal(reqBody, &t)
-// 	if err != nil {
-// 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), 400)
-// 		return
-// 	}
-// 	i := 1
-// 	for k, v := range t {
-// 		//fmt.Printf("%d: key (`%T`)`%v`, value (`%T`)`%#v`\n", i, k, k, v, v)
-// 		//fmt.Println(mysql.ToSpannerType[k].T.Name)
-// 		mysql.ToSpannerType[k].T.Name = v
-// 		i++
-// 	}
-// 	// for _, spTable := range conv.SpSchema {
-// 	// 	for _, colDef := range spTable.ColDefs {
-// 	// 		colDef.T.Name = mysql.ToSpannerType[k].T.Name
-// 	// 	}
-// 	// }
-// 	w.WriteHeader(http.StatusOK)
-// 	//json.NewEncoder(w).Encode(editTypeMap)
-// }
-
 func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -456,6 +428,145 @@ func remove(slice []string, s int) []string {
 func removePk(slice []ddl.IndexKey, s int) []ddl.IndexKey {
 	return append(slice[:s], slice[s+1:]...)
 }
+
+func removeColumn(table string, colName string, srcTableName string) {
+	sp := app.conv.SpSchema[table]
+	for i, col := range sp.ColNames {
+		if col == colName {
+			sp.ColNames = remove(sp.ColNames, i)
+			break
+		}
+	}
+	if _, found := sp.ColDefs[colName]; found {
+		delete(sp.ColDefs, colName)
+	}
+	for i, pk := range sp.Pks {
+		if pk.Col == colName {
+			sp.Pks = removePk(sp.Pks, i)
+			break
+		}
+	}
+	srcName := app.conv.ToSource[table].Cols[colName]
+	delete(app.conv.ToSource[table].Cols, colName)
+	delete(app.conv.ToSpanner[srcTableName].Cols, srcName)
+	delete(app.conv.Issues[srcTableName], srcName)
+	app.conv.SpSchema[table] = sp
+}
+func renameColumn(newName, table, colName, srcTableName string) {
+	sp := app.conv.SpSchema[table]
+	for i, col := range sp.ColNames {
+		if col == colName {
+			sp.ColNames[i] = newName
+			break
+		}
+	}
+	if _, found := sp.ColDefs[colName]; found {
+		sp.ColDefs[newName] = ddl.ColumnDef{
+			Name:    newName,
+			T:       sp.ColDefs[colName].T,
+			NotNull: sp.ColDefs[colName].NotNull,
+			Comment: sp.ColDefs[colName].Comment,
+		}
+		delete(sp.ColDefs, colName)
+	}
+	for i, pk := range sp.Pks {
+		if pk.Col == colName {
+			sp.Pks[i].Col = newName
+			break
+		}
+	}
+	srcName := app.conv.ToSource[table].Cols[colName]
+	app.conv.ToSpanner[srcTableName].Cols[srcName] = newName
+	app.conv.ToSource[table].Cols[newName] = srcName
+	delete(app.conv.ToSource[table].Cols, colName)
+	app.conv.SpSchema[table] = sp
+}
+
+func pkChanged(pkChange, table, colName string) {
+	sp := app.conv.SpSchema[table]
+	if pkChange == "REMOVED" {
+		for i, pk := range sp.Pks {
+			if pk.Col == colName {
+				sp.Pks = removePk(sp.Pks, i)
+				break
+			}
+		}
+	}
+	if pkChange == "ADDED" {
+		if sPk, found := app.conv.SyntheticPKeys[table]; found {
+			for i, col := range sp.ColNames {
+				if col == sPk.Col {
+					sp.ColNames = remove(sp.ColNames, i)
+					break
+				}
+			}
+			if _, found := sp.ColDefs[sPk.Col]; found {
+				delete(sp.ColDefs, sPk.Col)
+			}
+			for i, pk := range sp.Pks {
+				if pk.Col == sPk.Col {
+					sp.Pks = removePk(sp.Pks, i)
+					break
+				}
+			}
+		}
+		sp.Pks = append(sp.Pks, ddl.IndexKey{Col: colName, Desc: false})
+	}
+	app.conv.SpSchema[table] = sp
+}
+
+func updateType(newType, table, newColName, srcTableName string, w http.ResponseWriter) {
+	sp := app.conv.SpSchema[table]
+	srcColName := app.conv.ToSource[table].Cols[newColName]
+	srcCol := app.conv.SrcSchema[srcTableName].ColDefs[srcColName]
+	var ty ddl.Type
+	var issues []internal.SchemaIssue
+	switch app.driver {
+	case "mysql", "mysqldump":
+		ty, issues = toSpannerTypeMySQL(app.conv, srcCol.Type.Name, newType, srcCol.Type.Mods)
+	case "pg_dump", "postgres":
+		ty, issues = toSpannerTypePostgres(app.conv, srcCol.Type.Name, newType, srcCol.Type.Mods)
+	default:
+		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), 400)
+		return
+	}
+	if len(srcCol.Type.ArrayBounds) > 1 {
+		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+		issues = append(issues, internal.MultiDimensionalArray)
+	}
+	if srcCol.Ignored.Default {
+		issues = append(issues, internal.DefaultValue)
+	}
+	if srcCol.Ignored.AutoIncrement {
+		issues = append(issues, internal.AutoIncrement)
+	}
+	if len(issues) > 0 {
+		app.conv.Issues[srcTableName][srcCol.Name] = issues
+	}
+	ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
+	tempColDef := sp.ColDefs[newColName]
+	tempColDef.T = ty
+	sp.ColDefs[newColName] = tempColDef
+	app.conv.SpSchema[table] = sp
+}
+
+func updateNotNull(notNullChange, table, newColName string) {
+	sp := app.conv.SpSchema[table]
+	switch notNullChange {
+	case "ADDED":
+		spColDef := sp.ColDefs[newColName]
+		spColDef.NotNull = true
+		sp.ColDefs[newColName] = spColDef
+	case "REMOVED":
+		spColDef := sp.ColDefs[newColName]
+		spColDef.NotNull = false
+		sp.ColDefs[newColName] = spColDef
+	default:
+		//we skip this
+	}
+	app.conv.SpSchema[table] = sp
+}
+
 func setTypeMapTableLevel(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -469,143 +580,26 @@ func setTypeMapTableLevel(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), 400)
 		return
 	}
-
 	srcTableName := app.conv.ToSource[table].Name
-
 	for colName, v := range t.UpdateCols {
-		sp := app.conv.SpSchema[table]
 		if v.Removed {
-			for i, col := range sp.ColNames {
-				if col == colName {
-					sp.ColNames = remove(sp.ColNames, i)
-					break
-				}
-			}
-			if _, found := sp.ColDefs[colName]; found {
-				delete(sp.ColDefs, colName)
-			}
-			for i, pk := range sp.Pks {
-				if pk.Col == colName {
-					sp.Pks = removePk(sp.Pks, i)
-					break
-				}
-			}
-			srcName := app.conv.ToSource[table].Cols[colName]
-			delete(app.conv.ToSource[table].Cols, colName)
-			delete(app.conv.ToSpanner[srcTableName].Cols, srcName)
-			delete(app.conv.Issues[srcTableName], srcName)
-			app.conv.SpSchema[table] = sp
+			removeColumn(table, colName, srcTableName)
 			continue
 		}
 		newColName := colName
 		if v.Rename != "" && v.Rename != colName {
-			for i, col := range sp.ColNames {
-				if col == colName {
-					sp.ColNames[i] = v.Rename
-					break
-				}
-			}
-			if _, found := sp.ColDefs[colName]; found {
-				sp.ColDefs[v.Rename] = ddl.ColumnDef{
-					Name:    v.Rename,
-					T:       sp.ColDefs[colName].T,
-					NotNull: sp.ColDefs[colName].NotNull,
-					Comment: sp.ColDefs[colName].Comment,
-				}
-				delete(sp.ColDefs, colName)
-			}
-			for i, pk := range sp.Pks {
-				if pk.Col == colName {
-					sp.Pks[i].Col = v.Rename
-					break
-				}
-			}
-			srcName := app.conv.ToSource[table].Cols[colName]
-			app.conv.ToSpanner[srcTableName].Cols[srcName] = v.Rename
-			app.conv.ToSource[table].Cols[v.Rename] = srcName
-			delete(app.conv.ToSource[table].Cols, colName)
-			app.conv.SpSchema[table] = sp
+			renameColumn(v.Rename, table, colName, srcTableName)
 			newColName = v.Rename
 		}
 		if v.PK != "" {
-			if v.PK == "REMOVED" {
-				for i, pk := range sp.Pks {
-					if pk.Col == newColName {
-						sp.Pks = removePk(sp.Pks, i)
-						break
-					}
-				}
-			}
-			if v.PK == "ADDED" {
-				if sPk, found := app.conv.SyntheticPKeys[table]; found {
-					for i, col := range sp.ColNames {
-						if col == sPk.Col {
-							sp.ColNames = remove(sp.ColNames, i)
-							break
-						}
-					}
-					if _, found := sp.ColDefs[sPk.Col]; found {
-						delete(sp.ColDefs, sPk.Col)
-					}
-					for i, pk := range sp.Pks {
-						if pk.Col == sPk.Col {
-							sp.Pks = removePk(sp.Pks, i)
-							break
-						}
-					}
-				}
-				sp.Pks = append(sp.Pks, ddl.IndexKey{Col: newColName, Desc: false})
-			}
+			pkChanged(v.PK, table, newColName)
 		}
-
 		if v.ToType != "" {
-			srcColName := app.conv.ToSource[table].Cols[newColName]
-			srcCol := app.conv.SrcSchema[srcTableName].ColDefs[srcColName]
-			var ty ddl.Type
-			var issues []internal.SchemaIssue
-			switch app.driver {
-			case "mysql", "mysqldump":
-				ty, issues = toSpannerTypeMySQL(app.conv, srcCol.Type.Name, v.ToType, srcCol.Type.Mods)
-			case "pg_dump", "postgres":
-				ty, issues = toSpannerTypePostgres(app.conv, srcCol.Type.Name, v.ToType, srcCol.Type.Mods)
-			default:
-				http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), 400)
-				return
-			}
-			if len(srcCol.Type.ArrayBounds) > 1 {
-				ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-				issues = append(issues, internal.MultiDimensionalArray)
-			}
-			if srcCol.Ignored.Default {
-				issues = append(issues, internal.DefaultValue)
-			}
-			if srcCol.Ignored.AutoIncrement {
-				issues = append(issues, internal.AutoIncrement)
-			}
-			if len(issues) > 0 {
-				app.conv.Issues[srcTableName][srcCol.Name] = issues
-			}
-			ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
-			tempColDef := sp.ColDefs[newColName]
-			tempColDef.T = ty
-			sp.ColDefs[newColName] = tempColDef
+			updateType(v.ToType, table, newColName, srcTableName, w)
 		}
-
-		if len(v.Constraint) > 0 {
-			for _, constraint := range v.Constraint {
-				switch constraint {
-				case "NOT NULL":
-					spColDef := sp.ColDefs[newColName]
-					spColDef.NotNull = true
-					sp.ColDefs[newColName] = spColDef
-				default:
-					fmt.Println("skip")
-				}
-			}
+		if v.NotNull != "" {
+			updateNotNull(v.NotNull, table, newColName)
 		}
-
-		app.conv.SpSchema[table] = sp
-
 	}
 	app.conv.AddPrimaryKeys()
 	w.WriteHeader(http.StatusOK)
@@ -693,6 +687,7 @@ type tableInterleaveStatus struct {
 	comment     string
 }
 
+// Work in progress
 func checkForInterleavedTables(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
 	graph := toposort.NewGraph()
@@ -792,7 +787,6 @@ type App struct {
 var app App
 
 func WebApp() {
-
 	fmt.Println("-------------------")
 	router := getRoutes()
 	log.Fatal(http.ListenAndServe(":8080", handlers.CORS(handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}), handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"}), handlers.AllowedOrigins([]string{"*"}))(router)))

@@ -148,22 +148,22 @@ func TestSetTypeMapTableLevel(t *testing.T) {
 			payload: `
     {
       "UpdateCols":{
-		"a": { "Removed": false, "Rename":"", "PK":"", "Constraint":[], "ToType":"STRING"},
-		"b": { "Removed": false, "Rename":"", "PK":"", "Constraint":[], "ToType":"STRING"},
-		"c": { "Removed": false, "Rename":"", "PK":"", "Constraint":[], "ToType":"STRING"},
-		"d": { "Removed": false, "Rename":"", "PK":"", "Constraint":[], "ToType":"BYTES"},
-		"e": { "Removed": false, "Rename":"", "PK":"", "Constraint":[], "ToType":"STRING"},
-		"f": { "Removed": false, "Rename":"", "PK":"", "Constraint":[], "ToType":"STRING"},
-		"g": { "Removed": false, "Rename":"", "PK":"", "Constraint":[], "ToType":"STRING"},
-		"h": { "Removed": false, "Rename":"", "PK":"", "Constraint":[], "ToType":"BYTES"},
-		"i": { "Removed": false, "Rename":"", "PK":"", "Constraint":[], "ToType":"STRING"},
-		"j": { "Removed": false, "Rename":"", "PK":"", "Constraint":[], "ToType":"STRING"},
-		"k": { "Removed": false, "Rename":"", "PK":"", "Constraint":[], "ToType":"STRING"},
-		"l": { "Removed": false, "Rename":"", "PK":"", "Constraint":[], "ToType":"STRING"},
-		"m": { "Removed": false, "Rename":"", "PK":"", "Constraint":[], "ToType":"STRING"},
-		"n": { "Removed": false, "Rename":"", "PK":"", "Constraint":[], "ToType":"BYTES"},
-		"o": { "Removed": false, "Rename":"", "PK":"", "Constraint":[], "ToType":"STRING"},
-		"p": { "Removed": false, "Rename":"", "PK":"", "Constraint":[], "ToType":"INT64"}
+		"a": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
+		"b": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
+		"c": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
+		"d": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"BYTES"},
+		"e": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
+		"f": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
+		"g": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
+		"h": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"BYTES"},
+		"i": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
+		"j": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
+		"k": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
+		"l": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
+		"m": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
+		"n": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"BYTES"},
+		"o": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
+		"p": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"INT64"}
 	}
     }`,
 			statusCode: http.StatusOK,
@@ -223,8 +223,8 @@ func TestSetTypeMapTableLevel(t *testing.T) {
 			payload: `
     {
       "UpdateCols":{
-		"a": { "Removed": true, "Rename":"", "PK":"", "Constraint":[], "ToType":""},
-		"b": { "Removed": true, "Rename":"", "PK":"", "Constraint":[], "ToType":""}
+		"a": { "Removed": true, "Rename":"", "PK":"", "NotNull":"", "ToType":""},
+		"b": { "Removed": true, "Rename":"", "PK":"", "NotNull":"", "ToType":""}
 	}
     }`,
 			statusCode: http.StatusOK,
@@ -274,8 +274,8 @@ func TestSetTypeMapTableLevel(t *testing.T) {
 			payload: `
     {
       "UpdateCols":{
-		"a": { "Removed": false, "Rename":"aa", "PK":"", "Constraint":[], "ToType":""},
-		"b": { "Removed": false, "Rename":"bb", "PK":"", "Constraint":[], "ToType":""}
+		"a": { "Removed": false, "Rename":"aa", "PK":"", "NotNull":"", "ToType":""},
+		"b": { "Removed": false, "Rename":"bb", "PK":"", "NotNull":"", "ToType":""}
 	}
     }`,
 			statusCode: http.StatusOK,
@@ -327,7 +327,7 @@ func TestSetTypeMapTableLevel(t *testing.T) {
 			payload: `
     {
       "UpdateCols":{
-		"a": { "Removed": false, "Rename":"", "PK":"REMOVED", "Constraint":[], "ToType":""}
+		"a": { "Removed": false, "Rename":"", "PK":"REMOVED", "NotNull":"", "ToType":""}
 	}
     }`,
 			statusCode: http.StatusOK,
@@ -380,8 +380,8 @@ func TestSetTypeMapTableLevel(t *testing.T) {
 			payload: `
     {
       "UpdateCols":{
-		"a": { "Removed": false, "Rename":"", "PK":"REMOVED", "Constraint":[], "ToType":""},
-		"b": { "Removed": false, "Rename":"", "PK":"ADDED", "Constraint":[], "ToType":""}
+		"a": { "Removed": false, "Rename":"", "PK":"REMOVED", "NotNull":"", "ToType":""},
+		"b": { "Removed": false, "Rename":"", "PK":"ADDED", "NotNull":"", "ToType":""}
 	}
     }`,
 			statusCode: http.StatusOK,
@@ -433,7 +433,7 @@ func TestSetTypeMapTableLevel(t *testing.T) {
 			payload: `
     {
       "UpdateCols":{
-		"b": { "Removed": false, "Rename":"", "PK":"ADDED", "Constraint":[], "ToType":""}
+		"b": { "Removed": false, "Rename":"", "PK":"ADDED", "NotNull":"", "ToType":""}
 	}
     }`,
 			statusCode: http.StatusOK,
@@ -467,7 +467,7 @@ func TestSetTypeMapTableLevel(t *testing.T) {
 			payload: `
     {
       "UpdateCols":{
-		"a": { "Removed": false, "Rename":"", "PK":"", "Constraint":[], "ToType":"STRING"},
+		"a": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
 		}
     }`,
 			statusCode: http.StatusBadRequest,
