@@ -209,7 +209,7 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 //     create index: CREATE [UNIQUE] [NULL_FILTERED] INDEX index_name ON table_name ( key_part [, ...] ) [ storing_clause ] [ , interleave_clause ]
 type CreateIndex struct {
 	Name string
-	/* Since CreateIndex is part of CreateTable,
+	/* Since CreateIndex is printed along with CreateTable,
 	storing Table name is not required */
 	// Table string
 	Unique bool

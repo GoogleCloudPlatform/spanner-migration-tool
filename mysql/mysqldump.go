@@ -146,17 +146,6 @@ func processStatement(conv *internal.Conv, stmt ast.StmtNode) bool {
 		if conv.SchemaMode() {
 			processCreateIndex(conv, s)
 		}
-
-		//fmt.Println(s.IndexName)
-
-		//fmt.Println(s.KeyType)
-		// // Index key types.
-		// const (
-		// 	IndexKeyTypeNone IndexKeyType = iota
-		// 	IndexKeyTypeUnique
-		// 	IndexKeyTypeSpatial
-		// 	IndexKeyTypeFullText
-		// )
 	default:
 		conv.SkipStatement(NodeType(stmt))
 	}
