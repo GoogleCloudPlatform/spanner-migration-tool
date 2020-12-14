@@ -68,7 +68,7 @@ func TestProcessInfoSchema(t *testing.T) {
 				{"public", "address", "addressid", "address_id", "fk_test"},
 			},
 		}, {
-			query: "SELECT (.+) FROM       pg_index (.+)",
+			query: "SELECT (.+) FROM pg_index (.+)",
 			args:  []driver.Value{"public", "user"},
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
 		},
@@ -95,7 +95,7 @@ func TestProcessInfoSchema(t *testing.T) {
 				{"public", "product", "productid", "product_id", "fk_test2"},
 				{"public", "user", "userid", "user_id", "fk_test3"}},
 		}, {
-			query: "SELECT (.+) FROM       pg_index (.+)",
+			query: "SELECT (.+) FROM pg_index (.+)",
 			args:  []driver.Value{"public", "cart"},
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
 			rows:  [][]driver.Value{{"index1", "userid", 1, "f", "ASC"}, {"index2", "userid", 1, "t", "ASC"}, {"index2", "productid", 2, "t", "DESC"}},
@@ -137,7 +137,7 @@ func TestProcessInfoSchema(t *testing.T) {
 			rows: [][]driver.Value{{"public", "test_ref", "id", "ref_id", "fk_test4"},
 				{"public", "test_ref", "bs", "ref_bs", "fk_test4"}},
 		}, {
-			query: "SELECT (.+) FROM       pg_index (.+)",
+			query: "SELECT (.+) FROM pg_index (.+)",
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
 		},
@@ -375,7 +375,7 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 		},
 		{
-			query: "SELECT (.+) FROM       pg_index (.+)",
+			query: "SELECT (.+) FROM pg_index (.+)",
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
 		},
