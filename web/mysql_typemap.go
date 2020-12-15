@@ -121,8 +121,6 @@ var mysqlTypeMap = map[string][]typeIssue{
 		typeIssue{T: ddl.String}},
 }
 
-// TODO(searce): Fill up this datatype mapping
-
 func toSpannerTypeMySQL(conv *internal.Conv, id string, toType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
 
 	switch id {

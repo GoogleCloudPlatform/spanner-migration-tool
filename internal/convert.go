@@ -173,7 +173,8 @@ func dequeue(queue []string) []string {
 }
 
 // GetDDL Schema returns the Spanner schema that has been constructed so far.
-// Return DDL in alphabetical table order.
+// We sort DDL in alphabetical order, but we maintain the order of interleaved
+// relation by passing tables through a queue
 func (conv *Conv) GetDDL(c ddl.Config) []string {
 	var tables []string
 	var tablesFk []string
