@@ -28,22 +28,13 @@ import (
 )
 
 func TestGetTypeMap(t *testing.T) {
-	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
-	// pass 'nil' as the third parameter.
 	req, err := http.NewRequest("GET", "/typemap", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(getTypeMap)
-
-	// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
-	// directly and pass in our Request and ResponseRecorder.
 	handler.ServeHTTP(rr, req)
-
-	// Check the status code is what we expect.
 	if status := rr.Code; status != http.StatusNotFound {
 		t.Errorf("handler returned wrong status code: got %v want %v",
 			status, http.StatusNotFound)
@@ -52,8 +43,6 @@ func TestGetTypeMap(t *testing.T) {
 }
 
 func TestGetTypeMapSuccess(t *testing.T) {
-	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
-	// pass 'nil' as the third parameter.
 	app.driver = "postgres"
 	app.conv = internal.MakeConv()
 	fillConvPostgres(app.conv)
@@ -61,17 +50,11 @@ func TestGetTypeMapSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(getTypeMap)
-
-	// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
-	// directly and pass in our Request and ResponseRecorder.
 	handler.ServeHTTP(rr, req)
 	var typemap map[string][]typeIssue
 	json.Unmarshal(rr.Body.Bytes(), &typemap)
-	// Check the status code is what we expect.
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
 			status, http.StatusOK)
@@ -129,9 +112,6 @@ func TestGetTypeMapSuccess(t *testing.T) {
 }
 
 func TestSetTypeMapTableLevel(t *testing.T) {
-	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
-	// pass 'nil' as the third parameter.
-
 	tc := []struct {
 		name              string
 		table             string
@@ -483,16 +463,11 @@ func TestSetTypeMapTableLevel(t *testing.T) {
 			t.Fatal(err)
 		}
 		req.Header.Set("Content-Type", "application/json")
-		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		handler := http.HandlerFunc(setTypeMapTableLevel)
-
-		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
-		// directly and pass in our Request and ResponseRecorder.
 		handler.ServeHTTP(rr, req)
 		var res *internal.Conv
 		json.Unmarshal(rr.Body.Bytes(), &res)
-		// Check the status code is what we expect.
 		if status := rr.Code; int64(status) != tc.statusCode {
 			t.Errorf("handler returned wrong status code: got %v want %v",
 				status, tc.statusCode)
@@ -508,9 +483,6 @@ func TestSetTypeMapTableLevel(t *testing.T) {
 }
 
 func TestSetTypeMapGlobalLevel(t *testing.T) {
-	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
-	// pass 'nil' as the third parameter.
-
 	tc := []struct {
 		name           string
 		payload        string
@@ -644,16 +616,11 @@ func TestSetTypeMapGlobalLevel(t *testing.T) {
 			t.Fatal(err)
 		}
 		req.Header.Set("Content-Type", "application/json")
-		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		handler := http.HandlerFunc(setTypeMapGlobal)
-
-		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
-		// directly and pass in our Request and ResponseRecorder.
 		handler.ServeHTTP(rr, req)
 		var res *internal.Conv
 		json.Unmarshal(rr.Body.Bytes(), &res)
-		// Check the status code is what we expect.
 		if status := rr.Code; int64(status) != tc.statusCode {
 			t.Errorf("handler returned wrong status code: got %v want %v",
 				status, tc.statusCode)
@@ -668,8 +635,6 @@ func TestSetTypeMapGlobalLevel(t *testing.T) {
 }
 
 func TestGetConversion(t *testing.T) {
-	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
-	// pass 'nil' as the third parameter.
 	app.driver = "postgres"
 	app.conv = internal.MakeConv()
 	fillConvPostgresMultiTable(app.conv)
@@ -677,17 +642,11 @@ func TestGetConversion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(getConversionRate)
-
-	// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
-	// directly and pass in our Request and ResponseRecorder.
 	handler.ServeHTTP(rr, req)
 	var result map[string]string
 	json.Unmarshal(rr.Body.Bytes(), &result)
-	// Check the status code is what we expect.
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
 			status, http.StatusOK)
