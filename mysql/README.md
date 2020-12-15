@@ -197,6 +197,10 @@ and `ON UPDATE` actions, we drop them.
 Spanner does not currently support default values. We drop these
 MySQL features during conversion.
 
+### Secondary Indexes
+
+The tool maps MySQL secondary indexes to spanner secondary indexes, and preserves constraint names where possible. Note that Spanner requires index key constraint names to be globally unique (within a database), but in MySQL they only have to be unique for a table, so we add a uniqueness suffix to a name if needed.The tool also maps `UNIQUE` constraint into `UNIQUE` secondary index. Note that for MySQL dump we skip ordering of the key column (i.e, ascending/descending) as mysqldump parser is not able to parse those values.
+
 ### Other MySQL features
 
 MySQL has many other features we haven't discussed, including functions,
