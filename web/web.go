@@ -11,6 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Package web defines web APIs to be used with harbourbridge frontend.
+// Apart from schema conversion, this package involves API to update
+// converted schema.
 
 package web
 
@@ -36,7 +40,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
 	_ "github.com/lib/pq"
-	toposort "github.com/stevenle/topsort"
 )
 
 // TODO(searce):
@@ -57,13 +60,13 @@ func homeLink(w http.ResponseWriter, r *http.Request) {
 func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), 500)
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
 	var config DriverConfig
 	err = json.Unmarshal(reqBody, &config)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), 400)
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
 	var dataSourceName string
@@ -73,18 +76,18 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	case "mysql":
 		dataSourceName = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", config.User, config.Password, config.Host, config.Port, config.Database)
 	default:
-		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", config.Driver), 400)
+		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", config.Driver), http.StatusBadRequest)
 		return
 	}
 	sourceDB, err := sql.Open(config.Driver, dataSourceName)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("SQL connection error : %v", err), 500)
+		http.Error(w, fmt.Sprintf("SQL connection error : %v", err), http.StatusInternalServerError)
 		return
 	}
 	// Open doesn't open a connection. Validate DSN data:
 	err = sourceDB.Ping()
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Connection Error: %v. Check Configuration again.", err), 500)
+		http.Error(w, fmt.Sprintf("Connection Error: %v. Check Configuration again.", err), http.StatusInternalServerError)
 		return
 	}
 	app.sourceDB = sourceDB
@@ -95,7 +98,7 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 
 func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	if app.sourceDB == nil || app.dbName == "" || app.driver == "" {
-		http.Error(w, fmt.Sprintf("Database is not configured or Database connection is lost. Please set configuration and connect to database."), 404)
+		http.Error(w, fmt.Sprintf("Database is not configured or Database connection is lost. Please set configuration and connect to database."), http.StatusNotFound)
 		return
 	}
 	conv := internal.MakeConv()
@@ -106,11 +109,11 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	case "postgres":
 		err = postgres.ProcessInfoSchema(conv, app.sourceDB)
 	default:
-		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), 400)
+		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), http.StatusBadRequest)
 		return
 	}
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), 404)
+		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
 	}
 	app.conv = conv
@@ -121,23 +124,23 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), 500)
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
 	var dc DumpConfig
 	err = json.Unmarshal(reqBody, &dc)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), 400)
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
 	f, err := os.Open(dc.FilePath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to open the test data file: %v", err), 404)
+		http.Error(w, fmt.Sprintf("failed to open the test data file: %v", err), http.StatusNotFound)
 		return
 	}
 	conv, err := conversion.SchemaConv(dc.Driver, &conversion.IOStreams{In: f, Out: os.Stdout})
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), 404)
+		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
 	}
 	app.conv = conv
@@ -188,7 +191,6 @@ func getSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	session := Session{Driver: app.driver, FilePath: filePath, FileName: dbName + sessionFile, CreatedAt: now}
-	//fmt.Fprintf(out, "Wrote session to file '%s'.\n", dbName+sessionFile)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(session)
 }
@@ -196,18 +198,18 @@ func getSession(w http.ResponseWriter, r *http.Request) {
 func resumeSession(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), 500)
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
 	var s Session
 	err = json.Unmarshal(reqBody, &s)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), 400)
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
 	f, err := os.Open(s.FilePath + s.FileName)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to open the session file: %v", err), 404)
+		http.Error(w, fmt.Sprintf("failed to open the session file: %v", err), http.StatusNotFound)
 		return
 	}
 	defer f.Close()
@@ -323,7 +325,7 @@ const (
 
 func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	if app.conv == nil || app.driver == "" {
-		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), 404)
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), http.StatusNotFound)
 		return
 	}
 	var editTypeMap map[string][]typeIssue
@@ -333,7 +335,7 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	case "postgres", "pg_dump":
 		editTypeMap = postgresTypeMap
 	default:
-		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), 400)
+		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), http.StatusBadRequest)
 		return
 	}
 	// return a list of type-mapping for only the data-types
@@ -356,13 +358,13 @@ type setT map[string]string
 func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), 500)
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
 	var t setT
 	err = json.Unmarshal(reqBody, &t)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), 400)
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -381,7 +383,7 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 					case "pg_dump", "postgres":
 						ty, issues = toSpannerTypePostgres(app.conv, srcCol.Type.Name, tv, srcCol.Type.Mods)
 					default:
-						http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), 400)
+						http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), http.StatusBadRequest)
 						return
 					}
 					if len(srcCol.Type.ArrayBounds) > 1 {
@@ -516,7 +518,7 @@ func updateType(newType, table, newColName, srcTableName string, w http.Response
 	case "pg_dump", "postgres":
 		ty, issues = toSpannerTypePostgres(app.conv, srcCol.Type.Name, newType, srcCol.Type.Mods)
 	default:
-		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), 400)
+		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), http.StatusBadRequest)
 		return
 	}
 	if len(srcCol.Type.ArrayBounds) > 1 {
@@ -559,14 +561,14 @@ func updateNotNull(notNullChange, table, newColName string) {
 func setTypeMapTableLevel(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), 500)
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
 	var t updateTable
 	table := r.FormValue("table")
 	err = json.Unmarshal(reqBody, &t)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), 400)
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
 	srcTableName := app.conv.ToSource[table].Name
@@ -647,7 +649,7 @@ func getSchemaAndReportFile(w http.ResponseWriter, r *http.Request) {
 	if dbName == "" {
 		dbName, err = conversion.GetDatabaseName(app.driver, now)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Can not create database name : %v", err), 500)
+			http.Error(w, fmt.Sprintf("Can not create database name : %v", err), http.StatusInternalServerError)
 		}
 	}
 	filePrefix := dbName + "."
@@ -662,7 +664,7 @@ func getSchemaAndReportFile(w http.ResponseWriter, r *http.Request) {
 	conversion.Report(app.driver, nil, ioHelper.BytesRead, "", app.conv, reportFileName, ioHelper.Out)
 	reportAbsPath, err := filepath.Abs(reportFileName)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Can not create absolute path : %v", err), 500)
+		http.Error(w, fmt.Sprintf("Can not create absolute path : %v", err), http.StatusInternalServerError)
 	}
 	schemaAbsPath, err := filepath.Abs(schemaFileName)
 	response.Report = reportAbsPath
@@ -671,13 +673,13 @@ func getSchemaAndReportFile(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-type tableInterleaveStatus struct {
+type TableInterleaveStatus struct {
 	Possible bool
 	Parent   string
 	Comment  string
 }
 
-func checkPrimaryKeyPrefix(table string, refTable string, tableInterleaveIssues *tableInterleaveStatus) {
+func checkPrimaryKeyPrefix(table string, refTable string, tableInterleaveIssues *TableInterleaveStatus) {
 	childPks := app.conv.SpSchema[table].Pks
 	parentPks := app.conv.SpSchema[refTable].Pks
 	var referedCols []string
@@ -686,7 +688,7 @@ func checkPrimaryKeyPrefix(table string, refTable string, tableInterleaveIssues 
 			referedCols = append(referedCols, col)
 		}
 	}
-	if len(childPks) > len(parentPks) {
+	if len(childPks) >= len(parentPks) {
 		for i, pk := range parentPks {
 			if pk.Col != referedCols[i] || pk.Col != childPks[i].Col {
 				tableInterleaveIssues.Possible = false
@@ -701,47 +703,17 @@ func checkPrimaryKeyPrefix(table string, refTable string, tableInterleaveIssues 
 
 }
 
-func checkCyclicDependency(table string, refTable string, tableInterleaveIssues *tableInterleaveStatus) {
-	graph := toposort.NewGraph()
-	for t := range app.conv.SpSchema {
-		graph.AddNode(t)
-	}
-	for t := range app.conv.SpSchema {
-		for _, fk := range app.conv.SpSchema[t].Fks {
-			graph.AddEdge(t, fk.ReferTable)
-		}
-	}
-	res, err := graph.TopSort(refTable)
-	if err != nil {
-		cycle := strings.Split(fmt.Sprintf("%v", err), ":")
-		cycle = strings.Split(cycle[1], "->")
-		for _, ctable := range cycle {
-			t := strings.TrimSpace(ctable)
-			if t == table {
-				tableInterleaveIssues.Possible = false
-				tableInterleaveIssues.Comment = "cyclic dependency"
-				break
-			}
-		}
-	}
-	if tableInterleaveIssues.Possible == true {
-		for _, visTables := range res {
-			if visTables == table {
-				tableInterleaveIssues.Possible = false
-				tableInterleaveIssues.Comment = "cyclic dependency"
-				break
-			}
-		}
-	}
-}
-
 // Work in progress
 func checkForInterleavedTables(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
-	if table == "" {
-		http.Error(w, fmt.Sprintf("Table name is empty"), 400)
+	if app.conv == nil || app.driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), 404)
+		return
 	}
-	tableInterleaveIssues := &tableInterleaveStatus{Possible: true}
+	if table == "" {
+		http.Error(w, fmt.Sprintf("Table name is empty"), http.StatusBadRequest)
+	}
+	tableInterleaveIssues := &TableInterleaveStatus{Possible: true}
 	tablesUsed := make(map[string]bool)
 	var refTable string
 	for _, fk := range app.conv.SpSchema[table].Fks {
@@ -762,9 +734,6 @@ func checkForInterleavedTables(w http.ResponseWriter, r *http.Request) {
 	}
 	if tableInterleaveIssues.Possible == true {
 		checkPrimaryKeyPrefix(table, refTable, tableInterleaveIssues)
-	}
-	if tableInterleaveIssues.Possible == true {
-		checkCyclicDependency(table, refTable, tableInterleaveIssues)
 	}
 	if tableInterleaveIssues.Possible == true {
 		tableInterleaveIssues.Parent = refTable

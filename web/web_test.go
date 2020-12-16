@@ -1268,5 +1268,247 @@ func TestGetConversionMySQL(t *testing.T) {
 		"t3": "RED",
 	}
 	assert.Equal(t, expectedConversion, result)
+}
 
+func TestCheckForInterleavedTables(t *testing.T) {
+
+	tests := []struct {
+		name             string
+		ct               *internal.Conv
+		table            string
+		statusCode       int64
+		expectedResponse *TableInterleaveStatus
+		parentTable      string
+	}{
+		{
+			name:       "no conv provided",
+			statusCode: http.StatusNotFound,
+		},
+		{
+			name:       "no table name provided",
+			statusCode: http.StatusBadRequest,
+			ct: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{"t1": ddl.CreateTable{
+					Name:     "t1",
+					ColNames: []string{"a", "b", "c"},
+					ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}},
+					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"a"}, ReferTable: "ref_t1", ReferColumns: []string{"ref_c1"}},
+						ddl.Foreignkey{Name: "fk2", Columns: []string{"c"}, ReferTable: "ref_t2", ReferColumns: []string{"ref_c2"}}},
+				}}},
+		},
+		{
+			name: "multiple table references",
+			ct: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{"t1": ddl.CreateTable{
+					Name:     "t1",
+					ColNames: []string{"a", "b", "c"},
+					ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}},
+					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"a"}, ReferTable: "ref_t1", ReferColumns: []string{"ref_c1"}},
+						ddl.Foreignkey{Name: "fk2", Columns: []string{"c"}, ReferTable: "ref_t2", ReferColumns: []string{"ref_c2"}}},
+				}}},
+			table:            "t1",
+			statusCode:       http.StatusOK,
+			expectedResponse: &TableInterleaveStatus{Possible: false, Comment: "multiple or no parent"},
+		},
+		{
+			name: "table with synthetic PK",
+			ct: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{"t1": ddl.CreateTable{
+					Name:     "t1",
+					ColNames: []string{"a", "b", "c"},
+					ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id", Desc: false}},
+					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"a"}, ReferTable: "ref_t1", ReferColumns: []string{"ref_c1"}},
+						ddl.Foreignkey{Name: "fk2", Columns: []string{"c"}, ReferTable: "ref_t2", ReferColumns: []string{"ref_c2"}}},
+				}},
+				SyntheticPKeys: map[string]internal.SyntheticPKey{"t1": internal.SyntheticPKey{Col: "synth_id"}},
+			},
+			table:            "t1",
+			statusCode:       http.StatusOK,
+			expectedResponse: &TableInterleaveStatus{Possible: false, Comment: "has synthetic pk"},
+		},
+		{
+			name: "parent table with synthetic PK",
+			ct: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}},
+						Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}}},
+					},
+					"t2": ddl.CreateTable{
+						Name:     "t2",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+							"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id", Desc: false}},
+					},
+				},
+				SyntheticPKeys: map[string]internal.SyntheticPKey{"t2": internal.SyntheticPKey{Col: "synth_id"}},
+			},
+			table:            "t1",
+			statusCode:       http.StatusOK,
+			expectedResponse: &TableInterleaveStatus{Possible: false, Comment: "parent has synthetic pk"},
+		},
+		{
+			name: "prefix does not match 1",
+			ct: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}},
+						Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}}},
+					},
+					"t2": ddl.CreateTable{
+						Name:     "t2",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "b", Desc: false}},
+					},
+				},
+			},
+			table:            "t1",
+			statusCode:       http.StatusOK,
+			expectedResponse: &TableInterleaveStatus{Possible: false, Comment: "prefix key doesn't match"},
+		},
+		{
+			name: "prefix does not match 2",
+			ct: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "b", Desc: false}},
+						Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"c"}, ReferTable: "t2", ReferColumns: []string{"c"}}},
+					},
+					"t2": ddl.CreateTable{
+						Name:     "t2",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}},
+					},
+				},
+			},
+			table:            "t1",
+			statusCode:       http.StatusOK,
+			expectedResponse: &TableInterleaveStatus{Possible: false, Comment: "prefix key doesn't match"},
+		},
+		{
+			name: "successful interleave",
+			ct: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "b", Desc: false}},
+						Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}}},
+					},
+					"t2": ddl.CreateTable{
+						Name:     "t2",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}},
+					},
+				},
+			},
+			table:            "t1",
+			statusCode:       http.StatusOK,
+			expectedResponse: &TableInterleaveStatus{Possible: true, Parent: "t2"},
+			parentTable:      "t2",
+		},
+		{
+			name: "successful interleave with same primary key",
+			ct: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "b", Desc: false}},
+						Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"a", "b"}, ReferTable: "t2", ReferColumns: []string{"a", "b"}}},
+					},
+					"t2": ddl.CreateTable{
+						Name:     "t2",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "b", Desc: false}},
+					},
+				},
+			},
+			table:            "t1",
+			statusCode:       http.StatusOK,
+			expectedResponse: &TableInterleaveStatus{Possible: true, Parent: "t2"},
+			parentTable:      "t2",
+		},
+	}
+	for _, tc := range tests {
+		app.driver = "mysql"
+		app.conv = tc.ct
+		req, err := http.NewRequest("GET", "/checkinterleave/table?table="+tc.table, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(checkForInterleavedTables)
+		handler.ServeHTTP(rr, req)
+		var res *TableInterleaveStatus
+		json.Unmarshal(rr.Body.Bytes(), &res)
+		if status := rr.Code; int64(status) != tc.statusCode {
+			t.Errorf("handler returned wrong status code: got %v want %v",
+				status, tc.statusCode)
+		}
+		if tc.statusCode == http.StatusOK {
+			assert.Equal(t, tc.expectedResponse, res)
+		}
+		if tc.parentTable != "" {
+			assert.Equal(t, tc.parentTable, app.conv.SpSchema[tc.table].InterleaveInto)
+		}
+	}
 }
