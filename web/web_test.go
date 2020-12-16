@@ -1508,7 +1508,7 @@ func TestCheckForInterleavedTables(t *testing.T) {
 			assert.Equal(t, tc.expectedResponse, res)
 		}
 		if tc.parentTable != "" {
-			assert.Equal(t, tc.parentTable, app.conv.SpSchema[tc.table].InterleaveInto)
+			assert.Equal(t, tc.parentTable, app.conv.SpSchema[tc.table].Parent)
 		}
 	}
 }

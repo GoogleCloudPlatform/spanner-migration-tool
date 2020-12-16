@@ -107,7 +107,7 @@ func TestPrintCreateTable(t *testing.T) {
 		{"quote", true, "CREATE TABLE `mytable` (`col1` INT64 NOT NULL, `col2` STRING(MAX), `col3` BYTES(42)) PRIMARY KEY (`col1` DESC),\nINTERLEAVE IN PARENT `parent` ON DELETE CASCADE", t2},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, normalizeSpace(tc.expected), normalizeSpace(tc.ct.PrintCreateTable(tc.ct.InterleaveInto, Config{ProtectIds: tc.protectIds})))
+		assert.Equal(t, normalizeSpace(tc.expected), normalizeSpace(tc.ct.PrintCreateTable(Config{ProtectIds: tc.protectIds})))
 	}
 }
 

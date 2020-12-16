@@ -60,7 +60,28 @@ func TestGetDDL(t *testing.T) {
 			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
 		},
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}}
-	ddl := conv.GetDDL(ddl.Config{})
+	conv.SpSchema["table3"] = ddl.CreateTable{
+		Name:     "table3",
+		ColNames: []string{"a", "b"},
+		ColDefs: map[string]ddl.ColumnDef{
+			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}},
+		},
+		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"b"}, ReferTable: "ref_table1", ReferColumns: []string{"ref_c"}}},
+	}
+	conv.SpSchema["table4"] = ddl.CreateTable{
+		Name:     "table4",
+		ColNames: []string{"a", "b"},
+		ColDefs: map[string]ddl.ColumnDef{
+			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}},
+			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
+		},
+		Pks:    []ddl.IndexKey{ddl.IndexKey{Col: "a"}, ddl.IndexKey{Col: "b"}},
+		Parent: "table1",
+	}
+	ddl := conv.GetDDL(ddl.Config{ForeignKeys: true})
 	normalize := func(l []string) (nl []string) {
 		for _, s := range l {
 			nl = append(nl, strings.Join(strings.Fields(s), " "))
@@ -70,6 +91,9 @@ func TestGetDDL(t *testing.T) {
 	e := []string{
 		"CREATE TABLE table1 ( a INT64, b FLOAT64 ) PRIMARY KEY (a)",
 		"CREATE TABLE table2 ( a INT64 ) PRIMARY KEY (a)",
+		"CREATE TABLE table3 ( a INT64, b INT64 ) PRIMARY KEY (a)",
+		"CREATE TABLE table4 ( a INT64, b INT64 ) PRIMARY KEY (a, b), INTERLEAVE IN PARENT table1 ON DELETE CASCADE",
+		"ALTER TABLE table3 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_c)",
 	}
 	assert.ElementsMatch(t, normalize(e), normalize(ddl))
 }

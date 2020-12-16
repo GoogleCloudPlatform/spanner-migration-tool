@@ -158,7 +158,7 @@ func getDDL(w http.ResponseWriter, r *http.Request) {
 	sort.Strings(tables)
 	ddl := make(map[string]string)
 	for _, t := range tables {
-		ddl[t] = app.conv.SpSchema[t].PrintCreateTable(app.conv.SpSchema[t].InterleaveInto, c)
+		ddl[t] = app.conv.SpSchema[t].PrintCreateTable(c)
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(ddl)
@@ -738,7 +738,7 @@ func checkForInterleavedTables(w http.ResponseWriter, r *http.Request) {
 	if tableInterleaveIssues.Possible == true {
 		tableInterleaveIssues.Parent = refTable
 		sp := app.conv.SpSchema[table]
-		sp.InterleaveInto = refTable
+		sp.Parent = refTable
 		app.conv.SpSchema[table] = sp
 	}
 	w.WriteHeader(http.StatusOK)

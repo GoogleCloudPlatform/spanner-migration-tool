@@ -168,39 +168,37 @@ func (conv *Conv) SetDataMode() {
 	conv.mode = dataOnly
 }
 
-func dequeue(queue []string) []string {
-	return queue[1:]
-}
-
 // GetDDL Schema returns the Spanner schema that has been constructed so far.
 // We sort DDL in alphabetical order, but we maintain the order of interleaved
 // relation by passing tables through a queue
 func (conv *Conv) GetDDL(c ddl.Config) []string {
 	var tables []string
-	var tablesFk []string
 	for t := range conv.SpSchema {
 		tables = append(tables, t)
-		tablesFk = append(tablesFk, t)
 	}
 	sort.Strings(tables)
+	tableQueue := tables
 	var ddl []string
 	printed := make(map[string]bool)
-	for len(tables) > 0 {
-		t := tables[0]
-		if conv.SpSchema[t].InterleaveInto == "" {
-			ddl = append(ddl, conv.SpSchema[t].PrintCreateTable(conv.SpSchema[t].InterleaveInto, c))
+	for len(tableQueue) > 0 {
+		t := tableQueue[0]
+		tableQueue = tableQueue[1:]
+		_, found := printed[conv.SpSchema[t].Parent]
+		// Print table t if either:
+		// a) t is not interleaved in another table, or
+		// b) t is interleaved in another table and that table has already been printed.
+		if conv.SpSchema[t].Parent == "" || found {
+			ddl = append(ddl, conv.SpSchema[t].PrintCreateTable(c))
 			printed[t] = true
-			tables = dequeue(tables)
-			continue
+		} else {
+			// We can't print table t now because its parent hasn't been printed.
+			// Add it at end of tables and we'll try again later.
+			// We might need multiple iterations to print chains of interleaved tables,
+			// but we will always make progress because interleaved tables can't
+			// have cycles. In principle this could be O(n^2), but in practice chains
+			// of interleaved tables are small.
+			tableQueue = append(tableQueue, t)
 		}
-		if _, found := printed[conv.SpSchema[t].InterleaveInto]; found {
-			ddl = append(ddl, conv.SpSchema[t].PrintCreateTable(conv.SpSchema[t].InterleaveInto, c))
-			printed[t] = true
-			tables = dequeue(tables)
-			continue
-		}
-		tables = dequeue(tables)
-		tables = append(tables, t)
 	}
 
 	// Append foreign key constraints to DDL if table is not interleaved.
@@ -210,8 +208,8 @@ func (conv *Conv) GetDDL(c ddl.Config) []string {
 	// before they are referenced by foreign key constraints) and the possibility
 	// of circular foreign keys definitions. We opt for simplicity.
 	if c.ForeignKeys {
-		for _, t := range tablesFk {
-			if conv.SpSchema[t].InterleaveInto != "" {
+		for _, t := range tables {
+			if conv.SpSchema[t].Parent != "" {
 				continue
 			}
 			for _, fk := range conv.SpSchema[t].Fks {
