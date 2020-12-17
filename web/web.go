@@ -679,31 +679,24 @@ type TableInterleaveStatus struct {
 	Comment  string
 }
 
-func checkPrimaryKeyPrefix(table string, refTable string, tableInterleaveIssues *TableInterleaveStatus) {
+func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tableInterleaveIssues *TableInterleaveStatus) bool {
 	childPks := app.conv.SpSchema[table].Pks
 	parentPks := app.conv.SpSchema[refTable].Pks
-	var referedCols []string
-	for _, fk := range app.conv.SpSchema[table].Fks {
-		for _, col := range fk.ReferColumns {
-			referedCols = append(referedCols, col)
-		}
-	}
 	if len(childPks) >= len(parentPks) {
 		for i, pk := range parentPks {
-			if pk.Col != referedCols[i] || pk.Col != childPks[i].Col {
-				tableInterleaveIssues.Possible = false
-				tableInterleaveIssues.Comment = "prefix key doesn't match"
-				break
+			if i >= len(fk.ReferColumns) || pk.Col != fk.ReferColumns[i] || pk.Col != childPks[i].Col || fk.Columns[i] != fk.ReferColumns[i] {
+				return false
 			}
 		}
 	} else {
-		tableInterleaveIssues.Possible = false
-		tableInterleaveIssues.Comment = "prefix key doesn't match"
+		return false
 	}
-
+	return true
+}
+func removeFk(slice []ddl.Foreignkey, s int) []ddl.Foreignkey {
+	return append(slice[:s], slice[s+1:]...)
 }
 
-// Work in progress
 func checkForInterleavedTables(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
 	if app.conv == nil || app.driver == "" {
@@ -714,32 +707,30 @@ func checkForInterleavedTables(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Table name is empty"), http.StatusBadRequest)
 	}
 	tableInterleaveIssues := &TableInterleaveStatus{Possible: true}
-	tablesUsed := make(map[string]bool)
-	var refTable string
-	for _, fk := range app.conv.SpSchema[table].Fks {
-		tablesUsed[fk.ReferTable] = true
-		refTable = fk.ReferTable
-	}
-	if len(tablesUsed) != 1 {
-		tableInterleaveIssues.Possible = false
-		tableInterleaveIssues.Comment = "multiple or no parent"
-	}
 	if _, found := app.conv.SyntheticPKeys[table]; found {
 		tableInterleaveIssues.Possible = false
-		tableInterleaveIssues.Comment = "has synthetic pk"
-	}
-	if _, found := app.conv.SyntheticPKeys[refTable]; found {
-		tableInterleaveIssues.Possible = false
-		tableInterleaveIssues.Comment = "parent has synthetic pk"
+		tableInterleaveIssues.Comment = "Has synthetic pk"
 	}
 	if tableInterleaveIssues.Possible == true {
-		checkPrimaryKeyPrefix(table, refTable, tableInterleaveIssues)
-	}
-	if tableInterleaveIssues.Possible == true {
-		tableInterleaveIssues.Parent = refTable
-		sp := app.conv.SpSchema[table]
-		sp.Parent = refTable
-		app.conv.SpSchema[table] = sp
+		for i, fk := range app.conv.SpSchema[table].Fks {
+			refTable := fk.ReferTable
+			if _, found := app.conv.SyntheticPKeys[refTable]; found {
+				continue
+			}
+			ok := checkPrimaryKeyPrefix(table, refTable, fk, tableInterleaveIssues)
+			if ok == true {
+				tableInterleaveIssues.Parent = refTable
+				sp := app.conv.SpSchema[table]
+				sp.Parent = refTable
+				sp.Fks = removeFk(sp.Fks, i)
+				app.conv.SpSchema[table] = sp
+				break
+			}
+		}
+		if tableInterleaveIssues.Parent == "" {
+			tableInterleaveIssues.Possible = false
+			tableInterleaveIssues.Comment = "No valid prefix"
+		}
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(tableInterleaveIssues)

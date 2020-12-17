@@ -201,7 +201,7 @@ func (conv *Conv) GetDDL(c ddl.Config) []string {
 		}
 	}
 
-	// Append foreign key constraints to DDL if table is not interleaved.
+	// Append foreign key constraints to DDL.
 	// We always use alter table statements for foreign key constraints.
 	// The alternative of putting foreign key constraints in-line as part of create
 	// table statements is tricky because of table order (need to define tables
@@ -209,9 +209,6 @@ func (conv *Conv) GetDDL(c ddl.Config) []string {
 	// of circular foreign keys definitions. We opt for simplicity.
 	if c.ForeignKeys {
 		for _, t := range tables {
-			if conv.SpSchema[t].Parent != "" {
-				continue
-			}
 			for _, fk := range conv.SpSchema[t].Fks {
 				ddl = append(ddl, fk.PrintForeignKeyAlterTable(c, t))
 			}
