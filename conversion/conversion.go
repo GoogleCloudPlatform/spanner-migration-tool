@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// Package conversion replicates some of the functions from main.go
-// to be used with web APIs.
+// Package conversion handles initial setup for the command line tool
+// and web APIs.
 
 package conversion
 
@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -36,6 +37,8 @@ import (
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
+	"github.com/aws/aws-sdk-go/aws/session"
+	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/ssh/terminal"
@@ -43,6 +46,7 @@ import (
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
+	"github.com/cloudspannerecosystem/harbourbridge/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/postgres"
@@ -59,14 +63,19 @@ const (
 	MYSQLDUMP string = "mysqldump"
 	// MYSQL is the driver name for MySQL.
 	MYSQL string = "mysql"
+	// DYNAMODB is the driver name for AWS DynamoDB.
+	// This is an experimental driver; implementation in progress.
+	DYNAMODB string = "dynamodb"
 )
 
-func SchemaConv(driver string, ioHelper *IOStreams) (*internal.Conv, error) {
+func SchemaConv(driver string, ioHelper *IOStreams, schemaSampleSize int64) (*internal.Conv, error) {
 	switch driver {
 	case POSTGRES, MYSQL:
 		return schemaFromSQL(driver)
 	case PGDUMP, MYSQLDUMP:
 		return schemaFromDump(driver, ioHelper)
+	case DYNAMODB:
+		return schemaFromDynamoDB(schemaSampleSize)
 	default:
 		return nil, fmt.Errorf("schema conversion for driver %s not supported", driver)
 	}
@@ -84,6 +93,8 @@ func DataConv(driver string, ioHelper *IOStreams, client *sp.Client, conv *inter
 		return dataFromSQL(driver, config, client, conv)
 	case PGDUMP, MYSQLDUMP:
 		return dataFromDump(driver, config, ioHelper, client, conv, dataOnly)
+	case DYNAMODB:
+		return dataFromDynamoDB(config, client, conv)
 	default:
 		return nil, fmt.Errorf("data conversion for driver %s not supported", driver)
 	}
@@ -186,6 +197,50 @@ func dataFromSQL(driver string, config spanner.BatchWriterConfig, client *sp.Cli
 			writer.AddRow(table, cols, vals)
 		})
 	err = ProcessSQLData(driver, conv, sourceDB)
+	if err != nil {
+		return nil, err
+	}
+	writer.Flush()
+	return writer, nil
+}
+
+func schemaFromDynamoDB(sampleSize int64) (*internal.Conv, error) {
+	conv := internal.MakeConv()
+	mySession := session.Must(session.NewSession())
+	client := dydb.New(mySession)
+	err := dynamodb.ProcessSchema(conv, client, []string{}, sampleSize)
+	if err != nil {
+		return nil, err
+	}
+	return conv, nil
+}
+
+func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
+	mySession := session.Must(session.NewSession())
+	dyclient := dydb.New(mySession)
+
+	dynamodb.SetRowStats(conv, dyclient)
+	totalRows := conv.Rows()
+	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose())
+
+	rows := int64(0)
+	config.Write = func(m []*sp.Mutation) error {
+		_, err := client.Apply(context.Background(), m)
+		if err != nil {
+			return err
+		}
+		atomic.AddInt64(&rows, int64(len(m)))
+		p.MaybeReport(atomic.LoadInt64(&rows))
+		return nil
+	}
+	writer := spanner.NewBatchWriter(config)
+	conv.SetDataMode()
+	conv.SetDataSink(
+		func(table string, cols []string, vals []interface{}) {
+			writer.AddRow(table, cols, vals)
+		})
+
+	err := dynamodb.ProcessData(conv, dyclient)
 	if err != nil {
 		return nil, err
 	}
@@ -434,12 +489,12 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 		fmt.Fprintf(out, "Can't create schema file %s: %v\n", name, err)
 		return
 	}
-	// The schema file we write out includes comments, and doesn't add backticks
-	// around table and column names. This file is intended for explanatory
-	// and documentation purposes, and is not strictly legal Cloud Spanner DDL
-	// (Cloud Spanner doesn't currently support comments). Change 'Comments'
-	// to false and 'ProtectIds' to true to write out a schema file that is
-	// legal Cloud Spanner DDL.
+	// The schema file we write out includes comments, includes foreign keys
+	// and doesn't add backticks around table and column names. This file is
+	// intended for explanatory and documentation purposes, and is not strictly
+	// legal Cloud Spanner DDL (Cloud Spanner doesn't currently support comments).
+	// Change 'Comments' to false and 'ProtectIds' to true to write out a
+	// schema file that is legal Cloud Spanner DDL.
 	ddl := conv.GetDDL(ddl.Config{Comments: true, ProtectIds: false, ForeignKeys: true})
 	if len(ddl) == 0 {
 		ddl = []string{"\n-- Schema is empty -- no tables found\n"}
@@ -454,6 +509,40 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 		return
 	}
 	fmt.Fprintf(out, "Wrote schema to file '%s'.\n", name)
+}
+
+func WriteSessionFile(conv *internal.Conv, now time.Time, name string, out *os.File) {
+	f, err := os.Create(name)
+	if err != nil {
+		fmt.Fprintf(out, "Can't create session file %s: %v\n", name, err)
+		return
+	}
+	// Session file will basically contain 'conv' struct in JSON format.
+	// It contains all the information for schema and data conversion state.
+	convJSON, err := json.MarshalIndent(conv, "", " ")
+	if err != nil {
+		fmt.Fprintf(out, "Can't encode session state to JSON: %v\n", err)
+		return
+	}
+	if _, err := f.Write(convJSON); err != nil {
+		fmt.Fprintf(out, "Can't write out session file: %v\n", err)
+		return
+	}
+	fmt.Fprintf(out, "Wrote session to file '%s'.\n", name)
+}
+
+// readSessionFile reads a session JSON file and
+// unmarshal it's content into *internal.Conv.
+func ReadSessionFile(conv *internal.Conv, sessionJSON string) error {
+	s, err := ioutil.ReadFile(sessionJSON)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(s, &conv)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // writeBadData prints summary stats about bad rows and writes detailed info

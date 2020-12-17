@@ -138,7 +138,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("failed to open the test data file: %v", err), http.StatusNotFound)
 		return
 	}
-	conv, err := conversion.SchemaConv(dc.Driver, &conversion.IOStreams{In: f, Out: os.Stdout})
+	conv, err := conversion.SchemaConv(dc.Driver, &conversion.IOStreams{In: f, Out: os.Stdout}, 0)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
