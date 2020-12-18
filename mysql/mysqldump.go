@@ -276,6 +276,9 @@ func toSchemaKeys(columns []*ast.IndexPartSpecification) (keys []schema.Key) {
 	for _, colname := range columns {
 		// MySQL primary keys have no notation of ascending/descending.
 		// We map them all into ascending primary keys.
+		// TODO: need to find a way to add ordering of the key column,
+		// as mysqldump parser is not able to parse ordering
+		// (i.e, ascending/descending)
 		keys = append(keys, schema.Key{Column: colname.Column.Name.String()})
 	}
 	return keys

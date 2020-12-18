@@ -291,7 +291,7 @@ func TestProcessPgDump(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
 		},
 		{
 			name: "Create index statement with order",
@@ -312,7 +312,7 @@ func TestProcessPgDump(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: true}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: true}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
 		},
 		{
 			name: "Create index statement with different sequence order",
@@ -321,7 +321,7 @@ func TestProcessPgDump(t *testing.T) {
 				"b text," +
 				"c text" +
 				");\n" +
-				"CREATE INDEX custom_index ON test (c DESC, b ASC);\n",
+				"CREATE UNIQUE INDEX custom_index ON test (c DESC, b ASC);\n",
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
 					Name:     "test",
@@ -333,7 +333,7 @@ func TestProcessPgDump(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Keys: []ddl.IndexKey{ddl.IndexKey{Col: "c", Desc: true}, ddl.IndexKey{Col: "b", Desc: false}}}}}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "c", Desc: true}, ddl.IndexKey{Col: "b", Desc: false}}}}}},
 		},
 		{
 			name:  "Create table with pg schema",

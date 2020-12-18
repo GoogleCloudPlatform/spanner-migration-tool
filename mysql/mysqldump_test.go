@@ -344,7 +344,7 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
 		},
 		{
 			name: "Create table with unique index keys",
@@ -365,7 +365,7 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
 		},
 		{
 			name: "Create table with multiple index keys with different order",
@@ -387,8 +387,8 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}},
-						ddl.CreateIndex{Name: "custom_index2", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "c", Desc: false}, ddl.IndexKey{Col: "a", Desc: false}}}}}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}},
+						ddl.CreateIndex{Name: "custom_index2", Table: "test", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "c", Desc: false}, ddl.IndexKey{Col: "a", Desc: false}}}}}},
 		},
 		{
 			name: "Alter table add index keys",
@@ -409,7 +409,7 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
 		},
 		{
 			name: "Create index statement",
@@ -430,7 +430,7 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
 					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
 		},
 		{
 			name:  "Create table with mysql schema",

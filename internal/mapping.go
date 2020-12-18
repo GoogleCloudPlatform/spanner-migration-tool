@@ -128,6 +128,27 @@ func GetSpannerCols(conv *Conv, srcTable string, srcCols []string) ([]string, er
 	return spCols, nil
 }
 
+func getUniqueKeyName(srcKeyName string, schemaKeys map[string]bool) string {
+	spKeyName, _ := FixName(srcKeyName)
+	if _, found := schemaKeys[spKeyName]; found {
+		// spKeyName has been used before.
+		// Add unique postfix: use number of keys so far.
+		// However, there is a chance this has already been used,
+		// so need to iterate.
+		id := len(schemaKeys)
+		for {
+			c := spKeyName + "_" + strconv.Itoa(id)
+			if _, found := schemaKeys[c]; !found {
+				spKeyName = c
+				break
+			}
+			id++
+		}
+	}
+	schemaKeys[spKeyName] = true
+	return spKeyName
+}
+
 // GetSpannerKeyName maps source foreign key name to
 // legal Spanner foreign key name.
 // If the srcKeyName is empty string we can just return
@@ -145,24 +166,7 @@ func GetSpannerKeyName(srcKeyName string, schemaForeignKeys map[string]bool) str
 	if srcKeyName == "" {
 		return ""
 	}
-	spKeyName, _ := FixName(srcKeyName)
-	if _, found := schemaForeignKeys[spKeyName]; found {
-		// spKeyName has been used before.
-		// Add unique postfix: use number of foreign keys so far.
-		// However, there is a chance this has already been used,
-		// so need to iterate.
-		id := len(schemaForeignKeys)
-		for {
-			c := spKeyName + "_" + strconv.Itoa(id)
-			if _, found := schemaForeignKeys[c]; !found {
-				spKeyName = c
-				break
-			}
-			id++
-		}
-	}
-	schemaForeignKeys[spKeyName] = true
-	return spKeyName
+	return getUniqueKeyName(srcKeyName, schemaForeignKeys)
 }
 
 // GetSpannerKeyName maps source index key name to
@@ -177,23 +181,5 @@ func GetSpannerKeyName(srcKeyName string, schemaForeignKeys map[string]bool) str
 // they only have to be unique for a table. Hence we must map each source
 // constraint name to a unique spanner constraint name.
 func GetSpannerIndexKeyName(srcKeyName string, schemaIndexKeys map[string]bool) string {
-	spKeyName, _ := FixName(srcKeyName)
-
-	if _, found := schemaIndexKeys[spKeyName]; found {
-		// spKeyName has been used before.
-		// Add unique postfix: use number of index keys so far.
-		// However, there is a chance this has already been used,
-		// so need to iterate.
-		id := len(schemaIndexKeys)
-		for {
-			c := spKeyName + "_" + strconv.Itoa(id)
-			if _, found := schemaIndexKeys[c]; !found {
-				spKeyName = c
-				break
-			}
-			id++
-		}
-	}
-	schemaIndexKeys[spKeyName] = true
-	return spKeyName
+	return getUniqueKeyName(srcKeyName, schemaIndexKeys)
 }

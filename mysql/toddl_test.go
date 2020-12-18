@@ -60,7 +60,7 @@ func TestToSpannerType(t *testing.T) {
 		},
 		Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
 		Fks:     []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"b"}}},
-		Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "d", Desc: true}}}},
+		Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", Table: name, Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "d", Desc: true}}}},
 	}
 	assert.Equal(t, expected, actual)
 	expectedIssues := map[string][]internal.SchemaIssue{

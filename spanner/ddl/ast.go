@@ -208,27 +208,25 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 // CreateIndex encodes the following DDL definition:
 //     create index: CREATE [UNIQUE] [NULL_FILTERED] INDEX index_name ON table_name ( key_part [, ...] ) [ storing_clause ] [ , interleave_clause ]
 type CreateIndex struct {
-	Name string
-	/* Since CreateIndex is printed along with CreateTable,
-	storing Table name is not required */
-	// Table string
+	Name   string
+	Table  string
 	Unique bool
 	Keys   []IndexKey
-	// We have no requirements for unique and null-filtered options and
+	// We have no requirements for null-filtered option and
 	// storing/interleaving clauses yet, so we omit them for now.
 }
 
 // PrintCreateIndex unparses a CREATE INDEX statement.
-func (ci CreateIndex) PrintCreateIndex(Table string, c Config) string {
+func (ci CreateIndex) PrintCreateIndex(c Config) string {
 	var keys []string
 	for _, p := range ci.Keys {
 		keys = append(keys, p.PrintIndexKey(c))
 	}
 	var unique string
 	if ci.Unique == true {
-		unique = "UNIQUE"
+		unique = "UNIQUE "
 	}
-	return fmt.Sprintf("CREATE %s INDEX %s ON %s (%s)", unique, c.quote(ci.Name), c.quote(Table), strings.Join(keys, ", "))
+	return fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)", unique, c.quote(ci.Name), c.quote(ci.Table), strings.Join(keys, ", "))
 }
 
 // PrintForeignKeyAlterTable unparses the foreign keys using ALTER TABLE.

@@ -80,7 +80,7 @@ func schemaToDDL(conv *internal.Conv) error {
 			ColDefs:  spColDef,
 			Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
 			Fks:      cvtForeignKeys(conv, srcTable.Name, srcTable.ForeignKeys, schemaForeignKeys),
-			Indexes:  cvtIndexes(conv, srcTable.Name, srcTable.Indexes, schemaIndexKeys),
+			Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes, schemaIndexKeys),
 			Comment:  comment}
 	}
 	return nil
@@ -221,14 +221,14 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 	return spKeys
 }
 
-func cvtIndexes(conv *internal.Conv, srcTable string, srcIndexes []schema.Index, schemaIndexKeys map[string]bool) []ddl.CreateIndex {
+func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcIndexes []schema.Index, schemaIndexKeys map[string]bool) []ddl.CreateIndex {
 	var spIndexes []ddl.CreateIndex
 	for _, srcIndex := range srcIndexes {
 		var spKeys []ddl.IndexKey
 		for _, k := range srcIndex.Keys {
 			spCol, err := internal.GetSpannerCol(conv, srcTable, k.Column, true)
 			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Can't map index for table %s", srcTable))
+				conv.Unexpected(fmt.Sprintf("Can't map index key column name for table %s", srcTable))
 				continue
 			}
 			spKeys = append(spKeys, ddl.IndexKey{Col: spCol, Desc: k.Desc})
@@ -237,13 +237,13 @@ func cvtIndexes(conv *internal.Conv, srcTable string, srcIndexes []schema.Index,
 			b := make([]byte, 4)
 			_, err := rand.Read(b)
 			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Can't map index for table %s", srcTable))
+				conv.Unexpected(fmt.Sprintf("Can't map index name for table %s", srcTable))
 				continue
 			}
 			srcIndex.Name = fmt.Sprintf("Index_%s_%x-%x", srcTable, b[0:2], b[2:4])
 		}
 		spKeyName := internal.GetSpannerIndexKeyName(srcIndex.Name, schemaIndexKeys)
-		spIndexes = append(spIndexes, ddl.CreateIndex{Name: spKeyName, Unique: srcIndex.Unique, Keys: spKeys})
+		spIndexes = append(spIndexes, ddl.CreateIndex{Name: spKeyName, Table: spTableName, Unique: srcIndex.Unique, Keys: spKeys})
 	}
 	return spIndexes
 }

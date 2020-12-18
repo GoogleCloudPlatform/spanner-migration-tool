@@ -43,7 +43,8 @@ func TestToSpannerType(t *testing.T) {
 		},
 		PrimaryKeys: []schema.Key{schema.Key{Column: "a"}},
 		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"b"}}},
-		Indexes:     []schema.Index{schema.Index{Name: "index1", Unique: true, Keys: []schema.Key{schema.Key{Column: "a", Desc: false}, schema.Key{Column: "d", Desc: true}}}},
+		Indexes: []schema.Index{schema.Index{Name: "index1", Unique: true, Keys: []schema.Key{schema.Key{Column: "a", Desc: false}, schema.Key{Column: "d", Desc: true}}},
+			schema.Index{Name: "index2", Unique: false, Keys: []schema.Key{schema.Key{Column: "d", Desc: true}}}},
 	}
 	conv.SrcSchema[name] = srcSchema
 	assert.Nil(t, schemaToDDL(conv))
@@ -60,9 +61,10 @@ func TestToSpannerType(t *testing.T) {
 			"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Float64}},
 			"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
 		},
-		Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
-		Fks:     []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"b"}}},
-		Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "d", Desc: true}}}},
+		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"b"}}},
+		Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", Table: name, Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "d", Desc: true}}},
+			ddl.CreateIndex{Name: "index2", Table: name, Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "d", Desc: true}}}},
 	}
 	assert.Equal(t, expected, actual)
 	expectedIssues := map[string][]internal.SchemaIssue{
