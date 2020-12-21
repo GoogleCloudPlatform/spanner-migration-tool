@@ -379,9 +379,9 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 					var issues []internal.SchemaIssue
 					switch app.driver {
 					case "mysql", "mysqldump":
-						ty, issues = toSpannerTypeMySQL(app.conv, srcCol.Type.Name, tv, srcCol.Type.Mods)
+						ty, issues = toSpannerTypeMySQL(srcCol.Type.Name, tv, srcCol.Type.Mods)
 					case "pg_dump", "postgres":
-						ty, issues = toSpannerTypePostgres(app.conv, srcCol.Type.Name, tv, srcCol.Type.Mods)
+						ty, issues = toSpannerTypePostgres(srcCol.Type.Name, tv, srcCol.Type.Mods)
 					default:
 						http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), http.StatusBadRequest)
 						return
@@ -514,9 +514,9 @@ func updateType(newType, table, newColName, srcTableName string, w http.Response
 	var issues []internal.SchemaIssue
 	switch app.driver {
 	case "mysql", "mysqldump":
-		ty, issues = toSpannerTypeMySQL(app.conv, srcCol.Type.Name, newType, srcCol.Type.Mods)
+		ty, issues = toSpannerTypeMySQL(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	case "pg_dump", "postgres":
-		ty, issues = toSpannerTypePostgres(app.conv, srcCol.Type.Name, newType, srcCol.Type.Mods)
+		ty, issues = toSpannerTypePostgres(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), http.StatusBadRequest)
 		return

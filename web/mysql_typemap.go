@@ -24,37 +24,37 @@ import (
 var mysqlTypeMap = map[string][]typeIssue{
 	"bool": []typeIssue{
 		typeIssue{T: ddl.Bool},
-		typeIssue{T: ddl.String, Issue: internal.Widened},
-		typeIssue{T: ddl.Int64, Issue: internal.Widened}},
+		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
+		typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"boolean": []typeIssue{
 		typeIssue{T: ddl.Bool},
-		typeIssue{T: ddl.String, Issue: internal.Widened},
-		typeIssue{T: ddl.Int64, Issue: internal.Widened}},
+		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
+		typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"varchar": []typeIssue{
 		typeIssue{T: ddl.String},
-		typeIssue{T: ddl.Bytes, Issue: internal.Widened, Brief: internal.IssueDB[internal.Widened].Brief}},
+		typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"char": []typeIssue{
 		typeIssue{T: ddl.String},
-		typeIssue{T: ddl.Bytes, Issue: internal.Widened}},
+		typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"text": []typeIssue{
 		typeIssue{T: ddl.String},
-		typeIssue{T: ddl.Bytes, Issue: internal.Widened}},
+		typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"tinytext": []typeIssue{
 		typeIssue{T: ddl.String},
-		typeIssue{T: ddl.Bytes, Issue: internal.Widened}},
+		typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"mediumtext": []typeIssue{
 		typeIssue{T: ddl.String},
-		typeIssue{T: ddl.Bytes, Issue: internal.Widened}},
+		typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"longtext": []typeIssue{
 		typeIssue{T: ddl.String},
-		typeIssue{T: ddl.Bytes, Issue: internal.Widened}},
+		typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"set": []typeIssue{
 		typeIssue{T: ddl.String, Brief: "SET datatype only supports STRING values"}},
 	"enum": []typeIssue{
 		typeIssue{T: ddl.String, Brief: "ENUM datatype only supports STRING values"}},
 	"json": []typeIssue{
 		typeIssue{T: ddl.String},
-		typeIssue{T: ddl.Bytes, Issue: internal.Widened}},
+		typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"bit": []typeIssue{
 		typeIssue{T: ddl.Bytes},
 		typeIssue{T: ddl.String}},
@@ -78,54 +78,54 @@ var mysqlTypeMap = map[string][]typeIssue{
 		typeIssue{T: ddl.String}},
 	"tinyint": []typeIssue{
 		typeIssue{T: ddl.Int64},
-		typeIssue{T: ddl.String, Issue: internal.Widened, Brief: internal.IssueDB[internal.Widened].Brief}},
+		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"smallint": []typeIssue{
 		typeIssue{T: ddl.Int64},
-		typeIssue{T: ddl.String, Issue: internal.Widened}},
+		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"mediumint": []typeIssue{
 		typeIssue{T: ddl.Int64},
-		typeIssue{T: ddl.String, Issue: internal.Widened}},
+		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"int": []typeIssue{
 		typeIssue{T: ddl.Int64},
-		typeIssue{T: ddl.String, Issue: internal.Widened}},
+		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"integer": []typeIssue{
 		typeIssue{T: ddl.Int64},
-		typeIssue{T: ddl.String, Issue: internal.Widened}},
+		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"bigint": []typeIssue{
 		typeIssue{T: ddl.Int64},
-		typeIssue{T: ddl.String, Issue: internal.Widened}},
+		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"double": []typeIssue{
 		typeIssue{T: ddl.Float64},
-		typeIssue{T: ddl.String, Issue: internal.Widened}},
+		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"float": []typeIssue{
 		typeIssue{T: ddl.Float64},
-		typeIssue{T: ddl.String, Issue: internal.Widened}},
+		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"numeric": []typeIssue{
 		typeIssue{T: ddl.Float64},
-		typeIssue{T: ddl.String, Issue: internal.Widened}},
+		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"decimal": []typeIssue{
 		typeIssue{T: ddl.Float64},
-		typeIssue{T: ddl.String, Issue: internal.Widened}},
+		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"date": []typeIssue{
 		typeIssue{T: ddl.Date},
-		typeIssue{T: ddl.String, Issue: internal.Widened}},
+		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"datetime": []typeIssue{
 		typeIssue{T: ddl.Timestamp},
-		typeIssue{T: ddl.String, Issue: internal.Widened}},
+		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"timestamp": []typeIssue{
 		typeIssue{T: ddl.Timestamp},
-		typeIssue{T: ddl.String, Issue: internal.Widened}},
+		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 	"time": []typeIssue{
 		typeIssue{T: ddl.String}},
 	"year": []typeIssue{
 		typeIssue{T: ddl.String}},
 }
 
-func toSpannerTypeMySQL(conv *internal.Conv, id string, toType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
+func toSpannerTypeMySQL(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
 
-	switch id {
+	switch srcType {
 	case "bool", "boolean":
-		switch toType {
+		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		case ddl.Int64:
@@ -134,7 +134,7 @@ func toSpannerTypeMySQL(conv *internal.Conv, id string, toType string, mods []in
 			return ddl.Type{Name: ddl.Bool}, nil
 		}
 	case "tinyint":
-		switch toType {
+		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		case ddl.Int64:
@@ -147,21 +147,21 @@ func toSpannerTypeMySQL(conv *internal.Conv, id string, toType string, mods []in
 			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 		}
 	case "double":
-		switch toType {
+		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Float64}, nil
 		}
 	case "float":
-		switch toType {
+		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
 		}
 	case "numeric", "decimal": // Map all numeric and decimal types to float64.
-		switch toType {
+		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
@@ -174,28 +174,28 @@ func toSpannerTypeMySQL(conv *internal.Conv, id string, toType string, mods []in
 			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Decimal}
 		}
 	case "bigint":
-		switch toType {
+		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Int64}, nil
 		}
 	case "smallint", "mediumint", "integer", "int":
-		switch toType {
+		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 		}
 	case "bit":
-		switch toType {
+		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}
 	case "varchar", "char":
-		switch toType {
+		switch spType {
 		case ddl.Bytes:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
@@ -205,7 +205,7 @@ func toSpannerTypeMySQL(conv *internal.Conv, id string, toType string, mods []in
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		}
 	case "text", "tinytext", "mediumtext", "longtext":
-		switch toType {
+		switch spType {
 		case ddl.Bytes:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
@@ -214,42 +214,42 @@ func toSpannerTypeMySQL(conv *internal.Conv, id string, toType string, mods []in
 	case "set", "enum":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "json":
-		switch toType {
+		switch spType {
 		case ddl.Bytes:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		}
 	case "binary", "varbinary":
-		switch toType {
+		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}
 	case "tinyblob", "mediumblob", "blob", "longblob":
-		switch toType {
+		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}
 	case "date":
-		switch toType {
+		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Date}, nil
 		}
 	case "datetime":
-		switch toType {
+		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Datetime}
 		}
 	case "timestamp":
-		switch toType {
+		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:

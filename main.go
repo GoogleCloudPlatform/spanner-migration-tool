@@ -132,20 +132,20 @@ func main() {
 		panic(fmt.Errorf("when using data-only mode, the session must specify the session file to use"))
 	}
 
-	err = toSpanner(driverName, project, instance, dbName, ioHelper, filePrefix, now)
+	err = commandLine(driverName, project, instance, dbName, ioHelper, filePrefix, now)
 	if err != nil {
 		panic(err)
 	}
 
 }
 
-// toSpanner is the main entrance of the entire conversion, which runs the
-// following steps:
-//   1. Run schema conversion
-//   2. Create database
-//   3. Run data conversion
-//   4. Generate report
-func toSpanner(driver, projectID, instanceID, dbName string, ioHelper *conversion.IOStreams, outputFilePrefix string, now time.Time) error {
+// commandLine provides the core processing for HarbourBridge
+// when run as a command-line tool. It performs the following steps:
+// 1. Run schema conversion
+// 2. Create database
+// 3. Run data conversion
+// 4. Generate report
+func commandLine(driver, projectID, instanceID, dbName string, ioHelper *conversion.IOStreams, outputFilePrefix string, now time.Time) error {
 	var conv *internal.Conv
 	var err error
 	if !dataOnly {

@@ -168,9 +168,10 @@ func (conv *Conv) SetDataMode() {
 	conv.mode = dataOnly
 }
 
-// GetDDL Schema returns the Spanner schema that has been constructed so far.
-// We sort DDL in alphabetical order, but we maintain the order of interleaved
-// relation by passing tables through a queue
+// GetDDL Schema returns the current Spanner schema.
+// We return DDL in alphabetical order with one exception: interleaved tables are
+// potentially out of order since they must appear after the definition of their
+// parent table.
 func (conv *Conv) GetDDL(c ddl.Config) []string {
 	var tables []string
 	for t := range conv.SpSchema {

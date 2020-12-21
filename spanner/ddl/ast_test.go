@@ -104,7 +104,8 @@ func TestPrintCreateTable(t *testing.T) {
 		ct         CreateTable
 	}{
 		{"no quote", false, "CREATE TABLE mytable (col1 INT64 NOT NULL, col2 STRING(MAX), col3 BYTES(42)) PRIMARY KEY (col1 DESC)", t1},
-		{"quote", true, "CREATE TABLE `mytable` (`col1` INT64 NOT NULL, `col2` STRING(MAX), `col3` BYTES(42)) PRIMARY KEY (`col1` DESC),\nINTERLEAVE IN PARENT `parent` ON DELETE CASCADE", t2},
+		{"quote", true, "CREATE TABLE `mytable` (`col1` INT64 NOT NULL, `col2` STRING(MAX), `col3` BYTES(42)) PRIMARY KEY (`col1` DESC)", t1},
+		{"interleaved", false, "CREATE TABLE mytable (col1 INT64 NOT NULL, col2 STRING(MAX), col3 BYTES(42)) PRIMARY KEY (col1 DESC),\nINTERLEAVE IN PARENT parent ON DELETE CASCADE", t2},
 	}
 	for _, tc := range tests {
 		assert.Equal(t, normalizeSpace(tc.expected), normalizeSpace(tc.ct.PrintCreateTable(Config{ProtectIds: tc.protectIds})))
