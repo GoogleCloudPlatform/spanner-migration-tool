@@ -115,7 +115,7 @@ func TestGetSpannerKeyName(t *testing.T) {
 		{"Bad name with collision 3", "fk?test", "fk_test_11"},
 	}
 	for _, tc := range basicTests {
-		spKeyName := GetSpannerKeyName(tc.srcKeyName, schemaForeignKeys)
+		spKeyName := ToSpannerForeignKey(tc.srcKeyName, schemaForeignKeys)
 		assert.Equal(t, tc.spKeyName, spKeyName, tc.name)
 	}
 }
@@ -142,7 +142,7 @@ func TestGetSpannerIndexKeyName(t *testing.T) {
 		{"Bad name with collision 3", "in?dex", "in_dex_11"},
 	}
 	for _, tc := range basicTests {
-		spKeyName := GetSpannerIndexKeyName(tc.srcKeyName, schemaIndexKeys)
+		spKeyName := ToSpannerIndexKey(tc.srcKeyName, schemaIndexKeys)
 		assert.Equal(t, tc.spKeyName, spKeyName, tc.name)
 	}
 }

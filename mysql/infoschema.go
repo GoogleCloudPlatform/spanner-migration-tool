@@ -398,21 +398,15 @@ func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) (indexes [
 	unique := make(map[string]bool)
 	var keyNames []string
 	for rows.Next() {
-		err := rows.Scan(&name, &col, &seq, &collation, &nonUnique)
-		if err != nil {
+		if err := rows.Scan(&name, &col, &seq, &collation, &nonUnique); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
 		if _, found := m[name]; !found {
 			keyNames = append(keyNames, name)
 		}
-		isDesc := false
-		if collation == "D" {
-			isDesc = true
-		}
-		if nonUnique == "0" {
-			unique[name] = true
-		}
+		isDesc := (collation == "D")
+		unique[name] = (nonUnique == "0")
 		m[name] = append(m[name], schema.Key{Column: col, Desc: isDesc})
 	}
 	sort.Strings(keyNames)

@@ -221,7 +221,7 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 			spCols = append(spCols, spCol)
 			spReferCols = append(spReferCols, spReferCol)
 		}
-		spKeyName := internal.GetSpannerKeyName(key.Name, schemaForeignKeys)
+		spKeyName := internal.ToSpannerForeignKey(key.Name, schemaForeignKeys)
 
 		spKey := ddl.Foreignkey{
 			Name:         spKeyName,
@@ -255,7 +255,7 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 			srcIndex.Name = fmt.Sprintf("Index_%s_%x-%x", srcTable, b[0:2], b[2:4])
 		}
 
-		spKeyName := internal.GetSpannerIndexKeyName(srcIndex.Name, schemaIndexKeys)
+		spKeyName := internal.ToSpannerIndexKey(srcIndex.Name, schemaIndexKeys)
 		spIndexes = append(spIndexes, ddl.CreateIndex{Name: spKeyName, Table: spTableName, Unique: srcIndex.Unique, Keys: spKeys})
 	}
 	return spIndexes

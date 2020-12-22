@@ -128,7 +128,7 @@ func GetSpannerCols(conv *Conv, srcTable string, srcCols []string) ([]string, er
 	return spCols, nil
 }
 
-func getUniqueKeyName(srcKeyName string, schemaKeys map[string]bool) string {
+func getUniqueId(srcKeyName string, schemaKeys map[string]bool) string {
 	spKeyName, _ := FixName(srcKeyName)
 	if _, found := schemaKeys[spKeyName]; found {
 		// spKeyName has been used before.
@@ -149,7 +149,7 @@ func getUniqueKeyName(srcKeyName string, schemaKeys map[string]bool) string {
 	return spKeyName
 }
 
-// GetSpannerKeyName maps source foreign key name to
+// ToSpannerForeignKey maps source foreign key name to
 // legal Spanner foreign key name.
 // If the srcKeyName is empty string we can just return
 // empty string without error.
@@ -162,14 +162,14 @@ func getUniqueKeyName(srcKeyName string, schemaKeys map[string]bool) string {
 // (across the database). But in some source databases, such as PostgreSQL,
 // they only have to be unique for a table. Hence we must map each source
 // constraint name to a unique spanner constraint name.
-func GetSpannerKeyName(srcKeyName string, schemaForeignKeys map[string]bool) string {
+func ToSpannerForeignKey(srcKeyName string, schemaForeignKeys map[string]bool) string {
 	if srcKeyName == "" {
 		return ""
 	}
-	return getUniqueKeyName(srcKeyName, schemaForeignKeys)
+	return getUniqueId(srcKeyName, schemaForeignKeys)
 }
 
-// GetSpannerKeyName maps source index key name to
+// ToSpannerIndexKey maps source index key name to
 // legal Spanner index key name
 // We need to make sure
 // of the following things:
@@ -180,6 +180,6 @@ func GetSpannerKeyName(srcKeyName string, schemaForeignKeys map[string]bool) str
 // (across the database). But in some source databases, such as MySQL,
 // they only have to be unique for a table. Hence we must map each source
 // constraint name to a unique spanner constraint name.
-func GetSpannerIndexKeyName(srcKeyName string, schemaIndexKeys map[string]bool) string {
-	return getUniqueKeyName(srcKeyName, schemaIndexKeys)
+func ToSpannerIndexKey(srcKeyName string, schemaIndexKeys map[string]bool) string {
+	return getUniqueId(srcKeyName, schemaIndexKeys)
 }
