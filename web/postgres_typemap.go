@@ -19,89 +19,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-var postgresTypeMap = map[string][]typeIssue{
-	"bool": []typeIssue{
-		typeIssue{T: ddl.Bool},
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"boolean": []typeIssue{
-		typeIssue{T: ddl.Bool},
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"bigserial": []typeIssue{
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Serial].Brief}},
-	"bpchar": []typeIssue{
-		typeIssue{T: ddl.String},
-		typeIssue{T: ddl.Bytes}},
-	"character": []typeIssue{
-		typeIssue{T: ddl.String},
-		typeIssue{T: ddl.Bytes}},
-	"bytea": []typeIssue{
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Bytes}},
-	"date": []typeIssue{
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Date}},
-	"float8": []typeIssue{
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Float64}},
-	"double precision": []typeIssue{
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Float64}},
-	"float4": []typeIssue{
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Float64, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"real": []typeIssue{
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Float64, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"int8": []typeIssue{
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Int64}},
-	"bigint": []typeIssue{
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Int64}},
-	"int4": []typeIssue{
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"integer": []typeIssue{
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"int2": []typeIssue{
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"smallint": []typeIssue{
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"numeric": []typeIssue{
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Float64, Brief: internal.IssueDB[internal.Numeric].Brief}},
-	"serial": []typeIssue{
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Serial].Brief}},
-	"text": []typeIssue{
-		typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.String}},
-	"timestamptz": []typeIssue{
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Timestamp}},
-	"timestamp with time zone": []typeIssue{
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Timestamp}},
-	"timestamp": []typeIssue{
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Timestamp, Brief: internal.IssueDB[internal.Timestamp].Brief}},
-	"timestamp without time zone": []typeIssue{
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Timestamp, Brief: internal.IssueDB[internal.Timestamp].Brief}},
-	"varchar": []typeIssue{
-		typeIssue{T: ddl.String},
-		typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"character varying": []typeIssue{
-		typeIssue{T: ddl.String},
-		typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
-}
-
 func toSpannerTypePostgres(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
 
 	switch srcType {
@@ -139,7 +56,7 @@ func toSpannerTypePostgres(srcType string, spType string, mods []int64) (ddl.Typ
 	case "bytea":
 		switch spType {
 		case ddl.String:
-			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}
@@ -230,7 +147,10 @@ func toSpannerTypePostgres(srcType string, spType string, mods []int64) (ddl.Typ
 	case "varchar", "character varying":
 		switch spType {
 		case ddl.Bytes:
-			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+			if len(mods) > 0 {
+				return ddl.Type{Name: ddl.Bytes, Len: mods[0]}, nil
+			}
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		default:
 			if len(mods) > 0 {
 				return ddl.Type{Name: ddl.String, Len: mods[0]}, nil

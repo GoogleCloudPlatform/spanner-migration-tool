@@ -62,40 +62,40 @@ func TestGetTypeMapPostgres(t *testing.T) {
 	expectedTypemap := map[string][]typeIssue{
 		"bool": []typeIssue{
 			typeIssue{T: ddl.Bool},
-			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-			typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief}},
+			typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief},
+			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 		"bigserial": []typeIssue{
-			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-			typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Serial].Brief}},
+			typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Serial].Brief},
+			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 		"bpchar": []typeIssue{
-			typeIssue{T: ddl.String},
-			typeIssue{T: ddl.Bytes}},
+			typeIssue{T: ddl.Bytes},
+			typeIssue{T: ddl.String}},
 		"bytea": []typeIssue{
-			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-			typeIssue{T: ddl.Bytes}},
+			typeIssue{T: ddl.Bytes},
+			typeIssue{T: ddl.String}},
 		"date": []typeIssue{
-			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-			typeIssue{T: ddl.Date}},
+			typeIssue{T: ddl.Date},
+			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 		"float8": []typeIssue{
-			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-			typeIssue{T: ddl.Float64}},
+			typeIssue{T: ddl.Float64},
+			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 		"float4": []typeIssue{
-			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-			typeIssue{T: ddl.Float64, Brief: internal.IssueDB[internal.Widened].Brief}},
+			typeIssue{T: ddl.Float64, Brief: internal.IssueDB[internal.Widened].Brief},
+			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 		"int8": []typeIssue{
-			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-			typeIssue{T: ddl.Int64}},
+			typeIssue{T: ddl.Int64},
+			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 		"int4": []typeIssue{
-			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-			typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief}},
+			typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief},
+			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 		"numeric": []typeIssue{
-			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-			typeIssue{T: ddl.Float64, Brief: internal.IssueDB[internal.Numeric].Brief}},
+			typeIssue{T: ddl.Float64, Brief: internal.IssueDB[internal.Numeric].Brief},
+			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 		"serial": []typeIssue{
-			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-			typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Serial].Brief}},
+			typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Serial].Brief},
+			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 		"text": []typeIssue{
-			typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief},
+			typeIssue{T: ddl.Bytes},
 			typeIssue{T: ddl.String}},
 		"timestamptz": []typeIssue{
 			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
@@ -104,8 +104,8 @@ func TestGetTypeMapPostgres(t *testing.T) {
 			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
 			typeIssue{T: ddl.Timestamp, Brief: internal.IssueDB[internal.Timestamp].Brief}},
 		"varchar": []typeIssue{
-			typeIssue{T: ddl.String},
-			typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
+			typeIssue{T: ddl.Bytes},
+			typeIssue{T: ddl.String}},
 	}
 	assert.Equal(t, expectedTypemap, typemap)
 
@@ -154,7 +154,7 @@ func TestSetTypeMapTableLevelPostgres(t *testing.T) {
 					"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-					"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+					"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Bytes, Len: 6}},
 					"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
@@ -174,11 +174,9 @@ func TestSetTypeMapTableLevelPostgres(t *testing.T) {
 				"a": []internal.SchemaIssue{internal.Widened},
 				"b": []internal.SchemaIssue{internal.Widened},
 				"c": []internal.SchemaIssue{internal.Widened},
-				"d": []internal.SchemaIssue{internal.Widened},
 				"e": []internal.SchemaIssue{internal.Widened},
 				"f": []internal.SchemaIssue{internal.Widened},
 				"g": []internal.SchemaIssue{internal.Widened},
-				"i": []internal.SchemaIssue{internal.Widened},
 				"j": []internal.SchemaIssue{internal.Widened},
 				"k": []internal.SchemaIssue{internal.Widened},
 				"l": []internal.SchemaIssue{internal.Widened},
@@ -201,12 +199,12 @@ func TestSetTypeMapTableLevelPostgres(t *testing.T) {
 			name:  "Test column removal",
 			table: "t1",
 			payload: `
-    {
-      "UpdateCols":{
-		"a": { "Removed": true, "Rename":"", "PK":"", "NotNull":"", "ToType":""},
-		"b": { "Removed": true, "Rename":"", "PK":"", "NotNull":"", "ToType":""}
-	}
-    }`,
+		{
+		  "UpdateCols":{
+			"a": { "Removed": true, "Rename":"", "PK":"", "NotNull":"", "ToType":""},
+			"b": { "Removed": true, "Rename":"", "PK":"", "NotNull":"", "ToType":""}
+		}
+		}`,
 			statusCode: http.StatusOK,
 			expectedSchema: ddl.CreateTable{
 				Name:     "t1",
@@ -252,12 +250,12 @@ func TestSetTypeMapTableLevelPostgres(t *testing.T) {
 			name:  "Test column rename",
 			table: "t1",
 			payload: `
-    {
-      "UpdateCols":{
-		"a": { "Removed": false, "Rename":"aa", "PK":"", "NotNull":"", "ToType":""},
-		"b": { "Removed": false, "Rename":"bb", "PK":"", "NotNull":"", "ToType":""}
-	}
-    }`,
+		{
+		  "UpdateCols":{
+			"a": { "Removed": false, "Rename":"aa", "PK":"", "NotNull":"", "ToType":""},
+			"b": { "Removed": false, "Rename":"bb", "PK":"", "NotNull":"", "ToType":""}
+		}
+		}`,
 			statusCode: http.StatusOK,
 			expectedSchema: ddl.CreateTable{
 				Name:     "t1",
@@ -305,11 +303,11 @@ func TestSetTypeMapTableLevelPostgres(t *testing.T) {
 			name:  "Test PK removed",
 			table: "t1",
 			payload: `
-    {
-      "UpdateCols":{
-		"a": { "Removed": false, "Rename":"", "PK":"REMOVED", "NotNull":"", "ToType":""}
-	}
-    }`,
+		{
+		  "UpdateCols":{
+			"a": { "Removed": false, "Rename":"", "PK":"REMOVED", "NotNull":"", "ToType":""}
+		}
+		}`,
 			statusCode: http.StatusOK,
 			expectedSchema: ddl.CreateTable{
 				Name:     "t1",
@@ -358,12 +356,12 @@ func TestSetTypeMapTableLevelPostgres(t *testing.T) {
 			name:  "Test PK changed",
 			table: "t1",
 			payload: `
-    {
-      "UpdateCols":{
-		"a": { "Removed": false, "Rename":"", "PK":"REMOVED", "NotNull":"", "ToType":""},
-		"b": { "Removed": false, "Rename":"", "PK":"ADDED", "NotNull":"", "ToType":""}
-	}
-    }`,
+		{
+		  "UpdateCols":{
+			"a": { "Removed": false, "Rename":"", "PK":"REMOVED", "NotNull":"", "ToType":""},
+			"b": { "Removed": false, "Rename":"", "PK":"ADDED", "NotNull":"", "ToType":""}
+		}
+		}`,
 			statusCode: http.StatusOK,
 			expectedSchema: ddl.CreateTable{
 				Name:     "t1",
@@ -411,11 +409,11 @@ func TestSetTypeMapTableLevelPostgres(t *testing.T) {
 			name:  "Test PK Added",
 			table: "t2",
 			payload: `
-    {
-      "UpdateCols":{
-		"b": { "Removed": false, "Rename":"", "PK":"ADDED", "NotNull":"", "ToType":""}
-	}
-    }`,
+		{
+		  "UpdateCols":{
+			"b": { "Removed": false, "Rename":"", "PK":"ADDED", "NotNull":"", "ToType":""}
+		}
+		}`,
 			statusCode: http.StatusOK,
 			expectedSchema: ddl.CreateTable{
 				Name:     "t2",
@@ -445,11 +443,11 @@ func TestSetTypeMapTableLevelPostgres(t *testing.T) {
 			name:  "Test bad json",
 			table: "t1",
 			payload: `
-    {
-      "UpdateCols":{
-		"a": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-		}
-    }`,
+		{
+		  "UpdateCols":{
+			"a": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
+			}
+		}`,
 			statusCode: http.StatusBadRequest,
 		},
 	}
@@ -464,7 +462,7 @@ func TestSetTypeMapTableLevelPostgres(t *testing.T) {
 		}
 		req.Header.Set("Content-Type", "application/json")
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(setTypeMapTableLevel)
+		handler := http.HandlerFunc(updateTableSchema)
 		handler.ServeHTTP(rr, req)
 		var res *internal.Conv
 		json.Unmarshal(rr.Body.Bytes(), &res)
@@ -518,7 +516,7 @@ func TestSetTypeMapGlobalLevelPostgres(t *testing.T) {
 					"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-					"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+					"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Bytes, Len: 6}},
 					"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
@@ -538,11 +536,9 @@ func TestSetTypeMapGlobalLevelPostgres(t *testing.T) {
 				"a": []internal.SchemaIssue{internal.Widened},
 				"b": []internal.SchemaIssue{internal.Widened},
 				"c": []internal.SchemaIssue{internal.Widened},
-				"d": []internal.SchemaIssue{internal.Widened},
 				"e": []internal.SchemaIssue{internal.Widened},
 				"f": []internal.SchemaIssue{internal.Widened},
 				"g": []internal.SchemaIssue{internal.Widened},
-				"i": []internal.SchemaIssue{internal.Widened},
 				"j": []internal.SchemaIssue{internal.Widened},
 				"k": []internal.SchemaIssue{internal.Widened},
 				"l": []internal.SchemaIssue{internal.Widened},
@@ -680,19 +676,19 @@ func TestGetTypeMapMySQL(t *testing.T) {
 	expectedTypemap := map[string][]typeIssue{
 		"bool": []typeIssue{
 			typeIssue{T: ddl.Bool},
-			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-			typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief}},
+			typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief},
+			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 		"varchar": []typeIssue{
-			typeIssue{T: ddl.String},
-			typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
+			typeIssue{T: ddl.Bytes},
+			typeIssue{T: ddl.String}},
 		"text": []typeIssue{
-			typeIssue{T: ddl.String},
-			typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
+			typeIssue{T: ddl.Bytes},
+			typeIssue{T: ddl.String}},
 		"enum": []typeIssue{
-			typeIssue{T: ddl.String, Brief: "ENUM datatype only supports STRING values"}},
+			typeIssue{T: ddl.String}},
 		"json": []typeIssue{
-			typeIssue{T: ddl.String},
-			typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
+			typeIssue{T: ddl.Bytes},
+			typeIssue{T: ddl.String}},
 		"binary": []typeIssue{
 			typeIssue{T: ddl.Bytes},
 			typeIssue{T: ddl.String}},
@@ -700,31 +696,31 @@ func TestGetTypeMapMySQL(t *testing.T) {
 			typeIssue{T: ddl.Bytes},
 			typeIssue{T: ddl.String}},
 		"integer": []typeIssue{
-			typeIssue{T: ddl.Int64},
+			typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief},
 			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 		"smallint": []typeIssue{
-			typeIssue{T: ddl.Int64},
+			typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief},
 			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 		"double": []typeIssue{
 			typeIssue{T: ddl.Float64},
 			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 		"float": []typeIssue{
-			typeIssue{T: ddl.Float64},
+			typeIssue{T: ddl.Float64, Brief: internal.IssueDB[internal.Widened].Brief},
 			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 		"numeric": []typeIssue{
-			typeIssue{T: ddl.Float64},
+			typeIssue{T: ddl.Float64, Brief: internal.IssueDB[internal.Decimal].Brief},
 			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 		"decimal": []typeIssue{
-			typeIssue{T: ddl.Float64},
+			typeIssue{T: ddl.Float64, Brief: internal.IssueDB[internal.Decimal].Brief},
 			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 		"date": []typeIssue{
 			typeIssue{T: ddl.Date},
 			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 		"timestamp": []typeIssue{
-			typeIssue{T: ddl.Timestamp},
-			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
+			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
+			typeIssue{T: ddl.Timestamp}},
 		"time": []typeIssue{
-			typeIssue{T: ddl.String}},
+			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Time].Brief}},
 	}
 	assert.Equal(t, expectedTypemap, typemap)
 
@@ -772,7 +768,7 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 					"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
 					"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
-					"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+					"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Bytes, Len: 6}},
 					"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
@@ -790,13 +786,8 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 			},
 			expectedIssues: map[string][]internal.SchemaIssue{
 				"a": []internal.SchemaIssue{internal.Widened},
-				"b": []internal.SchemaIssue{internal.Widened},
 				"c": []internal.SchemaIssue{internal.Widened},
-				"d": []internal.SchemaIssue{internal.Widened},
 				"e": []internal.SchemaIssue{internal.Widened},
-				"g": []internal.SchemaIssue{internal.Widened},
-				"h": []internal.SchemaIssue{internal.Widened},
-				"i": []internal.SchemaIssue{internal.Widened},
 				"j": []internal.SchemaIssue{internal.Widened},
 				"k": []internal.SchemaIssue{internal.Widened},
 				"l": []internal.SchemaIssue{internal.Widened},
@@ -820,12 +811,12 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 			name:  "Test column removal",
 			table: "t1",
 			payload: `
-    {
-      "UpdateCols":{
-		"a": { "Removed": true, "Rename":"", "PK":"", "NotNull":"", "ToType":""},
-		"b": { "Removed": true, "Rename":"", "PK":"", "NotNull":"", "ToType":""}
-	}
-    }`,
+		{
+		  "UpdateCols":{
+			"a": { "Removed": true, "Rename":"", "PK":"", "NotNull":"", "ToType":""},
+			"b": { "Removed": true, "Rename":"", "PK":"", "NotNull":"", "ToType":""}
+		}
+		}`,
 			statusCode: http.StatusOK,
 			expectedSchema: ddl.CreateTable{
 				Name:     "t1",
@@ -871,12 +862,12 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 			name:  "Test column rename",
 			table: "t1",
 			payload: `
-    {
-      "UpdateCols":{
-		"a": { "Removed": false, "Rename":"aa", "PK":"", "NotNull":"", "ToType":""},
-		"b": { "Removed": false, "Rename":"bb", "PK":"", "NotNull":"", "ToType":""}
-	}
-    }`,
+		{
+		  "UpdateCols":{
+			"a": { "Removed": false, "Rename":"aa", "PK":"", "NotNull":"", "ToType":""},
+			"b": { "Removed": false, "Rename":"bb", "PK":"", "NotNull":"", "ToType":""}
+		}
+		}`,
 			statusCode: http.StatusOK,
 			expectedSchema: ddl.CreateTable{
 				Name:     "t1",
@@ -923,11 +914,11 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 			name:  "Test PK removed",
 			table: "t1",
 			payload: `
-    {
-      "UpdateCols":{
-		"a": { "Removed": false, "Rename":"", "PK":"REMOVED", "NotNull":"", "ToType":""}
-	}
-    }`,
+		{
+		  "UpdateCols":{
+			"a": { "Removed": false, "Rename":"", "PK":"REMOVED", "NotNull":"", "ToType":""}
+		}
+		}`,
 			statusCode: http.StatusOK,
 			expectedSchema: ddl.CreateTable{
 				Name:     "t1",
@@ -975,12 +966,12 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 			name:  "Test PK changed",
 			table: "t1",
 			payload: `
-    {
-      "UpdateCols":{
-		"a": { "Removed": false, "Rename":"", "PK":"REMOVED", "NotNull":"", "ToType":""},
-		"b": { "Removed": false, "Rename":"", "PK":"ADDED", "NotNull":"", "ToType":""}
-	}
-    }`,
+		{
+		  "UpdateCols":{
+			"a": { "Removed": false, "Rename":"", "PK":"REMOVED", "NotNull":"", "ToType":""},
+			"b": { "Removed": false, "Rename":"", "PK":"ADDED", "NotNull":"", "ToType":""}
+		}
+		}`,
 			statusCode: http.StatusOK,
 			expectedSchema: ddl.CreateTable{
 				Name:     "t1",
@@ -1027,11 +1018,11 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 			name:  "Test PK Added",
 			table: "t2",
 			payload: `
-    {
-      "UpdateCols":{
-		"a": { "Removed": false, "Rename":"", "PK":"ADDED", "NotNull":"", "ToType":""}
-	}
-    }`,
+		{
+		  "UpdateCols":{
+			"a": { "Removed": false, "Rename":"", "PK":"ADDED", "NotNull":"", "ToType":""}
+		}
+		}`,
 			statusCode: http.StatusOK,
 			expectedSchema: ddl.CreateTable{
 				Name:     "t2",
@@ -1061,11 +1052,11 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 			name:  "Test bad json",
 			table: "t1",
 			payload: `
-    {
-      "UpdateCols":{
-		"a": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-		}
-    }`,
+		{
+		  "UpdateCols":{
+			"a": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
+			}
+		}`,
 			statusCode: http.StatusBadRequest,
 		},
 	}
@@ -1080,7 +1071,7 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 		}
 		req.Header.Set("Content-Type", "application/json")
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(setTypeMapTableLevel)
+		handler := http.HandlerFunc(updateTableSchema)
 		handler.ServeHTTP(rr, req)
 		var res *internal.Conv
 		json.Unmarshal(rr.Body.Bytes(), &res)
@@ -1133,7 +1124,7 @@ func TestSetTypeMapGlobalLevelMySQL(t *testing.T) {
 					"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
 					"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-					"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+					"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Bytes, Len: 6}},
 					"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
@@ -1151,13 +1142,8 @@ func TestSetTypeMapGlobalLevelMySQL(t *testing.T) {
 			},
 			expectedIssues: map[string][]internal.SchemaIssue{
 				"a": []internal.SchemaIssue{internal.Widened},
-				"b": []internal.SchemaIssue{internal.Widened},
 				"c": []internal.SchemaIssue{internal.Widened},
-				"d": []internal.SchemaIssue{internal.Widened},
 				"e": []internal.SchemaIssue{internal.Widened},
-				"g": []internal.SchemaIssue{internal.Widened},
-				"h": []internal.SchemaIssue{internal.Widened},
-				"i": []internal.SchemaIssue{internal.Widened},
 				"j": []internal.SchemaIssue{internal.Widened},
 				"k": []internal.SchemaIssue{internal.Widened},
 				"l": []internal.SchemaIssue{internal.Widened},
@@ -1182,7 +1168,7 @@ func TestSetTypeMapGlobalLevelMySQL(t *testing.T) {
 					"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
 					"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
-					"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+					"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Bytes, Len: 6}},
 					"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Float64}},
 					"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
@@ -1201,7 +1187,6 @@ func TestSetTypeMapGlobalLevelMySQL(t *testing.T) {
 			expectedIssues: map[string][]internal.SchemaIssue{
 				"a": []internal.SchemaIssue{internal.Widened},
 				"c": []internal.SchemaIssue{internal.Widened},
-				"d": []internal.SchemaIssue{internal.Widened},
 				"e": []internal.SchemaIssue{internal.Decimal},
 				"j": []internal.SchemaIssue{internal.Widened},
 				"l": []internal.SchemaIssue{internal.Widened},

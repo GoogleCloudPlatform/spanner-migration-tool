@@ -19,108 +19,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// TODO(searce): Decide on the issue message that needs to be shown
-// in frontend.
-var mysqlTypeMap = map[string][]typeIssue{
-	"bool": []typeIssue{
-		typeIssue{T: ddl.Bool},
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"boolean": []typeIssue{
-		typeIssue{T: ddl.Bool},
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-		typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"varchar": []typeIssue{
-		typeIssue{T: ddl.String},
-		typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"char": []typeIssue{
-		typeIssue{T: ddl.String},
-		typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"text": []typeIssue{
-		typeIssue{T: ddl.String},
-		typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"tinytext": []typeIssue{
-		typeIssue{T: ddl.String},
-		typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"mediumtext": []typeIssue{
-		typeIssue{T: ddl.String},
-		typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"longtext": []typeIssue{
-		typeIssue{T: ddl.String},
-		typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"set": []typeIssue{
-		typeIssue{T: ddl.String, Brief: "SET datatype only supports STRING values"}},
-	"enum": []typeIssue{
-		typeIssue{T: ddl.String, Brief: "ENUM datatype only supports STRING values"}},
-	"json": []typeIssue{
-		typeIssue{T: ddl.String},
-		typeIssue{T: ddl.Bytes, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"bit": []typeIssue{
-		typeIssue{T: ddl.Bytes},
-		typeIssue{T: ddl.String}},
-	"binary": []typeIssue{
-		typeIssue{T: ddl.Bytes},
-		typeIssue{T: ddl.String}},
-	"varbinary": []typeIssue{
-		typeIssue{T: ddl.Bytes},
-		typeIssue{T: ddl.String}},
-	"blob": []typeIssue{
-		typeIssue{T: ddl.Bytes},
-		typeIssue{T: ddl.String}},
-	"tinyblob": []typeIssue{
-		typeIssue{T: ddl.Bytes},
-		typeIssue{T: ddl.String}},
-	"mediumblob": []typeIssue{
-		typeIssue{T: ddl.Bytes},
-		typeIssue{T: ddl.String}},
-	"longblob": []typeIssue{
-		typeIssue{T: ddl.Bytes},
-		typeIssue{T: ddl.String}},
-	"tinyint": []typeIssue{
-		typeIssue{T: ddl.Int64},
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"smallint": []typeIssue{
-		typeIssue{T: ddl.Int64},
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"mediumint": []typeIssue{
-		typeIssue{T: ddl.Int64},
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"int": []typeIssue{
-		typeIssue{T: ddl.Int64},
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"integer": []typeIssue{
-		typeIssue{T: ddl.Int64},
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"bigint": []typeIssue{
-		typeIssue{T: ddl.Int64},
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"double": []typeIssue{
-		typeIssue{T: ddl.Float64},
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"float": []typeIssue{
-		typeIssue{T: ddl.Float64},
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"numeric": []typeIssue{
-		typeIssue{T: ddl.Float64},
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"decimal": []typeIssue{
-		typeIssue{T: ddl.Float64},
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"date": []typeIssue{
-		typeIssue{T: ddl.Date},
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"datetime": []typeIssue{
-		typeIssue{T: ddl.Timestamp},
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"timestamp": []typeIssue{
-		typeIssue{T: ddl.Timestamp},
-		typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
-	"time": []typeIssue{
-		typeIssue{T: ddl.String}},
-	"year": []typeIssue{
-		typeIssue{T: ddl.String}},
-}
-
 func toSpannerTypeMySQL(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
 
 	switch srcType {
@@ -190,14 +88,17 @@ func toSpannerTypeMySQL(srcType string, spType string, mods []int64) (ddl.Type, 
 	case "bit":
 		switch spType {
 		case ddl.String:
-			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}
 	case "varchar", "char":
 		switch spType {
 		case ddl.Bytes:
-			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+			if len(mods) > 0 {
+				return ddl.Type{Name: ddl.Bytes, Len: mods[0]}, nil
+			}
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		default:
 			if len(mods) > 0 {
 				return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
@@ -207,7 +108,7 @@ func toSpannerTypeMySQL(srcType string, spType string, mods []int64) (ddl.Type, 
 	case "text", "tinytext", "mediumtext", "longtext":
 		switch spType {
 		case ddl.Bytes:
-			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		default:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		}
@@ -216,21 +117,21 @@ func toSpannerTypeMySQL(srcType string, spType string, mods []int64) (ddl.Type, 
 	case "json":
 		switch spType {
 		case ddl.Bytes:
-			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		default:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		}
 	case "binary", "varbinary":
 		switch spType {
 		case ddl.String:
-			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}
 	case "tinyblob", "mediumblob", "blob", "longblob":
 		switch spType {
 		case ddl.String:
-			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}

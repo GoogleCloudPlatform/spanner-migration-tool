@@ -51,6 +51,8 @@ import (
 // 6) Update schema conv after setting global datatypes and return conv. (setTypeMap)
 // 7) Add rateConversion() in schema conversion, ddl and report APIs.
 // 8) Add an overview in summary report API
+var mysqlTypeMap = make(map[string][]typeIssue)
+var postgresTypeMap = make(map[string][]typeIssue)
 
 func homeLink(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Welcome to Harbourbridge!")
@@ -149,6 +151,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(conv)
 }
 
+//TODO: Handle foreign key statements and index key statements
 func getDDL(w http.ResponseWriter, r *http.Request) {
 	c := ddl.Config{Comments: true, ProtectIds: false}
 	var tables []string
@@ -164,71 +167,10 @@ func getDDL(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(ddl)
 }
 
-func getSession(w http.ResponseWriter, r *http.Request) {
-	now := time.Now()
-	dbName, err := conversion.GetDatabaseName(app.driver, now)
-	if err != nil {
-		fmt.Printf("\nCan't get database name: %v\n", err)
-		panic(fmt.Errorf("can't get database name"))
-	}
-	sessionFile := ".session.json"
-	filePath := "frontend/"
-	out := os.Stdout
-	f, err := os.Create(filePath + dbName + sessionFile)
-	if err != nil {
-		fmt.Fprintf(out, "Can't create session file %s: %v\n", dbName+sessionFile, err)
-		return
-	}
-	// Session file will basically contain 'conv' struct in JSON format.
-	// It contains all the information for schema and data conversion state.
-	convJSON, err := json.MarshalIndent(app.conv, "", " ")
-	if err != nil {
-		fmt.Fprintf(out, "Can't encode session state to JSON: %v\n", err)
-		return
-	}
-	if _, err := f.Write(convJSON); err != nil {
-		fmt.Fprintf(out, "Can't write out session file: %v\n", err)
-		return
-	}
-	session := Session{Driver: app.driver, FilePath: filePath, FileName: dbName + sessionFile, CreatedAt: now}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(session)
-}
-
-func resumeSession(w http.ResponseWriter, r *http.Request) {
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-		return
-	}
-	var s Session
-	err = json.Unmarshal(reqBody, &s)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
-		return
-	}
-	f, err := os.Open(s.FilePath + s.FileName)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to open the session file: %v", err), http.StatusNotFound)
-		return
-	}
-	defer f.Close()
-	sessionJSON, _ := ioutil.ReadAll(f)
-	json.Unmarshal(sessionJSON, &app.conv)
-	app.driver = s.Driver
-	w.WriteHeader(http.StatusOK)
-}
-
 func getSummary(w http.ResponseWriter, r *http.Request) {
 	reports := internal.AnalyzeTables(app.conv, nil)
 	summary := make(map[string]string)
 	for _, t := range reports {
-		// h := fmt.Sprintf("Table %s", t.SrcTable)
-		// if t.SrcTable != t.SpTable {
-		// 	h = h + fmt.Sprintf(" (mapped to Spanner table %s)", t.SpTable)
-		// }
-		//w.WriteString(rateConversion(t.rows, t.badRows, t.cols, t.warnings, t.syntheticPKey != "", false))
-		//w.WriteString("\n")
 		var body string
 		for _, x := range t.Body {
 			body = body + x.Heading + "\n"
@@ -558,7 +500,7 @@ func updateNotNull(notNullChange, table, newColName string) {
 	app.conv.SpSchema[table] = sp
 }
 
-func setTypeMapTableLevel(w http.ResponseWriter, r *http.Request) {
+func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
@@ -744,6 +686,43 @@ type App struct {
 }
 
 var app App
+
+func init() {
+	//initialize mysqlTypeMap
+	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year"} {
+		var l []typeIssue
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
+			ty, issues := toSpannerTypeMySQL(srcType, spType, []int64{})
+			if ty.Name == spType {
+				if len(issues) > 0 {
+					l = append(l, typeIssue{T: spType, Brief: internal.IssueDB[issues[0]].Brief})
+				} else {
+					l = append(l, typeIssue{T: spType})
+				}
+			}
+		}
+		if srcType == "tinyint" {
+			l = append(l, typeIssue{T: ddl.Bool})
+		}
+		mysqlTypeMap[srcType] = l
+	}
+	//initialize postgresTypeMap
+	for _, srcType := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying"} {
+		var l []typeIssue
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
+			ty, issues := toSpannerTypePostgres(srcType, spType, []int64{})
+			if ty.Name == spType {
+				if len(issues) > 0 {
+					l = append(l, typeIssue{T: spType, Brief: internal.IssueDB[issues[0]].Brief})
+				} else {
+					l = append(l, typeIssue{T: spType})
+				}
+			}
+		}
+		postgresTypeMap[srcType] = l
+	}
+
+}
 
 func WebApp() {
 	fmt.Println("-------------------")

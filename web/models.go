@@ -20,6 +20,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
 
+// Driver config is used for direct database connection
 type DriverConfig struct {
 	Driver   string `json:"Driver"`
 	Host     string `json:"Host"`
@@ -29,11 +30,14 @@ type DriverConfig struct {
 	Password string `json:"Password"`
 }
 
+// Dump config is used for dump file approach
 type DumpConfig struct {
 	Driver   string `json:"Driver"`
 	FilePath string `json:"Path"`
 }
 
+// Metadata of session file, which contains app.conv in
+// JSON format
 type Session struct {
 	Driver    string    `json:"driver"`
 	FilePath  string    `json:"path"`
@@ -41,17 +45,19 @@ type Session struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-type Summary struct {
-	Heading string
-	Lines   []string
-	Rate    string
-}
+// Type and issue
 type typeIssue struct {
 	T     string
 	Issue internal.SchemaIssue
 	Brief string
 }
 
+// Actions to be performed on a column.
+// (1) Removed: true/false
+// (2) Rename: New name or empty string
+// (3) PK: "ADDED", "REMOVED" or ""
+// (4) NotNull: "ADDED", "REMOVED" or ""
+// (5) ToType: New type or empty string
 type updateCol struct {
 	Removed bool   `json:"Removed"`
 	Rename  string `json:"Rename"`
