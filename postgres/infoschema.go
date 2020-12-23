@@ -456,25 +456,26 @@ func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) (indexes [
 		return nil, err
 	}
 	defer rows.Close()
-	var name, col, seq, isUnique, collation string
-	m := make(map[string][]schema.Key)
-	unique := make(map[string]bool)
+	var indexName, column, sequence, isUnique, collation string
+	mIndexes := make(map[string]schema.Index)
 	var keyNames []string
 	for rows.Next() {
-		if err := rows.Scan(&name, &col, &seq, &isUnique, &collation); err != nil {
+		if err := rows.Scan(&indexName, &column, &sequence, &isUnique, &collation); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-		if _, found := m[name]; !found {
-			keyNames = append(keyNames, name)
+		if _, found := mIndexes[indexName]; !found {
+			keyNames = append(keyNames, indexName)
+			mIndexes[indexName] = schema.Index{Name: indexName, Unique: (isUnique == "t"), Keys: []schema.Key{schema.Key{Column: column, Desc: (collation == "DESC")}}}
+			continue
 		}
-		isDesc := (collation == "DESC")
-		unique[name] = (isUnique == "t")
-		m[name] = append(m[name], schema.Key{Column: col, Desc: isDesc})
+		indexKey := mIndexes[indexName]
+		indexKey.Keys = append(indexKey.Keys, schema.Key{Column: column, Desc: (collation == "DESC")})
+		mIndexes[indexName] = indexKey
 	}
 	sort.Strings(keyNames)
 	for _, k := range keyNames {
-		indexes = append(indexes, schema.Index{Name: k, Unique: unique[k], Keys: m[k]})
+		indexes = append(indexes, mIndexes[k])
 	}
 	return indexes, nil
 }
