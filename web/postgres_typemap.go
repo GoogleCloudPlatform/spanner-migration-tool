@@ -20,7 +20,6 @@ import (
 )
 
 func toSpannerTypePostgres(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
-
 	switch srcType {
 	case "bool", "boolean":
 		switch spType {
@@ -31,11 +30,10 @@ func toSpannerTypePostgres(srcType string, spType string, mods []int64) (ddl.Typ
 		default:
 			return ddl.Type{Name: ddl.Bool}, nil
 		}
-
 	case "bigserial":
 		switch spType {
 		case ddl.String:
-			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened, internal.Serial}
 		default:
 			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Serial}
 		}
@@ -118,7 +116,7 @@ func toSpannerTypePostgres(srcType string, spType string, mods []int64) (ddl.Typ
 	case "serial":
 		switch spType {
 		case ddl.String:
-			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened, internal.Serial}
 		default:
 			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Serial}
 		}

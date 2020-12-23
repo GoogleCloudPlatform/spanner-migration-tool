@@ -20,7 +20,6 @@ import (
 )
 
 func toSpannerTypeMySQL(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
-
 	switch srcType {
 	case "bool", "boolean":
 		switch spType {

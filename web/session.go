@@ -25,6 +25,15 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 )
 
+// Metadata of session file, which contains app.conv in
+// JSON format.
+type Session struct {
+	Driver    string    `json:"driver"`
+	FilePath  string    `json:"path"`
+	FileName  string    `json:"fileName"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
 func getSession(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	dbName, err := conversion.GetDatabaseName(app.driver, now)

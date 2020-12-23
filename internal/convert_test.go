@@ -72,7 +72,7 @@ func TestGetDDL(t *testing.T) {
 	}
 	conv.SpSchema["table4"] = ddl.CreateTable{
 		Name:     "table4",
-		ColNames: []string{"a", "b"},
+		ColNames: []string{"a", "b", "c"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
 			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}},
@@ -93,7 +93,7 @@ func TestGetDDL(t *testing.T) {
 		"CREATE TABLE table1 ( a INT64, b FLOAT64 ) PRIMARY KEY (a)",
 		"CREATE TABLE table2 ( a INT64 ) PRIMARY KEY (a)",
 		"CREATE TABLE table3 ( a INT64, b INT64 ) PRIMARY KEY (a)",
-		"CREATE TABLE table4 ( a INT64, b INT64 ) PRIMARY KEY (a, b), INTERLEAVE IN PARENT table1 ON DELETE CASCADE",
+		"CREATE TABLE table4 ( a INT64, b INT64, c INT64 ) PRIMARY KEY (a, b), INTERLEAVE IN PARENT table1 ON DELETE CASCADE",
 		"ALTER TABLE table3 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_c)",
 		"ALTER TABLE table4 ADD CONSTRAINT fk2 FOREIGN KEY (c) REFERENCES ref_table2 (ref_c)",
 	}

@@ -59,6 +59,16 @@ func homeLink(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// Driver config is used for direct database connection.
+type DriverConfig struct {
+	Driver   string `json:"Driver"`
+	Host     string `json:"Host"`
+	Port     string `json:"Port"`
+	Database string `json:"Database"`
+	User     string `json:"User"`
+	Password string `json:"Password"`
+}
+
 func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -86,7 +96,7 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("SQL connection error : %v", err), http.StatusInternalServerError)
 		return
 	}
-	// Open doesn't open a connection. Validate DSN data:
+	// Open doesn't open a connection. Validate database connection.
 	err = sourceDB.Ping()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Connection Error: %v. Check Configuration again.", err), http.StatusInternalServerError)
@@ -123,6 +133,12 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(conv)
 }
 
+// Dump config is used for dump file approach.
+type DumpConfig struct {
+	Driver   string `json:"Driver"`
+	FilePath string `json:"Path"`
+}
+
 func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -151,7 +167,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(conv)
 }
 
-//TODO: Handle foreign key statements and index key statements
+// TODO: Add Index key statements.
 func getDDL(w http.ResponseWriter, r *http.Request) {
 	c := ddl.Config{Comments: true, ProtectIds: false}
 	var tables []string
@@ -280,7 +296,7 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), http.StatusBadRequest)
 		return
 	}
-	// return a list of type-mapping for only the data-types
+	// Return a list of type-mapping for only the data-types
 	// that are used in source schema.
 	typeMap := make(map[string][]typeIssue)
 	for _, srcTable := range app.conv.SrcSchema {
@@ -495,9 +511,26 @@ func updateNotNull(notNullChange, table, newColName string) {
 		spColDef.NotNull = false
 		sp.ColDefs[newColName] = spColDef
 	default:
-		//we skip this
+		// We skip this.
 	}
 	app.conv.SpSchema[table] = sp
+}
+
+// Actions to be performed on a column.
+// (1) Removed: true/false
+// (2) Rename: New name or empty string
+// (3) PK: "ADDED", "REMOVED" or ""
+// (4) NotNull: "ADDED", "REMOVED" or ""
+// (5) ToType: New type or empty string
+type updateCol struct {
+	Removed bool   `json:"Removed"`
+	Rename  string `json:"Rename"`
+	PK      string `json:"PK"`
+	NotNull string `json:"NotNull"`
+	ToType  string `json:"ToType"`
+}
+type updateTable struct {
+	UpdateCols map[string]updateCol `json:"UpdateCols"`
 }
 
 func updateTableSchema(w http.ResponseWriter, r *http.Request) {
@@ -687,41 +720,48 @@ type App struct {
 
 var app App
 
+// Type and issue.
+type typeIssue struct {
+	T     string
+	Brief string
+}
+
+func addTypeToList(convertedType string, spType string, issues []internal.SchemaIssue, l []typeIssue) []typeIssue {
+	if convertedType == spType {
+		if len(issues) > 0 {
+			var briefs []string
+			for _, issue := range issues {
+				briefs = append(briefs, internal.IssueDB[issue].Brief)
+			}
+			l = append(l, typeIssue{T: spType, Brief: fmt.Sprintf(strings.Join(briefs, ", "))})
+		} else {
+			l = append(l, typeIssue{T: spType})
+		}
+	}
+	return l
+}
 func init() {
-	//initialize mysqlTypeMap
+	// Initialize mysqlTypeMap.
 	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
 			ty, issues := toSpannerTypeMySQL(srcType, spType, []int64{})
-			if ty.Name == spType {
-				if len(issues) > 0 {
-					l = append(l, typeIssue{T: spType, Brief: internal.IssueDB[issues[0]].Brief})
-				} else {
-					l = append(l, typeIssue{T: spType})
-				}
-			}
+			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		if srcType == "tinyint" {
 			l = append(l, typeIssue{T: ddl.Bool})
 		}
 		mysqlTypeMap[srcType] = l
 	}
-	//initialize postgresTypeMap
+	// Initialize postgresTypeMap.
 	for _, srcType := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
 			ty, issues := toSpannerTypePostgres(srcType, spType, []int64{})
-			if ty.Name == spType {
-				if len(issues) > 0 {
-					l = append(l, typeIssue{T: spType, Brief: internal.IssueDB[issues[0]].Brief})
-				} else {
-					l = append(l, typeIssue{T: spType})
-				}
-			}
+			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		postgresTypeMap[srcType] = l
 	}
-
 }
 
 func WebApp() {
