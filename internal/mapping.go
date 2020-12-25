@@ -128,27 +128,6 @@ func GetSpannerCols(conv *Conv, srcTable string, srcCols []string) ([]string, er
 	return spCols, nil
 }
 
-func getUniqueId(srcKeyName string, schemaKeys map[string]bool) string {
-	spKeyName, _ := FixName(srcKeyName)
-	if _, found := schemaKeys[spKeyName]; found {
-		// spKeyName has been used before.
-		// Add unique postfix: use number of keys so far.
-		// However, there is a chance this has already been used,
-		// so need to iterate.
-		id := len(schemaKeys)
-		for {
-			c := spKeyName + "_" + strconv.Itoa(id)
-			if _, found := schemaKeys[c]; !found {
-				spKeyName = c
-				break
-			}
-			id++
-		}
-	}
-	schemaKeys[spKeyName] = true
-	return spKeyName
-}
-
 // ToSpannerForeignKey maps source foreign key name to
 // legal Spanner foreign key name.
 // If the srcKeyName is empty string we can just return
@@ -182,4 +161,25 @@ func ToSpannerForeignKey(srcKeyName string, schemaForeignKeys map[string]bool) s
 // constraint name to a unique spanner constraint name.
 func ToSpannerIndexKey(srcKeyName string, schemaIndexKeys map[string]bool) string {
 	return getUniqueId(srcKeyName, schemaIndexKeys)
+}
+
+func getUniqueId(srcKeyName string, schemaKeys map[string]bool) string {
+	spKeyName, _ := FixName(srcKeyName)
+	if _, found := schemaKeys[spKeyName]; found {
+		// spKeyName has been used before.
+		// Add unique postfix: use number of keys so far.
+		// However, there is a chance this has already been used,
+		// so need to iterate.
+		id := len(schemaKeys)
+		for {
+			c := spKeyName + "_" + strconv.Itoa(id)
+			if _, found := schemaKeys[c]; !found {
+				spKeyName = c
+				break
+			}
+			id++
+		}
+	}
+	schemaKeys[spKeyName] = true
+	return spKeyName
 }
