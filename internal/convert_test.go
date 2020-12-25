@@ -74,6 +74,43 @@ func TestGetDDL(t *testing.T) {
 	assert.ElementsMatch(t, normalize(e), normalize(ddl))
 }
 
+func TestGetFK(t *testing.T) {
+	conv := MakeConv()
+	conv.SpSchema["table1"] = ddl.CreateTable{
+		Name:     "table1",
+		ColNames: []string{"a", "b"},
+		ColDefs: map[string]ddl.ColumnDef{
+			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}},
+		},
+		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"b"}, ReferTable: "ref_table1", ReferColumns: []string{"ref_c"}}},
+	}
+	conv.SpSchema["table2"] = ddl.CreateTable{
+		Name:     "table2",
+		ColNames: []string{"a", "b", "c"},
+		ColDefs: map[string]ddl.ColumnDef{
+			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}},
+			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
+		},
+		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk2", Columns: []string{"b", "c"}, ReferTable: "ref_table2", ReferColumns: []string{"ref_b", "ref_c"}}},
+	}
+	ddl := conv.GetFK(ddl.Config{ForeignKeys: true})
+	normalize := func(l []string) (nl []string) {
+		for _, s := range l {
+			nl = append(nl, strings.Join(strings.Fields(s), " "))
+		}
+		return nl
+	}
+	e := []string{
+		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_c)",
+		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES ref_table2 (ref_b, ref_c)",
+	}
+	assert.ElementsMatch(t, normalize(e), normalize(ddl))
+}
+
 func TestRows(t *testing.T) {
 	conv := MakeConv()
 	conv.Stats.Rows["table1"] = 42
