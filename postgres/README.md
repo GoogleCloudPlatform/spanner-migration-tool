@@ -88,7 +88,7 @@ The HarbourBridge tool maps PostgreSQL types to Spanner types as follows:
 | `DATE`             | `DATE`                 |                                           |
 | `DOUBLE PRECISION` | `FLOAT64`              |                                           |
 | `INTEGER`          | `INT64`                | s                                         |
-| `NUMERIC`          | `FLOAT64`              | p                                         |
+| `NUMERIC`          | `NUMERIC`              | p                                         |
 | `REAL`             | `FLOAT64`              | s                                         |
 | `SERIAL`           | `INT64`                | a, s                                      |
 | `SMALLINT`         | `INT64`                | s                                         |
@@ -100,20 +100,19 @@ The HarbourBridge tool maps PostgreSQL types to Spanner types as follows:
 | `ARRAY(`pgtype`)`  | `ARRAY(`spannertype`)` | if scalar type pgtype maps to spannertype |
 
 All other types map to `STRING(MAX)`. Some of the mappings in this table
-represent loss of precision (marked p), dropped autoincrement functionality
-(marked a), differences in treatment of timezones (marked t), differences in
-treatment of fixed-length character types (marked c), and changes in storage
-size (marked s). We discuss these, as well as other limits and notes on
-schema conversion, in the following sections.
+represent potential changes of precision (marked p), dropped autoincrement
+functionality (marked a), differences in treatment of timezones (marked t),
+differences in treatment of fixed-length character types (marked c), and changes
+in storage size (marked s). We discuss these, as well as other limits and notes
+on schema conversion, in the following sections.
 
 ### `NUMERIC`
 
-Spanner does not support numeric types, so these are mapped to `FLOAT64`. For
-some numeric types (e.g. `NUMERIC(7, 3))` this mapping will preserve precision.
-But for others, the numeric type does not fit in `FLOAT64`; HarbourBridge
-generates a warning in such cases. In general, mapping `NUMERIC` to `FLOAT64`
-can be useful for evaluation purposes, but it is not recommended for production
-use.
+[Spanner's NUMERIC
+type](https://cloud.google.com/spanner/docs/data-types#decimal_type) can store
+up to 29 digits before the decimal point and up to 9 after the decimal point.
+PostgreSQL's NUMERIC type can potentially support higher precision that this, so
+please verify that Spanner's NUMERIC support meets your application needs.
 
 ### `BIGSERIAL` and `SERIAL`
 
