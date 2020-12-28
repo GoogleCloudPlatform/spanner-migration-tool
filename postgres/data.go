@@ -17,6 +17,7 @@ package postgres
 import (
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"math/bits"
 	"reflect"
 	"strconv"
@@ -125,6 +126,8 @@ func convScalar(spannerType ddl.Type, srcTypeName string, location *time.Locatio
 		return convFloat64(val)
 	case ddl.Int64:
 		return convInt64(val)
+	case ddl.Numeric:
+		return convNumeric(val)
 	case ddl.String:
 		return val, nil
 	case ddl.Timestamp:
@@ -175,6 +178,15 @@ func convInt64(val string) (int64, error) {
 		return i, fmt.Errorf("can't convert to int64: %w", err)
 	}
 	return i, err
+}
+
+func convNumeric(val string) (*big.Rat, error) {
+	r := new(big.Rat)
+	_, ok := r.SetString(val)
+	if !ok {
+		return r, fmt.Errorf("can't convert to big.Rat")
+	}
+	return r, nil
 }
 
 // convTimestamp maps a source DB timestamp into a go Time (which

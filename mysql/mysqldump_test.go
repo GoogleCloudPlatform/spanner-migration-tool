@@ -17,6 +17,7 @@ package mysql
 import (
 	"bufio"
 	"fmt"
+	"math/big"
 	"math/bits"
 	"strings"
 	"testing"
@@ -42,7 +43,7 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 		{"blob", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
 		{"char(42)", ddl.Type{Name: ddl.String, Len: int64(42)}},
 		{"date", ddl.Type{Name: ddl.Date}},
-		{"decimal(4,10)", ddl.Type{Name: ddl.Float64}},
+		{"decimal(4,10)", ddl.Type{Name: ddl.Numeric}},
 		{"double(4,10)", ddl.Type{Name: ddl.Float64}},
 		{"float(4,10)", ddl.Type{Name: ddl.Float64}},
 		{"integer", ddl.Type{Name: ddl.Int64}},
@@ -90,6 +91,8 @@ func TestProcessMySQLDump_SingleCol(t *testing.T) {
 
 func TestProcessMySQLDump_MultiCol(t *testing.T) {
 	// Next test more general cases: multi-column schemas and data conversion.
+	numericData := new(big.Rat)
+	numericData.SetString("5.44444")
 	multiColTests := []struct {
 		name           string
 		input          string
@@ -557,7 +560,7 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 	INSERT INTO test (id, a, b, c) VALUES (1,'2019-10-29',4.444,5.44444);
 	`,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), float64(5.44444)}}},
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), numericData}}},
 		},
 		{
 			name: "Data conversion: smallint, mediumint, bigint, double",

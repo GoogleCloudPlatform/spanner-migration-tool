@@ -173,7 +173,7 @@ func TestProcessInfoSchema(t *testing.T) {
 				"i8":    ddl.ColumnDef{Name: "i8", T: ddl.Type{Name: ddl.Int64}},
 				"i4":    ddl.ColumnDef{Name: "i4", T: ddl.Type{Name: ddl.Int64}},
 				"i2":    ddl.ColumnDef{Name: "i2", T: ddl.Type{Name: ddl.Int64}},
-				"num":   ddl.ColumnDef{Name: "num", T: ddl.Type{Name: ddl.Float64}},
+				"num":   ddl.ColumnDef{Name: "num", T: ddl.Type{Name: ddl.Numeric}},
 				"s":     ddl.ColumnDef{Name: "s", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 				"ts":    ddl.ColumnDef{Name: "ts", T: ddl.Type{Name: ddl.Timestamp}},
 				"tz":    ddl.ColumnDef{Name: "tz", T: ddl.Type{Name: ddl.Timestamp}},
@@ -193,7 +193,6 @@ func TestProcessInfoSchema(t *testing.T) {
 		"f4":   []internal.SchemaIssue{internal.Widened},
 		"i4":   []internal.SchemaIssue{internal.Widened},
 		"i2":   []internal.SchemaIssue{internal.Widened},
-		"num":  []internal.SchemaIssue{internal.Numeric},
 		"s":    []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
 		"ts":   []internal.SchemaIssue{internal.Timestamp},
 	}
