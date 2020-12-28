@@ -17,6 +17,7 @@ package mysql
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"unicode"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -213,6 +214,17 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 			if err1 != nil || err2 != nil {
 				conv.Unexpected(fmt.Sprintf("Can't map foreign key for table: %s, referenced table: %s, column: %s", srcTable, key.ReferTable, col))
 				continue
+			}
+			if _, found := conv.SpSchema[spReferTable].ColDefs[spReferCol]; !found {
+				// Spanner foreign key referenced columns are case sensitive, so
+				// if we don't find column with direct look up, we compare referenced
+				// column with all columns with lower case in referenced table.
+				for _, refCol := range conv.SpSchema[spReferTable].ColNames {
+					if strings.ToLower(refCol) == strings.ToLower(spReferCol) {
+						spReferCol = refCol
+						break
+					}
+				}
 			}
 			spCols = append(spCols, spCol)
 			spReferCols = append(spReferCols, spReferCol)
