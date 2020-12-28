@@ -57,18 +57,14 @@ func toSpannerTypeMySQL(srcType string, spType string, mods []int64) (ddl.Type, 
 		default:
 			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
 		}
-	case "numeric", "decimal": // Map all numeric and decimal types to float64.
+	case "numeric", "decimal":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
-			if len(mods) > 0 && mods[0] <= 15 {
-				// float64 can represent this numeric type faithfully.
-				// Note: int64 has 53 bits for mantissa, which is ~15.96
-				// decimal digits.
-				return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.DecimalThatFits}
-			}
-			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Decimal}
+			// TODO: check mod[0] and mod[1] and generate a warning
+			// if this numeric won't fit in Spanner's NUMERIC.
+			return ddl.Type{Name: ddl.Numeric}, nil
 		}
 	case "bigint":
 		switch spType {

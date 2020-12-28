@@ -89,8 +89,8 @@ func TestGetTypeMapPostgres(t *testing.T) {
 			typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief},
 			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 		"numeric": []typeIssue{
-			typeIssue{T: ddl.Float64, Brief: internal.IssueDB[internal.Numeric].Brief},
-			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
+			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
+			typeIssue{T: ddl.Numeric}},
 		"serial": []typeIssue{
 			typeIssue{T: ddl.Int64, Brief: internal.IssueDB[internal.Serial].Brief},
 			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief + ", " + internal.IssueDB[internal.Serial].Brief}},
@@ -111,7 +111,7 @@ func TestGetTypeMapPostgres(t *testing.T) {
 
 }
 
-func TestSetTypeMapTableLevelPostgres(t *testing.T) {
+func TestUpdateTableSchemaPostgres(t *testing.T) {
 	tc := []struct {
 		name              string
 		table             string
@@ -212,7 +212,7 @@ func TestSetTypeMapTableLevelPostgres(t *testing.T) {
 				ColDefs: map[string]ddl.ColumnDef{
 					"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 					"d":        ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-					"e":        ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Float64}},
+					"e":        ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
 					"f":        ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
 					"g":        ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.Int64}},
 					"h":        ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
@@ -229,7 +229,6 @@ func TestSetTypeMapTableLevelPostgres(t *testing.T) {
 				Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
 			},
 			expectedIssues: map[string][]internal.SchemaIssue{
-				"e": []internal.SchemaIssue{internal.Numeric},
 				"g": []internal.SchemaIssue{internal.Serial},
 				"l": []internal.SchemaIssue{internal.Widened},
 				"m": []internal.SchemaIssue{internal.Serial},
@@ -265,7 +264,7 @@ func TestSetTypeMapTableLevelPostgres(t *testing.T) {
 					"bb": ddl.ColumnDef{Name: "bb", T: ddl.Type{Name: ddl.Float64}},
 					"c":  ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 					"d":  ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-					"e":  ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Float64}},
+					"e":  ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
 					"f":  ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
 					"g":  ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.Int64}},
 					"h":  ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
@@ -282,7 +281,6 @@ func TestSetTypeMapTableLevelPostgres(t *testing.T) {
 			},
 			expectedIssues: map[string][]internal.SchemaIssue{
 				"b": []internal.SchemaIssue{internal.Widened},
-				"e": []internal.SchemaIssue{internal.Numeric},
 				"g": []internal.SchemaIssue{internal.Serial},
 				"l": []internal.SchemaIssue{internal.Widened},
 				"m": []internal.SchemaIssue{internal.Serial},
@@ -317,7 +315,7 @@ func TestSetTypeMapTableLevelPostgres(t *testing.T) {
 					"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
 					"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 					"d":        ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-					"e":        ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Float64}},
+					"e":        ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
 					"f":        ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
 					"g":        ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.Int64}},
 					"h":        ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
@@ -335,7 +333,6 @@ func TestSetTypeMapTableLevelPostgres(t *testing.T) {
 			},
 			expectedIssues: map[string][]internal.SchemaIssue{
 				"b": []internal.SchemaIssue{internal.Widened},
-				"e": []internal.SchemaIssue{internal.Numeric},
 				"g": []internal.SchemaIssue{internal.Serial},
 				"l": []internal.SchemaIssue{internal.Widened},
 				"m": []internal.SchemaIssue{internal.Serial},
@@ -371,7 +368,7 @@ func TestSetTypeMapTableLevelPostgres(t *testing.T) {
 					"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
 					"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 					"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-					"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Float64}},
+					"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
 					"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
 					"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.Int64}},
 					"h": ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
@@ -388,7 +385,6 @@ func TestSetTypeMapTableLevelPostgres(t *testing.T) {
 			},
 			expectedIssues: map[string][]internal.SchemaIssue{
 				"b": []internal.SchemaIssue{internal.Widened},
-				"e": []internal.SchemaIssue{internal.Numeric},
 				"g": []internal.SchemaIssue{internal.Serial},
 				"l": []internal.SchemaIssue{internal.Widened},
 				"m": []internal.SchemaIssue{internal.Serial},
@@ -564,7 +560,7 @@ func TestSetTypeMapGlobalLevelPostgres(t *testing.T) {
 					"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
 					"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-					"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Float64}},
+					"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
 					"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
 					"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.Int64}},
 					"h": ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
@@ -583,7 +579,6 @@ func TestSetTypeMapGlobalLevelPostgres(t *testing.T) {
 				"a": []internal.SchemaIssue{internal.Widened},
 				"b": []internal.SchemaIssue{internal.Widened},
 				"c": []internal.SchemaIssue{internal.Widened},
-				"e": []internal.SchemaIssue{internal.Numeric},
 				"g": []internal.SchemaIssue{internal.Serial},
 				"l": []internal.SchemaIssue{internal.Widened},
 				"m": []internal.SchemaIssue{internal.Serial},
@@ -708,11 +703,11 @@ func TestGetTypeMapMySQL(t *testing.T) {
 			typeIssue{T: ddl.Float64, Brief: internal.IssueDB[internal.Widened].Brief},
 			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
 		"numeric": []typeIssue{
-			typeIssue{T: ddl.Float64, Brief: internal.IssueDB[internal.Decimal].Brief},
-			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
+			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
+			typeIssue{T: ddl.Numeric}},
 		"decimal": []typeIssue{
-			typeIssue{T: ddl.Float64, Brief: internal.IssueDB[internal.Decimal].Brief},
-			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
+			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
+			typeIssue{T: ddl.Numeric}},
 		"date": []typeIssue{
 			typeIssue{T: ddl.Date},
 			typeIssue{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
@@ -725,7 +720,7 @@ func TestGetTypeMapMySQL(t *testing.T) {
 	assert.Equal(t, expectedTypemap, typemap)
 
 }
-func TestSetTypeMapTableLevelMySQL(t *testing.T) {
+func TestUpdateTableSchemaMySQL(t *testing.T) {
 	tc := []struct {
 		name              string
 		table             string
@@ -824,7 +819,7 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 				ColDefs: map[string]ddl.ColumnDef{
 					"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 					"d":        ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-					"e":        ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Float64}},
+					"e":        ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
 					"f":        ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"g":        ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"h":        ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
@@ -832,7 +827,7 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 					"j":        ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.Int64}},
 					"k":        ddl.ColumnDef{Name: "k", T: ddl.Type{Name: ddl.Float64}},
 					"l":        ddl.ColumnDef{Name: "l", T: ddl.Type{Name: ddl.Float64}},
-					"m":        ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Float64}},
+					"m":        ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Numeric}},
 					"n":        ddl.ColumnDef{Name: "n", T: ddl.Type{Name: ddl.Date}},
 					"o":        ddl.ColumnDef{Name: "o", T: ddl.Type{Name: ddl.Timestamp}},
 					"p":        ddl.ColumnDef{Name: "p", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
@@ -841,10 +836,8 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 				Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
 			},
 			expectedIssues: map[string][]internal.SchemaIssue{
-				"e": []internal.SchemaIssue{internal.Decimal},
 				"j": []internal.SchemaIssue{internal.Widened},
 				"l": []internal.SchemaIssue{internal.Widened},
-				"m": []internal.SchemaIssue{internal.Decimal},
 				"o": []internal.SchemaIssue{internal.Time},
 			},
 			expectedToSource: internal.NameAndCols{
@@ -877,7 +870,7 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 					"bb": ddl.ColumnDef{Name: "bb", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"c":  ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 					"d":  ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-					"e":  ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Float64}},
+					"e":  ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
 					"f":  ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"g":  ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"h":  ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
@@ -885,7 +878,7 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 					"j":  ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.Int64}},
 					"k":  ddl.ColumnDef{Name: "k", T: ddl.Type{Name: ddl.Float64}},
 					"l":  ddl.ColumnDef{Name: "l", T: ddl.Type{Name: ddl.Float64}},
-					"m":  ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Float64}},
+					"m":  ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Numeric}},
 					"n":  ddl.ColumnDef{Name: "n", T: ddl.Type{Name: ddl.Date}},
 					"o":  ddl.ColumnDef{Name: "o", T: ddl.Type{Name: ddl.Timestamp}},
 					"p":  ddl.ColumnDef{Name: "p", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
@@ -893,10 +886,8 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 				Pks: []ddl.IndexKey{ddl.IndexKey{Col: "aa"}},
 			},
 			expectedIssues: map[string][]internal.SchemaIssue{
-				"e": []internal.SchemaIssue{internal.Decimal},
 				"j": []internal.SchemaIssue{internal.Widened},
 				"l": []internal.SchemaIssue{internal.Widened},
-				"m": []internal.SchemaIssue{internal.Decimal},
 				"o": []internal.SchemaIssue{internal.Time},
 			},
 			expectedToSource: internal.NameAndCols{
@@ -928,7 +919,7 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 					"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 					"d":        ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-					"e":        ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Float64}},
+					"e":        ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
 					"f":        ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"g":        ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"h":        ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
@@ -936,7 +927,7 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 					"j":        ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.Int64}},
 					"k":        ddl.ColumnDef{Name: "k", T: ddl.Type{Name: ddl.Float64}},
 					"l":        ddl.ColumnDef{Name: "l", T: ddl.Type{Name: ddl.Float64}},
-					"m":        ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Float64}},
+					"m":        ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Numeric}},
 					"n":        ddl.ColumnDef{Name: "n", T: ddl.Type{Name: ddl.Date}},
 					"o":        ddl.ColumnDef{Name: "o", T: ddl.Type{Name: ddl.Timestamp}},
 					"p":        ddl.ColumnDef{Name: "p", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
@@ -945,10 +936,8 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 				Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
 			},
 			expectedIssues: map[string][]internal.SchemaIssue{
-				"e": []internal.SchemaIssue{internal.Decimal},
 				"j": []internal.SchemaIssue{internal.Widened},
 				"l": []internal.SchemaIssue{internal.Widened},
-				"m": []internal.SchemaIssue{internal.Decimal},
 				"o": []internal.SchemaIssue{internal.Time},
 			},
 			expectedToSource: internal.NameAndCols{
@@ -981,7 +970,7 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 					"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 					"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-					"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Float64}},
+					"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
 					"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"h": ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
@@ -989,7 +978,7 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 					"j": ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.Int64}},
 					"k": ddl.ColumnDef{Name: "k", T: ddl.Type{Name: ddl.Float64}},
 					"l": ddl.ColumnDef{Name: "l", T: ddl.Type{Name: ddl.Float64}},
-					"m": ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Float64}},
+					"m": ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Numeric}},
 					"n": ddl.ColumnDef{Name: "n", T: ddl.Type{Name: ddl.Date}},
 					"o": ddl.ColumnDef{Name: "o", T: ddl.Type{Name: ddl.Timestamp}},
 					"p": ddl.ColumnDef{Name: "p", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
@@ -997,10 +986,8 @@ func TestSetTypeMapTableLevelMySQL(t *testing.T) {
 				Pks: []ddl.IndexKey{ddl.IndexKey{Col: "b"}},
 			},
 			expectedIssues: map[string][]internal.SchemaIssue{
-				"e": []internal.SchemaIssue{internal.Decimal},
 				"j": []internal.SchemaIssue{internal.Widened},
 				"l": []internal.SchemaIssue{internal.Widened},
-				"m": []internal.SchemaIssue{internal.Decimal},
 				"o": []internal.SchemaIssue{internal.Time},
 			},
 			expectedToSource: internal.NameAndCols{
@@ -1169,7 +1156,7 @@ func TestSetTypeMapGlobalLevelMySQL(t *testing.T) {
 					"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
 					"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Bytes, Len: 6}},
-					"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Float64}},
+					"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
 					"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"h": ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
@@ -1177,7 +1164,7 @@ func TestSetTypeMapGlobalLevelMySQL(t *testing.T) {
 					"j": ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.Int64}},
 					"k": ddl.ColumnDef{Name: "k", T: ddl.Type{Name: ddl.Float64}},
 					"l": ddl.ColumnDef{Name: "l", T: ddl.Type{Name: ddl.Float64}},
-					"m": ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Float64}},
+					"m": ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Numeric}},
 					"n": ddl.ColumnDef{Name: "n", T: ddl.Type{Name: ddl.Date}},
 					"o": ddl.ColumnDef{Name: "o", T: ddl.Type{Name: ddl.Timestamp}},
 					"p": ddl.ColumnDef{Name: "p", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
@@ -1187,10 +1174,8 @@ func TestSetTypeMapGlobalLevelMySQL(t *testing.T) {
 			expectedIssues: map[string][]internal.SchemaIssue{
 				"a": []internal.SchemaIssue{internal.Widened},
 				"c": []internal.SchemaIssue{internal.Widened},
-				"e": []internal.SchemaIssue{internal.Decimal},
 				"j": []internal.SchemaIssue{internal.Widened},
 				"l": []internal.SchemaIssue{internal.Widened},
-				"m": []internal.SchemaIssue{internal.Decimal},
 				"o": []internal.SchemaIssue{internal.Time},
 			},
 		},
@@ -1251,7 +1236,7 @@ func TestGetConversionMySQL(t *testing.T) {
 	expectedConversion := map[string]string{
 		"t1": "GREEN",
 		"t2": "BLUE",
-		"t3": "RED",
+		"t3": "BLUE",
 	}
 	assert.Equal(t, expectedConversion, result)
 }
@@ -1574,7 +1559,7 @@ func buildConvMySQL(conv *internal.Conv) {
 				"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 				"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 				"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-				"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Float64}},
+				"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
 				"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 				"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 				"h": ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
@@ -1582,7 +1567,7 @@ func buildConvMySQL(conv *internal.Conv) {
 				"j": ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.Int64}},
 				"k": ddl.ColumnDef{Name: "k", T: ddl.Type{Name: ddl.Float64}},
 				"l": ddl.ColumnDef{Name: "l", T: ddl.Type{Name: ddl.Float64}},
-				"m": ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Float64}},
+				"m": ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Numeric}},
 				"n": ddl.ColumnDef{Name: "n", T: ddl.Type{Name: ddl.Date}},
 				"o": ddl.ColumnDef{Name: "o", T: ddl.Type{Name: ddl.Timestamp}},
 				"p": ddl.ColumnDef{Name: "p", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
@@ -1627,10 +1612,8 @@ func buildConvMySQL(conv *internal.Conv) {
 	}
 	conv.Issues = map[string]map[string][]internal.SchemaIssue{
 		"t1": map[string][]internal.SchemaIssue{
-			"e": []internal.SchemaIssue{internal.Decimal},
 			"j": []internal.SchemaIssue{internal.Widened},
 			"l": []internal.SchemaIssue{internal.Widened},
-			"m": []internal.SchemaIssue{internal.Decimal},
 			"o": []internal.SchemaIssue{internal.Time},
 		},
 		"t2": map[string][]internal.SchemaIssue{
@@ -1692,21 +1675,15 @@ func buildConvMySQLMultiTable(conv *internal.Conv) {
 			Name:     "t3",
 			ColNames: []string{"a", "b", "c", "synth_id"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Float64}},
-				"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-				"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Float64}},
+				"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Numeric}},
+				"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Numeric}},
+				"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Numeric}},
 				"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 			},
 			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
 		},
 	}
-	conv.Issues = map[string]map[string][]internal.SchemaIssue{
-		"t3": map[string][]internal.SchemaIssue{
-			"a": []internal.SchemaIssue{internal.Decimal},
-			"b": []internal.SchemaIssue{internal.Decimal},
-			"c": []internal.SchemaIssue{internal.Decimal},
-		},
-	}
+	conv.Issues = map[string]map[string][]internal.SchemaIssue{}
 	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{"synth_id", 0}
 	conv.SyntheticPKeys["t3"] = internal.SyntheticPKey{"synth_id", 0}
 }
@@ -1753,7 +1730,7 @@ func buildConvPostgres(conv *internal.Conv) {
 				"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
 				"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 				"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-				"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Float64}},
+				"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
 				"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
 				"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.Int64}},
 				"h": ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
@@ -1807,7 +1784,6 @@ func buildConvPostgres(conv *internal.Conv) {
 	conv.Issues = map[string]map[string][]internal.SchemaIssue{
 		"t1": map[string][]internal.SchemaIssue{
 			"b": []internal.SchemaIssue{internal.Widened},
-			"e": []internal.SchemaIssue{internal.Numeric},
 			"g": []internal.SchemaIssue{internal.Serial},
 			"l": []internal.SchemaIssue{internal.Widened},
 			"m": []internal.SchemaIssue{internal.Serial},
@@ -1844,7 +1820,7 @@ func buildConvPostgresMultiTable(conv *internal.Conv) {
 			ColDefs: map[string]schema.Column{
 				"a": schema.Column{Name: "a", Type: schema.Type{Name: "serial"}},
 				"b": schema.Column{Name: "b", Type: schema.Type{Name: "serial"}},
-				"c": schema.Column{Name: "c", Type: schema.Type{Name: "numeric"}},
+				"c": schema.Column{Name: "c", Type: schema.Type{Name: "serial"}},
 			},
 		},
 	}
@@ -1874,7 +1850,7 @@ func buildConvPostgresMultiTable(conv *internal.Conv) {
 			ColDefs: map[string]ddl.ColumnDef{
 				"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
 				"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}},
-				"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Float64}},
+				"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
 				"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 			},
 			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
@@ -1884,7 +1860,7 @@ func buildConvPostgresMultiTable(conv *internal.Conv) {
 		"t3": map[string][]internal.SchemaIssue{
 			"a": []internal.SchemaIssue{internal.Serial},
 			"b": []internal.SchemaIssue{internal.Serial},
-			"c": []internal.SchemaIssue{internal.Numeric},
+			"c": []internal.SchemaIssue{internal.Serial},
 		},
 	}
 	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{"synth_id", 0}
