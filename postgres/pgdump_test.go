@@ -94,8 +94,6 @@ func TestProcessPgDump(t *testing.T) {
 		assert.Equal(t, tc.expected, cd, "Not null: "+tc.ty)
 	}
 	// Next test more general cases: multi-column schemas and data conversion.
-	numericData := new(big.Rat)
-	numericData.SetString("444.9876")
 	multiColTests := []struct {
 		name           string
 		input          string
@@ -507,7 +505,7 @@ COPY test (id, a, b, c, d) FROM stdin;
 \.
 `,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), int64(88), int64(44), int64(22), numericData}}},
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), int64(88), int64(44), int64(22), mkRat(t, "444.9876")}}},
 		},
 		{
 			name: "Data conversion: serial, text, timestamp, timestamptz, varchar",
@@ -754,4 +752,11 @@ func printJSON(s string) {
 // It is not used by any tests, but is a useful utility for debugging.
 func printJSONType(ty string) {
 	printJSON(fmt.Sprintf("CREATE TABLE t (a %s);", ty))
+}
+
+func mkRat(t *testing.T, v string) *big.Rat {
+	r := new(big.Rat)
+	_, ok := r.SetString(v)
+	assert.True(t, ok, fmt.Sprintf("Can't convert %q to big.Rat", v))
+	return r
 }

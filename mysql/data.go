@@ -166,9 +166,8 @@ func convInt64(val string) (int64, error) {
 
 func convNumeric(val string) (*big.Rat, error) {
 	r := new(big.Rat)
-	_, ok := r.SetString(val)
-	if !ok {
-		return r, fmt.Errorf("can't convert to big.Rat")
+	if _, ok := r.SetString(val); !ok {
+		return r, fmt.Errorf("can't convert %q to big.Rat", val)
 	}
 	return r, nil
 }

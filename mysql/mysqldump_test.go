@@ -91,8 +91,6 @@ func TestProcessMySQLDump_SingleCol(t *testing.T) {
 
 func TestProcessMySQLDump_MultiCol(t *testing.T) {
 	// Next test more general cases: multi-column schemas and data conversion.
-	numericData := new(big.Rat)
-	numericData.SetString("5.44444")
 	multiColTests := []struct {
 		name           string
 		input          string
@@ -560,7 +558,7 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 	INSERT INTO test (id, a, b, c) VALUES (1,'2019-10-29',4.444,5.44444);
 	`,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), numericData}}},
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), mkRat(t, "5.44444")}}},
 		},
 		{
 			name: "Data conversion: smallint, mediumint, bigint, double",
@@ -783,4 +781,11 @@ func normalizeSpace(s string) string {
 
 func bitReverse(i int64) int64 {
 	return int64(bits.Reverse64(uint64(i)))
+}
+
+func mkRat(t *testing.T, v string) *big.Rat {
+	r := new(big.Rat)
+	_, ok := r.SetString(v)
+	assert.True(t, ok, fmt.Sprintf("Can't convert %q to big.Rat", v))
+	return r
 }
