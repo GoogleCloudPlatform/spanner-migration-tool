@@ -165,7 +165,7 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 				"c":   ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
 				"c8":  ddl.ColumnDef{Name: "c8", T: ddl.Type{Name: ddl.String, Len: int64(8)}},
 				"d":   ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Date}},
-				"dec": ddl.ColumnDef{Name: "dec", T: ddl.Type{Name: ddl.Float64}},
+				"dec": ddl.ColumnDef{Name: "dec", T: ddl.Type{Name: ddl.Numeric}},
 				"f8":  ddl.ColumnDef{Name: "f8", T: ddl.Type{Name: ddl.Float64}},
 				"f4":  ddl.ColumnDef{Name: "f4", T: ddl.Type{Name: ddl.Float64}},
 				"i8":  ddl.ColumnDef{Name: "i8", T: ddl.Type{Name: ddl.Int64}},
@@ -183,13 +183,12 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	assert.Equal(t, len(conv.Issues["cart"]), 0)
 	expectedIssues := map[string][]internal.SchemaIssue{
-		"bs":  []internal.SchemaIssue{internal.DefaultValue},
-		"dec": []internal.SchemaIssue{internal.Decimal},
-		"f4":  []internal.SchemaIssue{internal.Widened},
-		"i4":  []internal.SchemaIssue{internal.Widened, internal.AutoIncrement},
-		"i2":  []internal.SchemaIssue{internal.Widened},
-		"si":  []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
-		"ts":  []internal.SchemaIssue{internal.Datetime},
+		"bs": []internal.SchemaIssue{internal.DefaultValue},
+		"f4": []internal.SchemaIssue{internal.Widened},
+		"i4": []internal.SchemaIssue{internal.Widened, internal.AutoIncrement},
+		"i2": []internal.SchemaIssue{internal.Widened},
+		"si": []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
+		"ts": []internal.SchemaIssue{internal.Datetime},
 	}
 	assert.Equal(t, expectedIssues, conv.Issues["test"])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
