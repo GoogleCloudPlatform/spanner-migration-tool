@@ -583,11 +583,11 @@ func createDatabase(project, instance, dbName string, conv *internal.Conv, out *
 }
 
 func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv, out *os.File) error {
-	fmt.Fprintf(out, "Updating database %s in instance %s with default permissions ... ", dbName, instance)
+	fmt.Fprintf(out, "Updating database %s in instance %s with default permissions ...\n", dbName, instance)
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
 	if err != nil {
-		return fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
+		return fmt.Errorf("can't create admin client: %w\n", analyzeError(err, project, instance))
 	}
 	defer adminClient.Close()
 	// The schema we send to Spanner excludes comments (since Cloud
@@ -600,9 +600,12 @@ func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv,
 			Statements: []string{fkStmt},
 		})
 		if err != nil {
+			fmt.Printf("Can't add foreign key with statement %s: %s\n", fkStmt, err)
 			conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
+			continue
 		}
 		if err := op.Wait(ctx); err != nil {
+			fmt.Printf("Can't add foreign key with statement %s: %s\n", fkStmt, err)
 			conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
 		}
 		internal.VerbosePrintln("Updated schema with statement: " + fkStmt)
