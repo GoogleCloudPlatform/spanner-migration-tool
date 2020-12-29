@@ -17,7 +17,6 @@ package mysql
 import (
 	"bufio"
 	"fmt"
-	"math/big"
 	"math/bits"
 	"strings"
 	"testing"
@@ -43,7 +42,7 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 		{"blob", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
 		{"char(42)", ddl.Type{Name: ddl.String, Len: int64(42)}},
 		{"date", ddl.Type{Name: ddl.Date}},
-		{"decimal(4,10)", ddl.Type{Name: ddl.Numeric}},
+		{"decimal(4,10)", ddl.Type{Name: ddl.Float64}},
 		{"double(4,10)", ddl.Type{Name: ddl.Float64}},
 		{"float(4,10)", ddl.Type{Name: ddl.Float64}},
 		{"integer", ddl.Type{Name: ddl.Int64}},
@@ -558,7 +557,7 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 	INSERT INTO test (id, a, b, c) VALUES (1,'2019-10-29',4.444,5.44444);
 	`,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), mkRat(t, "5.44444")}}},
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), float64(5.44444)}}},
 		},
 		{
 			name: "Data conversion: smallint, mediumint, bigint, double",
@@ -781,11 +780,4 @@ func normalizeSpace(s string) string {
 
 func bitReverse(i int64) int64 {
 	return int64(bits.Reverse64(uint64(i)))
-}
-
-func mkRat(t *testing.T, v string) *big.Rat {
-	r := new(big.Rat)
-	_, ok := r.SetString(v)
-	assert.True(t, ok, fmt.Sprintf("Can't convert %q to big.Rat", v))
-	return r
 }
