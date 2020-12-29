@@ -421,7 +421,7 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 }
 
 // getIndexes return list of all the indexes.
-func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) (indexes []schema.Index, err error) {
+func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]schema.Index, error) {
 	q := `SELECT
 			irel.relname AS index_name,
 			a.attname AS column_name,
@@ -456,25 +456,26 @@ func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) (indexes [
 		return nil, err
 	}
 	defer rows.Close()
-	var indexName, column, sequence, isUnique, collation string
+	var index, column, sequence, isUnique, collation string
 	mIndexes := make(map[string]schema.Index)
-	var keyNames []string
+	var indexNames []string
+	var indexes []schema.Index
 	for rows.Next() {
-		if err := rows.Scan(&indexName, &column, &sequence, &isUnique, &collation); err != nil {
+		if err := rows.Scan(&index, &column, &sequence, &isUnique, &collation); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-		if _, found := mIndexes[indexName]; !found {
-			keyNames = append(keyNames, indexName)
-			mIndexes[indexName] = schema.Index{Name: indexName, Unique: (isUnique == "t"), Keys: []schema.Key{schema.Key{Column: column, Desc: (collation == "DESC")}}}
+		if _, found := mIndexes[index]; !found {
+			indexNames = append(indexNames, index)
+			mIndexes[index] = schema.Index{Name: index, Unique: (isUnique == "t"), Keys: []schema.Key{schema.Key{Column: column, Desc: (collation == "DESC")}}}
 			continue
 		}
-		indexKey := mIndexes[indexName]
+		indexKey := mIndexes[index]
 		indexKey.Keys = append(indexKey.Keys, schema.Key{Column: column, Desc: (collation == "DESC")})
-		mIndexes[indexName] = indexKey
+		mIndexes[index] = indexKey
 	}
-	sort.Strings(keyNames)
-	for _, k := range keyNames {
+	sort.Strings(indexNames)
+	for _, k := range indexNames {
 		indexes = append(indexes, mIndexes[k])
 	}
 	return indexes, nil

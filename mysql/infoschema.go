@@ -381,7 +381,7 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 }
 
 // getIndexes return list all the indexes.
-func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) (indexes []schema.Index, err error) {
+func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]schema.Index, error) {
 	q := `SELECT DISTINCT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION,NON_UNIQUE
 		FROM INFORMATION_SCHEMA.STATISTICS 
 		WHERE TABLE_SCHEMA = ?
@@ -393,25 +393,26 @@ func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) (indexes [
 		return nil, err
 	}
 	defer rows.Close()
-	var indexName, column, sequence, collation, nonUnique string
+	var index, column, sequence, collation, nonUnique string
 	mIndexes := make(map[string]schema.Index)
-	var keyNames []string
+	var indexNames []string
+	var indexes []schema.Index
 	for rows.Next() {
-		if err := rows.Scan(&indexName, &column, &sequence, &collation, &nonUnique); err != nil {
+		if err := rows.Scan(&index, &column, &sequence, &collation, &nonUnique); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-		if _, found := mIndexes[indexName]; !found {
-			keyNames = append(keyNames, indexName)
-			mIndexes[indexName] = schema.Index{Name: indexName, Unique: (nonUnique == "0"), Keys: []schema.Key{schema.Key{Column: column, Desc: (collation == "D")}}}
+		if _, found := mIndexes[index]; !found {
+			indexNames = append(indexNames, index)
+			mIndexes[index] = schema.Index{Name: index, Unique: (nonUnique == "0"), Keys: []schema.Key{schema.Key{Column: column, Desc: (collation == "D")}}}
 			continue
 		}
-		indexKey := mIndexes[indexName]
+		indexKey := mIndexes[index]
 		indexKey.Keys = append(indexKey.Keys, schema.Key{Column: column, Desc: (collation == "D")})
-		mIndexes[indexName] = indexKey
+		mIndexes[index] = indexKey
 	}
-	sort.Strings(keyNames)
-	for _, k := range keyNames {
+	sort.Strings(indexNames)
+	for _, k := range indexNames {
 		indexes = append(indexes, mIndexes[k])
 	}
 	return indexes, nil
