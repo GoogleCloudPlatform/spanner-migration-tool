@@ -17,7 +17,6 @@ package postgres
 import (
 	"bufio"
 	"fmt"
-	"math/big"
 	"math/bits"
 	"strings"
 	"testing"
@@ -49,14 +48,14 @@ func TestProcessPgDump(t *testing.T) {
 		{"bytea", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
 		{"char(42)", ddl.Type{Name: ddl.String, Len: int64(42)}},
 		{"date", ddl.Type{Name: ddl.Date}},
-		{"decimal", ddl.Type{Name: ddl.Numeric}}, // pg parser maps this to numeric.
+		{"decimal", ddl.Type{Name: ddl.Float64}}, // pg parser maps this to numeric.
 		{"double precision", ddl.Type{Name: ddl.Float64}},
 		{"float8", ddl.Type{Name: ddl.Float64}},
 		{"float4", ddl.Type{Name: ddl.Float64}},
 		{"integer", ddl.Type{Name: ddl.Int64}},
-		{"numeric", ddl.Type{Name: ddl.Numeric}},
-		{"numeric(4)", ddl.Type{Name: ddl.Numeric}},
-		{"numeric(6, 4)", ddl.Type{Name: ddl.Numeric}},
+		{"numeric", ddl.Type{Name: ddl.Float64}},
+		{"numeric(4)", ddl.Type{Name: ddl.Float64}},
+		{"numeric(6, 4)", ddl.Type{Name: ddl.Float64}},
 		{"real", ddl.Type{Name: ddl.Float64}},
 		{"smallint", ddl.Type{Name: ddl.Int64}},
 		{"text", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
@@ -505,7 +504,7 @@ COPY test (id, a, b, c, d) FROM stdin;
 \.
 `,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), int64(88), int64(44), int64(22), mkRat(t, "444.9876")}}},
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), int64(88), int64(44), int64(22), float64(444.9876)}}},
 		},
 		{
 			name: "Data conversion: serial, text, timestamp, timestamptz, varchar",
@@ -752,11 +751,4 @@ func printJSON(s string) {
 // It is not used by any tests, but is a useful utility for debugging.
 func printJSONType(ty string) {
 	printJSON(fmt.Sprintf("CREATE TABLE t (a %s);", ty))
-}
-
-func mkRat(t *testing.T, v string) *big.Rat {
-	r := new(big.Rat)
-	_, ok := r.SetString(v)
-	assert.True(t, ok, fmt.Sprintf("Can't convert %q to big.Rat", v))
-	return r
 }
