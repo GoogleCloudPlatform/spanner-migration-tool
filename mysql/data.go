@@ -168,6 +168,7 @@ func convInt64(val string) (int64, error) {
 // into a string representing a valid Spanner numeric.
 // Ideally we would just return a *big.Rat, but spanner.Mutation
 // doesn't currently support use of *big.Rat.
+// TODO: return *big.Rat when client library supports it.
 func convNumeric(val string) (string, error) {
 	r := new(big.Rat)
 	if _, ok := r.SetString(val); !ok {
