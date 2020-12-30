@@ -180,12 +180,16 @@ func convInt64(val string) (int64, error) {
 	return i, err
 }
 
-func convNumeric(val string) (*big.Rat, error) {
+// convNumeric maps a source database string value (representing a numeric)
+// into a string representing a valid Spanner numeric.
+// Ideally we would just return a *big.Rat, but spanner.Mutation
+// doesn't currently support use of *big.Rat.
+func convNumeric(val string) (string, error) {
 	r := new(big.Rat)
 	if _, ok := r.SetString(val); !ok {
-		return r, fmt.Errorf("can't convert %q to big.Rat", val)
+		return "", fmt.Errorf("can't convert %q to big.Rat", val)
 	}
-	return r, nil
+	return spanner.NumericString(r), nil
 }
 
 // convTimestamp maps a source DB timestamp into a go Time (which
