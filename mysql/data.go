@@ -16,6 +16,7 @@ package mysql
 
 import (
 	"fmt"
+	"math/big"
 	"math/bits"
 	"strconv"
 	"strings"
@@ -114,6 +115,8 @@ func convScalar(spannerType ddl.Type, srcTypeName string, TimezoneOffset string,
 		return convFloat64(val)
 	case ddl.Int64:
 		return convInt64(val)
+	case ddl.Numeric:
+		return convNumeric(val)
 	case ddl.String:
 		return val, nil
 	case ddl.Timestamp:
@@ -159,6 +162,19 @@ func convInt64(val string) (int64, error) {
 		return i, fmt.Errorf("can't convert to int64: %w", err)
 	}
 	return i, err
+}
+
+// convNumeric maps a source database string value (representing a numeric)
+// into a string representing a valid Spanner numeric.
+// Ideally we would just return a *big.Rat, but spanner.Mutation
+// doesn't currently support use of *big.Rat.
+// TODO: return *big.Rat when client library supports it.
+func convNumeric(val string) (string, error) {
+	r := new(big.Rat)
+	if _, ok := r.SetString(val); !ok {
+		return "", fmt.Errorf("can't convert %q to big.Rat", val)
+	}
+	return spanner.NumericString(r), nil
 }
 
 // convTimestamp maps a source DB timestamp into a go Time Spanner timestamp
