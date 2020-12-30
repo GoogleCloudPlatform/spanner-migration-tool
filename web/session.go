@@ -84,6 +84,7 @@ func resumeSession(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 	sessionJSON, _ := ioutil.ReadAll(f)
+	app.conv = nil
 	json.Unmarshal(sessionJSON, &app.conv)
 	app.driver = s.Driver
 	w.WriteHeader(http.StatusOK)
