@@ -81,6 +81,16 @@ func SchemaConv(driver string, ioHelper *IOStreams, schemaSampleSize int64) (*in
 	}
 }
 
+// Check if schema contains interleaved tables.
+func checkInterleaved(conv *internal.Conv) bool {
+	for _, table := range conv.SpSchema {
+		if table.Parent != "" {
+			return true
+		}
+	}
+	return false
+}
+
 func DataConv(driver string, ioHelper *IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*spanner.BatchWriter, error) {
 	config := spanner.BatchWriterConfig{
 		BytesLimit: 100 * 1000 * 1000,
@@ -92,6 +102,9 @@ func DataConv(driver string, ioHelper *IOStreams, client *sp.Client, conv *inter
 	case POSTGRES, MYSQL:
 		return dataFromSQL(driver, config, client, conv)
 	case PGDUMP, MYSQLDUMP:
+		if checkInterleaved(conv) {
+			return nil, fmt.Errorf("Schema contains interleaved tables")
+		}
 		return dataFromDump(driver, config, ioHelper, client, conv, dataOnly)
 	case DYNAMODB:
 		return dataFromDynamoDB(config, client, conv)

@@ -58,7 +58,7 @@ func init() {
 	flag.BoolVar(&schemaOnly, "schema-only", false, "schema-only: in this mode we do schema conversion, but skip data conversion")
 	flag.BoolVar(&dataOnly, "data-only", false, "data-only: in this mode we skip schema conversion and just do data conversion (use the session flag to specify the session file for schema and data mapping)")
 	flag.StringVar(&sessionJSON, "session", "", "session: specifies the file we restore session state from (used in schema-only to provide schema and data mapping)")
-	flag.BoolVar(&webapi, "web", false, "web: run the web interface")
+	flag.BoolVar(&webapi, "web", false, "web: run the web interface (experimental)")
 }
 
 func usage() {

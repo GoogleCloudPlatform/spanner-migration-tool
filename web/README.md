@@ -1,11 +1,11 @@
 <!-- Work in progress -->
 
-# HarbourBridge: Web APIs
+# HarbourBridge: Web APIs (Experimental)
 
 HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation,
 using data from an existing PostgreSQL or MySQL database. This README provides
 details of the tool's Web APIs capabilities. For general HarbourBridge information
-see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbourbridge-turnkey-spanner-evaluation).
+see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbourbridge-turnkey-spanner-evaluation). Note that this feature is experimental, and should not be used for production database.
 
 ### Starting web server for HarbourBridge
 
@@ -126,3 +126,5 @@ This API takes following as request body:
 ### Interleave tables
 
 `/checkinterleave/table?table=<table_name>` is a GET API which checks it it is possible to convert this table into interleaved table in spanner, if it is possible it converts and returns parent table name, otherwise it returns failure message.
+
+**Note: Data migration is not allowed when using with `pg_dump` or `mysqldump` driver if the schema contains interleaved tables. We recommend you use `postgres` or `mysql` driver if you are interested in data migration with schema having interleaved tables. **
