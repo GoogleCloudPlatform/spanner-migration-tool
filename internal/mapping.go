@@ -17,6 +17,9 @@ package internal
 import (
 	"fmt"
 	"strconv"
+	"strings"
+
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
 // GetSpannerTable maps a source DB table name into a legal Spanner table
@@ -163,4 +166,61 @@ func GetSpannerKeyName(srcKeyName string, schemaForeignKeys map[string]bool) str
 	}
 	schemaForeignKeys[spKeyName] = true
 	return spKeyName
+}
+
+func findTableLowerCase(referTable string, conv *Conv) string {
+	for table, _ := range conv.SpSchema {
+		if strings.ToLower(table) == strings.ToLower(referTable) {
+			return table
+		}
+	}
+	return referTable
+}
+
+func findColumnLowerCase(referTable string, refCol string, conv *Conv) string {
+	for _, column := range conv.SpSchema[referTable].ColNames {
+		if strings.ToLower(column) == strings.ToLower(refCol) {
+			return column
+		}
+	}
+	return refCol
+}
+
+func CheckCaseSensitiveReferences(conv *Conv) {
+	for table, spTable := range conv.SpSchema {
+		fks := spTable.Fks
+		spTable.Fks = nil
+		conv.SpSchema[table] = spTable
+		var spKeys []ddl.Foreignkey
+		for _, fk := range fks {
+			var referCols []string
+			if _, found := conv.SpSchema[fk.ReferTable]; !found {
+				fk.ReferTable = findTableLowerCase(fk.ReferTable, conv)
+				if _, found := conv.SpSchema[fk.ReferTable]; !found {
+					conv.Unexpected(fmt.Sprintf("Can't map foreign key for source table: %s, referenced table: %s", table, fk.ReferTable))
+					continue
+				}
+			}
+			for _, refCol := range fk.ReferColumns {
+				if _, found := conv.SpSchema[fk.ReferTable].ColDefs[refCol]; !found {
+					correctRefCol := findColumnLowerCase(fk.ReferTable, refCol, conv)
+					if _, found := conv.SpSchema[fk.ReferTable].ColDefs[correctRefCol]; !found {
+						conv.Unexpected(fmt.Sprintf("Can't map foreign key for source table: %s, referenced table: %s", table, fk.ReferTable))
+						continue
+					}
+					referCols = append(referCols, correctRefCol)
+				} else {
+					referCols = append(referCols, refCol)
+				}
+			}
+			if len(referCols) != len(fk.Columns) {
+				conv.Unexpected(fmt.Sprintf("Can't map foreign key for source table: %s, referenced table: %s", table, fk.ReferTable))
+				continue
+			}
+			fk.ReferColumns = referCols
+			spKeys = append(spKeys, fk)
+		}
+		spTable.Fks = spKeys
+		conv.SpSchema[table] = spTable
+	}
 }
