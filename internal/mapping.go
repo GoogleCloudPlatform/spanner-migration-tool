@@ -172,7 +172,7 @@ func GetSpannerKeyName(srcKeyName string, schemaForeignKeys map[string]bool) str
 // in the Spanner Schema. Note: Spanner requires that DDL references match
 // the case of the referenced object, but this is not so for many source databases.
 //
-// TODO: expand ResolveRefs to primary keys and indexes.
+// TODO: Expand ResolveRefs to primary keys and indexes.
 func ResolveRefs(conv *Conv) {
 	for table, spTable := range conv.SpSchema {
 		spTable.Fks = resolveFks(conv, table, spTable.Fks)
@@ -182,7 +182,8 @@ func ResolveRefs(conv *Conv) {
 
 // resolveFks returns resolved version of fks.
 // Foreign key constraints that can't be resolved are dropped.
-func resolveFks(conv *Conv, table string, fks []ddl.Foreignkey) (resolved []ddl.Foreignkey) {
+func resolveFks(conv *Conv, table string, fks []ddl.Foreignkey) []ddl.Foreignkey {
+	var resolved []ddl.Foreignkey
 	for _, fk := range fks {
 		var err error
 		fk.Columns, err = resolveColRefs(conv, table, fk.Columns)
@@ -211,7 +212,7 @@ func resolveTableRef(conv *Conv, tableRef string) (string, error) {
 	}
 	// Do case-insensitive search for tableRef.
 	tr := strings.ToLower(tableRef)
-	for t, _ := range conv.SpSchema {
+	for t := range conv.SpSchema {
 		if strings.ToLower(t) == tr {
 			return t, nil
 		}
