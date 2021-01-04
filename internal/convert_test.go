@@ -15,7 +15,6 @@
 package internal
 
 import (
-	"strings"
 	"testing"
 
 	pg_query "github.com/lfittl/pg_query_go"
@@ -53,7 +52,7 @@ func TestGetDDL(t *testing.T) {
 			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}},
 		},
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
-		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"b"}, ReferTable: "ref_table1", ReferColumns: []string{"ref_c"}}},
+		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"b"}, ReferTable: "ref_table1", ReferColumns: []string{"ref_b"}}},
 	}
 	conv.SpSchema["table2"] = ddl.CreateTable{
 		Name:     "table2",
@@ -66,31 +65,25 @@ func TestGetDDL(t *testing.T) {
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
 		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk2", Columns: []string{"b", "c"}, ReferTable: "ref_table2", ReferColumns: []string{"ref_b", "ref_c"}}}}
 	tables := conv.GetDDL(ddl.Config{Tables: true, ForeignKeys: false})
-	normalize := func(l []string) (nl []string) {
-		for _, s := range l {
-			nl = append(nl, strings.Join(strings.Fields(s), " "))
-		}
-		return nl
-	}
 	e := []string{
-		"CREATE TABLE table1 ( a INT64, b INT64 ) PRIMARY KEY (a)",
-		"CREATE TABLE table2 ( a INT64, b INT64, c INT64 ) PRIMARY KEY (a)",
+		"CREATE TABLE table1 (\n    a INT64,\n    b INT64 \n) PRIMARY KEY (a)",
+		"CREATE TABLE table2 (\n    a INT64,\n    b INT64,\n    c INT64 \n) PRIMARY KEY (a)",
 	}
-	assert.ElementsMatch(t, normalize(e), normalize(tables))
+	assert.ElementsMatch(t, e, tables)
 	fks := conv.GetDDL(ddl.Config{Tables: false, ForeignKeys: true})
 	e2 := []string{
-		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_c)",
+		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_b)",
 		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES ref_table2 (ref_b, ref_c)",
 	}
-	assert.ElementsMatch(t, normalize(e2), normalize(fks))
+	assert.ElementsMatch(t, e2, fks)
 	tablesAndFks := conv.GetDDL(ddl.Config{Tables: true, ForeignKeys: true})
 	e3 := []string{
-		"CREATE TABLE table1 ( a INT64, b INT64 ) PRIMARY KEY (a)",
-		"CREATE TABLE table2 ( a INT64, b INT64, c INT64 ) PRIMARY KEY (a)",
-		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_c)",
+		"CREATE TABLE table1 (\n    a INT64,\n    b INT64 \n) PRIMARY KEY (a)",
+		"CREATE TABLE table2 (\n    a INT64,\n    b INT64,\n    c INT64 \n) PRIMARY KEY (a)",
+		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_b)",
 		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES ref_table2 (ref_b, ref_c)",
 	}
-	assert.ElementsMatch(t, normalize(e3), normalize(tablesAndFks))
+	assert.ElementsMatch(t, e3, tablesAndFks)
 }
 
 func TestRows(t *testing.T) {

@@ -170,6 +170,7 @@ func (conv *Conv) SetDataMode() {
 
 // GetDDL Schema returns the Spanner schema that has been constructed so far.
 // Return DDL in alphabetical table order.
+// TODO: Move GetDDL function to ddl/ast.go.
 func (conv *Conv) GetDDL(c ddl.Config) []string {
 	var tables []string
 	for t := range conv.SpSchema {

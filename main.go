@@ -600,6 +600,10 @@ func updateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv,
 	msg := fmt.Sprintf("Updating schema of database %s in instance %s with foreign key constraints ...", dbName, instance)
 	p := internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose())
 	for i, fkStmt := range fkStmts {
+		// TODO: Improve performance of the foreign key constraint updates.
+		// For example, issue all of the update ops first before waiting for them to complete
+		// so that that can execute in parallel. We could also print out ids of the
+		// long-running operations.
 		op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 			Database:   fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName),
 			Statements: []string{fkStmt},
