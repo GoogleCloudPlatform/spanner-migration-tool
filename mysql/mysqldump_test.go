@@ -658,7 +658,7 @@ func TestProcessMySQLDump_GetDDL(t *testing.T) {
 		"userid STRING(MAX) NOT NULL,\n" +
 		"quantity INT64\n" +
 		") PRIMARY KEY (productid, userid)"
-	c := ddl.Config{}
+	c := ddl.Config{Tables: true}
 	// normalizeSpace isn't perfect, but it handles most of the
 	// usual discretionary space issues.
 	assert.Equal(t, normalizeSpace(expected), normalizeSpace(strings.Join(conv.GetDDL(c), " ")))

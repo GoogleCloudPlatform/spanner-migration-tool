@@ -601,7 +601,7 @@ func TestProcessPgDump_GetDDL(t *testing.T) {
 		") PRIMARY KEY (productid, userid)"
 	// normalizeSpace isn't perfect, but it handles most of the
 	// usual discretionary space issues.
-	c := ddl.Config{}
+	c := ddl.Config{Tables: true}
 	assert.Equal(t, normalizeSpace(expected), normalizeSpace(strings.Join(conv.GetDDL(c), " ")))
 }
 

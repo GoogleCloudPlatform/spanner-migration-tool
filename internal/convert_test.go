@@ -50,37 +50,6 @@ func TestGetDDL(t *testing.T) {
 		ColNames: []string{"a", "b"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-		},
-		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}}
-	conv.SpSchema["table2"] = ddl.CreateTable{
-		Name:     "table2",
-		ColNames: []string{"a"},
-		ColDefs: map[string]ddl.ColumnDef{
-			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-		},
-		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}}
-	ddl := conv.GetDDL(ddl.Config{})
-	normalize := func(l []string) (nl []string) {
-		for _, s := range l {
-			nl = append(nl, strings.Join(strings.Fields(s), " "))
-		}
-		return nl
-	}
-	e := []string{
-		"CREATE TABLE table1 ( a INT64, b FLOAT64 ) PRIMARY KEY (a)",
-		"CREATE TABLE table2 ( a INT64 ) PRIMARY KEY (a)",
-	}
-	assert.ElementsMatch(t, normalize(e), normalize(ddl))
-}
-
-func TestGetFK(t *testing.T) {
-	conv := MakeConv()
-	conv.SpSchema["table1"] = ddl.CreateTable{
-		Name:     "table1",
-		ColNames: []string{"a", "b"},
-		ColDefs: map[string]ddl.ColumnDef{
-			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
 			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}},
 		},
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
@@ -95,9 +64,8 @@ func TestGetFK(t *testing.T) {
 			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
 		},
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
-		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk2", Columns: []string{"b", "c"}, ReferTable: "ref_table2", ReferColumns: []string{"ref_b", "ref_c"}}},
-	}
-	ddl := conv.GetFK(ddl.Config{ForeignKeys: true})
+		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk2", Columns: []string{"b", "c"}, ReferTable: "ref_table2", ReferColumns: []string{"ref_b", "ref_c"}}}}
+	tables := conv.GetDDL(ddl.Config{Tables: true, ForeignKeys: false})
 	normalize := func(l []string) (nl []string) {
 		for _, s := range l {
 			nl = append(nl, strings.Join(strings.Fields(s), " "))
@@ -105,10 +73,24 @@ func TestGetFK(t *testing.T) {
 		return nl
 	}
 	e := []string{
+		"CREATE TABLE table1 ( a INT64, b INT64 ) PRIMARY KEY (a)",
+		"CREATE TABLE table2 ( a INT64, b INT64, c INT64 ) PRIMARY KEY (a)",
+	}
+	assert.ElementsMatch(t, normalize(e), normalize(tables))
+	fks := conv.GetDDL(ddl.Config{Tables: false, ForeignKeys: true})
+	e2 := []string{
 		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_c)",
 		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES ref_table2 (ref_b, ref_c)",
 	}
-	assert.ElementsMatch(t, normalize(e), normalize(ddl))
+	assert.ElementsMatch(t, normalize(e2), normalize(fks))
+	tablesAndFks := conv.GetDDL(ddl.Config{Tables: true, ForeignKeys: true})
+	e3 := []string{
+		"CREATE TABLE table1 ( a INT64, b INT64 ) PRIMARY KEY (a)",
+		"CREATE TABLE table2 ( a INT64, b INT64, c INT64 ) PRIMARY KEY (a)",
+		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_c)",
+		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES ref_table2 (ref_b, ref_c)",
+	}
+	assert.ElementsMatch(t, normalize(e3), normalize(tablesAndFks))
 }
 
 func TestRows(t *testing.T) {

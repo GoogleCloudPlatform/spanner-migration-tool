@@ -177,8 +177,10 @@ func (conv *Conv) GetDDL(c ddl.Config) []string {
 	}
 	sort.Strings(tables)
 	var ddl []string
-	for _, t := range tables {
-		ddl = append(ddl, conv.SpSchema[t].PrintCreateTable(c))
+	if c.Tables {
+		for _, t := range tables {
+			ddl = append(ddl, conv.SpSchema[t].PrintCreateTable(c))
+		}
 	}
 
 	// Append foreign key constraints to DDL.
@@ -192,29 +194,6 @@ func (conv *Conv) GetDDL(c ddl.Config) []string {
 			for _, fk := range conv.SpSchema[t].Fks {
 				ddl = append(ddl, fk.PrintForeignKeyAlterTable(c, t))
 			}
-		}
-	}
-	return ddl
-}
-
-// GetFK returns the list of ALTER TABLE statements for adding
-// foreign key constraints.
-func (conv *Conv) GetFK(c ddl.Config) []string {
-	var tables []string
-	for t := range conv.SpSchema {
-		tables = append(tables, t)
-	}
-	sort.Strings(tables)
-	var ddl []string
-	// Append foreign key constraints to DDL.
-	// We always use alter table statements for foreign key constraints.
-	// The alternative of putting foreign key constraints in-line as part of create
-	// table statements is tricky because of table order (need to define tables
-	// before they are referenced by foreign key constraints) and the possibility
-	// of circular foreign keys definitions. We opt for simplicity.
-	for _, t := range tables {
-		for _, fk := range conv.SpSchema[t].Fks {
-			ddl = append(ddl, fk.PrintForeignKeyAlterTable(c, t))
 		}
 	}
 	return ddl
