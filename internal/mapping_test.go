@@ -121,7 +121,7 @@ func TestGetSpannerKeyName(t *testing.T) {
 	}
 }
 
-func TestCheckCaseSensitiveReferences(t *testing.T) {
+func TestResolveRefs(t *testing.T) {
 	basicTests := []struct {
 		name             string                     // Name of test.
 		spSchema         map[string]ddl.CreateTable // Spanner schema.
@@ -294,7 +294,7 @@ func TestCheckCaseSensitiveReferences(t *testing.T) {
 	for _, tc := range basicTests {
 		conv := MakeConv()
 		conv.SpSchema = tc.spSchema
-		CheckCaseSensitiveReferences(conv)
+		ResolveRefs(conv)
 		assert.Equal(t, tc.expectedSpSchema, conv.SpSchema, tc.name)
 		assert.Equal(t, tc.unexpecteds, conv.Unexpecteds())
 		conv = nil

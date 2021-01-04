@@ -86,7 +86,7 @@ func schemaToDDL(conv *internal.Conv) error {
 			Fks:      cvtForeignKeys(conv, srcTable.Name, srcTable.ForeignKeys, schemaForeignKeys),
 			Comment:  comment}
 	}
-	internal.CheckCaseSensitiveReferences(conv)
+	internal.ResolveRefs(conv)
 	return nil
 }
 
