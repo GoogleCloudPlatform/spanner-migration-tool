@@ -11,10 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
+
 // Package conversion handles initial setup for the command line tool
 // and web APIs.
-
+// TODO: Organize code in go style format to make this file more readable.
 package conversion
 
 import (
@@ -103,7 +103,7 @@ func DataConv(driver string, ioHelper *IOStreams, client *sp.Client, conv *inter
 		return dataFromSQL(driver, config, client, conv)
 	case PGDUMP, MYSQLDUMP:
 		if checkInterleaved(conv) {
-			return nil, fmt.Errorf("Schema contains interleaved tables")
+			return nil, fmt.Errorf("HarbourBridge does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql.")
 		}
 		return dataFromDump(driver, config, ioHelper, client, conv, dataOnly)
 	case DYNAMODB:
@@ -335,6 +335,7 @@ func dataFromDump(driver string, config spanner.BatchWriterConfig, ioHelper *IOS
 	return writer, nil
 }
 
+// Report generates a report of schema and data conversion.
 func Report(driver string, badWrites map[string]int64, BytesRead int64, banner string, conv *internal.Conv, reportFileName string, out *os.File) {
 	f, err := os.Create(reportFileName)
 	if err != nil {
@@ -347,7 +348,7 @@ func Report(driver string, badWrites map[string]int64, BytesRead int64, banner s
 	w := bufio.NewWriter(f)
 	w.WriteString(banner)
 
-	summary := internal.GenerateReport(driver, conv, w, badWrites)
+	summary := internal.GenerateReport(driver, conv, w, badWrites, true, true)
 	w.Flush()
 	var isDump bool
 	if strings.Contains(driver, "dump") {
@@ -399,7 +400,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 	return fcopy, n, nil
 }
 
-// createDatabase returns a newly create Spanner DB.
+// CreateDatabase returns a newly create Spanner DB.
 // It automatically determines an appropriate project, selects a
 // Spanner instance to use, generates a new Spanner DB name,
 // and call into the Spanner admin interface to create the new DB.
@@ -430,7 +431,7 @@ func CreateDatabase(project, instance, dbName string, conv *internal.Conv, out *
 	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName), nil
 }
 
-// getProject returns the cloud project we should use for accessing Spanner.
+// GetProject returns the cloud project we should use for accessing Spanner.
 // Use environment variable GCLOUD_PROJECT if it is set.
 // Otherwise, use the default project returned from gcloud.
 func GetProject() (string, error) {
@@ -447,7 +448,7 @@ func GetProject() (string, error) {
 	return project, nil
 }
 
-// getInstance returns the Spanner instance we should use for creating DBs.
+// GetInstance returns the Spanner instance we should use for creating DBs.
 // If the user specified instance (via flag 'instance') then use that.
 // Otherwise try to deduce the instance using gcloud.
 func GetInstance(project string, out *os.File) (string, error) {
@@ -496,6 +497,8 @@ func getInstances(project string) ([]string, error) {
 	return l, nil
 }
 
+// WriteSchemaFile writes DDL statements in a file. It includes CREATE TABLE
+// statements and ALTER TABLE statements to add foreign keys.
 func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.File) {
 	f, err := os.Create(name)
 	if err != nil {
@@ -524,7 +527,8 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 	fmt.Fprintf(out, "Wrote schema to file '%s'.\n", name)
 }
 
-func WriteSessionFile(conv *internal.Conv, now time.Time, name string, out *os.File) {
+// WriteSessionFile writes conv struct to a file in JSON format.
+func WriteSessionFile(conv *internal.Conv, name string, out *os.File) {
 	f, err := os.Create(name)
 	if err != nil {
 		fmt.Fprintf(out, "Can't create session file %s: %v\n", name, err)
@@ -544,7 +548,7 @@ func WriteSessionFile(conv *internal.Conv, now time.Time, name string, out *os.F
 	fmt.Fprintf(out, "Wrote session to file '%s'.\n", name)
 }
 
-// readSessionFile reads a session JSON file and
+// ReadSessionFile reads a session JSON file and
 // unmarshal it's content into *internal.Conv.
 func ReadSessionFile(conv *internal.Conv, sessionJSON string) error {
 	s, err := ioutil.ReadFile(sessionJSON)
@@ -558,7 +562,7 @@ func ReadSessionFile(conv *internal.Conv, sessionJSON string) error {
 	return nil
 }
 
-// writeBadData prints summary stats about bad rows and writes detailed info
+// WriteBadData prints summary stats about bad rows and writes detailed info
 // to file 'name'.
 func WriteBadData(bw *spanner.BatchWriter, conv *internal.Conv, banner, name string, out *os.File) {
 	badConversions := conv.BadRows()
@@ -607,6 +611,7 @@ func WriteBadData(bw *spanner.BatchWriter, conv *internal.Conv, banner, name str
 	fmt.Fprintf(out, "See file '%s' for details of bad rows\n", name)
 }
 
+// GetDatabaseName generates database name with driver_date prefix.
 func GetDatabaseName(driver string, now time.Time) (string, error) {
 	return generateName(fmt.Sprintf("%s_%s", driver, now.Format("2006-01-02")))
 }
@@ -646,6 +651,7 @@ instance for project %s.
 	return err
 }
 
+// PrintPermissionsWarning prints permission warning.
 func PrintPermissionsWarning(driver string, out *os.File) {
 	fmt.Fprintf(out,
 		`
@@ -686,6 +692,7 @@ func generateName(prefix string) (string, error) {
 	return fmt.Sprintf("%s_%x-%x", prefix, b[0:2], b[2:4]), nil
 }
 
+// GetClient returns new spanner client.
 func GetClient(db string) (*sp.Client, error) {
 	ctx := context.Background()
 	return sp.NewClient(ctx, db)
@@ -699,7 +706,7 @@ func getSize(f *os.File) (int64, error) {
 	return info.Size(), nil
 }
 
-// setupLogfile configures the file used for logs.
+// SetupLogFile configures the file used for logs.
 // By default we just drop logs on the floor. To enable them (e.g. to debug
 // Cloud Spanner client library issues), set logfile to a non-empty filename.
 // Note: this tool itself doesn't generate logs, but some of the libraries it
@@ -720,6 +727,7 @@ func SetupLogFile() (*os.File, error) {
 	return f, nil
 }
 
+// Close closes file.
 func Close(f *os.File) {
 	if f != nil {
 		f.Close()
@@ -734,6 +742,7 @@ func sum(m map[string]int64) int64 {
 	return n
 }
 
+// GetBanner prints banner message after command line process is finished.
 func GetBanner(now time.Time, db string) string {
 	return fmt.Sprintf("Generated at %s for db %s\n\n", now.Format("2006-01-02 15:04:05"), db)
 }

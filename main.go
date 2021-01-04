@@ -158,7 +158,7 @@ func commandLine(driver, projectID, instanceID, dbName string, ioHelper *convers
 		}
 
 		conversion.WriteSchemaFile(conv, now, outputFilePrefix+schemaFile, ioHelper.Out)
-		conversion.WriteSessionFile(conv, now, outputFilePrefix+sessionFile, ioHelper.Out)
+		conversion.WriteSessionFile(conv, outputFilePrefix+sessionFile, ioHelper.Out)
 		if schemaOnly {
 			conversion.Report(driver, nil, ioHelper.BytesRead, "", conv, outputFilePrefix+reportFile, ioHelper.Out)
 			return nil

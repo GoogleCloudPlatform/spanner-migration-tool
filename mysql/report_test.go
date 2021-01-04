@@ -60,7 +60,7 @@ func TestReport(t *testing.T) {
 	conv.Stats.Unexpected["Testing unexpected messages"] = 5
 	buf := new(bytes.Buffer)
 	w := bufio.NewWriter(buf)
-	internal.GenerateReport("mysqldump", conv, w, badWrites)
+	internal.GenerateReport("mysqldump", conv, w, badWrites, true, true)
 	w.Flush()
 	// Print copy of report to stdout (shows up when running go test -v).
 	fmt.Print(buf.String())

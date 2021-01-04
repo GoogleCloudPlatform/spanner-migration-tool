@@ -26,7 +26,7 @@ import (
 
 // GenerateReport analyzes schema and data conversion stats and writes a
 // detailed report to w and returns a brief summary (as a string).
-func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites map[string]int64) string {
+func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites map[string]int64, printTableReports bool, printUnexpecteds bool) string {
 	reports := AnalyzeTables(conv, badWrites)
 	summary := GenerateSummary(conv, reports, badWrites)
 	writeHeading(w, "Summary of Conversion")
@@ -56,23 +56,27 @@ func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites ma
 	if isDump {
 		writeStmtStats(driverName, conv, w)
 	}
-	for _, t := range reports {
-		h := fmt.Sprintf("Table %s", t.SrcTable)
-		if t.SrcTable != t.SpTable {
-			h = h + fmt.Sprintf(" (mapped to Spanner table %s)", t.SpTable)
-		}
-		writeHeading(w, h)
-		w.WriteString(rateConversion(t.rows, t.badRows, t.Cols, t.Warnings, t.SyntheticPKey != "", false, conv.SchemaMode()))
-		w.WriteString("\n")
-		for _, x := range t.Body {
-			fmt.Fprintf(w, "%s\n", x.Heading)
-			for i, l := range x.Lines {
-				justifyLines(w, fmt.Sprintf("%d) %s.\n", i+1, l), 80, 3)
+	if printTableReports {
+		for _, t := range reports {
+			h := fmt.Sprintf("Table %s", t.SrcTable)
+			if t.SrcTable != t.SpTable {
+				h = h + fmt.Sprintf(" (mapped to Spanner table %s)", t.SpTable)
 			}
+			writeHeading(w, h)
+			w.WriteString(rateConversion(t.rows, t.badRows, t.Cols, t.Warnings, t.SyntheticPKey != "", false, conv.SchemaMode()))
 			w.WriteString("\n")
+			for _, x := range t.Body {
+				fmt.Fprintf(w, "%s\n", x.Heading)
+				for i, l := range x.Lines {
+					justifyLines(w, fmt.Sprintf("%d) %s.\n", i+1, l), 80, 3)
+				}
+				w.WriteString("\n")
+			}
 		}
 	}
-	writeUnexpectedConditions(driverName, conv, w)
+	if printUnexpecteds {
+		writeUnexpectedConditions(driverName, conv, w)
+	}
 	return summary
 }
 

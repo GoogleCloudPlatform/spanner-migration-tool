@@ -11,14 +11,15 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
+
 // Package web defines web APIs to be used with harbourbridge frontend.
 // Apart from schema conversion, this package involves API to update
 // converted schema.
-
 package web
 
 import (
+	"bufio"
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -31,7 +32,6 @@ import (
 	"strings"
 	"time"
 
-	//"harbourbridge-web/models"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/mysql"
@@ -128,6 +128,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
 	}
+	app.conv = nil
 	app.conv = conv
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(conv)
@@ -161,6 +162,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
 	}
+	app.conv = nil
 	app.conv = conv
 	app.driver = dc.Driver
 	w.WriteHeader(http.StatusOK)
@@ -199,119 +201,45 @@ func getSummary(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(summary)
 }
-func writeHeading(s string) string {
-	return strings.Join([]string{
-		"----------------------------\n",
-		s, "\n",
-		"----------------------------\n"}, "")
-}
-func writeStmtStats(driverName string, conv *internal.Conv) string {
-	stmtstats := ""
-	type stat struct {
-		statement string
-		count     int64
-	}
-	var l []stat
-	for s, x := range conv.Stats.Statement {
-		l = append(l, stat{s, x.Schema + x.Data + x.Skip + x.Error})
-	}
-	// Sort by alphabetical order of statements.
-	sort.Slice(l, func(i, j int) bool {
-		return l[i].statement < l[j].statement
-	})
-	stmtstats = stmtstats + writeHeading("Statements Processed")
-	stmtstats = stmtstats + "Analysis of statements in " + driverName + " output, broken down by statement type.\n"
-	stmtstats = stmtstats + "  schema: statements successfully processed for Spanner schema information.\n"
-	stmtstats = stmtstats + "    data: statements successfully processed for data.\n"
-	stmtstats = stmtstats + "    skip: statements not relevant for Spanner schema or data.\n"
-	stmtstats = stmtstats + "   error: statements that could not be processed.\n"
-	stmtstats = stmtstats + "  --------------------------------------\n"
-	stmtstats = stmtstats + fmt.Sprintf("  %6s %6s %6s %6s  %s\n", "schema", "data", "skip", "error", "statement")
-	stmtstats = stmtstats + "  --------------------------------------\n"
-	for _, x := range l {
-		s := conv.Stats.Statement[x.statement]
-		stmtstats = stmtstats + fmt.Sprintf("  %6d %6d %6d %6d  %s\n", s.Schema, s.Data, s.Skip, s.Error, x.statement)
-	}
-	if driverName == "pg_dump" {
-		stmtstats = stmtstats + "See github.com/lfittl/pg_query_go/nodes for definitions of statement types\n"
-		stmtstats = stmtstats + "(lfittl/pg_query_go is the library we use for parsing pg_dump output).\n"
-		stmtstats = stmtstats + "\n"
-	} else if driverName == "mysqldump" {
-		stmtstats = stmtstats + "See https://github.com/pingcap/parser for definitions of statement types\n"
-		stmtstats = stmtstats + "(pingcap/parser is the library we use for parsing mysqldump output).\n"
-		stmtstats = stmtstats + "\n"
-	}
-	return stmtstats
-}
+
 func getOverview(w http.ResponseWriter, r *http.Request) {
-	reports := internal.AnalyzeTables(app.conv, nil)
-	summary := internal.GenerateSummary(app.conv, reports, nil)
-	overview := writeHeading("Summary of Conversion")
-	overview = overview + summary + "\n"
-	ignored := internal.IgnoredStatements(app.conv)
-	if len(ignored) > 0 {
-		overview = overview + fmt.Sprintf("Note that the following source DB statements "+
-			"were detected but ignored: %s.\n\n",
-			strings.Join(ignored, ", "))
-	}
-	statementsMsg := ""
-	var isDump bool
-	if strings.Contains(app.driver, "dump") {
-		isDump = true
-	}
-	if isDump {
-		statementsMsg = "stats on the " + app.driver + " statements processed, followed by "
-	}
-	overview = overview + "The remainder of this report provides " + statementsMsg +
-		"a table-by-table listing of schema and data conversion details. " +
-		"For background on the schema and data conversion process used, " +
-		"and explanations of the terms and notes used in this " +
-		"report, see HarbourBridge's README.\n\n"
-	if isDump {
-		overview = overview + writeStmtStats(app.driver, app.conv)
-	}
+	var buf bytes.Buffer
+	bufWriter := bufio.NewWriter(&buf)
+	internal.GenerateReport(app.driver, app.conv, bufWriter, nil, false, false)
+	bufWriter.Flush()
+	overview := buf.String()
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(overview)
 }
-
-type severity int
-
-const (
-	warning severity = iota
-	note
-)
 
 func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	if app.conv == nil || app.driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), http.StatusNotFound)
 		return
 	}
-	var editTypeMap map[string][]typeIssue
+	var typeMap map[string][]typeIssue
 	switch app.driver {
 	case "mysql", "mysqldump":
-		editTypeMap = mysqlTypeMap
+		typeMap = mysqlTypeMap
 	case "postgres", "pg_dump":
-		editTypeMap = postgresTypeMap
+		typeMap = postgresTypeMap
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), http.StatusBadRequest)
 		return
 	}
-	// Return a list of type-mapping for only the data-types
-	// that are used in source schema.
-	typeMap := make(map[string][]typeIssue)
+	// Filter typeMap so it contains just the types SrcSchema uses.
+	filteredTypeMap := make(map[string][]typeIssue)
 	for _, srcTable := range app.conv.SrcSchema {
 		for _, colDef := range srcTable.ColDefs {
-			if _, ok := typeMap[colDef.Type.Name]; ok {
+			if _, ok := filteredTypeMap[colDef.Type.Name]; ok {
 				continue
 			}
-			typeMap[colDef.Type.Name] = editTypeMap[colDef.Type.Name]
+			filteredTypeMap[colDef.Type.Name] = typeMap[colDef.Type.Name]
 		}
 	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(typeMap)
+	json.NewEncoder(w).Encode(filteredTypeMap)
 }
-
-type setT map[string]string
 
 func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -319,7 +247,7 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
-	var t setT
+	var t map[string]string
 	err = json.Unmarshal(reqBody, &t)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
@@ -358,11 +286,11 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 						app.conv.Issues[sourceTable][srcCol.Name] = issues
 					}
 					ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
-					tempSpSchema := app.conv.SpSchema[k]
-					tempColDef := tempSpSchema.ColDefs[kk]
-					tempColDef.T = ty
-					tempSpSchema.ColDefs[kk] = tempColDef
-					app.conv.SpSchema[k] = tempSpSchema
+					spSchema := app.conv.SpSchema[k]
+					colDef := spSchema.ColDefs[kk]
+					colDef.T = ty
+					spSchema.ColDefs[kk] = colDef
+					app.conv.SpSchema[k] = spSchema
 				}
 			}
 		}
@@ -573,6 +501,8 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 }
 
 func rateSchema(cols, warnings int64, missingPKey bool) string {
+	good := func(total, badCount int64) bool { return badCount < total/20 }
+	ok := func(total, badCount int64) bool { return badCount < total/3 }
 	switch {
 	case cols == 0:
 		return "GRAY"
@@ -593,13 +523,6 @@ func rateSchema(cols, warnings int64, missingPKey bool) string {
 	default:
 		return "RED"
 	}
-}
-func good(total, badCount int64) bool {
-	return badCount < total/20
-}
-
-func ok(total, badCount int64) bool {
-	return badCount < total/3
 }
 func getConversionRate(w http.ResponseWriter, r *http.Request) {
 	reports := internal.AnalyzeTables(app.conv, nil)

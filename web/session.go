@@ -23,18 +23,19 @@ import (
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
 
-// Metadata of session file, which contains app.conv in
+// Metadata of session file, which contains internal.Conv struct in
 // JSON format.
-type Session struct {
+type session struct {
 	Driver    string    `json:"driver"`
 	FilePath  string    `json:"path"`
 	FileName  string    `json:"fileName"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-func getSession(w http.ResponseWriter, r *http.Request) {
+func createSession(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	dbName, err := conversion.GetDatabaseName(app.driver, now)
 	if err != nil {
@@ -44,23 +45,9 @@ func getSession(w http.ResponseWriter, r *http.Request) {
 	sessionFile := ".session.json"
 	filePath := "frontend/"
 	out := os.Stdout
-	f, err := os.Create(filePath + dbName + sessionFile)
-	if err != nil {
-		fmt.Fprintf(out, "Can't create session file %s: %v\n", dbName+sessionFile, err)
-		return
-	}
-	// Session file will basically contain 'conv' struct in JSON format.
-	// It contains all the information for schema and data conversion state.
-	convJSON, err := json.MarshalIndent(app.conv, "", " ")
-	if err != nil {
-		fmt.Fprintf(out, "Can't encode session state to JSON: %v\n", err)
-		return
-	}
-	if _, err := f.Write(convJSON); err != nil {
-		fmt.Fprintf(out, "Can't write out session file: %v\n", err)
-		return
-	}
-	session := Session{Driver: app.driver, FilePath: filePath, FileName: dbName + sessionFile, CreatedAt: now}
+	fileName := filePath + dbName + sessionFile
+	conversion.WriteSessionFile(app.conv, fileName, out)
+	session := session{Driver: app.driver, FilePath: filePath, FileName: dbName + sessionFile, CreatedAt: now}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(session)
 }
@@ -71,21 +58,18 @@ func resumeSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
-	var s Session
+	var s session
 	err = json.Unmarshal(reqBody, &s)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	f, err := os.Open(s.FilePath + s.FileName)
+	app.conv = internal.MakeConv()
+	err = conversion.ReadSessionFile(app.conv, s.FilePath+s.FileName)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to open the session file: %v", err), http.StatusNotFound)
 		return
 	}
-	defer f.Close()
-	sessionJSON, _ := ioutil.ReadAll(f)
-	app.conv = nil
-	json.Unmarshal(sessionJSON, &app.conv)
 	app.driver = s.Driver
 	w.WriteHeader(http.StatusOK)
 }

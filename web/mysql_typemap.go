@@ -19,6 +19,15 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
+// toSpannerTypeMySQL defines the mapping of source types into Spanner
+// types. Each source type has a default Spanner type, as well as other potential
+// Spanner types it could map to. When calling toSpannerTypeMySQL, you specify
+// the source type name (along with any modifiers), and optionally you specify
+// a target Spanner type name (empty string if you don't have one). If the target
+// Spanner type name is specified and is a potential mapping for this source type,
+// then it will be used to build the returned ddl.Type. If not, the default
+// Spanner type for this source type will be used.
+// Note that toSpannerTypeMySQL is extensively tested via tests in web_test.go.
 func toSpannerTypeMySQL(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
 	switch srcType {
 	case "bool", "boolean":
