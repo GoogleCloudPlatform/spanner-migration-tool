@@ -186,18 +186,15 @@ func resolveFks(conv *Conv, table string, fks []ddl.Foreignkey) []ddl.Foreignkey
 	var resolved []ddl.Foreignkey
 	for _, fk := range fks {
 		var err error
-		fk.Columns, err = resolveColRefs(conv, table, fk.Columns)
-		if err != nil {
+		if fk.Columns, err = resolveColRefs(conv, table, fk.Columns); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't resolve Columns in foreign key constraint: %s", err))
 			continue
 		}
-		fk.ReferTable, err = resolveTableRef(conv, fk.ReferTable)
-		if err != nil {
+		if fk.ReferTable, err = resolveTableRef(conv, fk.ReferTable); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't resolve ReferTable in foreign key constraint: %s", err))
 			continue
 		}
-		fk.ReferColumns, err = resolveColRefs(conv, fk.ReferTable, fk.ReferColumns)
-		if err != nil {
+		if fk.ReferColumns, err = resolveColRefs(conv, fk.ReferTable, fk.ReferColumns); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't resolve ReferColumns in foreign key constraint: %s", err))
 			continue
 		}
