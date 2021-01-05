@@ -10,26 +10,15 @@ a:hover{
     color: inherit;
 }
 
-.tooltip-inner {
-    background-color: #b9b9b9;
-    border-radius: .30rem;
-    border: 0px;
-}
-.tooltip .arrow::before{
-    border-top-color:#b9b9b9;
-    border-bottom-color: rgb(185 185 185 / 90%);
-}
-
 #upload{display:none}
-#upload_link{text-decoration: underline;color: #4285f4; margin-left: -81px;}
+#upload_link{text-decoration: underline;color: #4285F4; margin-left: -81px;}
 .btn:focus{box-shadow: none !important;}
 nav.navbar.navbar-static-top{padding: 0px !important;}
 .navbar, .navbar:hover, .navbar:active, .navbar:visited, .navbar:focus {text-decoration: none;}
 .hide-content{display: none;}
     
-
 header.main-header {
-    color: black;
+    color: #000000;
     position: fixed;
     top: 0;
     height: 60px;
@@ -48,7 +37,6 @@ header.main-header a:hover {
 .welcome-heading {
     font-size: 32px;
     font-weight: 600;
-    /* padding-top: 20px; */
 }
 
 .session-heading{
@@ -74,7 +62,7 @@ header.main-header a:hover {
 }
 
 .connect-opt-cls{
-    color: grey;
+    color: #808080;
     font-size: 24px;
     font-weight: 600;
     text-align: center;
@@ -115,7 +103,6 @@ nav.navbar.navbar-static-top {
     margin-top: 32px;
     margin-bottom: 0px;
     width: 845px;
-    /* padding-top: 32px; */
     height: 230px;
 }
 
@@ -175,7 +162,6 @@ nav.navbar.navbar-static-top {
 
 .connect-text{
     font-weight: 500;
-    /* width: 212px; */
     height: 35px;
     font-size: 22px;
     color: #5E5752;
@@ -184,7 +170,6 @@ nav.navbar.navbar-static-top {
 
 .load-text{
     font-weight: 500;
-    /* width: 218px; */
     height: 35px;
     font-size: 22px;
     color: #5E5752;
@@ -202,7 +187,7 @@ nav.navbar.navbar-static-top {
 }
 
 .icon-size{
-    color: blue;
+    color: #0000FF;
     font-size: 70px !important;
     text-align: center;
     vertical-align: middle;
@@ -211,13 +196,13 @@ nav.navbar.navbar-static-top {
 }
 
 .login-icon{
-    color: blue;
+    color: #0000FF;
     font-size: 70px !important;
     padding-bottom: 40px;
 }
 
 .logo{
-    color: #4285f4;
+    color: #4285F4;
     width: 45px;
     margin-top: 8px;
     margin-right: 40px;
@@ -225,33 +210,34 @@ nav.navbar.navbar-static-top {
 }
 
 .session-table {
-    /* padding-top: 28px; */
     width: 100%;
-  }
+}
   
-  .session-table-th {
+.session-table-th {
     height: 50px;
     text-align: center;
     font-size: 20px;
-    /* color: #FDFDFD;
-    background-color: #B9B9B9; */
-  }
-  .session-action{
-    color: #4285f4; font-weight: 600;
-  }
-  .session-table{
+}
+
+.session-action{
+    color: #4285F4; font-weight: 600;
+}
+
+.session-table{
     background: #F2F2F2 0% 0% no-repeat padding-box;
     border-radius: 0px 0px 20px 20px;
     opacity: 1;
-  }
-  .session-table thead th,.session-table tbody td{
-      text-align: center;
-  }
-  .session-table-th2 {
+}
+
+.session-table thead th,.session-table tbody td{
+    text-align: center;
+}
+
+.session-table-th2 {
     font-size: 20px !important;
     color: #FDFDFD !important;
     background-color: #B9B9B9;
-  }
+}
 
 .session-table-td {
     text-align: center;
@@ -264,8 +250,6 @@ nav.navbar.navbar-static-top {
 
 .session-table-td2 {
     font-size: 20px;
-    /* background-color: #DCDCDC4D;
-    color: #222222; */
 }
 
 .dataTypeTable-td{
@@ -275,11 +259,11 @@ nav.navbar.navbar-static-top {
 }
 
 .dataTypeTable-th{
-    color: #ffffff;
+    color: #FFFFFF;
     padding: 10px;
     text-align: center;
     font-size: 12px;
-    background-color: blue;
+    background-color: #0000FF;
 }
 
 .bg-login{
@@ -311,7 +295,7 @@ nav.navbar.navbar-static-top {
 }
 
 .title{
-    color: blue;
+    color: #0000FF;
     font-size: 20px;
     font-weight: bold;
     padding-bottom: 40px;
@@ -337,9 +321,6 @@ nav.navbar.navbar-static-top {
     top: 50%;
     margin-top: -215px;
     width: 545px;
-    /* margin-right: 515px;
-    margin-top: 85px;
-    width: 400px; */
 }
 
 .load-modal-position{
@@ -360,19 +341,19 @@ nav.navbar.navbar-static-top {
 
 .modal-bg{
     font-weight: 600;
-    background-color: #4285f4;
-    color: #ffffff;
+    background-color: #4285F4;
+    color: #FFFFFF;
 }
 
 .success-bg {
     font-weight: 600;
-    background-color: #fff;
+    background-color: #FFFFFF;
     color: #4285F4;
 }
 
 .error-modal-bg{
     background-color: #80808078;
-    color: red;
+    color: #FF0000;
 }
 
 .modal-content .modal-body{
@@ -402,7 +383,7 @@ nav.navbar.navbar-static-top {
 }
 
 .modal-content .modal-header{
-    background-color: #4285f4;
+    background-color: #4285F4;
     padding-top: 6px;
     padding-bottom: 6px;
     padding-left: 24px;
@@ -410,7 +391,7 @@ nav.navbar.navbar-static-top {
 }
 
 .success-modal-header {
-    background-color: #fff !important;
+    background-color: #FFFFFF !important;
     border-top: 2px solid #4285F4 !important;
     border-bottom: 2px solid #4285F4 !important;
 }
@@ -435,7 +416,7 @@ nav.navbar.navbar-static-top {
 
 .modal-footer{
     border-top: none;
-    background-color: #ffffff;
+    background-color: #FFFFFF;
     margin-top: -8px;
 }
 
@@ -443,20 +424,23 @@ select.form-control:not([size]):not([multiple]) {
     height: 36px;
     margin-bottom: 22px;
 }
+
 .custom-file-control, .form-control{
     color: #121213 !important;
 }
+
 .error-modal-position{
     width: 545px;
     margin-right: 400px;
 }
+
 label{
     font-weight: normal;
 }
 
 button:focus,
 button:active {
-	border: 1px solid #ffffff;   /* this is the same as the "normal" state border */
+	border: 1px solid #FFFFFF;
 	outline: 0;
 }
 
@@ -470,7 +454,7 @@ a:hover {
 
 .nav-tabs .nav-link.active, .nav-tabs .nav-link.active:focus, .nav-tabs .nav-link.active:hover {
     color: #FDFDFD;
-    background-color: #4285f4;
+    background-color: #4285F4;
     border-radius: 20px 20px 0px 0px;
     font-size: 20px;
     padding: 6px 20px 6px 20px;
@@ -480,13 +464,13 @@ a:hover {
     padding: 6px 20px 6px 20px;
     font-size: 20px;
     color: #5E5752;
-    border: 1px solid #4285f4;
+    border: 1px solid #4285F4;
     border-radius: 20px 20px 0px 0px;
     margin-right: -1px;
 }
 
 .nav-tabs .nav-link:focus, .nav-tabs .nav-link:hover {
-    border-color: #4285f4;
+    border-color: #4285F4;
 }
 
 .dropdown-toggle:after{
@@ -505,7 +489,7 @@ h4 {
     font-size: 20px;
     margin: auto 0px;
     padding: 0px;
-    color: #fff;
+    color: #FFFFFF;
     opacity: inherit;
     
 }
@@ -527,7 +511,7 @@ h4 {
 }
 
 .close-icon{
-    color: #ffffff;
+    color: #FFFFFF;
     float: right;
     cursor: pointer;
     width: 16px;
@@ -538,51 +522,51 @@ h4 {
 
 .error-box{
     height: 230px;
-    background-color: #dcdcdc59;
-    border: 1px solid #dcdcdc;
+    background-color: #DCDCDC59;
+    border: 1px solid #DCDCDC;
 }
 
 .error-box-header{
-    border: 1px solid #dcdcdc;
+    border: 1px solid #DCDCDC;
     height: 40px;
 }
 
 .error-icon{
-    color: red;
+    color: #FF0000;
     font-size: 17px !important;
     padding: 10px;
 }
 
 .warning-icon{
-    color: #ffb200;
+    color: #FFB200;
     font-size: 17px !important;
     padding: 10px;
 }
 
 .unex-cond-icon{
-    color: grey;
+    color: #808080;
     font-size: 17px !important;
     padding: 10px;
 }
 
 .errorText{
     font-size: 12px;
-    color: red;
+    color: #FF0000;
 }
 
 .warningText{
-    color: #ffb200;
+    color: #FFB200;
     font-size: 12px;
 }
 
 .unexpectedText{
-    color: grey;
+    color: #808080;
     font-size: 12px;
 }
 
 .dataTypeTable{
     width: 275px;
-    background-color: #dcdcdc;
+    background-color: #DCDCDC;
     height: 275px;
     margin: auto;
     margin-top: 40px;
@@ -635,41 +619,43 @@ table{
 }
 
 .custom-file-control:focus, .form-control:focus{
-    border-color: #4285f4 !important;
-    /* background-image: linear-gradient(0deg,#4285f4 1px,rgba(0,150,136,0) 0),linear-gradient(0deg,rgba(0,0,0,.26) 1px,transparent 0); */
+    border-color: #4285F4 !important;
 }
+
 .custom-file-control, .form-control, .is-focused .custom-file-control, .is-focused .form-control,
 .custom-file-control:read-only, .form-control:read-only{
     background-image: none;
 }
+
 .custom-file-control, .form-control{
-    border: 1px solid #ddd !important;
+    border: 1px solid #DDDDDD !important;
 }
+
 .error-message{
     font-size: 12px;
 }
 
-  .success-modal-position{
+.success-modal-position{
     top: 50%;
     left: 50%;
     margin-top: -150px;
     margin-left: -200px;
     width: 380px;
-  }
+}
 
-  .success-modal-body{
+.success-modal-body{
     padding: 24px;
     font-size: 16px;
     background-color: #F4F4F4;
-  }
+}
 
 .connectButton{
     width: 80px;
     height: 30px;
     border-radius: 30PX;
-    border: 1px solid #4285f4;
-    background-color: #4285f4;
-    color: #ffffff;
+    border: 1px solid #4285F4;
+    background-color: #4285F4;
+    color: #FFFFFF;
     font-size: 14px;
     font-weight: bold;
     float: right;
@@ -677,58 +663,57 @@ table{
     margin-right: 0px !important;
 }
 
-  .buttonload {
+.buttonload {
     width: 140px;
     height: 36px;
     border-radius: 20px;
-    border: 1px solid gray;
-    color: #ffffff;
+    border: 1px solid #808080;
+    color: #FFFFFF;
     font-size: 16px;
     font-weight: bold;
     float: right;
-    background-color: gray;
-  }
+    background-color: #808080;
+}
   
-  .fa {
+.fa {
     margin-left: -12px;
     margin-right: 8px;
-  }
+}
 
-  a {
-      color: #4285f4;
-  }
+a {
+    color: #4285F4;
+}
 
-  .dataType-modal-position{
+.dataType-modal-position{
     top: 50%;
     left: 50%;
     margin-top: -150px;
     margin-left: -335px;
     width: 650px;
-  }
+}
 
-  .dataMappingCard{
-      background-color: #F2F2F2;
-      width: 360px;
-  }
+.dataMappingCard{
+    background-color: #F2F2F2;
+    width: 360px;
+}
 
-  .data-type-modal-body{
+.data-type-modal-body{
     padding-left: 170px;
     padding-right: 24px;
     padding-top: 45px;
     padding-bottom: 45px;
-  }
+}
 
-  th{
-      text-align: center;
-  }
+th{
+    text-align: center;
+}
 
-  .data-type-table th{
+.data-type-table th{
     padding: 8px;
     text-align: center;
-    /* padding-left: 31px; */
-    background-color: #4285f4;
-    color: #ffffff;
-  }
+    background-color: #4285F4;
+    color: #FFFFFF;
+}
 
 .data-type-table td {
     padding: 0 0 0 31px;
@@ -736,7 +721,7 @@ table{
 }
 
 .src-td{
-    border-right: 1px solid #dcdcdc;
+    border-right: 1px solid #DCDCDC;
     padding-left: 65px !important;
 }
 
@@ -750,8 +735,8 @@ table{
 }
 
 input[type="submit"]:disabled{
-    background-color: #4285f4;
-    border: 1px solid #4285f4;
+    background-color: #4285F4;
+    border: 1px solid #4285F4;
     outline: none;
     opacity: 0.5;
 }
@@ -765,7 +750,7 @@ input[type="submit"]{
     margin-left: 18px;
     font-size: 17px !important;
     margin-top: 3px !important;
-    color: #e94e33;
+    color: #E94E33;
 }
 
 .dataType{
@@ -839,15 +824,13 @@ ul {
     height: 100%;
     background: #B9B9B9 0% 0% no-repeat padding-box !important;
     opacity: .26;
-    /* background-color: rgba(0, 0, 0, 0.4) !important; */
 }
 
 #spinner{
-    /* visibility: hidden; */
     width: 80px;
     height: 80px;
-    border: 5px solid #fff;
-    border-top:5px solid #4285f4;
+    border: 5px solid #FFFFFF;
+    border-top:5px solid #4285F4;
     border-radius: 100%;
     animation: spin 1s infinite linear;
   }
@@ -882,4 +865,4 @@ ul {
 .legend-status span{width: 10px;height: 10px;border-radius: 50%;display: inline-block;margin: 0px 5px;}
 .legend-status .excellent{ background: #0F9D58;}
 .legend-status .good{ background: #4285F4}
-.legend-status .poor{ background: red;}
+.legend-status .poor{ background: #FF0000;}

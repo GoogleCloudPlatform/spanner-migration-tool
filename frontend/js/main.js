@@ -47,20 +47,25 @@ const uploadFileHandler = (e) => {
 }
 
 /**
- * Function to update selected file name and to read the json content of selected file while file uploading while file uploading
+ * Function to update selected file name and to read the json content of selected file
  *
  * @return {null}
  */
 const filenameChangeHandler = () => {
+  let importSchemaObj;
   let fileName = jQuery('#upload')[0].files[0].name;
-  if (fileName != '') {
-    jQuery('#importButton').removeAttr('disabled');
-  }
   jQuery("#upload_link").text(fileName);
 
   let reader = new FileReader();
   reader.onload = function (event) {
-    let importSchemaObj = JSON.parse(event.target.result);
+    try {
+      importSchemaObj = JSON.parse(event.target.result);
+    }
+    catch (e) {
+      showSnackbar(e, ' redBg');
+      return;
+    }
+    jQuery('#importButton').removeAttr('disabled');
     localStorage.setItem('conversionReportContent', JSON.stringify(importSchemaObj));
     localStorage.setItem('importFileName', fileName);
     localStorage.setItem('importFilePath', 'frontend/');
@@ -75,6 +80,7 @@ const filenameChangeHandler = () => {
  * @return {null}
  */
 const createSourceAndSpannerTables = async(obj) => {
+  hideSpinner();
   schemaConversionObj = obj;
   let spannerColumnsContent, columnNameContent, dataTypeContent, constraintsContent, notNullFound, constraintId, srcConstraintHtml;
   let pksSp = [], notPrimary = [], keyColumnMap = [], initialColNameArray = [], notNullFoundFlag = [], pkSeqId = [], pkArray = [], initialPkSeqId = [], constraintTabCell = [], primaryTabCell = [], spPlaceholder = [], srcPlaceholder = [], countSp = [], countSrc = [];
@@ -467,6 +473,7 @@ const foreignKeyHandler = (index, foreignKeys) => {
 const saveInterleaveHandler = (index) => {
   const radioValues = document.querySelectorAll('input[name="fks"]');
   let selectedValue;
+  let interleaveApiCallResp = JSON.parse(localStorage.getItem('interleaveInfo'));
   for (const x of radioValues) {
       if (x.checked) {
           selectedValue = x.value;
@@ -751,7 +758,12 @@ const editSpannerDataType = (editColumn, tableNumber, tableColumnNumber) => {
   if (dataTypeArray !== null) {
     let dataTypeArrayLength = dataTypeArray.length;
     for (var a = 0; a < dataTypeArrayLength; a++) {
-      dataType += `<option value=${dataTypeArray[a].T}>${dataTypeArray[a].T}</option>`
+      if (spannerCellValue == dataTypeArray[a].T) {
+        dataType += `<option value=${dataTypeArray[a].T} selected>${dataTypeArray[a].T}</option>`;
+      }
+      else {
+        dataType += `<option value=${dataTypeArray[a].T}>${dataTypeArray[a].T}</option>`;
+      } 
     }
   }
   else {
@@ -818,7 +830,7 @@ const editSpannerConstraint = (editColumn, tableNumber, tableColumnNumber, colum
  * @param {array} pkSpArray
  * @return {null}
  */
-const saveSpannerChanges = (event, spPlaceholder, tableOriginalColNames, notPrimaryArray, pkSpArray) => {
+const saveSpannerChanges = async(event, spPlaceholder, tableOriginalColNames, notPrimaryArray, pkSpArray) => {
   if (event.html() === 'Save Changes') {
     showSnackbar('changes saved successfully !!', ' greenBg');
   }
@@ -871,8 +883,8 @@ const saveSpannerChanges = (event, spPlaceholder, tableOriginalColNames, notPrim
     jQuery(this).find('.src-tab-cell .bmd-form-group').remove();
   });
   tooltipHandler();
-
-  fetch('/typemap/table?table=' + tableName, {
+  showSpinner();
+  await fetch('/typemap/table?table=' + tableName, {
     method: 'POST',
     headers: {
       'Accept': 'application/json',
@@ -886,7 +898,7 @@ const saveSpannerChanges = (event, spPlaceholder, tableOriginalColNames, notPrim
         localStorage.setItem('conversionReportContent', JSON.stringify(response));
         await ddlSummaryAndConversionApiCall();
         await getInterleaveInfo();
-        const { component = ErrorComponent } = findComponentByPath(location.hash.slice(1).toLowerCase() || '/', routes) || {};
+        const { component = ErrorComponent } = findComponentByPath(location.hash.slice(1).toLowerCase() || paths.defaultPath, routes) || {};
         document.getElementById('app').innerHTML = component.render();
         showSchemaConversionReportContent();
       });
@@ -1126,7 +1138,7 @@ const showSchemaAssessment = async(windowEvent) => {
   await getInterleaveInfo();
   sourceTableFlag = localStorage.getItem('sourceDbName');
   jQuery('#connectModalSuccess').modal("hide");
-  const { component = ErrorComponent } = findComponentByPath('/schema-report-connect-to-db', routes) || {};
+  const { component = ErrorComponent } = findComponentByPath(paths.connectToDb, routes) || {};
   if (document.getElementById('app')) {
     document.getElementById('app').innerHTML = component.render();
   }
@@ -1344,7 +1356,7 @@ const onLoadDatabase = async(dbType, dumpFilePath) => {
   await ddlSummaryAndConversionApiCall();
   await getInterleaveInfo();
   sourceTableFlag = localStorage.getItem('sourceDbName');
-  const { component = ErrorComponent } = findComponentByPath('/schema-report-load-db-dump', routes) || {};
+  const { component = ErrorComponent } = findComponentByPath(paths.loadDbDump, routes) || {};
   if (document.getElementById('app')) {
     document.getElementById('app').innerHTML = component.render();
   }
@@ -1465,7 +1477,7 @@ const onImport = async() => {
   await ddlSummaryAndConversionApiCall();
   await getInterleaveInfo();
   jQuery('#importSchemaModal').modal('hide');
-  const { component = ErrorComponent } = findComponentByPath('/schema-report-import-db', routes) || {};
+  const { component = ErrorComponent } = findComponentByPath(paths.importDb, routes) || {};
   if (document.getElementById('app')) {
     document.getElementById('app').innerHTML = component.render();
   }
@@ -1530,9 +1542,9 @@ const resumeSession = async(driver, path, fileName, sourceDb, windowEvent) => {
     showSnackbar(err, ' redBg');
   });
   await ddlSummaryAndConversionApiCall();
-  await getInterleaveInfo();
+  await getInterleaveInfo(); 
   jQuery('#importSchemaModal').modal('hide');
-  const { component = ErrorComponent } = findComponentByPath('/schema-report-resume-session', routes) || {};
+  const { component = ErrorComponent } = findComponentByPath(paths.resumeSession, routes) || {};
   if (document.getElementById('app')) {
     document.getElementById('app').innerHTML = component.render();
   }
@@ -1629,24 +1641,24 @@ const importSourceSchema = (val) => {
  * Function to get paths and events generated from window
  *
  * @param {object} params object containing path and event as keys
- * @return {null}
+ * @return {boolean}
  */
-const getComponent = (params) => {
-  if (params.path === '/schema-report-connect-to-db' && params.event === 'hashchange') {
+const renderComponent = (params) => {
+  if (params.path === paths.connectToDb && params.event === 'hashchange') {
     showSchemaAssessment(window.event.type);
   }
-  else if ( (params.path === '/schema-report-connect-to-db' || params.path === '/schema-report-load-db-dump') && params.event === 'load') {
-    const { component = ErrorComponent } = findComponentByPath(location.hash.slice(1).toLowerCase() || '/', routes) || {};
+  else if ( (params.path === paths.connectToDb || params.path === paths.loadDbDump) && params.event === 'load') {
+    const { component = ErrorComponent } = findComponentByPath(location.hash.slice(1).toLowerCase() || paths.defaultPath, routes) || {};
     document.getElementById('app').innerHTML = component.render();
     conversionRateResp = JSON.parse(localStorage.getItem('tableBorderColor'));
     createSourceAndSpannerTables(JSON.parse(localStorage.getItem('conversionReportContent')));
     createDdlFromJson(JSON.parse(localStorage.getItem('ddlStatementsContent')));
     createSummaryFromJson(JSON.parse(localStorage.getItem('summaryReportContent')));
   }
-  else if (params.path === '/schema-report-import-db') {
+  else if (params.path === paths.importDb) {
     onImport();
   }
-  else if (params.path === '/schema-report-resume-session') {
+  else if (params.path === paths.resumeSession) {
     resumeSession(localStorage.getItem('driver'), localStorage.getItem('path'), localStorage.getItem('fileName'), localStorage.getItem('sourceDb'), window.event.type);
   }
   else {

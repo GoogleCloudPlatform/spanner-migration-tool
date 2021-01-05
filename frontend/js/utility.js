@@ -202,6 +202,7 @@ const clearModal = () => {
   jQuery("#upload_link").html('Upload File');
   jQuery('#loadConnectButton').attr('disabled', 'disabled');
   jQuery('#connectButton').attr('disabled', 'disabled');
+  jQuery('#importButton').attr('disabled', 'disabled');
   document.getElementById("sqlFields").style.display = "none"
   document.getElementById("sqlFieldsButtons").style.display = "none"
 }

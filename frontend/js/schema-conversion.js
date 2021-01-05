@@ -3,9 +3,6 @@ var notFoundTxt = document.createElement('h5');
 notFoundTxt.innerHTML = `No Match Found`;
 notFoundTxt.className = 'noText';
 notFoundTxt.style.display = 'none';
-var reportAccCount = 0;
-var summaryAccCount = 0;
-var ddlAccCount = 0;
 var tableListArea = 'accordion';
 
 /**
@@ -14,6 +11,9 @@ var tableListArea = 'accordion';
  * @return {null}
  */
 const initTasks = () => {
+  var reportAccCount = 0;
+  var summaryAccCount = 0;
+  var ddlAccCount = 0;
   jQuery(document).ready(() => {
     setActiveSelectedMenu('schemaScreen');
     jQuery('.reportCollapse').on('show.bs.collapse', function() {
@@ -151,7 +151,7 @@ const setGlobalDataType = () => {
       res.json().then(async function (response) {
         localStorage.setItem('conversionReportContent', JSON.stringify(response));
         await ddlSummaryAndConversionApiCall();
-        const { component = ErrorComponent } = findComponentByPath(location.hash.slice(1).toLowerCase() || '/', routes) || {};
+        const { component = ErrorComponent } = findComponentByPath(location.hash.slice(1).toLowerCase() || paths.defaultPath, routes) || {};
         document.getElementById('app').innerHTML = component.render();
         showSchemaConversionReportContent();
       });
@@ -371,11 +371,11 @@ const dataTypeUpdate = (id, globalDataTypeList) => {
  * @return {html}
  */
 const renderSchemaReportHtml = () => {
-  currentLocation = "#" + location.hash.slice(1).toLowerCase() || '/';
+  currentLocation = "#" + location.hash.slice(1).toLowerCase() || paths.defaultPath;
   return (`
         <div id="snackbar"></div>
 
-        <div class='spinner-backdrop' id='toggle-spinner' style="display:none">
+        <div class='spinner-backdrop' id='toggle-spinner'>
           <div id="spinner"></div>
         </div>
 
@@ -426,7 +426,10 @@ const renderSchemaReportHtml = () => {
               </form>
 
               <section class="cus-tip">
-                <span  class="cus-a info-icon statusTooltip"><i class="large material-icons">info</i><span class="legend-icon statusTooltip" style='cursor: pointer;display: inline-block;vertical-align: super;'>Status&nbsp;&nbsp;Legend</span></span>
+                <span  class="cus-a info-icon statusTooltip">
+                  <i class="large material-icons">info</i>
+                  <span class="legend-icon statusTooltip" style='cursor: pointer;display: inline-block;vertical-align: super;'>Status&nbsp;&nbsp;Legend</span>
+                </span>
                 <div class="legend-hover">
                     <div class="legend-status">
                       <span class="excellent"></span>
