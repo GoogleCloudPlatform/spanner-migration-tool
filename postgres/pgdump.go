@@ -206,7 +206,7 @@ func toSchemaIndexKeys(indexParams nodes.List) (keys []schema.Key) {
 
 func processIndexStmt(conv *internal.Conv, n nodes.IndexStmt) {
 	if n.Relation == nil {
-		logStmtError(conv, n, fmt.Errorf("relation is nil"))
+		logStmtError(conv, n, fmt.Errorf("cannot process index statement with nil relation."))
 		return
 	}
 	tableName, err := getTableName(conv, *n.Relation)
@@ -216,13 +216,14 @@ func processIndexStmt(conv *internal.Conv, n nodes.IndexStmt) {
 	}
 	if _, ok := conv.SrcSchema[tableName]; ok {
 		ctable := conv.SrcSchema[tableName]
-		var cols []string
-		for _, ip := range n.IndexParams.Items {
-			cols = append(cols, *ip.(nodes.IndexElem).Name)
-		}
-		ctable.Indexes = append(ctable.Indexes, schema.Index{Name: *n.Idxname, Unique: *&n.Unique, Keys: toIndexKeys(conv, tableName, n.IndexParams.Items)})
+		ctable.Indexes = append(ctable.Indexes, schema.Index{
+			Name:   *n.Idxname,
+			Unique: *&n.Unique,
+			Keys:   toIndexKeys(conv, tableName, n.IndexParams.Items),
+		})
 		conv.SrcSchema[tableName] = ctable
 	} else {
+		conv.Unexpected(fmt.Sprintf("Table %s not found while processing index statement", tableName))
 		conv.SkipStatement(prNodes([]nodes.Node{n}))
 	}
 }
@@ -520,8 +521,8 @@ func getTableName(conv *internal.Conv, n nodes.RangeVar) (string, error) {
 type constraint struct {
 	ct   nodes.ConstrType
 	cols []string
+	name string // Used for FOREIGN KEY or SECONDARY INDEX
 	/* Fields used for FOREIGN KEY constraints: */
-	name       string
 	referCols  []string
 	referTable string
 }
@@ -534,7 +535,7 @@ func extractConstraints(conv *internal.Conv, n nodes.Node, table string, l []nod
 		case nodes.Constraint:
 			var cols, referCols []string
 			var referTable string
-			var fkName string
+			var conName string
 			switch d.Contype {
 			case nodes.CONSTR_FOREIGN:
 				t, err := getTableName(conv, *d.Pktable)
@@ -545,7 +546,7 @@ func extractConstraints(conv *internal.Conv, n nodes.Node, table string, l []nod
 				}
 				referTable = t
 				if d.Conname != nil {
-					fkName = *d.Conname
+					conName = *d.Conname
 				}
 				for i := range d.FkAttrs.Items {
 					k, err := getString(d.FkAttrs.Items[i])
@@ -566,6 +567,9 @@ func extractConstraints(conv *internal.Conv, n nodes.Node, table string, l []nod
 					referCols = append(referCols, f)
 				}
 			default:
+				if d.Conname != nil {
+					conName = *d.Conname
+				}
 				for _, j := range d.Keys.Items {
 					k, err := getString(j)
 					if err != nil {
@@ -576,7 +580,7 @@ func extractConstraints(conv *internal.Conv, n nodes.Node, table string, l []nod
 					cols = append(cols, k)
 				}
 			}
-			cs = append(cs, constraint{ct: d.Contype, cols: cols, name: fkName, referCols: referCols, referTable: referTable})
+			cs = append(cs, constraint{ct: d.Contype, cols: cols, name: conName, referCols: referCols, referTable: referTable})
 		default:
 			conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node while processing constraints\n", reflect.TypeOf(n), reflect.TypeOf(d)))
 		}
@@ -621,8 +625,10 @@ func updateSchema(conv *internal.Conv, table string, cs []constraint, stmtType s
 			ct.ForeignKeys = append(ct.ForeignKeys, toForeignKeys(c)) // Append to previous foreign keys.
 			conv.SrcSchema[table] = ct
 		case nodes.CONSTR_UNIQUE:
+			// Convert unique column constraint in postgres to a corresponding unique index in Spanner since
+			// Spanner doesn't support unique constraints on columns.
 			ct := conv.SrcSchema[table]
-			ct.Indexes = append(ct.Indexes, schema.Index{Name: "", Unique: true, Keys: toSchemaKeys(conv, table, c.cols)})
+			ct.Indexes = append(ct.Indexes, schema.Index{Name: c.name, Unique: true, Keys: toSchemaKeys(conv, table, c.cols)})
 			conv.SrcSchema[table] = ct
 		default:
 			ct := conv.SrcSchema[table]
@@ -661,7 +667,8 @@ func toSchemaKeys(conv *internal.Conv, table string, s []string) (l []schema.Key
 
 // toIndexKeys converts a string list of PostgreSQL primary keys to
 // schema Index keys.
-func toIndexKeys(conv *internal.Conv, table string, s []nodes.Node) (l []schema.Key) {
+func toIndexKeys(conv *internal.Conv, table string, s []nodes.Node) []schema.Key {
+	var l []schema.Key
 	for _, k := range s {
 		desc := false
 		if k.(nodes.IndexElem).Ordering == nodes.SORTBY_DESC {

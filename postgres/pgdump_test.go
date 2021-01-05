@@ -336,6 +336,48 @@ func TestProcessPgDump(t *testing.T) {
 					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "c", Desc: true}, ddl.IndexKey{Col: "b", Desc: false}}}}}},
 		},
 		{
+			name: "Create table with unique constraint",
+			input: "CREATE TABLE test (" +
+				"a smallint," +
+				"b text," +
+				"c text," +
+				"CONSTRAINT custom_index UNIQUE(b)" +
+				");\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b", "c", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}}}},
+		},
+		{
+			name: "Alter table add unique constraint",
+			input: "CREATE TABLE test (" +
+				"a smallint," +
+				"b text," +
+				"c text" +
+				");\n" +
+				"ALTER TABLE test ADD CONSTRAINT custom_index UNIQUE (b,c);\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b", "c", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+		},
+		{
 			name:  "Create table with pg schema",
 			input: "CREATE TABLE myschema.test (a text PRIMARY KEY, b text);\n",
 			expectedSchema: map[string]ddl.CreateTable{

@@ -246,9 +246,10 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 			spKeys = append(spKeys, ddl.IndexKey{Col: spCol, Desc: k.Desc})
 		}
 		if srcIndex.Name == "" {
+			// Generate a random name if index name is empty in postgres
+			// since spanner requires globally unique non-empty index names.
 			b := make([]byte, 4)
-			_, err := rand.Read(b)
-			if err != nil {
+			if _, err := rand.Read(b); err != nil {
 				conv.Unexpected(fmt.Sprintf("Can't map index name for table %s", srcTable))
 				continue
 			}
@@ -256,7 +257,13 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 		}
 
 		spKeyName := internal.ToSpannerIndexKey(srcIndex.Name, schemaIndexKeys)
-		spIndexes = append(spIndexes, ddl.CreateIndex{Name: spKeyName, Table: spTableName, Unique: srcIndex.Unique, Keys: spKeys})
+		spIndex := ddl.CreateIndex{
+			Name:   spKeyName,
+			Table:  spTableName,
+			Unique: srcIndex.Unique,
+			Keys:   spKeys,
+		}
+		spIndexes = append(spIndexes, spIndex)
 	}
 	return spIndexes
 }

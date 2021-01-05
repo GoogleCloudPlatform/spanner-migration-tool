@@ -393,29 +393,28 @@ func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]schema.
 		return nil, err
 	}
 	defer rows.Close()
-	var index, column, sequence, collation, nonUnique string
-	mIndexes := make(map[string]schema.Index)
+	var name, column, sequence, collation, nonUnique string
+	indexes := make(map[string]schema.Index)
 	var indexNames []string
-	var indexes []schema.Index
+	var indexArr []schema.Index
 	for rows.Next() {
-		if err := rows.Scan(&index, &column, &sequence, &collation, &nonUnique); err != nil {
+		if err := rows.Scan(&name, &column, &sequence, &collation, &nonUnique); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-		if _, found := mIndexes[index]; !found {
-			indexNames = append(indexNames, index)
-			mIndexes[index] = schema.Index{Name: index, Unique: (nonUnique == "0"), Keys: []schema.Key{schema.Key{Column: column, Desc: (collation == "D")}}}
-			continue
+		if _, found := indexes[name]; !found {
+			indexNames = append(indexNames, name)
+			indexes[name] = schema.Index{Name: name, Unique: (nonUnique == "0")}
 		}
-		indexKey := mIndexes[index]
-		indexKey.Keys = append(indexKey.Keys, schema.Key{Column: column, Desc: (collation == "D")})
-		mIndexes[index] = indexKey
+		index := indexes[name]
+		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation == "D")})
+		indexes[name] = index
 	}
 	sort.Strings(indexNames)
 	for _, k := range indexNames {
-		indexes = append(indexes, mIndexes[k])
+		indexArr = append(indexArr, indexes[k])
 	}
-	return indexes, nil
+	return indexArr, nil
 }
 func toType(dataType string, columnType string, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {
 	switch {

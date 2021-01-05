@@ -154,7 +154,7 @@ func processStatement(conv *internal.Conv, stmt ast.StmtNode) bool {
 
 func processCreateIndex(conv *internal.Conv, stmt *ast.CreateIndexStmt) {
 	if stmt.Table == nil {
-		logStmtError(conv, stmt, fmt.Errorf("table is nil"))
+		logStmtError(conv, stmt, fmt.Errorf("cannot process index statement with nil table."))
 		return
 	}
 	tableName, err := getTableName(stmt.Table)
@@ -164,9 +164,14 @@ func processCreateIndex(conv *internal.Conv, stmt *ast.CreateIndexStmt) {
 	}
 	if _, ok := conv.SrcSchema[tableName]; ok {
 		ctable := conv.SrcSchema[tableName]
-		ctable.Indexes = append(ctable.Indexes, schema.Index{Name: stmt.IndexName, Keys: toSchemaKeys(stmt.IndexPartSpecifications)})
+		ctable.Indexes = append(ctable.Indexes, schema.Index{
+			Name:   stmt.IndexName,
+			Unique: (stmt.KeyType == ast.IndexKeyTypeUnique),
+			Keys:   toSchemaKeys(stmt.IndexPartSpecifications),
+		})
 		conv.SrcSchema[tableName] = ctable
 	} else {
+		conv.Unexpected(fmt.Sprintf("Table %s not found while processing index statement", tableName))
 		conv.SkipStatement(NodeType(stmt))
 	}
 }
@@ -226,6 +231,8 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 			fkeys = append(fkeys, constraint.fk)
 		}
 		if constraint.isUniqueKey {
+			// Convert unique column constraint in mysql to a corresponding unique index in Spanner since
+			// Spanner doesn't support unique constraints on columns.
 			index = append(index, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{Column: colname, Desc: false}}})
 		}
 	}
@@ -259,6 +266,8 @@ func processConstraint(conv *internal.Conv, table string, constraint *ast.Constr
 	case ast.ConstraintIndex:
 		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Keys: toSchemaKeys(constraint.Keys)})
 	case ast.ConstraintUniq:
+		// Convert unique column constraint in postgres to a corresponding unique index in Spanner since
+		// Spanner doesn't support unique constraints on columns.
 		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Unique: true, Keys: toSchemaKeys(constraint.Keys)})
 	default:
 		updateCols(conv, ct, constraint.Keys, st.ColDefs, table)
@@ -361,6 +370,8 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 					conv.SrcSchema[tableName] = ctable
 				}
 				if constraint.isUniqueKey {
+					// Convert unique column constraint in mysql to a corresponding unique index in Spanner since
+					// Spanner doesn't support unique constraints on columns.
 					ctable := conv.SrcSchema[tableName]
 					ctable.Indexes = append(ctable.Indexes, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{Column: colname, Desc: false}}})
 					conv.SrcSchema[tableName] = ctable
