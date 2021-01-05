@@ -79,6 +79,7 @@ func schemaToDDL(conv *internal.Conv) error {
 			Fks:      cvtForeignKeys(conv, srcTable.Name, srcTable.ForeignKeys, schemaForeignKeys),
 			Comment:  comment}
 	}
+	internal.ResolveRefs(conv)
 	return nil
 }
 
@@ -215,7 +216,6 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 			spReferCols = append(spReferCols, spReferCol)
 		}
 		spKeyName := internal.GetSpannerKeyName(key.Name, schemaForeignKeys)
-
 		spKey := ddl.Foreignkey{
 			Name:         spKeyName,
 			Columns:      spCols,
