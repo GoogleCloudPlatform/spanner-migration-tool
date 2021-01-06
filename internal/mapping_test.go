@@ -109,7 +109,7 @@ func TestToSpannerForeignKey(t *testing.T) {
 	}
 }
 
-func TestGetUniqueId(t *testing.T) {
+func TestGetSpannerId(t *testing.T) {
 	schemaIndexKeys := make(map[string]bool)
 
 	basicTests := []struct {
@@ -131,7 +131,7 @@ func TestGetUniqueId(t *testing.T) {
 		{"Bad name with collision 3", "in?dex", "in_dex_11"},
 	}
 	for _, tc := range basicTests {
-		spKeyName := getUniqueId(tc.srcKeyName, schemaIndexKeys)
+		spKeyName := getSpannerId(tc.srcKeyName, schemaIndexKeys)
 		assert.Equal(t, tc.spKeyName, spKeyName, tc.name)
 	}
 }

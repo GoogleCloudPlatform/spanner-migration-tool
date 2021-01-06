@@ -141,11 +141,11 @@ func GetSpannerCols(conv *Conv, srcTable string, srcCols []string) ([]string, er
 // (across the database). But in some source databases, such as PostgreSQL,
 // they only have to be unique for a table. Hence we must map each source
 // constraint name to a unique spanner constraint name.
-func ToSpannerForeignKey(srcKeyName string, schemaForeignKeys map[string]bool) string {
-	if srcKeyName == "" {
+func ToSpannerForeignKey(srcId string, used map[string]bool) string {
+	if srcId == "" {
 		return ""
 	}
-	return getUniqueId(srcKeyName, schemaForeignKeys)
+	return getSpannerId(srcId, used)
 }
 
 // ToSpannerIndexKey maps source index key name to
@@ -159,27 +159,27 @@ func ToSpannerForeignKey(srcKeyName string, schemaForeignKeys map[string]bool) s
 // (across the database). But in some source databases, such as MySQL,
 // they only have to be unique for a table. Hence we must map each source
 // constraint name to a unique spanner constraint name.
-func ToSpannerIndexKey(srcKeyName string, schemaIndexKeys map[string]bool) string {
-	return getUniqueId(srcKeyName, schemaIndexKeys)
+func ToSpannerIndexKey(srcId string, used map[string]bool) string {
+	return getSpannerId(srcId, used)
 }
 
-func getUniqueId(srcKeyName string, schemaKeys map[string]bool) string {
-	spKeyName, _ := FixName(srcKeyName)
-	if _, found := schemaKeys[spKeyName]; found {
+func getSpannerId(srcId string, used map[string]bool) string {
+	spKeyName, _ := FixName(srcId)
+	if _, found := used[spKeyName]; found {
 		// spKeyName has been used before.
 		// Add unique postfix: use number of keys so far.
 		// However, there is a chance this has already been used,
 		// so need to iterate.
-		id := len(schemaKeys)
+		id := len(used)
 		for {
 			c := spKeyName + "_" + strconv.Itoa(id)
-			if _, found := schemaKeys[c]; !found {
+			if _, found := used[c]; !found {
 				spKeyName = c
 				break
 			}
 			id++
 		}
 	}
-	schemaKeys[spKeyName] = true
+	used[spKeyName] = true
 	return spKeyName
 }
