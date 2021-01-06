@@ -128,7 +128,6 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
 	}
-	app.conv = nil
 	app.conv = conv
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(conv)
@@ -162,7 +161,6 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
 	}
-	app.conv = nil
 	app.conv = conv
 	app.driver = dc.Driver
 	w.WriteHeader(http.StatusOK)
@@ -189,14 +187,14 @@ func getSummary(w http.ResponseWriter, r *http.Request) {
 	reports := internal.AnalyzeTables(app.conv, nil)
 	summary := make(map[string]string)
 	for _, t := range reports {
-		var body string
+		var body strings.Builder
 		for _, x := range t.Body {
-			body = body + x.Heading + "\n"
+			body.WriteString(x.Heading + "\n")
 			for i, l := range x.Lines {
-				body = body + fmt.Sprintf("%d) %s.\n", i+1, l) + "\n"
+				body.WriteString(fmt.Sprintf("%d) %s.\n\n", i+1, l))
 			}
 		}
-		summary[t.SrcTable] = body
+		summary[t.SrcTable] = body.String()
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(summary)
@@ -241,61 +239,63 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(filteredTypeMap)
 }
 
+// setTypeMapGlobal allows to change spanner type globally.
+// It takes a map from source type to spanner type and updates
+// the spanner schema accordingly.
 func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
-	var t map[string]string
-	err = json.Unmarshal(reqBody, &t)
+	var typeMap map[string]string
+	err = json.Unmarshal(reqBody, &typeMap)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-
-	for k, v := range app.conv.SpSchema {
-		for kk, _ := range v.ColDefs {
-			for tk, tv := range t {
-				sourceTable := app.conv.ToSource[k].Name
-				sourceCol := app.conv.ToSource[k].Cols[kk]
-				srcCol := app.conv.SrcSchema[sourceTable].ColDefs[sourceCol]
-				if srcCol.Type.Name == tk {
-					var ty ddl.Type
-					var issues []internal.SchemaIssue
-					switch app.driver {
-					case "mysql", "mysqldump":
-						ty, issues = toSpannerTypeMySQL(srcCol.Type.Name, tv, srcCol.Type.Mods)
-					case "pg_dump", "postgres":
-						ty, issues = toSpannerTypePostgres(srcCol.Type.Name, tv, srcCol.Type.Mods)
-					default:
-						http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), http.StatusBadRequest)
-						return
-					}
-					if len(srcCol.Type.ArrayBounds) > 1 {
-						ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-						issues = append(issues, internal.MultiDimensionalArray)
-					}
-					if srcCol.Ignored.Default {
-						issues = append(issues, internal.DefaultValue)
-					}
-					if srcCol.Ignored.AutoIncrement {
-						issues = append(issues, internal.AutoIncrement)
-					}
-					if len(issues) > 0 {
-						app.conv.Issues[sourceTable][srcCol.Name] = issues
-					}
-					ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
-					spSchema := app.conv.SpSchema[k]
-					colDef := spSchema.ColDefs[kk]
-					colDef.T = ty
-					spSchema.ColDefs[kk] = colDef
-					app.conv.SpSchema[k] = spSchema
+	// Redo source-to-Spanner type mapping using t (the mapping specified in the http request).
+	// We drive this process by iterating over the Spanner schema because we want to preserve all
+	// other customizations that have been performed via the UI (dropping columns, renaming columns
+	// etc). In particular, note that we can't just blindly redo schema conversion (using an appropriate
+	// version of 'toDDL' with the new type mapping).
+	for t, spSchema := range app.conv.SpSchema {
+		for col, _ := range spSchema.ColDefs {
+			sourceTable := app.conv.ToSource[t].Name
+			sourceCol := app.conv.ToSource[t].Cols[col]
+			srcCol := app.conv.SrcSchema[sourceTable].ColDefs[sourceCol]
+			if _, found := typeMap[srcCol.Type.Name]; found {
+				var ty ddl.Type
+				var issues []internal.SchemaIssue
+				switch app.driver {
+				case "mysql", "mysqldump":
+					ty, issues = toSpannerTypeMySQL(srcCol.Type.Name, typeMap[srcCol.Type.Name], srcCol.Type.Mods)
+				case "pg_dump", "postgres":
+					ty, issues = toSpannerTypePostgres(srcCol.Type.Name, typeMap[srcCol.Type.Name], srcCol.Type.Mods)
+				default:
+					http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), http.StatusBadRequest)
+					return
 				}
+				if len(srcCol.Type.ArrayBounds) > 1 {
+					ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+					issues = append(issues, internal.MultiDimensionalArray)
+				}
+				if srcCol.Ignored.Default {
+					issues = append(issues, internal.DefaultValue)
+				}
+				if srcCol.Ignored.AutoIncrement {
+					issues = append(issues, internal.AutoIncrement)
+				}
+				if len(issues) > 0 {
+					app.conv.Issues[sourceTable][srcCol.Name] = issues
+				}
+				ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
+				colDef := spSchema.ColDefs[col]
+				colDef.T = ty
+				spSchema.ColDefs[col] = colDef
 			}
 		}
 	}
-
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(app.conv)
 }
@@ -314,19 +314,17 @@ func removeColumn(table string, colName string, srcTableName string) {
 			break
 		}
 	}
-	if _, found := sp.ColDefs[colName]; found {
-		delete(sp.ColDefs, colName)
-	}
+	delete(sp.ColDefs, colName)
 	for i, pk := range sp.Pks {
 		if pk.Col == colName {
 			sp.Pks = removePk(sp.Pks, i)
 			break
 		}
 	}
-	srcName := app.conv.ToSource[table].Cols[colName]
+	srcColName := app.conv.ToSource[table].Cols[colName]
 	delete(app.conv.ToSource[table].Cols, colName)
-	delete(app.conv.ToSpanner[srcTableName].Cols, srcName)
-	delete(app.conv.Issues[srcTableName], srcName)
+	delete(app.conv.ToSpanner[srcTableName].Cols, srcColName)
+	delete(app.conv.Issues[srcTableName], srcColName)
 	app.conv.SpSchema[table] = sp
 }
 func renameColumn(newName, table, colName, srcTableName string) {
@@ -352,9 +350,9 @@ func renameColumn(newName, table, colName, srcTableName string) {
 			break
 		}
 	}
-	srcName := app.conv.ToSource[table].Cols[colName]
-	app.conv.ToSpanner[srcTableName].Cols[srcName] = newName
-	app.conv.ToSource[table].Cols[newName] = srcName
+	srcColName := app.conv.ToSource[table].Cols[colName]
+	app.conv.ToSpanner[srcTableName].Cols[srcColName] = newName
+	app.conv.ToSource[table].Cols[newName] = srcColName
 	delete(app.conv.ToSource[table].Cols, colName)
 	app.conv.SpSchema[table] = sp
 }
@@ -377,9 +375,7 @@ func pkChanged(pkChange, table, colName string) {
 					break
 				}
 			}
-			if _, found := sp.ColDefs[sPk.Col]; found {
-				delete(sp.ColDefs, sPk.Col)
-			}
+			delete(sp.ColDefs, sPk.Col)
 			for i, pk := range sp.Pks {
 				if pk.Col == sPk.Col {
 					sp.Pks = removePk(sp.Pks, i)

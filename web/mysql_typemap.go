@@ -28,6 +28,11 @@ import (
 // then it will be used to build the returned ddl.Type. If not, the default
 // Spanner type for this source type will be used.
 // Note that toSpannerTypeMySQL is extensively tested via tests in web_test.go.
+//
+// TODO: Move the type remapping function to toddl.go (once we've merged
+// dynamodb/toddl.go, mysql/toddl.go and postgres/toddl.go).
+// Consider some refactoring to reduce code duplication (although note
+// that this type remapping has to preserve all previous changes done via the UI!)
 func toSpannerTypeMySQL(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
 	switch srcType {
 	case "bool", "boolean":

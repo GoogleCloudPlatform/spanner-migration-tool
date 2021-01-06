@@ -26,8 +26,9 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
 
-// Metadata of session file, which contains internal.Conv struct in
-// JSON format.
+// session contains the metadata for a session file.
+// A session file is a snapshot of an ongoing HarbourBridge conversion session,
+// and consists of an internal.Conv struct in JSON format.
 type session struct {
 	Driver    string    `json:"driver"`
 	FilePath  string    `json:"path"`
