@@ -203,9 +203,9 @@ The tool maps MySQL secondary indexes to Spanner secondary indexes, and preserve
 constraint names where possible. Note that Spanner requires index key constraint
 names to be globally unique (within a database), but in MySQL they only have to be
 unique for a table, so we add a uniqueness suffix to a name if needed. The tool also
-maps `UNIQUE` constraint into `UNIQUE` secondary index. Note that for MySQL dump we
-skip ordering of the key column (i.e, ascending/descending) as mysqldump parser is
-not able to parse those values.
+maps `UNIQUE` constraint into `UNIQUE` secondary index. Note that due to limitations of our
+mysqldump parser, we are not able to handle key column ordering (i.e. ASC/DESC) in
+mysqldump files. All key columns in mysqldump files will be treated as ASC.
 
 ### Other MySQL features
 

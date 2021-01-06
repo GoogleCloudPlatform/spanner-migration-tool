@@ -380,7 +380,7 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 	return foreignKeys, nil
 }
 
-// getIndexes return list all the indexes.
+// getIndexes return a list of all indexes for the specified table.
 func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]schema.Index, error) {
 	q := `SELECT DISTINCT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION,NON_UNIQUE
 		FROM INFORMATION_SCHEMA.STATISTICS 
@@ -394,27 +394,26 @@ func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]schema.
 	}
 	defer rows.Close()
 	var name, column, sequence, collation, nonUnique string
-	indexes := make(map[string]schema.Index)
+	indexMap := make(map[string]schema.Index)
 	var indexNames []string
-	var indexArr []schema.Index
+	var indexes []schema.Index
 	for rows.Next() {
 		if err := rows.Scan(&name, &column, &sequence, &collation, &nonUnique); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-		if _, found := indexes[name]; !found {
+		if _, found := indexMap[name]; !found {
 			indexNames = append(indexNames, name)
-			indexes[name] = schema.Index{Name: name, Unique: (nonUnique == "0")}
+			indexMap[name] = schema.Index{Name: name, Unique: (nonUnique == "0")}
 		}
-		index := indexes[name]
+		index := indexMap[name]
 		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation == "D")})
-		indexes[name] = index
+		indexMap[name] = index
 	}
-	sort.Strings(indexNames)
 	for _, k := range indexNames {
-		indexArr = append(indexArr, indexes[k])
+		indexes = append(indexes, indexMap[k])
 	}
-	return indexArr, nil
+	return indexes, nil
 }
 func toType(dataType string, columnType string, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {
 	switch {
