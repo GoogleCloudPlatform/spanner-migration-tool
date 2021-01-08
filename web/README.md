@@ -1,5 +1,3 @@
-<!-- Work in progress -->
-
 # HarbourBridge: Web APIs (Experimental)
 
 HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation,
@@ -21,6 +19,8 @@ harbourbridge --web
 ```
 
 You can go to `localhost:8080/frontend/` to visit the UI of the tool.
+
+For more details on how to use the UI, you can visit: `localhost:8080/frontend/userManual.html`.
 
 ## APIs
 
