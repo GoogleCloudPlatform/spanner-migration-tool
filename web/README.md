@@ -50,7 +50,7 @@ These are the REST APIs and their details:
 ```
 {
 	Driver   string
-	FilePath string
+	Path     string
 }
 ```
 
@@ -68,10 +68,9 @@ This API returns the schema conversion state in json format.
 
 ```
 {
-	Driver    string
-	FilePath  string
-	FileName  string
-	CreatedAt time.Time
+	driver    string
+	path      string
+	fileName  string
 }
 ```
 
@@ -127,4 +126,4 @@ This API takes following as request body:
 
 `/checkinterleave/table?table=<table_name>` is a GET API which checks it it is possible to convert this table into interleaved table in spanner, if it is possible it converts and returns parent table name, otherwise it returns failure message.
 
-**Note: Data migration is not allowed when using with `pg_dump` or `mysqldump` driver if the schema contains interleaved tables. We recommend you use `postgres` or `mysql` driver if you are interested in data migration with schema having interleaved tables. **
+**Note: Data migration is not allowed when using with `pg_dump` or `mysqldump` driver if the schema contains interleaved tables. We recommend you use `postgres` or `mysql` driver if you are interested in data migration with schema having interleaved tables.**
