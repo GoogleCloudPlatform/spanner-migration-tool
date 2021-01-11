@@ -627,6 +627,9 @@ func updateSchema(conv *internal.Conv, table string, cs []constraint, stmtType s
 		case nodes.CONSTR_UNIQUE:
 			// Convert unique column constraint in postgres to a corresponding unique index in Spanner since
 			// Spanner doesn't support unique constraints on columns.
+			// TODO: Avoid Spanner-specific schema transformations in this file -- they should only
+			// appear in toddl.go. This file should focus on generic transformation from source
+			// database schemas into schema.go.
 			ct := conv.SrcSchema[table]
 			ct.Indexes = append(ct.Indexes, schema.Index{Name: c.name, Unique: true, Keys: toSchemaKeys(conv, table, c.cols)})
 			conv.SrcSchema[table] = ct

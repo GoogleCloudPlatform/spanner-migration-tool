@@ -231,8 +231,11 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 			fkeys = append(fkeys, constraint.fk)
 		}
 		if constraint.isUniqueKey {
-			// Convert unique column constraint in mysql to a corresponding unique index in Spanner since
+			// Convert unique column constraint in MySQL to a corresponding unique index in Spanner since
 			// Spanner doesn't support unique constraints on columns.
+			// TODO: Avoid Spanner-specific schema transformations in this file -- they should only
+			// appear in toddl.go. This file should focus on generic transformation from source
+			// database schemas into schema.go.
 			index = append(index, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{Column: colname, Desc: false}}})
 		}
 	}
@@ -268,6 +271,9 @@ func processConstraint(conv *internal.Conv, table string, constraint *ast.Constr
 	case ast.ConstraintUniq:
 		// Convert unique column constraint in MySQL to a corresponding unique index in Spanner since
 		// Spanner doesn't support unique constraints on columns.
+		// TODO: Avoid Spanner-specific schema transformations in this file -- they should only
+		// appear in toddl.go. This file should focus on generic transformation from source
+		// database schemas into schema.go.
 		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Unique: true, Keys: toSchemaKeys(constraint.Keys)})
 	default:
 		updateCols(conv, ct, constraint.Keys, st.ColDefs, table)
@@ -275,19 +281,14 @@ func processConstraint(conv *internal.Conv, table string, constraint *ast.Constr
 	conv.SrcSchema[table] = st
 }
 
-// toSchemaKeys converts a string list of MySQL primary keys to
-// schema primary keys.
-// This function is also used for converting MySQL index key to
-// schema index keys, mysqldump parser is not able to parse order
-// of the key (i.e, ascending/descending), so we map all keys to
-// ascending.
+// toSchemaKeys converts a string list of MySQL keys to schema keys.
+// Note that we map all MySQL keys to ascending ordered schema keys.
+// For primary keys: this is fine because MySQL primary keys are always ascending.
+// However, for non-primary keys (aka indexes) this is incorrect: we are dropping
+// the MySQL key order specification.
+// TODO: Resolve ordering issue for non-primary keys.
 func toSchemaKeys(columns []*ast.IndexPartSpecification) (keys []schema.Key) {
 	for _, colname := range columns {
-		// MySQL primary keys have no notation of ascending/descending.
-		// We map them all into ascending primary keys.
-		// TODO: need to find a way to add ordering of the key column,
-		// as mysqldump parser is not able to parse ordering
-		// (i.e, ascending/descending)
 		keys = append(keys, schema.Key{Column: colname.Column.Name.String()})
 	}
 	return keys
@@ -372,6 +373,9 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 				if constraint.isUniqueKey {
 					// Convert unique column constraint in mysql to a corresponding unique index in Spanner since
 					// Spanner doesn't support unique constraints on columns.
+					// TODO: Avoid Spanner-specific schema transformations in this file -- they should only
+					// appear in toddl.go. This file should focus on generic transformation from source
+					// database schemas into schema.go.
 					ctable := conv.SrcSchema[tableName]
 					ctable.Indexes = append(ctable.Indexes, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{Column: colname, Desc: false}}})
 					conv.SrcSchema[tableName] = ctable
