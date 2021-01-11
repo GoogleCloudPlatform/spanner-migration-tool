@@ -266,7 +266,7 @@ func processConstraint(conv *internal.Conv, table string, constraint *ast.Constr
 	case ast.ConstraintIndex:
 		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Keys: toSchemaKeys(constraint.Keys)})
 	case ast.ConstraintUniq:
-		// Convert unique column constraint in postgres to a corresponding unique index in Spanner since
+		// Convert unique column constraint in MySQL to a corresponding unique index in Spanner since
 		// Spanner doesn't support unique constraints on columns.
 		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Unique: true, Keys: toSchemaKeys(constraint.Keys)})
 	default:
