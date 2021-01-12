@@ -17,6 +17,9 @@ package internal
 import (
 	"fmt"
 	"strconv"
+	"strings"
+
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
 // GetSpannerTable maps a source DB table name into a legal Spanner table
@@ -182,4 +185,82 @@ func getSpannerId(srcId string, used map[string]bool) string {
 	}
 	used[spKeyName] = true
 	return spKeyName
+}
+
+// ResolveRefs resolves all table and column references in foreign key constraints
+// in the Spanner Schema. Note: Spanner requires that DDL references match
+// the case of the referenced object, but this is not so for many source databases.
+//
+// TODO: Expand ResolveRefs to primary keys and indexes.
+func ResolveRefs(conv *Conv) {
+	for table, spTable := range conv.SpSchema {
+		spTable.Fks = resolveFks(conv, table, spTable.Fks)
+		conv.SpSchema[table] = spTable
+	}
+}
+
+// resolveFks returns resolved version of fks.
+// Foreign key constraints that can't be resolved are dropped.
+func resolveFks(conv *Conv, table string, fks []ddl.Foreignkey) []ddl.Foreignkey {
+	var resolved []ddl.Foreignkey
+	for _, fk := range fks {
+		var err error
+		if fk.Columns, err = resolveColRefs(conv, table, fk.Columns); err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't resolve Columns in foreign key constraint: %s", err))
+			continue
+		}
+		if fk.ReferTable, err = resolveTableRef(conv, fk.ReferTable); err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't resolve ReferTable in foreign key constraint: %s", err))
+			continue
+		}
+		if fk.ReferColumns, err = resolveColRefs(conv, fk.ReferTable, fk.ReferColumns); err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't resolve ReferColumns in foreign key constraint: %s", err))
+			continue
+		}
+		resolved = append(resolved, fk)
+	}
+	return resolved
+}
+
+func resolveTableRef(conv *Conv, tableRef string) (string, error) {
+	if _, ok := conv.SpSchema[tableRef]; ok {
+		return tableRef, nil
+	}
+	// Do case-insensitive search for tableRef.
+	tr := strings.ToLower(tableRef)
+	for t := range conv.SpSchema {
+		if strings.ToLower(t) == tr {
+			return t, nil
+		}
+	}
+	return "", fmt.Errorf("Can't resolve table %v", tableRef)
+}
+
+func resolveColRefs(conv *Conv, tableRef string, colRefs []string) ([]string, error) {
+	table, err := resolveTableRef(conv, tableRef)
+	if err != nil {
+		return nil, err
+	}
+	resolveColRef := func(colRef string) (string, error) {
+		if _, ok := conv.SpSchema[table].ColDefs[colRef]; ok {
+			return colRef, nil
+		}
+		// Do case-insensitive search for colRef.
+		cr := strings.ToLower(colRef)
+		for _, c := range conv.SpSchema[table].ColNames {
+			if strings.ToLower(c) == cr {
+				return c, nil
+			}
+		}
+		return "", fmt.Errorf("Can't resolve column: table=%v, column=%v", tableRef, colRef)
+	}
+	var cols []string
+	for _, colRef := range colRefs {
+		c, err := resolveColRef(colRef)
+		if err != nil {
+			return nil, err
+		}
+		cols = append(cols, c)
+	}
+	return cols, nil
 }

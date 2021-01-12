@@ -36,14 +36,35 @@ func TestToSpannerType(t *testing.T) {
 			"b": schema.Column{Name: "b", Type: schema.Type{Name: "float"}},
 			"c": schema.Column{Name: "c", Type: schema.Type{Name: "tinyint", Mods: []int64{1}}},
 			"d": schema.Column{Name: "d", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
-			"e": schema.Column{Name: "e", Type: schema.Type{Name: "double"}},
+			"e": schema.Column{Name: "e", Type: schema.Type{Name: "numeric"}},
 			"f": schema.Column{Name: "f", Type: schema.Type{Name: "timestamp"}},
 		},
 		PrimaryKeys: []schema.Key{schema.Key{Column: "a"}},
-		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"b"}}},
-		Indexes:     []schema.Index{schema.Index{Name: "index1", Unique: true, Keys: []schema.Key{schema.Key{Column: "a", Desc: false}, schema.Key{Column: "d", Desc: true}}}},
+		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"dref"}},
+			schema.ForeignKey{Name: "fk_test2", Columns: []string{"a"}, ReferTable: "ref_table2", ReferColumns: []string{"aRef"}}},
+		Indexes: []schema.Index{schema.Index{Name: "index1", Unique: true, Keys: []schema.Key{schema.Key{Column: "a", Desc: false}, schema.Key{Column: "d", Desc: true}}}},
 	}
 	conv.SrcSchema[name] = srcSchema
+	conv.SpSchema["ref_table"] = ddl.CreateTable{
+		Name:     "ref_table",
+		ColNames: []string{"dref", "b", "c"},
+		ColDefs: map[string]ddl.ColumnDef{
+			"dref": ddl.ColumnDef{Name: "dref", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
+			"b":    ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
+			"c":    ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
+		},
+		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "dref"}},
+	}
+	conv.SpSchema["ref_table2"] = ddl.CreateTable{
+		Name:     "ref_table2",
+		ColNames: []string{"aref", "b", "c"},
+		ColDefs: map[string]ddl.ColumnDef{
+			"aref": ddl.ColumnDef{Name: "aref", T: ddl.Type{Name: ddl.Int64}},
+			"b":    ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
+			"c":    ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
+		},
+		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "aref"}},
+	}
 	assert.Nil(t, schemaToDDL(conv))
 	actual := conv.SpSchema[name]
 	dropComments(&actual) // Don't test comment.
@@ -55,11 +76,12 @@ func TestToSpannerType(t *testing.T) {
 			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
 			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 			"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-			"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Float64}},
+			"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
 			"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
 		},
-		Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
-		Fks:     []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"b"}}},
+		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"dref"}},
+			ddl.Foreignkey{Name: "fk_test2", Columns: []string{"a"}, ReferTable: "ref_table2", ReferColumns: []string{"aref"}}},
 		Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", Table: name, Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "d", Desc: true}}}},
 	}
 	assert.Equal(t, expected, actual)

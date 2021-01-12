@@ -170,6 +170,7 @@ func (conv *Conv) SetDataMode() {
 
 // GetDDL Schema returns the Spanner schema that has been constructed so far.
 // Return DDL in alphabetical table order.
+// TODO: Move GetDDL function to ddl/ast.go.
 func (conv *Conv) GetDDL(c ddl.Config) []string {
 	var tables []string
 	for t := range conv.SpSchema {
@@ -177,13 +178,14 @@ func (conv *Conv) GetDDL(c ddl.Config) []string {
 	}
 	sort.Strings(tables)
 	var ddl []string
-	for _, t := range tables {
-		ddl = append(ddl, conv.SpSchema[t].PrintCreateTable(c))
-		for _, index := range conv.SpSchema[t].Indexes {
-			ddl = append(ddl, index.PrintCreateIndex(c))
+	if c.Tables {
+		for _, t := range tables {
+			ddl = append(ddl, conv.SpSchema[t].PrintCreateTable(c))
+			for _, index := range conv.SpSchema[t].Indexes {
+				ddl = append(ddl, index.PrintCreateIndex(c))
+			}
 		}
 	}
-
 	// Append foreign key constraints to DDL.
 	// We always use alter table statements for foreign key constraints.
 	// The alternative of putting foreign key constraints in-line as part of create

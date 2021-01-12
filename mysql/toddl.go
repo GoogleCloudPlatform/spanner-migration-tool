@@ -89,6 +89,7 @@ func schemaToDDL(conv *internal.Conv) error {
 			Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes, schemaIndexKeys),
 			Comment:  comment}
 	}
+	internal.ResolveRefs(conv)
 	return nil
 }
 
@@ -119,15 +120,16 @@ func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.Type, []in
 	case "float":
 		maxExpectedMods(2)
 		return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
-	case "numeric", "decimal": // Map all numeric and decimal types to float64.
+	case "numeric", "decimal":
 		maxExpectedMods(2)
-		if len(mods) > 0 && mods[0] <= 15 {
-			// float64 can represent this numeric type faithfully.
-			// Note: int64 has 53 bits for mantissa, which is ~15.96
-			// decimal digits.
-			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.DecimalThatFits}
-		}
-		return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Decimal}
+		// MySQL's NUMERIC type can store up to 65 digits, with up to 30 after the
+		// the decimal point. Spanner's NUMERIC type can store up to 29 digits before the
+		// decimal point and up to 9 after the decimal point -- it is equivalent to
+		// MySQL's NUMERIC(38,9) type.
+		//
+		// TODO: Generate appropriate SchemaIssue to warn of different precision
+		// capabilities between MySQL and Spanner NUMERIC.
+		return ddl.Type{Name: ddl.Numeric}, nil
 	case "bigint":
 		maxExpectedMods(1)
 		return ddl.Type{Name: ddl.Int64}, nil
@@ -221,7 +223,6 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 			spReferCols = append(spReferCols, spReferCol)
 		}
 		spKeyName := internal.ToSpannerForeignKey(key.Name, schemaForeignKeys)
-
 		spKey := ddl.Foreignkey{
 			Name:         spKeyName,
 			Columns:      spCols,

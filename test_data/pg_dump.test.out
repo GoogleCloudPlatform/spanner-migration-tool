@@ -50,9 +50,13 @@ ALTER TABLE public.test OWNER TO postgres;
 
 CREATE TABLE public.test2 (
     id integer NOT NULL,
-    a date,
+    a boolean,
     b bytea,
-    c boolean
+    c date,
+    d double precision,
+    e integer,
+    f numeric(38, 9),
+    g text
 );
 
 
@@ -98,9 +102,9 @@ COPY public.test (id, t, tz) FROM stdin;
 -- Data for Name: test2; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.test2 (id, a, b, c) FROM stdin;
-1	2019-10-28	\\x00010203deadbeef	t
-2	2018-11-28	\\x00010203424344	f
+COPY public.test2 (id, a, b, c, d, e, f, g) FROM stdin;
+1	t	\\x00010203deadbeef	2019-10-28	99.9	42	1234567890123456789012345678.123456789	hi
+2	f	\\x00010203424344	2018-11-28	12.3	6	1234567890123456789012345.1223456	hello
 \.
 
 

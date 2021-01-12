@@ -94,6 +94,7 @@ type ColumnDef struct {
 type Config struct {
 	Comments    bool // If true, print comments.
 	ProtectIds  bool // If true, table and col names are quoted using backticks (avoids reserved-word issue).
+	Tables      bool // If true, print tables
 	ForeignKeys bool // If true, print foreign key constraints.
 }
 
@@ -240,7 +241,7 @@ func (k Foreignkey) PrintForeignKeyAlterTable(c Config, tableName string) string
 	if k.Name != "" {
 		s = fmt.Sprintf("CONSTRAINT %s ", c.quote(k.Name))
 	}
-	return fmt.Sprintf("ALTER TABLE %s ADD %s FOREIGN KEY (%s) REFERENCES %s (%s)", c.quote(tableName), s, strings.Join(cols, ", "), c.quote(k.ReferTable), strings.Join(referCols, ", "))
+	return fmt.Sprintf("ALTER TABLE %s ADD %sFOREIGN KEY (%s) REFERENCES %s (%s)", c.quote(tableName), s, strings.Join(cols, ", "), c.quote(k.ReferTable), strings.Join(referCols, ", "))
 }
 
 func maxStringLength(s []string) int {

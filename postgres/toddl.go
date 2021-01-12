@@ -82,6 +82,7 @@ func schemaToDDL(conv *internal.Conv) error {
 			Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes, schemaIndexKeys),
 			Comment:  comment}
 	}
+	internal.ResolveRefs(conv)
 	return nil
 }
 
@@ -90,6 +91,9 @@ func schemaToDDL(conv *internal.Conv) error {
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
 func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
+	// TODO: Remove use of maxExpectedMods. It was added as a sanity check for the
+	// initial version of HarbourBridge. It has now out-lived its usefulness: it isn't
+	// uncovering issues (and it's unlikely to) and it's cluttering code.
 	maxExpectedMods := func(n int) {
 		if len(mods) > n {
 			conv.Unexpected(fmt.Sprintf("Found %d mods while processing type id=%s", len(mods), id))
@@ -130,15 +134,21 @@ func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.Type, []in
 	case "int2", "smallint":
 		maxExpectedMods(0)
 		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
-	case "numeric": // Map all numeric types to float64.
+	case "numeric":
 		maxExpectedMods(2)
-		if len(mods) > 0 && mods[0] <= 15 {
-			// float64 can represent this numeric type faithfully.
-			// Note: int64 has 53 bits for mantissa, which is ~15.96
-			// decimal digits.
-			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.NumericThatFits}
-		}
-		return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Numeric}
+		// PostgreSQL's NUMERIC type can have a specified precision of up to 1000
+		// digits (and scale can be anything from 0 up to the value of 'precision').
+		// If precision and scale are not specified, then values of any precision
+		// or scale can be stored, up to the implementation's limits (can be up to
+		// 131072 digits before the decimal point and up to 16383 digits after
+		// the decimal point).
+		// Spanner's NUMERIC type can store up to 29 digits before the
+		// decimal point and up to 9 after the decimal point -- it is
+		// equivalent to PostgreSQL's NUMERIC(38,9) type.
+		//
+		// TODO: Generate appropriate SchemaIssue to warn of different precision
+		// capabilities between PostgreSQL and Spanner NUMERIC.
+		return ddl.Type{Name: ddl.Numeric}, nil
 	case "serial":
 		maxExpectedMods(0)
 		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Serial}
@@ -209,7 +219,6 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 			spReferCols = append(spReferCols, spReferCol)
 		}
 		spKeyName := internal.ToSpannerForeignKey(key.Name, schemaForeignKeys)
-
 		spKey := ddl.Foreignkey{
 			Name:         spKeyName,
 			Columns:      spCols,

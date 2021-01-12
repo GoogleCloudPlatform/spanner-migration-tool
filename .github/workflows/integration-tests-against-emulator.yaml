@@ -17,10 +17,14 @@ jobs:
 
     services:
       emulator:
-        image: gcr.io/cloud-spanner-emulator/emulator:0.8.0
+        image: gcr.io/cloud-spanner-emulator/emulator:1.1.1
         ports:
           - 9010:9010
           - 9020:9020
+        # needed because numeric support isn't on by default in emulator:1.1.1
+        # note: future versions will default enable this and deprecate the flag
+        # TODO: upgrade emuator version, confirm enable_numeric_type is no longer needed and delete it
+        args: ["-enable_numeric_type"]
       postgres:
         image: postgres:9.6
         env:
