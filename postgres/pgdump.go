@@ -214,11 +214,10 @@ func processIndexStmt(conv *internal.Conv, n nodes.IndexStmt) {
 		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
 		return
 	}
-	if _, ok := conv.SrcSchema[tableName]; ok {
-		ctable := conv.SrcSchema[tableName]
+	if ctable, ok := conv.SrcSchema[tableName]; ok {
 		ctable.Indexes = append(ctable.Indexes, schema.Index{
 			Name:   *n.Idxname,
-			Unique: *&n.Unique,
+			Unique: n.Unique,
 			Keys:   toIndexKeys(conv, tableName, n.IndexParams.Items),
 		})
 		conv.SrcSchema[tableName] = ctable
@@ -668,7 +667,7 @@ func toSchemaKeys(conv *internal.Conv, table string, s []string) (l []schema.Key
 	return l
 }
 
-// toIndexKeys converts a string list of PostgreSQL primary keys to
+// toIndexKeys converts a list of PostgreSQL primary keys to
 // schema Index keys.
 func toIndexKeys(conv *internal.Conv, table string, s []nodes.Node) []schema.Key {
 	var l []schema.Key

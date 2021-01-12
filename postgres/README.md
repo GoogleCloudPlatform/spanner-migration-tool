@@ -204,9 +204,9 @@ PostgreSQL features during conversion.
 
 ### Secondary Indexes
 
-The tool maps PostgresSQL secondary indexes to Spanner secondary indexes, and preserves
-constraint names where possible. The tool also maps `UNIQUE` constraint into `UNIQUE`
-secondary index, Check [here](https://cloud.google.com/spanner/docs/migrating-postgres-spanner#indexes)
+The tool maps PostgresSQL secondary indexes to Spanner secondary indexes, preserving
+constraint names where possible. The tool also maps PostgreSQL UNIQUE constraints to
+Spanner UNIQUE secondary indexes. Check [here](https://cloud.google.com/spanner/docs/migrating-postgres-spanner#indexes)
 for more details.
 
 ### Other PostgreSQL features

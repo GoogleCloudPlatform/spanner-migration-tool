@@ -15,7 +15,6 @@
 package postgres
 
 import (
-	"crypto/rand"
 	"fmt"
 	"strconv"
 	"unicode"
@@ -234,14 +233,9 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 			spKeys = append(spKeys, ddl.IndexKey{Col: spCol, Desc: k.Desc})
 		}
 		if srcIndex.Name == "" {
-			// Generate a random name if index name is empty in postgres
-			// since spanner requires globally unique non-empty index names.
-			b := make([]byte, 4)
-			if _, err := rand.Read(b); err != nil {
-				conv.Unexpected(fmt.Sprintf("Can't map index name for table %s", srcTable))
-				continue
-			}
-			srcIndex.Name = fmt.Sprintf("Index_%s_%x-%x", srcTable, b[0:2], b[2:4])
+			// Generate a name if index name is empty in Postgres.
+			// Collision of index name will be handled by ToSpannerIndexKey.
+			srcIndex.Name = fmt.Sprintf("Index_%s", srcTable)
 		}
 		spKeyName := internal.ToSpannerIndexKey(srcIndex.Name, schemaIndexKeys)
 		spIndex := ddl.CreateIndex{
