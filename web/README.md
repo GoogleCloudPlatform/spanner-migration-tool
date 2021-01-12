@@ -21,13 +21,13 @@ harbourbridge --web
 
 The tool will be available on port 8080
 
-You can go to `<base-url>/frontend/` to visit the UI of the tool.
+You can go to `<base-url>/` to visit the UI of the tool.
 
-    eg: localhost:8080/frontend/
+    eg: localhost:8080/
 
-For more details on how to use the UI, you can visit: `<base-url>/frontend/userManual.html`.
+For more details on how to use the UI, you can visit: `<base-url>/userManual.html`.
 
-    eg: localhost:8080/frontend/userManual.html
+    eg: localhost:8080/userManual.html
 
 <ins>**Note:**</ins>
 

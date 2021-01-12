@@ -23,9 +23,6 @@ import (
 func getRoutes() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	staticFileDirectory := http.Dir("./frontend/")
-	staticFileHandler := http.StripPrefix("/frontend/", http.FileServer(staticFileDirectory))
-	router.PathPrefix("/frontend/").Handler(staticFileHandler).Methods("GET")
-	router.HandleFunc("/", homeLink)
 	router.HandleFunc("/connect", databaseConnection).Methods("POST")
 	router.HandleFunc("/convert/infoschema", convertSchemaSQL).Methods("GET")
 	router.HandleFunc("/convert/dump", convertSchemaDump).Methods("POST")
@@ -40,5 +37,6 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/typemap/global", setTypeMapGlobal).Methods("POST")
 	router.HandleFunc("/typemap/table", updateTableSchema).Methods("POST")
 	router.HandleFunc("/checkinterleave/table", checkForInterleavedTables).Methods("GET")
+	router.PathPrefix("/").Handler(http.FileServer(staticFileDirectory))
 	return router
 }

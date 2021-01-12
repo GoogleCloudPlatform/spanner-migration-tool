@@ -54,11 +54,6 @@ import (
 var mysqlTypeMap = make(map[string][]typeIssue)
 var postgresTypeMap = make(map[string][]typeIssue)
 
-func homeLink(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Welcome to Harbourbridge!")
-	w.WriteHeader(http.StatusOK)
-}
-
 // Driver config is used for direct database connection.
 type DriverConfig struct {
 	Driver   string `json:"Driver"`
