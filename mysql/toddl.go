@@ -32,9 +32,7 @@ import (
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
 func schemaToDDL(conv *internal.Conv) error {
-	schemaForeignKeys := make(map[string]bool)
-	schemaIndexKeys := make(map[string]bool)
-
+	spKeyNames := make(map[string]bool)
 	for _, srcTable := range conv.SrcSchema {
 		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
 		if err != nil {
@@ -85,8 +83,8 @@ func schemaToDDL(conv *internal.Conv) error {
 			ColNames: spColNames,
 			ColDefs:  spColDef,
 			Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
-			Fks:      cvtForeignKeys(conv, srcTable.Name, srcTable.ForeignKeys, schemaForeignKeys),
-			Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes, schemaIndexKeys),
+			Fks:      cvtForeignKeys(conv, srcTable.Name, srcTable.ForeignKeys, spKeyNames),
+			Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes, spKeyNames),
 			Comment:  comment}
 	}
 	internal.ResolveRefs(conv)
