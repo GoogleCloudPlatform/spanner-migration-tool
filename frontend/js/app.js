@@ -60,7 +60,7 @@ const router = () => {
   const { component = ErrorComponent } = findComponentByPath(path, routes) || {};
   getComponentFlag = renderComponent({'path': path, 'event': window.event.type});
   if (!getComponentFlag) {
-    document.getElementById('app').innerHTML = component.render();
+    component.render();
   }
 };
 

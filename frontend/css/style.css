@@ -866,3 +866,7 @@ ul {
 .legend-status .excellent{ background: #0F9D58;}
 .legend-status .good{ background: #4285F4}
 .legend-status .poor{ background: #FF0000;}
+
+.template {
+    display: none;
+}

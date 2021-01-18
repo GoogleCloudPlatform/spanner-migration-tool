@@ -1,0 +1,630 @@
+<script>
+    $(document).ready(function () {
+        setActiveSelectedMenu('schemaScreen');
+        const createDdlFromJson = (result) => {
+            let ddl = result;
+            let ddlLength = Object.keys(ddl).length;
+            let createIndex, createEndIndex, $newDdlElement;
+            let conversionRateResp = {};
+            conversionRateResp = JSON.parse(localStorage.getItem('tableBorderColor'));
+            for (var i = 0; i < ddlLength; i++) {
+                createIndex = (ddl[Object.keys(ddl)[i]]).search('CREATE TABLE');
+                createEndIndex = createIndex + 12;
+                ddl[Object.keys(ddl)[i]] = ddl[Object.keys(ddl)[i]].substring(0, createIndex) + ddl[Object.keys(ddl)[i]].substring(createIndex, createEndIndex).fontcolor('#4285f4').bold() + ddl[Object.keys(ddl)[i]].substring(createEndIndex);
+                $newDdlElement = jQuery('#ddlDiv').find('.ddlSection.template').clone().removeClass('template');
+                $newDdlElement.find('.card-header.ddl-card-header.ddlBorderBottom').addClass(panelBorderClass(conversionRateResp[srcTableName[i]]));
+                $newDdlElement.find('a').attr('href', '#' + Object.keys(ddl)[i] + '-ddl');
+                $newDdlElement.find('a > span').html(Object.keys(ddl)[i]);
+                $newDdlElement.find('.collapse.ddlCollapse').attr('id', Object.keys(ddl)[i] + '-ddl');
+                $newDdlElement.find('.mdc-card.mdc-card-content.ddl-border.table-card-border').addClass(mdcCardBorder(conversionRateResp[srcTableName[i]]));
+                $newDdlElement.find('code').html(ddl[srcTableName[i]].split('\n').join(`<span class='sql-c'></span>`));
+                $newDdlElement.appendTo('#ddlDiv');
+            }
+        }
+
+        const createSummaryFromJson = (result) => {
+            let summary = result;
+            let summaryLength = Object.keys(summary).length;
+            let summaryContent = '';
+            let $newSummaryElement;
+            let conversionRateResp = {};
+            conversionRateResp = JSON.parse(localStorage.getItem('tableBorderColor'));
+            for (var i = 0; i < summaryLength; i++) {
+                $newSummaryElement = jQuery('#summaryDiv').find('.summarySection.template').clone().removeClass('template');
+                $newSummaryElement.find('.card-header.ddl-card-header.ddlBorderBottom').addClass(panelBorderClass(conversionRateResp[srcTableName[i]]));
+                $newSummaryElement.find('a').attr('href', '#' + Object.keys(summary)[i] + '-summary');
+                $newSummaryElement.find('a > span').html(Object.keys(summary)[i]);
+                $newSummaryElement.find('.collapse.summaryCollapse').attr('id', Object.keys(summary)[i] + '-summary');
+                $newSummaryElement.find('.mdc-card.mdc-card-content.ddl-border.table-card-border').addClass(mdcCardBorder(conversionRateResp[srcTableName[i]]));
+                $newSummaryElement.find('.mdc-card.summary-content').html(summary[srcTableName[i]].split('\n').join('<br />'));
+                $newSummaryElement.appendTo('#summaryDiv');
+            }
+        }
+
+        const createSourceAndSpannerTables = async (obj) => {
+            hideSpinner();
+            getReportAndSummaryFilePaths();
+            getGlobalDataTypeList();
+            schemaConversionObj = obj;
+            let columnNameContent, dataTypeContent, constraintsContent, notNullFound, constraintId, srcConstraintHtml;
+            let pksSp = [], notPrimary = [], keyColumnMap = [], initialColNameArray = [], notNullFoundFlag = [], pkSeqId = [], pkArray = [], initialPkSeqId = [], constraintTabCell = [], primaryTabCell = [], spPlaceholder = [], srcPlaceholder = [], countSp = [], countSrc = [];
+            let sourceTableFlag = '';
+            let conversionRateResp = {};
+            let constraintCount = 0;
+            let srcTableNum = Object.keys(schemaConversionObj.SrcSchema).length;
+            let spTable_num = Object.keys(schemaConversionObj.SpSchema).length;
+            let srcTable, spTable, spTableCols, pkArrayLength, columnsLength, currentColumnSp, currentColumnSrc, pksSpLength, $newConvElement, $convTableContent, $fkTableContent;
+
+            for (var x = 0; x < srcTableNum; x++) {
+                initialPkSeqId[x] = [];
+                initialColNameArray[x] = [];
+                constraintTabCell[x] = [];
+                primaryTabCell[x] = [];
+                notPrimary[x] = [];
+                notNullFoundFlag[x] = [];
+                keyColumnMap[x] = [];
+                pkArray[x] = [];
+                spPlaceholder[x] = [];
+                countSp[x] = [];
+                countSrc[x] = [];
+                pksSp[x] = [];
+            }
+
+            conversionRateResp = JSON.parse(localStorage.getItem('tableBorderColor'));
+            for (var i = 0; i < srcTableNum; i++) {
+                srcTable = schemaConversionObj.SrcSchema[Object.keys(schemaConversionObj.ToSpanner)[i]];
+                srcTableName[i] = Object.keys(schemaConversionObj.ToSpanner)[i];
+                spTable = schemaConversionObj.SpSchema[srcTableName[i]];
+                spTableCols = spTable.ColNames;
+                pkArray[i] = schemaConversionObj.SpSchema[Object.keys(schemaConversionObj.SpSchema)[i]].Pks;
+                pkSeqId[i] = 1;
+                pkArrayLength = pkArray[i].length;
+                if (pkArrayLength === 1 && pkArray[i][0].Col === 'synth_id')
+                    pkArrayLength = 0;
+                columnsLength = Object.keys(schemaConversionObj.ToSpanner[spTable.Name].Cols).length;
+                for (var x = 0; x < pkArrayLength; x++) {
+                    pkArray[i][x].seqId = pkSeqId[i];
+                    pkSeqId[i]++;
+                }
+                schemaConversionObj.SpSchema[srcTableName[i]].Pks = pkArray[i];
+                sourceTableFlag = localStorage.getItem('sourceDbName');
+                $newConvElement = jQuery('#reportDiv').find('.reportSection.template').clone().removeClass('template');
+                $newConvElement.find('.card-header.report-card-header.borderBottom').addClass(panelBorderClass(conversionRateResp[srcTableName[i]]));
+                $newConvElement.find('a').attr('href', '#' + Object.keys(schemaConversionObj.SrcSchema)[i]);
+                $newConvElement.find('a > span').html(Object.keys(schemaConversionObj.SrcSchema)[i]);
+                $newConvElement.find('.right-align.edit-button.hide-content').attr('id', 'editSpanner' + i);
+                $newConvElement.find('#editSpanner' + i).click(function () {
+                    let index = parseInt(jQuery(this).attr('id').match(/\d+/), 10);
+                    editAndSaveButtonHandler(jQuery(this), spPlaceholder, pkArray[index], pkSeqId[index], notNullFoundFlag[index], initialColNameArray[index], keyColumnMap[index], notPrimary[index], pksSp[index]);
+                });
+                $newConvElement.find('.collapse.reportCollapse').attr('id', Object.keys(schemaConversionObj.SrcSchema)[i]);
+                $newConvElement.find('.mdc-card.mdc-card-content.table-card-border').addClass(mdcCardBorder(conversionRateResp[srcTableName[i]]));
+                $newConvElement.find('.acc-table').attr('id', 'src-sp-table' + i);
+                $newConvElement.find('.acc-table-th-src').append(sourceTableFlag);
+
+                for (var k = 0; k < columnsLength; k++) {
+                    $convTableContent = $newConvElement.find('.reportTableContent.template').clone().removeClass('template');
+                    currentColumnSrc = Object.keys(schemaConversionObj.ToSpanner[spTable.Name].Cols)[k];
+                    currentColumnSp = schemaConversionObj.ToSpanner[spTable.Name].Cols[currentColumnSrc];
+                    pksSp[i] = [...spTable.Pks];
+                    pksSpLength = pksSp[i].length;
+                    $convTableContent.find('.saveColumnName.template').removeClass('template').attr('id', 'saveColumnName' + i + k);
+                    $convTableContent.find('.editColumnName.template').attr('id', 'editColumnName' + i + k);
+                    $convTableContent.find('.editDataType.template').attr('id', 'editDataType' + i + k);
+                    $convTableContent.find('.saveConstraint.template').removeClass('template').attr('id', 'saveConstraint' + i + k);
+                    $convTableContent.find('.editConstraint.template').attr('id', 'editConstraint' + i + k);
+                    if (srcTable.PrimaryKeys === null || srcTable.PrimaryKeys[0].Column !== currentColumnSrc) {
+                        $convTableContent.find('.srcPk').css('visibility', 'hidden');
+                    }
+                    $convTableContent.find('.column.right.srcColumn').html(currentColumnSrc);
+                    $convTableContent.find('.column.right.srcColumn').attr('id', 'srcColumn' + k);
+
+                    $convTableContent.find('.sp-column.acc-table-td.spannerColName').addClass('spannerTabCell' + i + k);
+                    pkFlag = false;
+                    for (var x = 0; x < pksSpLength; x++) {
+                        if (pksSp[i][x].Col === currentColumnSp) {
+                            pkFlag = true;
+                            $convTableContent.find('.column.left.spannerPkSpan').attr('data-toggle', 'tooltip');
+                            $convTableContent.find('.column.left.spannerPkSpan').attr('data-placement', 'bottom');
+                            $convTableContent.find('.column.left.spannerPkSpan').attr('title', 'primary key: ' + currentColumnSp);
+                            $convTableContent.find('.column.left.spannerPkSpan').attr('id', 'keyIcon' + i + k + k);
+                            $convTableContent.find('.column.left.spannerPkSpan').css('cursor', 'pointer');
+                            $convTableContent.find('.column.left.spannerPkSpan > sub').html(pksSp[i][x].seqId);
+
+                            $convTableContent.find('.column.right.spannerColNameSpan').attr('data-toggle', 'tooltip');
+                            $convTableContent.find('.column.right.spannerColNameSpan').attr('data-placement', 'bottom');
+                            $convTableContent.find('.column.right.spannerColNameSpan').attr('title', 'primary key: ' + currentColumnSp);
+                            $convTableContent.find('.column.right.spannerColNameSpan').attr('id', 'columnNameText' + i + k + k);
+                            $convTableContent.find('.column.right.spannerColNameSpan').css('cursor', 'pointer');
+                            $convTableContent.find('.column.right.spannerColNameSpan').html(currentColumnSp);
+                            notPrimary[i][k] = false;
+                            initialPkSeqId[i][k] = pksSp[i][x].seqId;
+                            break
+                        }
+                    }
+                    if (pkFlag === false) {
+                        notPrimary[i][k] = true;
+                        $convTableContent.find('.column.left.spannerPkSpan').attr('id', 'keyIcon' + i + k + k);
+                        $convTableContent.find($convTableContent.find('.column.left.spannerPkSpan > img')).css('visibility', 'hidden');
+                        $convTableContent.find('.column.right.spannerColNameSpan').attr('id', 'columnNameText' + i + k + k);
+                        $convTableContent.find('.column.right.spannerColNameSpan').html(currentColumnSp);
+                    }
+                    primaryTabCell[i][k] = $convTableContent;
+                    keyIconValue = 'keyIcon' + i + k + k;
+                    keyColumnObj = { 'keyIconId': keyIconValue, 'columnName': currentColumnSp };
+                    keyColumnMap[i].push(keyColumnObj);
+
+                    $convTableContent.find('.acc-table-td.srcDataType').attr('id', 'srcDataType' + i + k);
+                    $convTableContent.find('.acc-table-td.srcDataType').html(srcTable.ColDefs[currentColumnSrc].Type.Name);
+                    $convTableContent.find('.sp-column.acc-table-td.spannerDataType').attr('id', 'dataType' + i + k);
+                    $convTableContent.find('.saveDataType.template').removeClass('template').attr('id', 'saveDataType' + i + k).html(spTable.ColDefs[currentColumnSp].T.Name);
+                    $convTableContent.find('.sp-column.acc-table-td.spannerDataType').addClass('spannerTabCell' + i + k);
+
+                    countSrc[i][k] = 0;
+                    srcPlaceholder[constraintCount] = countSrc[i][k];
+                    if (srcTable.ColDefs[currentColumnSrc].NotNull !== undefined) {
+                        if (srcTable.ColDefs[currentColumnSrc].NotNull === true) {
+                            countSrc[i][k] = countSrc[i][k] + 1;
+                            srcPlaceholder[constraintCount] = countSrc[i][k];
+                            $convTableContent.find('.srcNotNullConstraint').addClass('active');
+                        }
+                    }
+                    constraintId = 'srcConstraint' + constraintCount;
+                    $convTableContent.find('.form-control.spanner-input.tableSelect.srcConstraint').attr('id', constraintId);
+                    constraintCount++;
+
+                    countSp[i][k] = 0;
+                    spPlaceholder[i][k] = countSp[i][k];
+                    $convTableContent.find('.acc-table-td.sp-column.acc-table-td').addClass('spannerTabCell' + i + k);
+                    // checking not null consraint
+                    if (spTable.ColDefs[currentColumnSp].NotNull !== undefined) {
+                        if (spTable.ColDefs[currentColumnSp].NotNull === true) {
+                            countSp[i][k] = countSp[i][k] + 1
+                            spPlaceholder[i][k] = countSp[i][k];
+                            $convTableContent.find('.spannerNotNullConstraint').addClass('active');
+                            notNullFoundFlag[i][k] = true;
+                            notNullConstraint[parseInt(String(i) + String(k))] = 'Not Null';
+                        }
+                        else {
+                            notNullFoundFlag[i][k] = false;
+                            notNullConstraint[parseInt(String(i) + String(k))] = '';
+                        }
+                    }
+                    constraintId = 'spConstraint' + i + k;
+                    $convTableContent.find('.form-control.spanner-input.tableSelect.spannerConstraint').attr('id', constraintId)
+                    constraintTabCell[i][k] = $convTableContent;
+                    $convTableContent.appendTo($newConvElement.find('.acc-table-body'));
+                }
+                if (spTable.Fks != null) {
+                    $newConvElement.find('.fkCard').removeClass('template');
+                    $newConvElement.find('.fkFont').attr('href', '#foreignKey' + i);
+                    $newConvElement.find('.fkFont').html('Foreign Keys');
+                    $newConvElement.find('.collapse.fkCollapse').attr('id', 'foreignKey' + i);
+                    $newConvElement.find('.radio.addRadio').attr('id', 'add' + i);
+                    $newConvElement.find('.radio.interleaveRadio').attr('id', 'interleave' + i);
+                    $newConvElement.find('.save-interleave-button').attr('id', 'saveInterleave' + i);
+                    $newConvElement.find('.save-interleave-button').click(function () {
+                        let index = parseInt(jQuery(this).attr('id').match(/\d+/), 10);
+                        saveInterleaveHandler(index);
+                    });
+                    for (var p = 0; p < spTable.Fks.length; p++) {
+                        $fkTableContent = $newConvElement.find('.fkTableTr.template').clone().removeClass('template');
+                        $fkTableContent.find('.acc-table-td.fkTableName').html(spTable.Fks[p].Name);
+                        $fkTableContent.find('.acc-table-td.fkTableColumns').html(spTable.Fks[p].Columns);
+                        $fkTableContent.find('.acc-table-td.fkTableReferTable').html(spTable.Fks[p].ReferTable);
+                        $fkTableContent.find('.acc-table-td.fkTableReferColumns').html(spTable.Fks[p].ReferColumns);
+                        $fkTableContent.appendTo($newConvElement.find('.fkTableBody'));
+                    }
+                }
+                $newConvElement.find('.summaryFont').attr('href', '#viewSummary' + i);
+                $newConvElement.find('.collapse.summaryCollapse').attr('id', 'viewSummary' + i);
+                $newConvElement.find('.mdc-card.summary-content').html(JSON.parse(localStorage.getItem('summaryReportContent'))[srcTableName[i]].split('\n').join('<br />'));
+                $newConvElement.appendTo('#reportDiv');
+            }
+            showSnackbar('schema converted successfully !!', ' greenBg');
+            initSchemaScreenTasks();
+            constraintCount--;
+            while (constraintCount >= 0) {
+                if (document.getElementById('srcConstraint' + constraintCount) != null) {
+                    new vanillaSelectBox('#srcConstraint' + constraintCount, {
+                        placeHolder: srcPlaceholder[constraintCount] + " constraints selected",
+                        maxWidth: 500,
+                        maxHeight: 300
+                    });
+                }
+                constraintCount--;
+            }
+            for (var i = 0; i < srcTableNum; i++) {
+                let tableId = '#src-sp-table' + i;
+                jQuery(tableId).DataTable();
+            }
+            for (var i = 0; i < spTable_num; i++) {
+                let spTable = schemaConversionObj.SpSchema[Object.keys(schemaConversionObj.SpSchema)[i]]
+                let spTableCols = spTable.ColNames;
+                let spTableColsLength = spTableCols.length;
+                for (var j = 0; j < spTableColsLength; j++) {
+                    if (document.getElementById('spConstraint' + i + j) != null) {
+                        new vanillaSelectBox('#spConstraint' + i + j, {
+                            placeHolder: spPlaceholder[i][j] + " constraints selected",
+                            maxWidth: 500,
+                            maxHeight: 300
+                        });
+                    }
+                }
+            }
+            tooltipHandler();
+        }
+        createSourceAndSpannerTables(JSON.parse(localStorage.getItem('conversionReportContent')));
+        createDdlFromJson(JSON.parse(localStorage.getItem('ddlStatementsContent')));
+        createSummaryFromJson(JSON.parse(localStorage.getItem('summaryReportContent')));
+    });
+</script>
+
+<div class="summary-main-content" id='schema-screen-content'>
+    <div id="snackbar"></div>
+    <div class='spinner-backdrop' id='toggle-spinner'>
+        <div id="spinner"></div>
+    </div>
+    <div>
+        <h4 class="report-header">Recommended Schema Conversion Report
+            <button id="download-schema" class="download-button" onclick='downloadSchema()'>Download Schema File</button>
+            <button id="download-ddl" style='display: none;' class="download-button" onclick='downloadDdl()'>Download SQL Schema</button>
+            <button id="download-report" style='display: none;' class="download-button" onclick='downloadReport()'>Download Report</button>
+        </h4>
+    </div>
+    <div class="report-tabs">
+        <ul class="nav nav-tabs md-tabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" id="reportTab" data-toggle="tab" href="#report" role="tab"
+                    aria-controls="report" aria-selected="true" onclick='findTab(this.id)'>Conversion Report</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="ddlTab" data-toggle="tab" href="#ddl" role="tab" aria-controls="ddl"
+                    aria-selected="false" onclick='findTab(this.id)'>DDL Statements</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="summaryTab" data-toggle="tab" href="#summary" role="tab" aria-controls="summary"
+                    aria-selected="false" onclick='findTab(this.id)'>Summary Report</a>
+            </li>
+        </ul>
+    </div>
+    <div class="status-icons">
+        <form class="form-inline d-flex justify-content-center md-form form-sm mt-0 searchForm" id='reportSearchForm'>
+            <i class="fas fa-search" aria-hidden="true"></i>
+            <input class="form-control form-control-sm ml-3 w-75 searchBox" type="text" placeholder="Search table"
+                autocomplete='off' aria-label="Search" onkeyup='searchTable("reportSearchInput")'
+                id='reportSearchInput'>
+        </form>
+        <form class="form-inline d-flex justify-content-center md-form form-sm mt-0 searchForm"
+            style='display: none !important;' id='ddlSearchForm'>
+            <i class="fas fa-search" aria-hidden="true"></i>
+            <input class="form-control form-control-sm ml-3 w-75 searchBox" type="text" placeholder="Search table"
+                id='ddlSearchInput' autocomplete='off' aria-label="Search" onkeyup='searchTable("ddlSearchInput")'>
+        </form>
+        <form class="form-inline d-flex justify-content-center md-form form-sm mt-0 searchForm"
+            style='display: none !important;' id='summarySearchForm'>
+            <i class="fas fa-search" aria-hidden="true"></i>
+            <input class="form-control form-control-sm ml-3 w-75 searchBox" type="text" placeholder="Search table"
+                id='summarySearchInput' autocomplete='off' aria-label="Search"
+                onkeyup='searchTable("summarySearchInput")'>
+        </form>
+        <section class="cus-tip">
+            <span class="cus-a info-icon statusTooltip">
+                <i class="large material-icons">info</i>
+                <span class="legend-icon statusTooltip"
+                    style='cursor: pointer;display: inline-block;vertical-align: super;'>Status&nbsp;&nbsp;Legend</span>
+            </span>
+            <div class="legend-hover">
+                <div class="legend-status">
+                    <span class="excellent"></span>
+                    Excellent
+                </div>
+                <div class="legend-status">
+                    <span class="good"></span>
+                    Good
+                </div>
+                <div class="legend-status">
+                    <span class="poor"></span>
+                    Poor
+                </div>
+            </div>
+        </section>
+    </div>
+    <div class="tab-bg" id='tabBg'>
+        <div class="tab-content">
+            <div id="report" class="tab-pane fade show active">
+                <div class="accordion md-accordion" id="accordion" role="tablist" aria-multiselectable="true">
+                    <button class='expand' id='reportExpandButton' onclick='reportExpandHandler(jQuery(this))'>Expand
+                        All</button>
+                    <button class='expand right-align' id='editButton' onclick='globalEditHandler()'>Edit Global Data
+                        Type</button>
+                    <div id='reportDiv'>
+                        <section class='reportSection template'>
+                            <div class='card'>
+                                <div role='tab' class='card-header report-card-header borderBottom'>
+                                    <h5 class='mb-0'>
+                                        <a data-toggle='collapse'>
+                                            Table: <span></span> <i class="fas fa-angle-down rotate-icon"></i>
+                                        </a>
+                                        <span class='spanner-text right-align hide-content'>Spanner</span>
+                                        <span class='spanner-icon right-align hide-content'>
+                                            <i class='large material-icons' style='font-size: 18px;'>circle</i>
+                                        </span>
+                                        <span class='source-text right-align hide-content'>Source</span>
+                                        <span class='source-icon right-align hide-content'>
+                                            <i class='large material-icons' style='font-size: 18px;'>circle</i>
+                                        </span>
+                                        <button class='right-align edit-button hide-content'>
+                                            Edit Spanner Schema
+                                        </button>
+                                    </h5>
+                                </div>
+                                <div class='collapse reportCollapse'>
+                                    <div class='mdc-card mdc-card-content table-card-border'>
+                                        <div class='acc-card-content' id='acc_card_content'>
+                                            <table class='acc-table'>
+                                                <thead>
+                                                    <tr>
+                                                        <th class='acc-column' colspan='2'>Column Name</th>
+                                                        <th class='acc-column' colspan='2'>Data Type</th>
+                                                        <th class='acc-column' colspan='2'>Constraints</th>
+                                                    </tr>
+                                                    <tr>
+                                                        <th class='acc-table-th-src src-tab-cell'>
+                                                            <span class="bmd-form-group is-filled template">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input type="checkbox" value="">
+                                                                        <span class="checkbox-decorator"><span
+                                                                                class="check"
+                                                                                style='margin-left: -7px;'></span>
+                                                                            <div class="ripple-container"></div>
+                                                                        </span>
+                                                                    </label>
+                                                                </div>
+                                                            </span>
+                                                        </th>
+                                                        <th class='acc-table-th-spn'>Spanner</th>
+                                                        <th class='acc-table-th-src'></th>
+                                                        <th class='acc-table-th-spn'>Spanner</th>
+                                                        <th class='acc-table-th-src'></th>
+                                                        <th class='acc-table-th-spn'>Spanner</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class='acc-table-body'>
+                                                    <tr class='reportTableContent template'>
+                                                        <td class='acc-table-td src-tab-cell'>
+                                                            <span
+                                                                class="bmd-form-group is-filled eachRowChckBox template">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input type="checkbox" value="">
+                                                                        <span class="checkbox-decorator"><span
+                                                                                class="check"></span>
+                                                                            <div class="ripple-container"></div>
+                                                                        </span>
+                                                                    </label>
+                                                                </div>
+                                                            </span>
+                                                            <span class="column left">
+                                                                <img class='srcPk'
+                                                                    src='./Icons/Icons/ic_vpn_key_24px.svg'
+                                                                    style='margin-left: 3px;'>
+                                                            </span>
+                                                            <span class="column right srcColumn"></span>
+                                                        </td>
+                                                        <td class='sp-column acc-table-td spannerColName'>
+                                                            <div class='editColumnName template'>
+                                                                <span class="column left keyMargin keyClick">
+                                                                    <sub></sub><img>
+                                                                </span>
+                                                                <span class="column right form-group">
+                                                                    <input type="text"
+                                                                        class="form-control spanner-input"
+                                                                        autocomplete='off'>
+                                                                </span>
+                                                            </div>
+                                                            <div class='saveColumnName template'>
+                                                                <span class="column left spannerPkSpan">
+                                                                    <sub></sub>
+                                                                    <img src='./Icons/Icons/ic_vpn_key_24px.svg'
+                                                                        class='primaryKey'>
+                                                                </span>
+                                                                <span class="column right spannerColNameSpan"></span>
+                                                            </div>
+                                                        </td>
+                                                        <td class='acc-table-td srcDataType'></td>
+                                                        <td class='sp-column acc-table-td spannerDataType'>
+                                                            <div class='saveDataType template'></div>
+                                                            <div class='editDataType template'>
+                                                                <div class="form-group">
+                                                                    <select
+                                                                        class="form-control spanner-input tableSelect">
+                                                                        <option class='dataTypeOption template'>
+                                                                        </option>
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td class='acc-table-td'>
+                                                            <select multiple size='1'
+                                                                class='form-control spanner-input tableSelect srcConstraint'>
+                                                                <option disabled class='srcNotNullConstraint'>Not Null
+                                                                </option>
+                                                            </select>
+                                                        </td>
+                                                        <td class='acc-table-td sp-column acc-table-td'>
+                                                            <div class='saveConstraint template'>
+                                                                <select multiple size='1'
+                                                                    class='form-control spanner-input tableSelect spannerConstraint'>
+                                                                    <option disabled class='spannerNotNullConstraint'>
+                                                                        Not Null</option>
+                                                                </select>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <div class='fkCard template'>
+                                                <div class='foreignKeyHeader' role='tab'>
+                                                    <h5 class='mb-0'>
+                                                        <a class='fkFont' data-toggle='collapse'>
+                                                            Foreign Keys
+                                                        </a>
+                                                    </h5>
+                                                </div>
+                                                <div class='collapse fkCollapse'>
+                                                    <div class='mdc-card mdc-card-content summaryBorder'
+                                                        style='border: 0px;'>
+                                                        <div class='mdc-card fk-content'>
+                                                            <fieldset style='overflow: hidden;'>
+                                                                <div class="radio-class">
+                                                                    <input type="radio" class="radio addRadio"
+                                                                        name="fks" value="add" checked='checked' />
+                                                                    <label style='margin-right: 15px;' for="add">Use as
+                                                                        Foreign Key</label>
+                                                                    <input type="radio" class="radio interleaveRadio"
+                                                                        name="fks" value="interleave" />
+                                                                    <label style='margin-right: 15px;'
+                                                                        for="interleave">Convert to Interleave</label>
+                                                                </div>
+                                                                <button style='float: right; padding: 0px 20px;'
+                                                                    class='save-interleave-button'>save</button>
+                                                            </fieldset><br>
+                                                            <table class='fk-acc-table fkTable'>
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>Name</th>
+                                                                        <th>Columns</th>
+                                                                        <th>Refer Table</th>
+                                                                        <th>Refer Columns</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody class='fkTableBody'>
+                                                                    <tr class='fkTableTr template'>
+                                                                        <td class='acc-table-td fkTableName'></td>
+                                                                        <td class='acc-table-td fkTableColumns'></td>
+                                                                        <td class='acc-table-td fkTableReferTable'></td>
+                                                                        <td class='acc-table-td fkTableReferColumns'>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class='summaryCard'>
+                                                <div class='summaryCardHeader' role='tab'>
+                                                    <h5 class='mb-0'>
+                                                        <a data-toggle='collapse' class='summaryFont'>View Summary</a>
+                                                    </h5>
+                                                </div>
+                                                <div class='collapse summaryCollapse'>
+                                                    <div class='mdc-card mdc-card-content summaryBorder'
+                                                        style='border: 0px;'>
+                                                        <div class='mdc-card summary-content'></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+            <div id="ddl" class="tab-pane fade">
+                <div class="panel-group" id="ddl-accordion">
+                    <button class='expand' id='ddlExpandButton' onclick='ddlExpandHandler(jQuery(this))'>Expand
+                        All</button>
+                    <div id='ddlDiv'>
+                        <section class='ddlSection template'>
+                            <div class='card'>
+                                <div class='card-header ddl-card-header ddlBorderBottom' role='tab'>
+                                    <h5 class='mb-0'>
+                                        <a data-toggle='collapse'>Table: <span></span> <i
+                                                class="fas fa-angle-down rotate-icon"></i></a>
+                                    </h5>
+                                </div>
+                                <div class='collapse ddlCollapse'>
+                                    <div class='mdc-card mdc-card-content ddl-border table-card-border'>
+                                        <div class='mdc-card ddl-content'>
+                                            <pre><code> </code></pre>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+            <div id="summary" class="tab-pane fade">
+                <div class="panel-group" id="summary-accordion">
+                    <button class='expand' id='summaryExpandButton' onclick='summaryExpandHandler(jQuery(this))'>Expand
+                        All</button>
+                    <div id='summaryDiv'>
+                        <section class='summarySection template'>
+                            <div class='card'>
+                                <div class='card-header ddl-card-header ddlBorderBottom' role='tab'>
+                                    <h5 class='mb-0'>
+                                        <a data-toggle='collapse'>
+                                            Table: <span></span><i class="fas fa-angle-down rotate-icon"></i>
+                                        </a>
+                                    </h5>
+                                </div>
+                                <div class='collapse summaryCollapse'>
+                                    <div class='mdc-card mdc-card-content ddl-border table-card-border'>
+                                        <div class='mdc-card summary-content'></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal" id="globalDataTypeModal" role="dialog" tabindex="-1" aria-labelledby="exampleModalCenterTitle"
+    aria-hidden="true" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <!-- Modal content-->
+        <div class="modal-content">
+            <div class="modal-header content-center">
+                <h5 class="modal-title modal-bg" id="exampleModalLongTitle">Global Data Type Mapping</h5>
+                <i class="large material-icons close" data-dismiss="modal">cancel</i>
+            </div>
+            <div class="modal-body" style='margin: auto; margin-top: 20px;'>
+                <div class="dataMappingCard" id='globalDataType'>
+                    <table class='data-type-table' id='globalDataTypeTable'>
+                        <tbody id='globalDataTypeBody'>
+                            <tr>
+                                <th>Source</th>
+                                <th>Spanner</th>
+                            </tr>
+                            <tr class='globalDataTypeRow template'>
+                                <td class='src-td'></td>
+                                <td id='globalDataTypeCell'>
+                                    <div style='display: flex;'>
+                                        <i class="large material-icons warning" style='cursor: pointer;'>warning</i>
+                                        <select class='form-control tableSelect' style='border: 0px !important;'>
+                                            <option class='dataTypeOption template'></option>
+                                        </select>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer" style='margin-top: 20px;'>
+                <button id="data-type-button" data-dismiss="modal" onclick="setGlobalDataType()" class="connectButton"
+                    type="button" style='margin-right: 24px !important;'>Next</button>
+                <button class="buttonload" id="dataTypeLoaderButton" style="display: none;">
+                    <i class="fa fa-circle-o-notch fa-spin"></i>converting
+                </button>
+            </div>
+        </div>
+    </div>
