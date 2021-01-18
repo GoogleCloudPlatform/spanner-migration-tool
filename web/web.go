@@ -64,6 +64,8 @@ type DriverConfig struct {
 	Password string `json:"Password"`
 }
 
+// databaseConnection creates connection with database when using
+// with postgres and mysql driver.
 func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -103,6 +105,8 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// convertSchemaSQL converts source database to Spanner when using
+// with postgres and mysql driver.
 func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	if app.sourceDB == nil || app.dbName == "" || app.driver == "" {
 		http.Error(w, fmt.Sprintf("Database is not configured or Database connection is lost. Please set configuration and connect to database."), http.StatusNotFound)
@@ -134,6 +138,8 @@ type DumpConfig struct {
 	FilePath string `json:"Path"`
 }
 
+// convertSchemaDump converts schema from dump file to Spanner schema for
+// mysqldump and pg_dump driver.
 func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -178,6 +184,7 @@ func getDDL(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(ddl)
 }
 
+// getSummary returns table wise summary of conversion.
 func getSummary(w http.ResponseWriter, r *http.Request) {
 	reports := internal.AnalyzeTables(app.conv, nil)
 	summary := make(map[string]string)
@@ -195,6 +202,7 @@ func getSummary(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(summary)
 }
 
+// getOverview returns the overview of conversion.
 func getOverview(w http.ResponseWriter, r *http.Request) {
 	var buf bytes.Buffer
 	bufWriter := bufio.NewWriter(&buf)
@@ -205,6 +213,8 @@ func getOverview(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(overview)
 }
 
+// getTypeMap returns the source to Spanner typemap only for the
+// source types used in current conversion.
 func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	if app.conv == nil || app.driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), http.StatusNotFound)
@@ -452,6 +462,13 @@ type updateTable struct {
 	UpdateCols map[string]updateCol `json:"UpdateCols"`
 }
 
+// updateTableSchema updates the Spanner schema.
+// Following actions can be performed on a specified table:
+// (1) Remove column
+// (2) Rename column
+// (3) Add or Remove Primary Key
+// (4) Add or Remove NotNull constraint
+// (5) Update Spanner type
 func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -515,6 +532,8 @@ func rateSchema(cols, warnings int64, missingPKey bool) string {
 		return "RED"
 	}
 }
+
+// getConversionRate returns table wise color coded conversion rate.
 func getConversionRate(w http.ResponseWriter, r *http.Request) {
 	reports := internal.AnalyzeTables(app.conv, nil)
 	rate := make(map[string]string)
@@ -530,6 +549,8 @@ type schemaAndReportFile struct {
 	Schema string
 }
 
+// getSchemaAndReportFile generates schema and report files and
+// returns file paths.
 func getSchemaAndReportFile(w http.ResponseWriter, r *http.Request) {
 	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
 	dbName := app.dbName
@@ -586,6 +607,9 @@ func removeFk(slice []ddl.Foreignkey, s int) []ddl.Foreignkey {
 	return append(slice[:s], slice[s+1:]...)
 }
 
+// checkForInterleavedTables checks whether specified table can be
+// interleaved, if yes then it sets the Parent table for the specified
+// table and returns Parent table name, otherwise returns the issue.
 func checkForInterleavedTables(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
 	if app.conv == nil || app.driver == "" {
