@@ -421,6 +421,9 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 }
 
 // getIndexes return a list of all indexes for the specified table.
+// Note: Extracting index definitions from PostgreSQL information schema tables is complex.
+// See https://stackoverflow.com/questions/6777456/list-all-index-names-column-names-and-its-table-name-of-a-postgresql-database/44460269#44460269
+// for background.
 func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]schema.Index, error) {
 	q := `SELECT
 			irel.relname AS index_name,

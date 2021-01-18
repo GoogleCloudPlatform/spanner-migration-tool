@@ -151,18 +151,16 @@ func ToSpannerForeignKey(srcId string, used map[string]bool) string {
 	return getSpannerId(srcId, used)
 }
 
-// ToSpannerIndexKey maps source index key name to
-// legal Spanner index key name
-// We need to make sure
-// of the following things:
-// a) the new index key name is legal
-// b) the new index key name doesn't clash with other Spanner
-//    index key names
+// ToSpannerIndexName maps source index name to legal Spanner index name.
+// We need to make sure of the following things:
+// a) the new index name is legal
+// b) the new index name doesn't clash with other Spanner
+//    index names
 // Note that index key constraint names in Spanner have to be globally unique
 // (across the database). But in some source databases, such as MySQL,
 // they only have to be unique for a table. Hence we must map each source
 // constraint name to a unique spanner constraint name.
-func ToSpannerIndexKey(srcId string, used map[string]bool) string {
+func ToSpannerIndexName(srcId string, used map[string]bool) string {
 	return getSpannerId(srcId, used)
 }
 

@@ -229,7 +229,7 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 	return spKeys
 }
 
-func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcIndexes []schema.Index, schemaIndexKeys map[string]bool) []ddl.CreateIndex {
+func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcIndexes []schema.Index, spIndexNames map[string]bool) []ddl.CreateIndex {
 	var spIndexes []ddl.CreateIndex
 	for _, srcIndex := range srcIndexes {
 		var spKeys []ddl.IndexKey
@@ -246,9 +246,9 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 			// Collision of index name will be handled by ToSpannerIndexKey.
 			srcIndex.Name = fmt.Sprintf("Index_%s", srcTable)
 		}
-		spKeyName := internal.ToSpannerIndexKey(srcIndex.Name, schemaIndexKeys)
+		spIndexName := internal.ToSpannerIndexName(srcIndex.Name, spIndexNames)
 		spIndex := ddl.CreateIndex{
-			Name:   spKeyName,
+			Name:   spIndexName,
 			Table:  spTableName,
 			Unique: srcIndex.Unique,
 			Keys:   spKeys,
