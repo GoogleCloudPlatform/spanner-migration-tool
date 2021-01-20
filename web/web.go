@@ -166,6 +166,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	}
 	app.conv = conv
 	app.driver = dc.Driver
+	app.dbName = ""
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(conv)
 }

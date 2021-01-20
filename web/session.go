@@ -33,22 +33,26 @@ type session struct {
 	Driver    string    `json:"driver"`
 	FilePath  string    `json:"path"`
 	FileName  string    `json:"fileName"`
+	DBName    string    `json:"dbName"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
 func createSession(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
-	dbName, err := conversion.GetDatabaseName(app.driver, now)
-	if err != nil {
-		fmt.Printf("\nCan't get database name: %v\n", err)
-		panic(fmt.Errorf("can't get database name"))
+	dbName := app.dbName
+	var err error
+	if dbName == "" {
+		dbName, err = conversion.GetDatabaseName(app.driver, now)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Can not create database name : %v", err), http.StatusInternalServerError)
+		}
 	}
 	sessionFile := ".session.json"
 	filePath := "frontend/"
 	out := os.Stdout
 	fileName := filePath + dbName + sessionFile
 	conversion.WriteSessionFile(app.conv, fileName, out)
-	session := session{Driver: app.driver, FilePath: filePath, FileName: dbName + sessionFile, CreatedAt: now}
+	session := session{Driver: app.driver, FilePath: filePath, FileName: dbName + sessionFile, DBName: dbName, CreatedAt: now}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(session)
 }
@@ -72,5 +76,6 @@ func resumeSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	app.driver = s.Driver
+	app.dbName = s.DBName
 	w.WriteHeader(http.StatusOK)
 }
