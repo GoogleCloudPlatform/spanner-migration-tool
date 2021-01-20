@@ -54,8 +54,9 @@ import (
 var mysqlTypeMap = make(map[string][]typeIssue)
 var postgresTypeMap = make(map[string][]typeIssue)
 
-// Driver config is used for direct database connection.
-type DriverConfig struct {
+// driverConfig contains the parameters needed to make a direct database connection. It is
+// used to communicate via HTTP with the frontend.
+type driverConfig struct {
 	Driver   string `json:"Driver"`
 	Host     string `json:"Host"`
 	Port     string `json:"Port"`
@@ -72,7 +73,7 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
-	var config DriverConfig
+	var config driverConfig
 	err = json.Unmarshal(reqBody, &config)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
@@ -132,8 +133,9 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(conv)
 }
 
-// Dump config is used for dump file approach.
-type DumpConfig struct {
+// dumpConfig contains the parameters needed to run the tool using dump approach. It is
+// used to communicate via HTTP with the frontend.
+type dumpConfig struct {
 	Driver   string `json:"Driver"`
 	FilePath string `json:"Path"`
 }
@@ -146,7 +148,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
-	var dc DumpConfig
+	var dc dumpConfig
 	err = json.Unmarshal(reqBody, &dc)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
@@ -422,9 +424,9 @@ func updateType(newType, table, newColName, srcTableName string, w http.Response
 		app.conv.Issues[srcTableName][srcCol.Name] = issues
 	}
 	ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
-	tempColDef := sp.ColDefs[newColName]
-	tempColDef.T = ty
-	sp.ColDefs[newColName] = tempColDef
+	colDef := sp.ColDefs[newColName]
+	colDef.T = ty
+	sp.ColDefs[newColName] = colDef
 	app.conv.SpSchema[table] = sp
 }
 
