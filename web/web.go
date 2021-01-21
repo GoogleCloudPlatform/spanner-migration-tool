@@ -659,6 +659,13 @@ type App struct {
 	conv     *internal.Conv
 }
 
+// app maintains the state of the session and there can be
+// only one session at any given time.
+// It holds following items:
+// (1) sourceDB : Database connection in case of direct connection
+// (2) dbName : Database name
+// (3) driver : Driver name
+// (4) conv : State of conversion
 var app App
 
 // Type and issue.
