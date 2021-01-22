@@ -32,7 +32,12 @@ import (
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
 func schemaToDDL(conv *internal.Conv) error {
-	spKeyNames := make(map[string]bool)
+	// Tracks Spanner names that have been used for foreign key constraints
+	// and indexes. We use this to ensure we generate unique names when
+	// we map from MySQL to Spanner since Spanner requires all foreign
+	// key and index names to be distinct (you can't use the same name
+	// for a foreign key constraint and an index).
+	usedNames := make(map[string]bool)
 	for _, srcTable := range conv.SrcSchema {
 		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
 		if err != nil {
@@ -83,8 +88,8 @@ func schemaToDDL(conv *internal.Conv) error {
 			ColNames: spColNames,
 			ColDefs:  spColDef,
 			Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
-			Fks:      cvtForeignKeys(conv, srcTable.Name, srcTable.ForeignKeys, spKeyNames),
-			Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes, spKeyNames),
+			Fks:      cvtForeignKeys(conv, srcTable.Name, srcTable.ForeignKeys, usedNames),
+			Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes, usedNames),
 			Comment:  comment}
 	}
 	internal.ResolveRefs(conv)
@@ -197,7 +202,7 @@ func cvtPrimaryKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Key) 
 	return spKeys
 }
 
-func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.ForeignKey, schemaForeignKeys map[string]bool) []ddl.Foreignkey {
+func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.ForeignKey, usedNames map[string]bool) []ddl.Foreignkey {
 	var spKeys []ddl.Foreignkey
 	for _, key := range srcKeys {
 		if len(key.Columns) != len(key.ReferColumns) {
@@ -220,7 +225,7 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 			spCols = append(spCols, spCol)
 			spReferCols = append(spReferCols, spReferCol)
 		}
-		spKeyName := internal.ToSpannerForeignKey(key.Name, schemaForeignKeys)
+		spKeyName := internal.ToSpannerForeignKey(key.Name, usedNames)
 		spKey := ddl.Foreignkey{
 			Name:         spKeyName,
 			Columns:      spCols,
@@ -231,7 +236,7 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 	return spKeys
 }
 
-func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcIndexes []schema.Index, spIndexNames map[string]bool) []ddl.CreateIndex {
+func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcIndexes []schema.Index, usedNames map[string]bool) []ddl.CreateIndex {
 	var spIndexes []ddl.CreateIndex
 	for _, srcIndex := range srcIndexes {
 		var spKeys []ddl.IndexKey
@@ -248,7 +253,7 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 			// Collision of index name will be handled by ToSpannerIndexKey.
 			srcIndex.Name = fmt.Sprintf("Index_%s", srcTable)
 		}
-		spIndexName := internal.ToSpannerIndexName(srcIndex.Name, spIndexNames)
+		spIndexName := internal.ToSpannerIndexName(srcIndex.Name, usedNames)
 		spIndex := ddl.CreateIndex{
 			Name:   spIndexName,
 			Table:  spTableName,
