@@ -34,6 +34,17 @@ func schemaToDDL(conv *internal.Conv) error {
 	// key and index names to be distinct (you can't use the same name
 	// for a foreign key constraint and an index).
 	usedNames := make(map[string]bool)
+	// As Spanner uses same namespace for table names, foreign key constraint
+	// names and index names, we need to pre-populate usedNames with Spanner table
+	// names to handle collision with foreign key names and index names.
+	for _, srcTable := range conv.SrcSchema {
+		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
+			continue
+		}
+		usedNames[spTableName] = true
+	}
 	for _, srcTable := range conv.SrcSchema {
 		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
 		if err != nil {

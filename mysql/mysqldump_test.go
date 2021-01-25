@@ -211,7 +211,7 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 					},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
 					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "A_fk_test_2", Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}},
-						ddl.Foreignkey{Name: "A_fk_test_2_1", Columns: []string{"c"}, ReferTable: "test3", ReferColumns: []string{"e"}}}}},
+						ddl.Foreignkey{Name: "A_fk_test_2_4", Columns: []string{"c"}, ReferTable: "test3", ReferColumns: []string{"e"}}}}},
 		},
 		{
 			name: "Alter table add foreign key",
