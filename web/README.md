@@ -1,17 +1,19 @@
 # HarbourBridge: Web APIs (Experimental)
 
-HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation,
-using data from an existing PostgreSQL or MySQL database. This README provides
-details of the tool's Web APIs capabilities, Web APIs allows user to visualize the conversion
-using UI and interact with the tool to customize some of the conversion. For general HarbourBridge information
-see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbourbridge-turnkey-spanner-evaluation). Note that this feature is experimental, and should not be used for production database.
+HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation
+and migration. This README provides details of the tool's Web APIs capabilities,
+Web APIs allows user to visualize the conversion using UI and interact with the
+tool to customize some of the conversion. For general HarbourBridge information
+see this [README](https:githubcomcloudspannerecosystemharbourbridge#harbourbridge-turnkey-spanner-evaluation). Note that this feature is experimental, and should not be used for
+production database.
 
 ### Starting web server for HarbourBridge
 
 The following example assume `harbourbridge` has been added to your PATH
 environment variable.
 
-HarbourBridge's Web API feature can be used with all the driver modes available, using mysql or postgres dump or direct connection.
+HarbourBridge's Web API feature can be used with all the driver modes available,
+using mysql or postgres dump or direct connection.
 
 To start HarbourBridge web server, run:
 
@@ -31,7 +33,9 @@ For more details on how to use the UI, you can visit: `<base-url>/userManual.htm
 
 <ins>**Note:**</ins>
 
-Data migration is not supported when using `pg_dump` or `mysqldump` driver options when the converted schema contains Interleaved tables. It is recommended to use `postgres` or `mysql` driver for data migration with schema having Interleaved tables.
+The `pg_dump` and `mysqldump` drivers cannot be used for data migration if the
+Spanner schema has interleaved tables. Note that the `postgres` or `mysql` drivers
+do not have this restriction -- consider using these as an alternative.
 
 ## APIs
 
@@ -39,7 +43,8 @@ These are the REST APIs and their details:
 
 ### Connect
 
-`/connect` is a POST API which is used in case of direct connection. It takes driver config in request body, following is the json structure for the same.
+`/connect` is a POST API used to configure direct connection to a database.
+The request body contains connection details and the driver name.
 
 #### Method
 
@@ -68,7 +73,8 @@ No response body is returned.
 
 ### Convert
 
-(1) `/convert/infoschema` is a GET API followed by `/connect` API to convert using infoschema mode. It returns the schema conversion state in json format.
+(1) `/convert/infoschema` is a GET API followed by `/connect` API to convert using
+infoschema mode. It returns the schema conversion state in json format.
 
 #### Method
 
@@ -82,7 +88,8 @@ No request body is needed.
 
 Conv struct in JSON format.
 
-(2) `/convert/dump` is a POST API which is used to convert schema from dump file. It takes dump config in request body , following is the json structure for the same.
+(2) `/convert/dump` is a POST API used to perform schema conversion on a dump file.
+The request body contains the path to the dump file.
 
 #### Method
 
@@ -107,7 +114,8 @@ Conv struct in JSON format.
 
 ### DDL
 
-`/ddl` is a GET API which must be used after using conversion APIs (i.e, `/connect` or `/convert`). This API returns the DDL statements of the converted schema.
+`/ddl` is a GET API which must be used after using conversion APIs (i.e, `/connect`
+or `/convert`). This API returns the DDL statements of the converted schema.
 
 #### Method
 
@@ -131,7 +139,8 @@ Example
 
 ### Session
 
-(1) `/session` is a GET API which returns the schema conversion state in json format. It also create a file with suffix `.session.json` in the `frontend/` folder.
+(1) `/session` is a GET API which returns the schema conversion state in json format.
+It also create a file with suffix `.session.json` in the `frontend/` folder.
 
 #### Method
 
@@ -156,7 +165,9 @@ Example
 }
 ```
 
-(2) `/session/resume` is a POST API which can be used to resume the previous session, it requires the session file which can be generated using the above API. It takes following as request body.
+(2) `/session/resume` is a POST API which can be used to resume a previous session.
+The request body contains the path to the previous session. Note that sessions are
+created by the `/session` API.
 
 #### Method
 
@@ -182,7 +193,7 @@ No response body is returned.
 
 ### Summary
 
-`/summary` is a GET API which returns table wise summary of the conversion.
+`/summary` is a GET API which returns a table-by-table report of the conversion.
 
 #### Method
 
@@ -222,7 +233,8 @@ Overall summary of conversion in string format.
 
 ### Conversion
 
-`/conversion` is a GET API which returns table wise rate of conversion which is encoded in color values.
+`/conversion` is a GET API which returns table wise rate of conversion which is
+encoded in color values.
 
 #### Method
 
@@ -248,7 +260,9 @@ Example
 
 ### Typemap
 
-(1) `/typemap` is a GET API which returns the source type to list of spanner type map, which can be used for manual type maping from the UI.
+(1) `/typemap` is a GET API which returns a map that, for each source type,
+provides the potential Spanner types that can be used for that source type.
+This map can be used for customization of type mapping in the UI.
 
 #### Method
 
@@ -260,7 +274,7 @@ No request body is needed.
 
 #### Response body
 
-Map from source type to list of possible spanner type and issue.
+Map from each source type to the list of possible Spanner types and issues.
 
 Example
 
@@ -289,7 +303,8 @@ Example
 }
 ```
 
-(2) `/typemap/global` is a POST API which converts from source type map to desired spanner typemap globally (i.e, it affects all the tables). It takes a map from source type to spanner type in json format.
+(2) `/typemap/global` is a POST API to customize schema conversion on global level.
+The request body contains a map from source type to Spanner type in json format.
 
 #### Method
 
@@ -297,7 +312,7 @@ Example
 
 #### Request body
 
-Map from source type to spanner type.
+Map from source type to Spanner type.
 
 Example
 
@@ -312,7 +327,8 @@ Example
 
 Updated Conv struct in JSON format.
 
-(3) `/typemap/table?table=<table_name>` is a POST API which performs following operations on a single table.
+(3) `/typemap/table?table=<table_name>` is a POST API which performs following
+operations on a single table.
 
 - Remove column
 - Rename column
@@ -332,7 +348,7 @@ Column wise actions to be performed with following possible values for each fiel
 - Rename : New name or empty string
 - PK : "" | "ADDED" | "REMOVED"
 - NotNull : "" | "ADDED" | "REMOVED"
-- ToType : New spanner type or empty string
+- ToType : New Spanner type or empty string
 
 Example
 
@@ -356,7 +372,8 @@ Updated Conv struct in JSON format.
 
 ### Filepaths
 
-`/filepaths` is a GET API which generates and returns file paths for schema and report file.
+`/filepaths` is a GET API which generates and returns file paths for the schema
+and report files.
 
 #### Method
 
@@ -381,7 +398,10 @@ Example
 
 ### Interleave tables
 
-`/checkinterleave/table?table=<table_name>` is a GET API which checks it it is possible to convert this table into interleaved table in spanner, if it is possible it converts and returns parent table name, otherwise it returns failure message.
+`/checkinterleave/table?table=<table_name>` is a GET API which checks whether it is
+possible to convert a table into a Spanner interleaved table. If this conversion is possible,
+then the schema is changed and the parent table name is returned.
+If the conversion is not possible, a failure message is returned.
 
 #### Method
 
@@ -393,7 +413,8 @@ No request body is needed.
 
 #### Response body
 
-If it is possible to make given table interleaved, it will return with table name of parent.
+If it is possible to make given table interleaved, it will return with table
+name of parent.
 
 Example
 
@@ -405,7 +426,8 @@ Example
 }
 ```
 
-If it is not possible to interleave given table, it will return with the reason of why it failed.
+If it is not possible to interleave given table, it will return with the reason
+of why it failed.
 
 Example
 
