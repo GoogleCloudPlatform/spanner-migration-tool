@@ -133,7 +133,10 @@ Example
 
 ```json
 {
-  "Albums": "--\n-- Spanner schema for source table Albums\n--\nCREATE TABLE Albums (\n    SingerId INT64 NOT NULL, -- From: SingerId smallint(6)\n    AlbumId INT64 NOT NULL,  -- From: AlbumId smallint(6)\n    AlbumTitle STRING(50)    -- From: AlbumTitle varchar(50)\n) PRIMARY KEY (SingerId, AlbumId)"
+  "Albums": "--\n-- Spanner schema for source table Albums\n--\nCREATE TABLE
+Albums (\n    SingerId INT64 NOT NULL, -- From: SingerId smallint(6)\n
+AlbumId INT64 NOT NULL, -- From: AlbumId smallint(6)\n    AlbumTitle STRING(50)
+-- From: AlbumTitle varchar(50)\n) PRIMARY KEY (SingerId, AlbumId)"
 }
 ```
 
@@ -211,7 +214,9 @@ Example
 
 ```json
 {
-  "Albums": "Note\n1) Some columns will consume more storage in Spanner e.g. for column 'AlbumId', source DB type smallint(6) is mapped to Spanner type int64.\n\n"
+  "Albums": "Note\n1) Some columns will consume more storage in Spanner
+e.g. for column 'AlbumId', source DB type smallint(6) is mapped to Spanner
+type int64.\n\n"
 }
 ```
 
