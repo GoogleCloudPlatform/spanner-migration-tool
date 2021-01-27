@@ -393,7 +393,8 @@ func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]schema.
 		return nil, err
 	}
 	defer rows.Close()
-	var name, column, sequence, collation, nonUnique string
+	var name, column, sequence, nonUnique string
+	var collation sql.NullString
 	indexMap := make(map[string]schema.Index)
 	var indexNames []string
 	var indexes []schema.Index
@@ -407,7 +408,7 @@ func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]schema.
 			indexMap[name] = schema.Index{Name: name, Unique: (nonUnique == "0")}
 		}
 		index := indexMap[name]
-		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation == "D")})
+		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation.Valid && collation.String == "D")})
 		indexMap[name] = index
 	}
 	for _, k := range indexNames {

@@ -100,7 +100,7 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 			args:  []driver.Value{"test", "cart"},
 			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
 			rows: [][]driver.Value{
-				{"index1", "userid", 1, "A", "0"},
+				{"index1", "userid", 1, sql.NullString{Valid: false}, "0"},
 				{"index2", "userid", 1, "A", "1"},
 				{"index2", "productid", 2, "D", "1"},
 				{"index3", "productid", 1, "A", "0"},
