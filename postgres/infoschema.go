@@ -470,7 +470,7 @@ func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]schema.
 		}
 		if _, found := indexMap[name]; !found {
 			indexNames = append(indexNames, name)
-			indexMap[name] = schema.Index{Name: name, Unique: (isUnique == "t")}
+			indexMap[name] = schema.Index{Name: name, Unique: (isUnique == "true")}
 		}
 		index := indexMap[name]
 		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation == "DESC")})
