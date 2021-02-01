@@ -201,6 +201,13 @@ Spanner doesn't support `ON DELETE` and `ON UPDATE` actions, so we drop these.
 Spanner does not currently support default values. We drop these
 PostgreSQL features during conversion.
 
+### Secondary Indexes
+
+The tool maps PostgresSQL secondary indexes to Spanner secondary indexes, preserving
+constraint names where possible. The tool also maps PostgreSQL `UNIQUE` constraints to
+Spanner `UNIQUE` secondary indexes. Check [here](https://cloud.google.com/spanner/docs/migrating-postgres-spanner#indexes)
+for more details.
+
 ### Other PostgreSQL features
 
 PostgreSQL has many other features we haven't discussed, including functions,

@@ -131,7 +131,7 @@ func GetSpannerCols(conv *Conv, srcTable string, srcCols []string) ([]string, er
 	return spCols, nil
 }
 
-// GetSpannerKeyName maps source foreign key name to
+// ToSpannerForeignKey maps source foreign key name to
 // legal Spanner foreign key name.
 // If the srcKeyName is empty string we can just return
 // empty string without error.
@@ -144,27 +144,44 @@ func GetSpannerCols(conv *Conv, srcTable string, srcCols []string) ([]string, er
 // (across the database). But in some source databases, such as PostgreSQL,
 // they only have to be unique for a table. Hence we must map each source
 // constraint name to a unique spanner constraint name.
-func GetSpannerKeyName(srcKeyName string, schemaForeignKeys map[string]bool) string {
-	if srcKeyName == "" {
+func ToSpannerForeignKey(srcId string, used map[string]bool) string {
+	if srcId == "" {
 		return ""
 	}
-	spKeyName, _ := FixName(srcKeyName)
-	if _, found := schemaForeignKeys[spKeyName]; found {
+	return getSpannerId(srcId, used)
+}
+
+// ToSpannerIndexName maps source index name to legal Spanner index name.
+// We need to make sure of the following things:
+// a) the new index name is legal
+// b) the new index name doesn't clash with other Spanner
+//    index names
+// Note that index key constraint names in Spanner have to be globally unique
+// (across the database). But in some source databases, such as MySQL,
+// they only have to be unique for a table. Hence we must map each source
+// constraint name to a unique spanner constraint name.
+func ToSpannerIndexName(srcId string, used map[string]bool) string {
+	return getSpannerId(srcId, used)
+}
+
+func getSpannerId(srcId string, used map[string]bool) string {
+	spKeyName, _ := FixName(srcId)
+	if _, found := used[spKeyName]; found {
 		// spKeyName has been used before.
-		// Add unique postfix: use number of foreign keys so far.
+		// Add unique postfix: use number of keys so far.
 		// However, there is a chance this has already been used,
 		// so need to iterate.
-		id := len(schemaForeignKeys)
+		id := len(used)
 		for {
 			c := spKeyName + "_" + strconv.Itoa(id)
-			if _, found := schemaForeignKeys[c]; !found {
+			if _, found := used[c]; !found {
 				spKeyName = c
 				break
 			}
 			id++
 		}
 	}
-	schemaForeignKeys[spKeyName] = true
+	used[spKeyName] = true
 	return spKeyName
 }
 

@@ -93,7 +93,7 @@ func TestGetSpannerCol(t *testing.T) {
 	}
 }
 
-func TestGetSpannerKeyName(t *testing.T) {
+func TestToSpannerForeignKey(t *testing.T) {
 	schemaForeignKeys := make(map[string]bool)
 
 	basicTests := []struct {
@@ -103,20 +103,36 @@ func TestGetSpannerKeyName(t *testing.T) {
 	}{
 		{"Good name", "fktest", "fktest"},
 		{"Empty name", "", ""},
-		{"Collision", "fktest", "fktest_1"},
-		{"Collision 2", "fktest", "fktest_2"},
-		{"Bad name", "fk\ntest", "fk_test"},
-		{"Bad name 2", "f\nk\ntest", "f_k_test"},
-		{"Collision 3", "fktest", "fktest_5"},
-		{"Collision 4", "fktest", "fktest_6"},
-		{"Good name", "fk_test_5", "fk_test_5"},
-		{"Collision 5", "fktest_6", "fktest_6_8"},
-		{"Bad name with collision", "fk\ttest", "fk_test_9"},
-		{"Bad name with collision 2", "fk\ntest", "fk_test_10"},
-		{"Bad name with collision 3", "fk?test", "fk_test_11"},
 	}
 	for _, tc := range basicTests {
-		spKeyName := GetSpannerKeyName(tc.srcKeyName, schemaForeignKeys)
+		spKeyName := ToSpannerForeignKey(tc.srcKeyName, schemaForeignKeys)
+		assert.Equal(t, tc.spKeyName, spKeyName, tc.name)
+	}
+}
+
+func TestGetSpannerId(t *testing.T) {
+	schemaIndexKeys := make(map[string]bool)
+
+	basicTests := []struct {
+		name       string // Name of test.
+		srcKeyName string // Source key name.
+		spKeyName  string // Expected Spanner key name.
+	}{
+		{"Good name", "index1", "index1"},
+		{"Collision", "index1", "index1_1"},
+		{"Collision 2", "index1", "index1_2"},
+		{"Bad name", "in\ndex", "in_dex"},
+		{"Bad name 2", "i\nn\ndex", "i_n_dex"},
+		{"Collision 3", "index", "index"},
+		{"Collision 4", "index", "index_6"},
+		{"Good name", "in_dex", "in_dex_7"},
+		{"Collision 5", "index_6", "index_6_8"},
+		{"Bad name with collision", "in\tdex", "in_dex_9"},
+		{"Bad name with collision 2", "in\ndex", "in_dex_10"},
+		{"Bad name with collision 3", "in?dex", "in_dex_11"},
+	}
+	for _, tc := range basicTests {
+		spKeyName := getSpannerId(tc.srcKeyName, schemaIndexKeys)
 		assert.Equal(t, tc.spKeyName, spKeyName, tc.name)
 	}
 }

@@ -181,9 +181,11 @@ func (conv *Conv) GetDDL(c ddl.Config) []string {
 	if c.Tables {
 		for _, t := range tables {
 			ddl = append(ddl, conv.SpSchema[t].PrintCreateTable(c))
+			for _, index := range conv.SpSchema[t].Indexes {
+				ddl = append(ddl, index.PrintCreateIndex(c))
+			}
 		}
 	}
-
 	// Append foreign key constraints to DDL.
 	// We always use alter table statements for foreign key constraints.
 	// The alternative of putting foreign key constraints in-line as part of create

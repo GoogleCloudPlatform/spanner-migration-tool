@@ -51,8 +51,9 @@ func TestGetDDL(t *testing.T) {
 			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
 			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}},
 		},
-		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
-		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"b"}, ReferTable: "ref_table1", ReferColumns: []string{"ref_b"}}},
+		Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+		Fks:     []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"b"}, ReferTable: "ref_table1", ReferColumns: []string{"ref_b"}}},
+		Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", Table: "table1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}},
 	}
 	conv.SpSchema["table2"] = ddl.CreateTable{
 		Name:     "table2",
@@ -62,12 +63,16 @@ func TestGetDDL(t *testing.T) {
 			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}},
 			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
 		},
-		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
-		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk2", Columns: []string{"b", "c"}, ReferTable: "ref_table2", ReferColumns: []string{"ref_b", "ref_c"}}}}
+		Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+		Fks:     []ddl.Foreignkey{ddl.Foreignkey{Name: "fk2", Columns: []string{"b", "c"}, ReferTable: "ref_table2", ReferColumns: []string{"ref_b", "ref_c"}}},
+		Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index2", Table: "table2", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: true}, ddl.IndexKey{Col: "c", Desc: false}}}},
+	}
 	tables := conv.GetDDL(ddl.Config{Tables: true, ForeignKeys: false})
 	e := []string{
 		"CREATE TABLE table1 (\n    a INT64,\n    b INT64 \n) PRIMARY KEY (a)",
+		"CREATE INDEX index1 ON table1 (b)",
 		"CREATE TABLE table2 (\n    a INT64,\n    b INT64,\n    c INT64 \n) PRIMARY KEY (a)",
+		"CREATE UNIQUE INDEX index2 ON table2 (b DESC, c)",
 	}
 	assert.ElementsMatch(t, e, tables)
 	fks := conv.GetDDL(ddl.Config{Tables: false, ForeignKeys: true})
@@ -79,7 +84,9 @@ func TestGetDDL(t *testing.T) {
 	tablesAndFks := conv.GetDDL(ddl.Config{Tables: true, ForeignKeys: true})
 	e3 := []string{
 		"CREATE TABLE table1 (\n    a INT64,\n    b INT64 \n) PRIMARY KEY (a)",
+		"CREATE INDEX index1 ON table1 (b)",
 		"CREATE TABLE table2 (\n    a INT64,\n    b INT64,\n    c INT64 \n) PRIMARY KEY (a)",
+		"CREATE UNIQUE INDEX index2 ON table2 (b DESC, c)",
 		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_b)",
 		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES ref_table2 (ref_b, ref_c)",
 	}

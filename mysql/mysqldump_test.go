@@ -211,7 +211,7 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 					},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
 					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "A_fk_test_2", Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}},
-						ddl.Foreignkey{Name: "A_fk_test_2_1", Columns: []string{"c"}, ReferTable: "test3", ReferColumns: []string{"e"}}}}},
+						ddl.Foreignkey{Name: "A_fk_test_2_4", Columns: []string{"c"}, ReferTable: "test3", ReferColumns: []string{"e"}}}}},
 		},
 		{
 			name: "Alter table add foreign key",
@@ -324,6 +324,176 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 					},
 					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
 					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"e", "f"}, ReferTable: "test", ReferColumns: []string{"a", "b"}}}}},
+		},
+		{
+			name: "Create table with index keys",
+			input: "CREATE TABLE test (" +
+				"a smallint DEFAULT NULL," +
+				"b text DEFAULT NULL," +
+				"c text DEFAULT NULL," +
+				"KEY custom_index (b, c)" +
+				");\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b", "c", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+		},
+		{
+			name: "Create table with unique index keys",
+			input: "CREATE TABLE test (" +
+				"a smallint DEFAULT NULL," +
+				"b text DEFAULT NULL," +
+				"c text DEFAULT NULL," +
+				"UNIQUE KEY custom_index (b, c)" +
+				");\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b", "c", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+		},
+		{
+			name: "Create table with multiple index keys with different order",
+			input: "CREATE TABLE test (" +
+				"a smallint DEFAULT NULL," +
+				"b text DEFAULT NULL," +
+				"c text DEFAULT NULL," +
+				"UNIQUE KEY custom_index (b, c)," +
+				"KEY custom_index2 (c, a)" +
+				");\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b", "c", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}},
+						ddl.CreateIndex{Name: "custom_index2", Table: "test", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "c", Desc: false}, ddl.IndexKey{Col: "a", Desc: false}}}}}},
+		},
+		{
+			name: "Alter table add index keys",
+			input: "CREATE TABLE test (" +
+				"a smallint DEFAULT NULL," +
+				"b text DEFAULT NULL," +
+				"c text DEFAULT NULL" +
+				");\n" +
+				"ALTER TABLE test ADD INDEX custom_index (b, c);\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b", "c", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+		},
+		{
+			name: "Alter table add unique index keys",
+			input: "CREATE TABLE test (" +
+				"a smallint DEFAULT NULL," +
+				"b text DEFAULT NULL," +
+				"c text DEFAULT NULL" +
+				");\n" +
+				"ALTER TABLE test ADD UNIQUE INDEX custom_index (b, c);\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b", "c", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+		},
+		{
+			name: "Alter table add index keys",
+			input: "CREATE TABLE test (" +
+				"a smallint DEFAULT NULL," +
+				"b text DEFAULT NULL," +
+				"c text DEFAULT NULL" +
+				");\n" +
+				"ALTER TABLE test ADD CONSTRAINT custom_index UNIQUE (b, c);\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b", "c", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+		},
+		{
+			name: "Create index statement",
+			input: "CREATE TABLE test (" +
+				"a smallint DEFAULT NULL," +
+				"b text DEFAULT NULL," +
+				"c text DEFAULT NULL" +
+				");\n" +
+				"CREATE INDEX custom_index ON test (b, c);\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b", "c", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+		},
+		{
+			name: "Create unique index statement",
+			input: "CREATE TABLE test (" +
+				"a smallint DEFAULT NULL," +
+				"b text DEFAULT NULL," +
+				"c text DEFAULT NULL" +
+				");\n" +
+				"CREATE UNIQUE INDEX custom_index ON test (b, c);\n",
+			expectedSchema: map[string]ddl.CreateTable{
+				"test": ddl.CreateTable{
+					Name:     "test",
+					ColNames: []string{"a", "b", "c", "synth_id"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+					},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
+					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
 		},
 		{
 			name:  "Create table with mysql schema",
