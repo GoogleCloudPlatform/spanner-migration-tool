@@ -257,7 +257,7 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 		}
 		if srcIndex.Name == "" {
 			// Generate a name if index name is empty in Postgres.
-			// Collision of index name will be handled by ToSpannerIndexKey.
+			// Collision of index name will be handled by ToSpannerIndexName.
 			srcIndex.Name = fmt.Sprintf("Index_%s", srcTable)
 		}
 		spIndexName := internal.ToSpannerIndexName(srcIndex.Name, usedNames)

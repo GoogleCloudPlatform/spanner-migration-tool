@@ -196,14 +196,6 @@ func processStatements(conv *internal.Conv, statements []nodes.Node) *copyOrInse
 	return nil
 }
 
-func toSchemaIndexKeys(indexParams nodes.List) (keys []schema.Key) {
-	var schemaKeys []schema.Key
-	for _, ip := range indexParams.Items {
-		schemaKeys = append(schemaKeys, schema.Key{Column: *ip.(nodes.IndexElem).Name})
-	}
-	return schemaKeys
-}
-
 func processIndexStmt(conv *internal.Conv, n nodes.IndexStmt) {
 	if n.Relation == nil {
 		logStmtError(conv, n, fmt.Errorf("cannot process index statement with nil relation."))
@@ -218,7 +210,7 @@ func processIndexStmt(conv *internal.Conv, n nodes.IndexStmt) {
 		ctable.Indexes = append(ctable.Indexes, schema.Index{
 			Name:   *n.Idxname,
 			Unique: n.Unique,
-			Keys:   toIndexKeys(conv, tableName, n.IndexParams.Items),
+			Keys:   toIndexKeys(n.IndexParams.Items),
 		})
 		conv.SrcSchema[tableName] = ctable
 	} else {
@@ -667,9 +659,8 @@ func toSchemaKeys(conv *internal.Conv, table string, s []string) (l []schema.Key
 	return l
 }
 
-// toIndexKeys converts a list of PostgreSQL primary keys to
-// schema Index keys.
-func toIndexKeys(conv *internal.Conv, table string, s []nodes.Node) []schema.Key {
+// toIndexKeys converts a list of PostgreSQL index keys to schema index keys.
+func toIndexKeys(s []nodes.Node) []schema.Key {
 	var l []schema.Key
 	for _, k := range s {
 		desc := false

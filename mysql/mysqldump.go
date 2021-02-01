@@ -285,7 +285,9 @@ func processConstraint(conv *internal.Conv, table string, constraint *ast.Constr
 // Note that we map all MySQL keys to ascending ordered schema keys.
 // For primary keys: this is fine because MySQL primary keys are always ascending.
 // However, for non-primary keys (aka indexes) this is incorrect: we are dropping
-// the MySQL key order specification.
+// the MySQL key order specification, as mysqldump parser is not able to parse the
+// order. Check this for more details:
+// https://github.com/cloudspannerecosystem/harbourbridge/issues/96
 // TODO: Resolve ordering issue for non-primary keys.
 func toSchemaKeys(columns []*ast.IndexPartSpecification) (keys []schema.Key) {
 	for _, colname := range columns {
