@@ -697,7 +697,7 @@ func init() {
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		if srcType == "tinyint" {
-			l = append(l, typeIssue{T: ddl.Bool})
+			l = append(l, typeIssue{T: ddl.Bool, Brief: "Only tinyint(1) can be converted to BOOL, for any other mods it will be converted to INT64"})
 		}
 		mysqlTypeMap[srcType] = l
 	}
