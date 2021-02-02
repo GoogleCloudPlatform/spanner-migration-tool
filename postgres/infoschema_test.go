@@ -43,7 +43,9 @@ func TestProcessInfoSchema(t *testing.T) {
 			rows: [][]driver.Value{
 				{"public", "user"},
 				{"public", "cart"},
-				{"public", "test"}},
+				{"public", "product"},
+				{"public", "test"},
+				{"public", "test_ref"}},
 		},
 		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
@@ -52,23 +54,26 @@ func TestProcessInfoSchema(t *testing.T) {
 			rows: [][]driver.Value{
 				{"user_id", "text", nil, "NO", nil, nil, nil, nil},
 				{"name", "text", nil, "NO", nil, nil, nil, nil},
-				{"addressid", "bigint", nil, "YES", nil, nil, nil, nil}},
+				{"ref", "bigint", nil, "YES", nil, nil, nil, nil}},
 		}, {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"public", "user"},
 			cols:  []string{"column_name", "constraint_type"},
 			rows: [][]driver.Value{
 				{"user_id", "PRIMARY KEY"},
-				{"addressid", "FOREIGN KEY"}},
+				{"ref", "FOREIGN KEY"}},
 		}, {
 			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
 			args:  []driver.Value{"public", "user"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 			rows: [][]driver.Value{
-				{"public", "address", "addressid", "address_id", "fk_test"},
+				{"public", "test", "ref", "id", "fk_test"},
 			},
-		},
-		{
+		}, {
+			query: "SELECT (.+) FROM pg_index (.+)",
+			args:  []driver.Value{"public", "user"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
+		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "cart"},
 			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -90,6 +95,37 @@ func TestProcessInfoSchema(t *testing.T) {
 			rows: [][]driver.Value{
 				{"public", "product", "productid", "product_id", "fk_test2"},
 				{"public", "user", "userid", "user_id", "fk_test3"}},
+		}, {
+			query: "SELECT (.+) FROM pg_index (.+)",
+			args:  []driver.Value{"public", "cart"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
+			rows: [][]driver.Value{{"index1", "userid", 1, "false", "ASC"},
+				{"index2", "userid", 1, "true", "ASC"},
+				{"index2", "productid", 2, "true", "DESC"},
+				{"index3", "productid", 1, "true", "DESC"},
+				{"index3", "userid", 2, "true", "ASC"},
+			},
+		}, {
+			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			args:  []driver.Value{"public", "product"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			rows: [][]driver.Value{
+				{"product_id", "text", nil, "NO", nil, nil, nil, nil},
+				{"product_name", "text", nil, "NO", nil, nil, nil, nil}},
+		}, {
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
+			args:  []driver.Value{"public", "product"},
+			cols:  []string{"column_name", "constraint_type"},
+			rows: [][]driver.Value{
+				{"product_id", "PRIMARY KEY"}},
+		}, {
+			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
+			args:  []driver.Value{"public", "product"},
+			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
+		}, {
+			query: "SELECT (.+) FROM pg_index (.+)",
+			args:  []driver.Value{"public", "product"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "test"},
@@ -113,7 +149,7 @@ func TestProcessInfoSchema(t *testing.T) {
 				{"s", "integer", nil, "NO", "nextval('test11_s_seq'::regclass)", nil, 32, 0},
 				{"ts", "timestamp without time zone", nil, "YES", nil, nil, nil, nil},
 				{"tz", "timestamp with time zone", nil, "YES", nil, nil, nil, nil},
-				{"txt", "text", nil, "YES", nil, nil, nil, nil},
+				{"txt", "text", nil, "NO", nil, nil, nil, nil},
 				{"vc", "character varying", nil, "YES", nil, nil, nil, nil},
 				{"vc6", "character varying", nil, "YES", nil, 6, nil, nil}},
 		}, {
@@ -126,7 +162,34 @@ func TestProcessInfoSchema(t *testing.T) {
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 			rows: [][]driver.Value{{"public", "test_ref", "id", "ref_id", "fk_test4"},
-				{"public", "test_ref", "bs", "ref_bs", "fk_test4"}},
+				{"public", "test_ref", "txt", "ref_txt", "fk_test4"}},
+		}, {
+			query: "SELECT (.+) FROM pg_index (.+)",
+			args:  []driver.Value{"public", "test"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
+		}, {
+			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			args:  []driver.Value{"public", "test_ref"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			rows: [][]driver.Value{
+				{"ref_id", "bigint", nil, "NO", nil, nil, 64, 0},
+				{"ref_txt", "text", nil, "NO", nil, nil, nil, nil},
+				{"abc", "text", nil, "NO", nil, nil, nil, nil}},
+		}, {
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
+			args:  []driver.Value{"public", "test_ref"},
+			cols:  []string{"column_name", "constraint_type"},
+			rows: [][]driver.Value{
+				{"ref_id", "PRIMARY KEY"},
+				{"ref_txt", "PRIMARY KEY"}},
+		}, {
+			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
+			args:  []driver.Value{"public", "test_ref"},
+			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
+		}, {
+			query: "SELECT (.+) FROM pg_index (.+)",
+			args:  []driver.Value{"public", "test_ref"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
 		},
 	}
 	db := mkMockDB(t, ms)
@@ -136,14 +199,14 @@ func TestProcessInfoSchema(t *testing.T) {
 	expectedSchema := map[string]ddl.CreateTable{
 		"user": ddl.CreateTable{
 			Name:     "user",
-			ColNames: []string{"user_id", "name", "addressid"},
+			ColNames: []string{"user_id", "name", "ref"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"user_id":   ddl.ColumnDef{Name: "user_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"name":      ddl.ColumnDef{Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"addressid": ddl.ColumnDef{Name: "addressid", T: ddl.Type{Name: ddl.Int64}},
+				"user_id": ddl.ColumnDef{Name: "user_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"name":    ddl.ColumnDef{Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"ref":     ddl.ColumnDef{Name: "ref", T: ddl.Type{Name: ddl.Int64}},
 			},
 			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "user_id"}},
-			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"addressid"}, ReferTable: "address", ReferColumns: []string{"address_id"}}}},
+			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"ref"}, ReferTable: "test", ReferColumns: []string{"id"}}}},
 		"cart": ddl.CreateTable{
 			Name:     "cart",
 			ColNames: []string{"productid", "userid", "quantity"},
@@ -154,7 +217,18 @@ func TestProcessInfoSchema(t *testing.T) {
 			},
 			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "productid"}, ddl.IndexKey{Col: "userid"}},
 			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test2", Columns: []string{"productid"}, ReferTable: "product", ReferColumns: []string{"product_id"}},
-				ddl.Foreignkey{Name: "fk_test3", Columns: []string{"userid"}, ReferTable: "user", ReferColumns: []string{"user_id"}}}},
+				ddl.Foreignkey{Name: "fk_test3", Columns: []string{"userid"}, ReferTable: "user", ReferColumns: []string{"user_id"}}},
+			Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", Table: "cart", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "userid", Desc: false}}},
+				ddl.CreateIndex{Name: "index2", Table: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "userid", Desc: false}, ddl.IndexKey{Col: "productid", Desc: true}}},
+				ddl.CreateIndex{Name: "index3", Table: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "productid", Desc: true}, ddl.IndexKey{Col: "userid", Desc: false}}}}},
+		"product": ddl.CreateTable{
+			Name:     "product",
+			ColNames: []string{"product_id", "product_name"},
+			ColDefs: map[string]ddl.ColumnDef{
+				"product_id":   ddl.ColumnDef{Name: "product_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"product_name": ddl.ColumnDef{Name: "product_name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+			},
+			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "product_id"}}},
 		"test": ddl.CreateTable{
 			Name:     "test",
 			ColNames: []string{"id", "aint", "atext", "b", "bs", "by", "c", "c8", "d", "f8", "f4", "i8", "i4", "i2", "num", "s", "ts", "tz", "txt", "vc", "vc6"},
@@ -173,17 +247,25 @@ func TestProcessInfoSchema(t *testing.T) {
 				"i8":    ddl.ColumnDef{Name: "i8", T: ddl.Type{Name: ddl.Int64}},
 				"i4":    ddl.ColumnDef{Name: "i4", T: ddl.Type{Name: ddl.Int64}},
 				"i2":    ddl.ColumnDef{Name: "i2", T: ddl.Type{Name: ddl.Int64}},
-				"num":   ddl.ColumnDef{Name: "num", T: ddl.Type{Name: ddl.Float64}},
+				"num":   ddl.ColumnDef{Name: "num", T: ddl.Type{Name: ddl.Numeric}},
 				"s":     ddl.ColumnDef{Name: "s", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 				"ts":    ddl.ColumnDef{Name: "ts", T: ddl.Type{Name: ddl.Timestamp}},
 				"tz":    ddl.ColumnDef{Name: "tz", T: ddl.Type{Name: ddl.Timestamp}},
-				"txt":   ddl.ColumnDef{Name: "txt", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"txt":   ddl.ColumnDef{Name: "txt", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"vc":    ddl.ColumnDef{Name: "vc", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 				"vc6":   ddl.ColumnDef{Name: "vc6", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
 			},
 			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "id"}},
-			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test4", Columns: []string{"id", "bs"}, ReferTable: "test_ref", ReferColumns: []string{"ref_id", "ref_bs"}}},
-		},
+			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test4", Columns: []string{"id", "txt"}, ReferTable: "test_ref", ReferColumns: []string{"ref_id", "ref_txt"}}}},
+		"test_ref": ddl.CreateTable{
+			Name:     "test_ref",
+			ColNames: []string{"ref_id", "ref_txt", "abc"},
+			ColDefs: map[string]ddl.ColumnDef{
+				"ref_id":  ddl.ColumnDef{Name: "ref_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+				"ref_txt": ddl.ColumnDef{Name: "ref_txt", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"abc":     ddl.ColumnDef{Name: "abc", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+			},
+			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "ref_id"}, ddl.IndexKey{Col: "ref_txt"}}},
 	}
 	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	assert.Equal(t, len(conv.Issues["cart"]), 0)
@@ -193,7 +275,6 @@ func TestProcessInfoSchema(t *testing.T) {
 		"f4":   []internal.SchemaIssue{internal.Widened},
 		"i4":   []internal.SchemaIssue{internal.Widened},
 		"i2":   []internal.SchemaIssue{internal.Widened},
-		"num":  []internal.SchemaIssue{internal.Numeric},
 		"s":    []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
 		"ts":   []internal.SchemaIssue{internal.Timestamp},
 	}
@@ -357,6 +438,11 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
+		},
+		{
+			query: "SELECT (.+) FROM pg_index (.+)",
+			args:  []driver.Value{"public", "test"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
 		},
 		// Note: go-sqlmock mocks specify an ordered sequence
 		// of queries and results.  This (repeated) entry is

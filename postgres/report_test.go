@@ -100,12 +100,9 @@ Data conversion: OK (94% of 1000 rows written to Spanner).
 Warnings
 1) Column 'synth_id' was added because this table didn't have a primary key.
    Spanner requires a primary key for every table.
-2) Column 'a': type numeric is mapped to float64. Spanner does not support
-   numeric. This type mapping could lose precision and is not recommended for
-   production use.
-3) Column 'c': type int4[4][2] is mapped to string(max). Spanner doesn't support
+2) Column 'c': type int4[4][2] is mapped to string(max). Spanner doesn't support
    multi-dimensional arrays.
-4) Column 'd': type circle is mapped to string(max). No appropriate Spanner
+3) Column 'd': type circle is mapped to string(max). No appropriate Spanner
    type.
 
 Note

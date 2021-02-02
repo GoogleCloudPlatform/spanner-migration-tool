@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/big"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -239,7 +240,7 @@ func checkResults(t *testing.T, dbPath string) {
 
 	checkBigInt(ctx, t, client)
 	checkTimestamps(ctx, t, client)
-	checkDateBytesBool(ctx, t, client)
+	checkCoreTypes(ctx, t, client)
 	checkArrays(ctx, t, client)
 }
 
@@ -288,11 +289,15 @@ func checkTimestamps(ctx context.Context, t *testing.T, client *spanner.Client) 
 	}
 }
 
-func checkDateBytesBool(ctx context.Context, t *testing.T, client *spanner.Client) {
-	var date spanner.NullDate
-	var bytesVal []byte
+func checkCoreTypes(ctx context.Context, t *testing.T, client *spanner.Client) {
 	var boolVal bool
-	iter := client.Single().Read(ctx, "test2", spanner.Key{1}, []string{"a", "b", "c"})
+	var bytesVal []byte
+	var date spanner.NullDate
+	var floatVal float64
+	var intVal int64
+	var numericVal big.Rat
+	var stringVal string
+	iter := client.Single().Read(ctx, "test2", spanner.Key{1}, []string{"a", "b", "c", "d", "e", "f", "g"})
 	defer iter.Stop()
 	for {
 		row, err := iter.Next()
@@ -302,18 +307,30 @@ func checkDateBytesBool(ctx context.Context, t *testing.T, client *spanner.Clien
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := row.Columns(&date, &bytesVal, &boolVal); err != nil {
+		if err := row.Columns(&boolVal, &bytesVal, &date, &floatVal, &intVal, &numericVal, &stringVal); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if got, want := date.String(), "2019-10-28"; got != want {
-		t.Fatalf("date is not correct: got %v, want %v", got, want)
+	if got, want := boolVal, true; got != want {
+		t.Fatalf("bool value is not correct: got %v, want %v", got, want)
 	}
 	if got, want := string(bytesVal), "\x00\x01\x02\x03ޭ\xbe\xef"; got != want {
 		t.Fatalf("bytes are not correct: got %v, want %v", got, want)
 	}
-	if got, want := boolVal, true; got != want {
-		t.Fatalf("bool value is not correct: got %v, want %v", got, want)
+	if got, want := date.String(), "2019-10-28"; got != want {
+		t.Fatalf("date is not correct: got %v, want %v", got, want)
+	}
+	if got, want := floatVal, 99.9; got != want {
+		t.Fatalf("float value is not correct: got %v, want %v", got, want)
+	}
+	if got, want := intVal, int64(42); got != want {
+		t.Fatalf("int value is not correct: got %v, want %v", got, want)
+	}
+	if got, want := spanner.NumericString(&numericVal), "1234567890123456789012345678.123456789"; got != want {
+		t.Fatalf("numeric value is not correct: got %v, want %v", got, want)
+	}
+	if got, want := stringVal, "hi"; got != want {
+		t.Fatalf("string value is not correct: got %v, want %v", got, want)
 	}
 }
 

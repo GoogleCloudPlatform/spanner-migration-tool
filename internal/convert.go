@@ -168,40 +168,45 @@ func (conv *Conv) SetDataMode() {
 	conv.mode = dataOnly
 }
 
-// GetDDL Schema returns the current Spanner schema.
+// GetDDL Schema returns the Spanner schema that has been constructed so far.
 // We return DDL in alphabetical order with one exception: interleaved tables are
 // potentially out of order since they must appear after the definition of their
 // parent table.
+// TODO: Move GetDDL function to ddl/ast.go.
 func (conv *Conv) GetDDL(c ddl.Config) []string {
 	var tables []string
 	for t := range conv.SpSchema {
 		tables = append(tables, t)
 	}
 	sort.Strings(tables)
-	tableQueue := tables
 	var ddl []string
-	printed := make(map[string]bool)
-	for len(tableQueue) > 0 {
-		t := tableQueue[0]
-		tableQueue = tableQueue[1:]
-		_, found := printed[conv.SpSchema[t].Parent]
-		// Print table t if either:
-		// a) t is not interleaved in another table, or
-		// b) t is interleaved in another table and that table has already been printed.
-		if conv.SpSchema[t].Parent == "" || found {
-			ddl = append(ddl, conv.SpSchema[t].PrintCreateTable(c))
-			printed[t] = true
-		} else {
-			// We can't print table t now because its parent hasn't been printed.
-			// Add it at end of tables and we'll try again later.
-			// We might need multiple iterations to print chains of interleaved tables,
-			// but we will always make progress because interleaved tables can't
-			// have cycles. In principle this could be O(n^2), but in practice chains
-			// of interleaved tables are small.
-			tableQueue = append(tableQueue, t)
+	if c.Tables {
+		tableQueue := tables
+		printed := make(map[string]bool)
+		for len(tableQueue) > 0 {
+			t := tableQueue[0]
+			tableQueue = tableQueue[1:]
+			_, found := printed[conv.SpSchema[t].Parent]
+			// Print table t if either:
+			// a) t is not interleaved in another table, or
+			// b) t is interleaved in another table and that table has already been printed.
+			if conv.SpSchema[t].Parent == "" || found {
+				ddl = append(ddl, conv.SpSchema[t].PrintCreateTable(c))
+				for _, index := range conv.SpSchema[t].Indexes {
+					ddl = append(ddl, index.PrintCreateIndex(c))
+				}
+				printed[t] = true
+			} else {
+				// We can't print table t now because its parent hasn't been printed.
+				// Add it at end of tables and we'll try again later.
+				// We might need multiple iterations to print chains of interleaved tables,
+				// but we will always make progress because interleaved tables can't
+				// have cycles. In principle this could be O(n^2), but in practice chains
+				// of interleaved tables are small.
+				tableQueue = append(tableQueue, t)
+			}
 		}
 	}
-
 	// Append foreign key constraints to DDL.
 	// We always use alter table statements for foreign key constraints.
 	// The alternative of putting foreign key constraints in-line as part of create

@@ -188,6 +188,11 @@ func commandLine(driver, projectID, instanceID, dbName string, ioHelper *convers
 		fmt.Printf("\nCan't finish data conversion for db %s: %v\n", db, err)
 		return fmt.Errorf("can't finish data conversion")
 	}
+
+	if err = conversion.UpdateDDLForeignKeys(projectID, instanceID, dbName, conv, ioHelper.Out); err != nil {
+		fmt.Printf("\nCan't perform update operation on db %s with foreign keys: %v\n", db, err)
+		return fmt.Errorf("can't perform update schema with foreign keys")
+	}
 	banner := conversion.GetBanner(now, db)
 	conversion.Report(driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, outputFilePrefix+reportFile, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, outputFilePrefix+badDataFile, ioHelper.Out)

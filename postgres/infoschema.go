@@ -240,6 +240,10 @@ func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName) error {
 	if err != nil {
 		return fmt.Errorf("couldn't get foreign key constraints for table %s.%s: %s", table.schema, table.name, err)
 	}
+	indexes, err := getIndexes(conv, db, table)
+	if err != nil {
+		return fmt.Errorf("couldn't get indexes for table %s.%s: %s", table.schema, table.name, err)
+	}
 	colDefs, colNames := processColumns(conv, cols, constraints)
 	name := buildTableName(table.schema, table.name)
 	var schemaPKeys []schema.Key
@@ -251,6 +255,7 @@ func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName) error {
 		ColNames:    colNames,
 		ColDefs:     colDefs,
 		PrimaryKeys: schemaPKeys,
+		Indexes:     indexes,
 		ForeignKeys: foreignKeys}
 	return nil
 }
@@ -413,6 +418,68 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 				ReferColumns: fKeys[k].refcols})
 	}
 	return foreignKeys, nil
+}
+
+// getIndexes return a list of all indexes for the specified table.
+// Note: Extracting index definitions from PostgreSQL information schema tables is complex.
+// See https://stackoverflow.com/questions/6777456/list-all-index-names-column-names-and-its-table-name-of-a-postgresql-database/44460269#44460269
+// for background.
+func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]schema.Index, error) {
+	q := `SELECT
+			irel.relname AS index_name,
+			a.attname AS column_name,
+			1 + Array_position(i.indkey, a.attnum) AS column_position,
+			i.indisunique AS is_unique,
+			CASE o.OPTION & 1 WHEN 1 THEN 'DESC' ELSE 'ASC' END AS order
+		FROM pg_index AS i
+		JOIN pg_class AS trel
+		ON trel.oid = i.indrelid
+		JOIN pg_namespace AS tnsp
+		ON trel.relnamespace = tnsp.oid
+		JOIN pg_class AS irel
+		ON irel.oid = i.indexrelid
+		CROSS JOIN LATERAL UNNEST (i.indkey) WITH ordinality AS c (colnum, ordinality)
+		LEFT JOIN LATERAL UNNEST (i.indoption) WITH ordinality AS o (OPTION, ordinality)
+		ON c.ordinality = o.ordinality
+		JOIN pg_attribute AS a
+		ON trel.oid = a.attrelid
+			AND a.attnum = c.colnum
+		WHERE tnsp.nspname= $1
+			AND trel.relname= $2
+			AND i.indisprimary = false
+		GROUP BY tnsp.nspname,
+           		trel.relname,
+           		irel.relname,
+           		a.attname,
+           		array_position(i.indkey, a.attnum),
+           		o.OPTION,i.indisunique
+		ORDER BY irel.relname, array_position(i.indkey, a.attnum);`
+	rows, err := db.Query(q, table.schema, table.name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var name, column, sequence, isUnique, collation string
+	indexMap := make(map[string]schema.Index)
+	var indexNames []string
+	var indexes []schema.Index
+	for rows.Next() {
+		if err := rows.Scan(&name, &column, &sequence, &isUnique, &collation); err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+			continue
+		}
+		if _, found := indexMap[name]; !found {
+			indexNames = append(indexNames, name)
+			indexMap[name] = schema.Index{Name: name, Unique: (isUnique == "true")}
+		}
+		index := indexMap[name]
+		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation == "DESC")})
+		indexMap[name] = index
+	}
+	for _, k := range indexNames {
+		indexes = append(indexes, indexMap[k])
+	}
+	return indexes, nil
 }
 
 func toType(dataType string, elementDataType sql.NullString, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {

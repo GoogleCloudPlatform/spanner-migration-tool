@@ -85,6 +85,7 @@ func TestPrintCreateTable(t *testing.T) {
 		cds,
 		[]IndexKey{IndexKey{Col: "col1", Desc: true}},
 		nil,
+		nil,
 		"",
 		"",
 	}
@@ -93,6 +94,7 @@ func TestPrintCreateTable(t *testing.T) {
 		[]string{"col1", "col2", "col3"},
 		cds,
 		[]IndexKey{IndexKey{Col: "col1", Desc: true}},
+		nil,
 		nil,
 		"parent",
 		"",
@@ -113,21 +115,31 @@ func TestPrintCreateTable(t *testing.T) {
 }
 
 func TestPrintCreateIndex(t *testing.T) {
-	ci := CreateIndex{
-		"myindex",
-		"mytable",
-		[]IndexKey{IndexKey{Col: "col1", Desc: true}, IndexKey{Col: "col2"}},
-	}
+	ci := []CreateIndex{
+		CreateIndex{
+			"myindex",
+			"mytable",
+			/*Unique =*/ false,
+			[]IndexKey{IndexKey{Col: "col1", Desc: true}, IndexKey{Col: "col2"}},
+		},
+		CreateIndex{
+			"myindex2",
+			"mytable",
+			/*Unique =*/ true,
+			[]IndexKey{IndexKey{Col: "col1", Desc: true}, IndexKey{Col: "col2"}},
+		}}
 	tests := []struct {
 		name       string
 		protectIds bool
+		index      CreateIndex
 		expected   string
 	}{
-		{"no quote", false, "CREATE INDEX myindex ON mytable (col1 DESC, col2)"},
-		{"quote", true, "CREATE INDEX `myindex` ON `mytable` (`col1` DESC, `col2`)"},
+		{"no quote non unique", false, ci[0], "CREATE INDEX myindex ON mytable (col1 DESC, col2)"},
+		{"quote non unique", true, ci[0], "CREATE INDEX `myindex` ON `mytable` (`col1` DESC, `col2`)"},
+		{"unique key", true, ci[1], "CREATE UNIQUE INDEX `myindex2` ON `mytable` (`col1` DESC, `col2`)"},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, normalizeSpace(tc.expected), normalizeSpace(ci.PrintCreateIndex(Config{ProtectIds: tc.protectIds})))
+		assert.Equal(t, normalizeSpace(tc.expected), normalizeSpace(tc.index.PrintCreateIndex(Config{ProtectIds: tc.protectIds})))
 	}
 }
 
