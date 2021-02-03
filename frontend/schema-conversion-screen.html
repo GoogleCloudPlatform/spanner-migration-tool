@@ -93,6 +93,7 @@
                 $newConvElement.find('a').attr('href', '#' + Object.keys(schemaConversionObj.SrcSchema)[i]);
                 $newConvElement.find('a > span').html(Object.keys(schemaConversionObj.SrcSchema)[i]);
                 $newConvElement.find('.right-align.edit-button.hide-content').attr('id', 'editSpanner' + i);
+                $newConvElement.find('.right-align.editInstruction.hide-content').attr('id', 'editInstruction' + i);
                 $newConvElement.find('#editSpanner' + i).click(function () {
                     let index = parseInt(jQuery(this).attr('id').match(/\d+/), 10);
                     editAndSaveButtonHandler(jQuery(this), spPlaceholder, pkArray[index], pkSeqId[index], notNullFoundFlag[index], initialColNameArray[index], keyColumnMap[index], notPrimary[index], pksSp[index]);
@@ -195,6 +196,7 @@
                     constraintTabCell[i][k] = $convTableContent;
                     $convTableContent.appendTo($newConvElement.find('.acc-table-body'));
                 }
+                $newConvElement.find('.acc-table-body').find("tr").eq(0).remove();
                 if (spTable.Fks != null) {
                     $newConvElement.find('.fkCard').removeClass('template');
                     $newConvElement.find('.fkFont').attr('href', '#foreignKey' + i);
@@ -357,6 +359,7 @@
                                         <button class='right-align edit-button hide-content'>
                                             Edit Spanner Schema
                                         </button>
+                                        <span class='right-align editInstruction hide-content'>Schema locked for editing. Unlock to change =></span>
                                     </h5>
                                 </div>
                                 <div class='collapse reportCollapse'>
@@ -520,7 +523,7 @@
                                                         <a data-toggle='collapse' class='summaryFont'>View Summary</a>
                                                     </h5>
                                                 </div>
-                                                <div class='collapse summaryCollapse'>
+                                                <div class='collapse summaryCollapse show'>
                                                     <div class='mdc-card mdc-card-content summaryBorder'
                                                         style='border: 0px;'>
                                                         <div class='mdc-card summary-content'></div>

@@ -574,7 +574,7 @@ h4 {
 }
 
 table{
-    width: 100%;
+    width: 100% !important;
 }
 
 .modal-content{

@@ -16,6 +16,7 @@ const uploadFileHandler = (e) => {
 const filenameChangeHandler = () => {
   let importSchemaObj;
   let fileName = jQuery('#upload')[0].files[0].name;
+  let importSchemaFlag = true;
   jQuery("#upload_link").text(fileName);
 
   let reader = new FileReader();
@@ -31,6 +32,7 @@ const filenameChangeHandler = () => {
     localStorage.setItem('conversionReportContent', JSON.stringify(importSchemaObj));
     localStorage.setItem('importFileName', fileName);
     localStorage.setItem('importFilePath', 'frontend/');
+    sessionRetrieval(document.getElementById("importDbType").value, importSchemaFlag);
   }
   reader.readAsText(event.target.files[0]);
 }
@@ -77,6 +79,7 @@ const editSpannerHandler = (event, tablePkArray, pkSeqId, columnsNotNullConstrai
   let tableColumnNumber = 0;
   let tableCheckboxGroup = '.chckClass_' + tableNumber;
   let $selectAll, $selectEachRow;
+  jQuery('#editInstruction' + tableNumber).css('visibility', 'hidden');
   if (event.html() === 'Edit Spanner Schema') {
     jQuery(event[0]).removeAttr('data-toggle');
   }
@@ -107,7 +110,7 @@ const editSpannerHandler = (event, tablePkArray, pkSeqId, columnsNotNullConstrai
       }
     });
 
-    if (index > 2) {
+    if (index > 1) {
       $selectEachRow = jQuery(this).find('.bmd-form-group.is-filled.eachRowChckBox.template');
       $selectEachRow.removeClass('template');
       $selectEachRow.find('input').attr('id', 'chckBox_' + tableColumnNumber);
@@ -262,7 +265,7 @@ const removePrimaryKeyFromSeq = (tableNumber, tableId, tablePkArray, tableOrigin
   }
   schemaConversionObj.SpSchema[srcTableName[tableNumber]].Pks = tablePkArray;
   jQuery(tableId).each(function (index) {
-    if (index > 2) {
+    if (index > 1) {
       notPrimaryArray[tableColumnNumber] = true;
       currSeqId = '';
       for (var x = 0; x < pkArrayLength; x++) {
@@ -293,6 +296,7 @@ const removePrimaryKeyFromSeq = (tableNumber, tableId, tablePkArray, tableOrigin
  * @return {null}
  */
 const editSpannerDataType = (editColumn, tableNumber, tableColumnNumber) => {
+  jQuery(this).off('change');
   let spannerCellValue = editColumn.innerHTML;
   let srcCellValue, $dataTypeOption;
   let srcCellValueEle = document.getElementById('srcDataType' + tableNumber + tableColumnNumber);
@@ -397,17 +401,17 @@ const saveSpannerChanges = async (event, spPlaceholder, notPrimaryArray, pkSpArr
 
   let tableNumber = parseInt(event.attr('id').match(/\d+/), 10);
   let tableId = '#src-sp-table' + tableNumber + ' tr';
+  jQuery('#editInstruction' + tableNumber).css('visibility', 'none');
   updatedColsData = {
     'UpdateCols': {
     }
   }
   jQuery(tableId).each(function (index) {
-    if (index > 2) {
+    if (index > 1) {
       tableName = srcTableName[tableNumber];
       let newColumnName;
       let tableColumnNumber = parseInt(jQuery(this).find('.srcColumn').attr('id').match(/\d+/), 10);
       let srcColumnName = jQuery(this).find('.srcColumn').html().trim();
-      let spannerCellsList = document.getElementsByClassName('spannerTabCell' + tableNumber + tableColumnNumber);
       let newColumnNameEle = document.getElementById('columnNameText' + tableNumber + tableColumnNumber + tableColumnNumber);
       if (newColumnNameEle) {
         newColumnName = newColumnNameEle.value;
@@ -617,6 +621,7 @@ const onconnect = (dbType, dbHost, dbPort, dbUser, dbName, dbPassword) => {
  */
 const showSchemaAssessment = async () => {
   let reportDataResp, reportData, sourceTableFlag;
+  let importSchemaFlag = false;
   showSpinner();
   reportData = await fetch('/convert/infoschema')
     .then(function (response) {
@@ -637,7 +642,7 @@ const showSchemaAssessment = async () => {
   window.location.href = '#/schema-report-connect-to-db';
   sourceTableFlag = localStorage.getItem('sourceDbName');
   jQuery('#connectModalSuccess').modal("hide");
-  sessionRetrieval(sourceTableFlag);
+  sessionRetrieval(sourceTableFlag, importSchemaFlag);
 }
 
 /**
@@ -672,6 +677,7 @@ const storeDumpFileValues = (dbType, filePath) => {
  */
 const onLoadDatabase = async (dbType, dumpFilePath) => {
   let reportData, sourceTableFlag, reportDataResp;
+  let importSchemaFlag = false;
   showSpinner();
   reportData = await fetch('/convert/dump', {
     method: 'POST',
@@ -701,7 +707,7 @@ const onLoadDatabase = async (dbType, dumpFilePath) => {
   await getInterleaveInfo();
   window.location.href = '#/schema-report-load-db-dump';
   sourceTableFlag = localStorage.getItem('sourceDbName');
-  sessionRetrieval(sourceTableFlag);
+  sessionRetrieval(sourceTableFlag, importSchemaFlag);
 }
 
 /**
@@ -720,6 +726,7 @@ const onImport = async () => {
   }
   let path = localStorage.getItem('importFilePath');
   let fileName = localStorage.getItem('importFileName');
+  let dbName = localStorage.getItem('importDbName');
   await fetch('/session/resume', {
     method: 'POST',
     headers: {
@@ -729,7 +736,8 @@ const onImport = async () => {
     body: JSON.stringify({
       "driver": driver,
       "path": path,
-      "fileName": fileName
+      "fileName": fileName,
+      "dbName": dbName
     })
   })
   .then(function (res) {
@@ -845,7 +853,7 @@ const getGlobalDataTypeList = () => {
  * @param {string} dbType source db name
  * @return {null}
  */
-const sessionRetrieval = (dbType) => {
+const sessionRetrieval = (dbType, importSchemaFlag) => {
   let sessionStorageArr;
   let sessionInfoResp;
   fetch('/session', {
@@ -863,6 +871,8 @@ const sessionRetrieval = (dbType) => {
         sessionStorageArr = [];
       sessionInfoResp.sourceDbType = dbType;
       sessionStorageArr.push(sessionInfoResp);
+      if (importSchemaFlag === true)
+        localStorage.setItem('importSchemaFlag', sessionInfoResp.dbName);
       sessionStorage.setItem('sessionStorage', JSON.stringify(sessionStorageArr));
     }
     else {
@@ -943,10 +953,11 @@ const getInterleaveInfo = async () => {
  * @param {string} sourceDb source db name
  * @return {null}
  */
-const storeResumeSessionId = (driver, path, fileName, sourceDb) => {
+const storeResumeSessionId = (driver, path, fileName, dbName, sourceDb) => {
   localStorage.setItem('driver', driver);
   localStorage.setItem('path', path);
   localStorage.setItem('fileName', fileName);
+  localStorage.setItem('dbName', dbName);
   localStorage.setItem('sourceDb', sourceDb);
 }
 
@@ -959,13 +970,12 @@ const storeResumeSessionId = (driver, path, fileName, sourceDb) => {
  * @param {string} sourceDb source db name
  * @return {null}
  */
-const resumeSession = async (driver, path, fileName, sourceDb) => {
+const resumeSession = async (driver, path, fileName, dbName, sourceDb) => {
   let filePath = './' + fileName;
-  let sourceTableFlag = '';
   readTextFile(filePath, function (text) {
     var data = JSON.parse(text);
     localStorage.setItem('conversionReportContent', JSON.stringify(data));
-    sourceTableFlag = sourceDb;
+    localStorage.setItem('sourceDbName', sourceDb);
   });
   await fetch('/session/resume', {
     method: 'POST',
@@ -976,7 +986,8 @@ const resumeSession = async (driver, path, fileName, sourceDb) => {
     body: JSON.stringify({
       "driver": driver,
       "path": path,
-      "fileName": fileName
+      "fileName": fileName,
+      "dbName": dbName
     })
   })
   .then(function (response) {
@@ -992,7 +1003,6 @@ const resumeSession = async (driver, path, fileName, sourceDb) => {
   });
   await ddlSummaryAndConversionApiCall();
   await getInterleaveInfo();
-  jQuery('#importSchemaModal').modal('hide');
   const { component = ErrorComponent } = findComponentByPath(paths.resumeSession, routes) || {};
   component.render();
 }
@@ -1005,7 +1015,7 @@ const resumeSession = async (driver, path, fileName, sourceDb) => {
  * @return {null}
  */
 const resumeSessionHandler = (index, sessionArray) => {
-  storeResumeSessionId(sessionArray[index].driver, sessionArray[index].path, sessionArray[index].fileName, sessionArray[index].sourceDbType);
+  storeResumeSessionId(sessionArray[index].driver, sessionArray[index].path, sessionArray[index].fileName, sessionArray[index].dbName, sessionArray[index].sourceDbType);
 }
 
 /**
@@ -1059,7 +1069,7 @@ const renderComponent = (params) => {
     onImport();
   }
   else if (params.path === paths.resumeSession) {
-    resumeSession(localStorage.getItem('driver'), localStorage.getItem('path'), localStorage.getItem('fileName'), localStorage.getItem('sourceDb'), window.event.type);
+    resumeSession(localStorage.getItem('driver'), localStorage.getItem('path'), localStorage.getItem('fileName'), localStorage.getItem('dbName'), localStorage.getItem('sourceDb'));
   }
   else {
     return false;

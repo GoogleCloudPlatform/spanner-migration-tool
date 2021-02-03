@@ -435,15 +435,8 @@ function vanillaSelectBox(domSelector, options) {
                         sep = ",";
                     }
                 }
-                if (nrAll == nrActives) {
-                    let wordForAll = self.userOptions.translations.all || "all";
-                    selectedTexts = wordForAll;
-                } else if (self.multipleSize != -1) {
-                    if (nrActives > self.multipleSize) {
-                        let wordForItems = self.userOptions.translations.items || "items"
-                        selectedTexts = nrActives + " " + wordForItems;
-                    }
-                }
+                let wordForItems = self.userOptions.translations.items || "items"
+                selectedTexts = nrActives + " " + wordForItems;
                 self.title.textContent = selectedTexts;
                 self.privateSendChange();
             }

@@ -32,20 +32,21 @@
   sessionArray = JSON.parse(sessionStorage.getItem('sessionStorage'));
   if (sessionArray !== null) {
     let sessionArrayLength = sessionArray.length;
+    let session, sessionName, sessionDate, sessionTime, $sessionTableRow;
     jQuery('.sessionTableImg').addClass('template');
     jQuery('.sessionTableNoContent').addClass('template');
     for (var x = 0; x < sessionArrayLength; x++) {
-      let session = sessionArray[x];
-      let sessionName = session.fileName;
-      let sessionDate = session.createdAt.substr(0, session.createdAt.indexOf("T"));
-      let sessionTime = session.createdAt.substr(session.createdAt.indexOf("T") + 1);
-      let $sessionTableRow = jQuery('.sessions.template').clone().removeClass('template');
+      session = sessionArray[x];
+      sessionName = session.fileName;
+      sessionDate = session.createdAt.substr(0, session.createdAt.indexOf("T"));
+      sessionTime = session.createdAt.substr(session.createdAt.indexOf("T") + 1);
+      $sessionTableRow = jQuery('.sessions.template').clone().removeClass('template');
       $sessionTableRow.find('.col-2.session-table-td2.sessionName').html(sessionName);
       $sessionTableRow.find('.col-4.session-table-td2.sessionDate').html(sessionDate);
       $sessionTableRow.find('.col-2.session-table-td2.sessionTime').html(sessionTime);
-      $sessionTableRow.find('.col-4.session-table-td2.session-action').attr('id', x);
+      $sessionTableRow.find('.col-4.session-table-td2.session-action > a').attr('id', x);
       $sessionTableRow.find('.col-4.session-table-td2.session-action > a').click(function () {
-        resumeSessionHandler($sessionTableRow.find('.col-4.session-table-td2.session-action').attr('id'), sessionArray);
+        resumeSessionHandler(jQuery(this).attr('id'), sessionArray);
       });
       $sessionTableRow.appendTo('#session-table-content');
     }
