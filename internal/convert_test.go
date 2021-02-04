@@ -85,7 +85,7 @@ func TestGetDDL(t *testing.T) {
 		"CREATE INDEX index1 ON table1 (b)",
 		"CREATE TABLE table2 (\n    a INT64,\n    b INT64,\n    c INT64 \n) PRIMARY KEY (a)",
 		"CREATE UNIQUE INDEX index2 ON table2 (b DESC, c)",
-		"CREATE TABLE table3 (\n    a INT64,\n    b INT64,\n    c INT64 \n) PRIMARY KEY (a, b),\nINTERLEAVE IN PARENT table1 ON DELETE CASCADE",
+		"CREATE TABLE table3 (\n    a INT64,\n    b INT64,\n    c INT64 \n) PRIMARY KEY (a, b),\nINTERLEAVE IN PARENT table1",
 	}
 	assert.ElementsMatch(t, e, tables)
 	fks := conv.GetDDL(ddl.Config{Tables: false, ForeignKeys: true})
@@ -101,7 +101,7 @@ func TestGetDDL(t *testing.T) {
 		"CREATE INDEX index1 ON table1 (b)",
 		"CREATE TABLE table2 (\n    a INT64,\n    b INT64,\n    c INT64 \n) PRIMARY KEY (a)",
 		"CREATE UNIQUE INDEX index2 ON table2 (b DESC, c)",
-		"CREATE TABLE table3 (\n    a INT64,\n    b INT64,\n    c INT64 \n) PRIMARY KEY (a, b),\nINTERLEAVE IN PARENT table1 ON DELETE CASCADE",
+		"CREATE TABLE table3 (\n    a INT64,\n    b INT64,\n    c INT64 \n) PRIMARY KEY (a, b),\nINTERLEAVE IN PARENT table1",
 		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_b)",
 		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES ref_table2 (ref_b, ref_c)",
 		"ALTER TABLE table3 ADD CONSTRAINT fk3 FOREIGN KEY (c) REFERENCES ref_table3 (ref_c)",

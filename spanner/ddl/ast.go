@@ -206,7 +206,7 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	}
 	var interleave string
 	if ct.Parent != "" {
-		interleave = ",\nINTERLEAVE IN PARENT " + config.quote(ct.Parent) + " ON DELETE CASCADE"
+		interleave = ",\nINTERLEAVE IN PARENT " + config.quote(ct.Parent)
 	}
 	return fmt.Sprintf("%sCREATE TABLE %s (%s\n) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 }
