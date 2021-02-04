@@ -645,7 +645,7 @@ func TestGetConversionPostgres(t *testing.T) {
 	expectedConversion := map[string]string{
 		"t1": "GREEN",
 		"t2": "BLUE",
-		"t3": "RED",
+		"t3": "ORANGE",
 	}
 	assert.Equal(t, expectedConversion, result)
 

@@ -259,7 +259,7 @@ Example
 {
   "Albums": "GREEN",
   "Singers": "BLUE",
-  "Userinfo": "RED"
+  "Userinfo": "ORANGE"
 }
 ```
 

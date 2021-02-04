@@ -530,9 +530,9 @@ func rateSchema(cols, warnings int64, missingPKey bool) string {
 	case ok(cols, warnings) && missingPKey:
 		return "YELLOW"
 	case !missingPKey:
-		return "RED"
+		return "ORANGE"
 	default:
-		return "RED"
+		return "ORANGE"
 	}
 }
 
