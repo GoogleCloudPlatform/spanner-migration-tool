@@ -247,6 +247,31 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(filteredTypeMap)
 }
 
+// updateSessionFile updates the content of session file with
+// latest app.conv.
+func updateSessionFile() error {
+	filePath := app.sessionFile
+	if filePath == "" {
+		return fmt.Errorf("Session file path is empty")
+	}
+	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return err
+	}
+	convJSON, err := json.MarshalIndent(app.conv, "", " ")
+	if err != nil {
+		return err
+	}
+	err = f.Truncate(0)
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(convJSON); err != nil {
+		return err
+	}
+	return nil
+}
+
 // setTypeMapGlobal allows to change spanner type globally.
 // It takes a map from source type to spanner type and updates
 // the spanner schema accordingly.
@@ -304,6 +329,7 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(app.conv)
 }
@@ -507,6 +533,7 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	app.conv.AddPrimaryKeys()
+	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(app.conv)
 }
@@ -648,15 +675,17 @@ func checkForInterleavedTables(w http.ResponseWriter, r *http.Request) {
 			tableInterleaveIssues.Comment = "No valid prefix"
 		}
 	}
+	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(tableInterleaveIssues)
 }
 
 type App struct {
-	sourceDB *sql.DB
-	dbName   string
-	driver   string
-	conv     *internal.Conv
+	sourceDB    *sql.DB
+	dbName      string
+	driver      string
+	conv        *internal.Conv
+	sessionFile string
 }
 
 // app maintains the state of the session and there can be
@@ -666,6 +695,7 @@ type App struct {
 // (2) dbName : Database name
 // (3) driver : Driver name
 // (4) conv : State of conversion
+// (5) sessionFile : Session file path
 var app App
 
 // Type and issue.

@@ -53,6 +53,7 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 	fileName := filePath + dbName + sessionFile
 	conversion.WriteSessionFile(app.conv, fileName, out)
 	session := session{Driver: app.driver, FilePath: filePath, FileName: dbName + sessionFile, DBName: dbName, CreatedAt: now.Format(time.RFC1123)}
+	app.sessionFile = fileName
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(session)
 }
