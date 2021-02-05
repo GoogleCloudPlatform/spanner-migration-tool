@@ -164,7 +164,7 @@ Example
   "Driver": "postgres",
   "FilePath": "/path/to/sessionFile",
   "FileName": "sessionFile.session.json",
-  "CreatedAt": "2021-01-01T00:00:00.000000+00:00"
+  "CreatedAt": "Thu, 04 Feb 2021 18:10:32 IST"
 }
 ```
 

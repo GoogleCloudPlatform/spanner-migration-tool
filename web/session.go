@@ -30,11 +30,11 @@ import (
 // A session file is a snapshot of an ongoing HarbourBridge conversion session,
 // and consists of an internal.Conv struct in JSON format.
 type session struct {
-	Driver    string    `json:"driver"`
-	FilePath  string    `json:"path"`
-	FileName  string    `json:"fileName"`
-	DBName    string    `json:"dbName"`
-	CreatedAt time.Time `json:"createdAt"`
+	Driver    string `json:"driver"`
+	FilePath  string `json:"path"`
+	FileName  string `json:"fileName"`
+	DBName    string `json:"dbName"`
+	CreatedAt string `json:"createdAt"`
 }
 
 func createSession(w http.ResponseWriter, r *http.Request) {
@@ -52,7 +52,7 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 	out := os.Stdout
 	fileName := filePath + dbName + sessionFile
 	conversion.WriteSessionFile(app.conv, fileName, out)
-	session := session{Driver: app.driver, FilePath: filePath, FileName: dbName + sessionFile, DBName: dbName, CreatedAt: now}
+	session := session{Driver: app.driver, FilePath: filePath, FileName: dbName + sessionFile, DBName: dbName, CreatedAt: now.Format(time.RFC1123)}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(session)
 }
