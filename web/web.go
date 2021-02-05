@@ -171,7 +171,11 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(conv)
 }
 
-// TODO: Add Index key statements.
+// getDDL returns the Spanner DDL for each table in alphabetical order.
+// Unlike internal/convert.go's GetDDL, it does not print tables in a way that
+// respects the parent/child ordering of interleaved tables, also foreign keys
+// and secondary indexes are skipped. This means that getDDL cannot be used to
+// build DDL to send to Spanner.
 func getDDL(w http.ResponseWriter, r *http.Request) {
 	c := ddl.Config{Comments: true, ProtectIds: false}
 	var tables []string
@@ -574,43 +578,55 @@ func getConversionRate(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(rate)
 }
 
-type schemaAndReportFile struct {
-	Report string
-	Schema string
-}
-
-// getSchemaAndReportFile generates schema and report files and
-// returns file paths.
-func getSchemaAndReportFile(w http.ResponseWriter, r *http.Request) {
+// getSchemaFile generates schema file and returns file path.
+func getSchemaFile(w http.ResponseWriter, r *http.Request) {
 	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
-	dbName := app.dbName
 	var err error
 	now := time.Now()
-	if dbName == "" {
-		dbName, err = conversion.GetDatabaseName(app.driver, now)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Can not create database name : %v", err), http.StatusInternalServerError)
-		}
-	}
-	filePrefix := dbName + "."
+	filePrefix, err := getFilePrefix(now)
 	if err != nil {
-		fmt.Printf("\nCan't get database name: %v\n", err)
-		panic(fmt.Errorf("can't get database name"))
+		http.Error(w, fmt.Sprintf("Can not get file prefix : %v", err), http.StatusInternalServerError)
+	}
+	schemaFileName := "frontend/" + filePrefix + "schema.txt"
+	conversion.WriteSchemaFile(app.conv, now, schemaFileName, ioHelper.Out)
+	schemaAbsPath, err := filepath.Abs(schemaFileName)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Can not create absolute path : %v", err), http.StatusInternalServerError)
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(schemaAbsPath))
+}
+
+// getReportFile generates report file and returns file path.
+func getReportFile(w http.ResponseWriter, r *http.Request) {
+	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
+	var err error
+	now := time.Now()
+	filePrefix, err := getFilePrefix(now)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Can not get file prefix : %v", err), http.StatusInternalServerError)
 	}
 	reportFileName := "frontend/" + filePrefix + "report.txt"
-	schemaFileName := "frontend/" + filePrefix + "schema.txt"
-	response := &schemaAndReportFile{}
-	conversion.WriteSchemaFile(app.conv, now, schemaFileName, ioHelper.Out)
 	conversion.Report(app.driver, nil, ioHelper.BytesRead, "", app.conv, reportFileName, ioHelper.Out)
 	reportAbsPath, err := filepath.Abs(reportFileName)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Can not create absolute path : %v", err), http.StatusInternalServerError)
 	}
-	schemaAbsPath, err := filepath.Abs(schemaFileName)
-	response.Report = reportAbsPath
-	response.Schema = schemaAbsPath
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	w.Write([]byte(reportAbsPath))
+}
+
+func getFilePrefix(now time.Time) (string, error) {
+	dbName := app.dbName
+	var err error
+	if dbName == "" {
+		dbName, err = conversion.GetDatabaseName(app.driver, now)
+		if err != nil {
+			return "", fmt.Errorf("Can not create database name : %v", err)
+		}
+	}
+	filePrefix := dbName + "."
+	return filePrefix, nil
 }
 
 type TableInterleaveStatus struct {

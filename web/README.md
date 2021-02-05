@@ -375,10 +375,9 @@ Example
 
 Updated Conv struct in JSON format.
 
-### Filepaths
+### Report file
 
-`/filepaths` is a GET API which generates and returns file paths for the schema
-and report files.
+`/report` is a GET API which generates report file and returns file path.
 
 #### Method
 
@@ -390,15 +389,34 @@ No request body is needed.
 
 #### Response body
 
-Paths to schema and report files.
+Path to report file.
 
 Example
 
-```json
-{
-  "Report": "/path/to/reportfile.report.txt",
-  "Schema": "/path/to/schemafile.schema.txt"
-}
+```
+/path/to/reportfile.report.txt
+```
+
+### Schema file
+
+`/schema` is a GET API which generates schema file and returns file path.
+
+#### Method
+
+`GET`
+
+#### Request body
+
+No request body is needed.
+
+#### Response body
+
+Path to schema file.
+
+Example
+
+```
+/path/to/schemafile.schema.txt
 ```
 
 ### Interleave tables
