@@ -251,31 +251,6 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(filteredTypeMap)
 }
 
-// updateSessionFile updates the content of session file with
-// latest app.conv.
-func updateSessionFile() error {
-	filePath := app.sessionFile
-	if filePath == "" {
-		return fmt.Errorf("Session file path is empty")
-	}
-	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
-	if err != nil {
-		return err
-	}
-	convJSON, err := json.MarshalIndent(app.conv, "", " ")
-	if err != nil {
-		return err
-	}
-	err = f.Truncate(0)
-	if err != nil {
-		return err
-	}
-	if _, err := f.Write(convJSON); err != nil {
-		return err
-	}
-	return nil
-}
-
 // setTypeMapGlobal allows to change spanner type globally.
 // It takes a map from source type to spanner type and updates
 // the spanner schema accordingly.
@@ -337,10 +312,219 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(app.conv)
 }
+
+// Actions to be performed on a column.
+// (1) Removed: true/false
+// (2) Rename: New name or empty string
+// (3) PK: "ADDED", "REMOVED" or ""
+// (4) NotNull: "ADDED", "REMOVED" or ""
+// (5) ToType: New type or empty string
+type updateCol struct {
+	Removed bool   `json:"Removed"`
+	Rename  string `json:"Rename"`
+	PK      string `json:"PK"`
+	NotNull string `json:"NotNull"`
+	ToType  string `json:"ToType"`
+}
+
+type updateTable struct {
+	UpdateCols map[string]updateCol `json:"UpdateCols"`
+}
+
+// updateTableSchema updates the Spanner schema.
+// Following actions can be performed on a specified table:
+// (1) Remove column
+// (2) Rename column
+// (3) Add or Remove Primary Key
+// (4) Add or Remove NotNull constraint
+// (5) Update Spanner type
+func updateTableSchema(w http.ResponseWriter, r *http.Request) {
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var t updateTable
+	table := r.FormValue("table")
+	err = json.Unmarshal(reqBody, &t)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+	srcTableName := app.conv.ToSource[table].Name
+	for colName, v := range t.UpdateCols {
+		if v.Removed {
+			removeColumn(table, colName, srcTableName)
+			continue
+		}
+		newColName := colName
+		if v.Rename != "" && v.Rename != colName {
+			renameColumn(v.Rename, table, colName, srcTableName)
+			newColName = v.Rename
+		}
+		if v.PK != "" {
+			pkChanged(v.PK, table, newColName)
+		}
+		if v.ToType != "" {
+			updateType(v.ToType, table, newColName, srcTableName, w)
+		}
+		if v.NotNull != "" {
+			updateNotNull(v.NotNull, table, newColName)
+		}
+	}
+	app.conv.AddPrimaryKeys()
+	updateSessionFile()
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(app.conv)
+}
+
+// getConversionRate returns table wise color coded conversion rate.
+func getConversionRate(w http.ResponseWriter, r *http.Request) {
+	reports := internal.AnalyzeTables(app.conv, nil)
+	rate := make(map[string]string)
+	for _, t := range reports {
+		rate[t.SpTable] = rateSchema(t.Cols, t.Warnings, t.SyntheticPKey != "")
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(rate)
+}
+
+// getSchemaFile generates schema file and returns file path.
+func getSchemaFile(w http.ResponseWriter, r *http.Request) {
+	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
+	var err error
+	now := time.Now()
+	filePrefix, err := getFilePrefix(now)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Can not get file prefix : %v", err), http.StatusInternalServerError)
+	}
+	schemaFileName := "frontend/" + filePrefix + "schema.txt"
+	conversion.WriteSchemaFile(app.conv, now, schemaFileName, ioHelper.Out)
+	schemaAbsPath, err := filepath.Abs(schemaFileName)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Can not create absolute path : %v", err), http.StatusInternalServerError)
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(schemaAbsPath))
+}
+
+// getReportFile generates report file and returns file path.
+func getReportFile(w http.ResponseWriter, r *http.Request) {
+	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
+	var err error
+	now := time.Now()
+	filePrefix, err := getFilePrefix(now)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Can not get file prefix : %v", err), http.StatusInternalServerError)
+	}
+	reportFileName := "frontend/" + filePrefix + "report.txt"
+	conversion.Report(app.driver, nil, ioHelper.BytesRead, "", app.conv, reportFileName, ioHelper.Out)
+	reportAbsPath, err := filepath.Abs(reportFileName)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Can not create absolute path : %v", err), http.StatusInternalServerError)
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(reportAbsPath))
+}
+
+type TableInterleaveStatus struct {
+	Possible bool
+	Parent   string
+	Comment  string
+}
+
+// checkForInterleavedTables checks whether specified table can be
+// interleaved, if yes then it sets the Parent table for the specified
+// table and returns Parent table name, otherwise returns the issue.
+func checkForInterleavedTables(w http.ResponseWriter, r *http.Request) {
+	table := r.FormValue("table")
+	if app.conv == nil || app.driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), 404)
+		return
+	}
+	if table == "" {
+		http.Error(w, fmt.Sprintf("Table name is empty"), http.StatusBadRequest)
+	}
+	tableInterleaveIssues := &TableInterleaveStatus{Possible: true}
+	if _, found := app.conv.SyntheticPKeys[table]; found {
+		tableInterleaveIssues.Possible = false
+		tableInterleaveIssues.Comment = "Has synthetic pk"
+	}
+	if tableInterleaveIssues.Possible == true {
+		for i, fk := range app.conv.SpSchema[table].Fks {
+			refTable := fk.ReferTable
+			if _, found := app.conv.SyntheticPKeys[refTable]; found {
+				continue
+			}
+			ok := checkPrimaryKeyPrefix(table, refTable, fk, tableInterleaveIssues)
+			if ok == true {
+				tableInterleaveIssues.Parent = refTable
+				sp := app.conv.SpSchema[table]
+				sp.Parent = refTable
+				sp.Fks = removeFk(sp.Fks, i)
+				app.conv.SpSchema[table] = sp
+				break
+			}
+		}
+		if tableInterleaveIssues.Parent == "" {
+			tableInterleaveIssues.Possible = false
+			tableInterleaveIssues.Comment = "No valid prefix"
+		}
+	}
+	updateSessionFile()
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(tableInterleaveIssues)
+}
+
+// updateSessionFile updates the content of session file with
+// latest app.conv.
+func updateSessionFile() error {
+	filePath := app.sessionFile
+	if filePath == "" {
+		return fmt.Errorf("Session file path is empty")
+	}
+	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return err
+	}
+	convJSON, err := json.MarshalIndent(app.conv, "", " ")
+	if err != nil {
+		return err
+	}
+	err = f.Truncate(0)
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(convJSON); err != nil {
+		return err
+	}
+	return nil
+}
+
+func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tableInterleaveIssues *TableInterleaveStatus) bool {
+	childPks := app.conv.SpSchema[table].Pks
+	parentPks := app.conv.SpSchema[refTable].Pks
+	if len(childPks) >= len(parentPks) {
+		for i, pk := range parentPks {
+			if i >= len(fk.ReferColumns) || pk.Col != fk.ReferColumns[i] || pk.Col != childPks[i].Col || fk.Columns[i] != fk.ReferColumns[i] {
+				return false
+			}
+		}
+	} else {
+		return false
+	}
+	return true
+}
+
 func remove(slice []string, s int) []string {
 	return append(slice[:s], slice[s+1:]...)
 }
+
 func removePk(slice []ddl.IndexKey, s int) []ddl.IndexKey {
+	return append(slice[:s], slice[s+1:]...)
+}
+
+func removeFk(slice []ddl.Foreignkey, s int) []ddl.Foreignkey {
 	return append(slice[:s], slice[s+1:]...)
 }
 
@@ -365,6 +549,7 @@ func removeColumn(table string, colName string, srcTableName string) {
 	delete(app.conv.Issues[srcTableName], srcColName)
 	app.conv.SpSchema[table] = sp
 }
+
 func renameColumn(newName, table, colName, srcTableName string) {
 	sp := app.conv.SpSchema[table]
 	for i, col := range sp.ColNames {
@@ -478,70 +663,6 @@ func updateNotNull(notNullChange, table, newColName string) {
 	app.conv.SpSchema[table] = sp
 }
 
-// Actions to be performed on a column.
-// (1) Removed: true/false
-// (2) Rename: New name or empty string
-// (3) PK: "ADDED", "REMOVED" or ""
-// (4) NotNull: "ADDED", "REMOVED" or ""
-// (5) ToType: New type or empty string
-type updateCol struct {
-	Removed bool   `json:"Removed"`
-	Rename  string `json:"Rename"`
-	PK      string `json:"PK"`
-	NotNull string `json:"NotNull"`
-	ToType  string `json:"ToType"`
-}
-type updateTable struct {
-	UpdateCols map[string]updateCol `json:"UpdateCols"`
-}
-
-// updateTableSchema updates the Spanner schema.
-// Following actions can be performed on a specified table:
-// (1) Remove column
-// (2) Rename column
-// (3) Add or Remove Primary Key
-// (4) Add or Remove NotNull constraint
-// (5) Update Spanner type
-func updateTableSchema(w http.ResponseWriter, r *http.Request) {
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-		return
-	}
-	var t updateTable
-	table := r.FormValue("table")
-	err = json.Unmarshal(reqBody, &t)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
-		return
-	}
-	srcTableName := app.conv.ToSource[table].Name
-	for colName, v := range t.UpdateCols {
-		if v.Removed {
-			removeColumn(table, colName, srcTableName)
-			continue
-		}
-		newColName := colName
-		if v.Rename != "" && v.Rename != colName {
-			renameColumn(v.Rename, table, colName, srcTableName)
-			newColName = v.Rename
-		}
-		if v.PK != "" {
-			pkChanged(v.PK, table, newColName)
-		}
-		if v.ToType != "" {
-			updateType(v.ToType, table, newColName, srcTableName, w)
-		}
-		if v.NotNull != "" {
-			updateNotNull(v.NotNull, table, newColName)
-		}
-	}
-	app.conv.AddPrimaryKeys()
-	updateSessionFile()
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(app.conv)
-}
-
 func rateSchema(cols, warnings int64, missingPKey bool) string {
 	good := func(total, badCount int64) bool { return badCount < total/20 }
 	ok := func(total, badCount int64) bool { return badCount < total/3 }
@@ -567,55 +688,6 @@ func rateSchema(cols, warnings int64, missingPKey bool) string {
 	}
 }
 
-// getConversionRate returns table wise color coded conversion rate.
-func getConversionRate(w http.ResponseWriter, r *http.Request) {
-	reports := internal.AnalyzeTables(app.conv, nil)
-	rate := make(map[string]string)
-	for _, t := range reports {
-		rate[t.SpTable] = rateSchema(t.Cols, t.Warnings, t.SyntheticPKey != "")
-	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(rate)
-}
-
-// getSchemaFile generates schema file and returns file path.
-func getSchemaFile(w http.ResponseWriter, r *http.Request) {
-	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
-	var err error
-	now := time.Now()
-	filePrefix, err := getFilePrefix(now)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Can not get file prefix : %v", err), http.StatusInternalServerError)
-	}
-	schemaFileName := "frontend/" + filePrefix + "schema.txt"
-	conversion.WriteSchemaFile(app.conv, now, schemaFileName, ioHelper.Out)
-	schemaAbsPath, err := filepath.Abs(schemaFileName)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Can not create absolute path : %v", err), http.StatusInternalServerError)
-	}
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(schemaAbsPath))
-}
-
-// getReportFile generates report file and returns file path.
-func getReportFile(w http.ResponseWriter, r *http.Request) {
-	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
-	var err error
-	now := time.Now()
-	filePrefix, err := getFilePrefix(now)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Can not get file prefix : %v", err), http.StatusInternalServerError)
-	}
-	reportFileName := "frontend/" + filePrefix + "report.txt"
-	conversion.Report(app.driver, nil, ioHelper.BytesRead, "", app.conv, reportFileName, ioHelper.Out)
-	reportAbsPath, err := filepath.Abs(reportFileName)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Can not create absolute path : %v", err), http.StatusInternalServerError)
-	}
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(reportAbsPath))
-}
-
 func getFilePrefix(now time.Time) (string, error) {
 	dbName := app.dbName
 	var err error
@@ -627,73 +699,6 @@ func getFilePrefix(now time.Time) (string, error) {
 	}
 	filePrefix := dbName + "."
 	return filePrefix, nil
-}
-
-type TableInterleaveStatus struct {
-	Possible bool
-	Parent   string
-	Comment  string
-}
-
-func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tableInterleaveIssues *TableInterleaveStatus) bool {
-	childPks := app.conv.SpSchema[table].Pks
-	parentPks := app.conv.SpSchema[refTable].Pks
-	if len(childPks) >= len(parentPks) {
-		for i, pk := range parentPks {
-			if i >= len(fk.ReferColumns) || pk.Col != fk.ReferColumns[i] || pk.Col != childPks[i].Col || fk.Columns[i] != fk.ReferColumns[i] {
-				return false
-			}
-		}
-	} else {
-		return false
-	}
-	return true
-}
-func removeFk(slice []ddl.Foreignkey, s int) []ddl.Foreignkey {
-	return append(slice[:s], slice[s+1:]...)
-}
-
-// checkForInterleavedTables checks whether specified table can be
-// interleaved, if yes then it sets the Parent table for the specified
-// table and returns Parent table name, otherwise returns the issue.
-func checkForInterleavedTables(w http.ResponseWriter, r *http.Request) {
-	table := r.FormValue("table")
-	if app.conv == nil || app.driver == "" {
-		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), 404)
-		return
-	}
-	if table == "" {
-		http.Error(w, fmt.Sprintf("Table name is empty"), http.StatusBadRequest)
-	}
-	tableInterleaveIssues := &TableInterleaveStatus{Possible: true}
-	if _, found := app.conv.SyntheticPKeys[table]; found {
-		tableInterleaveIssues.Possible = false
-		tableInterleaveIssues.Comment = "Has synthetic pk"
-	}
-	if tableInterleaveIssues.Possible == true {
-		for i, fk := range app.conv.SpSchema[table].Fks {
-			refTable := fk.ReferTable
-			if _, found := app.conv.SyntheticPKeys[refTable]; found {
-				continue
-			}
-			ok := checkPrimaryKeyPrefix(table, refTable, fk, tableInterleaveIssues)
-			if ok == true {
-				tableInterleaveIssues.Parent = refTable
-				sp := app.conv.SpSchema[table]
-				sp.Parent = refTable
-				sp.Fks = removeFk(sp.Fks, i)
-				app.conv.SpSchema[table] = sp
-				break
-			}
-		}
-		if tableInterleaveIssues.Parent == "" {
-			tableInterleaveIssues.Possible = false
-			tableInterleaveIssues.Comment = "No valid prefix"
-		}
-	}
-	updateSessionFile()
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(tableInterleaveIssues)
 }
 
 type App struct {
