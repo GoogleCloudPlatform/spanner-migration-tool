@@ -103,6 +103,7 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	app.sourceDB = sourceDB
 	app.dbName = config.Database
 	app.driver = config.Driver
+	app.sessionFile = ""
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -167,6 +168,8 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	app.conv = conv
 	app.driver = dc.Driver
 	app.dbName = ""
+	app.sessionFile = ""
+	app.sourceDB = nil
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(conv)
 }

@@ -78,5 +78,6 @@ func resumeSession(w http.ResponseWriter, r *http.Request) {
 	}
 	app.driver = s.Driver
 	app.dbName = s.DBName
+	app.sessionFile = s.FilePath + s.FileName
 	w.WriteHeader(http.StatusOK)
 }
