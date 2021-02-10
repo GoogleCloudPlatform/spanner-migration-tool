@@ -628,7 +628,7 @@ func TestSetTypeMapGlobalLevelPostgres(t *testing.T) {
 func TestGetConversionPostgres(t *testing.T) {
 	app.driver = "postgres"
 	app.conv = internal.MakeConv()
-	buildConvPostgresMultiTable(app.conv)
+	buildConvPostgres(app.conv)
 	req, err := http.NewRequest("GET", "/conversion", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -642,13 +642,9 @@ func TestGetConversionPostgres(t *testing.T) {
 		t.Errorf("handler returned wrong status code: got %v want %v",
 			status, http.StatusOK)
 	}
-	expectedConversion := map[string]string{
-		"t1": "GREEN",
-		"t2": "BLUE",
-		"t3": "ORANGE",
-	}
-	assert.Equal(t, expectedConversion, result)
-
+	assert.Equal(t, 2, len(result))
+	assert.Contains(t, result, "t1")
+	assert.Contains(t, result, "t2")
 }
 
 func TestGetTypeMapMySQL(t *testing.T) {
@@ -1219,7 +1215,7 @@ func TestSetTypeMapGlobalLevelMySQL(t *testing.T) {
 func TestGetConversionMySQL(t *testing.T) {
 	app.driver = "mysql"
 	app.conv = internal.MakeConv()
-	buildConvMySQLMultiTable(app.conv)
+	buildConvMySQL(app.conv)
 	req, err := http.NewRequest("GET", "/conversion", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -1233,12 +1229,9 @@ func TestGetConversionMySQL(t *testing.T) {
 		t.Errorf("handler returned wrong status code: got %v want %v",
 			status, http.StatusOK)
 	}
-	expectedConversion := map[string]string{
-		"t1": "GREEN",
-		"t2": "BLUE",
-		"t3": "BLUE",
-	}
-	assert.Equal(t, expectedConversion, result)
+	assert.Equal(t, 2, len(result))
+	assert.Contains(t, result, "t1")
+	assert.Contains(t, result, "t2")
 }
 
 func TestCheckForInterleavedTables(t *testing.T) {
@@ -1623,71 +1616,6 @@ func buildConvMySQL(conv *internal.Conv) {
 	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{"synth_id", 0}
 }
 
-func buildConvMySQLMultiTable(conv *internal.Conv) {
-	conv.SrcSchema = map[string]schema.Table{
-		"t1": schema.Table{
-			Name:     "t1",
-			ColNames: []string{"a", "b"},
-			ColDefs: map[string]schema.Column{
-				"a": schema.Column{Name: "a", Type: schema.Type{Name: "bigint"}},
-				"b": schema.Column{Name: "b", Type: schema.Type{Name: "double"}},
-			},
-			PrimaryKeys: []schema.Key{schema.Key{Column: "a"}}},
-		"t2": schema.Table{
-			Name:     "t2",
-			ColNames: []string{"a", "b"},
-			ColDefs: map[string]schema.Column{
-				"a": schema.Column{Name: "a", Type: schema.Type{Name: "bigint"}},
-				"b": schema.Column{Name: "b", Type: schema.Type{Name: "double"}},
-			},
-		},
-		"t3": schema.Table{
-			Name:     "t3",
-			ColNames: []string{"a", "b", "c"},
-			ColDefs: map[string]schema.Column{
-				"a": schema.Column{Name: "a", Type: schema.Type{Name: "numeric"}},
-				"b": schema.Column{Name: "b", Type: schema.Type{Name: "numeric"}},
-				"c": schema.Column{Name: "c", Type: schema.Type{Name: "numeric"}},
-			},
-		},
-	}
-	conv.SpSchema = map[string]ddl.CreateTable{
-		"t1": ddl.CreateTable{
-			Name:     "t1",
-			ColNames: []string{"a", "b"},
-			ColDefs: map[string]ddl.ColumnDef{
-				"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-				"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-			},
-			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
-		},
-		"t2": ddl.CreateTable{
-			Name:     "t2",
-			ColNames: []string{"a", "b", "synth_id"},
-			ColDefs: map[string]ddl.ColumnDef{
-				"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-				"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-				"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
-			},
-			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-		},
-		"t3": ddl.CreateTable{
-			Name:     "t3",
-			ColNames: []string{"a", "b", "c", "synth_id"},
-			ColDefs: map[string]ddl.ColumnDef{
-				"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Numeric}},
-				"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Numeric}},
-				"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Numeric}},
-				"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
-			},
-			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-		},
-	}
-	conv.Issues = map[string]map[string][]internal.SchemaIssue{}
-	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{"synth_id", 0}
-	conv.SyntheticPKeys["t3"] = internal.SyntheticPKey{"synth_id", 0}
-}
-
 func buildConvPostgres(conv *internal.Conv) {
 	conv.SrcSchema = map[string]schema.Table{
 		"t1": schema.Table{
@@ -1794,75 +1722,4 @@ func buildConvPostgres(conv *internal.Conv) {
 		},
 	}
 	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{"synth_id", 0}
-}
-
-func buildConvPostgresMultiTable(conv *internal.Conv) {
-	conv.SrcSchema = map[string]schema.Table{
-		"t1": schema.Table{
-			Name:     "t1",
-			ColNames: []string{"a", "b"},
-			ColDefs: map[string]schema.Column{
-				"a": schema.Column{Name: "a", Type: schema.Type{Name: "int8"}},
-				"b": schema.Column{Name: "b", Type: schema.Type{Name: "float8"}},
-			},
-			PrimaryKeys: []schema.Key{schema.Key{Column: "a"}}},
-		"t2": schema.Table{
-			Name:     "t2",
-			ColNames: []string{"a", "b"},
-			ColDefs: map[string]schema.Column{
-				"a": schema.Column{Name: "a", Type: schema.Type{Name: "int8"}},
-				"b": schema.Column{Name: "b", Type: schema.Type{Name: "float8"}},
-			},
-		},
-		"t3": schema.Table{
-			Name:     "t3",
-			ColNames: []string{"a", "b", "c"},
-			ColDefs: map[string]schema.Column{
-				"a": schema.Column{Name: "a", Type: schema.Type{Name: "serial"}},
-				"b": schema.Column{Name: "b", Type: schema.Type{Name: "serial"}},
-				"c": schema.Column{Name: "c", Type: schema.Type{Name: "serial"}},
-			},
-		},
-	}
-	conv.SpSchema = map[string]ddl.CreateTable{
-		"t1": ddl.CreateTable{
-			Name:     "t1",
-			ColNames: []string{"a", "b"},
-			ColDefs: map[string]ddl.ColumnDef{
-				"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-				"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-			},
-			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
-		},
-		"t2": ddl.CreateTable{
-			Name:     "t2",
-			ColNames: []string{"a", "b", "synth_id"},
-			ColDefs: map[string]ddl.ColumnDef{
-				"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-				"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-				"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
-			},
-			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-		},
-		"t3": ddl.CreateTable{
-			Name:     "t3",
-			ColNames: []string{"a", "b", "c", "synth_id"},
-			ColDefs: map[string]ddl.ColumnDef{
-				"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-				"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}},
-				"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
-				"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
-			},
-			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-		},
-	}
-	conv.Issues = map[string]map[string][]internal.SchemaIssue{
-		"t3": map[string][]internal.SchemaIssue{
-			"a": []internal.SchemaIssue{internal.Serial},
-			"b": []internal.SchemaIssue{internal.Serial},
-			"c": []internal.SchemaIssue{internal.Serial},
-		},
-	}
-	conv.SyntheticPKeys["t2"] = internal.SyntheticPKey{"synth_id", 0}
-	conv.SyntheticPKeys["t3"] = internal.SyntheticPKey{"synth_id", 0}
 }
