@@ -111,11 +111,11 @@ const searchTable = (tabId) => {
  *
  * @return {null}
  */
-const setGlobalDataType = () => {
+const setGlobalDataType = async() => {
   let globalDataTypeList = JSON.parse(localStorage.getItem('globalDataTypeList'));
   let dataTypeListLength = Object.keys(globalDataTypeList).length;
   let dataTypeJson = {};
-  for (var i = 0; i < dataTypeListLength; i++) {
+  for (var i = 0; i <= dataTypeListLength; i++) {
     var row = document.getElementById('dataTypeRow' + i);
     if (row) {
       var cells = row.getElementsByTagName('td');
@@ -131,7 +131,7 @@ const setGlobalDataType = () => {
       }
     }
   }
-  fetch('/typemap/global', {
+  await fetch('/typemap/global', {
     method: 'POST',
     headers: {
       'Accept': 'application/json',
@@ -143,8 +143,7 @@ const setGlobalDataType = () => {
     res.json().then(async function (response) {
       localStorage.setItem('conversionReportContent', JSON.stringify(response));
       await ddlSummaryAndConversionApiCall();
-      const { component = ErrorComponent } = findComponentByPath(location.hash.slice(1).toLowerCase() || paths.defaultPath, routes) || {};
-      component.render();
+      router();
     });
   })
 }
@@ -154,14 +153,27 @@ const setGlobalDataType = () => {
  *
  * @return {null}
  */
-const downloadSchema = () => {
-  let downloadFilePaths = JSON.parse(localStorage.getItem('downloadFilePaths'));
-  let schemaFilePath = downloadFilePaths.Schema;
+const downloadSchema = async() => {
+  await fetch('/schema')
+  .then(async function (response) {
+    if (response.ok) {
+      await response.text().then(function (result) {
+        localStorage.setItem('schemaFilePath', result);
+      });
+    }
+    else {
+      Promise.reject(response);
+    }
+  })
+  .catch(function (err) {
+    showSnackbar(err, ' redBg');
+  });
+  let schemaFilePath = localStorage.getItem('schemaFilePath');
   let schemaFileName = schemaFilePath.split('/')[schemaFilePath.split('/').length - 1];
   let filePath = './' + schemaFileName;
-  readTextFile(filePath, function (text) {
+  readTextFile(filePath, function (error, text) {
     jQuery("<a />", {
-      "download": schemaFileName + ".txt",
+      "download": schemaFileName,
       "href": "data:application/json;charset=utf-8," + encodeURIComponent(text),
     }).appendTo("body")
     .click(function () {
@@ -190,14 +202,27 @@ const downloadDdl = () => {
  *
  * @return {null}
  */
-const downloadReport = () => {
-  let downloadFilePaths = JSON.parse(localStorage.getItem('downloadFilePaths'));
-  let reportFilePath = downloadFilePaths.Report;
+const downloadReport = async() => {
+  await fetch('/report')
+  .then(async function (response) {
+    if (response.ok) {
+      await response.text().then(function (result) {
+        localStorage.setItem('reportFilePath', result);
+      });
+    }
+    else {
+      Promise.reject(response);
+    }
+  })
+  .catch(function (err) {
+    showSnackbar(err, ' redBg');
+  });
+  let reportFilePath = localStorage.getItem('reportFilePath');
   let reportFileName = reportFilePath.split('/')[reportFilePath.split('/').length - 1];
   let filePath = './' + reportFileName;
-  readTextFile(filePath, function (text) {
+  readTextFile(filePath, function (error, text) {
     jQuery("<a />", {
-      "download": reportFileName + '.txt',
+      "download": reportFileName,
       "href": "data:application/json;charset=utf-8," + encodeURIComponent(text),
     }).appendTo("body")
     .click(function () {

@@ -27,20 +27,14 @@ const ErrorComponent = {
 // Pre defined paths
 const paths = {
   defaultPath: '/',
-  connectToDb: '/schema-report-connect-to-db',
-  loadDbDump: '/schema-report-load-db-dump',
-  importDb: '/schema-report-import-db',
-  resumeSession: '/schema-report-resume-session',
+  schemaReport: '/schema-report',
   instructions: '/instructions'
 }
 
 // Pre defined routes
 const routes = [
   { path: paths.defaultPath, component: HomeComponent, },
-  { path: paths.connectToDb, component: SchemaComponent, },
-  { path: paths.loadDbDump, component: SchemaComponent, },
-  { path: paths.importDb, component: SchemaComponent, },
-  { path: paths.resumeSession, component: SchemaComponent, },
+  { path: paths.schemaReport, component: SchemaComponent, },
   { path: paths.instructions, component: InstructionsComponent, }
 ];
 
@@ -58,10 +52,7 @@ const findComponentByPath = (path, routes) => {
 const router = () => {
   const path = parseLocation();
   const { component = ErrorComponent } = findComponentByPath(path, routes) || {};
-  getComponentFlag = renderComponent({'path': path, 'event': window.event.type});
-  if (!getComponentFlag) {
-    component.render();
-  }
+  component.render();
 };
 
 window.addEventListener('hashchange', router);

@@ -43,7 +43,6 @@
 
         const createSourceAndSpannerTables = async (obj) => {
             hideSpinner();
-            getReportAndSummaryFilePaths();
             getGlobalDataTypeList();
             schemaConversionObj = obj;
             let columnNameContent, dataTypeContent, constraintsContent, notNullFound, constraintId, srcConstraintHtml;
@@ -83,8 +82,10 @@
                     pkArrayLength = 0;
                 columnsLength = Object.keys(schemaConversionObj.ToSpanner[spTable.Name].Cols).length;
                 for (var x = 0; x < pkArrayLength; x++) {
-                    pkArray[i][x].seqId = pkSeqId[i];
-                    pkSeqId[i]++;
+                    if (pkArray[i][x].seqId == undefined) {
+                        pkArray[i][x].seqId = pkSeqId[i];
+                        pkSeqId[i]++;
+                    }
                 }
                 schemaConversionObj.SpSchema[srcTableName[i]].Pks = pkArray[i];
                 sourceTableFlag = localStorage.getItem('sourceDbName');
@@ -223,7 +224,7 @@
                 $newConvElement.find('.mdc-card.summary-content').html(JSON.parse(localStorage.getItem('summaryReportContent'))[srcTableName[i]].split('\n').join('<br />'));
                 $newConvElement.appendTo('#reportDiv');
             }
-            showSnackbar('schema converted successfully !!', ' greenBg');
+            // showSnackbar('schema converted successfully !!', ' greenBg');
             initSchemaScreenTasks();
             constraintCount--;
             while (constraintCount >= 0) {
@@ -269,24 +270,22 @@
     </div>
     <div>
         <h4 class="report-header">Recommended Schema Conversion Report
-            <button id="download-schema" class="download-button" onclick='downloadSchema()'>Download Schema File</button>
-            <button id="download-ddl" style='display: none;' class="download-button" onclick='downloadDdl()'>Download SQL Schema</button>
-            <button id="download-report" style='display: none;' class="download-button" onclick='downloadReport()'>Download Report</button>
+            <button id="download-schema" class="download-button" onclick='downloadSchema()'>Download Session File</button>
         </h4>
     </div>
     <div class="report-tabs">
         <ul class="nav nav-tabs md-tabs" role="tablist">
             <li class="nav-item">
                 <a class="nav-link active" id="reportTab" data-toggle="tab" href="#report" role="tab"
-                    aria-controls="report" aria-selected="true" onclick='findTab(this.id)'>Conversion Report</a>
+                    aria-controls="report" onclick="findTab(this.id)" aria-selected="true">Conversion Report</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" id="ddlTab" data-toggle="tab" href="#ddl" role="tab" aria-controls="ddl"
-                    aria-selected="false" onclick='findTab(this.id)'>DDL Statements</a>
+                onclick="findTab(this.id)" aria-selected="false">DDL Statements</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" id="summaryTab" data-toggle="tab" href="#summary" role="tab" aria-controls="summary"
-                    aria-selected="false" onclick='findTab(this.id)'>Summary Report</a>
+                onclick="findTab(this.id)" aria-selected="false">Summary Report</a>
             </li>
         </ul>
     </div>
@@ -326,6 +325,10 @@
                     Good
                 </div>
                 <div class="legend-status">
+                    <span class="avg"></span>
+                    Average
+                </div>
+                <div class="legend-status">
                     <span class="poor"></span>
                     Poor
                 </div>
@@ -359,7 +362,7 @@
                                         <button class='right-align edit-button hide-content'>
                                             Edit Spanner Schema
                                         </button>
-                                        <span class='right-align editInstruction hide-content'>Schema locked for editing. Unlock to change =></span>
+                                        <span class='right-align editInstruction hide-content blink'>Schema locked for editing. Unlock to change =></span>
                                     </h5>
                                 </div>
                                 <div class='collapse reportCollapse'>
@@ -542,6 +545,7 @@
                 <div class="panel-group" id="ddl-accordion">
                     <button class='expand' id='ddlExpandButton' onclick='ddlExpandHandler(jQuery(this))'>Expand
                         All</button>
+                    <button id="download-ddl" class="expand right-align" onclick='downloadDdl()'>Download DDL Statements</button>
                     <div id='ddlDiv'>
                         <section class='ddlSection template'>
                             <div class='card'>
@@ -567,6 +571,7 @@
                 <div class="panel-group" id="summary-accordion">
                     <button class='expand' id='summaryExpandButton' onclick='summaryExpandHandler(jQuery(this))'>Expand
                         All</button>
+                    <button id="download-report" class="expand right-align" onclick='downloadReport()'>Download Summary Report</button>
                     <div id='summaryDiv'>
                         <section class='summarySection template'>
                             <div class='card'>

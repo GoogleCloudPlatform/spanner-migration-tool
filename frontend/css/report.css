@@ -268,12 +268,8 @@
     border-radius: 10px !important;
 }
 
-.borderBottom {
-   
-}
-
-.redBorderBottom {
-    border: 0.125rem solid #DB4437 !important;
+.orangeBorderBottom {
+    border: 0.125rem solid ORANGE !important;
     border-radius: 10px !important;
 }
 
@@ -288,7 +284,7 @@
 }
 
 .yellowBorderBottom {
-    border: 0.125rem solid #F4B400 !important;
+    border: 0.125rem solid YELLoW !important;
     border-radius: 10px !important;
 }
 
@@ -296,8 +292,8 @@
     border-radius: 10px 10px 0px 0px !important;
 }
 
-.cardRedBorder {
-    border: 0.125rem solid #DB4437 !important;
+.cardOrangeBorder {
+    border: 0.125rem solid ORANGE !important;
     border-top: 0px !important;
 }
 
@@ -310,7 +306,7 @@
 }
 
 .cardYellowBorder {
-    border: 0.125rem solid #F4B400 !important;
+    border: 0.125rem solid YELLOW !important;
 }
 
 .ddlBorderBottom {
@@ -462,10 +458,6 @@
 
 .custom-border-blue{
     border: 0.125rem solid #4285F4 !important;
-}
-
-.custom-border-red{
-    border: 1px solid #DB4437 !important;
 }
 
 .table-card-border{

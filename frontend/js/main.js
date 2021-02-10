@@ -16,15 +16,17 @@ const uploadFileHandler = (e) => {
 const filenameChangeHandler = () => {
   let importSchemaObj;
   let fileName = jQuery('#upload')[0].files[0].name;
-  let importSchemaFlag = true;
   jQuery("#upload_link").text(fileName);
-
   let reader = new FileReader();
   reader.onload = function (event) {
     try {
       importSchemaObj = JSON.parse(event.target.result);
+      if (importSchemaObj.SpSchema == undefined) {
+        throw "Please upload valid json file";
+      }
     }
     catch (e) {
+      jQuery('#importButton').attr('disabled', 'disabled');
       showSnackbar(e, ' redBg');
       return;
     }
@@ -32,7 +34,6 @@ const filenameChangeHandler = () => {
     localStorage.setItem('conversionReportContent', JSON.stringify(importSchemaObj));
     localStorage.setItem('importFileName', fileName);
     localStorage.setItem('importFilePath', 'frontend/');
-    sessionRetrieval(document.getElementById("importDbType").value, importSchemaFlag);
   }
   reader.readAsText(event.target.files[0]);
 }
@@ -193,7 +194,7 @@ const editSpannerColumnName = (tableNumber, tableColumnNumber, tableId, tablePkA
       }
     }
     if (document.getElementById(keyId).classList.contains('keyActive')) {
-      getNewSeqNumForPrimaryKey(keyId, tableNumber, tableColumnNumber, tablePkArray, pkSeqId);
+      getNewSeqNumForPrimaryKey(tableNumber, tableColumnNumber, tablePkArray, pkSeqId);
     }
     else {
       removePrimaryKeyFromSeq(tableNumber, tableId, tablePkArray, tableOriginalColNames, notPrimaryArray);
@@ -204,14 +205,13 @@ const editSpannerColumnName = (tableNumber, tableColumnNumber, tableId, tablePkA
 /**
  * Function to get new seq number for primary key
  *
- * @param {html id} keyId
  * @param {number} tableNumber specifies table number in json object
  * @param {number} tableColumnNumber Specifies table column number
  * @param {array} tablePkArray array to store primary keys of a table
  * @param {number} pkSeqId sequence number of primary key
  * @return {null}
  */
-const getNewSeqNumForPrimaryKey = (keyId, tableNumber, tableColumnNumber, tablePkArray, pkSeqId) => {
+const getNewSeqNumForPrimaryKey = (tableNumber, tableColumnNumber, tablePkArray, pkSeqId) => {
   let maxSeqId = 0;
   let pkArrayLength = tablePkArray.length;
   let pkFoundFlag = false;
@@ -313,6 +313,7 @@ const editSpannerDataType = (editColumn, tableNumber, tableColumnNumber) => {
       break;
     }
   }
+
   $editDataType.find('select').attr('id', 'dataType' + tableNumber + tableColumnNumber + tableColumnNumber);
   jQuery('#saveDataType' + tableNumber + tableColumnNumber).addClass('template');
   if (dataTypeArray !== null) {
@@ -454,23 +455,22 @@ const saveSpannerChanges = async (event, spPlaceholder, notPrimaryArray, pkSpArr
     },
     body: JSON.stringify(updatedColsData)
   })
-    .then(function (res) {
-      if (res.ok) {
-        res.json().then(async function (response) {
-          localStorage.setItem('conversionReportContent', JSON.stringify(response));
-          await ddlSummaryAndConversionApiCall();
-          await getInterleaveInfo();
-          const { component = ErrorComponent } = findComponentByPath(location.hash.slice(1).toLowerCase() || paths.defaultPath, routes) || {};
-          component.render();
-        });
-      }
-      else {
-        return Promise.reject(res);
-      }
-    })
-    .catch(function (err) {
-      showSnackbar(err, ' redBg');
-    });
+  .then(function (res) {
+    if (res.ok) {
+      res.json().then(async function (response) {
+        // response.SpSchema[srcTableName[tableNumber]].Pks = schemaConversionObj.SpSchema[srcTableName[tableNumber]].Pks;
+        localStorage.setItem('conversionReportContent', JSON.stringify(response));
+        await ddlSummaryAndConversionApiCall();
+        router();
+      });
+    }
+    else {
+      return Promise.reject(res);
+    }
+  })
+  .catch(function (err) {
+    showSnackbar(err, ' redBg');
+  });
 }
 
 /**
@@ -621,7 +621,6 @@ const onconnect = (dbType, dbHost, dbPort, dbUser, dbName, dbPassword) => {
  */
 const showSchemaAssessment = async () => {
   let reportDataResp, reportData, sourceTableFlag;
-  let importSchemaFlag = false;
   showSpinner();
   reportData = await fetch('/convert/infoschema')
     .then(function (response) {
@@ -637,12 +636,10 @@ const showSchemaAssessment = async () => {
     });
   reportDataResp = await reportData.json();
   localStorage.setItem('conversionReportContent', JSON.stringify(reportDataResp));
-  await ddlSummaryAndConversionApiCall();
-  await getInterleaveInfo();
-  window.location.href = '#/schema-report-connect-to-db';
-  sourceTableFlag = localStorage.getItem('sourceDbName');
+  ddlSummaryAndConversionApiCall();
   jQuery('#connectModalSuccess').modal("hide");
-  sessionRetrieval(sourceTableFlag, importSchemaFlag);
+  sourceTableFlag = localStorage.getItem('sourceDbName');
+  sessionRetrieval(sourceTableFlag);
 }
 
 /**
@@ -677,7 +674,6 @@ const storeDumpFileValues = (dbType, filePath) => {
  */
 const onLoadDatabase = async (dbType, dumpFilePath) => {
   let reportData, sourceTableFlag, reportDataResp;
-  let importSchemaFlag = false;
   showSpinner();
   reportData = await fetch('/convert/dump', {
     method: 'POST',
@@ -690,7 +686,7 @@ const onLoadDatabase = async (dbType, dumpFilePath) => {
       "Path": dumpFilePath
     })
   });
-  requestCode = await reportData.status;
+  requestCode = reportData.status;
   reportDataResp = await reportData.text();
 
   if (requestCode != 200) {
@@ -703,11 +699,9 @@ const onLoadDatabase = async (dbType, dumpFilePath) => {
     reportDataResp = JSON.parse(reportDataResp);
     localStorage.setItem('conversionReportContent', JSON.stringify(reportDataResp));
   }
-  await ddlSummaryAndConversionApiCall();
-  await getInterleaveInfo();
-  window.location.href = '#/schema-report-load-db-dump';
+  ddlSummaryAndConversionApiCall();
   sourceTableFlag = localStorage.getItem('sourceDbName');
-  sessionRetrieval(sourceTableFlag, importSchemaFlag);
+  sessionRetrieval(sourceTableFlag);
 }
 
 /**
@@ -718,15 +712,14 @@ const onLoadDatabase = async (dbType, dumpFilePath) => {
 const onImport = async () => {
   let driver = '';
   let srcDb = localStorage.getItem('sourceDbName');
+  let path = localStorage.getItem('importFilePath');
+  let fileName = localStorage.getItem('importFileName');
   if (srcDb === 'MySQL') {
     driver = 'mysqldump';
   }
   else if (srcDb === 'Postgres') {
     driver = 'pg_dump';
   }
-  let path = localStorage.getItem('importFilePath');
-  let fileName = localStorage.getItem('importFileName');
-  let dbName = localStorage.getItem('importDbName');
   await fetch('/session/resume', {
     method: 'POST',
     headers: {
@@ -736,18 +729,15 @@ const onImport = async () => {
     body: JSON.stringify({
       "driver": driver,
       "path": path,
-      "fileName": fileName,
-      "dbName": dbName
+      "fileName": fileName
     })
   })
   .then(function (res) {
     console.log(res);
   });
-  await ddlSummaryAndConversionApiCall();
-  await getInterleaveInfo();
+  ddlSummaryAndConversionApiCall();
   jQuery('#importSchemaModal').modal('hide');
-  const { component = ErrorComponent } = findComponentByPath(paths.importDb, routes) || {};
-  component.render();
+  sessionRetrieval(srcDb);
 }
 
 /**
@@ -757,21 +747,22 @@ const onImport = async () => {
  */
 const ddlSummaryAndConversionApiCall = async () => {
   let conversionRateResp, ddlDataResp, summaryDataResp;
-  fetch('/ddl')
+  await fetch('/ddl')
     .then(async function (response) {
       if (response.ok) {
         ddlDataResp = await response.json();
         localStorage.setItem('ddlStatementsContent', JSON.stringify(ddlDataResp));
-        fetch('/summary')
+        await fetch('/summary')
           .then(async function (response) {
             if (response.ok) {
               summaryDataResp = await response.json();
               localStorage.setItem('summaryReportContent', JSON.stringify(summaryDataResp));
-              fetch('/conversion')
+              await fetch('/conversion')
                 .then(async function (response) {
                   if (response.ok) {
                     conversionRateResp = await response.json();
                     localStorage.setItem('tableBorderColor', JSON.stringify(conversionRateResp));
+                    window.location.href = '#/schema-report';
                   }
                   else {
                     return Promise.reject(response);
@@ -791,28 +782,6 @@ const ddlSummaryAndConversionApiCall = async () => {
       }
       else {
         return Promise.reject(response);
-      }
-    })
-    .catch(function (err) {
-      showSnackbar(err, ' redBg');
-    });
-}
-
-/**
- * Function to make an api call to get download file paths
- *
- * @return {null}
- */
-const getReportAndSummaryFilePaths = () => {
-  fetch('/filepaths')
-    .then(async function (response) {
-      if (response.ok) {
-        response.json().then(function (result) {
-          localStorage.setItem('downloadFilePaths', JSON.stringify(result));
-        });
-      }
-      else {
-        filePaths = Promise.reject(response);
       }
     })
     .catch(function (err) {
@@ -853,7 +822,7 @@ const getGlobalDataTypeList = () => {
  * @param {string} dbType source db name
  * @return {null}
  */
-const sessionRetrieval = (dbType, importSchemaFlag) => {
+const sessionRetrieval = (dbType) => {
   let sessionStorageArr;
   let sessionInfoResp;
   fetch('/session', {
@@ -870,9 +839,7 @@ const sessionRetrieval = (dbType, importSchemaFlag) => {
       if (sessionStorageArr == undefined)
         sessionStorageArr = [];
       sessionInfoResp.sourceDbType = dbType;
-      sessionStorageArr.push(sessionInfoResp);
-      if (importSchemaFlag === true)
-        localStorage.setItem('importSchemaFlag', sessionInfoResp.dbName);
+      sessionStorageArr.unshift(sessionInfoResp);
       sessionStorage.setItem('sessionStorage', JSON.stringify(sessionStorageArr));
     }
     else {
@@ -890,10 +857,10 @@ const sessionRetrieval = (dbType, importSchemaFlag) => {
  * @param {number} index table index
  * @return {null}
  */
-const saveInterleaveHandler = (index) => {
-  const radioValues = document.querySelectorAll('input[name="fks"]');
-  let selectedValue;
-  let interleaveApiCallResp = JSON.parse(localStorage.getItem('interleaveInfo'));
+const saveInterleaveHandler = async(index) => {
+  let radioValues = document.querySelectorAll('input[name="fks"]');
+  let selectedValue, interleaveApiCall, interleaveApiCallResp;
+  let tableName = schemaConversionObj.SpSchema[Object.keys(schemaConversionObj.ToSpanner)[index]].Name;
   for (const x of radioValues) {
     if (x.checked) {
       selectedValue = x.value;
@@ -901,32 +868,6 @@ const saveInterleaveHandler = (index) => {
     }
   }
   if (selectedValue == 'interleave') {
-    console.log(index);
-    console.log(interleaveApiCallResp[index]);
-    if (interleaveApiCallResp[index].Possible == false) {
-      showSnackbar('Cannot be Interleaved', ' redBg');
-    }
-    else if (interleaveApiCallResp[index].Possible == true) {
-      showSnackbar('Successfully Interleaved', ' greenBg');
-    }
-  }
-  else {
-    showSnackbar('Response Saved', ' greenBg');
-  }
-}
-
-/**
- * Function to get interleave info for each table
- *
- * @return {null}
- */
-const getInterleaveInfo = async () => {
-  let schemaObj = JSON.parse(localStorage.getItem('conversionReportContent'));
-  let tablesNumber = Object.keys(schemaObj.SpSchema).length;
-  let interleaveApiCallResp = [];
-  let tableName;
-  for (var i = 0; i < tablesNumber; i++) {
-    tableName = Object.keys(schemaObj.ToSpanner)[i];
     interleaveApiCall = await fetch('/checkinterleave/table?table=' + tableName)
       .then(async function (response) {
         if (response.ok) {
@@ -939,9 +880,17 @@ const getInterleaveInfo = async () => {
       .catch(function (err) {
         showSnackbar(err, ' redBg');
       });
-    interleaveApiCallResp[i] = await interleaveApiCall.json();
+    interleaveApiCallResp = await interleaveApiCall.json();
+    if (interleaveApiCallResp.Possible == false) {
+      showSnackbar('Cannot be Interleaved', ' redBg');
+    }
+    else if (interleaveApiCallResp.Possible == true) {
+      showSnackbar('Successfully Interleaved', ' greenBg');
+    }
   }
-  localStorage.setItem('interleaveInfo', JSON.stringify(interleaveApiCallResp));
+  else {
+    showSnackbar('Response Saved', ' greenBg');
+  }
 }
 
 /**
@@ -959,6 +908,7 @@ const storeResumeSessionId = (driver, path, fileName, dbName, sourceDb) => {
   localStorage.setItem('fileName', fileName);
   localStorage.setItem('dbName', dbName);
   localStorage.setItem('sourceDb', sourceDb);
+  resumeSession(localStorage.getItem('driver'), localStorage.getItem('path'), localStorage.getItem('fileName'), localStorage.getItem('dbName'), localStorage.getItem('sourceDb'))
 }
 
 /**
@@ -972,39 +922,40 @@ const storeResumeSessionId = (driver, path, fileName, dbName, sourceDb) => {
  */
 const resumeSession = async (driver, path, fileName, dbName, sourceDb) => {
   let filePath = './' + fileName;
-  readTextFile(filePath, function (text) {
-    var data = JSON.parse(text);
-    localStorage.setItem('conversionReportContent', JSON.stringify(data));
-    localStorage.setItem('sourceDbName', sourceDb);
-  });
-  await fetch('/session/resume', {
-    method: 'POST',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      "driver": driver,
-      "path": path,
-      "fileName": fileName,
-      "dbName": dbName
-    })
-  })
-  .then(function (response) {
-    if (response.ok) {
-      console.log(response);
+  readTextFile(filePath, async function (error, text) {
+    if (error) {
+      showSnackbar('File does not exist', ' redBg');
     }
     else {
-      Promise.reject(response);
+      var data = JSON.parse(text);
+      localStorage.setItem('conversionReportContent', JSON.stringify(data));
+      localStorage.setItem('sourceDbName', sourceDb);
+      await fetch('/session/resume', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          "driver": driver,
+          "path": path,
+          "fileName": fileName
+        })
+      })
+      .then(function (response) {
+        if (response.ok) {
+          console.log(response);
+        }
+        else {
+          Promise.reject(response);
+        }
+      })
+      .catch(function (err) {
+        showSnackbar(err, ' redBg');
+      });
+      ddlSummaryAndConversionApiCall();
     }
-  })
-  .catch(function (err) {
-    showSnackbar(err, ' redBg');
   });
-  await ddlSummaryAndConversionApiCall();
-  await getInterleaveInfo();
-  const { component = ErrorComponent } = findComponentByPath(paths.resumeSession, routes) || {};
-  component.render();
 }
 
 /**
@@ -1029,8 +980,11 @@ const readTextFile = (file, callback) => {
   rawFile.overrideMimeType("application/json");
   rawFile.open("GET", file, true);
   rawFile.onreadystatechange = function () {
-    if (rawFile.readyState == 4 && rawFile.status == "200") {
-      callback(rawFile.responseText);
+    if (rawFile.status == "404") {
+      callback(new Error ('File does not exist'), null);
+    }
+    else if (rawFile.readyState == 4 && rawFile.status == "200") {
+      callback(null, rawFile.responseText);
     }
   }
   rawFile.send(null);
@@ -1052,29 +1006,7 @@ const importSourceSchema = (val) => {
     sourceTableFlag = 'Postgres';
     localStorage.setItem('sourceDbName', sourceTableFlag);
   }
-}
-
-/**
- * Function to get paths and events generated from window
- *
- * @param {object} params object containing path and event as keys
- * @return {boolean}
- */
-const renderComponent = (params) => {
-  if ((params.path === paths.connectToDb || params.path === paths.loadDbDump) && params.event === 'load') {
-    const { component = ErrorComponent } = findComponentByPath(location.hash.slice(1).toLowerCase() || paths.defaultPath, routes) || {};
-    component.render();
-  }
-  else if (params.path === paths.importDb) {
-    onImport();
-  }
-  else if (params.path === paths.resumeSession) {
-    resumeSession(localStorage.getItem('driver'), localStorage.getItem('path'), localStorage.getItem('fileName'), localStorage.getItem('dbName'), localStorage.getItem('sourceDb'));
-  }
-  else {
-    return false;
-  }
-  return true;
+  onImport();
 }
 
 /**

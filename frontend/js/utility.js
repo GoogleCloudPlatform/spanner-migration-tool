@@ -13,6 +13,12 @@ const setActiveSelectedMenu = (selectedMenuId) => {
   jQuery('#'+selectedMenuId).removeClass('inactive');
 }
 
+const checkActiveSession = () => {
+  if (JSON.parse(sessionStorage.getItem('sessionStorage')) != null) {
+    window.location.href = '#/schema-report';
+  }
+}
+
 /**
  * Function to fetch panel border color based on conversion status
  *
@@ -22,8 +28,8 @@ const setActiveSelectedMenu = (selectedMenuId) => {
 const panelBorderClass = (color) => {
   var borderClass = '';
   switch (color) {
-    case 'RED':
-      borderClass = ' redBorderBottom';
+    case 'ORANGE':
+      borderClass = ' orangeBorderBottom';
       break;
     case 'GREEN':
       borderClass = ' greenBorderBottom';
@@ -47,8 +53,8 @@ const panelBorderClass = (color) => {
 const mdcCardBorder = (color) => {
   var cardBorderClass = '';
   switch (color) {
-    case 'RED':
-      cardBorderClass = ' cardRedBorder';
+    case 'ORANGE':
+      cardBorderClass = ' cardOrangeBorder';
       break;
     case 'GREEN':
       cardBorderClass = ' cardGreenBorder';
@@ -149,11 +155,6 @@ const toggleDbType = () => {
 const findTab = (id) => {
   switch (id) {
     case 'reportTab':
-      // setting download button
-      document.getElementById('download-schema').style.display = 'block';
-      document.getElementById('download-ddl').style.display = 'none';
-      document.getElementById('download-report').style.display = 'none';
-
       // setting search box
       document.getElementById('reportSearchForm').style.display = 'block';
       document.getElementById('ddlSearchForm').style.setProperty('display', 'none', 'important')
@@ -162,10 +163,6 @@ const findTab = (id) => {
       tableListArea = 'accordion';
       break;
     case 'ddlTab':
-      document.getElementById('download-schema').style.display = 'none';
-      document.getElementById('download-ddl').style.display = 'block';
-      document.getElementById('download-report').style.display = 'none';
-
       // setting search box
       document.getElementById('reportSearchForm').style.setProperty('display', 'none', 'important')
       document.getElementById('ddlSearchForm').style.display = 'block';
@@ -174,10 +171,6 @@ const findTab = (id) => {
       tableListArea = 'ddl-accordion';
       break;
     case 'summaryTab':
-      document.getElementById('download-schema').style.display = 'none';
-      document.getElementById('download-ddl').style.display = 'none';
-      document.getElementById('download-report').style.display = 'block';
-
       // setting search box
       document.getElementById('reportSearchForm').style.setProperty('display', 'none', 'important')
       document.getElementById('ddlSearchForm').style.setProperty('display', 'none', 'important')
