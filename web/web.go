@@ -284,34 +284,7 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 			// column as is. Note that per-column type overrides could be lost in
 			// this process -- the mapping in typeMap always takes precendence.
 			if _, found := typeMap[srcCol.Type.Name]; found {
-				var ty ddl.Type
-				var issues []internal.SchemaIssue
-				switch app.driver {
-				case "mysql", "mysqldump":
-					ty, issues = toSpannerTypeMySQL(srcCol.Type.Name, typeMap[srcCol.Type.Name], srcCol.Type.Mods)
-				case "pg_dump", "postgres":
-					ty, issues = toSpannerTypePostgres(srcCol.Type.Name, typeMap[srcCol.Type.Name], srcCol.Type.Mods)
-				default:
-					http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), http.StatusBadRequest)
-					return
-				}
-				if len(srcCol.Type.ArrayBounds) > 1 {
-					ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-					issues = append(issues, internal.MultiDimensionalArray)
-				}
-				if srcCol.Ignored.Default {
-					issues = append(issues, internal.DefaultValue)
-				}
-				if srcCol.Ignored.AutoIncrement {
-					issues = append(issues, internal.AutoIncrement)
-				}
-				if len(issues) > 0 {
-					app.conv.Issues[sourceTable][srcCol.Name] = issues
-				}
-				ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
-				colDef := spSchema.ColDefs[col]
-				colDef.T = ty
-				spSchema.ColDefs[col] = colDef
+				updateType(typeMap[srcCol.Type.Name], t, col, sourceTable, w)
 			}
 		}
 	}
@@ -709,21 +682,16 @@ func getFilePrefix(now time.Time) (string, error) {
 }
 
 type App struct {
-	sourceDB    *sql.DB
-	dbName      string
-	driver      string
-	conv        *internal.Conv
-	sessionFile string
+	sourceDB    *sql.DB        // Connection to source database in case of direct connection
+	dbName      string         // Name of source database
+	driver      string         // Name of HarbourBridge driver in use
+	conv        *internal.Conv // Current conversion state
+	sessionFile string         // Path to session file
 }
 
-// app maintains the state of the session and there can be
-// only one session at any given time.
-// It holds following items:
-// (1) sourceDB : Database connection in case of direct connection
-// (2) dbName : Database name
-// (3) driver : Driver name
-// (4) conv : State of conversion
-// (5) sessionFile : Session file path
+// app maintains the current state of the session, and is used to
+// track state from one request to the next. Session state is global:
+// all requests see the same session state.
 var app App
 
 // Type and issue.
