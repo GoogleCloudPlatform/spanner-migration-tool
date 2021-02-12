@@ -31,8 +31,7 @@ import (
 // and consists of an internal.Conv struct in JSON format.
 type session struct {
 	Driver    string `json:"driver"`
-	FilePath  string `json:"path"`
-	FileName  string `json:"fileName"`
+	FilePath  string `json:"filePath"`
 	DBName    string `json:"dbName"`
 	CreatedAt string `json:"createdAt"`
 }
@@ -48,12 +47,12 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	sessionFile := ".session.json"
-	filePath := "frontend/"
+	filePrefix := "frontend/"
 	out := os.Stdout
-	fileName := filePath + dbName + sessionFile
-	conversion.WriteSessionFile(app.conv, fileName, out)
-	session := session{Driver: app.driver, FilePath: filePath, FileName: dbName + sessionFile, DBName: dbName, CreatedAt: now.Format(time.RFC1123)}
-	app.sessionFile = fileName
+	filePath := filePrefix + dbName + sessionFile
+	conversion.WriteSessionFile(app.conv, filePath, out)
+	session := session{Driver: app.driver, FilePath: filePath, DBName: dbName, CreatedAt: now.Format(time.RFC1123)}
+	app.sessionFile = filePath
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(session)
 }
@@ -71,13 +70,13 @@ func resumeSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	app.conv = internal.MakeConv()
-	err = conversion.ReadSessionFile(app.conv, s.FilePath+s.FileName)
+	err = conversion.ReadSessionFile(app.conv, s.FilePath)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to open the session file: %v", err), http.StatusNotFound)
 		return
 	}
 	app.driver = s.Driver
 	app.dbName = s.DBName
-	app.sessionFile = s.FilePath + s.FileName
+	app.sessionFile = s.FilePath
 	w.WriteHeader(http.StatusOK)
 }
