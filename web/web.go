@@ -157,7 +157,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	}
 	f, err := os.Open(dc.FilePath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to open the test data file: %v", err), http.StatusNotFound)
+		http.Error(w, fmt.Sprintf("failed to open dump file %v : %v", dc.FilePath, err), http.StatusNotFound)
 		return
 	}
 	conv, err := conversion.SchemaConv(dc.Driver, &conversion.IOStreams{In: f, Out: os.Stdout}, 0)
@@ -254,9 +254,9 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(filteredTypeMap)
 }
 
-// setTypeMapGlobal allows to change spanner type globally.
-// It takes a map from source type to spanner type and updates
-// the spanner schema accordingly.
+// setTypeMapGlobal allows to change Spanner type globally.
+// It takes a map from source type to Spanner type and updates
+// the Spanner schema accordingly.
 func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -279,6 +279,10 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 			sourceTable := app.conv.ToSource[t].Name
 			sourceCol := app.conv.ToSource[t].Cols[col]
 			srcCol := app.conv.SrcSchema[sourceTable].ColDefs[sourceCol]
+			// If the srcCol's type is in the map, then recalculate the Spanner type
+			// for this column using the map. Otherwise, leave the ColDef for this
+			// column as is. Note that per-column type overrides could be lost in
+			// this process -- the mapping in typeMap always takes precendence.
 			if _, found := typeMap[srcCol.Type.Name]; found {
 				var ty ddl.Type
 				var issues []internal.SchemaIssue
@@ -454,6 +458,9 @@ func checkForInterleavedTables(w http.ResponseWriter, r *http.Request) {
 		tableInterleaveIssues.Comment = "Has synthetic pk"
 	}
 	if tableInterleaveIssues.Possible == true {
+		// Search this table's foreign keys for a suitable parent table.
+		// If there are several possible parent tables, we pick the first one.
+		// TODO: Allow users to pick which parent to use if more than one.
 		for i, fk := range app.conv.SpSchema[table].Fks {
 			refTable := fk.ReferTable
 			if _, found := app.conv.SyntheticPKeys[refTable]; found {
@@ -585,15 +592,16 @@ func renameColumn(newName, table, colName, srcTableName string) {
 
 func pkChanged(pkChange, table, colName string) {
 	sp := app.conv.SpSchema[table]
-	if pkChange == "REMOVED" {
+	switch pkChange {
+	case "REMOVED":
 		for i, pk := range sp.Pks {
 			if pk.Col == colName {
 				sp.Pks = removePk(sp.Pks, i)
 				break
 			}
 		}
-	}
-	if pkChange == "ADDED" {
+	case "ADDED":
+		// If this table has a synthetic primary key, we no longer need it, so delete it.
 		if sPk, found := app.conv.SyntheticPKeys[table]; found {
 			for i, col := range sp.ColNames {
 				if col == sPk.Col {
@@ -608,15 +616,16 @@ func pkChanged(pkChange, table, colName string) {
 					break
 				}
 			}
+			delete(app.conv.SyntheticPKeys, table)
 		}
 		sp.Pks = append(sp.Pks, ddl.IndexKey{Col: colName, Desc: false})
 	}
 	app.conv.SpSchema[table] = sp
 }
 
-func updateType(newType, table, newColName, srcTableName string, w http.ResponseWriter) {
+func updateType(newType, table, colName, srcTableName string, w http.ResponseWriter) {
 	sp := app.conv.SpSchema[table]
-	srcColName := app.conv.ToSource[table].Cols[newColName]
+	srcColName := app.conv.ToSource[table].Cols[colName]
 	srcCol := app.conv.SrcSchema[srcTableName].ColDefs[srcColName]
 	var ty ddl.Type
 	var issues []internal.SchemaIssue
@@ -643,27 +652,23 @@ func updateType(newType, table, newColName, srcTableName string, w http.Response
 		app.conv.Issues[srcTableName][srcCol.Name] = issues
 	}
 	ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
-	colDef := sp.ColDefs[newColName]
+	colDef := sp.ColDefs[colName]
 	colDef.T = ty
-	sp.ColDefs[newColName] = colDef
-	app.conv.SpSchema[table] = sp
+	sp.ColDefs[colName] = colDef
 }
 
-func updateNotNull(notNullChange, table, newColName string) {
+func updateNotNull(notNullChange, table, colName string) {
 	sp := app.conv.SpSchema[table]
 	switch notNullChange {
 	case "ADDED":
-		spColDef := sp.ColDefs[newColName]
+		spColDef := sp.ColDefs[colName]
 		spColDef.NotNull = true
-		sp.ColDefs[newColName] = spColDef
+		sp.ColDefs[colName] = spColDef
 	case "REMOVED":
-		spColDef := sp.ColDefs[newColName]
+		spColDef := sp.ColDefs[colName]
 		spColDef.NotNull = false
-		sp.ColDefs[newColName] = spColDef
-	default:
-		// We skip this.
+		sp.ColDefs[colName] = spColDef
 	}
-	app.conv.SpSchema[table] = sp
 }
 
 func rateSchema(cols, warnings int64, missingPKey bool) string {
@@ -700,8 +705,7 @@ func getFilePrefix(now time.Time) (string, error) {
 			return "", fmt.Errorf("Can not create database name : %v", err)
 		}
 	}
-	filePrefix := dbName + "."
-	return filePrefix, nil
+	return dbName + ".", nil
 }
 
 type App struct {
