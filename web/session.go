@@ -79,4 +79,5 @@ func resumeSession(w http.ResponseWriter, r *http.Request) {
 	app.dbName = s.DBName
 	app.sessionFile = s.FilePath
 	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(app.conv)
 }
