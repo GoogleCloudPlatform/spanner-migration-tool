@@ -413,10 +413,10 @@ type TableInterleaveStatus struct {
 	Comment  string
 }
 
-// checkForInterleavedTables checks whether specified table can be
+// setParentTable checks whether specified table can be
 // interleaved, if yes then it sets the Parent table for the specified
 // table and returns Parent table name, otherwise returns the issue.
-func checkForInterleavedTables(w http.ResponseWriter, r *http.Request) {
+func setParentTable(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
 	if app.conv == nil || app.driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), 404)

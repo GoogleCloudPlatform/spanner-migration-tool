@@ -1234,7 +1234,7 @@ func TestGetConversionMySQL(t *testing.T) {
 	assert.Contains(t, result, "t2")
 }
 
-func TestCheckForInterleavedTables(t *testing.T) {
+func TestSetParentTable(t *testing.T) {
 
 	tests := []struct {
 		name             string
@@ -1486,13 +1486,13 @@ func TestCheckForInterleavedTables(t *testing.T) {
 	for _, tc := range tests {
 		app.driver = "mysql"
 		app.conv = tc.ct
-		req, err := http.NewRequest("GET", "/checkinterleave/table?table="+tc.table, nil)
+		req, err := http.NewRequest("GET", "/setparent?table="+tc.table, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
 		req.Header.Set("Content-Type", "application/json")
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(checkForInterleavedTables)
+		handler := http.HandlerFunc(setParentTable)
 		handler.ServeHTTP(rr, req)
 		var res *TableInterleaveStatus
 		json.Unmarshal(rr.Body.Bytes(), &res)

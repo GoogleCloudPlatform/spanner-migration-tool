@@ -421,7 +421,7 @@ Example
 
 ### Interleave tables
 
-`/checkinterleave/table?table=<table_name>` is a GET API which checks whether it is
+`/setparent?table=<table_name>` is a GET API which checks whether it is
 possible to convert a table into a Spanner interleaved table. If this conversion is possible,
 then the schema is changed and the parent table name is returned.
 If the conversion is not possible, a failure message is returned.

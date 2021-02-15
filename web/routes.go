@@ -37,7 +37,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/schema", getSchemaFile).Methods("GET")
 	router.HandleFunc("/typemap/global", setTypeMapGlobal).Methods("POST")
 	router.HandleFunc("/typemap/table", updateTableSchema).Methods("POST")
-	router.HandleFunc("/checkinterleave/table", checkForInterleavedTables).Methods("GET")
+	router.HandleFunc("/setparent", setParentTable).Methods("GET")
 	router.PathPrefix("/").Handler(http.FileServer(staticFileDirectory))
 	return router
 }
