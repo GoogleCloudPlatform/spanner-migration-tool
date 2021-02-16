@@ -334,18 +334,38 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 	srcTableName := app.conv.ToSource[table].Name
 	for colName, v := range t.UpdateCols {
 		if v.Removed {
+			err, status := canRemoveColumn(colName, table)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("%v", err), status)
+				return
+			}
 			removeColumn(table, colName, srcTableName)
 			continue
 		}
 		newColName := colName
 		if v.Rename != "" && v.Rename != colName {
+			err, status := canRenameOrChangeType(colName, table)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("%v", err), status)
+				return
+			}
 			renameColumn(v.Rename, table, colName, srcTableName)
 			newColName = v.Rename
 		}
 		if v.PK != "" {
+			err, status := canChangePK(v.PK, table)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("%v", err), status)
+				return
+			}
 			pkChanged(v.PK, table, newColName)
 		}
 		if v.ToType != "" {
+			err, status := canRenameOrChangeType(newColName, table)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("%v", err), status)
+				return
+			}
 			updateType(v.ToType, table, newColName, srcTableName, w)
 		}
 		if v.NotNull != "" {
@@ -493,6 +513,134 @@ func rollback() error {
 		return fmt.Errorf("Failed to rollback action: %v", err)
 	}
 	return nil
+}
+
+func isPartOfPK(col, table string) bool {
+	for _, pk := range app.conv.SpSchema[table].Pks {
+		if pk.Col == col {
+			return true
+		}
+	}
+	return false
+}
+
+func isParent(table string) bool {
+	for _, spSchema := range app.conv.SpSchema {
+		if spSchema.Parent == table {
+			return true
+		}
+	}
+	return false
+}
+
+func isPartOfSecondaryIndex(col, table string) bool {
+	for _, index := range app.conv.SpSchema[table].Indexes {
+		for _, key := range index.Keys {
+			if key.Col == col {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isPartOfFK(col, table string) bool {
+	for _, fk := range app.conv.SpSchema[table].Fks {
+		for _, column := range fk.Columns {
+			if column == col {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// TODO: create a map to store referenced column to get
+// this information in O(1).
+func isReferencedByFK(col, table string) bool {
+	for _, spSchema := range app.conv.SpSchema {
+		if table != spSchema.Name {
+			for _, fk := range spSchema.Fks {
+				if fk.ReferTable == table {
+					for _, column := range fk.ReferColumns {
+						if column == col {
+							return true
+						}
+					}
+				}
+			}
+		}
+	}
+	return false
+}
+
+func canRemoveColumn(colName, table string) (error, int) {
+	if isPartOfPK := isPartOfPK(colName, table); isPartOfPK {
+		if err := rollback(); err != nil {
+			return fmt.Errorf("rollback failed"), http.StatusInternalServerError
+		}
+		return fmt.Errorf("Column is part of primary key"), http.StatusBadRequest
+	}
+	if isPartOfSecondaryIndex := isPartOfSecondaryIndex(colName, table); isPartOfSecondaryIndex {
+		if err := rollback(); err != nil {
+			return fmt.Errorf("rollback failed"), http.StatusInternalServerError
+		}
+		return fmt.Errorf("Column is part of secondary index, remove secondary index before making the update"), http.StatusPreconditionFailed
+	}
+	isPartOfFK := isPartOfFK(colName, table)
+	isReferencedByFK := isReferencedByFK(colName, table)
+	if isPartOfFK || isReferencedByFK {
+		if err := rollback(); err != nil {
+			return fmt.Errorf("rollback failed"), http.StatusInternalServerError
+		}
+		return fmt.Errorf("Column is part of foreign key relation, remove foreign key constraint before making the update"), http.StatusPreconditionFailed
+	}
+	return nil, http.StatusOK
+}
+
+func canRenameOrChangeType(colName, table string) (error, int) {
+	isPartOfPK := isPartOfPK(colName, table)
+	isParent := isParent(table)
+	isChild := app.conv.SpSchema[table].Parent != ""
+	if isPartOfPK && (isParent || isChild) {
+		if err := rollback(); err != nil {
+			return fmt.Errorf("rollback failed"), http.StatusInternalServerError
+		}
+		return fmt.Errorf("Column is part of parent-child relation"), http.StatusBadRequest
+	}
+	if isPartOfSecondaryIndex := isPartOfSecondaryIndex(colName, table); isPartOfSecondaryIndex {
+		if err := rollback(); err != nil {
+			return fmt.Errorf("rollback failed"), http.StatusInternalServerError
+		}
+		return fmt.Errorf("Column is part of secondary index, remove secondary index before making the update"), http.StatusPreconditionFailed
+	}
+	isPartOfFK := isPartOfFK(colName, table)
+	isReferencedByFK := isReferencedByFK(colName, table)
+	if isPartOfFK || isReferencedByFK {
+		if err := rollback(); err != nil {
+			return fmt.Errorf("rollback failed"), http.StatusInternalServerError
+		}
+		return fmt.Errorf("Column is part of foreign key relation, remove foreign key constraint before making the update"), http.StatusPreconditionFailed
+	}
+	return nil, http.StatusOK
+}
+
+func canChangePK(pkChange, table string) (error, int) {
+	if pkChange == "REMOVED" && len(app.conv.SpSchema[table].Pks) == 1 {
+		if err := rollback(); err != nil {
+			return fmt.Errorf("rollback failed"), http.StatusInternalServerError
+		}
+		return fmt.Errorf("Column is part of single column primary key"), http.StatusBadRequest
+	}
+	isParent := isParent(table)
+	isChild := app.conv.SpSchema[table].Parent != ""
+	if isParent || isChild {
+		if err := rollback(); err != nil {
+			return fmt.Errorf("rollback failed"), http.StatusInternalServerError
+		}
+		return fmt.Errorf("Column is part of parent-child relation"), http.StatusBadRequest
+	}
+	return nil, http.StatusOK
 }
 
 func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tableInterleaveIssues *TableInterleaveStatus) bool {
