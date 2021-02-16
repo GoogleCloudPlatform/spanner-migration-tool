@@ -16,6 +16,7 @@ const initSchemaScreenTasks = () => {
   var ddlAccCount = 0;
   jQuery(document).ready(() => {
     setActiveSelectedMenu('schemaScreen');
+    $(".modal-backdrop").hide();
     jQuery('.reportCollapse').on('show.bs.collapse', function() {
       jQuery(this).closest('.card').find('.rotate-icon').toggleClass('down');
       reportAccCount = reportAccCount + 1;
@@ -287,6 +288,33 @@ const summaryExpandHandler = (event) => {
 const globalEditHandler = () => {
   createEditDataTypeTable();
   jQuery('#globalDataTypeModal').modal();
+}
+
+/**
+ * Function to make an api call to get global data type list
+ *
+ * @return {null}
+ */
+const getGlobalDataTypeList = () => {
+  fetch('/typemap', {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(function (res) {
+    if (res.ok) {
+      res.json().then(function (result) {
+        localStorage.setItem('globalDataTypeList', JSON.stringify(result));
+      });
+    }
+    else {
+      return Promise.reject(res);
+    }
+  }).catch(function (err) {
+    showSnackbar(err, ' redBg');
+  });
 }
 
 /**

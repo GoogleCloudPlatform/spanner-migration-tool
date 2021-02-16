@@ -1,6 +1,7 @@
 <script>
     $(document).ready(function () {
         setActiveSelectedMenu('schemaScreen');
+        $(".modal-backdrop").hide();
         const createDdlFromJson = (result) => {
             let ddl = result;
             let ddlLength = Object.keys(ddl).length;
@@ -630,9 +631,6 @@
             <div class="modal-footer" style='margin-top: 20px;'>
                 <button id="data-type-button" data-dismiss="modal" onclick="setGlobalDataType()" class="connectButton"
                     type="button" style='margin-right: 24px !important;'>Next</button>
-                <button class="buttonload" id="dataTypeLoaderButton" style="display: none;">
-                    <i class="fa fa-circle-o-notch fa-spin"></i>converting
-                </button>
             </div>
         </div>
     </div>

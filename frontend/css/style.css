@@ -662,18 +662,6 @@ table{
     cursor: pointer;
     margin-right: 0px !important;
 }
-
-.buttonload {
-    width: 140px;
-    height: 36px;
-    border-radius: 20px;
-    border: 1px solid #808080;
-    color: #FFFFFF;
-    font-size: 16px;
-    font-weight: bold;
-    float: right;
-    background-color: #808080;
-}
   
 .fa {
     margin-left: -12px;

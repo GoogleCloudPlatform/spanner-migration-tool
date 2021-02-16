@@ -1,44 +1,4 @@
 /**
- * Function to trigger click event while file uploading
- *
- * @return {null}
- */
-const uploadFileHandler = (e) => {
-  e.preventDefault();
-  jQuery("#upload:hidden").trigger('click');
-}
-
-/**
- * Function to update selected file name and to read the json content of selected file
- *
- * @return {null}
- */
-const filenameChangeHandler = () => {
-  let importSchemaObj;
-  let fileName = jQuery('#upload')[0].files[0].name;
-  jQuery("#upload_link").text(fileName);
-  let reader = new FileReader();
-  reader.onload = function (event) {
-    try {
-      importSchemaObj = JSON.parse(event.target.result);
-      if (importSchemaObj.SpSchema == undefined) {
-        throw "Please upload valid json file";
-      }
-    }
-    catch (e) {
-      jQuery('#importButton').attr('disabled', 'disabled');
-      showSnackbar(e, ' redBg');
-      return;
-    }
-    jQuery('#importButton').removeAttr('disabled');
-    localStorage.setItem('conversionReportContent', JSON.stringify(importSchemaObj));
-    localStorage.setItem('importFileName', fileName);
-    localStorage.setItem('importFilePath', 'frontend/');
-  }
-  reader.readAsText(event.target.files[0]);
-}
-
-/**
  * Function to handle click event on edit spanner schema button of table
  *
  * @param {HTMLElement} event click event
@@ -709,11 +669,9 @@ const onLoadDatabase = async (dbType, dumpFilePath) => {
  *
  * @return {null}
  */
-const onImport = async () => {
+const onImport = async (filePath) => {
   let driver = '';
   let srcDb = localStorage.getItem('sourceDbName');
-  let path = localStorage.getItem('importFilePath');
-  let fileName = localStorage.getItem('importFileName');
   if (srcDb === 'MySQL') {
     driver = 'mysqldump';
   }
@@ -727,13 +685,17 @@ const onImport = async () => {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      "driver": driver,
-      "path": path,
-      "fileName": fileName
+      "Driver": driver,
+      "DBName": '',
+      "FilePath": filePath
     })
   })
   .then(function (res) {
-    console.log(res);
+    if (res.ok) {
+      res.json().then(function (response) {
+        localStorage.setItem('conversionReportContent', JSON.stringify(response));
+      })
+    }
   });
   ddlSummaryAndConversionApiCall();
   jQuery('#importSchemaModal').modal('hide');
@@ -787,33 +749,6 @@ const ddlSummaryAndConversionApiCall = async () => {
     .catch(function (err) {
       showSnackbar(err, ' redBg');
     });
-}
-
-/**
- * Function to make an api call to get global data type list
- *
- * @return {null}
- */
-const getGlobalDataTypeList = () => {
-  fetch('/typemap', {
-    method: 'GET',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json'
-    }
-  })
-  .then(function (res) {
-    if (res.ok) {
-      res.json().then(function (result) {
-        localStorage.setItem('globalDataTypeList', JSON.stringify(result));
-      });
-    }
-    else {
-      return Promise.reject(res);
-    }
-  }).catch(function (err) {
-    showSnackbar(err, ' redBg');
-  });
 }
 
 /**
@@ -902,13 +837,12 @@ const saveInterleaveHandler = async(index) => {
  * @param {string} sourceDb source db name
  * @return {null}
  */
-const storeResumeSessionId = (driver, path, fileName, dbName, sourceDb) => {
+const storeResumeSessionId = (driver, path, dbName, sourceDb) => {
   localStorage.setItem('driver', driver);
   localStorage.setItem('path', path);
-  localStorage.setItem('fileName', fileName);
   localStorage.setItem('dbName', dbName);
   localStorage.setItem('sourceDb', sourceDb);
-  resumeSession(localStorage.getItem('driver'), localStorage.getItem('path'), localStorage.getItem('fileName'), localStorage.getItem('dbName'), localStorage.getItem('sourceDb'))
+  resumeSession(localStorage.getItem('driver'), localStorage.getItem('path'), localStorage.getItem('dbName'), localStorage.getItem('sourceDb'))
 }
 
 /**
@@ -920,7 +854,9 @@ const storeResumeSessionId = (driver, path, fileName, dbName, sourceDb) => {
  * @param {string} sourceDb source db name
  * @return {null}
  */
-const resumeSession = async (driver, path, fileName, dbName, sourceDb) => {
+const resumeSession = async (driver, path, dbName, sourceDb) => {
+  let pathArray = path.split('/');
+  let fileName = pathArray[pathArray.length - 1];
   let filePath = './' + fileName;
   readTextFile(filePath, async function (error, text) {
     if (error) {
@@ -937,9 +873,9 @@ const resumeSession = async (driver, path, fileName, dbName, sourceDb) => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          "driver": driver,
-          "path": path,
-          "fileName": fileName
+          "Driver": driver,
+          "DBName": dbName,
+          "FilePath": path
         })
       })
       .then(function (response) {
@@ -966,7 +902,7 @@ const resumeSession = async (driver, path, fileName, dbName, sourceDb) => {
  * @return {null}
  */
 const resumeSessionHandler = (index, sessionArray) => {
-  storeResumeSessionId(sessionArray[index].driver, sessionArray[index].path, sessionArray[index].fileName, sessionArray[index].dbName, sessionArray[index].sourceDbType);
+  storeResumeSessionId(sessionArray[index].driver, sessionArray[index].filePath, sessionArray[index].dbName, sessionArray[index].sourceDbType);
 }
 
 /**
@@ -996,17 +932,17 @@ const readTextFile = (file, callback) => {
  * @param {string} val source db value (mysql or postgres)
  * @return {null}
  */
-const importSourceSchema = (val) => {
+const storeSessionFilePath = (dbType, filePath) => {
   let sourceTableFlag = '';
-  if (val === 'mysql') {
+  if (dbType === 'mysql') {
     sourceTableFlag = 'MySQL';
     localStorage.setItem('sourceDbName', sourceTableFlag);
   }
-  else if (val === 'postgres') {
+  else if (dbType === 'postgres') {
     sourceTableFlag = 'Postgres';
     localStorage.setItem('sourceDbName', sourceTableFlag);
   }
-  onImport();
+  onImport(filePath);
 }
 
 /**
