@@ -111,370 +111,539 @@ func TestGetTypeMapPostgres(t *testing.T) {
 
 }
 
-// func TestUpdateTableSchemaPostgres(t *testing.T) {
-// 	tc := []struct {
-// 		name              string
-// 		table             string
-// 		payload           string
-// 		statusCode        int64
-// 		expectedSchema    ddl.CreateTable
-// 		expectedIssues    map[string][]internal.SchemaIssue
-// 		expectedToSource  internal.NameAndCols
-// 		expectedToSpanner internal.NameAndCols
-// 	}{
-// 		{
-// 			name:  "Test type change",
-// 			table: "t1",
-// 			payload: `
-//     {
-//       "UpdateCols":{
-// 		"a": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"b": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"c": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"d": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"BYTES"},
-// 		"e": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"f": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"g": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"h": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"BYTES"},
-// 		"i": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"j": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"k": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"l": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"m": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"n": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"BYTES"},
-// 		"o": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"p": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"INT64"}
-// 	}
-//     }`,
-// 			statusCode: http.StatusOK,
-// 			expectedSchema: ddl.CreateTable{
-// 				Name:     "t1",
-// 				ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p"},
-// 				ColDefs: map[string]ddl.ColumnDef{
-// 					"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Bytes, Len: 6}},
-// 					"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"h": ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.Bytes, Len: int64(1)}},
-// 					"i": ddl.ColumnDef{Name: "i", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"j": ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"k": ddl.ColumnDef{Name: "k", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"l": ddl.ColumnDef{Name: "l", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"m": ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"n": ddl.ColumnDef{Name: "n", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-// 					"o": ddl.ColumnDef{Name: "o", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"p": ddl.ColumnDef{Name: "p", T: ddl.Type{Name: ddl.Int64}},
-// 				},
-// 				Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
-// 			},
-// 			expectedIssues: map[string][]internal.SchemaIssue{
-// 				"a": []internal.SchemaIssue{internal.Widened},
-// 				"b": []internal.SchemaIssue{internal.Widened},
-// 				"c": []internal.SchemaIssue{internal.Widened},
-// 				"e": []internal.SchemaIssue{internal.Widened},
-// 				"f": []internal.SchemaIssue{internal.Widened},
-// 				"g": []internal.SchemaIssue{internal.Widened, internal.Serial},
-// 				"j": []internal.SchemaIssue{internal.Widened},
-// 				"k": []internal.SchemaIssue{internal.Widened},
-// 				"l": []internal.SchemaIssue{internal.Widened},
-// 				"m": []internal.SchemaIssue{internal.Widened, internal.Serial},
-// 				"o": []internal.SchemaIssue{internal.Widened},
-// 				"p": []internal.SchemaIssue{internal.Widened},
-// 			},
-// 			expectedToSource: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"a": "a", "b": "b", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 			expectedToSpanner: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"a": "a", "b": "b", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 		},
-// 		{
-// 			name:  "Test column removal",
-// 			table: "t1",
-// 			payload: `
-// 		{
-// 		  "UpdateCols":{
-// 			"a": { "Removed": true, "Rename":"", "PK":"", "NotNull":"", "ToType":""},
-// 			"b": { "Removed": true, "Rename":"", "PK":"", "NotNull":"", "ToType":""}
-// 		}
-// 		}`,
-// 			statusCode: http.StatusOK,
-// 			expectedSchema: ddl.CreateTable{
-// 				Name:     "t1",
-// 				ColNames: []string{"c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "synth_id"},
-// 				ColDefs: map[string]ddl.ColumnDef{
-// 					"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
-// 					"d":        ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-// 					"e":        ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
-// 					"f":        ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
-// 					"g":        ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.Int64}},
-// 					"h":        ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
-// 					"i":        ddl.ColumnDef{Name: "i", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-// 					"j":        ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.Date}},
-// 					"k":        ddl.ColumnDef{Name: "k", T: ddl.Type{Name: ddl.Float64}},
-// 					"l":        ddl.ColumnDef{Name: "l", T: ddl.Type{Name: ddl.Int64}},
-// 					"m":        ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Int64}},
-// 					"n":        ddl.ColumnDef{Name: "n", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"o":        ddl.ColumnDef{Name: "o", T: ddl.Type{Name: ddl.Timestamp}},
-// 					"p":        ddl.ColumnDef{Name: "p", T: ddl.Type{Name: ddl.Int64}},
-// 					"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
-// 				},
-// 				Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-// 			},
-// 			expectedIssues: map[string][]internal.SchemaIssue{
-// 				"g": []internal.SchemaIssue{internal.Serial},
-// 				"l": []internal.SchemaIssue{internal.Widened},
-// 				"m": []internal.SchemaIssue{internal.Serial},
-// 				"o": []internal.SchemaIssue{internal.Timestamp},
-// 			},
-// 			expectedToSource: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 			expectedToSpanner: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 		},
-// 		{
-// 			name:  "Test column rename",
-// 			table: "t1",
-// 			payload: `
-// 		{
-// 		  "UpdateCols":{
-// 			"a": { "Removed": false, "Rename":"aa", "PK":"", "NotNull":"", "ToType":""},
-// 			"b": { "Removed": false, "Rename":"bb", "PK":"", "NotNull":"", "ToType":""}
-// 		}
-// 		}`,
-// 			statusCode: http.StatusOK,
-// 			expectedSchema: ddl.CreateTable{
-// 				Name:     "t1",
-// 				ColNames: []string{"aa", "bb", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p"},
-// 				ColDefs: map[string]ddl.ColumnDef{
-// 					"aa": ddl.ColumnDef{Name: "aa", T: ddl.Type{Name: ddl.Int64}},
-// 					"bb": ddl.ColumnDef{Name: "bb", T: ddl.Type{Name: ddl.Float64}},
-// 					"c":  ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
-// 					"d":  ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-// 					"e":  ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
-// 					"f":  ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
-// 					"g":  ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.Int64}},
-// 					"h":  ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
-// 					"i":  ddl.ColumnDef{Name: "i", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-// 					"j":  ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.Date}},
-// 					"k":  ddl.ColumnDef{Name: "k", T: ddl.Type{Name: ddl.Float64}},
-// 					"l":  ddl.ColumnDef{Name: "l", T: ddl.Type{Name: ddl.Int64}},
-// 					"m":  ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Int64}},
-// 					"n":  ddl.ColumnDef{Name: "n", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"o":  ddl.ColumnDef{Name: "o", T: ddl.Type{Name: ddl.Timestamp}},
-// 					"p":  ddl.ColumnDef{Name: "p", T: ddl.Type{Name: ddl.Int64}},
-// 				},
-// 				Pks: []ddl.IndexKey{ddl.IndexKey{Col: "aa"}},
-// 			},
-// 			expectedIssues: map[string][]internal.SchemaIssue{
-// 				"b": []internal.SchemaIssue{internal.Widened},
-// 				"g": []internal.SchemaIssue{internal.Serial},
-// 				"l": []internal.SchemaIssue{internal.Widened},
-// 				"m": []internal.SchemaIssue{internal.Serial},
-// 				"o": []internal.SchemaIssue{internal.Timestamp},
-// 			},
-// 			expectedToSource: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"aa": "a", "bb": "b", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 			expectedToSpanner: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"a": "aa", "b": "bb", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 		},
-// 		{
-// 			name:  "Test PK removed",
-// 			table: "t1",
-// 			payload: `
-// 		{
-// 		  "UpdateCols":{
-// 			"a": { "Removed": false, "Rename":"", "PK":"REMOVED", "NotNull":"", "ToType":""}
-// 		}
-// 		}`,
-// 			statusCode: http.StatusOK,
-// 			expectedSchema: ddl.CreateTable{
-// 				Name:     "t1",
-// 				ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "synth_id"},
-// 				ColDefs: map[string]ddl.ColumnDef{
-// 					"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-// 					"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-// 					"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
-// 					"d":        ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-// 					"e":        ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
-// 					"f":        ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
-// 					"g":        ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.Int64}},
-// 					"h":        ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
-// 					"i":        ddl.ColumnDef{Name: "i", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-// 					"j":        ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.Date}},
-// 					"k":        ddl.ColumnDef{Name: "k", T: ddl.Type{Name: ddl.Float64}},
-// 					"l":        ddl.ColumnDef{Name: "l", T: ddl.Type{Name: ddl.Int64}},
-// 					"m":        ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Int64}},
-// 					"n":        ddl.ColumnDef{Name: "n", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"o":        ddl.ColumnDef{Name: "o", T: ddl.Type{Name: ddl.Timestamp}},
-// 					"p":        ddl.ColumnDef{Name: "p", T: ddl.Type{Name: ddl.Int64}},
-// 					"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
-// 				},
-// 				Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-// 			},
-// 			expectedIssues: map[string][]internal.SchemaIssue{
-// 				"b": []internal.SchemaIssue{internal.Widened},
-// 				"g": []internal.SchemaIssue{internal.Serial},
-// 				"l": []internal.SchemaIssue{internal.Widened},
-// 				"m": []internal.SchemaIssue{internal.Serial},
-// 				"o": []internal.SchemaIssue{internal.Timestamp},
-// 			},
-// 			expectedToSource: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"a": "a", "b": "b", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 			expectedToSpanner: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"a": "a", "b": "b", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 		},
-// 		{
-// 			name:  "Test PK changed",
-// 			table: "t1",
-// 			payload: `
-// 		{
-// 		  "UpdateCols":{
-// 			"a": { "Removed": false, "Rename":"", "PK":"REMOVED", "NotNull":"", "ToType":""},
-// 			"b": { "Removed": false, "Rename":"", "PK":"ADDED", "NotNull":"", "ToType":""}
-// 		}
-// 		}`,
-// 			statusCode: http.StatusOK,
-// 			expectedSchema: ddl.CreateTable{
-// 				Name:     "t1",
-// 				ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p"},
-// 				ColDefs: map[string]ddl.ColumnDef{
-// 					"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-// 					"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-// 					"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
-// 					"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-// 					"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
-// 					"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
-// 					"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.Int64}},
-// 					"h": ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
-// 					"i": ddl.ColumnDef{Name: "i", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-// 					"j": ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.Date}},
-// 					"k": ddl.ColumnDef{Name: "k", T: ddl.Type{Name: ddl.Float64}},
-// 					"l": ddl.ColumnDef{Name: "l", T: ddl.Type{Name: ddl.Int64}},
-// 					"m": ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Int64}},
-// 					"n": ddl.ColumnDef{Name: "n", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"o": ddl.ColumnDef{Name: "o", T: ddl.Type{Name: ddl.Timestamp}},
-// 					"p": ddl.ColumnDef{Name: "p", T: ddl.Type{Name: ddl.Int64}},
-// 				},
-// 				Pks: []ddl.IndexKey{ddl.IndexKey{Col: "b"}},
-// 			},
-// 			expectedIssues: map[string][]internal.SchemaIssue{
-// 				"b": []internal.SchemaIssue{internal.Widened},
-// 				"g": []internal.SchemaIssue{internal.Serial},
-// 				"l": []internal.SchemaIssue{internal.Widened},
-// 				"m": []internal.SchemaIssue{internal.Serial},
-// 				"o": []internal.SchemaIssue{internal.Timestamp},
-// 			},
-// 			expectedToSource: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"a": "a", "b": "b", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 			expectedToSpanner: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"a": "a", "b": "b", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 		},
-// 		{
-// 			name:  "Test PK Added",
-// 			table: "t2",
-// 			payload: `
-// 		{
-// 		  "UpdateCols":{
-// 			"b": { "Removed": false, "Rename":"", "PK":"ADDED", "NotNull":"", "ToType":""}
-// 		}
-// 		}`,
-// 			statusCode: http.StatusOK,
-// 			expectedSchema: ddl.CreateTable{
-// 				Name:     "t2",
-// 				ColNames: []string{"a", "b", "c"},
-// 				ColDefs: map[string]ddl.ColumnDef{
-// 					"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-// 					"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-// 					"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
-// 				},
-// 				Pks: []ddl.IndexKey{ddl.IndexKey{Col: "b"}},
-// 			},
-// 			expectedIssues: map[string][]internal.SchemaIssue{
-// 				"b": []internal.SchemaIssue{internal.Widened},
-// 			},
-// 			expectedToSource: internal.NameAndCols{
-// 				Name: "t2",
-// 				Cols: map[string]string{
-// 					"a": "a", "b": "b", "c": "c",
-// 				}},
-// 			expectedToSpanner: internal.NameAndCols{
-// 				Name: "t2",
-// 				Cols: map[string]string{
-// 					"a": "a", "b": "b", "c": "c",
-// 				}},
-// 		},
-// 		{
-// 			name:  "Test bad json",
-// 			table: "t1",
-// 			payload: `
-// 		{
-// 		  "UpdateCols":{
-// 			"a": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 			}
-// 		}`,
-// 			statusCode: http.StatusBadRequest,
-// 		},
-// 	}
-// 	for _, tc := range tc {
-// 		app.driver = "postgres"
-// 		app.conv = internal.MakeConv()
-// 		buildConvPostgres(app.conv)
-// 		payload := tc.payload
-// 		req, err := http.NewRequest("POST", "/typemap/table?table="+tc.table, strings.NewReader(payload))
-// 		if err != nil {
-// 			t.Fatal(err)
-// 		}
-// 		req.Header.Set("Content-Type", "application/json")
-// 		rr := httptest.NewRecorder()
-// 		handler := http.HandlerFunc(updateTableSchema)
-// 		handler.ServeHTTP(rr, req)
-// 		var res *internal.Conv
-// 		json.Unmarshal(rr.Body.Bytes(), &res)
-// 		if status := rr.Code; int64(status) != tc.statusCode {
-// 			t.Errorf("handler returned wrong status code: got %v want %v",
-// 				status, tc.statusCode)
-// 		}
-// 		if tc.statusCode == http.StatusOK {
-// 			assert.Equal(t, tc.expectedSchema, res.SpSchema[tc.table])
-// 			assert.Equal(t, tc.expectedIssues, res.Issues[tc.table])
-// 			assert.Equal(t, tc.expectedToSource, res.ToSource[tc.table])
-// 			assert.Equal(t, tc.expectedToSpanner, res.ToSpanner[tc.table])
-// 		}
-// 	}
-
-// }
+func TestUpdateTableSchema(t *testing.T) {
+	tc := []struct {
+		name         string
+		table        string
+		payload      string
+		statusCode   int64
+		conv         *internal.Conv
+		expectedConv *internal.Conv
+	}{
+		{
+			name:  "Test remove fail column part of PK",
+			table: "t1",
+			payload: `
+    {
+      "UpdateCols":{
+		"a": { "Removed": true }
+	}
+    }`,
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+					}},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+				},
+			},
+		},
+		{
+			name:  "Test remove fail column part of secondary index",
+			table: "t1",
+			payload: `
+    {
+      "UpdateCols":{
+		"b": { "Removed": true }
+	}
+    }`,
+			statusCode: http.StatusPreconditionFailed,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+						Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "idx", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}},
+					}},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+				},
+			},
+		},
+		{
+			name:  "Test remove fail column part of FK",
+			table: "t1",
+			payload: `
+    {
+      "UpdateCols":{
+		"b": { "Removed": true }
+	}
+    }`,
+			statusCode: http.StatusPreconditionFailed,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+						Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"b"}, ReferTable: "t2", ReferColumns: []string{"b"}}},
+					}},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+				},
+			},
+		},
+		{
+			name:  "Test remove fail column referenced by FK",
+			table: "t1",
+			payload: `
+    {
+      "UpdateCols":{
+		"b": { "Removed": true }
+	}
+    }`,
+			statusCode: http.StatusPreconditionFailed,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+					},
+					"t2": ddl.CreateTable{
+						Name:     "t2",
+						ColNames: []string{"aa", "bb"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"aa": ddl.ColumnDef{Name: "aa", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"bb": ddl.ColumnDef{Name: "bb", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "aa"}},
+						Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"bb"}, ReferTable: "t1", ReferColumns: []string{"b"}}},
+					},
+				},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+				},
+			},
+		},
+		{
+			name:  "Test remove success",
+			table: "t1",
+			payload: `
+    {
+      "UpdateCols":{
+		"c": { "Removed": true }
+	}
+    }`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+					}},
+				Issues: map[string]map[string][]internal.SchemaIssue{
+					"t1": map[string][]internal.SchemaIssue{
+						"c": []internal.SchemaIssue{internal.Widened},
+					},
+				},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+				},
+				ToSpanner: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+					}},
+				Issues: map[string]map[string][]internal.SchemaIssue{
+					"t1": map[string][]internal.SchemaIssue{},
+				},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+				},
+				ToSpanner: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+				},
+			},
+		},
+		{
+			name:  "Test rename fail column part of PK and child table",
+			table: "t1",
+			payload: `
+    {
+      "UpdateCols":{
+		"b": { "Rename": "bb" }
+	}
+    }`,
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						Pks:    []ddl.IndexKey{ddl.IndexKey{Col: "a"}, ddl.IndexKey{Col: "b"}},
+						Parent: "t2",
+					}},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+				},
+			},
+		},
+		{
+			name:  "Test rename fail column part of PK and parent table",
+			table: "t1",
+			payload: `
+		{
+		  "UpdateCols":{
+			"a": { "Rename": "aa" }
+		}
+		}`,
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+					},
+					"t2": ddl.CreateTable{
+						Name:     "t2",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						Pks:    []ddl.IndexKey{ddl.IndexKey{Col: "a"}, ddl.IndexKey{Col: "b"}},
+						Parent: "t1",
+					},
+				},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+					"t2": internal.NameAndCols{Name: "t2", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+				},
+			},
+		},
+		{
+			name:  "Test rename fail column part of secondary index",
+			table: "t1",
+			payload: `
+		{
+		  "UpdateCols":{
+			"b": { "Rename": "bb" }
+		}
+		}`,
+			statusCode: http.StatusPreconditionFailed,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+						Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "idx", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}},
+					}},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+				},
+			},
+		},
+		{
+			name:  "Test rename fail column part of FK",
+			table: "t1",
+			payload: `
+		{
+		  "UpdateCols":{
+			"b": { "Rename": "bb" }
+		}
+		}`,
+			statusCode: http.StatusPreconditionFailed,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+						Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"b"}, ReferTable: "t2", ReferColumns: []string{"b"}}},
+					}},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+				},
+			},
+		},
+		{
+			name:  "Test rename fail column referenced by FK",
+			table: "t1",
+			payload: `
+		{
+		  "UpdateCols":{
+			"b": { "Rename": "bb" }
+		}
+		}`,
+			statusCode: http.StatusPreconditionFailed,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+					},
+					"t2": ddl.CreateTable{
+						Name:     "t2",
+						ColNames: []string{"aa", "bb"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"aa": ddl.ColumnDef{Name: "aa", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"bb": ddl.ColumnDef{Name: "bb", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "aa"}},
+						Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"bb"}, ReferTable: "t1", ReferColumns: []string{"b"}}},
+					},
+				},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+				},
+			},
+		},
+		{
+			name:  "Test rename success",
+			table: "t1",
+			payload: `
+    {
+      "UpdateCols":{
+		"a": { "Rename": "aa" }
+	}
+    }`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+					}},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+				},
+				ToSpanner: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"aa", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"aa": ddl.ColumnDef{Name: "aa", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b":  ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c":  ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "aa"}},
+					}},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"aa": "a", "b": "b", "c": "c"}},
+				},
+				ToSpanner: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "aa", "b": "b", "c": "c"}},
+				},
+			},
+		},
+		{
+			name:  "Test change type success",
+			table: "t1",
+			payload: `
+    {
+      "UpdateCols":{
+		"a": { "ToType": "STRING" },
+		"b": { "ToType": "BYTES" }
+	}
+    }`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: 6}},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": schema.Table{
+						Name:     "t1",
+						ColNames: []string{"a", "b"},
+						ColDefs: map[string]schema.Column{
+							"a": schema.Column{Name: "a", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"b": schema.Column{Name: "b", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{schema.Key{Column: "a"}},
+					}},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+				},
+				ToSpanner: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+				},
+				Issues: map[string]map[string][]internal.SchemaIssue{
+					"t1": map[string][]internal.SchemaIssue{},
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Bytes, Len: 6}},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": schema.Table{
+						Name:     "t1",
+						ColNames: []string{"a", "b"},
+						ColDefs: map[string]schema.Column{
+							"a": schema.Column{Name: "a", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"b": schema.Column{Name: "b", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{schema.Key{Column: "a"}},
+					}},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+				},
+				ToSpanner: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+				},
+				Issues: map[string]map[string][]internal.SchemaIssue{
+					"t1": map[string][]internal.SchemaIssue{
+						"a": []internal.SchemaIssue{internal.Widened},
+					},
+				},
+			},
+		},
+		{
+			name:  "Test add or remove not null",
+			table: "t1",
+			payload: `
+    {
+      "UpdateCols":{
+		"b": { "NotNull": "ADDED" },
+		"c": { "NotNull": "REMOVED" }
+	}
+    }`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+					}},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+				},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": ddl.CreateTable{
+						Name:     "t1",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+					}},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": internal.NameAndCols{Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+				},
+			},
+		},
+	}
+	for _, tc := range tc {
+		app.driver = "mysql"
+		app.conv = tc.conv
+		payload := tc.payload
+		req, err := http.NewRequest("POST", "/typemap/table?table="+tc.table, strings.NewReader(payload))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(updateTableSchema)
+		handler.ServeHTTP(rr, req)
+		var res *internal.Conv
+		json.Unmarshal(rr.Body.Bytes(), &res)
+		if status := rr.Code; int64(status) != tc.statusCode {
+			t.Errorf("handler returned wrong status code: got %v want %v",
+				status, tc.statusCode)
+		}
+		if tc.statusCode == http.StatusOK {
+			assert.Equal(t, tc.expectedConv, res)
+		}
+	}
+}
 
 func TestSetTypeMapGlobalLevelPostgres(t *testing.T) {
 	tc := []struct {
@@ -716,361 +885,6 @@ func TestGetTypeMapMySQL(t *testing.T) {
 	assert.Equal(t, expectedTypemap, typemap)
 
 }
-
-// func TestUpdateTableSchemaMySQL(t *testing.T) {
-// 	tc := []struct {
-// 		name              string
-// 		table             string
-// 		payload           string
-// 		statusCode        int64
-// 		expectedSchema    ddl.CreateTable
-// 		expectedIssues    map[string][]internal.SchemaIssue
-// 		expectedToSource  internal.NameAndCols
-// 		expectedToSpanner internal.NameAndCols
-// 	}{
-// 		{
-// 			name:  "Test type change",
-// 			table: "t1",
-// 			payload: `
-//     {
-//       "UpdateCols":{
-// 		"a": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"b": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"BYTES"},
-// 		"c": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"INT64"},
-// 		"d": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"BYTES"},
-// 		"e": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"f": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"g": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"BYTES"},
-// 		"h": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"i": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"j": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"k": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"l": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"m": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"n": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"o": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 		"p": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"}
-// 	}
-//     }`,
-// 			statusCode: http.StatusOK,
-// 			expectedSchema: ddl.CreateTable{
-// 				Name:     "t1",
-// 				ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p"},
-// 				ColDefs: map[string]ddl.ColumnDef{
-// 					"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-// 					"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
-// 					"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Bytes, Len: 6}},
-// 					"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-// 					"h": ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"i": ddl.ColumnDef{Name: "i", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"j": ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"k": ddl.ColumnDef{Name: "k", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"l": ddl.ColumnDef{Name: "l", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"m": ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"n": ddl.ColumnDef{Name: "n", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"o": ddl.ColumnDef{Name: "o", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"p": ddl.ColumnDef{Name: "p", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 				},
-// 				Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
-// 			},
-// 			expectedIssues: map[string][]internal.SchemaIssue{
-// 				"a": []internal.SchemaIssue{internal.Widened},
-// 				"c": []internal.SchemaIssue{internal.Widened},
-// 				"e": []internal.SchemaIssue{internal.Widened},
-// 				"j": []internal.SchemaIssue{internal.Widened},
-// 				"k": []internal.SchemaIssue{internal.Widened},
-// 				"l": []internal.SchemaIssue{internal.Widened},
-// 				"m": []internal.SchemaIssue{internal.Widened},
-// 				"n": []internal.SchemaIssue{internal.Widened},
-// 				"o": []internal.SchemaIssue{internal.Widened},
-// 				"p": []internal.SchemaIssue{internal.Time},
-// 			},
-// 			expectedToSource: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"a": "a", "b": "b", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 			expectedToSpanner: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"a": "a", "b": "b", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 		},
-// 		{
-// 			name:  "Test column removal",
-// 			table: "t1",
-// 			payload: `
-// 		{
-// 		  "UpdateCols":{
-// 			"a": { "Removed": true, "Rename":"", "PK":"", "NotNull":"", "ToType":""},
-// 			"b": { "Removed": true, "Rename":"", "PK":"", "NotNull":"", "ToType":""}
-// 		}
-// 		}`,
-// 			statusCode: http.StatusOK,
-// 			expectedSchema: ddl.CreateTable{
-// 				Name:     "t1",
-// 				ColNames: []string{"c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "synth_id"},
-// 				ColDefs: map[string]ddl.ColumnDef{
-// 					"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
-// 					"d":        ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-// 					"e":        ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
-// 					"f":        ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"g":        ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"h":        ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-// 					"i":        ddl.ColumnDef{Name: "i", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-// 					"j":        ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.Int64}},
-// 					"k":        ddl.ColumnDef{Name: "k", T: ddl.Type{Name: ddl.Float64}},
-// 					"l":        ddl.ColumnDef{Name: "l", T: ddl.Type{Name: ddl.Float64}},
-// 					"m":        ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Numeric}},
-// 					"n":        ddl.ColumnDef{Name: "n", T: ddl.Type{Name: ddl.Date}},
-// 					"o":        ddl.ColumnDef{Name: "o", T: ddl.Type{Name: ddl.Timestamp}},
-// 					"p":        ddl.ColumnDef{Name: "p", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
-// 				},
-// 				Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-// 			},
-// 			expectedIssues: map[string][]internal.SchemaIssue{
-// 				"j": []internal.SchemaIssue{internal.Widened},
-// 				"l": []internal.SchemaIssue{internal.Widened},
-// 				"o": []internal.SchemaIssue{internal.Time},
-// 			},
-// 			expectedToSource: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 			expectedToSpanner: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 		},
-// 		{
-// 			name:  "Test column rename",
-// 			table: "t1",
-// 			payload: `
-// 		{
-// 		  "UpdateCols":{
-// 			"a": { "Removed": false, "Rename":"aa", "PK":"", "NotNull":"", "ToType":""},
-// 			"b": { "Removed": false, "Rename":"bb", "PK":"", "NotNull":"", "ToType":""}
-// 		}
-// 		}`,
-// 			statusCode: http.StatusOK,
-// 			expectedSchema: ddl.CreateTable{
-// 				Name:     "t1",
-// 				ColNames: []string{"aa", "bb", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p"},
-// 				ColDefs: map[string]ddl.ColumnDef{
-// 					"aa": ddl.ColumnDef{Name: "aa", T: ddl.Type{Name: ddl.Bool}},
-// 					"bb": ddl.ColumnDef{Name: "bb", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"c":  ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
-// 					"d":  ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-// 					"e":  ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
-// 					"f":  ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"g":  ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"h":  ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-// 					"i":  ddl.ColumnDef{Name: "i", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-// 					"j":  ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.Int64}},
-// 					"k":  ddl.ColumnDef{Name: "k", T: ddl.Type{Name: ddl.Float64}},
-// 					"l":  ddl.ColumnDef{Name: "l", T: ddl.Type{Name: ddl.Float64}},
-// 					"m":  ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Numeric}},
-// 					"n":  ddl.ColumnDef{Name: "n", T: ddl.Type{Name: ddl.Date}},
-// 					"o":  ddl.ColumnDef{Name: "o", T: ddl.Type{Name: ddl.Timestamp}},
-// 					"p":  ddl.ColumnDef{Name: "p", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 				},
-// 				Pks: []ddl.IndexKey{ddl.IndexKey{Col: "aa"}},
-// 			},
-// 			expectedIssues: map[string][]internal.SchemaIssue{
-// 				"j": []internal.SchemaIssue{internal.Widened},
-// 				"l": []internal.SchemaIssue{internal.Widened},
-// 				"o": []internal.SchemaIssue{internal.Time},
-// 			},
-// 			expectedToSource: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"aa": "a", "bb": "b", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 			expectedToSpanner: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"a": "aa", "b": "bb", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 		},
-// 		{
-// 			name:  "Test PK removed",
-// 			table: "t1",
-// 			payload: `
-// 		{
-// 		  "UpdateCols":{
-// 			"a": { "Removed": false, "Rename":"", "PK":"REMOVED", "NotNull":"", "ToType":""}
-// 		}
-// 		}`,
-// 			statusCode: http.StatusOK,
-// 			expectedSchema: ddl.CreateTable{
-// 				Name:     "t1",
-// 				ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "synth_id"},
-// 				ColDefs: map[string]ddl.ColumnDef{
-// 					"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Bool}},
-// 					"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
-// 					"d":        ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-// 					"e":        ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
-// 					"f":        ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"g":        ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"h":        ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-// 					"i":        ddl.ColumnDef{Name: "i", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-// 					"j":        ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.Int64}},
-// 					"k":        ddl.ColumnDef{Name: "k", T: ddl.Type{Name: ddl.Float64}},
-// 					"l":        ddl.ColumnDef{Name: "l", T: ddl.Type{Name: ddl.Float64}},
-// 					"m":        ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Numeric}},
-// 					"n":        ddl.ColumnDef{Name: "n", T: ddl.Type{Name: ddl.Date}},
-// 					"o":        ddl.ColumnDef{Name: "o", T: ddl.Type{Name: ddl.Timestamp}},
-// 					"p":        ddl.ColumnDef{Name: "p", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
-// 				},
-// 				Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-// 			},
-// 			expectedIssues: map[string][]internal.SchemaIssue{
-// 				"j": []internal.SchemaIssue{internal.Widened},
-// 				"l": []internal.SchemaIssue{internal.Widened},
-// 				"o": []internal.SchemaIssue{internal.Time},
-// 			},
-// 			expectedToSource: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"a": "a", "b": "b", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 			expectedToSpanner: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"a": "a", "b": "b", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 		},
-// 		{
-// 			name:  "Test PK changed",
-// 			table: "t1",
-// 			payload: `
-// 		{
-// 		  "UpdateCols":{
-// 			"a": { "Removed": false, "Rename":"", "PK":"REMOVED", "NotNull":"", "ToType":""},
-// 			"b": { "Removed": false, "Rename":"", "PK":"ADDED", "NotNull":"", "ToType":""}
-// 		}
-// 		}`,
-// 			statusCode: http.StatusOK,
-// 			expectedSchema: ddl.CreateTable{
-// 				Name:     "t1",
-// 				ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p"},
-// 				ColDefs: map[string]ddl.ColumnDef{
-// 					"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Bool}},
-// 					"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
-// 					"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-// 					"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
-// 					"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 					"h": ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-// 					"i": ddl.ColumnDef{Name: "i", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-// 					"j": ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.Int64}},
-// 					"k": ddl.ColumnDef{Name: "k", T: ddl.Type{Name: ddl.Float64}},
-// 					"l": ddl.ColumnDef{Name: "l", T: ddl.Type{Name: ddl.Float64}},
-// 					"m": ddl.ColumnDef{Name: "m", T: ddl.Type{Name: ddl.Numeric}},
-// 					"n": ddl.ColumnDef{Name: "n", T: ddl.Type{Name: ddl.Date}},
-// 					"o": ddl.ColumnDef{Name: "o", T: ddl.Type{Name: ddl.Timestamp}},
-// 					"p": ddl.ColumnDef{Name: "p", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-// 				},
-// 				Pks: []ddl.IndexKey{ddl.IndexKey{Col: "b"}},
-// 			},
-// 			expectedIssues: map[string][]internal.SchemaIssue{
-// 				"j": []internal.SchemaIssue{internal.Widened},
-// 				"l": []internal.SchemaIssue{internal.Widened},
-// 				"o": []internal.SchemaIssue{internal.Time},
-// 			},
-// 			expectedToSource: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"a": "a", "b": "b", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 			expectedToSpanner: internal.NameAndCols{
-// 				Name: "t1",
-// 				Cols: map[string]string{
-// 					"a": "a", "b": "b", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-// 				}},
-// 		},
-// 		{
-// 			name:  "Test PK Added",
-// 			table: "t2",
-// 			payload: `
-// 		{
-// 		  "UpdateCols":{
-// 			"a": { "Removed": false, "Rename":"", "PK":"ADDED", "NotNull":"", "ToType":""}
-// 		}
-// 		}`,
-// 			statusCode: http.StatusOK,
-// 			expectedSchema: ddl.CreateTable{
-// 				Name:     "t2",
-// 				ColNames: []string{"a", "b", "c"},
-// 				ColDefs: map[string]ddl.ColumnDef{
-// 					"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-// 					"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-// 					"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
-// 				},
-// 				Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
-// 			},
-// 			expectedIssues: map[string][]internal.SchemaIssue{
-// 				"a": []internal.SchemaIssue{internal.Widened},
-// 			},
-// 			expectedToSource: internal.NameAndCols{
-// 				Name: "t2",
-// 				Cols: map[string]string{
-// 					"a": "a", "b": "b", "c": "c",
-// 				}},
-// 			expectedToSpanner: internal.NameAndCols{
-// 				Name: "t2",
-// 				Cols: map[string]string{
-// 					"a": "a", "b": "b", "c": "c",
-// 				}},
-// 		},
-// 		{
-// 			name:  "Test bad json",
-// 			table: "t1",
-// 			payload: `
-// 		{
-// 		  "UpdateCols":{
-// 			"a": { "Removed": false, "Rename":"", "PK":"", "NotNull":"", "ToType":"STRING"},
-// 			}
-// 		}`,
-// 			statusCode: http.StatusBadRequest,
-// 		},
-// 	}
-// 	for _, tc := range tc {
-// 		app.driver = "mysql"
-// 		app.conv = internal.MakeConv()
-// 		buildConvMySQL(app.conv)
-// 		payload := tc.payload
-// 		req, err := http.NewRequest("POST", "/typemap/table?table="+tc.table, strings.NewReader(payload))
-// 		if err != nil {
-// 			t.Fatal(err)
-// 		}
-// 		req.Header.Set("Content-Type", "application/json")
-// 		rr := httptest.NewRecorder()
-// 		handler := http.HandlerFunc(updateTableSchema)
-// 		handler.ServeHTTP(rr, req)
-// 		var res *internal.Conv
-// 		json.Unmarshal(rr.Body.Bytes(), &res)
-// 		if status := rr.Code; int64(status) != tc.statusCode {
-// 			t.Errorf("handler returned wrong status code: got %v want %v",
-// 				status, tc.statusCode)
-// 		}
-// 		if tc.statusCode == http.StatusOK {
-// 			assert.Equal(t, tc.expectedSchema, res.SpSchema[tc.table])
-// 			assert.Equal(t, tc.expectedIssues, res.Issues[tc.table])
-// 			assert.Equal(t, tc.expectedToSource, res.ToSource[tc.table])
-// 			assert.Equal(t, tc.expectedToSpanner, res.ToSpanner[tc.table])
-// 		}
-// 	}
-// }
 
 func TestSetTypeMapGlobalLevelMySQL(t *testing.T) {
 	tc := []struct {
