@@ -354,12 +354,14 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 			newColName = v.Rename
 		}
 		if v.PK != "" {
-			err, status := canChangePK(v.PK, table)
-			if err != nil {
-				http.Error(w, fmt.Sprintf("%v", err), status)
-				return
-			}
-			pkChanged(v.PK, table, newColName)
+			// Note: Adding or removing PK feature is deferred at the moment.
+
+			// err, status := canChangePK(v.PK, table)
+			// if err != nil {
+			// 	http.Error(w, fmt.Sprintf("%v", err), status)
+			// 	return
+			// }
+			// pkChanged(v.PK, table, newColName)
 		}
 		if v.ToType != "" {
 			err, status := canRenameOrChangeType(newColName, table)
@@ -682,6 +684,7 @@ func canRenameOrChangeType(colName, table string) (error, int) {
 	return nil, http.StatusOK
 }
 
+// TODO: improve canChangePK to include case for foreign key
 func canChangePK(pkChange, table string) (error, int) {
 	if pkChange == "REMOVED" && len(app.conv.SpSchema[table].Pks) == 1 {
 		if err := rollback(); err != nil {
