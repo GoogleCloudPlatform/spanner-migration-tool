@@ -29,6 +29,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -439,7 +440,7 @@ type TableInterleaveStatus struct {
 func setParentTable(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
 	if app.conv == nil || app.driver == "" {
-		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), 404)
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), http.StatusNotFound)
 		return
 	}
 	if table == "" {
@@ -477,6 +478,60 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(tableInterleaveIssues)
+}
+
+func dropForeignKey(w http.ResponseWriter, r *http.Request) {
+	table := r.FormValue("table")
+	pos := r.FormValue("pos")
+	if app.conv == nil || app.driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), http.StatusNotFound)
+		return
+	}
+	if table == "" || pos == "" {
+		http.Error(w, fmt.Sprintf("Table name or position is empty"), http.StatusBadRequest)
+	}
+	sp := app.conv.SpSchema[table]
+	position, err := strconv.Atoi(pos)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error converting position to integer"), http.StatusBadRequest)
+		return
+	}
+	if position < 0 || position >= len(sp.Fks) {
+		http.Error(w, fmt.Sprintf("No foreign key found at position %d", position), http.StatusBadRequest)
+		return
+	}
+	sp.Fks = removeFk(sp.Fks, position)
+	app.conv.SpSchema[table] = sp
+	updateSessionFile()
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(app.conv)
+}
+
+func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
+	table := r.FormValue("table")
+	pos := r.FormValue("pos")
+	if app.conv == nil || app.driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), http.StatusNotFound)
+		return
+	}
+	if table == "" || pos == "" {
+		http.Error(w, fmt.Sprintf("Table name or position is empty"), http.StatusBadRequest)
+	}
+	sp := app.conv.SpSchema[table]
+	position, err := strconv.Atoi(pos)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error converting position to integer"), http.StatusBadRequest)
+		return
+	}
+	if position < 0 || position >= len(sp.Indexes) {
+		http.Error(w, fmt.Sprintf("No secondary index found at position %d", position), http.StatusBadRequest)
+		return
+	}
+	sp.Indexes = removeSecondaryIndex(sp.Indexes, position)
+	app.conv.SpSchema[table] = sp
+	updateSessionFile()
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(app.conv)
 }
 
 // updateSessionFile updates the content of session file with
@@ -669,6 +724,10 @@ func removePk(slice []ddl.IndexKey, s int) []ddl.IndexKey {
 }
 
 func removeFk(slice []ddl.Foreignkey, s int) []ddl.Foreignkey {
+	return append(slice[:s], slice[s+1:]...)
+}
+
+func removeSecondaryIndex(slice []ddl.CreateIndex, s int) []ddl.CreateIndex {
 	return append(slice[:s], slice[s+1:]...)
 }
 
@@ -900,7 +959,8 @@ func init() {
 }
 
 func WebApp() {
-	fmt.Println("-------------------")
+	addr := ":8080"
 	router := getRoutes()
-	log.Fatal(http.ListenAndServe(":8080", handlers.CORS(handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}), handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"}), handlers.AllowedOrigins([]string{"*"}))(router)))
+	log.Printf("Starting server at port 8080\n")
+	log.Fatal(http.ListenAndServe(addr, handlers.CORS(handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}), handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"}), handlers.AllowedOrigins([]string{"*"}))(router)))
 }
