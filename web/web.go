@@ -509,6 +509,38 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(app.conv)
 }
 
+func renameForeignKey(w http.ResponseWriter, r *http.Request) {
+	table := r.FormValue("table")
+	pos := r.FormValue("pos")
+	newName := r.FormValue("name")
+	if app.conv == nil || app.driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), http.StatusNotFound)
+		return
+	}
+	if table == "" || pos == "" || newName == "" {
+		http.Error(w, fmt.Sprintf("Table name or position or new name is empty"), http.StatusBadRequest)
+	}
+	sp := app.conv.SpSchema[table]
+	position, err := strconv.Atoi(pos)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error converting position to integer"), http.StatusBadRequest)
+		return
+	}
+	if position < 0 || position >= len(sp.Fks) {
+		http.Error(w, fmt.Sprintf("No foreign key found at position %d", position), http.StatusBadRequest)
+		return
+	}
+	if !isUniqueName(newName) {
+		http.Error(w, fmt.Sprintf("New name %s is used before in the schema", newName), http.StatusBadRequest)
+		return
+	}
+	sp.Fks[position].Name = newName
+	app.conv.SpSchema[table] = sp
+	updateSessionFile()
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(app.conv)
+}
+
 func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
 	pos := r.FormValue("pos")
@@ -714,6 +746,27 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 		}
 	} else {
 		return false
+	}
+	return true
+}
+
+func isUniqueName(name string) bool {
+	for table, _ := range app.conv.SpSchema {
+		if table == name {
+			return false
+		}
+	}
+	for _, spSchema := range app.conv.SpSchema {
+		for _, fk := range spSchema.Fks {
+			if fk.Name == name {
+				return false
+			}
+		}
+		for _, index := range spSchema.Indexes {
+			if index.Name == name {
+				return false
+			}
+		}
 	}
 	return true
 }

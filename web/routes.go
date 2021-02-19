@@ -40,6 +40,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/setparent", setParentTable).Methods("GET")
 	router.HandleFunc("/drop/fk", dropForeignKey).Methods("GET")
 	router.HandleFunc("/drop/secondaryindex", dropSecondaryIndex).Methods("GET")
+	router.HandleFunc("/rename/fk", renameForeignKey).Methods("GET")
 	router.PathPrefix("/").Handler(http.FileServer(staticFileDirectory))
 	return router
 }
