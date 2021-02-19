@@ -461,3 +461,39 @@ Example
   "Comment": "No valid prefix"
 }
 ```
+
+### Drop foreign key
+
+`/drop/fk?table=<table_name>&pos=<position>` is a GET API which takes table name
+and array position of foreign key in query params. It drops foreign key at given
+position for given table name.
+
+#### Method
+
+`GET`
+
+#### Request body
+
+No request body is needed.
+
+#### Response body
+
+Updated Conv struct in JSON format.
+
+### Drop secondary index
+
+`/drop/secondaryindex?table=<table_name>&pos=<position>` is a GET API which takes
+table name and array position of secondary index in query params. It drops secondary
+index at given position for given table name.
+
+#### Method
+
+`GET`
+
+#### Request body
+
+No request body is needed.
+
+#### Response body
+
+Updated Conv struct in JSON format.
