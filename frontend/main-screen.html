@@ -253,7 +253,7 @@
     <!-- Modal content-->
     <div class="modal-content">
       <div class="modal-header content-center">
-        <h5 class="modal-title modal-bg" id="exampleModalLongTitle">Import Schema File</h5>
+        <h5 class="modal-title modal-bg" id="exampleModalLongTitle">Load Session File</h5>
         <i class="large material-icons close" data-dismiss="modal" onclick="clearModal()">cancel</i>
       </div>
       <div class="modal-body">
@@ -270,8 +270,8 @@
             <label class="modal-label" for="sessionFilePath">Path of the session File</label>
             <input class="form-control load-db-input" aria-describedby="" type="text" name="sessionFilePath"
               id="sessionFilePath" autocomplete="off"
-              onfocusout="validateInput(document.getElementById('sessionFilePath'), 'filePathError')" />
-            <span class='formError' id='filePathError'></span>
+              onfocusout="validateInput(document.getElementById('sessionFilePath'), 'loadSessionError')" />
+            <span class='formError' id='loadSessionError'></span>
           </div>
         </form>
       </div>

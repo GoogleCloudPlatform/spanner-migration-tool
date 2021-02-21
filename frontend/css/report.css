@@ -141,9 +141,18 @@
     word-break: break-all;
 }
 
-.acc-close-icon{
-    color: #FF0000;
-    font-size: 20px !important;
+.removeIcon {
+    font-size: 16px !important;
+    font-weight: 600 !important;
+}
+
+.dropButton {
+    color: #FF5400CC;
+    background-color: #FFFFFF;
+    border: 1px solid #FF5400CC;
+    border-radius: 20px;
+    font-size: 16px;
+    font-weight: 600;
 }
 
 .summary-main-content{
@@ -806,7 +815,7 @@ span.sql-c {
     font-weight: 700;
 }
 
-.fkFont {
+.fkFont, .indexFont {
     font-size: 16px !important;
     color: #4285F4 !important;
     float: left;
@@ -818,7 +827,7 @@ span.sql-c {
     text-align: left;
 }
 
-.fkCollapse {
+.fkCollapse, .indexCollapse {
     text-align: left;
 }
 

@@ -2,6 +2,7 @@
     $(document).ready(function () {
         setActiveSelectedMenu('schemaScreen');
         $(".modal-backdrop").hide();
+
         const createDdlFromJson = (result) => {
             let ddl = result;
             let ddlLength = Object.keys(ddl).length;
@@ -53,7 +54,7 @@
             let constraintCount = 0;
             let srcTableNum = Object.keys(schemaConversionObj.SrcSchema).length;
             let spTable_num = Object.keys(schemaConversionObj.SpSchema).length;
-            let srcTable, spTable, spTableCols, pkArrayLength, columnsLength, currentColumnSp, currentColumnSrc, pksSpLength, $newConvElement, $convTableContent, $fkTableContent;
+            let srcTable, spTable, spTableCols, pkArrayLength, columnsLength, currentColumnSp, currentColumnSrc, pksSpLength, $newConvElement, $convTableContent, $fkTableContent, $indexTableContent;
 
             for (var x = 0; x < srcTableNum; x++) {
                 initialPkSeqId[x] = [];
@@ -199,7 +200,8 @@
                     $convTableContent.appendTo($newConvElement.find('.acc-table-body'));
                 }
                 $newConvElement.find('.acc-table-body').find("tr").eq(0).remove();
-                if (spTable.Fks != null) {
+                if (spTable.Fks != null && spTable.Fks.length != 0) {
+                    let foreignKeyId, foreignKeyArray, tableName, foreignKeyPos;
                     $newConvElement.find('.fkCard').removeClass('template');
                     $newConvElement.find('.fkFont').attr('href', '#foreignKey' + i);
                     $newConvElement.find('.fkFont').html('Foreign Keys');
@@ -217,7 +219,66 @@
                         $fkTableContent.find('.acc-table-td.fkTableColumns').html(spTable.Fks[p].Columns);
                         $fkTableContent.find('.acc-table-td.fkTableReferTable').html(spTable.Fks[p].ReferTable);
                         $fkTableContent.find('.acc-table-td.fkTableReferColumns').html(spTable.Fks[p].ReferColumns);
+                        $fkTableContent.find('button').attr('id', spTable.Name + p + 'foreignKey');
+                        $fkTableContent.find('button').click(function () {
+                            foreignKeyId = jQuery(this).attr('id');
+                            jQuery('#foreignKeyDeleteWarning').modal();
+                            $('#foreignKeyDeleteWarning .modal-footer button').on('click', function(event) {
+                                var $selectedButton = $(event.target);
+                                $(this).closest('.modal').one('hidden.bs.modal', function() {
+                                    if ($selectedButton[0].id === 'deleteRelation') {
+                                        foreignKeyArray = foreignKeyId.split(/([0-9]+)/);
+                                        tableName = foreignKeyArray[0];
+                                        foreignKeyPos = foreignKeyArray[1];
+                                        dropForiegnKeyHandler(tableName, foreignKeyPos);
+                                    }
+                                    else {
+                                        $('#foreignKeyDeleteWarning .modal-footer button').off();
+                                    }
+                                });
+                            });
+                        });
                         $fkTableContent.appendTo($newConvElement.find('.fkTableBody'));
+                    }
+                }
+                if (spTable.Indexes != null && spTable.Indexes.length != 0) {
+                    let indexKeys, indexId, indexArray, tableName, secIndexPos;
+                    $newConvElement.find('.indexesCard').removeClass('template');
+                    $newConvElement.find('.indexFont').attr('href', '#indexKey' + i);
+                    $newConvElement.find('.indexFont').html('Secondary Indexes');
+                    $newConvElement.find('.collapse.indexCollapse').attr('id', 'indexKey' + i);
+                    for (var p = 0; p < spTable.Indexes.length; p++) {
+                        $indexTableContent = $newConvElement.find('.indexTableTr.template').clone().removeClass('template');
+                        $indexTableContent.find('.acc-table-td.indexesName').html(spTable.Indexes[p].Name);
+                        $indexTableContent.find('.acc-table-td.indexesTable').html(spTable.Indexes[p].Table);
+                        $indexTableContent.find('.acc-table-td.indexesUnique').html(spTable.Indexes[p].Unique.toString());
+                        indexKeys = '';
+                        for (var k = 0; k < spTable.Indexes[p].Keys.length; k++) {
+                            indexKeys += spTable.Indexes[p].Keys[k].Col + ', '
+                        }
+                        indexKeys = indexKeys.replace(/,\s*$/, "");
+                        $indexTableContent.find('.acc-table-td.indexesKeys').html(indexKeys);
+                        $indexTableContent.find('button').attr('id', spTable.Name + p + 'secIndex');
+                        $indexTableContent.find('button').click(function () {
+                            indexId = jQuery(this).attr('id');
+                            jQuery('#foreignKeyDeleteWarning').modal();
+                            $('#foreignKeyDeleteWarning .modal-footer button').one('click', function(event) {
+                                var $selectedButton = $(event.target);
+                                $('#foreignKeyDeleteWarning').on('hidden.bs.modal', function() {
+                                    if ($selectedButton[0].id === 'deleteRelation') {
+                                        $('#foreignKeyDeleteWarning .modal-footer button').off();
+                                        indexArray = indexId.split(/([0-9]+)/);
+                                        tableName = indexArray[0];
+                                        secIndexPos = indexArray[1];
+                                        dropSecondaryIndexHandler(tableName, secIndexPos);
+                                    }
+                                    else {
+                                        $('#foreignKeyDeleteWarning .modal-footer button').off();
+                                    }
+                                });
+                            });
+                        });
+                        $indexTableContent.appendTo($newConvElement.find('.indexTableBody'));
                     }
                 }
                 $newConvElement.find('.summaryFont').attr('href', '#viewSummary' + i);
@@ -271,7 +332,8 @@
     </div>
     <div>
         <h4 class="report-header">Recommended Schema Conversion Report
-            <button id="download-schema" class="download-button" onclick='downloadSchema()'>Download Session File</button>
+            <button id="download-schema" class="download-button" onclick='downloadSession()'>Download Session
+                File</button>
         </h4>
     </div>
     <div class="report-tabs">
@@ -282,11 +344,11 @@
             </li>
             <li class="nav-item">
                 <a class="nav-link" id="ddlTab" data-toggle="tab" href="#ddl" role="tab" aria-controls="ddl"
-                onclick="findTab(this.id)" aria-selected="false">DDL Statements</a>
+                    onclick="findTab(this.id)" aria-selected="false">DDL Statements</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" id="summaryTab" data-toggle="tab" href="#summary" role="tab" aria-controls="summary"
-                onclick="findTab(this.id)" aria-selected="false">Summary Report</a>
+                    onclick="findTab(this.id)" aria-selected="false">Summary Report</a>
             </li>
         </ul>
     </div>
@@ -363,7 +425,8 @@
                                         <button class='right-align edit-button hide-content'>
                                             Edit Spanner Schema
                                         </button>
-                                        <span class='right-align editInstruction hide-content blink'>Schema locked for editing. Unlock to change =></span>
+                                        <span class='right-align editInstruction hide-content blink'>Schema locked for
+                                            editing. Unlock to change =></span>
                                     </h5>
                                 </div>
                                 <div class='collapse reportCollapse'>
@@ -496,7 +559,7 @@
                                                                         for="interleave">Convert to Interleave</label>
                                                                 </div>
                                                                 <button style='float: right; padding: 0px 20px;'
-                                                                    class='save-interleave-button'>save</button>
+                                                                    class='save-interleave-button'>Save</button>
                                                             </fieldset><br>
                                                             <table class='fk-acc-table fkTable'>
                                                                 <thead>
@@ -505,6 +568,7 @@
                                                                         <th>Columns</th>
                                                                         <th>Refer Table</th>
                                                                         <th>Refer Columns</th>
+                                                                        <th>Action</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody class='fkTableBody'>
@@ -513,6 +577,63 @@
                                                                         <td class='acc-table-td fkTableColumns'></td>
                                                                         <td class='acc-table-td fkTableReferTable'></td>
                                                                         <td class='acc-table-td fkTableReferColumns'>
+                                                                        </td>
+                                                                        <td class='acc-table-td fkTableAction'>
+                                                                            <button class="dropButton"
+                                                                                data-toggle="tooltip"
+                                                                                data-placement="bottom"
+                                                                                title="this will delete foreign key permanently">
+                                                                                <span><i
+                                                                                        class="large material-icons removeIcon" style="vertical-align: middle;">delete</i></span>
+                                                                                <span style="vertical-align: middle;">Drop</span>
+                                                                            </button>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class='indexesCard template'>
+                                                <div class='foreignKeyHeader' role='tab'>
+                                                    <h5 class='mb-0'>
+                                                        <a class='indexFont' data-toggle='collapse'>
+                                                            Secondary Indexes
+                                                        </a>
+                                                    </h5>
+                                                </div>
+                                                <div class='collapse indexCollapse'>
+                                                    <div class='mdc-card mdc-card-content summaryBorder'
+                                                        style='border: 0px;'>
+                                                        <div class='mdc-card fk-content'>
+                                                            <fieldset style='overflow: hidden;'>
+                                                            </fieldset><br>
+                                                            <table class='fk-acc-table fkTable'>
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>Name</th>
+                                                                        <th>Table</th>
+                                                                        <th>Unique</th>
+                                                                        <th>Keys</th>
+                                                                        <th>Action</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody class='indexTableBody'>
+                                                                    <tr class='indexTableTr template'>
+                                                                        <td class='acc-table-td indexesName'></td>
+                                                                        <td class='acc-table-td indexesTable'></td>
+                                                                        <td class='acc-table-td indexesUnique'></td>
+                                                                        <td class='acc-table-td indexesKeys'></td>
+                                                                        <td class='acc-table-td indexesAction'>
+                                                                            <button class="dropButton"
+                                                                                data-toggle="tooltip"
+                                                                                data-placement="bottom"
+                                                                                title="this will delete secondary index permanently">
+                                                                                <span><i
+                                                                                        class="large material-icons removeIcon" style="vertical-align: middle;">delete</i></span>
+                                                                                <span style="vertical-align: middle;">Drop</span>
+                                                                            </button>
                                                                         </td>
                                                                     </tr>
                                                                 </tbody>
@@ -527,7 +648,7 @@
                                                         <a data-toggle='collapse' class='summaryFont'>View Summary</a>
                                                     </h5>
                                                 </div>
-                                                <div class='collapse summaryCollapse show'>
+                                                <div class='collapse summaryCollapse'>
                                                     <div class='mdc-card mdc-card-content summaryBorder'
                                                         style='border: 0px;'>
                                                         <div class='mdc-card summary-content'></div>
@@ -546,7 +667,8 @@
                 <div class="panel-group" id="ddl-accordion">
                     <button class='expand' id='ddlExpandButton' onclick='ddlExpandHandler(jQuery(this))'>Expand
                         All</button>
-                    <button id="download-ddl" class="expand right-align" onclick='downloadDdl()'>Download DDL Statements</button>
+                    <button id="download-ddl" class="expand right-align" onclick='downloadDdl()'>Download DDL
+                        Statements</button>
                     <div id='ddlDiv'>
                         <section class='ddlSection template'>
                             <div class='card'>
@@ -572,7 +694,8 @@
                 <div class="panel-group" id="summary-accordion">
                     <button class='expand' id='summaryExpandButton' onclick='summaryExpandHandler(jQuery(this))'>Expand
                         All</button>
-                    <button id="download-report" class="expand right-align" onclick='downloadReport()'>Download Summary Report</button>
+                    <button id="download-report" class="expand right-align" onclick='downloadReport()'>Download Summary
+                        Report</button>
                     <div id='summaryDiv'>
                         <section class='summarySection template'>
                             <div class='card'>
@@ -634,3 +757,28 @@
             </div>
         </div>
     </div>
+</div>
+
+<div class="modal" id="foreignKeyDeleteWarning" role="dialog" tabindex="-1" aria-labelledby="exampleModalCenterTitle"
+    aria-hidden="true" data-backdrop="static" data-keyboard="false" style="z-index: 999999;">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <!-- Modal content-->
+        <div class="modal-content">
+            <div class="modal-header content-center">
+                <h5 class="modal-title modal-bg" id="exampleModalLongTitle">Warning</h5>
+                <i class="large material-icons close" data-dismiss="modal" onclick='clearModal()'>cancel</i>
+            </div>
+            <div class="modal-body" style='margin-bottom: 20px; display: inherit;'>
+                <div><i class="large material-icons connectionFailure" style="color: #E1AD01D4 !important;">warning</i></div>
+                <div id="failureContent">
+                    This action will permanently delete the relationship of current table with all other tables.
+                    Do you still want to continue ?
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="deleteRelation" data-dismiss="modal" class="connectButton" type="button">Yes</button>
+                <button id="undoDeleteRelation" data-dismiss="modal" class="connectButton" type="button">No</button>
+            </div>
+        </div>
+    </div>
+</div>

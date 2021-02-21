@@ -140,12 +140,11 @@ const setGlobalDataType = async() => {
     },
     body: JSON.stringify(dataTypeJson)
   })
-  .then(function (res) {
-    res.json().then(async function (response) {
-      localStorage.setItem('conversionReportContent', JSON.stringify(response));
-      await ddlSummaryAndConversionApiCall();
-      router();
-    });
+  .then(async function (res) {
+    res = await res.text();
+    localStorage.setItem('conversionReportContent', res);
+    await ddlSummaryAndConversionApiCall();
+    router();
   })
 }
 
@@ -154,7 +153,22 @@ const setGlobalDataType = async() => {
  *
  * @return {null}
  */
-const downloadSchema = async() => {
+const downloadSession = async() => {
+  jQuery("<a />", {
+    "download": "session.json",
+    "href": "data:application/json;charset=utf-8," + encodeURIComponent(localStorage.getItem('conversionReportContent'), null, 4),
+  }).appendTo("body")
+  .click(function () {
+    jQuery(this).remove()
+  })[0].click();
+}
+
+/**
+ * Function to download ddl statements
+ *
+ * @return {null}
+ */
+const downloadDdl = async() => {
   await fetch('/schema')
   .then(async function (response) {
     if (response.ok) {
@@ -181,21 +195,6 @@ const downloadSchema = async() => {
       jQuery(this).remove()
     })[0].click()
   });
-}
-
-/**
- * Function to download ddl statements
- *
- * @return {null}
- */
-const downloadDdl = () => {
-  jQuery("<a />", {
-    "download": "ddl.json",
-    "href": "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(JSON.parse(localStorage.getItem('ddlStatementsContent')), null, 4)),
-  }).appendTo("body")
-  .click(function () {
-    jQuery(this).remove()
-  })[0].click();
 }
 
 /**

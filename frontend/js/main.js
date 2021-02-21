@@ -128,15 +128,15 @@ const editSpannerColumnName = (tableNumber, tableColumnNumber, tableId, tablePkA
     }
   }
   let $editColumnName = jQuery('#editColumnName' + tableNumber + tableColumnNumber).removeClass('template');
-  $editColumnName.find('.column.left.keyMargin.keyClick').attr('id', 'keyIcon' + tableNumber + tableColumnNumber + tableColumnNumber);
+  // $editColumnName.find('.column.left.keyMargin.keyClick').attr('id', 'keyIcon' + tableNumber + tableColumnNumber + tableColumnNumber);
   $editColumnName.find('.column.right.form-group > input').attr('id', 'columnNameText' + tableNumber + tableColumnNumber + tableColumnNumber);
   $editColumnName.find('.column.right.form-group > input').attr('value', columnNameVal);
   jQuery('#saveColumnName' + tableNumber + tableColumnNumber).addClass('template');
   if (notPrimaryArray[tableColumnNumber] === true) {
 
-    $editColumnName.find('.column.left.keyMargin.keyClick > img').attr('src', './Icons/Icons/ic_vpn_key_24px-inactive.svg');
-    $editColumnName.find('.column.left.keyMargin.keyClick').addClass('keyNotActive');
-    $editColumnName.find('.column.left.keyMargin.keyClick').removeClass('keyActive');
+    // $editColumnName.find('.column.left.keyMargin.keyClick > img').attr('src', './Icons/Icons/ic_vpn_key_24px-inactive.svg');
+    // $editColumnName.find('.column.left.keyMargin.keyClick').addClass('keyNotActive');
+    // $editColumnName.find('.column.left.keyMargin.keyClick').removeClass('keyActive');
   }
   else {
     $editColumnName.find('.column.left.keyMargin.keyClick > img').attr('src', './Icons/Icons/ic_vpn_key_24px.svg');
@@ -144,22 +144,22 @@ const editSpannerColumnName = (tableNumber, tableColumnNumber, tableId, tablePkA
     $editColumnName.find('.column.left.keyMargin.keyClick').addClass('keyActive');
     $editColumnName.find('.column.left.keyMargin.keyClick').removeClass('keyNotActive');
   }
-  jQuery('#keyIcon' + tableNumber + tableColumnNumber + tableColumnNumber).click(function () {
-    jQuery(this).toggleClass('keyActive keyNotActive');
-    let keyId = jQuery(this).attr('id');
-    let keyColumnMapLength = keyColumnMap.length;
-    for (var z = 0; z < keyColumnMapLength; z++) {
-      if (keyId === keyColumnMap[z].keyIconId) {
-        columnName = keyColumnMap[z].columnName;
-      }
-    }
-    if (document.getElementById(keyId).classList.contains('keyActive')) {
-      getNewSeqNumForPrimaryKey(tableNumber, tableColumnNumber, tablePkArray, pkSeqId);
-    }
-    else {
-      removePrimaryKeyFromSeq(tableNumber, tableId, tablePkArray, tableOriginalColNames, notPrimaryArray);
-    }
-  });
+  // jQuery('#keyIcon' + tableNumber + tableColumnNumber + tableColumnNumber).click(function () {
+  //   jQuery(this).toggleClass('keyActive keyNotActive');
+  //   let keyId = jQuery(this).attr('id');
+  //   let keyColumnMapLength = keyColumnMap.length;
+  //   for (var z = 0; z < keyColumnMapLength; z++) {
+  //     if (keyId === keyColumnMap[z].keyIconId) {
+  //       columnName = keyColumnMap[z].columnName;
+  //     }
+  //   }
+  //   if (document.getElementById(keyId).classList.contains('keyActive')) {
+  //     getNewSeqNumForPrimaryKey(tableNumber, tableColumnNumber, tablePkArray, pkSeqId);
+  //   }
+  //   else {
+  //     removePrimaryKeyFromSeq(tableNumber, tableId, tablePkArray, tableOriginalColNames, notPrimaryArray);
+  //   }
+  // });
 }
 
 /**
@@ -171,33 +171,33 @@ const editSpannerColumnName = (tableNumber, tableColumnNumber, tableId, tablePkA
  * @param {number} pkSeqId sequence number of primary key
  * @return {null}
  */
-const getNewSeqNumForPrimaryKey = (tableNumber, tableColumnNumber, tablePkArray, pkSeqId) => {
-  let maxSeqId = 0;
-  let pkArrayLength = tablePkArray.length;
-  let pkFoundFlag = false;
-  for (var z = 0; z < pkArrayLength; z++) {
-    if (tablePkArray[z].seqId > maxSeqId) {
-      maxSeqId = tablePkArray[z].seqId;
-    }
-  }
-  maxSeqId = maxSeqId + 1;
-  pkSeqId = maxSeqId;
-  for (var z = 0; z < pkArrayLength; z++) {
-    if (columnName != tablePkArray[z].Col) {
-      pkFoundFlag = false;
-    }
-    else {
-      pkFoundFlag = true;
-      break;
-    }
-  }
-  if (pkFoundFlag === false) {
-    tablePkArray.push({ 'Col': columnName, 'seqId': pkSeqId });
-  }
-  schemaConversionObj.SpSchema[srcTableName[tableNumber]].Pks = tablePkArray;
-  jQuery('#editColumnName' + tableNumber + tableColumnNumber).find('sub').html(pkSeqId);
-  jQuery('#editColumnName' + tableNumber + tableColumnNumber).find('img').attr('src', './Icons/Icons/ic_vpn_key_24px.svg');
-}
+// const getNewSeqNumForPrimaryKey = (tableNumber, tableColumnNumber, tablePkArray, pkSeqId) => {
+//   let maxSeqId = 0;
+//   let pkArrayLength = tablePkArray.length;
+//   let pkFoundFlag = false;
+//   for (var z = 0; z < pkArrayLength; z++) {
+//     if (tablePkArray[z].seqId > maxSeqId) {
+//       maxSeqId = tablePkArray[z].seqId;
+//     }
+//   }
+//   maxSeqId = maxSeqId + 1;
+//   pkSeqId = maxSeqId;
+//   for (var z = 0; z < pkArrayLength; z++) {
+//     if (columnName != tablePkArray[z].Col) {
+//       pkFoundFlag = false;
+//     }
+//     else {
+//       pkFoundFlag = true;
+//       break;
+//     }
+//   }
+//   if (pkFoundFlag === false) {
+//     tablePkArray.push({ 'Col': columnName, 'seqId': pkSeqId });
+//   }
+//   schemaConversionObj.SpSchema[srcTableName[tableNumber]].Pks = tablePkArray;
+//   jQuery('#editColumnName' + tableNumber + tableColumnNumber).find('sub').html(pkSeqId);
+//   jQuery('#editColumnName' + tableNumber + tableColumnNumber).find('img').attr('src', './Icons/Icons/ic_vpn_key_24px.svg');
+// }
 
 /**
  * Function to remove primary key from existing sequence
@@ -209,43 +209,43 @@ const getNewSeqNumForPrimaryKey = (tableNumber, tableColumnNumber, tablePkArray,
  * @param {array} notPrimaryArray array to store whether column of a particular table is PK or not
  * @return {null}
  */
-const removePrimaryKeyFromSeq = (tableNumber, tableId, tablePkArray, tableOriginalColNames, notPrimaryArray) => {
-  let pkArrayLength = tablePkArray.length;
-  let currSeqId;
-  let tableColumnNumber = 0;
-  for (var z = 0; z < pkArrayLength; z++) {
-    if (columnName === tablePkArray[z].Col) {
-      tablePkArray.splice(z, 1);
-      break;
-    }
-  }
-  pkArrayLength = tablePkArray.length;
-  for (var x = z; x < pkArrayLength; x++) {
-    tablePkArray[x].seqId = tablePkArray[x].seqId - 1;
-  }
-  schemaConversionObj.SpSchema[srcTableName[tableNumber]].Pks = tablePkArray;
-  jQuery(tableId).each(function (index) {
-    if (index > 1) {
-      notPrimaryArray[tableColumnNumber] = true;
-      currSeqId = '';
-      for (var x = 0; x < pkArrayLength; x++) {
-        if (tablePkArray[x].Col === tableOriginalColNames[tableColumnNumber].trim()) {
-          currSeqId = tablePkArray[x].seqId;
-          notPrimaryArray[tableColumnNumber] = false;
-        }
-      }
-      if (notPrimaryArray[tableColumnNumber] === true) {
-        jQuery('#keyIcon' + tableNumber + tableColumnNumber + tableColumnNumber).find('sub').html('');
-        jQuery('#keyIcon' + tableNumber + tableColumnNumber + tableColumnNumber).find('img').attr('src', './Icons/Icons/ic_vpn_key_24px-inactive.svg');
-      }
-      else {
-        jQuery('#keyIcon' + tableNumber + tableColumnNumber + tableColumnNumber).find('sub').html(currSeqId);
-        jQuery('#keyIcon' + tableNumber + tableColumnNumber + tableColumnNumber).find('img').attr('src', './Icons/Icons/ic_vpn_key_24px.svg');
-      }
-      tableColumnNumber++;
-    }
-  });
-}
+// const removePrimaryKeyFromSeq = (tableNumber, tableId, tablePkArray, tableOriginalColNames, notPrimaryArray) => {
+//   let pkArrayLength = tablePkArray.length;
+//   let currSeqId;
+//   let tableColumnNumber = 0;
+//   for (var z = 0; z < pkArrayLength; z++) {
+//     if (columnName === tablePkArray[z].Col) {
+//       tablePkArray.splice(z, 1);
+//       break;
+//     }
+//   }
+//   pkArrayLength = tablePkArray.length;
+//   for (var x = z; x < pkArrayLength; x++) {
+//     tablePkArray[x].seqId = tablePkArray[x].seqId - 1;
+//   }
+//   schemaConversionObj.SpSchema[srcTableName[tableNumber]].Pks = tablePkArray;
+//   jQuery(tableId).each(function (index) {
+//     if (index > 1) {
+//       notPrimaryArray[tableColumnNumber] = true;
+//       currSeqId = '';
+//       for (var x = 0; x < pkArrayLength; x++) {
+//         if (tablePkArray[x].Col === tableOriginalColNames[tableColumnNumber].trim()) {
+//           currSeqId = tablePkArray[x].seqId;
+//           notPrimaryArray[tableColumnNumber] = false;
+//         }
+//       }
+//       if (notPrimaryArray[tableColumnNumber] === true) {
+//         jQuery('#keyIcon' + tableNumber + tableColumnNumber + tableColumnNumber).find('sub').html('');
+//         jQuery('#keyIcon' + tableNumber + tableColumnNumber + tableColumnNumber).find('img').attr('src', './Icons/Icons/ic_vpn_key_24px-inactive.svg');
+//       }
+//       else {
+//         jQuery('#keyIcon' + tableNumber + tableColumnNumber + tableColumnNumber).find('sub').html(currSeqId);
+//         jQuery('#keyIcon' + tableNumber + tableColumnNumber + tableColumnNumber).find('img').attr('src', './Icons/Icons/ic_vpn_key_24px.svg');
+//       }
+//       tableColumnNumber++;
+//     }
+//   });
+// }
 
 /**
  * Function to edit data type for spanner table
@@ -355,9 +355,6 @@ const editSpannerConstraint = (editColumn, tableNumber, tableColumnNumber, colum
  * @return {null}
  */
 const saveSpannerChanges = async (event, spPlaceholder, notPrimaryArray, pkSpArray) => {
-  if (event.html() === 'Save Changes') {
-    showSnackbar('changes saved successfully !!', ' greenBg');
-  }
   event.html("Edit Spanner Schema");
 
   let tableNumber = parseInt(event.attr('id').match(/\d+/), 10);
@@ -388,7 +385,7 @@ const saveSpannerChanges = async (event, spPlaceholder, notPrimaryArray, pkSpArr
       }
       updatedColsData.UpdateCols[originalColumnName]['NotNull'] = '';
       updatedColsData.UpdateCols[originalColumnName]['PK'] = '';
-      savePrimaryKeySeq(tableNumber, tableColumnNumber, originalColumnName, newColumnName, notPrimaryArray, pkSpArray);
+      // savePrimaryKeySeq(tableNumber, tableColumnNumber, originalColumnName, newColumnName, notPrimaryArray, pkSpArray);
       updatedColsData.UpdateCols[originalColumnName]['ToType'] = document.getElementById('dataType' + tableNumber + tableColumnNumber + tableColumnNumber).value;
       saveSpannerConstraints(tableNumber, tableColumnNumber, originalColumnName);
       if (!(jQuery(this).find("input[type=checkbox]").is(":checked"))) {
@@ -415,17 +412,20 @@ const saveSpannerChanges = async (event, spPlaceholder, notPrimaryArray, pkSpArr
     },
     body: JSON.stringify(updatedColsData)
   })
-  .then(function (res) {
+  .then(async function (res) {
     if (res.ok) {
-      res.json().then(async function (response) {
-        // response.SpSchema[srcTableName[tableNumber]].Pks = schemaConversionObj.SpSchema[srcTableName[tableNumber]].Pks;
-        localStorage.setItem('conversionReportContent', JSON.stringify(response));
-        await ddlSummaryAndConversionApiCall();
-        router();
-      });
+      showSnackbar('changes saved successfully !!', ' greenBg');
+      res = await res.text();
+      localStorage.setItem('conversionReportContent', res);
+      await ddlSummaryAndConversionApiCall();
+      router();
     }
     else {
-      return Promise.reject(res);
+      hideSpinner();
+      res.text().then(function (response) {
+        alert(response)
+      })
+      router();
     }
   })
   .catch(function (err) {
@@ -445,60 +445,60 @@ const saveSpannerChanges = async (event, spPlaceholder, notPrimaryArray, pkSpArr
  * 
  * @return {null}
  */
-const savePrimaryKeySeq = (tableNumber, tableColumnNumber, originalColumnName, newColumnName, notPrimaryArray, pkSpArray) => {
-  let currentPks = schemaConversionObj.SpSchema[srcTableName[tableNumber]].Pks;
-  let pksSpLength = pkSpArray.length;
-  let currentPksLength = currentPks.length;
-  let foundOriginally;
-  let currSeqId = '';
-  let $saveColumnName = jQuery('#saveColumnName' + tableNumber + tableColumnNumber).removeClass('template');
-  jQuery('#editColumnName' + tableNumber + tableColumnNumber).addClass('template');
-  if (document.getElementById('keyIcon' + tableNumber + tableColumnNumber + tableColumnNumber).classList.contains('keyActive')) {
-    // checking if this key is newly added or removed
-    foundOriginally = false;
-    for (var z = 0; z < pksSpLength; z++) {
-      if (originalColumnName === pkSpArray[z].Col) {
-        foundOriginally = true;
-        break;
-      }
-    }
-    if (foundOriginally === false) {
-      updatedColsData.UpdateCols[originalColumnName]['PK'] = 'ADDED';
-    }
+// const savePrimaryKeySeq = (tableNumber, tableColumnNumber, originalColumnName, newColumnName, notPrimaryArray, pkSpArray) => {
+//   let currentPks = schemaConversionObj.SpSchema[srcTableName[tableNumber]].Pks;
+//   let pksSpLength = pkSpArray.length;
+//   let currentPksLength = currentPks.length;
+//   let foundOriginally;
+//   let currSeqId = '';
+//   let $saveColumnName = jQuery('#saveColumnName' + tableNumber + tableColumnNumber).removeClass('template');
+//   jQuery('#editColumnName' + tableNumber + tableColumnNumber).addClass('template');
+//   if (document.getElementById('keyIcon' + tableNumber + tableColumnNumber + tableColumnNumber).classList.contains('keyActive')) {
+//     // checking if this key is newly added or removed
+//     foundOriginally = false;
+//     for (var z = 0; z < pksSpLength; z++) {
+//       if (originalColumnName === pkSpArray[z].Col) {
+//         foundOriginally = true;
+//         break;
+//       }
+//     }
+//     if (foundOriginally === false) {
+//       updatedColsData.UpdateCols[originalColumnName]['PK'] = 'ADDED';
+//     }
 
-    for (var z = 0; z < currentPksLength; z++) {
-      if (currentPks[z].Col === newColumnName) {
-        currSeqId = currentPks[z].seqId;
-      }
-    }
+//     for (var z = 0; z < currentPksLength; z++) {
+//       if (currentPks[z].Col === newColumnName) {
+//         currSeqId = currentPks[z].seqId;
+//       }
+//     }
 
-    $saveColumnName.find('.column.left.spannerPkSpan').attr('data-toggle', 'tooltip');
-    $saveColumnName.find('.column.left.spannerPkSpan').attr('data-placement', 'bottom');
-    $saveColumnName.find('.column.left.spannerPkSpan').attr('title', 'primary key : ' + document.getElementById('columnNameText' + tableNumber + tableColumnNumber + tableColumnNumber).value);
-    $saveColumnName.find('.column.left.spannerPkSpan').css('cursor', 'pointer');
-    $saveColumnName.find('sub').html(currSeqId);
-    $saveColumnName.find('.column.right.spannerColNameSpan').attr('data-toggle', 'tooltip');
-    $saveColumnName.find('.column.right.spannerColNameSpan').attr('data-placement', 'bottom');
-    $saveColumnName.find('.column.right.spannerColNameSpan').attr('title', 'primary key : ' + document.getElementById('columnNameText' + tableNumber + tableColumnNumber + tableColumnNumber).value);
-    $saveColumnName.find('.column.right.spannerColNameSpan').attr('id', 'columnNameText' + tableNumber + tableColumnNumber + tableColumnNumber);
-    $saveColumnName.find('.column.right.spannerColNameSpan').css('cursor', 'pointer');
-    $saveColumnName.find('.column.right.spannerColNameSpan').html(document.getElementById('columnNameText' + tableNumber + tableColumnNumber + tableColumnNumber).value);
-    notPrimaryArray[tableColumnNumber] = false;
-  }
-  else {
+//     $saveColumnName.find('.column.left.spannerPkSpan').attr('data-toggle', 'tooltip');
+//     $saveColumnName.find('.column.left.spannerPkSpan').attr('data-placement', 'bottom');
+//     $saveColumnName.find('.column.left.spannerPkSpan').attr('title', 'primary key : ' + document.getElementById('columnNameText' + tableNumber + tableColumnNumber + tableColumnNumber).value);
+//     $saveColumnName.find('.column.left.spannerPkSpan').css('cursor', 'pointer');
+//     $saveColumnName.find('sub').html(currSeqId);
+//     $saveColumnName.find('.column.right.spannerColNameSpan').attr('data-toggle', 'tooltip');
+//     $saveColumnName.find('.column.right.spannerColNameSpan').attr('data-placement', 'bottom');
+//     $saveColumnName.find('.column.right.spannerColNameSpan').attr('title', 'primary key : ' + document.getElementById('columnNameText' + tableNumber + tableColumnNumber + tableColumnNumber).value);
+//     $saveColumnName.find('.column.right.spannerColNameSpan').attr('id', 'columnNameText' + tableNumber + tableColumnNumber + tableColumnNumber);
+//     $saveColumnName.find('.column.right.spannerColNameSpan').css('cursor', 'pointer');
+//     $saveColumnName.find('.column.right.spannerColNameSpan').html(document.getElementById('columnNameText' + tableNumber + tableColumnNumber + tableColumnNumber).value);
+//     notPrimaryArray[tableColumnNumber] = false;
+//   }
+//   else {
 
-    // checking if this key is newly added or removed
-    foundOriginally = false;
-    for (var z = 0; z < pksSpLength; z++) {
-      if (originalColumnName === pkSpArray[z].Col) {
-        foundOriginally = true;
-        updatedColsData.UpdateCols[originalColumnName]['PK'] = 'REMOVED';
-        break;
-      }
-    }
-  }
-  notPrimaryArray[tableColumnNumber] = true;
-}
+//     // checking if this key is newly added or removed
+//     foundOriginally = false;
+//     for (var z = 0; z < pksSpLength; z++) {
+//       if (originalColumnName === pkSpArray[z].Col) {
+//         foundOriginally = true;
+//         updatedColsData.UpdateCols[originalColumnName]['PK'] = 'REMOVED';
+//         break;
+//       }
+//     }
+//   }
+//   notPrimaryArray[tableColumnNumber] = true;
+// }
 
 /**
  * Function to save constraints for spanner table
@@ -594,8 +594,8 @@ const showSchemaAssessment = async () => {
     .catch(function (err) {
       showSnackbar(err, ' redBg');
     });
-  reportDataResp = await reportData.json();
-  localStorage.setItem('conversionReportContent', JSON.stringify(reportDataResp));
+  reportDataResp = await reportData.text();
+  localStorage.setItem('conversionReportContent', reportDataResp);
   ddlSummaryAndConversionApiCall();
   jQuery('#connectModalSuccess').modal("hide");
   sourceTableFlag = localStorage.getItem('sourceDbName');
@@ -656,8 +656,7 @@ const onLoadDatabase = async (dbType, dumpFilePath) => {
   }
   else {
     jQuery('#loadDatabaseDumpModal').modal('hide');
-    reportDataResp = JSON.parse(reportDataResp);
-    localStorage.setItem('conversionReportContent', JSON.stringify(reportDataResp));
+    localStorage.setItem('conversionReportContent', reportDataResp);
   }
   ddlSummaryAndConversionApiCall();
   sourceTableFlag = localStorage.getItem('sourceDbName');
@@ -690,16 +689,29 @@ const onImport = async (filePath) => {
       "FilePath": filePath
     })
   })
-  .then(function (res) {
-    if (res.ok) {
-      res.json().then(function (response) {
-        localStorage.setItem('conversionReportContent', JSON.stringify(response));
-      })
+  .then(async function (res) {
+    if (res.ok) { 
+      responseCopy = res.clone();
+      textResponse = await res.text();
+      jsonResponse = await responseCopy.json();
+      if (Object.keys(jsonResponse.SpSchema).length == 0) {
+        showSnackbar('Please select valid session file', ' redBg');
+        jQuery('#importButton').attr('disabled', 'disabled');
+        return;
+      }
+      else {
+        localStorage.setItem('conversionReportContent', textResponse);
+        ddlSummaryAndConversionApiCall();
+        jQuery('#importSchemaModal').modal('hide');
+        sessionRetrieval(srcDb);
+      }
+    }
+    else {
+      showSnackbar('Please select valid session file', ' redBg');
+      jQuery('#importButton').attr('disabled', 'disabled');
+      return;
     }
   });
-  ddlSummaryAndConversionApiCall();
-  jQuery('#importSchemaModal').modal('hide');
-  sessionRetrieval(srcDb);
 }
 
 /**
@@ -803,18 +815,18 @@ const saveInterleaveHandler = async(index) => {
     }
   }
   if (selectedValue == 'interleave') {
-    interleaveApiCall = await fetch('/checkinterleave/table?table=' + tableName)
-      .then(async function (response) {
-        if (response.ok) {
-          return response;
-        }
-        else {
-          return Promise.reject(response);
-        }
-      })
-      .catch(function (err) {
-        showSnackbar(err, ' redBg');
-      });
+    interleaveApiCall = await fetch('/setparent?table=' + tableName)
+    .then(async function (response) {
+      if (response.ok) {
+        return response;
+      }
+      else {
+        return Promise.reject(response);
+      }
+    })
+    .catch(function (err) {
+      showSnackbar(err, ' redBg');
+    });
     interleaveApiCallResp = await interleaveApiCall.json();
     if (interleaveApiCallResp.Possible == false) {
       showSnackbar('Cannot be Interleaved', ' redBg');
@@ -826,6 +838,56 @@ const saveInterleaveHandler = async(index) => {
   else {
     showSnackbar('Response Saved', ' greenBg');
   }
+}
+
+/**
+ * Function to drop foreign key from a particular table
+ *
+ * @param {string} tableName table name
+ * @param {number} pos index of foreign key in table
+ * @return {null}
+ */
+const dropForiegnKeyHandler = async(tableName, pos) => {
+  await fetch('/drop/fk?table=' + tableName + '&pos=' + pos)
+  .then(async function (response) {
+    if (response.ok) {
+      response = await response.text();
+      localStorage.setItem('conversionReportContent', response);
+      ddlSummaryAndConversionApiCall();
+      router();
+    }
+    else {
+      return Promise.reject(response);
+    }
+  })
+  .catch(function (err) {
+    showSnackbar(err, ' redBg');
+  });
+}
+
+/**
+ * Function to drop secondary index from a particular table
+ *
+ * @param {string} tableName table name
+ * @param {number} pos
+ * @return {null}
+ */
+const dropSecondaryIndexHandler = async(tableName, pos) => {
+  await fetch('/drop/secondaryindex?table=' + tableName + '&pos=' + pos)
+  .then(async function (response) {
+    if (response.ok) {
+      response = await response.text();
+      localStorage.setItem('conversionReportContent', response);
+      ddlSummaryAndConversionApiCall();
+      router();
+    }
+    else {
+      return Promise.reject(response);
+    }
+  })
+  .catch(function (err) {
+    showSnackbar(err, ' redBg');
+  });
 }
 
 /**
@@ -863,8 +925,7 @@ const resumeSession = async (driver, path, dbName, sourceDb) => {
       showSnackbar('File does not exist', ' redBg');
     }
     else {
-      var data = JSON.parse(text);
-      localStorage.setItem('conversionReportContent', JSON.stringify(data));
+      localStorage.setItem('conversionReportContent', text);
       localStorage.setItem('sourceDbName', sourceDb);
       await fetch('/session/resume', {
         method: 'POST',
