@@ -43,7 +43,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// TODO(searce):
+// TODO:(searce):
 // 1) Test cases for APIs
 // 2) API for saving/updating table-level changes.
 // 3) API for showing logs
@@ -54,6 +54,10 @@ import (
 // 8) Add an overview in summary report API
 var mysqlTypeMap = make(map[string][]typeIssue)
 var postgresTypeMap = make(map[string][]typeIssue)
+
+// TODO:(searce) organize this file according to go style guidelines: generally
+// have public constants and public type definitions first, then public
+// functions, and finally helper functions (usually in order of importance).
 
 // driverConfig contains the parameters needed to make a direct database connection. It is
 // used to communicate via HTTP with the frontend.
@@ -228,7 +232,7 @@ func getOverview(w http.ResponseWriter, r *http.Request) {
 // source types used in current conversion.
 func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	if app.conv == nil || app.driver == "" {
-		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), http.StatusNotFound)
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
 	var typeMap map[string][]typeIssue
@@ -270,22 +274,22 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	// Redo source-to-Spanner type mapping using t (the mapping specified in the http request).
+	// Redo source-to-Spanner typeMap using t (the mapping specified in the http request).
 	// We drive this process by iterating over the Spanner schema because we want to preserve all
 	// other customizations that have been performed via the UI (dropping columns, renaming columns
 	// etc). In particular, note that we can't just blindly redo schema conversion (using an appropriate
-	// version of 'toDDL' with the new type mapping).
+	// version of 'toDDL' with the new typeMap).
 	for t, spSchema := range app.conv.SpSchema {
 		for col, _ := range spSchema.ColDefs {
-			sourceTable := app.conv.ToSource[t].Name
-			sourceCol := app.conv.ToSource[t].Cols[col]
-			srcCol := app.conv.SrcSchema[sourceTable].ColDefs[sourceCol]
+			srcTable := app.conv.ToSource[t].Name
+			srcCol := app.conv.ToSource[t].Cols[col]
+			srcColDef := app.conv.SrcSchema[srcTable].ColDefs[srcCol]
 			// If the srcCol's type is in the map, then recalculate the Spanner type
 			// for this column using the map. Otherwise, leave the ColDef for this
 			// column as is. Note that per-column type overrides could be lost in
 			// this process -- the mapping in typeMap always takes precendence.
-			if _, found := typeMap[srcCol.Type.Name]; found {
-				updateType(typeMap[srcCol.Type.Name], t, col, sourceTable, w)
+			if _, found := typeMap[srcColDef.Type.Name]; found {
+				updateType(typeMap[srcColDef.Type.Name], t, col, srcTable, w)
 			}
 		}
 	}
@@ -335,6 +339,7 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 	srcTableName := app.conv.ToSource[table].Name
 	for colName, v := range t.UpdateCols {
 		if v.Removed {
+			//TODO:(searce) and handling rollback uniformly with return rollback(err)
 			err, status := canRemoveColumn(colName, table)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("%v", err), status)
@@ -343,7 +348,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 			removeColumn(table, colName, srcTableName)
 			continue
 		}
-		newColName := colName
 		if v.Rename != "" && v.Rename != colName {
 			err, status := canRenameOrChangeType(colName, table)
 			if err != nil {
@@ -351,31 +355,23 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			renameColumn(v.Rename, table, colName, srcTableName)
-			newColName = v.Rename
+			colName = v.Rename
 		}
 		if v.PK != "" {
-			// Note: Adding or removing PK feature is deferred at the moment.
-
-			// err, status := canChangePK(v.PK, table)
-			// if err != nil {
-			// 	http.Error(w, fmt.Sprintf("%v", err), status)
-			// 	return
-			// }
-			// pkChanged(v.PK, table, newColName)
+			http.Error(w, "HarbourBridge currently doesn't support editing primary keys", http.StatusNotImplemented)
 		}
 		if v.ToType != "" {
-			err, status := canRenameOrChangeType(newColName, table)
+			err, status := canRenameOrChangeType(colName, table)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("%v", err), status)
 				return
 			}
-			updateType(v.ToType, table, newColName, srcTableName, w)
+			updateType(v.ToType, table, colName, srcTableName, w)
 		}
 		if v.NotNull != "" {
-			updateNotNull(v.NotNull, table, newColName)
+			updateNotNull(v.NotNull, table, colName)
 		}
 	}
-	app.conv.AddPrimaryKeys()
 	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(app.conv)
@@ -442,7 +438,7 @@ type TableInterleaveStatus struct {
 func setParentTable(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
 	if app.conv == nil || app.driver == "" {
-		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), http.StatusNotFound)
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
 	if table == "" {
@@ -486,7 +482,7 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
 	pos := r.FormValue("pos")
 	if app.conv == nil || app.driver == "" {
-		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), http.StatusNotFound)
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
 	if table == "" || pos == "" {
@@ -648,6 +644,7 @@ func isPartOfFK(col, table string) bool {
 
 // TODO: create a map to store referenced column to get
 // this information in O(1).
+//TODO: can have foreign key constraints between columns of the same table, as well as between same column on a given table.
 func isReferencedByFK(col, table string) bool {
 	for _, spSchema := range app.conv.SpSchema {
 		if table != spSchema.Name {
@@ -665,6 +662,7 @@ func isReferencedByFK(col, table string) bool {
 	return false
 }
 
+//TODO:(searce) returning errors from these functions, and handling rollback uniformly
 func canRemoveColumn(colName, table string) (error, int) {
 	if isPartOfPK := isPartOfPK(colName, table); isPartOfPK {
 		if err := rollback(); err != nil {
@@ -712,25 +710,6 @@ func canRenameOrChangeType(colName, table string) (error, int) {
 			return fmt.Errorf("rollback failed"), http.StatusInternalServerError
 		}
 		return fmt.Errorf("Column is part of foreign key relation, remove foreign key constraint before making the update"), http.StatusPreconditionFailed
-	}
-	return nil, http.StatusOK
-}
-
-// TODO: improve canChangePK to include case for foreign key
-func canChangePK(pkChange, table string) (error, int) {
-	if pkChange == "REMOVED" && len(app.conv.SpSchema[table].Pks) == 1 {
-		if err := rollback(); err != nil {
-			return fmt.Errorf("rollback failed"), http.StatusInternalServerError
-		}
-		return fmt.Errorf("Column is part of single column primary key"), http.StatusBadRequest
-	}
-	isParent := isParent(table)
-	isChild := app.conv.SpSchema[table].Parent != ""
-	if isParent || isChild {
-		if err := rollback(); err != nil {
-			return fmt.Errorf("rollback failed"), http.StatusInternalServerError
-		}
-		return fmt.Errorf("Column is part of parent-child relation"), http.StatusBadRequest
 	}
 	return nil, http.StatusOK
 }
@@ -836,39 +815,6 @@ func renameColumn(newName, table, colName, srcTableName string) {
 	app.conv.ToSpanner[srcTableName].Cols[srcColName] = newName
 	app.conv.ToSource[table].Cols[newName] = srcColName
 	delete(app.conv.ToSource[table].Cols, colName)
-	app.conv.SpSchema[table] = sp
-}
-
-func pkChanged(pkChange, table, colName string) {
-	sp := app.conv.SpSchema[table]
-	switch pkChange {
-	case "REMOVED":
-		for i, pk := range sp.Pks {
-			if pk.Col == colName {
-				sp.Pks = removePk(sp.Pks, i)
-				break
-			}
-		}
-	case "ADDED":
-		// If this table has a synthetic primary key, we no longer need it, so delete it.
-		if sPk, found := app.conv.SyntheticPKeys[table]; found {
-			for i, col := range sp.ColNames {
-				if col == sPk.Col {
-					sp.ColNames = remove(sp.ColNames, i)
-					break
-				}
-			}
-			delete(sp.ColDefs, sPk.Col)
-			for i, pk := range sp.Pks {
-				if pk.Col == sPk.Col {
-					sp.Pks = removePk(sp.Pks, i)
-					break
-				}
-			}
-			delete(app.conv.SyntheticPKeys, table)
-		}
-		sp.Pks = append(sp.Pks, ddl.IndexKey{Col: colName, Desc: false})
-	}
 	app.conv.SpSchema[table] = sp
 }
 
