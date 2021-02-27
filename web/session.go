@@ -38,10 +38,10 @@ type session struct {
 
 func createSession(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
-	dbName := app.dbName
+	dbName := sessionState.dbName
 	var err error
 	if dbName == "" {
-		dbName, err = conversion.GetDatabaseName(app.driver, now)
+		dbName, err = conversion.GetDatabaseName(sessionState.driver, now)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Can not create database name : %v", err), http.StatusInternalServerError)
 		}
@@ -50,9 +50,9 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 	filePrefix := "frontend/"
 	out := os.Stdout
 	filePath := filePrefix + dbName + sessionFile
-	conversion.WriteSessionFile(app.conv, filePath, out)
-	session := session{Driver: app.driver, FilePath: filePath, DBName: dbName, CreatedAt: now.Format(time.RFC1123)}
-	app.sessionFile = filePath
+	conversion.WriteSessionFile(sessionState.conv, filePath, out)
+	session := session{Driver: sessionState.driver, FilePath: filePath, DBName: dbName, CreatedAt: now.Format(time.RFC1123)}
+	sessionState.sessionFile = filePath
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(session)
 }
@@ -69,15 +69,15 @@ func resumeSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	app.conv = internal.MakeConv()
-	err = conversion.ReadSessionFile(app.conv, s.FilePath)
+	sessionState.conv = internal.MakeConv()
+	err = conversion.ReadSessionFile(sessionState.conv, s.FilePath)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to open the session file: %v", err), http.StatusNotFound)
 		return
 	}
-	app.driver = s.Driver
-	app.dbName = s.DBName
-	app.sessionFile = s.FilePath
+	sessionState.driver = s.Driver
+	sessionState.dbName = s.DBName
+	sessionState.sessionFile = s.FilePath
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(app.conv)
+	json.NewEncoder(w).Encode(sessionState.conv)
 }

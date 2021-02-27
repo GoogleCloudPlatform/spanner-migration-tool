@@ -105,36 +105,36 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Connection Error: %v. Check Configuration again.", err), http.StatusInternalServerError)
 		return
 	}
-	app.sourceDB = sourceDB
-	app.dbName = config.Database
-	app.driver = config.Driver
-	app.sessionFile = ""
+	sessionState.sourceDB = sourceDB
+	sessionState.dbName = config.Database
+	sessionState.driver = config.Driver
+	sessionState.sessionFile = ""
 	w.WriteHeader(http.StatusOK)
 }
 
 // convertSchemaSQL converts source database to Spanner when using
 // with postgres and mysql driver.
 func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
-	if app.sourceDB == nil || app.dbName == "" || app.driver == "" {
+	if sessionState.sourceDB == nil || sessionState.dbName == "" || sessionState.driver == "" {
 		http.Error(w, fmt.Sprintf("Database is not configured or Database connection is lost. Please set configuration and connect to database."), http.StatusNotFound)
 		return
 	}
 	conv := internal.MakeConv()
 	var err error
-	switch app.driver {
+	switch sessionState.driver {
 	case "mysql":
-		err = mysql.ProcessInfoSchema(conv, app.sourceDB, app.dbName)
+		err = mysql.ProcessInfoSchema(conv, sessionState.sourceDB, sessionState.dbName)
 	case "postgres":
-		err = postgres.ProcessInfoSchema(conv, app.sourceDB)
+		err = postgres.ProcessInfoSchema(conv, sessionState.sourceDB)
 	default:
-		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.driver), http.StatusBadRequest)
 		return
 	}
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
 	}
-	app.conv = conv
+	sessionState.conv = conv
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(conv)
 }
@@ -170,11 +170,11 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
 	}
-	app.conv = conv
-	app.driver = dc.Driver
-	app.dbName = ""
-	app.sessionFile = ""
-	app.sourceDB = nil
+	sessionState.conv = conv
+	sessionState.driver = dc.Driver
+	sessionState.dbName = ""
+	sessionState.sessionFile = ""
+	sessionState.sourceDB = nil
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(conv)
 }
@@ -187,13 +187,13 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 func getDDL(w http.ResponseWriter, r *http.Request) {
 	c := ddl.Config{Comments: true, ProtectIds: false}
 	var tables []string
-	for t := range app.conv.SpSchema {
+	for t := range sessionState.conv.SpSchema {
 		tables = append(tables, t)
 	}
 	sort.Strings(tables)
 	ddl := make(map[string]string)
 	for _, t := range tables {
-		ddl[t] = app.conv.SpSchema[t].PrintCreateTable(c)
+		ddl[t] = sessionState.conv.SpSchema[t].PrintCreateTable(c)
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(ddl)
@@ -201,7 +201,7 @@ func getDDL(w http.ResponseWriter, r *http.Request) {
 
 // getSummary returns table wise summary of conversion.
 func getSummary(w http.ResponseWriter, r *http.Request) {
-	reports := internal.AnalyzeTables(app.conv, nil)
+	reports := internal.AnalyzeTables(sessionState.conv, nil)
 	summary := make(map[string]string)
 	for _, t := range reports {
 		var body strings.Builder
@@ -221,7 +221,7 @@ func getSummary(w http.ResponseWriter, r *http.Request) {
 func getOverview(w http.ResponseWriter, r *http.Request) {
 	var buf bytes.Buffer
 	bufWriter := bufio.NewWriter(&buf)
-	internal.GenerateReport(app.driver, app.conv, bufWriter, nil, false, false)
+	internal.GenerateReport(sessionState.driver, sessionState.conv, bufWriter, nil, false, false)
 	bufWriter.Flush()
 	overview := buf.String()
 	w.WriteHeader(http.StatusOK)
@@ -231,23 +231,23 @@ func getOverview(w http.ResponseWriter, r *http.Request) {
 // getTypeMap returns the source to Spanner typemap only for the
 // source types used in current conversion.
 func getTypeMap(w http.ResponseWriter, r *http.Request) {
-	if app.conv == nil || app.driver == "" {
+	if sessionState.conv == nil || sessionState.driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
 	var typeMap map[string][]typeIssue
-	switch app.driver {
+	switch sessionState.driver {
 	case "mysql", "mysqldump":
 		typeMap = mysqlTypeMap
 	case "postgres", "pg_dump":
 		typeMap = postgresTypeMap
 	default:
-		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.driver), http.StatusBadRequest)
 		return
 	}
 	// Filter typeMap so it contains just the types SrcSchema uses.
 	filteredTypeMap := make(map[string][]typeIssue)
-	for _, srcTable := range app.conv.SrcSchema {
+	for _, srcTable := range sessionState.conv.SrcSchema {
 		for _, colDef := range srcTable.ColDefs {
 			if _, ok := filteredTypeMap[colDef.Type.Name]; ok {
 				continue
@@ -279,11 +279,11 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 	// other customizations that have been performed via the UI (dropping columns, renaming columns
 	// etc). In particular, note that we can't just blindly redo schema conversion (using an appropriate
 	// version of 'toDDL' with the new typeMap).
-	for t, spSchema := range app.conv.SpSchema {
+	for t, spSchema := range sessionState.conv.SpSchema {
 		for col, _ := range spSchema.ColDefs {
-			srcTable := app.conv.ToSource[t].Name
-			srcCol := app.conv.ToSource[t].Cols[col]
-			srcColDef := app.conv.SrcSchema[srcTable].ColDefs[srcCol]
+			srcTable := sessionState.conv.ToSource[t].Name
+			srcCol := sessionState.conv.ToSource[t].Cols[col]
+			srcColDef := sessionState.conv.SrcSchema[srcTable].ColDefs[srcCol]
 			// If the srcCol's type is in the map, then recalculate the Spanner type
 			// for this column using the map. Otherwise, leave the ColDef for this
 			// column as is. Note that per-column type overrides could be lost in
@@ -295,7 +295,7 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 	}
 	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(app.conv)
+	json.NewEncoder(w).Encode(sessionState.conv)
 }
 
 // Actions to be performed on a column.
@@ -336,12 +336,13 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	srcTableName := app.conv.ToSource[table].Name
+	srcTableName := sessionState.conv.ToSource[table].Name
 	for colName, v := range t.UpdateCols {
 		if v.Removed {
 			//TODO:(searce) and handling rollback uniformly with return rollback(err)
 			err, status := canRemoveColumn(colName, table)
 			if err != nil {
+				err = rollback(err)
 				http.Error(w, fmt.Sprintf("%v", err), status)
 				return
 			}
@@ -351,6 +352,7 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 		if v.Rename != "" && v.Rename != colName {
 			err, status := canRenameOrChangeType(colName, table)
 			if err != nil {
+				err = rollback(err)
 				http.Error(w, fmt.Sprintf("%v", err), status)
 				return
 			}
@@ -363,6 +365,7 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 		if v.ToType != "" {
 			err, status := canRenameOrChangeType(colName, table)
 			if err != nil {
+				err = rollback(err)
 				http.Error(w, fmt.Sprintf("%v", err), status)
 				return
 			}
@@ -374,12 +377,12 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 	}
 	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(app.conv)
+	json.NewEncoder(w).Encode(sessionState.conv)
 }
 
 // getConversionRate returns table wise color coded conversion rate.
 func getConversionRate(w http.ResponseWriter, r *http.Request) {
-	reports := internal.AnalyzeTables(app.conv, nil)
+	reports := internal.AnalyzeTables(sessionState.conv, nil)
 	rate := make(map[string]string)
 	for _, t := range reports {
 		rate[t.SpTable] = rateSchema(t.Cols, t.Warnings, t.SyntheticPKey != "")
@@ -398,7 +401,7 @@ func getSchemaFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Can not get file prefix : %v", err), http.StatusInternalServerError)
 	}
 	schemaFileName := "frontend/" + filePrefix + "schema.txt"
-	conversion.WriteSchemaFile(app.conv, now, schemaFileName, ioHelper.Out)
+	conversion.WriteSchemaFile(sessionState.conv, now, schemaFileName, ioHelper.Out)
 	schemaAbsPath, err := filepath.Abs(schemaFileName)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Can not create absolute path : %v", err), http.StatusInternalServerError)
@@ -417,7 +420,7 @@ func getReportFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Can not get file prefix : %v", err), http.StatusInternalServerError)
 	}
 	reportFileName := "frontend/" + filePrefix + "report.txt"
-	conversion.Report(app.driver, nil, ioHelper.BytesRead, "", app.conv, reportFileName, ioHelper.Out)
+	conversion.Report(sessionState.driver, nil, ioHelper.BytesRead, "", sessionState.conv, reportFileName, ioHelper.Out)
 	reportAbsPath, err := filepath.Abs(reportFileName)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Can not create absolute path : %v", err), http.StatusInternalServerError)
@@ -437,7 +440,7 @@ type TableInterleaveStatus struct {
 // table and returns Parent table name, otherwise returns the issue.
 func setParentTable(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
-	if app.conv == nil || app.driver == "" {
+	if sessionState.conv == nil || sessionState.driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
@@ -445,7 +448,7 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Table name is empty"), http.StatusBadRequest)
 	}
 	tableInterleaveIssues := &TableInterleaveStatus{Possible: true}
-	if _, found := app.conv.SyntheticPKeys[table]; found {
+	if _, found := sessionState.conv.SyntheticPKeys[table]; found {
 		tableInterleaveIssues.Possible = false
 		tableInterleaveIssues.Comment = "Has synthetic pk"
 	}
@@ -453,18 +456,18 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 		// Search this table's foreign keys for a suitable parent table.
 		// If there are several possible parent tables, we pick the first one.
 		// TODO: Allow users to pick which parent to use if more than one.
-		for i, fk := range app.conv.SpSchema[table].Fks {
+		for i, fk := range sessionState.conv.SpSchema[table].Fks {
 			refTable := fk.ReferTable
-			if _, found := app.conv.SyntheticPKeys[refTable]; found {
+			if _, found := sessionState.conv.SyntheticPKeys[refTable]; found {
 				continue
 			}
 			ok := checkPrimaryKeyPrefix(table, refTable, fk, tableInterleaveIssues)
 			if ok == true {
 				tableInterleaveIssues.Parent = refTable
-				sp := app.conv.SpSchema[table]
+				sp := sessionState.conv.SpSchema[table]
 				sp.Parent = refTable
 				sp.Fks = removeFk(sp.Fks, i)
-				app.conv.SpSchema[table] = sp
+				sessionState.conv.SpSchema[table] = sp
 				break
 			}
 		}
@@ -481,14 +484,14 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
 	pos := r.FormValue("pos")
-	if app.conv == nil || app.driver == "" {
+	if sessionState.conv == nil || sessionState.driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
 	if table == "" || pos == "" {
 		http.Error(w, fmt.Sprintf("Table name or position is empty"), http.StatusBadRequest)
 	}
-	sp := app.conv.SpSchema[table]
+	sp := sessionState.conv.SpSchema[table]
 	position, err := strconv.Atoi(pos)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error converting position to integer"), http.StatusBadRequest)
@@ -499,24 +502,24 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sp.Fks = removeFk(sp.Fks, position)
-	app.conv.SpSchema[table] = sp
+	sessionState.conv.SpSchema[table] = sp
 	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(app.conv)
+	json.NewEncoder(w).Encode(sessionState.conv)
 }
 
 func renameForeignKey(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
 	pos := r.FormValue("pos")
 	newName := r.FormValue("name")
-	if app.conv == nil || app.driver == "" {
+	if sessionState.conv == nil || sessionState.driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), http.StatusNotFound)
 		return
 	}
 	if table == "" || pos == "" || newName == "" {
 		http.Error(w, fmt.Sprintf("Table name or position or new name is empty"), http.StatusBadRequest)
 	}
-	sp := app.conv.SpSchema[table]
+	sp := sessionState.conv.SpSchema[table]
 	position, err := strconv.Atoi(pos)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error converting position to integer"), http.StatusBadRequest)
@@ -531,23 +534,23 @@ func renameForeignKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sp.Fks[position].Name = newName
-	app.conv.SpSchema[table] = sp
+	sessionState.conv.SpSchema[table] = sp
 	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(app.conv)
+	json.NewEncoder(w).Encode(sessionState.conv)
 }
 
 func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
 	pos := r.FormValue("pos")
-	if app.conv == nil || app.driver == "" {
+	if sessionState.conv == nil || sessionState.driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), http.StatusNotFound)
 		return
 	}
 	if table == "" || pos == "" {
 		http.Error(w, fmt.Sprintf("Table name or position is empty"), http.StatusBadRequest)
 	}
-	sp := app.conv.SpSchema[table]
+	sp := sessionState.conv.SpSchema[table]
 	position, err := strconv.Atoi(pos)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error converting position to integer"), http.StatusBadRequest)
@@ -558,16 +561,16 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sp.Indexes = removeSecondaryIndex(sp.Indexes, position)
-	app.conv.SpSchema[table] = sp
+	sessionState.conv.SpSchema[table] = sp
 	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(app.conv)
+	json.NewEncoder(w).Encode(sessionState.conv)
 }
 
 // updateSessionFile updates the content of session file with
 // latest app.conv.
 func updateSessionFile() error {
-	filePath := app.sessionFile
+	filePath := sessionState.sessionFile
 	if filePath == "" {
 		return fmt.Errorf("Session file path is empty")
 	}
@@ -575,7 +578,7 @@ func updateSessionFile() error {
 	if err != nil {
 		return err
 	}
-	convJSON, err := json.MarshalIndent(app.conv, "", " ")
+	convJSON, err := json.MarshalIndent(sessionState.conv, "", " ")
 	if err != nil {
 		return err
 	}
@@ -591,19 +594,19 @@ func updateSessionFile() error {
 
 // rollback is used to get previous state of conversion in case
 // some unexpected error occurs during update operations.
-func rollback() error {
-	if app.sessionFile != "" {
-		app.conv = internal.MakeConv()
-		err := conversion.ReadSessionFile(app.conv, app.sessionFile)
-		if err != nil {
-			return fmt.Errorf("Failed to rollback action: %v", err)
+func rollback(err error) error {
+	if sessionState.sessionFile != "" {
+		sessionState.conv = internal.MakeConv()
+		err2 := conversion.ReadSessionFile(sessionState.conv, sessionState.sessionFile)
+		if err2 != nil {
+			return fmt.Errorf("Encountered error %w. Rollback failed: %v", err, err2)
 		}
 	}
-	return nil
+	return err
 }
 
 func isPartOfPK(col, table string) bool {
-	for _, pk := range app.conv.SpSchema[table].Pks {
+	for _, pk := range sessionState.conv.SpSchema[table].Pks {
 		if pk.Col == col {
 			return true
 		}
@@ -612,7 +615,7 @@ func isPartOfPK(col, table string) bool {
 }
 
 func isParent(table string) bool {
-	for _, spSchema := range app.conv.SpSchema {
+	for _, spSchema := range sessionState.conv.SpSchema {
 		if spSchema.Parent == table {
 			return true
 		}
@@ -621,7 +624,7 @@ func isParent(table string) bool {
 }
 
 func isPartOfSecondaryIndex(col, table string) bool {
-	for _, index := range app.conv.SpSchema[table].Indexes {
+	for _, index := range sessionState.conv.SpSchema[table].Indexes {
 		for _, key := range index.Keys {
 			if key.Col == col {
 				return true
@@ -632,7 +635,7 @@ func isPartOfSecondaryIndex(col, table string) bool {
 }
 
 func isPartOfFK(col, table string) bool {
-	for _, fk := range app.conv.SpSchema[table].Fks {
+	for _, fk := range sessionState.conv.SpSchema[table].Fks {
 		for _, column := range fk.Columns {
 			if column == col {
 				return true
@@ -646,7 +649,7 @@ func isPartOfFK(col, table string) bool {
 // this information in O(1).
 //TODO:(searce) can have foreign key constraints between columns of the same table, as well as between same column on a given table.
 func isReferencedByFK(col, table string) bool {
-	for _, spSchema := range app.conv.SpSchema {
+	for _, spSchema := range sessionState.conv.SpSchema {
 		if table != spSchema.Name {
 			for _, fk := range spSchema.Fks {
 				if fk.ReferTable == table {
@@ -662,26 +665,16 @@ func isReferencedByFK(col, table string) bool {
 	return false
 }
 
-//TODO:(searce) returning errors from these functions, and handling rollback uniformly
 func canRemoveColumn(colName, table string) (error, int) {
 	if isPartOfPK := isPartOfPK(colName, table); isPartOfPK {
-		if err := rollback(); err != nil {
-			return fmt.Errorf("rollback failed"), http.StatusInternalServerError
-		}
 		return fmt.Errorf("Column is part of primary key"), http.StatusBadRequest
 	}
 	if isPartOfSecondaryIndex := isPartOfSecondaryIndex(colName, table); isPartOfSecondaryIndex {
-		if err := rollback(); err != nil {
-			return fmt.Errorf("rollback failed"), http.StatusInternalServerError
-		}
 		return fmt.Errorf("Column is part of secondary index, remove secondary index before making the update"), http.StatusPreconditionFailed
 	}
 	isPartOfFK := isPartOfFK(colName, table)
 	isReferencedByFK := isReferencedByFK(colName, table)
 	if isPartOfFK || isReferencedByFK {
-		if err := rollback(); err != nil {
-			return fmt.Errorf("rollback failed"), http.StatusInternalServerError
-		}
 		return fmt.Errorf("Column is part of foreign key relation, remove foreign key constraint before making the update"), http.StatusPreconditionFailed
 	}
 	return nil, http.StatusOK
@@ -690,33 +683,24 @@ func canRemoveColumn(colName, table string) (error, int) {
 func canRenameOrChangeType(colName, table string) (error, int) {
 	isPartOfPK := isPartOfPK(colName, table)
 	isParent := isParent(table)
-	isChild := app.conv.SpSchema[table].Parent != ""
+	isChild := sessionState.conv.SpSchema[table].Parent != ""
 	if isPartOfPK && (isParent || isChild) {
-		if err := rollback(); err != nil {
-			return fmt.Errorf("rollback failed"), http.StatusInternalServerError
-		}
 		return fmt.Errorf("Column is part of parent-child relation"), http.StatusBadRequest
 	}
 	if isPartOfSecondaryIndex := isPartOfSecondaryIndex(colName, table); isPartOfSecondaryIndex {
-		if err := rollback(); err != nil {
-			return fmt.Errorf("rollback failed"), http.StatusInternalServerError
-		}
 		return fmt.Errorf("Column is part of secondary index, remove secondary index before making the update"), http.StatusPreconditionFailed
 	}
 	isPartOfFK := isPartOfFK(colName, table)
 	isReferencedByFK := isReferencedByFK(colName, table)
 	if isPartOfFK || isReferencedByFK {
-		if err := rollback(); err != nil {
-			return fmt.Errorf("rollback failed"), http.StatusInternalServerError
-		}
 		return fmt.Errorf("Column is part of foreign key relation, remove foreign key constraint before making the update"), http.StatusPreconditionFailed
 	}
 	return nil, http.StatusOK
 }
 
 func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tableInterleaveIssues *TableInterleaveStatus) bool {
-	childPks := app.conv.SpSchema[table].Pks
-	parentPks := app.conv.SpSchema[refTable].Pks
+	childPks := sessionState.conv.SpSchema[table].Pks
+	parentPks := sessionState.conv.SpSchema[refTable].Pks
 	if len(childPks) >= len(parentPks) {
 		for i, pk := range parentPks {
 			if i >= len(fk.ReferColumns) || pk.Col != fk.ReferColumns[i] || pk.Col != childPks[i].Col || fk.Columns[i] != fk.ReferColumns[i] {
@@ -730,12 +714,12 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 }
 
 func isUniqueName(name string) bool {
-	for table, _ := range app.conv.SpSchema {
+	for table, _ := range sessionState.conv.SpSchema {
 		if table == name {
 			return false
 		}
 	}
-	for _, spSchema := range app.conv.SpSchema {
+	for _, spSchema := range sessionState.conv.SpSchema {
 		for _, fk := range spSchema.Fks {
 			if fk.Name == name {
 				return false
@@ -767,7 +751,7 @@ func removeSecondaryIndex(slice []ddl.CreateIndex, s int) []ddl.CreateIndex {
 }
 
 func removeColumn(table string, colName string, srcTableName string) {
-	sp := app.conv.SpSchema[table]
+	sp := sessionState.conv.SpSchema[table]
 	for i, col := range sp.ColNames {
 		if col == colName {
 			sp.ColNames = remove(sp.ColNames, i)
@@ -781,15 +765,15 @@ func removeColumn(table string, colName string, srcTableName string) {
 			break
 		}
 	}
-	srcColName := app.conv.ToSource[table].Cols[colName]
-	delete(app.conv.ToSource[table].Cols, colName)
-	delete(app.conv.ToSpanner[srcTableName].Cols, srcColName)
-	delete(app.conv.Issues[srcTableName], srcColName)
-	app.conv.SpSchema[table] = sp
+	srcColName := sessionState.conv.ToSource[table].Cols[colName]
+	delete(sessionState.conv.ToSource[table].Cols, colName)
+	delete(sessionState.conv.ToSpanner[srcTableName].Cols, srcColName)
+	delete(sessionState.conv.Issues[srcTableName], srcColName)
+	sessionState.conv.SpSchema[table] = sp
 }
 
 func renameColumn(newName, table, colName, srcTableName string) {
-	sp := app.conv.SpSchema[table]
+	sp := sessionState.conv.SpSchema[table]
 	for i, col := range sp.ColNames {
 		if col == colName {
 			sp.ColNames[i] = newName
@@ -811,26 +795,26 @@ func renameColumn(newName, table, colName, srcTableName string) {
 			break
 		}
 	}
-	srcColName := app.conv.ToSource[table].Cols[colName]
-	app.conv.ToSpanner[srcTableName].Cols[srcColName] = newName
-	app.conv.ToSource[table].Cols[newName] = srcColName
-	delete(app.conv.ToSource[table].Cols, colName)
-	app.conv.SpSchema[table] = sp
+	srcColName := sessionState.conv.ToSource[table].Cols[colName]
+	sessionState.conv.ToSpanner[srcTableName].Cols[srcColName] = newName
+	sessionState.conv.ToSource[table].Cols[newName] = srcColName
+	delete(sessionState.conv.ToSource[table].Cols, colName)
+	sessionState.conv.SpSchema[table] = sp
 }
 
 func updateType(newType, table, colName, srcTableName string, w http.ResponseWriter) {
-	sp := app.conv.SpSchema[table]
-	srcColName := app.conv.ToSource[table].Cols[colName]
-	srcCol := app.conv.SrcSchema[srcTableName].ColDefs[srcColName]
+	sp := sessionState.conv.SpSchema[table]
+	srcColName := sessionState.conv.ToSource[table].Cols[colName]
+	srcCol := sessionState.conv.SrcSchema[srcTableName].ColDefs[srcColName]
 	var ty ddl.Type
 	var issues []internal.SchemaIssue
-	switch app.driver {
+	switch sessionState.driver {
 	case "mysql", "mysqldump":
 		ty, issues = toSpannerTypeMySQL(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	case "pg_dump", "postgres":
 		ty, issues = toSpannerTypePostgres(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	default:
-		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", app.driver), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.driver), http.StatusBadRequest)
 		return
 	}
 	if len(srcCol.Type.ArrayBounds) > 1 {
@@ -844,7 +828,7 @@ func updateType(newType, table, colName, srcTableName string, w http.ResponseWri
 		issues = append(issues, internal.AutoIncrement)
 	}
 	if len(issues) > 0 {
-		app.conv.Issues[srcTableName][srcCol.Name] = issues
+		sessionState.conv.Issues[srcTableName][srcCol.Name] = issues
 	}
 	ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
 	colDef := sp.ColDefs[colName]
@@ -853,7 +837,7 @@ func updateType(newType, table, colName, srcTableName string, w http.ResponseWri
 }
 
 func updateNotNull(notNullChange, table, colName string) {
-	sp := app.conv.SpSchema[table]
+	sp := sessionState.conv.SpSchema[table]
 	switch notNullChange {
 	case "ADDED":
 		spColDef := sp.ColDefs[colName]
@@ -892,10 +876,10 @@ func rateSchema(cols, warnings int64, missingPKey bool) string {
 }
 
 func getFilePrefix(now time.Time) (string, error) {
-	dbName := app.dbName
+	dbName := sessionState.dbName
 	var err error
 	if dbName == "" {
-		dbName, err = conversion.GetDatabaseName(app.driver, now)
+		dbName, err = conversion.GetDatabaseName(sessionState.driver, now)
 		if err != nil {
 			return "", fmt.Errorf("Can not create database name : %v", err)
 		}
@@ -903,7 +887,7 @@ func getFilePrefix(now time.Time) (string, error) {
 	return dbName + ".", nil
 }
 
-type App struct {
+type SessionState struct {
 	sourceDB    *sql.DB        // Connection to source database in case of direct connection
 	dbName      string         // Name of source database
 	driver      string         // Name of HarbourBridge driver in use
@@ -911,10 +895,10 @@ type App struct {
 	sessionFile string         // Path to session file
 }
 
-// app maintains the current state of the session, and is used to
+// sessionState maintains the current state of the session, and is used to
 // track state from one request to the next. Session state is global:
 // all requests see the same session state.
-var app App
+var sessionState SessionState
 
 // Type and issue.
 type typeIssue struct {

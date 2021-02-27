@@ -14,7 +14,13 @@
 
 // Package conversion handles initial setup for the command line tool
 // and web APIs.
-// TODO: Organize code in go style format to make this file more readable.
+
+// TODO:(searce) Organize code in go style format to make this file more readable.
+// 			public constants first
+// 			key public type definitions next (although often it makes sense to put them next to public functions that use them)
+// 			then public functions (and relevant type definitions)
+// 			and helper functions and other non-public definitions last (generally in order of importance)
+
 package conversion
 
 import (
