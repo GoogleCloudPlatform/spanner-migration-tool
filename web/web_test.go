@@ -16,6 +16,7 @@ package web
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -1301,7 +1302,7 @@ func TestSetParentTable(t *testing.T) {
 	for _, tc := range tests {
 		sessionState.driver = "mysql"
 		sessionState.conv = tc.ct
-		req, err := http.NewRequest("GET", "/setparent?table="+tc.table, nil)
+		req, err := http.NewRequest("GET", fmt.Sprintf("/setparent?table=%s&update=%v", tc.table, true), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
