@@ -440,6 +440,7 @@ type TableInterleaveStatus struct {
 // table and returns Parent table name, otherwise returns the issue.
 func setParentTable(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
+	update := r.FormValue("update") == "true"
 	if sessionState.conv == nil || sessionState.driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
@@ -447,6 +448,13 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	if table == "" {
 		http.Error(w, fmt.Sprintf("Table name is empty"), http.StatusBadRequest)
 	}
+	tableInterleaveIssues := parentTableHelper(table, update)
+	updateSessionFile()
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(tableInterleaveIssues)
+}
+
+func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 	tableInterleaveIssues := &TableInterleaveStatus{Possible: true}
 	if _, found := sessionState.conv.SyntheticPKeys[table]; found {
 		tableInterleaveIssues.Possible = false
@@ -462,12 +470,14 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			ok := checkPrimaryKeyPrefix(table, refTable, fk, tableInterleaveIssues)
-			if ok == true {
+			if ok {
 				tableInterleaveIssues.Parent = refTable
-				sp := sessionState.conv.SpSchema[table]
-				sp.Parent = refTable
-				sp.Fks = removeFk(sp.Fks, i)
-				sessionState.conv.SpSchema[table] = sp
+				if update {
+					sp := sessionState.conv.SpSchema[table]
+					sp.Parent = refTable
+					sp.Fks = removeFk(sp.Fks, i)
+					sessionState.conv.SpSchema[table] = sp
+				}
 				break
 			}
 		}
@@ -476,9 +486,7 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 			tableInterleaveIssues.Comment = "No valid prefix"
 		}
 	}
-	updateSessionFile()
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(tableInterleaveIssues)
+	return tableInterleaveIssues
 }
 
 func dropForeignKey(w http.ResponseWriter, r *http.Request) {
