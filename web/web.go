@@ -644,7 +644,7 @@ func isPartOfFK(col, table string) bool {
 
 // TODO: create a map to store referenced column to get
 // this information in O(1).
-//TODO: can have foreign key constraints between columns of the same table, as well as between same column on a given table.
+//TODO:(searce) can have foreign key constraints between columns of the same table, as well as between same column on a given table.
 func isReferencedByFK(col, table string) bool {
 	for _, spSchema := range app.conv.SpSchema {
 		if table != spSchema.Name {
