@@ -28,6 +28,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -361,8 +362,16 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 		if v.PK != "" {
 			http.Error(w, "HarbourBridge currently doesn't support editing primary keys", http.StatusNotImplemented)
+			return
 		}
-		if v.ToType != "" {
+
+		typeChange, err := isTypeChanged(v.ToType, table, colName, srcTableName)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if v.ToType != "" && typeChange {
 			err, status := canRenameOrChangeType(colName, table)
 			if err != nil {
 				err = rollback(err)
@@ -517,31 +526,45 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func renameForeignKey(w http.ResponseWriter, r *http.Request) {
-	table := r.FormValue("table")
-	pos := r.FormValue("pos")
-	newName := r.FormValue("name")
-	if sessionState.conv == nil || sessionState.driver == "" {
-		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), http.StatusNotFound)
-		return
-	}
-	if table == "" || pos == "" || newName == "" {
-		http.Error(w, fmt.Sprintf("Table name or position or new name is empty"), http.StatusBadRequest)
-	}
-	sp := sessionState.conv.SpSchema[table]
-	position, err := strconv.Atoi(pos)
+	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Error converting position to integer"), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	}
+
+	receivedFks := []ddl.Foreignkey{}
+	err = json.Unmarshal(reqBody, &receivedFks)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	if position < 0 || position >= len(sp.Fks) {
-		http.Error(w, fmt.Sprintf("No foreign key found at position %d", position), http.StatusBadRequest)
+	table := r.FormValue("table")
+
+	sp := sessionState.conv.SpSchema[table]
+	sp.Fks = receivedFks
+
+	sessionState.conv.SpSchema[table] = sp
+	updateSessionFile()
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(sessionState.conv)
+}
+
+func renameIndexes(w http.ResponseWriter, r *http.Request) {
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	}
+
+	receivedCreateIndexes := []ddl.CreateIndex{}
+	err = json.Unmarshal(reqBody, &receivedCreateIndexes)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	if !isUniqueName(newName) {
-		http.Error(w, fmt.Sprintf("New name %s is used before in the schema", newName), http.StatusBadRequest)
-		return
-	}
-	sp.Fks[position].Name = newName
+	table := r.FormValue("table")
+
+	sp := sessionState.conv.SpSchema[table]
+	sp.Indexes = receivedCreateIndexes
+
 	sessionState.conv.SpSchema[table] = sp
 	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
@@ -607,7 +630,7 @@ func rollback(err error) error {
 		sessionState.conv = internal.MakeConv()
 		err2 := conversion.ReadSessionFile(sessionState.conv, sessionState.sessionFile)
 		if err2 != nil {
-			return fmt.Errorf("Encountered error %w. Rollback failed: %v", err, err2)
+			return fmt.Errorf("encountered error %w. rollback failed: %v", err, err2)
 		}
 	}
 	return err
@@ -622,24 +645,24 @@ func isPartOfPK(col, table string) bool {
 	return false
 }
 
-func isParent(table string) bool {
+func isParent(table string) (bool, string) {
 	for _, spSchema := range sessionState.conv.SpSchema {
 		if spSchema.Parent == table {
-			return true
+			return true, spSchema.Name
 		}
 	}
-	return false
+	return false, ""
 }
 
-func isPartOfSecondaryIndex(col, table string) bool {
+func isPartOfSecondaryIndex(col, table string) (bool, string) {
 	for _, index := range sessionState.conv.SpSchema[table].Indexes {
 		for _, key := range index.Keys {
 			if key.Col == col {
-				return true
+				return true, index.Name
 			}
 		}
 	}
-	return false
+	return false, ""
 }
 
 func isPartOfFK(col, table string) bool {
@@ -656,52 +679,59 @@ func isPartOfFK(col, table string) bool {
 // TODO: create a map to store referenced column to get
 // this information in O(1).
 //TODO:(searce) can have foreign key constraints between columns of the same table, as well as between same column on a given table.
-func isReferencedByFK(col, table string) bool {
+func isReferencedByFK(col, table string) (bool, string) {
 	for _, spSchema := range sessionState.conv.SpSchema {
 		if table != spSchema.Name {
 			for _, fk := range spSchema.Fks {
 				if fk.ReferTable == table {
 					for _, column := range fk.ReferColumns {
 						if column == col {
-							return true
+							return true, spSchema.Name
 						}
 					}
 				}
 			}
 		}
 	}
-	return false
+	return false, ""
 }
 
 func canRemoveColumn(colName, table string) (error, int) {
 	if isPartOfPK := isPartOfPK(colName, table); isPartOfPK {
-		return fmt.Errorf("Column is part of primary key"), http.StatusBadRequest
+		return fmt.Errorf("column is part of primary key"), http.StatusBadRequest
 	}
-	if isPartOfSecondaryIndex := isPartOfSecondaryIndex(colName, table); isPartOfSecondaryIndex {
-		return fmt.Errorf("Column is part of secondary index, remove secondary index before making the update"), http.StatusPreconditionFailed
+	if isPartOfSecondaryIndex, _ := isPartOfSecondaryIndex(colName, table); isPartOfSecondaryIndex {
+		return fmt.Errorf("column is part of secondary index, remove secondary index before making the update"), http.StatusPreconditionFailed
 	}
 	isPartOfFK := isPartOfFK(colName, table)
-	isReferencedByFK := isReferencedByFK(colName, table)
+	isReferencedByFK, _ := isReferencedByFK(colName, table)
 	if isPartOfFK || isReferencedByFK {
-		return fmt.Errorf("Column is part of foreign key relation, remove foreign key constraint before making the update"), http.StatusPreconditionFailed
+		return fmt.Errorf("column is part of foreign key relation, remove foreign key constraint before making the update"), http.StatusPreconditionFailed
 	}
 	return nil, http.StatusOK
 }
 
 func canRenameOrChangeType(colName, table string) (error, int) {
 	isPartOfPK := isPartOfPK(colName, table)
-	isParent := isParent(table)
+	isParent, childSchema := isParent(table)
 	isChild := sessionState.conv.SpSchema[table].Parent != ""
 	if isPartOfPK && (isParent || isChild) {
-		return fmt.Errorf("Column is part of parent-child relation"), http.StatusBadRequest
+		return fmt.Errorf("Column : '%s' in table : '%s' is part of parent-child relation with schema : '%s'", colName, table, childSchema), http.StatusBadRequest
 	}
-	if isPartOfSecondaryIndex := isPartOfSecondaryIndex(colName, table); isPartOfSecondaryIndex {
-		return fmt.Errorf("Column is part of secondary index, remove secondary index before making the update"), http.StatusPreconditionFailed
+	if isPartOfSecondaryIndex, indexName := isPartOfSecondaryIndex(colName, table); isPartOfSecondaryIndex {
+		return fmt.Errorf("Column : '%s' in table : '%s' is part of secondary index : '%s', remove secondary index before making the update",
+			colName, table, indexName), http.StatusPreconditionFailed
 	}
 	isPartOfFK := isPartOfFK(colName, table)
-	isReferencedByFK := isReferencedByFK(colName, table)
+	isReferencedByFK, relationTable := isReferencedByFK(colName, table)
 	if isPartOfFK || isReferencedByFK {
-		return fmt.Errorf("Column is part of foreign key relation, remove foreign key constraint before making the update"), http.StatusPreconditionFailed
+		if isReferencedByFK {
+			return fmt.Errorf("Column : '%s' in table : '%s' is part of foreign key relation with table : '%s', remove foreign key constraint before making the update",
+				colName, table, relationTable), http.StatusPreconditionFailed
+		} else {
+			return fmt.Errorf("Column : '%s' in table : '%s' is part of foreign keys, remove foreign key constraint before making the update",
+				colName, table), http.StatusPreconditionFailed
+		}
 	}
 	return nil, http.StatusOK
 }
@@ -811,6 +841,26 @@ func renameColumn(newName, table, colName, srcTableName string) {
 }
 
 func updateType(newType, table, colName, srcTableName string, w http.ResponseWriter) {
+	sp, ty, err := getType(newType, table, colName, srcTableName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	colDef := sp.ColDefs[colName]
+	colDef.T = ty
+	sp.ColDefs[colName] = colDef
+}
+
+func isTypeChanged(newType, table, colName, srcTableName string) (bool, error) {
+	sp, ty, err := getType(newType, table, colName, srcTableName)
+	if err != nil {
+		return false, err
+	}
+	colDef := sp.ColDefs[colName]
+	return !reflect.DeepEqual(colDef.T, ty), nil
+}
+
+func getType(newType, table, colName string, srcTableName string) (ddl.CreateTable, ddl.Type, error) {
 	sp := sessionState.conv.SpSchema[table]
 	srcColName := sessionState.conv.ToSource[table].Cols[colName]
 	srcCol := sessionState.conv.SrcSchema[srcTableName].ColDefs[srcColName]
@@ -822,8 +872,7 @@ func updateType(newType, table, colName, srcTableName string, w http.ResponseWri
 	case "pg_dump", "postgres":
 		ty, issues = toSpannerTypePostgres(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	default:
-		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.driver), http.StatusBadRequest)
-		return
+		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.driver)
 	}
 	if len(srcCol.Type.ArrayBounds) > 1 {
 		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
@@ -839,9 +888,7 @@ func updateType(newType, table, colName, srcTableName string, w http.ResponseWri
 		sessionState.conv.Issues[srcTableName][srcCol.Name] = issues
 	}
 	ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
-	colDef := sp.ColDefs[colName]
-	colDef.T = ty
-	sp.ColDefs[colName] = colDef
+	return sp, ty, nil
 }
 
 func updateNotNull(notNullChange, table, colName string) {
