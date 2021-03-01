@@ -870,7 +870,7 @@ func getType(newType, table, colName string, srcTableName string) (ddl.CreateTab
 	if srcCol.Ignored.AutoIncrement {
 		issues = append(issues, internal.AutoIncrement)
 	}
-	if len(issues) > 0 {
+	if sessionState.conv.Issues != nil && len(issues) > 0 {
 		sessionState.conv.Issues[srcTableName][srcCol.Name] = issues
 	}
 	ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
