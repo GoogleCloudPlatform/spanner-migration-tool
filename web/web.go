@@ -526,45 +526,31 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func renameForeignKey(w http.ResponseWriter, r *http.Request) {
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-	}
-
-	receivedFks := []ddl.Foreignkey{}
-	err = json.Unmarshal(reqBody, &receivedFks)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+	table := r.FormValue("table")
+	pos := r.FormValue("pos")
+	newName := r.FormValue("name")
+	if sessionState.conv == nil || sessionState.driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), http.StatusNotFound)
 		return
 	}
-	table := r.FormValue("table")
-
-	sp := sessionState.conv.SpSchema[table]
-	sp.Fks = receivedFks
-
-	sessionState.conv.SpSchema[table] = sp
-	updateSessionFile()
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sessionState.conv)
-}
-
-func renameIndexes(w http.ResponseWriter, r *http.Request) {
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	if table == "" || pos == "" || newName == "" {
+		http.Error(w, fmt.Sprintf("Table name or position or new name is empty"), http.StatusBadRequest)
 	}
-
-	receivedCreateIndexes := []ddl.CreateIndex{}
-	err = json.Unmarshal(reqBody, &receivedCreateIndexes)
+	sp := sessionState.conv.SpSchema[table]
+	position, err := strconv.Atoi(pos)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Error converting position to integer"), http.StatusBadRequest)
 		return
 	}
-	table := r.FormValue("table")
-
-	sp := sessionState.conv.SpSchema[table]
-	sp.Indexes = receivedCreateIndexes
-
+	if position < 0 || position >= len(sp.Fks) {
+		http.Error(w, fmt.Sprintf("No foreign key found at position %d", position), http.StatusBadRequest)
+		return
+	}
+	if !isUniqueName(newName) {
+		http.Error(w, fmt.Sprintf("New name %s is used before in the schema", newName), http.StatusBadRequest)
+		return
+	}
+	sp.Fks[position].Name = newName
 	sessionState.conv.SpSchema[table] = sp
 	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
