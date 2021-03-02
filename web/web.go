@@ -527,34 +527,148 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 
 func renameForeignKey(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
-	pos := r.FormValue("pos")
-	newName := r.FormValue("name")
-	if sessionState.conv == nil || sessionState.driver == "" {
-		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), http.StatusNotFound)
-		return
-	}
-	if table == "" || pos == "" || newName == "" {
-		http.Error(w, fmt.Sprintf("Table name or position or new name is empty"), http.StatusBadRequest)
-	}
-	sp := sessionState.conv.SpSchema[table]
-	position, err := strconv.Atoi(pos)
+	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Error converting position to integer"), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
-	if position < 0 || position >= len(sp.Fks) {
-		http.Error(w, fmt.Sprintf("No foreign key found at position %d", position), http.StatusBadRequest)
+
+	changeMap := map[string]string{}
+	err = json.Unmarshal(reqBody, &changeMap)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	if !isUniqueName(newName) {
-		http.Error(w, fmt.Sprintf("New name %s is used before in the schema", newName), http.StatusBadRequest)
+	//check new name for spanner name validity
+	newNames := getValuesAsSlice(changeMap)
+	if validity, invalidNewNames := checkSpannerNamesValidity(newNames); !validity {
+		http.Error(w, fmt.Sprintf("New name validation fails for following : %v", invalidNewNames), http.StatusBadRequest)
 		return
 	}
-	sp.Fks[position].Name = newName
+
+	//check new name for non usage before in another table, foreign key constraint or index
+	status, err := canRename(newNames)
+	if !status {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	sp := sessionState.conv.SpSchema[table]
+
+	//rename the foreignKey
+	newFKs := make([]ddl.Foreignkey, len(sp.Fks))
+	for _, foreignKey := range sp.Fks {
+		newName, ok := changeMap[foreignKey.Name]
+		if !ok {
+			continue
+		}
+		foreignKey.Name = newName
+		newFKs = append(newFKs, foreignKey)
+	}
+	sp.Fks = newFKs
+
 	sessionState.conv.SpSchema[table] = sp
 	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(sessionState.conv)
+}
+
+func renameIndexes(w http.ResponseWriter, r *http.Request) {
+	table := r.FormValue("table")
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	}
+
+	changeMap := map[string]string{}
+	err = json.Unmarshal(reqBody, &changeMap)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+	//check new name for spanner name validity
+	newNames := getValuesAsSlice(changeMap)
+	if validity, invalidNewNames := checkSpannerNamesValidity(newNames); !validity {
+		http.Error(w, fmt.Sprintf("New name validation fails for following : %v", invalidNewNames), http.StatusBadRequest)
+		return
+	}
+
+	//check new name for non usage before in another table, foreign key constraint or index
+	status, err := canRename(newNames)
+	if !status {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	sp := sessionState.conv.SpSchema[table]
+
+	//rename the indexes
+	newIndexes := make([]ddl.CreateIndex, len(sp.Indexes))
+	for _, index := range sp.Indexes {
+		newName, ok := changeMap[index.Name]
+		if !ok {
+			continue
+		}
+		index.Name = newName
+		newIndexes = append(newIndexes, index)
+	}
+	sp.Indexes = newIndexes
+
+	sessionState.conv.SpSchema[table] = sp
+	updateSessionFile()
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(sessionState.conv)
+}
+
+func getValuesAsSlice(input map[string]string) []string {
+	output := make([]string, len(input))
+	for _, value := range input {
+		output = append(output, value)
+	}
+	return output
+}
+
+func checkSpannerNamesValidity(input []string) (bool, []string) {
+	status := true
+	invaliNewNames := []string{}
+	for _, newName := range input {
+		if _, status := internal.FixName(newName); status {
+			status = false
+			invaliNewNames = append(invaliNewNames, newName)
+		}
+	}
+	return status, invaliNewNames
+}
+
+func canRename(names []string) (bool, error) {
+
+	namesMap := map[string]bool{}
+	//Check for this name isn't used by another table
+	for _, name := range names {
+		namesMap[name] = true
+		if _, ok := sessionState.conv.SpSchema[name]; ok {
+			return false, fmt.Errorf("new name : '%s' is used by another table", name)
+		}
+	}
+
+	//Check for this name isn't used by another foreign key
+	for _, sc := range sessionState.conv.SpSchema {
+		for _, foreignKey := range sc.Fks {
+			if _, ok := namesMap[foreignKey.Name]; ok {
+				return false, fmt.Errorf("new name : '%s' is used by another foreign key in table : '%s'", foreignKey.Name, sc.Name)
+			}
+		}
+	}
+
+	//This name isn't used by another index: you'll need to iterate over conv.SpSchema and check the Indexes of each CreateTable.
+	for _, sc := range sessionState.conv.SpSchema {
+		for _, foreignkey := range sc.Indexes {
+			if _, ok := namesMap[foreignkey.Name]; ok {
+				return false, fmt.Errorf("new name : '%s' is used by another index in table : '%s'", foreignkey.Name, sc.Name)
+			}
+		}
+	}
+	return true, nil
 }
 
 func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
