@@ -365,20 +365,22 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		typeChange, err := isTypeChanged(v.ToType, table, colName, srcTableName)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		if v.ToType != "" && typeChange {
-			err, status := canRenameOrChangeType(colName, table)
+		if v.ToType != "" {
+			typeChange, err := isTypeChanged(v.ToType, table, colName, srcTableName)
 			if err != nil {
-				err = rollback(err)
-				http.Error(w, fmt.Sprintf("%v", err), status)
+				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			updateType(v.ToType, table, colName, srcTableName, w)
+
+			if typeChange {
+				err, status := canRenameOrChangeType(colName, table)
+				if err != nil {
+					err = rollback(err)
+					http.Error(w, fmt.Sprintf("%v", err), status)
+					return
+				}
+				updateType(v.ToType, table, colName, srcTableName, w)
+			}
 		}
 		if v.NotNull != "" {
 			updateNotNull(v.NotNull, table, colName)
