@@ -561,10 +561,9 @@ func renameForeignKey(w http.ResponseWriter, r *http.Request) {
 	newFKs := make([]ddl.Foreignkey, len(sp.Fks))
 	for _, foreignKey := range sp.Fks {
 		newName, ok := changeMap[foreignKey.Name]
-		if !ok {
-			continue
+		if ok {
+			foreignKey.Name = newName
 		}
-		foreignKey.Name = newName
 		newFKs = append(newFKs, foreignKey)
 	}
 	sp.Fks = newFKs
@@ -608,10 +607,9 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 	newIndexes := make([]ddl.CreateIndex, len(sp.Indexes))
 	for _, index := range sp.Indexes {
 		newName, ok := changeMap[index.Name]
-		if !ok {
-			continue
+		if ok {
+			index.Name = newName
 		}
-		index.Name = newName
 		newIndexes = append(newIndexes, index)
 	}
 	sp.Indexes = newIndexes
