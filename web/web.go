@@ -619,11 +619,54 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(sessionState.conv)
 }
+func addIndexes(w http.ResponseWriter, r *http.Request) {
+	table := r.FormValue("table")
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	}
+
+	newIndexes := []ddl.CreateIndex{}
+	err = json.Unmarshal(reqBody, &newIndexes)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+	//check new name for spanner name validity
+	newNames := getNameSlice(newIndexes)
+	if validity, invalidNewNames := checkSpannerNamesValidity(newNames); !validity {
+		http.Error(w, fmt.Sprintf("New name validation fails for following : %v", invalidNewNames), http.StatusBadRequest)
+		return
+	}
+
+	//check new name for non usage before in another table, foreign key constraint or index
+	status, err := canRename(newNames)
+	if !status {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	sp := sessionState.conv.SpSchema[table]
+	sp.Indexes = append(sp.Indexes, newIndexes...)
+
+	sessionState.conv.SpSchema[table] = sp
+	updateSessionFile()
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(sessionState.conv)
+}
 
 func getValuesAsSlice(input map[string]string) []string {
 	output := make([]string, len(input))
 	for _, value := range input {
 		output = append(output, value)
+	}
+	return output
+}
+
+func getNameSlice(input []ddl.CreateIndex) []string {
+	output := make([]string, len(input))
+	for _, value := range input {
+		output = append(output, value.Name)
 	}
 	return output
 }

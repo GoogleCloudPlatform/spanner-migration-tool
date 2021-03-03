@@ -47,6 +47,7 @@ func getRoutes() *mux.Router {
 
 	router.HandleFunc("/rename/fk", renameForeignKey).Methods("POST")
 	router.HandleFunc("/rename/indexes", renameIndexes).Methods("POST")
+	router.HandleFunc("/add/indexes", addIndexes).Methods("POST")
 
 	router.PathPrefix("/").Handler(http.FileServer(staticFileDirectory))
 	return router
