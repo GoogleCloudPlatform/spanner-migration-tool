@@ -558,7 +558,7 @@ func renameForeignKey(w http.ResponseWriter, r *http.Request) {
 	sp := sessionState.conv.SpSchema[table]
 
 	//rename the foreignKey
-	newFKs := make([]ddl.Foreignkey, len(sp.Fks))
+	newFKs := []ddl.Foreignkey{}
 	for _, foreignKey := range sp.Fks {
 		newName, ok := changeMap[foreignKey.Name]
 		if ok {
