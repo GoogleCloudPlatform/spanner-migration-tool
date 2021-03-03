@@ -604,7 +604,7 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 	sp := sessionState.conv.SpSchema[table]
 
 	//rename the indexes
-	newIndexes := make([]ddl.CreateIndex, len(sp.Indexes))
+	newIndexes := []ddl.CreateIndex{}
 	for _, index := range sp.Indexes {
 		newName, ok := changeMap[index.Name]
 		if ok {
