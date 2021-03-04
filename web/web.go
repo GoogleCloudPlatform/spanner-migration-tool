@@ -553,7 +553,7 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 
 	sp := sessionState.conv.SpSchema[table]
 
-	//rename the foreignKey
+	// Update session with renamed foreignkeys
 	newFKs := []ddl.Foreignkey{}
 	for _, foreignKey := range sp.Fks {
 		if newName, ok := changeMap[foreignKey.Name]; ok {
@@ -596,11 +596,10 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 
 	sp := sessionState.conv.SpSchema[table]
 
-	// Update session with renamed secondary indexes.
+	// Update session with renamed secondary indexes
 	newIndexes := []ddl.CreateIndex{}
 	for _, index := range sp.Indexes {
-		newName, ok := changeMap[index.Name]
-		if ok {
+		if newName, ok := changeMap[index.Name]; ok {
 			index.Name = newName
 		}
 		newIndexes = append(newIndexes, index)
