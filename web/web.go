@@ -351,8 +351,7 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if v.Rename != "" && v.Rename != colName {
-			err, status := canRenameOrChangeType(colName, table)
-			if err != nil {
+			if err, status := canRenameOrChangeType(colName, table); err != nil {
 				err = rollback(err)
 				http.Error(w, fmt.Sprintf("%v", err), status)
 				return
@@ -373,8 +372,7 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if typeChange {
-				err, status := canRenameOrChangeType(colName, table)
-				if err != nil {
+				if err, status := canRenameOrChangeType(colName, table); err != nil {
 					err = rollback(err)
 					http.Error(w, fmt.Sprintf("%v", err), status)
 					return
@@ -622,8 +620,7 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newIndexes := []ddl.CreateIndex{}
-	err = json.Unmarshal(reqBody, &newIndexes)
-	if err != nil {
+	if err = json.Unmarshal(reqBody, &newIndexes); err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
