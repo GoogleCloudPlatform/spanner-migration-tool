@@ -45,7 +45,7 @@ func getRoutes() *mux.Router {
 	//TODO:(searce) take constraint names themselves which are guaranteed to be unique for Spanner.
 	router.HandleFunc("/drop/secondaryindex", dropSecondaryIndex).Methods("GET")
 
-	router.HandleFunc("/rename/fk", renameForeignKey).Methods("POST")
+	router.HandleFunc("/rename/fks", renameForeignKeys).Methods("POST")
 	router.HandleFunc("/rename/indexes", renameIndexes).Methods("POST")
 	router.HandleFunc("/add/indexes", addIndexes).Methods("POST")
 

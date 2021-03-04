@@ -527,7 +527,7 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(sessionState.conv)
 }
 
-func renameForeignKey(w http.ResponseWriter, r *http.Request) {
+func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -536,8 +536,7 @@ func renameForeignKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	changeMap := map[string]string{}
-	err = json.Unmarshal(reqBody, &changeMap)
-	if err != nil {
+	if err = json.Unmarshal(reqBody, &changeMap); err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
@@ -549,8 +548,7 @@ func renameForeignKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//check new name for non usage before in another table, foreign key constraint or index
-	status, err := canRename(newNames)
-	if !status {
+	if status, err := canRename(newNames); !status {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -560,8 +558,7 @@ func renameForeignKey(w http.ResponseWriter, r *http.Request) {
 	//rename the foreignKey
 	newFKs := []ddl.Foreignkey{}
 	for _, foreignKey := range sp.Fks {
-		newName, ok := changeMap[foreignKey.Name]
-		if ok {
+		if newName, ok := changeMap[foreignKey.Name]; ok {
 			foreignKey.Name = newName
 		}
 		newFKs = append(newFKs, foreignKey)
@@ -582,8 +579,7 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	changeMap := map[string]string{}
-	err = json.Unmarshal(reqBody, &changeMap)
-	if err != nil {
+	if err = json.Unmarshal(reqBody, &changeMap); err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
@@ -595,15 +591,14 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//check new name for non usage before in another table, foreign key constraint or index
-	status, err := canRename(newNames)
-	if !status {
+	if status, err := canRename(newNames); !status {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	sp := sessionState.conv.SpSchema[table]
 
-	//rename the indexes
+	// Update session with renamed secondary indexes.
 	newIndexes := []ddl.CreateIndex{}
 	for _, index := range sp.Indexes {
 		newName, ok := changeMap[index.Name]
@@ -640,8 +635,7 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//check new name for non usage before in another table, foreign key constraint or index
-	status, err := canRename(newNames)
-	if !status {
+	if status, err := canRename(newNames); !status {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
