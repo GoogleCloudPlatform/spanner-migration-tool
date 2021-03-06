@@ -646,7 +646,7 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 }
 
 func getValuesAsLowerCaseSlice(input map[string]string) []string {
-	output := make([]string, len(input))
+	output := []string{}
 	for _, value := range input {
 		output = append(output, strings.ToLower(value))
 	}
