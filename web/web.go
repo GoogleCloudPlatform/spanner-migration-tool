@@ -539,7 +539,7 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//check new name for spanner name validity
-	newNames := getValuesAsSlice(changeMap)
+	newNames := getValuesAsLowerCaseSlice(changeMap)
 	if validity, invalidNewNames := checkSpannerNamesValidity(newNames); !validity {
 		http.Error(w, fmt.Sprintf("New name validation fails for following : %v", invalidNewNames), http.StatusBadRequest)
 		return
@@ -582,7 +582,7 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//check new name for spanner name validity
-	newNames := getValuesAsSlice(changeMap)
+	newNames := getValuesAsLowerCaseSlice(changeMap)
 	if validity, invalidNewNames := checkSpannerNamesValidity(newNames); !validity {
 		http.Error(w, fmt.Sprintf("New name validation fails for following : %v", invalidNewNames), http.StatusBadRequest)
 		return
@@ -645,10 +645,10 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(sessionState.conv)
 }
 
-func getValuesAsSlice(input map[string]string) []string {
+func getValuesAsLowerCaseSlice(input map[string]string) []string {
 	output := make([]string, len(input))
 	for _, value := range input {
-		output = append(output, value)
+		output = append(output, strings.ToLower(value))
 	}
 	return output
 }
