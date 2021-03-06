@@ -546,7 +546,7 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//check new name for non usage before in another table, foreign key constraint or index
-	if status, err := canRename(newNames); !status {
+	if status, err := canRename(newNames, table); !status {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -589,7 +589,7 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//check new name for non usage before in another table, foreign key constraint or index
-	if status, err := canRename(newNames); !status {
+	if status, err := canRename(newNames, table); !status {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -631,7 +631,7 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//check new name for non usage before in another table, foreign key constraint or index
-	if status, err := canRename(newNames); !status {
+	if status, err := canRename(newNames, table); !status {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -673,7 +673,7 @@ func checkSpannerNamesValidity(input []string) (bool, []string) {
 	return status, invaliNewNames
 }
 
-func canRename(names []string) (bool, error) {
+func canRename(names []string, table string) (bool, error) {
 
 	namesMap := map[string]bool{}
 	//Check for this name isn't used by another table
@@ -687,8 +687,10 @@ func canRename(names []string) (bool, error) {
 	//Check for this name isn't used by another foreign key
 	for _, sc := range sessionState.conv.SpSchema {
 		for _, foreignKey := range sc.Fks {
-			if _, ok := namesMap[foreignKey.Name]; ok {
-				return false, fmt.Errorf("new name : '%s' is used by another foreign key in table : '%s'", foreignKey.Name, sc.Name)
+			if sc.Name != table {
+				if _, ok := namesMap[foreignKey.Name]; ok {
+					return false, fmt.Errorf("new name : '%s' is used by another foreign key in table : '%s'", foreignKey.Name, sc.Name)
+				}
 			}
 		}
 	}
