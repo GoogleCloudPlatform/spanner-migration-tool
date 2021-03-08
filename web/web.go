@@ -460,7 +460,7 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	tableInterleaveIssues := parentTableHelper(table, update)
 	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(tableInterleaveIssues)
+	json.NewEncoder(w).Encode(map[string]interface{}{"tableInterleaveIssues": tableInterleaveIssues, "sessionStateConv": sessionState.conv})
 }
 
 func parentTableHelper(table string, update bool) *TableInterleaveStatus {
@@ -698,8 +698,10 @@ func canRename(names []string, table string) (bool, error) {
 	//This name isn't used by another index: you'll need to iterate over conv.SpSchema and check the Indexes of each CreateTable.
 	for _, sc := range sessionState.conv.SpSchema {
 		for _, foreignkey := range sc.Indexes {
-			if _, ok := namesMap[foreignkey.Name]; ok {
-				return false, fmt.Errorf("new name : '%s' is used by another index in table : '%s'", foreignkey.Name, sc.Name)
+			if sc.Name != table {
+				if _, ok := namesMap[foreignkey.Name]; ok {
+					return false, fmt.Errorf("new name : '%s' is used by another index in table : '%s'", foreignkey.Name, sc.Name)
+				}
 			}
 		}
 	}
