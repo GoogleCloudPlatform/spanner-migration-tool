@@ -761,12 +761,13 @@ func updateSessionFile() error {
 // rollback is used to get previous state of conversion in case
 // some unexpected error occurs during update operations.
 func rollback(err error) error {
-	if sessionState.sessionFile != "" {
-		sessionState.conv = internal.MakeConv()
-		err2 := conversion.ReadSessionFile(sessionState.conv, sessionState.sessionFile)
-		if err2 != nil {
-			return fmt.Errorf("encountered error %w. rollback failed: %v", err, err2)
-		}
+	if sessionState.sessionFile == "" {
+		return fmt.Errorf("encountered error %w. rollback failed because we don't have a session file", err)
+	}
+	sessionState.conv = internal.MakeConv()
+	err2 := conversion.ReadSessionFile(sessionState.conv, sessionState.sessionFile)
+	if err2 != nil {
+		return fmt.Errorf("encountered error %w. rollback failed: %v", err, err2)
 	}
 	return err
 }
