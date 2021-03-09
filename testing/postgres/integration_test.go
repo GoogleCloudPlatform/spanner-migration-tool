@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package postgres_test
 
 import (
 	"bytes"
@@ -32,6 +32,7 @@ import (
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
+	"github.com/cloudspannerecosystem/harbourbridge/cmd"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"google.golang.org/api/iterator"
 	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
@@ -126,13 +127,13 @@ func TestIntegration_PGDUMP_SimpleUse(t *testing.T) {
 	now := time.Now()
 	dbName, _ := conversion.GetDatabaseName(conversion.PGDUMP, now)
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	dataFilepath := "test_data/pg_dump.test.out"
-	filePrefix = filepath.Join(tmpdir, dbName+".")
+	dataFilepath := "../../test_data/pg_dump.test.out"
+	filePrefix := filepath.Join(tmpdir, dbName+".")
 	f, err := os.Open(dataFilepath)
 	if err != nil {
 		t.Fatalf("failed to open the test data file: %v", err)
 	}
-	err = commandLine(conversion.PGDUMP, projectID, instanceID, dbName, &conversion.IOStreams{In: f, Out: os.Stdout}, filePrefix, now)
+	err = cmd.CommandLine(conversion.PGDUMP, projectID, instanceID, dbName /*dataOnly=*/, false /*schemaOnly=*/, false /*sessionJSON=*/, "", &conversion.IOStreams{In: f, Out: os.Stdout}, filePrefix, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,8 +153,8 @@ func TestIntegration_PGDUMP_Command(t *testing.T) {
 	dbName, _ := conversion.GetDatabaseName(conversion.PGDUMP, now)
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 
-	dataFilepath := "test_data/pg_dump.test.out"
-	filePrefix = filepath.Join(tmpdir, dbName+".")
+	dataFilepath := "../../test_data/pg_dump.test.out"
+	filePrefix := filepath.Join(tmpdir, dbName+".")
 	// Be aware that when testing with the command, the time `now` might be
 	// different between file prefixes and the contents in the files. This
 	// is because file prefixes use `now` from here (the test function) and
@@ -187,9 +188,9 @@ func TestIntegration_POSTGRES_SimpleUse(t *testing.T) {
 	now := time.Now()
 	dbName, _ := conversion.GetDatabaseName(conversion.POSTGRES, now)
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	filePrefix = filepath.Join(tmpdir, dbName+".")
+	filePrefix := filepath.Join(tmpdir, dbName+".")
 
-	err := commandLine(conversion.POSTGRES, projectID, instanceID, dbName, &conversion.IOStreams{Out: os.Stdout}, filePrefix, now)
+	err := cmd.CommandLine(conversion.POSTGRES, projectID, instanceID, dbName /*dataOnly=*/, false /*schemaOnly=*/, false /*sessionJSON=*/, "", &conversion.IOStreams{Out: os.Stdout}, filePrefix, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +210,7 @@ func TestIntegration_POSTGRES_Command(t *testing.T) {
 	now := time.Now()
 	dbName, _ := conversion.GetDatabaseName(conversion.POSTGRES, now)
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	filePrefix = filepath.Join(tmpdir, dbName+".")
+	filePrefix := filepath.Join(tmpdir, dbName+".")
 
 	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -instance %s -dbname %s -prefix %s -driver %s", instanceID, dbName, filePrefix, conversion.POSTGRES))
 	var out, stderr bytes.Buffer
