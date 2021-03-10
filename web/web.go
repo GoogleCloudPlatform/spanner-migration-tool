@@ -340,7 +340,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 	srcTableName := sessionState.conv.ToSource[table].Name
 	for colName, v := range t.UpdateCols {
 		if v.Removed {
-			//TODO:(searce) and handling rollback uniformly with return rollback(err)
 			err, status := canRemoveColumn(colName, table)
 			if err != nil {
 				err = rollback(err)
@@ -532,9 +531,10 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 
 func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	pos := r.FormValue("pos")
+	newName := r.FormValue("name")
+	if sessionState.conv == nil || sessionState.driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
 
@@ -717,7 +717,7 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
 	pos := r.FormValue("pos")
 	if sessionState.conv == nil || sessionState.driver == "" {
-		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to spanner."), http.StatusNotFound)
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
 	if table == "" || pos == "" {
@@ -741,7 +741,7 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 // updateSessionFile updates the content of session file with
-// latest app.conv.
+// latest sessionState.conv.
 func updateSessionFile() error {
 	filePath := sessionState.sessionFile
 	if filePath == "" {
