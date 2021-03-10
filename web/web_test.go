@@ -1672,6 +1672,69 @@ func TestRenameForeignKeys(t *testing.T) {
 	}
 }
 
+func TestAddIndexes(t *testing.T) {
+	tc := []struct {
+		name         string
+		table        string
+		input        []ddl.CreateIndex
+		statusCode   int64
+		conv         *internal.Conv
+		expectedConv *internal.Conv
+	}{
+		{
+			name:       "Test Empty input",
+			table:      "t1",
+			input:      []ddl.CreateIndex{},
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}}},
+					}},
+			},
+		},
+	}
+
+	for _, tc := range tc {
+		sessionState.driver = "mysql"
+		sessionState.conv = tc.conv
+
+		inputBytes, err := json.Marshal(tc.input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		buffer := bytes.NewBuffer(inputBytes)
+
+		req, err := http.NewRequest("POST", "/add/indexes?table="+tc.table, buffer)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(addIndexes)
+		handler.ServeHTTP(rr, req)
+		var res *internal.Conv
+		json.Unmarshal(rr.Body.Bytes(), &res)
+		if status := rr.Code; int64(status) != tc.statusCode {
+			t.Errorf("%s : handler returned wrong status code: got %v want %v",
+				tc.name, status, tc.statusCode)
+		}
+		if tc.statusCode == http.StatusOK {
+			assert.Equal(t, tc.expectedConv, res)
+		}
+	}
+
+	fmt.Println(tc)
+}
+
 func TestDropSecondaryIndex(t *testing.T) {
 	tc := []struct {
 		name         string
