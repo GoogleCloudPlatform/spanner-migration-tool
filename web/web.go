@@ -531,8 +531,11 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 
 func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
-	pos := r.FormValue("pos")
-	newName := r.FormValue("name")
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	}
+
 	if sessionState.conv == nil || sessionState.driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
