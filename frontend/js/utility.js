@@ -1,6 +1,6 @@
 // variables initialisation
 const RED = '#F44336';
-var schemaConversionObj, srcTableName = [], notNullConstraint = [];
+var schemaConversionObj, srcTableName = [], notNullConstraint = [], notPrimary = [], pkArray = [];
 
 /**
  * Function to set style for selected menu
@@ -196,8 +196,12 @@ const clearModal = () => {
   jQuery('#loadConnectButton').attr('disabled', 'disabled');
   jQuery('#connectButton').attr('disabled', 'disabled');
   jQuery('#importButton').attr('disabled', 'disabled');
-  document.getElementById("sqlFields").style.display = "none"
-  document.getElementById("sqlFieldsButtons").style.display = "none"
+  jQuery('#indexName').val("");
+  jQuery('#createIndexButton').attr('disabled', 'disabled');
+  if (document.getElementById("sqlFields") != undefined)
+    document.getElementById("sqlFields").style.display = "none"
+  if (document.getElementById("sqlFieldsButtons") != undefined)
+    document.getElementById("sqlFieldsButtons").style.display = "none"
 }
 
 

@@ -872,3 +872,13 @@ ul {
       opacity: 0;
     }
   }
+
+  .orderId {
+      border: 1px solid #FFFFFF;
+      border-radius: 20px;
+      padding-left: 4px;
+      padding-right: 4px;
+      font-size: 11px;
+      background-color: #FFC107;
+      margin-right: 8px;
+  }

@@ -1,5 +1,21 @@
 <script>
     $(document).ready(function () {
+
+        jQuery('#createIndexForm > div > input').keyup(function () {
+            let empty = false;
+            jQuery('#createIndexForm > div > input').each(function () {
+                if (jQuery(this).val() === '') {
+                    empty = true;
+                }
+            });
+            if (empty) {
+                jQuery('#createIndexButton').attr('disabled', 'disabled');
+            }
+            else {
+                jQuery('#createIndexButton').removeAttr('disabled');
+            }
+        });
+
         setActiveSelectedMenu('schemaScreen');
         $(".modal-backdrop").hide();
 
@@ -14,6 +30,7 @@
                 createEndIndex = createIndex + 12;
                 ddl[Object.keys(ddl)[i]] = ddl[Object.keys(ddl)[i]].substring(0, createIndex) + ddl[Object.keys(ddl)[i]].substring(createIndex, createEndIndex).fontcolor('#4285f4').bold() + ddl[Object.keys(ddl)[i]].substring(createEndIndex);
                 $newDdlElement = jQuery('#ddlDiv').find('.ddlSection.template').clone().removeClass('template');
+                $newDdlElement.attr('id', 'ddl' + i);
                 $newDdlElement.find('.card-header.ddl-card-header.ddlBorderBottom').addClass(panelBorderClass(conversionRateResp[srcTableName[i]]));
                 $newDdlElement.find('a').attr('href', '#' + Object.keys(ddl)[i] + '-ddl');
                 $newDdlElement.find('a > span').html(Object.keys(ddl)[i]);
@@ -33,6 +50,7 @@
             conversionRateResp = JSON.parse(localStorage.getItem('tableBorderColor'));
             for (var i = 0; i < summaryLength; i++) {
                 $newSummaryElement = jQuery('#summaryDiv').find('.summarySection.template').clone().removeClass('template');
+                $newSummaryElement.attr('id', 'summary' + i);
                 $newSummaryElement.find('.card-header.ddl-card-header.ddlBorderBottom').addClass(panelBorderClass(conversionRateResp[srcTableName[i]]));
                 $newSummaryElement.find('a').attr('href', '#' + Object.keys(summary)[i] + '-summary');
                 $newSummaryElement.find('a > span').html(Object.keys(summary)[i]);
@@ -48,7 +66,7 @@
             getGlobalDataTypeList();
             schemaConversionObj = obj;
             let columnNameContent, dataTypeContent, constraintsContent, notNullFound, constraintId, srcConstraintHtml;
-            let pksSp = [], notPrimary = [], keyColumnMap = [], initialColNameArray = [], notNullFoundFlag = [], pkSeqId = [], pkArray = [], initialPkSeqId = [], constraintTabCell = [], primaryTabCell = [], spPlaceholder = [], srcPlaceholder = [], countSp = [], countSrc = [];
+            let pksSp = [], initialColNameArray = [], notNullFoundFlag = [], pkSeqId = [], initialPkSeqId = [], constraintTabCell = [], primaryTabCell = [], spPlaceholder = [], srcPlaceholder = [], countSp = [], countSrc = [];
             let sourceTableFlag = '';
             let conversionRateResp = {};
             let constraintCount = 0;
@@ -58,13 +76,12 @@
 
             for (var x = 0; x < srcTableNum; x++) {
                 initialPkSeqId[x] = [];
-                initialColNameArray[x] = [];
                 constraintTabCell[x] = [];
                 primaryTabCell[x] = [];
                 notPrimary[x] = [];
                 notNullFoundFlag[x] = [];
-                keyColumnMap[x] = [];
                 pkArray[x] = [];
+                srcPlaceholder[x] = [];
                 spPlaceholder[x] = [];
                 countSp[x] = [];
                 countSrc[x] = [];
@@ -92,6 +109,7 @@
                 schemaConversionObj.SpSchema[srcTableName[i]].Pks = pkArray[i];
                 sourceTableFlag = localStorage.getItem('sourceDbName');
                 $newConvElement = jQuery('#reportDiv').find('.reportSection.template').clone().removeClass('template');
+                $newConvElement.attr('id', i);
                 $newConvElement.find('.card-header.report-card-header.borderBottom').addClass(panelBorderClass(conversionRateResp[srcTableName[i]]));
                 $newConvElement.find('a').attr('href', '#' + Object.keys(schemaConversionObj.SrcSchema)[i]);
                 $newConvElement.find('a > span').html(Object.keys(schemaConversionObj.SrcSchema)[i]);
@@ -99,7 +117,40 @@
                 $newConvElement.find('.right-align.editInstruction.hide-content').attr('id', 'editInstruction' + i);
                 $newConvElement.find('#editSpanner' + i).click(function () {
                     let index = parseInt(jQuery(this).attr('id').match(/\d+/), 10);
-                    editAndSaveButtonHandler(jQuery(this), spPlaceholder, pkArray[index], pkSeqId[index], notNullFoundFlag[index], initialColNameArray[index], keyColumnMap[index], notPrimary[index], pksSp[index]);
+                    schemaConversionObj = JSON.parse(localStorage.getItem('conversionReportContent'));
+                    let spTable = schemaConversionObj.SpSchema[srcTableName[index]];
+                    initialColNameArray[index] = [];
+                    if (jQuery(this).html().trim() === "Edit Spanner Schema") {
+                        if (spTable.Fks != null && spTable.Fks.length != 0) {
+                            jQuery("#saveInterleave" + index).removeAttr('disabled');
+                            jQuery("#add" + index).removeAttr('disabled');
+                            jQuery("#interleave" + index).removeAttr('disabled');
+                            for (var p = 0; p < spTable.Fks.length; p++) {
+                                jQuery("#" + srcTableName[index] + p + 'foreignKey').removeAttr('disabled');
+                            }
+                        }
+                        if (spTable.Indexes != null && spTable.Indexes.length != 0) {
+                            for (var p = 0; p < spTable.Indexes.length; p++) {
+                                jQuery("#" + srcTableName[index] + p + 'secIndex').removeAttr('disabled');
+                            }
+                        }
+                    }
+                    else {
+                        if (spTable.Fks != null && spTable.Fks.length != 0) {
+                            jQuery("#saveInterleave" + index).attr('disabled', 'disabled');
+                            jQuery("#add" + index).attr('disabled', 'disabled');
+                            jQuery("#interleave" + index).attr('disabled', 'disabled');
+                            for (var p = 0; p < spTable.Fks.length; p++) {
+                                jQuery("#" + srcTableName[index] + p + 'foreignKey').attr('disabled', 'disabled');
+                            }
+                        }
+                        if (spTable.Indexes != null && spTable.Indexes.length != 0) {
+                            for (var p = 0; p < spTable.Indexes.length; p++) {
+                                jQuery("#" + srcTableName[index] + p + 'secIndex').attr('disabled', 'disabled');
+                            }
+                        }
+                    }
+                    editAndSaveButtonHandler(jQuery(this), spPlaceholder[index], pkArray[index], notNullFoundFlag[index], initialColNameArray[index], notPrimary[index]);
                 });
                 $newConvElement.find('.collapse.reportCollapse').attr('id', Object.keys(schemaConversionObj.SrcSchema)[i]);
                 $newConvElement.find('.mdc-card.mdc-card-content.table-card-border').addClass(mdcCardBorder(conversionRateResp[srcTableName[i]]));
@@ -156,7 +207,6 @@
                     primaryTabCell[i][k] = $convTableContent;
                     keyIconValue = 'keyIcon' + i + k + k;
                     keyColumnObj = { 'keyIconId': keyIconValue, 'columnName': currentColumnSp };
-                    keyColumnMap[i].push(keyColumnObj);
 
                     $convTableContent.find('.acc-table-td.srcDataType').attr('id', 'srcDataType' + i + k);
                     $convTableContent.find('.acc-table-td.srcDataType').html(srcTable.ColDefs[currentColumnSrc].Type.Name);
@@ -165,17 +215,16 @@
                     $convTableContent.find('.sp-column.acc-table-td.spannerDataType').addClass('spannerTabCell' + i + k);
 
                     countSrc[i][k] = 0;
-                    srcPlaceholder[constraintCount] = countSrc[i][k];
+                    srcPlaceholder[i][k] = countSrc[i][k];
                     if (srcTable.ColDefs[currentColumnSrc].NotNull !== undefined) {
                         if (srcTable.ColDefs[currentColumnSrc].NotNull === true) {
                             countSrc[i][k] = countSrc[i][k] + 1;
-                            srcPlaceholder[constraintCount] = countSrc[i][k];
+                            srcPlaceholder[i][k] = countSrc[i][k];
                             $convTableContent.find('.srcNotNullConstraint').addClass('active');
                         }
                     }
-                    constraintId = 'srcConstraint' + constraintCount;
+                    constraintId = 'srcConstraint' + i + k;
                     $convTableContent.find('.form-control.spanner-input.tableSelect.srcConstraint').attr('id', constraintId);
-                    constraintCount++;
 
                     countSp[i][k] = 0;
                     spPlaceholder[i][k] = countSp[i][k];
@@ -201,55 +250,56 @@
                 }
                 $newConvElement.find('.acc-table-body').find("tr").eq(0).remove();
                 if (spTable.Fks != null && spTable.Fks.length != 0) {
-                    let foreignKeyId, foreignKeyArray, tableName, foreignKeyPos;
+                    let foreignKeyId, tableNumber;
                     $newConvElement.find('.fkCard').removeClass('template');
                     $newConvElement.find('.fkFont').attr('href', '#foreignKey' + i);
+                    $newConvElement.find('fieldset').attr('id', 'radioBtnArea' + i);
                     $newConvElement.find('.fkFont').html('Foreign Keys');
                     $newConvElement.find('.collapse.fkCollapse').attr('id', 'foreignKey' + i);
                     $newConvElement.find('.radio.addRadio').attr('id', 'add' + i);
+                    $newConvElement.find('#add' + i).attr('name', 'fks' + i);
                     $newConvElement.find('.radio.interleaveRadio').attr('id', 'interleave' + i);
-                    $newConvElement.find('.save-interleave-button').attr('id', 'saveInterleave' + i);
-                    $newConvElement.find('.save-interleave-button').click(function () {
-                        let index = parseInt(jQuery(this).attr('id').match(/\d+/), 10);
-                        saveInterleaveHandler(index);
-                    });
+                    $newConvElement.find('#interleave' + i).attr('name', 'fks' + i);
+                    checkInterleaveConversion(i);
+                    $newConvElement.find('.fkTableBody').attr('id', 'fkTableBody' + i);
                     for (var p = 0; p < spTable.Fks.length; p++) {
                         $fkTableContent = $newConvElement.find('.fkTableTr.template').clone().removeClass('template');
-                        $fkTableContent.find('.acc-table-td.fkTableName').html(spTable.Fks[p].Name);
+                        $fkTableContent.find('.renameFk.template').attr('id', 'renameFk' + i + p);
+                        $fkTableContent.find('.saveFk.template').removeClass('template').attr('id', 'saveFk' + i + p).html(spTable.Fks[p].Name);
                         $fkTableContent.find('.acc-table-td.fkTableColumns').html(spTable.Fks[p].Columns);
                         $fkTableContent.find('.acc-table-td.fkTableReferTable').html(spTable.Fks[p].ReferTable);
                         $fkTableContent.find('.acc-table-td.fkTableReferColumns').html(spTable.Fks[p].ReferColumns);
                         $fkTableContent.find('button').attr('id', spTable.Name + p + 'foreignKey');
-                        $fkTableContent.find('button').click(function () {
+                        $fkTableContent.find('#' + spTable.Name + p + 'foreignKey').click(function () {
+                            tableNumber = parseInt(jQuery(this).closest('.collapse.fkCollapse').attr('id').match(/\d+/), 10);
                             foreignKeyId = jQuery(this).attr('id');
+                            localStorage.setItem('foreignKeyId', foreignKeyId);
+                            localStorage.setItem('tableNumber', tableNumber);
                             jQuery('#foreignKeyDeleteWarning').modal();
-                            $('#foreignKeyDeleteWarning .modal-footer button').on('click', function(event) {
-                                var $selectedButton = $(event.target);
-                                $(this).closest('.modal').one('hidden.bs.modal', function() {
-                                    if ($selectedButton[0].id === 'deleteRelation') {
-                                        foreignKeyArray = foreignKeyId.split(/([0-9]+)/);
-                                        tableName = foreignKeyArray[0];
-                                        foreignKeyPos = foreignKeyArray[1];
-                                        dropForiegnKeyHandler(tableName, foreignKeyPos);
-                                    }
-                                    else {
-                                        $('#foreignKeyDeleteWarning .modal-footer button').off();
-                                    }
-                                });
-                            });
                         });
                         $fkTableContent.appendTo($newConvElement.find('.fkTableBody'));
                     }
                 }
+                $newConvElement.find('.fkTableBody').find("tr").eq(0).remove();
+
+                $newConvElement.find('.indexesCard').removeClass('template');
+                $newConvElement.find('.indexFont').attr('href', '#indexKey' + i);
+                $newConvElement.find('.indexFont').html('Secondary Indexes');
+                $newConvElement.find('.indexTableBody').attr('id', 'indexTableBody' + i);
+                $newConvElement.find('.newIndexButton').attr('id', 'indexButton' + i);
+                $newConvElement.find('.collapse.indexCollapse').attr('id', 'indexKey' + i);
+                $newConvElement.find('.index-acc-table.fkTable').css('visibility', 'hidden');
+                $newConvElement.find('.index-acc-table.fkTable').addClass('importantRule0');
+                $newConvElement.find('.index-acc-table.fkTable').removeClass('importantRule100');
                 if (spTable.Indexes != null && spTable.Indexes.length != 0) {
-                    let indexKeys, indexId, indexArray, tableName, secIndexPos;
-                    $newConvElement.find('.indexesCard').removeClass('template');
-                    $newConvElement.find('.indexFont').attr('href', '#indexKey' + i);
-                    $newConvElement.find('.indexFont').html('Secondary Indexes');
-                    $newConvElement.find('.collapse.indexCollapse').attr('id', 'indexKey' + i);
+                    let indexKeys;
+                    $newConvElement.find('.index-acc-table.fkTable').css('visibility', 'visible');
+                    $newConvElement.find('.index-acc-table.fkTable').addClass('importantRule100');
+                    $newConvElement.find('.index-acc-table.fkTable').removeClass('importantRule0');
                     for (var p = 0; p < spTable.Indexes.length; p++) {
                         $indexTableContent = $newConvElement.find('.indexTableTr.template').clone().removeClass('template');
-                        $indexTableContent.find('.acc-table-td.indexesName').html(spTable.Indexes[p].Name);
+                        $indexTableContent.find('.renameSecIndex.template').attr('id', 'renameSecIndex' + i + p);
+                        $indexTableContent.find('.saveSecIndex.template').removeClass('template').attr('id', 'saveSecIndex' + i + p).html(spTable.Indexes[p].Name);
                         $indexTableContent.find('.acc-table-td.indexesTable').html(spTable.Indexes[p].Table);
                         $indexTableContent.find('.acc-table-td.indexesUnique').html(spTable.Indexes[p].Unique.toString());
                         indexKeys = '';
@@ -259,46 +309,24 @@
                         indexKeys = indexKeys.replace(/,\s*$/, "");
                         $indexTableContent.find('.acc-table-td.indexesKeys').html(indexKeys);
                         $indexTableContent.find('button').attr('id', spTable.Name + p + 'secIndex');
-                        $indexTableContent.find('button').click(function () {
-                            indexId = jQuery(this).attr('id');
-                            jQuery('#foreignKeyDeleteWarning').modal();
-                            $('#foreignKeyDeleteWarning .modal-footer button').one('click', function(event) {
-                                var $selectedButton = $(event.target);
-                                $('#foreignKeyDeleteWarning').on('hidden.bs.modal', function() {
-                                    if ($selectedButton[0].id === 'deleteRelation') {
-                                        $('#foreignKeyDeleteWarning .modal-footer button').off();
-                                        indexArray = indexId.split(/([0-9]+)/);
-                                        tableName = indexArray[0];
-                                        secIndexPos = indexArray[1];
-                                        dropSecondaryIndexHandler(tableName, secIndexPos);
-                                    }
-                                    else {
-                                        $('#foreignKeyDeleteWarning .modal-footer button').off();
-                                    }
-                                });
-                            });
+                        $indexTableContent.find('#' + spTable.Name + p + 'secIndex').click(function () {
+                            let indexId = jQuery(this).attr('id');
+                            let secIndexTableNumber = parseInt(jQuery(this).closest('.indexCollapse.collapse').attr('id').match(/\d+/), 10);
+                            localStorage.setItem('indexId', indexId);
+                            localStorage.setItem('secIndexTableNumber', secIndexTableNumber);
+                            jQuery('#secIndexDeleteWarning').modal();
                         });
                         $indexTableContent.appendTo($newConvElement.find('.indexTableBody'));
                     }
                 }
+                $newConvElement.find('.indexTableBody').find("tr").eq(0).remove();
                 $newConvElement.find('.summaryFont').attr('href', '#viewSummary' + i);
-                $newConvElement.find('.collapse.summaryCollapse').attr('id', 'viewSummary' + i);
+                $newConvElement.find('.collapse.innerSummaryCollapse').attr('id', 'viewSummary' + i);
                 $newConvElement.find('.mdc-card.summary-content').html(JSON.parse(localStorage.getItem('summaryReportContent'))[srcTableName[i]].split('\n').join('<br />'));
                 $newConvElement.appendTo('#reportDiv');
             }
             // showSnackbar('schema converted successfully !!', ' greenBg');
             initSchemaScreenTasks();
-            constraintCount--;
-            while (constraintCount >= 0) {
-                if (document.getElementById('srcConstraint' + constraintCount) != null) {
-                    new vanillaSelectBox('#srcConstraint' + constraintCount, {
-                        placeHolder: srcPlaceholder[constraintCount] + " constraints selected",
-                        maxWidth: 500,
-                        maxHeight: 300
-                    });
-                }
-                constraintCount--;
-            }
             for (var i = 0; i < srcTableNum; i++) {
                 let tableId = '#src-sp-table' + i;
                 jQuery(tableId).DataTable();
@@ -309,8 +337,16 @@
                 let spTableColsLength = spTableCols.length;
                 for (var j = 0; j < spTableColsLength; j++) {
                     if (document.getElementById('spConstraint' + i + j) != null) {
+                        // if (jQuery('#src-sp-table' + i).find('#spConstraint' + i + j) != null) {
                         new vanillaSelectBox('#spConstraint' + i + j, {
                             placeHolder: spPlaceholder[i][j] + " constraints selected",
+                            maxWidth: 500,
+                            maxHeight: 300
+                        });
+                    }
+                    if (document.getElementById('srcConstraint' + i + j) != null) {
+                        new vanillaSelectBox('#srcConstraint' + i + j, {
+                            placeHolder: srcPlaceholder[i][j] + " constraints selected",
                             maxWidth: 500,
                             maxHeight: 300
                         });
@@ -326,7 +362,7 @@
 </script>
 
 <div class="summary-main-content" id='schema-screen-content'>
-    <div id="snackbar"></div>
+    <div id="snackbar" style="z-index: 10000 !important; position: fixed;"></div>
     <div class='spinner-backdrop' id='toggle-spinner'>
         <div id="spinner"></div>
     </div>
@@ -535,7 +571,7 @@
                                                     </tr>
                                                 </tbody>
                                             </table>
-                                            <div class='fkCard template'>
+                                            <div class='fkCard template' style="border-radius: 0px !important;">
                                                 <div class='foreignKeyHeader' role='tab'>
                                                     <h5 class='mb-0'>
                                                         <a class='fkFont' data-toggle='collapse'>
@@ -547,20 +583,19 @@
                                                     <div class='mdc-card mdc-card-content summaryBorder'
                                                         style='border: 0px;'>
                                                         <div class='mdc-card fk-content'>
-                                                            <fieldset style='overflow: hidden;'>
+                                                            <fieldset>
                                                                 <div class="radio-class">
                                                                     <input type="radio" class="radio addRadio"
-                                                                        name="fks" value="add" checked='checked' />
-                                                                    <label style='margin-right: 15px;' for="add">Use as
-                                                                        Foreign Key</label>
+                                                                        value="add" checked="checked" disabled />
+                                                                    <label style='margin-right: 15px;' for="add">
+                                                                        Use as Foreign Key</label>
                                                                     <input type="radio" class="radio interleaveRadio"
-                                                                        name="fks" value="interleave" />
+                                                                        value="interleave" disabled />
                                                                     <label style='margin-right: 15px;'
                                                                         for="interleave">Convert to Interleave</label>
                                                                 </div>
-                                                                <button style='float: right; padding: 0px 20px;'
-                                                                    class='save-interleave-button'>Save</button>
-                                                            </fieldset><br>
+                                                            </fieldset>
+                                                            <br>
                                                             <table class='fk-acc-table fkTable'>
                                                                 <thead>
                                                                     <tr>
@@ -573,7 +608,14 @@
                                                                 </thead>
                                                                 <tbody class='fkTableBody'>
                                                                     <tr class='fkTableTr template'>
-                                                                        <td class='acc-table-td fkTableName'></td>
+                                                                        <td class='acc-table-td fkTableName'>
+                                                                            <div class='renameFk template'>
+                                                                                <input type="text"
+                                                                                    class="form-control spanner-input"
+                                                                                    autocomplete='off'>
+                                                                            </div>
+                                                                            <div class='saveFk template'></div>
+                                                                        </td>
                                                                         <td class='acc-table-td fkTableColumns'></td>
                                                                         <td class='acc-table-td fkTableReferTable'></td>
                                                                         <td class='acc-table-td fkTableReferColumns'>
@@ -582,10 +624,12 @@
                                                                             <button class="dropButton"
                                                                                 data-toggle="tooltip"
                                                                                 data-placement="bottom"
-                                                                                title="this will delete foreign key permanently">
-                                                                                <span><i
-                                                                                        class="large material-icons removeIcon" style="vertical-align: middle;">delete</i></span>
-                                                                                <span style="vertical-align: middle;">Drop</span>
+                                                                                title="this will delete foreign key permanently"
+                                                                                disabled>
+                                                                                <span><i class="large material-icons removeIcon"
+                                                                                        style="vertical-align: middle;">delete</i></span>
+                                                                                <span
+                                                                                    style="vertical-align: middle;">Drop</span>
                                                                             </button>
                                                                         </td>
                                                                     </tr>
@@ -595,7 +639,7 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class='indexesCard template'>
+                                            <div class='indexesCard template' style="border-radius: 0px !important;">
                                                 <div class='foreignKeyHeader' role='tab'>
                                                     <h5 class='mb-0'>
                                                         <a class='indexFont' data-toggle='collapse'>
@@ -607,9 +651,9 @@
                                                     <div class='mdc-card mdc-card-content summaryBorder'
                                                         style='border: 0px;'>
                                                         <div class='mdc-card fk-content'>
-                                                            <fieldset style='overflow: hidden;'>
-                                                            </fieldset><br>
-                                                            <table class='fk-acc-table fkTable'>
+                                                            <button class='newIndexButton'
+                                                                onclick="createNewSecIndex(this.id)">Add Index</button>
+                                                            <table class='index-acc-table fkTable'>
                                                                 <thead>
                                                                     <tr>
                                                                         <th>Name</th>
@@ -621,18 +665,24 @@
                                                                 </thead>
                                                                 <tbody class='indexTableBody'>
                                                                     <tr class='indexTableTr template'>
-                                                                        <td class='acc-table-td indexesName'></td>
+                                                                        <td class='acc-table-td indexesName'>
+                                                                            <div class='renameSecIndex template'>
+                                                                                <input type="text"
+                                                                                    class="form-control spanner-input"
+                                                                                    autocomplete='off'>
+                                                                            </div>
+                                                                            <div class='saveSecIndex template'></div>
+                                                                        </td>
                                                                         <td class='acc-table-td indexesTable'></td>
                                                                         <td class='acc-table-td indexesUnique'></td>
                                                                         <td class='acc-table-td indexesKeys'></td>
                                                                         <td class='acc-table-td indexesAction'>
                                                                             <button class="dropButton"
-                                                                                data-toggle="tooltip"
-                                                                                data-placement="bottom"
-                                                                                title="this will delete secondary index permanently">
-                                                                                <span><i
-                                                                                        class="large material-icons removeIcon" style="vertical-align: middle;">delete</i></span>
-                                                                                <span style="vertical-align: middle;">Drop</span>
+                                                                                disabled>
+                                                                                <span><i class="large material-icons removeIcon"
+                                                                                        style="vertical-align: middle;">delete</i></span>
+                                                                                <span
+                                                                                    style="vertical-align: middle;">Drop</span>
                                                                             </button>
                                                                         </td>
                                                                     </tr>
@@ -645,10 +695,11 @@
                                             <div class='summaryCard'>
                                                 <div class='summaryCardHeader' role='tab'>
                                                     <h5 class='mb-0'>
-                                                        <a data-toggle='collapse' class='summaryFont'>View Summary</a>
+                                                        <a data-toggle='collapse' class='summaryFont'>View
+                                                            Summary</a>
                                                     </h5>
                                                 </div>
-                                                <div class='collapse summaryCollapse'>
+                                                <div class='collapse innerSummaryCollapse'>
                                                     <div class='mdc-card mdc-card-content summaryBorder'
                                                         style='border: 0px;'>
                                                         <div class='mdc-card summary-content'></div>
@@ -766,18 +817,154 @@
         <div class="modal-content">
             <div class="modal-header content-center">
                 <h5 class="modal-title modal-bg" id="exampleModalLongTitle">Warning</h5>
-                <i class="large material-icons close" data-dismiss="modal" onclick='clearModal()'>cancel</i>
+                <i class="large material-icons close" data-dismiss="modal">cancel</i>
             </div>
             <div class="modal-body" style='margin-bottom: 20px; display: inherit;'>
-                <div><i class="large material-icons connectionFailure" style="color: #E1AD01D4 !important;">warning</i></div>
+                <div><i class="large material-icons connectionFailure" style="color: #E1AD01D4 !important;">warning</i>
+                </div>
                 <div id="failureContent">
-                    This action will permanently delete the relationship of current table with all other tables.
-                    Do you still want to continue ?
+                    This will permanently delete the foreign key constraint and the corresponding uniqueness constraints
+                    on referenced columns. Do you want to continue?
                 </div>
             </div>
             <div class="modal-footer">
-                <button id="deleteRelation" data-dismiss="modal" class="connectButton" type="button">Yes</button>
-                <button id="undoDeleteRelation" data-dismiss="modal" class="connectButton" type="button">No</button>
+                <button data-dismiss="modal" class="connectButton" type="button"
+                    onclick="dropForeignKeyHandler()">Yes</button>
+                <button data-dismiss="modal" class="connectButton" type="button">No</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="secIndexDeleteWarning" role="dialog" tabindex="-1" aria-labelledby="exampleModalCenterTitle"
+    aria-hidden="true" data-backdrop="static" data-keyboard="false" style="z-index: 999999;">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <!-- Modal content-->
+        <div class="modal-content">
+            <div class="modal-header content-center">
+                <h5 class="modal-title modal-bg" id="exampleModalLongTitle">Warning</h5>
+                <i class="large material-icons close" data-dismiss="modal">cancel</i>
+            </div>
+            <div class="modal-body" style='margin-bottom: 20px; display: inherit;'>
+                <div><i class="large material-icons connectionFailure" style="color: #E1AD01D4 !important;">warning</i>
+                </div>
+                <div id="failureContent">
+                    This will permanently delete the secondary index and the corresponding uniqueness constraints on
+                    indexed columns (if applicable). Do you want to continue?
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button data-dismiss="modal" class="connectButton" type="button"
+                    onclick="dropSecondaryIndexHandler()">Yes</button>
+                <button data-dismiss="modal" class="connectButton" type="button">No</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="editTableWarningModal" role="dialog" tabindex="-1" aria-labelledby="exampleModalCenterTitle"
+    aria-hidden="true" data-backdrop="static" data-keyboard="false" style="z-index: 999999;">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <!-- Modal content-->
+        <div class="modal-content">
+            <div class="modal-header content-center">
+                <h5 class="modal-title modal-bg" id="exampleModalLongTitle">Error Message</h5>
+                <i class="large material-icons close" data-dismiss="modal">cancel</i>
+            </div>
+            <div class="modal-body" style='margin-bottom: 20px; display: inherit;'>
+                <div><i class="large material-icons connectionFailure" style="color: #FF0000 !important;">cancel</i>
+                </div>
+                <div id="errorContent">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button data-dismiss="modal" class="connectButton" type="button">Ok</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="editColumnNameErrorModal" role="dialog" tabindex="-1" aria-labelledby="exampleModalCenterTitle"
+    aria-hidden="true" data-backdrop="static" data-keyboard="false" style="z-index: 999999;">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <!-- Modal content-->
+        <div class="modal-content">
+            <div class="modal-header content-center">
+                <h5 class="modal-title modal-bg" id="exampleModalLongTitle">Error Message</h5>
+                <i class="large material-icons close" data-dismiss="modal">cancel</i>
+            </div>
+            <div class="modal-body" style='margin-bottom: 20px; display: inherit;'>
+                <div><i class="large material-icons connectionFailure" style="color: #FF0000 !important;">cancel</i>
+                </div>
+                <div id="editColumnNameErrorContent">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button data-dismiss="modal" class="connectButton" type="button">Ok</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="createIndexModal" role="dialog" tabindex="-1" aria-labelledby="exampleModalCenterTitle"
+    aria-hidden="true" data-backdrop="static" data-keyboard="false" style="z-index: 999999;">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <!-- Modal content-->
+        <div class="modal-content">
+            <div class="modal-header content-center">
+                <h5 class="modal-title modal-bg" id="exampleModalLongTitle">Select keys for new index</h5>
+                <i class="large material-icons close" data-dismiss="modal" onclick="clearModal()">cancel</i>
+            </div>
+            <div class="modal-body" style='margin-bottom: 20px;'>
+
+
+                <form id="createIndexForm">
+                    <div class="form-group secIndexLabel">
+                        <label for="indexName" class="bmd-label-floating" style="color: black; width: 452px;">Enter
+                            secondary index name</label>
+                        <input type="text" class="form-control" name="indexName" id="indexName" autocomplete="off"
+                            onfocusout="validateInput(document.getElementById('indexName'), 'indexNameError')"
+                            style="border: 1px solid black !important;">
+                        <span class='formError' id='indexNameError'></span>
+                    </div>
+                    <div class="newIndexColumnList template">
+                        <span class="orderId" style="visibility: hidden;">1</span><span class="columnName"></span>
+
+                        <span class="bmd-form-group is-filled">
+                            <div class="checkbox" style="float: right;">
+                                <label>
+                                    <input type="checkbox" value="">
+                                    <span class="checkbox-decorator"><span class="check"
+                                            style="border: 1px solid black;"></span>
+                                        <div class="ripple-container"></div>
+                                    </span>
+                                </label>
+                            </div>
+
+                        </span>
+                    </div>
+                    <div id="newIndexColumnListDiv" style="max-height: 200px; overflow-y: auto; overflow-x: hidden;"></div>
+                    <!-- <div style="display: inline-flex;">
+                        <div class="pmd-chip">Example Chip <a class="pmd-chip-action" href="javascript:void(0);">
+                            <i class="material-icons">close</i></a>
+                        </div>
+                    </div>
+                    <br> -->
+                    <div style="display: inline-flex;">
+                        <span style="margin-top: 18px; margin-right: 10px;">Unique</span>
+                        <label class="switch">
+                            <input id="uniqueSwitch" type="checkbox">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </form>
+
+
+            </div>
+            <div class="modal-footer">
+                <input type="submit"
+                    onclick="fetchIndexFormValues(document.getElementById('indexName').value, document.getElementById('uniqueSwitch').checked)"
+                    id="createIndexButton" class="connectButton" value="Create" disabled>
             </div>
         </div>
     </div>

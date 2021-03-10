@@ -50,11 +50,19 @@
     let session, sessionName, sessionDate, sessionTime, $sessionTableRow;
     jQuery('.sessionTableImg').addClass('template');
     jQuery('.sessionTableNoContent').addClass('template');
+    let http = new XMLHttpRequest();
     for (var x = 0; x < sessionArrayLength; x++) {
       session = sessionArray[x];
       timestampArray = session.createdAt.split(' ');
       sessionName = session.filePath.split('/');
       sessionName = sessionName[sessionName.length - 1];
+      http.open('HEAD', './' + sessionName, false);
+      http.send();
+      if (http.status !== 200) {
+        sessionArray.splice(x, 1);
+        sessionStorage.setItem('sessionStorage', JSON.stringify(sessionArray));
+        continue;
+      }
       sessionDate = [timestampArray[0], timestampArray[1], timestampArray[2], timestampArray[3]].join(' ');
       sessionTime = [timestampArray[4], timestampArray[5]].join(' ');
       $sessionTableRow = jQuery('.sessions.template').clone().removeClass('template');
@@ -66,6 +74,10 @@
         resumeSessionHandler(jQuery(this).attr('id'), sessionArray);
       });
       $sessionTableRow.appendTo('#session-table-content');
+    }
+    if (sessionArray.length == 0) {
+      jQuery('.sessionTableImg').removeClass('template');
+      jQuery('.sessionTableNoContent').removeClass('template');
     }
   }
 </script>

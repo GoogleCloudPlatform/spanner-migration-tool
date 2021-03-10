@@ -17,52 +17,96 @@ const initSchemaScreenTasks = () => {
   jQuery(document).ready(() => {
     setActiveSelectedMenu('schemaScreen');
     $(".modal-backdrop").hide();
-    jQuery('.reportCollapse').on('show.bs.collapse', function() {
-      jQuery(this).closest('.card').find('.rotate-icon').toggleClass('down');
-      reportAccCount = reportAccCount + 1;
-      document.getElementById('reportExpandButton').innerHTML = 'Collapse All';
-    });
-
-    jQuery('.reportCollapse').on('hide.bs.collapse', function() {
-      jQuery(this).closest('.card').find('.rotate-icon').toggleClass('down');
-      reportAccCount = reportAccCount - 1;
-      if (reportAccCount === 0) {
-        document.getElementById('reportExpandButton').innerHTML = 'Expand All';
+    jQuery('.collapse.reportCollapse').on('show.bs.collapse', function () {
+      if (!jQuery(this).closest('section').hasClass('template')) {
+        jQuery(this).closest('.card').find('.rotate-icon').addClass('down');
+        jQuery(this).closest('.card').find('.card-header .right-align').toggleClass('show-content hide-content');
+        jQuery(this).closest('.card').find('.report-card-header').toggleClass('borderBottom remBorderBottom');
+        reportAccCount = reportAccCount + 1;
+        document.getElementById('reportExpandButton').innerHTML = 'Collapse All';
       }
     });
+    jQuery('.collapse.reportCollapse').on('hide.bs.collapse', function () {
+      if (!jQuery(this).closest('section').hasClass('template')) {
+        jQuery(this).closest('.card').find('.rotate-icon').removeClass('down');
+        jQuery(this).closest('.card').find('.card-header .right-align').toggleClass('show-content hide-content');
+        jQuery(this).closest('.card').find('.report-card-header').toggleClass('borderBottom remBorderBottom');
+        reportAccCount = reportAccCount - 1;
+        if (reportAccCount === 0) {
+          document.getElementById('reportExpandButton').innerHTML = 'Expand All';
+        }
+      }
+    });
 
-    jQuery('.ddlCollapse').on('show.bs.collapse', function() {
-      jQuery(this).closest('.card').find('.rotate-icon').toggleClass('down');
-      ddlAccCount = ddlAccCount + 1;
-      document.getElementById('ddlExpandButton').innerHTML = 'Collapse All';
+    jQuery('.collapse.innerSummaryCollapse').on('show.bs.collapse', function (e) {
+      if (!jQuery(this).closest('section').hasClass('template')) {
+        e.stopPropagation();
+      }
+    });
+    jQuery('.collapse.innerSummaryCollapse').on('hide.bs.collapse', function (e) {
+      if (!jQuery(this).closest('section').hasClass('template')) {
+        e.stopPropagation();
+      }
+    });
+
+    jQuery('.collapse.fkCollapse').on('show.bs.collapse', function (e) {
+      if (!jQuery(this).closest('section').hasClass('template')) {
+        e.stopPropagation();
+      }
+    });
+    jQuery('.collapse.fkCollapse').on('hide.bs.collapse', function (e) {
+      if (!jQuery(this).closest('section').hasClass('template')) {
+        e.stopPropagation();
+      }
+    });
+
+    jQuery('.collapse.indexCollapse').on('show.bs.collapse', function (e) {
+      if (!jQuery(this).closest('section').hasClass('template')) {
+        e.stopPropagation();
+      }
+    });
+    jQuery('.collapse.indexCollapse').on('hide.bs.collapse', function (e) {
+      if (!jQuery(this).closest('section').hasClass('template')) {
+        e.stopPropagation();
+      }
+    });
+
+    jQuery('.collapse.ddlCollapse').on('show.bs.collapse', function () {
+      if (!jQuery(this).closest('section').hasClass('template')) {
+        jQuery(this).closest('.card').find('.rotate-icon').addClass('down');
+        jQuery(this).closest('.card').find('.ddl-card-header').toggleClass('ddlBorderBottom ddlRemBorderBottom');
+        ddlAccCount = ddlAccCount + 1;
+        document.getElementById('ddlExpandButton').innerHTML = 'Collapse All';
+      }
     })
-
-    jQuery('.ddlCollapse').on('hide.bs.collapse', function() {
-      jQuery(this).closest('.card').find('.rotate-icon').toggleClass('down');
-      ddlAccCount = ddlAccCount - 1;
-      if (ddlAccCount === 0) {
-        document.getElementById('ddlExpandButton').innerHTML = 'Expand All';
+    jQuery('.collapse.ddlCollapse').on('hide.bs.collapse', function () {
+      if (!jQuery(this).closest('section').hasClass('template')) {
+        jQuery(this).closest('.card').find('.rotate-icon').removeClass('down');
+        jQuery(this).closest('.card').find('.ddl-card-header').toggleClass('ddlBorderBottom ddlRemBorderBottom');
+        ddlAccCount = ddlAccCount - 1;
+        if (ddlAccCount === 0) {
+          document.getElementById('ddlExpandButton').innerHTML = 'Expand All';
+        }
       }
     })
 
-    jQuery('.summaryCollapse').on('show.bs.collapse', function() {
-      jQuery(this).closest('.card').find('.rotate-icon').toggleClass('down');
-      summaryAccCount = summaryAccCount + 1;
-      document.getElementById('summaryExpandButton').innerHTML = 'Collapse All';
-    })
-
-    jQuery('.summaryCollapse').on('hide.bs.collapse', function() {
-      jQuery(this).closest('.card').find('.rotate-icon').toggleClass('down');
-      summaryAccCount = summaryAccCount - 1;
-      if (summaryAccCount === 0) {
-        document.getElementById('summaryExpandButton').innerHTML = 'Expand All';
+    jQuery('.collapse.summaryCollapse').on('show.bs.collapse', function () {
+      if (!jQuery(this).closest('section').hasClass('template')) {
+        jQuery(this).closest('.card').find('.rotate-icon').addClass('down');
+        jQuery(this).closest('.card').find('.ddl-card-header').toggleClass('ddlBorderBottom ddlRemBorderBottom');
+        summaryAccCount = summaryAccCount + 1;
+        document.getElementById('summaryExpandButton').innerHTML = 'Collapse All';
       }
     })
-
-    jQuery('.collapse').on('show.bs.collapse hide.bs.collapse', function() {
-      jQuery(this).closest('.card').find('.card-header .right-align').toggleClass('show-content hide-content');
-      jQuery(this).closest('.card').find('.report-card-header').toggleClass('borderBottom remBorderBottom');
-      jQuery(this).closest('.card').find('.ddl-card-header').toggleClass('ddlBorderBottom ddlRemBorderBottom');
+    jQuery('.collapse.summaryCollapse').on('hide.bs.collapse', function () {
+      if (!jQuery(this).closest('section').hasClass('template')) {
+        jQuery(this).closest('.card').find('.rotate-icon').removeClass('down');
+        jQuery(this).closest('.card').find('.ddl-card-header').toggleClass('ddlBorderBottom ddlRemBorderBottom');
+        summaryAccCount = summaryAccCount - 1;
+        if (summaryAccCount === 0) {
+          document.getElementById('summaryExpandButton').innerHTML = 'Expand All';
+        }
+      }
     });
   });
 }
@@ -75,6 +119,7 @@ const initSchemaScreenTasks = () => {
  */
 const searchTable = (tabId) => {
   let searchInput, searchInputFilter, tableVal, list, listElem, elem;
+  let schemaConversionObj = JSON.parse(localStorage.getItem('conversionReportContent'));
   let flag = false;
   elem = document.getElementById('tabBg');
   if (elem) {
@@ -87,18 +132,18 @@ const searchTable = (tabId) => {
   }
   list = document.getElementById(tableListArea);
   if (list) {
-    list.style.display = ''; 
+    list.style.display = '';
   }
   listElem = list.getElementsByTagName('section');
   tableListLength = Object.keys(schemaConversionObj.SpSchema).length;
   for (var i = 0; i < tableListLength; i++) {
     tableVal = Object.keys(schemaConversionObj.SpSchema)[i];
     if (tableVal.toUpperCase().indexOf(searchInputFilter) > -1) {
-      listElem[i+1].style.display = '';
+      listElem[i + 1].style.display = '';
       flag = true;
     }
     else {
-      listElem[i+1].style.display = 'none';
+      listElem[i + 1].style.display = 'none';
     }
   }
   if (flag === false) {
@@ -112,7 +157,7 @@ const searchTable = (tabId) => {
  *
  * @return {null}
  */
-const setGlobalDataType = async() => {
+const setGlobalDataType = async () => {
   let globalDataTypeList = JSON.parse(localStorage.getItem('globalDataTypeList'));
   let dataTypeListLength = Object.keys(globalDataTypeList).length;
   let dataTypeJson = {};
@@ -140,12 +185,12 @@ const setGlobalDataType = async() => {
     },
     body: JSON.stringify(dataTypeJson)
   })
-  .then(async function (res) {
-    res = await res.text();
-    localStorage.setItem('conversionReportContent', res);
-    await ddlSummaryAndConversionApiCall();
-    router();
-  })
+    .then(async function (res) {
+      res = await res.text();
+      localStorage.setItem('conversionReportContent', res);
+      await ddlSummaryAndConversionApiCall();
+      router();
+    })
 }
 
 /**
@@ -153,14 +198,14 @@ const setGlobalDataType = async() => {
  *
  * @return {null}
  */
-const downloadSession = async() => {
+const downloadSession = async () => {
   jQuery("<a />", {
     "download": "session.json",
     "href": "data:application/json;charset=utf-8," + encodeURIComponent(localStorage.getItem('conversionReportContent'), null, 4),
   }).appendTo("body")
-  .click(function () {
-    jQuery(this).remove()
-  })[0].click();
+    .click(function () {
+      jQuery(this).remove()
+    })[0].click();
 }
 
 /**
@@ -168,21 +213,21 @@ const downloadSession = async() => {
  *
  * @return {null}
  */
-const downloadDdl = async() => {
+const downloadDdl = async () => {
   await fetch('/schema')
-  .then(async function (response) {
-    if (response.ok) {
-      await response.text().then(function (result) {
-        localStorage.setItem('schemaFilePath', result);
-      });
-    }
-    else {
-      Promise.reject(response);
-    }
-  })
-  .catch(function (err) {
-    showSnackbar(err, ' redBg');
-  });
+    .then(async function (response) {
+      if (response.ok) {
+        await response.text().then(function (result) {
+          localStorage.setItem('schemaFilePath', result);
+        });
+      }
+      else {
+        Promise.reject(response);
+      }
+    })
+    .catch(function (err) {
+      showSnackbar(err, ' redBg');
+    });
   let schemaFilePath = localStorage.getItem('schemaFilePath');
   let schemaFileName = schemaFilePath.split('/')[schemaFilePath.split('/').length - 1];
   let filePath = './' + schemaFileName;
@@ -191,9 +236,9 @@ const downloadDdl = async() => {
       "download": schemaFileName,
       "href": "data:application/json;charset=utf-8," + encodeURIComponent(text),
     }).appendTo("body")
-    .click(function () {
-      jQuery(this).remove()
-    })[0].click()
+      .click(function () {
+        jQuery(this).remove()
+      })[0].click()
   });
 }
 
@@ -202,21 +247,21 @@ const downloadDdl = async() => {
  *
  * @return {null}
  */
-const downloadReport = async() => {
+const downloadReport = async () => {
   await fetch('/report')
-  .then(async function (response) {
-    if (response.ok) {
-      await response.text().then(function (result) {
-        localStorage.setItem('reportFilePath', result);
-      });
-    }
-    else {
-      Promise.reject(response);
-    }
-  })
-  .catch(function (err) {
-    showSnackbar(err, ' redBg');
-  });
+    .then(async function (response) {
+      if (response.ok) {
+        await response.text().then(function (result) {
+          localStorage.setItem('reportFilePath', result);
+        });
+      }
+      else {
+        Promise.reject(response);
+      }
+    })
+    .catch(function (err) {
+      showSnackbar(err, ' redBg');
+    });
   let reportFilePath = localStorage.getItem('reportFilePath');
   let reportFileName = reportFilePath.split('/')[reportFilePath.split('/').length - 1];
   let filePath = './' + reportFileName;
@@ -225,9 +270,9 @@ const downloadReport = async() => {
       "download": reportFileName,
       "href": "data:application/json;charset=utf-8," + encodeURIComponent(text),
     }).appendTo("body")
-    .click(function () {
-      jQuery(this).remove()
-    })[0].click();
+      .click(function () {
+        jQuery(this).remove()
+      })[0].click();
   })
 }
 
@@ -302,18 +347,18 @@ const getGlobalDataTypeList = () => {
       'Content-Type': 'application/json'
     }
   })
-  .then(function (res) {
-    if (res.ok) {
-      res.json().then(function (result) {
-        localStorage.setItem('globalDataTypeList', JSON.stringify(result));
-      });
-    }
-    else {
-      return Promise.reject(res);
-    }
-  }).catch(function (err) {
-    showSnackbar(err, ' redBg');
-  });
+    .then(function (res) {
+      if (res.ok) {
+        res.json().then(function (result) {
+          localStorage.setItem('globalDataTypeList', JSON.stringify(result));
+        });
+      }
+      else {
+        return Promise.reject(res);
+      }
+    }).catch(function (err) {
+      showSnackbar(err, ' redBg');
+    });
 }
 
 /**
@@ -325,7 +370,7 @@ const createEditDataTypeTable = () => {
   let globalDataTypeList = JSON.parse(localStorage.getItem('globalDataTypeList'));
   let dataTypeListLength = Object.keys(globalDataTypeList).length;
   for (var i = 0; i < dataTypeListLength; i++) {
-    if (document.getElementById('dataTypeRow' + (i+1)) !== null) {
+    if (document.getElementById('dataTypeRow' + (i + 1)) !== null) {
       break
     }
     if (globalDataTypeList[Object.keys(globalDataTypeList)[i]] !== null) {
@@ -358,7 +403,7 @@ const createEditDataTypeTable = () => {
         }
       }
       $dataTypeRow.find('select').find("option").eq(0).remove();
-      $dataTypeRow.find('#dataTypeOption' + (i+1)).unbind('change').bind('change', function() {
+      $dataTypeRow.find('#dataTypeOption' + (i + 1)).unbind('change').bind('change', function () {
         dataTypeUpdate(jQuery(this).attr('id'), globalDataTypeList);
       });
       $dataTypeRow.appendTo(jQuery('#globalDataTypeTable'));
@@ -381,7 +426,7 @@ const dataTypeUpdate = (id, globalDataTypeList) => {
   let length = dataTypeOptionArray.length;
   let $dataTypeSel = jQuery('.globalDataTypeRow.template').clone();
   $dataTypeSel.find('.src-td').attr('id', 'dataTypeKey' + idNum);
-  $dataTypeSel.find('.src-td').html(Object.keys(globalDataTypeList)[idNum-1]);
+  $dataTypeSel.find('.src-td').html(Object.keys(globalDataTypeList)[idNum - 1]);
   $dataTypeSel.find('i').css('visibility', 'hidden');
   for (var x = 0; x < length; x++) {
     let $dataTypeOption = $dataTypeSel.find('.dataTypeOption.template').clone().removeClass('template');
@@ -405,7 +450,7 @@ const dataTypeUpdate = (id, globalDataTypeList) => {
   }
   $dataTypeSel.find('select').find("option").eq(0).remove();
   $dataTypeSel.find('select').attr('id', id);
-  jQuery(this).unbind('change').bind('change', function() {
+  jQuery(this).unbind('change').bind('change', function () {
     dataTypeUpdate(id, globalDataTypeList);
   });
   jQuery("#dataTypeRow" + idNum).html($dataTypeSel.html());
