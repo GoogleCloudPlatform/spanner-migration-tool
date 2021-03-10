@@ -457,10 +457,15 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	if table == "" {
 		http.Error(w, fmt.Sprintf("Table name is empty"), http.StatusBadRequest)
 	}
-	tableInterleaveIssues := parentTableHelper(table, update)
+	parentTableHelper(table, update)
 	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{"tableInterleaveIssues": tableInterleaveIssues, "sessionStateConv": sessionState.conv})
+
+	if update {
+		json.NewEncoder(w).Encode(sessionState.conv)
+	} else {
+		json.NewEncoder(w).Encode(map[string]interface{}{"Possible": false, "Parent": "", "Comment": "No valid prefix"})
+	}
 }
 
 func parentTableHelper(table string, update bool) *TableInterleaveStatus {
