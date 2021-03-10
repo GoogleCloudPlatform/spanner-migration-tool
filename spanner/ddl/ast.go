@@ -169,6 +169,7 @@ type CreateTable struct {
 	Pks      []IndexKey
 	Fks      []Foreignkey
 	Indexes  []CreateIndex
+	Parent   string //if not empty, this table will be interleaved
 	Comment  string
 }
 
@@ -203,7 +204,11 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	if config.Comments && len(ct.Comment) > 0 {
 		tableComment = "--\n-- " + ct.Comment + "\n--\n"
 	}
-	return fmt.Sprintf("%sCREATE TABLE %s (%s\n) PRIMARY KEY (%s)", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "))
+	var interleave string
+	if ct.Parent != "" {
+		interleave = ",\nINTERLEAVE IN PARENT " + config.quote(ct.Parent)
+	}
+	return fmt.Sprintf("%sCREATE TABLE %s (%s\n) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 }
 
 // CreateIndex encodes the following DDL definition:
