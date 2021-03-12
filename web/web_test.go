@@ -1052,7 +1052,6 @@ func TestGetConversionMySQL(t *testing.T) {
 }
 
 func TestSetParentTable(t *testing.T) {
-
 	tests := []struct {
 		name             string
 		ct               *internal.Conv
@@ -1314,15 +1313,15 @@ func TestSetParentTable(t *testing.T) {
 		var res *TableInterleaveStatus
 		json.Unmarshal(rr.Body.Bytes(), &res)
 		if status := rr.Code; int64(status) != tc.statusCode {
-			t.Errorf("handler returned wrong status code: got %v want %v",
-				status, tc.statusCode)
+			t.Errorf("%s\nhandler returned wrong status code: got %v want %v",
+				tc.name, status, tc.statusCode)
 		}
 		if tc.statusCode == http.StatusOK {
-			assert.Equal(t, tc.expectedResponse, res)
+			assert.Equal(t, tc.expectedResponse, res, tc.name)
 		}
 		if tc.parentTable != "" {
-			assert.Equal(t, tc.parentTable, sessionState.conv.SpSchema[tc.table].Parent)
-			assert.Equal(t, tc.expectedFKs, sessionState.conv.SpSchema[tc.table].Fks)
+			assert.Equal(t, tc.parentTable, sessionState.conv.SpSchema[tc.table].Parent, tc.name)
+			assert.Equal(t, tc.expectedFKs, sessionState.conv.SpSchema[tc.table].Fks, tc.name)
 		}
 	}
 }
