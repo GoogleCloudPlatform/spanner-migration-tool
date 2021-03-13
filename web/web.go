@@ -551,9 +551,16 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 	}
 	//Check new name for spanner name validity.
 	newNames := []string{}
+	newNamesMap := map[string]bool{}
 	for _, value := range renameMap {
 		newNames = append(newNames, strings.ToLower(value))
+		newNamesMap[strings.ToLower(value)] = true
 	}
+	if len(newNames) != len(newNamesMap) {
+		http.Error(w, fmt.Sprintf("Conflicts exists in given new names : %s", strings.Join(newNames, ",")), http.StatusBadRequest)
+		return
+	}
+
 	if ok, invalidNames := checkSpannerNamesValidity(newNames); !ok {
 		http.Error(w, fmt.Sprintf("Following are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
 		return
@@ -600,9 +607,16 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 	}
 	//Check new name for spanner name validity.
 	newNames := []string{}
+	newNamesMap := map[string]bool{}
 	for _, value := range renameMap {
 		newNames = append(newNames, strings.ToLower(value))
+		newNamesMap[strings.ToLower(value)] = true
 	}
+	if len(newNames) != len(newNamesMap) {
+		http.Error(w, fmt.Sprintf("Conflicts exists in given new names : %s", strings.Join(newNames, ",")), http.StatusBadRequest)
+		return
+	}
+
 	if ok, invalidNames := checkSpannerNamesValidity(newNames); !ok {
 		http.Error(w, fmt.Sprintf("Following are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
 		return
@@ -650,8 +664,14 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	//Check new name for spanner name validity.
 
 	newNames := []string{}
+	newNamesMap := map[string]bool{}
 	for _, value := range newIndexes {
 		newNames = append(newNames, value.Name)
+		newNamesMap[strings.ToLower(value.Name)] = true
+	}
+	if len(newNames) != len(newNamesMap) {
+		http.Error(w, fmt.Sprintf("Conflicts exists in given new names : %s", strings.Join(newNames, ",")), http.StatusBadRequest)
+		return
 	}
 	if ok, invalidNames := checkSpannerNamesValidity(newNames); !ok {
 		http.Error(w, fmt.Sprintf("Following are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
