@@ -461,7 +461,9 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	if update {
-		json.NewEncoder(w).Encode(sessionState.conv)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"tableInterleaveStatus": tableInterleaveStatus,
+			"sessionState":          sessionState.conv})
 	} else {
 		json.NewEncoder(w).Encode(tableInterleaveStatus)
 	}

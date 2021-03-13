@@ -1302,7 +1302,8 @@ func TestSetParentTable(t *testing.T) {
 	for _, tc := range tests {
 		sessionState.driver = "mysql"
 		sessionState.conv = tc.ct
-		req, err := http.NewRequest("GET", fmt.Sprintf("/setparent?table=%s&update=%v", tc.table, true), nil)
+		update := true
+		req, err := http.NewRequest("GET", fmt.Sprintf("/setparent?table=%s&update=%v", tc.table, update), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1310,8 +1311,23 @@ func TestSetParentTable(t *testing.T) {
 		rr := httptest.NewRecorder()
 		handler := http.HandlerFunc(setParentTable)
 		handler.ServeHTTP(rr, req)
+
+		type ParentTableSetResponse struct {
+			TableInterleaveStatus *TableInterleaveStatus `json:"tableInterleaveStatus"`
+			SessionState          *internal.Conv         `json:"sessionState"`
+		}
+
 		var res *TableInterleaveStatus
-		json.Unmarshal(rr.Body.Bytes(), &res)
+
+		if update {
+			parentTableResponse := &ParentTableSetResponse{}
+			json.Unmarshal(rr.Body.Bytes(), parentTableResponse)
+			res = parentTableResponse.TableInterleaveStatus
+		} else {
+			res = &TableInterleaveStatus{}
+			json.Unmarshal(rr.Body.Bytes(), res)
+		}
+
 		if status := rr.Code; int64(status) != tc.statusCode {
 			t.Errorf("%s\nhandler returned wrong status code: got %v want %v",
 				tc.name, status, tc.statusCode)
@@ -1421,13 +1437,13 @@ func TestRenameIndexes(t *testing.T) {
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						Indexes: []ddl.CreateIndex{{Name: "idx", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}},
+						Indexes: []ddl.CreateIndex{{Name: "idx", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
 					}},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						Indexes: []ddl.CreateIndex{{Name: "idx_new", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}},
+						Indexes: []ddl.CreateIndex{{Name: "idx_new", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
 					}},
 			},
 		},
@@ -1449,7 +1465,7 @@ func TestRenameIndexes(t *testing.T) {
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						Indexes: []ddl.CreateIndex{{Name: "idx_new_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}},
+						Indexes: []ddl.CreateIndex{{Name: "idx_new_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 							{Name: "idx_new_2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
 					}},
 			},
@@ -1471,7 +1487,7 @@ func TestRenameIndexes(t *testing.T) {
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						Indexes: []ddl.CreateIndex{{Name: "idx_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}},
+						Indexes: []ddl.CreateIndex{{Name: "idx_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 							{Name: "idx_2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
 					}},
 			},
