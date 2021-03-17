@@ -74,12 +74,6 @@ func schemaToDDL(conv *internal.Conv) error {
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
 func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
-	maxExpectedMods := func(n int) {
-		if len(mods) > n {
-			conv.Unexpected(fmt.Sprintf("Found %d mods while processing type id=%s", len(mods), id))
-		}
-	}
-	maxExpectedMods(0)
 	switch id {
 	case typeNumber:
 		return ddl.Type{Name: ddl.Numeric}, nil

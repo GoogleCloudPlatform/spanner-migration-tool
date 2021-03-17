@@ -112,30 +112,20 @@ func schemaToDDL(conv *internal.Conv) error {
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
 func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
-	maxExpectedMods := func(n int) {
-		if len(mods) > n {
-			conv.Unexpected(fmt.Sprintf("Found %d mods while processing type id=%s", len(mods), id))
-		}
-	}
 	switch id {
 	case "bool", "boolean":
-		maxExpectedMods(0)
 		return ddl.Type{Name: ddl.Bool}, nil
 	case "tinyint":
-		maxExpectedMods(1)
 		// tinyint(1) is a bool in MySQL
 		if len(mods) > 0 && mods[0] == 1 {
 			return ddl.Type{Name: ddl.Bool}, nil
 		}
 		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 	case "double":
-		maxExpectedMods(2)
 		return ddl.Type{Name: ddl.Float64}, nil
 	case "float":
-		maxExpectedMods(2)
 		return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
 	case "numeric", "decimal":
-		maxExpectedMods(2)
 		// MySQL's NUMERIC type can store up to 65 digits, with up to 30 after the
 		// the decimal point. Spanner's NUMERIC type can store up to 29 digits before the
 		// decimal point and up to 9 after the decimal point -- it is equivalent to
@@ -145,46 +135,33 @@ func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.Type, []in
 		// capabilities between MySQL and Spanner NUMERIC.
 		return ddl.Type{Name: ddl.Numeric}, nil
 	case "bigint":
-		maxExpectedMods(1)
 		return ddl.Type{Name: ddl.Int64}, nil
 	case "smallint", "mediumint", "integer", "int":
-		maxExpectedMods(1)
 		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 	case "bit":
-		maxExpectedMods(1)
 		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 	case "varchar", "char":
-		maxExpectedMods(1)
 		if len(mods) > 0 {
 			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
 		}
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "text", "tinytext", "mediumtext", "longtext":
-		maxExpectedMods(1)
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "set", "enum":
-		maxExpectedMods(1)
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "json":
-		maxExpectedMods(0)
+	case "json":)
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "binary", "varbinary":
-		maxExpectedMods(1)
 		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 	case "tinyblob", "mediumblob", "blob", "longblob":
-		maxExpectedMods(1)
 		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 	case "date":
-		maxExpectedMods(1)
 		return ddl.Type{Name: ddl.Date}, nil
 	case "datetime":
-		maxExpectedMods(1)
 		return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Datetime}
 	case "timestamp":
-		maxExpectedMods(1)
 		return ddl.Type{Name: ddl.Timestamp}, nil
 	case "time", "year":
-		maxExpectedMods(1)
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Time}
 	}
 	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
