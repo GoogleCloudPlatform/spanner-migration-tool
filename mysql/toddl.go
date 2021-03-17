@@ -149,7 +149,7 @@ func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.Type, []in
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "set", "enum":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "json":)
+	case "json":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "binary", "varbinary":
 		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
