@@ -567,7 +567,7 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if ok, invalidNames := checkSpannerNamesValidity(newNames); !ok {
-		http.Error(w, fmt.Sprintf("Following are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Following names are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
 		return
 	}
 
@@ -624,7 +624,7 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if ok, invalidNames := checkSpannerNamesValidity(newNames); !ok {
-		http.Error(w, fmt.Sprintf("Following are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Following names are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
 		return
 	}
 
@@ -680,7 +680,7 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if ok, invalidNames := checkSpannerNamesValidity(newNames); !ok {
-		http.Error(w, fmt.Sprintf("Following are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Following names are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
 		return
 	}
 
@@ -701,14 +701,14 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 
 func checkSpannerNamesValidity(input []string) (bool, []string) {
 	status := true
-	invaliNewNames := []string{}
+	var invalidNewNames []string
 	for _, changed := range input {
 		if _, status := internal.FixName(changed); status {
 			status = false
-			invaliNewNames = append(invaliNewNames, changed)
+			invalidNewNames = append(invalidNewNames, changed)
 		}
 	}
-	return status, invaliNewNames
+	return status, invalidNewNames
 }
 
 func canRename(names []string, table string) (bool, error) {
