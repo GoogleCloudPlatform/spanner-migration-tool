@@ -105,51 +105,32 @@ func schemaToDDL(conv *internal.Conv) error {
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
 func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
-	// TODO: Remove use of maxExpectedMods. It was added as a sanity check for the
-	// initial version of HarbourBridge. It has now out-lived its usefulness: it isn't
-	// uncovering issues (and it's unlikely to) and it's cluttering code.
-	maxExpectedMods := func(n int) {
-		if len(mods) > n {
-			conv.Unexpected(fmt.Sprintf("Found %d mods while processing type id=%s", len(mods), id))
-		}
-	}
 	switch id {
 	case "bool", "boolean":
-		maxExpectedMods(0)
 		return ddl.Type{Name: ddl.Bool}, nil
 	case "bigserial":
-		maxExpectedMods(0)
 		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Serial}
 	case "bpchar", "character": // Note: Postgres internal name for char is bpchar (aka blank padded char).
-		maxExpectedMods(1)
 		if len(mods) > 0 {
 			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
 		}
 		// Note: bpchar without length specifier is equivalent to bpchar(1)
 		return ddl.Type{Name: ddl.String, Len: 1}, nil
 	case "bytea":
-		maxExpectedMods(0)
 		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 	case "date":
-		maxExpectedMods(0)
 		return ddl.Type{Name: ddl.Date}, nil
 	case "float8", "double precision":
-		maxExpectedMods(0)
 		return ddl.Type{Name: ddl.Float64}, nil
 	case "float4", "real":
-		maxExpectedMods(0)
 		return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
 	case "int8", "bigint":
-		maxExpectedMods(0)
 		return ddl.Type{Name: ddl.Int64}, nil
 	case "int4", "integer":
-		maxExpectedMods(0)
 		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 	case "int2", "smallint":
-		maxExpectedMods(0)
 		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 	case "numeric":
-		maxExpectedMods(2)
 		// PostgreSQL's NUMERIC type can have a specified precision of up to 1000
 		// digits (and scale can be anything from 0 up to the value of 'precision').
 		// If precision and scale are not specified, then values of any precision
@@ -164,20 +145,15 @@ func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.Type, []in
 		// capabilities between PostgreSQL and Spanner NUMERIC.
 		return ddl.Type{Name: ddl.Numeric}, nil
 	case "serial":
-		maxExpectedMods(0)
 		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Serial}
 	case "text":
-		maxExpectedMods(0)
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "timestamptz", "timestamp with time zone":
-		maxExpectedMods(1)
 		return ddl.Type{Name: ddl.Timestamp}, nil
 	case "timestamp", "timestamp without time zone":
-		maxExpectedMods(1)
 		// Map timestamp without timezone to Spanner timestamp.
 		return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Timestamp}
 	case "varchar", "character varying":
-		maxExpectedMods(1)
 		if len(mods) > 0 {
 			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
 		}
