@@ -4,7 +4,7 @@ import "./services/Store.service.js";
 // Home screen component
 const HomeComponent = {
   render: () => {
-    document.getElementById('app').innerHTML = `<hb-main-screen></hb-main-screen>`
+    document.getElementById('app').innerHTML = `<hb-main-screen></hb-main-screen>`;
   }
 }
 

@@ -1,0 +1,15 @@
+.heading {
+    font-size: 32px;
+    font-weight: 600;
+}
+
+.sub-heading {
+    font-size: 26px;
+    font-weight: 500;
+    color: #5E5752;
+    margin-top: 20px;
+}
+
+.text {
+    color: #5E5752;
+}

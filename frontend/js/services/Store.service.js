@@ -1,6 +1,10 @@
 // import the fetch service here
 import Fetch from "./Fetch.service.js";
 
+const DEFAULT_INSTANCE = {
+    currentMainPageModal: null, // "name", null
+}
+
 const Store = (function() {
 
     var instance;
@@ -15,7 +19,7 @@ const Store = (function() {
 
     return {
         getinstance: function() {
-            if(!instance) {
+            if (!instance) {
                 instance = init();
             }
             return instance;
@@ -23,16 +27,16 @@ const Store = (function() {
         // Other store maniuolator functions here 
         // may be later can be moved to actions and stiched to affect the store
         addAttrToStore: () => {
-            instance = {...instance, something: 'of value'}
+            instance = {...instance, something: 'of value' }
         },
         toggleStore: () => {
             let openVal = instance.open;
-            if(instance.open === 'no') {
+            if (instance.open === 'no') {
                 openVal = 'yes';
             } else {
                 openVal = 'no';
             }
-            instance = {...instance, open: openVal};
+            instance = {...instance, open: openVal };
         }
     };
 })();

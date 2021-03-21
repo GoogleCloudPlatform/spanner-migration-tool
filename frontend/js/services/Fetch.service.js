@@ -1,3 +1,6 @@
+/**
+ * Interacts with the backend and inplements the transforms
+ */
 const Fetch = (() => {
 
     return {

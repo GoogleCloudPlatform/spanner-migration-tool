@@ -1,0 +1,27 @@
+.page-heading {
+    padding: 0 40px;
+    margin-top: 72px;
+    background-color: #FDFDFD;
+}
+
+.page-heading .page-sub-heading {
+    font-size: 26px;
+    font-weight: 500;
+    color: #5E5752;
+    margin-top: 20px;
+}
+
+.icons-card-section {
+    display: flex;
+    width: 70%;
+    justify-content: space-between;
+    margin: 40px;
+}
+
+.icons-card-section .icon-card {
+    margin-right: 50px;
+}
+
+.pointer {
+    cursor: pointer;
+}

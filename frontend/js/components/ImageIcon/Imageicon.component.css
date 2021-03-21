@@ -1,0 +1,17 @@
+.image-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.image-icon .image {
+    border-radius: 20px !important;
+    padding: 26px 36px 25px 36px;
+    box-shadow: 0 3px 6px hsla(0, 0%, 0%, 0.161) !important;
+    margin-bottom: 10px;
+}
+
+.image-icon .label {
+    font-size: 22px;
+    padding-top: 5px;
+}
