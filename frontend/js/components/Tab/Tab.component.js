@@ -2,9 +2,8 @@ import Actions from "../../services/Action.service.js";
 
 class Tab extends HTMLElement {
 
-    // The standard to mention what you are observing
     static get observedAttributes() {
-        return ['disabled', 'open'];
+        return ['open'];
     }
 
     get open() {
@@ -21,8 +20,9 @@ class Tab extends HTMLElement {
 
     render() {
         let {name, open} = this.data;
+        let textClass = open === 'no' ? 'redd' : 'greenn';
         this.innerHTML = `
-            <div>This is the ${name}, And this does ${open} </div>
+            <div class="${textClass}">This is the ${name}, And this does ${open} </div>
         `;
     }
 
