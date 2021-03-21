@@ -1,16 +1,21 @@
+import "./pages/MainScreen/MainScreen.page.js";
+import "./services/Store.service.js";
+
 // Home screen component
 const HomeComponent = {
-  render: () => homeScreen()
+  render: () => {
+    document.getElementById('app').innerHTML = `<hb-main-screen></hb-main-screen>`
+  }
 }
 
 // Edit Schema screen component
 const SchemaComponent = {
-  render: () => schemaReport()
+  render: () => jQuery('#app').load('./js/pages/schema-conversion-screen.html')
 }
 
 // Instructions Component
 const InstructionsComponent = {
-  render: () => renderInstructionsHtml()
+  render: () => jQuery('#app').load('./js/pages/Instructions/Instructions.html')
 }
 
 // Error component (for any unrecognized path)
@@ -57,3 +62,4 @@ const router = () => {
 
 window.addEventListener('hashchange', router);
 window.addEventListener('load', router);
+

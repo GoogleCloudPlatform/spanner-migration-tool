@@ -19,7 +19,7 @@ nav.navbar.navbar-static-top{padding: 0px !important;}
     
 header.main-header {
     color: #000000;
-    position: fixed;
+    /* position: fixed; */
     top: 0;
     height: 60px;
     width: 100%;

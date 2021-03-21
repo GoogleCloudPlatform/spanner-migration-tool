@@ -33,8 +33,10 @@
     </nav>
     <nav class="navbar navbar-static-top">
       <div class="header-topic">
+        <a name='headerMenu' href='#/schema-report' id='schemaReport' class='inactive'>Schema Conversion</a>
+<!--         
         <a name='headerMenu' href="javascript:;" onclick="checkActiveSession()" id='schemaScreen' class='inactive'
-          style="cursor: pointer;">Schema Conversion</a>
+          style="cursor: pointer;">Schema Conversion</a> -->
       </div>
     </nav>
     <nav class="navbar navbar-static-top">
@@ -48,6 +50,7 @@
   </section>
 
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js"></script>
   <script src="https://unpkg.com/popper.js@1.12.6/dist/umd/popper.js"
     integrity="sha384-fA23ZRQ3G/J53mElWqVJEGJzU0sTs+SvzG8fXVWP+kJQ1lwFAOkcUOysnlKJC33U"
     crossorigin="anonymous"></script>
@@ -61,10 +64,13 @@
 
 <script src='https://kit.fontawesome.com/a076d05399.js'></script>
 <script src="third_party/vanillaSelectBox.js"></script>
-<script type="text/javascript" src="js/app.js"></script>
-<script src="js/utility.js"></script>
+
+<script type="module" src="js/services/Action.service.js"></script>
+<script type="module" src="js/app.js"></script>
+
+<!-- <script src="js/utility.js"></script>
 <script src="js/main.js"></script>
 <script src="js/schema-conversion.js"></script>
-<script src='js/instructions.js'></script>
+<script src='js/instructions.js'></script> -->
 
 </html>
