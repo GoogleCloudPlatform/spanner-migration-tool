@@ -12,9 +12,9 @@ const Store = (function() {
     function init() {
         console.log('In the Store service ', Fetch.getData());
         // the initial data from the fetch service
-        return {
-            ...Fetch.getData()
-        }
+        Fetch.getData().then((data) => {
+            instance = data;
+        });
     }
 
     return {

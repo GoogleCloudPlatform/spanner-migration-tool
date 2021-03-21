@@ -6,7 +6,6 @@ import Store from "./Store.service.js";
  */
 const Actions = (() => {
 
-
     return {
         trial: () => {
             console.log(' this was the trial in the actions ');

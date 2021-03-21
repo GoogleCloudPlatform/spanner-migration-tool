@@ -37,7 +37,6 @@ class ImageIcon extends HTMLElement {
         `;
     }
 
-    // get, set is used to get the values of the attributes
     constructor() {
         super();
         this.addEventListener('click', Actions[this.clickAction]);
