@@ -34,6 +34,7 @@ const MAIN_PAGE_ICONS = [{
 ]
 
 class MainScreen extends HTMLElement {
+
     connectedCallback() {
         this.stateObserver = setInterval(this.observeState, 200);
         this.render();
@@ -51,8 +52,11 @@ class MainScreen extends HTMLElement {
     }
 
     render() {
+            if (!this.data) { return; }
             let { open, funcc, something } = this.data;
+            console.log(open, funcc, something, ' are the values ');
             this.innerHTML = `
+            <div>
             <div class="page-heading">
                 <hb-label type="heading" text="${HEADING_TEXT}"></hb-label>
                 <hb-label type="subHeading" text="${SUB_HEADING_TEXT}"></hb-label>
@@ -60,19 +64,19 @@ class MainScreen extends HTMLElement {
             <div class="icons-card-section">
                 ${MAIN_PAGE_ICONS.map((icon) => {
                     return `<div class="icon-card">
-                        <hb-image-icon image="${icon.image}" imageAltText="${icon.imageAltText}" label="${icon.label}" clickAction="${icon.action}" modalDataTarget="${icon.modalDataTarget}" />
+                        <hb-image-icon image="${icon.image}" imageAltText="${icon.imageAltText}" label="${icon.label}" clickAction="${icon.action}" modalDataTarget="${icon.modalDataTarget}" >
+                        </hb-image-icon>
                     </div>`;
                 }).join("")}
             </div>
-            <div>This is the new update</div>
-            <hb-tab open="${open}" relay=${funcc} />
-            <hb-tabb something="${something}" open="${open}" clickAction="addAttrToStore" />
+            <hb-tab open="${open}" relay=${funcc} ></hb-tab>
+            <hb-tabb something="${something}" open="${open}" clickAction="addAttrToStore" ></hb-tabb>
+            </div>
         `;
     }
 
     constructor() {
         super();
-        this.data = Store.getinstance();
         this.stateObserver = null;
     }
 }

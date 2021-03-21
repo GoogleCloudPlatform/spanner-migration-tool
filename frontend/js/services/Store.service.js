@@ -10,7 +10,6 @@ const Store = (function() {
     var instance;
 
     function init() {
-        console.log('In the Store service ', Fetch.getData());
         // the initial data from the fetch service
         Fetch.getData().then((data) => {
             instance = data;
@@ -27,9 +26,11 @@ const Store = (function() {
         // Other store maniuolator functions here 
         // may be later can be moved to actions and stiched to affect the store
         addAttrToStore: () => {
+            if (!instance) { return; }
             instance = {...instance, something: 'of value' }
         },
         toggleStore: () => {
+            if (!instance) { return; }
             let openVal = instance.open;
             if (instance.open === 'no') {
                 openVal = 'yes';

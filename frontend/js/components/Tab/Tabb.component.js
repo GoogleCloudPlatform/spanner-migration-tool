@@ -2,7 +2,7 @@ import Actions from "./../../services/Action.service.js";
 
 class Tabb extends HTMLElement {
     connectedCallback() {
-       // this.render();
+        // this.render();
     }
 
     static get observedAttributes() {
@@ -10,7 +10,9 @@ class Tabb extends HTMLElement {
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
-        console.log('in the attr change -Tabb ', name, oldValue, newValue);
+        console.log('in the attr change -Tabbnnn', name, oldValue, newValue);
+        if (name === 'open') { this.openValue === newValue }
+        console.log(this.openValue);
         this.render();
     }
 
@@ -32,18 +34,20 @@ class Tabb extends HTMLElement {
     }
 
     render() {
+        let { openValue, something } = this;
+        console.log(openValue, something, ' are the values ');
         this.innerHTML = `
             <div>
-                <div>This is the Tabb component - ${this.openValue}</div>
-                <div>Value os something is ${this.something}</div>
+                <div>This is the Tabb component - ${openValue}</div>
+                <div>Value os something is ${something}</div>
             </div>
         `;
     }
 
     constructor() {
         super();
-        this.openValue = this.open;
-        this.addEventListener('click', this.clickHandler);// Actions[this.clickAction]);
+        this.openValue = "";
+        this.addEventListener('click', this.clickHandler); // Actions[this.clickAction]);
     }
 }
 

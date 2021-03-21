@@ -10,7 +10,10 @@ const Fetch = (() => {
         return new Promise((resolve, reject) => {
             fetch(url).then((response) => {
                     response = { name: 'Amaaa', occupation: 'Artist', open: 'no', funcc: () => console.log('upppp') }
-                    resolve(response);
+
+                    setTimeout(() => {
+                        resolve(response);
+                    }, 0);
                 })
                 .catch((err) => {
                     resolve('hi')
@@ -29,11 +32,9 @@ const Fetch = (() => {
 
     return {
         getData: () => {
-            return makeFetchCall('GET', "/initial-data").then((response) => {
+            return makeFetchCall('GET', "/").then((response) => {
                     // the success logic
-                    // use my response
-                    console.log(transforminintialData(response));
-                    return { name: 'Amaaa', occupation: 'Artist', open: 'no', funcc: () => console.log('upppp') };
+                    return transforminintialData(response);
                 })
                 .catch((err) => {
                     console.log('Error in initialisign ');
