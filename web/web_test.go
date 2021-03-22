@@ -15,6 +15,7 @@
 package web
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -1051,7 +1052,6 @@ func TestGetConversionMySQL(t *testing.T) {
 }
 
 func TestSetParentTable(t *testing.T) {
-
 	tests := []struct {
 		name             string
 		ct               *internal.Conv
@@ -1302,7 +1302,8 @@ func TestSetParentTable(t *testing.T) {
 	for _, tc := range tests {
 		sessionState.driver = "mysql"
 		sessionState.conv = tc.ct
-		req, err := http.NewRequest("GET", fmt.Sprintf("/setparent?table=%s&update=%v", tc.table, true), nil)
+		update := true
+		req, err := http.NewRequest("GET", fmt.Sprintf("/setparent?table=%s&update=%v", tc.table, update), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1310,18 +1311,33 @@ func TestSetParentTable(t *testing.T) {
 		rr := httptest.NewRecorder()
 		handler := http.HandlerFunc(setParentTable)
 		handler.ServeHTTP(rr, req)
+
+		type ParentTableSetResponse struct {
+			TableInterleaveStatus *TableInterleaveStatus `json:"tableInterleaveStatus"`
+			SessionState          *internal.Conv         `json:"sessionState"`
+		}
+
 		var res *TableInterleaveStatus
-		json.Unmarshal(rr.Body.Bytes(), &res)
+
+		if update {
+			parentTableResponse := &ParentTableSetResponse{}
+			json.Unmarshal(rr.Body.Bytes(), parentTableResponse)
+			res = parentTableResponse.TableInterleaveStatus
+		} else {
+			res = &TableInterleaveStatus{}
+			json.Unmarshal(rr.Body.Bytes(), res)
+		}
+
 		if status := rr.Code; int64(status) != tc.statusCode {
-			t.Errorf("handler returned wrong status code: got %v want %v",
-				status, tc.statusCode)
+			t.Errorf("%s\nhandler returned wrong status code: got %v want %v",
+				tc.name, status, tc.statusCode)
 		}
 		if tc.statusCode == http.StatusOK {
-			assert.Equal(t, tc.expectedResponse, res)
+			assert.Equal(t, tc.expectedResponse, res, tc.name)
 		}
 		if tc.parentTable != "" {
-			assert.Equal(t, tc.parentTable, sessionState.conv.SpSchema[tc.table].Parent)
-			assert.Equal(t, tc.expectedFKs, sessionState.conv.SpSchema[tc.table].Fks)
+			assert.Equal(t, tc.parentTable, sessionState.conv.SpSchema[tc.table].Parent, tc.name)
+			assert.Equal(t, tc.expectedFKs, sessionState.conv.SpSchema[tc.table].Fks, tc.name)
 		}
 	}
 }
@@ -1400,6 +1416,734 @@ func TestDropForeignKey(t *testing.T) {
 			assert.Equal(t, tc.expectedConv, res)
 		}
 	}
+}
+
+func TestRenameIndexes(t *testing.T) {
+	tc := []struct {
+		name         string
+		table        string
+		input        interface{}
+		statusCode   int64
+		conv         *internal.Conv
+		expectedConv *internal.Conv
+	}{
+		{
+			name:  "Test rename indexes",
+			table: "t1",
+			input: map[string]string{
+				"idx": "idx_new",
+			},
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx_new", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
+					}},
+			},
+		},
+		{
+			name:  "Test rename multiple indexes",
+			table: "t1",
+			input: map[string]string{
+				"idx_1": "idx_new_1",
+				"idx_2": "idx_new_2",
+			},
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx_2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx_new_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx_new_2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
+					}},
+			},
+		},
+		{
+			name:  "New name conflicts with an existing table",
+			table: "t1",
+			input: map[string]string{
+				"idx_1": "t1",
+			},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx_2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx_2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
+					}},
+			},
+		},
+		{
+			name:  "New name conflicts with an existing index",
+			table: "t1",
+			input: map[string]string{
+				"idx_1": "idx_2",
+			},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx_2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx_new_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}},
+							{Name: "idx_new_2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
+					}},
+			},
+		},
+		{
+			name:  "New name conflicts with an existing foreign key",
+			table: "t1",
+			input: map[string]string{
+				"idx_1": "fk1",
+			},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx_2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx_new_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}},
+							{Name: "idx_new_2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
+					}},
+			},
+		},
+		{
+			name:  "Given Index not available",
+			table: "t1",
+			input: map[string]string{
+				"idx_new": "idx",
+			},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}},
+					}},
+			},
+		},
+		{
+			name:  "Conflicts within new name array",
+			table: "t1",
+			input: map[string]string{
+				"idx1": "idx_100",
+				"idx2": "idx_100",
+			},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}},
+					}},
+			},
+		},
+		{
+			name:       "Input Empty Map ",
+			table:      "t1",
+			input:      map[string]string{},
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}},
+					}},
+			},
+		},
+		{
+			name:       "Invalid input",
+			table:      "t1",
+			input:      []string{"test1", "test2"},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}},
+					}},
+			},
+		},
+	}
+
+	for _, tc := range tc {
+		sessionState.driver = "mysql"
+		sessionState.conv = tc.conv
+
+		inputBytes, err := json.Marshal(tc.input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		buffer := bytes.NewBuffer(inputBytes)
+
+		req, err := http.NewRequest("POST", "/rename/indexes?table="+tc.table, buffer)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(renameIndexes)
+		handler.ServeHTTP(rr, req)
+		var res *internal.Conv
+		json.Unmarshal(rr.Body.Bytes(), &res)
+		if status := rr.Code; int64(status) != tc.statusCode {
+			t.Errorf("%s : handler returned wrong status code: got %v want %v",
+				tc.name, status, tc.statusCode)
+		}
+		if tc.statusCode == http.StatusOK {
+			assert.Equal(t, tc.expectedConv, res)
+		}
+	}
+}
+
+func TestRenameForeignKeys(t *testing.T) {
+	tc := []struct {
+		name         string
+		table        string
+		input        interface{}
+		statusCode   int64
+		conv         *internal.Conv
+		expectedConv *internal.Conv
+	}{
+		{
+			name:  "Test rename foreignkey",
+			table: "t1",
+			input: map[string]string{
+				"fk1": "foreignkey1",
+			},
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Fks: []ddl.Foreignkey{{Name: "foreignkey1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					}},
+			},
+		},
+		{
+			name:  "Test rename multiple foreignkeys",
+			table: "t1",
+			input: map[string]string{
+				"fk1": "foreignkey1",
+				"fk2": "foreignkey2",
+			},
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Fks: []ddl.Foreignkey{{Name: "foreignkey1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "foreignkey2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					}},
+			},
+		},
+		{
+			name:  "New name conflicts with an existing table",
+			table: "t1",
+			input: map[string]string{
+				"fk1": "t1",
+			},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Fks: []ddl.Foreignkey{{Name: "foreignkey1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					}},
+			},
+		},
+		{
+			name:  "New name conflicts with an existing foreignkey",
+			table: "t1",
+			input: map[string]string{
+				"fk1": "fk2",
+			},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Fks: []ddl.Foreignkey{{Name: "foreignkey1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					}},
+			},
+		},
+		{
+			name:  "New name conflicts with an existing indexes",
+			table: "t1",
+			input: map[string]string{
+				"fk1": "idx_1",
+			},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx_2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx_new_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}},
+							{Name: "idx_new_2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
+					}},
+			},
+		},
+		{
+			name:  "Conflicts within new name array",
+			table: "t1",
+			input: map[string]string{
+				"idx1": "idx_100",
+				"idx2": "idx_100",
+			},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}},
+					}},
+			},
+		},
+		{
+			name:  "Given Foreignkey not available ",
+			table: "t1",
+			input: map[string]string{
+				"fkx": "foreignkeyx",
+			},
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					}},
+			},
+		},
+		{
+			name:       "Input Empty Map ",
+			table:      "t1",
+			input:      map[string]string{},
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					}},
+			},
+		},
+		{
+			name:       "Invalid input",
+			table:      "t1",
+			input:      []string{"test1", "test2"},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					}},
+			},
+		},
+		{
+			name:       "Check non usage in another table",
+			table:      "t1",
+			input:      map[string]string{"fk1": "t2_fk2"},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					},
+					"t2": {
+						Fks: []ddl.Foreignkey{{Name: "t2_fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "t2_fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					},
+					"t2": {
+						Fks: []ddl.Foreignkey{{Name: "t2_fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
+							{Name: "t2_fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+					}},
+			},
+		},
+	}
+	for _, tc := range tc {
+		sessionState.driver = "mysql"
+		sessionState.conv = tc.conv
+
+		inputBytes, err := json.Marshal(tc.input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		buffer := bytes.NewBuffer(inputBytes)
+
+		req, err := http.NewRequest("POST", "/rename/fks?table="+tc.table, buffer)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(renameForeignKeys)
+		handler.ServeHTTP(rr, req)
+		var res *internal.Conv
+		json.Unmarshal(rr.Body.Bytes(), &res)
+		if status := rr.Code; int64(status) != tc.statusCode {
+			t.Errorf("%s : handler returned wrong status code: got %v want %v",
+				tc.name, status, tc.statusCode)
+		}
+		if tc.statusCode == http.StatusOK {
+			assert.Equal(t, tc.expectedConv, res)
+		}
+	}
+}
+
+func TestAddIndexes(t *testing.T) {
+	tc := []struct {
+		name         string
+		table        string
+		input        interface{}
+		statusCode   int64
+		conv         *internal.Conv
+		expectedConv *internal.Conv
+	}{
+		{
+			name:       "Test Empty input",
+			table:      "t1",
+			input:      []ddl.CreateIndex{},
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}}},
+					}},
+			},
+		},
+		{
+			name:  "Add Index with unique name",
+			table: "t1",
+			input: []ddl.CreateIndex{
+				{Name: "idx3", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+			},
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}},
+							{Name: "idx3", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+						},
+					}},
+			},
+		},
+		{
+			name:  "Add multiple indexes",
+			table: "t1",
+			input: []ddl.CreateIndex{
+				{Name: "idx3", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+				{Name: "idx4", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+			},
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}},
+							{Name: "idx3", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx4", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+						},
+					}},
+			},
+		},
+		{
+			name:  "New name conflicts with an existing table",
+			table: "t1",
+			input: []ddl.CreateIndex{
+				{Name: "t1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+				{Name: "idx4", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+			},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}},
+							{Name: "t1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx4", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+						},
+					}},
+			},
+		},
+		{
+			name:  "New name conflicts with an existing index",
+			table: "t1",
+			input: []ddl.CreateIndex{
+				{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+			},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}},
+							{Name: "idx3", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx4", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+						},
+					}},
+			},
+		},
+		{
+			name:  "Conflicts within new name array",
+			table: "t1",
+			input: []ddl.CreateIndex{
+				{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+				{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+			},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}},
+					}},
+			},
+		},
+		{
+			name:  "Add Index with same name",
+			table: "t1",
+			input: []ddl.CreateIndex{
+				{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+			},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}},
+						},
+					}},
+			},
+		},
+		{
+			name:       "Invalid input",
+			table:      "t1",
+			input:      []string{"test1"},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}}},
+					}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}},
+						},
+					}},
+			},
+		},
+	}
+
+	for _, tc := range tc {
+		sessionState.driver = "mysql"
+		sessionState.conv = tc.conv
+
+		inputBytes, err := json.Marshal(tc.input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		buffer := bytes.NewBuffer(inputBytes)
+
+		req, err := http.NewRequest("POST", "/add/indexes?table="+tc.table, buffer)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(addIndexes)
+		handler.ServeHTTP(rr, req)
+		var res *internal.Conv
+		json.Unmarshal(rr.Body.Bytes(), &res)
+		if status := rr.Code; int64(status) != tc.statusCode {
+			t.Errorf("%s : handler returned wrong status code: got %v want %v",
+				tc.name, status, tc.statusCode)
+		}
+		if tc.statusCode == http.StatusOK {
+			assert.Equal(t, tc.expectedConv, res)
+		}
+	}
+
+	fmt.Println(tc)
 }
 
 func TestDropSecondaryIndex(t *testing.T) {

@@ -350,8 +350,7 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if v.Rename != "" && v.Rename != colName {
-			err, status := canRenameOrChangeType(colName, table)
-			if err != nil {
+			if err, status := canRenameOrChangeType(colName, table); err != nil {
 				err = rollback(err)
 				http.Error(w, fmt.Sprintf("%v", err), status)
 				return
@@ -372,8 +371,7 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if typeChange {
-				err, status := canRenameOrChangeType(colName, table)
-				if err != nil {
+				if err, status := canRenameOrChangeType(colName, table); err != nil {
 					err = rollback(err)
 					http.Error(w, fmt.Sprintf("%v", err), status)
 					return
@@ -445,9 +443,9 @@ type TableInterleaveStatus struct {
 	Comment  string
 }
 
-// setParentTable checks whether specified table can be
-// interleaved, if yes then it sets the Parent table for the specified
-// table and returns Parent table name, otherwise returns the issue.
+// setParentTable checks whether specified table can be interleaved, and updates the schema to convert foreign
+// key to interleaved table if 'update' parameter is set to true. If 'update' parameter is set to false, then return
+// whether the foreign key can be converted to interleave table without updating the schema.
 func setParentTable(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
 	update := r.FormValue("update") == "true"
@@ -458,19 +456,28 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	if table == "" {
 		http.Error(w, fmt.Sprintf("Table name is empty"), http.StatusBadRequest)
 	}
-	tableInterleaveIssues := parentTableHelper(table, update)
+	tableInterleaveStatus := parentTableHelper(table, update)
 	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(tableInterleaveIssues)
+
+	if update {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"tableInterleaveStatus": tableInterleaveStatus,
+			"sessionState":          sessionState.conv})
+	} else {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"tableInterleaveStatus": tableInterleaveStatus,
+		})
+	}
 }
 
 func parentTableHelper(table string, update bool) *TableInterleaveStatus {
-	tableInterleaveIssues := &TableInterleaveStatus{Possible: true}
+	tableInterleaveStatus := &TableInterleaveStatus{Possible: true}
 	if _, found := sessionState.conv.SyntheticPKeys[table]; found {
-		tableInterleaveIssues.Possible = false
-		tableInterleaveIssues.Comment = "Has synthetic pk"
+		tableInterleaveStatus.Possible = false
+		tableInterleaveStatus.Comment = "Has synthetic pk"
 	}
-	if tableInterleaveIssues.Possible == true {
+	if tableInterleaveStatus.Possible {
 		// Search this table's foreign keys for a suitable parent table.
 		// If there are several possible parent tables, we pick the first one.
 		// TODO: Allow users to pick which parent to use if more than one.
@@ -479,9 +486,9 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 			if _, found := sessionState.conv.SyntheticPKeys[refTable]; found {
 				continue
 			}
-			ok := checkPrimaryKeyPrefix(table, refTable, fk, tableInterleaveIssues)
-			if ok {
-				tableInterleaveIssues.Parent = refTable
+
+			if checkPrimaryKeyPrefix(table, refTable, fk, tableInterleaveStatus) {
+				tableInterleaveStatus.Parent = refTable
 				if update {
 					sp := sessionState.conv.SpSchema[table]
 					sp.Parent = refTable
@@ -491,12 +498,12 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				break
 			}
 		}
-		if tableInterleaveIssues.Parent == "" {
-			tableInterleaveIssues.Possible = false
-			tableInterleaveIssues.Comment = "No valid prefix"
+		if tableInterleaveStatus.Parent == "" {
+			tableInterleaveStatus.Possible = false
+			tableInterleaveStatus.Comment = "No valid prefix"
 		}
 	}
-	return tableInterleaveIssues
+	return tableInterleaveStatus
 }
 
 func dropForeignKey(w http.ResponseWriter, r *http.Request) {
@@ -526,36 +533,213 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(sessionState.conv)
 }
 
-func renameForeignKey(w http.ResponseWriter, r *http.Request) {
+// renameForeignKeys checks the new names for spanner name validity, ensures the new names are already not used by existing tables
+// secondary indexes or foreign key constraints. If above checks passed then foreignKey renaming reflected in the schema else appropriate
+// error thrown.
+func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
-	pos := r.FormValue("pos")
-	newName := r.FormValue("name")
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	}
+
 	if sessionState.conv == nil || sessionState.driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
-	if table == "" || pos == "" || newName == "" {
-		http.Error(w, fmt.Sprintf("Table name or position or new name is empty"), http.StatusBadRequest)
+
+	renameMap := map[string]string{}
+	if err = json.Unmarshal(reqBody, &renameMap); err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
 	}
+
+	// Check new name for spanner name validity.
+	newNames := []string{}
+	newNamesMap := map[string]bool{}
+	for _, value := range renameMap {
+		newNames = append(newNames, strings.ToLower(value))
+		newNamesMap[strings.ToLower(value)] = true
+	}
+	if len(newNames) != len(newNamesMap) {
+		http.Error(w, fmt.Sprintf("Found duplicate names in input : %s", strings.Join(newNames, ",")), http.StatusBadRequest)
+		return
+	}
+
+	if ok, invalidNames := checkSpannerNamesValidity(newNames); !ok {
+		http.Error(w, fmt.Sprintf("Following names are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
+		return
+	}
+
+	// Check that the new names are not already used by existing tables, secondary indexes or foreign key constraints.
+	if ok, err := canRename(newNames, table); !ok {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	sp := sessionState.conv.SpSchema[table]
-	position, err := strconv.Atoi(pos)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error converting position to integer"), http.StatusBadRequest)
-		return
+
+	// Update session with renamed foreignkeys.
+	newFKs := []ddl.Foreignkey{}
+	for _, foreignKey := range sp.Fks {
+		if newName, ok := renameMap[foreignKey.Name]; ok {
+			foreignKey.Name = newName
+		}
+		newFKs = append(newFKs, foreignKey)
 	}
-	if position < 0 || position >= len(sp.Fks) {
-		http.Error(w, fmt.Sprintf("No foreign key found at position %d", position), http.StatusBadRequest)
-		return
-	}
-	if !isUniqueName(newName) {
-		http.Error(w, fmt.Sprintf("New name %s is used before in the schema", newName), http.StatusBadRequest)
-		return
-	}
-	sp.Fks[position].Name = newName
+	sp.Fks = newFKs
+
 	sessionState.conv.SpSchema[table] = sp
 	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(sessionState.conv)
+}
+
+// renameIndexes checks the new names for spanner name validity, ensures the new names are already not used by existing tables
+// secondary indexes or foreign key constraints. If above checks passed then index renaming reflected in the schema else appropriate
+// error thrown.
+func renameIndexes(w http.ResponseWriter, r *http.Request) {
+	table := r.FormValue("table")
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	}
+
+	renameMap := map[string]string{}
+	if err = json.Unmarshal(reqBody, &renameMap); err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Check new name for spanner name validity.
+	newNames := []string{}
+	newNamesMap := map[string]bool{}
+	for _, value := range renameMap {
+		newNames = append(newNames, strings.ToLower(value))
+		newNamesMap[strings.ToLower(value)] = true
+	}
+	if len(newNames) != len(newNamesMap) {
+		http.Error(w, fmt.Sprintf("Found duplicate names in input : %s", strings.Join(newNames, ",")), http.StatusBadRequest)
+		return
+	}
+
+	if ok, invalidNames := checkSpannerNamesValidity(newNames); !ok {
+		http.Error(w, fmt.Sprintf("Following names are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
+		return
+	}
+
+	// Check that the new names are not already used by existing tables, secondary indexes or foreign key constraints.
+	if ok, err := canRename(newNames, table); !ok {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	sp := sessionState.conv.SpSchema[table]
+
+	// Update session with renamed secondary indexes.
+	newIndexes := []ddl.CreateIndex{}
+	for _, index := range sp.Indexes {
+		if newName, ok := renameMap[index.Name]; ok {
+			index.Name = newName
+		}
+		newIndexes = append(newIndexes, index)
+	}
+	sp.Indexes = newIndexes
+
+	sessionState.conv.SpSchema[table] = sp
+	updateSessionFile()
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(sessionState.conv)
+}
+
+// addIndexes checks the new names for spanner name validity, ensures the new names are already not used by existing tables
+// secondary indexes or foreign key constraints. If above checks passed then new indexes are added to the schema else appropriate
+// error thrown.
+func addIndexes(w http.ResponseWriter, r *http.Request) {
+	table := r.FormValue("table")
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	}
+
+	newIndexes := []ddl.CreateIndex{}
+	if err = json.Unmarshal(reqBody, &newIndexes); err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Check new name for spanner name validity.
+	newNames := []string{}
+	newNamesMap := map[string]bool{}
+	for _, value := range newIndexes {
+		newNames = append(newNames, value.Name)
+		newNamesMap[strings.ToLower(value.Name)] = true
+	}
+	if len(newNames) != len(newNamesMap) {
+		http.Error(w, fmt.Sprintf("Found duplicate names in input : %s", strings.Join(newNames, ",")), http.StatusBadRequest)
+		return
+	}
+	if ok, invalidNames := checkSpannerNamesValidity(newNames); !ok {
+		http.Error(w, fmt.Sprintf("Following names are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
+		return
+	}
+
+	// Check that the new names are not already used by existing tables, secondary indexes or foreign key constraints.
+	if ok, err := canRename(newNames, table); !ok {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	sp := sessionState.conv.SpSchema[table]
+	sp.Indexes = append(sp.Indexes, newIndexes...)
+
+	sessionState.conv.SpSchema[table] = sp
+	updateSessionFile()
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(sessionState.conv)
+}
+
+func checkSpannerNamesValidity(input []string) (bool, []string) {
+	status := true
+	var invalidNewNames []string
+	for _, changed := range input {
+		if _, status := internal.FixName(changed); status {
+			status = false
+			invalidNewNames = append(invalidNewNames, changed)
+		}
+	}
+	return status, invalidNewNames
+}
+
+func canRename(names []string, table string) (bool, error) {
+	namesMap := map[string]bool{}
+	// Check that this name isn't already used by another table.
+	for _, name := range names {
+		namesMap[name] = true
+		if _, ok := sessionState.conv.SpSchema[name]; ok {
+			return false, fmt.Errorf("new name : '%s' is used by another table", name)
+		}
+	}
+
+	// Check that this name isn't already used by another foreign key.
+	for _, sp := range sessionState.conv.SpSchema {
+		for _, foreignKey := range sp.Fks {
+			if _, ok := namesMap[foreignKey.Name]; ok {
+				return false, fmt.Errorf("new name : '%s' is used by another foreign key in table : '%s'", foreignKey.Name, sp.Name)
+			}
+
+		}
+	}
+
+	// Check that this name isn't already used by another secondary index.
+	for _, sp := range sessionState.conv.SpSchema {
+		for _, index := range sp.Indexes {
+			if _, ok := namesMap[index.Name]; ok {
+				return false, fmt.Errorf("new name : '%s' is used by another index in table : '%s'", index.Name, sp.Name)
+			}
+		}
+	}
+	return true, nil
 }
 
 func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
@@ -666,7 +850,7 @@ func isPartOfFK(col, table string) bool {
 
 // TODO: create a map to store referenced column to get
 // this information in O(1).
-//TODO:(searce) can have foreign key constraints between columns of the same table, as well as between same column on a given table.
+// TODO:(searce) can have foreign key constraints between columns of the same table, as well as between same column on a given table.
 func isReferencedByFK(col, table string) (bool, string) {
 	for _, spSchema := range sessionState.conv.SpSchema {
 		if table != spSchema.Name {
@@ -724,7 +908,7 @@ func canRenameOrChangeType(colName, table string) (error, int) {
 	return nil, http.StatusOK
 }
 
-func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tableInterleaveIssues *TableInterleaveStatus) bool {
+func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tableInterleaveStatus *TableInterleaveStatus) bool {
 	childPks := sessionState.conv.SpSchema[table].Pks
 	parentPks := sessionState.conv.SpSchema[refTable].Pks
 	if len(childPks) >= len(parentPks) {
