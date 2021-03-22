@@ -28,7 +28,14 @@ const Actions = (() => {
         getAllSessions: () =>{
             return Store.getAllSessions();
 
+        },
+        getModalId: () =>{
+            return Store.getModalId();
+        },
+        setModalId: (id) =>{
+            Store.setModalId(id);
         }
+
     }
 })();
 

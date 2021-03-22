@@ -23,6 +23,7 @@ const Store = (function() {
         sessionAction : "resume_sesssion_url"
       },
       ]
+      let modalId = "connectToDbModal"
 
     function init() {
         // the initial data from the fetch service
@@ -32,6 +33,12 @@ const Store = (function() {
     }
 
     return {
+        setModalId : function(id) {
+            modalId = id;
+        },
+        getModalId : function() {
+            return modalId;
+        },
         getinstance: function() {
             if (!instance) {
                 instance = init();

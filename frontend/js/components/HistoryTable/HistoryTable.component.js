@@ -1,19 +1,12 @@
 // import '../../components/HistoryTable/HistoryTableRow.js'
 import Actions from '../../services/Action.service.js';
 
-
-
 class HistoryTable extends HTMLElement {
 
-    // get modalDataTarget() {
-    //     return this.getAttribute('modalDataTarget');
-    // }
+    
      constructor() {
         super();
         this.sessionsData = Actions.getAllSessions();
-       
-        console.log(this.sessionsData);
-        // this.addEventListener('click', Actions[this.clickAction]);
     }
 
     connectedCallback() {
@@ -25,7 +18,7 @@ class HistoryTable extends HTMLElement {
     }
 
     render() {
-        // let { image, label, imageAltText, modalDataTarget } = this;
+     
         this.innerHTML = `
         <table class="table session-table" style="width: 95%;">
         <thead>

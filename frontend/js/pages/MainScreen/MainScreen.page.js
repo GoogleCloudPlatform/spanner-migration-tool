@@ -3,13 +3,14 @@ import '../../components/Tab/Tab.component.js';
 import "../../components/Tab/Tabb.component.js";
 import "../../components/Label/Label.component.js";
 import "../../components/ImageIcon/ImageIcon.component.js";
-import "../../components/HistoryTable/HistoryTable.js";
-
+import "../../components/HistoryTable/HistoryTable.component.js";
+import "../../components/Modal/Modal.component.js"
 // Services
 import Store from "./../../services/Store.service.js";
 
 const HEADING_TEXT = "Welcome To HarborBridge";
 const SUB_HEADING_TEXT = "Connect or import your database";
+
 
 const MAIN_PAGE_ICONS = [{
         image: "Icons/Icons/Group 2048.svg",
@@ -17,6 +18,7 @@ const MAIN_PAGE_ICONS = [{
         label: "Connect to Database",
         action: "openConnectionModal",
         modalDataTarget: "#connectToDbModal",
+        
     },
     {
         image: "Icons/Icons/Group 2049.svg",
@@ -70,6 +72,7 @@ class MainScreen extends HTMLElement {
                     </div>`;
                 }).join("")}
             </div>
+            <hb-Modal ></hb-modal>
             <hb-tab open="${open}" relay=${funcc} ></hb-tab>
             <hb-tabb something="${something}" open="${open}" clickAction="addAttrToStore" ></hb-tabb>
             <div class="history-content">

@@ -39,7 +39,7 @@ class ImageIcon extends HTMLElement {
 
     constructor() {
         super();
-        this.addEventListener('click', Actions[this.clickAction]);
+        this.addEventListener('click',function(){ Actions.setModalId(this.modalDataTarget.substring(1))});
     }
 }
 
