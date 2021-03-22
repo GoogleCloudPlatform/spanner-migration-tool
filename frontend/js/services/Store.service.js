@@ -3,11 +3,26 @@ import Fetch from "./Fetch.service.js";
 
 const DEFAULT_INSTANCE = {
     currentMainPageModal: null, // "name", null
+    
 }
 
 const Store = (function() {
 
     var instance;
+    let sessionData = [
+        {
+          sessionName : "File1.json",
+          sessionDate : "2017-01-01" ,
+          sessionTime : "1:2:3",
+          sessionAction : "resume_sesssion_url"
+      },
+      {
+        sessionName : "File1.json",
+        sessionDate : "2017-01-01" ,
+        sessionTime : "1:2:3",
+        sessionAction : "resume_sesssion_url"
+      },
+      ]
 
     function init() {
         // the initial data from the fetch service
@@ -38,6 +53,15 @@ const Store = (function() {
                 openVal = 'no';
             }
             instance = {...instance, open: openVal };
+        },
+        addNewSession: (session) => {
+            sessionData.append(session);
+        },
+        getSessionData: (index) => {
+            return sessionData[index];
+        },
+        getAllSessions : () => {
+            return sessionData;
         }
     };
 })();

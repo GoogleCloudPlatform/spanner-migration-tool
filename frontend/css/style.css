@@ -111,6 +111,11 @@ nav.navbar.navbar-static-top {
     height: 100%;
 }
 
+.history-table {
+    padding: 0 40px;
+    margin-top: 72px;
+}
+
 .main-content {
     padding: 0 40px;
     margin-top: 72px;
@@ -234,50 +239,14 @@ nav.navbar.navbar-static-top {
     margin-left: 40px;
 }
 
-.session-table {
-    width: 100%;
-}
 
-.session-table-th {
-    height: 50px;
-    text-align: center;
-    font-size: 20px;
-}
 
-.session-action {
-    color: #4285F4;
-    font-weight: 600;
-}
 
-.session-table {
-    background: #F2F2F2 0% 0% no-repeat padding-box;
-    border-radius: 0px 0px 20px 20px;
-    opacity: 1;
-}
 
-.session-table thead th,
-.session-table tbody td {
-    text-align: center;
-}
 
-.session-table-th2 {
-    font-size: 20px !important;
-    color: #FDFDFD !important;
-    background-color: #B9B9B9;
-}
 
-.session-table-td {
-    text-align: center;
-    font-size: 20px;
-    padding-top: 10px;
-    padding-bottom: 10px;
-    background-color: #DCDCDC4D;
-    color: #222222;
-}
 
-.session-table-td2 {
-    font-size: 20px;
-}
+
 
 .dataTypeTable-td {
     padding: 10px;
@@ -601,10 +570,6 @@ h4 {
     margin: auto;
     margin-top: 40px;
     margin-bottom: 40px;
-}
-
-table {
-    width: 100% !important;
 }
 
 .modal-content {

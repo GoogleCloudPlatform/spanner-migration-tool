@@ -3,6 +3,7 @@ import '../../components/Tab/Tab.component.js';
 import "../../components/Tab/Tabb.component.js";
 import "../../components/Label/Label.component.js";
 import "../../components/ImageIcon/ImageIcon.component.js";
+import "../../components/HistoryTable/HistoryTable.js";
 
 // Services
 import Store from "./../../services/Store.service.js";
@@ -71,7 +72,11 @@ class MainScreen extends HTMLElement {
             </div>
             <hb-tab open="${open}" relay=${funcc} ></hb-tab>
             <hb-tabb something="${something}" open="${open}" clickAction="addAttrToStore" ></hb-tabb>
+            <div class="history-content">
+            <hb-history-table></hb-history-table>
             </div>
+            </div>
+            
         `;
     }
 

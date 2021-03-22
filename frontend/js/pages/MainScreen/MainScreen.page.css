@@ -26,3 +26,9 @@
 .pointer {
     cursor: pointer;
 }
+
+.history-content{
+    padding : 0 40px;
+    margin-top: 72px;
+
+}

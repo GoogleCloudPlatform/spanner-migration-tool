@@ -16,6 +16,18 @@ const Actions = (() => {
         },
         closeStore: () => {
             Store.toggleStore();
+        },
+        addNewSession: (session) =>{
+            Store.addNewSession(session);
+        },
+        resumeSession: (index) => {
+           let val=Store.getSessionData(index);
+           console.log(val);
+        //    return val;
+        },
+        getAllSessions: () =>{
+            return Store.getAllSessions();
+
         }
     }
 })();
