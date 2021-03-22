@@ -360,7 +360,6 @@ func TestConvertSqlRow_SingleCol(t *testing.T) {
 		{name: "float64 string", srcType: schema.Type{Name: "text"}, spType: ddl.Type{Name: ddl.Float64}, in: "42.6", e: float64(42.6)},
 		{name: "float64 int", srcType: schema.Type{Name: "bigint"}, spType: ddl.Type{Name: ddl.Float64}, in: int64(42), e: float64(42)},
 		{name: "float64 byte", srcType: schema.Type{Name: "numeric"}, spType: ddl.Type{Name: ddl.Float64}, in: []byte("42.6"), e: float64(42.6)},
-		{name: "numeric", srcType: schema.Type{Name: "numeric"}, spType: ddl.Type{Name: ddl.Numeric}, in: []byte("999.99999"), e: "999.999990000"},
 		{name: "string", srcType: schema.Type{Name: "text"}, spType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, in: "eh", e: "eh"},
 		{name: "string bool", srcType: schema.Type{Name: "bool"}, spType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, in: true, e: "true"},
 		{name: "string byte", srcType: schema.Type{Name: "bytea"}, spType: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, in: []byte("abc"), e: "abc"},
