@@ -1,7 +1,7 @@
 import Store from "./Store.service.js";
 
 /**
- * All the manioulations to the store happen via the actions mentioned in this module
+ * All the manipulations to the store happen via the actions mentioned in this module
  * 
  */
 const Actions = (() => {
@@ -16,6 +16,9 @@ const Actions = (() => {
         },
         closeStore: () => {
             Store.toggleStore();
+        },
+        openConnectionModal: () => {
+            console.log("connect modal opened");
         }
     }
 })();
