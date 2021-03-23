@@ -3,7 +3,6 @@ import Fetch from "./Fetch.service.js";
 
 const DEFAULT_INSTANCE = {
     currentMainPageModal: null, // "name", null
-
 }
 
 const Store = (function () {

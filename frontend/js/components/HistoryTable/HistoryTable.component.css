@@ -3,6 +3,7 @@
     border-radius: 0px 0px 20px 20px;
     opacity: 1;
 }
+
 .session-table-th2 {
     font-size: 20px !important;
     color: #FDFDFD !important;
@@ -21,4 +22,9 @@
 .session-table thead th,
 .session-table tbody td {
     text-align: center;
+}
+
+.resume-session-link{
+    cursor: pointer;
+    text-decoration: none;
 }

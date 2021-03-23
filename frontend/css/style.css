@@ -905,9 +905,9 @@ button {
     background: YELLOW;
 }
 
-.template {
+/* .template {
     display: none;
-}
+} */
 
 .blink {
     animation: blinker 2s linear infinite;
