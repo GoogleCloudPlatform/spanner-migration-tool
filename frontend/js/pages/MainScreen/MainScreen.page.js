@@ -64,28 +64,26 @@ class MainScreen extends HTMLElement {
                 <hb-label type="heading" text="${HEADING_TEXT}"></hb-label>
                 <hb-label type="subHeading" text="${SUB_HEADING_TEXT}"></hb-label>
             </div>
-            <div class="icons-card-section">
-                ${MAIN_PAGE_ICONS.map((icon) => {
-                    return `<div class="icon-card">
-                        <hb-image-icon image="${icon.image}" imageAltText="${icon.imageAltText}" label="${icon.label}" clickAction="${icon.action}" modalDataTarget="${icon.modalDataTarget}" >
-                        </hb-image-icon>
-                    </div>`;
-                }).join("")}
+            <div class="card-area">
+                <div class="icons-card-section">
+                    ${MAIN_PAGE_ICONS.map((icon) => {
+                        return `<div class="icon-card">
+                            <hb-image-icon image="${icon.image}" imageAltText="${icon.imageAltText}" label="${icon.label}" clickAction="${icon.action}" modalDataTarget="${icon.modalDataTarget}" >
+                            </hb-image-icon>
+                        </div>`;
+                    }).join("")}
+                </div>
             </div>
             <hb-Modal ></hb-modal>
-            <hb-tab open="${open}" relay=${funcc} ></hb-tab>
-            <hb-tabb something="${something}" open="${open}" clickAction="addAttrToStore" ></hb-tabb>
             <div class="history-content">
             <hb-history-table></hb-history-table>
             </div>
-            </div>
-            
+            </div>       
         `;
     }
 
     constructor() {
         super();
-        this.stateObserver = null;
     }
 }
 

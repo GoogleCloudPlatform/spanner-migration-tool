@@ -1,5 +1,7 @@
-// import '../../components/HistoryTable/HistoryTableRow.js'
 import Actions from '../../services/Action.service.js';
+import "../../components/Label/Label.component.js";
+
+const HISTORY_TABLE_HEADING = "Conversion history";
 
 class HistoryTable extends HTMLElement {
 
@@ -20,7 +22,8 @@ class HistoryTable extends HTMLElement {
     render() {
      
         this.innerHTML = `
-        <table class="table session-table" style="width: 95%;">
+        <hb-label type="text" text="${HISTORY_TABLE_HEADING}"></hb-label>
+        <table class="table session-table">
         <thead>
           <tr>
             <th class='col-2 session-table-th2'>Session Name</th>
@@ -32,7 +35,6 @@ class HistoryTable extends HTMLElement {
         <tbody id='session-table-content'>
           ${ this.sessionsData.length>0 ?
             (
-              // "<hb-history-table-row></hb-history-table-row>"
               this.sessionsData.map((item,index)=>{
                 return `<tr class='sessions'>
                 <td class='col-2 session-table-td2 sessionName'>${item.sessionName}</td>
@@ -44,7 +46,7 @@ class HistoryTable extends HTMLElement {
               </tr> `;
               }
               
-              )
+              ).join("")
             ) :
           (`<tr class='sessionTableImg'>
             <td colspan='5' class='center session-image'><img src='Icons/Icons/Group 2154.svg' alt='nothing to show'></td>
@@ -59,9 +61,6 @@ class HistoryTable extends HTMLElement {
       </table>
         `;
     }
-
-   
-
 }
 
 window.customElements.define('hb-history-table', HistoryTable);
