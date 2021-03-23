@@ -1,4 +1,3 @@
-import Actions from "../../services/Action.service.js";
 import "../Label/Label.component.js";
 
 class ImageIcon extends HTMLElement {
@@ -39,7 +38,6 @@ class ImageIcon extends HTMLElement {
 
     constructor() {
         super();
-        this.addEventListener('click',function(){ Actions.setModalId(this.modalDataTarget.substring(1))});
     }
 }
 

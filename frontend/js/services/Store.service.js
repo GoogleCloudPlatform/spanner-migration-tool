@@ -33,19 +33,13 @@ const Store = (function() {
     }
 
     return {
-        setModalId : function(id) {
-            modalId = id;
-        },
-        getModalId : function() {
-            return modalId;
-        },
         getinstance: function() {
             if (!instance) {
                 instance = init();
             }
             return instance;
         },
-        // Other store maniuolator functions here 
+        // Other store manipulator functions here 
         // may be later can be moved to actions and stiched to affect the store
         addAttrToStore: () => {
             if (!instance) { return; }
@@ -56,7 +50,8 @@ const Store = (function() {
             let openVal = instance.open;
             if (instance.open === 'no') {
                 openVal = 'yes';
-            } else {
+            } 
+            else {
                 openVal = 'no';
             }
             instance = {...instance, open: openVal };

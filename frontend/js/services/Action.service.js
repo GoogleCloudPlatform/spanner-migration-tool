@@ -23,19 +23,10 @@ const Actions = (() => {
         resumeSession: (index) => {
            let val=Store.getSessionData(index);
            console.log(val);
-        //    return val;
         },
         getAllSessions: () =>{
             return Store.getAllSessions();
-
-        },
-        getModalId: () =>{
-            return Store.getModalId();
-        },
-        setModalId: (id) =>{
-            Store.setModalId(id);
         }
-
     }
 })();
 

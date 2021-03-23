@@ -74,7 +74,7 @@ class MainScreen extends HTMLElement {
                     }).join("")}
                 </div>
             </div>
-            <hb-Modal ></hb-modal>
+            <hb-modal></hb-modal>
             <div class="history-content">
             <hb-history-table></hb-history-table>
             </div>
