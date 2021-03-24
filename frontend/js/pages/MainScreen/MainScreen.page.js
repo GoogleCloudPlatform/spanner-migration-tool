@@ -59,25 +59,26 @@ class MainScreen extends HTMLElement {
 
     render() {
             if (!this.data) { return; }
-            let { open, funcc, something } = this.data;
+            let { open, funcc, something, currentModal } = this.data;
             console.log(open, funcc, something, ' are the values ');
             this.innerHTML = `
             <div>
-                <div class="page-heading">
-                    <hb-label type="heading" text="${HEADING_TEXT}"></hb-label>
-                    <hb-label type="subHeading" text="${SUB_HEADING_TEXT}"></hb-label>
-                </div>
-                <div class="icons-card-section">
-                    ${MAIN_PAGE_ICONS.map((icon) => {
-                        return `<div class="icon-card">
-                            <hb-image-icon image="${icon.image}" imageAltText="${icon.imageAltText}" label="${icon.label}" clickAction="${icon.action}" modalDataTarget="${icon.modalDataTarget}" >
-                            </hb-image-icon>
-                        </div>`;
-                    }).join("")}
-                </div>
-                <hb-modal title="${CONNECT_TO_DB_MODAL.title}" id="${CONNECT_TO_DB_MODAL.id}"></hb-modal>
-                <hb-tab open="${open}" relay=${funcc} ></hb-tab>
-                <hb-tabb something="${something}" open="${open}" clickAction="addAttrToStore" ></hb-tabb>
+            <div class="page-heading">
+                <hb-label type="heading" text="${HEADING_TEXT}"></hb-label>
+                <hb-label type="subHeading" text="${SUB_HEADING_TEXT}"></hb-label>
+            </div>
+            <div class="icons-card-section">
+                ${MAIN_PAGE_ICONS.map((icon) => {
+                    return `<div class="icon-card">
+                        <hb-image-icon image="${icon.image}" imageAltText="${icon.imageAltText}" label="${icon.label}" clickAction="${icon.action}" modalDataTarget="${icon.modalDataTarget}" >
+                        </hb-image-icon>
+                    </div>`;
+                }).join("")}
+            </div>
+            <hb-modal show="${currentModal === 'modal1' ? 'yes' : 'no'}" id="modal1" content="the first modal content" isClosable=true title="titile 1"></hb-modal>
+            <hb-modal show="${currentModal === 'modal2' ? 'yes' : 'no'}" id="modal2" content="second modal content" isClosable=true title="title 2"></hb-modal>
+            <hb-tab open="${open}" relay=${funcc} ></hb-tab>
+            <hb-tabb something="${something}" open="${open}" clickAction="openModal1" ></hb-tabb>
             </div>
         `;
     }

@@ -17,8 +17,11 @@ const Actions = (() => {
         closeStore: () => {
             Store.toggleStore();
         },
-        openConnectionModal: () => {
-            console.log("connect modal opened");
+        closeModal: (id) => {
+            Store.setCurrentModal(id);
+        },
+        openModal1: () => {
+            Store.setCurrentModal('modal1');
         }
     }
 })();

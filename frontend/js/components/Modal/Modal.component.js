@@ -2,56 +2,58 @@ import Actions from "../../services/Action.service.js";
 
 class Modal extends HTMLElement {
 
-    // static get observedAttributes() {
-    //     return ['open'];
-    // }
-
-    // get open() {
-    //     return this.getAttribute('open');
-    // }
-
-    get title() {
-        return this.getAttribute('title');
-    }
-
     get id() {
         return this.getAttribute('id');
     }
+    get isClosable() {
+        return this.getAttribute('isClosable');
+    }
+    get title() {
+        return this.getAttribute('title');
+    }
+    get content() {
+        return this.getAttribute('content');
+    }
+    get show() {
+        return this.getAttribute('show');
+    }
 
-    // attributeChangedCallback(name, oldValue, newValue) {
-    //     this.render();
-    // }
+    static get observedAttributes() {
+        return ['show'];
+    }
+
+    attributeChangedCallback(name, oldValue, newValue) {
+        console.log('MOdal updated ---- ', name, newValue);
+        if (name === 'show') { this.show = newValue; }
+        this.render();
+    }
 
     connectedCallback() {
-       this.render();
+        this.render();
     }
 
     render() {
-        let { id, title } = this;
-        this.innerHTML = `
-
-        <div class="modal" id="${id}" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle"
-        aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" role="document">
-          <div class="modal-content">
-            <div class="modal-header content-center">
-                <h5 class="modal-title modal-bg" id="exampleModalLongTitle">"${title}"</h5>
-                <!-- <i class="large material-icons close" data-dismiss="modal" onclick="clearModal()">cancel</i> -->
-            </div>
-          </div>
-        </div>
-      </div>
-
-
-        `;
+        let { id, isClosable, title, content, show } = this;
+        if (!show) { this.innerHTML = `` } else {
+            this.innerHTML = `
+                <div class="modal-container" id="${id}">
+                    <div class="title-bar">
+                        <div class="title">${title}</div>
+                        ${isClosable && `<div class="close_button">X</div>`}
+                    </div>
+                    <div class="content">
+                        ${content}
+                    </div>
+                </div>
+            `;
+        }
     }
 
-    // get, set is used to get the values of the attributes
     constructor() {
         super();
-        // this.data = {open: this.open, name: "Hii"};
-        // this.addEventListener('click', Actions.closeStore);
+        this.show = 'no';
+        this.addEventListener('click', () => {Actions['closeModal'](id)});
     }
 }
 
-window.customElements.define('hb-modal', Modal);
+window.customElements.define('hb-image-icon', ImageIcon);
