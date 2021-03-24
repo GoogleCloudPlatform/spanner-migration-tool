@@ -16,6 +16,12 @@ const Actions = (() => {
         },
         closeStore: () => {
             Store.toggleStore();
+        },
+        closeModal: (id) => {
+            Store.setCurrentModal(id);
+        },
+        openModal1: () => {
+            Store.setCurrentModal('modal1');
         }
     }
 })();

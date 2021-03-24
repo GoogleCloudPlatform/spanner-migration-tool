@@ -1,0 +1,21 @@
+.modal-container {
+    position: fixed;
+    top: 50%;
+}
+
+.modal-container .title_bar {
+    background-color: grey;
+}
+
+.modal-container .title_bar .title {
+    color: red;
+}
+
+.modal-container .title_bar .close_button {
+    color: white;
+    background-color: red;
+}
+
+.modal-container .content {
+    padding: 10px;
+}

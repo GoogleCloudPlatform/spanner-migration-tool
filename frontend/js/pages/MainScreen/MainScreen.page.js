@@ -53,7 +53,7 @@ class MainScreen extends HTMLElement {
 
     render() {
             if (!this.data) { return; }
-            let { open, funcc, something } = this.data;
+            let { open, funcc, something, currentModal } = this.data;
             console.log(open, funcc, something, ' are the values ');
             this.innerHTML = `
             <div>
@@ -69,8 +69,10 @@ class MainScreen extends HTMLElement {
                     </div>`;
                 }).join("")}
             </div>
+            <hb-modal show="${currentModal === 'modal1' ? 'yes' : 'no'}" id="modal1" content="the first modal content" isClosable=true title="titile 1"></hb-modal>
+            <hb-modal show="${currentModal === 'modal2' ? 'yes' : 'no'}" id="modal2" content="second modal content" isClosable=true title="title 2"></hb-modal>
             <hb-tab open="${open}" relay=${funcc} ></hb-tab>
-            <hb-tabb something="${something}" open="${open}" clickAction="addAttrToStore" ></hb-tabb>
+            <hb-tabb something="${something}" open="${open}" clickAction="openModal1" ></hb-tabb>
             </div>
         `;
     }

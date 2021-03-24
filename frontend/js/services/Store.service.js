@@ -38,6 +38,9 @@ const Store = (function() {
                 openVal = 'no';
             }
             instance = {...instance, open: openVal };
+        },
+        setCurrentModal: (currentModal) => {
+            instance = {...instance, currentModal };
         }
     };
 })();
