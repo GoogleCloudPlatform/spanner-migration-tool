@@ -919,7 +919,7 @@ const onImport = async (filePath) => {
         else {
           localStorage.setItem('conversionReportContent', textResponse);
           ddlSummaryAndConversionApiCall();
-          jQuery('#importSchemaModal').modal('hide');
+          jQuery('#loadSchemaModal').modal('hide');
           sessionRetrieval(srcDb);
         }
       }

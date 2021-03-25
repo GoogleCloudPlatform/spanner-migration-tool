@@ -112,12 +112,12 @@
         </div>
       </div>
       <div class="card-3-alignment">
-        <div class="mdc-card connect-db-icon pointer" data-toggle="modal" data-target="#importSchemaModal"
+        <div class="mdc-card connect-db-icon pointer" data-toggle="modal" data-target="#loadSchemaModal"
           data-backdrop="static" data-keyboard="false">
           <img src="Icons/Icons/importIcon2" width="64" height="64"
             style="margin:auto;filter: hue-rotate(-312deg) saturate(3.4);" alt="import schema image">
         </div>
-        <div class="import-text pointer" data-toggle="modal" data-target="#importSchemaModal" data-backdrop="static"
+        <div class="import-text pointer" data-toggle="modal" data-target="#loadSchemaModal" data-backdrop="static"
           data-keyboard="false">
           Load Session File
         </div>
@@ -231,9 +231,8 @@
         <i class="large material-icons close" data-dismiss="modal" onclick="clearModal()">cancel</i>
       </div>
       <div class="modal-body">
-        <!-- <form id="loadDbForm"> -->
         <div class="form-group">
-          <label class="" for="loadDbType">Database Type</label>
+          <label for="loadDbType">Database Type</label>
           <select class="form-control load-db-input" id="loadDbType" name="loadDbType">
             <option value="" style="display: none;"></option>
             <option class="db-option" value="mysql">MySQL</option>
@@ -243,7 +242,7 @@
         <form id="loadDbForm">
           <div class="form-group">
             <label class="modal-label" for="dumpFilePath">Path of the Dump File</label>
-            <input class="form-control load-db-input" aria-describedby="" type="text" name="dumpFilePath"
+            <input class="form-control load-db-input" type="text" name="dumpFilePath"
               id="dumpFilePath" autocomplete="off"
               onfocusout="validateInput(document.getElementById('dumpFilePath'), 'filePathError')" />
             <span class='formError' id='filePathError'></span>
@@ -259,7 +258,7 @@
   </div>
 </div>
 <!-- Import Schema Modal -->
-<div class="modal importSchemaModal" id="importSchemaModal" tabindex="-1" role="dialog"
+<div class="modal loadSchemaModal" id="loadSchemaModal" tabindex="-1" role="dialog"
   aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered" role="document">
     <!-- Modal content-->

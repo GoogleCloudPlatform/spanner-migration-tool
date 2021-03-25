@@ -1,12 +1,11 @@
 import Actions from "../../services/Action.service.js";
+import "../../components/ConnectToDbForm/ConnectToDbForm.component.js";
+import "../../components/LoadDbDumpForm/LoadDbDumpForm.component.js";
 
 class Modal extends HTMLElement {
 
-    get id() {
-        return this.getAttribute('id');
-    }
-    get isClosable() {
-        return this.getAttribute('isClosable');
+    get modalId() {
+        return this.getAttribute('modalId');
     }
     get title() {
         return this.getAttribute('title');
@@ -14,46 +13,56 @@ class Modal extends HTMLElement {
     get content() {
         return this.getAttribute('content');
     }
-    get show() {
-        return this.getAttribute('show');
-    }
-
-    static get observedAttributes() {
-        return ['show'];
-    }
-
-    attributeChangedCallback(name, oldValue, newValue) {
-        console.log('MOdal updated ---- ', name, newValue);
-        if (name === 'show') { this.show = newValue; }
-        this.render();
-    }
 
     connectedCallback() {
         this.render();
+        // document.getElementById(this.modalId).addEventListener('click', () => {this.clearModal()})
     }
 
+    clearModal = () => {
+        document.getElementsByClassName('formError').innerHTML = '';
+        document.getElementsByClassName('db-input').value = '';
+        document.getElementsByClassName('db-select-input').value = '';
+        document.getElementsByClassName('load-db-input').value = '';
+        document.getElementsByClassName('import-db-input').value = '';
+        document.getElementById('upload_link').innerHTML = 'Upload File';
+        document.getElementById('loadConnectButton').disabled = true;
+        document.getElementById('connectButton').disabled = true;
+        document.getElementById('importButton').disabled = true;
+        document.getElementById('indexName').value = '';
+        document.getElementById('createIndexButton').disabled = true;
+        if (document.getElementById('sqlFields') != undefined)
+          document.getElementById('sqlFields').style.display = 'none';
+        if (document.getElementById('sqlFieldsButtons') != undefined)
+          document.getElementById('sqlFieldsButtons').style.display = 'none';
+      }
+
     render() {
-        let { id, isClosable, title, content, show } = this;
-        if (!show) { this.innerHTML = `` } else {
+        let { modalId, title, content } = this;
+        console.log(content);
             this.innerHTML = `
-                <div class="modal-container" id="${id}">
-                    <div class="title-bar">
-                        <div class="title">${title}</div>
-                        ${isClosable && `<div class="close_button">X</div>`}
-                    </div>
-                    <div class="content">
-                        ${content}
-                    </div>
+            <div class="modal loadDatabaseDumpModal" id="${modalId}" tabindex="-1" role="dialog"
+            aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+              <!-- Modal content-->
+              <div class="modal-content">
+                <div class="modal-header content-center">
+                  <h5 class="modal-title modal-bg" id="exampleModalLongTitle">${title}</h5>
+                  <i class="large material-icons close" data-dismiss="modal">cancel</i>
                 </div>
+                <div class="modal-body">
+                  ${content}
+                </div>
+              </div>
+            </div>
+          </div>
             `;
-        }
     }
 
     constructor() {
         super();
-        this.show = 'no';
-        this.addEventListener('click', () => {Actions['closeModal'](id)});
+        this.addEventListener('click', () => {Actions['closeModal']});
     }
 }
 
-window.customElements.define('hb-image-icon', ImageIcon);
+window.customElements.define('hb-modal', Modal);

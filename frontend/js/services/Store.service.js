@@ -40,7 +40,7 @@ const Store = (function() {
             instance = {...instance, open: openVal };
         },
         setCurrentModal: (currentModal) => {
-            instance = {...instance, currentModal };
+            // instance = {...instance, currentModal };
         }
     };
 })();

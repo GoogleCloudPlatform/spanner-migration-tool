@@ -796,7 +796,7 @@ input[type="submit"] {
 }
 
 .loadDatabaseDumpModal .modal-footer,
-.importSchemaModal .modal-footer {
+.loadSchemaModal .modal-footer {
     padding: 12px 24px 14px 24px;
 }
 
