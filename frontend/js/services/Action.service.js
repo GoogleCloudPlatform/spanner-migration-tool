@@ -88,6 +88,16 @@ const Actions = (() => {
                 return false;
             }
             return true;
+        },
+        addNewSession: (session) =>{
+            Store.addNewSession(session);
+        },
+        resumeSession: (index) => {
+           let val=Store.getSessionData(index);
+           console.log(val);
+        },
+        getAllSessions: () =>{
+            return Store.getAllSessions();
         }
     }
 })();

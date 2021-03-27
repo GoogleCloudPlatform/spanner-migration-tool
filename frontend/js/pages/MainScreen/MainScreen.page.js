@@ -4,6 +4,7 @@ import "../../components/Tab/Tabb.component.js";
 import "../../components/Label/Label.component.js";
 import "../../components/ImageIcon/ImageIcon.component.js";
 import "../../components/Modal/Modal.component.js";
+import "../../components/HistoryTable/HistoryTable.component.js";
 
 // Services
 import Store from "./../../services/Store.service.js";
@@ -11,12 +12,14 @@ import Store from "./../../services/Store.service.js";
 const HEADING_TEXT = "Welcome To HarborBridge";
 const SUB_HEADING_TEXT = "Connect or import your database";
 
+
 const MAIN_PAGE_ICONS = [{
         image: "Icons/Icons/Group 2048.svg",
         imageAltText: "connect to db",
         label: "Connect to Database",
         action: "openConnectionModal",
         modalDataTarget: "#connectToDbModal",
+        
     },
     {
         image: "Icons/Icons/Group 2049.svg",
@@ -65,13 +68,15 @@ class MainScreen extends HTMLElement {
                 <hb-label type="heading" text="${HEADING_TEXT}"></hb-label>
                 <hb-label type="subHeading" text="${SUB_HEADING_TEXT}"></hb-label>
             </div>
-            <div class="icons-card-section">
-                ${MAIN_PAGE_ICONS.map((icon) => {
-                    return `<div class="icon-card">
-                        <hb-image-icon image="${icon.image}" imageAltText="${icon.imageAltText}" label="${icon.label}" clickAction="${icon.action}" modalDataTarget="${icon.modalDataTarget}" >
-                        </hb-image-icon>
-                    </div>`;
-                }).join("")}
+            <div class="card-area">
+                <div class="icons-card-section">
+                    ${MAIN_PAGE_ICONS.map((icon) => {
+                        return `<div class="icon-card">
+                            <hb-image-icon image="${icon.image}" imageAltText="${icon.imageAltText}" label="${icon.label}" clickAction="${icon.action}" modalDataTarget="${icon.modalDataTarget}" >
+                            </hb-image-icon>
+                        </div>`;
+                    }).join("")}
+                </div>
             </div>
             <hb-modal modalId="connectToDbModal" content="<hb-connect-to-db-form></hb-connect-to-db-form>" title="Connect to Database"></hb-modal>
             <hb-modal modalId="loadDatabaseDumpModal" content="<hb-load-db-dump-form></hb-load-db-dump-form>" title="Load Database Dump"></hb-modal>
@@ -79,13 +84,15 @@ class MainScreen extends HTMLElement {
             <hb-modal modalId="connectModalSuccess" content="${CONNECTION_SUCCESS_CONTENT}" title="Connection Successful"></hb-modal>
             <hb-tab open="${open}" relay=${funcc} ></hb-tab>
             <hb-tabb something="${something}" open="${open}" clickAction="openModal1" ></hb-tabb>
+            <div class="history-content">
+            <hb-history-table></hb-history-table>
             </div>
+            </div>       
         `;
     }
 
     constructor() {
         super();
-        this.stateObserver = null;
     }
 }
 

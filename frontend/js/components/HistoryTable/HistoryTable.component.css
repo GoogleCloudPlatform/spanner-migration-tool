@@ -1,0 +1,30 @@
+.session-table {
+    background: #F2F2F2 0% 0% no-repeat padding-box;
+    border-radius: 0px 0px 20px 20px;
+    opacity: 1;
+}
+
+.session-table-th2 {
+    font-size: 20px !important;
+    color: #FDFDFD !important;
+    background-color: #B9B9B9;
+}
+
+.session-table-td2 {
+    font-size: 20px;
+}
+
+.session-action {
+    color: #4285F4;
+    font-weight: 600;
+}
+
+.session-table thead th,
+.session-table tbody td {
+    text-align: center;
+}
+
+.resume-session-link{
+    cursor: pointer;
+    text-decoration: none;
+}

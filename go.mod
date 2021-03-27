@@ -19,7 +19,6 @@ require (
 	//github.com/pingcap/parser v3.0.12+incompatible
 	github.com/pingcap/parser v0.0.0-20200422082501-7329d80eaf2c
 	github.com/pingcap/tidb v1.1.0-beta.0.20200423105559-af376db3dc46
-	github.com/pingcap/tipb v0.0.0-20200417094153-7316d94df1ee // indirect
 	github.com/sirupsen/logrus v1.5.0 // indirect
 	github.com/stretchr/testify v1.5.1
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9

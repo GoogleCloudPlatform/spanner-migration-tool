@@ -29,7 +29,7 @@ class Label extends HTMLElement {
 
         this.innerHTML = `
             <div class="label ${className}">${text}</div>
-        `;
+        `;  
     }
 
     constructor() {

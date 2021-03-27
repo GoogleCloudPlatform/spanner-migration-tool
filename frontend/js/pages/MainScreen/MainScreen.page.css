@@ -11,9 +11,13 @@
     margin-top: 20px;
 }
 
+.card-area {
+    background-color: #FDFDFD;
+}
+
 .icons-card-section {
     display: flex;
-    width: 50%;
+    width: 70%;
     text-align: center;
     justify-content: space-between;
     margin: 40px;
@@ -29,4 +33,10 @@
 
 .template {
     display: none;
+}
+
+.history-content{
+    padding : 0 40px;
+    margin-top: 72px;
+    background-color: #FDFDFD;
 }
