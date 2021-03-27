@@ -20,11 +20,11 @@ const Actions = (() => {
         closeModal: (id) => {
             Store.setCurrentModal(id);
         },
-        // openModal1: () => {
-        //     Store.setCurrentModal('modal1');
-        // }
         openDumpLoadingModal: () => {
             Store.setCurrentModal('loadDatabaseDumpModal');
+        },
+        switchToTab: (id)=>{
+            Store.changeCurrentTab(id)
         }
     }
 })();

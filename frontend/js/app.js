@@ -1,5 +1,5 @@
 import "./pages/MainScreen/MainScreen.page.js";
-
+import "./pages/SchemaConversionScreen/SchemaConversionScreen.page.js"
 // Home screen component
 const HomeComponent = {
     render: () => {
@@ -9,7 +9,9 @@ const HomeComponent = {
 
 // Edit Schema screen component
 const SchemaComponent = {
-    render: () => jQuery('#app').load('./js/pages/schema-conversion-screen.html')
+    render: () => {
+        document.getElementById('app').innerHTML = `<hb-schema-conversion-screen></hb-schema-conversion-screen>`
+    }
 }
 
 // Instructions Component

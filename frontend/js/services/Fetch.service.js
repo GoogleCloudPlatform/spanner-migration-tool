@@ -9,7 +9,7 @@ const Fetch = (() => {
         // Start the site loader
         return new Promise((resolve, reject) => {
             fetch(url).then((response) => {
-                    response = { name: 'Amaaa', occupation: 'Artist', open: 'no', funcc: () => console.log('upppp') }
+                    response = { name: 'Amaaa', occupation: 'Artist', currentTab : "reportTab",open: 'no', funcc: () => console.log('upppp') }
 
                     setTimeout(() => {
                         resolve(response);

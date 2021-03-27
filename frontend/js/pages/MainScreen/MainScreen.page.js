@@ -100,7 +100,7 @@ class MainScreen extends HTMLElement {
             <hb-modal modalId="connectToDbModal" content="<hb-connect-to-db-form></hb-connect-to-db-form>" title="Connect to Database"></hb-modal>
             <hb-modal modalId="loadDatabaseDumpModal" content="<hb-load-db-dump-form></hb-load-db-dump-form>" title="Load Database Dump"></hb-modal>
             <hb-modal modalId="loadSchemaModal" content="" title="Load Session File"></hb-modal>
-            <hb-tab open="${open}" relay=${funcc} ></hb-tab>
+            
             <hb-tabb something="${something}" open="${open}" clickAction="openModal1" ></hb-tabb>
             </div>
         `;
@@ -113,3 +113,5 @@ class MainScreen extends HTMLElement {
 }
 
 window.customElements.define('hb-main-screen', MainScreen);
+
+{/* <hb-tab open="${open}" relay=${funcc} ></hb-tab> */}

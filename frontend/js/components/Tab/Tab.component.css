@@ -1,7 +1,19 @@
-.redd {
-    color: red;
+.nav-tabs .nav-link.active,
+.nav-tabs .nav-link.active:focus,
+.nav-tabs .nav-link.active:hover {
+    color: #FDFDFD;
+    background-color: #4285F4;
+    border-radius: 20px 20px 0px 0px;
+    font-size: 20px;
+    padding: 6px 20px 6px 20px;
 }
 
-.greenn {
-    color: green;
+.nav-tabs .nav-link {
+    padding: 6px 20px 6px 20px;
+    font-size: 20px;
+    color: #5E5752;
+    border: 1px solid #4285F4;
+    border-radius: 20px 20px 0px 0px;
+    margin-right: -1px;
+    cursor: pointer;
 }
