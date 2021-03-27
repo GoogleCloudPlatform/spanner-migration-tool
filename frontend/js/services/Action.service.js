@@ -98,6 +98,9 @@ const Actions = (() => {
         },
         getAllSessions: () =>{
             return Store.getAllSessions();
+        },
+        switchToTab: (id)=>{
+            Store.changeCurrentTab(id)
         }
     }
 })();

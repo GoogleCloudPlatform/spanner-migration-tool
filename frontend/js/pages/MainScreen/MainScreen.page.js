@@ -82,7 +82,7 @@ class MainScreen extends HTMLElement {
             <hb-modal modalId="loadDatabaseDumpModal" content="<hb-load-db-dump-form></hb-load-db-dump-form>" title="Load Database Dump"></hb-modal>
             <hb-modal modalId="loadSchemaModal" content="<hb-load-session-file-form></hb-load-session-file-form>" title="Load Session File"></hb-modal>
             <hb-modal modalId="connectModalSuccess" content="${CONNECTION_SUCCESS_CONTENT}" title="Connection Successful"></hb-modal>
-            <hb-tab open="${open}" relay=${funcc} ></hb-tab>
+            
             <hb-tabb something="${something}" open="${open}" clickAction="openModal1" ></hb-tabb>
             <div class="history-content">
             <hb-history-table></hb-history-table>
@@ -97,3 +97,5 @@ class MainScreen extends HTMLElement {
 }
 
 window.customElements.define('hb-main-screen', MainScreen);
+
+{/* <hb-tab open="${open}" relay=${funcc} ></hb-tab> */}

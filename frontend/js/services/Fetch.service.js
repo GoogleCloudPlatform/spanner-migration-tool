@@ -54,15 +54,15 @@ const Fetch = (() => {
     }
 
     return {
-        getData: () => {
-            return makeFetchCall('GET', "/").then((response) => {
-                // the success logic
-                return transformingIntialData(response);
-            })
-                .catch((err) => {
-                    console.log('Error in initialisign ');
-                });
-        },
+        // getData: () => {
+        //     return makeFetchCall('GET', "/").then((response) => {
+        //         // the success logic
+        //         return transformingIntialData(response);
+        //     })
+        //         .catch((err) => {
+        //             console.log('Error in initialisign ');
+        //         });
+        // },
         showSnackbar: (message, bgClass) => {
             var snackbar = document.getElementById("snackbar");
             snackbar.className = "show" + bgClass;

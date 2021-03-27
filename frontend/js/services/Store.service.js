@@ -3,11 +3,11 @@ import Fetch from "./Fetch.service.js";
 
 const DEFAULT_INSTANCE = {
     currentMainPageModal: null, // "name", null
-}
+};
 
 const Store = (function () {
 
-    var instance;
+    var instance = {currentTab: "reportTab"};
     let sessionData = [
         {
             sessionName: "File1.json",
@@ -26,16 +26,17 @@ const Store = (function () {
 
     function init() {
         // the initial data from the fetch service
-        Fetch.getData().then((data) => {
-            instance = data;
-        });
+        // Fetch.getData().then((data) => {
+        //     instance = data;
+        // });
     }
 
     return {
         getinstance: function () {
             if (!instance) {
-                instance = init();
+                // instance = init();
             }
+            console.log(instance);
             return instance;
         },
         // Other store manipulator functions here 
@@ -53,7 +54,7 @@ const Store = (function () {
             else {
                 openVal = 'no';
             }
-            instance = {...instance, open: openVal };
+            instance = { ...instance, open: openVal };
         },
         setCurrentModal: (currentModal) => {
             // instance = {...instance, currentModal };
@@ -67,6 +68,12 @@ const Store = (function () {
         },
         getAllSessions: () => {
             return sessionData;
+        },
+        changeCurrentTab: (currentTab) => {
+            instance = { ...instance, currentTab };
+        },
+        getOpenTab: () => {
+            return instance.currentTab;
         }
     };
 })();
