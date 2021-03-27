@@ -1,21 +1,100 @@
-.modal-container {
-    position: fixed;
-    top: 50%;
+.modal-content .modal-body {
+    padding: 20px 24px 0px 24px;
 }
 
-.modal-container .title_bar {
-    background-color: grey;
+.modal-body {
+    position: relative;
+    padding-left: 24px;
+    padding-right: 24px;
+    padding-top: 24px;
+    padding-bottom: 0px;
 }
 
-.modal-container .title_bar .title {
-    color: red;
+.modal-content {
+    box-shadow: none;
 }
 
-.modal-container .title_bar .close_button {
-    color: white;
-    background-color: red;
+.modal-content .modal-header {
+    background-color: #4285F4;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    padding-left: 24px;
+    border-bottom: 0;
 }
 
-.modal-container .content {
-    padding: 10px;
+.modal-header .close {
+    font-size: 20px;
+    margin: auto 0px;
+    padding: 0px;
+    color: #FFFFFF;
+    opacity: inherit;
+}
+
+.modal-title {
+    font-size: 22px;
+}
+
+.modal-bg {
+    font-weight: 600;
+    background-color: #4285F4;
+    color: #FFFFFF;
+}
+
+.modal-footer {
+    padding: 12px 24px 14px 24px !important;
+    margin-top: -15px;
+}
+
+select.form-control:not([size]):not([multiple]) {
+    height: 36px;
+    margin-bottom: 22px;
+}
+
+.form-group {
+    margin-bottom: -3px !important;
+}
+
+.custom-file-control,
+.form-control {
+    border: 1px solid #DDDDDD !important;
+}
+
+.custom-file-control:focus,
+.form-control:focus {
+    border-color: #4285F4 !important;
+}
+
+.form-error {
+    font-size: 12px;
+}
+
+.modal-button {
+    width: 80px;
+    height: 30px;
+    border-radius: 30PX;
+    border: 1px solid #4285F4;
+    background-color: #4285F4;
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: bold;
+    float: right;
+    cursor: pointer;
+    margin-right: 0px !important;
+}
+
+input[type="submit"]:disabled {
+    background-color: #4285F4;
+    border: 1px solid #4285F4;
+    outline: none;
+    opacity: 0.5;
+}
+
+input[type="submit"] {
+    outline: none;
+}
+
+@media (min-width: 576px) {
+    .modal-dialog-centered {
+        min-height: calc(100%) !important;
+    }
 }

@@ -809,7 +809,7 @@
                 </div>
             </div>
             <div class="modal-footer" style='margin-top: 20px;'>
-                <button id="data-type-button" data-dismiss="modal" onclick="setGlobalDataType()" class="connectButton"
+                <button id="data-type-button" data-dismiss="modal" onclick="setGlobalDataType()" class="modal-button"
                     type="button" style='margin-right: 24px !important;'>Next</button>
             </div>
         </div>
@@ -834,9 +834,9 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button data-dismiss="modal" class="connectButton" type="button"
+                <button data-dismiss="modal" class="modal-button" type="button"
                     onclick="dropForeignKeyHandler()">Yes</button>
-                <button data-dismiss="modal" class="connectButton" type="button">No</button>
+                <button data-dismiss="modal" class="modal-button" type="button">No</button>
             </div>
         </div>
     </div>
@@ -860,9 +860,9 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button data-dismiss="modal" class="connectButton" type="button"
+                <button data-dismiss="modal" class="modal-button" type="button"
                     onclick="dropSecondaryIndexHandler()">Yes</button>
-                <button data-dismiss="modal" class="connectButton" type="button">No</button>
+                <button data-dismiss="modal" class="modal-button" type="button">No</button>
             </div>
         </div>
     </div>
@@ -884,7 +884,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button data-dismiss="modal" class="connectButton" type="button">Ok</button>
+                <button data-dismiss="modal" class="modal-button" type="button">Ok</button>
             </div>
         </div>
     </div>
@@ -906,7 +906,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button data-dismiss="modal" class="connectButton" type="button">Ok</button>
+                <button data-dismiss="modal" class="modal-button" type="button">Ok</button>
             </div>
         </div>
     </div>
@@ -931,7 +931,7 @@
                         <input type="text" class="form-control" name="indexName" id="indexName" autocomplete="off"
                             onfocusout="validateInput(document.getElementById('indexName'), 'indexNameError')"
                             style="border: 1px solid black !important;">
-                        <span class='formError' id='indexNameError'></span>
+                        <span class='form-error' id='indexNameError'></span>
                     </div>
                     <div class="newIndexColumnList template">
                         <span class="orderId" style="visibility: hidden;">1</span><span class="columnName"></span>
@@ -970,7 +970,7 @@
             <div class="modal-footer">
                 <input type="submit"
                     onclick="fetchIndexFormValues(document.getElementById('indexName').value, document.getElementById('uniqueSwitch').checked)"
-                    id="createIndexButton" class="connectButton" value="Create" disabled>
+                    id="createIndexButton" class="modal-button" value="Create" disabled>
             </div>
         </div>
     </div>

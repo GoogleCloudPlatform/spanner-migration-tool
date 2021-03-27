@@ -34,32 +34,7 @@ const MAIN_PAGE_ICONS = [{
     },
 ]
 
-const LOAD_DB_MODAL_FORM_ELEMENTS = [{
-        label: "Database Type",
-        labelClass: "modal-label",
-        labelForAttr: "loadDbType",
-        labelInputType: "select",
-        selectOpions: ["", "mysql", "postgres"],
-        selectOptionValues: ["", "MySql", "Postgres"],
-        labelInputTypeClass: "form-control load-db-input",
-        labelInputTypeId: "loadDbType",
-        labelInputTypeName: "loadDbType"
-    },
-    {
-        label: "Path of the Dump File",
-        labelClass: "modal-label",
-        labelForAttr: "dumpFilePath",
-        labelInputType: "text",
-        labelInputTypeClass: "form-control load-db-input",
-        labelInputTypeId: "dumpFilePath",
-        labelInputTypeName: "dumpFilePath",
-        autocomplete: "off",
-    },
-    {
-        labelInputType: "text",
-        labelInputClass: "template"
-    }
-]
+const CONNECTION_SUCCESS_CONTENT = "Please click on convert button to proceed with schema conversion";
 
 class MainScreen extends HTMLElement {
 
@@ -85,6 +60,7 @@ class MainScreen extends HTMLElement {
             console.log(open, funcc, something, ' are the values ');
             this.innerHTML = `
             <div>
+            <div id="snackbar"></div>
             <div class="page-heading">
                 <hb-label type="heading" text="${HEADING_TEXT}"></hb-label>
                 <hb-label type="subHeading" text="${SUB_HEADING_TEXT}"></hb-label>
@@ -100,6 +76,7 @@ class MainScreen extends HTMLElement {
             <hb-modal modalId="connectToDbModal" content="<hb-connect-to-db-form></hb-connect-to-db-form>" title="Connect to Database"></hb-modal>
             <hb-modal modalId="loadDatabaseDumpModal" content="<hb-load-db-dump-form></hb-load-db-dump-form>" title="Load Database Dump"></hb-modal>
             <hb-modal modalId="loadSchemaModal" content="<hb-load-session-file-form></hb-load-session-file-form>" title="Load Session File"></hb-modal>
+            <hb-modal modalId="connectModalSuccess" content="${CONNECTION_SUCCESS_CONTENT}" title="Connection Successful"></hb-modal>
             <hb-tab open="${open}" relay=${funcc} ></hb-tab>
             <hb-tabb something="${something}" open="${open}" clickAction="openModal1" ></hb-tabb>
             </div>

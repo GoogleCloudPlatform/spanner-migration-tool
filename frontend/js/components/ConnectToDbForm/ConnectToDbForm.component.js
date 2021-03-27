@@ -1,4 +1,5 @@
 import Forms from "../../services/Forms.service.js";
+import Actions from "../../services/Action.service.js";
 
 class ConnectToDbForm extends HTMLElement {
 
@@ -8,69 +9,69 @@ class ConnectToDbForm extends HTMLElement {
         modalData.querySelector("i").addEventListener("click", () => {
             Forms.resetConnectToDbModal();
         }); 
-        document.getElementById("dbType").addEventListener("change", () => {
+        document.getElementById("db-type").addEventListener("change", () => {
             Forms.toggleDbType();
         });
         document.querySelectorAll("input").forEach(elem => {
             elem.addEventListener("focusout", () => {
-                Forms.validateInput(elem, elem.id + "Error");
+                Forms.validateInput(elem, elem.id + "-error");
             })
         });
-        Forms.formButtonHandler("connectForm", "connectButton");
+        Forms.formButtonHandler("connect-form", "connect-button");
+        document.getElementById("connect-button").addEventListener("click", () => {
+            Actions.onconnect( document.getElementById('db-type').value, document.getElementById('db-host').value, document.getElementById('db-port').value, document.getElementById('db-user').value, document.getElementById('db-name').value, document.getElementById('db-password').value)
+        })
     }
 
     render() {
         this.innerHTML = `
             <div class="modal-body">
                 <div class="form-group">
-                    <label for="dbType" class="">Database Type</label>
-                    <select class="form-control db-select-input" id="dbType" name="dbType">
+                    <label for="db-type">Database Type</label>
+                    <select class="form-control db-select-input" id="db-type" name="db-type">
                         <option value="" class="template"></option>
-                        <option class="db-option" value="mysql">MySQL</option>
-                        <option class="db-option" value="postgres">Postgres</option>
-                        <option class='db-option' value='dynamodb'>dynamoDB</option>
+                        <option value="mysql">MySQL</option>
+                        <option value="postgres">Postgres</option>
+                        <option value='dynamodb'>dynamoDB</option>
                     </select>
                 </div>
-                <div id="sqlFields" class="template">
-                    <form id="connectForm">
-                        <div class="form-group">
-                            <label class="modal-label" for="dbHost">Database Host</label>
-                            <input type="text" class="form-control db-input" aria-describedby="" name="dbHost" id="dbHost"
+                <div id="sql-fields" class="template">
+                    <form id="connect-form">
+                        <div>
+                            <label for="db-host">Database Host</label>
+                            <input type="text" class="form-control db-input" name="db-host" id="db-host"
                                 autocomplete="off" />
-                            <span class='formError' id='dbHostError'></span><br>
+                            <span class='form-error' id='db-host-error'></span><br>
                         </div>
-                        <div class="form-group">
-                            <label class="modal-label" for="dbPort">Database Port</label>
-                            <input class="form-control db-input" aria-describedby="" type="text" name="dbPort" id="dbPort"
+                        <div>
+                            <label for="db-port">Database Port</label>
+                            <input class="form-control db-input" type="text" name="db-port" id="db-port"
                                 autocomplete="off" />
-                            <span class='formError' id='dbPortError'></span><br>
+                            <span class='form-error' id='db-port-error'></span><br>
                         </div>
-                        <div class="form-group">
-                            <label class="modal-label" for="dbUser">Database User</label>
-                            <input class="form-control db-input" aria-describedby="" type="text" name="dbUser" id="dbUser"
+                        <div>
+                            <label for="db-user">Database User</label>
+                            <input class="form-control db-input" type="text" name="db-user" id="db-user"
                                 autocomplete="off" />
-                            <span class='formError' id='dbUserError'></span><br>
+                            <span class='form-error' id='db-user-error'></span><br>
                         </div>
-                        <div class="form-group">
-                            <label class="modal-label" for="dbName">Database Name</label>
-                            <input class="form-control db-input" aria-describedby="" type="text" name="dbName" id="dbName"
+                        <div>
+                            <label for="db-name">Database Name</label>
+                            <input class="form-control db-input" type="text" name="db-name" id="db-name"
                                 autocomplete="off" />
-                            <span class='formError' id='dbNameError'></span><br>
+                            <span class='form-error' id='db-name-error'></span><br>
                         </div>
-                        <div class="form-group">
-                            <label class="modal-label" for="dbPassword">Database Password</label>
-                            <input class="form-control db-input" aria-describedby="" type="password" name="dbPassword" id="dbPassword"
+                        <div>
+                            <label for="db-password">Database Password</label>
+                            <input class="form-control db-input" type="password" name="db-password" id="db-password"
                                 autocomplete="off" />
-                            <span class='formError' id='dbPasswordError'></span><br>
+                            <span class='form-error' id='db-password-error'></span><br>
                         </div>
                     </form>
                 </div>
             </div>
-            <div id="sqlFieldsButtons" class="template">
-                <div class="modal-footer">
-                <input type="submit" disabled="disabled" value="Connect" id="connectButton" class="connectButton"
-                    onclick="onconnect( document.getElementById('dbType').value, document.getElementById('dbHost').value, document.getElementById('dbPort').value, document.getElementById('dbUser').value, document.getElementById('dbName').value, document.getElementById('dbPassword').value)" />
-                </div>
+            <div class="modal-footer">
+                <input type="submit" disabled="disabled" value="Connect" id="connect-button" class="modal-button" />
             </div>
         `;
     }

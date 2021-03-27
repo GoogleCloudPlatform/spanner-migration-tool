@@ -8,36 +8,38 @@ class LoadSessionFileForm extends HTMLElement {
         modalData.querySelector("i").addEventListener("click", () => {
             Forms.resetLoadSessionModal();
         });
-        document.getElementById("sessionFilePath").addEventListener("focusout", () => {
-            Forms.validateInput(document.getElementById('sessionFilePath'), 'loadSessionError');
+        document.getElementById("session-file-path").addEventListener("focusout", () => {
+            Forms.validateInput(document.getElementById('session-file-path'), 'load-session-error');
         });
-        Forms.formButtonHandler("importForm", "importButton");
+        Forms.formButtonHandler("load-session-form", "import-button");
+        document.getElementById("import-button").addEventListener("click", () => {
+            storeSessionFilePath(document.getElementById("import-db-type").value, document.getElementById("session-file-path").value)
+        })
     }
 
     render() {
         this.innerHTML = `
             <div class="modal-body">
-                <form id="importForm" class="importForm">
-                    <div class="form-group">
-                        <label class="modal-label" for="importDbType">Database Type</label>
-                        <select class="form-control import-db-input" id="importDbType" name="importDbType">
-                            <option value="" style="display: none;"></option>
-                            <option class="db-option" value="mysql">MySQL</option>
-                            <option class="db-option" value="postgres">Postgres</option>
+                <form id="load-session-form" class="load-session-form">
+                    <div>
+                        <label class="modal-label" for="import-db-type">Database Type</label>
+                        <select class="form-control import-db-input" id="import-db-type" name="import-db-type">
+                            <option class="template"></option>
+                            <option value="mysql">MySQL</option>
+                            <option value="postgres">Postgres</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label class="modal-label" for="sessionFilePath">Path of the session File</label>
-                        <input class="form-control load-db-input" aria-describedby="" type="text" name="sessionFilePath"
-                            id="sessionFilePath" autocomplete="off" />
-                        <span class='formError' id='loadSessionError'></span>
+                    <div>
+                        <label class="modal-label" for="session-file-path">Path of the session File</label>
+                        <input class="form-control load-db-input" type="text" name="session-file-path"
+                            id="session-file-path" autocomplete="off" />
+                        <span class='form-error' id='load-session-error'></span>
                     </div>
                     <input type="text" class="template" value="dummyInput">
                 </form>
             </div>
             <div class="modal-footer">
-                <input type='submit' disabled='disabled' id='importButton' class='connectButton' value='Confirm'
-                onclick='storeSessionFilePath(document.getElementById("importDbType").value, document.getElementById("sessionFilePath").value)' />
+                <input type='submit' disabled='disabled' id='import-button' class='modal-button' value='Confirm' />
             </div>
         `;
     }
