@@ -1,22 +1,26 @@
 import "./pages/MainScreen/MainScreen.page.js";
-import "./pages/SchemaConversionScreen/SchemaConversionScreen.page.js"
+import "./pages/SchemaConversionScreen/SchemaConversionScreen.page.js";
+import "./pages/Instructions/Instructions.page.js"
+import "./pages/DefaultLayout/DefaultLayout.page.js"
 // Home screen component
 const HomeComponent = {
     render: () => {
-        document.getElementById('app').innerHTML = `<hb-main-screen></hb-main-screen>`;
+        document.getElementById('app').innerHTML = `<hb-default-layout><hb-main-screen></hb-main-screen></hb-default-layout>`;
     }
 }
 
 // Edit Schema screen component
 const SchemaComponent = {
     render: () => {
-        document.getElementById('app').innerHTML = `<hb-schema-conversion-screen></hb-schema-conversion-screen>`
+        document.getElementById('app').innerHTML = `<hb-default-layout><hb-schema-conversion-screen></hb-schema-conversion-screen></<hb-default-layout>`
     }
 }
 
 // Instructions Component
 const InstructionsComponent = {
-    render: () => jQuery('#app').load('./js/pages/Instructions/Instructions.html')
+    render: () => {
+        document.getElementById('app').innerHTML = `<hb-default-layout><hb-instructions></hb-instructions></<hb-default-layout>`
+    }
 }
 
 // Error component (for any unrecognized path)
