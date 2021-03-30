@@ -8,12 +8,12 @@ class TableCarousel extends HTMLElement {
     return this.getAttribute("title");
   }
   
-  get className(){
-      return this.getAttribute('className')
+  get tabelClassName(){
+      return this.getAttribute('tabelClassName')
   }
 
-  get id(){
-      return this.getAttribute('id')
+  get tabelId(){
+      return this.getAttribute('tabelId')
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
@@ -26,7 +26,7 @@ class TableCarousel extends HTMLElement {
 
   render() {
     // let { id, open, text } = this;
-    let { title , className , id } = this;
+    let { title , tabelClassName , tabelId } = this;
   
     let schemaConversionObj = JSON.parse(
       localStorage.getItem("conversionReportContent")
@@ -35,23 +35,18 @@ class TableCarousel extends HTMLElement {
     let carouselContent = schemaConversionObj.SpSchema[title];
   
     this.innerHTML = `
-    <section class="reportSection">
-    <div class="card">
-        <div role="tab" class="card-header report-card-header borderBottom">
-            <h5 class="mb-0">
-                <a data-toggle="collapse" href="#${id}">
+   
+                <a data-toggle="collapse" href="#${tabelId}">
                     Table: <span>${title}</span>
                     <i class="fas fa-angle-down rotate-icon"></i>
                 </a>
-            </h5>
-        </div>
-        <div class="collapse ${className}" id="${id}">
-            <div class="mdc-card mdc-card-content table-card-border">
-                <hb-data-table></hb-data-table>
-            </div>
-        </div>
-    </div>
-</section>
+                <div class="collapse ${tabelClassName}" id="${tabelId}">
+                  <div class="mdc-card mdc-card-content table-card-border">
+                    <hb-data-table></hb-data-table>
+                  </div>
+              </div>
+           
+        
     `;
   }
 
