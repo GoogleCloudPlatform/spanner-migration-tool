@@ -740,11 +740,9 @@ class SchemaConversionScreen extends HTMLElement {
             <button class='expand right-align' id='editButton' onclick='globalEditHandler()'>Edit Global Data
                 Type</button>
             <div id='reportDiv'>
-
-
             ${tableNameArray.map((tableName) => {
               return `
-              <hb-table-carousel title="${tableName}"></hb-table-carousel>`;
+              <hb-table-carousel title="${tableName}" className="reportCollapse" id="${tableName}-report"></hb-table-carousel>`;
             }).join("")} 
                                 
             </div>
@@ -754,12 +752,38 @@ class SchemaConversionScreen extends HTMLElement {
       }
             ${
       currentTab === "ddlTab"
-        ? "<h1>DDL Tab Components</h1>"
+        ? `
+        <div id="ddl" class="tab-pane fade show active">
+        <div class="panel-group" id="ddl-accordion">
+            <button class='expand' id='ddlExpandButton' onclick='ddlExpandHandler(jQuery(this))'>Expand
+                All</button>
+            <button id="download-ddl" class="expand right-align" onclick='downloadDdl()'>Download DDL
+                Statements</button>
+            <div id='ddlDiv'>
+
+            ${tableNameArray.map((tableName) => {
+              return `
+              <hb-table-carousel title="${tableName}" className="ddlCollapse" id="${tableName}-ddl"></hb-table-carousel>`;
+            }).join("")} 
+        `
         : ""
       }
             ${
       currentTab === "summaryTab"
-        ? "<h1>Summary Tab Components</h1>"
+        ? `
+        
+        <div id="summary" class="tab-pane fade show active">
+                <div class="panel-group" id="summary-accordion">
+                    <button class='expand' id='summaryExpandButton' onclick='summaryExpandHandler(jQuery(this))'>Expand
+                        All</button>
+                    <button id="download-report" class="expand right-align" onclick='downloadReport()'>Download Summary
+                        Report</button>
+                    <div id='summaryDiv'>
+                    ${tableNameArray.map((tableName) => {
+                      return `
+                      <hb-table-carousel title="${tableName}" className="summaryCollapse" id="${tableName}-summary"></hb-table-carousel>`;
+                    }).join("")}       
+              `
         : ""
       }
             </div>
