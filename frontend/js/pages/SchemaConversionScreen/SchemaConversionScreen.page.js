@@ -675,7 +675,7 @@ class SchemaConversionScreen extends HTMLElement {
         </div>
         <div class="report-tabs">
         <ul class="nav nav-tabs md-tabs" role="tablist">
-           ${TAB_CONFIG_DATA.map((tab) => {
+      ${TAB_CONFIG_DATA.map((tab) => {
       console.log(currentTab);
       return `<hb-tab open=${currentTab === tab.id} id="${tab.id}" text="${tab.text}"></hb-tab>`;
     }).join("")} 
@@ -789,7 +789,37 @@ class SchemaConversionScreen extends HTMLElement {
       }
             ${
       currentTab === "summaryTab"
-        ? `<h1>sum...</h1>`
+        ? `
+        <div id="summary" class="tab-pane fade show active">
+        <div class="panel-group" id="summary-accordion">
+            <button class='expand' id='summaryExpandButton' onclick='summaryExpandHandler(jQuery(this))'>Expand
+                All</button>
+            <button id="download-report" class="expand right-align" onclick='downloadReport()'>Download Summary
+                Report</button>
+            <div id='summaryDiv'>
+            ${tableNameArray.map((tableName) => {
+              return `
+              <section class='summarySection'>
+                            <div class='card'>
+                                <div class='card-header ddl-card-header ddlBorderBottom' role='tab'>
+                                    <h5 class='mb-0'>
+                                    <hb-table-carousel title="${tableName}" tabelClassName="summaryCollapse" tabelId="${tableName}-summary"></hb-table-carousel>
+                                    </h5>
+                                </div>
+                                <div class='collapse summaryCollapse'>
+                                    <div class='mdc-card mdc-card-content ddl-border table-card-border'>
+                                        <div class='mdc-card summary-content'></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>`;
+            }).join("")} 
+                                
+            </div>
+            </div>
+            </div>
+
+        `
         : ""
       }
             </div>

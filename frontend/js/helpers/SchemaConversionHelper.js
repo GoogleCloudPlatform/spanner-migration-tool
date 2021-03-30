@@ -4,6 +4,7 @@ export const initSchemaScreenTasks = () => {
     var ddlAccCount = 0;
     jQuery(document).ready(() => {
       setActiveSelectedMenu('schemaScreen');
+      
       $(".modal-backdrop").hide();
       jQuery('.collapse.reportCollapse').on('show.bs.collapse', function () {
        
