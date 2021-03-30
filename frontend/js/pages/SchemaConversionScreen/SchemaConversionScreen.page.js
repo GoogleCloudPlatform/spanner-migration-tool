@@ -745,7 +745,7 @@ class SchemaConversionScreen extends HTMLElement {
               <div class="card">
                   <div role="tab" class="card-header report-card-header borderBottom">
                       <h5 class="mb-0">
-              <hb-table-carousel title="${tableName}" tabelClassName="ddlCollapse"  tabelId="${tableName}-report"></hb-table-carousel>
+              <hb-table-carousel title="${tableName}" tabelClassName="reportCollapse"  tabelId="${tableName}-report"></hb-table-carousel>
               </h5>
               </div>
             </div>

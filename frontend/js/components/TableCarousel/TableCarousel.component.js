@@ -42,7 +42,7 @@ class TableCarousel extends HTMLElement {
                 </a>
                 <div class="collapse ${tabelClassName}" id="${tabelId}">
                   <div class="mdc-card mdc-card-content table-card-border">
-                    <hb-data-table></hb-data-table>
+                    <hb-data-table tableName="${title}"></hb-data-table>
                   </div>
               </div>
            

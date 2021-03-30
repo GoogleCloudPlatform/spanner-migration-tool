@@ -5,8 +5,8 @@ class DataTable extends HTMLElement {
         return ["open"];
     }
 
-    get id() {
-        return this.getAttribute("id");
+    get tableName() {
+        return this.getAttribute("tableName");
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
@@ -18,7 +18,12 @@ class DataTable extends HTMLElement {
     }
 
     render() {
-        let { id, open, text } = this;
+        let { tableName } = this;
+        let schemaConversionObj = JSON.parse(localStorage.getItem("conversionReportContent"));
+        let spTable = schemaConversionObj.SpSchema[tableName];
+        let srcTable = schemaConversionObj.SrcSchema[tableName];
+        let tableColumnsArray = Object.keys(schemaConversionObj.ToSpanner[spTable.Name].Cols);
+        let tableColumns = schemaConversionObj.ToSpanner[spTable.Name].Cols;
         this.innerHTML = `
         <div class="acc-card-content" id="acc_card_content">
                     <table class="acc-table">
@@ -41,80 +46,92 @@ class DataTable extends HTMLElement {
                                             </label>
                                         </div>
                                     </span>
+                                    ${localStorage.getItem('sourceDbName')}
                                 </th>
                                 <th class="acc-table-th-spn">Spanner</th>
-                                <th class="acc-table-th-src"></th>
+                                <th class="acc-table-th-src">${localStorage.getItem('sourceDbName')}</th>
                                 <th class="acc-table-th-spn">Spanner</th>
-                                <th class="acc-table-th-src"></th>
+                                <th class="acc-table-th-src">${localStorage.getItem('sourceDbName')}</th>
                                 <th class="acc-table-th-spn">Spanner</th>
                             </tr>
                         </thead>
                         <tbody class="acc-table-body">
-                            <tr class="reportTableContent template">
-                                <td class="acc-table-td src-tab-cell">
-                                    <span class="bmd-form-group is-filled eachRowChckBox template">
-                                        <div class="checkbox">
-                                            <label>
-                                                <input type="checkbox" value="" />
-                                                <span class="checkbox-decorator"><span class="check"></span>
-                                                    <div class="ripple-container"></div>
-                                                </span>
-                                            </label>
-                                        </div>
+
+
+                        
+                        ${tableColumnsArray.map((tableColumn, index) => {
+                            let currentColumnSrc = Object.keys(schemaConversionObj.ToSpanner[spTable.Name].Cols)[index];
+                            return `
+                            <tr class="reportTableContent">
+                            <td class="acc-table-td src-tab-cell">
+                                <span class="bmd-form-group is-filled eachRowChckBox template">
+                                    <div class="checkbox">
+                                        <label>
+                                            <input type="checkbox" value="" />
+                                            <span class="checkbox-decorator"><span class="check"></span>
+                                                <div class="ripple-container"></div>
+                                            </span>
+                                        </label>
+                                    </div>
+                                </span>
+                                <span class="column left">
+                                    <img class="srcPk" src="./Icons/Icons/ic_vpn_key_24px.svg"
+                                        style="margin-left: 3px" />
+                                </span>
+                                <span class="column right srcColumn">${currentColumnSrc}</span>
+                            </td>
+                            <td class="sp-column acc-table-td spannerColName">
+                                <div class="editColumnName template">
+                                    <span class="column left keyMargin keyClick">
+                                        <sub></sub><img />
                                     </span>
-                                    <span class="column left">
-                                        <img class="srcPk" src="./Icons/Icons/ic_vpn_key_24px.svg"
-                                            style="margin-left: 3px" />
+                                    <span class="column right form-group">
+                                        <input type="text" class="form-control spanner-input" autocomplete="off" />
                                     </span>
-                                    <span class="column right srcColumn"></span>
-                                </td>
-                                <td class="sp-column acc-table-td spannerColName">
-                                    <div class="editColumnName template">
-                                        <span class="column left keyMargin keyClick">
-                                            <sub></sub><img />
-                                        </span>
-                                        <span class="column right form-group">
-                                            <input type="text" class="form-control spanner-input" autocomplete="off" />
-                                        </span>
+                                </div>
+                                <div class="saveColumnName">
+                                    <span class="column left spannerPkSpan">
+                                        <sub></sub>
+                                        <img src="./Icons/Icons/ic_vpn_key_24px.svg" class="primaryKey" />
+                                    </span>
+                                    <span class="column right spannerColNameSpan">${tableColumn}</span>
+                                </div>
+                            </td>
+                            <td class="acc-table-td srcDataType">${srcTable.ColDefs[currentColumnSrc].Type.Name}</td>
+                            <td class="sp-column acc-table-td spannerDataType">
+                                <div class="saveDataType">${spTable.ColDefs[tableColumn].T.Name}</div>
+                                <div class="editDataType template">
+                                    <div class="form-group">
+                                        <select class="form-control spanner-input tableSelect">
+                                            <option class="dataTypeOption template"></option>
+                                        </select>
                                     </div>
-                                    <div class="saveColumnName template">
-                                        <span class="column left spannerPkSpan">
-                                            <sub></sub>
-                                            <img src="./Icons/Icons/ic_vpn_key_24px.svg" class="primaryKey" />
-                                        </span>
-                                        <span class="column right spannerColNameSpan"></span>
-                                    </div>
-                                </td>
-                                <td class="acc-table-td srcDataType"></td>
-                                <td class="sp-column acc-table-td spannerDataType">
-                                    <div class="saveDataType template"></div>
-                                    <div class="editDataType template">
-                                        <div class="form-group">
-                                            <select class="form-control spanner-input tableSelect">
-                                                <option class="dataTypeOption template"></option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="acc-table-td">
+                                </div>
+                            </td>
+                            <td class="acc-table-td">
+                                <select multiple size="1"
+                                    class="form-control spanner-input tableSelect srcConstraint">
+                                    <option disabled class="srcNotNullConstraint">
+                                        Not Null
+                                    </option>
+                                </select>
+                            </td>
+                            <td class="acc-table-td sp-column acc-table-td">
+                                <div class="saveConstraint">
                                     <select multiple size="1"
-                                        class="form-control spanner-input tableSelect srcConstraint">
-                                        <option disabled class="srcNotNullConstraint">
+                                        class="form-control spanner-input tableSelect spannerConstraint">
+                                        <option disabled class="spannerNotNullConstraint">
                                             Not Null
                                         </option>
                                     </select>
-                                </td>
-                                <td class="acc-table-td sp-column acc-table-td">
-                                    <div class="saveConstraint template">
-                                        <select multiple size="1"
-                                            class="form-control spanner-input tableSelect spannerConstraint">
-                                            <option disabled class="spannerNotNullConstraint">
-                                                Not Null
-                                            </option>
-                                        </select>
-                                    </div>
-                                </td>
-                            </tr>
+                                </div>
+                            </td>
+                        </tr>`;
+                          }).join("")}
+
+
+
+        
                         </tbody>
                     </table>
                     <div class="fkCard template" style="border-radius: 0px !important">
@@ -244,7 +261,7 @@ class DataTable extends HTMLElement {
 
     constructor() {
         super();
-        this.addEventListener("click", () => Actions.switchToTab(this.id));
+        // this.addEventListener("click", () => Actions.switchToTab(this.id));
     }
 }
 
