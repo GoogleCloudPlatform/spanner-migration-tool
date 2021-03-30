@@ -244,8 +244,7 @@ class DataTable extends HTMLElement {
 
     constructor() {
         super();
-        this.addEventListener("click", () => Actions.switchToTab(this.id));
-    }
+        }
 }
 
 window.customElements.define("hb-data-table", DataTable);
