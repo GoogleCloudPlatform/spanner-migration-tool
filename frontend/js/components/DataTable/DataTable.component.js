@@ -14,7 +14,7 @@ class DataTable extends HTMLElement {
     }
 
     connectedCallback() {
-        this.render(); 
+        this.render();
     }
 
     render() {
@@ -23,7 +23,15 @@ class DataTable extends HTMLElement {
         let spTable = schemaConversionObj.SpSchema[tableName];
         let srcTable = schemaConversionObj.SrcSchema[tableName];
         let tableColumnsArray = Object.keys(schemaConversionObj.ToSpanner[spTable.Name].Cols);
-        let tableColumns = schemaConversionObj.ToSpanner[spTable.Name].Cols;
+        let pksSp = [...spTable.Pks];
+        let pksSpLength = pksSp.length;
+        let pkSeqId = 1;
+        for (var x = 0; x < pksSpLength; x++) {
+            if (pksSp[x].seqId == undefined) {
+                pksSp[x].seqId = pkSeqId;
+                pkSeqId++;
+            }
+        }
         this.innerHTML = `
         <div class="acc-card-content" id="acc_card_content">
                     <table class="acc-table">
@@ -35,7 +43,7 @@ class DataTable extends HTMLElement {
                             </tr>
                             <tr>
                                 <th class="acc-table-th-src src-tab-cell">
-                                    <span class="bmd-form-group is-filled template">
+                                    <span class="bmd-form-group is-filled">
                                         <div class="checkbox">
                                             <label>
                                                 <input type="checkbox" value="" />
@@ -60,11 +68,19 @@ class DataTable extends HTMLElement {
 
                         
                         ${tableColumnsArray.map((tableColumn, index) => {
-                            let currentColumnSrc = Object.keys(schemaConversionObj.ToSpanner[spTable.Name].Cols)[index];
-                            return `
+            let pkFlag = false, seqId;
+            for (var x = 0; x < pksSpLength; x++) {
+                if (pksSp[x].Col === tableColumn) {
+                    pkFlag = true;
+                    seqId = pksSp[x].seqId;
+                    break
+                }
+            }
+            let currentColumnSrc = Object.keys(schemaConversionObj.ToSpanner[spTable.Name].Cols)[index];
+            return `
                             <tr class="reportTableContent">
                             <td class="acc-table-td src-tab-cell">
-                                <span class="bmd-form-group is-filled eachRowChckBox template">
+                                <span class="bmd-form-group is-filled eachRowChckBox">
                                     <div class="checkbox">
                                         <label>
                                             <input type="checkbox" value="" />
@@ -75,8 +91,11 @@ class DataTable extends HTMLElement {
                                     </div>
                                 </span>
                                 <span class="column left">
-                                    <img class="srcPk" src="./Icons/Icons/ic_vpn_key_24px.svg"
-                                        style="margin-left: 3px" />
+                                
+                                    ${(currentColumnSrc != srcTable.PrimaryKeys[0].Column || srcTable.PrimaryKeys === null)
+                    ? `<img class="srcPk hidden ml-3" src="./Icons/Icons/ic_vpn_key_24px.svg" />` :
+                    `<img class="srcPk ml-3" src="./Icons/Icons/ic_vpn_key_24px.svg" />`}
+                                    
                                 </span>
                                 <span class="column right srcColumn">${currentColumnSrc}</span>
                             </td>
@@ -91,8 +110,12 @@ class DataTable extends HTMLElement {
                                 </div>
                                 <div class="saveColumnName">
                                     <span class="column left spannerPkSpan">
-                                        <sub></sub>
-                                        <img src="./Icons/Icons/ic_vpn_key_24px.svg" class="primaryKey" />
+                                        ${pkFlag ?
+                    `<sub>${seqId}</sub>
+                                            <img src="./Icons/Icons/ic_vpn_key_24px.svg" class="primaryKey" />` :
+                    `<sub></sub>
+                                        <img src="./Icons/Icons/ic_vpn_key_24px.svg" class="primaryKey hidden" />`}
+                                        
                                     </span>
                                     <span class="column right spannerColNameSpan">${tableColumn}</span>
                                 </div>
@@ -127,7 +150,7 @@ class DataTable extends HTMLElement {
                                 </div>
                             </td>
                         </tr>`;
-                          }).join("")}
+        }).join("")}
 
 
 
@@ -261,7 +284,7 @@ class DataTable extends HTMLElement {
 
     constructor() {
         super();
-        }
+    }
 }
 
 window.customElements.define("hb-data-table", DataTable);

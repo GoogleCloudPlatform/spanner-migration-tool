@@ -35,6 +35,14 @@
     display: none;
 }
 
+.hidden {
+    visibility: hidden;
+}
+
+.ml-3 {
+    margin-left: 3px;
+}
+
 .history-content{
     padding : 0 40px;
     margin-top: 72px;
