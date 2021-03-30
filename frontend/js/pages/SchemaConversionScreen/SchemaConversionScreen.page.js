@@ -1,7 +1,7 @@
 import "./../../components/Tab/Tab.component.js";
 import "./../../components/TableCarousel/TableCarousel.component.js";
 import {initSchemaScreenTasks} from "./../../helpers/SchemaConversionHelper.js";
-
+import "./../../components/StatusLegend/StatusLegend.component.js"
 // Services
 import Store from "./../../services/Store.service.js";
 
@@ -701,66 +701,40 @@ class SchemaConversionScreen extends HTMLElement {
                     id='summarySearchInput' autocomplete='off' aria-label="Search"
                     onkeyup='searchTable("summarySearchInput")'>
             </form>
-            <section class="cus-tip">
-                <span class="cus-a info-icon statusTooltip">
-                    <i class="large material-icons">info</i>
-                    <span class="legend-icon statusTooltip"
-                        style='cursor: pointer;display: inline-block;vertical-align: super;'>Status&nbsp;&nbsp;Legend</span>
-                </span>
-                <div class="legend-hover">
-                    <div class="legend-status">
-                        <span class="excellent"></span>
-                        Excellent
-                    </div>
-                    <div class="legend-status">
-                        <span class="good"></span>
-                        Good
-                    </div>
-                    <div class="legend-status">
-                        <span class="avg"></span>
-                        Average
-                    </div>
-                    <div class="legend-status">
-                        <span class="poor"></span>
-                        Poor
-                    </div>
-                </div>
-            </section>
+            <hb-status-legend></hb-status-legend>
         </div>
         <div class="tab-bg" id='tabBg'>
             <div class="tab-content">
-            ${
-      currentTab === "reportTab"
-        ? `<div id="report" class="tab-pane fade show active">
-        <div class="accordion md-accordion" id="accordion" role="tablist" aria-multiselectable="true">
-            <button class='expand' id='reportExpandButton' onclick='reportExpandHandler(jQuery(this))'>Expand
-                All</button>
-            <button class='expand right-align' id='editButton' onclick='globalEditHandler()'>Edit Global Data
-                Type</button>
-            <div id='reportDiv'>
+              ${
+                  currentTab === "reportTab"
+                    ? `<div id="report" class="tab-pane fade show active">
+                    <div class="accordion md-accordion" id="accordion" role="tablist" aria-multiselectable="true">
+                        <button class='expand' id='reportExpandButton' onclick='reportExpandHandler(jQuery(this))'>Expand
+                            All</button>
+                        <button class='expand right-align' id='editButton' onclick='globalEditHandler()'>Edit Global Data
+                            Type</button>
+                        <div id='reportDiv'>
 
-            ${tableNameArray.map((tableName) => {
-              return `
-            <section class="reportSection">
-              <div class="card">
-                  <div role="tab" class="card-header report-card-header borderBottom">
-                      <h5 class="mb-0">
-              <hb-table-carousel title="${tableName}" tabelClassName="reportCollapse"  tabelId="${tableName}-report"></hb-table-carousel>
-              </h5>
-              </div>
-            </div>
-          </section>`;
-            }).join("")} 
-                                
-            </div>
-        </div>
-    </div>`
-        : ""
-      }
-            ${
-      currentTab === "ddlTab"
-        ? `
-        <div id="ddl" class="tab-pane fade show active">
+                        ${tableNameArray.map((tableName) => {
+                          return `
+                        <section class="reportSection">
+                          <div class="card">
+                              <div role="tab" class="card-header report-card-header borderBottom">
+                                  <h5 class="mb-0">
+                          <hb-table-carousel title="${tableName}" tableClassName="reportCollapse"  tableId="${tableName}-report"></hb-table-carousel>
+                          </h5>
+                          </div>
+                        </div>
+                      </section>`;
+                        }).join("")} 
+                                            
+                        </div>
+                    </div>
+                </div>`
+                    : ""
+              }
+      ${currentTab === "ddlTab" ? `
+      <div id="ddl" class="tab-pane fade show active">
                 <div class="panel-group" id="ddl-accordion">
                     <button class='expand' id='ddlExpandButton' onclick='ddlExpandHandler(jQuery(this))'>Expand
                         All</button>
@@ -773,7 +747,7 @@ class SchemaConversionScreen extends HTMLElement {
                         <div class='card'>
                               <div class='card-header ddl-card-header ddlBorderBottom' role='tab'>
                                   <h5 class='mb-0'>
-                                  <hb-table-carousel title="${tableName}" tabelClassName="ddlCollapse" tabelId="${tableName}-ddl"></hb-table-carousel>
+                                  <hb-table-carousel title="${tableName}" tableClassName="ddlCollapse" tableId="${tableName}-ddl"></hb-table-carousel>
                                   </h5>
                               </div>
                         </div>
@@ -803,7 +777,7 @@ class SchemaConversionScreen extends HTMLElement {
                             <div class='card'>
                                 <div class='card-header ddl-card-header ddlBorderBottom' role='tab'>
                                     <h5 class='mb-0'>
-                                    <hb-table-carousel title="${tableName}" tabelClassName="summaryCollapse" tabelId="${tableName}-summary"></hb-table-carousel>
+                                    <hb-table-carousel title="${tableName}" tableClassName="summaryCollapse" tableId="${tableName}-summary"></hb-table-carousel>
                                     </h5>
                                 </div>
                                 <div class='collapse summaryCollapse'>

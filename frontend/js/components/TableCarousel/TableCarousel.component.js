@@ -8,12 +8,12 @@ class TableCarousel extends HTMLElement {
     return this.getAttribute("title");
   }
   
-  get tabelClassName(){
-      return this.getAttribute('tabelClassName')
+  get tableClassName(){
+      return this.getAttribute('tableClassName')
   }
 
-  get tabelId(){
-      return this.getAttribute('tabelId')
+  get tableId(){
+      return this.getAttribute('tableId')
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
@@ -26,7 +26,7 @@ class TableCarousel extends HTMLElement {
 
   render() {
     // let { id, open, text } = this;
-    let { title , tabelClassName , tabelId } = this;
+    let { title , tableClassName , tableId } = this;
   
     let schemaConversionObj = JSON.parse(
       localStorage.getItem("conversionReportContent")
@@ -36,13 +36,13 @@ class TableCarousel extends HTMLElement {
   
     this.innerHTML = `
    
-                <a data-toggle="collapse" href="#${tabelId}">
+                <a data-toggle="collapse" href="#${tableId}">
                     Table: <span>${title}</span>
                     <i class="fas fa-angle-down rotate-icon"></i>
                 </a>
-                <div class="collapse ${tabelClassName}" id="${tabelId}">
+                <div class="collapse ${tableClassName}" id="${tableId}">
                   <div class="mdc-card mdc-card-content table-card-border">
-                    <hb-data-table></hb-data-table>
+                    <hb-data-table tableName="${title}"></hb-data-table>
                   </div>
               </div>
            
