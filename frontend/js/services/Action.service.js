@@ -1,9 +1,9 @@
 import Store from "./Store.service.js";
-import Fetch from "./Fetch.service.js"
+import Fetch from "./Fetch.service.js";
 
 /**
  * All the manipulations to the store happen via the actions mentioned in this module
- * 
+ *
  */
 const Actions = (() => {
 
@@ -45,8 +45,8 @@ const Actions = (() => {
             // sessionRetrieval(sourceTableFlag);
             return true;
         },
-        onconnect: (dbType, dbHost, dbPort, dbUser, dbName, dbPassword) => {
-            let sourceTableFlag = '';
+        onconnect: async (dbType, dbHost, dbPort, dbUser, dbName, dbPassword) => {
+            let sourceTableFlag = '', response;
             let payload = {
                 "Driver": dbType,
                 "Database": dbName,
@@ -55,7 +55,7 @@ const Actions = (() => {
                 "Port": dbPort,
                 "Host": dbHost
             };
-            response = Fetch.getAppData('POST', '/connect', payload);
+            response = await Fetch.getAppData('POST', '/connect', payload);
             if (response.ok) {
                 if (dbType === 'mysql')
                     sourceTableFlag = 'MySQL';
@@ -66,11 +66,19 @@ const Actions = (() => {
                 jQuery('#connectModalSuccess').modal();
             }
             else {
-                res.text().then(function () {
-                    jQuery('#connectToDbModal').modal('hide');
-                    jQuery('#connectModalFailure').modal();
-                });
+                jQuery('#connectToDbModal').modal('hide');
+                jQuery('#connectModalFailure').modal();
             }
+            return response;
+        },
+        showSchemaAssessment: async () => {
+            let reportDataResp, reportData, sourceTableFlag;
+            reportData = await Fetch.getAppData('GET', '/convert/infoschema');
+            reportDataResp = await reportData.text();
+            localStorage.setItem('conversionReportContent', reportDataResp);
+            jQuery('#connectModalSuccess').modal("hide");
+            sourceTableFlag = localStorage.getItem('sourceDbName');
+            // sessionRetrieval(sourceTableFlag);
         },
         ddlSummaryAndConversionApiCall: async () => {
             let conversionRate, conversionRateJson, ddlData, ddlDataJson, summaryData, summaryDataJson;
@@ -90,20 +98,51 @@ const Actions = (() => {
             }
             return true;
         },
-        addNewSession: (session) =>{
+        addNewSession: (session) => {
             Store.addNewSession(session);
         },
         resumeSession: (index) => {
-           let val=Store.getSessionData(index);
-           console.log(val);
+            let val = Store.getSessionData(index);
+            console.log(val);
         },
-        getAllSessions: () =>{
+        getAllSessions: () => {
             return Store.getAllSessions();
         },
-        switchToTab: (id)=>{
+        switchToTab: (id) => {
             Store.changeCurrentTab(id)
-        }
-    }
+        },
+        SearchTable: (value, tabId) => {
+            console.log(value);
+            let tableVal, list, listElem;
+            let ShowResultNotFound = true;
+            let schemaConversionObj = JSON.parse(
+                localStorage.getItem("conversionReportContent")
+            );
+            if (tabId === "reportTab") {
+                list = document.getElementById("reportDiv");
+            } else if (tabId === "ddlTab") {
+                list = document.getElementById("ddlDiv");
+            } else {
+                list = document.getElementById("summaryDiv");
+            }
+            listElem = list.getElementsByTagName("section");
+            let tableListLength = Object.keys(schemaConversionObj.SpSchema).length;
+            for (var i = 0; i < tableListLength; i++) {
+                tableVal = Object.keys(schemaConversionObj.SpSchema)[i];
+                if (tableVal.indexOf(value) > -1) {
+                    listElem[i].style.display = "";
+                    ShowResultNotFound = false;
+                } else {
+                    listElem[i].style.display = "none";
+                }
+            }
+            if (ShowResultNotFound) {
+                document.getElementById("notFound").style.display = "block";
+            } else {
+                document.getElementById("notFound").style.display = "none";
+            }
+        },
+    };
 })();
 
 export default Actions;

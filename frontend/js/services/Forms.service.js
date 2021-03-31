@@ -20,13 +20,11 @@ const Forms = (() => {
             let sourceTableFlag = '';
             if (val.value === "") {
                 document.getElementById("sql-fields").style.display = "none";
-                document.getElementById("sql-fields-buttons").style.display = "none";
             }
             else if (val.value === "mysql") {
                 jQuery('.form-error').html('');
                 jQuery('.db-input').val('');
                 document.getElementById("sql-fields").style.display = "block";
-                document.getElementById("sql-fields-buttons").style.display = "block";
                 sourceTableFlag = 'MySQL';
                 localStorage.setItem('sourceDbName', sourceTableFlag);
             }
@@ -34,13 +32,11 @@ const Forms = (() => {
                 jQuery('.form-error').html('');
                 jQuery('.db-input').val('');
                 document.getElementById("sql-fields").style.display = "block";
-                document.getElementById("sql-fields-buttons").style.display = "block";
                 sourceTableFlag = 'Postgres';
                 localStorage.setItem('sourceDbName', sourceTableFlag);
             }
             else if (val.value === 'dynamodb') {
                 document.getElementById("sql-fields").style.display = "none";
-                document.getElementById("sql-fields-buttons").style.display = "none";
                 sourceTableFlag = 'dynamoDB';
                 localStorage.setItem('sourceDbName', sourceTableFlag);
             }
@@ -71,8 +67,6 @@ const Forms = (() => {
             document.getElementById('connect-button').disabled = true;
             if (document.getElementById('sql-fields') != undefined)
                 document.getElementById('sql-fields').style.display = 'none';
-            if (document.getElementById('sql-fields-buttons') != undefined)
-                document.getElementById('sql-fields-buttons').style.display = 'none';
         },
         resetLoadDbModal: () => {
             document.getElementById('file-path-error').innerHTML = '';

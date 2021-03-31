@@ -7,7 +7,6 @@ export const initSchemaScreenTasks = () => {
       
       $(".modal-backdrop").hide();
       jQuery('.collapse.reportCollapse').on('show.bs.collapse', function () {
-       
         if (!jQuery(this).closest('section').hasClass('template')) {
           jQuery(this).closest('.card').find('.rotate-icon').addClass('down');
           jQuery(this).closest('.card').find('.card-header .right-align').toggleClass('show-content hide-content');
@@ -99,4 +98,23 @@ export const initSchemaScreenTasks = () => {
         }
       });
     });
+  }
+
+  export const panelBorderClass = (color) => {
+    var borderClass = '';
+    switch (color) {
+      case 'ORANGE':
+        borderClass = ' orangeBorderBottom';
+        break;
+      case 'GREEN':
+        borderClass = ' greenBorderBottom';
+        break;
+      case 'BLUE':
+        borderClass = ' blueBorderBottom';
+        break;
+      case 'YELLOW':
+        borderClass = ' yellowBorderBottom';
+        break;
+    }
+    return borderClass;
   }

@@ -1,5 +1,3 @@
-import Actions from "../../services/Action.service.js";
-
 class DataTable extends HTMLElement {
     static get observedAttributes() {
         return ["open"];
@@ -9,24 +7,39 @@ class DataTable extends HTMLElement {
         return this.getAttribute("tableName");
     }
 
+    get tableIndex() {
+        return this.getAttribute("tableIndex");
+    }
+
     attributeChangedCallback(name, oldValue, newValue) {
         this.render();
     }
 
     connectedCallback() {
-        this.render(); 
+        this.render();
     }
 
     render() {
-        let { tableName } = this;
+        let { tableName, tableIndex } = this;
+        let countSrc = [], countSp = [];
+        countSrc[tableIndex] = [];
+        countSp[tableIndex] = [];
         let schemaConversionObj = JSON.parse(localStorage.getItem("conversionReportContent"));
         let spTable = schemaConversionObj.SpSchema[tableName];
         let srcTable = schemaConversionObj.SrcSchema[tableName];
         let tableColumnsArray = Object.keys(schemaConversionObj.ToSpanner[spTable.Name].Cols);
-        let tableColumns = schemaConversionObj.ToSpanner[spTable.Name].Cols;
+        let pksSp = [...spTable.Pks];
+        let pksSpLength = pksSp.length;
+        let pkSeqId = 1;
+        for (var x = 0; x < pksSpLength; x++) {
+            if (pksSp[x].seqId == undefined) {
+                pksSp[x].seqId = pkSeqId;
+                pkSeqId++;
+            }
+        }
         this.innerHTML = `
         <div class="acc-card-content" id="acc_card_content">
-                    <table class="acc-table">
+                    <table class="acc-table" id="src-sp-table${tableIndex}">
                         <thead>
                             <tr>
                                 <th class="acc-column" colspan="2">Column Name</th>
@@ -35,7 +48,7 @@ class DataTable extends HTMLElement {
                             </tr>
                             <tr>
                                 <th class="acc-table-th-src src-tab-cell">
-                                    <span class="bmd-form-group is-filled template">
+                                    <span class="bmd-form-group is-filled">
                                         <div class="checkbox">
                                             <label>
                                                 <input type="checkbox" value="" />
@@ -60,11 +73,21 @@ class DataTable extends HTMLElement {
 
                         
                         ${tableColumnsArray.map((tableColumn, index) => {
-                            let currentColumnSrc = Object.keys(schemaConversionObj.ToSpanner[spTable.Name].Cols)[index];
-                            return `
+            let pkFlag = false, seqId;
+            countSrc[tableIndex][index] = 0;
+            countSp[tableIndex][index] = 0;
+            for (var x = 0; x < pksSpLength; x++) {
+                if (pksSp[x].Col === tableColumn) {
+                    pkFlag = true;
+                    seqId = pksSp[x].seqId;
+                    break
+                }
+            }
+            let currentColumnSrc = Object.keys(schemaConversionObj.ToSpanner[spTable.Name].Cols)[index];
+            return `
                             <tr class="reportTableContent">
                             <td class="acc-table-td src-tab-cell">
-                                <span class="bmd-form-group is-filled eachRowChckBox template">
+                                <span class="bmd-form-group is-filled eachRowChckBox">
                                     <div class="checkbox">
                                         <label>
                                             <input type="checkbox" value="" />
@@ -75,8 +98,11 @@ class DataTable extends HTMLElement {
                                     </div>
                                 </span>
                                 <span class="column left">
-                                    <img class="srcPk" src="./Icons/Icons/ic_vpn_key_24px.svg"
-                                        style="margin-left: 3px" />
+                                
+                                    ${(currentColumnSrc != srcTable.PrimaryKeys[0].Column || srcTable.PrimaryKeys === null)
+                    ? `<img class="srcPk hidden ml-3" src="./Icons/Icons/ic_vpn_key_24px.svg" />` :
+                    `<img class="srcPk ml-3" src="./Icons/Icons/ic_vpn_key_24px.svg" />`}
+                                    
                                 </span>
                                 <span class="column right srcColumn">${currentColumnSrc}</span>
                             </td>
@@ -91,8 +117,12 @@ class DataTable extends HTMLElement {
                                 </div>
                                 <div class="saveColumnName">
                                     <span class="column left spannerPkSpan">
-                                        <sub></sub>
-                                        <img src="./Icons/Icons/ic_vpn_key_24px.svg" class="primaryKey" />
+                                        ${pkFlag ?
+                    `<sub>${seqId}</sub>
+                                            <img src="./Icons/Icons/ic_vpn_key_24px.svg" class="primaryKey" />` :
+                    `<sub></sub>
+                                        <img src="./Icons/Icons/ic_vpn_key_24px.svg" class="primaryKey hidden" />`}
+                                        
                                     </span>
                                     <span class="column right spannerColNameSpan">${tableColumn}</span>
                                 </div>
@@ -110,27 +140,37 @@ class DataTable extends HTMLElement {
                             </td>
                             <td class="acc-table-td">
                                 <select multiple size="1"
-                                    class="form-control spanner-input tableSelect srcConstraint">
-                                    <option disabled class="srcNotNullConstraint">
+                                    class="form-control spanner-input tableSelect srcConstraint" id="srcConstraint${tableIndex}${index}">
+                                    ${srcTable.ColDefs[currentColumnSrc].NotNull ?
+                                        (countSrc[tableIndex][index] = countSrc[tableIndex][index] + 1,
+                                        `<option disabled class="srcNotNullConstraint active">
                                         Not Null
-                                    </option>
+                                    </option>`)
+                                    :
+                                     `<option disabled class="srcNotNullConstraint">
+                                     Not Null
+                                 </option>`}
+                                     
                                 </select>
                             </td>
                             <td class="acc-table-td sp-column acc-table-td">
                                 <div class="saveConstraint">
                                     <select multiple size="1"
-                                        class="form-control spanner-input tableSelect spannerConstraint">
-                                        <option disabled class="spannerNotNullConstraint">
-                                            Not Null
-                                        </option>
+                                        class="form-control spanner-input tableSelect spannerConstraint" id="spConstraint${tableIndex}${index}">
+                                        ${spTable.ColDefs[tableColumn].NotNull ?
+                                            (countSp[tableIndex][index] = countSp[tableIndex][index] + 1,
+                                                `<option disabled class="spannerNotNullConstraint active">
+                                                Not Null
+                                            </option>`)
+                                        :
+                                        `<option disabled class="spannerNotNullConstraint">
+                                        Not Null
+                                    </option>`}
                                     </select>
                                 </div>
                             </td>
                         </tr>`;
-                          }).join("")}
-
-
-
+        }).join("")}
         
                         </tbody>
                     </table>
@@ -257,11 +297,24 @@ class DataTable extends HTMLElement {
                         </div>
                     </div>
                 </div>`;
+        jQuery("#src-sp-table" + tableIndex).DataTable({ "paging": false });
+        tableColumnsArray.map((columnName, index) => {
+            new vanillaSelectBox('#srcConstraint' + tableIndex + index, {
+                placeHolder: countSrc[tableIndex][index] + " constraints selected",
+                maxWidth: 500,
+                maxHeight: 300
+            });
+            new vanillaSelectBox('#spConstraint' + tableIndex + index, {
+                placeHolder: countSp[tableIndex][index] + " constraints selected",
+                maxWidth: 500,
+                maxHeight: 300
+            });
+        })
     }
 
     constructor() {
         super();
-        }
+    }
 }
 
 window.customElements.define("hb-data-table", DataTable);

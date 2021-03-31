@@ -5,27 +5,37 @@ class ConnectToDbForm extends HTMLElement {
 
     connectedCallback() {
         this.render();
+        let response;
         let modalData = document.getElementById("connectToDbModal");
         modalData.querySelector("i").addEventListener("click", () => {
             Forms.resetConnectToDbModal();
-        }); 
+        });
         document.getElementById("db-type").addEventListener("change", () => {
             Forms.toggleDbType();
         });
         document.querySelectorAll("input").forEach(elem => {
-            elem.addEventListener("focusout", () => {
-                Forms.validateInput(elem, elem.id + "-error");
-            })
+            if (elem.type != "submit") {
+                elem.addEventListener("focusout", () => {
+                    Forms.validateInput(elem, elem.id + "-error");
+                });
+            }
         });
         Forms.formButtonHandler("connect-form", "connect-button");
-        document.getElementById("connect-button").addEventListener("click", () => {
-            Actions.onconnect( document.getElementById('db-type').value, document.getElementById('db-host').value, document.getElementById('db-port').value, document.getElementById('db-user').value, document.getElementById('db-name').value, document.getElementById('db-password').value)
-        })
+        document.getElementById("connect-button").addEventListener("click", async () => {
+            response = await Actions.onconnect(document.getElementById('db-type').value, document.getElementById('db-host').value, document.getElementById('db-port').value, document.getElementById('db-user').value, document.getElementById('db-name').value, document.getElementById('db-password').value);
+            if (response.ok) {
+                document.getElementById("convert-button").addEventListener("click", async () => {
+                    await Actions.showSchemaAssessment();
+                    await Actions.ddlSummaryAndConversionApiCall();
+                    window.location.href = '#/schema-report';
+                });
+            }
+            Forms.resetConnectToDbModal();
+        });
     }
 
     render() {
         this.innerHTML = `
-            <div class="modal-body">
                 <div class="form-group">
                     <label for="db-type">Database Type</label>
                     <select class="form-control db-select-input" id="db-type" name="db-type">
@@ -69,10 +79,6 @@ class ConnectToDbForm extends HTMLElement {
                         </div>
                     </form>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <input type="submit" disabled="disabled" value="Connect" id="connect-button" class="modal-button" />
-            </div>
         `;
     }
 
