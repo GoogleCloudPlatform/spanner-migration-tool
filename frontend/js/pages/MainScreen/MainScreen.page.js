@@ -38,6 +38,7 @@ const MAIN_PAGE_ICONS = [{
 ]
 
 const CONNECTION_SUCCESS_CONTENT = "Please click on convert button to proceed with schema conversion";
+const CONNECTION_FAILURE_CONTENT = "Please check database configuration details and try again !!";
 
 class MainScreen extends HTMLElement {
 
@@ -78,10 +79,11 @@ class MainScreen extends HTMLElement {
                     }).join("")}
                 </div>
             </div>
-            <hb-modal modalId="connectToDbModal" content="<hb-connect-to-db-form></hb-connect-to-db-form>" title="Connect to Database"></hb-modal>
-            <hb-modal modalId="loadDatabaseDumpModal" content="<hb-load-db-dump-form></hb-load-db-dump-form>" title="Load Database Dump"></hb-modal>
-            <hb-modal modalId="loadSchemaModal" content="<hb-load-session-file-form></hb-load-session-file-form>" title="Load Session File"></hb-modal>
-            <hb-modal modalId="connectModalSuccess" content="${CONNECTION_SUCCESS_CONTENT}" title="Connection Successful"></hb-modal>
+            <hb-modal modalId="connectToDbModal" content="<hb-connect-to-db-form></hb-connect-to-db-form>" contentIcon="" connectIconClass="" modalBodyClass="" title="Connect to Database"></hb-modal>
+            <hb-modal modalId="loadDatabaseDumpModal" content="<hb-load-db-dump-form></hb-load-db-dump-form>" contentIcon="" connectIconClass="" modalBodyClass="" title="Load Database Dump"></hb-modal>
+            <hb-modal modalId="loadSchemaModal" content="<hb-load-session-file-form></hb-load-session-file-form>" contentIcon="" connectIconClass="" modalBodyClass="" title="Load Session File"></hb-modal>
+            <hb-modal modalId="connectModalSuccess" content="${CONNECTION_SUCCESS_CONTENT}" contentIcon="check_circle" connectIconClass="connect-icon-success" modalBodyClass="connection-modal-body" title="Connection Successful"></hb-modal>
+            <hb-modal modalId="connectModalFailure" content="${CONNECTION_FAILURE_CONTENT}" contentIcon="cancel" connectIconClass="connect-icon-failure" modalBodyClass="connection-modal-body" title="Connection Failure"></hb-modal>
             
             <hb-tabb something="${something}" open="${open}" clickAction="openModal1" ></hb-tabb>
             <div class="history-content">

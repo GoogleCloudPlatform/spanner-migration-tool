@@ -137,7 +137,6 @@ class SchemaConversionScreen extends HTMLElement {
   createSourceAndSpannerTables = async () => {
     // hideSpinner();
     schemaConversionObj = JSON.parse(localStorage.getItem("conversionReportContent"));
-    console.log(schemaConversionObj);
     this.getGlobalDataTypeList();
     // schemaConversionObj = obj;
     let columnNameContent,
@@ -191,7 +190,6 @@ class SchemaConversionScreen extends HTMLElement {
 
     conversionRateResp = JSON.parse(localStorage.getItem("tableBorderColor"));
     for (var i = 0; i < srcTableNum; i++) {
-      debugger
       srcTable =
         schemaConversionObj.SrcSchema[
         Object.keys(schemaConversionObj.ToSpanner)[i]
@@ -663,7 +661,6 @@ class SchemaConversionScreen extends HTMLElement {
     const { currentTab } = this.data;
     let schemaConversionObj = JSON.parse(localStorage.getItem("conversionReportContent"));
     let tableNameArray = Object.keys(schemaConversionObj.SpSchema);
-    console.log(Object.keys(schemaConversionObj.SpSchema));
     this.innerHTML = `<div class="summary-main-content" id='schema-screen-content'>
         <div id="snackbar" style="z-index: 10000 !important; position: fixed;"></div>
        
@@ -676,7 +673,6 @@ class SchemaConversionScreen extends HTMLElement {
         <div class="report-tabs">
         <ul class="nav nav-tabs md-tabs" role="tablist">
       ${TAB_CONFIG_DATA.map((tab) => {
-      console.log(currentTab);
       return `<hb-tab open=${currentTab === tab.id} id="${tab.id}" text="${tab.text}"></hb-tab>`;
     }).join("")} 
         </ul>

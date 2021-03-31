@@ -2,10 +2,11 @@ import "../../components/ConnectToDbForm/ConnectToDbForm.component.js";
 import "../../components/LoadDbDumpForm/LoadDbDumpForm.component.js";
 import "../../components/LoadSessionFileForm/LoadSessionFileForm.component.js";
 
-const CONNECT_TO_DB_MODAL_BUTTONS = [{value: "Connect", id: "connect-button"}];
-const LOAD_DB_DUMP_MODAL_BUTTONS = [{value: "Confirm", id: "load-connect-button"}];
-const LOAD_SESSION_MODAL_BUTTONS = [{value: "Confirm", id: "import-button"}];
-const CONNECTION_SUCCESS_MODAL = [{value: "Convert", id: "convert-button"}];
+const CONNECT_TO_DB_MODAL_BUTTONS = [{ value: "Connect", id: "connect-button", disabledProp: "disabled" }];
+const LOAD_DB_DUMP_MODAL_BUTTONS = [{ value: "Confirm", id: "load-connect-button", disabledProp: "disabled" }];
+const LOAD_SESSION_MODAL_BUTTONS = [{ value: "Confirm", id: "import-button", disabledProp: "disabled" }];
+const CONNECTION_SUCCESS_MODAL = [{ value: "Convert", id: "convert-button", disabledProp: "" }];
+const CONNECTION_FAILURE_MODAL = [{ value: "Ok", id: "connection-failure-button", disabledProp: "" }];
 
 class Modal extends HTMLElement {
 
@@ -18,15 +19,24 @@ class Modal extends HTMLElement {
   get content() {
     return this.getAttribute('content');
   }
+  get contentIcon() {
+    return this.getAttribute('contentIcon');
+  }
+  get modalBodyClass() {
+    return this.getAttribute('modalBodyClass');
+  }
+  get connectIconClass() {
+    return this.getAttribute('connectIconClass');
+  }
 
   connectedCallback() {
     this.render();
   }
 
   render() {
-    let { modalId, title, content } = this;
+    let { modalId, title, content, contentIcon, modalBodyClass, connectIconClass } = this;
     let modalButtons;
-    switch(modalId) {
+    switch (modalId) {
       case "connectToDbModal":
         modalButtons = CONNECT_TO_DB_MODAL_BUTTONS;
         break;
@@ -39,6 +49,9 @@ class Modal extends HTMLElement {
       case "connectModalSuccess":
         modalButtons = CONNECTION_SUCCESS_MODAL;
         break;
+      case "connectModalFailure":
+        modalButtons = CONNECTION_FAILURE_MODAL;
+        break;
     }
     this.innerHTML = `
         <div class="modal" id="${modalId}" tabindex="-1" role="dialog">
@@ -48,14 +61,15 @@ class Modal extends HTMLElement {
                 <h5 class="modal-title modal-bg">${title}</h5>
                 <i class="large material-icons close" data-dismiss="modal">cancel</i>
               </div>
-              <div class="modal-body">
-                ${content}
+              <div class="modal-body ${modalBodyClass}">
+                <div><i class="large material-icons ${connectIconClass}">${contentIcon}</i></div>
+                <div>${content.trim()}</div>
               </div>
               <div class="modal-footer">
                   ${modalButtons.map((button) => {
-                    return `
-                      <input type="submit" value="${button.value}" id="${button.id}" class="modal-button" />`;
-                }).join("")}
+      return `
+                      <input type="submit" ${button.disabledProp} data-dismiss="modal" value="${button.value}" id="${button.id}" class="modal-button" />`;
+    }).join("")}
               </div>
             </div>
           </div>

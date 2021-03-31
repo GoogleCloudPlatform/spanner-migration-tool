@@ -30,7 +30,6 @@ const Actions = (() => {
             }
             else {
                 jsonReportDataResp = await reportDataCopy.json();
-                console.log(jsonReportDataResp);
                 if (Object.keys(jsonReportDataResp.SpSchema).length == 0) {
                     showSnackbar("Please select valid file", " redBg");
                     return false;
@@ -56,7 +55,6 @@ const Actions = (() => {
                 "Host": dbHost
             };
             response = await Fetch.getAppData('POST', '/connect', payload);
-            console.log(response);
             if (response.ok) {
                 if (dbType === 'mysql')
                     sourceTableFlag = 'MySQL';
@@ -65,11 +63,6 @@ const Actions = (() => {
                 localStorage.setItem('sourceDbName', sourceTableFlag);
                 jQuery('#connectToDbModal').modal('hide');
                 jQuery('#connectModalSuccess').modal();
-                // document.getElementById("convert-button").addEventListener("click", async () => {
-                //     console.log("inside click event");
-                //     await showSchemaAssessment();
-                //     await ddlSummaryAndConversionApiCall();
-                // });
             }
             else {
                 jQuery('#connectToDbModal').modal('hide');

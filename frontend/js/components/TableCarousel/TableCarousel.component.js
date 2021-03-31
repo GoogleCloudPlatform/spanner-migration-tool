@@ -34,7 +34,6 @@ class TableCarousel extends HTMLElement {
     let schemaConversionObj = JSON.parse(
       localStorage.getItem("conversionReportContent")
     );
-    // console.log(schemaConversionObj);
     let carouselContent = schemaConversionObj.SpSchema[title];
   
     this.innerHTML = `

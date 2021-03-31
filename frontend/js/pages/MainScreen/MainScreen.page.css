@@ -43,8 +43,23 @@
     margin-left: 3px;
 }
 
+.connection-modal-body {
+    margin-bottom: 20px;
+    display: inherit;
+}
+
 h5 {
     font-size: 0.875rem;
+}
+
+.connect-icon-success {
+    margin-right: 6px;
+    color: #0F9D58 !important;
+}
+
+.connect-icon-failure {
+    margin-right: 6px;
+    color: #DB4437 !important;
 }
 
 .history-content{

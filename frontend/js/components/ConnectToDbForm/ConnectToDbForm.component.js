@@ -25,12 +25,12 @@ class ConnectToDbForm extends HTMLElement {
             response = await Actions.onconnect(document.getElementById('db-type').value, document.getElementById('db-host').value, document.getElementById('db-port').value, document.getElementById('db-user').value, document.getElementById('db-name').value, document.getElementById('db-password').value);
             if (response.ok) {
                 document.getElementById("convert-button").addEventListener("click", async () => {
-                    console.log("inside click event");
                     await Actions.showSchemaAssessment();
                     await Actions.ddlSummaryAndConversionApiCall();
                     window.location.href = '#/schema-report';
                 });
             }
+            Forms.resetConnectToDbModal();
         });
     }
 
