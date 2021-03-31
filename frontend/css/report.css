@@ -359,6 +359,11 @@ button[disabled]{
     border-top: 0px;
 }
 
+.summary-border {
+    border: 1px solid #80808096;
+    border-top: 0px;
+}
+
 .sp-column{
     border-right: 1px solid #80808073;
     text-align: center;

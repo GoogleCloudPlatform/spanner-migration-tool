@@ -30,6 +30,7 @@ const Actions = (() => {
             }
             else {
                 jsonReportDataResp = await reportDataCopy.json();
+                console.log(jsonReportDataResp);
                 if (Object.keys(jsonReportDataResp.SpSchema).length == 0) {
                     showSnackbar("Please select valid file", " redBg");
                     return false;

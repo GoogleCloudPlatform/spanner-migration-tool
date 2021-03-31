@@ -5,13 +5,11 @@ class DefaultLayout extends HTMLElement {
     connectedCallback() {
         var data ; 
         data=(this.children[0])
-        console.log(data);
         this.render(data);
        
     }
     
     render(data) {
-        console.log(data)
         this.innerHTML= `
         <header class="main-header">
         <hb-header></hb-header>

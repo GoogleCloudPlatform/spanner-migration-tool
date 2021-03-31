@@ -1,4 +1,6 @@
 import "./../../components/Tab/Tab.component.js";
+import "./../../components/TableCarousel/TableCarousel.component.js";
+import {initSchemaScreenTasks} from "./../../helpers/SchemaConversionHelper.js";
 
 // Services
 import Store from "./../../services/Store.service.js";
@@ -22,6 +24,7 @@ class SchemaConversionScreen extends HTMLElement {
   connectedCallback() {
     this.stateObserver = setInterval(this.observeState, 200);
     this.render();
+    // this.createSourceAndSpannerTables();
   }
 
   disconnectedCallback() {
@@ -131,16 +134,18 @@ class SchemaConversionScreen extends HTMLElement {
     }
   };
 
-  createSourceAndSpannerTables = async (obj) => {
-    hideSpinner();
+  createSourceAndSpannerTables = async () => {
+    // hideSpinner();
+    schemaConversionObj = JSON.parse(localStorage.getItem("conversionReportContent"));
+    console.log(schemaConversionObj);
     this.getGlobalDataTypeList();
-    schemaConversionObj = obj;
+    // schemaConversionObj = obj;
     let columnNameContent,
       dataTypeContent,
       constraintsContent,
       notNullFound,
       constraintId,
-      srcConstraintHtml;
+      srcConstraintHtml, pkFlag, keyIconValue, keyColumnObj;
     let pksSp = [],
       initialColNameArray = [],
       notNullFoundFlag = [],
@@ -186,9 +191,10 @@ class SchemaConversionScreen extends HTMLElement {
 
     conversionRateResp = JSON.parse(localStorage.getItem("tableBorderColor"));
     for (var i = 0; i < srcTableNum; i++) {
+      debugger
       srcTable =
         schemaConversionObj.SrcSchema[
-          Object.keys(schemaConversionObj.ToSpanner)[i]
+        Object.keys(schemaConversionObj.ToSpanner)[i]
         ];
       srcTableName[i] = Object.keys(schemaConversionObj.ToSpanner)[i];
       spTable = schemaConversionObj.SpSchema[srcTableName[i]];
@@ -481,7 +487,7 @@ class SchemaConversionScreen extends HTMLElement {
           .find(".radio.interleaveRadio")
           .attr("id", "interleave" + i);
         $newConvElement.find("#interleave" + i).attr("name", "fks" + i);
-        checkInterleaveConversion(i);
+        // checkInterleaveConversion(i);
         $newConvElement.find(".fkTableBody").attr("id", "fkTableBody" + i);
         for (var p = 0; p < spTable.Fks.length; p++) {
           $fkTableContent = $newConvElement
@@ -611,13 +617,13 @@ class SchemaConversionScreen extends HTMLElement {
         .find(".mdc-card.summary-content")
         .html(
           JSON.parse(localStorage.getItem("summaryReportContent"))
-            [srcTableName[i]].split("\n")
+          [srcTableName[i]].split("\n")
             .join("<br />")
         );
       $newConvElement.appendTo("#reportDiv");
     }
     // showSnackbar('schema converted successfully !!', ' greenBg');
-    initSchemaScreenTasks();
+    // initSchemaScreenTasks();
     for (var i = 0; i < srcTableNum; i++) {
       let tableId = "#src-sp-table" + i;
       jQuery(tableId).DataTable();
@@ -625,7 +631,7 @@ class SchemaConversionScreen extends HTMLElement {
     for (var i = 0; i < spTable_num; i++) {
       let spTable =
         schemaConversionObj.SpSchema[
-          Object.keys(schemaConversionObj.SpSchema)[i]
+        Object.keys(schemaConversionObj.SpSchema)[i]
         ];
       let spTableCols = spTable.ColNames;
       let spTableColsLength = spTableCols.length;
@@ -654,8 +660,9 @@ class SchemaConversionScreen extends HTMLElement {
     if (!this.data) {
       return;
     }
-    console.log(this.data);
     const { currentTab } = this.data;
+    let schemaConversionObj = JSON.parse(localStorage.getItem("conversionReportContent"));
+    let tableNameArray = Object.keys(schemaConversionObj.SpSchema);
     this.innerHTML = `<div class="summary-main-content" id='schema-screen-content'>
         <div id="snackbar" style="z-index: 10000 !important; position: fixed;"></div>
        
@@ -667,12 +674,9 @@ class SchemaConversionScreen extends HTMLElement {
         </div>
         <div class="report-tabs">
         <ul class="nav nav-tabs md-tabs" role="tablist">
-           ${TAB_CONFIG_DATA.map((tab) => {
-             console.log(currentTab);
-             return `<hb-tab open=${currentTab === tab.id} id="${
-               tab.id
-             }" text="${tab.text}"></hb-tab>`;
-           }).join("")} 
+      ${TAB_CONFIG_DATA.map((tab) => {
+      return `<hb-tab open=${currentTab === tab.id} id="${tab.id}" text="${tab.text}"></hb-tab>`;
+    }).join("")} 
         </ul>
     </div>
         <div class="status-icons">
@@ -724,20 +728,72 @@ class SchemaConversionScreen extends HTMLElement {
         <div class="tab-bg" id='tabBg'>
             <div class="tab-content">
             ${
-              currentTab === "reportTab"
-                ? "<h1>Report Tab Components</h1>"
-                : ""
-            }
+      currentTab === "reportTab"
+        ? `<div id="report" class="tab-pane fade show active">
+        <div class="accordion md-accordion" id="accordion" role="tablist" aria-multiselectable="true">
+            <button class='expand' id='reportExpandButton' onclick='reportExpandHandler(jQuery(this))'>Expand
+                All</button>
+            <button class='expand right-align' id='editButton' onclick='globalEditHandler()'>Edit Global Data
+                Type</button>
+            <div id='reportDiv'>
+
+            ${tableNameArray.map((tableName) => {
+              return `
+              <hb-table-carousel title="${tableName} tabelId="report"></hb-table-carousel>
+              `;
+            }).join("")} 
+                                
+            </div>
+        </div>
+    </div>`
+        : ""
+      }
             ${
-              currentTab === "ddlTab"
-                ? "<h1>DDL Tab Components</h1>"
-                : ""
-            }
+      currentTab === "ddlTab"
+        ? `
+        <div id="ddl" class="tab-pane fade show active">
+                <div class="panel-group" id="ddl-accordion">
+                    <button class='expand' id='ddlExpandButton' onclick='ddlExpandHandler(jQuery(this))'>Expand
+                        All</button>
+                    <button id="download-ddl" class="expand right-align" onclick='downloadDdl()'>Download DDL
+                        Statements</button>
+                    <div id='ddlDiv'>
+                    ${tableNameArray.map((tableName) => {
+                      return `
+                              <hb-table-carousel title="${tableName}" tabelId="ddl"></hb-table-carousel>
+                               `;
+                    }).join("")} 
+                                        
+                    </div>
+                  </div>
+        </div>
+                    
+        `
+        : ""
+      }
             ${
-              currentTab === "summaryTab"
-                ? "<h1>Summary Tab Components</h1>"
-                : ""
-            }
+      currentTab === "summaryTab"
+        ? `
+        <div id="summary" class="tab-pane fade show active">
+        <div class="panel-group" id="summary-accordion">
+            <button class='expand' id='summaryExpandButton' onclick='summaryExpandHandler(jQuery(this))'>Expand
+                All</button>
+            <button id="download-report" class="expand right-align" onclick='downloadReport()'>Download Summary
+                Report</button>
+            <div id='summaryDiv'>
+            ${tableNameArray.map((tableName) => {
+              return `
+                       <hb-table-carousel title="${tableName}" tabelId="summary"></hb-table-carousel>
+                      `;
+            }).join("")} 
+                                
+            </div>
+            </div>
+            </div>
+
+        `
+        : ""
+      }
             </div>
         </div>
     </div>
@@ -940,8 +996,9 @@ class SchemaConversionScreen extends HTMLElement {
             </div>
         </div>
     </div>`;
+    initSchemaScreenTasks();
+      // this.createSourceAndSpannerTables();
 
-   
   }
 
   constructor() {

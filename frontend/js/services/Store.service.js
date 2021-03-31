@@ -36,7 +36,6 @@ const Store = (function () {
             if (!instance) {
                 // instance = init();
             }
-            console.log(instance);
             return instance;
         },
         // Other store manipulator functions here 
