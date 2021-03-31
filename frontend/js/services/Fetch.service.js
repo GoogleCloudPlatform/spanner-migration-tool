@@ -16,7 +16,6 @@ const Fetch = (() => {
                 body: JSON.stringify(payload)
             })
                 .then((response) => {
-                    console.log(response);
                     setTimeout(() => {
                         resolve(response);
                     }, 0);
@@ -73,7 +72,6 @@ const Fetch = (() => {
         },
         getAppData: (method, url, payload, config, callback) => {
             return makeFetchCall(method, url, payload, config, callback).then((response) => {
-                console.log(response);
                 return response;
             });
         }
