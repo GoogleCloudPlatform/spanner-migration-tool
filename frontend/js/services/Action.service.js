@@ -149,6 +149,17 @@ const Actions = (() => {
         document.getElementById("notFound").style.display = "none";
       }
     },
+    expandAll: (text)=>{
+      console.log(text);
+      if (text === 'Expand All') {
+        text = 'Collapse All';
+        jQuery(' .reportCollapse').collapse('show');
+      }
+      else {
+        text= 'Expand All';
+        jQuery('.reportCollapse').collapse('hide');
+      }
+    }
   };
 })();
 

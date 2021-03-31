@@ -3,6 +3,7 @@ import "./../../components/TableCarousel/TableCarousel.component.js";
 import {initSchemaScreenTasks} from "./../../helpers/SchemaConversionHelper.js";
 import "./../../components/StatusLegend/StatusLegend.component.js"
 import "./../../components/Search/Search.component.js"
+import "./../../components/Button/SiteButton.component.js"
 // Services
 import Store from "./../../services/Store.service.js";
 
@@ -692,8 +693,7 @@ class SchemaConversionScreen extends HTMLElement {
                   currentTab === "reportTab"
                     ? `<div id="report" class="tab-pane fade show active">
                     <div class="accordion md-accordion" id="accordion" role="tablist" aria-multiselectable="true">
-                        <button class='expand' id='reportExpandButton' onclick='reportExpandHandler(jQuery(this))'>Expand
-                            All</button>
+                        <hb-site-button></hb-site-button>
                         <button class='expand right-align' id='editButton' onclick='globalEditHandler()'>Edit Global Data
                             Type</button>
                         <div id='reportDiv'>
