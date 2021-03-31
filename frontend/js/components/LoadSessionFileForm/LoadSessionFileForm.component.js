@@ -19,7 +19,6 @@ class LoadSessionFileForm extends HTMLElement {
 
     render() {
         this.innerHTML = `
-            <div class="modal-body">
                 <form id="load-session-form" class="load-session-form">
                     <div>
                         <label class="modal-label" for="import-db-type">Database Type</label>
@@ -37,10 +36,6 @@ class LoadSessionFileForm extends HTMLElement {
                     </div>
                     <input type="text" class="template" value="dummyInput">
                 </form>
-            </div>
-            <div class="modal-footer">
-                <input type='submit' disabled='disabled' id='import-button' class='modal-button' value='Confirm' />
-            </div>
         `;
     }
 

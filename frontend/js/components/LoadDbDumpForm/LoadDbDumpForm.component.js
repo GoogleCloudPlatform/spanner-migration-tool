@@ -40,7 +40,6 @@ class LoadDbDumpForm extends HTMLElement {
 
     render() {
         this.innerHTML = `
-            <div class="modal-body">
                 <div>
                     <label for="load-db-type">Database Type</label>
                     <select class="form-control load-db-input" id="load-db-type" name="load-db-type">
@@ -57,10 +56,6 @@ class LoadDbDumpForm extends HTMLElement {
                     </div>
                     <input type="text" class="template" value="dummyInput">
                 </form>
-            </div>
-            <div class="modal-footer">
-                <input type="submit" disabled='disabled' value='Confirm' id='load-connect-button' class='modal-button' />
-            </div>
         `;
     }
 
