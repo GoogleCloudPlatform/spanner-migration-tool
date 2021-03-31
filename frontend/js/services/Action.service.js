@@ -1,5 +1,6 @@
 import Store from "./Store.service.js";
 import Fetch from "./Fetch.service.js";
+import { readTextFile } from "../helpers/SchemaConversionHelper.js";
 
 /**
  * All the manipulations to the store happen via the actions mentioned in this module
@@ -77,7 +78,6 @@ const Actions = (() => {
             localStorage.setItem('conversionReportContent', reportDataResp);
             jQuery('#connectModalSuccess').modal("hide");
             sourceTableFlag = localStorage.getItem('sourceDbName');
-            // sessionRetrieval(sourceTableFlag);
         },
         ddlSummaryAndConversionApiCall: async () => {
             let conversionRate, conversionRateJson, ddlData, ddlDataJson, summaryData, summaryDataJson;
@@ -97,15 +97,42 @@ const Actions = (() => {
             }
             return true;
         },
-        addNewSession: (session) => {
-            Store.addNewSession(session);
+        sessionRetrieval: async (dbType) => {
+            let sessionStorageArr, sessionInfo, sessionResp;
+            sessionResp = await Fetch.getAppData('GET', '/session');
+            sessionInfo = await sessionResp.json();
+            sessionStorageArr = JSON.parse(sessionStorage.getItem('sessionStorage'));
+            if (sessionStorageArr == undefined)
+                sessionStorageArr = [];
+            sessionInfo.sourceDbType = dbType;
+            sessionStorageArr.unshift(sessionInfo);
+            sessionStorage.setItem('sessionStorage', JSON.stringify(sessionStorageArr));
         },
-        resumeSession: (index) => {
-            let val = Store.getSessionData(index);
-            console.log(val);
-        },
-        getAllSessions: () => {
-            return Store.getAllSessions();
+        resumeSessionHandler: async (index, sessionArray) => {
+            let driver, path, dbName, sourceDb, pathArray, fileName, filePath;
+            localStorage.setItem('sourceDb', sessionArray[index].sourceDbType);
+            driver = sessionArray[index].driver;
+            path = sessionArray[index].filePath;
+            dbName = sessionArray[index].dbName;
+            sourceDb = sessionArray[index].sourceDbType;
+            pathArray = path.split('/');
+            fileName = pathArray[pathArray.length - 1];
+            filePath = './' + fileName;
+            readTextFile(filePath, async (error, text) => {
+                if (error) {
+                    showSnackbar(err, ' redBg');
+                }
+                else {
+                    let payload = {
+                        "Driver": driver,
+                        "DBName": dbName,
+                        "FilePath": path
+                    }
+                    localStorage.setItem('conversionReportContent', text);
+                    await Fetch.getAppData('POST', '/session/resume', payload);
+                }
+            });
+            // return false;
         },
         switchToTab: (id) => {
             Store.changeCurrentTab(id)
