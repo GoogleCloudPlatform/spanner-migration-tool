@@ -21,6 +21,9 @@ class DataTable extends HTMLElement {
 
     render() {
         let { tableName, tableIndex } = this;
+        let countSrc = [], countSp = [];
+        countSrc[tableIndex] = [];
+        countSp[tableIndex] = [];
         let schemaConversionObj = JSON.parse(localStorage.getItem("conversionReportContent"));
         let spTable = schemaConversionObj.SpSchema[tableName];
         let srcTable = schemaConversionObj.SrcSchema[tableName];
@@ -71,6 +74,8 @@ class DataTable extends HTMLElement {
                         
                         ${tableColumnsArray.map((tableColumn, index) => {
             let pkFlag = false, seqId;
+            countSrc[tableIndex][index] = 0;
+            countSp[tableIndex][index] = 0;
             for (var x = 0; x < pksSpLength; x++) {
                 if (pksSp[x].Col === tableColumn) {
                     pkFlag = true;
@@ -135,27 +140,37 @@ class DataTable extends HTMLElement {
                             </td>
                             <td class="acc-table-td">
                                 <select multiple size="1"
-                                    class="form-control spanner-input tableSelect srcConstraint">
-                                    <option disabled class="srcNotNullConstraint">
+                                    class="form-control spanner-input tableSelect srcConstraint" id="srcConstraint${tableIndex}${index}">
+                                    ${srcTable.ColDefs[currentColumnSrc].NotNull ?
+                                        (countSrc[tableIndex][index] = countSrc[tableIndex][index] + 1,
+                                        `<option disabled class="srcNotNullConstraint active">
                                         Not Null
-                                    </option>
+                                    </option>`)
+                                    :
+                                     `<option disabled class="srcNotNullConstraint">
+                                     Not Null
+                                 </option>`}
+                                     
                                 </select>
                             </td>
                             <td class="acc-table-td sp-column acc-table-td">
                                 <div class="saveConstraint">
                                     <select multiple size="1"
-                                        class="form-control spanner-input tableSelect spannerConstraint">
-                                        <option disabled class="spannerNotNullConstraint">
-                                            Not Null
-                                        </option>
+                                        class="form-control spanner-input tableSelect spannerConstraint" id="spConstraint${tableIndex}${index}">
+                                        ${spTable.ColDefs[tableColumn].NotNull ?
+                                            (countSp[tableIndex][index] = countSp[tableIndex][index] + 1,
+                                                `<option disabled class="spannerNotNullConstraint active">
+                                                Not Null
+                                            </option>`)
+                                        :
+                                        `<option disabled class="spannerNotNullConstraint">
+                                        Not Null
+                                    </option>`}
                                     </select>
                                 </div>
                             </td>
                         </tr>`;
         }).join("")}
-
-
-
         
                         </tbody>
                     </table>
@@ -283,6 +298,18 @@ class DataTable extends HTMLElement {
                     </div>
                 </div>`;
         jQuery("#src-sp-table" + tableIndex).DataTable({ "paging": false });
+        tableColumnsArray.map((columnName, index) => {
+            new vanillaSelectBox('#srcConstraint' + tableIndex + index, {
+                placeHolder: countSrc[tableIndex][index] + " constraints selected",
+                maxWidth: 500,
+                maxHeight: 300
+            });
+            new vanillaSelectBox('#spConstraint' + tableIndex + index, {
+                placeHolder: countSp[tableIndex][index] + " constraints selected",
+                maxWidth: 500,
+                maxHeight: 300
+            });
+        })
     }
 
     constructor() {
