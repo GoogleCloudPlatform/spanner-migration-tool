@@ -2,6 +2,7 @@ import "./../../components/Tab/Tab.component.js";
 import "./../../components/TableCarousel/TableCarousel.component.js";
 import {initSchemaScreenTasks} from "./../../helpers/SchemaConversionHelper.js";
 import "./../../components/StatusLegend/StatusLegend.component.js"
+import "./../../components/Search/Search.component.js"
 // Services
 import Store from "./../../services/Store.service.js";
 
@@ -682,25 +683,7 @@ class SchemaConversionScreen extends HTMLElement {
         </ul>
     </div>
         <div class="status-icons">
-            <form class="form-inline d-flex justify-content-center md-form form-sm mt-0 searchForm" id='reportSearchForm'>
-                <i class="fas fa-search" aria-hidden="true"></i>
-                <input class="form-control form-control-sm ml-3 w-75 searchBox" type="text" placeholder="Search table"
-                    autocomplete='off' aria-label="Search" onkeyup='searchTable("reportSearchInput")'
-                    id='reportSearchInput'>
-            </form>
-            <form class="form-inline d-flex justify-content-center md-form form-sm mt-0 searchForm"
-                style='display: none !important;' id='ddlSearchForm'>
-                <i class="fas fa-search" aria-hidden="true"></i>
-                <input class="form-control form-control-sm ml-3 w-75 searchBox" type="text" placeholder="Search table"
-                    id='ddlSearchInput' autocomplete='off' aria-label="Search" onkeyup='searchTable("ddlSearchInput")'>
-            </form>
-            <form class="form-inline d-flex justify-content-center md-form form-sm mt-0 searchForm"
-                style='display: none !important;' id='summarySearchForm'>
-                <i class="fas fa-search" aria-hidden="true"></i>
-                <input class="form-control form-control-sm ml-3 w-75 searchBox" type="text" placeholder="Search table"
-                    id='summarySearchInput' autocomplete='off' aria-label="Search"
-                    onkeyup='searchTable("summarySearchInput")'>
-            </form>
+           <hb-search tabId=${currentTab}></hb-search>
             <hb-status-legend></hb-status-legend>
         </div>
         <div class="tab-bg" id='tabBg'>
@@ -776,9 +759,9 @@ class SchemaConversionScreen extends HTMLElement {
               <section class='summarySection'>
                             <div class='card'>
                                 <div class='card-header ddl-card-header ddlBorderBottom' role='tab'>
-                                    <h5 class='mb-0'>
+                                  <h5 class='mb-0'>
                                     <hb-table-carousel title="${tableName}" tableClassName="summaryCollapse" tableId="${tableName}-summary"></hb-table-carousel>
-                                    </h5>
+                                  </h5>
                                 </div>
                                 <div class='collapse summaryCollapse'>
                                     <div class='mdc-card mdc-card-content ddl-border table-card-border'>
@@ -791,12 +774,11 @@ class SchemaConversionScreen extends HTMLElement {
                                 
             </div>
             </div>
-            </div>
-
-        `
+            </div>`
         : ""
       }
             </div>
+            <h1 class="search-not-found" id="notFound">Not Found</h1>
         </div>
     </div>
     <div class="modal" id="globalDataTypeModal" role="dialog" tabindex="-1" aria-labelledby="exampleModalCenterTitle"
