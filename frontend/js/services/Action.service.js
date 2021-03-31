@@ -44,8 +44,8 @@ const Actions = (() => {
             // sessionRetrieval(sourceTableFlag);
             return true;
         },
-        onconnect: (dbType, dbHost, dbPort, dbUser, dbName, dbPassword) => {
-            let sourceTableFlag = '';
+        onconnect: async (dbType, dbHost, dbPort, dbUser, dbName, dbPassword) => {
+            let sourceTableFlag = '', response;
             let payload = {
                 "Driver": dbType,
                 "Database": dbName,
@@ -54,7 +54,8 @@ const Actions = (() => {
                 "Port": dbPort,
                 "Host": dbHost
             };
-            response = Fetch.getAppData('POST', '/connect', payload);
+            response = await Fetch.getAppData('POST', '/connect', payload);
+            console.log(response);
             if (response.ok) {
                 if (dbType === 'mysql')
                     sourceTableFlag = 'MySQL';
@@ -63,13 +64,26 @@ const Actions = (() => {
                 localStorage.setItem('sourceDbName', sourceTableFlag);
                 jQuery('#connectToDbModal').modal('hide');
                 jQuery('#connectModalSuccess').modal();
+                // document.getElementById("convert-button").addEventListener("click", async () => {
+                //     console.log("inside click event");
+                //     await showSchemaAssessment();
+                //     await ddlSummaryAndConversionApiCall();
+                // });
             }
             else {
-                res.text().then(function () {
-                    jQuery('#connectToDbModal').modal('hide');
-                    jQuery('#connectModalFailure').modal();
-                });
+                jQuery('#connectToDbModal').modal('hide');
+                jQuery('#connectModalFailure').modal();
             }
+            return response;
+        },
+        showSchemaAssessment: async () => {
+            let reportDataResp, reportData, sourceTableFlag;
+            reportData = await Fetch.getAppData('GET', '/convert/infoschema');
+            reportDataResp = await reportData.text();
+            localStorage.setItem('conversionReportContent', reportDataResp);
+            jQuery('#connectModalSuccess').modal("hide");
+            sourceTableFlag = localStorage.getItem('sourceDbName');
+            // sessionRetrieval(sourceTableFlag);
         },
         ddlSummaryAndConversionApiCall: async () => {
             let conversionRate, conversionRateJson, ddlData, ddlDataJson, summaryData, summaryDataJson;

@@ -56,7 +56,7 @@ class MainScreen extends HTMLElement {
 
     render() {
             if (!this.data) { return; }
-            let { open, funcc, something, currentModal } = this.data;
+            let { open, funcc, something } = this.data;
             console.log(open, funcc, something, ' are the values ');
             this.innerHTML = `
             <div>
