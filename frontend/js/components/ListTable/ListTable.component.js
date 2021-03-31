@@ -20,31 +20,34 @@ class ListTable extends HTMLElement {
         this.render();
     }
 
-    render() {
-        let { tabName , tableName } = this;
-        let RenderingObj ;
-        if(tabName === "ddl"){
-            RenderingObj = JSON.parse(localStorage.getItem('ddlStatementsContent'));
-        }else{
-            RenderingObj = JSON.parse(localStorage.getItem('summaryReportContent')); 
-        }
-        RenderingObj = RenderingObj[tableName];
+    FormattedObj(RenderingObj) {
         let createIndex = RenderingObj.search("CREATE TABLE");
         let createEndIndex = createIndex + 12;
         RenderingObj = RenderingObj.substring(0, createIndex)+RenderingObj.substring(createIndex, createEndIndex)
         .fontcolor("#4285f4")
         .bold() +RenderingObj.substring(createEndIndex);
         console.log(RenderingObj);
-        this.innerHTML =`
-         <pre>
-           <code>
+        return RenderingObj;
+    }
 
+    render() {
+        let { tabName , tableName } = this;
+        let RenderingObj ;
+        if(tabName === "ddl"){
+            RenderingObj = JSON.parse(localStorage.getItem('ddlStatementsContent'));
+            RenderingObj = RenderingObj[tableName];
+            RenderingObj = this.FormattedObj(RenderingObj);
+        }else{
+            RenderingObj = JSON.parse(localStorage.getItem('summaryReportContent')); 
+            RenderingObj = RenderingObj[tableName];
+        }
+        
+        this.innerHTML =`
+         ${ tabName=="ddl" ? `<pre> <code>` : `<div>`}
         <div class='mdc-card ${tabName}-content'>
            ${RenderingObj.split('\n').join(`<span class='sql-c'></span>`)}
         </div>
-        
-        </code>
-        </pre>
+        ${ tabName=="ddl" ? `</code> </pre>` : `</div>`}
         `;
     }
 

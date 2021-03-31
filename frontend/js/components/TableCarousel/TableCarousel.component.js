@@ -1,5 +1,5 @@
 import "../DataTable/DataTable.component.js";
-import "../DdlTable/ListTable.component.js";
+import "../ListTable/ListTable.component.js";
 
 class TableCarousel extends HTMLElement {
 static get observedAttributes() {
