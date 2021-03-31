@@ -8,12 +8,12 @@ class TableCarousel extends HTMLElement {
     return this.getAttribute("title");
   }
   
-  get tabelClassName(){
-      return this.getAttribute('tabelClassName')
+  get tableClassName(){
+      return this.getAttribute('tableClassName')
   }
 
-  get tabelId(){
-      return this.getAttribute('tabelId')
+  get tableId(){
+      return this.getAttribute('tableId')
   }
 
   get tableIndex(){
@@ -29,14 +29,14 @@ class TableCarousel extends HTMLElement {
   }
 
   render() {
-    let { title , tabelClassName , tabelId, tableIndex } = this;  
+    let { title , tableClassName , tableId, tableIndex } = this;  
     this.innerHTML = `
    
-                <a data-toggle="collapse" href="#${tabelId}">
+                <a data-toggle="collapse" href="#${tableId}">
                     Table: <span>${title}</span>
                     <i class="fas fa-angle-down rotate-icon"></i>
                 </a>
-                <div class="collapse ${tabelClassName}" id="${tabelId}">
+                <div class="collapse ${tableClassName}" id="${tableId}">
                   <div class="mdc-card mdc-card-content table-card-border">
                     <hb-data-table tableName="${title}" tableIndex="${tableIndex}"></hb-data-table>
                   </div>

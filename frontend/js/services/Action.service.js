@@ -1,9 +1,9 @@
 import Store from "./Store.service.js";
-import Fetch from "./Fetch.service.js"
+import Fetch from "./Fetch.service.js";
 
 /**
  * All the manipulations to the store happen via the actions mentioned in this module
- * 
+ *
  */
 const Actions = (() => {
 
@@ -97,20 +97,51 @@ const Actions = (() => {
             }
             return true;
         },
-        addNewSession: (session) =>{
+        addNewSession: (session) => {
             Store.addNewSession(session);
         },
         resumeSession: (index) => {
-           let val=Store.getSessionData(index);
-           console.log(val);
+            let val = Store.getSessionData(index);
+            console.log(val);
         },
-        getAllSessions: () =>{
+        getAllSessions: () => {
             return Store.getAllSessions();
         },
-        switchToTab: (id)=>{
+        switchToTab: (id) => {
             Store.changeCurrentTab(id)
-        }
-    }
+        },
+        SearchTable: (value, tabId) => {
+            console.log(value);
+            let tableVal, list, listElem;
+            let ShowResultNotFound = true;
+            let schemaConversionObj = JSON.parse(
+                localStorage.getItem("conversionReportContent")
+            );
+            if (tabId === "reportTab") {
+                list = document.getElementById("reportDiv");
+            } else if (tabId === "ddlTab") {
+                list = document.getElementById("ddlDiv");
+            } else {
+                list = document.getElementById("summaryDiv");
+            }
+            listElem = list.getElementsByTagName("section");
+            let tableListLength = Object.keys(schemaConversionObj.SpSchema).length;
+            for (var i = 0; i < tableListLength; i++) {
+                tableVal = Object.keys(schemaConversionObj.SpSchema)[i];
+                if (tableVal.indexOf(value) > -1) {
+                    listElem[i].style.display = "";
+                    ShowResultNotFound = false;
+                } else {
+                    listElem[i].style.display = "none";
+                }
+            }
+            if (ShowResultNotFound) {
+                document.getElementById("notFound").style.display = "block";
+            } else {
+                document.getElementById("notFound").style.display = "none";
+            }
+        },
+    };
 })();
 
 export default Actions;

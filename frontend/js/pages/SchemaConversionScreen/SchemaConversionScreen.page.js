@@ -1,10 +1,12 @@
 import "./../../components/Tab/Tab.component.js";
 import "./../../components/TableCarousel/TableCarousel.component.js";
-import "../../services/Fetch.service.js";
+import "./../../components/StatusLegend/StatusLegend.component.js";
+import "./../../components/Search/Search.component.js";
 import { initSchemaScreenTasks, panelBorderClass } from "./../../helpers/SchemaConversionHelper.js";
 
 // Services
 import Store from "./../../services/Store.service.js";
+import "../../services/Fetch.service.js";
 
 const TAB_CONFIG_DATA = [
   {
@@ -63,62 +65,20 @@ class SchemaConversionScreen extends HTMLElement {
         </ul>
     </div>
         <div class="status-icons">
-            <form class="form-inline d-flex justify-content-center md-form form-sm mt-0 searchForm" id='reportSearchForm'>
-                <i class="fas fa-search" aria-hidden="true"></i>
-                <input class="form-control form-control-sm ml-3 w-75 searchBox" type="text" placeholder="Search table"
-                    autocomplete='off' aria-label="Search" onkeyup='searchTable("reportSearchInput")'
-                    id='reportSearchInput'>
-            </form>
-            <form class="form-inline d-flex justify-content-center md-form form-sm mt-0 searchForm"
-                style='display: none !important;' id='ddlSearchForm'>
-                <i class="fas fa-search" aria-hidden="true"></i>
-                <input class="form-control form-control-sm ml-3 w-75 searchBox" type="text" placeholder="Search table"
-                    id='ddlSearchInput' autocomplete='off' aria-label="Search" onkeyup='searchTable("ddlSearchInput")'>
-            </form>
-            <form class="form-inline d-flex justify-content-center md-form form-sm mt-0 searchForm"
-                style='display: none !important;' id='summarySearchForm'>
-                <i class="fas fa-search" aria-hidden="true"></i>
-                <input class="form-control form-control-sm ml-3 w-75 searchBox" type="text" placeholder="Search table"
-                    id='summarySearchInput' autocomplete='off' aria-label="Search"
-                    onkeyup='searchTable("summarySearchInput")'>
-            </form>
-            <section class="cus-tip">
-                <span class="cus-a info-icon statusTooltip">
-                    <i class="large material-icons">info</i>
-                    <span class="legend-icon statusTooltip"
-                        style='cursor: pointer;display: inline-block;vertical-align: super;'>Status&nbsp;&nbsp;Legend</span>
-                </span>
-                <div class="legend-hover">
-                    <div class="legend-status">
-                        <span class="excellent"></span>
-                        Excellent
-                    </div>
-                    <div class="legend-status">
-                        <span class="good"></span>
-                        Good
-                    </div>
-                    <div class="legend-status">
-                        <span class="avg"></span>
-                        Average
-                    </div>
-                    <div class="legend-status">
-                        <span class="poor"></span>
-                        Poor
-                    </div>
-                </div>
-            </section>
+           <hb-search tabId=${currentTab}></hb-search>
+            <hb-status-legend></hb-status-legend>
         </div>
         <div class="tab-bg" id='tabBg'>
             <div class="tab-content">
-            ${
-      currentTab === "reportTab"
-        ? `<div id="report" class="tab-pane fade show active">
-        <div class="accordion md-accordion" id="accordion" role="tablist" aria-multiselectable="true">
-            <button class='expand' id='reportExpandButton' onclick='reportExpandHandler(jQuery(this))'>Expand
-                All</button>
-            <button class='expand right-align' id='editButton' onclick='globalEditHandler()'>Edit Global Data
-                Type</button>
-            <div id='reportDiv'>
+              ${
+                  currentTab === "reportTab"
+                    ? `<div id="report" class="tab-pane fade show active">
+                    <div class="accordion md-accordion" id="accordion" role="tablist" aria-multiselectable="true">
+                        <button class='expand' id='reportExpandButton' onclick='reportExpandHandler(jQuery(this))'>Expand
+                            All</button>
+                        <button class='expand right-align' id='editButton' onclick='globalEditHandler()'>Edit Global Data
+                            Type</button>
+                        <div id='reportDiv'>
 
             ${tableNameArray.map((tableName, index) => {
               let borderClass = panelBorderClass(conversionRateResp[tableName]);
@@ -127,7 +87,7 @@ class SchemaConversionScreen extends HTMLElement {
               <div class="card">
                   <div role="tab" class="card-header report-card-header borderBottom ${borderClass}">
                       <h5 class="mb-0">
-              <hb-table-carousel title="${tableName}" tabelClassName="reportCollapse"  tabelId="${tableName}-report" tableIndex="${index}"></hb-table-carousel>
+              <hb-table-carousel title="${tableName}" tableClassName="reportCollapse" tableId="${tableName}-report" tableIndex="${index}"></hb-table-carousel>
               </h5>
               </div>
             </div>
@@ -155,7 +115,7 @@ class SchemaConversionScreen extends HTMLElement {
                         <div class='card'>
                               <div class='card-header ddl-card-header ddlBorderBottom' role='tab'>
                                   <h5 class='mb-0'>
-                                  <hb-table-carousel title="${tableName}" tabelClassName="ddlCollapse" tabelId="${tableName}-ddl"></hb-table-carousel>
+                                  <hb-table-carousel title="${tableName}" tableClassName="ddlCollapse" tableId="${tableName}-ddl"></hb-table-carousel>
                                   </h5>
                               </div>
                         </div>
@@ -184,9 +144,9 @@ class SchemaConversionScreen extends HTMLElement {
               <section class='summarySection'>
                             <div class='card'>
                                 <div class='card-header ddl-card-header ddlBorderBottom' role='tab'>
-                                    <h5 class='mb-0'>
-                                    <hb-table-carousel title="${tableName}" tabelClassName="summaryCollapse" tabelId="${tableName}-summary"></hb-table-carousel>
-                                    </h5>
+                                  <h5 class='mb-0'>
+                                    <hb-table-carousel title="${tableName}" tableClassName="summaryCollapse" tableId="${tableName}-summary"></hb-table-carousel>
+                                  </h5>
                                 </div>
                                 <div class='collapse summaryCollapse'>
                                     <div class='mdc-card mdc-card-content ddl-border table-card-border'>
@@ -199,12 +159,11 @@ class SchemaConversionScreen extends HTMLElement {
                                 
             </div>
             </div>
-            </div>
-
-        `
+            </div>`
         : ""
       }
             </div>
+            <h1 class="search-not-found" id="notFound">Not Found</h1>
         </div>
     </div>
     <div class="modal" id="globalDataTypeModal" role="dialog" tabindex="-1" aria-labelledby="exampleModalCenterTitle"

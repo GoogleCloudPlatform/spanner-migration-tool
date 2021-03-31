@@ -1,0 +1,18 @@
+.searchBox {
+    border-left: 0px !important;
+    border-top: 0px !important;
+    border-right: 0px !important;
+    border-bottom: 1px solid #808080 !important;
+    width: 200px !important;
+    outline: none;
+}
+
+.searchForm {
+    float: left;
+    margin-right: 30px;
+}
+
+.fa-search:before {
+    content: "\f002";
+    color: #4285F4;
+}
