@@ -100,3 +100,22 @@ export const initSchemaScreenTasks = () => {
       });
     });
   }
+
+  export const panelBorderClass = (color) => {
+    var borderClass = '';
+    switch (color) {
+      case 'ORANGE':
+        borderClass = ' orangeBorderBottom';
+        break;
+      case 'GREEN':
+        borderClass = ' greenBorderBottom';
+        break;
+      case 'BLUE':
+        borderClass = ' blueBorderBottom';
+        break;
+      case 'YELLOW':
+        borderClass = ' yellowBorderBottom';
+        break;
+    }
+    return borderClass;
+  }

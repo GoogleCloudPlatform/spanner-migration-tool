@@ -54,7 +54,7 @@ class Modal extends HTMLElement {
         break;
     }
     this.innerHTML = `
-        <div class="modal" id="${modalId}" tabindex="-1" role="dialog">
+        <div class="modal" id="${modalId}" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
           <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
               <div class="modal-header">

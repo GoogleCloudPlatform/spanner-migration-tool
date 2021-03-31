@@ -29,13 +29,7 @@ class TableCarousel extends HTMLElement {
   }
 
   render() {
-    // let { id, open, text } = this;
-    let { title , tabelClassName , tabelId, tableIndex } = this;
-    let schemaConversionObj = JSON.parse(
-      localStorage.getItem("conversionReportContent")
-    );
-    let carouselContent = schemaConversionObj.SpSchema[title];
-  
+    let { title , tabelClassName , tabelId, tableIndex } = this;  
     this.innerHTML = `
    
                 <a data-toggle="collapse" href="#${tabelId}">
