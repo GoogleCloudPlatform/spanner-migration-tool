@@ -27,6 +27,7 @@ class SchemaConversionScreen extends HTMLElement {
   connectedCallback() {
     this.stateObserver = setInterval(this.observeState, 200);
     this.render();
+    // this.createSourceAndSpannerTables();
   }
 
   disconnectedCallback() {
@@ -44,10 +45,9 @@ class SchemaConversionScreen extends HTMLElement {
     if (!this.data) {
       return;
     }
-    let  { currentTab } = this.data;
+    const { currentTab } = this.data;
     let schemaConversionObj = JSON.parse(localStorage.getItem("conversionReportContent"));
     let tableNameArray = Object.keys(schemaConversionObj.SpSchema);
-    let conversionRateResp = JSON.parse(localStorage.getItem('tableBorderColor'));
     this.innerHTML = `<div class="summary-main-content" id='schema-screen-content'>
         <div id="snackbar" style="z-index: 10000 !important; position: fixed;"></div>
        
@@ -70,28 +70,20 @@ class SchemaConversionScreen extends HTMLElement {
         </div>
         <div class="tab-bg" id='tabBg'>
             <div class="tab-content">
-              ${
-                  currentTab === "reportTab"
-                    ? `<div id="report" class="tab-pane fade show active">
-                    <div class="accordion md-accordion" id="accordion" role="tablist" aria-multiselectable="true">
-                        <button class='expand' id='reportExpandButton' onclick='reportExpandHandler(jQuery(this))'>Expand
-                            All</button>
-                        <button class='expand right-align' id='editButton' onclick='globalEditHandler()'>Edit Global Data
-                            Type</button>
-                        <div id='reportDiv'>
+             ${
+      currentTab === "reportTab"
+        ? `<div id="report" class="tab-pane fade show active">
+        <div class="accordion md-accordion" id="accordion" role="tablist" aria-multiselectable="true">
+            <button class='expand' id='reportExpandButton' onclick='reportExpandHandler(jQuery(this))'>Expand
+                All</button>
+            <button class='expand right-align' id='editButton' onclick='globalEditHandler()'>Edit Global Data
+                Type</button>
+            <div id='reportDiv'>
 
-            ${tableNameArray.map((tableName, index) => {
-              let borderClass = panelBorderClass(conversionRateResp[tableName]);
+            ${tableNameArray.map((tableName,index) => {
               return `
-            <section class="reportSection">
-              <div class="card">
-                  <div role="tab" class="card-header report-card-header borderBottom ${borderClass}">
-                      <h5 class="mb-0">
-              <hb-table-carousel title="${tableName}" tableClassName="reportCollapse" tableId="${tableName}-report" tableIndex="${index}"></hb-table-carousel>
-              </h5>
-              </div>
-            </div>
-          </section>`;
+              <hb-table-carousel title="${tableName}" tableId="report" tableIndex="${index}"></hb-table-carousel>
+              `;
             }).join("")} 
                                 
             </div>
@@ -111,15 +103,8 @@ class SchemaConversionScreen extends HTMLElement {
                     <div id='ddlDiv'>
                     ${tableNameArray.map((tableName) => {
                       return `
-                      <section class='ddlSection'>
-                        <div class='card'>
-                              <div class='card-header ddl-card-header ddlBorderBottom' role='tab'>
-                                  <h5 class='mb-0'>
-                                  <hb-table-carousel title="${tableName}" tableClassName="ddlCollapse" tableId="${tableName}-ddl"></hb-table-carousel>
-                                  </h5>
-                              </div>
-                        </div>
-                      </section>`;
+                              <hb-table-carousel title="${tableName}" tableId="ddl"></hb-table-carousel>
+                               `;
                     }).join("")} 
                                         
                     </div>
@@ -141,25 +126,14 @@ class SchemaConversionScreen extends HTMLElement {
             <div id='summaryDiv'>
             ${tableNameArray.map((tableName) => {
               return `
-              <section class='summarySection'>
-                            <div class='card'>
-                                <div class='card-header ddl-card-header ddlBorderBottom' role='tab'>
-                                  <h5 class='mb-0'>
-                                    <hb-table-carousel title="${tableName}" tableClassName="summaryCollapse" tableId="${tableName}-summary"></hb-table-carousel>
-                                  </h5>
-                                </div>
-                                <div class='collapse summaryCollapse'>
-                                    <div class='mdc-card mdc-card-content ddl-border table-card-border'>
-                                        <div class='mdc-card summary-content'></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>`;
+                       <hb-table-carousel title="${tableName}" tableId="summary"></hb-table-carousel>
+                      `;
             }).join("")} 
                                 
             </div>
             </div>
-            </div>`
+            </div>
+        `
         : ""
       }
             </div>
@@ -366,6 +340,8 @@ class SchemaConversionScreen extends HTMLElement {
         </div>
     </div>`;
     initSchemaScreenTasks();
+      // this.createSourceAndSpannerTables();
+
   }
 
   constructor() {
