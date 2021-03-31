@@ -739,13 +739,13 @@ class SchemaConversionScreen extends HTMLElement {
                 Type</button>
             <div id='reportDiv'>
 
-            ${tableNameArray.map((tableName) => {
+            ${tableNameArray.map((tableName, index) => {
               return `
             <section class="reportSection">
               <div class="card">
                   <div role="tab" class="card-header report-card-header borderBottom">
                       <h5 class="mb-0">
-              <hb-table-carousel title="${tableName}" tabelClassName="reportCollapse"  tabelId="${tableName}-report"></hb-table-carousel>
+              <hb-table-carousel title="${tableName}" tabelClassName="reportCollapse"  tabelId="${tableName}-report" tableIndex="${index}"></hb-table-carousel>
               </h5>
               </div>
             </div>

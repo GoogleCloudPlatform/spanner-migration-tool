@@ -43,6 +43,10 @@
     margin-left: 3px;
 }
 
+h5 {
+    font-size: 0.875rem;
+}
+
 .history-content{
     padding : 0 40px;
     margin-top: 72px;

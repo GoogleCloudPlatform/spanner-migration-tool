@@ -16,6 +16,10 @@ class TableCarousel extends HTMLElement {
       return this.getAttribute('tabelId')
   }
 
+  get tableIndex(){
+    return this.getAttribute('tableIndex')
+}
+
   attributeChangedCallback(name, oldValue, newValue) {
     this.render();
   }
@@ -26,8 +30,7 @@ class TableCarousel extends HTMLElement {
 
   render() {
     // let { id, open, text } = this;
-    let { title , tabelClassName , tabelId } = this;
-  
+    let { title , tabelClassName , tabelId, tableIndex } = this;
     let schemaConversionObj = JSON.parse(
       localStorage.getItem("conversionReportContent")
     );
@@ -42,7 +45,7 @@ class TableCarousel extends HTMLElement {
                 </a>
                 <div class="collapse ${tabelClassName}" id="${tabelId}">
                   <div class="mdc-card mdc-card-content table-card-border">
-                    <hb-data-table tableName="${title}"></hb-data-table>
+                    <hb-data-table tableName="${title}" tableIndex="${tableIndex}"></hb-data-table>
                   </div>
               </div>
            

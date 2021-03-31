@@ -1,5 +1,3 @@
-import Actions from "../../services/Action.service.js";
-
 class DataTable extends HTMLElement {
     static get observedAttributes() {
         return ["open"];
@@ -7,6 +5,10 @@ class DataTable extends HTMLElement {
 
     get tableName() {
         return this.getAttribute("tableName");
+    }
+
+    get tableIndex() {
+        return this.getAttribute("tableIndex");
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
@@ -18,7 +20,7 @@ class DataTable extends HTMLElement {
     }
 
     render() {
-        let { tableName } = this;
+        let { tableName, tableIndex } = this;
         let schemaConversionObj = JSON.parse(localStorage.getItem("conversionReportContent"));
         let spTable = schemaConversionObj.SpSchema[tableName];
         let srcTable = schemaConversionObj.SrcSchema[tableName];
@@ -34,7 +36,7 @@ class DataTable extends HTMLElement {
         }
         this.innerHTML = `
         <div class="acc-card-content" id="acc_card_content">
-                    <table class="acc-table">
+                    <table class="acc-table" id="src-sp-table${tableIndex}">
                         <thead>
                             <tr>
                                 <th class="acc-column" colspan="2">Column Name</th>
@@ -280,6 +282,7 @@ class DataTable extends HTMLElement {
                         </div>
                     </div>
                 </div>`;
+        jQuery("#src-sp-table" + tableIndex).DataTable({ "paging": false });
     }
 
     constructor() {
