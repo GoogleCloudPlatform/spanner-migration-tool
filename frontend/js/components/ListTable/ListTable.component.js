@@ -43,11 +43,11 @@ class ListTable extends HTMLElement {
         }
         
         this.innerHTML =`
-         ${ tabName=="ddl" ? `<pre> <code>` : `<div>`}
         <div class='mdc-card ${tabName}-content'>
+        ${ tabName=="ddl" ? `<pre> <code>` : `<div>`}
            ${RenderingObj.split('\n').join(`<span class='sql-c'></span>`)}
-        </div>
         ${ tabName=="ddl" ? `</code> </pre>` : `</div>`}
+        </div>
         `;
     }
 
