@@ -28,8 +28,8 @@ class Tab extends HTMLElement {
     render() {
         let { id, open, text } = this;
         this.innerHTML = `<li class="nav-item">
-                        <p class="nav-link  ${open === "true" ? "active" : ""}" 
-                        id=${id} href="#">${text}</p>
+                        <a class="nav-link  ${open === "true" ? "active" : ""}" 
+                        id=${id} >${text}</a>
                       </li>`;
     }
 

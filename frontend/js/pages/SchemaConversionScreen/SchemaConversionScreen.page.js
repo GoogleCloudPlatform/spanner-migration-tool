@@ -2,7 +2,8 @@ import "./../../components/Tab/Tab.component.js";
 import "./../../components/TableCarousel/TableCarousel.component.js";
 import "./../../components/StatusLegend/StatusLegend.component.js";
 import "./../../components/Search/Search.component.js";
-import { initSchemaScreenTasks, panelBorderClass } from "./../../helpers/SchemaConversionHelper.js";
+import "./../../components/Button/SiteButton.component.js"
+import { initSchemaScreenTasks } from "./../../helpers/SchemaConversionHelper.js";
 
 // Services
 import Store from "./../../services/Store.service.js";
@@ -46,22 +47,24 @@ class SchemaConversionScreen extends HTMLElement {
       return;
     }
     const { currentTab } = this.data;
-    let schemaConversionObj = JSON.parse(localStorage.getItem("conversionReportContent"));
+    let schemaConversionObj = JSON.parse(
+      localStorage.getItem("conversionReportContent")
+    );
     let tableNameArray = Object.keys(schemaConversionObj.SpSchema);
     this.innerHTML = `<div class="summary-main-content" id='schema-screen-content'>
         <div id="snackbar" style="z-index: 10000 !important; position: fixed;"></div>
        
         <div>
             <h4 class="report-header">Recommended Schema Conversion Report
-                <button id="download-schema" class="download-button" onclick='downloadSession()'>Download Session
-                    File</button>
+            <hb-site-button buttonid="download-schema" classname="download-button" buttonaction="downloadSession" text="Download Session File"></hb-site-button>
             </h4>
         </div>
         <div class="report-tabs">
         <ul class="nav nav-tabs md-tabs" role="tablist">
       ${TAB_CONFIG_DATA.map((tab) => {
-      return `<hb-tab open=${currentTab === tab.id} id="${tab.id}" text="${tab.text}"></hb-tab>`;
-    }).join("")} 
+        return `<hb-tab open=${currentTab === tab.id} id="${tab.id}" 
+        text="${tab.text}"></hb-tab>`;
+      }).join("")} 
         </ul>
     </div>
         <div class="status-icons">
@@ -70,74 +73,62 @@ class SchemaConversionScreen extends HTMLElement {
         </div>
         <div class="tab-bg" id='tabBg'>
             <div class="tab-content">
-             ${
-      currentTab === "reportTab"
-        ? `<div id="report" class="tab-pane fade show active">
-        <div class="accordion md-accordion" id="accordion" role="tablist" aria-multiselectable="true">
-            <button class='expand' id='reportExpandButton' onclick='reportExpandHandler(jQuery(this))'>Expand
-                All</button>
-            <button class='expand right-align' id='editButton' onclick='globalEditHandler()'>Edit Global Data
-                Type</button>
-            <div id='reportDiv'>
+              ${currentTab === "reportTab"
+                  ? `<div id="report" class="tab-pane fade show active">
+                    <div class="accordion md-accordion" id="accordion" role="tablist" aria-multiselectable="true">
+                        <hb-site-button buttonid="reportExpandButton" classname="expand" buttonaction="expandAll" text="Expand All"></hb-site-button>
+                        <hb-site-button buttonid="editButton" classname="expand right-align" buttonaction="editGlobalDataType" text="Edit Global Data Type"></hb-site-button>
 
-            ${tableNameArray.map((tableName,index) => {
-              return `
-              <hb-table-carousel title="${tableName}" tableId="report" tableIndex="${index}"></hb-table-carousel>
-              `;
-            }).join("")} 
-                                
+                            
+            <div id='reportDiv'>
+            ${tableNameArray.map((tableName, index) => {
+                return `
+                  <hb-table-carousel title="${tableName}" tableId="report" tableIndex="${index}"></hb-table-carousel>
+              `; }).join("")}                    
             </div>
         </div>
-    </div>`
-        : ""
-      }
-            ${
-      currentTab === "ddlTab"
-        ? `
+              </div>`: ""}
+
+          ${currentTab === "ddlTab"? `
         <div id="ddl" class="tab-pane fade show active">
                 <div class="panel-group" id="ddl-accordion">
-                    <button class='expand' id='ddlExpandButton' onclick='ddlExpandHandler(jQuery(this))'>Expand
-                        All</button>
-                    <button id="download-ddl" class="expand right-align" onclick='downloadDdl()'>Download DDL
-                        Statements</button>
+                <hb-site-button buttonid="ddlExpandButton" classname="expand" buttonaction="expandAll" text="Expand All"></hb-site-button>
+                <hb-site-button buttonid="download-ddl" classname="expand right-align" buttonaction="downloadDdl" text="Download DDL Statements"></hb-site-button>
+
                     <div id='ddlDiv'>
                     ${tableNameArray.map((tableName) => {
-                      return `
+                        return `
                               <hb-table-carousel title="${tableName}" tableId="ddl"></hb-table-carousel>
-                               `;
-                    }).join("")} 
-                                        
+                               `;}).join("")} 
                     </div>
                   </div>
-        </div>
-                    
-        `
-        : ""
-      }
+        </div>`: ""}
+
             ${
-      currentTab === "summaryTab"
-        ? `
+              currentTab === "summaryTab"
+                ? `
         <div id="summary" class="tab-pane fade show active">
         <div class="panel-group" id="summary-accordion">
-            <button class='expand' id='summaryExpandButton' onclick='summaryExpandHandler(jQuery(this))'>Expand
-                All</button>
-            <button id="download-report" class="expand right-align" onclick='downloadReport()'>Download Summary
-                Report</button>
+        <hb-site-button buttonid="summaryExpandButton" classname="expand" buttonaction="expandAll" text="Expand All"></hb-site-button>
+        <hb-site-button buttonid="download-report" classname="expand right-align" buttonaction="downloadReport" text="Download Summary Report"></hb-site-button>
+
             <div id='summaryDiv'>
-            ${tableNameArray.map((tableName) => {
-              return `
+            ${tableNameArray
+              .map((tableName) => {
+                return `
                        <hb-table-carousel title="${tableName}" tableId="summary"></hb-table-carousel>
                       `;
-            }).join("")} 
+              })
+              .join("")} 
                                 
             </div>
             </div>
             </div>
         `
-        : ""
-      }
+                : ""
+            }
             </div>
-            <h1 class="search-not-found" id="notFound">Not Found</h1>
+            <h5 class="no-text" id="notFound">No Match Found</h5>
         </div>
     </div>
     <div class="modal" id="globalDataTypeModal" role="dialog" tabindex="-1" aria-labelledby="exampleModalCenterTitle"
@@ -340,8 +331,7 @@ class SchemaConversionScreen extends HTMLElement {
         </div>
     </div>`;
     initSchemaScreenTasks();
-      // this.createSourceAndSpannerTables();
-
+    // this.createSourceAndSpannerTables();
   }
 
   constructor() {

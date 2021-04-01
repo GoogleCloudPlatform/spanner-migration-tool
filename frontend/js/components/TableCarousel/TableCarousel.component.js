@@ -1,6 +1,6 @@
 import "../DataTable/DataTable.component.js";
 import "../ListTable/ListTable.component.js";
-
+import {panelBorderClass} from './../../helpers/SchemaConversionHelper.js'
 class TableCarousel extends HTMLElement {
 static get observedAttributes() {
 return ["open"];
@@ -30,12 +30,12 @@ render() {
 // let { id, open, text } = this;
 let { title, tableId, tableIndex } = this;
 let color = JSON.parse(localStorage.getItem("tableBorderColor"));
-let colorvalue = color[title];
+let colorvalue = panelBorderClass(color[title]);
 
 
 this.innerHTML = `
 <section class="${tableId}Section">
-  <div class="card" style="border:2px solid ${colorvalue}">
+  <div class="card ${colorvalue}">
     <div role="tab" class="card-header ${tableId}-card-header ${tableId}borderBottom">
       <h5 class="mb-0">
         <a data-toggle="collapse" href="#${tableId}-${title}">

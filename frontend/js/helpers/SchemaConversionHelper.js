@@ -133,3 +133,54 @@ export const readTextFile = (file, callback) => {
   }
   rawFile.send(null);
 }
+
+/**
+ * Function to create global edit data type table
+ *
+ * @return {null}
+ */
+export const createEditDataTypeTable = () => {
+  let globalDataTypeList = JSON.parse(localStorage.getItem('globalDataTypeList'));
+  let dataTypeListLength = Object.keys(globalDataTypeList).length;
+  for (var i = 0; i < dataTypeListLength; i++) {
+    if (document.getElementById('dataTypeRow' + (i + 1)) !== null) {
+      break
+    }
+    if (globalDataTypeList[Object.keys(globalDataTypeList)[i]] !== null) {
+      let $dataTypeOption;
+      let $dataTypeRow = jQuery('#globalDataTypeTable').find('.globalDataTypeRow.template').clone().removeClass('template');
+      $dataTypeRow.attr('id', 'dataTypeRow' + (i + 1));
+      for (var j = 0; j < 2; j++) {
+        if (j === 0) {
+          $dataTypeRow.find('.src-td').attr('id', 'dataTypeKey' + (i + 1));
+          $dataTypeRow.find('.src-td').html(Object.keys(globalDataTypeList)[i]);
+        }
+        else if (j === 1) {
+          $dataTypeRow.find('#globalDataTypeCell').attr('id', 'dataTypeVal' + (i + 1));
+          let optionsLength = globalDataTypeList[Object.keys(globalDataTypeList)[i]].length;
+          if (globalDataTypeList[Object.keys(globalDataTypeList)[i]][0].Brief !== "") {
+            $dataTypeRow.find('i').attr('data-toggle', 'tooltip');
+            $dataTypeRow.find('i').attr('data-placement', 'bottom');
+            $dataTypeRow.find('i').attr('title', globalDataTypeList[Object.keys(globalDataTypeList)[i]][0].Brief);
+          }
+          else {
+            $dataTypeRow.find('i').css('visibility', 'hidden');
+          }
+          $dataTypeRow.find('select').attr('id', 'dataTypeOption' + (i + 1));
+          for (var k = 0; k < optionsLength; k++) {
+            $dataTypeOption = $dataTypeRow.find('.dataTypeOption.template').clone().removeClass('template');
+            $dataTypeOption.attr('value', globalDataTypeList[Object.keys(globalDataTypeList)[i]][k].T);
+            $dataTypeOption.html(globalDataTypeList[Object.keys(globalDataTypeList)[i]][k].T);
+            $dataTypeOption.appendTo($dataTypeRow.find('select'));
+          }
+        }
+      }
+      $dataTypeRow.find('select').find("option").eq(0).remove();
+      $dataTypeRow.find('#dataTypeOption' + (i + 1)).unbind('change').bind('change', function () {
+        dataTypeUpdate(jQuery(this).attr('id'), globalDataTypeList);
+      });
+      $dataTypeRow.appendTo(jQuery('#globalDataTypeTable'));
+    }
+  }
+  tooltipHandler();
+}
