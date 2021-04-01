@@ -7,9 +7,6 @@ class HistoryTable extends HTMLElement {
 
   connectedCallback() {
     this.render();
-    // for (let i = 0; i < this.sessionsData.length; i++) {
-    //   document.getElementById(i).addEventListener('click',() => Actions.resumeSession(i))
-    // }
   }
 
   render() {
