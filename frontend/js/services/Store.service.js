@@ -8,20 +8,6 @@ const DEFAULT_INSTANCE = {
 const Store = (function () {
 
     var instance = {currentTab: "reportTab"};
-    let sessionData = [
-        {
-            sessionName: "File1.json",
-            sessionDate: "2017-01-01",
-            sessionTime: "1:2:3",
-            sessionAction: "resume_sesssion_url"
-        },
-        {
-            sessionName: "File1.json",
-            sessionDate: "2017-01-01",
-            sessionTime: "1:2:3",
-            sessionAction: "resume_sesssion_url"
-        },
-    ]
     let modalId = "connectToDbModal"
 
     function init() {

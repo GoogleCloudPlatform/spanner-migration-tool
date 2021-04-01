@@ -1,3 +1,12 @@
+const setActiveSelectedMenu = (selectedMenuId) => {
+  jQuery("[name='headerMenu']:not('#"+selectedMenuId+"')").addClass('inactive');
+  jQuery('#'+selectedMenuId).removeClass('inactive');
+}
+
+const tooltipHandler = () => {
+  jQuery('[data-toggle="tooltip"]').tooltip();
+}
+
 export const initSchemaScreenTasks = () => {
   var reportAccCount = 0;
   var summaryAccCount = 0;

@@ -1,0 +1,317 @@
+----------------------------
+Summary of Conversion
+----------------------------
+Schema conversion: OK (some columns did not map cleanly).
+
+Note that the following source DB statements were detected but ignored:
+functions, procedures, triggers, views.
+
+The remainder of this report provides stats on the mysqldump statements
+processed, followed by a table-by-table listing of schema and data conversion
+details. For background on the schema and data conversion process used, and
+explanations of the terms and notes used in this report, see HarbourBridge's
+README.
+
+----------------------------
+Statements Processed
+----------------------------
+Analysis of statements in mysqldump output, broken down by statement type.
+  schema: statements successfully processed for Spanner schema information.
+    data: statements successfully processed for data.
+    skip: statements not relevant for Spanner schema or data.
+   error: statements that could not be processed.
+  --------------------------------------
+  schema   data   skip  error  statement
+  --------------------------------------
+       0      0      1      0  CreateDatabaseStmt
+       0      0      3      0  CreateFunctionStmt
+       0      0      2      0  CreateProcedureStmt
+      16      0      0      0  CreateTableStmt
+       0      0      1      0  CreateTrigStmt
+       0      0      7      0  CreateViewStmt
+       0      0      1      0  DropDatabaseStmt
+       0      0      1      0  DropProcedureStmt
+       0      0      1      0  UseStmt
+See https://github.com/pingcap/parser for definitions of statement types
+(pingcap/parser is the library we use for parsing mysqldump output).
+
+----------------------------
+Table actor
+----------------------------
+Schema conversion: POOR (many columns did not map cleanly).
+
+Warnings
+1) Column 'actor_id' is an autoincrement column. Spanner does not support
+   auto_increment attribute.
+2) Some columns have default values which Spanner does not support e.g. column
+   'last_update'.
+
+Note
+1) Some columns will consume more storage in Spanner e.g. for column 'actor_id',
+   source DB type smallint(6) is mapped to Spanner type int64.
+
+----------------------------
+Table address
+----------------------------
+Schema conversion: OK (some columns did not map cleanly).
+
+Warnings
+1) Column 'address_id' is an autoincrement column. Spanner does not support
+   auto_increment attribute.
+2) Some columns have default values which Spanner does not support e.g. column
+   'last_update'.
+
+Note
+1) Some columns will consume more storage in Spanner e.g. for column
+   'address_id', source DB type smallint(6) is mapped to Spanner type int64.
+
+----------------------------
+Table category
+----------------------------
+Schema conversion: POOR (many columns did not map cleanly).
+
+Warnings
+1) Column 'category_id' is an autoincrement column. Spanner does not support
+   auto_increment attribute.
+2) Some columns have default values which Spanner does not support e.g. column
+   'last_update'.
+
+Note
+1) Some columns will consume more storage in Spanner e.g. for column
+   'category_id', source DB type tinyint(4) is mapped to Spanner type int64.
+
+----------------------------
+Table city
+----------------------------
+Schema conversion: POOR (many columns did not map cleanly).
+
+Warnings
+1) Column 'city_id' is an autoincrement column. Spanner does not support
+   auto_increment attribute.
+2) Some columns have default values which Spanner does not support e.g. column
+   'last_update'.
+
+Note
+1) Some columns will consume more storage in Spanner e.g. for column 'city_id',
+   source DB type smallint(6) is mapped to Spanner type int64.
+
+----------------------------
+Table country
+----------------------------
+Schema conversion: POOR (many columns did not map cleanly).
+
+Warnings
+1) Column 'country_id' is an autoincrement column. Spanner does not support
+   auto_increment attribute.
+2) Some columns have default values which Spanner does not support e.g. column
+   'last_update'.
+
+Note
+1) Some columns will consume more storage in Spanner e.g. for column
+   'country_id', source DB type smallint(6) is mapped to Spanner type int64.
+
+----------------------------
+Table customer
+----------------------------
+Schema conversion: OK (some columns did not map cleanly).
+
+Warnings
+1) Some columns have default values which Spanner does not support e.g. column
+   'active'.
+2) Column 'customer_id' is an autoincrement column. Spanner does not support
+   auto_increment attribute.
+
+Notes
+1) Some columns will consume more storage in Spanner e.g. for column
+   'address_id', source DB type smallint(6) is mapped to Spanner type int64.
+2) Some columns have source DB type 'datetime' which is mapped to Spanner type
+   timestamp e.g. column 'create_date'. Spanner timestamp is closer to MySQL
+   timestamp.
+
+----------------------------
+Table film
+----------------------------
+Schema conversion: OK (some columns did not map cleanly).
+
+Warnings
+1) Column 'film_id' is an autoincrement column. Spanner does not support
+   auto_increment attribute.
+2) Some columns have default values which Spanner does not support e.g. column
+   'last_update'.
+
+Notes
+1) Some columns will consume more storage in Spanner e.g. for column 'film_id',
+   source DB type smallint(6) is mapped to Spanner type int64.
+2) Column 'release_year': type year(-1) is mapped to string(max). Spanner does
+   not support time/year types.
+
+----------------------------
+Table film_actor
+----------------------------
+Schema conversion: POOR (many columns did not map cleanly).
+
+Warning
+1) Some columns have default values which Spanner does not support e.g. column
+   'last_update'.
+
+Note
+1) Some columns will consume more storage in Spanner e.g. for column 'actor_id',
+   source DB type smallint(6) is mapped to Spanner type int64.
+
+----------------------------
+Table film_category
+----------------------------
+Schema conversion: POOR (many columns did not map cleanly).
+
+Warning
+1) Some columns have default values which Spanner does not support e.g. column
+   'last_update'.
+
+Note
+1) Some columns will consume more storage in Spanner e.g. for column
+   'category_id', source DB type tinyint(4) is mapped to Spanner type int64.
+
+----------------------------
+Table film_text
+----------------------------
+Schema conversion: EXCELLENT (all columns mapped cleanly).
+
+Note
+1) Some columns will consume more storage in Spanner e.g. for column 'film_id',
+   source DB type smallint(6) is mapped to Spanner type int64.
+
+----------------------------
+Table inventory
+----------------------------
+Schema conversion: POOR (many columns did not map cleanly).
+
+Warnings
+1) Column 'inventory_id' is an autoincrement column. Spanner does not support
+   auto_increment attribute.
+2) Some columns have default values which Spanner does not support e.g. column
+   'last_update'.
+
+Note
+1) Some columns will consume more storage in Spanner e.g. for column 'film_id',
+   source DB type smallint(6) is mapped to Spanner type int64.
+
+----------------------------
+Table language
+----------------------------
+Schema conversion: POOR (many columns did not map cleanly).
+
+Warnings
+1) Column 'language_id' is an autoincrement column. Spanner does not support
+   auto_increment attribute.
+2) Some columns have default values which Spanner does not support e.g. column
+   'last_update'.
+
+Note
+1) Some columns will consume more storage in Spanner e.g. for column
+   'language_id', source DB type tinyint(4) is mapped to Spanner type int64.
+
+----------------------------
+Table payment
+----------------------------
+Schema conversion: POOR (many columns did not map cleanly).
+
+Warnings
+1) Some columns have default values which Spanner does not support e.g. column
+   'last_update'.
+2) Column 'payment_id' is an autoincrement column. Spanner does not support
+   auto_increment attribute.
+
+Notes
+1) Some columns will consume more storage in Spanner e.g. for column
+   'customer_id', source DB type smallint(6) is mapped to Spanner type int64.
+2) Some columns have source DB type 'datetime' which is mapped to Spanner type
+   timestamp e.g. column 'payment_date'. Spanner timestamp is closer to MySQL
+   timestamp.
+
+----------------------------
+Table rental
+----------------------------
+Schema conversion: POOR (many columns did not map cleanly).
+
+Warnings
+1) Some columns have default values which Spanner does not support e.g. column
+   'last_update'.
+2) Column 'rental_id' is an autoincrement column. Spanner does not support
+   auto_increment attribute.
+
+Notes
+1) Some columns will consume more storage in Spanner e.g. for column
+   'customer_id', source DB type smallint(6) is mapped to Spanner type int64.
+2) Some columns have source DB type 'datetime' which is mapped to Spanner type
+   timestamp e.g. column 'rental_date'. Spanner timestamp is closer to MySQL
+   timestamp.
+
+----------------------------
+Table staff
+----------------------------
+Schema conversion: OK (some columns did not map cleanly).
+
+Warnings
+1) Some columns have default values which Spanner does not support e.g. column
+   'active'.
+2) Column 'staff_id' is an autoincrement column. Spanner does not support
+   auto_increment attribute.
+
+Note
+1) Some columns will consume more storage in Spanner e.g. for column
+   'address_id', source DB type smallint(6) is mapped to Spanner type int64.
+
+----------------------------
+Table store
+----------------------------
+Schema conversion: POOR (many columns did not map cleanly).
+
+Warnings
+1) Some columns have default values which Spanner does not support e.g. column
+   'last_update'.
+2) Column 'store_id' is an autoincrement column. Spanner does not support
+   auto_increment attribute.
+
+Note
+1) Some columns will consume more storage in Spanner e.g. for column
+   'address_id', source DB type smallint(6) is mapped to Spanner type int64.
+
+----------------------------
+Unexpected Conditions
+----------------------------
+For debugging only. This section provides details of unexpected conditions
+encountered as we processed the mysqldump data. In particular, the AST node
+representation used by the pingcap/parser library used for parsing
+mysqldump output is highly permissive: almost any construct can appear at
+any node in the AST tree. The list details all unexpected nodes and
+conditions.
+  --------------------------------------
+   count  condition
+  --------------------------------------
+       1  Unsupported datatype 'geometry' encountered while parsing following statement at line number 22 : 
+
+--
+-- Table structure for table `address`
+--
+
+CREATE TABLE address (
+  address_id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  address VARCHAR(50) NOT NULL,
+  address2 VARCHAR(50) DEFAULT NULL,
+  district VARCHAR(20) NOT NULL,
+  city_id SMALLINT UNSIGNED NOT NULL,
+  postal_code VARCHAR(10) DEFAULT NULL,
+  phone VARCHAR(20) NOT NULL,
+  -- Add GEOMETRY column for MySQL 5.7.5 and higher
+  -- Also include SRID attribute for MySQL 8.0.3 and higher
+  /*!50705 location GEOMETRY */ /*!80003 SRID 0 */ /*!50705 NOT NULL,*/
+  last_update TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY  (address_id),
+  KEY idx_fk_city_id (city_id),
+  /*!50705 SPATIAL KEY `idx_location` (location),*/
+  CONSTRAINT `fk_address_city` FOREIGN KEY (city_id) REFERENCES city (city_id) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+Note: there were 49 mysqldump reparse events while looking for statement boundaries.
+

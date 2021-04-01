@@ -997,7 +997,6 @@ input[type=radio], input.radio {
 .newIndexButton {
     font-size: 16px;
     font-weight: bold;
-    float: left;
     border-radius: 20px;
     /* margin-top: -14px; */
     margin-bottom: 20px;

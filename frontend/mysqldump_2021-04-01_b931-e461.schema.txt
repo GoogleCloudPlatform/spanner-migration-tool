@@ -1,0 +1,276 @@
+-- Schema generated 2021-04-01 13:01:53
+--
+-- Spanner schema for source table actor
+--
+CREATE TABLE actor (
+    actor_id INT64 NOT NULL,        -- From: actor_id smallint(6)
+    first_name STRING(45) NOT NULL, -- From: first_name varchar(45)
+    last_name STRING(45) NOT NULL,  -- From: last_name varchar(45)
+    last_update TIMESTAMP NOT NULL  -- From: last_update timestamp
+) PRIMARY KEY (actor_id);
+
+CREATE INDEX idx_actor_last_name ON actor (last_name);
+
+--
+-- Spanner schema for source table address
+--
+CREATE TABLE address (
+    address_id INT64 NOT NULL,      -- From: address_id smallint(6)
+    address STRING(50) NOT NULL,    -- From: address varchar(50)
+    address2 STRING(50),            -- From: address2 varchar(50)
+    district STRING(20) NOT NULL,   -- From: district varchar(20)
+    city_id INT64 NOT NULL,         -- From: city_id smallint(6)
+    postal_code STRING(10),         -- From: postal_code varchar(10)
+    phone STRING(20) NOT NULL,      -- From: phone varchar(20)
+    location STRING(MAX) NOT NULL,  -- From: location text
+    last_update TIMESTAMP NOT NULL  -- From: last_update timestamp
+) PRIMARY KEY (address_id);
+
+CREATE INDEX idx_fk_city_id ON address (city_id);
+
+CREATE INDEX idx_location ON address (location);
+
+--
+-- Spanner schema for source table category
+--
+CREATE TABLE category (
+    category_id INT64 NOT NULL,     -- From: category_id tinyint(4)
+    name STRING(25) NOT NULL,       -- From: name varchar(25)
+    last_update TIMESTAMP NOT NULL  -- From: last_update timestamp
+) PRIMARY KEY (category_id);
+
+--
+-- Spanner schema for source table city
+--
+CREATE TABLE city (
+    city_id INT64 NOT NULL,         -- From: city_id smallint(6)
+    city STRING(50) NOT NULL,       -- From: city varchar(50)
+    country_id INT64 NOT NULL,      -- From: country_id smallint(6)
+    last_update TIMESTAMP NOT NULL  -- From: last_update timestamp
+) PRIMARY KEY (city_id);
+
+CREATE INDEX idx_fk_country_id ON city (country_id);
+
+--
+-- Spanner schema for source table country
+--
+CREATE TABLE country (
+    country_id INT64 NOT NULL,      -- From: country_id smallint(6)
+    country STRING(50) NOT NULL,    -- From: country varchar(50)
+    last_update TIMESTAMP NOT NULL  -- From: last_update timestamp
+) PRIMARY KEY (country_id);
+
+--
+-- Spanner schema for source table customer
+--
+CREATE TABLE customer (
+    customer_id INT64 NOT NULL,     -- From: customer_id smallint(6)
+    store_id INT64 NOT NULL,        -- From: store_id tinyint(4)
+    first_name STRING(45) NOT NULL, -- From: first_name varchar(45)
+    last_name STRING(45) NOT NULL,  -- From: last_name varchar(45)
+    email STRING(50),               -- From: email varchar(50)
+    address_id INT64 NOT NULL,      -- From: address_id smallint(6)
+    active BOOL NOT NULL,           -- From: active tinyint(1)
+    create_date TIMESTAMP NOT NULL, -- From: create_date datetime
+    last_update TIMESTAMP           -- From: last_update timestamp
+) PRIMARY KEY (customer_id);
+
+CREATE INDEX idx_fk_store_id ON customer (store_id);
+
+CREATE INDEX idx_fk_address_id ON customer (address_id);
+
+CREATE INDEX idx_last_name ON customer (last_name);
+
+--
+-- Spanner schema for source table film
+--
+CREATE TABLE film (
+    film_id INT64 NOT NULL,              -- From: film_id smallint(6)
+    title STRING(128) NOT NULL,          -- From: title varchar(128)
+    description STRING(MAX),             -- From: description text
+    release_year STRING(MAX),            -- From: release_year year(-1)
+    language_id INT64 NOT NULL,          -- From: language_id tinyint(4)
+    original_language_id INT64,          -- From: original_language_id tinyint(4)
+    rental_duration INT64 NOT NULL,      -- From: rental_duration tinyint(4)
+    rental_rate NUMERIC NOT NULL,        -- From: rental_rate decimal(4,2)
+    length INT64,                        -- From: length smallint(6)
+    replacement_cost NUMERIC NOT NULL,   -- From: replacement_cost decimal(5,2)
+    rating STRING(MAX),                  -- From: rating enum
+    special_features ARRAY<STRING(MAX)>, -- From: special_features set[4]
+    last_update TIMESTAMP NOT NULL       -- From: last_update timestamp
+) PRIMARY KEY (film_id);
+
+CREATE INDEX idx_title ON film (title);
+
+CREATE INDEX idx_fk_language_id ON film (language_id);
+
+CREATE INDEX idx_fk_original_language_id ON film (original_language_id);
+
+--
+-- Spanner schema for source table film_actor
+--
+CREATE TABLE film_actor (
+    actor_id INT64 NOT NULL,        -- From: actor_id smallint(6)
+    film_id INT64 NOT NULL,         -- From: film_id smallint(6)
+    last_update TIMESTAMP NOT NULL  -- From: last_update timestamp
+) PRIMARY KEY (actor_id, film_id);
+
+CREATE INDEX idx_fk_film_id ON film_actor (film_id);
+
+--
+-- Spanner schema for source table film_category
+--
+CREATE TABLE film_category (
+    film_id INT64 NOT NULL,         -- From: film_id smallint(6)
+    category_id INT64 NOT NULL,     -- From: category_id tinyint(4)
+    last_update TIMESTAMP NOT NULL  -- From: last_update timestamp
+) PRIMARY KEY (film_id, category_id);
+
+--
+-- Spanner schema for source table film_text
+--
+CREATE TABLE film_text (
+    film_id INT64 NOT NULL,     -- From: film_id smallint(6)
+    title STRING(255) NOT NULL, -- From: title varchar(255)
+    description STRING(MAX)     -- From: description text
+) PRIMARY KEY (film_id);
+
+--
+-- Spanner schema for source table inventory
+--
+CREATE TABLE inventory (
+    inventory_id INT64 NOT NULL,    -- From: inventory_id mediumint(9)
+    film_id INT64 NOT NULL,         -- From: film_id smallint(6)
+    store_id INT64 NOT NULL,        -- From: store_id tinyint(4)
+    last_update TIMESTAMP NOT NULL  -- From: last_update timestamp
+) PRIMARY KEY (inventory_id);
+
+CREATE INDEX idx_fk_film_id_55 ON inventory (film_id);
+
+CREATE INDEX idx_store_id_film_id ON inventory (store_id, film_id);
+
+--
+-- Spanner schema for source table language
+--
+CREATE TABLE language (
+    language_id INT64 NOT NULL,     -- From: language_id tinyint(4)
+    name STRING(20) NOT NULL,       -- From: name char(20)
+    last_update TIMESTAMP NOT NULL  -- From: last_update timestamp
+) PRIMARY KEY (language_id);
+
+--
+-- Spanner schema for source table payment
+--
+CREATE TABLE payment (
+    payment_id INT64 NOT NULL,       -- From: payment_id smallint(6)
+    customer_id INT64 NOT NULL,      -- From: customer_id smallint(6)
+    staff_id INT64 NOT NULL,         -- From: staff_id tinyint(4)
+    rental_id INT64,                 -- From: rental_id int(11)
+    amount NUMERIC NOT NULL,         -- From: amount decimal(5,2)
+    payment_date TIMESTAMP NOT NULL, -- From: payment_date datetime
+    last_update TIMESTAMP            -- From: last_update timestamp
+) PRIMARY KEY (payment_id);
+
+CREATE INDEX idx_fk_staff_id ON payment (staff_id);
+
+CREATE INDEX idx_fk_customer_id ON payment (customer_id);
+
+--
+-- Spanner schema for source table rental
+--
+CREATE TABLE rental (
+    rental_id INT64 NOT NULL,       -- From: rental_id int(11)
+    rental_date TIMESTAMP NOT NULL, -- From: rental_date datetime
+    inventory_id INT64 NOT NULL,    -- From: inventory_id mediumint(9)
+    customer_id INT64 NOT NULL,     -- From: customer_id smallint(6)
+    return_date TIMESTAMP,          -- From: return_date datetime
+    staff_id INT64 NOT NULL,        -- From: staff_id tinyint(4)
+    last_update TIMESTAMP NOT NULL  -- From: last_update timestamp
+) PRIMARY KEY (rental_id);
+
+CREATE UNIQUE INDEX Index_rental ON rental (rental_date, inventory_id, customer_id);
+
+CREATE INDEX idx_fk_inventory_id ON rental (inventory_id);
+
+CREATE INDEX idx_fk_customer_id_35 ON rental (customer_id);
+
+CREATE INDEX idx_fk_staff_id_36 ON rental (staff_id);
+
+--
+-- Spanner schema for source table staff
+--
+CREATE TABLE staff (
+    staff_id INT64 NOT NULL,        -- From: staff_id tinyint(4)
+    first_name STRING(45) NOT NULL, -- From: first_name varchar(45)
+    last_name STRING(45) NOT NULL,  -- From: last_name varchar(45)
+    address_id INT64 NOT NULL,      -- From: address_id smallint(6)
+    picture BYTES(MAX),             -- From: picture blob
+    email STRING(50),               -- From: email varchar(50)
+    store_id INT64 NOT NULL,        -- From: store_id tinyint(4)
+    active BOOL NOT NULL,           -- From: active tinyint(1)
+    username STRING(16) NOT NULL,   -- From: username varchar(16)
+    password STRING(40),            -- From: password varchar(40)
+    last_update TIMESTAMP NOT NULL  -- From: last_update timestamp
+) PRIMARY KEY (staff_id);
+
+CREATE INDEX idx_fk_store_id_50 ON staff (store_id);
+
+CREATE INDEX idx_fk_address_id_51 ON staff (address_id);
+
+--
+-- Spanner schema for source table store
+--
+CREATE TABLE store (
+    store_id INT64 NOT NULL,         -- From: store_id tinyint(4)
+    manager_staff_id INT64 NOT NULL, -- From: manager_staff_id tinyint(4)
+    address_id INT64 NOT NULL,       -- From: address_id smallint(6)
+    last_update TIMESTAMP NOT NULL   -- From: last_update timestamp
+) PRIMARY KEY (store_id);
+
+CREATE UNIQUE INDEX idx_unique_manager ON store (manager_staff_id);
+
+CREATE INDEX idx_fk_address_id_60 ON store (address_id);
+
+ALTER TABLE address ADD CONSTRAINT fk_address_city FOREIGN KEY (city_id) REFERENCES city (city_id);
+
+ALTER TABLE city ADD CONSTRAINT fk_city_country FOREIGN KEY (country_id) REFERENCES country (country_id);
+
+ALTER TABLE customer ADD CONSTRAINT fk_customer_address FOREIGN KEY (address_id) REFERENCES address (address_id);
+
+ALTER TABLE customer ADD CONSTRAINT fk_customer_store FOREIGN KEY (store_id) REFERENCES store (store_id);
+
+ALTER TABLE film ADD CONSTRAINT fk_film_language FOREIGN KEY (language_id) REFERENCES language (language_id);
+
+ALTER TABLE film ADD CONSTRAINT fk_film_language_original FOREIGN KEY (original_language_id) REFERENCES language (language_id);
+
+ALTER TABLE film_actor ADD CONSTRAINT fk_film_actor_actor FOREIGN KEY (actor_id) REFERENCES actor (actor_id);
+
+ALTER TABLE film_actor ADD CONSTRAINT fk_film_actor_film FOREIGN KEY (film_id) REFERENCES film (film_id);
+
+ALTER TABLE film_category ADD CONSTRAINT fk_film_category_film FOREIGN KEY (film_id) REFERENCES film (film_id);
+
+ALTER TABLE film_category ADD CONSTRAINT fk_film_category_category FOREIGN KEY (category_id) REFERENCES category (category_id);
+
+ALTER TABLE inventory ADD CONSTRAINT fk_inventory_store FOREIGN KEY (store_id) REFERENCES store (store_id);
+
+ALTER TABLE inventory ADD CONSTRAINT fk_inventory_film FOREIGN KEY (film_id) REFERENCES film (film_id);
+
+ALTER TABLE payment ADD CONSTRAINT fk_payment_rental FOREIGN KEY (rental_id) REFERENCES rental (rental_id);
+
+ALTER TABLE payment ADD CONSTRAINT fk_payment_customer FOREIGN KEY (customer_id) REFERENCES customer (customer_id);
+
+ALTER TABLE payment ADD CONSTRAINT fk_payment_staff FOREIGN KEY (staff_id) REFERENCES staff (staff_id);
+
+ALTER TABLE rental ADD CONSTRAINT fk_rental_staff FOREIGN KEY (staff_id) REFERENCES staff (staff_id);
+
+ALTER TABLE rental ADD CONSTRAINT fk_rental_inventory FOREIGN KEY (inventory_id) REFERENCES inventory (inventory_id);
+
+ALTER TABLE rental ADD CONSTRAINT fk_rental_customer FOREIGN KEY (customer_id) REFERENCES customer (customer_id);
+
+ALTER TABLE staff ADD CONSTRAINT fk_staff_store FOREIGN KEY (store_id) REFERENCES store (store_id);
+
+ALTER TABLE staff ADD CONSTRAINT fk_staff_address FOREIGN KEY (address_id) REFERENCES address (address_id);
+
+ALTER TABLE store ADD CONSTRAINT fk_store_staff FOREIGN KEY (manager_staff_id) REFERENCES staff (staff_id);
+
+ALTER TABLE store ADD CONSTRAINT fk_store_address FOREIGN KEY (address_id) REFERENCES address (address_id)
