@@ -35,6 +35,7 @@ class LoadDbDumpForm extends HTMLElement {
         ddlSummaryApiRes =  await Actions.ddlSummaryAndConversionApiCall();
         if (loadDbDumpApiRes && ddlSummaryApiRes) {
             window.location.href = '#/schema-report';
+            Actions.sessionRetrieval(localStorage.getItem('sourceDbName'));
         }
     }
 
