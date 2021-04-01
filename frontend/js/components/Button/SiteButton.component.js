@@ -32,19 +32,23 @@ class SiteButton extends HTMLElement {
         this.addEventListener("click", () => {
             switch(this.buttonAction){
                 case "expandAll":
-                  return Actions[this.buttonAction](document.getElementById(this.buttonId).innerHTML, this.buttonId)
-
+                    Actions[this.buttonAction](document.getElementById(this.buttonId).innerHTML, this.buttonId)
+                    break;
                 case "downloadSession":
-                   return  Actions[this.buttonAction]()
+                    Actions[this.buttonAction]()
+                    break;
                 
                 case "downloadDdl":
-                    return Actions[this.buttonAction]()
+                    Actions[this.buttonAction]()
+                    break;
                 
                 case "downloadReport":
-                    return Actions[this.buttonAction]()
+                    Actions[this.buttonAction]()
+                    break;
 
                 case "editGlobalDataType":
-                    return Actions[this.buttonAction]()
+                    Actions[this.buttonAction]()
+                    break;
             }
             
        

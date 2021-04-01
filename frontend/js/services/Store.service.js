@@ -59,15 +59,6 @@ const Store = (function () {
             // instance = {...instance, currentModal };
             instance = { ...instance, open: openVal };
         },
-        addNewSession: (session) => {
-            sessionData.append(session);
-        },
-        getSessionData: (index) => {
-            return sessionData[index];
-        },
-        getAllSessions: () => {
-            return sessionData;
-        },
         changeCurrentTab: (currentTab) => {
             instance = { ...instance, currentTab };
         },

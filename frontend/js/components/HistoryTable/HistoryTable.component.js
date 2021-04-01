@@ -7,12 +7,10 @@ class HistoryTable extends HTMLElement {
 
   connectedCallback() {
     this.render();
-    for (let i = 0; i < this.sessionsData.length; i++) {
-      document.getElementById(i).addEventListener('click',() => Actions.resumeSession(i))
-    }
   }
 
   render() {
+    let sessionArray = JSON.parse(sessionStorage.getItem('sessionStorage'));
     this.innerHTML = `
         <hb-label type="text" text="${HISTORY_TABLE_HEADING}"></hb-label>
         <table class="table session-table">
@@ -25,15 +23,28 @@ class HistoryTable extends HTMLElement {
           </tr>
         </thead>
         <tbody id='session-table-content'>
-          ${this.sessionsData.length > 0 
-              ?this.sessionsData.map((item, index) => {
+          ${sessionArray !== null ?
+                    sessionArray.map((session, index) => {
+                      let http = new XMLHttpRequest();
+                      let timestampArray, sessionName, sessionDate, sessionTime;
+                      timestampArray = session.createdAt.split(' ');
+                      sessionName = session.filePath.split('/');
+                      sessionName = sessionName[sessionName.length - 1];
+                      http.open('HEAD', './' + sessionName, false);
+                      http.send();
+                      if (http.status !== 200) {
+                        sessionArray.splice(x, 1);
+                        sessionStorage.setItem('sessionStorage', JSON.stringify(sessionArray));
+                      }
+                      sessionDate = [timestampArray[0], timestampArray[1], timestampArray[2], timestampArray[3]].join(' ');
+                      sessionTime = [timestampArray[4], timestampArray[5]].join(' ');
                       return `
                           <tr class='sessions'>
-                            <td class='col-2 session-table-td2 sessionName'>${item.sessionName}</td>
-                            <td class='col-4 session-table-td2 sessionDate'>${item.sessionDate}</td>
-                            <td class='col-2 session-table-td2 sessionTime'>${item.sessionTime}</td>
+                            <td class='col-2 session-table-td2 sessionName'>${sessionName}</td>
+                            <td class='col-4 session-table-td2 sessionDate'>${sessionDate}</td>
+                            <td class='col-2 session-table-td2 sessionTime'>${sessionTime}</td>
                             <td class='col-4 session-table-td2 session-action'>
-                              <a class="resume-session-link" id="${index}" >Resume Session</a>
+                              <a class="resume-session-link" id="session${index}" >Resume Session</a>
                             </td>
                           </tr>`}).join("")
             :`
@@ -47,11 +58,19 @@ class HistoryTable extends HTMLElement {
           }
         </tbody>
       </table>`;
+      if (sessionArray !== null) {
+        sessionArray.map(async(session, index) => {
+          document.getElementById("session" + index).addEventListener('click', async () => {
+            await Actions.resumeSessionHandler(index, sessionArray);
+            await Actions.ddlSummaryAndConversionApiCall();
+            window.location.href = '#/schema-report';
+          })
+        })
+      }
   }
 
   constructor() {
     super();
-    this.sessionsData = Actions.getAllSessions();
   }
 
 }
