@@ -1,6 +1,6 @@
 import Store from "./Store.service.js";
 import Fetch from "./Fetch.service.js";
-
+import {readTextFile,createEditDataTypeTable} from './../helpers/SchemaConversionHelper.js'
 /**
  * All the manipulations to the store happen via the actions mentioned in this module
  *
@@ -149,17 +149,88 @@ const Actions = (() => {
         document.getElementById("notFound").style.display = "none";
       }
     },
-    expandAll: (text)=>{
-      console.log(text);
+    expandAll: (text , buttonId)=>{
+      console.log(text,buttonId);
+      let collapseSection = buttonId.substring(0,buttonId.indexOf('ExpandButton'))  
       if (text === 'Expand All') {
-        text = 'Collapse All';
-        jQuery(' .reportCollapse').collapse('show');
+        document.getElementById(buttonId).innerHTML = 'Collapse All';
+        jQuery(`.${collapseSection}Collapse`).collapse('show');
       }
       else {
-        text= 'Expand All';
-        jQuery('.reportCollapse').collapse('hide');
+        document.getElementById(buttonId).innerHTML= 'Expand All';
+        jQuery(`.${collapseSection}Collapse`).collapse('hide');
       }
+    },
+    downloadSession: async () => {
+      jQuery("<a />", {
+        "download": "session.json",
+        "href": "data:application/json;charset=utf-8," + encodeURIComponent(localStorage.getItem('conversionReportContent'), null, 4),
+      }).appendTo("body")
+        .click(function () {
+          jQuery(this).remove()
+        })[0].click();
+    },
+    downloadDdl:async () => {
+      await fetch('/schema')
+        .then(async function (response) {
+          if (response.ok) {
+            await response.text().then(function (result) {
+              localStorage.setItem('schemaFilePath', result);
+            });
+          }
+          else {
+            Promise.reject(response);
+          }
+        })
+        .catch(function (err) {
+          showSnackbar(err, ' redBg');
+        });
+      let schemaFilePath = localStorage.getItem('schemaFilePath');
+      let schemaFileName = schemaFilePath.split('/')[schemaFilePath.split('/').length - 1];
+      let filePath = './' + schemaFileName;
+      readTextFile(filePath, function (error, text) {
+        jQuery("<a />", {
+          "download": schemaFileName,
+          "href": "data:application/json;charset=utf-8," + encodeURIComponent(text),
+        }).appendTo("body")
+          .click(function () {
+            jQuery(this).remove()
+          })[0].click()
+      });
+    },
+    downloadReport:async () => {
+      await fetch('/report')
+        .then(async function (response) {
+          if (response.ok) {
+            await response.text().then(function (result) {
+              localStorage.setItem('reportFilePath', result);
+            });
+          }
+          else {
+            Promise.reject(response);
+          }
+        })
+        .catch(function (err) {
+          showSnackbar(err, ' redBg');
+        });
+      let reportFilePath = localStorage.getItem('reportFilePath');
+      let reportFileName = reportFilePath.split('/')[reportFilePath.split('/').length - 1];
+      let filePath = './' + reportFileName;
+      readTextFile(filePath, function (error, text) {
+        jQuery("<a />", {
+          "download": reportFileName,
+          "href": "data:application/json;charset=utf-8," + encodeURIComponent(text),
+        }).appendTo("body")
+          .click(function () {
+            jQuery(this).remove()
+          })[0].click();
+      })
+    },
+    editGlobalDataType:() => {
+      createEditDataTypeTable();
+      jQuery('#globalDataTypeModal').modal();
     }
+    
   };
 })();
 

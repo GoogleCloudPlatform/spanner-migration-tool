@@ -2,12 +2,20 @@ import Actions from "../../services/Action.service.js";
 
 class SiteButton extends HTMLElement {
 
-    get id() {
-        return this.getAttribute("id");
+    get buttonId() {
+        return this.getAttribute("buttonid");
     }
 
     get text() {
         return this.getAttribute("text");
+    }
+
+    get className(){
+        return this.getAttribute('classname')
+    }
+
+    get buttonAction(){
+       return this.getAttribute('buttonaction')
     }
 
     connectedCallback() {
@@ -15,15 +23,34 @@ class SiteButton extends HTMLElement {
     }
 
     render() {
-        let { id, open, text } = this;
-        this.innerHTML = `<button class='expand' id='expand-btn' >Expand
-        All</button>`;
+       
+        this.innerHTML = `<button class="${this.className}" id="${this.buttonId}" >${this.text}</button>`;
     }
 
     constructor() {
         super();
-        this.addEventListener("click", () => Actions.expandAll(document.getElementById('expand-btn').innerHTML.split('/n').join(" ")));
+        this.addEventListener("click", () => {
+            switch(this.buttonAction){
+                case "expandAll":
+                  return Actions[this.buttonAction](document.getElementById(this.buttonId).innerHTML, this.buttonId)
+
+                case "downloadSession":
+                   return  Actions[this.buttonAction]()
+                
+                case "downloadDdl":
+                    return Actions[this.buttonAction]()
+                
+                case "downloadReport":
+                    return Actions[this.buttonAction]()
+
+                case "editGlobalDataType":
+                    return Actions[this.buttonAction]()
+            }
+            
+       
     }
+    )}
+    
 }
 
 window.customElements.define("hb-site-button", SiteButton);
