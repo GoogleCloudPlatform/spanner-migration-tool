@@ -41,6 +41,30 @@ this.innerHTML = `
         <a data-toggle="collapse" href="#${tableId}-${title}">
           Table: <span>${title}</span>
           <i class="fas fa-angle-down rotate-icon"></i>
+          ${ tableId == "report" ?
+          ` 
+          <span class='spanner-text right-align hide-content'>Spanner</span>
+                                        <span class='spanner-icon right-align hide-content'>
+                                            <i class='large material-icons' style='font-size: 18px;'>circle</i>
+                                        </span>
+                                        <span class='source-text right-align hide-content'>Source</span>
+                                        <span class='source-icon right-align hide-content'>
+                                            <i class='large material-icons' style='font-size: 18px;'>circle</i>
+                                        </span>
+                                        <button class='right-align edit-button hide-content'>
+                                            Edit Spanner Schema
+                                        </button>
+                                        <span class='right-align editInstruction hide-content blink'>Schema locked for
+                                            editing. Unlock to change =></span>
+          ` : 
+          `<div></div>`
+
+          }
+
+
+
+
+
         </a>
       </h5>
     </div>
