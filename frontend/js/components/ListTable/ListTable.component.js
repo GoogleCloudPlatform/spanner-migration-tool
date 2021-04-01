@@ -26,7 +26,7 @@ class ListTable extends HTMLElement {
         RenderingObj = RenderingObj.substring(0, createIndex)+RenderingObj.substring(createIndex, createEndIndex)
         .fontcolor("#4285f4")
         .bold() +RenderingObj.substring(createEndIndex);
-        console.log(RenderingObj);
+        // console.log(RenderingObj);
         return RenderingObj;
     }
 

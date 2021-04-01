@@ -1,3 +1,14 @@
+
+/**
+ * Function to set style for selected menu
+ *
+ * @param {string} selectedMenuId id of selected menu
+ * @return {null}
+ */
+ const setActiveSelectedMenu = (selectedMenuId) => {
+  jQuery("[name='headerMenu']:not('#"+selectedMenuId+"')").addClass('inactive');
+  jQuery('#'+selectedMenuId).removeClass('inactive');
+}
 export const initSchemaScreenTasks = () => {
     var reportAccCount = 0;
     var summaryAccCount = 0;
@@ -140,15 +151,12 @@ export const readTextFile = (file, callback) => {
   rawFile.send(null);
 }
 
-
-
-
 /**
  * Function to create global edit data type table
  *
  * @return {null}
  */
- export const createEditDataTypeTable = () => {
+export const createEditDataTypeTable = () => {
   let globalDataTypeList = JSON.parse(localStorage.getItem('globalDataTypeList'));
   let dataTypeListLength = Object.keys(globalDataTypeList).length;
   for (var i = 0; i < dataTypeListLength; i++) {
