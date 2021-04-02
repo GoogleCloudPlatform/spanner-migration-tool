@@ -7,7 +7,7 @@ const DEFAULT_INSTANCE = {
 
 const Store = (function () {
 
-    var instance = {currentTab: "reportTab"};
+    var instance = {};
     let modalId = "connectToDbModal"
 
     function init() {
@@ -45,12 +45,7 @@ const Store = (function () {
             // instance = {...instance, currentModal };
             instance = { ...instance, open: openVal };
         },
-        changeCurrentTab: (currentTab) => {
-            instance = { ...instance, currentTab };
-        },
-        getOpenTab: () => {
-            return instance.currentTab;
-        }
+        
     };
 })();
 
