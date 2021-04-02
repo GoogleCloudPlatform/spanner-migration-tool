@@ -3,7 +3,7 @@ import Fetch from "./Fetch.service.js";
 import {
   readTextFile,
   createEditDataTypeTable,
-//   showSnackbar
+  showSnackbar
 } from "./../helpers/SchemaConversionHelper.js";
 /**
  * All the manipulations to the store happen via the actions mentioned in this module
