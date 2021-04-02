@@ -1,3 +1,6 @@
+import "./Fk.component.js";
+import "./SecIndex.component.js";
+
 class DataTable extends HTMLElement {
     static get observedAttributes() {
         return ["open"];
@@ -174,125 +177,23 @@ class DataTable extends HTMLElement {
         
                         </tbody>
                     </table>
-                    <div class="fkCard template" style="border-radius: 0px !important">
-                        <div class="foreignKeyHeader" role="tab">
-                            <h5 class="mb-0">
-                                <a class="fkFont" data-toggle="collapse"> Foreign Keys </a>
-                            </h5>
-                        </div>
-                        <div class="collapse fkCollapse">
-                            <div class="mdc-card mdc-card-content summaryBorder" style="border: 0px">
-                                <div class="mdc-card fk-content">
-                                    <fieldset>
-                                        <div class="radio-class">
-                                            <input type="radio" class="radio addRadio" value="add" checked="checked"
-                                                disabled />
-                                            <label style="margin-right: 15px" for="add">
-                                                Use as Foreign Key</label>
-                                            <input type="radio" class="radio interleaveRadio" value="interleave"
-                                                disabled />
-                                            <label style="margin-right: 15px" for="interleave">Convert to
-                                                Interleave</label>
-                                        </div>
-                                    </fieldset>
-                                    <br />
-                                    <table class="fk-acc-table fkTable">
-                                        <thead>
-                                            <tr>
-                                                <th>Name</th>
-                                                <th>Columns</th>
-                                                <th>Refer Table</th>
-                                                <th>Refer Columns</th>
-                                                <th>Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="fkTableBody">
-                                            <tr class="fkTableTr template">
-                                                <td class="acc-table-td fkTableName">
-                                                    <div class="renameFk template">
-                                                        <input type="text" class="form-control spanner-input"
-                                                            autocomplete="off" />
-                                                    </div>
-                                                    <div class="saveFk template"></div>
-                                                </td>
-                                                <td class="acc-table-td fkTableColumns"></td>
-                                                <td class="acc-table-td fkTableReferTable"></td>
-                                                <td class="acc-table-td fkTableReferColumns"></td>
-                                                <td class="acc-table-td fkTableAction">
-                                                    <button class="dropButton" data-toggle="tooltip"
-                                                        data-placement="bottom"
-                                                        title="this will delete foreign key permanently" disabled>
-                                                        <span><i class="large material-icons removeIcon"
-                                                                style="vertical-align: middle">delete</i></span>
-                                                        <span style="vertical-align: middle">Drop</span>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="indexesCard template" style="border-radius: 0px !important">
-                        <div class="foreignKeyHeader" role="tab">
-                            <h5 class="mb-0">
-                                <a class="indexFont" data-toggle="collapse">
-                                    Secondary Indexes
-                                </a>
-                            </h5>
-                        </div>
-                        <div class="collapse indexCollapse">
-                            <div class="mdc-card mdc-card-content summaryBorder" style="border: 0px">
-                                <div class="mdc-card fk-content">
-                                    <button class="newIndexButton" onclick="createNewSecIndex(this.id)">
-                                        Add Index
-                                    </button>
-                                    <table class="index-acc-table fkTable">
-                                        <thead>
-                                            <tr>
-                                                <th>Name</th>
-                                                <th>Table</th>
-                                                <th>Unique</th>
-                                                <th>Keys</th>
-                                                <th>Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="indexTableBody">
-                                            <tr class="indexTableTr template">
-                                                <td class="acc-table-td indexesName">
-                                                    <div class="renameSecIndex template">
-                                                        <input type="text" class="form-control spanner-input"
-                                                            autocomplete="off" />
-                                                    </div>
-                                                    <div class="saveSecIndex template"></div>
-                                                </td>
-                                                <td class="acc-table-td indexesTable"></td>
-                                                <td class="acc-table-td indexesUnique"></td>
-                                                <td class="acc-table-td indexesKeys"></td>
-                                                <td class="acc-table-td indexesAction">
-                                                    <button class="dropButton" disabled>
-                                                        <span><i class="large material-icons removeIcon"
-                                                                style="vertical-align: middle">delete</i></span>
-                                                        <span style="vertical-align: middle">Drop</span>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    ${
+                      spTable.Fks?`<hb-data-table-fk fkId=${tableIndex} fkArray=${JSON.stringify(spTable.Fks)} ></hb-data-table-fk>`:`<div></div>`
+                    }
+
+                    ${
+                      spTable.Indexes?`<hb-data-table-secindex secIndexId=${tableIndex} secIndexArray=${JSON.stringify(spTable.Indexes)} ></hb-data-table-secindex>`:`<div></div>`
+                    }
+                    
                     <div class="summaryCard">
                         <div class="summaryCardHeader" role="tab">
                             <h5 class="mb-0">
-                                <a data-toggle="collapse" class="summaryFont">View Summary</a>
+                                <a data-toggle="collapse" class="summaryFont" href="#summary-${tableIndex}">View Summary</a>
                             </h5>
                         </div>
-                        <div class="collapse innerSummaryCollapse">
+                        <div class="collapse innerSummaryCollapse" id="summary-${tableIndex}">
                             <div class="mdc-card mdc-card-content summaryBorder" style="border: 0px">
-                                <div class="mdc-card summary-content"></div>
+                                <hb-list-table tabName="summary" tableName="${tableName}"></hb-list-table>
                             </div>
                         </div>
                     </div>

@@ -1,4 +1,9 @@
 
+
+const tooltipHandler = () => {
+  jQuery('[data-toggle="tooltip"]').tooltip();
+}
+
 /**
  * Function to set style for selected menu
  *

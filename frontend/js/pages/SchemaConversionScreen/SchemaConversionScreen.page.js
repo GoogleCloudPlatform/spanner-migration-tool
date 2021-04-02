@@ -11,15 +11,15 @@ import "../../services/Fetch.service.js";
 
 const TAB_CONFIG_DATA = [
   {
-    id: "reportTab",
+    id: "report",
     text: "Conversion Report",
   },
   {
-    id: "ddlTab",
+    id: "ddl",
     text: "DDL Statements",
   },
   {
-    id: "summaryTab",
+    id: "summary",
     text: "Summary Report",
   },
 ];
@@ -46,7 +46,7 @@ class SchemaConversionScreen extends HTMLElement {
     if (!this.data) {
       return;
     }
-    const { currentTab } = this.data;
+   
     let schemaConversionObj = JSON.parse(
       localStorage.getItem("conversionReportContent")
     );
@@ -61,20 +61,21 @@ class SchemaConversionScreen extends HTMLElement {
         </div>
         <div class="report-tabs">
         <ul class="nav nav-tabs md-tabs" role="tablist">
-      ${TAB_CONFIG_DATA.map((tab) => {
-        return `<hb-tab open=${currentTab === tab.id} id="${tab.id}" 
-        text="${tab.text}"></hb-tab>`;
-      }).join("")} 
+
+         ${TAB_CONFIG_DATA.map((tab) => {
+                return `<hb-tab tabid="${tab.id}" text="${tab.text}"></hb-tab>`;
+            }).join("")} 
         </ul>
     </div>
         <div class="status-icons">
-           <hb-search tabId=${currentTab}></hb-search>
+           <hb-search tabid="report" searchid="reportSearchInput" id="reportSearchForm" class="inlineblock" ></hb-search>
+           <hb-search tabid="ddl" searchid="ddlSearchInput" id="ddlSearchForm" class="template"></hb-search>
+           <hb-search tabid="summary" searchid="summarySearchInput" id="summarySearchForm" class="template"></hb-search>
             <hb-status-legend></hb-status-legend>
-        </div>
+        </div> 
         <div class="tab-bg" id='tabBg'>
             <div class="tab-content">
-              ${currentTab === "reportTab"
-                  ? `<div id="report" class="tab-pane fade show active">
+              <div id="report" class="tab-pane fade show active">
                     <div class="accordion md-accordion" id="accordion" role="tablist" aria-multiselectable="true">
                         <hb-site-button buttonid="reportExpandButton" classname="expand" buttonaction="expandAll" text="Expand All"></hb-site-button>
                         <hb-site-button buttonid="editButton" classname="expand right-align" buttonaction="editGlobalDataType" text="Edit Global Data Type"></hb-site-button>
@@ -87,10 +88,12 @@ class SchemaConversionScreen extends HTMLElement {
               `; }).join("")}                    
             </div>
         </div>
-              </div>`: ""}
+        <h5 class="no-text" id="reportnotFound">No Match Found</h5>
+              </div>
+              
 
-          ${currentTab === "ddlTab"? `
-        <div id="ddl" class="tab-pane fade show active">
+          
+        <div id="ddl" class="tab-pane fade">
                 <div class="panel-group" id="ddl-accordion">
                 <hb-site-button buttonid="ddlExpandButton" classname="expand" buttonaction="expandAll" text="Expand All"></hb-site-button>
                 <hb-site-button buttonid="download-ddl" classname="expand right-align" buttonaction="downloadDdl" text="Download DDL Statements"></hb-site-button>
@@ -102,12 +105,11 @@ class SchemaConversionScreen extends HTMLElement {
                                `;}).join("")} 
                     </div>
                   </div>
-        </div>`: ""}
+                  <h5 class="no-text" id="ddlnotFound">No Match Found</h5>
+        </div>
 
-            ${
-              currentTab === "summaryTab"
-                ? `
-        <div id="summary" class="tab-pane fade show active">
+            
+        <div id="summary" class="tab-pane fade">
         <div class="panel-group" id="summary-accordion">
         <hb-site-button buttonid="summaryExpandButton" classname="expand" buttonaction="expandAll" text="Expand All"></hb-site-button>
         <hb-site-button buttonid="download-report" classname="expand right-align" buttonaction="downloadReport" text="Download Summary Report"></hb-site-button>
@@ -122,13 +124,12 @@ class SchemaConversionScreen extends HTMLElement {
               .join("")} 
                                 
             </div>
+        </div>
+            <h5 class="no-text" id="summarynotFound">No Match Found</h5>
             </div>
+        
             </div>
-        `
-                : ""
-            }
-            </div>
-            <h5 class="no-text" id="notFound">No Match Found</h5>
+            
         </div>
     </div>
     <div class="modal" id="globalDataTypeModal" role="dialog" tabindex="-1" aria-labelledby="exampleModalCenterTitle"
@@ -343,3 +344,4 @@ window.customElements.define(
   "hb-schema-conversion-screen",
   SchemaConversionScreen
 );
+
