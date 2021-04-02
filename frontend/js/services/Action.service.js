@@ -260,7 +260,30 @@ const Actions = (() => {
         editGlobalDataType: () => {
             createEditDataTypeTable();
             jQuery('#globalDataTypeModal').modal();
-        }
+        },
+        checkInterleaveConversion: async (tableName) => {
+            let interleaveApiCall, interleaveApiCallResp;
+            console.log(tableName);
+            // interleaveApiCall = await Fetch.getAppData('GET', '/setparent?table=' + tableName);
+
+            interleaveApiCall = await fetch('/setparent?table=' + tableName)
+              .then(async function (response) {
+                if (response.ok) {
+                  return response;
+                }
+                else {
+                  return Promise.reject(response);
+                }
+              })
+              .catch(function (err) {
+                showSnackbar(err, ' redBg');
+              });
+              console.log(interleaveApiCall);
+              return interleaveApiCall.json();
+            // interleaveApiCallResp = interleaveApiCall.json()
+            // console.log(interleaveApiCallResp)
+            // return await interleaveApiCallResp;
+          }
     };
 })();
 

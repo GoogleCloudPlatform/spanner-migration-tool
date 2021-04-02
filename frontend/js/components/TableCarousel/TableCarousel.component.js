@@ -1,6 +1,7 @@
 import "../DataTable/DataTable.component.js";
 import "../ListTable/ListTable.component.js";
-import {panelBorderClass} from './../../helpers/SchemaConversionHelper.js'
+import {panelBorderClass} from './../../helpers/SchemaConversionHelper.js';
+import Actions from './../../services/Action.service.js';
 class TableCarousel extends HTMLElement {
 static get observedAttributes() {
 return ["open"];
@@ -31,7 +32,6 @@ render() {
 let { title, tableId, tableIndex } = this;
 let color = JSON.parse(localStorage.getItem("tableBorderColor"));
 let colorvalue = panelBorderClass(color[title]);
-
 
 this.innerHTML = `
 <section class="${tableId}Section">

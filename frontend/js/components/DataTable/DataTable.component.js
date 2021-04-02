@@ -1,3 +1,5 @@
+import Actions from './../../services/Action.service.js';
+
 class DataTable extends HTMLElement {
     static get observedAttributes() {
         return ["open"];
@@ -15,8 +17,17 @@ class DataTable extends HTMLElement {
         this.render();
     }
 
-    connectedCallback() {
+    async connectedCallback() {
+        let spTable = this.schemaConversionObj.SpSchema[this.tableName];
+        if(spTable.Fks){
+        Actions.checkInterleaveConversion(this.tableName).then((response)=>{
+            this.InterleaveApiCallResp=response;
+            this.render();
+        }); 
+    }
+    else {
         this.render();
+    }      
     }
 
     fkComponent(fkId,fkArray) {
@@ -30,7 +41,7 @@ class DataTable extends HTMLElement {
                         <div class="collapse fkCollapse" id="fk-${fkId}">
                             <div class="mdc-card mdc-card-content summaryBorder" style="border: 0px">
                                 <div class="mdc-card fk-content">
-                                    <fieldset class="template">
+                                    <fieldset class=${this.InterleaveApiCallResp.possible?"template":""}>
                                         <div class="radio-class">
                                             <input type="radio" class="radio addRadio" value="add" checked="checked"
                                                 disabled />
@@ -79,12 +90,6 @@ class DataTable extends HTMLElement {
                                             </tr>
                                             `;
                                         }).join("")}
-
-
-
-
-
-                                            
                                         </tbody>
                                     </table>
                                 </div>
@@ -164,10 +169,9 @@ class DataTable extends HTMLElement {
         let countSrc = [], countSp = [];
         countSrc[tableIndex] = [];
         countSp[tableIndex] = [];
-        let schemaConversionObj = JSON.parse(localStorage.getItem("conversionReportContent"));
-        let spTable = schemaConversionObj.SpSchema[tableName];
-        let srcTable = schemaConversionObj.SrcSchema[tableName];
-        let tableColumnsArray = Object.keys(schemaConversionObj.ToSpanner[spTable.Name].Cols);
+        let spTable = this.schemaConversionObj.SpSchema[tableName];
+        let srcTable = this.schemaConversionObj.SrcSchema[tableName];
+        let tableColumnsArray = Object.keys(this.schemaConversionObj.ToSpanner[spTable.Name].Cols);
         let pksSp = [...spTable.Pks];
         let pksSpLength = pksSp.length;
         let pkSeqId = 1;
@@ -223,7 +227,7 @@ class DataTable extends HTMLElement {
                     break
                 }
             }
-            let currentColumnSrc = Object.keys(schemaConversionObj.ToSpanner[spTable.Name].Cols)[index];
+            let currentColumnSrc = Object.keys(this.schemaConversionObj.ToSpanner[spTable.Name].Cols)[index];
             return `
                             <tr class="reportTableContent">
                             <td class="acc-table-td src-tab-cell">
@@ -350,8 +354,10 @@ class DataTable extends HTMLElement {
         })
     }
 
-    constructor() {
+    constructor () {
         super();
+        this.schemaConversionObj = JSON.parse(localStorage.getItem("conversionReportContent"));
+
     }
 }
 
