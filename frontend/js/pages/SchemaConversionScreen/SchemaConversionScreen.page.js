@@ -3,6 +3,8 @@ import "./../../components/TableCarousel/TableCarousel.component.js";
 import "./../../components/StatusLegend/StatusLegend.component.js";
 import "./../../components/Search/Search.component.js";
 import "./../../components/Button/SiteButton.component.js"
+import "./../../components/EditGlobalDataTypeForm/EditGlobalDataType.componenet.js"
+import "./../../components/Modal/Modal.component.js"
 import { initSchemaScreenTasks } from "./../../helpers/SchemaConversionHelper.js";
 
 // Services
@@ -127,50 +129,14 @@ class SchemaConversionScreen extends HTMLElement {
         </div>
             <h5 class="no-text" id="summarynotFound">No Match Found</h5>
             </div>
-        
-            </div>
-            
-        </div>
-    </div>
-    <div class="modal" id="globalDataTypeModal" role="dialog" tabindex="-1" aria-labelledby="exampleModalCenterTitle"
-        aria-hidden="true" data-backdrop="static" data-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered" role="document">
-            <!-- Modal content-->
-            <div class="modal-content">
-                <div class="modal-header content-center">
-                    <h5 class="modal-title modal-bg" id="exampleModalLongTitle">Global Data Type Mapping</h5>
-                    <i class="large material-icons close" data-dismiss="modal">cancel</i>
-                </div>
-                <div class="modal-body" style='margin: auto; margin-top: 20px;'>
-                    <div class="dataMappingCard" id='globalDataType'>
-                        <table class='data-type-table' id='globalDataTypeTable'>
-                            <tbody id='globalDataTypeBody'>
-                                <tr>
-                                    <th>Source</th>
-                                    <th>Spanner</th>
-                                </tr>
-                                <tr class='globalDataTypeRow template'>
-                                    <td class='src-td'></td>
-                                    <td id='globalDataTypeCell'>
-                                        <div style='display: flex;'>
-                                            <i class="large material-icons warning" style='cursor: pointer;'>warning</i>
-                                            <select class='form-control tableSelect' style='border: 0px !important;'>
-                                                <option class='dataTypeOption template'></option>
-                                            </select>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="modal-footer" style='margin-top: 20px;'>
-                    <button id="data-type-button" data-dismiss="modal" onclick="setGlobalDataType()" class="connectButton"
-                        type="button" style='margin-right: 24px !important;'>Next</button>
-                </div>
             </div>
         </div>
     </div>
+
+    <hb-modal modalId="globalDataTypeModal" 
+    content="<hb-edit-global-datatype-form></hb-edit-global-datatype-form>" 
+    contentIcon="" 
+    connectIconClass="" modalBodyClass="" title="Global Data Type Mapping"></hb-modal>
     
     <div class="modal" id="foreignKeyDeleteWarning" role="dialog" tabindex="-1" aria-labelledby="exampleModalCenterTitle"
         aria-hidden="true" data-backdrop="static" data-keyboard="false" style="z-index: 999999;">
@@ -345,3 +311,42 @@ window.customElements.define(
   SchemaConversionScreen
 );
 
+{/* <div class="modal" id="globalDataTypeModal" role="dialog" tabindex="-1" aria-labelledby="exampleModalCenterTitle"
+aria-hidden="true" data-backdrop="static" data-keyboard="false">
+<div class="modal-dialog modal-dialog-centered" role="document">
+    <!-- Modal content-->
+    <div class="modal-content">
+        <div class="modal-header content-center">
+            <h5 class="modal-title modal-bg" id="exampleModalLongTitle">Global Data Type Mapping</h5>
+            <i class="large material-icons close" data-dismiss="modal">cancel</i>
+        </div>
+        <div class="modal-body" style='margin: auto; margin-top: 20px;'>
+            <div class="dataMappingCard" id='globalDataType'>
+                <table class='data-type-table' id='globalDataTypeTable'>
+                    <tbody id='globalDataTypeBody'>
+                        <tr>
+                            <th>Source</th>
+                            <th>Spanner</th>
+                        </tr>
+                        <tr class='globalDataTypeRow template'>
+                            <td class='src-td'></td>
+                            <td id='globalDataTypeCell'>
+                                <div style='display: flex;'>
+                                    <i class="large material-icons warning" style='cursor: pointer;'>warning</i>
+                                    <select class='form-control tableSelect' style='border: 0px !important;'>
+                                        <option class='dataTypeOption template'></option>
+                                    </select>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="modal-footer" style='margin-top: 20px;'>
+            <button id="data-type-button" data-dismiss="modal" onclick="setGlobalDataType()" class="connectButton"
+                type="button" style='margin-right: 24px !important;'>Next</button>
+        </div>
+    </div>
+</div>
+</div> */}

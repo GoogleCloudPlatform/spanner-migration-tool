@@ -206,3 +206,20 @@ export const createEditDataTypeTable = () => {
   }
   tooltipHandler();
 }
+
+
+/**
+ * Function to snackbar on some important actions from UI
+ *
+ * @param {string} message message to display in snackbar
+ * @param {string} bgClass background color class for snackbar
+ * @return {null}
+ */
+ export const showSnackbar = (message, bgClass) => {
+  var snackbar = document.getElementById("snackbar");
+  snackbar.className = "show" + bgClass;
+  snackbar.innerHTML = message;
+  setTimeout(function () {
+    snackbar.className = snackbar.className.replace("show", "");
+  }, 3000);
+}

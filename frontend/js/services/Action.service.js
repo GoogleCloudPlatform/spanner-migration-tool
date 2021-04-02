@@ -3,6 +3,7 @@ import Fetch from "./Fetch.service.js";
 import {
   readTextFile,
   createEditDataTypeTable,
+  showSnackbar
 } from "./../helpers/SchemaConversionHelper.js";
 /**
  * All the manipulations to the store happen via the actions mentioned in this module
@@ -116,17 +117,6 @@ const Actions = (() => {
       }
       return true;
     },
-
-    // addNewSession: (session) => {
-    //     Store.addNewSession(session);
-    // },
-    // resumeSession: (index) => {
-    //     let val = Store.getSessionData(index);
-    //     console.log(val);
-    // },
-    // getAllSessions: () => {
-    // return Store.getAllSessions();},
-
     sessionRetrieval: async (dbType) => {
       let sessionStorageArr, sessionInfo, sessionResp;
       sessionResp = await Fetch.getAppData("GET", "/session");
@@ -332,12 +322,12 @@ const Actions = (() => {
             })
         },
         editGlobalDataType: () => {
+          debugger
             createEditDataTypeTable();
             jQuery('#globalDataTypeModal').modal();
         },
         checkInterleaveConversion: async (tableName) => {
             let interleaveApiCall, interleaveApiCallResp;
-            console.log(tableName);
             // interleaveApiCall = await Fetch.getAppData('GET', '/setparent?table=' + tableName);
 
             interleaveApiCall = await fetch('/setparent?table=' + tableName)
@@ -352,11 +342,45 @@ const Actions = (() => {
               .catch(function (err) {
                 showSnackbar(err, ' redBg');
               });
-              console.log(interleaveApiCall);
               return interleaveApiCall.json();
             // interleaveApiCallResp = interleaveApiCall.json()
             // console.log(interleaveApiCallResp)
             // return await interleaveApiCallResp;
+          },
+        setGlobalDataType: async function(){
+            let globalDataTypeList = JSON.parse(localStorage.getItem('globalDataTypeList'));
+            let dataTypeListLength = Object.keys(globalDataTypeList).length;
+            let dataTypeJson = {};
+            for (var i = 0; i <= dataTypeListLength; i++) {
+              var row = document.getElementById('dataTypeRow' + i);
+              if (row) {
+                var cells = row.getElementsByTagName('td');
+                if (document.getElementById('dataTypeOption' + i) != null) {
+                  for (var j = 0; j < cells.length; j++) {
+                    if (j === 0) {
+                      var key = cells[j].innerText;
+                    }
+                    else {
+                      dataTypeJson[key] = document.getElementById('dataTypeOption' + i).value;
+                    }
+                  }
+                }
+              }
+            }
+            await fetch('/typemap/global', {
+              method: 'POST',
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(dataTypeJson)
+            })
+              .then(async (res)=> {
+                console.log(res);
+                res = await res.text();
+                localStorage.setItem('conversionReportContent', res);
+               
+              })
           }
     };
 })();

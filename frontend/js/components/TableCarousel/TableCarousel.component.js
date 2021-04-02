@@ -60,11 +60,6 @@ this.innerHTML = `
           `<div></div>`
 
           }
-
-
-
-
-
         </a>
       </h5>
     </div>
