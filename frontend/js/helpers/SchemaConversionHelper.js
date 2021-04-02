@@ -216,3 +216,17 @@ export const showSnackbar = (message, bgClass) => {
   }, 3000);
 }
 
+export const tabbingHelper = (id,others) => {
+
+    document.getElementById(id+"SearchForm").style.display = "inline-block";
+    document.getElementById(id+"Tab").classList.add("active", "show");
+    document.getElementById(id).classList.add("active", "show");
+
+    others.map((element)=>{
+    document.getElementById(element+"SearchForm").style.setProperty("display", "none", "important");
+    document.getElementById(element+"Tab").classList.remove("active", "show");
+    document.getElementById(element).classList.remove("active", "show");
+    })
+    
+}
+

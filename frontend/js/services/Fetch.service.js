@@ -1,9 +1,10 @@
+import {showSnackbar} from './../helpers/SchemaConversionHelper.js';
 /**
  * Interacts with the backend and inplements the transforms
  */
 const Fetch = (() => {
     // config - header, authorization, JWT token, callback 
-    let makeFetchCall = (method, url, payload, config, callback) => {
+    let makeFetchCall = (method, url, payload, config, callback, snakbar) => {
         // logic to talk to the backend
         // Start the site loader
         return new Promise((resolve, reject) => {
@@ -21,7 +22,7 @@ const Fetch = (() => {
                     }, 0);
                 })
                 .catch((err) => {
-                    resolve('hi')
+                    showSnackbar(err, 'redBg');
                 })
                 .finally(() => {
                     // stop the loader here
