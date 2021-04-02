@@ -38,7 +38,7 @@ class ListTable extends HTMLElement {
             RenderingObj = RenderingObj[tableName];
             RenderingObj = this.FormattedObj(RenderingObj);
         }else{
-            RenderingObj = JSON.parse(localStorage.getItem('summaryReportContent')); 
+            RenderingObj = JSON.parse(localStorage.getItem('summaryReportContent'));
             RenderingObj = RenderingObj[tableName];
         }
         
