@@ -207,19 +207,63 @@ export const createEditDataTypeTable = () => {
   tooltipHandler();
 }
 
-
-/**
- * Function to snackbar on some important actions from UI
- *
- * @param {string} message message to display in snackbar
- * @param {string} bgClass background color class for snackbar
- * @return {null}
- */
- export const showSnackbar = (message, bgClass) => {
+export const showSnackbar = (message, bgClass) => {
   var snackbar = document.getElementById("snackbar");
   snackbar.className = "show" + bgClass;
   snackbar.innerHTML = message;
   setTimeout(function () {
     snackbar.className = snackbar.className.replace("show", "");
   }, 3000);
+}
+
+export const tabbingHelper = (id,others) => {
+
+    document.getElementById(id+"SearchForm").style.display = "inline-block";
+    document.getElementById(id+"Tab").classList.add("active", "show");
+    document.getElementById(id).classList.add("active", "show");
+
+    others.map((element)=>{
+    document.getElementById(element+"SearchForm").style.setProperty("display", "none", "important");
+    document.getElementById(element+"Tab").classList.remove("active", "show");
+    document.getElementById(element).classList.remove("active", "show");
+    })
+    
+}
+
+export const dataTypeUpdate = (id, globalDataTypeList) => {
+  let idNum = parseInt(id.match(/\d+/), 10);
+  let dataTypeOptionArray = globalDataTypeList[document.getElementById('dataTypeKey' + idNum).innerHTML];
+  let optionFound;
+  let length = dataTypeOptionArray.length;
+  let $dataTypeSel = jQuery('.globalDataTypeRow.template').clone();
+  $dataTypeSel.find('.src-td').attr('id', 'dataTypeKey' + idNum);
+  $dataTypeSel.find('.src-td').html(Object.keys(globalDataTypeList)[idNum - 1]);
+  $dataTypeSel.find('i').css('visibility', 'hidden');
+  for (var x = 0; x < length; x++) {
+    let $dataTypeOption = $dataTypeSel.find('.dataTypeOption.template').clone().removeClass('template');
+    optionFound = dataTypeOptionArray[x].T === document.getElementById(id).value;
+    if (dataTypeOptionArray[x].T === document.getElementById(id).value && dataTypeOptionArray[x].Brief !== "") {
+      $dataTypeSel.find('i').attr('data-toggle', 'tooltip');
+      $dataTypeSel.find('i').attr('data-placement', 'bottom');
+      $dataTypeSel.find('i').attr('title', dataTypeOptionArray[x].Brief);
+      $dataTypeSel.find('i').css('visibility', '');
+    }
+    if (optionFound === true) {
+      $dataTypeOption.attr('value', dataTypeOptionArray[x].T);
+      $dataTypeOption.html(dataTypeOptionArray[x].T);
+      $dataTypeOption.attr('selected', 'selected');
+    }
+    else {
+      $dataTypeOption.attr('value', dataTypeOptionArray[x].T);
+      $dataTypeOption.html(dataTypeOptionArray[x].T);
+    }
+    $dataTypeOption.appendTo($dataTypeSel.find('select'));
+  }
+  $dataTypeSel.find('select').find("option").eq(0).remove();
+  $dataTypeSel.find('select').attr('id', id);
+  jQuery(this).unbind('change').bind('change', function () {
+    dataTypeUpdate(id, globalDataTypeList);
+  });
+  jQuery("#dataTypeRow" + idNum).html($dataTypeSel.html());
+  tooltipHandler();
 }

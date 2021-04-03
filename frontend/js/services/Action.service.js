@@ -3,7 +3,8 @@ import Fetch from "./Fetch.service.js";
 import {
   readTextFile,
   createEditDataTypeTable,
-  showSnackbar
+  showSnackbar,
+  tabbingHelper
 } from "./../helpers/SchemaConversionHelper.js";
 /**
  * All the manipulations to the store happen via the actions mentioned in this module
@@ -156,48 +157,9 @@ const Actions = (() => {
       // return false;
     },
     switchToTab: (id) => {
-      if (id === "report") {
-        document.getElementById("reportSearchForm").style.display = "inline-block";
-        document.getElementById("ddlSearchForm").style.setProperty("display", "none", "important");
-        document.getElementById("summarySearchForm").style.setProperty("display", "none", "important");
-
-        document.getElementById("reportTab").classList.add("active", "show");
-        document.getElementById("ddlTab").classList.remove("active", "show");
-        document.getElementById("summaryTab").classList.remove("active", "show");
-        document.getElementById("report").classList.add("active", "show");
-        document.getElementById("ddl").classList.remove("active", "show");
-        document.getElementById("summary").classList.remove("active", "show");
-      }
-      if (id === "ddl") {
-        document.getElementById("reportSearchForm").style.setProperty("display", "none", "important");
-        document.getElementById("ddlSearchForm").style.display = "inline-block";
-        document.getElementById("summarySearchForm").style.setProperty("display", "none", "important");
-
-        document.getElementById("reportTab").classList.remove("active", "show");
-        document.getElementById("ddlTab").classList.add("active", "show");
-        document
-          .getElementById("summaryTab")
-          .classList.remove("active", "show");
-        document.getElementById("report").classList.remove("active", "show");
-        document.getElementById("ddl").classList.add("active", "show");
-        document.getElementById("summary").classList.remove("active", "show");
-      }
-      if (id === "summary") {
-        document
-          .getElementById("reportSearchForm")
-          .style.setProperty("display", "none", "important");
-        document
-          .getElementById("ddlSearchForm")
-          .style.setProperty("display", "none", "important");
-        document.getElementById("summarySearchForm").style.display = "inline-block";
-
-        document.getElementById("reportTab").classList.remove("active", "show");
-        document.getElementById("ddlTab").classList.remove("active", "show");
-        document.getElementById("summaryTab").classList.add("active", "show");
-        document.getElementById("report").classList.remove("active", "show");
-        document.getElementById("ddl").classList.remove("active", "show");
-        document.getElementById("summary").classList.add("active", "show");
-      }
+      let others = ["report", "ddl", "summary"];
+      others = others.filter((element)=>element!=id);
+      tabbingHelper(id, others);
     },
     SearchTable: (value, tabId) => {
       console.log(value);
@@ -262,92 +224,62 @@ const Actions = (() => {
         .click();
     },
     downloadDdl: async () => {
-      await fetch("/schema")
-        .then(async function (response) {
-          if (response.ok) {
-            await response.text().then(function (result) {
+      let ddlreport = await Fetch.getAppData('GET', '/report');
+      if (ddlreport.ok) {
+          ddlreport.text().then(function (result) {
               localStorage.setItem("schemaFilePath", result);
             });
-          } else {
-            Promise.reject(response);
-          }
-        })
-        .catch(function (err) {
-          showSnackbar(err, " redBg");
-        });
-      let schemaFilePath = localStorage.getItem("schemaFilePath");
-      let schemaFileName = schemaFilePath.split("/")[
-        schemaFilePath.split("/").length - 1
-      ];
-      let filePath = "./" + schemaFileName;
-      readTextFile(filePath, function (error, text) {
-        jQuery("<a />", {
-          download: schemaFileName,
-          href:
-            "data:application/json;charset=utf-8," + encodeURIComponent(text),
-        })
-          .appendTo("body")
-          .click(function () {
-            jQuery(this).remove();
-          })[0]
-          .click();
-      });
-    },
-        downloadReport: async () => {
-            await fetch('/report')
-                .then(async function (response) {
-                    if (response.ok) {
-                        await response.text().then(function (result) {
-                            localStorage.setItem('reportFilePath', result);
-                        });
-                    }
-                    else {
-                        Promise.reject(response);
-                    }
-                })
-                .catch(function (err) {
-                    showSnackbar(err, ' redBg');
-                });
-            let reportFilePath = localStorage.getItem('reportFilePath');
-            let reportFileName = reportFilePath.split('/')[reportFilePath.split('/').length - 1];
-            let filePath = './' + reportFileName;
+
+            let schemaFilePath = localStorage.getItem("schemaFilePath");
+            let schemaFileName = schemaFilePath.split("/")[
+              schemaFilePath.split("/").length - 1
+            ];
+            let filePath = "./" + schemaFileName;
             readTextFile(filePath, function (error, text) {
-                jQuery("<a />", {
-                    "download": reportFileName,
-                    "href": "data:application/json;charset=utf-8," + encodeURIComponent(text),
-                }).appendTo("body")
-                    .click(function () {
-                        jQuery(this).remove()
-                    })[0].click();
-            })
+              jQuery("<a />", {
+                download: schemaFileName,
+                href:
+                  "data:application/json;charset=utf-8," + encodeURIComponent(text),
+              })
+                .appendTo("body")
+                .click(function () {
+                  jQuery(this).remove();
+                })[0]
+                .click();
+            });
+          }  
+    },
+    downloadReport: async () => {
+           let summaryreport = await Fetch.getAppData('GET', '/report');
+           console.log(summaryreport);
+           if (summaryreport.ok) {
+                await summaryreport.text().then(function (result) {
+                localStorage.setItem('reportFilePath', result);
+              });
+              let reportFilePath = localStorage.getItem('reportFilePath');
+              let reportFileName = reportFilePath.split('/')[reportFilePath.split('/').length - 1];
+              let filePath = './' + reportFileName;
+              readTextFile(filePath, function (error, text) {
+                  jQuery("<a />", {
+                      "download": reportFileName,
+                      "href": "data:application/json;charset=utf-8," + encodeURIComponent(text),
+                  }).appendTo("body")
+                      .click(function () {
+                          jQuery(this).remove()
+                      })[0].click();
+              })
+           }    
         },
-        editGlobalDataType: () => {
-          debugger
+        editGlobalDataType: () => {  
             createEditDataTypeTable();
             jQuery('#globalDataTypeModal').modal();
         },
         checkInterleaveConversion: async (tableName) => {
-            let interleaveApiCall, interleaveApiCallResp;
-            // interleaveApiCall = await Fetch.getAppData('GET', '/setparent?table=' + tableName);
-
-            interleaveApiCall = await fetch('/setparent?table=' + tableName)
-              .then(async function (response) {
-                if (response.ok) {
-                  return response;
-                }
-                else {
-                  return Promise.reject(response);
-                }
-              })
-              .catch(function (err) {
-                showSnackbar(err, ' redBg');
-              });
-              return interleaveApiCall.json();
-            // interleaveApiCallResp = interleaveApiCall.json()
-            // console.log(interleaveApiCallResp)
-            // return await interleaveApiCallResp;
+            let interleaveApiCall;
+            interleaveApiCall = await Fetch.getAppData('GET', '/setparent?table='+tableName);
+            return interleaveApiCall.json();
           },
-        setGlobalDataType: async function(){
+          setGlobalDataType: async function(){
             let globalDataTypeList = JSON.parse(localStorage.getItem('globalDataTypeList'));
             let dataTypeListLength = Object.keys(globalDataTypeList).length;
             let dataTypeJson = {};
@@ -381,8 +313,29 @@ const Actions = (() => {
                 localStorage.setItem('conversionReportContent', res);
                
               })
+            },
+          getGlobalDataTypeList: async () => {
+             await fetch('/typemap', {
+                method: 'GET',
+                headers: {
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json'
+                }
+              })
+                .then(function (res) {
+                  if (res.ok) {
+                    res.json().then(function (result) {
+                      localStorage.setItem('globalDataTypeList', JSON.stringify(result));
+                    });
+                  }
+                  else {
+                    return Promise.reject(res);
+                  }
+                }).catch(function (err) {
+                  showSnackbar(err, ' redBg');
+                });
+            }
           }
-    };
 })();
 
 export default Actions;

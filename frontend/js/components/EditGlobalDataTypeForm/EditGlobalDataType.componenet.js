@@ -3,12 +3,15 @@ import Actions from "../../services/Action.service.js";
 
 class EditGlobalDataTypeForm extends HTMLElement {
 
-    connectedCallback() {
+     connectedCallback() {
         this.render();
-        document.getElementById('data-type-button').addEventListener('click' ,() => {
+        document.getElementById('data-type-button').addEventListener('click' ,async () => {
             await Actions.setGlobalDataType()
-            await this.ddlSummaryAndConversionApiCall()
+            await Actions.ddlSummaryAndConversionApiCall()
             location.reload()
+            // window.location.href = "#/schema-report";
+            document.getElementById('app').innerHTML = `<hb-default-layout><hb-schema-conversion-screen></hb-schema-conversion-screen></<hb-default-layout>`
+
         } )
     }
 
@@ -26,7 +29,7 @@ class EditGlobalDataTypeForm extends HTMLElement {
                             <td id='globalDataTypeCell'>
                                 <div style='display: flex;'>
                                     <i class="large material-icons warning" style='cursor: pointer;'>warning</i>
-                                    <select class='form-control table-select' style='border: 0px !important;'>
+                                    <select class='form-control table-select' style='border: 0px !important;margin-bottom:0px'>
                                         <option class='dataTypeOption template'></option>
                                     </select>
                                 </div>

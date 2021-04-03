@@ -10,6 +10,7 @@ import { initSchemaScreenTasks } from "./../../helpers/SchemaConversionHelper.js
 // Services
 import Store from "./../../services/Store.service.js";
 import "../../services/Fetch.service.js";
+import Actions from "../../services/Action.service.js";
 
 const TAB_CONFIG_DATA = [
   {
@@ -44,11 +45,11 @@ class SchemaConversionScreen extends HTMLElement {
     }
   };
 
-  render() {
+    render() {
     if (!this.data) {
       return;
     }
-   
+     Actions.getGlobalDataTypeList()
     let schemaConversionObj = JSON.parse(
       localStorage.getItem("conversionReportContent")
     );
@@ -101,9 +102,9 @@ class SchemaConversionScreen extends HTMLElement {
                 <hb-site-button buttonid="download-ddl" classname="expand right-align" buttonaction="downloadDdl" text="Download DDL Statements"></hb-site-button>
 
                     <div id='ddlDiv'>
-                    ${tableNameArray.map((tableName) => {
+                    ${tableNameArray.map((tableName,index) => {
                         return `
-                              <hb-table-carousel title="${tableName}" tableId="ddl"></hb-table-carousel>
+                              <hb-table-carousel title="${tableName}" tableId="ddl" tableIndex=${index}></hb-table-carousel>
                                `;}).join("")} 
                     </div>
                   </div>
@@ -118,9 +119,9 @@ class SchemaConversionScreen extends HTMLElement {
 
             <div id='summaryDiv'>
             ${tableNameArray
-              .map((tableName) => {
+              .map((tableName,index) => {
                 return `
-                       <hb-table-carousel title="${tableName}" tableId="summary"></hb-table-carousel>
+                       <hb-table-carousel title="${tableName}" tableId="summary" tableIndex=${index}></hb-table-carousel>
                       `;
               })
               .join("")} 
@@ -310,43 +311,3 @@ window.customElements.define(
   "hb-schema-conversion-screen",
   SchemaConversionScreen
 );
-
-{/* <div class="modal" id="globalDataTypeModal" role="dialog" tabindex="-1" aria-labelledby="exampleModalCenterTitle"
-aria-hidden="true" data-backdrop="static" data-keyboard="false">
-<div class="modal-dialog modal-dialog-centered" role="document">
-    <!-- Modal content-->
-    <div class="modal-content">
-        <div class="modal-header content-center">
-            <h5 class="modal-title modal-bg" id="exampleModalLongTitle">Global Data Type Mapping</h5>
-            <i class="large material-icons close" data-dismiss="modal">cancel</i>
-        </div>
-        <div class="modal-body" style='margin: auto; margin-top: 20px;'>
-            <div class="dataMappingCard" id='globalDataType'>
-                <table class='data-type-table' id='globalDataTypeTable'>
-                    <tbody id='globalDataTypeBody'>
-                        <tr>
-                            <th>Source</th>
-                            <th>Spanner</th>
-                        </tr>
-                        <tr class='globalDataTypeRow template'>
-                            <td class='src-td'></td>
-                            <td id='globalDataTypeCell'>
-                                <div style='display: flex;'>
-                                    <i class="large material-icons warning" style='cursor: pointer;'>warning</i>
-                                    <select class='form-control tableSelect' style='border: 0px !important;'>
-                                        <option class='dataTypeOption template'></option>
-                                    </select>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        <div class="modal-footer" style='margin-top: 20px;'>
-            <button id="data-type-button" data-dismiss="modal" onclick="setGlobalDataType()" class="connectButton"
-                type="button" style='margin-right: 24px !important;'>Next</button>
-        </div>
-    </div>
-</div>
-</div> */}

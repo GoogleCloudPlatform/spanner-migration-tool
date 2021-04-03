@@ -58,7 +58,6 @@ this.innerHTML = `
                                             editing. Unlock to change =></span>
           ` : 
           `<div></div>`
-
           }
         </a>
       </h5>

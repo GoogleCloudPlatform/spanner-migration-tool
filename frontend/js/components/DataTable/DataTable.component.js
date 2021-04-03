@@ -21,16 +21,19 @@ class DataTable extends HTMLElement {
         let spTable = this.schemaConversionObj.SpSchema[this.tableName];
         if(spTable.Fks){
         Actions.checkInterleaveConversion(this.tableName).then((response)=>{
-            this.InterleaveApiCallResp=response;
+            this.InterleaveApiCallResp=response.tableInterleaveStatus;
             this.render();
-        }); 
-    }
-    else {
+        })
+        .catch((err)=>{
+            console.log(err);
+        }); //catch error also
+        } else {
         this.render();
-    }      
+        }      
     }
 
     fkComponent(fkId,fkArray) {
+        
         return `
         <div class="fkCard " style="border-radius: 0px !important">
                         <div class="foreignKeyHeader" role="tab">
@@ -41,7 +44,7 @@ class DataTable extends HTMLElement {
                         <div class="collapse fkCollapse" id="fk-${fkId}">
                             <div class="mdc-card mdc-card-content summaryBorder" style="border: 0px">
                                 <div class="mdc-card fk-content">
-                                    <fieldset class=${this.InterleaveApiCallResp.possible?"template":""}>
+                                    <fieldset class=${this.InterleaveApiCallResp.Possible?"":"template"}>
                                         <div class="radio-class">
                                             <input type="radio" class="radio addRadio" value="add" checked="checked"
                                                 disabled />
