@@ -488,160 +488,163 @@ const Actions = (() => {
         }
       });
     },
-    createNewSecIndex: function (id) {
-      let tableNumber = parseInt(id.match(/\d+/), 10);
-      let jsonObj = JSON.parse(localStorage.getItem("conversionReportContent"));
-      console.log(jsonObj);
-      let srcTableName = Object.keys(jsonObj.SrcSchema);
+    createNewSecIndex :(id)=>{
+      jQuery("#"+id).modal();
+    }
+    // createNewSecIndex: function (id) {
+    //   let tableNumber = parseInt(id.match(/\d+/), 10);
+    //   let jsonObj = JSON.parse(localStorage.getItem("conversionReportContent"));
+    //   console.log(jsonObj);
+    //   let srcTableName = Object.keys(jsonObj.SrcSchema);
 
-      // if (document.getElementById("editSpanner" + tableNumber).innerHTML.trim() == "Save Changes") {
-      if (true) {
-        let tableId = "#src-sp-table" + tableNumber + " tr";
-        let pendingChanges = false;
-        jQuery(tableId).each(function (index) {
-          if (index > 1) {
-            // let tableName = srcTableName[tableNumber];
-            let newColumnName;
-            let tableColumnNumber = parseInt(
-              jQuery(this).find(".srcColumn").attr("id").match(/\d+/),
-              10
-            );
-            let srcColumnName = jQuery(this).find(".srcColumn").html().trim();
-            let newColumnNameEle = document.getElementById(
-              "columnNameText" +
-                tableNumber +
-                tableColumnNumber +
-                tableColumnNumber
-            );
-            if (newColumnNameEle) {
-              newColumnName = newColumnNameEle.value;
-            }
-            let originalColumnName =
-              jsonObj.ToSpanner[srcTableName[tableNumber]].Cols[srcColumnName];
-            if (
-              newColumnName !== originalColumnName ||
-              !jQuery(this).find("input[type=checkbox]").is(":checked")
-            ) {
-              jQuery("#editTableWarningModal").modal();
-              jQuery("#errorContent").html("");
-              jQuery("#errorContent").append(
-                "There are pending changes to this table, please save the same before creating the index"
-              );
-              pendingChanges = true;
-            }
-          }
-        });
-        if (pendingChanges) {
-          return;
-        }
-      }
-      jQuery("#createIndexModal").modal();
-      let keysList = [];
-      let orderId = 0;
-      let table = jsonObj.SpSchema[srcTableName[tableNumber]];
-      let columnsLength = Object.keys(jsonObj.ToSpanner[table.Name].Cols)
-        .length;
-      jQuery("#newIndexColumnListDiv").html("");
-      for (let k = 0; k < columnsLength; k++) {
-        let newIndexColumnRow = jQuery(".newIndexColumnList.template")
-          .clone()
-          .removeClass("template");
-        newIndexColumnRow.find(".columnName").html(table.ColNames[k]);
-        newIndexColumnRow.attr("id", "indexColumnRow" + k);
-        newIndexColumnRow.appendTo(jQuery("#newIndexColumnListDiv"));
-        newIndexColumnRow.find("input").click(function () {
-          if (jQuery(this).is(":checked")) {
-            orderId = orderId + 1;
-            jQuery(this)
-              .closest(".newIndexColumnList")
-              .find(".orderId")
-              .html(orderId);
-            jQuery(this)
-              .closest(".newIndexColumnList")
-              .find(".orderId")
-              .css("visibility", "visible");
-            keysList.push({
-              Col: jQuery(this)
-                .closest(".newIndexColumnList")
-                .find(".columnName")
-                .html(),
-              Desc: false,
-            });
-          } else {
-            let deletedOrderId = jQuery(this)
-              .closest(".newIndexColumnList")
-              .find(".orderId")
-              .html();
-            jQuery(this)
-              .closest(".newIndexColumnList")
-              .find(".orderId")
-              .css("visibility", "hidden");
-            let lastColumnSelected = true;
-            let maxOrderId = 0;
+    //   // if (document.getElementById("editSpanner" + tableNumber).innerHTML.trim() == "Save Changes") {
+    //   if (true) {
+    //     let tableId = "#src-sp-table" + tableNumber + " tr";
+    //     let pendingChanges = false;
+    //     jQuery(tableId).each(function (index) {
+    //       if (index > 1) {
+    //         // let tableName = srcTableName[tableNumber];
+    //         let newColumnName;
+    //         let tableColumnNumber = parseInt(
+    //           jQuery(this).find(".srcColumn").attr("id").match(/\d+/),
+    //           10
+    //         );
+    //         let srcColumnName = jQuery(this).find(".srcColumn").html().trim();
+    //         let newColumnNameEle = document.getElementById(
+    //           "columnNameText" +
+    //             tableNumber +
+    //             tableColumnNumber +
+    //             tableColumnNumber
+    //         );
+    //         if (newColumnNameEle) {
+    //           newColumnName = newColumnNameEle.value;
+    //         }
+    //         let originalColumnName =
+    //           jsonObj.ToSpanner[srcTableName[tableNumber]].Cols[srcColumnName];
+    //         if (
+    //           newColumnName !== originalColumnName ||
+    //           !jQuery(this).find("input[type=checkbox]").is(":checked")
+    //         ) {
+    //           jQuery("#editTableWarningModal").modal();
+    //           jQuery("#errorContent").html("");
+    //           jQuery("#errorContent").append(
+    //             "There are pending changes to this table, please save the same before creating the index"
+    //           );
+    //           pendingChanges = true;
+    //         }
+    //       }
+    //     });
+    //     if (pendingChanges) {
+    //       return;
+    //     }
+    //   }
+    //   jQuery("#createIndexModal").modal();
+    //   let keysList = [];
+    //   let orderId = 0;
+    //   let table = jsonObj.SpSchema[srcTableName[tableNumber]];
+    //   let columnsLength = Object.keys(jsonObj.ToSpanner[table.Name].Cols)
+    //     .length;
+    //   jQuery("#newIndexColumnListDiv").html("");
+    //   for (let k = 0; k < columnsLength; k++) {
+    //     let newIndexColumnRow = jQuery(".newIndexColumnList.template")
+    //       .clone()
+    //       .removeClass("template");
+    //     newIndexColumnRow.find(".columnName").html(table.ColNames[k]);
+    //     newIndexColumnRow.attr("id", "indexColumnRow" + k);
+    //     newIndexColumnRow.appendTo(jQuery("#newIndexColumnListDiv"));
+    //     newIndexColumnRow.find("input").click(function () {
+    //       if (jQuery(this).is(":checked")) {
+    //         orderId = orderId + 1;
+    //         jQuery(this)
+    //           .closest(".newIndexColumnList")
+    //           .find(".orderId")
+    //           .html(orderId);
+    //         jQuery(this)
+    //           .closest(".newIndexColumnList")
+    //           .find(".orderId")
+    //           .css("visibility", "visible");
+    //         keysList.push({
+    //           Col: jQuery(this)
+    //             .closest(".newIndexColumnList")
+    //             .find(".columnName")
+    //             .html(),
+    //           Desc: false,
+    //         });
+    //       } else {
+    //         let deletedOrderId = jQuery(this)
+    //           .closest(".newIndexColumnList")
+    //           .find(".orderId")
+    //           .html();
+    //         jQuery(this)
+    //           .closest(".newIndexColumnList")
+    //           .find(".orderId")
+    //           .css("visibility", "hidden");
+    //         let lastColumnSelected = true;
+    //         let maxOrderId = 0;
 
-            for (let x = 0; x < keysList.length; x++) {
-              if (
-                keysList[x].Col ==
-                jQuery(this)
-                  .closest(".newIndexColumnList")
-                  .find(".columnName")
-                  .html()
-              ) {
-                keysList.splice(x, 1);
-              }
-            }
-            jQuery(this)
-              .closest(".newIndexColumnList")
-              .find(".orderId")
-              .css("visibility", "hidden");
-            for (let x = 0; x < columnsLength; x++) {
-              if (
-                jQuery("#indexColumnRow" + x)
-                  .find("input")
-                  .is(":checked")
-              ) {
-                lastColumnSelected = false;
-                let currOrderId = jQuery("#indexColumnRow" + x)
-                  .find(".orderId")
-                  .html();
-                jQuery(this)
-                  .closest(".newIndexColumnList")
-                  .find(".orderId")
-                  .css("visibility", "hidden");
-                if (currOrderId > deletedOrderId) {
-                  jQuery("#indexColumnRow" + x)
-                    .find(".orderId")
-                    .html(currOrderId - 1);
-                  jQuery(this)
-                    .closest(".newIndexColumnList")
-                    .find(".orderId")
-                    .css("visibility", "none");
-                }
-              }
-            }
-            for (let x = 0; x < columnsLength; x++) {
-              if (
-                jQuery("#indexColumnRow" + x)
-                  .find("input")
-                  .is(":checked")
-              ) {
-                let currOrderId = jQuery("#indexColumnRow" + x)
-                  .find(".orderId")
-                  .html();
-                jQuery(this)
-                  .closest(".newIndexColumnList")
-                  .find(".orderId")
-                  .css("visibility", "hidden");
-                if (currOrderId > maxOrderId) {
-                  maxOrderId = currOrderId;
-                }
-              }
-            }
-            orderId = parseInt(maxOrderId);
-          }
-        });
-      }
-    },
+    //         for (let x = 0; x < keysList.length; x++) {
+    //           if (
+    //             keysList[x].Col ==
+    //             jQuery(this)
+    //               .closest(".newIndexColumnList")
+    //               .find(".columnName")
+    //               .html()
+    //           ) {
+    //             keysList.splice(x, 1);
+    //           }
+    //         }
+    //         jQuery(this)
+    //           .closest(".newIndexColumnList")
+    //           .find(".orderId")
+    //           .css("visibility", "hidden");
+    //         for (let x = 0; x < columnsLength; x++) {
+    //           if (
+    //             jQuery("#indexColumnRow" + x)
+    //               .find("input")
+    //               .is(":checked")
+    //           ) {
+    //             lastColumnSelected = false;
+    //             let currOrderId = jQuery("#indexColumnRow" + x)
+    //               .find(".orderId")
+    //               .html();
+    //             jQuery(this)
+    //               .closest(".newIndexColumnList")
+    //               .find(".orderId")
+    //               .css("visibility", "hidden");
+    //             if (currOrderId > deletedOrderId) {
+    //               jQuery("#indexColumnRow" + x)
+    //                 .find(".orderId")
+    //                 .html(currOrderId - 1);
+    //               jQuery(this)
+    //                 .closest(".newIndexColumnList")
+    //                 .find(".orderId")
+    //                 .css("visibility", "none");
+    //             }
+    //           }
+    //         }
+    //         for (let x = 0; x < columnsLength; x++) {
+    //           if (
+    //             jQuery("#indexColumnRow" + x)
+    //               .find("input")
+    //               .is(":checked")
+    //           ) {
+    //             let currOrderId = jQuery("#indexColumnRow" + x)
+    //               .find(".orderId")
+    //               .html();
+    //             jQuery(this)
+    //               .closest(".newIndexColumnList")
+    //               .find(".orderId")
+    //               .css("visibility", "hidden");
+    //             if (currOrderId > maxOrderId) {
+    //               maxOrderId = currOrderId;
+    //             }
+    //           }
+    //         }
+    //         orderId = parseInt(maxOrderId);
+    //       }
+    //     });
+    //   }
+    // },
   };
 })();
 

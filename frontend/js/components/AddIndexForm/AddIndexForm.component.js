@@ -5,15 +5,16 @@ class AddIndexForm extends HTMLElement {
 
      connectedCallback() {
         this.render();
-        document.getElementById('createIndexButton').addEventListener('click' , () => {
-            Actions.createNewSecIndex()
-            // window.location.href = "#/schema-report";
-            // document.getElementById('app').innerHTML = `<hb-default-layout><hb-schema-conversion-screen></hb-schema-conversion-screen></<hb-default-layout>`
+        // document.getElementById('createIndexButton').addEventListener('click' , () => {
+        //     Actions.createNewSecIndex()
+        //     // window.location.href = "#/schema-report";
+        //     // document.getElementById('app').innerHTML = `<hb-default-layout><hb-schema-conversion-screen></hb-schema-conversion-screen></<hb-default-layout>`
 
-        } )
+        // } )
     }
 
     render() {
+       
         this.innerHTML = `
         <form id="createIndexForm">
         <div class="form-group sec-index-label">
@@ -24,7 +25,7 @@ class AddIndexForm extends HTMLElement {
                 style="border: 1px solid black !important;">
             <span class='form-error' id='indexNameError'></span>
         </div>
-        <div class="newIndexColumnList template">
+        <div class="newIndexColumnList">
             <span class="order-id" style="visibility: hidden;">1</span><span class="columnName"></span>
 
             <span class="bmd-form-group is-filled">
@@ -55,7 +56,8 @@ class AddIndexForm extends HTMLElement {
             </label>
         </div>
     </form>
-        `;}
+        `;
+    }
 
     constructor() {
         super();

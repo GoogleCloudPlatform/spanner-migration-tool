@@ -38,6 +38,12 @@ class Modal extends HTMLElement {
   render() {
     let { modalId, title, content, contentIcon, modalBodyClass, connectIconClass } = this;
     let modalButtons;
+    console.log(modalId.includes("createIndexModal"));
+    if(modalId.includes("createIndexModal"))
+    {
+      modalButtons = ADD_INDEX_MODAL;
+    }
+    else{
     switch (modalId) {
       case "connectToDbModal":
         modalButtons = CONNECT_TO_DB_MODAL_BUTTONS;
@@ -57,10 +63,8 @@ class Modal extends HTMLElement {
       case "globalDataTypeModal":
         modalButtons= EDIT_GLOBAL_DATATYPE_MODAL;
         break;
-      case "createIndexModal":
-        modalButtons= ADD_INDEX_MODAL;
-        break;
     }
+  }
     this.innerHTML = `
         <div class="modal" id="${modalId}" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
           <div class="modal-dialog modal-dialog-centered" role="document">
@@ -69,7 +73,9 @@ class Modal extends HTMLElement {
                 <h5 class="modal-title modal-bg">${title}</h5>
                 <i class="large material-icons close" data-dismiss="modal">cancel</i>
               </div>
+
               <div class="modal-body ${modalBodyClass}">
+              <h1>${modalId}</h1>
                 <div><i class="large material-icons ${connectIconClass}">${contentIcon}</i></div>
                 <div>${content.trim()}</div>
               </div>

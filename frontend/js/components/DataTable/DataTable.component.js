@@ -1,4 +1,6 @@
 import Actions from './../../services/Action.service.js';
+import "./../Modal/Modal.component.js"
+import "./../AddIndexForm/AddIndexForm.component.js"
 
 class DataTable extends HTMLElement {
     static get observedAttributes() {
@@ -106,6 +108,11 @@ class DataTable extends HTMLElement {
     
     secIndexComponent(secIndexId,secIndexArray) {
         return `
+        <hb-modal modalId="createIndexModal${secIndexId}" 
+    content="<hb-add-index-form></hb-add-index-form>" 
+    contentIcon="" connectIconClass="" modalBodyClass="" 
+    title="Select keys for new index"></hb-modal>
+
         <div class="indexesCard " style="border-radius: 0px !important">
                               <div class="foreignKeyHeader" role="tab">
                                   <h5 class="mb-0">
@@ -117,7 +124,7 @@ class DataTable extends HTMLElement {
                               <div class="collapse indexCollapse" id="secindex-${secIndexId}">
                                   <div class="mdc-card mdc-card-content summaryBorder" style="border: 0px">
                                       <div class="mdc-card fk-content">
-                                          <hb-site-button buttonid="indexButton${secIndexId}" classname="newIndexButton" buttonaction="createNewSecIndex" text="Add Index"></hb-site-button>
+                                          <hb-site-button buttonid="createIndexModal${secIndexId}" classname="newIndexButton" buttonaction="createNewSecIndex" text="Add Index"></hb-site-button>
 
                                           <table class="index-acc-table fkTable">
                                               <thead>
