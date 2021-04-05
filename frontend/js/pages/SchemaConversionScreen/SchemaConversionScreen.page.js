@@ -234,70 +234,14 @@ class SchemaConversionScreen extends HTMLElement {
             </div>
         </div>
     </div>
+
+
+    <hb-modal modalId="createIndexModal" 
+    content="<hb-add-index-form></hb-add-index-form>" 
+    contentIcon="" 
+    connectIconClass="" modalBodyClass="" title="Select keys for new index"></hb-modal>
     
-    <div class="modal" id="createIndexModal" role="dialog" tabindex="-1" aria-labelledby="exampleModalCenterTitle"
-        aria-hidden="true" data-backdrop="static" data-keyboard="false" style="z-index: 999999;">
-        <div class="modal-dialog modal-dialog-centered" role="document">
-            <!-- Modal content-->
-            <div class="modal-content">
-                <div class="modal-header content-center">
-                    <h5 class="modal-title modal-bg" id="exampleModalLongTitle">Select keys for new index</h5>
-                    <i class="large material-icons close" data-dismiss="modal" onclick="clearModal()">cancel</i>
-                </div>
-                <div class="modal-body" style='margin-bottom: 20px;'>
-    
-    
-                    <form id="createIndexForm">
-                        <div class="form-group secIndexLabel">
-                            <label for="indexName" class="bmd-label-floating" style="color: black; width: 452px;">Enter
-                                secondary index name</label>
-                            <input type="text" class="form-control" name="indexName" id="indexName" autocomplete="off"
-                                onfocusout="validateInput(document.getElementById('indexName'), 'indexNameError')"
-                                style="border: 1px solid black !important;">
-                            <span class='formError' id='indexNameError'></span>
-                        </div>
-                        <div class="newIndexColumnList template">
-                            <span class="orderId" style="visibility: hidden;">1</span><span class="columnName"></span>
-    
-                            <span class="bmd-form-group is-filled">
-                                <div class="checkbox" style="float: right;">
-                                    <label>
-                                        <input type="checkbox" value="">
-                                        <span class="checkbox-decorator"><span class="check"
-                                                style="border: 1px solid black;"></span>
-                                            <div class="ripple-container"></div>
-                                        </span>
-                                    </label>
-                                </div>
-    
-                            </span>
-                        </div>
-                        <div id="newIndexColumnListDiv" style="max-height: 200px; overflow-y: auto; overflow-x: hidden;"></div>
-                        <!-- <div style="display: inline-flex;">
-                            <div class="pmd-chip">Example Chip <a class="pmd-chip-action" href="javascript:void(0);">
-                                <i class="material-icons">close</i></a>
-                            </div>
-                        </div>
-                        <br> -->
-                        <div style="display: inline-flex;">
-                            <span style="margin-top: 18px; margin-right: 10px;">Unique</span>
-                            <label class="switch">
-                                <input id="uniqueSwitch" type="checkbox">
-                                <span class="slider round"></span>
-                            </label>
-                        </div>
-                    </form>
-    
-    
-                </div>
-                <div class="modal-footer">
-                    <input type="submit"
-                        onclick="fetchIndexFormValues(document.getElementById('indexName').value, document.getElementById('uniqueSwitch').checked)"
-                        id="createIndexButton" class="connectButton" value="Create" disabled>
-                </div>
-            </div>
-        </div>
-    </div>`;
+   `;
     initSchemaScreenTasks();
     // this.createSourceAndSpannerTables();
   }

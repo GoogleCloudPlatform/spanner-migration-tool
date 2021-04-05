@@ -49,6 +49,11 @@ class SiteButton extends HTMLElement {
                 case "editGlobalDataType":
                     Actions[this.buttonAction]()
                     break;
+
+                case "createNewSecIndex":
+                    Actions[this.buttonAction](this.buttonId)
+                    break;
+                
             }
             
        

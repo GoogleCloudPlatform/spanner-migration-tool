@@ -2,9 +2,8 @@ import Store from "./Store.service.js";
 import Fetch from "./Fetch.service.js";
 import {
   readTextFile,
-  createEditDataTypeTable,
   showSnackbar,
-  tabbingHelper
+  tabbingHelper,
 } from "./../helpers/SchemaConversionHelper.js";
 /**
  * All the manipulations to the store happen via the actions mentioned in this module
@@ -158,7 +157,7 @@ const Actions = (() => {
     },
     switchToTab: (id) => {
       let others = ["report", "ddl", "summary"];
-      others = others.filter((element)=>element!=id);
+      others = others.filter((element) => element != id);
       tabbingHelper(id, others);
     },
     SearchTable: (value, tabId) => {
@@ -224,118 +223,426 @@ const Actions = (() => {
         .click();
     },
     downloadDdl: async () => {
-      let ddlreport = await Fetch.getAppData('GET', '/report');
+      let ddlreport = await Fetch.getAppData("GET", "/report");
       if (ddlreport.ok) {
-          ddlreport.text().then(function (result) {
-              localStorage.setItem("schemaFilePath", result);
-            });
+        ddlreport.text().then(function (result) {
+          localStorage.setItem("schemaFilePath", result);
+        });
 
-            let schemaFilePath = localStorage.getItem("schemaFilePath");
-            let schemaFileName = schemaFilePath.split("/")[
-              schemaFilePath.split("/").length - 1
-            ];
-            let filePath = "./" + schemaFileName;
-            readTextFile(filePath, function (error, text) {
-              jQuery("<a />", {
-                download: schemaFileName,
-                href:
-                  "data:application/json;charset=utf-8," + encodeURIComponent(text),
-              })
-                .appendTo("body")
-                .click(function () {
-                  jQuery(this).remove();
-                })[0]
-                .click();
-            });
-          }  
+        let schemaFilePath = localStorage.getItem("schemaFilePath");
+        let schemaFileName = schemaFilePath.split("/")[
+          schemaFilePath.split("/").length - 1
+        ];
+        let filePath = "./" + schemaFileName;
+        readTextFile(filePath, function (error, text) {
+          jQuery("<a />", {
+            download: schemaFileName,
+            href:
+              "data:application/json;charset=utf-8," + encodeURIComponent(text),
+          })
+            .appendTo("body")
+            .click(function () {
+              jQuery(this).remove();
+            })[0]
+            .click();
+        });
+      }
     },
     downloadReport: async () => {
-           let summaryreport = await Fetch.getAppData('GET', '/report');
-           console.log(summaryreport);
-           if (summaryreport.ok) {
-                await summaryreport.text().then(function (result) {
-                localStorage.setItem('reportFilePath', result);
-              });
-              let reportFilePath = localStorage.getItem('reportFilePath');
-              let reportFileName = reportFilePath.split('/')[reportFilePath.split('/').length - 1];
-              let filePath = './' + reportFileName;
-              readTextFile(filePath, function (error, text) {
-                  jQuery("<a />", {
-                      "download": reportFileName,
-                      "href": "data:application/json;charset=utf-8," + encodeURIComponent(text),
-                  }).appendTo("body")
-                      .click(function () {
-                          jQuery(this).remove()
-                      })[0].click();
-              })
-           }    
+      let summaryreport = await Fetch.getAppData("GET", "/report");
+      console.log(summaryreport);
+      if (summaryreport.ok) {
+        await summaryreport.text().then(function (result) {
+          localStorage.setItem("reportFilePath", result);
+        });
+        let reportFilePath = localStorage.getItem("reportFilePath");
+        let reportFileName = reportFilePath.split("/")[
+          reportFilePath.split("/").length - 1
+        ];
+        let filePath = "./" + reportFileName;
+        readTextFile(filePath, function (error, text) {
+          jQuery("<a />", {
+            download: reportFileName,
+            href:
+              "data:application/json;charset=utf-8," + encodeURIComponent(text),
+          })
+            .appendTo("body")
+            .click(function () {
+              jQuery(this).remove();
+            })[0]
+            .click();
+        });
+      }
+    },
+    editGlobalDataType: () => {
+      jQuery("#globalDataTypeModal").modal();
+    },
+    checkInterleaveConversion: async (tableName) => {
+      let interleaveApiCall;
+      interleaveApiCall = await Fetch.getAppData(
+        "GET",
+        "/setparent?table=" + tableName
+      );
+      return interleaveApiCall.json();
+    },
+    setGlobalDataType: async function () {
+      let globalDataTypeList = JSON.parse(
+        localStorage.getItem("globalDataTypeList")
+      );
+      let dataTypeListLength = Object.keys(globalDataTypeList).length;
+      let dataTypeJson = {};
+      for (var i = 0; i <= dataTypeListLength; i++) {
+        var row = document.getElementById("dataTypeRow" + i);
+        if (row) {
+          var cells = row.getElementsByTagName("td");
+          if (document.getElementById("dataTypeOption" + i) != null) {
+            for (var j = 0; j < cells.length; j++) {
+              if (j === 0) {
+                var key = cells[j].innerText;
+              } else {
+                dataTypeJson[key] = document.getElementById(
+                  "dataTypeOption" + i
+                ).value;
+              }
+            }
+          }
+        }
+      }
+      await fetch("/typemap/global", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
         },
-        editGlobalDataType: () => {  
-            createEditDataTypeTable();
-            jQuery('#globalDataTypeModal').modal();
+        body: JSON.stringify(dataTypeJson),
+      }).then(async (res) => {
+        console.log(res);
+        res = await res.text();
+        localStorage.setItem("conversionReportContent", res);
+      });
+    },
+    getGlobalDataTypeList: async () => {
+
+      let res = await Fetch.getAppData("GET", "/typemap");
+     await res.json().then(function (result) {
+        localStorage.setItem(
+          "globalDataTypeList",
+          JSON.stringify(result)
+        );
+      });
+    },
+    dataTypeUpdate: (id, globalDataTypeList) => {
+      let selectedValue = document.getElementById(id).value;
+      let idNum = parseInt(id.match(/\d+/), 10);
+      let dataTypeOptionArray =
+        globalDataTypeList[
+          document.getElementById("dataTypeKey" + idNum).innerHTML
+        ];
+      console.log(dataTypeOptionArray);
+      for (let i = 0; i < dataTypeOptionArray.length; i++) {
+        if (dataTypeOptionArray[i].T === selectedValue) {
+          if (dataTypeOptionArray[i].Brief !== "") {
+            document.getElementById(`warning${idNum}`).style.display = "";
+          } else {
+            document.getElementById(`warning${idNum}`).style.display = "none";
+          }
+        }
+      }
+    },
+
+    fetchIndexFormValues: async (name, uniqueness) => {
+      if (keysList.length == 0) {
+        showSnackbar(
+          "Please select atleast one key to create a new index",
+          " red-bg"
+        );
+        return;
+      }
+      let newIndex = {},
+        newIndexPos;
+      let jsonObj = JSON.parse(localStorage.getItem("conversionReportContent"));
+      let table = jsonObj.SpSchema[srcTableName[tableNumber]];
+      newIndex["Name"] = name;
+      newIndex["Table"] = table.Name;
+      if (uniqueness) {
+        newIndex["Unique"] = true;
+      } else {
+        newIndex["Unique"] = false;
+      }
+      newIndex["Keys"] = keysList;
+      if (table.Indexes != null && table.Indexes.length > 0) {
+        newIndexPos = table.Indexes.length;
+        for (let x = 0; x < table.Indexes.length; x++) {
+          if (
+            JSON.stringify(table.Indexes[x].Keys) === JSON.stringify(keysList)
+          ) {
+            showSnackbar(
+              "Index with selected key(s) already exists.\n Please use different key(s)",
+              " red-bg"
+            );
+            return;
+          } else if (newIndex["Name"] === table.Indexes[x].Name) {
+            showSnackbar(
+              "Index with name: " +
+                newIndex["Name"] +
+                " already exists.\n Please try with a different name",
+              " red-bg"
+            );
+            return;
+          }
+        }
+      } else {
+        newIndexPos = 0;
+      }
+
+      await fetch("/add/indexes?table=" + table.Name, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
         },
-        checkInterleaveConversion: async (tableName) => {
-            let interleaveApiCall;
-            interleaveApiCall = await Fetch.getAppData('GET', '/setparent?table='+tableName);
-            return interleaveApiCall.json();
-          },
-          setGlobalDataType: async function(){
-            let globalDataTypeList = JSON.parse(localStorage.getItem('globalDataTypeList'));
-            let dataTypeListLength = Object.keys(globalDataTypeList).length;
-            let dataTypeJson = {};
-            for (var i = 0; i <= dataTypeListLength; i++) {
-              var row = document.getElementById('dataTypeRow' + i);
-              if (row) {
-                var cells = row.getElementsByTagName('td');
-                if (document.getElementById('dataTypeOption' + i) != null) {
-                  for (var j = 0; j < cells.length; j++) {
-                    if (j === 0) {
-                      var key = cells[j].innerText;
-                    }
-                    else {
-                      dataTypeJson[key] = document.getElementById('dataTypeOption' + i).value;
-                    }
-                  }
+        body: JSON.stringify([newIndex]),
+      }).then(async function (res) {
+        if (res.ok) {
+          clearModal();
+          jQuery("#createIndexModal").modal("hide");
+          res = await res.text();
+          localStorage.setItem("conversionReportContent", res);
+          let jsonObj = JSON.parse(
+            localStorage.getItem("conversionReportContent")
+          );
+          let table = jsonObj.SpSchema[srcTableName[tableNumber]];
+          let indexKeys;
+          jQuery("#" + tableNumber)
+            .find(".index-acc-table.fk-table")
+            .css("visibility", "visible");
+          jQuery("#" + tableNumber)
+            .find(".index-acc-table.fk-table")
+            .addClass("important-rule-100");
+          jQuery("#" + tableNumber)
+            .find(".index-acc-table.fk-table")
+            .removeClass("important-rule-0");
+          $indexTableContent = jQuery(".indexTableTr.template")
+            .clone()
+            .removeClass("template");
+          $indexTableContent
+            .find(".renameSecIndex.template")
+            .attr("id", "renameSecIndex" + tableNumber + newIndexPos);
+          $indexTableContent
+            .find(".saveSecIndex.template")
+            .attr("id", "saveSecIndex" + tableNumber + newIndexPos);
+          if (
+            document
+              .getElementById("editSpanner" + tableNumber)
+              .innerHTML.trim() == "Save Changes"
+          ) {
+            $indexTableContent
+              .find(".renameSecIndex.template")
+              .removeClass("template")
+              .find("input")
+              .val(table.Indexes[newIndexPos].Name)
+              .attr("id", "newSecIndexVal" + tableNumber + newIndexPos);
+            $indexTableContent.find("button").removeAttr("disabled");
+          } else {
+            $indexTableContent
+              .find(".saveSecIndex.template")
+              .removeClass("template")
+              .html(table.Indexes[newIndexPos].Name);
+          }
+          $indexTableContent
+            .find(".acc-table-td.indexesTable")
+            .html(table.Indexes[newIndexPos].Table);
+          $indexTableContent
+            .find(".acc-table-td.indexesUnique")
+            .html(table.Indexes[newIndexPos].Unique.toString());
+          indexKeys = "";
+          for (var k = 0; k < table.Indexes[newIndexPos].Keys.length; k++) {
+            indexKeys += table.Indexes[newIndexPos].Keys[k].Col + ", ";
+          }
+          indexKeys = indexKeys.replace(/,\s*$/, "");
+          $indexTableContent.find(".acc-table-td.indexesKeys").html(indexKeys);
+          $indexTableContent
+            .find("button")
+            .attr("id", table.Name + newIndexPos + "secIndex");
+          $indexTableContent
+            .find("#" + table.Name + newIndexPos + "secIndex")
+            .click(function () {
+              let indexId = jQuery(this).attr("id");
+              let secIndexTableNumber = parseInt(
+                jQuery(this)
+                  .closest(".index-collapse.collapse")
+                  .attr("id")
+                  .match(/\d+/),
+                10
+              );
+              localStorage.setItem("indexId", indexId);
+              localStorage.setItem("secIndexTableNumber", secIndexTableNumber);
+              jQuery("#secIndexDeleteWarning").modal();
+            });
+          $indexTableContent.appendTo(
+            jQuery("#" + tableNumber).find(".indexTableBody")
+          );
+        } else {
+          res = await res.text();
+          showSnackbar(res, " red-bg");
+        }
+      });
+    },
+    createNewSecIndex: function (id) {
+      let tableNumber = parseInt(id.match(/\d+/), 10);
+      let jsonObj = JSON.parse(localStorage.getItem("conversionReportContent"));
+      console.log(jsonObj);
+      let srcTableName = Object.keys(jsonObj.SrcSchema);
+
+      // if (document.getElementById("editSpanner" + tableNumber).innerHTML.trim() == "Save Changes") {
+      if (true) {
+        let tableId = "#src-sp-table" + tableNumber + " tr";
+        let pendingChanges = false;
+        jQuery(tableId).each(function (index) {
+          if (index > 1) {
+            // let tableName = srcTableName[tableNumber];
+            let newColumnName;
+            let tableColumnNumber = parseInt(
+              jQuery(this).find(".srcColumn").attr("id").match(/\d+/),
+              10
+            );
+            let srcColumnName = jQuery(this).find(".srcColumn").html().trim();
+            let newColumnNameEle = document.getElementById(
+              "columnNameText" +
+                tableNumber +
+                tableColumnNumber +
+                tableColumnNumber
+            );
+            if (newColumnNameEle) {
+              newColumnName = newColumnNameEle.value;
+            }
+            let originalColumnName =
+              jsonObj.ToSpanner[srcTableName[tableNumber]].Cols[srcColumnName];
+            if (
+              newColumnName !== originalColumnName ||
+              !jQuery(this).find("input[type=checkbox]").is(":checked")
+            ) {
+              jQuery("#editTableWarningModal").modal();
+              jQuery("#errorContent").html("");
+              jQuery("#errorContent").append(
+                "There are pending changes to this table, please save the same before creating the index"
+              );
+              pendingChanges = true;
+            }
+          }
+        });
+        if (pendingChanges) {
+          return;
+        }
+      }
+      jQuery("#createIndexModal").modal();
+      let keysList = [];
+      let orderId = 0;
+      let table = jsonObj.SpSchema[srcTableName[tableNumber]];
+      let columnsLength = Object.keys(jsonObj.ToSpanner[table.Name].Cols)
+        .length;
+      jQuery("#newIndexColumnListDiv").html("");
+      for (let k = 0; k < columnsLength; k++) {
+        let newIndexColumnRow = jQuery(".newIndexColumnList.template")
+          .clone()
+          .removeClass("template");
+        newIndexColumnRow.find(".columnName").html(table.ColNames[k]);
+        newIndexColumnRow.attr("id", "indexColumnRow" + k);
+        newIndexColumnRow.appendTo(jQuery("#newIndexColumnListDiv"));
+        newIndexColumnRow.find("input").click(function () {
+          if (jQuery(this).is(":checked")) {
+            orderId = orderId + 1;
+            jQuery(this)
+              .closest(".newIndexColumnList")
+              .find(".orderId")
+              .html(orderId);
+            jQuery(this)
+              .closest(".newIndexColumnList")
+              .find(".orderId")
+              .css("visibility", "visible");
+            keysList.push({
+              Col: jQuery(this)
+                .closest(".newIndexColumnList")
+                .find(".columnName")
+                .html(),
+              Desc: false,
+            });
+          } else {
+            let deletedOrderId = jQuery(this)
+              .closest(".newIndexColumnList")
+              .find(".orderId")
+              .html();
+            jQuery(this)
+              .closest(".newIndexColumnList")
+              .find(".orderId")
+              .css("visibility", "hidden");
+            let lastColumnSelected = true;
+            let maxOrderId = 0;
+
+            for (let x = 0; x < keysList.length; x++) {
+              if (
+                keysList[x].Col ==
+                jQuery(this)
+                  .closest(".newIndexColumnList")
+                  .find(".columnName")
+                  .html()
+              ) {
+                keysList.splice(x, 1);
+              }
+            }
+            jQuery(this)
+              .closest(".newIndexColumnList")
+              .find(".orderId")
+              .css("visibility", "hidden");
+            for (let x = 0; x < columnsLength; x++) {
+              if (
+                jQuery("#indexColumnRow" + x)
+                  .find("input")
+                  .is(":checked")
+              ) {
+                lastColumnSelected = false;
+                let currOrderId = jQuery("#indexColumnRow" + x)
+                  .find(".orderId")
+                  .html();
+                jQuery(this)
+                  .closest(".newIndexColumnList")
+                  .find(".orderId")
+                  .css("visibility", "hidden");
+                if (currOrderId > deletedOrderId) {
+                  jQuery("#indexColumnRow" + x)
+                    .find(".orderId")
+                    .html(currOrderId - 1);
+                  jQuery(this)
+                    .closest(".newIndexColumnList")
+                    .find(".orderId")
+                    .css("visibility", "none");
                 }
               }
             }
-            await fetch('/typemap/global', {
-              method: 'POST',
-              headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify(dataTypeJson)
-            })
-              .then(async (res)=> {
-                console.log(res);
-                res = await res.text();
-                localStorage.setItem('conversionReportContent', res);
-               
-              })
-            },
-          getGlobalDataTypeList: async () => {
-             await fetch('/typemap', {
-                method: 'GET',
-                headers: {
-                  'Accept': 'application/json',
-                  'Content-Type': 'application/json'
+            for (let x = 0; x < columnsLength; x++) {
+              if (
+                jQuery("#indexColumnRow" + x)
+                  .find("input")
+                  .is(":checked")
+              ) {
+                let currOrderId = jQuery("#indexColumnRow" + x)
+                  .find(".orderId")
+                  .html();
+                jQuery(this)
+                  .closest(".newIndexColumnList")
+                  .find(".orderId")
+                  .css("visibility", "hidden");
+                if (currOrderId > maxOrderId) {
+                  maxOrderId = currOrderId;
                 }
-              })
-                .then(function (res) {
-                  if (res.ok) {
-                    res.json().then(function (result) {
-                      localStorage.setItem('globalDataTypeList', JSON.stringify(result));
-                    });
-                  }
-                  else {
-                    return Promise.reject(res);
-                  }
-                }).catch(function (err) {
-                  showSnackbar(err, ' redBg');
-                });
+              }
             }
+            orderId = parseInt(maxOrderId);
           }
+        });
+      }
+    },
+  };
 })();
 
 export default Actions;

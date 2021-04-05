@@ -8,6 +8,7 @@ const LOAD_SESSION_MODAL_BUTTONS = [{ value: "Confirm", id: "import-button", dis
 const CONNECTION_SUCCESS_MODAL = [{ value: "Convert", id: "convert-button", disabledProp: "" }];
 const CONNECTION_FAILURE_MODAL = [{ value: "Ok", id: "connection-failure-button", disabledProp: "" }];
 const EDIT_GLOBAL_DATATYPE_MODAL= [{ value: "Next", id: "data-type-button", disabledProp: "" }];
+const ADD_INDEX_MODAL= [{ value: "CREATE", id: "createIndexButton", disabledProp: "" }];
 
 class Modal extends HTMLElement {
 
@@ -55,6 +56,9 @@ class Modal extends HTMLElement {
         break;
       case "globalDataTypeModal":
         modalButtons= EDIT_GLOBAL_DATATYPE_MODAL;
+        break;
+      case "createIndexModal":
+        modalButtons= ADD_INDEX_MODAL;
         break;
     }
     this.innerHTML = `

@@ -117,7 +117,8 @@ class DataTable extends HTMLElement {
                               <div class="collapse indexCollapse" id="secindex-${secIndexId}">
                                   <div class="mdc-card mdc-card-content summaryBorder" style="border: 0px">
                                       <div class="mdc-card fk-content">
-                                          <button class="newIndexButton" onclick="createNewSecIndex(this.id)">Add Index</button>
+                                          <hb-site-button buttonid="indexButton${secIndexId}" classname="newIndexButton" buttonaction="createNewSecIndex" text="Add Index"></hb-site-button>
+
                                           <table class="index-acc-table fkTable">
                                               <thead>
                                                   <tr>
