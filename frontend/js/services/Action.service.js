@@ -9,6 +9,10 @@ import {
  * All the manipulations to the store happen via the actions mentioned in this module
  *
  */
+
+var keysList = [];
+var orderId = 0;
+
 const Actions = (() => {
   return {
     trial: () => {
@@ -490,7 +494,9 @@ const Actions = (() => {
     },
     createNewSecIndex :(id)=>{
       jQuery("#"+id).modal();
-    }
+      keysList = [];
+      orderId = 0;
+    },
     // createNewSecIndex: function (id) {
     //   let tableNumber = parseInt(id.match(/\d+/), 10);
     //   let jsonObj = JSON.parse(localStorage.getItem("conversionReportContent"));

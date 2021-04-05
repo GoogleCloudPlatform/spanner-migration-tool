@@ -107,9 +107,10 @@ class DataTable extends HTMLElement {
     }
     
     secIndexComponent(secIndexId,secIndexArray) {
+
         return `
         <hb-modal modalId="createIndexModal${secIndexId}" 
-    content="<hb-add-index-form></hb-add-index-form>" 
+    content="<hb-add-index-form tableName='${this.tableName}'></hb-add-index-form>" 
     contentIcon="" connectIconClass="" modalBodyClass="" 
     title="Select keys for new index"></hb-modal>
 

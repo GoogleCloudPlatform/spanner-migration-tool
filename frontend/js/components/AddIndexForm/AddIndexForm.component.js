@@ -3,6 +3,10 @@ import Actions from "../../services/Action.service.js";
 
 class AddIndexForm extends HTMLElement {
 
+    get tableName(){
+        return this.getAttribute('tableName')
+    }
+
      connectedCallback() {
         this.render();
         // document.getElementById('createIndexButton').addEventListener('click' , () => {
@@ -14,7 +18,7 @@ class AddIndexForm extends HTMLElement {
     }
 
     render() {
-       
+        const {SrcSchema} = JSON.parse(localStorage.getItem('conversionReportContent'));
         this.innerHTML = `
         <form id="createIndexForm">
         <div class="form-group sec-index-label">
@@ -25,7 +29,7 @@ class AddIndexForm extends HTMLElement {
                 style="border: 1px solid black !important;">
             <span class='form-error' id='indexNameError'></span>
         </div>
-        <div class="newIndexColumnList">
+        <div class="newIndexColumnList template">
             <span class="order-id" style="visibility: hidden;">1</span><span class="columnName"></span>
 
             <span class="bmd-form-group is-filled">
@@ -41,13 +45,25 @@ class AddIndexForm extends HTMLElement {
 
             </span>
         </div>
-        <div id="newIndexColumnListDiv" style="max-height: 200px; overflow-y: auto; overflow-x: hidden;"></div>
-        <!-- <div style="display: inline-flex;">
-            <div class="pmd-chip">Example Chip <a class="pmd-chip-action" href="javascript:void(0);">
-                <i class="material-icons">close</i></a>
-            </div>
-        </div>
-        <br> -->
+        <div id="newIndexColumnListDiv" style="max-height: 200px; overflow-y: auto; overflow-x: hidden;">
+              ${ SrcSchema[this.tableName].ColNames.map((row,idx )=>{
+                  return `
+                  <div class="newIndexColumnList" id="indexColumnRow${idx}">
+                    <span class="order-id">1</span> <span class="columnName">${row}</span>
+                    <span class="bmd-form-group is-filled">
+                        <div class="checkbox" style="float: right;">
+                            <label>
+                                <input type="checkbox" value="" >
+                                <span class="checkbox-decorator"><span class="check" style="border: 1px solid black;"></span>
+                                    <div class="ripple-container"></div>
+                                </span>
+                            </label>
+                        </div>
+                    </span>
+                </div>
+                  `
+              }).join("")}  
+    </div>
         <div style="display: inline-flex;">
             <span style="margin-top: 18px; margin-right: 10px;">Unique</span>
             <label class="switch">
