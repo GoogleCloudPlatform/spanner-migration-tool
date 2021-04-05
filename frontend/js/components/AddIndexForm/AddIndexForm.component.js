@@ -8,13 +8,22 @@ class AddIndexForm extends HTMLElement {
     }
 
      connectedCallback() {
+        const {SrcSchema} = JSON.parse(localStorage.getItem('conversionReportContent'));
         this.render();
-        // document.getElementById('createIndexButton').addEventListener('click' , () => {
-        //     Actions.createNewSecIndex()
-        //     // window.location.href = "#/schema-report";
-        //     // document.getElementById('app').innerHTML = `<hb-default-layout><hb-schema-conversion-screen></hb-schema-conversion-screen></<hb-default-layout>`
 
-        // } )
+        document.getElementById("indexName").addEventListener("focusout",()=>{
+            Forms.validateInput(document.getElementById("indexName" ),'indexNameError');
+        })
+        
+
+        SrcSchema[this.tableName].ColNames.map((row,idx )=>{
+            
+            document.getElementById('checkbox-'+row+"-"+idx).addEventListener('click',()=>{
+                Actions.changeCheckBox(row ,idx)
+            })
+        })
+
+
     }
 
     render() {
@@ -25,35 +34,20 @@ class AddIndexForm extends HTMLElement {
             <label for="indexName" class="bmd-label-floating" style="color: black; width: 452px;">Enter
                 secondary index name</label>
             <input type="text" class="form-control" name="indexName" id="indexName" autocomplete="off"
-                onfocusout="validateInput(document.getElementById('indexName'), 'indexNameError')"
                 style="border: 1px solid black !important;">
             <span class='form-error' id='indexNameError'></span>
         </div>
-        <div class="newIndexColumnList template">
-            <span class="order-id" style="visibility: hidden;">1</span><span class="columnName"></span>
-
-            <span class="bmd-form-group is-filled">
-                <div class="checkbox" style="float: right;">
-                    <label>
-                        <input type="checkbox" value="">
-                        <span class="checkbox-decorator"><span class="check"
-                                style="border: 1px solid black;"></span>
-                            <div class="ripple-container"></div>
-                        </span>
-                    </label>
-                </div>
-
-            </span>
-        </div>
+        
         <div id="newIndexColumnListDiv" style="max-height: 200px; overflow-y: auto; overflow-x: hidden;">
               ${ SrcSchema[this.tableName].ColNames.map((row,idx )=>{
                   return `
                   <div class="newIndexColumnList" id="indexColumnRow${idx}">
-                    <span class="order-id" style="visibility: hidden;">1</span><span class="columnName">${row}</span>
+                    <span class="orderId"style="visibility: hidden;" id="order${row}${idx}">1</span>
+                    <span class="columnName">${row}</span>
                     <span class="bmd-form-group is-filled">
                         <div class="checkbox" style="float: right;">
                             <label>
-                                <input type="checkbox" value="">
+                                <input type="checkbox" value="" id="checkbox-${row}-${idx}">
                                 <span class="checkbox-decorator"><span class="check" style="border: 1px solid black;"></span>
                                     <div class="ripple-container"></div>
                                 </span>
@@ -81,3 +75,4 @@ class AddIndexForm extends HTMLElement {
 }
 
 window.customElements.define('hb-add-index-form', AddIndexForm);
+

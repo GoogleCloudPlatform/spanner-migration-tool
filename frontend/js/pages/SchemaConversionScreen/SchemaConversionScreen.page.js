@@ -234,6 +234,10 @@ class SchemaConversionScreen extends HTMLElement {
             </div>
         </div>
     </div>
+    <hb-modal modalId="createIndexModal" 
+    content=""
+    contentIcon="" connectIconClass="" modalBodyClass="" 
+    title="Select keys for new index"></hb-modal>
 `;
     initSchemaScreenTasks();
     // this.createSourceAndSpannerTables();

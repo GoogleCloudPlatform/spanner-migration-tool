@@ -32,10 +32,10 @@ class HistoryTable extends HTMLElement {
                       sessionName = sessionName[sessionName.length - 1];
                       http.open('HEAD', './' + sessionName, false);
                       http.send();
-                      if (http.status !== 200) {
-                        sessionArray.splice(x, 1);
-                        sessionStorage.setItem('sessionStorage', JSON.stringify(sessionArray));
-                      }
+                      // if (http.status !== 200) {
+                      //   sessionArray.splice(x, 1);
+                      //   sessionStorage.setItem('sessionStorage', JSON.stringify(sessionArray));
+                      // }
                       sessionDate = [timestampArray[0], timestampArray[1], timestampArray[2], timestampArray[3]].join(' ');
                       sessionTime = [timestampArray[4], timestampArray[5]].join(' ');
                       return `

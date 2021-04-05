@@ -6,6 +6,7 @@ const RED = '#F44336';
 const Forms = (() => {
     return {
         validateInput: (inputField, errorId) => {
+           console.log(inputField, errorId);
             let field = inputField;
             if (field.value.trim() === '') {
                 document.getElementById(errorId).innerHTML = `Required`;
