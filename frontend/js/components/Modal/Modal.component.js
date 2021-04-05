@@ -31,6 +31,16 @@ class Modal extends HTMLElement {
     return this.getAttribute('connectIconClass');
   }
 
+  static get observedAttributes() {
+    return ['content'];
+  }
+
+  attributeChangedCallback(attrName, oldVal, newVal) {
+    if (oldVal !== newVal) {
+        this.render();
+    }
+  }
+
   connectedCallback() {
     this.render();
   }
