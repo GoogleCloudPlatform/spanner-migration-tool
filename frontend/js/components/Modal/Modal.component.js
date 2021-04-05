@@ -75,7 +75,6 @@ class Modal extends HTMLElement {
               </div>
 
               <div class="modal-body ${modalBodyClass}">
-              <h1>${modalId}</h1>
                 <div><i class="large material-icons ${connectIconClass}">${contentIcon}</i></div>
                 <div>${content.trim()}</div>
               </div>
