@@ -707,7 +707,7 @@ func TestProcessPgDump_GetDDL(t *testing.T) {
 	// normalizeSpace isn't perfect, but it handles most of the
 	// usual discretionary space issues.
 	c := ddl.Config{Tables: true}
-	assert.Equal(t, normalizeSpace(expected), normalizeSpace(strings.Join(conv.GetDDL(c), " ")))
+	assert.Equal(t, normalizeSpace(expected), normalizeSpace(strings.Join(conv.SpSchema.GetDDL(c), " ")))
 }
 
 func TestProcessPgDump_Rows(t *testing.T) {

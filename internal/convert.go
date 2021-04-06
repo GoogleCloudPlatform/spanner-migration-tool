@@ -16,7 +16,6 @@ package internal
 
 import (
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
@@ -26,7 +25,7 @@ import (
 // Conv contains all schema and data conversion state.
 type Conv struct {
 	mode           mode                                // Schema mode or data mode.
-	SpSchema       map[string]ddl.CreateTable          // Maps Spanner table name to Spanner schema.
+	SpSchema       ddl.Schema                          // Maps Spanner table name to Spanner schema.
 	SyntheticPKeys map[string]SyntheticPKey            // Maps Spanner table name to synthetic primary key (if needed).
 	SrcSchema      map[string]schema.Table             // Maps source-DB table name to schema information.
 	Issues         map[string]map[string][]SchemaIssue // Maps source-DB table/col to list of schema conversion issues.
@@ -122,7 +121,7 @@ type statementStat struct {
 // MakeConv returns a default-configured Conv.
 func MakeConv() *Conv {
 	return &Conv{
-		SpSchema:       make(map[string]ddl.CreateTable),
+		SpSchema:       ddl.NewSchema(),
 		SyntheticPKeys: make(map[string]SyntheticPKey),
 		SrcSchema:      make(map[string]schema.Table),
 		Issues:         make(map[string]map[string][]SchemaIssue),
@@ -166,61 +165,6 @@ func (conv *Conv) SetSchemaMode() {
 // but we don't modify the schema.
 func (conv *Conv) SetDataMode() {
 	conv.mode = dataOnly
-}
-
-// GetDDL Schema returns the Spanner schema that has been constructed so far.
-// We return DDL in alphabetical order with one exception: interleaved tables are
-// potentially out of order since they must appear after the definition of their
-// parent table.
-// TODO: Move GetDDL function to ddl/ast.go.
-func (conv *Conv) GetDDL(c ddl.Config) []string {
-	var tables []string
-	for t := range conv.SpSchema {
-		tables = append(tables, t)
-	}
-	sort.Strings(tables)
-	var ddl []string
-	if c.Tables {
-		tableQueue := tables
-		printed := make(map[string]bool)
-		for len(tableQueue) > 0 {
-			t := tableQueue[0]
-			tableQueue = tableQueue[1:]
-			_, found := printed[conv.SpSchema[t].Parent]
-			// Print table t if either:
-			// a) t is not interleaved in another table, or
-			// b) t is interleaved in another table and that table has already been printed.
-			if conv.SpSchema[t].Parent == "" || found {
-				ddl = append(ddl, conv.SpSchema[t].PrintCreateTable(c))
-				for _, index := range conv.SpSchema[t].Indexes {
-					ddl = append(ddl, index.PrintCreateIndex(c))
-				}
-				printed[t] = true
-			} else {
-				// We can't print table t now because its parent hasn't been printed.
-				// Add it at end of tables and we'll try again later.
-				// We might need multiple iterations to print chains of interleaved tables,
-				// but we will always make progress because interleaved tables can't
-				// have cycles. In principle this could be O(n^2), but in practice chains
-				// of interleaved tables are small.
-				tableQueue = append(tableQueue, t)
-			}
-		}
-	}
-	// Append foreign key constraints to DDL.
-	// We always use alter table statements for foreign key constraints.
-	// The alternative of putting foreign key constraints in-line as part of create
-	// table statements is tricky because of table order (need to define tables
-	// before they are referenced by foreign key constraints) and the possibility
-	// of circular foreign keys definitions. We opt for simplicity.
-	if c.ForeignKeys {
-		for _, t := range tables {
-			for _, fk := range conv.SpSchema[t].Fks {
-				ddl = append(ddl, fk.PrintForeignKeyAlterTable(c, t))
-			}
-		}
-	}
-	return ddl
 }
 
 // WriteRow calls dataSink and updates row stats.
@@ -312,7 +256,7 @@ func (conv *Conv) AddPrimaryKeys() {
 			k := conv.buildPrimaryKey(t)
 			ct.ColNames = append(ct.ColNames, k)
 			ct.ColDefs[k] = ddl.ColumnDef{Name: k, T: ddl.Type{Name: ddl.Int64}}
-			ct.Pks = []ddl.IndexKey{ddl.IndexKey{Col: k}}
+			ct.Pks = []ddl.IndexKey{{Col: k}}
 			conv.SpSchema[t] = ct
 			conv.SyntheticPKeys[t] = SyntheticPKey{k, 0}
 		}
