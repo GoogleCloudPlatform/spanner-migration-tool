@@ -42,8 +42,8 @@
     "last_update": {
      "Name": "last_update",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "TIMESTAMP",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": true,
@@ -65,6 +65,55 @@
      "Keys": [
       {
        "Col": "last_name",
+       "Desc": false
+      }
+     ]
+    },
+    {
+     "Name": "ss",
+     "Table": "actor",
+     "Unique": false,
+     "Keys": [
+      {
+       "Col": "first_name",
+       "Desc": false
+      }
+     ]
+    },
+    {
+     "Name": "saas",
+     "Table": "actor",
+     "Unique": false,
+     "Keys": [
+      {
+       "Col": "last_update",
+       "Desc": false
+      },
+      {
+       "Col": "first_name",
+       "Desc": false
+      },
+      {
+       "Col": "actor_id",
+       "Desc": false
+      }
+     ]
+    },
+    {
+     "Name": "",
+     "Table": "actor",
+     "Unique": false,
+     "Keys": [
+      {
+       "Col": "first_name",
+       "Desc": false
+      },
+      {
+       "Col": "last_name",
+       "Desc": false
+      },
+      {
+       "Col": "actor_id",
        "Desc": false
       }
      ]
@@ -140,8 +189,8 @@
     "last_update": {
      "Name": "last_update",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "TIMESTAMP",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": true,
@@ -150,7 +199,7 @@
     "location": {
      "Name": "location",
      "T": {
-      "Name": "BYTES",
+      "Name": "STRING",
       "Len": 9223372036854775807,
       "IsArray": false
      },
@@ -244,8 +293,8 @@
     "last_update": {
      "Name": "last_update",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "TIMESTAMP",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": true,
@@ -315,8 +364,8 @@
     "last_update": {
      "Name": "last_update",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "TIMESTAMP",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": true,
@@ -388,8 +437,8 @@
     "last_update": {
      "Name": "last_update",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "TIMESTAMP",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": true,
@@ -424,7 +473,7 @@
     "active": {
      "Name": "active",
      "T": {
-      "Name": "INT64",
+      "Name": "BOOL",
       "Len": 0,
       "IsArray": false
      },
@@ -444,8 +493,8 @@
     "create_date": {
      "Name": "create_date",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "TIMESTAMP",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": true,
@@ -494,8 +543,8 @@
     "last_update": {
      "Name": "last_update",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "TIMESTAMP",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": false,
@@ -542,7 +591,7 @@
    ],
    "Indexes": [
     {
-     "Name": "idx_fk_store_id_44",
+     "Name": "idx_fk_store_id",
      "Table": "customer",
      "Unique": false,
      "Keys": [
@@ -553,7 +602,7 @@
      ]
     },
     {
-     "Name": "idx_fk_address_id_45",
+     "Name": "idx_fk_address_id_24",
      "Table": "customer",
      "Unique": false,
      "Keys": [
@@ -599,7 +648,7 @@
     "description": {
      "Name": "description",
      "T": {
-      "Name": "BYTES",
+      "Name": "STRING",
       "Len": 9223372036854775807,
       "IsArray": false
      },
@@ -629,8 +678,8 @@
     "last_update": {
      "Name": "last_update",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "TIMESTAMP",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": true,
@@ -689,8 +738,8 @@
     "rental_rate": {
      "Name": "rental_rate",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "NUMERIC",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": true,
@@ -699,8 +748,8 @@
     "replacement_cost": {
      "Name": "replacement_cost",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "NUMERIC",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": true,
@@ -824,8 +873,8 @@
     "last_update": {
      "Name": "last_update",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "TIMESTAMP",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": true,
@@ -866,7 +915,7 @@
    ],
    "Indexes": [
     {
-     "Name": "idx_fk_film_id_49",
+     "Name": "idx_fk_film_id",
      "Table": "film_actor",
      "Unique": false,
      "Keys": [
@@ -911,8 +960,8 @@
     "last_update": {
      "Name": "last_update",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "TIMESTAMP",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": true,
@@ -966,7 +1015,7 @@
     "description": {
      "Name": "description",
      "T": {
-      "Name": "BYTES",
+      "Name": "STRING",
       "Len": 9223372036854775807,
       "IsArray": false
      },
@@ -1037,8 +1086,8 @@
     "last_update": {
      "Name": "last_update",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "TIMESTAMP",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": true,
@@ -1085,7 +1134,7 @@
    ],
    "Indexes": [
     {
-     "Name": "idx_fk_film_id",
+     "Name": "idx_fk_film_id_31",
      "Table": "inventory",
      "Unique": false,
      "Keys": [
@@ -1135,8 +1184,8 @@
     "last_update": {
      "Name": "last_update",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "TIMESTAMP",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": true,
@@ -1145,7 +1194,7 @@
     "name": {
      "Name": "name",
      "T": {
-      "Name": "BYTES",
+      "Name": "STRING",
       "Len": 20,
       "IsArray": false
      },
@@ -1179,8 +1228,8 @@
     "amount": {
      "Name": "amount",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "NUMERIC",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": true,
@@ -1199,8 +1248,8 @@
     "last_update": {
      "Name": "last_update",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "TIMESTAMP",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": false,
@@ -1209,8 +1258,8 @@
     "payment_date": {
      "Name": "payment_date",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "TIMESTAMP",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": true,
@@ -1287,7 +1336,7 @@
    ],
    "Indexes": [
     {
-     "Name": "idx_fk_staff_id_27",
+     "Name": "idx_fk_staff_id",
      "Table": "payment",
      "Unique": false,
      "Keys": [
@@ -1298,7 +1347,7 @@
      ]
     },
     {
-     "Name": "idx_fk_customer_id_28",
+     "Name": "idx_fk_customer_id",
      "Table": "payment",
      "Unique": false,
      "Keys": [
@@ -1347,8 +1396,8 @@
     "last_update": {
      "Name": "last_update",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "TIMESTAMP",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": true,
@@ -1357,8 +1406,8 @@
     "rental_date": {
      "Name": "rental_date",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "TIMESTAMP",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": true,
@@ -1377,8 +1426,8 @@
     "return_date": {
      "Name": "return_date",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "TIMESTAMP",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": false,
@@ -1465,7 +1514,7 @@
      ]
     },
     {
-     "Name": "idx_fk_customer_id",
+     "Name": "idx_fk_customer_id_46",
      "Table": "rental",
      "Unique": false,
      "Keys": [
@@ -1476,7 +1525,7 @@
      ]
     },
     {
-     "Name": "idx_fk_staff_id",
+     "Name": "idx_fk_staff_id_47",
      "Table": "rental",
      "Unique": false,
      "Keys": [
@@ -1509,7 +1558,7 @@
     "active": {
      "Name": "active",
      "T": {
-      "Name": "INT64",
+      "Name": "BOOL",
       "Len": 0,
       "IsArray": false
      },
@@ -1559,8 +1608,8 @@
     "last_update": {
      "Name": "last_update",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "TIMESTAMP",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": true,
@@ -1647,7 +1696,7 @@
    ],
    "Indexes": [
     {
-     "Name": "idx_fk_store_id",
+     "Name": "idx_fk_store_id_50",
      "Table": "staff",
      "Unique": false,
      "Keys": [
@@ -1658,7 +1707,7 @@
      ]
     },
     {
-     "Name": "idx_fk_address_id",
+     "Name": "idx_fk_address_id_51",
      "Table": "staff",
      "Unique": false,
      "Keys": [
@@ -1694,8 +1743,8 @@
     "last_update": {
      "Name": "last_update",
      "T": {
-      "Name": "STRING",
-      "Len": 9223372036854775807,
+      "Name": "TIMESTAMP",
+      "Len": 0,
       "IsArray": false
      },
      "NotNull": true,
@@ -1763,7 +1812,7 @@
      ]
     },
     {
-     "Name": "idx_fk_address_id_60",
+     "Name": "idx_fk_address_id",
      "Table": "store",
      "Unique": false,
      "Keys": [
@@ -4409,7 +4458,6 @@
     10
    ],
    "last_update": [
-    13,
     0
    ]
   },
@@ -4422,7 +4470,6 @@
     13
    ],
    "last_update": [
-    13,
     0
    ]
   },
@@ -4432,7 +4479,6 @@
     10
    ],
    "last_update": [
-    13,
     0
    ]
   },
@@ -4445,7 +4491,6 @@
     13
    ],
    "last_update": [
-    13,
     0
    ]
   },
@@ -4455,27 +4500,24 @@
     10
    ],
    "last_update": [
-    13,
     0
    ]
   },
   "customer": {
    "active": [
-    13,
     0
    ],
    "address_id": [
     13
    ],
    "create_date": [
-    13
+    12
    ],
    "customer_id": [
     13,
     10
    ],
    "last_update": [
-    13,
     0
    ],
    "store_id": [
@@ -4491,7 +4533,6 @@
     13
    ],
    "last_update": [
-    13,
     0
    ],
    "length": [
@@ -4511,11 +4552,9 @@
     0
    ],
    "rental_rate": [
-    13,
     0
    ],
    "replacement_cost": [
-    13,
     0
    ]
   },
@@ -4527,7 +4566,6 @@
     13
    ],
    "last_update": [
-    13,
     0
    ]
   },
@@ -4539,7 +4577,6 @@
     13
    ],
    "last_update": [
-    13,
     0
    ]
   },
@@ -4557,7 +4594,6 @@
     10
    ],
    "last_update": [
-    13,
     0
    ],
    "store_id": [
@@ -4570,23 +4606,18 @@
     10
    ],
    "last_update": [
-    13,
     0
    ]
   },
   "payment": {
-   "amount": [
-    13
-   ],
    "customer_id": [
     13
    ],
    "last_update": [
-    13,
     0
    ],
    "payment_date": [
-    13
+    12
    ],
    "payment_id": [
     13,
@@ -4607,18 +4638,17 @@
     13
    ],
    "last_update": [
-    13,
     0
    ],
    "rental_date": [
-    13
+    12
    ],
    "rental_id": [
     13,
     10
    ],
    "return_date": [
-    13
+    12
    ],
    "staff_id": [
     13
@@ -4626,14 +4656,12 @@
   },
   "staff": {
    "active": [
-    13,
     0
    ],
    "address_id": [
     13
    ],
    "last_update": [
-    13,
     0
    ],
    "staff_id": [
@@ -4649,7 +4677,6 @@
     13
    ],
    "last_update": [
-    13,
     0
    ],
    "manager_staff_id": [

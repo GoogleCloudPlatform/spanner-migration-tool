@@ -1,6 +1,5 @@
-import Forms from "../../services/Forms.service.js";
 import Actions from "../../services/Action.service.js";
-import {tooltipHandler} from './../../helpers/SchemaConversionHelper.js'
+import {tooltipHandler} from '../../helpers/SchemaConversionHelper.js'
 
 class EditGlobalDataTypeForm extends HTMLElement {
 
@@ -9,10 +8,7 @@ class EditGlobalDataTypeForm extends HTMLElement {
         document.getElementById('data-type-button').addEventListener('click' ,async () => {
             await Actions.setGlobalDataType()
             await Actions.ddlSummaryAndConversionApiCall()
-            location.reload()
-            // window.location.href = "#/schema-report";
             document.getElementById('app').innerHTML = `<hb-default-layout><hb-schema-conversion-screen></hb-schema-conversion-screen></<hb-default-layout>`
-
         } )
     }
 

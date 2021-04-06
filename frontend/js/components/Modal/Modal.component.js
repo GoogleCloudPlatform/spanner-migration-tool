@@ -48,12 +48,6 @@ class Modal extends HTMLElement {
   render() {
     let { modalId, title, content, contentIcon, modalBodyClass, connectIconClass } = this;
     let modalButtons;
-    if(modalId.includes("createIndexModal"))
-    {
-      modalButtons = ADD_INDEX_MODAL;
-      modalButtons[0].id = "createIndexButton"+modalId.substr(16);
-    }
-    else{
     switch (modalId) {
       case "connectToDbModal":
         modalButtons = CONNECT_TO_DB_MODAL_BUTTONS;
@@ -73,8 +67,10 @@ class Modal extends HTMLElement {
       case "globalDataTypeModal":
         modalButtons= EDIT_GLOBAL_DATATYPE_MODAL;
         break;
+      case "createIndexModal":
+        modalButtons= ADD_INDEX_MODAL;
+        break;
     }
-  }
     this.innerHTML = `
         <div class="modal" id="${modalId}" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
           <div class="modal-dialog modal-dialog-centered" role="document">

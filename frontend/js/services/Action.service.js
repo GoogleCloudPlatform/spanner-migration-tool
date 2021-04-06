@@ -1,23 +1,24 @@
 import Store from "./Store.service.js";
 import Fetch from "./Fetch.service.js";
-import {
-  readTextFile,
-  showSnackbar,
-  tabbingHelper,
-} from "./../helpers/SchemaConversionHelper.js";
+import {readTextFile,showSnackbar,tabbingHelper} from "./../helpers/SchemaConversionHelper.js";
+
 var keysList = [];
 var orderId = 0;
-var TEMP = {}
+var temp = {};
 /**
  * All the manipulations to the store happen via the actions mentioned in this module
  *
  */
 
-var keysList = [];
-var orderId = 0;
+const resetIndexModal = () =>{
+  keysList = [];
+  orderId = 0;
+  temp = {};
+}
 
 const Actions = (() => {
   return {
+    
     trial: () => {
       console.log(" this was the trial in the actions ");
       return "1";
@@ -230,16 +231,14 @@ const Actions = (() => {
         .click();
     },
     downloadDdl: async () => {
-      let ddlreport = await Fetch.getAppData("GET", "/report");
+      let ddlreport = await Fetch.getAppData("GET", "/schema");
       if (ddlreport.ok) {
-        ddlreport.text().then(function (result) {
+        await ddlreport.text().then(function (result) {
           localStorage.setItem("schemaFilePath", result);
         });
-
         let schemaFilePath = localStorage.getItem("schemaFilePath");
-        let schemaFileName = schemaFilePath.split("/")[
-          schemaFilePath.split("/").length - 1
-        ];
+        if(schemaFilePath){
+        let schemaFileName = schemaFilePath.split("/")[schemaFilePath.split("/").length - 1];
         let filePath = "./" + schemaFileName;
         readTextFile(filePath, function (error, text) {
           jQuery("<a />", {
@@ -254,6 +253,8 @@ const Actions = (() => {
             .click();
         });
       }
+      showSnackbar('try again ','red')
+    }
     },
     downloadReport: async () => {
       let summaryreport = await Fetch.getAppData("GET", "/report");
@@ -315,27 +316,17 @@ const Actions = (() => {
           }
         }
       }
-      await fetch("/typemap/global", {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(dataTypeJson),
-      }).then(async (res) => {
+        let res = await Fetch.getAppData("POST","/typemap/global",dataTypeJson);
+        if(res){
         console.log(res);
         res = await res.text();
         localStorage.setItem("conversionReportContent", res);
-      });
+        }
     },
     getGlobalDataTypeList: async () => {
-
       let res = await Fetch.getAppData("GET", "/typemap");
-     await res.json().then(function (result) {
-        localStorage.setItem(
-          "globalDataTypeList",
-          JSON.stringify(result)
-        );
+      await res.json().then(function (result) {
+        localStorage.setItem("globalDataTypeList", JSON.stringify(result));
       });
     },
     dataTypeUpdate: (id, globalDataTypeList) => {
@@ -356,19 +347,20 @@ const Actions = (() => {
         }
       }
     },
-
-    fetchIndexFormValues: async (name, uniqueness) => {
-      if (keysList.length == 0) {
+    fetchIndexFormValues: async (tableName ,name, uniqueness) => {      
+      console.log(keysList.length);
+      if (keysList.length === 0) {
         showSnackbar(
           "Please select atleast one key to create a new index",
-          " red-bg"
+          "redBg"
         );
+      resetIndexModal();
         return;
       }
-      let newIndex = {},
-        newIndexPos;
+      let newIndex = {};
+      let newIndexPos = 1;
       let jsonObj = JSON.parse(localStorage.getItem("conversionReportContent"));
-      let table = jsonObj.SpSchema[srcTableName[tableNumber]];
+      let table = jsonObj.SpSchema[tableName];
       newIndex["Name"] = name;
       newIndex["Table"] = table.Name;
       if (uniqueness) {
@@ -385,163 +377,155 @@ const Actions = (() => {
           ) {
             showSnackbar(
               "Index with selected key(s) already exists.\n Please use different key(s)",
-              " red-bg"
+              "redBg"
             );
+            resetIndexModal();
             return;
           } else if (newIndex["Name"] === table.Indexes[x].Name) {
             showSnackbar(
               "Index with name: " +
                 newIndex["Name"] +
                 " already exists.\n Please try with a different name",
-              " red-bg"
+              "redBg"
             );
+            resetIndexModal();
             return;
           }
         }
       } else {
         newIndexPos = 0;
       }
-
-      await fetch("/add/indexes?table=" + table.Name, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify([newIndex]),
-      }).then(async function (res) {
-        if (res.ok) {
-          clearModal();
-          jQuery("#createIndexModal").modal("hide");
+      let res = await Fetch.getAppData("POST","/add/indexes?table=" + table.Name,[newIndex]);
+      if (res.ok) {
+          // clearModal();
+          // jQuery("#createIndexModal").modal("hide");
           res = await res.text();
           localStorage.setItem("conversionReportContent", res);
-          let jsonObj = JSON.parse(
-            localStorage.getItem("conversionReportContent")
-          );
-          let table = jsonObj.SpSchema[srcTableName[tableNumber]];
-          let indexKeys;
-          jQuery("#" + tableNumber)
-            .find(".index-acc-table.fk-table")
-            .css("visibility", "visible");
-          jQuery("#" + tableNumber)
-            .find(".index-acc-table.fk-table")
-            .addClass("important-rule-100");
-          jQuery("#" + tableNumber)
-            .find(".index-acc-table.fk-table")
-            .removeClass("important-rule-0");
-          $indexTableContent = jQuery(".indexTableTr.template")
-            .clone()
-            .removeClass("template");
-          $indexTableContent
-            .find(".renameSecIndex.template")
-            .attr("id", "renameSecIndex" + tableNumber + newIndexPos);
-          $indexTableContent
-            .find(".saveSecIndex.template")
-            .attr("id", "saveSecIndex" + tableNumber + newIndexPos);
-          if (
-            document
-              .getElementById("editSpanner" + tableNumber)
-              .innerHTML.trim() == "Save Changes"
-          ) {
-            $indexTableContent
-              .find(".renameSecIndex.template")
-              .removeClass("template")
-              .find("input")
-              .val(table.Indexes[newIndexPos].Name)
-              .attr("id", "newSecIndexVal" + tableNumber + newIndexPos);
-            $indexTableContent.find("button").removeAttr("disabled");
-          } else {
-            $indexTableContent
-              .find(".saveSecIndex.template")
-              .removeClass("template")
-              .html(table.Indexes[newIndexPos].Name);
-          }
-          $indexTableContent
-            .find(".acc-table-td.indexesTable")
-            .html(table.Indexes[newIndexPos].Table);
-          $indexTableContent
-            .find(".acc-table-td.indexesUnique")
-            .html(table.Indexes[newIndexPos].Unique.toString());
-          indexKeys = "";
-          for (var k = 0; k < table.Indexes[newIndexPos].Keys.length; k++) {
-            indexKeys += table.Indexes[newIndexPos].Keys[k].Col + ", ";
-          }
-          indexKeys = indexKeys.replace(/,\s*$/, "");
-          $indexTableContent.find(".acc-table-td.indexesKeys").html(indexKeys);
-          $indexTableContent
-            .find("button")
-            .attr("id", table.Name + newIndexPos + "secIndex");
-          $indexTableContent
-            .find("#" + table.Name + newIndexPos + "secIndex")
-            .click(function () {
-              let indexId = jQuery(this).attr("id");
-              let secIndexTableNumber = parseInt(
-                jQuery(this)
-                  .closest(".index-collapse.collapse")
-                  .attr("id")
-                  .match(/\d+/),
-                10
-              );
-              localStorage.setItem("indexId", indexId);
-              localStorage.setItem("secIndexTableNumber", secIndexTableNumber);
-              jQuery("#secIndexDeleteWarning").modal();
-            });
-          $indexTableContent.appendTo(
-            jQuery("#" + tableNumber).find(".indexTableBody")
-          );
-        } else {
-          res = await res.text();
-          showSnackbar(res, " red-bg");
-        }
-      });
+          jsonObj = JSON.parse(localStorage.getItem("conversionReportContent") );
+          table = jsonObj.SpSchema[tableName];
+          console.log(table);
+      }
+      let component = document.getElementsByTagName("hb-data-table")[0];
+      console.log(component);
+      component.setAttribute("tableIndexs", "1");
+      //     let indexKeys;
+      //     jQuery("#" + tableNumber)
+      //       .find(".index-acc-table.fk-table")
+      //       .css("visibility", "visible");
+      //     jQuery("#" + tableNumber)
+      //       .find(".index-acc-table.fk-table")
+      //       .addClass("important-rule-100");
+      //     jQuery("#" + tableNumber)
+      //       .find(".index-acc-table.fk-table")
+      //       .removeClass("important-rule-0");
+      //     $indexTableContent = jQuery(".indexTableTr.template")
+      //       .clone()
+      //       .removeClass("template");
+      //     $indexTableContent
+      //       .find(".renameSecIndex.template")
+      //       .attr("id", "renameSecIndex" + tableNumber + newIndexPos);
+      //     $indexTableContent
+      //       .find(".saveSecIndex.template")
+      //       .attr("id", "saveSecIndex" + tableNumber + newIndexPos);
+      //     if (
+      //       document
+      //         .getElementById("editSpanner" + tableNumber)
+      //         .innerHTML.trim() == "Save Changes"
+      //     ) {
+      //       $indexTableContent
+      //         .find(".renameSecIndex.template")
+      //         .removeClass("template")
+      //         .find("input")
+      //         .val(table.Indexes[newIndexPos].Name)
+      //         .attr("id", "newSecIndexVal" + tableNumber + newIndexPos);
+      //       $indexTableContent.find("button").removeAttr("disabled");
+      //     } else {
+      //       $indexTableContent
+      //         .find(".saveSecIndex.template")
+      //         .removeClass("template")
+      //         .html(table.Indexes[newIndexPos].Name);
+      //     }
+      //     $indexTableContent
+      //       .find(".acc-table-td.indexesTable")
+      //       .html(table.Indexes[newIndexPos].Table);
+      //     $indexTableContent
+      //       .find(".acc-table-td.indexesUnique")
+      //       .html(table.Indexes[newIndexPos].Unique.toString());
+      //     indexKeys = "";
+      //     for (var k = 0; k < table.Indexes[newIndexPos].Keys.length; k++) {
+      //       indexKeys += table.Indexes[newIndexPos].Keys[k].Col + ", ";
+      //     }
+      //     indexKeys = indexKeys.replace(/,\s*$/, "");
+      //     $indexTableContent.find(".acc-table-td.indexesKeys").html(indexKeys);
+      //     $indexTableContent
+      //       .find("button")
+      //       .attr("id", table.Name + newIndexPos + "secIndex");
+      //     $indexTableContent
+      //       .find("#" + table.Name + newIndexPos + "secIndex")
+      //       .click(function () {
+      //         let indexId = jQuery(this).attr("id");
+      //         let secIndexTableNumber = parseInt(
+      //           jQuery(this)
+      //             .closest(".index-collapse.collapse")
+      //             .attr("id")
+      //             .match(/\d+/),
+      //           10
+      //         );
+      //         localStorage.setItem("indexId", indexId);
+      //         localStorage.setItem("secIndexTableNumber", secIndexTableNumber);
+      //         jQuery("#secIndexDeleteWarning").modal();
+      //       });
+      //     $indexTableContent.appendTo(
+      //       jQuery("#" + tableNumber).find(".indexTableBody")
+      //     );
+      //   } else {
+      //     res = await res.text();
+      //     showSnackbar(res, " red-bg");
+      //   }
+      // });
     },
-    createNewSecIndex :(id)=>{
+    createNewSecIndex: (id) => {
       console.log(id.substring(12));
-      let generalModal = document.getElementsByTagName('hb-modal')[1]
-      let content = `<hb-add-index-form tableName="${id.substring(12)}"></hb-add-index-form>`
-      generalModal.setAttribute('content',content )
+      let generalModal = document.getElementsByTagName("hb-modal")[1];
+      let content = `<hb-add-index-form tableName="${id.substring(
+        12
+      )}"></hb-add-index-form>`;
+      generalModal.setAttribute("content", content);
       console.log(generalModal);
       jQuery("#createIndexModal").modal();
-       keysList = [];
-       orderId = 0;
-      TEMP = {}
+      resetIndexModal();
     },
-    changeCheckBox:(row ,id)=>{
-      
+    changeCheckBox: (row, id) => {
       let columnName = document.getElementById(`order${row}${id}`);
-      let checkboxValue = document.getElementById('checkbox-'+row+"-"+id).checked 
-      if(checkboxValue)
-      {
-        columnName.style.visibility=""
-        columnName.innerHTML = orderId+1;
+      let checkboxValue = document.getElementById("checkbox-" + row + "-" + id)
+        .checked;
+      if (checkboxValue) {
+        columnName.style.visibility = "";
+        columnName.innerHTML = orderId + 1;
         orderId++;
-        keysList.push({Col:row,Desc:false})
-        TEMP[row] = id;
-      }
-      else{
-        columnName.style.visibility="hidden"
+        keysList.push({ Col: row, Desc: false });
+        temp[row] = id;
+      } else {
+        columnName.style.visibility = "hidden";
         let oldValue = parseInt(columnName.innerHTML);
-      
-        for(let i=0;i<keysList.length;i++)
-        {
-          let currentRow = keysList[i].Col
-          let currentId = TEMP[currentRow]
-          let currentColName = document.getElementById(`order${currentRow}${currentId}`)
+
+        for (let i = 0; i < keysList.length; i++) {
+          let currentRow = keysList[i].Col;
+          let currentId = temp[currentRow];
+          let currentColName = document.getElementById(
+            `order${currentRow}${currentId}`
+          );
           console.log(currentColName);
-          if(parseInt(currentColName.innerHTML) > oldValue)
-          {
+          if (parseInt(currentColName.innerHTML) > oldValue) {
             currentColName.innerHTML = parseInt(currentColName.innerHTML) - 1;
           }
         }
-        keysList = keysList.filter((cur) => cur.Col !== row )
-        TEMP[row] = -1;
-        console.log(keysList , TEMP);
+        keysList = keysList.filter((cur) => cur.Col !== row);
+        temp[row] = -1;
+        console.log(keysList, temp);
         orderId--;
       }
-     
-     
-    }
-    
+    },
   };
 })();
 

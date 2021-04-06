@@ -15,6 +15,7 @@ class AddIndexForm extends HTMLElement {
             Forms.validateInput(document.getElementById("indexName" ),'indexNameError');
         })
         
+        document.getElementById("createIndexButton").addEventListener("click",()=>{Actions.fetchIndexFormValues(this.tableName,document.getElementById("indexName").value,document.getElementById("uniqueSwitch").checked)})
 
         SrcSchema[this.tableName].ColNames.map((row,idx )=>{
             

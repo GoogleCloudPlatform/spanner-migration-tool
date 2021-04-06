@@ -68,6 +68,115 @@
        "Desc": false
       }
      ]
+    },
+    {
+     "Name": "hellboy",
+     "Table": "actor",
+     "Unique": false,
+     "Keys": [
+      {
+       "Col": "actor_id",
+       "Desc": false
+      },
+      {
+       "Col": "last_name",
+       "Desc": false
+      },
+      {
+       "Col": "last_update",
+       "Desc": false
+      }
+     ]
+    },
+    {
+     "Name": "",
+     "Table": "actor",
+     "Unique": false,
+     "Keys": [
+      {
+       "Col": "last_update",
+       "Desc": false
+      },
+      {
+       "Col": "actor_id",
+       "Desc": false
+      }
+     ]
+    },
+    {
+     "Name": "ggtd",
+     "Table": "actor",
+     "Unique": true,
+     "Keys": [
+      {
+       "Col": "last_update",
+       "Desc": false
+      }
+     ]
+    },
+    {
+     "Name": "ttejje",
+     "Table": "actor",
+     "Unique": true,
+     "Keys": [
+      {
+       "Col": "last_name",
+       "Desc": false
+      },
+      {
+       "Col": "last_update",
+       "Desc": false
+      }
+     ]
+    },
+    {
+     "Name": "dxvjhv",
+     "Table": "actor",
+     "Unique": false,
+     "Keys": [
+      {
+       "Col": "actor_id",
+       "Desc": false
+      }
+     ]
+    },
+    {
+     "Name": "werwedsd",
+     "Table": "actor",
+     "Unique": false,
+     "Keys": [
+      {
+       "Col": "actor_id",
+       "Desc": false
+      },
+      {
+       "Col": "first_name",
+       "Desc": false
+      }
+     ]
+    },
+    {
+     "Name": "harshsagar",
+     "Table": "actor",
+     "Unique": true,
+     "Keys": [
+      {
+       "Col": "actor_id",
+       "Desc": false
+      },
+      {
+       "Col": "first_name",
+       "Desc": false
+      },
+      {
+       "Col": "last_update",
+       "Desc": false
+      },
+      {
+       "Col": "last_name",
+       "Desc": false
+      }
+     ]
     }
    ],
    "Parent": "",
@@ -542,7 +651,7 @@
    ],
    "Indexes": [
     {
-     "Name": "idx_fk_store_id",
+     "Name": "idx_fk_store_id_55",
      "Table": "customer",
      "Unique": false,
      "Keys": [
@@ -553,7 +662,7 @@
      ]
     },
     {
-     "Name": "idx_fk_address_id",
+     "Name": "idx_fk_address_id_56",
      "Table": "customer",
      "Unique": false,
      "Keys": [
@@ -1287,7 +1396,7 @@
    ],
    "Indexes": [
     {
-     "Name": "idx_fk_staff_id_39",
+     "Name": "idx_fk_staff_id",
      "Table": "payment",
      "Unique": false,
      "Keys": [
@@ -1298,7 +1407,7 @@
      ]
     },
     {
-     "Name": "idx_fk_customer_id_40",
+     "Name": "idx_fk_customer_id",
      "Table": "payment",
      "Unique": false,
      "Keys": [
@@ -1465,7 +1574,7 @@
      ]
     },
     {
-     "Name": "idx_fk_customer_id",
+     "Name": "idx_fk_customer_id_46",
      "Table": "rental",
      "Unique": false,
      "Keys": [
@@ -1476,7 +1585,7 @@
      ]
     },
     {
-     "Name": "idx_fk_staff_id",
+     "Name": "idx_fk_staff_id_47",
      "Table": "rental",
      "Unique": false,
      "Keys": [
@@ -1647,7 +1756,7 @@
    ],
    "Indexes": [
     {
-     "Name": "idx_fk_store_id_52",
+     "Name": "idx_fk_store_id",
      "Table": "staff",
      "Unique": false,
      "Keys": [
@@ -1658,7 +1767,7 @@
      ]
     },
     {
-     "Name": "idx_fk_address_id_53",
+     "Name": "idx_fk_address_id_51",
      "Table": "staff",
      "Unique": false,
      "Keys": [
@@ -1763,7 +1872,7 @@
      ]
     },
     {
-     "Name": "idx_fk_address_id_57",
+     "Name": "idx_fk_address_id",
      "Table": "store",
      "Unique": false,
      "Keys": [

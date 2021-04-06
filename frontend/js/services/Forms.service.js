@@ -6,7 +6,6 @@ const RED = '#F44336';
 const Forms = (() => {
     return {
         validateInput: (inputField, errorId) => {
-           console.log(inputField, errorId);
             let field = inputField;
             if (field.value.trim() === '') {
                 document.getElementById(errorId).innerHTML = `Required`;
@@ -44,13 +43,17 @@ const Forms = (() => {
         },
         formButtonHandler: (formId, formButtonId) => {
             let formElements = document.getElementById(formId);
+            // console.log(formElements);
             formElements.querySelectorAll("input").forEach(elem => {
                 elem.addEventListener("keyup", () => {
                     let empty = false;
                     formElements.querySelectorAll("input").forEach(elem => {
+                        console.log(elem.value)
                         if (elem.value === '') {
+                            console.log(elem);
                             empty = true;
                         }
+                        
                     });
                     if (empty) {
                         document.getElementById(formButtonId).disabled = true;

@@ -4,8 +4,14 @@ import "./../AddIndexForm/AddIndexForm.component.js"
 
 class DataTable extends HTMLElement {
     static get observedAttributes() {
-        return ["open"];
+        return ["tableIndexs"];
     }
+    attributeChangedCallback(attrName, oldVal, newVal) {
+        debugger;
+      if (oldVal !== newVal) {
+        this.render();
+    }
+  }
 
     get tableName() {
         return this.getAttribute("tableName");
@@ -15,8 +21,8 @@ class DataTable extends HTMLElement {
         return this.getAttribute("tableIndex");
     }
 
-    attributeChangedCallback(name, oldValue, newValue) {
-        this.render();
+    get tableIndexs() {
+        return this.getAttribute("tableIndexs")
     }
 
     async connectedCallback() {
@@ -172,7 +178,7 @@ class DataTable extends HTMLElement {
 
 
     render() {
-        let { tableName, tableIndex } = this;
+        let { tableName, tableIndex, tableIndexs } = this;
         let countSrc = [], countSp = [];
         countSrc[tableIndex] = [];
         countSp[tableIndex] = [];
@@ -189,6 +195,7 @@ class DataTable extends HTMLElement {
             }
         }
         this.innerHTML = `
+        <h1>${tableIndexs}</h1>
         <div class="acc-card-content" id="acc_card_content">
                     <table class="acc-table" id="src-sp-table${tableIndex}">
                         <thead>

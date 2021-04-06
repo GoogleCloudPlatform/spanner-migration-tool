@@ -66,7 +66,7 @@ this.innerHTML = `
     <div class="collapse ${tableId}Collapse " id="${tableId}-${title}">
       <div class="mdc-card mdc-card-content table-card-border ${tableId}-border">
       ${  tableId == "report" ?
-        ` <hb-data-table tableName="${title}" tableIndex="${tableIndex}"></hb-data-table> `
+        ` <hb-data-table tableName="${title}" tableIndexs="0" tableIndex="${tableIndex}"></hb-data-table> `
         :
         ` <hb-list-table tabName="${tableId}" tableName="${title}"></hb-list-table>`
         }
