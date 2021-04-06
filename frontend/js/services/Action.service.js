@@ -43,7 +43,7 @@ const Actions = (() => {
       requestCode = reportData.status;
       reportDataResp = await reportData.text();
       if (requestCode != 200) {
-        Fetch.showSnackbar(reportDataResp, " redBg");
+        showSnackbar(reportDataResp, " redBg");
         return false;
       } else {
         jsonReportDataResp = await reportDataCopy.json();
