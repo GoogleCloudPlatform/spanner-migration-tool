@@ -48,10 +48,10 @@ class Modal extends HTMLElement {
   render() {
     let { modalId, title, content, contentIcon, modalBodyClass, connectIconClass } = this;
     let modalButtons;
-    console.log(modalId.includes("createIndexModal"));
     if(modalId.includes("createIndexModal"))
     {
       modalButtons = ADD_INDEX_MODAL;
+      modalButtons[0].id = "createIndexButton"+modalId.substr(16);
     }
     else{
     switch (modalId) {

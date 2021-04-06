@@ -3,7 +3,7 @@ import "./../../components/TableCarousel/TableCarousel.component.js";
 import "./../../components/StatusLegend/StatusLegend.component.js";
 import "./../../components/Search/Search.component.js";
 import "./../../components/Button/SiteButton.component.js"
-import "./../../components/EditGlobalDataTypeForm/EditGlobalDataType.componenet.js"
+import "../../components/EditGlobalDataTypeForm/EditGlobalDataTypeForm.componenet.js"
 import "./../../components/Modal/Modal.component.js"
 import { initSchemaScreenTasks } from "./../../helpers/SchemaConversionHelper.js";
 

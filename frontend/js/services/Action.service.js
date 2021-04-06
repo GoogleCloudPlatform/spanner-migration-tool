@@ -1,13 +1,10 @@
 import Store from "./Store.service.js";
 import Fetch from "./Fetch.service.js";
-import {
-  readTextFile,
-  showSnackbar,
-  tabbingHelper,
-} from "./../helpers/SchemaConversionHelper.js";
+import {readTextFile,showSnackbar,tabbingHelper} from "./../helpers/SchemaConversionHelper.js";
+
 var keysList = [];
 var orderId = 0;
-var TEMP = {}
+var TEMP = {};
 /**
  * All the manipulations to the store happen via the actions mentioned in this module
  *
@@ -226,16 +223,14 @@ const Actions = (() => {
         .click();
     },
     downloadDdl: async () => {
-      let ddlreport = await Fetch.getAppData("GET", "/report");
+      let ddlreport = await Fetch.getAppData("GET", "/schema");
       if (ddlreport.ok) {
-        ddlreport.text().then(function (result) {
+        await ddlreport.text().then(function (result) {
           localStorage.setItem("schemaFilePath", result);
         });
-
         let schemaFilePath = localStorage.getItem("schemaFilePath");
-        let schemaFileName = schemaFilePath.split("/")[
-          schemaFilePath.split("/").length - 1
-        ];
+        if(schemaFilePath){
+        let schemaFileName = schemaFilePath.split("/")[schemaFilePath.split("/").length - 1];
         let filePath = "./" + schemaFileName;
         readTextFile(filePath, function (error, text) {
           jQuery("<a />", {
@@ -250,6 +245,8 @@ const Actions = (() => {
             .click();
         });
       }
+      showSnackbar('try again ','red')
+    }
     },
     downloadReport: async () => {
       let summaryreport = await Fetch.getAppData("GET", "/report");
@@ -325,13 +322,9 @@ const Actions = (() => {
       });
     },
     getGlobalDataTypeList: async () => {
-
       let res = await Fetch.getAppData("GET", "/typemap");
-     await res.json().then(function (result) {
-        localStorage.setItem(
-          "globalDataTypeList",
-          JSON.stringify(result)
-        );
+      await res.json().then(function (result) {
+        localStorage.setItem("globalDataTypeList", JSON.stringify(result));
       });
     },
     dataTypeUpdate: (id, globalDataTypeList) => {
@@ -352,7 +345,6 @@ const Actions = (() => {
         }
       }
     },
-
     fetchIndexFormValues: async (name, uniqueness) => {
       if (keysList.length == 0) {
         showSnackbar(
@@ -491,53 +483,50 @@ const Actions = (() => {
         }
       });
     },
-    createNewSecIndex :(id)=>{
+    createNewSecIndex: (id) => {
       console.log(id.substring(12));
-      let generalModal = document.getElementsByTagName('hb-modal')[1]
-      let content = `<hb-add-index-form tableName="${id.substring(12)}"></hb-add-index-form>`
-      generalModal.setAttribute('content',content )
+      let generalModal = document.getElementsByTagName("hb-modal")[1];
+      let content = `<hb-add-index-form tableName="${id.substring(
+        12
+      )}"></hb-add-index-form>`;
+      generalModal.setAttribute("content", content);
       console.log(generalModal);
       jQuery("#createIndexModal").modal();
-       keysList = [];
-       orderId = 0;
-      TEMP = {}
+      keysList = [];
+      orderId = 0;
+      TEMP = {};
     },
-    changeCheckBox:(row ,id)=>{
-      
+    changeCheckBox: (row, id) => {
       let columnName = document.getElementById(`order${row}${id}`);
-      let checkboxValue = document.getElementById('checkbox-'+row+"-"+id).checked 
-      if(checkboxValue)
-      {
-        columnName.style.visibility=""
-        columnName.innerHTML = orderId+1;
+      let checkboxValue = document.getElementById("checkbox-" + row + "-" + id)
+        .checked;
+      if (checkboxValue) {
+        columnName.style.visibility = "";
+        columnName.innerHTML = orderId + 1;
         orderId++;
-        keysList.push({Col:row,Desc:false})
+        keysList.push({ Col: row, Desc: false });
         TEMP[row] = id;
-      }
-      else{
-        columnName.style.visibility="hidden"
+      } else {
+        columnName.style.visibility = "hidden";
         let oldValue = parseInt(columnName.innerHTML);
-      
-        for(let i=0;i<keysList.length;i++)
-        {
-          let currentRow = keysList[i].Col
-          let currentId = TEMP[currentRow]
-          let currentColName = document.getElementById(`order${currentRow}${currentId}`)
+
+        for (let i = 0; i < keysList.length; i++) {
+          let currentRow = keysList[i].Col;
+          let currentId = TEMP[currentRow];
+          let currentColName = document.getElementById(
+            `order${currentRow}${currentId}`
+          );
           console.log(currentColName);
-          if(parseInt(currentColName.innerHTML) > oldValue)
-          {
+          if (parseInt(currentColName.innerHTML) > oldValue) {
             currentColName.innerHTML = parseInt(currentColName.innerHTML) - 1;
           }
         }
-        keysList = keysList.filter((cur) => cur.Col !== row )
+        keysList = keysList.filter((cur) => cur.Col !== row);
         TEMP[row] = -1;
-        console.log(keysList , TEMP);
+        console.log(keysList, TEMP);
         orderId--;
       }
-     
-     
-    }
-    
+    },
   };
 })();
 
