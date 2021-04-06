@@ -47,7 +47,7 @@ const Forms = (() => {
             formElements.querySelectorAll("input").forEach(elem => {
                 elem.addEventListener("keyup", () => {
                     let empty = false;
-                    formElements.querySelectorAll("input").forEach(elem => {
+                    formElements.querySelectorAll('input:not([type="checkbox"])').forEach(elem => {
                         console.log(elem.value)
                         if (elem.value === '') {
                             console.log(elem);

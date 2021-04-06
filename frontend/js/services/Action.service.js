@@ -354,7 +354,6 @@ const Actions = (() => {
           "Please select atleast one key to create a new index",
           "redBg"
         );
-      resetIndexModal();
         return;
       }
       let newIndex = {};
@@ -379,7 +378,6 @@ const Actions = (() => {
               "Index with selected key(s) already exists.\n Please use different key(s)",
               "redBg"
             );
-            resetIndexModal();
             return;
           } else if (newIndex["Name"] === table.Indexes[x].Name) {
             showSnackbar(
@@ -388,7 +386,6 @@ const Actions = (() => {
                 " already exists.\n Please try with a different name",
               "redBg"
             );
-            resetIndexModal();
             return;
           }
         }
@@ -397,17 +394,41 @@ const Actions = (() => {
       }
       let res = await Fetch.getAppData("POST","/add/indexes?table=" + table.Name,[newIndex]);
       if (res.ok) {
-          // clearModal();
-          // jQuery("#createIndexModal").modal("hide");
+          resetIndexModal();
+          jQuery("#createIndexModal").modal("hide");
           res = await res.text();
           localStorage.setItem("conversionReportContent", res);
           jsonObj = JSON.parse(localStorage.getItem("conversionReportContent") );
           table = jsonObj.SpSchema[tableName];
           console.log(table);
+          let tablemap = document.getElementById("indexTableBody-"+tableName);
+          console.log(tablemap);
+          tablemap.innerHTML = table.Indexes.map((eachsecIndex)=>{
+            return `
+            <tr class="indexTableTr ">
+            <td class="acc-table-td indexesName">
+                <div class="renameSecIndex template">
+                    <input type="text" class="form-control spanner-input"
+                        autocomplete="off" />
+                </div>
+                <div class="saveSecIndex">${eachsecIndex.Name}</div>
+            </td>
+            <td class="acc-table-td indexesTable">${eachsecIndex.Table}</td>
+            <td class="acc-table-td indexesUnique">${eachsecIndex.Unique}</td>
+            <td class="acc-table-td indexesKeys">${eachsecIndex.Keys.map((key)=>key.Col).join(',')}</td>
+            <td class="acc-table-td indexesAction">
+                <button class="dropButton" disabled>
+                    <span><i class="large material-icons removeIcon"
+                            style="vertical-align: middle">delete</i></span>
+                    <span style="vertical-align: middle">Drop</span>
+                </button>
+            </td>
+        </tr>
+                 
+            `;
+        }).join("") 
       }
-      let component = document.getElementsByTagName("hb-data-table")[0];
-      console.log(component);
-      component.setAttribute("tableIndexs", "1");
+
       //     let indexKeys;
       //     jQuery("#" + tableNumber)
       //       .find(".index-acc-table.fk-table")
@@ -494,6 +515,13 @@ const Actions = (() => {
       console.log(generalModal);
       jQuery("#createIndexModal").modal();
       resetIndexModal();
+    },
+    closeSecIndexModal: () => {
+      resetIndexModal();
+      let generalModal = document.getElementsByTagName("hb-modal")[1];
+      let content = `empty`;
+      generalModal.setAttribute("content", content);
+
     },
     changeCheckBox: (row, id) => {
       let columnName = document.getElementById(`order${row}${id}`);

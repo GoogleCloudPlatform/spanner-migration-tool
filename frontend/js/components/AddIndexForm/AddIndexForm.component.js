@@ -14,6 +14,10 @@ class AddIndexForm extends HTMLElement {
         document.getElementById("indexName").addEventListener("focusout",()=>{
             Forms.validateInput(document.getElementById("indexName" ),'indexNameError');
         })
+
+        Forms.formButtonHandler("createIndexForm","createIndexButton");
+
+        document.getElementById("createIndexModal").querySelector("i").addEventListener("click",()=>{Actions.closeSecIndexModal()})
         
         document.getElementById("createIndexButton").addEventListener("click",()=>{Actions.fetchIndexFormValues(this.tableName,document.getElementById("indexName").value,document.getElementById("uniqueSwitch").checked)})
 

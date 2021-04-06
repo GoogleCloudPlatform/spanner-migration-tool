@@ -4,10 +4,9 @@ import "./../AddIndexForm/AddIndexForm.component.js"
 
 class DataTable extends HTMLElement {
     static get observedAttributes() {
-        return ["tableIndexs"];
+        return ["open"];
     }
     attributeChangedCallback(attrName, oldVal, newVal) {
-        debugger;
       if (oldVal !== newVal) {
         this.render();
     }
@@ -19,10 +18,6 @@ class DataTable extends HTMLElement {
 
     get tableIndex() {
         return this.getAttribute("tableIndex");
-    }
-
-    get tableIndexs() {
-        return this.getAttribute("tableIndexs")
     }
 
     async connectedCallback() {
@@ -138,9 +133,9 @@ class DataTable extends HTMLElement {
                                                       <th>Action</th>
                                                   </tr>
                                               </thead>
-                                              <tbody class="indexTableBody">
+                                              <tbody class="indexTableBody" id="indexTableBody-${this.tableName}">
       
-                                                  ${ secIndexArray.map((eachsecIndex)=>{
+                                                  ${ secIndexArray?.map((eachsecIndex)=>{
                                                       return `
                                                       <tr class="indexTableTr ">
                                                       <td class="acc-table-td indexesName">
@@ -178,7 +173,7 @@ class DataTable extends HTMLElement {
 
 
     render() {
-        let { tableName, tableIndex, tableIndexs } = this;
+        let { tableName, tableIndex } = this;
         let countSrc = [], countSp = [];
         countSrc[tableIndex] = [];
         countSp[tableIndex] = [];
@@ -195,7 +190,6 @@ class DataTable extends HTMLElement {
             }
         }
         this.innerHTML = `
-        <h1>${tableIndexs}</h1>
         <div class="acc-card-content" id="acc_card_content">
                     <table class="acc-table" id="src-sp-table${tableIndex}">
                         <thead>
@@ -337,7 +331,7 @@ class DataTable extends HTMLElement {
                     }
 
                     ${
-                      spTable.Indexes?this.secIndexComponent(tableIndex ,spTable.Indexes):`<div></div>`
+                      this.secIndexComponent(tableIndex ,spTable.Indexes)
                     }
                     
                     <div class="summaryCard">

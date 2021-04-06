@@ -30,7 +30,9 @@ const TAB_CONFIG_DATA = [
 class SchemaConversionScreen extends HTMLElement {
   connectedCallback() {
     this.stateObserver = setInterval(this.observeState, 200);
+    Actions.getGlobalDataTypeList();
     this.render();
+
     // this.createSourceAndSpannerTables();
   }
 
@@ -49,7 +51,6 @@ class SchemaConversionScreen extends HTMLElement {
     if (!this.data) {
       return;
     }
-     Actions.getGlobalDataTypeList()
     let schemaConversionObj = JSON.parse(
       localStorage.getItem("conversionReportContent")
     );
