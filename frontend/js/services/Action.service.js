@@ -425,7 +425,7 @@ const Actions = (() => {
         </tr>`
         document.querySelector("#" + tableName + newIndexPos + "secIndex").addEventListener("click", () => {
           jQuery('#indexAndKeyDeleteWarning').modal();
-          document.getElementById('si-drop-confirm').addEventListener('click', () => {
+          document.getElementById('fk-drop-confirm').addEventListener('click', () => {
             Actions.dropSecondaryIndexHandler(tableName, tableIndex, newIndexPos);
           })
         });
