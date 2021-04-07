@@ -717,11 +717,11 @@ class DataTable extends HTMLElement {
         document.getElementById("editSpanner" + tableIndex).addEventListener("click", (event) => {
             Actions.editAndSaveButtonHandler(event, tableIndex, tableName, notNullConstraint);
         });
-        if (spTable.Fks !== null) {
+        if (spTable.Fks !== null && spTable.Fks.length > 0) {
             spTable.Fks.map((fk, index) => {
                 document.getElementById(tableName + index + 'foreignKey').addEventListener('click', () => {
                     jQuery('#indexAndKeyDeleteWarning').modal();
-                    jQuery('#IndexAndKeyKeyDeleteWarning').find('#modal-content').html(`This will permanently delete the foreign key constraint and the corresponding uniqueness constraints
+                    jQuery('#indexAndKeyDeleteWarning').find('#modal-content').html(`This will permanently delete the foreign key constraint and the corresponding uniqueness constraints
                     on referenced columns. Do you want to continue?`);
                     document.getElementById('fk-drop-confirm').addEventListener('click', () => {
                         Actions.dropForeignKeyHandler(tableName, tableIndex, index);
@@ -729,7 +729,7 @@ class DataTable extends HTMLElement {
                 })
             });
         }
-        if (spTable.Indexes !== null) {
+        if (spTable.Indexes !== null && spTable.Indexes.length > 0) {
             spTable.Indexes.map((secIndex, index) => {
                 document.getElementById(tableName + index + 'secIndex').addEventListener('click', () => {
                     jQuery('#indexAndKeyDeleteWarning').modal();
