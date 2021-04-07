@@ -27,6 +27,10 @@
     margin-right: 50px;
 }
 
+.warning-icon {
+    color: #E1AD01D4;
+}
+
 .pointer {
     cursor: pointer;
 }

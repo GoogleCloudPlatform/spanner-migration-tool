@@ -562,7 +562,7 @@ thead, tbody tr {
     font-size: 16px;
 }
 
-.spanner-input {
+/* .spanner-input {
     background: #FFFFFF !important;
     border: 1px solid #0C0C0C61 !important;
     padding-left: 4px;
@@ -572,7 +572,7 @@ thead, tbody tr {
     background: #FFFFFF !important;
     border: 1px solid #0C0C0C61 !important;
     padding-left: 4px;
-}
+} */
 
 .checkbox label input[type=checkbox]:checked+.checkbox-decorator .check:before, label.checkbox-inline input[type=checkbox]:checked+.checkbox-decorator .check:before {
     color: #4285F4;
@@ -710,7 +710,7 @@ span.sql-c {
     color: #808080;
     text-align:  center;
 }
-
+/* 
 .tableSelect, .tableSelect:focus {
     margin-bottom: 0px !important;
     border-radius: 2px !important;
@@ -719,7 +719,7 @@ span.sql-c {
     background-repeat: no-repeat !important;
     background-size: auto 40% !important;
     border-radius: 2px !important;
-}
+} */
 
 .column {
     float: left;

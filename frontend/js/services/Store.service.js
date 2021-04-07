@@ -45,6 +45,10 @@ const Store = (function () {
             // instance = {...instance, currentModal };
             instance = { ...instance, open: openVal };
         },
+        updateSchemaScreen: (tableData) => {
+            localStorage.setItem('conversionReportContent', tableData);
+            instance = { ...instance, tableData, "saveSchemaId": Math.random()}
+        }
         
     };
 })();

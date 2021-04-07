@@ -724,9 +724,9 @@ th {
     border: 1px;
 }
 
-.pointer {
+/* .pointer {
     cursor: pointer;
-}
+} */
 
 /* input[type="submit"]:disabled {
     background-color: #4285F4;

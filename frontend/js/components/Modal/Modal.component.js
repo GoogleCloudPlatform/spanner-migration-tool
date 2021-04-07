@@ -1,6 +1,7 @@
 import "../../components/ConnectToDbForm/ConnectToDbForm.component.js";
 import "../../components/LoadDbDumpForm/LoadDbDumpForm.component.js";
 import "../../components/LoadSessionFileForm/LoadSessionFileForm.component.js";
+import "../../components/AddIndexForm/AddIndexForm.component.js";
 
 const CONNECT_TO_DB_MODAL_BUTTONS = [{ value: "Connect", id: "connect-button", disabledProp: "disabled" }];
 const LOAD_DB_DUMP_MODAL_BUTTONS = [{ value: "Confirm", id: "load-connect-button", disabledProp: "disabled" }];
@@ -37,6 +38,7 @@ class Modal extends HTMLElement {
 
   attributeChangedCallback(attrName, oldVal, newVal) {
     if (oldVal !== newVal) {
+      
         this.render();
     }
   }
@@ -70,7 +72,10 @@ class Modal extends HTMLElement {
       case "createIndexModal":
         modalButtons= ADD_INDEX_MODAL;
         break;
+      default :
+        modalButtons= CONNECTION_FAILURE_MODAL;
     }
+
     this.innerHTML = `
         <div class="modal" id="${modalId}" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
           <div class="modal-dialog modal-dialog-centered" role="document">

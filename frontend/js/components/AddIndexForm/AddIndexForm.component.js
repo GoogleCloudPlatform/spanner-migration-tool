@@ -7,6 +7,10 @@ class AddIndexForm extends HTMLElement {
         return this.getAttribute('tableName')
     }
 
+    get tableIndex(){
+        return this.getAttribute('tableIndex')
+    }
+
      connectedCallback() {
         const {SrcSchema} = JSON.parse(localStorage.getItem('conversionReportContent'));
         this.render();
@@ -19,7 +23,7 @@ class AddIndexForm extends HTMLElement {
 
         document.getElementById("createIndexModal").querySelector("i").addEventListener("click",()=>{Actions.closeSecIndexModal()})
         
-        document.getElementById("createIndexButton").addEventListener("click",()=>{Actions.fetchIndexFormValues(this.tableName,document.getElementById("indexName").value,document.getElementById("uniqueSwitch").checked)})
+        document.getElementById("createIndexButton").addEventListener("click",()=>{Actions.fetchIndexFormValues(this.tableIndex,this.tableName,document.getElementById("indexName").value,document.getElementById("uniqueSwitch").checked)})
 
         SrcSchema[this.tableName].ColNames.map((row,idx )=>{
             
