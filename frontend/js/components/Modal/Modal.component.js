@@ -10,6 +10,9 @@ const CONNECTION_SUCCESS_MODAL = [{ value: "Convert", id: "convert-button", disa
 const CONNECTION_FAILURE_MODAL = [{ value: "Ok", id: "connection-failure-button", disabledProp: "" }];
 const EDIT_GLOBAL_DATATYPE_MODAL= [{ value: "Next", id: "data-type-button", disabledProp: "" }];
 const ADD_INDEX_MODAL= [{ value: "CREATE", id: "createIndexButton", disabledProp: "disabled" }];
+const EDIT_TABLE_WARNING_MODAL = [{ value: "Ok", id: "edit-table-warning", disabledProp: "" }];
+const FK_DROP_WARNING_MODAL = [{ value: "Yes", id: "fk-drop-confirm", disabledProp: "" }, { value: "No", id: "fk-drop-cancel", disabledProp: "" }];
+const SI_DROP_WARNING_MODAL = [{ value: "Yes", id: "si-drop-confirm", disabledProp: "" }, { value: "No", id: "si-drop-cancel", disabledProp: "" }];
 
 class Modal extends HTMLElement {
 
@@ -31,6 +34,7 @@ class Modal extends HTMLElement {
   get connectIconClass() {
     return this.getAttribute('connectIconClass');
   }
+  
 
   static get observedAttributes() {
     return ['content'];
@@ -72,8 +76,15 @@ class Modal extends HTMLElement {
       case "createIndexModal":
         modalButtons= ADD_INDEX_MODAL;
         break;
-      default :
-        modalButtons= CONNECTION_FAILURE_MODAL;
+      case "editTableWarningModal":
+        modalButtons = EDIT_TABLE_WARNING_MODAL;
+        break;
+      case "foreignKeyDeleteWarning":
+        modalButtons = FK_DROP_WARNING_MODAL;
+        break;
+      case "secIndexDeleteWarning":
+        modalButtons = SI_DROP_WARNING_MODAL;
+        break;
     }
 
     this.innerHTML = `
@@ -92,7 +103,7 @@ class Modal extends HTMLElement {
               <div class="modal-footer">
                   ${modalButtons.map((button) => {
       return `
-                      <input type="submit" ${button.disabledProp} value="${button.value}" id="${button.id}" class="modal-button" />`;
+                      <input type="submit" ${button.disabledProp} value="${button.value}" id="${button.id}" data-dismiss="modal" class="modal-button" />`;
     }).join("")}
               </div>
             </div>

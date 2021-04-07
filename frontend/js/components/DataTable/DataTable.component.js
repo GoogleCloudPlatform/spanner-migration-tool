@@ -685,7 +685,7 @@ class DataTable extends HTMLElement {
         }).join("")}
                                     </tbody>
                                 </table>
-                            ${spTable.Fks ? this.fkComponent(tableIndex, tableName, spTable.Fks) : `<div></div>`}
+                            ${spTable.Fks?.length>0 ? this.fkComponent(tableIndex, tableName, spTable.Fks) : `<div></div>`}
                             ${spTable.Indexes ? this.secIndexComponent(tableIndex, tableName, spTable.Indexes) : `<div></div>`}
                             <div class="summaryCard">
                                 <div class="summaryCardHeader" role="tab">
@@ -733,8 +733,8 @@ class DataTable extends HTMLElement {
             spTable.Indexes.map((secIndex, index) => {
                 document.getElementById(tableName + index + 'secIndex').addEventListener('click', () => {
                     jQuery('#secIndexDeleteWarning').modal();
-                    jQuery('#secIndexDeleteWarning').find('#modal-content').html(`This will permanently delete the secondary index and the corresponding uniqueness constraints on
-                    indexed columns (if applicable). Do you want to continue?`);
+                    // jQuery('#secIndexDeleteWarning').find('#modal-content').html(`This will permanently delete the secondary index and the corresponding uniqueness constraints on
+                    // indexed columns (if applicable). Do you want to continue?`);
                     document.getElementById('si-drop-confirm').addEventListener('click', () => {
                         Actions.dropSecondaryIndexHandler(tableName, tableIndex, index);
                     })

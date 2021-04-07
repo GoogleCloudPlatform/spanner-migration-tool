@@ -347,7 +347,7 @@ const Actions = (() => {
         }
       }
     },
-    fetchIndexFormValues: async (tableIndex, tableName, name, uniqueness) => {      
+    fetchIndexFormValues: async function (tableIndex, tableName, name, uniqueness){      
       console.log(keysList.length);
       if (keysList.length === 0) {
         showSnackbar(
@@ -394,39 +394,42 @@ const Actions = (() => {
       }
       let res = await Fetch.getAppData("POST","/add/indexes?table=" + table.Name,[newIndex]);
       if (res.ok) {
-          resetIndexModal();
           jQuery("#createIndexModal").modal("hide");
           res = await res.text();
           localStorage.setItem("conversionReportContent", res);
           jsonObj = JSON.parse(localStorage.getItem("conversionReportContent") );
-          table = jsonObj.SpSchema[tableName];
-          console.log(table);
+          let secIndex = jsonObj.SpSchema[tableName].Indexes[newIndexPos];
           let tablemap = document.getElementById("indexTableBody"+tableIndex);
           console.log(tablemap);
-          tablemap.innerHTML = table.Indexes.map((eachsecIndex)=>{
-            return `
-            <tr class="indexTableTr ">
+          let flag = document.querySelector("#editSpanner"+tableIndex).innerHTML === "Save Changes"; 
+          tablemap.innerHTML =tablemap.innerHTML+ `
+          
+          <tr class="indexTableTr ">
             <td class="acc-table-td indexesName">
-                <div class="renameSecIndex template">
-                    <input type="text" class="form-control spanner-input"
-                        autocomplete="off" />
-                </div>
-                <div class="saveSecIndex">${eachsecIndex.Name}</div>
+                                            <div class="renameSecIndex template" id="renameSecIndex${tableIndex}${newIndexPos}">
+                                                <input type="text" id="newSecIndexVal${tableIndex}${newIndexPos}" value=${secIndex.Name}
+                                                    class="form-control spanner-input" autocomplete="off" />
+                                            </div>
+                                            <div class="saveSecIndex " id="saveSecIndex${tableIndex}${newIndexPos}">${secIndex.Name}</div>
             </td>
-            <td class="acc-table-td indexesTable">${eachsecIndex.Table}</td>
-            <td class="acc-table-td indexesUnique">${eachsecIndex.Unique}</td>
-            <td class="acc-table-td indexesKeys">${eachsecIndex.Keys.map((key)=>key.Col).join(',')}</td>
+            <td class="acc-table-td indexesTable">${secIndex.Table}</td>
+            <td class="acc-table-td indexesUnique">${secIndex.Unique}</td>
+            <td class="acc-table-td indexesKeys">${secIndex.Keys.map((key)=>key.Col).join(',')}</td>
             <td class="acc-table-td indexesAction">
-                <button class="dropButton" disabled>
-                    <span><i class="large material-icons removeIcon"
-                            style="vertical-align: middle">delete</i></span>
-                    <span style="vertical-align: middle">Drop</span>
-                </button>
+                                            <button class="dropButton" id="${tableName}${newIndexPos}secIndex" disabled>
+                                                <span><i class="large material-icons removeIcon"
+                                                        style="vertical-align: middle">delete</i></span>
+                                                <span style="vertical-align: middle">Drop</span>
+                                            </button>
             </td>
-        </tr>
-                 
-            `;
-        }).join("") 
+        </tr>`
+        document.querySelector("#"+tableName+newIndexPos+"secIndex").addEventListener("click",()=>{
+          jQuery('#secIndexDeleteWarning').modal();
+          document.getElementById('si-drop-confirm').addEventListener('click', () => {
+            Actions.dropSecondaryIndexHandler(tableName, tableIndex, newIndexPos);
+          })
+        });
+        this.closeSecIndexModal();
       }
 
       //     let indexKeys;
@@ -516,8 +519,10 @@ const Actions = (() => {
       resetIndexModal();
     },
     closeSecIndexModal: () => {
+      // debugger;
       resetIndexModal();
-      let generalModal = document.getElementsByTagName("hb-modal")[1];
+      let generalModal = document.querySelector("hb-modal[modalId = createIndexModal]");
+      console.log(generalModal);
       let content = `empty`;
       generalModal.setAttribute("content", content);
 
@@ -766,12 +771,16 @@ const Actions = (() => {
           }
           else {
               tableData = await tableData.text();
+              console.log(tableData);
+              // jQuery('#editTableWarningModal').find('#modal-content').html(tableData);
+              document.querySelector('hb-modal[modalId = editTableWarningModal]').setAttribute("content",tableData);
               jQuery('#editTableWarningModal').modal();
-              jQuery('#editTableWarningModal').find('#modal-content').html(tableData);
+
               jQuery('#editTableWarningModal').find('i').click(function () {
                   Store.updateSchemaScreen(localStorage.getItem('conversionReportContent'));
               })
-              document.getElementById('edit-table-warning').addEventListener('click', () => {
+
+              document.querySelector('#edit-table-warning').addEventListener('click', () => {
                   Store.updateSchemaScreen(localStorage.getItem('conversionReportContent'));
               })
           }
@@ -933,7 +942,7 @@ const Actions = (() => {
           }
       }
     },
-  dropSecondaryIndexHandler: async (tableName, tableNumber, pos) => {
+   dropSecondaryIndexHandler: async (tableName, tableNumber, pos) => {
       let response;
       response = await Fetch.getAppData('GET', '/drop/secondaryindex?table=' + tableName + '&pos=' + pos);
       if (response.ok) {
