@@ -735,7 +735,7 @@ class DataTable extends HTMLElement {
                     jQuery('#indexAndKeyDeleteWarning').modal();
                     jQuery('#indexAndKeyDeleteWarning').find('#modal-content').html(`This will permanently delete the secondary index and the corresponding uniqueness constraints on
                     indexed columns (if applicable). Do you want to continue?`);
-                    document.getElementById('si-drop-confirm').addEventListener('click', () => {
+                    document.getElementById('fk-drop-confirm').addEventListener('click', () => {
                         Actions.dropSecondaryIndexHandler(tableName, tableIndex, index);
                     })
                 })
