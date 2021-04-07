@@ -136,63 +136,10 @@ class SchemaConversionScreen extends HTMLElement {
         </div>
     </div>
 
-    <hb-modal modalId="globalDataTypeModal" 
-    content="<hb-edit-global-datatype-form></hb-edit-global-datatype-form>" 
-    contentIcon="" 
-    connectIconClass="" modalBodyClass="" title="Global Data Type Mapping"></hb-modal>
-    
-    <hb-modal modalId="foreignKeyDeleteWarning" content="" contentIcon="warning" connectIconClass="warning-icon" modalBodyClass="connection-modal-body" title="Warning"></hb-modal>
-    
-    <hb-modal modalId="secIndexDeleteWarning" content="warning" contentIcon="warning" connectIconClass="warning-icon" modalBodyClass="connection-modal-body" title="Warning"></hb-modal>
-    <!-- <div class="modal" id="secIndexDeleteWarning" role="dialog" tabindex="-1" aria-labelledby="exampleModalCenterTitle"
-        aria-hidden="true" data-backdrop="static" data-keyboard="false" style="z-index: 999999;">
-        <div class="modal-dialog modal-dialog-centered" role="document">
-            <div class="modal-content">
-                <div class="modal-header content-center">
-                    <h5 class="modal-title modal-bg" id="exampleModalLongTitle">Warning</h5>
-                    <i class="large material-icons close" data-dismiss="modal">cancel</i>
-                </div>
-                <div class="modal-body" style='margin-bottom: 20px; display: inherit;'>
-                    <div><i class="large material-icons connectionFailure" style="color: #E1AD01D4 !important;">warning</i>
-                    </div>
-                    <div id="failureContent">
-                        This will permanently delete the secondary index and the corresponding uniqueness constraints on
-                        indexed columns (if applicable). Do you want to continue?
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button data-dismiss="modal" class="connectButton" type="button"
-                        onclick="dropSecondaryIndexHandler()">Yes</button>
-                    <button data-dismiss="modal" class="connectButton" type="button">No</button>
-                </div>
-            </div>
-        </div>
-    </div> -->
-    
-
+    <hb-modal modalId="globalDataTypeModal" content="<hb-edit-global-datatype-form></hb-edit-global-datatype-form>" contentIcon="" connectIconClass="" modalBodyClass="" title="Global Data Type Mapping"></hb-modal>
+    <hb-modal modalId="indexAndKeyDeleteWarning" content="" contentIcon="warning" connectIconClass="warning-icon" modalBodyClass="connection-modal-body" title="Warning"></hb-modal>
+    <hb-modal modalId="changesSavedModal" content="" contentIcon="" connectIconClass="" modalBodyClass="connection-modal-body" title="Changes Saved"></hb-modal>
     <hb-modal modalId="editTableWarningModal" content="edit table" contentIcon="cancel" connectIconClass="connect-icon-failure" modalBodyClass="connection-modal-body" title="Error Message"></hb-modal>
-   
-    <div class="modal" id="editColumnNameErrorModal" role="dialog" tabindex="-1" aria-labelledby="exampleModalCenterTitle"
-        aria-hidden="true" data-backdrop="static" data-keyboard="false" style="z-index: 999999;">
-        <div class="modal-dialog modal-dialog-centered" role="document">
-            <!-- Modal content-->
-            <div class="modal-content">
-                <div class="modal-header content-center">
-                    <h5 class="modal-title modal-bg" id="exampleModalLongTitle">Error Message</h5>
-                    <i class="large material-icons close" data-dismiss="modal">cancel</i>
-                </div>
-                <div class="modal-body" style='margin-bottom: 20px; display: inherit;'>
-                    <div><i class="large material-icons connectionFailure" style="color: #FF0000 !important;">cancel</i>
-                    </div>
-                    <div id="editColumnNameErrorContent">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button data-dismiss="modal" class="connectButton" type="button">Ok</button>
-                </div>
-            </div>
-        </div>
-    </div>
     <hb-modal modalId="createIndexModal" 
     content=""
     contentIcon="" connectIconClass="" modalBodyClass="" 

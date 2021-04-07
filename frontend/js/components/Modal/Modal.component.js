@@ -8,11 +8,11 @@ const LOAD_DB_DUMP_MODAL_BUTTONS = [{ value: "Confirm", id: "load-connect-button
 const LOAD_SESSION_MODAL_BUTTONS = [{ value: "Confirm", id: "import-button", disabledProp: "disabled" }];
 const CONNECTION_SUCCESS_MODAL = [{ value: "Convert", id: "convert-button", disabledProp: "" }];
 const CONNECTION_FAILURE_MODAL = [{ value: "Ok", id: "connection-failure-button", disabledProp: "" }];
-const EDIT_GLOBAL_DATATYPE_MODAL= [{ value: "Next", id: "data-type-button", disabledProp: "" }];
-const ADD_INDEX_MODAL= [{ value: "CREATE", id: "createIndexButton", disabledProp: "disabled" }];
+const EDIT_GLOBAL_DATATYPE_MODAL = [{ value: "Next", id: "data-type-button", disabledProp: "" }];
+const ADD_INDEX_MODAL = [{ value: "CREATE", id: "createIndexButton", disabledProp: "disabled" }];
 const EDIT_TABLE_WARNING_MODAL = [{ value: "Ok", id: "edit-table-warning", disabledProp: "" }];
+const CHANGES_SAVED_MODAL = [{ value: "Ok", id: "changes-saved-button", disabledProp: "" }];
 const FK_DROP_WARNING_MODAL = [{ value: "Yes", id: "fk-drop-confirm", disabledProp: "" }, { value: "No", id: "fk-drop-cancel", disabledProp: "" }];
-const SI_DROP_WARNING_MODAL = [{ value: "Yes", id: "si-drop-confirm", disabledProp: "" }, { value: "No", id: "si-drop-cancel", disabledProp: "" }];
 
 class Modal extends HTMLElement {
 
@@ -34,7 +34,7 @@ class Modal extends HTMLElement {
   get connectIconClass() {
     return this.getAttribute('connectIconClass');
   }
-  
+
 
   static get observedAttributes() {
     return ['content'];
@@ -42,8 +42,8 @@ class Modal extends HTMLElement {
 
   attributeChangedCallback(attrName, oldVal, newVal) {
     if (oldVal !== newVal) {
-      
-        this.render();
+
+      this.render();
     }
   }
 
@@ -71,19 +71,19 @@ class Modal extends HTMLElement {
         modalButtons = CONNECTION_FAILURE_MODAL;
         break;
       case "globalDataTypeModal":
-        modalButtons= EDIT_GLOBAL_DATATYPE_MODAL;
+        modalButtons = EDIT_GLOBAL_DATATYPE_MODAL;
         break;
       case "createIndexModal":
-        modalButtons= ADD_INDEX_MODAL;
+        modalButtons = ADD_INDEX_MODAL;
         break;
       case "editTableWarningModal":
         modalButtons = EDIT_TABLE_WARNING_MODAL;
         break;
-      case "foreignKeyDeleteWarning":
+      case "indexAndKeyDeleteWarning":
         modalButtons = FK_DROP_WARNING_MODAL;
         break;
-      case "secIndexDeleteWarning":
-        modalButtons = SI_DROP_WARNING_MODAL;
+      case "changesSavedModal":
+        modalButtons = CHANGES_SAVED_MODAL;
         break;
     }
 
@@ -98,7 +98,7 @@ class Modal extends HTMLElement {
 
               <div class="modal-body ${modalBodyClass}">
                 <div><i class="large material-icons ${connectIconClass}">${contentIcon}</i></div>
-                <div>${content.trim()}</div>
+                <div id="modal-content">${content.trim()}</div>
               </div>
               <div class="modal-footer">
                   ${modalButtons.map((button) => {

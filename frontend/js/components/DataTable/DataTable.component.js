@@ -720,8 +720,8 @@ class DataTable extends HTMLElement {
         if (spTable.Fks !== null) {
             spTable.Fks.map((fk, index) => {
                 document.getElementById(tableName + index + 'foreignKey').addEventListener('click', () => {
-                    jQuery('#foreignKeyDeleteWarning').modal();
-                    jQuery('#foreignKeyDeleteWarning').find('#modal-content').html(`This will permanently delete the foreign key constraint and the corresponding uniqueness constraints
+                    jQuery('#indexAndKeyDeleteWarning').modal();
+                    jQuery('#IndexAndKeyKeyDeleteWarning').find('#modal-content').html(`This will permanently delete the foreign key constraint and the corresponding uniqueness constraints
                     on referenced columns. Do you want to continue?`);
                     document.getElementById('fk-drop-confirm').addEventListener('click', () => {
                         Actions.dropForeignKeyHandler(tableName, tableIndex, index);
@@ -732,9 +732,9 @@ class DataTable extends HTMLElement {
         if (spTable.Indexes !== null) {
             spTable.Indexes.map((secIndex, index) => {
                 document.getElementById(tableName + index + 'secIndex').addEventListener('click', () => {
-                    jQuery('#secIndexDeleteWarning').modal();
-                    // jQuery('#secIndexDeleteWarning').find('#modal-content').html(`This will permanently delete the secondary index and the corresponding uniqueness constraints on
-                    // indexed columns (if applicable). Do you want to continue?`);
+                    jQuery('#indexAndKeyDeleteWarning').modal();
+                    jQuery('#indexAndKeyDeleteWarning').find('#modal-content').html(`This will permanently delete the secondary index and the corresponding uniqueness constraints on
+                    indexed columns (if applicable). Do you want to continue?`);
                     document.getElementById('si-drop-confirm').addEventListener('click', () => {
                         Actions.dropSecondaryIndexHandler(tableName, tableIndex, index);
                     })
