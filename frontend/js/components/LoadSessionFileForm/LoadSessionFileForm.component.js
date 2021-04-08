@@ -1,4 +1,5 @@
 import Forms from "../../services/Forms.service.js";
+import Actions from "../../services/Action.service.js";
 
 class LoadSessionFileForm extends HTMLElement {
 
@@ -11,10 +12,28 @@ class LoadSessionFileForm extends HTMLElement {
         document.getElementById("session-file-path").addEventListener("focusout", () => {
             Forms.validateInput(document.getElementById('session-file-path'), 'load-session-error');
         });
-        Forms.formButtonHandler("load-session-form", "import-button");
-        document.getElementById("import-button").addEventListener("click", () => {
-            storeSessionFilePath(document.getElementById("import-db-type").value, document.getElementById("session-file-path").value)
-        })
+        Forms.formButtonHandler("load-session-form", "load-session-button");
+        document.getElementById("load-session-button").addEventListener("click", () => {
+            this.storeSessionFilePath(document.getElementById("import-db-type").value, document.getElementById("session-file-path").value);
+        });
+    }
+
+    storeSessionFilePath = async (dbType, filePath) => {
+        let sourceTableFlag = '', loadSessionRes, ddlSummaryApiRes;
+        if (dbType === 'mysql') {
+            sourceTableFlag = 'MySQL';
+            localStorage.setItem('sourceDbName', sourceTableFlag);
+        }
+        else if (dbType === 'postgres') {
+            sourceTableFlag = 'Postgres';
+            localStorage.setItem('sourceDbName', sourceTableFlag);
+        }
+        loadSessionRes = await Actions.onLoadSessionFile(filePath);
+        ddlSummaryApiRes = await Actions.ddlSummaryAndConversionApiCall();
+        if (loadSessionRes && ddlSummaryApiRes) {
+            window.location.href = '#/schema-report';
+            Actions.sessionRetrieval(localStorage.getItem('sourceDbName'));
+        }
     }
 
     render() {

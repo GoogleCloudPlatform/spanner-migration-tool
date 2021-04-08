@@ -82,7 +82,7 @@ const Forms = (() => {
             document.getElementById('load-session-error').innerHTML = '';
             document.getElementById('session-file-path').value = '';
             document.getElementById('import-db-type').value = '';
-            document.getElementById('import-button').disabled = true;
+            document.getElementById('load-session-button').disabled = true;
         }
     }
 })();

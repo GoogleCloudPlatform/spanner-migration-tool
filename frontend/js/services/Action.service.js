@@ -94,6 +94,39 @@ const Actions = (() => {
       jQuery("#connectModalSuccess").modal("hide");
       sourceTableFlag = localStorage.getItem("sourceDbName");
     },
+    onLoadSessionFile: async (filePath) => {
+      let driver = '', response, payload;
+      let srcDb = localStorage.getItem('sourceDbName');
+      if (srcDb === 'MySQL') {
+        driver = 'mysqldump';
+      }
+      else if (srcDb === 'Postgres') {
+        driver = 'pg_dump';
+      }
+      payload = { "Driver": driver, "DBName": '', "FilePath": filePath };
+      response = await Fetch.getAppData('POST', '/session/resume', payload);
+      if (response.ok) {
+        let responseCopy, textResponse, jsonResponse;
+        responseCopy = response.clone();
+        textResponse = await response.text();
+        jsonResponse = await responseCopy.json();
+        if (Object.keys(jsonResponse.SpSchema).length == 0) {
+          showSnackbar('Please select valid session file', ' redBg');
+          jQuery('#importButton').attr('disabled', 'disabled');
+          return false;
+        }
+        else {
+          localStorage.setItem('conversionReportContent', textResponse);
+          jQuery('#loadSchemaModal').modal('hide');
+          return true;
+        }
+      }
+      else {
+        showSnackbar('Please select valid session file', ' redBg');
+        jQuery('#importButton').attr('disabled', 'disabled');
+        return false;
+      }
+    },
     ddlSummaryAndConversionApiCall: async () => {
       let conversionRate,
         conversionRateJson,
@@ -391,7 +424,7 @@ const Actions = (() => {
       } else {
         newIndexPos = 0;
       }
-     
+
       let res = await Fetch.getAppData("POST", "/add/indexes?table=" + tableName, [newIndex]);
       if (res.ok) {
         jQuery("#createIndexModal").modal("hide");
@@ -402,23 +435,23 @@ const Actions = (() => {
         let tablemap = document.getElementById("indexTableBody" + tableIndex);
         console.log(tablemap);
         let flag = document.querySelector("#editSpanner" + tableIndex).innerHTML === "Save Changes";
-        
+
         tablemap.innerHTML = secIndexArray.map((secIndex, index) => {
           return `
                                   <tr class="indexTableTr ">
                                       <td class="acc-table-td indexesName">
-                                          <div class="renameSecIndex ${flag?'':'template'}" id="renameSecIndex${tableIndex}${index}">
+                                          <div class="renameSecIndex ${flag ? '' : 'template'}" id="renameSecIndex${tableIndex}${index}">
                                               <input type="text" id="newSecIndexVal${tableIndex}${index}" value="${secIndex.Name}"
                                                   class="form-control spanner-input" autocomplete="off" />
                                           </div>
-                                          <div class="saveSecIndex ${flag?'template':''}" id="saveSecIndex${tableIndex}${index}">${secIndex.Name}</div>
+                                          <div class="saveSecIndex ${flag ? 'template' : ''}" id="saveSecIndex${tableIndex}${index}">${secIndex.Name}</div>
                                           
                                       </td>
                                       <td class="acc-table-td indexesTable">${secIndex.Table}</td>
                                       <td class="acc-table-td indexesUnique">${secIndex.Unique}</td>
                                       <td class="acc-table-td indexesKeys">${secIndex.Keys.map((key) => key.Col).join(',')}</td>
                                       <td class="acc-table-td indexesAction">
-                                          <button class="dropButton" id="${tableName}${index}secIndex" ${flag?"":"disabled"}>
+                                          <button class="dropButton" id="${tableName}${index}secIndex" ${flag ? "" : "disabled"}>
                                               <span><i class="large material-icons removeIcon"
                                                       style="vertical-align: middle">delete</i></span>
                                               <span style="vertical-align: middle">Drop</span>
@@ -426,135 +459,135 @@ const Actions = (() => {
                                       </td>
                                   </tr>
                                   `;
-      }).join("") ;
+        }).join("");
 
-      if (secIndexArray !== null && secIndexArray.length > 0) {
-        secIndexArray.map((secIndex, index) => {
+        if (secIndexArray !== null && secIndexArray.length > 0) {
+          secIndexArray.map((secIndex, index) => {
             document.getElementById(tableName + index + 'secIndex').addEventListener('click', () => {
-                jQuery('#indexAndKeyDeleteWarning').modal();
-                jQuery('#indexAndKeyDeleteWarning').find('#modal-content').html(`This will permanently delete the secondary index and the corresponding uniqueness constraints on
+              jQuery('#indexAndKeyDeleteWarning').modal();
+              jQuery('#indexAndKeyDeleteWarning').find('#modal-content').html(`This will permanently delete the secondary index and the corresponding uniqueness constraints on
                 indexed columns (if applicable). Do you want to continue?`);
-                document.getElementById('fk-drop-confirm').addEventListener('click', () => {
-                    Actions.dropSecondaryIndexHandler(tableName, tableIndex, index);
-                })
+              document.getElementById('fk-drop-confirm').addEventListener('click', () => {
+                Actions.dropSecondaryIndexHandler(tableName, tableIndex, index);
+              })
             })
-        });
-    } 
-    
+          });
+        }
+
         this.closeSecIndexModal();
-      {
-        // // jQuery("#" + tableIndex).find('.index-acc-table.fk-table').css('visibility', 'visible');
-        // // jQuery('#' + tableIndex).find('.index-acc-table.fk-table').addClass('important-rule-100');
-        // // jQuery('#' + tableIndex).find('.index-acc-table.fk-table').removeClass('important-rule-0');
-        // let $indexTableContent = jQuery("#" + tableIndex).find('.indexTableTr.template').clone().removeClass('template');
-        // console.log($indexTableContent);
-        // $indexTableContent.find('.renameSecIndex.template').attr('id', 'renameSecIndex' + tableIndex + newIndexPos);
-        // $indexTableContent.find('.saveSecIndex.template').attr('id', 'saveSecIndex' + tableIndex + newIndexPos);
-        // if (document.getElementById("editSpanner" + tableIndex).innerHTML.trim() == "Save Changes") {
-        //   $indexTableContent.find('.renameSecIndex.template').removeClass('template').find("input").val(table.Indexes[newIndexPos].Name).attr('id', 'newSecIndexVal' + tableIndex + newIndexPos);
-        //   $indexTableContent.find('button').removeAttr('disabled');
-        // }
-        // else {
-        //   $indexTableContent.find('.saveSecIndex.template').removeClass('template').html(table.Indexes[newIndexPos].Name);;
-        // }
-        // $indexTableContent.find('.acc-table-td.indexesTable').html(table.Indexes[newIndexPos].Table);
-        // $indexTableContent.find('.acc-table-td.indexesUnique').html(table.Indexes[newIndexPos].Unique.toString());
-        // let indexKeys = '';
-        // for (var k = 0; k < table.Indexes[newIndexPos].Keys.length; k++) {
-        //   indexKeys += table.Indexes[newIndexPos].Keys[k].Col + ', '
-        // }
-        // indexKeys = indexKeys.replace(/,\s*$/, "");
-       
-        // $indexTableContent.find('.acc-table-td.indexesKeys').html(indexKeys);
-        // $indexTableContent.find('button').attr('id', tableName + newIndexPos + 'secIndex');
-        // $indexTableContent.find('#' + tableName + newIndexPos + 'secIndex').click(function () {
-        //   let indexId = jQuery(this).attr('id');
-        //   let secIndexTableNumber = parseInt(jQuery(this).closest('.index-collapse.collapse').attr('id').match(/\d+/), 10);
-        //   console.log(secIndexTableNumber);
-        //   localStorage.setItem('indexId', indexId);
-        //   localStorage.setItem('secIndexTableNumber', secIndexTableNumber);
-        //   jQuery('#indexAndKeyDeleteWarning').modal();
-        // });
-        // console.log($indexTableContent);
-        // $indexTableContent.appendTo(jQuery('#' + tableIndex).find('.indexTableBody'));
-  
-        // document.querySelector("#" + tableName + newIndexPos + "secIndex").addEventListener("click", () => {
-        //   jQuery('#indexAndKeyDeleteWarning').modal();
-        //   document.getElementById('fk-drop-confirm').addEventListener('click', () => {
-        //     Actions.dropSecondaryIndexHandler(tableName, tableIndex, newIndexPos);
-        //   })
-        // });
-      }
-       
+        {
+          // // jQuery("#" + tableIndex).find('.index-acc-table.fk-table').css('visibility', 'visible');
+          // // jQuery('#' + tableIndex).find('.index-acc-table.fk-table').addClass('important-rule-100');
+          // // jQuery('#' + tableIndex).find('.index-acc-table.fk-table').removeClass('important-rule-0');
+          // let $indexTableContent = jQuery("#" + tableIndex).find('.indexTableTr.template').clone().removeClass('template');
+          // console.log($indexTableContent);
+          // $indexTableContent.find('.renameSecIndex.template').attr('id', 'renameSecIndex' + tableIndex + newIndexPos);
+          // $indexTableContent.find('.saveSecIndex.template').attr('id', 'saveSecIndex' + tableIndex + newIndexPos);
+          // if (document.getElementById("editSpanner" + tableIndex).innerHTML.trim() == "Save Changes") {
+          //   $indexTableContent.find('.renameSecIndex.template').removeClass('template').find("input").val(table.Indexes[newIndexPos].Name).attr('id', 'newSecIndexVal' + tableIndex + newIndexPos);
+          //   $indexTableContent.find('button').removeAttr('disabled');
+          // }
+          // else {
+          //   $indexTableContent.find('.saveSecIndex.template').removeClass('template').html(table.Indexes[newIndexPos].Name);;
+          // }
+          // $indexTableContent.find('.acc-table-td.indexesTable').html(table.Indexes[newIndexPos].Table);
+          // $indexTableContent.find('.acc-table-td.indexesUnique').html(table.Indexes[newIndexPos].Unique.toString());
+          // let indexKeys = '';
+          // for (var k = 0; k < table.Indexes[newIndexPos].Keys.length; k++) {
+          //   indexKeys += table.Indexes[newIndexPos].Keys[k].Col + ', '
+          // }
+          // indexKeys = indexKeys.replace(/,\s*$/, "");
+
+          // $indexTableContent.find('.acc-table-td.indexesKeys').html(indexKeys);
+          // $indexTableContent.find('button').attr('id', tableName + newIndexPos + 'secIndex');
+          // $indexTableContent.find('#' + tableName + newIndexPos + 'secIndex').click(function () {
+          //   let indexId = jQuery(this).attr('id');
+          //   let secIndexTableNumber = parseInt(jQuery(this).closest('.index-collapse.collapse').attr('id').match(/\d+/), 10);
+          //   console.log(secIndexTableNumber);
+          //   localStorage.setItem('indexId', indexId);
+          //   localStorage.setItem('secIndexTableNumber', secIndexTableNumber);
+          //   jQuery('#indexAndKeyDeleteWarning').modal();
+          // });
+          // console.log($indexTableContent);
+          // $indexTableContent.appendTo(jQuery('#' + tableIndex).find('.indexTableBody'));
+
+          // document.querySelector("#" + tableName + newIndexPos + "secIndex").addEventListener("click", () => {
+          //   jQuery('#indexAndKeyDeleteWarning').modal();
+          //   document.getElementById('fk-drop-confirm').addEventListener('click', () => {
+          //     Actions.dropSecondaryIndexHandler(tableName, tableIndex, newIndexPos);
+          //   })
+          // });
+        }
+
       }
 
-      
-     { //     $indexTableContent = jQuery(".indexTableTr.template")
-      //       .clone()
-      //       .removeClass("template");
-      //     $indexTableContent
-      //       .find(".renameSecIndex.template")
-      //       .attr("id", "renameSecIndex" + tableNumber + newIndexPos);
-      //     $indexTableContent
-      //       .find(".saveSecIndex.template")
-      //       .attr("id", "saveSecIndex" + tableNumber + newIndexPos);
-      //     if (
-      //       document
-      //         .getElementById("editSpanner" + tableNumber)
-      //         .innerHTML.trim() == "Save Changes"
-      //     ) {
-      //       $indexTableContent
-      //         .find(".renameSecIndex.template")
-      //         .removeClass("template")
-      //         .find("input")
-      //         .val(table.Indexes[newIndexPos].Name)
-      //         .attr("id", "newSecIndexVal" + tableNumber + newIndexPos);
-      //       $indexTableContent.find("button").removeAttr("disabled");
-      //     } else {
-      //       $indexTableContent
-      //         .find(".saveSecIndex.template")
-      //         .removeClass("template")
-      //         .html(table.Indexes[newIndexPos].Name);
-      //     }
-      //     $indexTableContent
-      //       .find(".acc-table-td.indexesTable")
-      //       .html(table.Indexes[newIndexPos].Table);
-      //     $indexTableContent
-      //       .find(".acc-table-td.indexesUnique")
-      //       .html(table.Indexes[newIndexPos].Unique.toString());
-      //     indexKeys = "";
-      //     for (var k = 0; k < table.Indexes[newIndexPos].Keys.length; k++) {
-      //       indexKeys += table.Indexes[newIndexPos].Keys[k].Col + ", ";
-      //     }
-      //     indexKeys = indexKeys.replace(/,\s*$/, "");
-      //     $indexTableContent.find(".acc-table-td.indexesKeys").html(indexKeys);
-      //     $indexTableContent
-      //       .find("button")
-      //       .attr("id", table.Name + newIndexPos + "secIndex");
-      //     $indexTableContent
-      //       .find("#" + table.Name + newIndexPos + "secIndex")
-      //       .click(function () {
-      //         let indexId = jQuery(this).attr("id");
-      //         let secIndexTableNumber = parseInt(
-      //           jQuery(this)
-      //             .closest(".index-collapse.collapse")
-      //             .attr("id")
-      //             .match(/\d+/),
-      //           10
-      //         );
-      //         localStorage.setItem("indexId", indexId);
-      //         localStorage.setItem("secIndexTableNumber", secIndexTableNumber);
-      //         jQuery("#secIndexDeleteWarning").modal();
-      //       });
-      //     $indexTableContent.appendTo(
-      //       jQuery("#" + tableNumber).find(".indexTableBody")
-      //     );
-      //   } else {
-      //     res = await res.text();
-      //     showSnackbar(res, " red-bg");
-      //   }
-      // });
-     }
+
+      { //     $indexTableContent = jQuery(".indexTableTr.template")
+        //       .clone()
+        //       .removeClass("template");
+        //     $indexTableContent
+        //       .find(".renameSecIndex.template")
+        //       .attr("id", "renameSecIndex" + tableNumber + newIndexPos);
+        //     $indexTableContent
+        //       .find(".saveSecIndex.template")
+        //       .attr("id", "saveSecIndex" + tableNumber + newIndexPos);
+        //     if (
+        //       document
+        //         .getElementById("editSpanner" + tableNumber)
+        //         .innerHTML.trim() == "Save Changes"
+        //     ) {
+        //       $indexTableContent
+        //         .find(".renameSecIndex.template")
+        //         .removeClass("template")
+        //         .find("input")
+        //         .val(table.Indexes[newIndexPos].Name)
+        //         .attr("id", "newSecIndexVal" + tableNumber + newIndexPos);
+        //       $indexTableContent.find("button").removeAttr("disabled");
+        //     } else {
+        //       $indexTableContent
+        //         .find(".saveSecIndex.template")
+        //         .removeClass("template")
+        //         .html(table.Indexes[newIndexPos].Name);
+        //     }
+        //     $indexTableContent
+        //       .find(".acc-table-td.indexesTable")
+        //       .html(table.Indexes[newIndexPos].Table);
+        //     $indexTableContent
+        //       .find(".acc-table-td.indexesUnique")
+        //       .html(table.Indexes[newIndexPos].Unique.toString());
+        //     indexKeys = "";
+        //     for (var k = 0; k < table.Indexes[newIndexPos].Keys.length; k++) {
+        //       indexKeys += table.Indexes[newIndexPos].Keys[k].Col + ", ";
+        //     }
+        //     indexKeys = indexKeys.replace(/,\s*$/, "");
+        //     $indexTableContent.find(".acc-table-td.indexesKeys").html(indexKeys);
+        //     $indexTableContent
+        //       .find("button")
+        //       .attr("id", table.Name + newIndexPos + "secIndex");
+        //     $indexTableContent
+        //       .find("#" + table.Name + newIndexPos + "secIndex")
+        //       .click(function () {
+        //         let indexId = jQuery(this).attr("id");
+        //         let secIndexTableNumber = parseInt(
+        //           jQuery(this)
+        //             .closest(".index-collapse.collapse")
+        //             .attr("id")
+        //             .match(/\d+/),
+        //           10
+        //         );
+        //         localStorage.setItem("indexId", indexId);
+        //         localStorage.setItem("secIndexTableNumber", secIndexTableNumber);
+        //         jQuery("#secIndexDeleteWarning").modal();
+        //       });
+        //     $indexTableContent.appendTo(
+        //       jQuery("#" + tableNumber).find(".indexTableBody")
+        //     );
+        //   } else {
+        //     res = await res.text();
+        //     showSnackbar(res, " red-bg");
+        //   }
+        // });
+      }
     },
     createNewSecIndex: (id) => {
       let iIndex = id.indexOf("indexButton");
@@ -1031,7 +1064,7 @@ const Actions = (() => {
           for (let x = 0; x < rowCount; x++) {
             table.deleteRow(x);
           }
-         console.log(tableNumber);
+          console.log(tableNumber);
           // jQuery('#' + tableNumber).find('.index-acc-table.fkTable').css('visibility', 'hidden');
           // jQuery('#' + tableNumber).find('.index-acc-table.fkTable').addClass('importantRule0');
           // jQuery('#' + tableNumber).find('.index-acc-table.fkTable').removeClass('importantRule100');
