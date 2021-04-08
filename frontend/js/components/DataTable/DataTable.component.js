@@ -495,7 +495,7 @@ class DataTable extends HTMLElement {
                                     </tr>
                                 </thead>
                                 <tbody class="indexTableBody" id="indexTableBody${tableIndex}">
-                                <tr class='indexTableTr template temp'>
+                                <tr class='indexTableTr template '>
                                 <td class='acc-table-td indexesName'>
                                     <div class='renameSecIndex template'>
                                         <input type="text"

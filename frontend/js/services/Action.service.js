@@ -348,8 +348,6 @@ const Actions = (() => {
       }
     },
     fetchIndexFormValues: async function (tableIndex, tableName, name, uniqueness) {
-      
-      console.log(keysList.length);
       if (keysList.length === 0) {
         showSnackbar(
           "Please select atleast one key to create a new index",
@@ -394,55 +392,91 @@ const Actions = (() => {
         newIndexPos = 0;
       }
      
-      let res = await Fetch.getAppData("POST", "/add/indexes?table=" + table.Name, [newIndex]);
+      let res = await Fetch.getAppData("POST", "/add/indexes?table=" + tableName, [newIndex]);
       if (res.ok) {
         jQuery("#createIndexModal").modal("hide");
-       
-     
         res = await res.text();
         localStorage.setItem("conversionReportContent", res);
         jsonObj = JSON.parse(localStorage.getItem("conversionReportContent"));
-        let secIndex = jsonObj.SpSchema[tableName].Indexes[newIndexPos];
-        let table = jsonObj.SpSchema[tableName];
-
-        // let tablemap = document.getElementById("indexTableBody" + tableIndex);
-        // console.log(tablemap);
-        // let flag = document.querySelector("#editSpanner" + tableIndex).innerHTML === "Save Changes";
+        let secIndexArray = jsonObj.SpSchema[tableName].Indexes;
+        let tablemap = document.getElementById("indexTableBody" + tableIndex);
+        console.log(tablemap);
+        let flag = document.querySelector("#editSpanner" + tableIndex).innerHTML === "Save Changes";
         
-      
-        // jQuery("#" + tableIndex).find('.index-acc-table.fk-table').css('visibility', 'visible');
-        // jQuery('#' + tableIndex).find('.index-acc-table.fk-table').addClass('important-rule-100');
-        // jQuery('#' + tableIndex).find('.index-acc-table.fk-table').removeClass('important-rule-0');
-        let $indexTableContent = jQuery('.indexTableTr.template.temp').clone().removeClass('template').removeClass('temp');
-        console.log($indexTableContent);
-        $indexTableContent.find('.renameSecIndex.template').attr('id', 'renameSecIndex' + tableIndex + newIndexPos);
-        $indexTableContent.find('.saveSecIndex.template').attr('id', 'saveSecIndex' + tableIndex + newIndexPos);
-        if (document.getElementById("editSpanner" + tableIndex).innerHTML.trim() == "Save Changes") {
-          $indexTableContent.find('.renameSecIndex.template').removeClass('template').find("input").val(table.Indexes[newIndexPos].Name).attr('id', 'newSecIndexVal' + tableIndex + newIndexPos);
-          $indexTableContent.find('button').removeAttr('disabled');
-        }
-        else {
-          $indexTableContent.find('.saveSecIndex.template').removeClass('template').html(table.Indexes[newIndexPos].Name);;
-        }
-        $indexTableContent.find('.acc-table-td.indexesTable').html(table.Indexes[newIndexPos].Table);
-        $indexTableContent.find('.acc-table-td.indexesUnique').html(table.Indexes[newIndexPos].Unique.toString());
-        let indexKeys = '';
-        for (var k = 0; k < table.Indexes[newIndexPos].Keys.length; k++) {
-          indexKeys += table.Indexes[newIndexPos].Keys[k].Col + ', '
-        }
-        indexKeys = indexKeys.replace(/,\s*$/, "");
-       
-        $indexTableContent.find('.acc-table-td.indexesKeys').html(indexKeys);
-        $indexTableContent.find('button').attr('id', tableName + newIndexPos + 'secIndex');
-        $indexTableContent.find('#' + tableName + newIndexPos + 'secIndex').click(function () {
-          let indexId = jQuery(this).attr('id');
-          let secIndexTableNumber = parseInt(jQuery(this).closest('.index-collapse.collapse').attr('id').match(/\d+/), 10);
-          console.log(secIndexTableNumber);
-          localStorage.setItem('indexId', indexId);
-          localStorage.setItem('secIndexTableNumber', secIndexTableNumber);
-          jQuery('#indexAndKeyDeleteWarning').modal();
+        tablemap.innerHTML = secIndexArray.map((secIndex, index) => {
+          return `
+                                  <tr class="indexTableTr ">
+                                      <td class="acc-table-td indexesName">
+                                          <div class="renameSecIndex ${flag?'':'template'}" id="renameSecIndex${tableIndex}${index}">
+                                              <input type="text" id="newSecIndexVal${tableIndex}${index}" value="${secIndex.Name}"
+                                                  class="form-control spanner-input" autocomplete="off" />
+                                          </div>
+                                          <div class="saveSecIndex ${flag?'template':''}" id="saveSecIndex${tableIndex}${index}">${secIndex.Name}</div>
+                                          
+                                      </td>
+                                      <td class="acc-table-td indexesTable">${secIndex.Table}</td>
+                                      <td class="acc-table-td indexesUnique">${secIndex.Unique}</td>
+                                      <td class="acc-table-td indexesKeys">${secIndex.Keys.map((key) => key.Col).join(',')}</td>
+                                      <td class="acc-table-td indexesAction">
+                                          <button class="dropButton" id="${tableName}${index}secIndex" ${flag?"":"disabled"}>
+                                              <span><i class="large material-icons removeIcon"
+                                                      style="vertical-align: middle">delete</i></span>
+                                              <span style="vertical-align: middle">Drop</span>
+                                          </button>
+                                      </td>
+                                  </tr>
+                                  `;
+      }).join("") ;
+
+      if (secIndexArray !== null && secIndexArray.length > 0) {
+        secIndexArray.map((secIndex, index) => {
+            document.getElementById(tableName + index + 'secIndex').addEventListener('click', () => {
+                jQuery('#indexAndKeyDeleteWarning').modal();
+                jQuery('#indexAndKeyDeleteWarning').find('#modal-content').html(`This will permanently delete the secondary index and the corresponding uniqueness constraints on
+                indexed columns (if applicable). Do you want to continue?`);
+                document.getElementById('fk-drop-confirm').addEventListener('click', () => {
+                    Actions.dropSecondaryIndexHandler(tableName, tableIndex, index);
+                })
+            })
         });
-        $indexTableContent.appendTo(jQuery('#' + tableIndex).find('.indexTableBody'));
+    } 
+    
+        this.closeSecIndexModal();
+      {
+        // // jQuery("#" + tableIndex).find('.index-acc-table.fk-table').css('visibility', 'visible');
+        // // jQuery('#' + tableIndex).find('.index-acc-table.fk-table').addClass('important-rule-100');
+        // // jQuery('#' + tableIndex).find('.index-acc-table.fk-table').removeClass('important-rule-0');
+        // let $indexTableContent = jQuery("#" + tableIndex).find('.indexTableTr.template').clone().removeClass('template');
+        // console.log($indexTableContent);
+        // $indexTableContent.find('.renameSecIndex.template').attr('id', 'renameSecIndex' + tableIndex + newIndexPos);
+        // $indexTableContent.find('.saveSecIndex.template').attr('id', 'saveSecIndex' + tableIndex + newIndexPos);
+        // if (document.getElementById("editSpanner" + tableIndex).innerHTML.trim() == "Save Changes") {
+        //   $indexTableContent.find('.renameSecIndex.template').removeClass('template').find("input").val(table.Indexes[newIndexPos].Name).attr('id', 'newSecIndexVal' + tableIndex + newIndexPos);
+        //   $indexTableContent.find('button').removeAttr('disabled');
+        // }
+        // else {
+        //   $indexTableContent.find('.saveSecIndex.template').removeClass('template').html(table.Indexes[newIndexPos].Name);;
+        // }
+        // $indexTableContent.find('.acc-table-td.indexesTable').html(table.Indexes[newIndexPos].Table);
+        // $indexTableContent.find('.acc-table-td.indexesUnique').html(table.Indexes[newIndexPos].Unique.toString());
+        // let indexKeys = '';
+        // for (var k = 0; k < table.Indexes[newIndexPos].Keys.length; k++) {
+        //   indexKeys += table.Indexes[newIndexPos].Keys[k].Col + ', '
+        // }
+        // indexKeys = indexKeys.replace(/,\s*$/, "");
+       
+        // $indexTableContent.find('.acc-table-td.indexesKeys').html(indexKeys);
+        // $indexTableContent.find('button').attr('id', tableName + newIndexPos + 'secIndex');
+        // $indexTableContent.find('#' + tableName + newIndexPos + 'secIndex').click(function () {
+        //   let indexId = jQuery(this).attr('id');
+        //   let secIndexTableNumber = parseInt(jQuery(this).closest('.index-collapse.collapse').attr('id').match(/\d+/), 10);
+        //   console.log(secIndexTableNumber);
+        //   localStorage.setItem('indexId', indexId);
+        //   localStorage.setItem('secIndexTableNumber', secIndexTableNumber);
+        //   jQuery('#indexAndKeyDeleteWarning').modal();
+        // });
+        // console.log($indexTableContent);
+        // $indexTableContent.appendTo(jQuery('#' + tableIndex).find('.indexTableBody'));
   
         // document.querySelector("#" + tableName + newIndexPos + "secIndex").addEventListener("click", () => {
         //   jQuery('#indexAndKeyDeleteWarning').modal();
@@ -450,7 +484,7 @@ const Actions = (() => {
         //     Actions.dropSecondaryIndexHandler(tableName, tableIndex, newIndexPos);
         //   })
         // });
-        this.closeSecIndexModal();
+      }
        
       }
 
