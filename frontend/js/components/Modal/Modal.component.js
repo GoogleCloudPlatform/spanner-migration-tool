@@ -11,7 +11,10 @@ const CONNECTION_FAILURE_MODAL = [{ value: "Ok", id: "connection-failure-button"
 const EDIT_GLOBAL_DATATYPE_MODAL = [{ value: "Next", id: "data-type-button", disabledProp: "" }];
 const ADD_INDEX_MODAL = [{ value: "CREATE", id: "createIndexButton", disabledProp: "disabled",modalDismiss: true }];
 const EDIT_TABLE_WARNING_MODAL = [{ value: "Ok", id: "edit-table-warning", disabledProp: "" }];
+<<<<<<< HEAD
 const CHANGES_SAVED_MODAL = [{ value: "Ok", id: "changes-saved-button", disabledProp: "" }];
+=======
+>>>>>>> bca89ba83b1d4d59f2d4ce88380c496980b91bb0
 const FK_DROP_WARNING_MODAL = [{ value: "Yes", id: "fk-drop-confirm", disabledProp: "" }, { value: "No", id: "fk-drop-cancel", disabledProp: "" }];
 
 class Modal extends HTMLElement {
@@ -81,9 +84,6 @@ class Modal extends HTMLElement {
         break;
       case "indexAndKeyDeleteWarning":
         modalButtons = FK_DROP_WARNING_MODAL;
-        break;
-      case "changesSavedModal":
-        modalButtons = CHANGES_SAVED_MODAL;
         break;
     }
 
