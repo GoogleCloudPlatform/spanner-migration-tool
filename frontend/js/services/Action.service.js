@@ -400,9 +400,7 @@ const Actions = (() => {
         newIndex["Unique"] = false;
       }
       newIndex["Keys"] = keysList;
-      if (table.Indexes == null){
-        document.querySelector("#indexKey"+tableIndex).querySelector(".index-acc-table.fkTable").classList.remove("template");
-      }
+      
       if (table.Indexes != null && table.Indexes.length > 0) {
         newIndexPos = table.Indexes.length;
         for (let x = 0; x < table.Indexes.length; x++) {
@@ -427,7 +425,6 @@ const Actions = (() => {
       } else {
         newIndexPos = 0;
       }
-
       let res = await Fetch.getAppData("POST", "/add/indexes?table=" + tableName, [newIndex]);
       if (res.ok) {
         jQuery("#createIndexModal").modal("hide");
@@ -435,11 +432,20 @@ const Actions = (() => {
         localStorage.setItem("conversionReportContent", res);
         jsonObj = JSON.parse(localStorage.getItem("conversionReportContent"));
         let secIndexArray = jsonObj.SpSchema[tableName].Indexes;
-        let tablemap = document.getElementById("indexTableBody" + tableIndex);
+        let tablemap = document.querySelector("#indexKey" + tableIndex).querySelector(".index-acc-table.fkTable");
         console.log(tablemap);
         let flag = document.querySelector("#editSpanner" + tableIndex).innerHTML === "Save Changes";
 
-        tablemap.innerHTML = secIndexArray.map((secIndex, index) => {
+        tablemap.innerHTML = ` ${ secIndexArray && secIndexArray.length >0 ? `<thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Table</th>
+                                        <th>Unique</th>
+                                        <th>Keys</th>
+                                        <th>Action</th>
+                                    </tr>
+    </thead>`: `<div></div>`} 
+    ${secIndexArray.map((secIndex, index) => {
           return `
                                   <tr class="indexTableTr ">
                                       <td class="acc-table-td indexesName">
@@ -462,14 +468,26 @@ const Actions = (() => {
                                       </td>
                                   </tr>
                                   `;
-        }).join("");
-
+        }).join("")}`;
+        function recreateNode(el, withChildren) {
+          if (withChildren) {
+            el.parentNode.replaceChild(el.cloneNode(true), el);
+          }
+          else {
+            var newEl = el.cloneNode(false);
+            while (el.hasChildNodes()) newEl.appendChild(el.firstChild);
+            el.parentNode.replaceChild(newEl, el);
+          }
+        }
+        console.log(secIndexArray);
         if (secIndexArray !== null && secIndexArray.length > 0) {
           secIndexArray.map((secIndex, index) => {
             document.getElementById(tableName + index + 'secIndex').addEventListener('click', () => {
               jQuery('#indexAndKeyDeleteWarning').modal();
               jQuery('#indexAndKeyDeleteWarning').find('#modal-content').html(`This will permanently delete the secondary index and the corresponding uniqueness constraints on
                 indexed columns (if applicable). Do you want to continue?`);
+                recreateNode(document.getElementById('fk-drop-confirm'))
+                console.log(secIndex , index);
               document.getElementById('fk-drop-confirm').addEventListener('click', () => {
                 Actions.dropSecondaryIndexHandler(tableName, tableIndex, index);
               })
@@ -1038,39 +1056,67 @@ const Actions = (() => {
         let jsonObj = await responseCopy.json();
         let textRresponse = await response.text();
         localStorage.setItem('conversionReportContent', textRresponse);
-        let table = document.getElementById('indexTableBody' + tableNumber);
-        let rowCount = table.rows.length;
-        if (jsonObj.SpSchema[tableName].Indexes != null && jsonObj.SpSchema[tableName].Indexes.length != 0) {
-          let keyFound;
-          let z;
-          for (let x = 0; x < rowCount; x++) {
-            keyFound = false;
-            for (let y = 0; y < jsonObj.SpSchema[tableName].Indexes.length; y++) {
-              let oldSecIndex = jQuery('#saveSecIndex' + tableNumber + x).removeClass('template').html();
-              if (jsonObj.SpSchema[tableName].Indexes[y].Name === oldSecIndex) {
-                jQuery('#saveSecIndex' + tableNumber + x).addClass('template');
-                document.getElementById(tableName + x + 'secIndex').id = tableName + y + 'secIndex';
-                document.getElementById('saveSecIndex' + tableNumber + x).id = 'saveSecIndex' + tableNumber + y;
-                document.getElementById('renameSecIndex' + tableNumber + x).id = 'renameSecIndex' + tableNumber + y;
-                document.getElementById('newSecIndexVal' + tableNumber + x).id = 'newSecIndexVal' + tableNumber + y;
-                keyFound = true;
-                break;
-              }
-            }
-            if (keyFound == false) {
-              z = x;
-            }
+        let secIndexArray = jsonObj.SpSchema[tableName].Indexes;
+        let tablemap = document.querySelector("#indexKey" + tableNumber).querySelector(".index-acc-table.fkTable");
+        console.log(tablemap);
+        let flag = document.querySelector("#editSpanner" + tableNumber).innerHTML === "Save Changes";
+
+        tablemap.innerHTML = ` ${ secIndexArray && secIndexArray.length >0 ? `<thead>
+        <tr>
+            <th>Name</th>
+            <th>Table</th>
+            <th>Unique</th>
+            <th>Keys</th>
+            <th>Action</th>
+        </tr>
+</thead>`: `<div></div>`} ${secIndexArray.map((secIndex, index) => {
+          return `
+                                  <tr class="indexTableTr ">
+                                      <td class="acc-table-td indexesName">
+                                          <div class="renameSecIndex ${flag ? '' : 'template'}" id="renameSecIndex${tableNumber}${index}">
+                                              <input type="text" id="newSecIndexVal${tableNumber}${index}" value="${secIndex.Name}"
+                                                  class="form-control spanner-input" autocomplete="off" />
+                                          </div>
+                                          <div class="saveSecIndex ${flag ? 'template' : ''}" id="saveSecIndex${tableNumber}${index}">${secIndex.Name}</div>
+                                          
+                                      </td>
+                                      <td class="acc-table-td indexesTable">${secIndex.Table}</td>
+                                      <td class="acc-table-td indexesUnique">${secIndex.Unique}</td>
+                                      <td class="acc-table-td indexesKeys">${secIndex.Keys.map((key) => key.Col).join(',')}</td>
+                                      <td class="acc-table-td indexesAction">
+                                          <button class="dropButton" id="${tableName}${index}secIndex" ${flag ? "" : "disabled"}>
+                                              <span><i class="large material-icons removeIcon"
+                                                      style="vertical-align: middle">delete</i></span>
+                                              <span style="vertical-align: middle">Drop</span>
+                                          </button>
+                                      </td>
+                                  </tr>
+                                  `;
+        }).join("")}`;
+        function recreateNode(el, withChildren) {
+          if (withChildren) {
+            el.parentNode.replaceChild(el.cloneNode(true), el);
           }
-          table.deleteRow(z);
+          else {
+            var newEl = el.cloneNode(false);
+            while (el.hasChildNodes()) newEl.appendChild(el.firstChild);
+            el.parentNode.replaceChild(newEl, el);
+          }
         }
-        else {
-          for (let x = 0; x < rowCount; x++) {
-            table.deleteRow(x);
-          }
-          console.log(tableNumber);
-          // jQuery('#' + tableNumber).find('.index-acc-table.fkTable').css('visibility', 'hidden');
-          // jQuery('#' + tableNumber).find('.index-acc-table.fkTable').addClass('importantRule0');
-          // jQuery('#' + tableNumber).find('.index-acc-table.fkTable').removeClass('importantRule100');
+        console.log(secIndexArray);
+        if (secIndexArray !== null && secIndexArray.length > 0) {
+          secIndexArray.map((secIndex, index) => {
+            document.getElementById(tableName + index + 'secIndex').addEventListener('click', () => {
+              jQuery('#indexAndKeyDeleteWarning').modal();
+              jQuery('#indexAndKeyDeleteWarning').find('#modal-content').html(`This will permanently delete the secondary index and the corresponding uniqueness constraints on
+                indexed columns (if applicable). Do you want to continue?`);
+                recreateNode(document.getElementById('fk-drop-confirm'))
+                console.log(secIndex , index);
+              document.getElementById('fk-drop-confirm').addEventListener('click', () => {
+                Actions.dropSecondaryIndexHandler(tableName, tableNumber, index);
+              })
+            })
+          });
         }
       }
     },

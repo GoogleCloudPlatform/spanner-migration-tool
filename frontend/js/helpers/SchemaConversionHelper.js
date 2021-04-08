@@ -493,10 +493,10 @@ export const createEditDataTypeTable = () => {
 
 export const showSnackbar = (message, bgClass) => {
   var snackbar = document.getElementById("snackbar");
-  snackbar.className = "show" + bgClass;
+  snackbar.classList.add("show",bgClass);
   snackbar.innerHTML = message;
   setTimeout(function () {
-    snackbar.className = snackbar.className.replace("show", "");
+    snackbar.classList.remove("show",bgClass);
   }, 3000);
 }
 

@@ -470,6 +470,7 @@ class DataTable extends HTMLElement {
     }
 
     secIndexComponent(tableIndex, tableName, secIndexArray) {
+        console.log(secIndexArray);
         return `
             <div class="indexesCard " style="border-radius: 0px !important">
                 <div class="foreignKeyHeader" role="tab">
@@ -484,8 +485,8 @@ class DataTable extends HTMLElement {
                         <div class="mdc-card fk-content">
                         <hb-site-button buttonid="${tableIndex}indexButton-${this.tableName}" classname="newIndexButton" buttonaction="createNewSecIndex" text="Add Index"></hb-site-button>
 
-                            <table class="index-acc-table fkTable ${secIndexArray?.length?"":"template"}">
-                                <thead>
+                       <table class="index-acc-table fkTable">
+                       ${ secIndexArray && secIndexArray.length >0 ? `<thead>
                                     <tr>
                                         <th>Name</th>
                                         <th>Table</th>
@@ -493,7 +494,7 @@ class DataTable extends HTMLElement {
                                         <th>Keys</th>
                                         <th>Action</th>
                                     </tr>
-                                </thead>
+                                </thead>`: `<div></div>`}
                                 <tbody class="indexTableBody" id="indexTableBody${tableIndex}">
                                 <!-- <tr class='indexTableTr template '>
                                 <td class='acc-table-td indexesName'>
@@ -518,7 +519,7 @@ class DataTable extends HTMLElement {
                                 </td>
                             </tr> -->
 
-                                    ${ secIndexArray ? secIndexArray?.map((secIndex, index) => {
+                                    ${secIndexArray ? secIndexArray?.map((secIndex, index) => {
             return `
                                     <tr class="indexTableTr ">
                                         <td class="acc-table-td indexesName">
@@ -540,10 +541,11 @@ class DataTable extends HTMLElement {
                                         </td>
                                     </tr>
                                     `;
-        }).join("") : `<div></div>`
+        }).join("") :``
             }
                             </tbody>
                         </table>
+        
                     </div>
                 </div>
             </div>
@@ -751,12 +753,25 @@ class DataTable extends HTMLElement {
                 })
             });
         }
+
+        function recreateNode(el, withChildren) {
+            if (withChildren) {
+              el.parentNode.replaceChild(el.cloneNode(true), el);
+            }
+            else {
+              var newEl = el.cloneNode(false);
+              while (el.hasChildNodes()) newEl.appendChild(el.firstChild);
+              el.parentNode.replaceChild(newEl, el);
+            }
+          }
         if (spTable.Indexes !== null && spTable.Indexes.length > 0) {
             spTable.Indexes.map((secIndex, index) => {
                 document.getElementById(tableName + index + 'secIndex').addEventListener('click', () => {
                     jQuery('#indexAndKeyDeleteWarning').modal();
                     jQuery('#indexAndKeyDeleteWarning').find('#modal-content').html(`This will permanently delete the secondary index and the corresponding uniqueness constraints on
                     indexed columns (if applicable). Do you want to continue?`);
+                    recreateNode(document.getElementById('fk-drop-confirm'))
+                    console.log(secIndex , index);
                     document.getElementById('fk-drop-confirm').addEventListener('click', () => {
                         Actions.dropSecondaryIndexHandler(tableName, tableIndex, index);
                     })
