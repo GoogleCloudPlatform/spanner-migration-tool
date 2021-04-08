@@ -484,7 +484,7 @@ class DataTable extends HTMLElement {
                         <div class="mdc-card fk-content">
                         <hb-site-button buttonid="${tableIndex}indexButton-${this.tableName}" classname="newIndexButton" buttonaction="createNewSecIndex" text="Add Index"></hb-site-button>
 
-                            <table class="index-acc-table fkTable">
+                            <table class="index-acc-table fkTable ${secIndexArray?.length?"":"template"}">
                                 <thead>
                                     <tr>
                                         <th>Name</th>
@@ -495,7 +495,7 @@ class DataTable extends HTMLElement {
                                     </tr>
                                 </thead>
                                 <tbody class="indexTableBody" id="indexTableBody${tableIndex}">
-                                <tr class='indexTableTr template '>
+                                <!-- <tr class='indexTableTr template '>
                                 <td class='acc-table-td indexesName'>
                                     <div class='renameSecIndex template'>
                                         <input type="text"
@@ -516,9 +516,9 @@ class DataTable extends HTMLElement {
                                             style="vertical-align: middle;">Drop</span>
                                     </button>
                                 </td>
-                            </tr>
+                            </tr> -->
 
-                                    ${ secIndexArray.map((secIndex, index) => {
+                                    ${ secIndexArray ? secIndexArray?.map((secIndex, index) => {
             return `
                                     <tr class="indexTableTr ">
                                         <td class="acc-table-td indexesName">
@@ -530,7 +530,7 @@ class DataTable extends HTMLElement {
                                         </td>
                                         <td class="acc-table-td indexesTable">${secIndex.Table}</td>
                                         <td class="acc-table-td indexesUnique">${secIndex.Unique}</td>
-                                        <td class="acc-table-td indexesKeys">${secIndex.Keys.map((key) => key.Col).join(',')}</td>
+                                        <td class="acc-table-td indexesKeys">${secIndex?.Keys.map((key) => key.Col).join(',')}</td>
                                         <td class="acc-table-td indexesAction">
                                             <button class="dropButton" id="${tableName}${index}secIndex" disabled>
                                                 <span><i class="large material-icons removeIcon"
@@ -540,7 +540,7 @@ class DataTable extends HTMLElement {
                                         </td>
                                     </tr>
                                     `;
-        }).join("")
+        }).join("") : `<div></div>`
             }
                             </tbody>
                         </table>
@@ -708,7 +708,7 @@ class DataTable extends HTMLElement {
                                     </tbody>
                                 </table>
                             ${spTable.Fks?.length>0 ? this.fkComponent(tableIndex, tableName, spTable.Fks) : `<div></div>`}
-                            ${spTable.Indexes ? this.secIndexComponent(tableIndex, tableName, spTable.Indexes) : `<div></div>`}
+                            ${this.secIndexComponent(tableIndex, tableName, spTable.Indexes)}
                             <div class="summaryCard">
                                 <div class="summaryCardHeader" role="tab">
                                     <h5 class="mb-0">

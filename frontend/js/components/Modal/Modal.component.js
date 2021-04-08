@@ -9,8 +9,8 @@ const LOAD_SESSION_MODAL_BUTTONS = [{ value: "Confirm", id: "load-session-button
 const CONNECTION_SUCCESS_MODAL = [{ value: "Convert", id: "convert-button", disabledProp: "" }];
 const CONNECTION_FAILURE_MODAL = [{ value: "Ok", id: "connection-failure-button", disabledProp: "" }];
 const EDIT_GLOBAL_DATATYPE_MODAL = [{ value: "Next", id: "data-type-button", disabledProp: "" }];
-const ADD_INDEX_MODAL = [{ value: "CREATE", id: "createIndexButton", disabledProp: "disabled" }];
 const EDIT_TABLE_WARNING_MODAL = [{ value: "Ok", id: "edit-table-warning", disabledProp: "", modalDismiss: true }];
+const ADD_INDEX_MODAL = [{ value: "CREATE", id: "createIndexButton", disabledProp: "disabled",modalDismiss: true }];
 const FK_DROP_WARNING_MODAL = [{ value: "Yes", id: "fk-drop-confirm", disabledProp: "" }, { value: "No", id: "fk-drop-cancel", disabledProp: "" }];
 
 class Modal extends HTMLElement {
@@ -99,7 +99,7 @@ class Modal extends HTMLElement {
               <div class="modal-footer">
                   ${modalButtons.map((button) => {
       return `
-                      <input type="submit" ${button.disabledProp} value="${button.value}" id="${button.id}" ${button.modalDismiss?"data-dismiss='modal'":""} class="modal-button" />`;
+                      <input type="submit" ${button.disabledProp} value="${button.value}" id="${button.id}" ${button.modalDismiss ? "":"data-dismiss='modal'"} class="modal-button" />`;
     }).join("")}
               </div>
             </div>
