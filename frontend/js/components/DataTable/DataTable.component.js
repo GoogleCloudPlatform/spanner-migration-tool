@@ -495,6 +495,28 @@ class DataTable extends HTMLElement {
                                     </tr>
                                 </thead>
                                 <tbody class="indexTableBody" id="indexTableBody${tableIndex}">
+                                <tr class='indexTableTr template '>
+                                <td class='acc-table-td indexesName'>
+                                    <div class='renameSecIndex template'>
+                                        <input type="text"
+                                            class="form-control spanner-input"
+                                            autocomplete='off'>
+                                    </div>
+                                    <div class='saveSecIndex template'></div>
+                                </td>
+                                <td class='acc-table-td indexesTable'></td>
+                                <td class='acc-table-td indexesUnique'></td>
+                                <td class='acc-table-td indexesKeys'></td>
+                                <td class='acc-table-td indexesAction'>
+                                    <button class="drop-button"
+                                        disabled>
+                                        <span><i class="large material-icons remove-icon"
+                                                style="vertical-align: middle;">delete</i></span>
+                                        <span
+                                            style="vertical-align: middle;">Drop</span>
+                                    </button>
+                                </td>
+                            </tr>
 
                                     ${ secIndexArray.map((secIndex, index) => {
             return `

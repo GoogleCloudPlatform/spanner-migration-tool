@@ -99,7 +99,7 @@ class Modal extends HTMLElement {
               <div class="modal-footer">
                   ${modalButtons.map((button) => {
       return `
-                      <input type="submit" ${button.disabledProp} value="${button.value}" id="${button.id}" data-dismiss="modal" class="modal-button" />`;
+                      <input type="submit" ${button.disabledProp} value="${button.value}" id="${button.id}" ${button.modalDismiss?"data-dismiss='modal'":""} class="modal-button" />`;
     }).join("")}
               </div>
             </div>
