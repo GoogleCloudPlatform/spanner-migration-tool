@@ -541,79 +541,40 @@ const Actions = (() => {
         }
 
       }
-
-
-      { //     $indexTableContent = jQuery(".indexTableTr.template")
-        //       .clone()
-        //       .removeClass("template");
-        //     $indexTableContent
-        //       .find(".renameSecIndex.template")
-        //       .attr("id", "renameSecIndex" + tableNumber + newIndexPos);
-        //     $indexTableContent
-        //       .find(".saveSecIndex.template")
-        //       .attr("id", "saveSecIndex" + tableNumber + newIndexPos);
-        //     if (
-        //       document
-        //         .getElementById("editSpanner" + tableNumber)
-        //         .innerHTML.trim() == "Save Changes"
-        //     ) {
-        //       $indexTableContent
-        //         .find(".renameSecIndex.template")
-        //         .removeClass("template")
-        //         .find("input")
-        //         .val(table.Indexes[newIndexPos].Name)
-        //         .attr("id", "newSecIndexVal" + tableNumber + newIndexPos);
-        //       $indexTableContent.find("button").removeAttr("disabled");
-        //     } else {
-        //       $indexTableContent
-        //         .find(".saveSecIndex.template")
-        //         .removeClass("template")
-        //         .html(table.Indexes[newIndexPos].Name);
-        //     }
-        //     $indexTableContent
-        //       .find(".acc-table-td.indexesTable")
-        //       .html(table.Indexes[newIndexPos].Table);
-        //     $indexTableContent
-        //       .find(".acc-table-td.indexesUnique")
-        //       .html(table.Indexes[newIndexPos].Unique.toString());
-        //     indexKeys = "";
-        //     for (var k = 0; k < table.Indexes[newIndexPos].Keys.length; k++) {
-        //       indexKeys += table.Indexes[newIndexPos].Keys[k].Col + ", ";
-        //     }
-        //     indexKeys = indexKeys.replace(/,\s*$/, "");
-        //     $indexTableContent.find(".acc-table-td.indexesKeys").html(indexKeys);
-        //     $indexTableContent
-        //       .find("button")
-        //       .attr("id", table.Name + newIndexPos + "secIndex");
-        //     $indexTableContent
-        //       .find("#" + table.Name + newIndexPos + "secIndex")
-        //       .click(function () {
-        //         let indexId = jQuery(this).attr("id");
-        //         let secIndexTableNumber = parseInt(
-        //           jQuery(this)
-        //             .closest(".index-collapse.collapse")
-        //             .attr("id")
-        //             .match(/\d+/),
-        //           10
-        //         );
-        //         localStorage.setItem("indexId", indexId);
-        //         localStorage.setItem("secIndexTableNumber", secIndexTableNumber);
-        //         jQuery("#secIndexDeleteWarning").modal();
-        //       });
-        //     $indexTableContent.appendTo(
-        //       jQuery("#" + tableNumber).find(".indexTableBody")
-        //     );
-        //   } else {
-        //     res = await res.text();
-        //     showSnackbar(res, " red-bg");
-        //   }
-        // });
-      }
     },
     createNewSecIndex: (id) => {
       let iIndex = id.indexOf("indexButton");
       let tableIndex = id.substring(0, iIndex)
       let tableName = id.substring(iIndex + 12)
+      let jsonObj = JSON.parse(localStorage.getItem('conversionReportContent'));
+      if (document.getElementById("editSpanner" + tableIndex).innerHTML.trim() == "Save Changes"){
+          let pendingChanges = false;
+          let dataTable = jQuery(`#src-sp-table${tableIndex} tr`)
+          
+          dataTable.each(function(index){
+            if (index > 1) {
+              let newColumnName;
+                let srcColumnName = jQuery(this).find('.srcColumn').html().trim();
+                let indexNumber = jQuery(this).find('.srcColumn').attr('id').match(/\d+/)[0][1];
+                //  let indexNumber = parseInt(jQuery(this).find('.srcColumn').attr('id').match(/\d+/),10);
+                let newColumnNameEle = document.getElementById('columnNameText' + tableIndex + indexNumber + indexNumber);
+                if (newColumnNameEle) {
+                  newColumnName = newColumnNameEle.value;
+                }
+                let oldColumnName = jsonObj.ToSpanner[tableName].Cols[srcColumnName];
+                if (newColumnName !== oldColumnName || !(jQuery(this).find("input[type=checkbox]").is(":checked"))) {
+                     let errorModal = document.querySelector("hb-modal[modalId = editTableWarningModal]");
+                     let content = "There are pending changes to this table, please save the same before creating the index" ;
+                     errorModal.setAttribute("content", content);
+                     jQuery("#editTableWarningModal").modal();
+                  pendingChanges = true;
+                  }
+            }
+          })
+          if (pendingChanges) {
+            return;
+          }
+      }
       let generalModal = document.querySelector("hb-modal[modalId = createIndexModal]")
       let content = `<hb-add-index-form tableName=${tableName} tableIndex=${tableIndex}></hb-add-index-form>`;
       generalModal.setAttribute("content", content);

@@ -470,7 +470,6 @@ class DataTable extends HTMLElement {
     }
 
     secIndexComponent(tableIndex, tableName, secIndexArray) {
-        console.log(secIndexArray);
         return `
             <div class="indexesCard " style="border-radius: 0px !important">
                 <div class="foreignKeyHeader" role="tab">
