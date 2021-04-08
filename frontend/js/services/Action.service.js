@@ -367,6 +367,9 @@ const Actions = (() => {
         newIndex["Unique"] = false;
       }
       newIndex["Keys"] = keysList;
+      if (table.Indexes == null){
+        document.querySelector("#indexKey"+tableIndex).querySelector(".index-acc-table.fkTable").classList.remove("template");
+      }
       if (table.Indexes != null && table.Indexes.length > 0) {
         newIndexPos = table.Indexes.length;
         for (let x = 0; x < table.Indexes.length; x++) {
