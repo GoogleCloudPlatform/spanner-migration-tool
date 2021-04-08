@@ -348,6 +348,7 @@ const Actions = (() => {
       }
     },
     fetchIndexFormValues: async function (tableIndex, tableName, name, uniqueness) {
+      
       console.log(keysList.length);
       if (keysList.length === 0) {
         showSnackbar(
@@ -392,57 +393,69 @@ const Actions = (() => {
       } else {
         newIndexPos = 0;
       }
+     
       let res = await Fetch.getAppData("POST", "/add/indexes?table=" + table.Name, [newIndex]);
       if (res.ok) {
         jQuery("#createIndexModal").modal("hide");
+       
+     
         res = await res.text();
         localStorage.setItem("conversionReportContent", res);
         jsonObj = JSON.parse(localStorage.getItem("conversionReportContent"));
         let secIndex = jsonObj.SpSchema[tableName].Indexes[newIndexPos];
-        let tablemap = document.getElementById("indexTableBody" + tableIndex);
-        console.log(tablemap);
-        let flag = document.querySelector("#editSpanner" + tableIndex).innerHTML === "Save Changes";
-        tablemap.innerHTML = tablemap.innerHTML + `
-          
-          <tr class="indexTableTr ">
-            <td class="acc-table-td indexesName">
-                                            <div class="renameSecIndex template" id="renameSecIndex${tableIndex}${newIndexPos}">
-                                                <input type="text" id="newSecIndexVal${tableIndex}${newIndexPos}" value=${secIndex.Name}
-                                                    class="form-control spanner-input" autocomplete="off" />
-                                            </div>
-                                            <div class="saveSecIndex " id="saveSecIndex${tableIndex}${newIndexPos}">${secIndex.Name}</div>
-            </td>
-            <td class="acc-table-td indexesTable">${secIndex.Table}</td>
-            <td class="acc-table-td indexesUnique">${secIndex.Unique}</td>
-            <td class="acc-table-td indexesKeys">${secIndex.Keys.map((key) => key.Col).join(',')}</td>
-            <td class="acc-table-td indexesAction">
-                                            <button class="dropButton" id="${tableName}${newIndexPos}secIndex" disabled>
-                                                <span><i class="large material-icons removeIcon"
-                                                        style="vertical-align: middle">delete</i></span>
-                                                <span style="vertical-align: middle">Drop</span>
-                                            </button>
-            </td>
-        </tr>`
-        document.querySelector("#" + tableName + newIndexPos + "secIndex").addEventListener("click", () => {
+        let table = jsonObj.SpSchema[tableName];
+
+        // let tablemap = document.getElementById("indexTableBody" + tableIndex);
+        // console.log(tablemap);
+        // let flag = document.querySelector("#editSpanner" + tableIndex).innerHTML === "Save Changes";
+        
+      
+        // jQuery("#" + tableIndex).find('.index-acc-table.fk-table').css('visibility', 'visible');
+        // jQuery('#' + tableIndex).find('.index-acc-table.fk-table').addClass('important-rule-100');
+        // jQuery('#' + tableIndex).find('.index-acc-table.fk-table').removeClass('important-rule-0');
+        let $indexTableContent = jQuery('.indexTableTr.template.temp').clone().removeClass('template').removeClass('temp');
+        console.log($indexTableContent);
+        $indexTableContent.find('.renameSecIndex.template').attr('id', 'renameSecIndex' + tableIndex + newIndexPos);
+        $indexTableContent.find('.saveSecIndex.template').attr('id', 'saveSecIndex' + tableIndex + newIndexPos);
+        if (document.getElementById("editSpanner" + tableIndex).innerHTML.trim() == "Save Changes") {
+          $indexTableContent.find('.renameSecIndex.template').removeClass('template').find("input").val(table.Indexes[newIndexPos].Name).attr('id', 'newSecIndexVal' + tableIndex + newIndexPos);
+          $indexTableContent.find('button').removeAttr('disabled');
+        }
+        else {
+          $indexTableContent.find('.saveSecIndex.template').removeClass('template').html(table.Indexes[newIndexPos].Name);;
+        }
+        $indexTableContent.find('.acc-table-td.indexesTable').html(table.Indexes[newIndexPos].Table);
+        $indexTableContent.find('.acc-table-td.indexesUnique').html(table.Indexes[newIndexPos].Unique.toString());
+        let indexKeys = '';
+        for (var k = 0; k < table.Indexes[newIndexPos].Keys.length; k++) {
+          indexKeys += table.Indexes[newIndexPos].Keys[k].Col + ', '
+        }
+        indexKeys = indexKeys.replace(/,\s*$/, "");
+       
+        $indexTableContent.find('.acc-table-td.indexesKeys').html(indexKeys);
+        $indexTableContent.find('button').attr('id', tableName + newIndexPos + 'secIndex');
+        $indexTableContent.find('#' + tableName + newIndexPos + 'secIndex').click(function () {
+          let indexId = jQuery(this).attr('id');
+          let secIndexTableNumber = parseInt(jQuery(this).closest('.index-collapse.collapse').attr('id').match(/\d+/), 10);
+          console.log(secIndexTableNumber);
+          localStorage.setItem('indexId', indexId);
+          localStorage.setItem('secIndexTableNumber', secIndexTableNumber);
           jQuery('#indexAndKeyDeleteWarning').modal();
-          document.getElementById('fk-drop-confirm').addEventListener('click', () => {
-            Actions.dropSecondaryIndexHandler(tableName, tableIndex, newIndexPos);
-          })
         });
+        $indexTableContent.appendTo(jQuery('#' + tableIndex).find('.indexTableBody'));
+  
+        // document.querySelector("#" + tableName + newIndexPos + "secIndex").addEventListener("click", () => {
+        //   jQuery('#indexAndKeyDeleteWarning').modal();
+        //   document.getElementById('fk-drop-confirm').addEventListener('click', () => {
+        //     Actions.dropSecondaryIndexHandler(tableName, tableIndex, newIndexPos);
+        //   })
+        // });
         this.closeSecIndexModal();
+       
       }
 
-      //     let indexKeys;
-      //     jQuery("#" + tableNumber)
-      //       .find(".index-acc-table.fk-table")
-      //       .css("visibility", "visible");
-      //     jQuery("#" + tableNumber)
-      //       .find(".index-acc-table.fk-table")
-      //       .addClass("important-rule-100");
-      //     jQuery("#" + tableNumber)
-      //       .find(".index-acc-table.fk-table")
-      //       .removeClass("important-rule-0");
-      //     $indexTableContent = jQuery(".indexTableTr.template")
+      
+     { //     $indexTableContent = jQuery(".indexTableTr.template")
       //       .clone()
       //       .removeClass("template");
       //     $indexTableContent
@@ -507,6 +520,7 @@ const Actions = (() => {
       //     showSnackbar(res, " red-bg");
       //   }
       // });
+     }
     },
     createNewSecIndex: (id) => {
       let iIndex = id.indexOf("indexButton");
@@ -972,9 +986,10 @@ const Actions = (() => {
           for (let x = 0; x < rowCount; x++) {
             table.deleteRow(x);
           }
-          jQuery('#' + tableNumber).find('.index-acc-table.fkTable').css('visibility', 'hidden');
-          jQuery('#' + tableNumber).find('.index-acc-table.fkTable').addClass('importantRule0');
-          jQuery('#' + tableNumber).find('.index-acc-table.fkTable').removeClass('importantRule100');
+         console.log(tableNumber);
+          // jQuery('#' + tableNumber).find('.index-acc-table.fkTable').css('visibility', 'hidden');
+          // jQuery('#' + tableNumber).find('.index-acc-table.fkTable').addClass('importantRule0');
+          // jQuery('#' + tableNumber).find('.index-acc-table.fkTable').removeClass('importantRule100');
         }
       }
     },
