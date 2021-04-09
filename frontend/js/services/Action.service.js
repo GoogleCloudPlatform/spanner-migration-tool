@@ -48,18 +48,15 @@ const Actions = (() => {
         return false;
       } else {
         jsonReportDataResp = await reportDataCopy.json();
-        console.log(jsonReportDataResp);
         if (Object.keys(jsonReportDataResp.SpSchema).length == 0) {
           showSnackbar("Please select valid file", " redBg");
           return false;
         } else {
-          // showSpinner();
           jQuery("#loadDatabaseDumpModal").modal("hide");
           localStorage.setItem("conversionReportContent", reportDataResp);
         }
       }
       sourceTableFlag = localStorage.getItem("sourceDbName");
-      // sessionRetrieval(sourceTableFlag);
       return true;
     },
     onconnect: async (dbType, dbHost, dbPort, dbUser, dbName, dbPassword) => {

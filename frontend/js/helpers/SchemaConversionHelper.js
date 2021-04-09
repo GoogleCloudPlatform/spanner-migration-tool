@@ -443,10 +443,10 @@ export const readTextFile = (file, callback) => {
 
 export const showSnackbar = (message, bgClass) => {
   var snackbar = document.getElementById("snackbar");
-  snackbar.classList.add("show",bgClass);
+  snackbar.className = "show" + bgClass;
   snackbar.innerHTML = message;
   setTimeout(function () {
-    snackbar.classList.remove("show",bgClass);
+    snackbar.className = snackbar.className.replace("show", "");
   }, 3000);
 }
 
