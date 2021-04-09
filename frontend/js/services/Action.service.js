@@ -555,7 +555,11 @@ const Actions = (() => {
             if (index > 1) {
               let newColumnName;
                 let srcColumnName = jQuery(this).find('.srcColumn').html().trim();
-                let indexNumber = jQuery(this).find('.srcColumn').attr('id').match(/\d+/)[0][1];
+                let indexNumber = jQuery(this).find('.srcColumn').attr('id').match(/\d+/)[0];
+                indexNumber = indexNumber.substring(tableIndex.toString().length);
+                let indexNumberlength = indexNumber.length/2;
+                indexNumber= indexNumber.substring(indexNumberlength);
+                console.log(indexNumber);
                 //  let indexNumber = parseInt(jQuery(this).find('.srcColumn').attr('id').match(/\d+/),10);
                 let newColumnNameEle = document.getElementById('columnNameText' + tableIndex + indexNumber + indexNumber);
                 if (newColumnNameEle) {

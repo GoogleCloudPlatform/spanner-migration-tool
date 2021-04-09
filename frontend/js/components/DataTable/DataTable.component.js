@@ -398,8 +398,7 @@ class DataTable extends HTMLElement {
     }
 
      connectedCallback() {
-       
-        this.render();     
+          this.render();     
     }
 
     fkComponent(tableIndex, tableName, fkArray) {
