@@ -17,7 +17,7 @@ class LoadDbDumpForm extends HTMLElement {
         });
         Forms.formButtonHandler("load-db-form", "load-connect-button");
     }
-    
+
     storeDumpFileValues = async (dbType, filePath) => {
         let sourceTableFlag = '', loadDbDumpApiRes, ddlSummaryApiRes;
         if (dbType === 'mysql') {
@@ -32,7 +32,7 @@ class LoadDbDumpForm extends HTMLElement {
         }
         localStorage.setItem('globalDumpFilePath', filePath);
         loadDbDumpApiRes = await Actions.onLoadDatabase(localStorage.getItem('globalDbType'), localStorage.getItem('globalDumpFilePath'));
-        ddlSummaryApiRes =  await Actions.ddlSummaryAndConversionApiCall();
+        ddlSummaryApiRes = await Actions.ddlSummaryAndConversionApiCall();
         if (loadDbDumpApiRes && ddlSummaryApiRes) {
             window.location.href = '#/schema-report';
             Actions.sessionRetrieval(localStorage.getItem('sourceDbName'));
@@ -41,22 +41,23 @@ class LoadDbDumpForm extends HTMLElement {
 
     render() {
         this.innerHTML = `
+            <div>
+                <label for="load-db-type">Database Type</label>
+                <select class="form-control load-db-input" id="load-db-type" name="load-db-type">
+                    <option class="template"></option>
+                    <option value="mysql">MySQL</option>
+                    <option value="postgres">Postgres</option>
+                </select>
+            </div>
+            <form id="load-db-form">
                 <div>
-                    <label for="load-db-type">Database Type</label>
-                    <select class="form-control load-db-input" id="load-db-type" name="load-db-type">
-                        <option class="template"></option>
-                        <option value="mysql">MySQL</option>
-                        <option value="postgres">Postgres</option>
-                    </select>
+                    <label class="modal-label" for="dump-file-path">Path of the Dump File</label>
+                    <input class="form-control load-db-input" type="text" name="dump-file-path" id="dump-file-path"
+                        autocomplete="off" />
+                    <span class='form-error' id='file-path-error'></span>
                 </div>
-                <form id="load-db-form">
-                    <div>
-                        <label class="modal-label" for="dump-file-path">Path of the Dump File</label>
-                        <input class="form-control load-db-input" type="text" name="dump-file-path" id="dump-file-path" autocomplete="off" />
-                        <span class='form-error' id='file-path-error'></span>
-                    </div>
-                    <input type="text" class="template" value="dummyInput">
-                </form>
+                <input type="text" class="template" value="dummyInput">
+            </form>
         `;
     }
 

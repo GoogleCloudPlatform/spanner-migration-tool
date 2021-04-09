@@ -48,18 +48,15 @@ const Actions = (() => {
         return false;
       } else {
         jsonReportDataResp = await reportDataCopy.json();
-        console.log(jsonReportDataResp);
         if (Object.keys(jsonReportDataResp.SpSchema).length == 0) {
           showSnackbar("Please select valid file", " redBg");
           return false;
         } else {
-          // showSpinner();
           jQuery("#loadDatabaseDumpModal").modal("hide");
           localStorage.setItem("conversionReportContent", reportDataResp);
         }
       }
       sourceTableFlag = localStorage.getItem("sourceDbName");
-      // sessionRetrieval(sourceTableFlag);
       return true;
     },
     onconnect: async (dbType, dbHost, dbPort, dbUser, dbName, dbPassword) => {
@@ -409,7 +406,7 @@ const Actions = (() => {
           ) {
             showSnackbar(
               "Index with selected key(s) already exists.\n Please use different key(s)",
-              "redBg"
+              " redBg"
             );
             return;
           } else if (newIndex["Name"] === table.Indexes[x].Name) {
@@ -417,7 +414,7 @@ const Actions = (() => {
               "Index with name: " +
               newIndex["Name"] +
               " already exists.\n Please try with a different name",
-              "redBg"
+              " redBg"
             );
             return;
           }
