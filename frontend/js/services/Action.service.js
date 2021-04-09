@@ -1,6 +1,6 @@
 import Store from "./Store.service.js";
 import Fetch from "./Fetch.service.js";
-import { readTextFile, showSnackbar, tabbingHelper } from "./../helpers/SchemaConversionHelper.js";
+import { readTextFile, showSnackbar, tabbingHelper, recreateNode } from "./../helpers/SchemaConversionHelper.js";
 
 var keysList = [];
 var orderId = 0;
@@ -1093,16 +1093,7 @@ const Actions = (() => {
                                   </tr>
                                   `;
         }).join("")}`;
-        function recreateNode(el, withChildren) {
-          if (withChildren) {
-            el.parentNode.replaceChild(el.cloneNode(true), el);
-          }
-          else {
-            var newEl = el.cloneNode(false);
-            while (el.hasChildNodes()) newEl.appendChild(el.firstChild);
-            el.parentNode.replaceChild(newEl, el);
-          }
-        }
+       
         console.log(secIndexArray);
         if (secIndexArray !== null && secIndexArray.length > 0) {
           secIndexArray.map((secIndex, index) => {
