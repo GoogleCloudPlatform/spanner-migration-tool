@@ -9,21 +9,16 @@ class Tab extends HTMLElement {
     return this.getAttribute("text");
   }
 
-  attributeChangedCallback(name, oldValue, newValue) {
-    this.render();
-  }
-
   connectedCallback() {
     this.render();
   }
 
   render() {
     let { tabId, text } = this;
-    this.innerHTML = `<li class="nav-item">
-                        <a class="nav-link ${
-                          tabId === "report" ? "active show" : ""
-                        }" id="${tabId}Tab">${text}</a>
-                      </li>`;
+    this.innerHTML = `
+    <li class="nav-item">
+        <a class="nav-link ${tabId === "report" ? "active show" : ""}" id="${tabId}Tab">${text}</a>
+    </li>`;
   }
 
   constructor() {

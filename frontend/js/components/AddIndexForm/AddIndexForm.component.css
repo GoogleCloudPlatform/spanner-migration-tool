@@ -1,0 +1,27 @@
+.column-list-container{
+    max-height: 200px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.float-right{
+    float: right;
+}
+
+.black-border{
+    border: 1px solid black !important;
+}
+
+.black-label{
+    color: black;
+     width: 452px;
+}
+
+.unique-swith-container{
+    display: inline-flex;
+}
+
+.unique-swith-label{
+    margin-top: 18px; 
+    margin-right: 10px;
+}
