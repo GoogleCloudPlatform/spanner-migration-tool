@@ -68,9 +68,9 @@ class Instructions extends HTMLElement {
                     </li>
                 </ul>
                 <br>
-                <img style='width: 800px;' src='userManualImages/connectToDb.png'>
+                <img class="instructionsImgWidth" src='userManualImages/connectToDb.png'>
                 <br><br><br><br><br><br>
-                <img style='width: 800px;' src='userManualImages/connectToDbWithOptions.png'>
+                <img class="instructionsImgWidth" src='userManualImages/connectToDbWithOptions.png'>
                 <br><br><br>
 
                 <h4 class="instructionsSubHeading">4.2 &nbsp; &nbsp; &nbsp;Load Database Dump</h4>
@@ -79,7 +79,7 @@ class Instructions extends HTMLElement {
                     <li>- Input Fields: database type, file path</li>
                 </ul>
                 <br>
-                <img style='width: 800px;' src='userManualImages/loadDumpFile.png'>
+                <img class="instructionsImgWidth" src='userManualImages/loadDumpFile.png'>
                 <br><br><br>
 
                 <h4 class="instructionsSubHeading">4.3 &nbsp; &nbsp; &nbsp;Import Schema File</h4>
@@ -88,7 +88,7 @@ class Instructions extends HTMLElement {
                     <li>- Input Fields: database type, session file path</li>
                 </ul>
                 <br>
-                <img style='width: 800px;' src='userManualImages/loadSessionFile.png'>
+                <img class="instructionsImgWidth" src='userManualImages/loadSessionFile.png'>
                 <br><br><br>
 
                 <h3 class="instructionsMainHeading">5 &nbsp; &nbsp; &nbsp;Session Table</h3>
@@ -96,7 +96,7 @@ class Instructions extends HTMLElement {
                     <li>- Session table is used to store the previous sessions of schema conversion</li>
                 </ul>
                 <br>
-                <img style='width: 800px;' src='userManualImages/sessionTable.png'>
+                <img class="instructionsImgWidth" src='userManualImages/sessionTable.png'>
                 <br><br><br>
 
                 <h3 class="instructionsMainHeading">6 &nbsp; &nbsp; &nbsp;Edit Global Data Type</h3>
@@ -106,7 +106,7 @@ class Instructions extends HTMLElement {
                     <li>- Click on next button after making all the changes</li>
                 </ul>
                 <br>
-                <img style='width: 800px;' src='userManualImages/globalDataTypeMapping.png'>
+                <img class="instructionsImgWidth" src='userManualImages/globalDataTypeMapping.png'>
                 <br><br><br>
 
                 <h3 class="instructionsMainHeading">7 &nbsp; &nbsp; &nbsp;Edit Spanner Schema for a
@@ -124,16 +124,16 @@ class Instructions extends HTMLElement {
                         be prompt to delete foreign key or secondary indexes and then proceed with save changes</li>
                 </ul>
                 <br>
-                <img style='width: 800px;' src='userManualImages/editButtonClicked.png'>
+                <img class="instructionsImgWidth" src='userManualImages/editButtonClicked.png'>
                 <br><br><br>
                 <p>- Warning before deleting secondary index from a table</p>
-                <img style='width: 800px;' src='userManualImages/warningSecIndexDeletion.png'>
+                <img class="instructionsImgWidth" src='userManualImages/warningSecIndexDeletion.png'>
                 <br><br><br>
                 <p>- Error on saving changes</p>
-                <img style='width: 800px;' src='userManualImages/errorSaveChanges.png'>
+                <img class="instructionsImgWidth" src='userManualImages/errorSaveChanges.png'>
                 <br><br><br>
                 <p>- Changes saved successfully after resolving all errors</p>
-                <img style='width: 800px;' src='userManualImages/successSaveChanges.png'>
+                <img class="instructionsImgWidth" src='userManualImages/successSaveChanges.png'>
                 <br><br><br><br>
 
                 <h3 class="instructionsMainHeading">8 &nbsp; &nbsp; &nbsp;Download Session File</h3>
@@ -143,14 +143,13 @@ class Instructions extends HTMLElement {
                     <li>- Save the generated session file with all the changes in local machine</li>
                 </ul>
                 <br>
-                <img style='width: 800px;' src='userManualImages/downloadSessionFile.png'>
+                <img class="instructionsImgWidth" src='userManualImages/downloadSessionFile.png'>
                 <br><br><br>
 
                 <h3 class="instructionsMainHeading">9 &nbsp; &nbsp; &nbsp;How to use Session File
                 </h3>
                 <p>Please refer below link to get more information on how to use session file with harbourbridge tool</p>
-                <a href='https://github.com/cloudspannerecosystem/harbourbridge'
-                    style='color: #4285F4; text-decoration: underline;'>Refer this to use Session File</a>
+                <a href='https://github.com/cloudspannerecosystem/harbourbridge' class="instructionsLink">Refer this to use Session File</a>
                 <br>
             </div>
         `;

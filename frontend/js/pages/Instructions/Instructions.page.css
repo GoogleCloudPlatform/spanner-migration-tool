@@ -31,3 +31,12 @@
     border-radius: 5px;
     padding: 0px 5px;
 }
+
+.instructionsImgWidth {
+    width: 800px;
+}
+
+.instructionsLink {
+    color: #4285F4;
+    text-decoration: underline;
+}
