@@ -16,6 +16,11 @@ class DataTable extends HTMLElement {
         return ["open"];
     }
 
+    connectedCallback() {
+          this.render();  
+     }   
+  
+
     fkComponent(tableIndex, tableName, fkArray) {
         return `
             <div class="fkCard">
