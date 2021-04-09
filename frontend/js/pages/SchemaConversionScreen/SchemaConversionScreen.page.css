@@ -5,6 +5,11 @@
     font-size: 1.25rem;
 }
 
-.inlineblock{
+.inlineblock {
     display: inline-block;
+}
+
+.schema-screen-snackbar {
+    z-index: 10000 !important;
+    position: fixed;
 }

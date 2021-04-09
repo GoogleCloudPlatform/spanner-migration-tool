@@ -1,0 +1,8 @@
+.label-container{
+    display: flex;
+}
+
+.table-select{
+    border: 0px !important;
+    margin-bottom:0px  !important;
+}
