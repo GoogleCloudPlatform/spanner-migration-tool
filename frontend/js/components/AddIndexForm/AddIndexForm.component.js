@@ -66,7 +66,7 @@ class AddIndexForm extends HTMLElement {
               ${SrcSchema[this.tableName].ColNames.map((row, idx) => {
                 return `
                 <div class="newIndexColumnList" id="indexColumnRow${idx}">
-                    <span class="orderId" style="visibility: hidden;" id="order${row}${idx}">1</span>
+                    <span class="orderId invisible-badge" id="order${row}${idx}">1</span>
                     <span class="columnName">${row}</span>
                     <span class="bmd-form-group is-filled">
                         <div class="checkbox float-right" >

@@ -25,3 +25,7 @@
     margin-top: 18px; 
     margin-right: 10px;
 }
+
+.invisible-badge{
+    visibility: hidden;
+}

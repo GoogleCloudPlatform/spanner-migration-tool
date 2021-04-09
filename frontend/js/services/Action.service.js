@@ -318,7 +318,7 @@ const Actions = (() => {
         }
       }
     },
-    fetchIndexFormValues: async (tableIndex, tableName, name, uniqueness) => {
+    fetchIndexFormValues: async function (tableIndex, tableName, name, uniqueness) {
       if (keysList.length === 0) {
         showSnackbar("Please select atleast one key to create a new index", " redBg");
         return;
@@ -395,16 +395,7 @@ const Actions = (() => {
             </tr>
           `;
         }).join("")}`;
-        function recreateNode(el, withChildren) {
-          if (withChildren) {
-            el.parentNode.replaceChild(el.cloneNode(true), el);
-          }
-          else {
-            var newEl = el.cloneNode(false);
-            while (el.hasChildNodes()) newEl.appendChild(el.firstChild);
-            el.parentNode.replaceChild(newEl, el);
-          }
-        }
+  
         if (secIndexArray !== null && secIndexArray.length > 0) {
           secIndexArray.map((secIndex, index) => {
             document.getElementById(tableName + index + 'secIndex').addEventListener('click', () => {
@@ -471,7 +462,7 @@ const Actions = (() => {
       let columnName = document.getElementById(`order${row}${id}`);
       let checkboxValue = document.getElementById("checkbox-" + row + "-" + id).checked;
       if (checkboxValue) {
-        columnName.style.visibility = "";
+        columnName.style.visibility = "visible";
         columnName.innerHTML = orderId + 1;
         orderId++;
         keysList.push({ Col: row, Desc: false });

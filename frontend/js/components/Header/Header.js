@@ -1,29 +1,4 @@
-const navLinks = {
-  logo: {
-    css: { nav: "navbar navbar-static-top", img: "logo" },
-    img: { src: "../../../Icons/Icons/google-spanner-logo.png" },
-  },
-  links: [
-    {
-      text: "Home",
-      href: "#/",
-      aTagId: "homeScreen",
-      name: "headerMenu",
-    },
-    {
-      text: "Schema Conversion",
-      href: "javascript:;",
-      aTagId: "schemaScreen",
-      name: "headerMenu",
-    },
-    {
-      text: "Instructions",
-      href: "#/instructions",
-      aTagId: "instructions",
-      name: "headerMenu",
-    },
-  ],
-};
+import {navLinks} from "./../../config/constantData.js";
 
 class Header extends HTMLElement {
   connectedCallback() {

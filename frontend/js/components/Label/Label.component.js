@@ -1,8 +1,4 @@
-const CLASS_NAMES = {
-    heading: 'heading',
-    subHeading: 'sub-heading',
-    text: 'text'
-}
+import {CLASS_NAMES} from "./../../config/constantData.js";
 
 class Label extends HTMLElement {
 

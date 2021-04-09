@@ -2,16 +2,7 @@ import "../../components/ConnectToDbForm/ConnectToDbForm.component.js";
 import "../../components/LoadDbDumpForm/LoadDbDumpForm.component.js";
 import "../../components/LoadSessionFileForm/LoadSessionFileForm.component.js";
 import "../../components/AddIndexForm/AddIndexForm.component.js";
-
-const CONNECT_TO_DB_MODAL_BUTTONS = [{ value: "Connect", id: "connect-button", disabledProp: "disabled" }];
-const LOAD_DB_DUMP_MODAL_BUTTONS = [{ value: "Confirm", id: "load-connect-button", disabledProp: "disabled", modalDismiss: true }];
-const LOAD_SESSION_MODAL_BUTTONS = [{ value: "Confirm", id: "load-session-button", disabledProp: "disabled", modalDismiss: true }];
-const CONNECTION_SUCCESS_MODAL = [{ value: "Convert", id: "convert-button", disabledProp: "" }];
-const CONNECTION_FAILURE_MODAL = [{ value: "Ok", id: "connection-failure-button", disabledProp: "" }];
-const EDIT_GLOBAL_DATATYPE_MODAL = [{ value: "Next", id: "data-type-button", disabledProp: "" }];
-const EDIT_TABLE_WARNING_MODAL = [{ value: "Ok", id: "edit-table-warning", disabledProp: "" }];
-const ADD_INDEX_MODAL = [{ value: "CREATE", id: "createIndexButton", disabledProp: "disabled", modalDismiss: true }];
-const FK_DROP_WARNING_MODAL = [{ value: "Yes", id: "fk-drop-confirm", disabledProp: "" }, {value: "No", id:"fk-drop-cancel", disabledProp: "" }];
+import {ModalConfigs} from "./../../config/constantData.js";
 
 class Modal extends HTMLElement {
 
@@ -58,31 +49,31 @@ class Modal extends HTMLElement {
     let modalButtons;
     switch (modalId) {
       case "connectToDbModal":
-        modalButtons = CONNECT_TO_DB_MODAL_BUTTONS;
+        modalButtons = ModalConfigs.CONNECT_TO_DB_MODAL_BUTTONS;
         break;
       case "loadDatabaseDumpModal":
-        modalButtons = LOAD_DB_DUMP_MODAL_BUTTONS;
+        modalButtons = ModalConfigs.LOAD_DB_DUMP_MODAL_BUTTONS;
         break;
       case "loadSchemaModal":
-        modalButtons = LOAD_SESSION_MODAL_BUTTONS;
+        modalButtons = ModalConfigs.LOAD_SESSION_MODAL_BUTTONS;
         break;
       case "connectModalSuccess":
-        modalButtons = CONNECTION_SUCCESS_MODAL;
+        modalButtons = ModalConfigs.CONNECTION_SUCCESS_MODAL;
         break;
       case "connectModalFailure":
-        modalButtons = CONNECTION_FAILURE_MODAL;
+        modalButtons = ModalConfigs.CONNECTION_FAILURE_MODAL;
         break;
       case "globalDataTypeModal":
-        modalButtons = EDIT_GLOBAL_DATATYPE_MODAL;
+        modalButtons = ModalConfigs.EDIT_GLOBAL_DATATYPE_MODAL;
         break;
       case "createIndexModal":
-        modalButtons = ADD_INDEX_MODAL;
+        modalButtons = ModalConfigs.ADD_INDEX_MODAL;
         break;
       case "editTableWarningModal":
-        modalButtons = EDIT_TABLE_WARNING_MODAL;
+        modalButtons = ModalConfigs.EDIT_TABLE_WARNING_MODAL;
         break;
       case "indexAndKeyDeleteWarning":
-        modalButtons = FK_DROP_WARNING_MODAL;
+        modalButtons = ModalConfigs.FK_DROP_WARNING_MODAL;
         break;
     }
 
