@@ -381,7 +381,7 @@ const Actions = (() => {
       if (keysList.length === 0) {
         showSnackbar(
           "Please select atleast one key to create a new index",
-          "redBg"
+          " redBg"
         );
         return;
       }
