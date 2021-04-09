@@ -406,7 +406,7 @@ const Actions = (() => {
           ) {
             showSnackbar(
               "Index with selected key(s) already exists.\n Please use different key(s)",
-              "redBg"
+              " redBg"
             );
             return;
           } else if (newIndex["Name"] === table.Indexes[x].Name) {
@@ -414,7 +414,7 @@ const Actions = (() => {
               "Index with name: " +
               newIndex["Name"] +
               " already exists.\n Please try with a different name",
-              "redBg"
+              " redBg"
             );
             return;
           }

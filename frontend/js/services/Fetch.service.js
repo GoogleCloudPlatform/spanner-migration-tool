@@ -20,7 +20,7 @@ const Fetch = (() => {
                 }, 0);
             })
             .catch((err) => {
-                showSnackbar(err, 'redBg');
+                showSnackbar(err, ' redBg');
             })
             .finally(() => {
                 // stop the loader here
@@ -29,14 +29,6 @@ const Fetch = (() => {
     }
 
     return {
-        showSnackbar: (message, bgClass) => {
-            var snackbar = document.getElementById("snackbar");
-            snackbar.className = "show" + bgClass;
-            snackbar.innerHTML = message;
-            setTimeout(function () {
-                snackbar.className = snackbar.className.replace("show", "");
-            }, 3000);
-        },
         getAppData: (method, url, payload, config, callback) => {
             return makeFetchCall(method, url, payload, config, callback).then((response) => {
                 return response;

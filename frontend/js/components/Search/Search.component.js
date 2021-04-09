@@ -13,13 +13,13 @@ class Search extends HTMLElement {
   }
 
   render() {
-    const { searchId, tabId } = this;
+    const { searchId } = this;
     this.innerHTML = `
     <form class="form-inline d-flex justify-content-center md-form form-sm mt-0 searchForm" >
-            <i class="fas fa-search" aria-hidden="true"></i>
-            <input class="form-control form-control-sm ml-3 w-75 searchBox" type="text" placeholder="Search table"
-                id=${searchId} autocomplete='off' aria-label="Search" >
-        </form>`;
+      <i class="fas fa-search" aria-hidden="true"></i>
+      <input class="form-control form-control-sm ml-3 w-75 searchBox" type="text" 
+      placeholder="Search table" id=${searchId} autocomplete='off' aria-label="Search" >
+    </form>`;
 
     document
       .getElementById(this.searchId)
