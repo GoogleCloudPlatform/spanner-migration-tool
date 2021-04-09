@@ -26,16 +26,16 @@ class EditGlobalDataTypeForm extends HTMLElement {
                     </tr>
                     ${dataTypeListKeyArray.map((dataType, index) => {return `
                     <tr class='globalDataTypeRow' id="dataTypeRow${index + 1}">
-                        <td> class='src-td' id="dataTypeKey${index + 1}">${dataType}</td>
+                        <td class='src-td' id="dataTypeKey${index + 1}">${dataType}</td>
                         <td id="dataTypeVal${index + 1}">
-                            <div style='display: flex;'>
+                            <div class="label-container">
                                 <i id="warning${index + 1}" 
                                 class="large material-icons warning ${globalDataTypeList[dataType][0].Brief? "":"template"}" 
                                 style='cursor: pointer;' data-toggle="tooltip" data-placement="bottom" 
                                 title="${globalDataTypeList[dataType][0].Brief}">warning</i>
                         
                                 <select class='form-control table-select' 
-                                style='border: 0px !important;margin-bottom:0px' id="dataTypeOption${index + 1}">
+                                id="dataTypeOption${index + 1}">
                                     ${globalDataTypeList[dataType].map((option, idx) => {return `
                                         <option class='dataTypeOption' value="${option.T}">${option.T}</option>`;
                                     }).join("")}
