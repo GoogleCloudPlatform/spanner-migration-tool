@@ -342,6 +342,7 @@ class DataTable extends HTMLElement {
                 document.getElementById(tableName + index + 'foreignKey').addEventListener('click', () => {
                     jQuery('#indexAndKeyDeleteWarning').modal();
                     jQuery('#indexAndKeyDeleteWarning').find('#modal-content').html(`This will permanently delete the foreign key constraint and the corresponding uniqueness constraints on referenced columns. Do you want to continue?`);
+                    recreateNode(document.getElementById('fk-drop-confirm'));
                     document.getElementById('fk-drop-confirm').addEventListener('click', () => {
                         Actions.dropForeignKeyHandler(tableName, tableIndex, index);
                     })

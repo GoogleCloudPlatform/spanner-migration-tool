@@ -1,6 +1,5 @@
 // Components
 import "../../components/Tab/Tab.component.js";
-import "../../components/Tab/Tabb.component.js";
 import "../../components/Label/Label.component.js";
 import "../../components/ImageIcon/ImageIcon.component.js";
 import "../../components/Modal/Modal.component.js";
@@ -9,37 +8,8 @@ import "../../components/HistoryTable/HistoryTable.component.js";
 // Services
 import Store from "./../../services/Store.service.js";
 
-const HEADING_TEXT = "Welcome To HarborBridge";
-const SUB_HEADING_TEXT = "Connect or import your database";
-
-const MAIN_PAGE_ICONS = [
-  {
-    image: "Icons/Icons/Group 2048.svg",
-    imageAltText: "connect to db",
-    label: "Connect to Database",
-    action: "openConnectionModal",
-    modalDataTarget: "#connectToDbModal",
-  },
-  {
-    image: "Icons/Icons/Group 2049.svg",
-    imageAltText: "load database image",
-    label: "Load Database Dump",
-    action: "openDumpLoadingModal",
-    modalDataTarget: "#loadDatabaseDumpModal",
-  },
-  {
-    image: "Icons/Icons/importIcon2.jpg",
-    imageAltText: "Import schema image",
-    label: "Load Session File",
-    action: "openSessionFileLoadModal",
-    modalDataTarget: "#loadSchemaModal",
-  },
-];
-
-const CONNECTION_SUCCESS_CONTENT =
-  "Please click on convert button to proceed with schema conversion";
-const CONNECTION_FAILURE_CONTENT =
-  "Please check database configuration details and try again !!";
+//constants
+import{MAIN_PAGE_ICONS,MAIN_PAGE_STATIC_CONTENT} from "./../../config/constantData.js";
 
 class MainScreen extends HTMLElement {
   connectedCallback() {
@@ -59,17 +29,12 @@ class MainScreen extends HTMLElement {
   };
 
   render() {
-    if (!this.data) {
-      return;
-    }
-    let { open, funcc, something } = this.data;
-    console.log(open, funcc, something, " are the values ");
     this.innerHTML = `
                         <div>
                           <div id="snackbar"></div>
                             <div class="page-heading">
-                              <hb-label type="heading" text="${HEADING_TEXT}"></hb-label>
-                              <hb-label type="subHeading" text="${SUB_HEADING_TEXT}"></hb-label>
+                              <hb-label type="heading" text="${MAIN_PAGE_STATIC_CONTENT.HEADING_TEXT}"></hb-label>
+                              <hb-label type="subHeading" text="${MAIN_PAGE_STATIC_CONTENT.SUB_HEADING_TEXT}"></hb-label>
                             </div>
                           <div class="card-area">
                             <div class="icons-card-section">
@@ -111,7 +76,7 @@ class MainScreen extends HTMLElement {
 
                           <hb-modal
                             modalId="connectModalSuccess"
-                            content="${CONNECTION_SUCCESS_CONTENT}"
+                            content="${MAIN_PAGE_STATIC_CONTENT.CONNECTION_SUCCESS_CONTENT}"
                             contentIcon="check_circle"
                             connectIconClass="connect-icon-success"
                             modalBodyClass="connection-modal-body"
@@ -120,14 +85,12 @@ class MainScreen extends HTMLElement {
 
                           <hb-modal
                             modalId="connectModalFailure"
-                            content="${CONNECTION_FAILURE_CONTENT}"
+                            content="${MAIN_PAGE_STATIC_CONTENT.CONNECTION_FAILURE_CONTENT}"
                             contentIcon="cancel"
                             connectIconClass="connect-icon-failure"
                             modalBodyClass="connection-modal-body"
                             title="Connection Failure">
                           </hb-modal>
-                    
-                        <hb-tabb something="${something}" open="${open}" clickAction="openModal1"> </hb-tabb>
 
                         <div class="history-content">
                          <hb-history-table></hb-history-table>

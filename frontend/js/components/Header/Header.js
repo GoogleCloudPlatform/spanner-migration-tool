@@ -1,4 +1,4 @@
-import {navLinks} from "./../../config/constantData.js";
+import {NAVLINKS} from "./../../config/constantData.js";
 
 class Header extends HTMLElement {
   connectedCallback() {
@@ -27,12 +27,12 @@ class Header extends HTMLElement {
   }
 
   render() {
-    const logoTemplate = `<nav class="${navLinks.logo.css.nav}">
-                            <img src="${navLinks.logo.img.src}" class="${navLinks.logo.css.img}">
+    const logoTemplate = `<nav class="${NAVLINKS.logo.css.nav}">
+                            <img src="${NAVLINKS.logo.img.src}" class="${NAVLINKS.logo.css.img}">
                           </nav>`;
     this.innerHTML =
       logoTemplate +
-      navLinks.links.map((link) => this.NavLinkTemplate(link)).join("");
+      NAVLINKS.links.map((link) => this.NavLinkTemplate(link)).join("");
   }
 
   constructor() {

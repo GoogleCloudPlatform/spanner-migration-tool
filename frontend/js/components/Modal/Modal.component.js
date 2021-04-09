@@ -2,7 +2,7 @@ import "../../components/ConnectToDbForm/ConnectToDbForm.component.js";
 import "../../components/LoadDbDumpForm/LoadDbDumpForm.component.js";
 import "../../components/LoadSessionFileForm/LoadSessionFileForm.component.js";
 import "../../components/AddIndexForm/AddIndexForm.component.js";
-import {ModalConfigs} from "./../../config/constantData.js";
+import {MODALCONFIGS} from "./../../config/constantData.js";
 
 class Modal extends HTMLElement {
 
@@ -49,31 +49,31 @@ class Modal extends HTMLElement {
     let modalButtons;
     switch (modalId) {
       case "connectToDbModal":
-        modalButtons = ModalConfigs.CONNECT_TO_DB_MODAL_BUTTONS;
+        modalButtons = MODALCONFIGS.CONNECT_TO_DB_MODAL_BUTTONS;
         break;
       case "loadDatabaseDumpModal":
-        modalButtons = ModalConfigs.LOAD_DB_DUMP_MODAL_BUTTONS;
+        modalButtons = MODALCONFIGS.LOAD_DB_DUMP_MODAL_BUTTONS;
         break;
       case "loadSchemaModal":
-        modalButtons = ModalConfigs.LOAD_SESSION_MODAL_BUTTONS;
+        modalButtons = MODALCONFIGS.LOAD_SESSION_MODAL_BUTTONS;
         break;
       case "connectModalSuccess":
-        modalButtons = ModalConfigs.CONNECTION_SUCCESS_MODAL;
+        modalButtons = MODALCONFIGS.CONNECTION_SUCCESS_MODAL;
         break;
       case "connectModalFailure":
-        modalButtons = ModalConfigs.CONNECTION_FAILURE_MODAL;
+        modalButtons = MODALCONFIGS.CONNECTION_FAILURE_MODAL;
         break;
       case "globalDataTypeModal":
-        modalButtons = ModalConfigs.EDIT_GLOBAL_DATATYPE_MODAL;
+        modalButtons = MODALCONFIGS.EDIT_GLOBAL_DATATYPE_MODAL;
         break;
       case "createIndexModal":
-        modalButtons = ModalConfigs.ADD_INDEX_MODAL;
+        modalButtons = MODALCONFIGS.ADD_INDEX_MODAL;
         break;
       case "editTableWarningModal":
-        modalButtons = ModalConfigs.EDIT_TABLE_WARNING_MODAL;
+        modalButtons = MODALCONFIGS.EDIT_TABLE_WARNING_MODAL;
         break;
       case "indexAndKeyDeleteWarning":
-        modalButtons = ModalConfigs.FK_DROP_WARNING_MODAL;
+        modalButtons = MODALCONFIGS.FK_DROP_WARNING_MODAL;
         break;
     }
 
