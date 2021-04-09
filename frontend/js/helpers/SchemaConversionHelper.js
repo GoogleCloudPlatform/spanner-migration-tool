@@ -440,63 +440,13 @@ export const readTextFile = (file, callback) => {
   rawFile.send(null);
 }
 
-/**
- * Function to create global edit data type table
- *
- * @return {null}
- */
-export const createEditDataTypeTable = () => {
-  let globalDataTypeList = JSON.parse(localStorage.getItem('globalDataTypeList'));
-  let dataTypeListLength = Object.keys(globalDataTypeList).length;
-  for (var i = 0; i < dataTypeListLength; i++) {
-    if (document.getElementById('dataTypeRow' + (i + 1)) !== null) {
-      break
-    }
-    if (globalDataTypeList[Object.keys(globalDataTypeList)[i]] !== null) {
-      let $dataTypeOption;
-      let $dataTypeRow = jQuery('#globalDataTypeTable').find('.globalDataTypeRow.template').clone().removeClass('template');
-      $dataTypeRow.attr('id', 'dataTypeRow' + (i + 1));
-      for (var j = 0; j < 2; j++) {
-        if (j === 0) {
-          $dataTypeRow.find('.src-td').attr('id', 'dataTypeKey' + (i + 1));
-          $dataTypeRow.find('.src-td').html(Object.keys(globalDataTypeList)[i]);
-        }
-        else if (j === 1) {
-          $dataTypeRow.find('#globalDataTypeCell').attr('id', 'dataTypeVal' + (i + 1));
-          let optionsLength = globalDataTypeList[Object.keys(globalDataTypeList)[i]].length;
-          if (globalDataTypeList[Object.keys(globalDataTypeList)[i]][0].Brief !== "") {
-            $dataTypeRow.find('i').attr('data-toggle', 'tooltip');
-            $dataTypeRow.find('i').attr('data-placement', 'bottom');
-            $dataTypeRow.find('i').attr('title', globalDataTypeList[Object.keys(globalDataTypeList)[i]][0].Brief);
-          }
-          else {
-            $dataTypeRow.find('i').css('visibility', 'hidden');
-          }
-          $dataTypeRow.find('select').attr('id', 'dataTypeOption' + (i + 1));
-          for (var k = 0; k < optionsLength; k++) {
-            $dataTypeOption = $dataTypeRow.find('.dataTypeOption.template').clone().removeClass('template');
-            $dataTypeOption.attr('value', globalDataTypeList[Object.keys(globalDataTypeList)[i]][k].T);
-            $dataTypeOption.html(globalDataTypeList[Object.keys(globalDataTypeList)[i]][k].T);
-            $dataTypeOption.appendTo($dataTypeRow.find('select'));
-          }
-        }
-      }
-      $dataTypeRow.find('select').find("option").eq(0).remove();
-      $dataTypeRow.find('#dataTypeOption' + (i + 1)).unbind('change').bind('change', function () {
-        dataTypeUpdate(jQuery(this).attr('id'), globalDataTypeList);
-      });
-      $dataTypeRow.appendTo(jQuery('#globalDataTypeTable'));
-    }
-  }
-  tooltipHandler();
-}
 
 export const showSnackbar = (message, bgClass) => {
   var snackbar = document.getElementById("snackbar");
-  snackbar.classList.add("show",bgClass);
+  snackbar.className = "show" + bgClass;
   snackbar.innerHTML = message;
   setTimeout(function () {
-    snackbar.classList.remove("show",bgClass);
+    snackbar.className = snackbar.className.replace("show", "");
   }, 3000);
 }
 
@@ -514,41 +464,14 @@ export const tabbingHelper = (id,others) => {
     
 }
 
-export const dataTypeUpdate = (id, globalDataTypeList) => {
-  let idNum = parseInt(id.match(/\d+/), 10);
-  let dataTypeOptionArray = globalDataTypeList[document.getElementById('dataTypeKey' + idNum).innerHTML];
-  let optionFound;
-  let length = dataTypeOptionArray.length;
-  let $dataTypeSel = jQuery('.globalDataTypeRow.template').clone();
-  $dataTypeSel.find('.src-td').attr('id', 'dataTypeKey' + idNum);
-  $dataTypeSel.find('.src-td').html(Object.keys(globalDataTypeList)[idNum - 1]);
-  $dataTypeSel.find('i').css('visibility', 'hidden');
-  for (var x = 0; x < length; x++) {
-    let $dataTypeOption = $dataTypeSel.find('.dataTypeOption.template').clone().removeClass('template');
-    optionFound = dataTypeOptionArray[x].T === document.getElementById(id).value;
-    if (dataTypeOptionArray[x].T === document.getElementById(id).value && dataTypeOptionArray[x].Brief !== "") {
-      $dataTypeSel.find('i').attr('data-toggle', 'tooltip');
-      $dataTypeSel.find('i').attr('data-placement', 'bottom');
-      $dataTypeSel.find('i').attr('title', dataTypeOptionArray[x].Brief);
-      $dataTypeSel.find('i').css('visibility', '');
-    }
-    if (optionFound === true) {
-      $dataTypeOption.attr('value', dataTypeOptionArray[x].T);
-      $dataTypeOption.html(dataTypeOptionArray[x].T);
-      $dataTypeOption.attr('selected', 'selected');
-    }
-    else {
-      $dataTypeOption.attr('value', dataTypeOptionArray[x].T);
-      $dataTypeOption.html(dataTypeOptionArray[x].T);
-    }
-    $dataTypeOption.appendTo($dataTypeSel.find('select'));
-  }
-  $dataTypeSel.find('select').find("option").eq(0).remove();
-  $dataTypeSel.find('select').attr('id', id);
-  jQuery(this).unbind('change').bind('change', function () {
-    dataTypeUpdate(id, globalDataTypeList);
-  });
-  jQuery("#dataTypeRow" + idNum).html($dataTypeSel.html());
-  tooltipHandler();
-}
 
+export const recreateNode = (el, withChildren) => {
+  if (withChildren) {
+    el.parentNode.replaceChild(el.cloneNode(true), el);
+  }
+  else {
+    var newEl = el.cloneNode(false);
+    while (el.hasChildNodes()) newEl.appendChild(el.firstChild);
+    el.parentNode.replaceChild(newEl, el);
+  }
+}

@@ -1,8 +1,3 @@
-/**
- *  Label will carry type as an attribute - 
- * Enum => heading, subheading, text
- */
-
 const CLASS_NAMES = {
     heading: 'heading',
     subHeading: 'sub-heading',
@@ -26,7 +21,6 @@ class Label extends HTMLElement {
     render() {
         let { type, text } = this;
         let className = CLASS_NAMES[type] || 'text';
-
         this.innerHTML = `
             <div class="label ${className}">${text}</div>
         `;  

@@ -89,7 +89,7 @@ class SchemaConversionScreen extends HTMLElement {
             <div id='reportDiv'>
             ${tableNameArray.map((tableName, index) => {
                 return `
-                  <hb-table-carousel title="${tableName}" tableId="report" tableIndex="${index}"></hb-table-carousel>
+                  <hb-table-carousel tableTitle="${tableName}" tableId="report" tableIndex="${index}"></hb-table-carousel>
               `; }).join("")}                    
             </div>
         </div>
@@ -106,7 +106,7 @@ class SchemaConversionScreen extends HTMLElement {
                     <div id='ddlDiv'>
                     ${tableNameArray.map((tableName,index) => {
                         return `
-                              <hb-table-carousel title="${tableName}" tableId="ddl" tableIndex=${index}></hb-table-carousel>
+                              <hb-table-carousel tableTitle="${tableName}" tableId="ddl" tableIndex=${index}></hb-table-carousel>
                                `;}).join("")} 
                     </div>
                   </div>
@@ -123,7 +123,7 @@ class SchemaConversionScreen extends HTMLElement {
             ${tableNameArray
               .map((tableName,index) => {
                 return `
-                       <hb-table-carousel title="${tableName}" tableId="summary" tableIndex=${index}></hb-table-carousel>
+                       <hb-table-carousel tableTitle="${tableName}" tableId="summary" tableIndex=${index}></hb-table-carousel>
                       `;
               })
               .join("")} 

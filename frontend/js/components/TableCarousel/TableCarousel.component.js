@@ -6,12 +6,13 @@ import {
 } from "./../../helpers/SchemaConversionHelper.js";
 
 class TableCarousel extends HTMLElement {
+  
   static get observedAttributes() {
     return ["open"];
   }
 
-  get title() {
-    return this.getAttribute("title");
+  get tableTitle() {
+    return this.getAttribute("tableTitle");
   }
 
   get tableId() {
@@ -31,10 +32,10 @@ class TableCarousel extends HTMLElement {
   }
 
   render() {
-    let { title, tableId, tableIndex } = this;
+    let {tableTitle, tableId, tableIndex } = this;
     let color = JSON.parse(localStorage.getItem("tableBorderColor"));
-    let panelColor = panelBorderClass(color[title]);
-    let cardColor = mdcCardBorder(color[title]);
+    let panelColor = panelBorderClass(color[tableTitle]);
+    let cardColor = mdcCardBorder(color[tableTitle]);
 
     this.innerHTML = `
     <section class="${tableId}Section" id="${tableIndex}">
@@ -42,8 +43,8 @@ class TableCarousel extends HTMLElement {
 
         <div role="tab" class="card-header ${tableId}-card-header ${panelColor} rem-border-bottom">
           <h5 class="mb-0">
-            <a data-toggle="collapse" href="#${tableId}-${title}">
-              Table: <span>${title}</span>
+            <a data-toggle="collapse" href="#${tableId}-${tableTitle}">
+              Table: <span>${tableTitle}</span>
               <i class="fas fa-angle-down rotate-icon"></i>
             </a>
             ${ tableId == "report" ? `
@@ -67,12 +68,12 @@ class TableCarousel extends HTMLElement {
           </h5>
         </div>
     
-        <div class="collapse ${tableId}Collapse" id="${tableId}-${title}">
+        <div class="collapse ${tableId}Collapse" id="${tableId}-${tableTitle}">
           <div class="mdc-card mdc-card-content table-card-border ${cardColor}">
             ${ tableId == "report" ? `
-            <hb-data-table tableName="${title}" tableIndex="${tableIndex}"></hb-data-table>` 
+            <hb-data-table tableName="${tableTitle}" tableIndex="${tableIndex}"></hb-data-table>` 
             :
-            `<hb-list-table tabName="${tableId}" tableName="${title}"></hb-list-table>`
+            `<hb-list-table tabName="${tableId}" tableName="${tableTitle}"></hb-list-table>`
            }
           </div>
         </div>
