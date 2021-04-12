@@ -39,14 +39,20 @@ class SchemaConversionScreen extends HTMLElement {
   }
 
   observeState = () => {
+    console.log(JSON.stringify(Store.getinstance()) , JSON.stringify(this.data));
+    // console.log(JSON.stringify(Store.getinstance()) !== JSON.stringify(this.data));
+    debugger
     if (JSON.stringify(Store.getinstance()) !== JSON.stringify(this.data)) {
+      console.log("rerendered");
       this.data = Store.getinstance();
+      console.log(this.data);
       this.render();
       Actions.ddlSummaryAndConversionApiCall();
     }
   };
 
   render() {
+
     if (!this.data) {
       return;
     }
@@ -123,7 +129,7 @@ class SchemaConversionScreen extends HTMLElement {
     <hb-modal modalId="editTableWarningModal" content="edit table" contentIcon="cancel" 
       connectIconClass="connect-icon-failure" modalBodyClass="connection-modal-body" title="Error Message"></hb-modal>
     <hb-modal modalId="createIndexModal" content="" contentIcon="" 
-      connectIconClass="" modalBodyClass="" title="Select keys for new index"></hb-modal>`;
+      connectIconClass="" modalBodyClass="" title="Select keys for new index"></hb-modal> `;
     initSchemaScreenTasks();
   }
 

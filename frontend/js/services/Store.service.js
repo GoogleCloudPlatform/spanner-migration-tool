@@ -6,7 +6,9 @@ const DEFAULT_INSTANCE = {
 };
 
 const Store = (function () {
-  var instance = {};
+  var instance = {
+    checkInterleave : {},
+  };
   let modalId = "connectToDbModal";
 
   function init() {}
@@ -44,6 +46,12 @@ const Store = (function () {
       await Actions.ddlSummaryAndConversionApiCall();
       instance = { ...instance, tableData, saveSchemaId: Math.random() };
     },
+    setInterleave : (tableName , value) => {
+      let newCheckInterLeave = instance.checkInterleave;
+      newCheckInterLeave[tableName] = value
+      instance = {...instance, checkInterleave : newCheckInterLeave };
+      // console.log(instance);
+    }
   };
 })();
 

@@ -1,4 +1,4 @@
-import "../../components/Header/Header.js";
+import "../../components/Header/Header.component.js";
 
 class DefaultLayout extends HTMLElement {
     

@@ -1,4 +1,4 @@
-import {NAVLINKS} from "./../../config/constantData.js";
+import {NAVLINKS} from "../../config/constantData.js";
 
 class Header extends HTMLElement {
   connectedCallback() {
@@ -9,7 +9,6 @@ class Header extends HTMLElement {
   }
 
   checkActiveSession = () => {
-    console.log("comming inside");
     if (JSON.parse(sessionStorage.getItem("sessionStorage")) != null) {
       window.location.href = "#/schema-report";
     }

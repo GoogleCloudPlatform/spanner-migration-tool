@@ -267,7 +267,9 @@ const Actions = (() => {
     checkInterleaveConversion: async (tableName) => {
       let interleaveApiCall;
       interleaveApiCall = await Fetch.getAppData("GET", "/setparent?table=" + tableName);
-      return interleaveApiCall.json();
+      let interleaveApiCallResp = await interleaveApiCall.json();
+      let value = interleaveApiCallResp.tableInterleaveStatus.Possible;
+      Store.setInterleave(tableName,value);
     },
     setGlobalDataType: async () => {
       let globalDataTypeList = JSON.parse(localStorage.getItem("globalDataTypeList"));
