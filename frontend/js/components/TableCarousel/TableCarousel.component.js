@@ -1,3 +1,4 @@
+import Actions from "../../services/Action.service.js";
 import "../DataTable/DataTable.component.js";
 import "../ListTable/ListTable.component.js";
 import {
@@ -84,6 +85,7 @@ class TableCarousel extends HTMLElement {
 
   constructor() {
     super();
+    Actions.checkInterleaveConversion(this.tableTitle);
   }
 }
 

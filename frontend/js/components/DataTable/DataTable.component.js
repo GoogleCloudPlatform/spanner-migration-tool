@@ -1,6 +1,7 @@
 import "./../Modal/Modal.component.js";
 import { recreateNode } from './../../helpers/SchemaConversionHelper.js';
 import Actions from './../../services/Action.service.js';
+import Store from './../../services/Store.service.js';
 
 class DataTable extends HTMLElement {
 
@@ -17,11 +18,25 @@ class DataTable extends HTMLElement {
     }
 
     connectedCallback() {
-          this.render();  
+        this.checkInterLeave = Store.getinstance().checkInterleave[this.tableName];
+        // console.log(this.checkInterleave);
+        // setTimeout(()=>{
+        //     console.log(this.checkInterleave);
+        //     console.log(Store.getinstance().checkInterleave[this.tableName]);
+        //     if(this.checkInterLeave != Store.getinstance().checkInterleave[this.tableName])
+        //     {
+        //         console.log("inside");
+        //         this.checkInterleave = Store.getinstance().checkInterleave[this.tableName]
+        //         // this.render(this.checkInterLeave);
+        //         this.render()
+        //     } 
+
+        // },3000)
+        this.render();  
      }   
-  
 
     fkComponent(tableIndex, tableName, fkArray) {
+        console.log("called for",this.checkInterLeave);
         return `
             <div class="fkCard">
                 <div class="foreignKeyHeader" role="tab">
@@ -32,7 +47,7 @@ class DataTable extends HTMLElement {
                 <div class="collapse fkCollapse" id="foreignKey${tableIndex}">
                     <div class="mdc-card mdc-card-content summaryBorder">
                         <div class="mdc-card fk-content">
-                            <fieldset class="template" id="radioBtnArea${tableIndex}">
+                            <fieldset class=${this.checkInterLeave == true ? "" : "template"} id="radioBtnArea${tableIndex}">
                                 <div class="radio-class">
                                     <input type="radio" class="radio addRadio" value="add" checked="checked" disabled
                                         id="add${tableIndex}" name="fks${tableIndex}" />
@@ -148,11 +163,9 @@ class DataTable extends HTMLElement {
         `;
     }
 
-    connectedCallback() {
-        this.render();
-    }
-
     render() {
+        // console.log("called for",this.checkInterLeave);
+        
         let { tableName, tableIndex } = this;
         let countSrc = [], countSp = [], notNullConstraint = [];
         let schemaConversionObj = JSON.parse(localStorage.getItem("conversionReportContent"));
