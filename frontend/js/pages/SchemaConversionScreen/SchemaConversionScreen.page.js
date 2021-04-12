@@ -12,20 +12,10 @@ import Store from "./../../services/Store.service.js";
 import Actions from "./../../services/Action.service.js";
 import "../../services/Fetch.service.js";
 
-const TAB_CONFIG_DATA = [
-  {
-    id: "report",
-    text: "Conversion Report",
-  },
-  {
-    id: "ddl",
-    text: "DDL Statements",
-  },
-  {
-    id: "summary",
-    text: "Summary Report",
-  },
-];
+// constants
+
+import {TAB_CONFIG_DATA} from './../../config/constantData.js'
+
 
 class SchemaConversionScreen extends HTMLElement {
   connectedCallback() {

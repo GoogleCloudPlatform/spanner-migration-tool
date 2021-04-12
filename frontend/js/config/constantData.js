@@ -75,4 +75,19 @@ export const MAIN_PAGE_ICONS = [
      CONNECTION_FAILURE_CONTENT : "Please check database configuration details and try again !!",
   }
 
+  export const TAB_CONFIG_DATA = [
+    {
+      id: "report",
+      text: "Conversion Report",
+    },
+    {
+      id: "ddl",
+      text: "DDL Statements",
+    },
+    {
+      id: "summary",
+      text: "Summary Report",
+    },
+  ];
+
 
