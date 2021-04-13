@@ -43,7 +43,7 @@ const Forms = (() => {
     formButtonHandler: (formId, formButtonId) => {
       let formElements = document.getElementById(formId);
       formElements.querySelectorAll("input").forEach((elem) => {
-        elem.addEventListener("keyup", () => {
+        elem.addEventListener("input", () => {
           let empty = false;
           formElements.querySelectorAll('input:not([type="checkbox"])')
             .forEach((elem) => {
