@@ -85,7 +85,6 @@ class TableCarousel extends HTMLElement {
 
   constructor() {
     super();
-    Actions.checkInterleaveConversion(this.tableTitle);
   }
 }
 

@@ -18,25 +18,17 @@ class DataTable extends HTMLElement {
     }
 
     connectedCallback() {
+        console.log(Store.getinstance().checkInterleave[this.tableName]);
+        if(Store.getinstance().checkInterleave[this.tableName] === undefined)
+        {
+            Actions.checkInterleaveConversion(this.tableName);
+        }
         this.checkInterLeave = Store.getinstance().checkInterleave[this.tableName];
-        // console.log(this.checkInterleave);
-        // setTimeout(()=>{
-        //     console.log(this.checkInterleave);
-        //     console.log(Store.getinstance().checkInterleave[this.tableName]);
-        //     if(this.checkInterLeave != Store.getinstance().checkInterleave[this.tableName])
-        //     {
-        //         console.log("inside");
-        //         this.checkInterleave = Store.getinstance().checkInterleave[this.tableName]
-        //         // this.render(this.checkInterLeave);
-        //         this.render()
-        //     } 
-
-        // },3000)
         this.render();  
      }   
 
     fkComponent(tableIndex, tableName, fkArray) {
-        console.log("called for",this.checkInterLeave);
+        console.log(tableName);
         return `
             <div class="fkCard">
                 <div class="foreignKeyHeader" role="tab">
@@ -164,8 +156,6 @@ class DataTable extends HTMLElement {
     }
 
     render() {
-        // console.log("called for",this.checkInterLeave);
-        
         let { tableName, tableIndex } = this;
         let countSrc = [], countSp = [], notNullConstraint = [];
         let schemaConversionObj = JSON.parse(localStorage.getItem("conversionReportContent"));

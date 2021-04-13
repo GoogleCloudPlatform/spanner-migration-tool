@@ -2,13 +2,8 @@ export const tooltipHandler = () => {
   jQuery('[data-toggle="tooltip"]').tooltip();
 };
 
-/**
- * Function to set style for selected menu
- * @param {string} selectedMenuId id of selected menu
- * @return {null}
- */
-
-const setActiveSelectedMenu = (selectedMenuId) => {
+export const setActiveSelectedMenu = (selectedMenuId) => {
+  console.log(jQuery("[name='headerMenu']:not('#" + selectedMenuId + "')"));
   jQuery("[name='headerMenu']:not('#" + selectedMenuId + "')").addClass(
     "inactive"
   );
@@ -224,12 +219,7 @@ export const tabbingHelper = (id, others) => {
   });
 };
 
-export const recreateNode = (el, withChildren) => {
-  if (withChildren) {
-    el.parentNode.replaceChild(el.cloneNode(true), el);
-  } else {
-    var newEl = el.cloneNode(false);
-    while (el.hasChildNodes()) newEl.appendChild(el.firstChild);
-    el.parentNode.replaceChild(newEl, el);
-  }
+export const recreateNode = (el) => {
+  let newEl = el.cloneNode(false);
+  el.parentNode.replaceChild(newEl, el);
 };

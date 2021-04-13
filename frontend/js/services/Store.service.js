@@ -49,7 +49,7 @@ const Store = (function () {
     setInterleave : (tableName , value) => {
       let newCheckInterLeave = instance.checkInterleave;
       newCheckInterLeave[tableName] = value
-      instance = {...instance, checkInterleave : newCheckInterLeave };
+      instance = {...instance, checkInterleave : newCheckInterLeave , saveSchemaId: Math.random()  };
       // console.log(instance);
     }
   };
