@@ -1,10 +1,12 @@
 import { showSnackbar } from './../helpers/SchemaConversionHelper.js';
+import Actions from './Action.service.js';
 
 /**
  * Interacts with the backend and implements the transforms
  */
 const Fetch = (() => {
     let makeFetchCall = (method, url, payload, config, callback, snakbar) => {
+        Actions.showSpinner()
         return new Promise((resolve, reject) => {
             fetch(url, {
                 method: method,
@@ -24,6 +26,7 @@ const Fetch = (() => {
             })
             .finally(() => {
                 // stop the loader here
+                Actions.hideSpinner()
             });
         });
     }

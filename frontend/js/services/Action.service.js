@@ -931,6 +931,16 @@ const Actions = (() => {
         }
       }
     },
+    showSpinner : () => {
+      let toggle_spinner = document.getElementById("toggle-spinner");
+      toggle_spinner.style.display = "block";
+    },
+    hideSpinner : () => {
+     let toggle_spinner = document.getElementById("toggle-spinner");
+      toggle_spinner.style.display = "none";
+      toggle_spinner.className = toggle_spinner.className.replace("show", "");
+    }
+    
   };
 })();
 
