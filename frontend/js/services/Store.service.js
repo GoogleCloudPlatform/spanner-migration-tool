@@ -10,9 +10,10 @@ const Store = (function () {
     checkInterleave : {},
     currentTab:"reportTab",
     openStatus:{
-      ddl:new Array(1).fill(false),
-      report : new Array(1).fill(false),
-      summary: new Array(1).fill(false)
+      ddl:new Array(16).fill(false),
+      report : new Array(16).fill(false),
+      summary: new Array(16).fill(false),
+      sam:Math.random()
     },
     tableData:{
       reportTabContent: JSON.parse(localStorage.getItem('conversionReportContent')),
@@ -21,6 +22,7 @@ const Store = (function () {
     },
     tableBorderData: JSON.parse(localStorage.getItem("tableBorderColor")),
    };
+   console.log(instance);
   let modalId = "connectToDbModal";
 
   function init() {}
@@ -64,23 +66,22 @@ const Store = (function () {
       instance = {...instance, checkInterleave:newCheckInterLeave , saveSchemaId: Math.random()  }; 
     },
     swithCurrentTab:(tab)=>{
-      debugger
       console.log(tab);
       instance = {...instance , currentTab:tab}
     },
     openCarousel:(tableId , tableIndex)=>{
-      debugger
       console.log('open',tableId , tableIndex);
-      let newOpenStatus = instance.openStatus
-      newOpenStatus[tableId][tableIndex] = true;
-      instance = {...instance ,openStatus:newOpenStatus }
+      let openStatus = instance.openStatus
+      openStatus[tableId][tableIndex] = true;
+      openStatus.sam=Math.random()
+      instance = {...instance ,openStatus }
       console.log(instance);
     },
     closeCarousel:(tableId , tableIndex)=>{
       console.log('close',tableId , tableIndex);
-      let newOpenStatus = instance.openStatus
-      newOpenStatus[tableId][tableIndex] = false;
-      instance = {...instance ,openStatus:newOpenStatus }
+      let openStatus = instance.openStatus
+      openStatus[tableId][tableIndex] = false;
+      instance = {...instance ,openStatus }
       console.log(instance);
     },
     getTableData: (tabName)=>{

@@ -29,7 +29,9 @@ class SchemaConversionScreen extends HTMLElement {
 
   observeState = () => {
     let updatedData = Store.getinstance();
+    console.log(this.data,updatedData);
     if (JSON.stringify(updatedData) !== JSON.stringify(this.data)) {
+      console.log('in the if..');
       this.data = updatedData;
       this.render();
       Actions.ddlSummaryAndConversionApiCall();
@@ -44,8 +46,7 @@ class SchemaConversionScreen extends HTMLElement {
     const reportTabContent = tableData['reportTabContent'] 
     const ddlTabContent = tableData['ddlTabContent'] 
     const summaryTabContent = tableData['summaryTabContent'] 
-    let tableNameArray = Object.keys(reportTabContent.SpSchema);
-
+    let tableNameArray = Object.keys(reportTabContent.SpSchema)
     this.innerHTML = `
     <div class="summary-main-content" id='schema-screen-content'>
       <div id="snackbar" class="schema-screen-snackbar"></div>
@@ -118,10 +119,7 @@ class SchemaConversionScreen extends HTMLElement {
     <hb-modal modalId="createIndexModal" content="" contentIcon="" 
       connectIconClass="" modalBodyClass="" title="Select keys for new index"></hb-modal> `;
     initSchemaScreenTasks();
-
-      
       let data;
-      
       switch(currentTab)
       {
         case "reportTab":
@@ -135,7 +133,6 @@ class SchemaConversionScreen extends HTMLElement {
           break;
       }
       
-      console.log(data);
       for(let i=0;i<tableNameArray.length;i++)
       {
         let filterdata;
@@ -150,10 +147,6 @@ class SchemaConversionScreen extends HTMLElement {
         let component = document.querySelector(`#${currentTab}${i}`)
         component.setAttribute('data',JSON.stringify(filterdata))
         
-        // Scomponent.setAttribute('data',JSON.stringify(summaryTabContent[tableNameArray[i]]))
-       
-        // let name = component[i].getAttribute('tableName')
-        // component[i].setAttribute("data", JSON.stringify(tablesData));
       }
 
 

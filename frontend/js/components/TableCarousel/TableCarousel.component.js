@@ -34,24 +34,27 @@ class TableCarousel extends HTMLElement {
   }
 
   attributeChangedCallback(attrName, oldVal, newVal ) {
-       console.log(oldVal,newVal);
+      //  console.log(oldVal,newVal);
     if (attrName === 'data' && newVal !== "{}" && oldVal!==null) {
         this.render();
-        console.log('reRender with new value...');
+        // console.log('reRender with new value...');
     }
+    if (attrName === 'data' && oldVal==="{}") {
+      this.render();
+      document.getElementById(`id-${this.tableId}-${this.tableIndex}`).addEventListener('click',()=>{
+        if(Store.getinstance().openStatus[this.tableId][this.tableIndex])
+        {
+          Actions.closeCarousel(this.tableId , this.tableIndex)
+        }
+        else{
+          Actions.openCarousel(this.tableId , this.tableIndex)
+        }
+      })
+  }
   }
 
   connectedCallback() {
     this.render();
-    document.getElementById(`id-${this.tableId}-${this.tableIndex}`).addEventListener('click',()=>{
-      if(Store.getinstance().openStatus[this.tableId][this.tableIndex])
-      {
-        Actions.closeCarousel(this.tableId , this.tableIndex)
-      }
-      else{
-        Actions.openCarousel(this.tableId , this.tableIndex)
-      }
-    })
   }
 
   render() {
@@ -60,9 +63,9 @@ class TableCarousel extends HTMLElement {
       return;
     }
     let {tableTitle, tableId, tableIndex, data } = this;
-    let color = data?.borderData;
-    let panelColor = panelBorderClass(color[tableTitle]);
-    let cardColor = mdcCardBorder(color[tableTitle]);
+    let color = data.borderData;
+    let panelColor = panelBorderClass(color);
+    let cardColor = mdcCardBorder(color);
     let carouselStatus = Store.getinstance().openStatus[this.tableId][this.tableIndex];
 
     this.innerHTML = `
