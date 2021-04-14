@@ -1,4 +1,5 @@
 import Actions from "../../services/Action.service.js";
+import Store from "../../services/Store.service.js";
 import "../DataTable/DataTable.component.js";
 import "../ListTable/ListTable.component.js";
 import {
@@ -24,19 +25,45 @@ class TableCarousel extends HTMLElement {
     return this.getAttribute("tableIndex");
   }
 
-  attributeChangedCallback(name, oldValue, newValue) {
-    this.render();
+  get data() {
+    return JSON.parse(this.getAttribute("data"))
+  }
+
+  static get observedAttributes() {
+    return ["data"];
+  }
+
+  attributeChangedCallback(attrName, oldVal, newVal ) {
+       console.log(oldVal,newVal);
+    if (attrName === 'data' && newVal !== "{}" && oldVal!==null) {
+        this.render();
+        console.log('reRender with new value...');
+    }
   }
 
   connectedCallback() {
     this.render();
+    document.getElementById(`id-${this.tableId}-${this.tableIndex}`).addEventListener('click',()=>{
+      if(Store.getinstance().openStatus[this.tableId][this.tableIndex])
+      {
+        Actions.closeCarousel(this.tableId , this.tableIndex)
+      }
+      else{
+        Actions.openCarousel(this.tableId , this.tableIndex)
+      }
+    })
   }
 
   render() {
-    let {tableTitle, tableId, tableIndex } = this;
-    let color = JSON.parse(localStorage.getItem("tableBorderColor"));
+    if(Object.keys(this.data).length <= 0)
+    {
+      return;
+    }
+    let {tableTitle, tableId, tableIndex, data } = this;
+    let color = data?.borderData;
     let panelColor = panelBorderClass(color[tableTitle]);
     let cardColor = mdcCardBorder(color[tableTitle]);
+    let carouselStatus = Store.getinstance().openStatus[this.tableId][this.tableIndex];
 
     this.innerHTML = `
     <section class="${tableId}Section" id="${tableIndex}">
@@ -44,7 +71,7 @@ class TableCarousel extends HTMLElement {
 
         <div role="tab" class="card-header ${tableId}-card-header ${panelColor} rem-border-bottom">
           <h5 class="mb-0">
-            <a data-toggle="collapse" href="#${tableId}-${tableTitle}">
+            <a data-toggle="collapse" id="id-${tableId}-${tableIndex}">
               Table: <span>${tableTitle}</span>
               <i class="fas fa-angle-down rotate-icon"></i>
             </a>
@@ -69,7 +96,7 @@ class TableCarousel extends HTMLElement {
           </h5>
         </div>
     
-        <div class="collapse ${tableId}Collapse" id="${tableId}-${tableTitle}">
+        <div class="collapse ${tableId}Collapse ${carouselStatus ? "show":""}" id="${tableId}-${tableTitle}">
           <div class="mdc-card mdc-card-content table-card-border ${cardColor}">
             ${ tableId == "report" ? `
             <hb-data-table tableName="${tableTitle}" tableIndex="${tableIndex}"></hb-data-table>` 

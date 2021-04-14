@@ -8,7 +8,19 @@ const DEFAULT_INSTANCE = {
 const Store = (function () {
   var instance = {
     checkInterleave : {},
-  };
+    currentTab:"reportTab",
+    openStatus:{
+      ddl:new Array(1).fill(false),
+      report : new Array(1).fill(false),
+      summary: new Array(1).fill(false)
+    },
+    tableData:{
+      reportTabContent: JSON.parse(localStorage.getItem('conversionReportContent')),
+      ddlTabContent:  JSON.parse(localStorage.getItem('ddlStatementsContent')),
+      summaryTabContent:  JSON.parse(localStorage.getItem('summaryReportContent'))
+    },
+    tableBorderData: JSON.parse(localStorage.getItem("tableBorderColor")),
+   };
   let modalId = "connectToDbModal";
 
   function init() {}
@@ -44,15 +56,38 @@ const Store = (function () {
     updateSchemaScreen: async (tableData) => {
       localStorage.setItem("conversionReportContent", tableData);
       await Actions.ddlSummaryAndConversionApiCall();
-      instance = { ...instance, tableData, saveSchemaId: Math.random() };
+      instance = { ...instance, tableData, saveSchemaId: Math.random()};
     },
     setInterleave : (tableName , value) => {
       let newCheckInterLeave = instance.checkInterleave;
       newCheckInterLeave[tableName] = value
-      instance = {...instance, checkInterleave : newCheckInterLeave , saveSchemaId: Math.random()  };
-      // console.log(instance);
+      instance = {...instance, checkInterleave:newCheckInterLeave , saveSchemaId: Math.random()  }; 
+    },
+    swithCurrentTab:(tab)=>{
+      debugger
+      console.log(tab);
+      instance = {...instance , currentTab:tab}
+    },
+    openCarousel:(tableId , tableIndex)=>{
+      debugger
+      console.log('open',tableId , tableIndex);
+      let newOpenStatus = instance.openStatus
+      newOpenStatus[tableId][tableIndex] = true;
+      instance = {...instance ,openStatus:newOpenStatus }
+      console.log(instance);
+    },
+    closeCarousel:(tableId , tableIndex)=>{
+      console.log('close',tableId , tableIndex);
+      let newOpenStatus = instance.openStatus
+      newOpenStatus[tableId][tableIndex] = false;
+      instance = {...instance ,openStatus:newOpenStatus }
+      console.log(instance);
+    },
+    getTableData: (tabName)=>{
+      return JSON.parse(instance.tableData[tabName + "Content"]);
     }
-  };
+
+ };
 })();
 
 export default Store;

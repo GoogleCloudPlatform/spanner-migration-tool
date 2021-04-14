@@ -1,0 +1,256 @@
+{
+ "SpSchema": {
+  "actor": {
+   "Name": "actor",
+   "ColNames": [
+    "actor_id",
+    "first_name",
+    "last_name",
+    "last_update"
+   ],
+   "ColDefs": {
+    "actor_id": {
+     "Name": "actor_id",
+     "T": {
+      "Name": "INT64",
+      "Len": 0,
+      "IsArray": false
+     },
+     "NotNull": true,
+     "Comment": "From: actor_id smallint(6)"
+    },
+    "first_name": {
+     "Name": "first_name",
+     "T": {
+      "Name": "STRING",
+      "Len": 45,
+      "IsArray": false
+     },
+     "NotNull": true,
+     "Comment": "From: first_name varchar(45)"
+    },
+    "last_name": {
+     "Name": "last_name",
+     "T": {
+      "Name": "STRING",
+      "Len": 45,
+      "IsArray": false
+     },
+     "NotNull": true,
+     "Comment": "From: last_name varchar(45)"
+    },
+    "last_update": {
+     "Name": "last_update",
+     "T": {
+      "Name": "TIMESTAMP",
+      "Len": 0,
+      "IsArray": false
+     },
+     "NotNull": true,
+     "Comment": "From: last_update timestamp"
+    }
+   },
+   "Pks": [
+    {
+     "Col": "actor_id",
+     "Desc": false
+    }
+   ],
+   "Fks": null,
+   "Indexes": [
+    {
+     "Name": "idx_actor_last_name",
+     "Table": "actor",
+     "Unique": false,
+     "Keys": [
+      {
+       "Col": "last_name",
+       "Desc": false
+      }
+     ]
+    }
+   ],
+   "Parent": "",
+   "Comment": "Spanner schema for source table actor"
+  }
+ },
+ "SyntheticPKeys": {},
+ "SrcSchema": {
+  "actor": {
+   "Name": "actor",
+   "ColNames": [
+    "actor_id",
+    "first_name",
+    "last_name",
+    "last_update"
+   ],
+   "ColDefs": {
+    "actor_id": {
+     "Name": "actor_id",
+     "Type": {
+      "Name": "smallint",
+      "Mods": [
+       6
+      ],
+      "ArrayBounds": null
+     },
+     "NotNull": true,
+     "Unique": true,
+     "Ignored": {
+      "Check": false,
+      "Identity": false,
+      "Default": false,
+      "Exclusion": false,
+      "ForeignKey": false,
+      "AutoIncrement": true
+     }
+    },
+    "first_name": {
+     "Name": "first_name",
+     "Type": {
+      "Name": "varchar",
+      "Mods": [
+       45
+      ],
+      "ArrayBounds": null
+     },
+     "NotNull": true,
+     "Unique": false,
+     "Ignored": {
+      "Check": false,
+      "Identity": false,
+      "Default": false,
+      "Exclusion": false,
+      "ForeignKey": false,
+      "AutoIncrement": false
+     }
+    },
+    "last_name": {
+     "Name": "last_name",
+     "Type": {
+      "Name": "varchar",
+      "Mods": [
+       45
+      ],
+      "ArrayBounds": null
+     },
+     "NotNull": true,
+     "Unique": false,
+     "Ignored": {
+      "Check": false,
+      "Identity": false,
+      "Default": false,
+      "Exclusion": false,
+      "ForeignKey": false,
+      "AutoIncrement": false
+     }
+    },
+    "last_update": {
+     "Name": "last_update",
+     "Type": {
+      "Name": "timestamp",
+      "Mods": null,
+      "ArrayBounds": null
+     },
+     "NotNull": true,
+     "Unique": false,
+     "Ignored": {
+      "Check": false,
+      "Identity": false,
+      "Default": true,
+      "Exclusion": false,
+      "ForeignKey": false,
+      "AutoIncrement": false
+     }
+    }
+   },
+   "PrimaryKeys": [
+    {
+     "Column": "actor_id",
+     "Desc": false
+    }
+   ],
+   "ForeignKeys": null,
+   "Indexes": [
+    {
+     "Name": "idx_actor_last_name",
+     "Unique": false,
+     "Keys": [
+      {
+       "Column": "last_name",
+       "Desc": false
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "Issues": {
+  "actor": {
+   "actor_id": [
+    13,
+    10
+   ],
+   "last_update": [
+    0
+   ]
+  }
+ },
+ "ToSpanner": {
+  "actor": {
+   "Name": "actor",
+   "Cols": {
+    "actor_id": "actor_id",
+    "first_name": "first_name",
+    "last_name": "last_name",
+    "last_update": "last_update"
+   }
+  }
+ },
+ "ToSource": {
+  "actor": {
+   "Name": "actor",
+   "Cols": {
+    "actor_id": "actor_id",
+    "first_name": "first_name",
+    "last_name": "last_name",
+    "last_update": "last_update"
+   }
+  }
+ },
+ "Location": {},
+ "Stats": {
+  "Rows": {},
+  "GoodRows": {},
+  "BadRows": {},
+  "Statement": {
+   "CreateDatabaseStmt": {
+    "Schema": 0,
+    "Data": 0,
+    "Skip": 1,
+    "Error": 0
+   },
+   "CreateTableStmt": {
+    "Schema": 1,
+    "Data": 0,
+    "Skip": 0,
+    "Error": 0
+   },
+   "DropDatabaseStmt": {
+    "Schema": 0,
+    "Data": 0,
+    "Skip": 1,
+    "Error": 0
+   },
+   "UseStmt": {
+    "Schema": 0,
+    "Data": 0,
+    "Skip": 1,
+    "Error": 0
+   }
+  },
+  "Unexpected": {},
+  "Reparsed": 0
+ },
+ "TimezoneOffset": "+00:00"
+}

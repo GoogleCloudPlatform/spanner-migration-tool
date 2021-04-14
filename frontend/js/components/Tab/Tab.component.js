@@ -1,5 +1,6 @@
 import Actions from "../../services/Action.service.js";
-
+import Store from "../../services/Store.service.js";
+console.log('hi...');
 class Tab extends HTMLElement {
   get tabId() {
     return this.getAttribute("tabid");
@@ -9,21 +10,26 @@ class Tab extends HTMLElement {
     return this.getAttribute("text");
   }
 
+  get open(){
+    return this.getAttribute("open")
+  }
+
   connectedCallback() {
     this.render();
   }
 
   render() {
-    let { tabId, text } = this;
+    let { tabId, text,open } = this;
     this.innerHTML = `
     <li class="nav-item">
-        <a class="nav-link ${tabId === "report" ? "active show" : ""}" id="${tabId}Tab">${text}</a>
+        <a class="nav-link ${open==="true" ? "active show" : ""}" id="${tabId}Tab">${text}</a>
     </li>`;
   }
+  
 
   constructor() {
     super();
-    this.addEventListener("click", () => Actions.switchToTab(this.tabId));
+    this.addEventListener("click", () => Actions.swithCurrentTab(`${this.tabId}Tab`));
   }
 }
 

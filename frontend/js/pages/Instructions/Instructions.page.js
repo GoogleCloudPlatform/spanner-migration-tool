@@ -1,7 +1,10 @@
+import {setActiveSelectedMenu} from './../../helpers/SchemaConversionHelper.js'
+
 class Instructions extends HTMLElement {
 
     connectedCallback() {
         this.render();
+        setActiveSelectedMenu('instructions')
     }
 
     render() {

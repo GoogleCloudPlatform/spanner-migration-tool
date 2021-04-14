@@ -18,7 +18,6 @@ class DataTable extends HTMLElement {
     }
 
     connectedCallback() {
-        console.log(Store.getinstance().checkInterleave[this.tableName]);
         if(Store.getinstance().checkInterleave[this.tableName] === undefined)
         {
             Actions.checkInterleaveConversion(this.tableName);
@@ -28,7 +27,6 @@ class DataTable extends HTMLElement {
      }   
 
     fkComponent(tableIndex, tableName, fkArray) {
-        console.log(tableName);
         return `
             <div class="fkCard">
                 <div class="foreignKeyHeader" role="tab">

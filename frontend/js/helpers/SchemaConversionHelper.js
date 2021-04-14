@@ -3,7 +3,6 @@ export const tooltipHandler = () => {
 };
 
 export const setActiveSelectedMenu = (selectedMenuId) => {
-  console.log(jQuery("[name='headerMenu']:not('#" + selectedMenuId + "')"));
   jQuery("[name='headerMenu']:not('#" + selectedMenuId + "')").addClass(
     "inactive"
   );

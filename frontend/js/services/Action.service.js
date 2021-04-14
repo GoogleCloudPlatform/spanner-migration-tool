@@ -939,6 +939,18 @@ const Actions = (() => {
      let toggle_spinner = document.getElementById("toggle-spinner");
       toggle_spinner.style.display = "none";
       toggle_spinner.className = toggle_spinner.className.replace("show", "");
+    },
+    swithCurrentTab:(tab)=>{
+      Store.swithCurrentTab(tab)
+    },
+    openCarousel:(tableId , tableIndex)=>{
+     Store.openCarousel(tableId , tableIndex)
+    },
+    closeCarousel:(tableId , tableIndex)=>{
+      Store.closeCarousel(tableId , tableIndex)
+    },
+    getTableData: (tabName)=>{
+      Store.getTableData(tabName);
     }
     
   };

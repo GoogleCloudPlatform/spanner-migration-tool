@@ -11,7 +11,6 @@ const HomeComponent = {
     document.getElementById(
       "app"
     ).innerHTML = `<hb-default-layout><hb-main-screen></hb-main-screen></hb-default-layout>`;
-    setActiveSelectedMenu('homeScreen')
   },
 };
 
@@ -30,7 +29,6 @@ const InstructionsComponent = {
     document.getElementById(
       "app"
     ).innerHTML = `<hb-default-layout><hb-instructions></hb-instructions></<hb-default-layout>`;
-    setActiveSelectedMenu('instructions')
   },
 };
 

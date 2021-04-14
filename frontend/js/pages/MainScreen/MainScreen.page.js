@@ -11,10 +11,15 @@ import Store from "./../../services/Store.service.js";
 //constants
 import{MAIN_PAGE_ICONS,MAIN_PAGE_STATIC_CONTENT} from "./../../config/constantData.js";
 
+//helper 
+import {setActiveSelectedMenu} from './../../helpers/SchemaConversionHelper.js'
+
+
 class MainScreen extends HTMLElement {
   connectedCallback() {
     this.stateObserver = setInterval(this.observeState, 200);
     this.render();
+    setActiveSelectedMenu('homeScreen')
   }
 
   disconnectedCallback() {
