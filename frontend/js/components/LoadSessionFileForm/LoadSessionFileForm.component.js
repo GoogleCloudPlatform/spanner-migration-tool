@@ -1,5 +1,6 @@
 import Forms from "../../services/Forms.service.js";
 import Actions from "../../services/Action.service.js";
+import Store from "../../services/Store.service.js";
 
 class LoadSessionFileForm extends HTMLElement {
 
@@ -22,17 +23,19 @@ class LoadSessionFileForm extends HTMLElement {
         let sourceTableFlag = '', loadSessionRes, ddlSummaryApiRes;
         if (dbType === 'mysql') {
             sourceTableFlag = 'MySQL';
-            localStorage.setItem('sourceDbName', sourceTableFlag);
+            Actions.setSourceDbName(sourceTableFlag)
+
         }
         else if (dbType === 'postgres') {
             sourceTableFlag = 'Postgres';
-            localStorage.setItem('sourceDbName', sourceTableFlag);
+            Actions.setSourceDbName(sourceTableFlag)
+
         }
         loadSessionRes = await Actions.onLoadSessionFile(filePath);
         ddlSummaryApiRes = await Actions.ddlSummaryAndConversionApiCall();
         if (loadSessionRes && ddlSummaryApiRes) {
             window.location.href = '#/schema-report';
-            Actions.sessionRetrieval(localStorage.getItem('sourceDbName'));
+            Actions.sessionRetrieval(Store.getSourceDbName());
         }
     }
 

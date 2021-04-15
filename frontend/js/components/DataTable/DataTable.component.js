@@ -161,7 +161,7 @@ class DataTable extends HTMLElement {
         let { tableName, tableIndex, data } = this;
         console.log("data in dtatable");
         let countSrc = [], countSp = [], notNullConstraint = [];
-        let schemaConversionObj = JSON.parse(localStorage.getItem("conversionReportContent"));
+        let schemaConversionObj =Store.getinstance().tableData.reportTabContent;
         let spTable = schemaConversionObj.SpSchema[tableName];
         let srcTable = schemaConversionObj.SrcSchema[tableName];
         let tableColumnsArray = schemaConversionObj.SpSchema[tableName].ColNames;
@@ -171,6 +171,7 @@ class DataTable extends HTMLElement {
         countSrc[tableIndex] = [];
         countSp[tableIndex] = [];
         for (var x = 0; x < pksSpLength; x++) { if (pksSp[x].seqId == undefined) { pksSp[x].seqId = pkSeqId; pkSeqId++; } }
+        let sourceDbName = Store.getSourceDbName()
         this.innerHTML = ` <div class="acc-card-content" id="acc_card_content">
                                 <table class="acc-table" id="src-sp-table${tableIndex}">
                                     <thead>
@@ -191,12 +192,12 @@ class DataTable extends HTMLElement {
                                                         </label>
                                                     </div>
                                                 </span>
-                                                ${Actions.getFromLocalStorage('sourceDbName')}
+                                                ${sourceDbName}
                                             </th>
                                             <th class="acc-table-th-spn">Spanner</th>
-                                            <th class="acc-table-th-src">${Actions.getFromLocalStorage('sourceDbName')}</th>
+                                            <th class="acc-table-th-src">${sourceDbName}</th>
                                             <th class="acc-table-th-spn">Spanner</th>
-                                            <th class="acc-table-th-src">${Actions.getFromLocalStorage('sourceDbName')}</th>
+                                            <th class="acc-table-th-src">${sourceDbName}</th>
                                             <th class="acc-table-th-spn">Spanner</th>
                                         </tr>
                                     </thead>

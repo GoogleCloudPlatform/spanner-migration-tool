@@ -9,19 +9,21 @@ const Store = (function () {
   var instance = {
     checkInterleave : {},
     currentTab:"ddlTab",
+    sourceDbName:'',
+    globalDbType:'',
     openStatus:{
       ddl:new Array(16).fill(false),
       report: new Array(16).fill(false),
       summary:new Array(16).fill(false),
     },
-    // JSON.parse(localStorage.getItem('ddlStatementsContent')),
-    // JSON.parse(localStorage.getItem('summaryReportContent'))
     tableData:{
-      reportTabContent: JSON.parse(localStorage.getItem('conversionReportContent')),
-      ddlTabContent:  {},
+      reportTabContent: {},
+      ddlTabContent: {},
       summaryTabContent: {}
     },
-    tableBorderData: JSON.parse(localStorage.getItem("tableBorderColor")),
+    tableBorderData:{},
+    globalDataTypeList:{},
+    
    };
   let modalId = "connectToDbModal";
   let checkInterLeaveArray = {};
@@ -57,7 +59,7 @@ const Store = (function () {
       instance = { ...instance, open: openVal };
     },
     updateSchemaScreen: async (tableData) => {
-      localStorage.setItem("conversionReportContent", tableData);
+      Store.updateTableData("reportTabContent",tableData);   
       await Actions.ddlSummaryAndConversionApiCall();
       instance = { ...instance, tableData, saveSchemaId: Math.random()};
     },
@@ -83,6 +85,7 @@ const Store = (function () {
       return JSON.parse(instance.tableData[tabName + "Content"]);
     },
     updateTableData:(key , data)=>{
+      debugger
       instance.tableData[key] = data;
     },
     updateTableBorderData:(data)=>{
@@ -92,6 +95,24 @@ const Store = (function () {
       let key = instance.currentTab.substr(0,instance.currentTab.length-3);
       console.log(key);
       instance.openStatus[key].fill(value);
+    },
+    setSourceDbName:(name)=>{
+      instance.sourceDbName = name;
+    },
+    getSourceDbName:()=>{
+      return instance.sourceDbName
+    },
+    setGlobalDbType:(value)=>{
+      instance.globalDbType = value;
+    },
+    getGlobalDbType:()=>{
+      return instance.globalDbType;
+    },
+    setGlobalDataTypeList:(value)=>{
+      instance.globalDataTypeList = value
+    },
+    getGlobalDataTypeList:()=>{
+        return instance.globalDataTypeList;
     }
 
  };

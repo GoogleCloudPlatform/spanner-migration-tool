@@ -1,5 +1,6 @@
 import Forms from "../../services/Forms.service.js";
 import Actions from "../../services/Action.service.js";
+import Store from "../../services/Store.service.js";
 
 class LoadDbDumpForm extends HTMLElement {
 
@@ -19,23 +20,23 @@ class LoadDbDumpForm extends HTMLElement {
     }
 
     storeDumpFileValues = async (dbType, filePath) => {
-        let sourceTableFlag = '', loadDbDumpApiRes, ddlSummaryApiRes;
+        let sourceTableFlag = '', loadDbDumpApiRes, ddlSummaryApiRes,globalDbType='';
         if (dbType === 'mysql') {
-            localStorage.setItem('globalDbType', dbType + 'dump');
+            globalDbType = dbType + 'dump';
             sourceTableFlag = 'MySQL';
-            localStorage.setItem('sourceDbName', sourceTableFlag);
+            Actions.setSourceDbName(sourceTableFlag)
         }
         else if (dbType === 'postgres') {
-            localStorage.setItem('globalDbType', 'pg_dump');
+            globalDbType = 'pg_dump'
             sourceTableFlag = 'Postgres';
-            localStorage.setItem('sourceDbName', sourceTableFlag);
+            Actions.setSourceDbName(sourceTableFlag)
+
         }
-        localStorage.setItem('globalDumpFilePath', filePath);
-        loadDbDumpApiRes = await Actions.onLoadDatabase(localStorage.getItem('globalDbType'), localStorage.getItem('globalDumpFilePath'));
+        loadDbDumpApiRes = await Actions.onLoadDatabase(globalDbType, filePath);
         ddlSummaryApiRes = await Actions.ddlSummaryAndConversionApiCall();
         if (loadDbDumpApiRes && ddlSummaryApiRes) {
             window.location.href = '#/schema-report';
-            Actions.sessionRetrieval(localStorage.getItem('sourceDbName'));
+            Actions.sessionRetrieval(Store.getSourceDbName());
         }
     }
 

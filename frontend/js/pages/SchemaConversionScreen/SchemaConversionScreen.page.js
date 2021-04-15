@@ -51,7 +51,8 @@ class SchemaConversionScreen extends HTMLElement {
       return;
     }
     const {currentTab , tableData, tableBorderData} = this.data;
-    const currentTabContent = tableData[`${currentTab}Content`]
+    console.log(tableData);
+    let currentTabContent = tableData[`${currentTab}Content`] 
     let tableNameArray ; 
     if(currentTab === "reportTab")
     {

@@ -70,7 +70,7 @@ class TableCarousel extends HTMLElement {
   render() {
    
     let {tableTitle, tableId, tableIndex, data, borderData} = this;
-    console.log(data);
+    // console.log(data);
     if(tableId == "report" && data == "{}"){
       console.log("inside");
       return ;

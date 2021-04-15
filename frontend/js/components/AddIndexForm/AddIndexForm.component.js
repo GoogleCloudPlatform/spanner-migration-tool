@@ -1,5 +1,6 @@
 import Forms from "../../services/Forms.service.js";
 import Actions from "../../services/Action.service.js";
+import Store from "../../services/Store.service.js";
 
 class AddIndexForm extends HTMLElement {
   get tableName() {
@@ -11,9 +12,7 @@ class AddIndexForm extends HTMLElement {
   }
 
   connectedCallback() {
-    const { SrcSchema } = JSON.parse(
-      localStorage.getItem("conversionReportContent")
-    );
+    const { SrcSchema } = Store.getinstance().tableData.reportTabContent;
     this.render();
     document.getElementById("indexName").addEventListener("focusout", () => {
       Forms.validateInput(
@@ -52,7 +51,7 @@ class AddIndexForm extends HTMLElement {
   }
 
   render() {
-    const { SrcSchema } = JSON.parse(localStorage.getItem("conversionReportContent"));
+    const { SrcSchema } = Store.getinstance().tableData.reportTabContent;
     this.innerHTML = `
     <form id="createIndexForm">
         <div class="form-group sec-index-label">
