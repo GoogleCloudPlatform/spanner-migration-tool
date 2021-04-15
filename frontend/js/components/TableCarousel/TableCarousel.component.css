@@ -1,3 +1,7 @@
 .iconSize{
     font-size: 18px;
 }
+
+.card .card-header a{
+    cursor: pointer;
+}
