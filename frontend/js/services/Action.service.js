@@ -117,9 +117,12 @@ const Actions = (() => {
         ddlDataJson = await ddlData.json();
         summaryDataJson = await summaryData.json();
         conversionRateJson = await conversionRate.json();
-        localStorage.setItem("ddlStatementsContent", JSON.stringify(ddlDataJson));
-        localStorage.setItem("summaryReportContent", JSON.stringify(summaryDataJson));
-        localStorage.setItem("tableBorderColor", JSON.stringify(conversionRateJson));
+        // localStorage.setItem("ddlStatementsContent", JSON.stringify(ddlDataJson));
+        // localStorage.setItem("summaryReportContent", JSON.stringify(summaryDataJson));
+        // localStorage.setItem("tableBorderColor", JSON.stringify(conversionRateJson));
+        Store.updateTableData("ddlTabContent",ddlDataJson);
+        Store.updateTableData("summaryTabContent",summaryDataJson);
+        Store.updateTableBorderData(conversionRateJson);
       }
       else {
         return false;

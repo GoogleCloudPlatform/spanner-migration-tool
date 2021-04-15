@@ -8,16 +8,18 @@ const DEFAULT_INSTANCE = {
 const Store = (function () {
   var instance = {
     checkInterleave : {},
-    currentTab:"reportTab",
+    currentTab:"ddlTab",
     openStatus:{
       ddl:new Array(16).fill(false),
       report: new Array(16).fill(false),
       summary:new Array(16).fill(false),
     },
+    // JSON.parse(localStorage.getItem('ddlStatementsContent')),
+    // JSON.parse(localStorage.getItem('summaryReportContent'))
     tableData:{
       reportTabContent: JSON.parse(localStorage.getItem('conversionReportContent')),
-      ddlTabContent:  JSON.parse(localStorage.getItem('ddlStatementsContent')),
-      summaryTabContent:  JSON.parse(localStorage.getItem('summaryReportContent'))
+      ddlTabContent:  {},
+      summaryTabContent: {}
     },
     tableBorderData: JSON.parse(localStorage.getItem("tableBorderColor")),
    };
@@ -80,6 +82,12 @@ const Store = (function () {
     },
     getTableData: (tabName)=>{
       return JSON.parse(instance.tableData[tabName + "Content"]);
+    },
+    updateTableData:(key , data)=>{
+      instance.tableData[key] = data;
+    },
+    updateTableBorderData:(data)=>{
+      instance.tableBorderData = data;
     },
     expandAll: (value) => {
       let key = instance.currentTab.substr(0,instance.currentTab.length-3);
