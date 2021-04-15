@@ -84,6 +84,7 @@ class SchemaConversionScreen extends HTMLElement {
       </div> 
       <div class="tab-bg" id='tabBg'>
         <div class="tab-content">
+        
           ${currentTab === 'reportTab' ? `<div id="report" class="tab-pane fade show active">
             <div class="accordion md-accordion" id="accordion" role="tablist" aria-multiselectable="true">
               <hb-site-button buttonid="reportExpandButton" classname="expand" buttonaction="expandAll" text="Expand All"></hb-site-button>
@@ -109,6 +110,7 @@ class SchemaConversionScreen extends HTMLElement {
             </div>
             <h5 class="no-text" id="ddlnotFound">No Match Found</h5>
           </div>`:`<div></div>`}
+
           ${currentTab === 'summaryTab' ? `<div id="summary" class="tab-pane fade show active">
             <div class="panel-group" id="summary-accordion">
               <hb-site-button buttonid="summaryExpandButton" classname="expand" buttonaction="expandAll" text="Expand All"></hb-site-button>
@@ -121,6 +123,7 @@ class SchemaConversionScreen extends HTMLElement {
             </div>
             <h5 class="no-text" id="summarynotFound">No Match Found</h5>
           </div>`:`<div></div>`}
+
           </div>
       </div>
     </div>

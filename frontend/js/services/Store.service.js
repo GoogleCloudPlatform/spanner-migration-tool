@@ -8,7 +8,7 @@ const DEFAULT_INSTANCE = {
 const Store = (function () {
   var instance = {
     checkInterleave : {},
-    currentTab:"reportTab",
+    currentTab:"ddlTab",
     openStatus:{
       ddl:new Array(16).fill(false),
       report: new Array(16).fill(false),
@@ -21,7 +21,6 @@ const Store = (function () {
     },
     tableBorderData: JSON.parse(localStorage.getItem("tableBorderColor")),
    };
-   console.log(instance);
   let modalId = "connectToDbModal";
   let checkInterLeaveArray = {};
 

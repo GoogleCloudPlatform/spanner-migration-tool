@@ -13,6 +13,10 @@ class DataTable extends HTMLElement {
         return this.getAttribute("tableIndex");
     }
 
+    get data() {
+        return JSON.parse(this.getAttribute("dta"));
+    }
+
     static get observedAttributes() {
         return ["open"];
     }
@@ -154,7 +158,8 @@ class DataTable extends HTMLElement {
     }
 
     render() {
-        let { tableName, tableIndex } = this;
+        let { tableName, tableIndex, data } = this;
+        console.log("data in dtatable");
         let countSrc = [], countSp = [], notNullConstraint = [];
         let schemaConversionObj = JSON.parse(localStorage.getItem("conversionReportContent"));
         let spTable = schemaConversionObj.SpSchema[tableName];
