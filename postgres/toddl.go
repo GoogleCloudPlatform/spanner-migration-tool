@@ -28,7 +28,23 @@ import (
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
 func schemaToDDL(conv *internal.Conv) error {
-	schemaForeignKeys := make(map[string]bool)
+	// Tracks Spanner names that have been used for foreign key constraints
+	// and indexes. We use this to ensure we generate unique names when
+	// we map from Postgres to Spanner since Spanner requires all foreign
+	// key and index names to be distinct (you can't use the same name
+	// for a foreign key constraint and an index).
+	usedNames := make(map[string]bool)
+	// As Spanner uses same namespace for table names, foreign key constraint
+	// names and index names, we need to pre-populate usedNames with Spanner table
+	// names to handle collision with foreign key names and index names.
+	for _, srcTable := range conv.SrcSchema {
+		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
+			continue
+		}
+		usedNames[spTableName] = true
+	}
 	for _, srcTable := range conv.SrcSchema {
 		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
 		if err != nil {
@@ -76,9 +92,11 @@ func schemaToDDL(conv *internal.Conv) error {
 			ColNames: spColNames,
 			ColDefs:  spColDef,
 			Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
-			Fks:      cvtForeignKeys(conv, srcTable.Name, srcTable.ForeignKeys, schemaForeignKeys),
+			Fks:      cvtForeignKeys(conv, srcTable.Name, srcTable.ForeignKeys, usedNames),
+			Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes, usedNames),
 			Comment:  comment}
 	}
+	internal.ResolveRefs(conv)
 	return nil
 }
 
@@ -87,6 +105,9 @@ func schemaToDDL(conv *internal.Conv) error {
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
 func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
+	// TODO: Remove use of maxExpectedMods. It was added as a sanity check for the
+	// initial version of HarbourBridge. It has now out-lived its usefulness: it isn't
+	// uncovering issues (and it's unlikely to) and it's cluttering code.
 	maxExpectedMods := func(n int) {
 		if len(mods) > n {
 			conv.Unexpected(fmt.Sprintf("Found %d mods while processing type id=%s", len(mods), id))
@@ -127,15 +148,21 @@ func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.Type, []in
 	case "int2", "smallint":
 		maxExpectedMods(0)
 		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
-	case "numeric": // Map all numeric types to float64.
+	case "numeric":
 		maxExpectedMods(2)
-		if len(mods) > 0 && mods[0] <= 15 {
-			// float64 can represent this numeric type faithfully.
-			// Note: int64 has 53 bits for mantissa, which is ~15.96
-			// decimal digits.
-			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.NumericThatFits}
-		}
-		return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Numeric}
+		// PostgreSQL's NUMERIC type can have a specified precision of up to 1000
+		// digits (and scale can be anything from 0 up to the value of 'precision').
+		// If precision and scale are not specified, then values of any precision
+		// or scale can be stored, up to the implementation's limits (can be up to
+		// 131072 digits before the decimal point and up to 16383 digits after
+		// the decimal point).
+		// Spanner's NUMERIC type can store up to 29 digits before the
+		// decimal point and up to 9 after the decimal point -- it is
+		// equivalent to PostgreSQL's NUMERIC(38,9) type.
+		//
+		// TODO: Generate appropriate SchemaIssue to warn of different precision
+		// capabilities between PostgreSQL and Spanner NUMERIC.
+		return ddl.Type{Name: ddl.Numeric}, nil
 	case "serial":
 		maxExpectedMods(0)
 		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Serial}
@@ -182,7 +209,7 @@ func cvtPrimaryKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Key) 
 	return spKeys
 }
 
-func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.ForeignKey, schemaForeignKeys map[string]bool) []ddl.Foreignkey {
+func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.ForeignKey, usedNames map[string]bool) []ddl.Foreignkey {
 	var spKeys []ddl.Foreignkey
 	for _, key := range srcKeys {
 		if len(key.Columns) != len(key.ReferColumns) {
@@ -205,8 +232,7 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 			spCols = append(spCols, spCol)
 			spReferCols = append(spReferCols, spReferCol)
 		}
-		spKeyName := internal.GetSpannerKeyName(key.Name, schemaForeignKeys)
-
+		spKeyName := internal.ToSpannerForeignKey(key.Name, usedNames)
 		spKey := ddl.Foreignkey{
 			Name:         spKeyName,
 			Columns:      spCols,
@@ -215,4 +241,33 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 		spKeys = append(spKeys, spKey)
 	}
 	return spKeys
+}
+
+func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcIndexes []schema.Index, usedNames map[string]bool) []ddl.CreateIndex {
+	var spIndexes []ddl.CreateIndex
+	for _, srcIndex := range srcIndexes {
+		var spKeys []ddl.IndexKey
+		for _, k := range srcIndex.Keys {
+			spCol, err := internal.GetSpannerCol(conv, srcTable, k.Column, true)
+			if err != nil {
+				conv.Unexpected(fmt.Sprintf("Can't map index key column name for table %s", srcTable))
+				continue
+			}
+			spKeys = append(spKeys, ddl.IndexKey{Col: spCol, Desc: k.Desc})
+		}
+		if srcIndex.Name == "" {
+			// Generate a name if index name is empty in Postgres.
+			// Collision of index name will be handled by ToSpannerIndexName.
+			srcIndex.Name = fmt.Sprintf("Index_%s", srcTable)
+		}
+		spIndexName := internal.ToSpannerIndexName(srcIndex.Name, usedNames)
+		spIndex := ddl.CreateIndex{
+			Name:   spIndexName,
+			Table:  spTableName,
+			Unique: srcIndex.Unique,
+			Keys:   spKeys,
+		}
+		spIndexes = append(spIndexes, spIndex)
+	}
+	return spIndexes
 }

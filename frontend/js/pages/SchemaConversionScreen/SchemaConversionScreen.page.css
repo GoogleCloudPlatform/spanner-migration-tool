@@ -1,0 +1,15 @@
+.no-text {
+    display: none;
+    color: #808080;
+    text-align:  center;
+    font-size: 1.25rem;
+}
+
+.inlineblock {
+    display: inline-block;
+}
+
+.schema-screen-snackbar {
+    z-index: 10000 !important;
+    position: fixed;
+}

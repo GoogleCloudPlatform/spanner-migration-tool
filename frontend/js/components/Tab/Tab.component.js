@@ -1,37 +1,30 @@
 import Actions from "../../services/Action.service.js";
 
 class Tab extends HTMLElement {
+  get tabId() {
+    return this.getAttribute("tabid");
+  }
 
-    static get observedAttributes() {
-        return ['open'];
-    }
+  get text() {
+    return this.getAttribute("text");
+  }
 
-    get open() {
-        return this.getAttribute('open');
-    }
+  connectedCallback() {
+    this.render();
+  }
 
-    attributeChangedCallback(name, oldValue, newValue) {
-        this.render();
-    }
+  render() {
+    let { tabId, text } = this;
+    this.innerHTML = `
+    <li class="nav-item">
+        <a class="nav-link ${tabId === "report" ? "active show" : ""}" id="${tabId}Tab">${text}</a>
+    </li>`;
+  }
 
-    connectedCallback() {
-     //   this.render();
-    }
-
-    render() {
-        let {name, open} = this.data;
-        let textClass = open === 'no' ? 'redd' : 'greenn';
-        this.innerHTML = `
-            <div class="${textClass}">This is the ${name}, And this does ${open} </div>
-        `;
-    }
-
-    // get, set is used to get the values of the attributes
-    constructor() {
-        super();
-        this.data = {open: this.open, name: "Hii"};
-        this.addEventListener('click', Actions.closeStore);
-    }
+  constructor() {
+    super();
+    this.addEventListener("click", () => Actions.switchToTab(this.tabId));
+  }
 }
 
-window.customElements.define('hb-tab', Tab);
+window.customElements.define("hb-tab", Tab);

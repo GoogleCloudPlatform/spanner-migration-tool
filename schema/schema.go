@@ -74,8 +74,9 @@ type Key struct {
 
 // Index represents a database index.
 type Index struct {
-	Name string
-	Keys []Key
+	Name   string
+	Unique bool
+	Keys   []Key
 }
 
 // Type represents the type of a column.

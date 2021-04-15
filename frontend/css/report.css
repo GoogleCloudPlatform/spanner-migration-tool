@@ -359,6 +359,11 @@ button[disabled]{
     border-top: 0px;
 }
 
+.summary-border {
+    border: 1px solid #80808096;
+    border-top: 0px;
+}
+
 .sp-column{
     border-right: 1px solid #80808073;
     text-align: center;
@@ -557,7 +562,7 @@ thead, tbody tr {
     font-size: 16px;
 }
 
-.spanner-input {
+/* .spanner-input {
     background: #FFFFFF !important;
     border: 1px solid #0C0C0C61 !important;
     padding-left: 4px;
@@ -567,7 +572,7 @@ thead, tbody tr {
     background: #FFFFFF !important;
     border: 1px solid #0C0C0C61 !important;
     padding-left: 4px;
-}
+} */
 
 .checkbox label input[type=checkbox]:checked+.checkbox-decorator .check:before, label.checkbox-inline input[type=checkbox]:checked+.checkbox-decorator .check:before {
     color: #4285F4;
@@ -688,12 +693,13 @@ span.sql-c {
     border-right: 0px !important;
     border-bottom: 1px solid #808080 !important;
     width: 200px !important;
+    display: inline-block;
 }
 
-.searchForm {
+/* .searchForm {
     float: left;
     margin-right: 30px;
-}
+} */
 
 .fa-search:before {
     content: "\f002";
@@ -704,7 +710,7 @@ span.sql-c {
     color: #808080;
     text-align:  center;
 }
-
+/* 
 .tableSelect, .tableSelect:focus {
     margin-bottom: 0px !important;
     border-radius: 2px !important;
@@ -713,7 +719,7 @@ span.sql-c {
     background-repeat: no-repeat !important;
     background-size: auto 40% !important;
     border-radius: 2px !important;
-}
+} */
 
 .column {
     float: left;
@@ -992,7 +998,6 @@ input[type=radio], input.radio {
 .newIndexButton {
     font-size: 16px;
     font-weight: bold;
-    float: left;
     border-radius: 20px;
     /* margin-top: -14px; */
     margin-bottom: 20px;

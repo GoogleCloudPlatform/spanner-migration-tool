@@ -88,7 +88,7 @@ The HarbourBridge tool maps MySQL types to Spanner types as follows:
 | `CHAR(N)`                                         | `STRING(N)`     | c                               |
 | `DATE`                                            | `DATE`          |                                 |
 | `DATETIME`                                        | `TIMESTAMP`     | t                               |
-| `DECIMAL`, `NUMERIC`                              | `FLOAT64`       | p                               |
+| `DECIMAL`, `NUMERIC`                              | `NUMERIC`       | p                               |
 | `DOUBLE`                                          | `FLOAT64`       |                                 |
 | `ENUM`                                            | `STRING(MAX)`   |                                 |
 | `FLOAT`                                           | `FLOAT64`       | s                               |
@@ -100,21 +100,23 @@ The HarbourBridge tool maps MySQL types to Spanner types as follows:
 | `VARCHAR`                                         | `STRING(MAX)`   |                                 |
 | `VARCHAR(N)`                                      | `STRING(N)`     | c                               |
 
-Spanner does not support `spatial` datatypes of MySQL. Along with `spatial` datatypes,
-all other types map to `STRING(MAX)`. Some of the mappings in this table
-represent loss of precision (marked p), differences in treatment of timezones (marked t), differences in
-treatment of fixed-length character types (marked c), and changes in storage
-size (marked s). We discuss these, as well as other limits and notes on
-schema conversion, in the following sections.
+Spanner does not support `spatial` datatypes of MySQL. Along with `spatial`
+datatypes, all other types map to `STRING(MAX)`. Some of the mappings in this
+table represent potential changes of precision (marked p), differences in
+treatment of timezones (marked t), differences in treatment of fixed-length
+character types (marked c), and changes in storage size (marked s). We discuss
+these, as well as other limits and notes on schema conversion, in the following
+sections.
 
 ### `DECIMAL` and `NUMERIC`
 
-Spanner does not support decimal types, so these are mapped to `FLOAT64`. For
-some decimal types (e.g. `DECIMAL(7, 3))` this mapping will preserve precision.
-But for others, the decimal type does not fit in `FLOAT64`; HarbourBridge
-generates a warning in such cases. In general, mapping `DECIMAL` to `FLOAT64`
-can be useful for evaluation purposes, but it is not recommended for production
-use. Note that in MySQL, NUMERIC is implemented as DECIMAL, so the remarks about DECIMAL apply equally to NUMERIC.
+[Spanner's NUMERIC
+type](https://cloud.google.com/spanner/docs/data-types#decimal_type) can store
+up to 29 digits before the decimal point and up to 9 after the decimal point.
+MySQL's NUMERIC type can potentially support higher precision than this, so
+please verify that Spanner's NUMERIC support meets your application needs.  Note
+that in MySQL, NUMERIC is implemented as DECIMAL, so the remarks about DECIMAL
+apply equally to NUMERIC.
 
 ### `TIMESTAMP` and `DATETIME`
 
@@ -196,6 +198,16 @@ and `ON UPDATE` actions, we drop them.
 
 Spanner does not currently support default values. We drop these
 MySQL features during conversion.
+
+### Secondary Indexes
+
+The tool maps MySQL secondary indexes to Spanner secondary indexes, and preserves
+constraint names where possible. Note that Spanner requires index key constraint
+names to be globally unique (within a database), but in MySQL they only have to be
+unique for a table, so we add a uniqueness suffix to a name if needed. The tool also
+maps `UNIQUE` constraint into `UNIQUE` secondary index. Note that due to limitations of our
+mysqldump parser, we are not able to handle key column ordering (i.e. ASC/DESC) in
+mysqldump files. All key columns in mysqldump files will be treated as ASC.
 
 ### Other MySQL features
 

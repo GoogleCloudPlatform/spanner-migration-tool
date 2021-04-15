@@ -142,10 +142,38 @@ func processStatement(conv *internal.Conv, stmt ast.StmtNode) bool {
 	case *ast.InsertStmt:
 		processInsertStmt(conv, s)
 		return true
+	case *ast.CreateIndexStmt:
+		if conv.SchemaMode() {
+			processCreateIndex(conv, s)
+		}
 	default:
 		conv.SkipStatement(NodeType(stmt))
 	}
 	return false
+}
+
+func processCreateIndex(conv *internal.Conv, stmt *ast.CreateIndexStmt) {
+	if stmt.Table == nil {
+		logStmtError(conv, stmt, fmt.Errorf("cannot process index statement with nil table."))
+		return
+	}
+	tableName, err := getTableName(stmt.Table)
+	if err != nil {
+		logStmtError(conv, stmt, fmt.Errorf("can't get table name: %w", err))
+		return
+	}
+	if _, ok := conv.SrcSchema[tableName]; ok {
+		ctable := conv.SrcSchema[tableName]
+		ctable.Indexes = append(ctable.Indexes, schema.Index{
+			Name:   stmt.IndexName,
+			Unique: (stmt.KeyType == ast.IndexKeyTypeUnique),
+			Keys:   toSchemaKeys(stmt.IndexPartSpecifications),
+		})
+		conv.SrcSchema[tableName] = ctable
+	} else {
+		conv.Unexpected(fmt.Sprintf("Table %s not found while processing index statement", tableName))
+		conv.SkipStatement(NodeType(stmt))
+	}
 }
 
 func processSetStmt(conv *internal.Conv, stmt *ast.SetStmt) {
@@ -187,6 +215,7 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 	colDef := make(map[string]schema.Column)
 	var keys []schema.Key
 	var fkeys []schema.ForeignKey
+	var index []schema.Index
 	for _, element := range stmt.Cols {
 		colname, col, constraint, err := processColumn(conv, tableName, element)
 		if err != nil {
@@ -201,6 +230,14 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 		if constraint.fk.Columns != nil {
 			fkeys = append(fkeys, constraint.fk)
 		}
+		if constraint.isUniqueKey {
+			// Convert unique column constraint in MySQL to a corresponding unique index in Spanner since
+			// Spanner doesn't support unique constraints on columns.
+			// TODO: Avoid Spanner-specific schema transformations in this file -- they should only
+			// appear in toddl.go. This file should focus on generic transformation from source
+			// database schemas into schema.go.
+			index = append(index, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{Column: colname, Desc: false}}})
+		}
 	}
 	conv.SchemaStatement(NodeType(stmt))
 	conv.SrcSchema[tableName] = schema.Table{
@@ -208,7 +245,8 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 		ColNames:    colNames,
 		ColDefs:     colDef,
 		PrimaryKeys: keys,
-		ForeignKeys: fkeys}
+		ForeignKeys: fkeys,
+		Indexes:     index}
 	for _, constraint := range stmt.Constraints {
 		processConstraint(conv, tableName, constraint, "CREATE TABLE")
 	}
@@ -228,18 +266,31 @@ func processConstraint(conv *internal.Conv, table string, constraint *ast.Constr
 		updateCols(conv, ast.ConstraintPrimaryKey, constraint.Keys, st.ColDefs, table)
 	case ast.ConstraintForeignKey:
 		st.ForeignKeys = append(st.ForeignKeys, toForeignKeys(conv, constraint))
+	case ast.ConstraintIndex:
+		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Keys: toSchemaKeys(constraint.Keys)})
+	case ast.ConstraintUniq:
+		// Convert unique column constraint in MySQL to a corresponding unique index in Spanner since
+		// Spanner doesn't support unique constraints on columns.
+		// TODO: Avoid Spanner-specific schema transformations in this file -- they should only
+		// appear in toddl.go. This file should focus on generic transformation from source
+		// database schemas into schema.go.
+		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Unique: true, Keys: toSchemaKeys(constraint.Keys)})
 	default:
 		updateCols(conv, ct, constraint.Keys, st.ColDefs, table)
 	}
 	conv.SrcSchema[table] = st
 }
 
-// toSchemaKeys converts a string list of MySQL primary keys to
-// schema primary keys.
+// toSchemaKeys converts a string list of MySQL keys to schema keys.
+// Note that we map all MySQL keys to ascending ordered schema keys.
+// For primary keys: this is fine because MySQL primary keys are always ascending.
+// However, for non-primary keys (aka indexes) this is incorrect: we are dropping
+// the MySQL key order specification, as mysqldump parser is not able to parse the
+// order. Check this for more details:
+// https://github.com/cloudspannerecosystem/harbourbridge/issues/96
+// TODO: Resolve ordering issue for non-primary keys.
 func toSchemaKeys(columns []*ast.IndexPartSpecification) (keys []schema.Key) {
 	for _, colname := range columns {
-		// MySQL primary keys have no notation of ascending/descending.
-		// We map them all into ascending primary keys.
 		keys = append(keys, schema.Key{Column: colname.Column.Name.String()})
 	}
 	return keys
@@ -321,6 +372,16 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 					ctable.ForeignKeys = append(ctable.ForeignKeys, constraint.fk)
 					conv.SrcSchema[tableName] = ctable
 				}
+				if constraint.isUniqueKey {
+					// Convert unique column constraint in mysql to a corresponding unique index in Spanner since
+					// Spanner doesn't support unique constraints on columns.
+					// TODO: Avoid Spanner-specific schema transformations in this file -- they should only
+					// appear in toddl.go. This file should focus on generic transformation from source
+					// database schemas into schema.go.
+					ctable := conv.SrcSchema[tableName]
+					ctable.Indexes = append(ctable.Indexes, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{Column: colname, Desc: false}}})
+					conv.SrcSchema[tableName] = ctable
+				}
 				conv.SchemaStatement(NodeType(stmt))
 			default:
 				conv.SkipStatement(NodeType(stmt))
@@ -373,8 +434,9 @@ func processColumn(conv *internal.Conv, tableName string, col *ast.ColumnDef) (s
 }
 
 type columnConstraint struct {
-	isPk bool
-	fk   schema.ForeignKey
+	isPk        bool
+	isUniqueKey bool
+	fk          schema.ForeignKey
 }
 
 // updateColsByOption is specifially for ColDef constraints.
@@ -405,6 +467,7 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 			}
 		case ast.ColumnOptionUniqKey:
 			column.Unique = true
+			cc.isUniqueKey = true
 		case ast.ColumnOptionCheck:
 			column.Ignored.Check = true
 		case ast.ColumnOptionReference:

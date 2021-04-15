@@ -1,44 +1,38 @@
+import { showSnackbar } from './../helpers/SchemaConversionHelper.js';
+
 /**
- * Interacts with the backend and inplements the transforms
+ * Interacts with the backend and implements the transforms
  */
 const Fetch = (() => {
-
-    // config - header, authorization, JWT token, callback 
-    let makeFetchCall = (method, url, payload, config, callback) => {
-        // logic to talk to the backend
-        // Start the site loader
+    let makeFetchCall = (method, url, payload, config, callback, snakbar) => {
         return new Promise((resolve, reject) => {
-            fetch(url).then((response) => {
-                    response = { name: 'Amaaa', occupation: 'Artist', open: 'no', funcc: () => console.log('upppp') }
-
-                    setTimeout(() => {
-                        resolve(response);
-                    }, 0);
-                })
-                .catch((err) => {
-                    resolve('hi')
-                        // reject(err, ' Error in making the fetch call ', err);
-                })
-                .finally(() => {
-                    // stop the loader here
-                });
+            fetch(url, {
+                method: method,
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then((response) => {
+                setTimeout(() => {
+                    resolve(response);
+                }, 0);
+            })
+            .catch((err) => {
+                showSnackbar(err, ' redBg');
+            })
+            .finally(() => {
+                // stop the loader here
+            });
         });
     }
 
-    let transforminintialData = (response) => {
-        // logic to clean the data
-        return response;
-    }
-
     return {
-        getData: () => {
-            return makeFetchCall('GET', "/").then((response) => {
-                    // the success logic
-                    return transforminintialData(response);
-                })
-                .catch((err) => {
-                    console.log('Error in initialisign ');
-                })
+        getAppData: (method, url, payload, config, callback) => {
+            return makeFetchCall(method, url, payload, config, callback).then((response) => {
+                return response;
+            });
         }
     }
 })();
