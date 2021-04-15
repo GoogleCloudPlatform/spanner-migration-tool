@@ -26,7 +26,11 @@ class TableCarousel extends HTMLElement {
   }
 
   get data() {
-    return JSON.parse(this.getAttribute("data"))
+    return this.getAttribute("data")
+  }
+
+  get borderData() {
+    return this.getAttribute("borderData");
   }
 
   static get observedAttributes() {
@@ -34,35 +38,50 @@ class TableCarousel extends HTMLElement {
   }
 
   attributeChangedCallback(attrName, oldVal, newVal ) {
-       console.log(oldVal,newVal);
+      //  console.log(oldVal,newVal);
     if (attrName === 'data' && newVal !== "{}" && oldVal!==null) {
         this.render();
-        console.log('reRender with new value...');
+        // console.log('reRender with new value...');
+    }
+    if(attrName === 'data' && oldVal === "{}")
+    {
+      document.getElementById(`id-${this.tableId}-${this.tableIndex}`).addEventListener('click',()=>{
+        if(Store.getinstance().openStatus[this.tableId][this.tableIndex])
+        {
+          Actions.closeCarousel(this.tableId , this.tableIndex)
+        }
+        else{
+          Actions.openCarousel(this.tableId , this.tableIndex)
+        }
+      })
     }
   }
 
   connectedCallback() {
     this.render();
-    document.getElementById(`id-${this.tableId}-${this.tableIndex}`).addEventListener('click',()=>{
-      if(Store.getinstance().openStatus[this.tableId][this.tableIndex])
-      {
-        Actions.closeCarousel(this.tableId , this.tableIndex)
-      }
-      else{
-        Actions.openCarousel(this.tableId , this.tableIndex)
-      }
-    })
+    if(this.tableId!="report")
+    {
+        document.getElementById(`id-${this.tableId}-${this.tableIndex}`).addEventListener('click',()=>{
+          if(Store.getinstance().openStatus[this.tableId][this.tableIndex]){
+              Actions.closeCarousel(this.tableId , this.tableIndex)
+          }
+          else{
+              Actions.openCarousel(this.tableId , this.tableIndex)
+          }
+        })
+    } 
   }
 
   render() {
-    if(Object.keys(this.data).length <= 0)
-    {
-      return;
+   
+    let {tableTitle, tableId, tableIndex, data, borderData} = this;
+    console.log(typeof data);
+    if(tableId == "report" && Object.keys(data).length == 0){
+      return ;
     }
-    let {tableTitle, tableId, tableIndex, data } = this;
-    let color = data?.borderData;
-    let panelColor = panelBorderClass(color[tableTitle]);
-    let cardColor = mdcCardBorder(color[tableTitle]);
+    let color = borderData;
+    let panelColor = panelBorderClass(color);
+    let cardColor = mdcCardBorder(color);
     let carouselStatus = Store.getinstance().openStatus[this.tableId][this.tableIndex];
 
     this.innerHTML = `
@@ -96,18 +115,20 @@ class TableCarousel extends HTMLElement {
           </h5>
         </div>
     
-        <div class="collapse ${tableId}Collapse ${carouselStatus ? "show":""}" id="${tableId}-${tableTitle}">
+        <div class="collapse ${tableId}Collapse ${carouselStatus?"show":""}" id="${tableId}-${tableTitle}">
           <div class="mdc-card mdc-card-content table-card-border ${cardColor}">
             ${ tableId == "report" ? `
             <hb-data-table tableName="${tableTitle}" tableIndex="${tableIndex}"></hb-data-table>` 
             :
-            `<hb-list-table tabName="${tableId}" tableName="${tableTitle}"></hb-list-table>`
+            `<hb-list-table tabName="${tableId}" tableName="${tableTitle}" dta="${data}"></hb-list-table>`
            }
           </div>
         </div>
 
       </div>
     </section> `;
+
+
   }
 
   constructor() {

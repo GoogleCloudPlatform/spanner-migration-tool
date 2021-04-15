@@ -542,7 +542,7 @@
    ],
    "Indexes": [
     {
-     "Name": "idx_fk_store_id",
+     "Name": "idx_fk_store_id_47",
      "Table": "customer",
      "Unique": false,
      "Keys": [
@@ -553,7 +553,7 @@
      ]
     },
     {
-     "Name": "idx_fk_address_id",
+     "Name": "idx_fk_address_id_48",
      "Table": "customer",
      "Unique": false,
      "Keys": [
@@ -1085,7 +1085,7 @@
    ],
    "Indexes": [
     {
-     "Name": "idx_fk_film_id_43",
+     "Name": "idx_fk_film_id_34",
      "Table": "inventory",
      "Unique": false,
      "Keys": [
@@ -1465,7 +1465,7 @@
      ]
     },
     {
-     "Name": "idx_fk_customer_id_30",
+     "Name": "idx_fk_customer_id_55",
      "Table": "rental",
      "Unique": false,
      "Keys": [
@@ -1476,7 +1476,7 @@
      ]
     },
     {
-     "Name": "idx_fk_staff_id_31",
+     "Name": "idx_fk_staff_id_56",
      "Table": "rental",
      "Unique": false,
      "Keys": [
@@ -1647,7 +1647,7 @@
    ],
    "Indexes": [
     {
-     "Name": "idx_fk_store_id_55",
+     "Name": "idx_fk_store_id",
      "Table": "staff",
      "Unique": false,
      "Keys": [
@@ -1658,7 +1658,7 @@
      ]
     },
     {
-     "Name": "idx_fk_address_id_56",
+     "Name": "idx_fk_address_id",
      "Table": "staff",
      "Unique": false,
      "Keys": [

@@ -8,6 +8,10 @@ class ListTable extends HTMLElement {
     return this.getAttribute("tableName");
   }
 
+  get data() {
+    return this.getAttribute("dta");
+  }
+
   static get observedAttributes() {
     return ["open"];
   }
@@ -33,17 +37,11 @@ class ListTable extends HTMLElement {
   }
 
   render() {
-    let { tabName, tableName } = this;
-    let RenderingObj;
+    let { tabName, data } = this;
+    let RenderingObj = data;
     if (tabName === "ddl") {
-      RenderingObj = JSON.parse(localStorage.getItem("ddlStatementsContent"));
-      RenderingObj = RenderingObj[tableName];
       RenderingObj = this.FormattedObj(RenderingObj);
-    } else {
-      RenderingObj = JSON.parse(localStorage.getItem("summaryReportContent"));
-      RenderingObj = RenderingObj[tableName];
-    }
-
+    } 
     this.innerHTML = `
         <div class='mdc-card ${tabName}-content'>
         ${tabName == "ddl" ? `<pre> <code>` : `<div>`}

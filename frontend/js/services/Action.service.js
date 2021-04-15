@@ -951,6 +951,12 @@ const Actions = (() => {
     },
     getTableData: (tabName)=>{
       Store.getTableData(tabName);
+    },
+    getFromLocalStorage : (key) =>{
+      return (localStorage.getItem(key));
+    },
+    setIntoLocalStorage : (key,value) =>{
+      return JSON.parse(localStorage.setItem(key,value));
     }
     
   };

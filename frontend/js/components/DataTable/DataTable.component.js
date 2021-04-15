@@ -186,12 +186,12 @@ class DataTable extends HTMLElement {
                                                         </label>
                                                     </div>
                                                 </span>
-                                                ${localStorage.getItem('sourceDbName')}
+                                                ${Actions.getFromLocalStorage('sourceDbName')}
                                             </th>
                                             <th class="acc-table-th-spn">Spanner</th>
-                                            <th class="acc-table-th-src">${localStorage.getItem('sourceDbName')}</th>
+                                            <th class="acc-table-th-src">${Actions.getFromLocalStorage('sourceDbName')}</th>
                                             <th class="acc-table-th-spn">Spanner</th>
-                                            <th class="acc-table-th-src">${localStorage.getItem('sourceDbName')}</th>
+                                            <th class="acc-table-th-src">${Actions.getFromLocalStorage('sourceDbName')}</th>
                                             <th class="acc-table-th-spn">Spanner</th>
                                         </tr>
                                     </thead>

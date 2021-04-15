@@ -27,9 +27,19 @@ class SchemaConversionScreen extends HTMLElement {
     clearInterval(this.stateObserver);
   }
 
+  sendDatatoReportTab(tableNameArray,currentTabContent) {
+    for(let i=0; i < tableNameArray.length ; i++ )
+    {
+      let filterdata = currentTabContent.SpSchema[tableNameArray[i]];
+      let component = document.querySelector(`#reportTab${i}`)
+      component.setAttribute('data',JSON.stringify(filterdata));
+    }
+  }
+
   observeState = () => {
     let updatedData = Store.getinstance();
     if (JSON.stringify(updatedData) !== JSON.stringify(this.data)) {
+      // console.log(JSON.stringify(updatedData) , JSON.stringify(this.data))
       this.data = updatedData;
       this.render();
       Actions.ddlSummaryAndConversionApiCall();
@@ -37,14 +47,20 @@ class SchemaConversionScreen extends HTMLElement {
   };
 
   render() {
-    if (!this.data) {
+    console.log(this.data);
+    if (!this.data ) {
       return;
     }
     const {currentTab , tableData, tableBorderData} = this.data;
-    const reportTabContent = tableData['reportTabContent'] 
-    const ddlTabContent = tableData['ddlTabContent'] 
-    const summaryTabContent = tableData['summaryTabContent'] 
-    let tableNameArray = Object.keys(reportTabContent.SpSchema);
+    const currentTabContent = tableData[`${currentTab}Content`]
+    let tableNameArray ; 
+    if(currentTab === "reportTab")
+    {
+      tableNameArray = Object.keys(currentTabContent.SpSchema);
+    }
+    else {
+      tableNameArray = Object.keys(currentTabContent);
+    }
 
     this.innerHTML = `
     <div class="summary-main-content" id='schema-screen-content'>
@@ -76,7 +92,7 @@ class SchemaConversionScreen extends HTMLElement {
               <div id='reportDiv'>
                 ${tableNameArray.map((tableName, index) => { return `
                     <hb-table-carousel tableTitle="${tableName}" data="{}" id="${currentTab}${index}" tableId="report" 
-                    tableIndex="${index}"></hb-table-carousel>`}).join("")}                    
+                    tableIndex="${index}" borderData = "${tableBorderData[tableName]}"></hb-table-carousel>`}).join("")}                    
                 </div>
             </div>
             <h5 class="no-text" id="reportnotFound">No Match Found</h5>
@@ -88,7 +104,7 @@ class SchemaConversionScreen extends HTMLElement {
               <hb-site-button buttonid="download-ddl" classname="expand right-align" buttonaction="downloadDdl" text="Download DDL Statements"></hb-site-button>
               <div id='ddlDiv'>
                 ${tableNameArray.map((tableName,index) => {return `
-                    <hb-table-carousel tableTitle="${tableName}" data="{}" tableId="ddl" id="${currentTab}${index}" tableIndex=${index}>
+                    <hb-table-carousel tableTitle="${tableName}" data="${currentTabContent[tableName]}" tableId="ddl" id="${currentTab}${index}" tableIndex=${index} borderData = "${tableBorderData[tableName]}">
                     </hb-table-carousel>`;}).join("")} 
                 </div>
             </div>
@@ -100,8 +116,8 @@ class SchemaConversionScreen extends HTMLElement {
               <hb-site-button buttonid="download-report" classname="expand right-align" buttonaction="downloadReport" text="Download Summary Report"></hb-site-button>
               <div id='summaryDiv'>
                 ${tableNameArray.map((tableName,index) => {return `
-                    <hb-table-carousel tableTitle="${tableName}" data="{}" id="${currentTab}${index}" tableId="summary" 
-                    tableIndex=${index}></hb-table-carousel>`;}).join("")} 
+                    <hb-table-carousel tableTitle="${tableName}" data="${currentTabContent[tableName]}" id="${currentTab}${index}" tableId="summary" 
+                    tableIndex=${index} borderData = "${tableBorderData[tableName]}"></hb-table-carousel>`;}).join("")} 
               </div>
             </div>
             <h5 class="no-text" id="summarynotFound">No Match Found</h5>
@@ -118,44 +134,9 @@ class SchemaConversionScreen extends HTMLElement {
     <hb-modal modalId="createIndexModal" content="" contentIcon="" 
       connectIconClass="" modalBodyClass="" title="Select keys for new index"></hb-modal> `;
     initSchemaScreenTasks();
-
-      
-      let data;
-      
-      switch(currentTab)
-      {
-        case "reportTab":
-          data = { content: reportTabContent, borderData : tableBorderData }
-          break;
-        case "ddlTab":
-          data ={ content: ddlTabContent, borderData : tableBorderData }
-          break;
-        case "summaryTab":
-          data ={ content: summaryTabContent, borderData : tableBorderData }
-          break;
-      }
-      
-      console.log(data);
-      for(let i=0;i<tableNameArray.length;i++)
-      {
-        let filterdata;
-
-        if(currentTab === 'reportTab')
-        {
-        filterdata = {content:data.content.SpSchema[tableNameArray[i]],borderData:data.borderData[tableNameArray[i]]}
-         }
-        else{
-       filterdata = {content:data.content[tableNameArray[i]],borderData:data.borderData[tableNameArray[i]] }
-      }
-        let component = document.querySelector(`#${currentTab}${i}`)
-        component.setAttribute('data',JSON.stringify(filterdata))
-        
-        // Scomponent.setAttribute('data',JSON.stringify(summaryTabContent[tableNameArray[i]]))
-       
-        // let name = component[i].getAttribute('tableName')
-        // component[i].setAttribute("data", JSON.stringify(tablesData));
-      }
-
+    if(currentTab === 'reportTab'){
+      this.sendDatatoReportTab(tableNameArray,currentTabContent)
+    }
 
   }
 

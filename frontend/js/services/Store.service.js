@@ -10,9 +10,9 @@ const Store = (function () {
     checkInterleave : {},
     currentTab:"reportTab",
     openStatus:{
-      ddl:new Array(1).fill(false),
-      report : new Array(1).fill(false),
-      summary: new Array(1).fill(false)
+      ddl:new Array(16).fill(false),
+      report : new Array(16).fill(false),
+      summary: new Array(16).fill(false)
     },
     tableData:{
       reportTabContent: JSON.parse(localStorage.getItem('conversionReportContent')),
@@ -22,6 +22,7 @@ const Store = (function () {
     tableBorderData: JSON.parse(localStorage.getItem("tableBorderColor")),
    };
   let modalId = "connectToDbModal";
+  let checkInterLeaveArray = {};
 
   function init() {}
 
@@ -59,33 +60,32 @@ const Store = (function () {
       instance = { ...instance, tableData, saveSchemaId: Math.random()};
     },
     setInterleave : (tableName , value) => {
-      let newCheckInterLeave = instance.checkInterleave;
-      newCheckInterLeave[tableName] = value
-      instance = {...instance, checkInterleave:newCheckInterLeave , saveSchemaId: Math.random()  }; 
+      checkInterLeaveArray[tableName] = value;
+      if(Object.keys(checkInterLeaveArray).length==16){
+      instance = {...instance, checkInterleave:checkInterLeaveArray}; 
+      }
     },
     swithCurrentTab:(tab)=>{
-      debugger
       console.log(tab);
       instance = {...instance , currentTab:tab}
     },
     openCarousel:(tableId , tableIndex)=>{
-      debugger
       console.log('open',tableId , tableIndex);
-      let newOpenStatus = instance.openStatus
-      newOpenStatus[tableId][tableIndex] = true;
-      instance = {...instance ,openStatus:newOpenStatus }
+      let openStatus = {...instance.openStatus};
+      openStatus[tableId][tableIndex] = true;
+      instance = {...instance ,openStatus,saveSchemaId: Math.random() }
       console.log(instance);
     },
     closeCarousel:(tableId , tableIndex)=>{
       console.log('close',tableId , tableIndex);
-      let newOpenStatus = instance.openStatus
+      let newOpenStatus = {...instance.openStatus};
       newOpenStatus[tableId][tableIndex] = false;
-      instance = {...instance ,openStatus:newOpenStatus }
+      instance = {...instance ,openStatus:newOpenStatus, saveSchemaId: Math.random() }
       console.log(instance);
     },
     getTableData: (tabName)=>{
       return JSON.parse(instance.tableData[tabName + "Content"]);
-    }
+    },
 
  };
 })();
