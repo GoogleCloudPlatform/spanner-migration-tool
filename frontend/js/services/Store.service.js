@@ -81,6 +81,11 @@ const Store = (function () {
     getTableData: (tabName)=>{
       return JSON.parse(instance.tableData[tabName + "Content"]);
     },
+    expandAll: (value) => {
+      let key = instance.currentTab.substr(0,instance.currentTab.length-3);
+      console.log(key);
+      instance.openStatus[key].fill(value);
+    }
 
  };
 })();

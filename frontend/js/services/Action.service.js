@@ -196,12 +196,13 @@ const Actions = (() => {
       let collapseSection = buttonId.substring(0, buttonId.indexOf("ExpandButton"));
       if (text === "Expand All") {
         document.getElementById(buttonId).innerHTML = "Collapse All";
-        jQuery(`.${collapseSection}Collapse`).collapse("show");
+        Store.expandAll(true);
       }
       else {
         document.getElementById(buttonId).innerHTML = "Expand All";
-        jQuery(`.${collapseSection}Collapse`).collapse("hide");
+        Store.expandAll(false);
       }
+     
     },
     downloadSession: async () => {
       jQuery("<a />", {
