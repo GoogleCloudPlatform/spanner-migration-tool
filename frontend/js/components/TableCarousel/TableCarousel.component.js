@@ -43,8 +43,9 @@ class TableCarousel extends HTMLElement {
         this.render();
         // console.log('reRender with new value...');
     }
-    if(attrName === 'data' && oldVal === "{}")
-    {
+
+    if (attrName === 'data' && oldVal==="{}") {
+      this.render();
       document.getElementById(`id-${this.tableId}-${this.tableIndex}`).addEventListener('click',()=>{
         if(Store.getinstance().openStatus[this.tableId][this.tableIndex])
         {
@@ -54,7 +55,7 @@ class TableCarousel extends HTMLElement {
           Actions.openCarousel(this.tableId , this.tableIndex)
         }
       })
-    }
+  }
   }
 
   connectedCallback() {

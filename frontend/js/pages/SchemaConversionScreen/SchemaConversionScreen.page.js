@@ -15,7 +15,6 @@ import "../../services/Fetch.service.js";
 // constants
 import {TAB_CONFIG_DATA} from './../../config/constantData.js'
 
-
 class SchemaConversionScreen extends HTMLElement {
   connectedCallback() {
     this.stateObserver = setInterval(this.observeState, 200);
@@ -39,8 +38,8 @@ class SchemaConversionScreen extends HTMLElement {
   observeState = () => {
     let updatedData = Store.getinstance();
     if (JSON.stringify(updatedData) !== JSON.stringify(this.data)) {
-      // console.log(JSON.stringify(updatedData) , JSON.stringify(this.data))
-      this.data = updatedData;
+      console.log('in the if..');
+      this.data = JSON.parse(JSON.stringify(updatedData))
       this.render();
       Actions.ddlSummaryAndConversionApiCall();
     }
