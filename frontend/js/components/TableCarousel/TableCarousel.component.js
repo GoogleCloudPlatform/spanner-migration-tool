@@ -37,47 +37,42 @@ class TableCarousel extends HTMLElement {
     return ["data"];
   }
 
+  addEventListenertoCarausal() {
+    document.getElementById(`id-${this.tableId}-${this.tableIndex}`).addEventListener('click',()=>{
+      if(Store.getinstance().openStatus[this.tableId][this.tableIndex])
+      {
+        Actions.closeCarousel(this.tableId , this.tableIndex)
+      }
+      else{
+        Actions.openCarousel(this.tableId , this.tableIndex)
+      }
+    })
+  }
+
   attributeChangedCallback(attrName, oldVal, newVal ) {
       //  console.log(oldVal,newVal);
     if (attrName === 'data' && newVal !== "{}" && oldVal!==null) {
         this.render();
-        // console.log('reRender with new value...');
-    }
-
-    if (attrName === 'data' && oldVal==="{}") {
-      this.render();
-      document.getElementById(`id-${this.tableId}-${this.tableIndex}`).addEventListener('click',()=>{
-        if(Store.getinstance().openStatus[this.tableId][this.tableIndex])
-        {
-          Actions.closeCarousel(this.tableId , this.tableIndex)
+        if(newVal!=="{}" && oldVal=="{}") {
+          this.addEventListenertoCarausal();
         }
-        else{
-          Actions.openCarousel(this.tableId , this.tableIndex)
-        }
-      })
-  }
+      }
   }
 
   connectedCallback() {
     this.render();
     if(this.tableId!="report")
     {
-        document.getElementById(`id-${this.tableId}-${this.tableIndex}`).addEventListener('click',()=>{
-          if(Store.getinstance().openStatus[this.tableId][this.tableIndex]){
-              Actions.closeCarousel(this.tableId , this.tableIndex)
-          }
-          else{
-              Actions.openCarousel(this.tableId , this.tableIndex)
-          }
-        })
+       this.addEventListenertoCarausal();
     } 
   }
 
   render() {
    
     let {tableTitle, tableId, tableIndex, data, borderData} = this;
-    console.log(typeof data);
-    if(tableId == "report" && Object.keys(data).length == 0){
+    console.log(data);
+    if(tableId == "report" && data == "{}"){
+      console.log("inside");
       return ;
     }
     let color = borderData;
@@ -119,7 +114,7 @@ class TableCarousel extends HTMLElement {
         <div class="collapse ${tableId}Collapse ${carouselStatus?"show":""}" id="${tableId}-${tableTitle}">
           <div class="mdc-card mdc-card-content table-card-border ${cardColor}">
             ${ tableId == "report" ? `
-            <hb-data-table tableName="${tableTitle}" tableIndex="${tableIndex}"></hb-data-table>` 
+            <hb-data-table tableName="${tableTitle}" tableIndex="${tableIndex}" dta='${data}'></hb-data-table>` 
             :
             `<hb-list-table tabName="${tableId}" tableName="${tableTitle}" dta="${data}"></hb-list-table>`
            }

@@ -23,7 +23,6 @@ const Store = (function () {
     },
     tableBorderData: JSON.parse(localStorage.getItem("tableBorderColor")),
    };
-   console.log(instance);
   let modalId = "connectToDbModal";
   let checkInterLeaveArray = {};
 
