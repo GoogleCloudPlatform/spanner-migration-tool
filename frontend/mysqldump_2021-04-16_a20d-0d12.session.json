@@ -4,7 +4,7 @@
    "Name": "actor",
    "ColNames": [
     "actor_id",
-    "first_namsse",
+    "first_name",
     "last_name",
     "last_update"
    ],
@@ -19,8 +19,8 @@
      "NotNull": true,
      "Comment": "From: actor_id smallint(6)"
     },
-    "first_namsse": {
-     "Name": "first_namsse",
+    "first_name": {
+     "Name": "first_name",
      "T": {
       "Name": "STRING",
       "Len": 45,
@@ -63,21 +63,6 @@
      "Table": "actor",
      "Unique": false,
      "Keys": [
-      {
-       "Col": "last_name",
-       "Desc": false
-      }
-     ]
-    },
-    {
-     "Name": "gvjhdiwe",
-     "Table": "actor",
-     "Unique": false,
-     "Keys": [
-      {
-       "Col": "actor_id",
-       "Desc": false
-      },
       {
        "Col": "last_name",
        "Desc": false
@@ -557,7 +542,7 @@
    ],
    "Indexes": [
     {
-     "Name": "idx_fk_store_id",
+     "Name": "idx_fk_store_id_58",
      "Table": "customer",
      "Unique": false,
      "Keys": [
@@ -568,7 +553,7 @@
      ]
     },
     {
-     "Name": "idx_fk_address_id",
+     "Name": "idx_fk_address_id_59",
      "Table": "customer",
      "Unique": false,
      "Keys": [
@@ -881,7 +866,7 @@
    ],
    "Indexes": [
     {
-     "Name": "idx_fk_film_id",
+     "Name": "idx_fk_film_id_48",
      "Table": "film_actor",
      "Unique": false,
      "Keys": [
@@ -1100,7 +1085,7 @@
    ],
    "Indexes": [
     {
-     "Name": "idx_fk_film_id_51",
+     "Name": "idx_fk_film_id",
      "Table": "inventory",
      "Unique": false,
      "Keys": [
@@ -1302,7 +1287,7 @@
    ],
    "Indexes": [
     {
-     "Name": "idx_fk_staff_id_56",
+     "Name": "idx_fk_staff_id",
      "Table": "payment",
      "Unique": false,
      "Keys": [
@@ -1313,7 +1298,7 @@
      ]
     },
     {
-     "Name": "idx_fk_customer_id_57",
+     "Name": "idx_fk_customer_id",
      "Table": "payment",
      "Unique": false,
      "Keys": [
@@ -1480,7 +1465,7 @@
      ]
     },
     {
-     "Name": "idx_fk_customer_id",
+     "Name": "idx_fk_customer_id_38",
      "Table": "rental",
      "Unique": false,
      "Keys": [
@@ -1491,7 +1476,7 @@
      ]
     },
     {
-     "Name": "idx_fk_staff_id",
+     "Name": "idx_fk_staff_id_39",
      "Table": "rental",
      "Unique": false,
      "Keys": [
@@ -1662,7 +1647,7 @@
    ],
    "Indexes": [
     {
-     "Name": "idx_fk_store_id_41",
+     "Name": "idx_fk_store_id",
      "Table": "staff",
      "Unique": false,
      "Keys": [
@@ -1673,7 +1658,7 @@
      ]
     },
     {
-     "Name": "idx_fk_address_id_42",
+     "Name": "idx_fk_address_id_54",
      "Table": "staff",
      "Unique": false,
      "Keys": [
@@ -1778,7 +1763,7 @@
      ]
     },
     {
-     "Name": "idx_fk_address_id_46",
+     "Name": "idx_fk_address_id",
      "Table": "store",
      "Unique": false,
      "Keys": [
@@ -4659,7 +4644,7 @@
    "Name": "actor",
    "Cols": {
     "actor_id": "actor_id",
-    "first_name": "first_namsse",
+    "first_name": "first_name",
     "last_name": "last_name",
     "last_update": "last_update"
    }
@@ -4831,7 +4816,7 @@
    "Name": "actor",
    "Cols": {
     "actor_id": "actor_id",
-    "first_namsse": "first_name",
+    "first_name": "first_name",
     "last_name": "last_name",
     "last_update": "last_update"
    }

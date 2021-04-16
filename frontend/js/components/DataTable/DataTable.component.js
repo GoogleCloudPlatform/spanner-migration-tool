@@ -14,11 +14,12 @@ class DataTable extends HTMLElement {
     }
 
     get data() {
-        return JSON.parse(this.getAttribute("dta"));
+        return this._dta
     }
 
-    static get observedAttributes() {
-        return ["open"];
+    set data(value){
+        this._dta = value;
+        this.render()
     }
 
     connectedCallback() {
@@ -26,8 +27,7 @@ class DataTable extends HTMLElement {
         {
             Actions.checkInterleaveConversion(this.tableName);
         }
-        this.checkInterLeave = Store.getinstance().checkInterleave[this.tableName];
-        this.render();  
+        this.checkInterLeave = Store.getinstance().checkInterleave[this.tableName]; 
      }   
 
     fkComponent(tableIndex, tableName, fkArray) {
@@ -158,12 +158,15 @@ class DataTable extends HTMLElement {
     }
 
     render() {
+       
         let { tableName, tableIndex, data } = this;
-        console.log(data);
+        console.log("data");
         let countSrc = [], countSp = [], notNullConstraint = [];
-        let schemaConversionObj = JSON.parse(localStorage.getItem("conversionReportContent"));
-        let spTable = schemaConversionObj.SpSchema[tableName];
-        let srcTable = schemaConversionObj.SrcSchema[tableName];
+        let schemaConversionObj =Store.getinstance().tableData.reportTabContent;
+        let spTable = data.SpSchema;
+        console.log();
+        console.log(spTable);
+        let srcTable = data.SrcSchema;
         let tableColumnsArray = schemaConversionObj.SpSchema[tableName].ColNames;
         let pksSp = [...spTable.Pks];
         let pksSpLength = pksSp.length;
@@ -171,6 +174,7 @@ class DataTable extends HTMLElement {
         countSrc[tableIndex] = [];
         countSp[tableIndex] = [];
         for (var x = 0; x < pksSpLength; x++) { if (pksSp[x].seqId == undefined) { pksSp[x].seqId = pkSeqId; pkSeqId++; } }
+        let sourceDbName = Store.getSourceDbName()
         this.innerHTML = ` <div class="acc-card-content" id="acc_card_content">
                                 <table class="acc-table" id="src-sp-table${tableIndex}">
                                     <thead>
@@ -191,12 +195,12 @@ class DataTable extends HTMLElement {
                                                         </label>
                                                     </div>
                                                 </span>
-                                                ${Actions.getFromLocalStorage('sourceDbName')}
+                                                ${sourceDbName}
                                             </th>
                                             <th class="acc-table-th-spn">Spanner</th>
-                                            <th class="acc-table-th-src">${Actions.getFromLocalStorage('sourceDbName')}</th>
+                                            <th class="acc-table-th-src">${sourceDbName}</th>
                                             <th class="acc-table-th-spn">Spanner</th>
-                                            <th class="acc-table-th-src">${Actions.getFromLocalStorage('sourceDbName')}</th>
+                                            <th class="acc-table-th-src">${sourceDbName}</th>
                                             <th class="acc-table-th-spn">Spanner</th>
                                         </tr>
                                     </thead>
