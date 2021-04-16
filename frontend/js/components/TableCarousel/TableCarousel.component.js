@@ -70,11 +70,13 @@ class TableCarousel extends HTMLElement {
   render() {
    
     let {tableTitle, tableId, tableIndex, data, borderData} = this;
-    console.log(data);
+    console.log("space")
     if(tableId == "report" && data == "{}"){
       console.log("inside");
       return ;
     }
+    console.log(data);
+    
     let color = borderData;
     let panelColor = panelBorderClass(color);
     let cardColor = mdcCardBorder(color);

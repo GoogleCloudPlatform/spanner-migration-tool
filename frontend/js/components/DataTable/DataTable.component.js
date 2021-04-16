@@ -159,7 +159,7 @@ class DataTable extends HTMLElement {
 
     render() {
         let { tableName, tableIndex, data } = this;
-        console.log("data in dtatable");
+        console.log(data);
         let countSrc = [], countSp = [], notNullConstraint = [];
         let schemaConversionObj = JSON.parse(localStorage.getItem("conversionReportContent"));
         let spTable = schemaConversionObj.SpSchema[tableName];

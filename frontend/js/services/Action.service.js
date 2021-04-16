@@ -193,7 +193,6 @@ const Actions = (() => {
       }
     },
     expandAll: (text, buttonId) => {
-      let collapseSection = buttonId.substring(0, buttonId.indexOf("ExpandButton"));
       if (text === "Expand All") {
         document.getElementById(buttonId).innerHTML = "Collapse All";
         Store.expandAll(true);
@@ -202,7 +201,9 @@ const Actions = (() => {
         document.getElementById(buttonId).innerHTML = "Expand All";
         Store.expandAll(false);
       }
-     
+    },
+    allCarausalsClosed: () => {
+
     },
     downloadSession: async () => {
       jQuery("<a />", {

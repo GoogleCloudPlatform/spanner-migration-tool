@@ -29,10 +29,23 @@ class SchemaConversionScreen extends HTMLElement {
   sendDatatoReportTab(tableNameArray,currentTabContent) {
     for(let i=0; i < tableNameArray.length ; i++ )
     {
-      let filterdata = currentTabContent.SpSchema[tableNameArray[i]];
+      let filterdata = currentTabContent;
       let component = document.querySelector(`#reportTab${i}`)
       component.setAttribute('data',JSON.stringify(filterdata));
     }
+  }
+
+  getChangingValue(currentTab){
+    currentTab = currentTab.substring(0,currentTab.length-3);
+    let currentArray = Store.getinstance().openStatus[currentTab];
+    let flag = "Expand All";
+    for(let i=0; i < currentArray.length ; i++ )
+    {
+        if(currentArray[i]==true){
+          flag = "Collapse All";
+        }
+    }
+    return flag;
   }
 
   observeState = () => {
@@ -51,11 +64,15 @@ class SchemaConversionScreen extends HTMLElement {
       return;
     }
     const {currentTab , tableData, tableBorderData} = this.data;
-    const currentTabContent = tableData[`${currentTab}Content`]
+    let currentTabContent = tableData[`${currentTab}Content`];
+    const changingText = this.getChangingValue(currentTab);
     let tableNameArray ; 
     if(currentTab === "reportTab")
     {
       tableNameArray = Object.keys(currentTabContent.SpSchema);
+      // delete currentTabContent["Stats"];
+      // console.log(currentTabContent);
+      currentTabContent = {SpSchema:currentTabContent.SpSchema,Issues:currentTabContent.Issues,Location:currentTabContent.Location,SrcSchema:currentTabContent.SrcSchema,SyntheticPKeys:currentTabContent.SyntheticPKeys,TimezoneOffset:currentTabContent.TimezoneOffset,ToSource:currentTabContent.ToSource,ToSpanner:currentTabContent.ToSpanner};
     }
     else {
       tableNameArray = Object.keys(currentTabContent);
@@ -87,11 +104,11 @@ class SchemaConversionScreen extends HTMLElement {
         
           ${currentTab === 'reportTab' ? `<div id="report" class="tab-pane fade show active">
             <div class="accordion md-accordion" id="accordion" role="tablist" aria-multiselectable="true">
-              <hb-site-button buttonid="reportExpandButton" classname="expand" buttonaction="expandAll" text="Expand All"></hb-site-button>
+              <hb-site-button buttonid="reportExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>
               <hb-site-button buttonid="editButton" classname="expand right-align" buttonaction="editGlobalDataType" text="Edit Global Data Type"></hb-site-button>
               <div id='reportDiv'>
                 ${tableNameArray.map((tableName, index) => { return `
-                    <hb-table-carousel tableTitle="${tableName}" data="{}" id="${currentTab}${index}" tableId="report" 
+                    <hb-table-carousel tableTitle="${tableName}" data='${JSON.stringify(currentTabContent)}' id="${currentTab}${index}" tableId="report" 
                     tableIndex="${index}" borderData = "${tableBorderData[tableName]}"></hb-table-carousel>`}).join("")}                    
                 </div>
             </div>
@@ -100,7 +117,7 @@ class SchemaConversionScreen extends HTMLElement {
 
           ${currentTab === 'ddlTab' ? `<div id="ddl" class="tab-pane fade show active">
             <div class="panel-group" id="ddl-accordion">
-              <hb-site-button buttonid="ddlExpandButton" classname="expand" buttonaction="expandAll" text="Expand All"></hb-site-button>
+              <hb-site-button buttonid="ddlExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>
               <hb-site-button buttonid="download-ddl" classname="expand right-align" buttonaction="downloadDdl" text="Download DDL Statements"></hb-site-button>
               <div id='ddlDiv'>
                 ${tableNameArray.map((tableName,index) => {return `
@@ -113,7 +130,7 @@ class SchemaConversionScreen extends HTMLElement {
 
           ${currentTab === 'summaryTab' ? `<div id="summary" class="tab-pane fade show active">
             <div class="panel-group" id="summary-accordion">
-              <hb-site-button buttonid="summaryExpandButton" classname="expand" buttonaction="expandAll" text="Expand All"></hb-site-button>
+              <hb-site-button buttonid="summaryExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>
               <hb-site-button buttonid="download-report" classname="expand right-align" buttonaction="downloadReport" text="Download Summary Report"></hb-site-button>
               <div id='summaryDiv'>
                 ${tableNameArray.map((tableName,index) => {return `
@@ -137,7 +154,7 @@ class SchemaConversionScreen extends HTMLElement {
       connectIconClass="" modalBodyClass="" title="Select keys for new index"></hb-modal> `;
     initSchemaScreenTasks();
     if(currentTab === 'reportTab'){
-      this.sendDatatoReportTab(tableNameArray,currentTabContent)
+      // this.sendDatatoReportTab(tableNameArray,currentTabContent)
     }
 
   }
