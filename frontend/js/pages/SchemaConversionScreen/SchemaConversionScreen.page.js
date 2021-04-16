@@ -86,7 +86,6 @@ class SchemaConversionScreen extends HTMLElement {
       </div> 
       <div class="tab-bg" id='tabBg'>
         <div class="tab-content">
-        
           ${currentTab === 'reportTab' ? `<div id="report" class="tab-pane fade show active">
             <div class="accordion md-accordion" id="accordion" role="tablist" aria-multiselectable="true">
               <hb-site-button buttonid="reportExpandButton" classname="expand" buttonaction="expandAll" text="Expand All"></hb-site-button>

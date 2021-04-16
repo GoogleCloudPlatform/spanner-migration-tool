@@ -35,7 +35,7 @@ class TableCarousel extends HTMLElement {
     this.addEventListenertoCarausal();
     document.querySelector(`hb-data-table[tableName=${this.tableTitle}`).data =this._data; 
     console.log(document.querySelector(`hb-data-table[tableName=${this.tableTitle}`));
-}
+  }
 
   get borderData() {
     return this.getAttribute("borderData");
