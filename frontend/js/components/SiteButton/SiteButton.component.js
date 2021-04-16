@@ -32,7 +32,7 @@ class SiteButton extends HTMLElement {
         case "expandAll":
           Actions[this.buttonAction](
             document.getElementById(this.buttonId).innerHTML,
-            this.buttonId
+            this.buttonId,
           );
           break;
 

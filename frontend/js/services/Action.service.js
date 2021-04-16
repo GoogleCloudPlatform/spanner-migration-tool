@@ -202,7 +202,6 @@ const Actions = (() => {
       }
     },
     expandAll: (text, buttonId) => {
-      let collapseSection = buttonId.substring(0, buttonId.indexOf("ExpandButton"));
       if (text === "Expand All") {
         document.getElementById(buttonId).innerHTML = "Collapse All";
         Store.expandAll(true);
@@ -331,7 +330,7 @@ const Actions = (() => {
         }
       }
     },
-    fetchIndexFormValues: async function (tableIndex, tableName, name, uniqueness) {
+    fetchIndexFormValues: async (tableIndex, tableName, name, uniqueness) => {
       if (keysList.length === 0) {
         showSnackbar("Please select atleast one key to create a new index", " redBg");
         return;
@@ -368,64 +367,8 @@ const Actions = (() => {
       let res = await Fetch.getAppData("POST", "/add/indexes?table=" + tableName, [newIndex]);
       if (res.ok) {
         jQuery("#createIndexModal").modal("hide");
-        // res = await res.text();
         res = await res.json();
-
-        // localStorage.setItem("conversionReportContent", res);
         Store.updateTableData("reportTabContent",res);
-        jsonObj = Store.getinstance().tableData.reportTabContent;
-        let secIndexArray = jsonObj.SpSchema[tableName].Indexes;
-        let tablemap = document.querySelector("#indexKey" + tableIndex).querySelector(".index-acc-table.fkTable");
-        let flag = document.querySelector("#editSpanner" + tableIndex).innerHTML === "Save Changes";
-        tablemap.innerHTML = ` ${secIndexArray && secIndexArray.length > 0 ? 
-        `<thead>
-          <tr>
-              <th>Name</th>
-              <th>Table</th>
-              <th>Unique</th>
-              <th>Keys</th>
-              <th>Action</th>
-          </tr>
-        </thead>`: 
-        `<div></div>`} 
-        ${secIndexArray.map((secIndex, index) => {
-          return `
-            <tr class="indexTableTr ">
-                <td class="acc-table-td indexesName">
-                    <div class="renameSecIndex ${flag ? '' : 'template'}" id="renameSecIndex${tableIndex}${index}">
-                        <input type="text" id="newSecIndexVal${tableIndex}${index}" value="${secIndex.Name}"
-                            class="form-control spanner-input" autocomplete="off" />
-                    </div>
-                    <div class="saveSecIndex ${flag ? 'template' : ''}" id="saveSecIndex${tableIndex}${index}">${secIndex.Name}</div>
-                </td>
-                <td class="acc-table-td indexesTable">${secIndex.Table}</td>
-                <td class="acc-table-td indexesUnique">${secIndex.Unique}</td>
-                <td class="acc-table-td indexesKeys">${secIndex.Keys.map((key) => key.Col).join(',')}</td>
-                <td class="acc-table-td indexesAction">
-                    <button class="dropButton" id="${tableName}${index}secIndex" ${flag ? "" : "disabled"}>
-                        <span><i class="large material-icons removeIcon"
-                                style="vertical-align: middle">delete</i></span>
-                        <span style="vertical-align: middle">Drop</span>
-                    </button>
-                </td>
-            </tr>
-          `;
-        }).join("")}`;
-  
-        if (secIndexArray !== null && secIndexArray.length > 0) {
-          secIndexArray.map((secIndex, index) => {
-            document.getElementById(tableName + index + 'secIndex').addEventListener('click', () => {
-              jQuery('#indexAndKeyDeleteWarning').modal();
-              jQuery('#indexAndKeyDeleteWarning').find('#modal-content').html(`This will permanently delete the secondary index and the corresponding uniqueness constraints on
-                indexed columns (if applicable). Do you want to continue?`);
-              recreateNode(document.getElementById('fk-drop-confirm'))
-              document.getElementById('fk-drop-confirm').addEventListener('click', () => {
-                Actions.dropSecondaryIndexHandler(tableName, tableIndex, index);
-              })
-            })
-          });
-        }
-        this.closeSecIndexModal();
       }
     },
     createNewSecIndex: (id) => {
@@ -900,60 +843,6 @@ const Actions = (() => {
         // let textRresponse = await response.tt();
         // localStorage.setItem('conversionReportContent', textRresponse);
         Store.updateTableData("reportTabContent",jsonObj);   
-
-        let secIndexArray = jsonObj.SpSchema[tableName].Indexes;
-        let tablemap = document.querySelector("#indexKey" + tableNumber).querySelector(".index-acc-table.fkTable");
-        let flag = document.querySelector("#editSpanner" + tableNumber).innerHTML === "Save Changes";
-
-        tablemap.innerHTML = ` ${secIndexArray && secIndexArray.length > 0 ? 
-        `<thead>
-          <tr>
-              <th>Name</th>
-              <th>Table</th>
-              <th>Unique</th>
-              <th>Keys</th>
-              <th>Action</th>
-          </tr>
-        </thead>`
-        :
-        `<div></div>`} 
-        ${secIndexArray.map((secIndex, index) => {
-          return `
-            <tr class="indexTableTr ">
-                <td class="acc-table-td indexesName">
-                    <div class="renameSecIndex ${flag ? '' : 'template'}" id="renameSecIndex${tableNumber}${index}">
-                        <input type="text" id="newSecIndexVal${tableNumber}${index}" value="${secIndex.Name}"
-                            class="form-control spanner-input" autocomplete="off" />
-                    </div>
-                    <div class="saveSecIndex ${flag ? 'template' : ''}" id="saveSecIndex${tableNumber}${index}">${secIndex.Name}</div>
-                    
-                </td>
-                <td class="acc-table-td indexesTable">${secIndex.Table}</td>
-                <td class="acc-table-td indexesUnique">${secIndex.Unique}</td>
-                <td class="acc-table-td indexesKeys">${secIndex.Keys.map((key) => key.Col).join(',')}</td>
-                <td class="acc-table-td indexesAction">
-                    <button class="dropButton" id="${tableName}${index}secIndex" ${flag ? "" : "disabled"}>
-                        <span><i class="large material-icons removeIcon"
-                                style="vertical-align: middle">delete</i></span>
-                        <span style="vertical-align: middle">Drop</span>
-                    </button>
-                </td>
-            </tr>
-          `;
-        }).join("")}`;
-        if (secIndexArray !== null && secIndexArray.length > 0) {
-          secIndexArray.map((secIndex, index) => {
-            document.getElementById(tableName + index + 'secIndex').addEventListener('click', () => {
-              jQuery('#indexAndKeyDeleteWarning').modal();
-              jQuery('#indexAndKeyDeleteWarning').find('#modal-content').html(`This will permanently delete the secondary index and the corresponding uniqueness constraints on
-                indexed columns (if applicable). Do you want to continue?`);
-              recreateNode(document.getElementById('fk-drop-confirm'))
-              document.getElementById('fk-drop-confirm').addEventListener('click', () => {
-                Actions.dropSecondaryIndexHandler(tableName, tableNumber, index);
-              })
-            })
-          });
-        }
       }
     },
     showSpinner : () => {

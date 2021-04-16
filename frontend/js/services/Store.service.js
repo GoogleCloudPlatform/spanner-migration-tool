@@ -8,7 +8,7 @@ const DEFAULT_INSTANCE = {
 const Store = (function () {
   var instance = {
     checkInterleave : {},
-    currentTab:"ddlTab",
+    currentTab:"reportTab",
     sourceDbName:'',
     globalDbType:'',
     openStatus:{

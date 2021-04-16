@@ -2,9 +2,9 @@ import "./../../components/Tab/Tab.component.js";
 import "./../../components/TableCarousel/TableCarousel.component.js";
 import "./../../components/StatusLegend/StatusLegend.component.js";
 import "./../../components/Search/Search.component.js";
-import "../../components/SiteButton/SiteButton.component.js"
-import "../../components/EditGlobalDataTypeForm/EditGlobalDataTypeForm.componenet.js"
-import "./../../components/Modal/Modal.component.js"
+import "../../components/SiteButton/SiteButton.component.js";
+import "../../components/EditGlobalDataTypeForm/EditGlobalDataTypeForm.componenet.js";
+import "./../../components/Modal/Modal.component.js";
 import { initSchemaScreenTasks } from "./../../helpers/SchemaConversionHelper.js";
 
 // Services
@@ -13,7 +13,7 @@ import Actions from "./../../services/Action.service.js";
 import "../../services/Fetch.service.js";
 
 // constants
-import {TAB_CONFIG_DATA} from './../../config/constantData.js'
+import { TAB_CONFIG_DATA } from "./../../config/constantData.js";
 
 class SchemaConversionScreen extends HTMLElement {
   connectedCallback() {
@@ -26,21 +26,38 @@ class SchemaConversionScreen extends HTMLElement {
     clearInterval(this.stateObserver);
   }
 
-  sendDatatoReportTab(tableNameArray,currentTabContent) {
-    for(let i=0; i < tableNameArray.length ; i++ )
-    {
-      let filterdata = currentTabContent.SpSchema[tableNameArray[i]];
-      let component = document.querySelector(`#reportTab${i}`)
+  sendDatatoReportTab(tableNameArray, currentTabContent) {
+    for (let i = 0; i < tableNameArray.length; i++) {
+      let filterdata = {
+        SpSchema: currentTabContent.SpSchema[tableNameArray[i]],
+        SrcSchema: currentTabContent.SrcSchema[tableNameArray[i]],
+        ToSource: currentTabContent.ToSource[tableNameArray[i]],
+        ToSpanner: currentTabContent.ToSpanner[tableNameArray[i]],
+        summary : Store.getinstance().tableData["summaryTabContent"][tableNameArray[i]],
+      };
+      let component = document.querySelector(`#reportTab${i}`);
       // component.setAttribute('data',JSON.stringify(filterdata));
-      component.data = filterdata
+      component.data = filterdata;
     }
+  }
+
+  getChangingValue(currentTab) {
+    currentTab = currentTab.substring(0, currentTab.length - 3);
+    let currentArray = Store.getinstance().openStatus[currentTab];
+    let flag = "Expand All";
+    for (let i = 0; i < currentArray.length; i++) {
+      if (currentArray[i] == true) {
+        flag = "Collapse All";
+      }
+    }
+    return flag;
   }
 
   observeState = () => {
     let updatedData = Store.getinstance();
     if (JSON.stringify(updatedData) !== JSON.stringify(this.data)) {
-      console.log('in the if..');
-      this.data = JSON.parse(JSON.stringify(updatedData))
+      console.log("in the if..");
+      this.data = JSON.parse(JSON.stringify(updatedData));
       this.render();
       Actions.ddlSummaryAndConversionApiCall();
     }
@@ -48,18 +65,17 @@ class SchemaConversionScreen extends HTMLElement {
 
   render() {
     console.log(this.data);
-    if (!this.data ) {
+    if (!this.data) {
       return;
     }
-    const {currentTab , tableData, tableBorderData} = this.data;
-    console.log(tableData);
-    let currentTabContent = tableData[`${currentTab}Content`] 
-    let tableNameArray ; 
-    if(currentTab === "reportTab")
-    {
+    const { currentTab, tableData, tableBorderData } = this.data;
+    let currentTabContent = tableData[`${currentTab}Content`];
+    const changingText = this.getChangingValue(currentTab);
+    let tableNameArray;
+    if (currentTab === "reportTab") {
       tableNameArray = Object.keys(currentTabContent.SpSchema);
-    }
-    else {
+      // delete currentTabContent["Stats"];
+    } else {
       tableNameArray = Object.keys(currentTabContent);
     }
 
@@ -75,7 +91,10 @@ class SchemaConversionScreen extends HTMLElement {
       <div class="report-tabs">
         <ul class="nav nav-tabs md-tabs" role="tablist">
            ${TAB_CONFIG_DATA.map((tab) => {
-                return `<hb-tab open="${Store.getinstance().currentTab === `${tab.id}Tab`}" tabid="${tab.id}" text="${tab.text}"></hb-tab>`}).join("")} 
+             return `<hb-tab open="${
+               Store.getinstance().currentTab === `${tab.id}Tab`
+             }" tabid="${tab.id}" text="${tab.text}"></hb-tab>`;
+           }).join("")} 
         </ul>
       </div>
       <div class="status-icons">
@@ -88,42 +107,64 @@ class SchemaConversionScreen extends HTMLElement {
         <div class="tab-content">
           ${currentTab === 'reportTab' ? `<div id="report" class="tab-pane fade show active">
             <div class="accordion md-accordion" id="accordion" role="tablist" aria-multiselectable="true">
-              <hb-site-button buttonid="reportExpandButton" classname="expand" buttonaction="expandAll" text="Expand All"></hb-site-button>
+              <hb-site-button buttonid="reportExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>
               <hb-site-button buttonid="editButton" classname="expand right-align" buttonaction="editGlobalDataType" text="Edit Global Data Type"></hb-site-button>
               <div id='reportDiv'>
-                ${tableNameArray.map((tableName, index) => { return `
-                    <hb-table-carousel tableTitle="${tableName}" data="{}" id="${currentTab}${index}" tableId="report" 
-                    tableIndex="${index}" borderData = "${tableBorderData[tableName]}"></hb-table-carousel>`}).join("")}                    
+                ${tableNameArray
+                  .map((tableName, index) => {
+                    return `
+                    <hb-table-carousel tableTitle="${tableName}" id="${currentTab}${index}" tableId="report" 
+                    tableIndex="${index}" borderData = "${tableBorderData[tableName]}"></hb-table-carousel>`;
+                  })
+                  .join("")}                    
                 </div>
             </div>
             <h5 class="no-text" id="reportnotFound">No Match Found</h5>
-          </div>` : `<div></div>`}
+          </div>`
+              : `<div></div>`
+          }
 
-          ${currentTab === 'ddlTab' ? `<div id="ddl" class="tab-pane fade show active">
+          ${
+            currentTab === "ddlTab"
+              ? `<div id="ddl" class="tab-pane fade show active">
             <div class="panel-group" id="ddl-accordion">
-              <hb-site-button buttonid="ddlExpandButton" classname="expand" buttonaction="expandAll" text="Expand All"></hb-site-button>
+              <hb-site-button buttonid="ddlExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>
               <hb-site-button buttonid="download-ddl" classname="expand right-align" buttonaction="downloadDdl" text="Download DDL Statements"></hb-site-button>
               <div id='ddlDiv'>
-                ${tableNameArray.map((tableName,index) => {return `
-                    <hb-table-carousel tableTitle="${tableName}" data="${currentTabContent[tableName]}" tableId="ddl" id="${currentTab}${index}" tableIndex=${index} borderData = "${tableBorderData[tableName]}">
-                    </hb-table-carousel>`;}).join("")} 
+                ${tableNameArray
+                  .map((tableName, index) => {
+                    return `
+                    <hb-table-carousel tableTitle="${tableName}" stringData="${currentTabContent[tableName]}" tableId="ddl" id="${currentTab}${index}" tableIndex=${index} borderData = "${tableBorderData[tableName]}">
+                    </hb-table-carousel>`;
+                  })
+                  .join("")} 
                 </div>
             </div>
             <h5 class="no-text" id="ddlnotFound">No Match Found</h5>
-          </div>`:`<div></div>`}
+          </div>`
+              : `<div></div>`
+          }
 
-          ${currentTab === 'summaryTab' ? `<div id="summary" class="tab-pane fade show active">
+          ${
+            currentTab === "summaryTab"
+              ? `<div id="summary" class="tab-pane fade show active">
             <div class="panel-group" id="summary-accordion">
-              <hb-site-button buttonid="summaryExpandButton" classname="expand" buttonaction="expandAll" text="Expand All"></hb-site-button>
+              <hb-site-button buttonid="summaryExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>
               <hb-site-button buttonid="download-report" classname="expand right-align" buttonaction="downloadReport" text="Download Summary Report"></hb-site-button>
               <div id='summaryDiv'>
-                ${tableNameArray.map((tableName,index) => {return `
-                    <hb-table-carousel tableTitle="${tableName}" data="${currentTabContent[tableName]}" id="${currentTab}${index}" tableId="summary" 
-                    tableIndex=${index} borderData = "${tableBorderData[tableName]}"></hb-table-carousel>`;}).join("")} 
+                ${tableNameArray
+                  .map((tableName, index) => {
+                    return `
+                    <hb-table-carousel tableTitle="${tableName}" stringData="${currentTabContent[tableName]}" id="${currentTab}${index}" tableId="summary" 
+                    tableIndex=${index} borderData = "${tableBorderData[tableName]}"></hb-table-carousel>`;
+                  })
+                  .join("")} 
               </div>
             </div>
             <h5 class="no-text" id="summarynotFound">No Match Found</h5>
-          </div>`:`<div></div>`}
+          </div>`
+              : `<div></div>`
+          }
 
           </div>
       </div>
@@ -137,10 +178,9 @@ class SchemaConversionScreen extends HTMLElement {
     <hb-modal modalId="createIndexModal" content="" contentIcon="" 
       connectIconClass="" modalBodyClass="" title="Select keys for new index"></hb-modal> `;
     initSchemaScreenTasks();
-    if(currentTab === 'reportTab'){
-      this.sendDatatoReportTab(tableNameArray,currentTabContent)
+    if (currentTab === "reportTab") {
+      this.sendDatatoReportTab(tableNameArray, currentTabContent);
     }
-
   }
 
   constructor() {
@@ -148,4 +188,7 @@ class SchemaConversionScreen extends HTMLElement {
   }
 }
 
-window.customElements.define("hb-schema-conversion-screen",SchemaConversionScreen);
+window.customElements.define(
+  "hb-schema-conversion-screen",
+  SchemaConversionScreen
+);

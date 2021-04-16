@@ -22,10 +22,6 @@ class DataTable extends HTMLElement {
         this.render()
     }
 
-    // static get observedAttributes() {
-    //     return ["open"];
-    // }
-
     connectedCallback() {
         if(Store.getinstance().checkInterleave[this.tableName] === undefined)
         {
@@ -164,12 +160,13 @@ class DataTable extends HTMLElement {
     render() {
        
         let { tableName, tableIndex, data } = this;
-        // console.log(data);
-        console.log("data in dtatable");
+        console.log("data");
         let countSrc = [], countSp = [], notNullConstraint = [];
         let schemaConversionObj =Store.getinstance().tableData.reportTabContent;
-        let spTable = schemaConversionObj.SpSchema[tableName];
-        let srcTable = schemaConversionObj.SrcSchema[tableName];
+        let spTable = data.SpSchema;
+        console.log();
+        console.log(spTable);
+        let srcTable = data.SrcSchema;
         let tableColumnsArray = schemaConversionObj.SpSchema[tableName].ColNames;
         let pksSp = [...spTable.Pks];
         let pksSpLength = pksSp.length;

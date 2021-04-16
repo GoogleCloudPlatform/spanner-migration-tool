@@ -29,6 +29,10 @@ class TableCarousel extends HTMLElement {
     return this._data;
   }
 
+  get stringData() {
+     return this.getAttribute("stringData");
+  }
+
   set data(value){
     this._data = value;
     this.render();
@@ -77,12 +81,10 @@ class TableCarousel extends HTMLElement {
 
   render() {
   //  console.log(this.data);
-    let {tableTitle, tableId, tableIndex, data, borderData} = this;
+    let {tableTitle, tableId, tableIndex, data, borderData, stringData} = this;
     // console.log(data);
-    if(tableId == "report" && data == "{}"){
-      console.log("inside");
-      return ;
-    }
+    console.log("data in ca ");
+    
     let color = borderData;
     let panelColor = panelBorderClass(color);
     let cardColor = mdcCardBorder(color);
@@ -124,7 +126,7 @@ class TableCarousel extends HTMLElement {
             ${ tableId == "report" ? `
             <hb-data-table tableName="${tableTitle}" tableIndex="${tableIndex}" ></hb-data-table>` 
             :
-            `<hb-list-table tabName="${tableId}" tableName="${tableTitle}" dta="${data}"></hb-list-table>`
+            `<hb-list-table tabName="${tableId}" tableName="${tableTitle}" dta="${stringData}"></hb-list-table>`
            }
           </div>
         </div>
