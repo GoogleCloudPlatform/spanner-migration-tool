@@ -31,7 +31,8 @@ class SchemaConversionScreen extends HTMLElement {
     {
       let filterdata = currentTabContent.SpSchema[tableNameArray[i]];
       let component = document.querySelector(`#reportTab${i}`)
-      component.setAttribute('data',JSON.stringify(filterdata));
+      // component.setAttribute('data',JSON.stringify(filterdata));
+      component.data = filterdata
     }
   }
 

@@ -14,20 +14,24 @@ class DataTable extends HTMLElement {
     }
 
     get data() {
-        return JSON.parse(this.getAttribute("dta"));
+        return this._dta
     }
 
-    static get observedAttributes() {
-        return ["open"];
+    set data(value){
+        this._dta = value;
+        this.render()
     }
+
+    // static get observedAttributes() {
+    //     return ["open"];
+    // }
 
     connectedCallback() {
         if(Store.getinstance().checkInterleave[this.tableName] === undefined)
         {
             Actions.checkInterleaveConversion(this.tableName);
         }
-        this.checkInterLeave = Store.getinstance().checkInterleave[this.tableName];
-        this.render();  
+        this.checkInterLeave = Store.getinstance().checkInterleave[this.tableName]; 
      }   
 
     fkComponent(tableIndex, tableName, fkArray) {
@@ -158,7 +162,9 @@ class DataTable extends HTMLElement {
     }
 
     render() {
+       
         let { tableName, tableIndex, data } = this;
+        // console.log(data);
         console.log("data in dtatable");
         let countSrc = [], countSp = [], notNullConstraint = [];
         let schemaConversionObj =Store.getinstance().tableData.reportTabContent;

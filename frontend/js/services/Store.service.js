@@ -23,7 +23,6 @@ const Store = (function () {
     },
     tableBorderData:{},
     globalDataTypeList:{},
-    
    };
   let modalId = "connectToDbModal";
   let checkInterLeaveArray = {};
@@ -85,7 +84,6 @@ const Store = (function () {
       return JSON.parse(instance.tableData[tabName + "Content"]);
     },
     updateTableData:(key , data)=>{
-      debugger
       instance.tableData[key] = data;
     },
     updateTableBorderData:(data)=>{

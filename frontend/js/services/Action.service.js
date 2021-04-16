@@ -212,8 +212,7 @@ const Actions = (() => {
         document.getElementById(buttonId).innerHTML = "Expand All";
         Store.expandAll(false);
       }
-     
-    },
+     },
     downloadSession: async () => {
       jQuery("<a />", {
         download: "session.json",
@@ -503,6 +502,7 @@ const Actions = (() => {
       }
     },
     editAndSaveButtonHandler: async (event, tableNumber, tableName, notNullConstraint) => {
+      debugger
       let schemaConversionObj =Store.getinstance().tableData.reportTabContent
       let tableId = '#src-sp-table' + tableNumber + ' tr';
       let tableColumnNumber = 0, tableData, fkTableData, secIndexTableData;
@@ -848,7 +848,7 @@ const Actions = (() => {
               jQuery('#renameSecIndex' + tableNumber + x).addClass('template');
             }
           }
-          Store.updateSchemaScreen(JSON.stringify(Store.getinstance().tableData.reportTabContent));
+          // Store.updateSchemaScreen(Store.getinstance().tableData.reportTabContent);
         }
       }
     },

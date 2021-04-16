@@ -26,16 +26,24 @@ class TableCarousel extends HTMLElement {
   }
 
   get data() {
-    return this.getAttribute("data")
+    return this._data;
   }
+
+  set data(value){
+    this._data = value;
+    this.render();
+    this.addEventListenertoCarausal();
+    document.querySelector(`hb-data-table[tableName=${this.tableTitle}`).data =this._data; 
+    console.log(document.querySelector(`hb-data-table[tableName=${this.tableTitle}`));
+}
 
   get borderData() {
     return this.getAttribute("borderData");
   }
 
-  static get observedAttributes() {
-    return ["data"];
-  }
+  // static get observedAttributes() {
+  //   return ["data"];
+  // }
 
   addEventListenertoCarausal() {
     document.getElementById(`id-${this.tableId}-${this.tableIndex}`).addEventListener('click',()=>{
@@ -49,26 +57,26 @@ class TableCarousel extends HTMLElement {
     })
   }
 
-  attributeChangedCallback(attrName, oldVal, newVal ) {
-      //  console.log(oldVal,newVal);
-    if (attrName === 'data' && newVal !== "{}" && oldVal!==null) {
-        this.render();
-        if(newVal!=="{}" && oldVal=="{}") {
-          this.addEventListenertoCarausal();
-        }
-      }
-  }
+  // attributeChangedCallback(attrName, oldVal, newVal ) {
+  //     //  console.log(oldVal,newVal);
+  //   if (attrName === 'data' && newVal !== "{}" && oldVal!==null) {
+  //       this.render();
+  //       if(newVal!=="{}" && oldVal=="{}") {
+  //         this.addEventListenertoCarausal();
+  //       }
+  //     }
+  // }
 
   connectedCallback() {
-    this.render();
     if(this.tableId!="report")
     {
-       this.addEventListenertoCarausal();
+      this.render();
+      this.addEventListenertoCarausal();
     } 
   }
 
   render() {
-   
+  //  console.log(this.data);
     let {tableTitle, tableId, tableIndex, data, borderData} = this;
     // console.log(data);
     if(tableId == "report" && data == "{}"){
@@ -79,7 +87,7 @@ class TableCarousel extends HTMLElement {
     let panelColor = panelBorderClass(color);
     let cardColor = mdcCardBorder(color);
     let carouselStatus = Store.getinstance().openStatus[this.tableId][this.tableIndex];
-
+    let editButtonVisibleClass = carouselStatus ? 'show-content' : 'hide-content'
     this.innerHTML = `
     <section class="${tableId}Section" id="${tableIndex}">
       <div class="card">
@@ -88,21 +96,21 @@ class TableCarousel extends HTMLElement {
           <h5 class="mb-0">
             <a data-toggle="collapse" id="id-${tableId}-${tableIndex}">
               Table: <span>${tableTitle}</span>
-              <i class="fas fa-angle-down rotate-icon"></i>
+              <i class="fas fa-angle-${carouselStatus?'up':'down'} rotate-icon"></i>
             </a>
-            ${ tableId == "report" ? `
-                <span class="spanner-text right-align hide-content">Spanner</span>
-                <span class="spanner-icon right-align hide-content">
+            ${ tableId ==="report" ? `
+                <span class="spanner-text right-align ${editButtonVisibleClass}">Spanner</span>
+                <span class="spanner-icon right-align ${editButtonVisibleClass}">
                   <i class="large material-icons iconSize">circle</i>
                 </span>
-                <span class="source-text right-align hide-content">Source</span>
-                <span class="source-icon right-align hide-content">
+                <span class="source-text right-align ${editButtonVisibleClass}">Source</span>
+                <span class="source-icon right-align ${editButtonVisibleClass}">
                   <i class="large material-icons iconSize">circle</i>
                 </span>
-                <button class="right-align edit-button hide-content" id="editSpanner${tableIndex}">
+                <button class="right-align edit-button ${editButtonVisibleClass}" id="editSpanner${tableIndex}">
                   Edit Spanner Schema
                 </button>
-                <span id="editInstruction${tableIndex}" class="right-align editInstruction hide-content blink">
+                <span id="editInstruction${tableIndex}" class="right-align editInstruction ${editButtonVisibleClass} blink">
                   Schema locked for editing. Unlock to change =>
                 </span> `
                 :
@@ -111,10 +119,10 @@ class TableCarousel extends HTMLElement {
           </h5>
         </div>
     
-        <div class="collapse ${tableId}Collapse ${carouselStatus?"show":""}" id="${tableId}-${tableTitle}">
+        <div class="collapse ${tableId}Collapse ${carouselStatus?"show bs collapse":""}" id="${tableId}-${tableTitle}">
           <div class="mdc-card mdc-card-content table-card-border ${cardColor}">
             ${ tableId == "report" ? `
-            <hb-data-table tableName="${tableTitle}" tableIndex="${tableIndex}" dta='${data}'></hb-data-table>` 
+            <hb-data-table tableName="${tableTitle}" tableIndex="${tableIndex}" ></hb-data-table>` 
             :
             `<hb-list-table tabName="${tableId}" tableName="${tableTitle}" dta="${data}"></hb-list-table>`
            }
