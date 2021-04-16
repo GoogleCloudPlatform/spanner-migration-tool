@@ -160,15 +160,14 @@ class DataTable extends HTMLElement {
     render() {
        
         let { tableName, tableIndex, data } = this;
-        console.log("data");
+        console.log(data);
         let countSrc = [], countSp = [], notNullConstraint = [];
-        let schemaConversionObj =Store.getinstance().tableData.reportTabContent;
-        let spTable = data.SpSchema;
-        console.log();
-        console.log(spTable);
+        let schemaConversionObj = Store.getinstance().tableData.reportTabContent;
+        // let spTable  = data.SpSchema;
+        let spTable  = schemaConversionObj.SpSchema[tableName];
         let srcTable = data.SrcSchema;
-        let tableColumnsArray = schemaConversionObj.SpSchema[tableName].ColNames;
-        let pksSp = [...spTable.Pks];
+        let tableColumnsArray = data.SpSchema.ColNames;
+        let pksSp = [...spTable .Pks];
         let pksSpLength = pksSp.length;
         let pkSeqId = 1;
         countSrc[tableIndex] = [];
@@ -214,7 +213,7 @@ class DataTable extends HTMLElement {
                                                 pkFlag = true; seqId = pksSp[x].seqId;
                                                 break
                                             }
-                                        } let currentColumnSrc = schemaConversionObj.ToSource[spTable.Name].Cols[tableColumn]; return `
+                                        } let currentColumnSrc = data.ToSource.Cols[tableColumn]; return `
                                             <tr class="reportTableContent">
                                             <td class="acc-table-td src-tab-cell">
                                                 <span class="bmd-form-group is-filled eachRowChckBox template">
@@ -269,7 +268,7 @@ class DataTable extends HTMLElement {
                                             <td class="sp-column acc-table-td spannerDataType spannerTabCell${tableIndex}${index}"
                                                 id="dataType${tableIndex}${index}">
                                                 <div class="saveDataType" id="saveDataType${tableIndex}${index}">
-                                                    ${spTable.ColDefs[tableColumn].T.Name}</div>
+                                                    ${spTable .ColDefs[tableColumn].T.Name}</div>
                                                 <div class="editDataType template" id="editDataType${tableIndex}${index}">
                                                     <div class="form-group">
                                                         <select class="form-control spanner-input tableSelect"
@@ -298,7 +297,7 @@ class DataTable extends HTMLElement {
                                                 <div class="saveConstraint" id="saveConstraint${tableIndex}${index}">
                                                     <select multiple size="1" class="form-control spanner-input tableSelect spannerConstraint"
                                                         id="spConstraint${tableIndex}${index}">
-                                                        ${spTable.ColDefs[tableColumn].NotNull ?
+                                                        ${spTable .ColDefs[tableColumn].NotNull ?
                                                 (countSp[tableIndex][index] = countSp[tableIndex][index] + 1,
                                                     notNullConstraint[parseInt(String(tableIndex) + String(index))] = 'Not Null',
                                                     `<option disabled class="active">
@@ -316,8 +315,8 @@ class DataTable extends HTMLElement {
                                     }).join("")}
                                     </tbody>
                                 </table>
-                                ${spTable.Fks?.length > 0 ? this.fkComponent(tableIndex, tableName, spTable.Fks) : `<div></div>`}
-                                ${this.secIndexComponent(tableIndex, tableName, spTable.Indexes)}
+                                ${spTable .Fks?.length > 0 ? this.fkComponent(tableIndex, tableName, spTable .Fks) : `<div></div>`}
+                                ${this.secIndexComponent(tableIndex, tableName, spTable .Indexes)}
                                 <div class="summaryCard">
                                     <div class="summaryCardHeader" role="tab">
                                         <h5 class="mb-0">
@@ -326,7 +325,7 @@ class DataTable extends HTMLElement {
                                     </div>
                                     <div class="collapse innerSummaryCollapse" id="viewSummary${tableIndex}">
                                         <div class="mdc-card mdc-card-content summaryBorder">
-                                            <hb-list-table tabName="summary" tableName="${tableName}"></hb-list-table>
+                                            <hb-list-table tabName="summary" dta="${data.summary}" tableName="${tableName}"></hb-list-table>
                                         </div>
                                     </div>
                                 </div>
@@ -347,8 +346,8 @@ class DataTable extends HTMLElement {
         document.getElementById("editSpanner" + tableIndex).addEventListener("click", (event) => {
             Actions.editAndSaveButtonHandler(event, tableIndex, tableName, notNullConstraint);
         });
-        if (spTable.Fks !== null && spTable.Fks.length > 0) {
-            spTable.Fks.map((fk, index) => {
+        if (spTable .Fks !== null && spTable .Fks.length > 0) {
+            spTable .Fks.map((fk, index) => {
                 document.getElementById(tableName + index + 'foreignKey').addEventListener('click', () => {
                     jQuery('#indexAndKeyDeleteWarning').modal();
                     jQuery('#indexAndKeyDeleteWarning').find('#modal-content').html(`This will permanently delete the foreign key constraint and the corresponding uniqueness constraints on referenced columns. Do you want to continue?`);
@@ -359,8 +358,8 @@ class DataTable extends HTMLElement {
                 })
             });
         }
-        if (spTable.Indexes !== null && spTable.Indexes.length > 0) {
-            spTable.Indexes.map((secIndex, index) => {
+        if (spTable .Indexes !== null && spTable .Indexes.length > 0) {
+            spTable .Indexes.map((secIndex, index) => {
                 document.getElementById(tableName + index + 'secIndex').addEventListener('click', () => {
                     jQuery('#indexAndKeyDeleteWarning').modal();
                     jQuery('#indexAndKeyDeleteWarning').find('#modal-content').html(`This will permanently delete the secondary index and the corresponding uniqueness constraints on indexed columns (if applicable). Do you want to continue?`);

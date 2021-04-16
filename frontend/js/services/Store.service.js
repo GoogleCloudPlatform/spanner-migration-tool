@@ -16,6 +16,11 @@ const Store = (function () {
       report: new Array(16).fill(false),
       summary:new Array(16).fill(false),
     },
+    searchInputValue :{
+      ddlTab:'',
+      reportTab:'',
+      summaryTab:''
+    },
     tableData:{
       reportTabContent: {},
       ddlTabContent: {},
@@ -111,6 +116,12 @@ const Store = (function () {
     },
     getGlobalDataTypeList:()=>{
         return instance.globalDataTypeList;
+    },
+    setSearchInputValue :(key,value)=>{
+      instance.searchInputValue[key]=value;
+    },
+    getSearchInputValue:(key)=>{
+      return instance.searchInputValue[key];
     }
 
  };

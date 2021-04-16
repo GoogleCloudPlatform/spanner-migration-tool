@@ -1,6 +1,6 @@
 import Store from "./Store.service.js";
 import Fetch from "./Fetch.service.js";
-import { readTextFile, showSnackbar, tabbingHelper, recreateNode } from "./../helpers/SchemaConversionHelper.js";
+import { readTextFile, showSnackbar} from "./../helpers/SchemaConversionHelper.js";
 
 var keysList = [];
 var orderId = 0;
@@ -166,40 +166,36 @@ const Actions = (() => {
         }
       });
     },
-    switchToTab: (id) => {
-      let others = ["report", "ddl", "summary"];
-      others = others.filter((element) => element != id);
-      tabbingHelper(id, others);
-    },
     SearchTable: (value, tabId) => {
-      let tableVal, list, listElem;
-      let ShowResultNotFound = true;
-        let schemaConversionObj =Store.getinstance().tableData.reportTabContent;
-      if (tabId === "report") {
-        list = document.getElementById(`accordion`);
-      } else {
-        list = document.getElementById(`${tabId}-accordion`);
-      }
-      listElem = list.getElementsByTagName("section");
-      let tableListLength = Object.keys(schemaConversionObj.SpSchema).length;
-      for (var i = 0; i < tableListLength; i++) {
-        tableVal = Object.keys(schemaConversionObj.SpSchema)[i];
-        if (tableVal.indexOf(value) > -1) {
-          listElem[i].style.display = "";
-          ShowResultNotFound = false;
-        }
-        else {
-          listElem[i].style.display = "none";
-        }
-      }
-      if (ShowResultNotFound) {
-        list.style.display = "none";
-        document.getElementById(`${tabId}notFound`).style.display = "block";
-      }
-      else {
-        list.style.display = "";
-        document.getElementById(`${tabId}notFound`).style.display = "none";
-      }
+      Store.setSearchInputValue(tabId , value)
+      // let tableVal, list, listElem;
+      // let ShowResultNotFound = true;
+      //   let schemaConversionObj =Store.getinstance().tableData.reportTabContent;
+      // if (tabId === "report") {
+      //   list = document.getElementById(`accordion`);
+      // } else {
+      //   list = document.getElementById(`${tabId}-accordion`);
+      // }
+      // listElem = list.getElementsByTagName("section");
+      // let tableListLength = Object.keys(schemaConversionObj.SpSchema).length;
+      // for (var i = 0; i < tableListLength; i++) {
+      //   tableVal = Object.keys(schemaConversionObj.SpSchema)[i];
+      //   if (tableVal.indexOf(value) > -1) {
+      //     listElem[i].style.display = "";
+      //     ShowResultNotFound = false;
+      //   }
+      //   else {
+      //     listElem[i].style.display = "none";
+      //   }
+      // }
+      // if (ShowResultNotFound) {
+      //   list.style.display = "none";
+      //   document.getElementById(`${tabId}notFound`).style.display = "block";
+      // }
+      // else {
+      //   list.style.display = "";
+      //   document.getElementById(`${tabId}notFound`).style.display = "none";
+      // }
     },
     expandAll: (text, buttonId) => {
       if (text === "Expand All") {
