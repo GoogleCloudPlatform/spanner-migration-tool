@@ -163,8 +163,7 @@ class DataTable extends HTMLElement {
         console.log("data");
         let countSrc = [], countSp = [], notNullConstraint = [];
         let schemaConversionObj =Store.getinstance().tableData.reportTabContent;
-        let spTable = data.SpSchema;
-        console.log();
+        let spTable = schemaConversionObj.SpSchema[tableName];
         console.log(spTable);
         let srcTable = data.SrcSchema;
         let tableColumnsArray = schemaConversionObj.SpSchema[tableName].ColNames;
@@ -326,7 +325,7 @@ class DataTable extends HTMLElement {
                                     </div>
                                     <div class="collapse innerSummaryCollapse" id="viewSummary${tableIndex}">
                                         <div class="mdc-card mdc-card-content summaryBorder">
-                                            <hb-list-table tabName="summary" tableName="${tableName}"></hb-list-table>
+                                            <hb-list-table tabName="summary" tableName="${tableName}" dta="${data.summary}"></hb-list-table>
                                         </div>
                                     </div>
                                 </div>
