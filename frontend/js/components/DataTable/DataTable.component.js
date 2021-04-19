@@ -160,7 +160,6 @@ class DataTable extends HTMLElement {
     render() {
        
         let { tableName, tableIndex, data } = this;
-        console.log(data);
         let countSrc = [], countSp = [], notNullConstraint = [];
         let schemaConversionObj = Store.getinstance().tableData.reportTabContent;
         // let spTable  = data.SpSchema;
@@ -325,11 +324,7 @@ class DataTable extends HTMLElement {
                                     </div>
                                     <div class="collapse innerSummaryCollapse" id="viewSummary${tableIndex}">
                                         <div class="mdc-card mdc-card-content summaryBorder">
-<<<<<<< HEAD
                                             <hb-list-table tabName="summary" dta="${data.summary}" tableName="${tableName}"></hb-list-table>
-=======
-                                            <hb-list-table tabName="summary" tableName="${tableName}" dta="${data.summary}"></hb-list-table>
->>>>>>> 21dfc182b822e5518fc077802455c803eae0131e
                                         </div>
                                     </div>
                                 </div>

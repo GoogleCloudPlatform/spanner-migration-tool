@@ -9,6 +9,25 @@ class Search extends HTMLElement {
     return this.getAttribute("searchid");
   }
 
+  focusCampo(id){
+    var inputField = document.getElementById(id);
+    if (inputField != null && inputField.value.length != 0){
+        if (inputField.createTextRange){
+            var FieldRange = inputField.createTextRange();
+            FieldRange.moveStart('character',inputField.value.length);
+            FieldRange.collapse();
+            FieldRange.select();
+        }else if (inputField.selectionStart || inputField.selectionStart == '0') {
+            var elemLen = inputField.value.length;
+            inputField.selectionStart = elemLen;
+            inputField.selectionEnd = elemLen;
+            inputField.focus();
+        }
+    }else{
+        inputField.focus();
+    }
+  }
+
   connectedCallback() {
     this.render();
   }
@@ -30,6 +49,14 @@ class Search extends HTMLElement {
           this.tabId
         )
       );
+    let search = document.getElementById('search-input');
+    let {currentTab,searchInputValue } = Store.getinstance()
+    let value = searchInputValue[currentTab];
+    console.log(typeof value , value);
+    if(value.length > 0){
+      search.value= value;
+      this.focusCampo('search-input')
+    }
   }
 
   constructor() {
