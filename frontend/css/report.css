@@ -65,22 +65,22 @@
     color: #4285F4;
 }
 
-.acc-card-content{
+/* .acc-card-content{
     text-align: center;
     vertical-align: middle;
     margin: auto;
     background-color: #DCDCDC47;
     height: auto;
-}
+} */
 
-.acc-column{
+/* .acc-column{
     color: #5E5752;
     background: #EDEDED;
     text-align: center;
     padding: 10px;
-}
+} */
 
-.acc-table-th{
+/* .acc-table-th{
     padding: 10px;
     background-color: #0000FF;
     color: #FFFFFF;
@@ -101,7 +101,7 @@
     border-radius: 0 0 10px 10px;
     padding: 10px;
     border-right: 1px solid #80808073;
-}
+} */
 
 .mdc-card {
     margin: 10px 0;
@@ -134,26 +134,26 @@
     background: #A19B9B; 
 }
 
-.acc-table-td{
+/* .acc-table-td{
     padding: 10px;
     font-size: 16px;
     text-align: center;
     word-break: break-all;
-}
+} */
 
-.removeIcon {
+/* .removeIcon {
     font-size: 16px !important;
     font-weight: 600 !important;
-}
+} */
 
-.dropButton {
+/* .dropButton {
     color: #FF5400CC;
     background-color: #FFFFFF;
     border: 1px solid #FF5400CC;
     border-radius: 20px;
     font-size: 16px;
     font-weight: 600;
-}
+} */
 
 input[type="text"]:disabled {
     background: #dddddd;
@@ -338,7 +338,7 @@ button[disabled]{
     border-radius: 10px 10px 0px 0px !important;
 }
 
-.mdc-card {
+/* .mdc-card {
     margin: 0px;
 }
 
@@ -347,12 +347,7 @@ button[disabled]{
     border-radius: 0px 0px 10px 10px !important;
     border-top: 0px !important;
     margin-top: -5px;
-}
-
-.inst-mdc-card-content {
-    background: #FDFDFD;
-    margin-top: -5px;
-}
+} */
 
 .ddl-border {
     border: 1px solid #80808096;
@@ -419,10 +414,10 @@ button[disabled]{
     margin-top: 5px;
 }
 
-.bmd-form-group .checkbox {
+/* .bmd-form-group .checkbox {
     display: table-caption;
     float: left;
-}
+} */
 
 .source-text{
     margin-top: 5.4px;
@@ -500,7 +495,7 @@ button[disabled]{
     margin-top: 12px !important;
 }
 
-.acc-table > tbody{
+/* .acc-table > tbody{
     display: block;
     overflow: auto;
     max-height: 202px;
@@ -516,7 +511,7 @@ button[disabled]{
     display: block;
     overflow: auto;
     max-height: 202px;
-}
+} */
 
 .data-type-table > tbody {
     display: block;
@@ -528,10 +523,6 @@ thead, tbody tr {
     display:table;
     width:100%;
     table-layout:fixed;
-}
-
-.src-tab-cell{
-
 }
 
 .ddl-content {
@@ -673,7 +664,7 @@ span.sql-c {
     background-color: #FFFFFF !important;
 }
 
-.checkbox label input[type=checkbox]:checked+.checkbox-decorator .check, label.checkbox-inline input[type=checkbox]:checked+.checkbox-decorator .check {
+/* .checkbox label input[type=checkbox]:checked+.checkbox-decorator .check, label.checkbox-inline input[type=checkbox]:checked+.checkbox-decorator .check {
     color: #4285F4;
     border-color: #4285F4;
 }
@@ -685,7 +676,7 @@ span.sql-c {
     vertical-align: middle;
     cursor: pointer;
     border-radius: 100%;
-}
+} */
 
 .searchBox {
     border-left: 0px !important;
@@ -733,14 +724,14 @@ span.sql-c {
     width: 60%;
 }
   
-.keyMargin {
+/* .keyMargin {
     margin-top: 5px;
     margin-right: 12px;
-}
+} */
 
-.keyClick {
+/* .keyClick {
     cursor: pointer;
-}
+} */
   
 .selectBox select {
     width: 100%;
@@ -787,12 +778,12 @@ span.sql-c {
     right: 6px !important;
 }
 
-.summaryCardHeader {
+/* .summaryCardHeader {
     padding: 1rem;
     background-color: #FDFDFD;
     height: 0px;
     border-radius: 10px !important;
-}
+} */
 
 .interleaveCardHeader {
     padding: 1rem;
@@ -800,64 +791,61 @@ span.sql-c {
     height: 0px;
 }
 
-.foreignKeyHeader {
+/* .foreignKeyHeader {
     padding: 1rem;
     background-color: #FDFDFD;
     height: 0px;
-}
+} */
 
-.summaryCardHeader a {
-}
-
-.summaryCardHeader a i{
+/* .summaryCardHeader a i{
     padding-top: 2px;
     float: left;
-}
+} */
 
-.summaryCard {
+/* .summaryCard {
     margin-bottom: 0px;
     border: 1px solid #8080806B;
     border-radius: 0px 0px 10px 10px !important;
     background-color: #FDFDFD;
     box-shadow: 0px 3px 16px #00000029;
-}
+} */
 
-.fkCard {
+/* .fkCard {
     margin-bottom: 0px;
     border: 1px solid #8080806B;
     border-radius: 0px 0px 10px 10px !important;
     background-color: #FDFDFD;
     box-shadow: 0px 3px 16px #00000029;
-}
+} */
 
-.summaryFont {
+/* .summaryFont {
     font-size: 16px !important;
     color: #4285F4 !important;
     float: left;
     margin-top: -10px;
     font-weight: 700;
-}
+} */
 
-.fkFont, .indexFont {
+/* .fkFont, .indexFont {
     font-size: 16px !important;
     color: #4285F4 !important;
     float: left;
     margin-top: -10px;
     font-weight: 700;
-}
+} */
 
-.summaryCollapse, .innerSummaryCollapse {
+/* .summaryCollapse, .innerSummaryCollapse {
     text-align: left;
-}
+} */
 
-.fkCollapse, .indexCollapse {
+/* .fkCollapse, .indexCollapse {
     text-align: left;
-}
+} */
 
-.summaryBorder {
+/* .summaryBorder {
     border: 0px;
     margin-top: 0px;
-}
+} */
 
 [data-title]:hover:after {
     opacity: 1;
@@ -946,22 +934,22 @@ span.sql-c {
     background: #AAAAAA;
 }
 
-.hidePrimaryKey {
+/* .hidePrimaryKey {
     display: none;
 }
 
 .primaryKey:hover + .hidePrimaryKey {
     display: block;
-}
+} */
 
 table.dataTable thead th, table.dataTable thead td {
     border-bottom: none !important;
 }
 
-.radio-class {
+/* .radio-class {
     float: left;
     clear: none;
-}
+} */
 
 label {
     float: left;
@@ -976,7 +964,7 @@ input.radio {
     margin: 2px 0 0 2px;
 }
 
-.fkTable tr {
+/* .fkTable tr {
     border: 1px solid #CCCCCC;
     border-top: 0px;
     border-collapse: collapse;
@@ -986,25 +974,24 @@ input.radio {
     border-top: 1px solid #CCCCCC;
     background-color: #EDEDED;
     color: #5E5752;
-}
+} */
 
-input[type=radio], input.radio {
+/* input[type=radio], input.radio {
     float: left;
     clear: none;
     margin: 2px 15px 0 2px;
     cursor: pointer;
-}
+} */
 
-.newIndexButton {
+/* .newIndexButton {
     font-size: 16px;
     font-weight: bold;
     border-radius: 20px;
-    /* margin-top: -14px; */
     margin-bottom: 20px;
     border: 1px solid #4285F4 !important;
     color: #FFFFFF;
     background: #4285F4;
-}
+} */
 
 .secIndexLabel {
     margin-bottom: 22px !important;

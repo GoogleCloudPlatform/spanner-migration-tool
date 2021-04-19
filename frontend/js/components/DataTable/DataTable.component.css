@@ -1,4 +1,218 @@
-.verticalAlignmentMiddle {
+.acc-card-content{
+    text-align: center;
+    vertical-align: middle;
+    margin: auto;
+    background-color: #DCDCDC47;
+    height: auto;
+}
+
+.acc-table-th{
+    padding: 10px;
+    background-color: #0000FF;
+    color: #FFFFFF;
+}
+
+.acc-table-th-src {
+    text-align: center;
+    color: #5E5752;
+    background-color: #CBCBCB;
+    border-radius: 0 0 10px 10px;
+    padding: 10px;
+}
+
+.acc-table-th-spn {
+    text-align: center;
+    background: #3A78C1;
+    color: #FFFFFF;
+    border-radius: 0 0 10px 10px;
+    padding: 10px;
+    border-right: 1px solid #80808073;
+}
+
+.acc-table-td{
+    padding: 10px;
+    font-size: 16px;
+    text-align: center;
+    word-break: break-all;
+}
+
+.acc-table > tbody{
+    display: block;
+    overflow: auto;
+    max-height: 202px;
+}
+
+.fk-acc-table > tbody{
+    display: block;
+    overflow: auto;
+    max-height: 202px;
+}
+
+.fk-table tr {
+    border: 1px solid #CCCCCC;
+    border-top: 0px;
+    border-collapse: collapse;
+  }
+
+.fk-table th {
+    border-top: 1px solid #CCCCCC;
+    background-color: #EDEDED;
+    color: #5E5752;
+}
+
+.drop-button {
+    color: #FF5400CC;
+    background-color: #FFFFFF;
+    border: 1px solid #FF5400CC;
+    border-radius: 20px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.remove-icon {
+    font-size: 16px !important;
+    font-weight: 600 !important;
+}
+
+.index-acc-table > tbody{
+    display: block;
+    overflow: auto;
+    max-height: 202px;
+}
+
+.acc-column{
+    color: #5E5752;
+    background: #EDEDED;
+    text-align: center;
+    padding: 10px;
+}
+
+.bmd-form-group .checkbox {
+    display: table-caption;
+    float: left;
+}
+
+.checkbox label input[type=checkbox]:checked+.checkbox-decorator .check, label.checkbox-inline input[type=checkbox]:checked+.checkbox-decorator .check {
+    color: #4285F4;
+    border-color: #4285F4;
+}
+
+.checkbox label .checkbox-decorator, label.checkbox-inline .checkbox-decorator .check{
+    left: 0;
+    margin: -.7em;
+    line-height: .7;
+    vertical-align: middle;
+    cursor: pointer;
+    border-radius: 100%;
+}
+
+.key-margin {
+    margin-top: 5px;
+    margin-right: 12px;
+}
+
+.primary-key:hover {
+    display: block;
+}
+
+.summary-card {
+    margin-bottom: 0px;
+    border: 1px solid #8080806B;
+    border-radius: 0px 0px 10px 10px !important;
+    background-color: #FDFDFD;
+    box-shadow: 0px 3px 16px #00000029;
+}
+
+.summary-font {
+    font-size: 16px !important;
+    color: #4285F4 !important;
+    float: left;
+    margin-top: -10px;
+    font-weight: 700;
+}
+
+.summary-collapse, .inner-summary-collapse {
+    text-align: left;
+}
+
+.summary-card-header {
+    padding: 1rem;
+    background-color: #FDFDFD;
+    height: 0px;
+    border-radius: 10px !important;
+}
+
+.summary-card-header a i{
+    padding-top: 2px;
+    float: left;
+}
+
+.mdc-card {
+    margin: 0px;
+}
+
+.mdc-card-content {
+    background: #FDFDFD;
+    border-radius: 0px 0px 10px 10px !important;
+    border-top: 0px !important;
+    margin-top: -5px;
+}
+
+.summary-border {
+    border: 0px;
+    margin-top: 0px;
+}
+
+.fk-card {
+    margin-bottom: 0px;
+    border: 1px solid #8080806B;
+    border-radius: 0px 0px 10px 10px !important;
+    background-color: #FDFDFD;
+    box-shadow: 0px 3px 16px #00000029;
+}
+
+.foreign-key-header {
+    padding: 1rem;
+    background-color: #FDFDFD;
+    height: 0px;
+}
+
+.fk-font, .index-font {
+    font-size: 16px !important;
+    color: #4285F4 !important;
+    float: left;
+    margin-top: -10px;
+    font-weight: 700;
+}
+
+.fk-collapse, .index-collapse {
+    text-align: left;
+}
+
+.radio-class {
+    float: left;
+    clear: none;
+}
+
+input[type=radio], input.radio {
+    float: left;
+    clear: none;
+    margin: 2px 15px 0 2px;
+    cursor: pointer;
+}
+
+.new-index-button {
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 20px;
+    margin-bottom: 20px;
+    border: 1px solid #4285F4 !important;
+    color: #FFFFFF;
+    background: #4285F4;
+}
+
+
+.vertical-alignment-middle {
     vertical-align: middle;
 }
 

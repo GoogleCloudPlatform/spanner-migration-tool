@@ -52,7 +52,7 @@ class LoadDbDumpForm extends HTMLElement {
             </div>
             <form id="load-db-form">
                 <div>
-                    <label class="modal-label" for="dump-file-path">Path of the Dump File</label>
+                    <label for="dump-file-path">Path of the Dump File</label>
                     <input class="form-control load-db-input" type="text" name="dump-file-path" id="dump-file-path"
                         autocomplete="off" />
                     <span class='form-error' id='file-path-error'></span>
