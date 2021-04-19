@@ -13,9 +13,9 @@ const Store = (function () {
     sourceDbName: '',
     globalDbType: '',
     openStatus: {
-      ddl: new Array(16).fill(false),
-      report: new Array(16).fill(false),
-      summary: new Array(16).fill(false),
+      ddl: new Array(1).fill(false),
+      report: new Array(1).fill(false),
+      summary: new Array(1).fill(false),
     },
     searchInputValue :{
       ddlTab:'',
@@ -46,6 +46,15 @@ const Store = (function () {
 
     setTableChanges: (val) => {
       tableChanges = val;
+    },
+
+    setarraySize: (val) => {
+      console.log(val);
+      instance.openStatus = {
+      ddl: new Array(val).fill(false),
+      report: new Array(val).fill(false),
+      summary: new Array(val).fill(false),
+      }
     },
 
     // Other store manipulator functions here
@@ -142,6 +151,32 @@ const Store = (function () {
     },
     getSearchInputValue:(key)=>{
       return instance.searchInputValue[key];
+    },
+    resetStore: () => {
+      instance = {
+        checkInterleave: {},
+        currentTab: "reportTab",
+        sourceDbName: '',
+        globalDbType: '',
+        openStatus: {
+          ddl: new Array(1).fill(false),
+          report: new Array(1).fill(false),
+          summary: new Array(1).fill(false),
+        },
+        searchInputValue :{
+          ddlTab:'',
+          reportTab:'',
+          summaryTab:''
+        },
+        tableData:{
+          reportTabContent: {},
+          ddlTabContent: {},
+          summaryTabContent: {}
+        },
+        tableBorderData: {},
+        globalDataTypeList: {},
+      };
+
     }
 
   };

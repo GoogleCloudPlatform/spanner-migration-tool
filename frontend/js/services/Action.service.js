@@ -28,6 +28,7 @@ const Actions = (() => {
       Store.toggleStore();
     },
     onLoadDatabase: async (dbType, dumpFilePath) => {
+      Store.resetStore();
       let reportData, sourceTableFlag, reportDataResp, reportDataCopy, jsonReportDataResp, requestCode;
       reportData = await Fetch.getAppData("POST", "/convert/dump", { Driver: dbType, Path: dumpFilePath });
       console.log(reportData);
@@ -49,10 +50,12 @@ const Actions = (() => {
           Store.updateTableData("reportTabContent", jsonReportDataResp);
         }
       }
+      Store.setarraySize(Object.keys(jsonReportDataResp.SpSchema).length);
       sourceTableFlag = Store.getSourceDbName()
       return true;
     },
     onconnect: async (dbType, dbHost, dbPort, dbUser, dbName, dbPassword) => {
+      Store.resetStore();
       let sourceTableFlag = "", response;
       let payload = { Driver: dbType, Database: dbName, Password: dbPassword, User: dbUser, Port: dbPort, Host: dbHost };
       response = await Fetch.getAppData("POST", "/connect", payload);
@@ -76,10 +79,12 @@ const Actions = (() => {
       // localStorage.setItem("conversionReportContent", reportDataResp);
       Store.updatePrimaryKeys(reportDataResp);
       Store.updateTableData("reportTabContent", reportDataResp);
+      Store.setarraySize(Object.keys(ReportDataResp.SpSchema).length);
       jQuery("#connectModalSuccess").modal("hide");
-      sourceTableFlag = localStorage.getItem("sourceDbName");
+      // sourceTableFlag = localStorage.getItem("sourceDbName");
     },
     onLoadSessionFile: async (filePath) => {
+      Store.resetStore();
       let driver = '', response, payload;
       let srcDb = Store.getSourceDbName()
       if (srcDb === 'MySQL') {
@@ -104,7 +109,7 @@ const Actions = (() => {
           // localStorage.setItem('conversionReportContent', textResponse);
           Store.updatePrimaryKeys(jsonResponse);
           Store.updateTableData("reportTabContent", jsonResponse);
-
+          Store.setarraySize(Object.keys(jsonResponse.SpSchema).length);
           jQuery('#loadSchemaModal').modal('hide');
           return true;
         }
@@ -114,6 +119,7 @@ const Actions = (() => {
         jQuery('#importButton').attr('disabled', 'disabled');
         return false;
       }
+
     },
     ddlSummaryAndConversionApiCall: async () => {
       let conversionRate, conversionRateJson, ddlData, ddlDataJson, summaryData, summaryDataJson;
@@ -130,6 +136,7 @@ const Actions = (() => {
         Store.updateTableData("ddlTabContent", ddlDataJson);
         Store.updateTableData("summaryTabContent", summaryDataJson);
         Store.updateTableBorderData(conversionRateJson);
+        // Store.setarraySize(Object.keys(ddlDataJson).length);
       }
       else {
         return false;
@@ -147,8 +154,10 @@ const Actions = (() => {
       sessionStorage.setItem("sessionStorage", JSON.stringify(sessionStorageArr));
     },
     resumeSessionHandler: async (index, sessionArray) => {
+      Store.resetStore();
       let driver, path, dbName, sourceDb, pathArray, fileName, filePath;
-      localStorage.setItem("sourceDb", sessionArray[index].sourceDbType);
+      // localStorage.setItem("sourceDb", sessionArray[index].sourceDbType);
+      Store.setSourceDbName = sessionArray[index].sourceDbType;
       driver = sessionArray[index].driver;
       path = sessionArray[index].filePath;
       dbName = sessionArray[index].dbName;
@@ -163,9 +172,10 @@ const Actions = (() => {
         else {
           let payload = { Driver: driver, DBName: dbName, FilePath: path };
           // localStorage.setItem("conversionReportContent", text);
-          Store.updatePrimaryKeys(JSON.parse(text));
-          Store.updateTableData("reportTabContent", JSON.parse(text));
-
+          let res = JSON.parse(text);
+          Store.updatePrimaryKeys(res);
+          Store.updateTableData("reportTabContent", res);
+          Store.setarraySize(Object.keys(res.SpSchema).length);
           await Fetch.getAppData("POST", "/session/resume", payload);
         }
       });
@@ -304,8 +314,10 @@ const Actions = (() => {
       let res = await Fetch.getAppData("POST", "/typemap/global", dataTypeJson);
       if (res) {
         res = await res.json();
+        console.log(res);
         // localStorage.setItem("conversionReportContent", res);
         Store.updatePrimaryKeys(res);
+        // console.log(res);
         Store.updateTableData("reportTabContent", res);
 
       }
