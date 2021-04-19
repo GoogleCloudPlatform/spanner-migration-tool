@@ -17,7 +17,12 @@ const Store = (function () {
       report: new Array(16).fill(false),
       summary: new Array(16).fill(false),
     },
-    tableData: {
+    searchInputValue :{
+      ddlTab:'',
+      reportTab:'',
+      summaryTab:''
+    },
+    tableData:{
       reportTabContent: {},
       ddlTabContent: {},
       summaryTabContent: {}
@@ -129,8 +134,14 @@ const Store = (function () {
     setGlobalDataTypeList: (value) => {
       instance.globalDataTypeList = value
     },
-    getGlobalDataTypeList: () => {
-      return instance.globalDataTypeList;
+    getGlobalDataTypeList:()=>{
+        return instance.globalDataTypeList;
+    },
+    setSearchInputValue :(key,value)=>{
+      instance.searchInputValue[key]=value;
+    },
+    getSearchInputValue:(key)=>{
+      return instance.searchInputValue[key];
     }
 
   };

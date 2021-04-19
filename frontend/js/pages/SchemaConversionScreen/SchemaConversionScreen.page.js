@@ -72,7 +72,8 @@ class SchemaConversionScreen extends HTMLElement {
     if (!this.data) {
       return;
     }
-    const { currentTab, tableData, tableBorderData } = this.data;
+    const { currentTab, tableData, tableBorderData,searchInputValue } = this.data;
+    console.log(searchInputValue);
     let currentTabContent = tableData[`${currentTab}Content`];
     const changingText = this.getChangingValue(currentTab);
     let tableNameArray;
@@ -102,25 +103,20 @@ class SchemaConversionScreen extends HTMLElement {
         </ul>
       </div>
       <div class="status-icons">
-        <hb-search tabid="report" searchid="reportSearchInput" id="reportSearchForm" class="inlineblock" ></hb-search>
-        <hb-search tabid="ddl" searchid="ddlSearchInput" id="ddlSearchForm" class="template"></hb-search>
-        <hb-search tabid="summary" searchid="summarySearchInput" id="summarySearchForm" class="template"></hb-search>
-        <hb-status-legend></hb-status-legend>
+        <hb-search tabid="${currentTab}" searchid="search-input" id="reportSearchForm" class="inlineblock" ></hb-search>
+        <hb-status-legend></hb-status-legend> 
       </div> 
       <div class="tab-bg" id='tabBg'>
         <div class="tab-content">
-        
-          ${
-            currentTab === "reportTab"
-              ? `<div id="report" class="tab-pane fade show active">
+          ${currentTab === 'reportTab' ? `<div id="report" class="tab-pane fade show active">
             <div class="accordion md-accordion" id="accordion" role="tablist" aria-multiselectable="true">
               <hb-site-button buttonid="reportExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>
               <hb-site-button buttonid="editButton" classname="expand right-align" buttonaction="editGlobalDataType" text="Edit Global Data Type"></hb-site-button>
               <div id='reportDiv'>
-                ${tableNameArray
+                ${tableNameArray.filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1)
                   .map((tableName, index) => {
                     return `
-                    <hb-table-carousel tableTitle="${tableName}" id="${currentTab}${index}" tableId="report" 
+                    <hb-table-carousel tableTitle="${tableName}" id="${currentTab}${index}" tabId="report" 
                     tableIndex="${index}" borderData = "${tableBorderData[tableName]}"></hb-table-carousel>`;
                   })
                   .join("")}                    
@@ -138,10 +134,10 @@ class SchemaConversionScreen extends HTMLElement {
               <hb-site-button buttonid="ddlExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>
               <hb-site-button buttonid="download-ddl" classname="expand right-align" buttonaction="downloadDdl" text="Download DDL Statements"></hb-site-button>
               <div id='ddlDiv'>
-                ${tableNameArray
+                ${tableNameArray.filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1)
                   .map((tableName, index) => {
                     return `
-                    <hb-table-carousel tableTitle="${tableName}" stringData="${currentTabContent[tableName]}" tableId="ddl" id="${currentTab}${index}" tableIndex=${index} borderData = "${tableBorderData[tableName]}">
+                    <hb-table-carousel tableTitle="${tableName}" stringData="${currentTabContent[tableName]}" tabId="ddl" id="${currentTab}${index}" tableIndex=${index} borderData = "${tableBorderData[tableName]}">
                     </hb-table-carousel>`;
                   })
                   .join("")} 
@@ -159,10 +155,10 @@ class SchemaConversionScreen extends HTMLElement {
               <hb-site-button buttonid="summaryExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>
               <hb-site-button buttonid="download-report" classname="expand right-align" buttonaction="downloadReport" text="Download Summary Report"></hb-site-button>
               <div id='summaryDiv'>
-                ${tableNameArray
+                ${tableNameArray.filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1)
                   .map((tableName, index) => {
                     return `
-                    <hb-table-carousel tableTitle="${tableName}" stringData="${currentTabContent[tableName]}" id="${currentTab}${index}" tableId="summary" 
+                    <hb-table-carousel tableTitle="${tableName}" stringData="${currentTabContent[tableName]}" id="${currentTab}${index}" tabId="summary" 
                     tableIndex=${index} borderData = "${tableBorderData[tableName]}"></hb-table-carousel>`;
                   })
                   .join("")} 
@@ -186,7 +182,7 @@ class SchemaConversionScreen extends HTMLElement {
       connectIconClass="" modalBodyClass="" title="Select keys for new index"></hb-modal> `;
     initSchemaScreenTasks();
     if (currentTab === "reportTab") {
-      this.sendDatatoReportTab(tableNameArray, currentTabContent);
+      this.sendDatatoReportTab(tableNameArray.filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1), currentTabContent);
     }
   }
 

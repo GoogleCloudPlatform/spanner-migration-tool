@@ -8,17 +8,13 @@ import {
 } from "./../../helpers/SchemaConversionHelper.js";
 
 class TableCarousel extends HTMLElement {
-  
-  static get observedAttributes() {
-    return ["open"];
-  }
 
   get tableTitle() {
     return this.getAttribute("tableTitle");
   }
 
-  get tableId() {
-    return this.getAttribute("tableId");
+  get tabId() {
+    return this.getAttribute("tabId");
   }
 
   get tableIndex() {
@@ -38,41 +34,26 @@ class TableCarousel extends HTMLElement {
     this.render();
     this.addEventListenertoCarausal();
     document.querySelector(`hb-data-table[tableName=${this.tableTitle}`).data =this._data; 
-    // console.log(document.querySelector(`hb-data-table[tableName=${this.tableTitle}`));
   }
 
   get borderData() {
     return this.getAttribute("borderData");
   }
 
-  // static get observedAttributes() {
-  //   return ["data"];
-  // }
-
   addEventListenertoCarausal() {
-    document.getElementById(`id-${this.tableId}-${this.tableIndex}`).addEventListener('click',()=>{
-      if(Store.getinstance().openStatus[this.tableId][this.tableIndex])
+    document.getElementById(`id-${this.tabId}-${this.tableIndex}`).addEventListener('click',()=>{
+      if(Store.getinstance().openStatus[this.tabId][this.tableIndex])
       {
-        Actions.closeCarousel(this.tableId , this.tableIndex)
+        Actions.closeCarousel(this.tabId , this.tableIndex)
       }
       else{
-        Actions.openCarousel(this.tableId , this.tableIndex)
+        Actions.openCarousel(this.tabId , this.tableIndex)
       }
     })
   }
 
-  // attributeChangedCallback(attrName, oldVal, newVal ) {
-  //     //  console.log(oldVal,newVal);
-  //   if (attrName === 'data' && newVal !== "{}" && oldVal!==null) {
-  //       this.render();
-  //       if(newVal!=="{}" && oldVal=="{}") {
-  //         this.addEventListenertoCarausal();
-  //       }
-  //     }
-  // }
-
   connectedCallback() {
-    if(this.tableId!="report")
+    if(this.tabId!="report")
     {
       this.render();
       this.addEventListenertoCarausal();
@@ -80,27 +61,23 @@ class TableCarousel extends HTMLElement {
   }
 
   render() {
-  //  console.log(this.data);
-    let {tableTitle, tableId, tableIndex, data, borderData, stringData} = this;
-    // console.log(data);
-    console.log("data in ca ");
-    
+    let {tableTitle, tabId, tableIndex, data, borderData, stringData} = this;
     let color = borderData;
     let panelColor = panelBorderClass(color);
     let cardColor = mdcCardBorder(color);
-    let carouselStatus = Store.getinstance().openStatus[this.tableId][this.tableIndex];
+    let carouselStatus = Store.getinstance().openStatus[this.tabId][this.tableIndex];
     let editButtonVisibleClass = carouselStatus ? 'show-content' : 'hide-content'
     this.innerHTML = `
-    <section class="${tableId}Section" id="${tableIndex}">
+    <section class="${tabId}Section" id="${tableIndex}">
       <div class="card">
 
-        <div role="tab" class="card-header ${tableId}-card-header ${panelColor} rem-border-bottom">
+        <div role="tab" class="card-header ${tabId}-card-header ${panelColor} rem-border-bottom">
           <h5 class="mb-0">
-            <a data-toggle="collapse" id="id-${tableId}-${tableIndex}">
+            <a data-toggle="collapse" id="id-${tabId}-${tableIndex}">
               Table: <span>${tableTitle}</span>
               <i class="fas fa-angle-${carouselStatus?'up':'down'} rotate-icon"></i>
             </a>
-            ${ tableId ==="report" ? `
+            ${ tabId ==="report" ? `
                 <span class="spanner-text right-align ${editButtonVisibleClass}">Spanner</span>
                 <span class="spanner-icon right-align ${editButtonVisibleClass}">
                   <i class="large material-icons iconSize">circle</i>
@@ -121,12 +98,12 @@ class TableCarousel extends HTMLElement {
           </h5>
         </div>
     
-        <div class="collapse ${tableId}Collapse ${carouselStatus?"show bs collapse":""}" id="${tableId}-${tableTitle}">
+        <div class="collapse ${tabId}Collapse ${carouselStatus?"show bs collapse":""}" id="${tabId}-${tableTitle}">
           <div class="mdc-card mdc-card-content table-card-border ${cardColor}">
-            ${ tableId == "report" ? `
+            ${ tabId == "report" ? `
             <hb-data-table tableName="${tableTitle}" tableIndex="${tableIndex}" ></hb-data-table>` 
             :
-            `<hb-list-table tabName="${tableId}" tableName="${tableTitle}" dta="${stringData}"></hb-list-table>`
+            `<hb-list-table tabName="${tabId}" tableName="${tableTitle}" dta="${stringData}"></hb-list-table>`
            }
           </div>
         </div>

@@ -265,7 +265,7 @@ class DataTable extends HTMLElement {
                                             <td class="sp-column acc-table-td spannerDataType spannerTabCell${tableIndex}${index}"
                                                 id="dataType${tableIndex}${index}">
                                                 <div class="saveDataType" id="saveDataType${tableIndex}${index}">
-                                                    ${spTable.ColDefs[tableColumn].T.Name}</div>
+                                                    ${spTable .ColDefs[tableColumn].T.Name}</div>
                                                 <div class="editDataType template" id="editDataType${tableIndex}${index}">
                                                     <div class="form-group">
                                                         <select class="form-control spanner-input tableSelect"
@@ -294,7 +294,7 @@ class DataTable extends HTMLElement {
                                                 <div class="saveConstraint" id="saveConstraint${tableIndex}${index}">
                                                     <select multiple size="1" class="form-control spanner-input tableSelect spannerConstraint"
                                                         id="spConstraint${tableIndex}${index}">
-                                                        ${spTable.ColDefs[tableColumn].NotNull ?
+                                                        ${spTable .ColDefs[tableColumn].NotNull ?
                                                 (countSp[tableIndex][index] = countSp[tableIndex][index] + 1,
                                                     notNullConstraint[parseInt(String(tableIndex) + String(index))] = 'Not Null',
                                                     `<option disabled class="active">
@@ -312,8 +312,8 @@ class DataTable extends HTMLElement {
                                     }).join("")}
                                     </tbody>
                                 </table>
-                                ${spTable.Fks?.length > 0 ? this.fkComponent(tableIndex, tableName, spTable.Fks) : `<div></div>`}
-                                ${this.secIndexComponent(tableIndex, tableName, spTable.Indexes)}
+                                ${spTable .Fks?.length > 0 ? this.fkComponent(tableIndex, tableName, spTable .Fks) : `<div></div>`}
+                                ${this.secIndexComponent(tableIndex, tableName, spTable .Indexes)}
                                 <div class="summaryCard">
                                     <div class="summaryCardHeader" role="tab">
                                         <h5 class="mb-0">
@@ -343,8 +343,8 @@ class DataTable extends HTMLElement {
         document.getElementById("editSpanner" + tableIndex).addEventListener("click", (event) => {
             Actions.editAndSaveButtonHandler(event, tableIndex, tableName, notNullConstraint);
         });
-        if (spTable.Fks !== null && spTable.Fks.length > 0) {
-            spTable.Fks.map((fk, index) => {
+        if (spTable .Fks !== null && spTable .Fks.length > 0) {
+            spTable .Fks.map((fk, index) => {
                 document.getElementById(tableName + index + 'foreignKey').addEventListener('click', () => {
                     jQuery('#indexAndKeyDeleteWarning').modal();
                     jQuery('#indexAndKeyDeleteWarning').find('#modal-content').html(`This will permanently delete the foreign key constraint and the corresponding uniqueness constraints on referenced columns. Do you want to continue?`);
@@ -355,8 +355,8 @@ class DataTable extends HTMLElement {
                 })
             });
         }
-        if (spTable.Indexes !== null && spTable.Indexes.length > 0) {
-            spTable.Indexes.map((secIndex, index) => {
+        if (spTable .Indexes !== null && spTable .Indexes.length > 0) {
+            spTable .Indexes.map((secIndex, index) => {
                 document.getElementById(tableName + index + 'secIndex').addEventListener('click', () => {
                     jQuery('#indexAndKeyDeleteWarning').modal();
                     jQuery('#indexAndKeyDeleteWarning').find('#modal-content').html(`This will permanently delete the secondary index and the corresponding uniqueness constraints on indexed columns (if applicable). Do you want to continue?`);
