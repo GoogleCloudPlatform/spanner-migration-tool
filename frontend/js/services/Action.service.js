@@ -21,12 +21,6 @@ const Actions = (() => {
     trial: () => {
       return "1";
     },
-    addAttrToStore: () => {
-      Store.addAttrToStore();
-    },
-    closeStore: () => {
-      Store.toggleStore();
-    },
     resetStore: () => {
       Store.resetStore();
     },
@@ -80,7 +74,7 @@ const Actions = (() => {
       // localStorage.setItem("conversionReportContent", reportDataResp);
       Store.updatePrimaryKeys(reportDataResp);
       Store.updateTableData("reportTabContent", reportDataResp);
-      Store.setarraySize(Object.keys(ReportDataResp.SpSchema).length);
+      Store.setarraySize(Object.keys(reportDataResp.SpSchema).length);
       jQuery("#connectModalSuccess").modal("hide");
       // sourceTableFlag = localStorage.getItem("sourceDbName");
     },
