@@ -28,3 +28,7 @@
     background-color: #CBCBCB;
     color: #4285F4;
 }
+
+.right-align{
+    float: right;
+}

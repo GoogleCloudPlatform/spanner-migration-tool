@@ -157,7 +157,7 @@ const Actions = (() => {
       Store.resetStore();
       let driver, path, dbName, sourceDb, pathArray, fileName, filePath;
       // localStorage.setItem("sourceDb", sessionArray[index].sourceDbType);
-      Store.setSourceDbName = sessionArray[index].sourceDbType;
+      Store.setSourceDbName(sessionArray[index].sourceDbType)
       driver = sessionArray[index].driver;
       path = sessionArray[index].filePath;
       dbName = sessionArray[index].dbName;
@@ -182,26 +182,7 @@ const Actions = (() => {
     },
     SearchTable: (value, tabId) => {
       Store.setSearchInputValue(tabId , value)
-      // let tableVal, list, listElem;
-      // let ShowResultNotFound = true;
-      //   let schemaConversionObj =Store.getinstance().tableData.reportTabContent;
-      // if (tabId === "report") {
-      //   list = document.getElementById(`accordion`);
-      // } else {
-      //   list = document.getElementById(`${tabId}-accordion`);
-      // }
-      // listElem = list.getElementsByTagName("section");
-      // let tableListLength = Object.keys(schemaConversionObj.SpSchema).length;
-      // for (var i = 0; i < tableListLength; i++) {
-      //   tableVal = Object.keys(schemaConversionObj.SpSchema)[i];
-      //   if (tableVal.indexOf(value) > -1) {
-      //     listElem[i].style.display = "";
-      //     ShowResultNotFound = false;
-      //   }
-      //   else {
-      //     listElem[i].style.display = "none";
-      //   }
-      // }
+
       // if (ShowResultNotFound) {
       //   list.style.display = "none";
       //   document.getElementById(`${tabId}notFound`).style.display = "block";
@@ -458,7 +439,7 @@ const Actions = (() => {
       }
     },
     editAndSaveButtonHandler: async (event, tableNumber, tableName, notNullConstraint) => {
-      let schemaConversionObj = Store.getinstance().tableData.reportTabContent
+      let schemaConversionObj =Store.getinstance().tableData.reportTabContent
       let tableId = '#src-sp-table' + tableNumber + ' tr';
       let tableColumnNumber = 0, tableData, fkTableData, secIndexTableData;
       let renameFkMap = {}, fkLength, secIndexLength, renameIndexMap = {};
