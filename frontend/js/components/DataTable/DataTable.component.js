@@ -158,15 +158,11 @@ class DataTable extends HTMLElement {
     }
 
     render() {
-       
         let { tableName, tableIndex, data } = this;
-        console.log("data");
         let countSrc = [], countSp = [], notNullConstraint = [];
-        let schemaConversionObj =Store.getinstance().tableData.reportTabContent;
-        let spTable = schemaConversionObj.SpSchema[tableName];
-        console.log(spTable);
+        let spTable = data.SpSchema;
         let srcTable = data.SrcSchema;
-        let tableColumnsArray = schemaConversionObj.SpSchema[tableName].ColNames;
+        let tableColumnsArray = data.SpSchema.ColNames;
         let pksSp = [...spTable.Pks];
         let pksSpLength = pksSp.length;
         let pkSeqId = 1;
@@ -213,7 +209,8 @@ class DataTable extends HTMLElement {
                                                 pkFlag = true; seqId = pksSp[x].seqId;
                                                 break
                                             }
-                                        } let currentColumnSrc = schemaConversionObj.ToSource[spTable.Name].Cols[tableColumn]; return `
+                                        } 
+                                        let currentColumnSrc = data.ToSource.Cols[tableColumn]; return `
                                             <tr class="reportTableContent">
                                             <td class="acc-table-td src-tab-cell">
                                                 <span class="bmd-form-group is-filled eachRowChckBox template">

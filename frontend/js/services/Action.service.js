@@ -45,8 +45,8 @@ const Actions = (() => {
           return false;
         } else {
           jQuery("#loadDatabaseDumpModal").modal("hide");
-          // localStorage.setItem("conversionReportContent", reportDataResp);
-          Store.updateTableData("reportTabContent",jsonReportDataResp);
+          Store.updatePrimaryKeys(jsonReportDataResp);
+          Store.updateTableData("reportTabContent", jsonReportDataResp);
         }
       }
       sourceTableFlag = Store.getSourceDbName()
@@ -74,7 +74,8 @@ const Actions = (() => {
       reportData = await Fetch.getAppData("GET", "/convert/infoschema");
       reportDataResp = await reportData.json();
       // localStorage.setItem("conversionReportContent", reportDataResp);
-      Store.updateTableData("reportTabContent",reportDataResp);
+      Store.updatePrimaryKeys(reportDataResp);
+      Store.updateTableData("reportTabContent", reportDataResp);
       jQuery("#connectModalSuccess").modal("hide");
       sourceTableFlag = localStorage.getItem("sourceDbName");
     },
@@ -101,7 +102,8 @@ const Actions = (() => {
         }
         else {
           // localStorage.setItem('conversionReportContent', textResponse);
-          Store.updateTableData("reportTabContent",jsonResponse);
+          Store.updatePrimaryKeys(jsonResponse);
+          Store.updateTableData("reportTabContent", jsonResponse);
 
           jQuery('#loadSchemaModal').modal('hide');
           return true;
@@ -125,8 +127,8 @@ const Actions = (() => {
         // localStorage.setItem("ddlStatementsContent", JSON.stringify(ddlDataJson));
         // localStorage.setItem("summaryReportContent", JSON.stringify(summaryDataJson));
         // localStorage.setItem("tableBorderColor", JSON.stringify(conversionRateJson));
-        Store.updateTableData("ddlTabContent",ddlDataJson);
-        Store.updateTableData("summaryTabContent",summaryDataJson);
+        Store.updateTableData("ddlTabContent", ddlDataJson);
+        Store.updateTableData("summaryTabContent", summaryDataJson);
         Store.updateTableBorderData(conversionRateJson);
       }
       else {
@@ -159,9 +161,10 @@ const Actions = (() => {
           showSnackbar(err, " redBg");
         }
         else {
-          let payload = {Driver: driver, DBName: dbName, FilePath: path};
+          let payload = { Driver: driver, DBName: dbName, FilePath: path };
           // localStorage.setItem("conversionReportContent", text);
-          Store.updateTableData("reportTabContent",JSON.parse(text));
+          Store.updatePrimaryKeys(JSON.parse(text));
+          Store.updateTableData("reportTabContent", JSON.parse(text));
 
           await Fetch.getAppData("POST", "/session/resume", payload);
         }
@@ -175,7 +178,7 @@ const Actions = (() => {
     SearchTable: (value, tabId) => {
       let tableVal, list, listElem;
       let ShowResultNotFound = true;
-        let schemaConversionObj =Store.getinstance().tableData.reportTabContent;
+      let schemaConversionObj = Store.getinstance().tableData.reportTabContent;
       if (tabId === "report") {
         list = document.getElementById(`accordion`);
       } else {
@@ -211,17 +214,17 @@ const Actions = (() => {
         document.getElementById(buttonId).innerHTML = "Expand All";
         Store.expandAll(false);
       }
-     },
+    },
     downloadSession: async () => {
       jQuery("<a />", {
         download: "session.json",
         href: "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(Store.getinstance().tableData.reportTabContent), null, 4),
       })
-      .appendTo("body")
-      .click(function () {
-        jQuery(this).remove();
-      })[0]
-      .click();
+        .appendTo("body")
+        .click(function () {
+          jQuery(this).remove();
+        })[0]
+        .click();
     },
     downloadDdl: async () => {
       let ddlreport = await Fetch.getAppData("GET", "/schema");
@@ -238,11 +241,11 @@ const Actions = (() => {
               download: schemaFileName,
               href: "data:application/json;charset=utf-8," + encodeURIComponent(text),
             })
-            .appendTo("body")
-            .click(function () {
-              jQuery(this).remove();
-            })[0]
-            .click();
+              .appendTo("body")
+              .click(function () {
+                jQuery(this).remove();
+              })[0]
+              .click();
           });
         }
         showSnackbar('try again ', 'red')
@@ -262,11 +265,11 @@ const Actions = (() => {
             download: reportFileName,
             href: "data:application/json;charset=utf-8," + encodeURIComponent(text),
           })
-          .appendTo("body")
-          .click(function () {
-            jQuery(this).remove();
-          })[0]
-          .click();
+            .appendTo("body")
+            .click(function () {
+              jQuery(this).remove();
+            })[0]
+            .click();
         });
       }
     },
@@ -306,7 +309,8 @@ const Actions = (() => {
       if (res) {
         res = await res.json();
         // localStorage.setItem("conversionReportContent", res);
-        Store.updateTableData("reportTabContent",res);
+        Store.updatePrimaryKeys(res);
+        Store.updateTableData("reportTabContent", res);
 
       }
     },
@@ -369,7 +373,8 @@ const Actions = (() => {
       if (res.ok) {
         jQuery("#createIndexModal").modal("hide");
         res = await res.json();
-        Store.updateTableData("reportTabContent",res);
+        Store.updatePrimaryKeys(res);
+        Store.updateTableData("reportTabContent", res);
       }
     },
     createNewSecIndex: (id) => {
@@ -445,8 +450,7 @@ const Actions = (() => {
       }
     },
     editAndSaveButtonHandler: async (event, tableNumber, tableName, notNullConstraint) => {
-      debugger
-      let schemaConversionObj =Store.getinstance().tableData.reportTabContent
+      let schemaConversionObj = Store.getinstance().tableData.reportTabContent
       let tableId = '#src-sp-table' + tableNumber + ' tr';
       let tableColumnNumber = 0, tableData, fkTableData, secIndexTableData;
       let renameFkMap = {}, fkLength, secIndexLength, renameIndexMap = {};
@@ -655,7 +659,7 @@ const Actions = (() => {
               changesSuccess = true;
               tableData = await tableData.json();
               // localStorage.setItem('conversionReportContent', tableData);
-              Store.updateTableData("reportTabContent",tableData);
+              // Store.updateTableData("reportTabContent",tableData);
 
             }
             else {
@@ -711,8 +715,9 @@ const Actions = (() => {
                 else {
                   changesSuccess = true;
                   fkTableData = await fkTableData.json();
+                  tableData = fkTableData;
                   // localStorage.setItem('conversionReportContent', fkTableData);
-                  Store.updateTableData("reportTabContent",fkTableData);
+                  // Store.updateTableData("reportTabContent",fkTableData);
 
                 }
                 break;
@@ -765,14 +770,18 @@ const Actions = (() => {
                 else {
                   changesSuccess = true;
                   secIndexTableData = await secIndexTableData.json();
+                  tableData = secIndexTableData;
                   // localStorage.setItem('conversionReportContent', secIndexTableData);
-                  Store.updateTableData("reportTabContent",secIndexTableData);   
+                  // Store.updateTableData("reportTabContent",secIndexTableData);   
                 }
                 break;
             }
           }
         }
         if (changesSuccess) {
+          Store.setTableChanges("saveMode");
+          Store.updatePrimaryKeys(tableData);
+          Store.updateTableData("reportTabContent", tableData);
           let updatedData = Store.getinstance().tableData.reportTabContent
           event.target.innerHTML = "Edit Spanner Schema";
           document.getElementById("editInstruction" + tableNumber).style.visibility = "visible";
@@ -803,8 +812,9 @@ const Actions = (() => {
         let jsonResponse = await responseCopy.json();
         let textRresponse = await response.text();
         // localStorage.setItem('conversionReportContent', textRresponse);
-        Store.updateTableData("reportTabContent",jsonResponse);   
-        
+        Store.updatePrimaryKeys(jsonResponse);
+        Store.updateTableData("reportTabContent", jsonResponse);
+
         if (jsonResponse.SpSchema[tableName].Fks != null && jsonResponse.SpSchema[tableName].Fks.length != 0) {
           let table = document.getElementById('fkTableBody' + tableNumber);
           let rowCount = table.rows.length;
@@ -843,34 +853,35 @@ const Actions = (() => {
         let jsonObj = await responseCopy.json();
         // let textRresponse = await response.tt();
         // localStorage.setItem('conversionReportContent', textRresponse);
-        Store.updateTableData("reportTabContent",jsonObj);   
+        Store.updatePrimaryKeys(jsonObj);
+        Store.updateTableData("reportTabContent", jsonObj);
       }
     },
-    showSpinner : () => {
+    showSpinner: () => {
       let toggle_spinner = document.getElementById("toggle-spinner");
       toggle_spinner.style.display = "block";
     },
-    hideSpinner : () => {
-     let toggle_spinner = document.getElementById("toggle-spinner");
+    hideSpinner: () => {
+      let toggle_spinner = document.getElementById("toggle-spinner");
       toggle_spinner.style.display = "none";
       toggle_spinner.className = toggle_spinner.className.replace("show", "");
     },
-    swithCurrentTab:(tab)=>{
+    swithCurrentTab: (tab) => {
       Store.swithCurrentTab(tab)
     },
-    openCarousel:(tableId , tableIndex)=>{
-     Store.openCarousel(tableId , tableIndex)
+    openCarousel: (tableId, tableIndex) => {
+      Store.openCarousel(tableId, tableIndex)
     },
-    closeCarousel:(tableId , tableIndex)=>{
-      Store.closeCarousel(tableId , tableIndex)
+    closeCarousel: (tableId, tableIndex) => {
+      Store.closeCarousel(tableId, tableIndex)
     },
-    getTableData: (tabName)=>{
+    getTableData: (tabName) => {
       Store.getTableData(tabName);
     },
-    setSourceDbName:(name)=>{
-     Store.setSourceDbName(name)
+    setSourceDbName: (name) => {
+      Store.setSourceDbName(name)
     },
-    setGlobalDbType:(value)=>{
+    setGlobalDbType: (value) => {
       Store.setGlobalDbType(value);
     },
     
