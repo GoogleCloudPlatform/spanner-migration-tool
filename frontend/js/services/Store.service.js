@@ -11,7 +11,6 @@ const Store = (function () {
     checkInterleave: {},
     currentTab: "reportTab",
     sourceDbName: '',
-    globalDbType: '',
     openStatus: {
       ddl: new Array(1).fill(false),
       report: new Array(1).fill(false),
@@ -157,7 +156,6 @@ const Store = (function () {
         checkInterleave: {},
         currentTab: "reportTab",
         sourceDbName: '',
-        globalDbType: '',
         openStatus: {
           ddl: new Array(1).fill(false),
           report: new Array(1).fill(false),

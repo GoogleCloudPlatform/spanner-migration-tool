@@ -27,8 +27,10 @@ const Actions = (() => {
     closeStore: () => {
       Store.toggleStore();
     },
-    onLoadDatabase: async (dbType, dumpFilePath) => {
+    resetStore: () => {
       Store.resetStore();
+    },
+    onLoadDatabase: async (dbType, dumpFilePath) => {
       let reportData, sourceTableFlag, reportDataResp, reportDataCopy, jsonReportDataResp, requestCode;
       reportData = await Fetch.getAppData("POST", "/convert/dump", { Driver: dbType, Path: dumpFilePath });
       console.log(reportData);
@@ -55,7 +57,6 @@ const Actions = (() => {
       return true;
     },
     onconnect: async (dbType, dbHost, dbPort, dbUser, dbName, dbPassword) => {
-      Store.resetStore();
       let sourceTableFlag = "", response;
       let payload = { Driver: dbType, Database: dbName, Password: dbPassword, User: dbUser, Port: dbPort, Host: dbHost };
       response = await Fetch.getAppData("POST", "/connect", payload);
@@ -84,7 +85,6 @@ const Actions = (() => {
       // sourceTableFlag = localStorage.getItem("sourceDbName");
     },
     onLoadSessionFile: async (filePath) => {
-      Store.resetStore();
       let driver = '', response, payload;
       let srcDb = Store.getSourceDbName()
       if (srcDb === 'MySQL') {
@@ -154,7 +154,6 @@ const Actions = (() => {
       sessionStorage.setItem("sessionStorage", JSON.stringify(sessionStorageArr));
     },
     resumeSessionHandler: async (index, sessionArray) => {
-      Store.resetStore();
       let driver, path, dbName, sourceDb, pathArray, fileName, filePath;
       // localStorage.setItem("sourceDb", sessionArray[index].sourceDbType);
       Store.setSourceDbName(sessionArray[index].sourceDbType)
