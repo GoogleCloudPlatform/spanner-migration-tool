@@ -6,15 +6,16 @@ const DEFAULT_INSTANCE = {
 };
 
 const Store = (function () {
+  var tableChanges = "editMode";
   var instance = {
-    checkInterleave : {},
-    currentTab:"reportTab",
-    sourceDbName:'',
-    globalDbType:'',
-    openStatus:{
-      ddl:new Array(16).fill(false),
+    checkInterleave: {},
+    currentTab: "reportTab",
+    sourceDbName: '',
+    globalDbType: '',
+    openStatus: {
+      ddl: new Array(16).fill(false),
       report: new Array(16).fill(false),
-      summary:new Array(16).fill(false),
+      summary: new Array(16).fill(false),
     },
     searchInputValue :{
       ddlTab:'',
@@ -26,17 +27,25 @@ const Store = (function () {
       ddlTabContent: {},
       summaryTabContent: {}
     },
-    tableBorderData:{},
-    globalDataTypeList:{},
-   };
+    tableBorderData: {},
+    globalDataTypeList: {},
+  };
   let modalId = "connectToDbModal";
   let checkInterLeaveArray = {};
 
-  function init() {}
+  function init() { }
 
   return {
     getinstance: function () {
       return instance;
+    },
+
+    getTableChanges: () => {
+      return tableChanges;
+    },
+
+    setTableChanges: (val) => {
+      tableChanges = val;
     },
 
     // Other store manipulator functions here
@@ -63,55 +72,66 @@ const Store = (function () {
       instance = { ...instance, open: openVal };
     },
     updateSchemaScreen: async (tableData) => {
-      Store.updateTableData("reportTabContent",tableData);   
+      Store.updateTableData("reportTabContent", tableData);
       await Actions.ddlSummaryAndConversionApiCall();
-      instance = { ...instance, tableData, saveSchemaId: Math.random()};
+      instance = { ...instance, tableData, saveSchemaId: Math.random() };
     },
-    setInterleave : (tableName , value) => {
+    setInterleave: (tableName, value) => {
       checkInterLeaveArray[tableName] = value;
-      if(Object.keys(checkInterLeaveArray).length==16){
-      instance = {...instance, checkInterleave:checkInterLeaveArray}; 
+      if (Object.keys(checkInterLeaveArray).length == 16) {
+        instance = { ...instance, checkInterleave: checkInterLeaveArray };
       }
     },
-    swithCurrentTab:(tab)=>{
-      console.log(tab);
-      instance = {...instance , currentTab:tab}
+    swithCurrentTab: (tab) => {
+      instance = { ...instance, currentTab: tab }
     },
-    openCarousel:(tableId , tableIndex)=>{
-      console.log('open',tableId , tableIndex);
+    openCarousel: (tableId, tableIndex) => {
       instance.openStatus[tableId][tableIndex] = true;
     },
-    closeCarousel:(tableId , tableIndex)=>{
-      console.log('close',tableId , tableIndex);
+    closeCarousel: (tableId, tableIndex) => {
       instance.openStatus[tableId][tableIndex] = false;
     },
-    getTableData: (tabName)=>{
+    getTableData: (tabName) => {
       return JSON.parse(instance.tableData[tabName + "Content"]);
     },
-    updateTableData:(key , data)=>{
+    updatePrimaryKeys: (tableData) => {
+      let numOfSpannerTables = Object.keys(tableData.SpSchema).length;
+      for (let x = 0; x < numOfSpannerTables; x++) {
+        let spannerTable = tableData.SpSchema[Object.keys(tableData.SpSchema)[x]];
+        // let pksSp = [...spannerTable.Pks];
+        // let pksSpLength = pksSp.length;
+        let pkSeqId = 1;
+        for (let y = 0; y < spannerTable.Pks.length; y++) {
+          if (spannerTable.Pks[y].seqId == undefined) {
+            spannerTable.Pks[y].seqId = pkSeqId;
+            pkSeqId++;
+          }
+        }
+      }
+    },
+    updateTableData: (key, data) => {
       instance.tableData[key] = data;
     },
-    updateTableBorderData:(data)=>{
+    updateTableBorderData: (data) => {
       instance.tableBorderData = data;
     },
     expandAll: (value) => {
-      let key = instance.currentTab.substr(0,instance.currentTab.length-3);
-      console.log(key);
+      let key = instance.currentTab.substr(0, instance.currentTab.length - 3);
       instance.openStatus[key].fill(value);
     },
-    setSourceDbName:(name)=>{
+    setSourceDbName: (name) => {
       instance.sourceDbName = name;
     },
-    getSourceDbName:()=>{
+    getSourceDbName: () => {
       return instance.sourceDbName
     },
-    setGlobalDbType:(value)=>{
+    setGlobalDbType: (value) => {
       instance.globalDbType = value;
     },
-    getGlobalDbType:()=>{
+    getGlobalDbType: () => {
       return instance.globalDbType;
     },
-    setGlobalDataTypeList:(value)=>{
+    setGlobalDataTypeList: (value) => {
       instance.globalDataTypeList = value
     },
     getGlobalDataTypeList:()=>{
@@ -124,7 +144,7 @@ const Store = (function () {
       return instance.searchInputValue[key];
     }
 
- };
+  };
 })();
 
 export default Store;

@@ -27,18 +27,18 @@ class SchemaConversionScreen extends HTMLElement {
   }
 
   sendDatatoReportTab(tableNameArray, currentTabContent) {
-    for (let i = 0; i < tableNameArray.length; i++) {
-      let filterdata = {
-        SpSchema: currentTabContent.SpSchema[tableNameArray[i]],
-        SrcSchema: currentTabContent.SrcSchema[tableNameArray[i]],
-        ToSource: currentTabContent.ToSource[tableNameArray[i]],
-        ToSpanner: currentTabContent.ToSpanner[tableNameArray[i]],
-        summary : Store.getinstance().tableData["summaryTabContent"][tableNameArray[i]],
-      };
-      let component = document.querySelector(`#reportTab${i}`);
-      // component.setAttribute('data',JSON.stringify(filterdata));
-      component.data = filterdata;
-    }
+      for (let i = 0; i < tableNameArray.length; i++) {
+        let filterdata = {
+          SpSchema: currentTabContent.SpSchema[tableNameArray[i]],
+          SrcSchema: currentTabContent.SrcSchema[tableNameArray[i]],
+          ToSource: currentTabContent.ToSource[tableNameArray[i]],
+          ToSpanner: currentTabContent.ToSpanner[tableNameArray[i]],
+          summary : Store.getinstance().tableData["summaryTabContent"][tableNameArray[i]],
+        };
+        let component = document.querySelector(`#reportTab${i}`);
+        // component.setAttribute('data',JSON.stringify(filterdata));
+        component.data = filterdata;
+      }
   }
 
   getChangingValue(currentTab) {
@@ -60,6 +60,10 @@ class SchemaConversionScreen extends HTMLElement {
       this.data = JSON.parse(JSON.stringify(updatedData));
       this.render();
       Actions.ddlSummaryAndConversionApiCall();
+    }
+    if (Store.getTableChanges() == "saveMode" && JSON.stringify(updatedData) == JSON.stringify(this.data)) {
+      Store.setTableChanges("editMode");
+      this.render();
     }
   };
 

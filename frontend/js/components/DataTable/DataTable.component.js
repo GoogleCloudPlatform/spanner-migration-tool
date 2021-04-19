@@ -158,15 +158,12 @@ class DataTable extends HTMLElement {
     }
 
     render() {
-       
         let { tableName, tableIndex, data } = this;
         let countSrc = [], countSp = [], notNullConstraint = [];
-        let schemaConversionObj = Store.getinstance().tableData.reportTabContent;
-        // let spTable  = data.SpSchema;
-        let spTable  = schemaConversionObj.SpSchema[tableName];
+        let spTable = data.SpSchema;
         let srcTable = data.SrcSchema;
         let tableColumnsArray = data.SpSchema.ColNames;
-        let pksSp = [...spTable .Pks];
+        let pksSp = [...spTable.Pks];
         let pksSpLength = pksSp.length;
         let pkSeqId = 1;
         countSrc[tableIndex] = [];
@@ -212,7 +209,8 @@ class DataTable extends HTMLElement {
                                                 pkFlag = true; seqId = pksSp[x].seqId;
                                                 break
                                             }
-                                        } let currentColumnSrc = data.ToSource.Cols[tableColumn]; return `
+                                        } 
+                                        let currentColumnSrc = data.ToSource.Cols[tableColumn]; return `
                                             <tr class="reportTableContent">
                                             <td class="acc-table-td src-tab-cell">
                                                 <span class="bmd-form-group is-filled eachRowChckBox template">
@@ -324,7 +322,11 @@ class DataTable extends HTMLElement {
                                     </div>
                                     <div class="collapse innerSummaryCollapse" id="viewSummary${tableIndex}">
                                         <div class="mdc-card mdc-card-content summaryBorder">
+<<<<<<< HEAD
                                             <hb-list-table tabName="summary" dta="${data.summary}" tableName="${tableName}"></hb-list-table>
+=======
+                                            <hb-list-table tabName="summary" tableName="${tableName}" dta="${data.summary}"></hb-list-table>
+>>>>>>> ea16e5459cf3acdcdb24a77c54073039a5fa018c
                                         </div>
                                     </div>
                                 </div>
