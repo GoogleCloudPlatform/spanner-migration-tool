@@ -27,6 +27,9 @@ const Actions = (() => {
     closeStore: () => {
       Store.toggleStore();
     },
+    resetStore: () => {
+      Store.resetStore();
+    },
     onLoadDatabase: async (dbType, dumpFilePath) => {
       let reportData, sourceTableFlag, reportDataResp, reportDataCopy, jsonReportDataResp, requestCode;
       reportData = await Fetch.getAppData("POST", "/convert/dump", { Driver: dbType, Path: dumpFilePath });
@@ -49,6 +52,7 @@ const Actions = (() => {
           Store.updateTableData("reportTabContent", jsonReportDataResp);
         }
       }
+      Store.setarraySize(Object.keys(jsonReportDataResp.SpSchema).length);
       sourceTableFlag = Store.getSourceDbName()
       return true;
     },
@@ -76,8 +80,9 @@ const Actions = (() => {
       // localStorage.setItem("conversionReportContent", reportDataResp);
       Store.updatePrimaryKeys(reportDataResp);
       Store.updateTableData("reportTabContent", reportDataResp);
+      Store.setarraySize(Object.keys(ReportDataResp.SpSchema).length);
       jQuery("#connectModalSuccess").modal("hide");
-      sourceTableFlag = localStorage.getItem("sourceDbName");
+      // sourceTableFlag = localStorage.getItem("sourceDbName");
     },
     onLoadSessionFile: async (filePath) => {
       let driver = '', response, payload;
@@ -104,7 +109,7 @@ const Actions = (() => {
           // localStorage.setItem('conversionReportContent', textResponse);
           Store.updatePrimaryKeys(jsonResponse);
           Store.updateTableData("reportTabContent", jsonResponse);
-
+          Store.setarraySize(Object.keys(jsonResponse.SpSchema).length);
           jQuery('#loadSchemaModal').modal('hide');
           return true;
         }
@@ -114,6 +119,7 @@ const Actions = (() => {
         jQuery('#importButton').attr('disabled', 'disabled');
         return false;
       }
+
     },
     ddlSummaryAndConversionApiCall: async () => {
       let conversionRate, conversionRateJson, ddlData, ddlDataJson, summaryData, summaryDataJson;
@@ -130,6 +136,7 @@ const Actions = (() => {
         Store.updateTableData("ddlTabContent", ddlDataJson);
         Store.updateTableData("summaryTabContent", summaryDataJson);
         Store.updateTableBorderData(conversionRateJson);
+        // Store.setarraySize(Object.keys(ddlDataJson).length);
       }
       else {
         return false;
@@ -148,7 +155,8 @@ const Actions = (() => {
     },
     resumeSessionHandler: async (index, sessionArray) => {
       let driver, path, dbName, sourceDb, pathArray, fileName, filePath;
-      localStorage.setItem("sourceDb", sessionArray[index].sourceDbType);
+      // localStorage.setItem("sourceDb", sessionArray[index].sourceDbType);
+      Store.setSourceDbName(sessionArray[index].sourceDbType)
       driver = sessionArray[index].driver;
       path = sessionArray[index].filePath;
       dbName = sessionArray[index].dbName;
@@ -163,36 +171,17 @@ const Actions = (() => {
         else {
           let payload = { Driver: driver, DBName: dbName, FilePath: path };
           // localStorage.setItem("conversionReportContent", text);
-          let jsonObj = JSON.parse(text);
-          Store.updatePrimaryKeys(jsonObj);
-          Store.updateTableData("reportTabContent", jsonObj);
-
+          let res = JSON.parse(text);
+          Store.updatePrimaryKeys(res);
+          Store.updateTableData("reportTabContent", res);
+          Store.setarraySize(Object.keys(res.SpSchema).length);
           await Fetch.getAppData("POST", "/session/resume", payload);
         }
       });
     },
     SearchTable: (value, tabId) => {
       Store.setSearchInputValue(tabId , value)
-      // let tableVal, list, listElem;
-      // let ShowResultNotFound = true;
-      //   let schemaConversionObj =Store.getinstance().tableData.reportTabContent;
-      // if (tabId === "report") {
-      //   list = document.getElementById(`accordion`);
-      // } else {
-      //   list = document.getElementById(`${tabId}-accordion`);
-      // }
-      // listElem = list.getElementsByTagName("section");
-      // let tableListLength = Object.keys(schemaConversionObj.SpSchema).length;
-      // for (var i = 0; i < tableListLength; i++) {
-      //   tableVal = Object.keys(schemaConversionObj.SpSchema)[i];
-      //   if (tableVal.indexOf(value) > -1) {
-      //     listElem[i].style.display = "";
-      //     ShowResultNotFound = false;
-      //   }
-      //   else {
-      //     listElem[i].style.display = "none";
-      //   }
-      // }
+
       // if (ShowResultNotFound) {
       //   list.style.display = "none";
       //   document.getElementById(`${tabId}notFound`).style.display = "block";
@@ -305,8 +294,10 @@ const Actions = (() => {
       let res = await Fetch.getAppData("POST", "/typemap/global", dataTypeJson);
       if (res) {
         res = await res.json();
+        console.log(res);
         // localStorage.setItem("conversionReportContent", res);
         Store.updatePrimaryKeys(res);
+        // console.log(res);
         Store.updateTableData("reportTabContent", res);
 
       }
@@ -447,7 +438,7 @@ const Actions = (() => {
       }
     },
     editAndSaveButtonHandler: async (event, tableNumber, tableName, notNullConstraint) => {
-      let schemaConversionObj = Store.getinstance().tableData.reportTabContent
+      let schemaConversionObj =Store.getinstance().tableData.reportTabContent
       let tableId = '#src-sp-table' + tableNumber + ' tr';
       let tableColumnNumber = 0, tableData, fkTableData, secIndexTableData;
       let renameFkMap = {}, fkLength, secIndexLength, renameIndexMap = {};

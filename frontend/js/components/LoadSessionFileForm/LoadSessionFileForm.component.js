@@ -20,6 +20,7 @@ class LoadSessionFileForm extends HTMLElement {
     }
 
     storeSessionFilePath = async (dbType, filePath) => {
+        Actions.resetStore();
         let sourceTableFlag = '', loadSessionRes, ddlSummaryApiRes;
         if (dbType === 'mysql') {
             sourceTableFlag = 'MySQL';

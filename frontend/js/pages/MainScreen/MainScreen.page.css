@@ -17,9 +17,8 @@
 
 .icons-card-section {
     display: flex;
-    width: 70%;
     text-align: center;
-    justify-content: space-between;
+    justify-content: space-around;
     margin: 40px;
 }
 
