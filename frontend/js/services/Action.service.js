@@ -163,8 +163,9 @@ const Actions = (() => {
         else {
           let payload = { Driver: driver, DBName: dbName, FilePath: path };
           // localStorage.setItem("conversionReportContent", text);
-          Store.updatePrimaryKeys(JSON.parse(text));
-          Store.updateTableData("reportTabContent", JSON.parse(text));
+          let jsonObj = JSON.parse(text);
+          Store.updatePrimaryKeys(jsonObj);
+          Store.updateTableData("reportTabContent", jsonObj);
 
           await Fetch.getAppData("POST", "/session/resume", payload);
         }
