@@ -52,7 +52,6 @@ class Search extends HTMLElement {
     let search = document.getElementById('search-input');
     let {currentTab,searchInputValue } = Store.getinstance()
     let value = searchInputValue[currentTab];
-    console.log(typeof value , value);
     if(value.length > 0){
       search.value= value;
       this.focusCampo('search-input')

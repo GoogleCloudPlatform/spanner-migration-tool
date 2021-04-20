@@ -130,6 +130,7 @@ const Actions = (() => {
         Store.updateTableData("ddlTabContent", ddlDataJson);
         Store.updateTableData("summaryTabContent", summaryDataJson);
         Store.updateTableBorderData(conversionRateJson);
+        console.log(Store.getinstance());
       }
       else {
         return false;
@@ -174,15 +175,6 @@ const Actions = (() => {
     },
     SearchTable: (value, tabId) => {
       Store.setSearchInputValue(tabId , value)
-
-      // if (ShowResultNotFound) {
-      //   list.style.display = "none";
-      //   document.getElementById(`${tabId}notFound`).style.display = "block";
-      // }
-      // else {
-      //   list.style.display = "";
-      //   document.getElementById(`${tabId}notFound`).style.display = "none";
-      // }
     },
     expandAll: (text, buttonId) => {
       if (text === "Expand All") {
@@ -429,11 +421,7 @@ const Actions = (() => {
       }
     },
     editAndSaveButtonHandler: async (event, tableNumber, tableName, notNullConstraint) => {
-<<<<<<< HEAD
-      let schemaConversionObj =Store.getinstance().tableData.reportTabContent
-=======
       let schemaConversionObj = Store.getinstance().tableData.reportTabContent
->>>>>>> ea16e5459cf3acdcdb24a77c54073039a5fa018c
       let tableId = '#src-sp-table' + tableNumber + ' tr';
       let tableColumnNumber = 0, tableData, fkTableData, secIndexTableData;
       let renameFkMap = {}, fkLength, secIndexLength, renameIndexMap = {};
@@ -849,8 +837,8 @@ const Actions = (() => {
       toggle_spinner.style.display = "none";
       toggle_spinner.className = toggle_spinner.className.replace("show", "");
     },
-    swithCurrentTab: (tab) => {
-      Store.swithCurrentTab(tab)
+    switchCurrentTab: (tab) => {
+      Store.switchCurrentTab(tab)
     },
     openCarousel: (tableId, tableIndex) => {
       Store.openCarousel(tableId, tableIndex)

@@ -322,11 +322,7 @@ class DataTable extends HTMLElement {
                                     </div>
                                     <div class="collapse innerSummaryCollapse" id="viewSummary${tableIndex}">
                                         <div class="mdc-card mdc-card-content summaryBorder">
-<<<<<<< HEAD
-                                            <hb-list-table tabName="summary" dta="${data.summary}" tableName="${tableName}"></hb-list-table>
-=======
                                             <hb-list-table tabName="summary" tableName="${tableName}" dta="${data.summary}"></hb-list-table>
->>>>>>> ea16e5459cf3acdcdb24a77c54073039a5fa018c
                                         </div>
                                     </div>
                                 </div>
@@ -344,8 +340,13 @@ class DataTable extends HTMLElement {
                 maxHeight: 300
             });
         });
-        document.getElementById("editSpanner" + tableIndex).addEventListener("click", (event) => {
-            Actions.editAndSaveButtonHandler(event, tableIndex, tableName, notNullConstraint);
+        document.getElementById("editSpanner" + tableIndex).addEventListener("click", async (event) => {
+                  await Actions.editAndSaveButtonHandler(event, tableIndex, tableName, notNullConstraint);
+                  if(event.target.innerHTML === "Edit Spanner Schema")
+                  {
+                      Actions.ddlSummaryAndConversionApiCall();
+                  }
+
         });
         if (spTable .Fks !== null && spTable .Fks.length > 0) {
             spTable .Fks.map((fk, index) => {

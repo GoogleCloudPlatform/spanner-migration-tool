@@ -66,7 +66,8 @@ class TableCarousel extends HTMLElement {
     let panelColor = panelBorderClass(color);
     let cardColor = mdcCardBorder(color);
     let carouselStatus = Store.getinstance().openStatus[this.tabId][this.tableIndex];
-    let editButtonVisibleClass = carouselStatus ? 'show-content' : 'hide-content'
+    let editButtonVisibleClass = carouselStatus ? 'show-content' : 'hide-content';
+ 
     this.innerHTML = `
     <section class="${tabId}Section" id="${tableIndex}">
       <div class="card">
@@ -87,7 +88,7 @@ class TableCarousel extends HTMLElement {
                   <i class="large material-icons iconSize">circle</i>
                 </span>
                 <button class="right-align edit-button ${editButtonVisibleClass}" id="editSpanner${tableIndex}">
-                  Edit Spanner Schema
+                    Edit Spanner Schema
                 </button>
                 <span id="editInstruction${tableIndex}" class="right-align editInstruction ${editButtonVisibleClass} blink">
                   Schema locked for editing. Unlock to change =>

@@ -7,6 +7,7 @@ const DEFAULT_INSTANCE = {
 
 const Store = (function () {
   var tableChanges = "editMode";
+  var currentClickedCarousel = 0;
   var instance = {
     checkInterleave: {},
     currentTab: "reportTab",
@@ -29,6 +30,7 @@ const Store = (function () {
     },
     tableBorderData: {},
     globalDataTypeList: {},
+
   };
   let modalId = "connectToDbModal";
   let checkInterLeaveArray = {};
@@ -46,6 +48,14 @@ const Store = (function () {
 
     setTableChanges: (val) => {
       tableChanges = val;
+    },
+
+    setCurrentClickedCarousel:(value)=>{
+      currentClickedCarousel = value;
+    },
+    getCurrentClickedCarousel:()=>{
+      return currentClickedCarousel;
+      console.log(currentClickedCarousel);
     },
 
     // Other store manipulator functions here
@@ -71,18 +81,18 @@ const Store = (function () {
     setCurrentModal: (currentModal) => {
       instance = { ...instance, open: openVal };
     },
-    updateSchemaScreen: async (tableData) => {
-      Store.updateTableData("reportTabContent", tableData);
-      await Actions.ddlSummaryAndConversionApiCall();
-      instance = { ...instance, tableData, saveSchemaId: Math.random() };
-    },
+    // updateSchemaScreen: async (tableData) => {
+    //   Store.updateTableData("reportTabContent", tableData);
+    //   await Actions.ddlSummaryAndConversionApiCall();
+    //   instance = { ...instance, tableData, saveSchemaId: Math.random() };
+    // },
     setInterleave: (tableName, value) => {
       checkInterLeaveArray[tableName] = value;
       if (Object.keys(checkInterLeaveArray).length == 16) {
         instance = { ...instance, checkInterleave: checkInterLeaveArray };
       }
     },
-    swithCurrentTab: (tab) => {
+    switchCurrentTab: (tab) => {
       instance = { ...instance, currentTab: tab }
     },
     openCarousel: (tableId, tableIndex) => {
@@ -142,6 +152,9 @@ const Store = (function () {
     },
     getSearchInputValue:(key)=>{
       return instance.searchInputValue[key];
+    },
+    setTableMode:(key,value)=>{
+      instance.modeStatus[key]=value;
     }
 
   };

@@ -19,7 +19,7 @@
     outline: none;
 }
 
-.edit-button {
+/* .edit-button {
     font-size: 16px;
     font-weight: bold;
     float: right;
@@ -34,7 +34,7 @@
 .edit-button:hover {
     background-color: #CBCBCB;
     color: #4285F4;
-}
+} 
 
 .editInstruction {
     color: #0F9D58;
@@ -43,7 +43,7 @@
     margin-top: 6px;
     margin-right: 4px;
 }
-
+*/
 .save-interleave-button {
     font-size: 16px;
     font-weight: bold;
@@ -167,12 +167,7 @@ button[disabled]{
   cursor:not-allowed
 }
 
-.summary-main-content{
-    background-color: #FFFFFF;
-    padding-left: 40px;
-    padding-right: 40px;
-    padding-top: 60px;
-}
+
 
 .instructions-main-content {
     background-color: #FFFFFF;
@@ -289,7 +284,7 @@ button[disabled]{
     border-radius: 10px !important;
 }
 
-.orangeBorderBottom {
+ .orangeBorderBottom {
     border: 0.125rem solid ORANGE !important;
     border-radius: 10px !important;
 }
@@ -328,7 +323,7 @@ button[disabled]{
 
 .cardYellowBorder {
     border: 0.125rem solid YELLOW !important;
-}
+} 
 
 .ddlBorderBottom {
     border: 1px solid #80808096;

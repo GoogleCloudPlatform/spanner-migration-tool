@@ -8,9 +8,9 @@ class EditGlobalDataTypeForm extends HTMLElement {
         document.getElementById("data-type-button").addEventListener("click", async () => {
                 await Actions.setGlobalDataType();
                 await Actions.ddlSummaryAndConversionApiCall();
-                document.getElementById("app").innerHTML = `<hb-default-layout>
-                <hb-schema-conversion-screen></hb-schema-conversion-screen>
-                </<hb-default-layout>`;
+                // document.getElementById("app").innerHTML = `<hb-default-layout>
+                // <hb-schema-conversion-screen></hb-schema-conversion-screen>
+                // </<hb-default-layout>`;
             });
     }
 
