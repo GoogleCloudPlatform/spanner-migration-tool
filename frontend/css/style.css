@@ -536,11 +536,11 @@ h4 {
     padding: 10px;
 }
 
-.warning-icon {
+/* .warning-icon {
     color: #FFB200;
     font-size: 17px !important;
     padding: 10px;
-}
+} */
 
 .unex-cond-icon {
     color: #808080;
@@ -714,10 +714,10 @@ th {
     text-align: left;
 } */
 
-.src-td {
+/* .src-td {
     border-right: 1px solid #DCDCDC;
     padding-left: 65px !important;
-}
+} */
 
 .data-type-select {
     background-color: #F2F2F2;
@@ -799,7 +799,7 @@ ul {
     list-style-type: none;
     padding-inline-start: 0px;
 }
-
+/* 
 .spinner-backdrop {
     position: fixed;
     z-index: 999999 !important;
@@ -844,7 +844,7 @@ ul {
 
 #spinner.show {
     visibility: visible;
-}
+} */
 
 button {
     cursor: pointer;

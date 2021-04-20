@@ -66,3 +66,8 @@ thead, tbody tr {
     margin-right: 10px;
     margin-top: 10px;
 }
+
+.src-td {
+    border-right: 1px solid #DCDCDC;
+    padding-left: 65px !important;
+}

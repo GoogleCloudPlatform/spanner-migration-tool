@@ -11,7 +11,6 @@ class AddIndexForm extends HTMLElement {
   }
 
   get data(){
-    console.log(this.getAttribute('colData'));
     return JSON.parse(this.getAttribute('colData'));
   }
 
