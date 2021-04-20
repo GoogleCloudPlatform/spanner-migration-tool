@@ -1,6 +1,6 @@
 import Store from "./Store.service.js";
 import Fetch from "./Fetch.service.js";
-import { readTextFile, showSnackbar} from "./../helpers/SchemaConversionHelper.js";
+import { readTextFile, showSnackbar } from "./../helpers/SchemaConversionHelper.js";
 
 var keysList = [];
 var orderId = 0;
@@ -174,7 +174,7 @@ const Actions = (() => {
       });
     },
     SearchTable: (value, tabId) => {
-      Store.setSearchInputValue(tabId , value)
+      Store.setSearchInputValue(tabId, value)
 
       // if (ShowResultNotFound) {
       //   list.style.display = "none";
@@ -261,7 +261,7 @@ const Actions = (() => {
       interleaveApiCall = await Fetch.getAppData("GET", "/setparent?table=" + tableName);
       let interleaveApiCallResp = await interleaveApiCall.json();
       let value = interleaveApiCallResp.tableInterleaveStatus.Possible;
-      Store.setInterleave(tableName,value);
+      Store.setInterleave(tableName, value);
     },
     setGlobalDataType: async () => {
       let globalDataTypeList = Store.getGlobalDataTypeList();
@@ -432,7 +432,7 @@ const Actions = (() => {
       }
     },
     editAndSaveButtonHandler: async (event, tableNumber, tableName, notNullConstraint) => {
-      let schemaConversionObj =Store.getinstance().tableData.reportTabContent
+      let schemaConversionObj = Store.getinstance().tableData.reportTabContent
       let tableId = '#src-sp-table' + tableNumber + ' tr';
       let tableColumnNumber = 0, tableData, fkTableData, secIndexTableData;
       let renameFkMap = {}, fkLength, secIndexLength, renameIndexMap = {};
@@ -442,6 +442,10 @@ const Actions = (() => {
         uncheckCount[tableNumber] = 0;
         event.target.innerHTML = "Save Changes";
         document.getElementById("editInstruction" + tableNumber).style.visibility = "hidden";
+        if (document.getElementById('add' + tableNumber) && document.getElementById('interleave' + tableNumber)) {
+          document.getElementById('add' + tableNumber).removeAttribute('disabled');
+          document.getElementById('interleave' + tableNumber).removeAttribute('disabled');
+        }
         jQuery(tableId).each(function (index) {
           if (index === 1) {
             $selectAll = jQuery(this).find('.bmd-form-group.is-filled.template').removeClass('template');
@@ -639,6 +643,23 @@ const Actions = (() => {
             tableData = await Fetch.getAppData('POST', '/typemap/table?table=' + tableName, updatedColsData);
             if (tableData.ok) {
               tableData = await tableData.json();
+              let checkInterleave = Store.getinstance().checkInterleave;
+              if (checkInterleave[tableName]) {
+                let selectedValue;
+                let radioGroup = 'fks' + tableNumber;
+                let radioValues = document.querySelectorAll('input[name=' + radioGroup + ']');
+                for (const x of radioValues) {
+                  if (x.checked) {
+                    selectedValue = x.value;
+                    break;
+                  }
+                }
+                if (selectedValue == 'interleave') {
+                  let response = await Fetch.getAppData('GET', '/setparent?table=' + tableName + '&update=' + true);
+                  response = await response.json();
+                  tableData = response.sessionState;
+                }
+              }
               // localStorage.setItem('conversionReportContent', tableData);
               // Store.updateTableData("reportTabContent",tableData);
 
@@ -764,6 +785,10 @@ const Actions = (() => {
           let updatedData = Store.getinstance().tableData.reportTabContent
           event.target.innerHTML = "Edit Spanner Schema";
           document.getElementById("editInstruction" + tableNumber).style.visibility = "visible";
+          if (document.getElementById('add' + tableNumber) && document.getElementById('interleave' + tableNumber)) {
+            document.getElementById('add' + tableNumber).setAttribute('disabled', 'disabled');
+            document.getElementById('interleave' + tableNumber).setAttribute('disabled', 'disabled');
+          }
           jQuery(tableId).each(function () {
             jQuery(this).find('.src-tab-cell .bmd-form-group').remove();
           });
@@ -863,7 +888,7 @@ const Actions = (() => {
     setGlobalDbType: (value) => {
       Store.setGlobalDbType(value);
     },
-    
+
   };
 })();
 

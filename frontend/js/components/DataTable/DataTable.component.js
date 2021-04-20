@@ -23,9 +23,7 @@ class DataTable extends HTMLElement {
     }
 
     connectedCallback() {
-        if (Store.getinstance().checkInterleave[this.tableName] === undefined) {
-            Actions.checkInterleaveConversion(this.tableName);
-        }
+        Actions.checkInterleaveConversion(this.tableName);
         this.checkInterLeave = Store.getinstance().checkInterleave[this.tableName];
     }
 
