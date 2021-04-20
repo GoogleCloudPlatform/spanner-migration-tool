@@ -1,13 +1,13 @@
-.report-header{
+/* .report-header{
     font-weight: 700;
     font-size: 26px;
     padding: 10px 0;
     color: #222222;
     margin-top: 24px;
     margin-bottom: 24px;
-}
+} */
 
-.download-button{
+/* .download-button{
     font-size: 16px;
     font-weight: bold;
     float: right;
@@ -17,7 +17,7 @@
     border-radius: 20px;
     padding: 10px;
     outline: none;
-}
+} */
 
 /* .edit-button {
     font-size: 16px;
@@ -60,10 +60,10 @@
     background-color: #CBCBCB;
 }
 
-.download-button:hover {
+/* .download-button:hover {
     background-color: #CBCBCB;
     color: #4285F4;
-}
+} */
 
 /* .acc-card-content{
     text-align: center;
@@ -107,7 +107,7 @@
     margin: 10px 0;
 } */
 
-.warning {
+/* .warning {
     color: #F4B400 !important;
     font-size: 18px !important;
     margin: auto 0px;
@@ -116,7 +116,7 @@
     opacity: inherit;
     margin-right: 10px;
     margin-top: 10px;
-}
+} */
 
 ::-webkit-scrollbar {
     width: 10px;
@@ -509,11 +509,11 @@ button[disabled]{
     max-height: 202px;
 } */
 
-.data-type-table > tbody {
+/* .data-type-table > tbody {
     display: block;
     overflow: auto;
     max-height: 310px;
-}
+} */
 
 thead, tbody tr {
     display:table;
@@ -673,7 +673,7 @@ input[type=checkbox]{
     border-radius: 100%;
 } */
 
-.searchBox {
+.search-box {
     border-left: 0px !important;
     border-top: 0px !important;
     border-right: 0px !important;
@@ -682,7 +682,7 @@ input[type=checkbox]{
     display: inline-block;
 }
 
-/* .searchForm {
+/* .search-form {
     float: left;
     margin-right: 30px;
 } */

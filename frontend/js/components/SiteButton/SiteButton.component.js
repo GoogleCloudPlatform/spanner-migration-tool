@@ -43,7 +43,6 @@ class SiteButton extends HTMLElement {
         default:
             Actions[this.buttonAction]();
             break;
-
       }
     });
   }

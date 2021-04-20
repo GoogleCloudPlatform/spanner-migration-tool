@@ -75,7 +75,6 @@ const Store = (function () {
     setCurrentModal: (currentModal) => {
       instance = { ...instance, open: openVal };
     },
-
     setarraySize: (val) => {
       instance.openStatus = {
         ddl: new Array(val).fill(false),
@@ -165,10 +164,7 @@ const Store = (function () {
     getSearchInputValue: (key) => {
       return instance.searchInputValue[key];
     },
-    setTableMode:(key,value)=>{
-      instance.modeStatus[key]=value;
-    },
-
+   
     resetStore: () => {
       instance = {
         checkInterleave: {},
@@ -192,6 +188,14 @@ const Store = (function () {
         tableBorderData: {},
         globalDataTypeList: {},
       };
+    },
+
+    getCurrentTab:()=>{
+      return instance.currentTab;
+    },
+
+    getInterleaveConversionForATable:(tableName)=>{
+        return instance.checkInterleave[tableName];
     }
 
   };

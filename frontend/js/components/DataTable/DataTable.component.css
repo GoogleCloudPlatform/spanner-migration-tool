@@ -138,7 +138,7 @@
 .summary-card-header {
     padding: 1rem;
     background-color: #FDFDFD;
-    height: 0px;
+    /* height: 0px; */
     border-radius: 10px !important;
 }
 
