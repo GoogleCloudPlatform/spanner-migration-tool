@@ -447,7 +447,7 @@ const Actions = (() => {
         let tableCheckboxGroup = '.chckClass_' + tableNumber;
         uncheckCount[tableNumber] = 0;
         event.target.innerHTML = "Save Changes";
-        document.getElementById("editInstruction" + tableNumber).style.visibility = "hidden";
+        document.getElementById("edit-instruction" + tableNumber).style.visibility = "hidden";
         jQuery(tableId).each(function (index) {
           if (index === 1) {
             $selectAll = jQuery(this).find('.bmd-form-group.is-filled.template').removeClass('template');
@@ -772,7 +772,7 @@ const Actions = (() => {
           Store.updateTableData("reportTabContent", tableData);
           let updatedData = Store.getinstance().tableData.reportTabContent
           event.target.innerHTML = "Edit Spanner Schema";
-          document.getElementById("editInstruction" + tableNumber).style.visibility = "visible";
+          document.getElementById("edit-instruction" + tableNumber).style.visibility = "visible";
           jQuery(tableId).each(function () {
             jQuery(this).find('.src-tab-cell .bmd-form-group').remove();
           });

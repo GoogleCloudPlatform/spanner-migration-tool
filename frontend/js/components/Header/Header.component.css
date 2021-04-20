@@ -1,3 +1,17 @@
-.pointer-style{
-    cursor:pointer;
+.pointer-style {
+  cursor: pointer;
+}
+
+.navbar,
+.navbar:hover,
+.navbar:active,
+.navbar:visited,
+.navbar:focus {
+  text-decoration: none;
+}
+
+.navbar-static-top {
+  float: left;
+  padding: 0px;
+  box-shadow: none;
 }

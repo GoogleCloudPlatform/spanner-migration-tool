@@ -322,11 +322,7 @@ class DataTable extends HTMLElement {
                                     </div>
                                     <div class="collapse innerSummaryCollapse" id="viewSummary${tableIndex}">
                                         <div class="mdc-card mdc-card-content summaryBorder">
-<<<<<<< HEAD
                                             <hb-list-table tabName="summary" dta="${data.summary}" tableName="${tableName}"></hb-list-table>
-=======
-                                            <hb-list-table tabName="summary" tableName="${tableName}" dta="${data.summary}"></hb-list-table>
->>>>>>> ea16e5459cf3acdcdb24a77c54073039a5fa018c
                                         </div>
                                     </div>
                                 </div>

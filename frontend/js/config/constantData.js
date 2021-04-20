@@ -90,4 +90,6 @@ export const MAIN_PAGE_ICONS = [
     },
   ];
 
+export const HISTORY_TABLE_HEADING = "Conversion history";
+
 

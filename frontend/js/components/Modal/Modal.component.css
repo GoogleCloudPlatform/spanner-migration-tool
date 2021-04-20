@@ -1,128 +1,128 @@
 .modal-content .modal-body {
-    padding: 20px 24px 0px 24px;
+  padding: 20px 24px 0px 24px;
 }
 
 .modal-body {
-    position: relative;
-    padding-left: 24px;
-    padding-right: 24px;
-    padding-top: 24px;
-    padding-bottom: 0px;
+  position: relative;
+  padding-left: 24px;
+  padding-right: 24px;
+  padding-top: 24px;
+  padding-bottom: 0px;
 }
 
 .modal-content {
-    box-shadow: none;
+  box-shadow: none;
 }
 
 .modal-content .modal-header {
-    background-color: #4285F4;
-    padding-top: 6px;
-    padding-bottom: 6px;
-    padding-left: 24px;
-    border-bottom: 0;
+  background-color: #4285f4;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  padding-left: 24px;
+  border-bottom: 0;
 }
 
 .spanner-input {
-    background: #FFFFFF !important;
-    /* color: #000000; */
-    border: 1px solid #999 !important;
-    padding-left: 4px;
+  background: #ffffff !important;
+  /* color: #000000; */
+  border: 1px solid #999 !important;
+  padding-left: 4px;
 }
 
 .spanner-input:focus {
-    background: #FFFFFF !important;
-    border: 1px solid #999 !important;
-    padding-left: 4px;
+  background: #ffffff !important;
+  border: 1px solid #999 !important;
+  padding-left: 4px;
 }
 
-.tableSelect, .tableSelect:focus {
-    margin-bottom: 0px !important;
-    border-radius: 2px !important;
-    background-image: url(data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20256%20448%22%20enable-background%3D%22new%200%200%20256%20448%22%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E.arrow%7Bfill%3A%23424242%3B%7D%3C%2Fstyle%3E%3Cpath%20class%3D%22arrow%22%20d%3D%22M255.9%20168c0-4.2-1.6-7.9-4.8-11.2-3.2-3.2-6.9-4.8-11.2-4.8H16c-4.2%200-7.9%201.6-11.2%204.8S0%20163.8%200%20168c0%204.4%201.6%208.2%204.8%2011.4l112%20112c3.1%203.1%206.8%204.6%2011.2%204.6%204.4%200%208.2-1.5%2011.4-4.6l112-112c3-3.2%204.5-7%204.5-11.4z%22%2F%3E%3C%2Fsvg%3E%0A) !important;
-    background-position: right 3px center !important;
-    background-repeat: no-repeat !important;
-    background-size: auto 40% !important;
-    border-radius: 2px !important;
+.tableSelect,
+.tableSelect:focus {
+  margin-bottom: 0px !important;
+  border-radius: 2px !important;
+  background-image: url(data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20256%20448%22%20enable-background%3D%22new%200%200%20256%20448%22%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E.arrow%7Bfill%3A%23424242%3B%7D%3C%2Fstyle%3E%3Cpath%20class%3D%22arrow%22%20d%3D%22M255.9%20168c0-4.2-1.6-7.9-4.8-11.2-3.2-3.2-6.9-4.8-11.2-4.8H16c-4.2%200-7.9%201.6-11.2%204.8S0%20163.8%200%20168c0%204.4%201.6%208.2%204.8%2011.4l112%20112c3.1%203.1%206.8%204.6%2011.2%204.6%204.4%200%208.2-1.5%2011.4-4.6l112-112c3-3.2%204.5-7%204.5-11.4z%22%2F%3E%3C%2Fsvg%3E%0A) !important;
+  background-position: right 3px center !important;
+  background-repeat: no-repeat !important;
+  background-size: auto 40% !important;
+  border-radius: 2px !important;
 }
-
 
 .modal-header .close {
-    font-size: 20px;
-    margin: auto 0px;
-    padding: 0px;
-    color: #FFFFFF;
-    opacity: inherit;
+  font-size: 20px;
+  margin: auto 0px;
+  padding: 0px;
+  color: #ffffff;
+  opacity: inherit;
 }
 
 .modal-title {
-    font-size: 22px;
+  font-size: 22px;
 }
 
 .modal-bg {
-    font-weight: 600;
-    background-color: #4285F4;
-    color: #FFFFFF;
+  font-weight: 600;
+  background-color: #4285f4;
+  color: #ffffff;
 }
 
 .modal-footer {
-    padding: 12px 24px 14px 24px !important;
-    margin-top: -15px;
+  padding: 12px 24px 14px 24px !important;
+  margin-top: -15px;
 }
 
 select.form-control:not([size]):not([multiple]) {
-    height: 36px;
-    margin-bottom: 22px;
+  height: 36px;
+  margin-bottom: 22px;
 }
 
 .form-group {
-    margin-bottom: -3px !important;
+  margin-bottom: -3px !important;
 }
 
 .custom-file-control,
 .form-control {
-    border: 1px solid #DDDDDD !important;
+  border: 1px solid #dddddd !important;
 }
 
 .custom-file-control:focus,
 .form-control:focus {
-    border-color: #4285F4 !important;
+  border-color: #4285f4 !important;
 }
 
 .form-error {
-    font-size: 12px;
+  font-size: 12px;
 }
 
 .modal-button {
-    width: 80px;
-    height: 30px;
-    border-radius: 30PX;
-    border: 1px solid #4285F4;
-    background-color: #4285F4;
-    color: #FFFFFF;
-    font-size: 14px;
-    font-weight: bold;
-    float: right;
-    cursor: pointer;
-    margin-right: 0px !important;
+  width: 80px;
+  height: 30px;
+  border-radius: 30px;
+  border: 1px solid #4285f4;
+  background-color: #4285f4;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: bold;
+  float: right;
+  cursor: pointer;
+  margin-right: 0px !important;
 }
 
 .modal-button:focus {
-    border: 1px solid #00008B;
+  border: 1px solid #00008b;
 }
 
 input[type="submit"]:disabled {
-    background-color: #4285F4;
-    border: 1px solid #4285F4;
-    outline: none;
-    opacity: 0.5;
+  background-color: #4285f4;
+  border: 1px solid #4285f4;
+  outline: none;
+  opacity: 0.5;
 }
 
 input[type="submit"] {
-    outline: none;
+  outline: none;
 }
 
 @media (min-width: 576px) {
-    .modal-dialog-centered {
-        min-height: calc(100%) !important;
-    }
+  .modal-dialog-centered {
+    min-height: calc(100%) !important;
+  }
 }
