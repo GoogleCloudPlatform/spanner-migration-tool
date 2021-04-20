@@ -1,7 +1,6 @@
 import "./../Modal/Modal.component.js";
 import { recreateNode } from './../../helpers/SchemaConversionHelper.js';
 import Actions from './../../services/Action.service.js';
-import Store from './../../services/Store.service.js';
 
 class DataTable extends HTMLElement {
 
@@ -24,7 +23,7 @@ class DataTable extends HTMLElement {
 
     connectedCallback() {
         Actions.checkInterleaveConversion(this.tableName);
-        this.checkInterLeave = Store.getinstance().checkInterleave[this.tableName];
+        this.checkInterLeave = Actions.getInterleaveConversionForATable(this.tableName);
     }
 
     fkComponent(tableIndex, tableName, fkArray) {
@@ -169,7 +168,7 @@ class DataTable extends HTMLElement {
                 pkSeqId++;
             }
         } 
-        let sourceDbName = Store.getSourceDbName();
+        let sourceDbName = Actions.getSourceDbName();
         this.innerHTML = 
             ` <div class="acc-card-content" id="acc-card-content">
                 <table class="acc-table" id="src-sp-table${tableIndex}">
@@ -270,7 +269,7 @@ class DataTable extends HTMLElement {
                                     <div class="form-group">
                                         <select class="form-control spanner-input report-table-select"
                                             id="data-type-${tableIndex}${index}${index}">
-                                            <option class="dataTypeOption template"></option>
+                                            <option class="data-type-option template"></option>
                                         </select>
                                     </div>
                                 </div>

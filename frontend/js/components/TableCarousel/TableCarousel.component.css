@@ -1,7 +1,145 @@
-.iconSize{
-    font-size: 18px;
+.round-icon-size {
+  font-size: 18px;
 }
 
-.card .card-header a{
-    cursor: pointer;
+.card {
+  background-color: #fdfdfd;
+  box-shadow: 0px 3px 16px #00000029;
+  margin-bottom: 20px;
+  border-radius: 10px !important;
+}
+
+.card .card-header {
+  padding: 1rem;
+  background-color: #fdfdfd;
+}
+
+.card-header a {
+  cursor: pointer;
+  padding-left: 20px;
+  letter-spacing: 0px;
+  color: #000000;
+  opacity: 1;
+  font-size: 24px;
+}
+
+.card-header a i {
+  padding-top: 2px;
+  float: left;
+}
+
+.orange-border-bottom {
+  border: 0.125rem solid ORANGE !important;
+  border-radius: 10px !important;
+}
+
+.green-border-bottom {
+  border: 0.125rem solid #0f9d58 !important;
+  border-radius: 10px !important;
+}
+
+.blue-border-bottom {
+  border: 0.125rem solid #4285f4 !important;
+  border-radius: 10px !important;
+}
+
+.yellow-border-bottom {
+  border: 0.125rem solid YELLoW !important;
+  border-radius: 10px !important;
+}
+
+.no-border-bottom{
+  border-bottom: 0px !important;
+}
+.card-orange-border {
+  border: 0.125rem solid ORANGE !important;
+  border-top: 0px !important;
+}
+
+.card-green-border {
+  border: 0.125rem solid #0f9d58 !important;
+}
+
+.card-blue-border {
+  border: 0.125rem solid #4285f4 !important;
+}
+
+.card-yellow-border {
+  border: 0.125rem solid YELLOW !important;
+}
+
+.spanner-text {
+  margin-top: 5.4px;
+  font-size: 15px;
+  margin-right: 18px;
+}
+
+.source-text {
+  margin-top: 5.4px;
+  font-size: 15px;
+  margin-right: 24px;
+}
+
+.spanner-icon {
+  margin-top: 5px;
+  color: #3a78c1;
+  font-size: 18px;
+  margin-right: 6px;
+}
+
+.source-icon {
+  font-size: 18px;
+  margin-right: 6px;
+  color: #cbcbcb;
+  margin-top: 5px;
+}
+
+.right-align {
+  float: right;
+}
+
+.show-content {
+  display: block;
+}
+
+.hide-content {
+  display: none;
+}
+
+.edit-instruction {
+  color: #0f9d58;
+  font-size: 16px;
+  font-weight: bold;
+  margin-top: 6px;
+  margin-right: 4px;
+}
+
+.blink {
+  animation: blinker 2s linear infinite;
+  font-family: sans-serif;
+}
+
+@keyframes blinker {
+  50% {
+    opacity: 0;
+  }
+}
+
+.summary-collapse {
+  text-align: left;
+}
+
+.mdc-card-content {
+  background: #fdfdfd;
+  border-radius: 0px 0px 10px 10px !important;
+  border-top: 0px !important;
+  margin-top: -5px;
+}
+
+.table-card-border {
+  box-shadow: none !important;
+}
+
+.rem-border-bottom {
+    border-radius: 10px 10px 0px 0px !important;
 }

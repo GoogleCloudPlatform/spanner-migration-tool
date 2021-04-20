@@ -1,6 +1,5 @@
 import Forms from "../../services/Forms.service.js";
 import Actions from "../../services/Action.service.js";
-import Store from "../../services/Store.service.js";
 
 class AddIndexForm extends HTMLElement {
   get tableName() {
@@ -11,8 +10,11 @@ class AddIndexForm extends HTMLElement {
     return this.getAttribute("tableIndex");
   }
 
+  get data(){
+    return JSON.parse(this.getAttribute('colData'));
+  }
+
   connectedCallback() {
-    const { SrcSchema } = Store.getinstance().tableData.reportTabContent;
     this.render();
     document.getElementById("indexName").addEventListener("focusout", () => {
       Forms.validateInput(
@@ -41,7 +43,7 @@ class AddIndexForm extends HTMLElement {
         );
       });
 
-    SrcSchema[this.tableName].ColNames.map((row, idx) => {
+   this.data.map((row, idx) => {
       document
         .getElementById("checkbox-" + row + "-" + idx)
         .addEventListener("click", () => {
@@ -51,7 +53,6 @@ class AddIndexForm extends HTMLElement {
   }
 
   render() {
-    const { SrcSchema } = Store.getinstance().tableData.reportTabContent;
     this.innerHTML = `
     <form id="createIndexForm">
         <div class="form-group sec-index-label">
@@ -62,11 +63,11 @@ class AddIndexForm extends HTMLElement {
             <span class='form-error' id='indexNameError'></span>
         </div>
         <div id="newIndexColumnListDiv" class="column-list-container">
-              ${SrcSchema[this.tableName].ColNames.map((row, idx) => {
+              ${this.data.map((row, idx) => {
                 return `
-                <div class="newIndexColumnList" id="indexColumnRow${idx}">
-                    <span class="orderId invisible-badge" id="order${row}${idx}">1</span>
-                    <span class="columnName">${row}</span>
+                <div class="new-index-column-list" id="indexColumnRow${idx}">
+                    <span class="order-id invisible-badge" id="order${row}${idx}">1</span>
+                    <span class="column-name">${row}</span>
                     <span class="bmd-form-group is-filled">
                         <div class="checkbox float-right" >
                             <label>

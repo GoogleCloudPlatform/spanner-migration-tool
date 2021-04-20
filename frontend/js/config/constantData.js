@@ -96,4 +96,6 @@ export const TAB_CONFIG_DATA = [
   },
 ];
 
+export const HISTORY_TABLE_HEADING = "Conversion history";
+
 

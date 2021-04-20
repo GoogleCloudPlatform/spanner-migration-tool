@@ -138,8 +138,8 @@
 .summary-card-header {
     padding: 1rem;
     background-color: #FDFDFD;
-    height: 0px;
-    border-radius: 10px !important;
+    /* height: 0px; */
+    border-radius: 10px ;
 }
 
 .summary-card-header a i{

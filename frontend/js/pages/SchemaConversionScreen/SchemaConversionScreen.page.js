@@ -9,7 +9,6 @@ import { initSchemaScreenTasks } from "./../../helpers/SchemaConversionHelper.js
 
 // Services
 import Store from "./../../services/Store.service.js";
-import Actions from "./../../services/Action.service.js";
 import "../../services/Fetch.service.js";
 
 // constants
@@ -18,7 +17,6 @@ import { TAB_CONFIG_DATA } from "./../../config/constantData.js";
 class SchemaConversionScreen extends HTMLElement {
   connectedCallback() {
     this.stateObserver = setInterval(this.observeState, 200);
-    Actions.getGlobalDataTypeList();
     this.render();
   }
 
@@ -57,7 +55,6 @@ class SchemaConversionScreen extends HTMLElement {
     let updatedData = Store.getinstance();
     
     if (JSON.stringify(updatedData) !== JSON.stringify(this.data)) {
-      console.log(updatedData);
       this.data = JSON.parse(JSON.stringify(updatedData));
       this.render();
     }
@@ -73,7 +70,6 @@ class SchemaConversionScreen extends HTMLElement {
     }
     const { currentTab, tableData, tableBorderData,searchInputValue } = this.data;
     let currentTabContent = tableData[`${currentTab}Content`];
-    console.log(currentTabContent);
     const changingText = this.getChangingValue(currentTab);
     let tableNameArray;
     if (currentTab === "reportTab") {
@@ -104,7 +100,7 @@ class SchemaConversionScreen extends HTMLElement {
         </ul>
       </div>
       <div class="status-icons">
-        <hb-search tabid="${currentTab}" searchid="search-input" id="reportSearchForm" class="inlineblock" ></hb-search>
+        <hb-search tabid="${currentTab}" searchid="search-input" class="inlineblock" ></hb-search>
         <hb-status-legend></hb-status-legend> 
       </div> 
       <div class="tab-bg" id='tabBg'>
@@ -187,8 +183,8 @@ class SchemaConversionScreen extends HTMLElement {
       let mybtn = document.getElementById(`editSpanner${carouselIndex}`);
       let hg = mybtn?.getBoundingClientRect().top + document.documentElement.scrollTop
       window.scrollBy(0,hg-100);
-      document.getElementById(`indexKey${carouselIndex}`)?.classList.add('show');
-      document.getElementById(`foreignKey${carouselIndex}`)?.classList.add('show');
+      document.getElementById(`index-key-${carouselIndex}`)?.classList.add('show');
+      document.getElementById(`foreign-key-${carouselIndex}`)?.classList.add('show');
     }
   }
   constructor() {

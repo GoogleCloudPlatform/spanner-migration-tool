@@ -1,6 +1,5 @@
 import Actions from "../../services/Action.service.js";
 import { tooltipHandler } from "../../helpers/SchemaConversionHelper.js";
-import Store from "../../services/Store.service.js";
 
 class EditGlobalDataTypeForm extends HTMLElement {
     connectedCallback() {
@@ -8,27 +7,24 @@ class EditGlobalDataTypeForm extends HTMLElement {
         document.getElementById("data-type-button").addEventListener("click", async () => {
                 await Actions.setGlobalDataType();
                 await Actions.ddlSummaryAndConversionApiCall();
-                // document.getElementById("app").innerHTML = `<hb-default-layout>
-                // <hb-schema-conversion-screen></hb-schema-conversion-screen>
-                // </<hb-default-layout>`;
             });
     }
 
     render() {
-        let globalDataTypeList = Store.getGlobalDataTypeList()
+        let globalDataTypeList = Actions.getGlobalDataTypeList()
         let dataTypeListKeyArray = Object.keys(globalDataTypeList);
         this.innerHTML = `
-        <div class="data-mapping-card" id='globalDataType'>
-            <table class='data-type-table' id='globalDataTypeTable'>
-                <tbody id='globalDataTypeBody'>
+        <div class="data-mapping-card" id='global-data-type'>
+            <table class='data-type-table' id='global-data-type-table'>
+                <tbody id='global-data-type-body'>
                     <tr>
                         <th>Source</th>
                         <th>Spanner</th>
                     </tr>
                     ${dataTypeListKeyArray.map((dataType, index) => {return `
-                    <tr class='globalDataTypeRow' id="dataTypeRow${index + 1}">
-                        <td class='src-td' id="dataTypeKey${index + 1}">${dataType}</td>
-                        <td id="dataTypeVal${index + 1}">
+                    <tr class='global-data-type-row' id="data-type-row${index + 1}">
+                        <td class='src-td' id="data-type-key${index + 1}">${dataType}</td>
+                        <td id="data-type-val${index + 1}">
                             <div class="label-container">
                                 <i id="warning${index + 1}" 
                                 class="large material-icons warning ${globalDataTypeList[dataType][0].Brief? "":"template"}" 
@@ -36,9 +32,9 @@ class EditGlobalDataTypeForm extends HTMLElement {
                                 title="${globalDataTypeList[dataType][0].Brief}">warning</i>
                         
                                 <select class='form-control table-select' 
-                                id="dataTypeOption${index + 1}">
+                                id="data-type-option${index + 1}">
                                     ${globalDataTypeList[dataType].map((option, idx) => {return `
-                                        <option class='dataTypeOption' value="${option.T}">${option.T}</option>`;
+                                        <option class='data-type-option' value="${option.T}">${option.T}</option>`;
                                     }).join("")}
                                 </select>
                             </div>
@@ -50,9 +46,9 @@ class EditGlobalDataTypeForm extends HTMLElement {
         tooltipHandler();
         
         for (let i = 0; i < dataTypeListKeyArray.length; i++) {
-            document.getElementById(`dataTypeOption${i + 1}`).addEventListener("change", () => {
-                    Actions.dataTypeUpdate(`dataTypeOption${i + 1}`, globalDataTypeList);
-                });
+            document.getElementById(`data-type-option${i + 1}`).addEventListener("change", () => {
+                    Actions.dataTypeUpdate(`data-type-option${i + 1}`, globalDataTypeList);
+            });
         }
     }
 
