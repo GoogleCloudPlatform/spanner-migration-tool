@@ -49,7 +49,6 @@ const Store = (function () {
     },
     getCurrentClickedCarousel:()=>{
       return currentClickedCarousel;
-      console.log(currentClickedCarousel);
     },
 
     // Other store manipulator functions here
@@ -72,14 +71,10 @@ const Store = (function () {
       }
       instance = { ...instance, open: openVal };
     },
+
     setCurrentModal: (currentModal) => {
       instance = { ...instance, open: openVal };
     },
-    // updateSchemaScreen: async (tableData) => {
-    //   Store.updateTableData("reportTabContent", tableData);
-    //   await Actions.ddlSummaryAndConversionApiCall();
-    //   instance = { ...instance, tableData, saveSchemaId: Math.random() };
-    // },
     setarraySize: (val) => {
       instance.openStatus = {
         ddl: new Array(val).fill(false),
@@ -168,10 +163,7 @@ const Store = (function () {
     getSearchInputValue: (key) => {
       return instance.searchInputValue[key];
     },
-    setTableMode:(key,value)=>{
-      instance.modeStatus[key]=value;
-    },
-
+   
     resetStore: () => {
       instance = {
         checkInterleave: {},
@@ -195,6 +187,14 @@ const Store = (function () {
         tableBorderData: {},
         globalDataTypeList: {},
       };
+    },
+
+    getCurrentTab:()=>{
+      return instance.currentTab;
+    },
+
+    getInterleaveConversionForATable:(tableName)=>{
+        return instance.checkInterleave[tableName];
     }
 
   };

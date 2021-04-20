@@ -677,7 +677,7 @@ table {
 a {
     color: #4285F4;
 }
-
+/* 
 .dataType-modal-position {
     top: 50%;
     left: 50%;
@@ -712,7 +712,7 @@ th {
 .data-type-table td {
     padding: 0 0 0 31px;
     text-align: left;
-}
+} */
 
 .src-td {
     border-right: 1px solid #DCDCDC;

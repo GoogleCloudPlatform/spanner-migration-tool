@@ -24,7 +24,7 @@ class DataTable extends HTMLElement {
 
     connectedCallback() {
         Actions.checkInterleaveConversion(this.tableName);
-        this.checkInterLeave = Store.getinstance().checkInterleave[this.tableName];
+        this.checkInterLeave = Actions.getInterleaveConversionForATable(this.tableName);
     }
 
     fkComponent(tableIndex, tableName, fkArray) {
@@ -270,7 +270,7 @@ class DataTable extends HTMLElement {
                                     <div class="form-group">
                                         <select class="form-control spanner-input report-table-select"
                                             id="data-type-${tableIndex}${index}${index}">
-                                            <option class="dataTypeOption template"></option>
+                                            <option class="data-type-option template"></option>
                                         </select>
                                     </div>
                                 </div>

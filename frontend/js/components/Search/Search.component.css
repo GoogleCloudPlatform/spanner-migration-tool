@@ -1,4 +1,4 @@
-.searchBox {
+.search-box {
     border-left: 0px !important;
     border-top: 0px !important;
     border-right: 0px !important;
@@ -7,7 +7,7 @@
     outline: none;
 }
 
-.searchForm {
+.search-form {
     margin-right: 30px;
 }
 
