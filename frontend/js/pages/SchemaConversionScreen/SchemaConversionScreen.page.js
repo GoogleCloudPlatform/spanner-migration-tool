@@ -18,7 +18,6 @@ import { TAB_CONFIG_DATA } from "./../../config/constantData.js";
 class SchemaConversionScreen extends HTMLElement {
   connectedCallback() {
     this.stateObserver = setInterval(this.observeState, 200);
-    Actions.getGlobalDataTypeList();
     this.render();
   }
 
@@ -187,8 +186,9 @@ class SchemaConversionScreen extends HTMLElement {
       let mybtn = document.getElementById(`editSpanner${carouselIndex}`);
       let hg = mybtn?.getBoundingClientRect().top + document.documentElement.scrollTop
       window.scrollBy(0,hg-100);
-      document.getElementById(`indexKey${carouselIndex}`)?.classList.add('show');
-      document.getElementById(`foreignKey${carouselIndex}`)?.classList.add('show');
+      console.log(carouselIndex);
+      document.getElementById(`index-key${carouselIndex}`)?.classList.add('show');
+      document.getElementById(`foreign-key${carouselIndex}`)?.classList.add('show');
     }
   }
   constructor() {
