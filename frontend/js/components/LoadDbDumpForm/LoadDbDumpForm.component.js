@@ -1,6 +1,5 @@
 import Forms from "../../services/Forms.service.js";
 import Actions from "../../services/Action.service.js";
-import Store from "../../services/Store.service.js";
 
 class LoadDbDumpForm extends HTMLElement {
 
@@ -39,7 +38,7 @@ class LoadDbDumpForm extends HTMLElement {
 
         if (loadDbDumpApiRes && ddlSummaryApiRes) {
             window.location.href = '#/schema-report';
-            Actions.sessionRetrieval(Store.getSourceDbName());
+            Actions.sessionRetrieval(Actions.getSourceDbName());
         }
     }
 

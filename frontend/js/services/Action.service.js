@@ -863,8 +863,20 @@ const Actions = (() => {
       Store.setGlobalDbType(value);
     },
 
-    getInterleaveConversionForATable:(tableName)=>{
+    getInterleaveConversionForATable: (tableName) => {
      return Store.getInterleaveConversionForATable(tableName);
+    },
+
+    getSourceDbName: () => {
+      return Store.getSourceDbName();
+    },
+
+    getGlobalDataTypeList: () => {
+      return Store.getGlobalDataTypeList();
+    },
+
+    carouselStatus: (tabId,tableIndex) => {
+      return Store.getinstance().openStatus[tabId][tableIndex];
     }
 
   };

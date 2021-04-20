@@ -1,7 +1,6 @@
 import "./../Modal/Modal.component.js";
 import { recreateNode } from './../../helpers/SchemaConversionHelper.js';
 import Actions from './../../services/Action.service.js';
-import Store from './../../services/Store.service.js';
 
 class DataTable extends HTMLElement {
 
@@ -169,7 +168,7 @@ class DataTable extends HTMLElement {
                 pkSeqId++;
             }
         } 
-        let sourceDbName = Store.getSourceDbName();
+        let sourceDbName = Actions.getSourceDbName();
         this.innerHTML = 
             ` <div class="acc-card-content" id="acc-card-content">
                 <table class="acc-table" id="src-sp-table${tableIndex}">

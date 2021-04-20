@@ -1,6 +1,5 @@
 import Actions from "../../services/Action.service.js";
 import { tooltipHandler } from "../../helpers/SchemaConversionHelper.js";
-import Store from "../../services/Store.service.js";
 
 class EditGlobalDataTypeForm extends HTMLElement {
     connectedCallback() {
@@ -12,7 +11,7 @@ class EditGlobalDataTypeForm extends HTMLElement {
     }
 
     render() {
-        let globalDataTypeList = Store.getGlobalDataTypeList()
+        let globalDataTypeList = Actions.getGlobalDataTypeList()
         let dataTypeListKeyArray = Object.keys(globalDataTypeList);
         this.innerHTML = `
         <div class="data-mapping-card" id='global-data-type'>
