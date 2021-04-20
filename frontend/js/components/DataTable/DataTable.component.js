@@ -191,12 +191,6 @@ class DataTable extends HTMLElement {
                                             </span>
                                         </label>
                                     </div>
-<<<<<<< HEAD
-                                    <div class="collapse innerSummaryCollapse" id="viewSummary${tableIndex}">
-                                        <div class="mdc-card mdc-card-content summaryBorder">
-                                            <hb-list-table tabName="summary" tableName="${tableName}" dta="${data.summary}"></hb-list-table>
-                                        </div>
-=======
                                 </span>
                                 ${sourceDbName}
                             </th>
@@ -230,7 +224,6 @@ class DataTable extends HTMLElement {
                                                 <div class="ripple-container"></div>
                                             </span>
                                         </label>
->>>>>>> 61fc7d0edbe24581a2d6f1ac9790c0e869e7aa1b
                                     </div>
                                 </span>
                                 <span class="column left">
