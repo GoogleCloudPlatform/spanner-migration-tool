@@ -52,7 +52,7 @@ export const initSchemaScreenTasks = () => {
     //   }
     // });
 
-    jQuery(".collapse.innerSummaryCollapse").on(
+    jQuery(".collapse.inner-summary-collapse").on(
       "show.bs.collapse",
       function (e) {
         if (!jQuery(this).closest("section").hasClass("template")) {
@@ -60,7 +60,7 @@ export const initSchemaScreenTasks = () => {
         }
       }
     );
-    jQuery(".collapse.innerSummaryCollapse").on(
+    jQuery(".collapse.inner-summary-collapse").on(
       "hide.bs.collapse",
       function (e) {
         if (!jQuery(this).closest("section").hasClass("template")) {
@@ -69,23 +69,23 @@ export const initSchemaScreenTasks = () => {
       }
     );
 
-    jQuery(".collapse.fkCollapse").on("show.bs.collapse", function (e) {
+    jQuery(".collapse.fk-collapse").on("show.bs.collapse", function (e) {
       if (!jQuery(this).closest("section").hasClass("template")) {
         e.stopPropagation();
       }
     });
-    jQuery(".collapse.fkCollapse").on("hide.bs.collapse", function (e) {
+    jQuery(".collapse.fk-collapse").on("hide.bs.collapse", function (e) {
       if (!jQuery(this).closest("section").hasClass("template")) {
         e.stopPropagation();
       }
     });
 
-    jQuery(".collapse.indexCollapse").on("show.bs.collapse", function (e) {
+    jQuery(".collapse.index-collapse").on("show.bs.collapse", function (e) {
       if (!jQuery(this).closest("section").hasClass("template")) {
         e.stopPropagation();
       }
     });
-    jQuery(".collapse.indexCollapse").on("hide.bs.collapse", function (e) {
+    jQuery(".collapse.index-collapse").on("hide.bs.collapse", function (e) {
       if (!jQuery(this).closest("section").hasClass("template")) {
         e.stopPropagation();
       }

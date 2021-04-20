@@ -66,7 +66,8 @@ class TableCarousel extends HTMLElement {
     let panelColor = panelBorderClass(color);
     let cardColor = mdcCardBorder(color);
     let carouselStatus = Store.getinstance().openStatus[this.tabId][this.tableIndex];
-    let editButtonVisibleClass = carouselStatus ? 'show-content' : 'hide-content'
+    let editButtonVisibleClass = carouselStatus ? 'show-content' : 'hide-content';
+ 
     this.innerHTML = `
     <section class="${tabId}-section" id="${tableIndex}">
       <div class="card">

@@ -36,8 +36,8 @@ class SchemaConversionScreen extends HTMLElement {
           summary : Store.getinstance().tableData["summaryTabContent"][tableNameArray[i]],
         };
         let component = document.querySelector(`#reportTab${i}`);
-        // component.setAttribute('data',JSON.stringify(filterdata));
         component.data = filterdata;
+        component.addEventListener('click', ()=>{Store.setCurrentClickedCarousel(i);})
       }
   }
 
@@ -55,11 +55,11 @@ class SchemaConversionScreen extends HTMLElement {
 
   observeState = () => {
     let updatedData = Store.getinstance();
+    
     if (JSON.stringify(updatedData) !== JSON.stringify(this.data)) {
-      console.log("in the if..");
+      console.log(updatedData);
       this.data = JSON.parse(JSON.stringify(updatedData));
       this.render();
-      Actions.ddlSummaryAndConversionApiCall();
     }
     if (Store.getTableChanges() == "saveMode" && JSON.stringify(updatedData) == JSON.stringify(this.data)) {
       Store.setTableChanges("editMode");
@@ -68,20 +68,21 @@ class SchemaConversionScreen extends HTMLElement {
   };
 
   render() {
-    console.log(this.data);
     if (!this.data) {
       return;
     }
     const { currentTab, tableData, tableBorderData,searchInputValue } = this.data;
-    console.log(searchInputValue);
     let currentTabContent = tableData[`${currentTab}Content`];
+    console.log(currentTabContent);
     const changingText = this.getChangingValue(currentTab);
     let tableNameArray;
     if (currentTab === "reportTab") {
-      tableNameArray = Object.keys(currentTabContent.SpSchema);
+      tableNameArray = Object.keys(currentTabContent.SpSchema)
+                            .filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1);
       // delete currentTabContent["Stats"];
     } else {
-      tableNameArray = Object.keys(currentTabContent);
+      tableNameArray = Object.keys(currentTabContent)
+                            .filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1);
     }
 
     this.innerHTML = `
@@ -113,8 +114,7 @@ class SchemaConversionScreen extends HTMLElement {
               <hb-site-button buttonid="reportExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>
               <hb-site-button buttonid="editButton" classname="expand right-align" buttonaction="editGlobalDataType" text="Edit Global Data Type"></hb-site-button>
               <div id='reportDiv'>
-                ${tableNameArray.filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1)
-                  .map((tableName, index) => {
+                ${tableNameArray.map((tableName, index) => {
                     return `
                     <hb-table-carousel tableTitle="${tableName}" id="${currentTab}${index}" tabId="report" 
                     tableIndex="${index}" borderData = "${tableBorderData[tableName]}"></hb-table-carousel>`;
@@ -122,7 +122,7 @@ class SchemaConversionScreen extends HTMLElement {
                   .join("")}                    
                 </div>
             </div>
-            <h5 class="no-text" id="reportnotFound">No Match Found</h5>
+            ${tableNameArray.length <=0 ? '<h5 class="no-text" >No Match Found</h5>':''}
           </div>`
               : `<div></div>`
           }
@@ -134,8 +134,7 @@ class SchemaConversionScreen extends HTMLElement {
               <hb-site-button buttonid="ddlExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>
               <hb-site-button buttonid="download-ddl" classname="expand right-align" buttonaction="downloadDdl" text="Download DDL Statements"></hb-site-button>
               <div id='ddlDiv'>
-                ${tableNameArray.filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1)
-                  .map((tableName, index) => {
+                ${tableNameArray.map((tableName, index) => {
                     return `
                     <hb-table-carousel tableTitle="${tableName}" stringData="${currentTabContent[tableName]}" tabId="ddl" id="${currentTab}${index}" tableIndex=${index} borderData = "${tableBorderData[tableName]}">
                     </hb-table-carousel>`;
@@ -143,7 +142,7 @@ class SchemaConversionScreen extends HTMLElement {
                   .join("")} 
                 </div>
             </div>
-            <h5 class="no-text" id="ddlnotFound">No Match Found</h5>
+           ${tableNameArray.length <=0 ? '<h5 class="no-text" >No Match Found</h5>':''}
           </div>`
               : `<div></div>`
           }
@@ -155,16 +154,15 @@ class SchemaConversionScreen extends HTMLElement {
               <hb-site-button buttonid="summaryExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>
               <hb-site-button buttonid="download-report" classname="expand right-align" buttonaction="downloadReport" text="Download Summary Report"></hb-site-button>
               <div id='summaryDiv'>
-                ${tableNameArray.filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1)
-                  .map((tableName, index) => {
+                ${tableNameArray.map((tableName, index) => {
                     return `
-                    <hb-table-carousel tableTitle="${tableName}" stringData="${currentTabContent[tableName]}" id="${currentTab}${index}" tabId="summary" 
+                    <hb-table-carousel  tableTitle="${tableName}" stringData="${currentTabContent[tableName]}" id="${currentTab}${index}" tabId="summary" 
                     tableIndex=${index} borderData = "${tableBorderData[tableName]}"></hb-table-carousel>`;
                   })
                   .join("")} 
               </div>
             </div>
-            <h5 class="no-text" id="summarynotFound">No Match Found</h5>
+            ${tableNameArray.length <=0 ? '<h5 class="no-text">No Match Found</h5>':''}
           </div>`
               : `<div></div>`
           }
@@ -174,18 +172,25 @@ class SchemaConversionScreen extends HTMLElement {
     </div>
     <hb-modal modalId="globalDataTypeModal" content="<hb-edit-global-datatype-form></hb-edit-global-datatype-form>" 
       contentIcon="" connectIconClass="" modalBodyClass="" title="Global Data Type Mapping"></hb-modal>
-    <hb-modal modalId="indexAndKeyDeleteWarning" content="" contentIcon="warning" 
+    <hb-modal modalId="index-and-key-delete-warning" content="" contentIcon="warning" 
       connectIconClass="warning-icon" modalBodyClass="connection-modal-body" title="Warning"></hb-modal>
     <hb-modal modalId="editTableWarningModal" content="edit table" contentIcon="cancel" 
       connectIconClass="connect-icon-failure" modalBodyClass="connection-modal-body" title="Error Message"></hb-modal>
     <hb-modal modalId="createIndexModal" content="" contentIcon="" 
-      connectIconClass="" modalBodyClass="" title="Select keys for new index"></hb-modal> `;
+      connectIconClass="" modalBodyClass="" title="Select keys for new index"></hb-modal>`;
+
     initSchemaScreenTasks();
     if (currentTab === "reportTab") {
-      this.sendDatatoReportTab(tableNameArray.filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1), currentTabContent);
+      this.sendDatatoReportTab(tableNameArray
+        .filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1), currentTabContent);
+      let carouselIndex = Store.getCurrentClickedCarousel();
+      let mybtn = document.getElementById(`editSpanner${carouselIndex}`);
+      let hg = mybtn?.getBoundingClientRect().top + document.documentElement.scrollTop
+      window.scrollBy(0,hg-100);
+      document.getElementById(`indexKey${carouselIndex}`)?.classList.add('show');
+      document.getElementById(`foreignKey${carouselIndex}`)?.classList.add('show');
     }
   }
-
   constructor() {
     super();
   }

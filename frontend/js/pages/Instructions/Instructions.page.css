@@ -1,9 +1,9 @@
-.instructionsDiv {
+.instructions-div {
     padding: 40px;
     padding-top: 60px;
 }
 
-.instructionsIcon {
+.instructions-icon {
     height: 200px;
     display: block;
     margin-left: auto;
@@ -14,25 +14,25 @@
     text-align: center;
 }
 
-.instructionsMainHeading {
+.instructions-main-heading {
     font-size: 1.25rem;
     color: #4285F4;
     font-weight: bold;
 }
 
-.instructionsSubHeading {
+.instructions-sub-heading {
     font-size: 1rem;
     color: #4285F4;
     font-weight: bold;
 }
 
-.instructionsCommand {
+.instructions-command {
     background-color: #8080806b;
     border-radius: 5px;
     padding: 0px 5px;
 }
 
-.instructionsImgWidth {
+.instructions-img-width {
     width: 800px;
 }
 

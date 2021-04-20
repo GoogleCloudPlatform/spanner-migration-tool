@@ -1,5 +1,4 @@
 .no-text {
-    display: none;
     color: #808080;
     text-align:  center;
     font-size: 1.25rem;
@@ -9,7 +8,89 @@
     display: inline-block;
 }
 
+.report-header{
+    font-weight: 700;
+    font-size: 26px;
+    padding: 10px 0;
+    color: #222222;
+    margin-top: 24px;
+    margin-bottom: 24px;
+}
+
 .schema-screen-snackbar {
     z-index: 10000 !important;
     position: fixed;
+}
+
+.summary-main-content{
+    background-color: #FFFFFF;
+    padding-left: 40px;
+    padding-right: 40px;
+    padding-top: 60px;
+}
+
+.report-tabs{
+    display: inline-block;
+}
+
+.status-icons{
+    display: inline-block;
+    float: right;
+}
+
+.tab-bg{
+    padding: 24px 10px;
+    background-color: #FDFDFD;
+    border: 2px solid #EDEDED;
+}
+
+.show {
+    visibility: visible !important;
+    -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
+    animation: fadein 0.5s, fadeout 0.5s 2.5s;
+}
+
+.panel-group .panel{
+    margin-bottom: 10px;
+}
+
+.nav-tabs>li.active>a, .nav-tabs>li.active>a:focus, .nav-tabs>li.active>a:hover{
+    color: #FDFDFD;
+    background-color: #4285F4;
+    border-radius: 20px 20px 0px 0px;
+    font-size: 20px;
+}
+
+.nav-tabs>li>a{
+    padding: 6px 20px 6px 20px;
+    font-size: 20px;
+    color: #5E5752;
+    border: 1px solid #4285F4;
+    border-radius: 20px 20px 0px 0px;
+    margin-right: -1px;
+}
+
+.edit-button {
+    font-size: 16px;
+    font-weight: bold;
+    float: right;
+    border-radius: 20px;
+    padding: 5px 10px;
+    margin-right: 25px;
+    border: 1px solid #4285F4 !important;
+    color: #FFFFFF;
+    background: #4285F4;
+}
+
+.edit-button:hover {
+    background-color: #CBCBCB;
+    color: #4285F4;
+} 
+
+.editInstruction {
+    color: #0F9D58;
+    font-size: 16px;
+    font-weight: bold;
+    margin-top: 6px;
+    margin-right: 4px;
 }
