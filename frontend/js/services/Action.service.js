@@ -30,7 +30,6 @@ const Actions = (() => {
     onLoadDatabase: async (dbType, dumpFilePath) => {
       let reportData, sourceTableFlag, reportDataResp, reportDataCopy, jsonReportDataResp, requestCode;
       reportData = await Fetch.getAppData("POST", "/convert/dump", { Driver: dbType, Path: dumpFilePath });
-      console.log(reportData);
       reportDataCopy = reportData.clone();
       requestCode = reportData.status;
       reportDataResp = await reportData.text();
@@ -272,7 +271,6 @@ const Actions = (() => {
       let res = await Fetch.getAppData("POST", "/typemap/global", dataTypeJson);
       if (res) {
         res = await res.json();
-        console.log(res);
         Store.updatePrimaryKeys(res);
         Store.updateTableData("reportTabContent", res); }
     },
