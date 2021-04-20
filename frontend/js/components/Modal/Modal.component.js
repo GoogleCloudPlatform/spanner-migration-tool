@@ -72,7 +72,7 @@ class Modal extends HTMLElement {
       case "editTableWarningModal":
         modalButtons = MODALCONFIGS.EDIT_TABLE_WARNING_MODAL;
         break;
-      case "indexAndKeyDeleteWarning":
+      case "index-and-key-delete-warning":
         modalButtons = MODALCONFIGS.FK_DROP_WARNING_MODAL;
         break;
     }

@@ -23,6 +23,7 @@ class ConnectToDbForm extends HTMLElement {
         });
         Forms.formButtonHandler("connect-form", "connect-button");
         document.getElementById("connect-button").addEventListener("click", async () => {
+            Actions.resetStore();
             response = await Actions.onconnect(document.getElementById('db-type').value, document.getElementById('db-host').value,
                 document.getElementById('db-port').value, document.getElementById('db-user').value,
                 document.getElementById('db-name').value, document.getElementById('db-password').value);
