@@ -48,6 +48,9 @@
   border-radius: 10px !important;
 }
 
+.no-border-bottom{
+  border-bottom: 0px !important;
+}
 .card-orange-border {
   border: 0.125rem solid ORANGE !important;
   border-top: 0px !important;
@@ -137,6 +140,6 @@
   box-shadow: none !important;
 }
 
-/* .rem-border-bottom {
+.rem-border-bottom {
     border-radius: 10px 10px 0px 0px !important;
-} */
+}
