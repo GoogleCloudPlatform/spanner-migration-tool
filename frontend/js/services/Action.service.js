@@ -431,7 +431,7 @@ const Actions = (() => {
         let tableCheckboxGroup = '.chck-class-' + tableNumber;
         uncheckCount[tableNumber] = 0;
         event.target.innerHTML = "Save Changes";
-        document.getElementById("editInstruction" + tableNumber).style.visibility = "hidden";
+        document.getElementById("edit-instruction" + tableNumber).style.visibility = "hidden";
         if (document.getElementById('add' + tableNumber) && document.getElementById('interleave' + tableNumber)) {
           document.getElementById('add' + tableNumber).removeAttribute('disabled');
           document.getElementById('interleave' + tableNumber).removeAttribute('disabled');
@@ -769,7 +769,7 @@ const Actions = (() => {
           Store.updateTableData("reportTabContent", tableData);
           let updatedData = Store.getinstance().tableData.reportTabContent
           event.target.innerHTML = "Edit Spanner Schema";
-          document.getElementById("editInstruction" + tableNumber).style.visibility = "visible";
+          document.getElementById("edit-instruction" + tableNumber).style.visibility = "visible";
           if (document.getElementById('add' + tableNumber) && document.getElementById('interleave' + tableNumber)) {
             document.getElementById('add' + tableNumber).setAttribute('disabled', 'disabled');
             document.getElementById('interleave' + tableNumber).setAttribute('disabled', 'disabled');

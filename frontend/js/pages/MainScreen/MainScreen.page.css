@@ -1,72 +1,72 @@
 .page-heading {
-    padding: 0 40px;
-    margin-top: 72px;
-    background-color: #FDFDFD;
+  padding: 0 40px;
+  margin-top: 72px;
+  background-color: #fdfdfd;
 }
 
 .page-heading .page-sub-heading {
-    font-size: 26px;
-    font-weight: 500;
-    color: #5E5752;
-    margin-top: 20px;
+  font-size: 26px;
+  font-weight: 500;
+  color: #5e5752;
+  margin-top: 20px;
 }
 
-.card-area {
+/* .card-area {
     background-color: #FDFDFD;
-}
+} */
 
 .icons-card-section {
-    display: flex;
-    text-align: center;
-    justify-content: space-around;
-    margin: 40px;
+  display: flex;
+  text-align: center;
+  justify-content: space-around;
+  margin: 40px;
 }
 
 .icons-card-section .icon-card {
-    margin-right: 50px;
+  margin-right: 50px;
 }
 
 .warning-icon {
-    color: #E1AD01D4;
+  color: #e1ad01d4;
 }
 
 .pointer {
-    cursor: pointer;
+  cursor: pointer;
 }
 
 .template {
-    display: none;
+  display: none;
 }
 
 .hidden {
-    visibility: hidden;
+  visibility: hidden;
 }
 
 .ml-3 {
-    margin-left: 3px;
+  margin-left: 3px;
 }
 
 .connection-modal-body {
-    margin-bottom: 20px;
-    display: inherit;
+  margin-bottom: 20px;
+  display: inherit;
 }
 
 h5 {
-    font-size: 0.875rem;
+  font-size: 0.875rem;
 }
 
 .connect-icon-success {
-    margin-right: 6px;
-    color: #0F9D58 !important;
+  margin-right: 6px;
+  color: #0f9d58 !important;
 }
 
 .connect-icon-failure {
-    margin-right: 6px;
-    color: #DB4437 !important;
+  margin-right: 6px;
+  color: #db4437 !important;
 }
 
-.history-content{
-    padding : 0 40px;
-    margin-top: 72px;
-    background-color: #FDFDFD;
+.history-content {
+  padding: 0 40px;
+  margin-top: 72px;
+  background-color: #fdfdfd;
 }

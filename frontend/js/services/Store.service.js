@@ -47,18 +47,18 @@ const Store = (function () {
     setCurrentClickedCarousel:(value)=>{
       currentClickedCarousel = value;
     },
+
     getCurrentClickedCarousel:()=>{
       return currentClickedCarousel;
     },
 
-    // Other store manipulator functions here
-    // may be later can be moved to actions and stiched to affect the store
     addAttrToStore: () => {
       if (!instance) {
         return;
       }
       instance = { ...instance, something: "of value" };
     },
+    
     toggleStore: () => {
       if (!instance) {
         return;
@@ -85,10 +85,11 @@ const Store = (function () {
 
     setInterleave: (tableName, value) => {
       checkInterLeaveArray[tableName] = value;
-      if (Object.keys(checkInterLeaveArray).length == 16) {
+      if (Object.keys(checkInterLeaveArray).length == instance.openStatus.report.length) {
         instance = { ...instance, checkInterleave: checkInterLeaveArray };
       }
     },
+
     switchCurrentTab: (tab) => {
       instance = { ...instance, currentTab: tab }
     },

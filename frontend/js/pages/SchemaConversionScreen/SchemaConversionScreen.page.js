@@ -18,7 +18,6 @@ import { TAB_CONFIG_DATA } from "./../../config/constantData.js";
 class SchemaConversionScreen extends HTMLElement {
   connectedCallback() {
     this.stateObserver = setInterval(this.observeState, 200);
-    Actions.getGlobalDataTypeList();
     this.render();
   }
 

@@ -31,6 +31,7 @@ class ConnectToDbForm extends HTMLElement {
                 document.getElementById("convert-button").addEventListener("click", async () => {
                     await Actions.showSchemaAssessment();
                     await Actions.ddlSummaryAndConversionApiCall();
+                    await Actions.getGlobalDataTypeList();
                     window.location.href = '#/schema-report';
                     Actions.sessionRetrieval(Store.getSourceDbName());
                 });

@@ -65,9 +65,9 @@ class AddIndexForm extends HTMLElement {
         <div id="newIndexColumnListDiv" class="column-list-container">
               ${this.data.map((row, idx) => {
                 return `
-                <div class="newIndexColumnList" id="indexColumnRow${idx}">
-                    <span class="orderId invisible-badge" id="order${row}${idx}">1</span>
-                    <span class="columnName">${row}</span>
+                <div class="new-index-column-list" id="indexColumnRow${idx}">
+                    <span class="order-id invisible-badge" id="order${row}${idx}">1</span>
+                    <span class="column-name">${row}</span>
                     <span class="bmd-form-group is-filled">
                         <div class="checkbox float-right" >
                             <label>

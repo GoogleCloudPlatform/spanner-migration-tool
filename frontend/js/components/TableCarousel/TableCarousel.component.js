@@ -69,7 +69,7 @@ class TableCarousel extends HTMLElement {
     let editButtonVisibleClass = carouselStatus ? 'show-content' : 'hide-content';
  
     this.innerHTML = `
-    <section class="${tabId}Section" id="${tableIndex}">
+    <section class="${tabId}-section" id="${tableIndex}">
       <div class="card">
 
         <div role="tab" class="card-header ${tabId}-card-header ${panelColor} rem-border-bottom">
@@ -81,16 +81,16 @@ class TableCarousel extends HTMLElement {
             ${ tabId ==="report" ? `
                 <span class="spanner-text right-align ${editButtonVisibleClass}">Spanner</span>
                 <span class="spanner-icon right-align ${editButtonVisibleClass}">
-                  <i class="large material-icons iconSize">circle</i>
+                  <i class="large material-icons round-icon-size">circle</i>
                 </span>
                 <span class="source-text right-align ${editButtonVisibleClass}">Source</span>
                 <span class="source-icon right-align ${editButtonVisibleClass}">
-                  <i class="large material-icons iconSize">circle</i>
+                  <i class="large material-icons round-icon-size">circle</i>
                 </span>
-                <button class="right-align edit-button ${editButtonVisibleClass}" id="editSpanner${tableIndex}">
-                    Edit Spanner Schema
+                <button class="edit-button ${editButtonVisibleClass}" id="editSpanner${tableIndex}">
+                  Edit Spanner Schema
                 </button>
-                <span id="editInstruction${tableIndex}" class="right-align editInstruction ${editButtonVisibleClass} blink">
+                <span id="edit-instruction${tableIndex}" class="right-align edit-instruction ${editButtonVisibleClass} blink">
                   Schema locked for editing. Unlock to change =>
                 </span> `
                 :
@@ -99,7 +99,7 @@ class TableCarousel extends HTMLElement {
           </h5>
         </div>
     
-        <div class="collapse ${tabId}Collapse ${carouselStatus?"show bs collapse":""}" id="${tabId}-${tableTitle}">
+        <div class="collapse ${tabId}-collapse ${carouselStatus?"show bs collapse":""}" id="${tabId}-${tableTitle}">
           <div class="mdc-card mdc-card-content table-card-border ${cardColor}">
             ${ tabId == "report" ? `
             <hb-data-table tableName="${tableTitle}" tableIndex="${tableIndex}" ></hb-data-table>` 
