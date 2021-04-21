@@ -339,12 +339,8 @@ class DataTable extends HTMLElement {
             });
         });
         document.getElementById("editSpanner" + tableIndex).addEventListener("click", async (event) => {
-                  await Actions.editAndSaveButtonHandler(event, tableIndex, tableName, notNullConstraint);
-                  if(event.target.innerHTML === "Edit Spanner Schema")
-                  {
-                      Actions.ddlSummaryAndConversionApiCall();
-                  }
-
+                await Actions.editAndSaveButtonHandler(event, tableIndex, tableName, notNullConstraint);
+            
         });
         if (spTable.Fks !== null && spTable.Fks.length > 0) {
             spTable.Fks.map((fk, index) => {

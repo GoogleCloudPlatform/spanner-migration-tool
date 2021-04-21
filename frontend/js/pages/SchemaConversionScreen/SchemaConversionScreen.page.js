@@ -55,7 +55,6 @@ class SchemaConversionScreen extends HTMLElement {
   observeState = () => {
     let updatedData = Store.getinstance();
     if (JSON.stringify(updatedData) !== JSON.stringify(this.data)) {
-      console.log(updatedData);
       this.data = JSON.parse(JSON.stringify(updatedData));
       this.render();
     }

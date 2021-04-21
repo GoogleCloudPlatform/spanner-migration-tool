@@ -158,7 +158,11 @@ const Actions = (() => {
       filePath = "./" + fileName;
       readTextFile(filePath, async (error, text) => {
         if (error) {
-          showSnackbar(err, " redBg");
+          showSnackbar(error, " redBg");
+          let storege =JSON.parse(sessionStorage.getItem('sessionStorage'))
+          storege.splice(index , 1);
+          sessionStorage.setItem('sessionStorage' ,JSON.stringify(storege))
+          window.location.href='/';
         }
         else {
           let payload = { Driver: driver, DBName: dbName, FilePath: path };
@@ -187,9 +191,11 @@ const Actions = (() => {
     },
 
     downloadSession: async () => {
+      let reportJsonObj = JSON.stringify(Store.getinstance().tableData.reportTabContent);
+      reportJsonObj = reportJsonObj.replaceAll("9223372036854776000", "9223372036854775807");
       jQuery("<a />", {
         download: "session.json",
-        href: "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(Store.getinstance().tableData.reportTabContent), null, 4),
+        href: "data:application/json;charset=utf-8," + encodeURIComponent(reportJsonObj, null, 4),
       }).appendTo("body").click(function () {jQuery(this).remove();})[0]
         .click();
     },
@@ -279,7 +285,6 @@ const Actions = (() => {
       let res = await Fetch.getAppData("GET", "/typemap");
       if(res.ok){
         let result = await res.json();
-        console.log(result);
         Store.setGlobalDataTypeList(result)
       }
       else{
@@ -634,7 +639,7 @@ const Actions = (() => {
         switch (columnNameExists) {
           case true:
             // store previous state
-            Store.updateSchemaScreen(Store.getinstance().tableData.reportTabContent);
+            // Store.updateSchemaScreen(Store.getinstance().tableData.reportTabContent);
             break
           case false:
             tableData = await Fetch.getAppData('POST', '/typemap/table?table=' + tableName, updatedColsData);
@@ -663,14 +668,15 @@ const Actions = (() => {
               Store.updateTableData("reportTabContent", tableData);
               await Actions.saveForeignKeys(schemaConversionObj, tableNumber, tableName, tableData);
               await Actions.saveSecondaryIndexes(schemaConversionObj, tableNumber, tableName, tableData);
+              Actions.ddlSummaryAndConversionApiCall()
             }
             else {
               tableData = await tableData.text();
               jQuery('#editTableWarningModal').modal();
               jQuery('#editTableWarningModal').find('#modal-content').html(tableData);
+              
             }
         }
-        event.target.innerHTML =  "Edit Spanner Schema";
       }
     },
 

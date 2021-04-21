@@ -12,9 +12,12 @@ class DefaultLayout extends HTMLElement {
 
    async refreshHandler(data){
     if(data.outerHTML ==='<hb-schema-conversion-screen></hb-schema-conversion-screen>'){
-        console.log(Store.getinstance().tableData);
         if(Object.keys(Store.getinstance().tableData.reportTabContent).length === 0){
             let sessionArray = JSON.parse(sessionStorage.getItem("sessionStorage"));
+            if(!sessionArray || sessionArray.length === 0)
+            {
+                window.location.href = '/';
+            }
             await Actions.resumeSessionHandler(0, sessionArray);
             await Actions.ddlSummaryAndConversionApiCall();
             await Actions.setGlobalDataTypeList()
