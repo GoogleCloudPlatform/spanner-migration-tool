@@ -48,7 +48,7 @@
   border-radius: 10px !important;
 }
 
-.no-border-bottom{
+.no-border-bottom {
   border-bottom: 0px !important;
 }
 .card-orange-border {
@@ -141,5 +141,17 @@
 }
 
 .rem-border-bottom {
-    border-radius: 10px 10px 0px 0px !important;
+  border-radius: 10px 10px 0px 0px !important;
+}
+
+.rotate-icon {
+  -moz-transition: all 0.001s linear;
+  -webkit-transition: all 0.001s linear;
+  transition: all 0.001s linear;
+}
+
+.rotate-icon.down {
+  -moz-transform: rotate(180deg);
+  -webkit-transform: rotate(180deg);
+  transform: rotate(180deg);
 }

@@ -103,3 +103,7 @@ input:checked + .slider:before {
     background-color: #FFC107;
     margin-right: 8px;
 }
+
+.sec-index-label {
+  margin-bottom: 22px !important;
+}

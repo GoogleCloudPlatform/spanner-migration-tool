@@ -56,21 +56,21 @@ header.main-header a:hover {
     text-decoration: none;
 }
 
-.header-topic .active {
+/* .header-topic .active {
     color: #4285F4;
-}
+} */
 
 .welcome-heading {
     font-size: 32px;
     font-weight: 600;
 }
 
-.session-heading {
+/* .session-heading {
     padding-bottom: 20px;
     font-size: 26px;
     color: #5E5752;
     font-weight: 600;
-}
+} */
 
 .connect-heading {
     font-size: 26px;
@@ -357,13 +357,6 @@ nav.navbar.navbar-static-top {
     padding: 20px 24px 0px 24px;
 }
 
-.modal-body {
-    position: relative;
-    padding-left: 24px;
-    padding-right: 24px;
-    padding-top: 24px;
-    padding-bottom: 0px;
-} */
 
 .error-modal-body {
     width: 545px;

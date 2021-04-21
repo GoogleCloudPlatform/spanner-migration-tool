@@ -10,11 +10,11 @@
     box-shadow: 0 3px 6px hsla(0, 0%, 0%, 0.161) !important;
     margin-bottom: 10px;
 }
-
+/* 
 .image-icon .label {
     font-size: 22px;
     padding-top: 5px;
-}
+} */
 
 .pointer {
     cursor: pointer;

@@ -23,7 +23,7 @@ class AddIndexForm extends HTMLElement {
       );
     });
 
-    Forms.formButtonHandler("createIndexForm", "createIndexButton");
+    Forms.formButtonHandler("create-index-form", "create-index-button");
 
     document
       .getElementById("createIndexModal")
@@ -33,13 +33,13 @@ class AddIndexForm extends HTMLElement {
       });
 
     document
-      .getElementById("createIndexButton")
+      .getElementById("create-index-button")
       .addEventListener("click", () => {
         Actions.fetchIndexFormValues(
           this.tableIndex,
           this.tableName,
           document.getElementById("index-name").value,
-          document.getElementById("uniqueSwitch").checked
+          document.getElementById("unique-switch").checked
         );
       });
 
@@ -84,8 +84,8 @@ class AddIndexForm extends HTMLElement {
         <div class="unique-swith-container">
             <span class="unique-swith-label">Unique</span>
             <label class="switch">
-                <input id="uniqueSwitch" type="checkbox">
-                <span class="slider round" id="sliderSpan"></span>
+                <input id="unique-switch" type="checkbox">
+                <span class="slider round" id="slider-span"></span>
             </label>
         </div>
     </form>`;
