@@ -73,6 +73,12 @@
   color: #ffffff;
 }
 
+.edit-global-data-type {
+  margin: auto;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
 /* .modal-footer {
   padding: 12px 24px 14px 24px !important;
   margin-top: -15px;

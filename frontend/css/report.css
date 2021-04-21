@@ -266,7 +266,8 @@ table.dataTable thead th, table.dataTable thead td {
 
 .custom-file-control,
 .form-control {
-  color: #121213;  
+  color: #121213;
+  border: 1px solid #DDDDDD;  
 }
 
 .custom-file-control, .form-control, input::placeholder, label {

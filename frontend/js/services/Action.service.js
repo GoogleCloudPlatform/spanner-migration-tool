@@ -644,8 +644,10 @@ const Actions = (() => {
           case false:
             tableData = await Fetch.getAppData('POST', '/typemap/table?table=' + tableName, updatedColsData);
             if (tableData.ok) {
+              console.log("called");
               tableData = await tableData.json();
               Store.updateTableData('reportTabContent', tableData);
+              Actions.ddlSummaryAndConversionApiCall();
               let checkInterleave = Store.getinstance().checkInterleave;
               if (checkInterleave[tableName]) {
                 let selectedValue;
