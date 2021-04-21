@@ -68,7 +68,7 @@ class HistoryTable extends HTMLElement {
           .addEventListener("click", async () => {
             await Actions.resumeSessionHandler(index, sessionArray);
             await Actions.ddlSummaryAndConversionApiCall();
-            await Actions.getGlobalDataTypeList()
+            await Actions.setGlobalDataTypeList()
             window.location.href = "#/schema-report";
           });
       });

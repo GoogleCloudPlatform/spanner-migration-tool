@@ -33,7 +33,7 @@ class LoadSessionFileForm extends HTMLElement {
         }
         loadSessionRes = await Actions.onLoadSessionFile(filePath);
         ddlSummaryApiRes = await Actions.ddlSummaryAndConversionApiCall();
-        Actions.getGlobalDataTypeList();
+        Actions.setGlobalDataTypeList();
         if (loadSessionRes && ddlSummaryApiRes) {
             window.location.href = '#/schema-report';
             Actions.sessionRetrieval(Actions.getSourceDbName());
