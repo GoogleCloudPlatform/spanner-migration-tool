@@ -1,5 +1,6 @@
 import "../../components/Header/Header.component.js";
 import Actions from "../../services/Action.service.js";
+import Store from "../../services/Store.service.js";
 import "./../../components/LoadingSpinner/LoadingSpinner.component.js"
 class DefaultLayout extends HTMLElement {
     
@@ -7,6 +8,18 @@ class DefaultLayout extends HTMLElement {
         var data ; 
         data=(this.children[0])
         this.render(data);
+    }
+
+   async refreshHandler(data){
+    if(data.outerHTML ==='<hb-schema-conversion-screen></hb-schema-conversion-screen>'){
+        console.log(Store.getinstance().tableData);
+        if(Object.keys(Store.getinstance().tableData.reportTabContent).length === 0){
+            let sessionArray = JSON.parse(sessionStorage.getItem("sessionStorage"));
+            await Actions.resumeSessionHandler(0, sessionArray);
+            await Actions.ddlSummaryAndConversionApiCall();
+            await Actions.setGlobalDataTypeList()
+        }
+    }
     }
     
     render(data) {
@@ -17,6 +30,7 @@ class DefaultLayout extends HTMLElement {
         </header>
         <div>${data.outerHTML}</div>`;
         Actions.hideSpinner()
+        this.refreshHandler(data)
     }
 
     constructor() {
