@@ -44,21 +44,7 @@
     margin-right: 4px;
 }
 */
-.save-interleave-button {
-    font-size: 16px;
-    font-weight: bold;
-    float: right;
-    border-radius: 20px;
-    padding: 5px 10px;
-    margin-right: 25px;
-    border: 1px solid #3A78C1 !important;
-    color: #5E5752;
-    background: #EDEDED;
-}
 
-.save-interleave-button:hover {
-    background-color: #CBCBCB;
-}
 
 /* .download-button:hover {
     background-color: #CBCBCB;
@@ -118,21 +104,7 @@
     margin-top: 10px;
 } */
 
-::-webkit-scrollbar {
-    width: 10px;
-}
-  
-::-webkit-scrollbar-track {
-    background: #D3D3D3; 
-}
-  
-::-webkit-scrollbar-thumb {
-    background: #B4AFAF; 
-}
-  
-::-webkit-scrollbar-thumb:hover {
-    background: #A19B9B; 
-}
+
 
 /* .acc-table-td{
     padding: 10px;
@@ -169,17 +141,9 @@ button[disabled]{
 
 
 
-.instructions-main-content {
-    background-color: #FFFFFF;
-    padding-left: 40px;
-    padding-right: 40px;
-    padding-top: 100px;
-}
 
-.summary-card{
-    background-color: #DCDCDC46 !important;
-    height: 100%;
-}
+
+
 
 /* .nav-tabs>li.active>a, .nav-tabs>li.active>a:focus, .nav-tabs>li.active>a:hover{
     color: #FDFDFD;
@@ -1062,4 +1026,54 @@ input:checked + .slider:before {
 
 .importantRule0 { 
     width: 0% !important; 
+}
+
+
+
+
+
+
+
+
+
+
+
+
+.save-interleave-button {
+    font-size: 16px;
+    font-weight: bold;
+    float: right;
+    border-radius: 20px;
+    padding: 5px 10px;
+    margin-right: 25px;
+    border: 1px solid #3A78C1 !important;
+    color: #5E5752;
+    background: #EDEDED;
+}
+
+.save-interleave-button:hover {
+    background-color: #CBCBCB;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+}
+  
+::-webkit-scrollbar-track {
+    background: #D3D3D3; 
+}
+  
+::-webkit-scrollbar-thumb {
+    background: #B4AFAF; 
+}
+  
+::-webkit-scrollbar-thumb:hover {
+    background: #A19B9B; 
+}
+
+.instructions-main-content {
+    background-color: #FFFFFF;
+    padding-left: 40px;
+    padding-right: 40px;
+    padding-top: 100px;
 }

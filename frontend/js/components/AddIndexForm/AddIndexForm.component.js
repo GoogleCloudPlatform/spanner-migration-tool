@@ -16,10 +16,10 @@ class AddIndexForm extends HTMLElement {
 
   connectedCallback() {
     this.render();
-    document.getElementById("indexName").addEventListener("focusout", () => {
+    document.getElementById("index-name").addEventListener("focusout", () => {
       Forms.validateInput(
-        document.getElementById("indexName"),
-        "indexNameError"
+        document.getElementById("index-name"),
+        "index-name-error"
       );
     });
 
@@ -38,7 +38,7 @@ class AddIndexForm extends HTMLElement {
         Actions.fetchIndexFormValues(
           this.tableIndex,
           this.tableName,
-          document.getElementById("indexName").value,
+          document.getElementById("index-name").value,
           document.getElementById("uniqueSwitch").checked
         );
       });
@@ -54,13 +54,13 @@ class AddIndexForm extends HTMLElement {
 
   render() {
     this.innerHTML = `
-    <form id="createIndexForm">
+    <form id="create-index-form">
         <div class="form-group sec-index-label">
-            <label for="indexName" class="bmd-label-floating black-label">Enter
+            <label for="index-name" class="bmd-label-floating black-label">Enter
                 secondary index name</label>
-            <input type="text" class="form-control black-border" name="indexName" 
-            id="indexName" autocomplete="off">
-            <span class='form-error' id='indexNameError'></span>
+            <input type="text" class="form-control black-border" name="index-name" 
+            id="index-name" autocomplete="off">
+            <span class='form-error' id='index-name-error'></span>
         </div>
         <div id="newIndexColumnListDiv" class="column-list-container">
               ${this.data.map((row, idx) => {
