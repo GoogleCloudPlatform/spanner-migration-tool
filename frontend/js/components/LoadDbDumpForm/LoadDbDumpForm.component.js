@@ -19,7 +19,6 @@ class LoadDbDumpForm extends HTMLElement {
     }
 
     storeDumpFileValues = async (dbType, filePath) => {
-        Actions.resetStore();
         let sourceTableFlag = '', loadDbDumpApiRes, ddlSummaryApiRes,globalDbType='';
         if (dbType === 'mysql') {
             globalDbType = dbType + 'dump';
