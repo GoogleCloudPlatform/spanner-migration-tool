@@ -884,8 +884,12 @@ const Actions = (() => {
       return Store.getGlobalDataTypeList();
     },
 
-    carouselStatus: (tabId,tableIndex) => {
-      return Store.getinstance().openStatus[tabId][tableIndex];
+    carouselStatus: (tabId) => {
+      return Store.getinstance().openStatus[tabId];
+    },
+
+    getCurrentClickedCarousel: () => {
+      return Store.getCurrentClickedCarousel();
     }
 
   };

@@ -41,7 +41,7 @@ class TableCarousel extends HTMLElement {
 
   addEventListenertoCarausal() {
     document.getElementById(`id-${this.tabId}-${this.tableIndex}`).addEventListener('click',()=>{
-      if(Actions.carouselStatus([this.tabId],[this.tableIndex]))
+      if(Actions.carouselStatus(this.tabId)[this.tableIndex])
       {
         Actions.closeCarousel(this.tabId , this.tableIndex)
       }
@@ -64,7 +64,7 @@ class TableCarousel extends HTMLElement {
     let color = borderData;
     let panelColor = panelBorderClass(color);
     let cardColor = mdcCardBorder(color);
-    let carouselStatus = Actions.carouselStatus([this.tabId],[this.tableIndex]);
+    let carouselStatus = Actions.carouselStatus(this.tabId)[this.tableIndex];
     let editButtonVisibleClass = carouselStatus ? 'show-content' : 'hide-content';
  
     this.innerHTML = `

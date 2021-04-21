@@ -8,6 +8,7 @@ import "./../../components/Modal/Modal.component.js";
 import { initSchemaScreenTasks } from "./../../helpers/SchemaConversionHelper.js";
 
 // Services
+import Actions from "./../../services/Action.service.js";
 import Store from "./../../services/Store.service.js";
 import "../../services/Fetch.service.js";
 
@@ -41,7 +42,7 @@ class SchemaConversionScreen extends HTMLElement {
 
   getChangingValue(currentTab) {
     currentTab = currentTab.substring(0, currentTab.length - 3);
-    let currentArray = Store.getinstance().openStatus[currentTab];
+    let currentArray = Actions.carouselStatus(currentTab);
     let flag = "Expand All";
     for (let i = 0; i < currentArray.length; i++) {
       if (currentArray[i] == true) {
@@ -179,7 +180,7 @@ class SchemaConversionScreen extends HTMLElement {
     if (currentTab === "reportTab") {
       this.sendDatatoReportTab(tableNameArray
         .filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1), currentTabContent);
-      let carouselIndex = Store.getCurrentClickedCarousel();
+      let carouselIndex = Actions.getCurrentClickedCarousel();
       let mybtn = document.getElementById(`editSpanner${carouselIndex}`);
       let hg = mybtn?.getBoundingClientRect().top + document.documentElement.scrollTop
       window.scrollBy(0,hg-100);
