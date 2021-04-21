@@ -670,6 +670,7 @@ const Actions = (() => {
               jQuery('#editTableWarningModal').find('#modal-content').html(tableData);
             }
         }
+        event.target.innerHTML =  "Edit Spanner Schema";
       }
     },
 
