@@ -17,11 +17,6 @@
     margin-bottom: 24px;
 }
 
-.schema-screen-snackbar {
-    z-index: 10000 !important;
-    position: fixed;
-}
-
 .summary-main-content{
     background-color: #FFFFFF;
     padding-left: 40px;
@@ -44,11 +39,7 @@
     border: 2px solid #EDEDED;
 }
 
-.show {
-    visibility: visible !important;
-    -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
-    animation: fadein 0.5s, fadeout 0.5s 2.5s;
-}
+
 
 .panel-group .panel{
     margin-bottom: 10px;

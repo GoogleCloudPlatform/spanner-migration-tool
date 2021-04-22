@@ -47,6 +47,7 @@ class DataTable extends HTMLElement {
                                     <label for="interleave">Convert to Interleave</label>
                                 </div>
                             </fieldset>
+                            <br/>
                             <table class="fk-acc-table fk-table">
                                 <thead>
                                     <tr>
@@ -342,6 +343,7 @@ class DataTable extends HTMLElement {
                 await Actions.editAndSaveButtonHandler(event, tableIndex, tableName, notNullConstraint);
             
         });
+
         if (spTable.Fks !== null && spTable.Fks.length > 0) {
             spTable.Fks.map((fk, index) => {
                 document.getElementById(tableName + index + 'foreignKey').addEventListener('click', () => {
