@@ -47,6 +47,7 @@ class DataTable extends HTMLElement {
                                     <label for="interleave">Convert to Interleave</label>
                                 </div>
                             </fieldset>
+                            <br/>
                             <table class="fk-acc-table fk-table">
                                 <thead>
                                     <tr>

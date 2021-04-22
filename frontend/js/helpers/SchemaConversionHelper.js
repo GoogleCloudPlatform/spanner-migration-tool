@@ -112,10 +112,10 @@ export const readTextFile = (file, callback) => {
 
 export const showSnackbar = (message, bgClass) => {
   var snackbar = document.getElementById("snackbar");
-  snackbar.className = "show" + bgClass;
+  snackbar.className = "show-snackbar" + bgClass;
   snackbar.innerHTML = message;
   setTimeout(function () {
-    snackbar.className = snackbar.className.replace("show", "");
+    snackbar.className = snackbar.className.replace("show-snackbar", "");
   }, 3000);
 };
 

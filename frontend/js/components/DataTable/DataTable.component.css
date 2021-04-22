@@ -104,11 +104,16 @@
     float: left;
 }
 
+.checkbox label input[type=checkbox]:checked+.checkbox-decorator .check:before, label.checkbox-inline input[type=checkbox]:checked+.checkbox-decorator .check:before {
+    color: #4285F4;
+    box-shadow: 0 0 0 10px, 10px -10px 0 10px, 32px 0 0 20px, 32px 0 20px, -5px 5px 0 10px, 20px -12px 0 11px;
+    animation: b .3s forwards;
+}
+
 .checkbox label input[type=checkbox]:checked+.checkbox-decorator .check, label.checkbox-inline input[type=checkbox]:checked+.checkbox-decorator .check {
     color: #4285F4;
     border-color: #4285F4;
 }
-
 .checkbox label .checkbox-decorator, label.checkbox-inline .checkbox-decorator .check{
     left: 0;
     margin: -.7em;
@@ -116,6 +121,18 @@
     vertical-align: middle;
     cursor: pointer;
     border-radius: 100%;
+}
+
+.spanner-input {
+    /* background: #FFFFFF !important; */
+    border: 1px solid #0C0C0C61 !important;
+    padding-left: 4px;
+}
+
+.spanner-input:focus {
+    /* background: #FFFFFF !important; */
+    border: 1px solid #0C0C0C61 !important;
+    padding-left: 4px;
 }
 
 .key-margin {
@@ -195,12 +212,18 @@
     float: left;
     clear: none;
 }
+label {
+    float: left;
+    clear: none;
+    display: block;
+    margin-right: 15px;
+}
 
-input[type=radio], input.radio {
+input[type=radio],
+input.radio {
     float: left;
     clear: none;
     margin: 2px 15px 0 2px;
-    cursor: pointer;
 }
 
 .new-index-button {
@@ -255,5 +278,6 @@ table.dataTable thead th, table.dataTable thead td {
 
 .custom-file-control:focus,
 .form-control:focus {
-  border-color: #4285f4 !important;
+    color: #121213;
+  border-color: #4285f4;
 } 

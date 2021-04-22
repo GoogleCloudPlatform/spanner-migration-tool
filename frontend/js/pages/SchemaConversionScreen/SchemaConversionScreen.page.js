@@ -83,7 +83,7 @@ class SchemaConversionScreen extends HTMLElement {
 
     this.innerHTML = `
     <div class="summary-main-content" id='schema-screen-content'>
-      <div id="snackbar" class="schema-screen-snackbar"></div>
+      <div id="snackbar"></div>
       <div>
         <h4 class="report-header">Recommended Schema Conversion Report
             <hb-site-button buttonid="download-schema" classname="download-button" 
