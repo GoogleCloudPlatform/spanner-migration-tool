@@ -158,11 +158,11 @@ const Actions = (() => {
       filePath = "./" + fileName;
       readTextFile(filePath, async (error, text) => {
         if (error) {
-          showSnackbar(error, " redBg");
-          let storege =JSON.parse(sessionStorage.getItem('sessionStorage'))
-          storege.splice(index , 1);
-          sessionStorage.setItem('sessionStorage' ,JSON.stringify(storege))
+          let storage =JSON.parse(sessionStorage.getItem('sessionStorage'))
+          storage.splice(index,1);
+          sessionStorage.setItem('sessionStorage' ,JSON.stringify(storage))
           window.location.href='/';
+          showSnackbar(error, " redBg");
         }
         else {
           let payload = { Driver: driver, DBName: dbName, FilePath: path };

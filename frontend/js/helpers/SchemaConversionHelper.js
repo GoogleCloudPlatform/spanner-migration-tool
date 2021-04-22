@@ -101,7 +101,7 @@ export const readTextFile = (file, callback) => {
   rawFile.overrideMimeType("application/json");
   rawFile.open("GET", file, true);
   rawFile.onreadystatechange = function () {
-    if (rawFile.status == "404") {
+    if (rawFile.readyState == 4 && rawFile.status == "404") {
       callback(new Error("File does not exist"), null);
     } else if (rawFile.readyState == 4 && rawFile.status == "200") {
       callback(null, rawFile.responseText);
