@@ -27,7 +27,7 @@ class EditGlobalDataTypeForm extends HTMLElement {
                         <td id="data-type-val${index + 1}">
                             <div class="label-container">
                                 <i id="warning${index + 1}" 
-                                class="large material-icons warning ${globalDataTypeList[dataType][0].Brief? "":"template"}" 
+                                class="large material-icons warning ${globalDataTypeList[dataType][0].Brief? "show":"hidden"}" 
                                 style='cursor: pointer;' data-toggle="tooltip" data-placement="bottom" 
                                 title="${globalDataTypeList[dataType][0].Brief}">warning</i>
                         

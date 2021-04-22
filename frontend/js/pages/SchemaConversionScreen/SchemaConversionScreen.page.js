@@ -167,7 +167,7 @@ class SchemaConversionScreen extends HTMLElement {
       </div>
     </div>
     <hb-modal modalId="globalDataTypeModal" content="<hb-edit-global-datatype-form></hb-edit-global-datatype-form>" 
-      contentIcon="" connectIconClass="" modalBodyClass="" title="Global Data Type Mapping"></hb-modal>
+      contentIcon="" connectIconClass="" modalBodyClass="edit-global-data-type" title="Global Data Type Mapping"></hb-modal>
     <hb-modal modalId="index-and-key-delete-warning" content="" contentIcon="warning" 
       connectIconClass="warning-icon" modalBodyClass="connection-modal-body" title="Warning"></hb-modal>
     <hb-modal modalId="editTableWarningModal" content="edit table" contentIcon="cancel" 

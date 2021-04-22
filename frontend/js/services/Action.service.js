@@ -299,10 +299,14 @@ const Actions = (() => {
       for (let i = 0; i < dataTypeOptionArray.length; i++) {
         if (dataTypeOptionArray[i].T === selectedValue) {
           if (dataTypeOptionArray[i].Brief !== "") {
-            document.getElementById(`warning${idNum}`).style.display = "";
+            document.getElementById(`warning${idNum}`).classList.add("show");
+            document.getElementById(`warning${idNum}`).classList.remove("hidden");
+
           }
           else {
-            document.getElementById(`warning${idNum}`).style.display = "none";
+            document.getElementById(`warning${idNum}`).classList.add("hidden");
+            document.getElementById(`warning${idNum}`).classList.remove("show");
+
           }
         }
       }
