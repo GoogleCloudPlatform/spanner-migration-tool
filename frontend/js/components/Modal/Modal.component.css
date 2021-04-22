@@ -10,9 +10,9 @@
   padding-bottom: 0px;
 }
 
-.modal-content {
+/* .modal-content {
   box-shadow: none;
-}
+} */
 
 .modal-content .modal-header {
   background-color: #4285f4;
@@ -22,9 +22,8 @@
   border-bottom: 0;
 }
 
-.spanner-input {
+/* .spanner-input {
   background: #ffffff !important;
-  /* color: #000000; */
   border: 1px solid #999 !important;
   padding-left: 4px;
 }
@@ -33,7 +32,7 @@
   background: #ffffff !important;
   border: 1px solid #999 !important;
   padding-left: 4px;
-}
+} */
 
 .tableSelect,
 .tableSelect:focus {
@@ -74,29 +73,32 @@
   color: #ffffff;
 }
 
-.modal-footer {
+.edit-global-data-type {
+  margin: auto;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+/* .modal-footer {
   padding: 12px 24px 14px 24px !important;
   margin-top: -15px;
-}
+} */
 
 select.form-control:not([size]):not([multiple]) {
   height: 36px;
   margin-bottom: 22px;
 }
 
-.form-group {
+.connection-modal-body {
+  margin-bottom: 10px;
+  display: inherit;
+}
+
+/* .form-group {
   margin-bottom: -3px !important;
-}
+} */
 
-.custom-file-control,
-.form-control {
-  border: 1px solid #dddddd !important;
-}
 
-.custom-file-control:focus,
-.form-control:focus {
-  border-color: #4285f4 !important;
-}
 
 .form-error {
   font-size: 12px;

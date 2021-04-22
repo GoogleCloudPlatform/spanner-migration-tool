@@ -16,14 +16,14 @@ class AddIndexForm extends HTMLElement {
 
   connectedCallback() {
     this.render();
-    document.getElementById("indexName").addEventListener("focusout", () => {
+    document.getElementById("index-name").addEventListener("focusout", () => {
       Forms.validateInput(
-        document.getElementById("indexName"),
-        "indexNameError"
+        document.getElementById("index-name"),
+        "index-name-error"
       );
     });
 
-    Forms.formButtonHandler("createIndexForm", "createIndexButton");
+    Forms.formButtonHandler("create-index-form", "create-index-button");
 
     document
       .getElementById("createIndexModal")
@@ -33,13 +33,13 @@ class AddIndexForm extends HTMLElement {
       });
 
     document
-      .getElementById("createIndexButton")
+      .getElementById("create-index-button")
       .addEventListener("click", () => {
         Actions.fetchIndexFormValues(
           this.tableIndex,
           this.tableName,
-          document.getElementById("indexName").value,
-          document.getElementById("uniqueSwitch").checked
+          document.getElementById("index-name").value,
+          document.getElementById("unique-switch").checked
         );
       });
 
@@ -54,13 +54,13 @@ class AddIndexForm extends HTMLElement {
 
   render() {
     this.innerHTML = `
-    <form id="createIndexForm">
+    <form id="create-index-form">
         <div class="form-group sec-index-label">
-            <label for="indexName" class="bmd-label-floating black-label">Enter
+            <label for="index-name" class="bmd-label-floating black-label">Enter
                 secondary index name</label>
-            <input type="text" class="form-control black-border" name="indexName" 
-            id="indexName" autocomplete="off">
-            <span class='form-error' id='indexNameError'></span>
+            <input type="text" class="form-control black-border" name="index-name" 
+            id="index-name" autocomplete="off">
+            <span class='form-error' id='index-name-error'></span>
         </div>
         <div id="newIndexColumnListDiv" class="column-list-container">
               ${this.data.map((row, idx) => {
@@ -84,8 +84,8 @@ class AddIndexForm extends HTMLElement {
         <div class="unique-swith-container">
             <span class="unique-swith-label">Unique</span>
             <label class="switch">
-                <input id="uniqueSwitch" type="checkbox">
-                <span class="slider round" id="sliderSpan"></span>
+                <input id="unique-switch" type="checkbox">
+                <span class="slider round" id="slider-span"></span>
             </label>
         </div>
     </form>`;

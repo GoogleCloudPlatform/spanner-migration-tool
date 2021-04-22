@@ -10,7 +10,17 @@
     margin-top: 20px;
 }
 
-.text {
+.session-heading {
+    padding-bottom: 20px;
+    font-size: 26px;
     color: #5E5752;
+    font-weight: 600;
+}
+
+.text {
+    font-weight: 500;
+    height: 35px;
     font-size: 22px;
+    color: #5E5752;
+    padding-top: 5px;
 }

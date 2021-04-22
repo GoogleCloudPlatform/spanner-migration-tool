@@ -191,9 +191,11 @@ const Actions = (() => {
     },
 
     downloadSession: async () => {
+      let reportJsonObj = JSON.stringify(Store.getinstance().tableData.reportTabContent);
+      reportJsonObj = reportJsonObj.replaceAll("9223372036854776000", "9223372036854775807");
       jQuery("<a />", {
         download: "session.json",
-        href: "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(Store.getinstance().tableData.reportTabContent), null, 4),
+        href: "data:application/json;charset=utf-8," + encodeURIComponent(reportJsonObj, null, 4),
       }).appendTo("body").click(function () {jQuery(this).remove();})[0]
         .click();
     },
@@ -283,7 +285,6 @@ const Actions = (() => {
       let res = await Fetch.getAppData("GET", "/typemap");
       if(res.ok){
         let result = await res.json();
-        console.log(result);
         Store.setGlobalDataTypeList(result)
       }
       else{
@@ -643,8 +644,10 @@ const Actions = (() => {
           case false:
             tableData = await Fetch.getAppData('POST', '/typemap/table?table=' + tableName, updatedColsData);
             if (tableData.ok) {
+              console.log("called");
               tableData = await tableData.json();
               Store.updateTableData('reportTabContent', tableData);
+              Actions.ddlSummaryAndConversionApiCall();
               let checkInterleave = Store.getinstance().checkInterleave;
               if (checkInterleave[tableName]) {
                 let selectedValue;

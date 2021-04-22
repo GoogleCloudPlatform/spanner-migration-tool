@@ -75,7 +75,7 @@ class TableCarousel extends HTMLElement {
           <h5 class="mb-0">
             <a data-toggle="collapse" id="id-${tabId}-${tableIndex}">
               Table: <span>${tableTitle}</span>
-              <i class="fas fa-angle-${carouselStatus?'up':'down'} rotate-icon"></i>
+              <i class="rotate-icon fas fa-angle-${carouselStatus?'up':'down'} "></i>
             </a>
             ${ tabId ==="report" ? `
                 <span class="spanner-text right-align ${editButtonVisibleClass}">Spanner</span>
