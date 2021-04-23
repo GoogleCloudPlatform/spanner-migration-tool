@@ -392,10 +392,9 @@ const Actions = (() => {
         }
       }
       let generalModal = document.querySelector("hb-modal[modalId = createIndexModal]")
-      const { SrcSchema } = Store.getinstance().tableData.reportTabContent;
-
+      const { SpSchema } = Store.getinstance().tableData.reportTabContent;
       let content = `<hb-add-index-form tableName=${tableName} 
-      tableIndex=${tableIndex} coldata=${JSON.stringify(SrcSchema[tableName].ColNames)}  ></hb-add-index-form>`;
+      tableIndex=${tableIndex} coldata=${JSON.stringify(SpSchema[tableName].ColNames)}  ></hb-add-index-form>`;
       generalModal.setAttribute("content", content);
       jQuery("#createIndexModal").modal();
       resetIndexModal();

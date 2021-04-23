@@ -91,3 +91,11 @@ input::placeholder,
 label {
   line-height: 1;
 }
+
+button:disabled,
+button[disabled]{
+  border: 1px solid #999999 !important;
+  background-color: #cccccc;
+  color: #666666;
+  cursor:not-allowed
+}

@@ -17,7 +17,7 @@ import { TAB_CONFIG_DATA } from "./../../config/constantData.js";
 
 class SchemaConversionScreen extends HTMLElement {
   connectedCallback() {
-    this.stateObserver = setInterval(this.observeState, 200);
+    this.stateObserver = setInterval(this.observeState, 100);
     this.render();
   }
 
@@ -107,8 +107,8 @@ class SchemaConversionScreen extends HTMLElement {
         <div class="tab-content">
           ${currentTab === 'reportTab' ? `<div id="report" class="tab-pane fade show active">
             <div class="accordion md-accordion" id="accordion" role="tablist" aria-multiselectable="true">
-              <hb-site-button buttonid="reportExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>
-              <hb-site-button buttonid="editButton" classname="expand right-align" buttonaction="editGlobalDataType" text="Edit Global Data Type"></hb-site-button>
+            ${tableNameArray.length > 0 ? `<hb-site-button buttonid="reportExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>`:''}
+            ${tableNameArray.length > 0 ? `<hb-site-button buttonid="editButton" classname="expand right-align" buttonaction="editGlobalDataType" text="Edit Global Data Type"></hb-site-button>` :''}
               <div id='reportDiv'>
                 ${tableNameArray.map((tableName, index) => {
                     return `
@@ -127,8 +127,8 @@ class SchemaConversionScreen extends HTMLElement {
             currentTab === "ddlTab"
               ? `<div id="ddl" class="tab-pane fade show active">
             <div class="panel-group" id="ddl-accordion">
-              <hb-site-button buttonid="ddlExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>
-              <hb-site-button buttonid="download-ddl" classname="expand right-align" buttonaction="downloadDdl" text="Download DDL Statements"></hb-site-button>
+            ${tableNameArray.length > 0 ? `<hb-site-button buttonid="ddlExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>`:''}
+            ${tableNameArray.length > 0 ?`<hb-site-button buttonid="download-ddl" classname="expand right-align" buttonaction="downloadDdl" text="Download DDL Statements"></hb-site-button>`:''}
               <div id='ddlDiv'>
                 ${tableNameArray.map((tableName, index) => {
                     return `
@@ -147,8 +147,8 @@ class SchemaConversionScreen extends HTMLElement {
             currentTab === "summaryTab"
               ? `<div id="summary" class="tab-pane fade show active">
             <div class="panel-group" id="summary-accordion">
-              <hb-site-button buttonid="summaryExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>
-              <hb-site-button buttonid="download-report" classname="expand right-align" buttonaction="downloadReport" text="Download Summary Report"></hb-site-button>
+            ${tableNameArray.length > 0 ?`<hb-site-button buttonid="summaryExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>`:''}
+            ${tableNameArray.length > 0 ?`<hb-site-button buttonid="download-report" classname="expand right-align" buttonaction="downloadReport" text="Download Summary Report"></hb-site-button>`:''}
               <div id='summaryDiv'>
                 ${tableNameArray.map((tableName, index) => {
                     return `
