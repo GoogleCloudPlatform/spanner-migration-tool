@@ -211,7 +211,8 @@ class DataTable extends HTMLElement {
                                     pkFlag = true; seqId = pksSp[x].seqId;
                                     break
                                 }
-                            } let currentColumnSrc = data.ToSource.Cols[tableColumn]; 
+                            } 
+                            let currentColumnSrc = data.ToSource.Cols[tableColumn]; 
                             return `
                             <tr class="report-table-content">
                             <td class="acc-table-td src-tab-cell">
