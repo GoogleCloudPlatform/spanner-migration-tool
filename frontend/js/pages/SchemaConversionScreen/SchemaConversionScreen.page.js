@@ -17,7 +17,7 @@ import { TAB_CONFIG_DATA } from "./../../config/constantData.js";
 
 class SchemaConversionScreen extends HTMLElement {
   connectedCallback() {
-    this.stateObserver = setInterval(this.observeState, 200);
+    this.stateObserver = setInterval(this.observeState, 50);
     this.render();
   }
 
@@ -55,6 +55,7 @@ class SchemaConversionScreen extends HTMLElement {
   observeState = () => {
     let updatedData = Store.getinstance();
     if (JSON.stringify(updatedData) !== JSON.stringify(this.data)) {
+      console.log(this.data);
       this.data = JSON.parse(JSON.stringify(updatedData));
       this.render();
     }
