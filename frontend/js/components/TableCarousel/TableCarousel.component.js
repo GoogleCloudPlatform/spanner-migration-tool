@@ -100,7 +100,7 @@ class TableCarousel extends HTMLElement {
           </h5>
         </div>
     
-        <div class="collapse ${tabId}-collapse ${carouselStatus?"show bs collapse":""}" id="${tabId}-${tableTitle}">
+        <div class="collapse ${tabId}-collapse ${carouselStatus?"show bs collapse show-carausel":""}" id="${tabId}-${tableTitle}">
           <div class="mdc-card mdc-card-content table-card-border ${cardColor}">
             ${ tabId == "report" ? `
             <hb-data-table tableName="${tableTitle}" tableIndex="${tableIndex}" ></hb-data-table>` 
