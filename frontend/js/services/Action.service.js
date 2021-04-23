@@ -433,160 +433,42 @@ const Actions = (() => {
       }
     },
 
-    editAndSaveButtonHandler: async (event, tableNumber, tableName, notNullConstraint) => {
+    SaveButtonHandler: async (tableNumber, tableName, notNullConstraint) => {
       let schemaConversionObj = Store.getinstance().tableData.reportTabContent
-      let tableId = '#src-sp-table' + tableNumber + ' tr';
-      let tableColumnNumber = 0, tableData;
-      let fkLength, secIndexLength;
-      if (event.target.innerHTML.trim() === "Edit Spanner Schema") {
-        let uncheckCount = [], $selectAll, $selectEachRow, checkAllTableNumber, checkClassTableNumber, spannerCellsList;
-        let tableCheckboxGroup = '.chck-class-' + tableNumber;
-        uncheckCount[tableNumber] = 0;
-        event.target.innerHTML = "Save Changes";
-        document.getElementById("edit-instruction" + tableNumber).style.visibility = "hidden";
-        if (document.getElementById('add' + tableNumber) && document.getElementById('interleave' + tableNumber)) {
-          document.getElementById('add' + tableNumber).removeAttribute('disabled');
-          document.getElementById('interleave' + tableNumber).removeAttribute('disabled');
-        }
-        jQuery(tableId).each(function (index) {
-          if (index === 1) {
-            $selectAll = jQuery(this).find('.bmd-form-group.is-filled.template').removeClass('template');
-          }
-          checkAllTableNumber = jQuery('#chck-all-' + tableNumber);
-          checkAllTableNumber.prop('checked', true);
-          checkAllTableNumber.click(function () {
-            tableNumber = parseInt(jQuery(this).attr('id').match(/\d+/), 10);
-            checkClassTableNumber = jQuery('.chck-class-' + tableNumber);
-            switch (jQuery(this).is(':checked')) {
-              case true:
-                checkClassTableNumber.prop('checked', true);
-                uncheckCount[tableNumber] = 0;
-                break;
-              case false:
-                checkClassTableNumber.prop('checked', false);
-                uncheckCount[tableNumber] = Object.keys(schemaConversionObj.ToSpanner[schemaConversionObj.SpSchema[tableName].Name].Cols).length;
-                break;
-            }
-          });
-          if (index > 1) {
-            $selectEachRow = jQuery(this).find('.bmd-form-group.is-filled.each-row-chck-box.template').removeClass('template');
-            jQuery(tableCheckboxGroup).prop('checked', true);
-            spannerCellsList = document.getElementsByClassName('spanner-tab-cell-' + tableNumber + tableColumnNumber);
-            if (spannerCellsList) {
-              // edit column name
-              jQuery('#edit-column-name-' + tableNumber + tableColumnNumber).removeClass('template');
-              jQuery('#save-column-name-' + tableNumber + tableColumnNumber).addClass('template');
-              // edit data type
-              jQuery('#edit-data-type-' + tableNumber + tableColumnNumber).removeClass('template');
-              jQuery('#save-data-type-' + tableNumber + tableColumnNumber).addClass('template');
-              let dataTypeArray = null;
-              // let globalDataTypes = JSON.parse(localStorage.getItem('globalDataTypeList'));
-              let globalDataTypes = Store.getGlobalDataTypeList()
-              let globalDataTypesLength = Object.keys(globalDataTypes).length;
-              let srcCellValue = document.getElementById('src-data-type-' + tableNumber + tableColumnNumber).innerHTML;
-              let spannerCellValue = document.getElementById('save-data-type-' + tableNumber + tableColumnNumber).innerHTML;
-              let options = '';
-              for (let a = 0; a < globalDataTypesLength; a++) {
-                if (srcCellValue.trim().toLowerCase() === (Object.keys(globalDataTypes)[a]).toLowerCase()) {
-                  dataTypeArray = globalDataTypes[Object.keys(globalDataTypes)[a]];
-                  break;
-                }
-              }
-              if (dataTypeArray !== null) {
-                let dataTypeArrayLength = dataTypeArray.length;
-                for (let a = 0; a < dataTypeArrayLength; a++) {
-                  if (spannerCellValue.trim() == dataTypeArray[a].T) {
-                    options += '<option class="data-type-option" value=' + dataTypeArray[a].T + ' selected>' + dataTypeArray[a].T + '</option>';
-                  }
-                  else {
-                    options += '<option class="data-type-option" value=' + dataTypeArray[a].T + '>' + dataTypeArray[a].T + '</option>';
-                  }
-                }
-              }
-              else {
-                options += '<option class="data-type-option" value=' + spannerCellValue + '>' + spannerCellValue + '</option>';
-              }
-              document.getElementById("data-type-" + tableNumber + tableColumnNumber + tableColumnNumber).innerHTML = options;
-              // edit constraint
-              let notNullFound = '';
-              let constraintId = 'sp-constraint-' + tableNumber + tableColumnNumber;
-              let columnName = jQuery('#save-column-name-' + tableNumber + tableColumnNumber).find('.column.right.spanner-col-name-span').html();
-              if (schemaConversionObj.SpSchema[tableName].ColDefs[columnName].NotNull === true) {
-                notNullFound = "<option class='active' selected>Not Null</option>";
-              }
-              else if (schemaConversionObj.SpSchema[tableName].ColDefs[columnName].NotNull === false) {
-                notNullFound = "<option>Not Null</option>";
-              }
-              let constraintHtml = "<select id=" + constraintId + " multiple size='0' class='form-control spanner-input report-table-select' >"
-                + notNullFound
-                + "</select>";
-              spannerCellsList[2].innerHTML = constraintHtml;
-              new vanillaSelectBox("#sp-constraint-" + tableNumber + tableColumnNumber, {
-                placeHolder: "Select Constraints",
-                maxWidth: 500,
-                maxHeight: 300
-              });
-              jQuery('#sp-constraint-' + tableNumber + tableColumnNumber).on('change', function () {
-                let idNum = parseInt(jQuery(this).attr('id').match(/\d+/g), 10);
-                let constraints = document.getElementById(constraintId);
-                if (constraints) {
-                  let constraintsLength = constraints.length;
-                  for (let c = 0; c < constraintsLength; c++) {
-                    if (constraints.options[c].selected) {
-                      notNullConstraint[idNum] = 'Not Null';
-                    }
-                    else {
-                      notNullConstraint[idNum] = '';
-                    }
-                  }
-                }
-              });
-            }
-            tableColumnNumber++;
-          }
-        });
-        checkClassTableNumber = jQuery('.chck-class-' + tableNumber);
-        checkClassTableNumber.click(function () {
-          tableNumber = parseInt(jQuery(this).closest("table").attr('id').match(/\d+/), 10);
-          checkAllTableNumber = jQuery('#chck-all-' + tableNumber);
-          if (jQuery(this).is(":checked")) {
-            uncheckCount[tableNumber] = uncheckCount[tableNumber] - 1;
-            if (uncheckCount[tableNumber] === 0) {
-              checkAllTableNumber.prop('checked', true);
-            }
-          }
-          else {
-            uncheckCount[tableNumber] = uncheckCount[tableNumber] + 1;
-            checkAllTableNumber.prop('checked', false);
-          }
-        });
-        if (schemaConversionObj.SpSchema[tableName].Fks != null && schemaConversionObj.SpSchema[tableName].Fks.length != 0) {
-          fkLength = schemaConversionObj.SpSchema[tableName].Fks.length;
-          for (let x = 0; x < fkLength; x++) {
-            jQuery('#rename-fk-' + tableNumber + x).removeClass('template');
-            jQuery('#save-fk-' + tableNumber + x).addClass('template');
-          }
-          if (schemaConversionObj.SpSchema[tableName].Fks != null && schemaConversionObj.SpSchema[tableName].Fks.length != 0) {
-            for (let p = 0; p < schemaConversionObj.SpSchema[tableName].Fks.length; p++) {
-              jQuery("#" + tableName + p + 'foreignKey').removeAttr('disabled');
-            }
-          }
-        }
-        if (schemaConversionObj.SpSchema[tableName].Indexes != null && schemaConversionObj.SpSchema[tableName].Indexes.length != 0) {
-          secIndexLength = schemaConversionObj.SpSchema[tableName].Indexes.length;
-          for (let x = 0; x < secIndexLength; x++) {
-            jQuery('#rename-sec-index-' + tableNumber + x).removeClass('template');
-            jQuery('#save-sec-index-' + tableNumber + x).addClass('template');
-          }
-          if (schemaConversionObj.SpSchema[tableName].Indexes != null && schemaConversionObj.SpSchema[tableName].Indexes.length != 0) {
-            for (let p = 0; p < schemaConversionObj.SpSchema[tableName].Indexes.length; p++) {
-              jQuery("#" + tableName + p + 'secIndex').removeAttr('disabled');
-            }
-          }
-        }
+      let fkStatus = false ;
+      let secIndexStatus = false ;
+      let columnStatus = false;
+      let tableData={};
+        
+      console.log(tableData);
+      columnStatus = await Actions.saveColumn(schemaConversionObj,tableNumber,tableName,notNullConstraint, tableData);
+      console.log(tableData);
+      if(columnStatus){
+        fkStatus = await Actions.saveForeignKeys(schemaConversionObj, tableNumber, tableName, tableData);
       }
-      else if (event.target.innerHTML.trim() === "Save Changes") {
-        let columnNameExists = false;
+      console.log(tableData);
+      if(fkStatus){
+          secIndexStatus = await Actions.saveSecondaryIndexes(schemaConversionObj, tableNumber, tableName, tableData);
+      }
+      console.log(tableData);
+      if(fkStatus && secIndexStatus && columnStatus)
+      {
+          console.log("store updated");
+          Store.updatePrimaryKeys(tableData);
+          Store.updateTableData("reportTabContent", tableData);
+          Actions.ddlSummaryAndConversionApiCall();
+          Store.setTableMode(tableNumber,false);
+
+      }  
+    },
+
+    saveColumn: async (schemaConversionObj,tableNumber,tableName,notNullConstraint,tableData) => {
+      
+      let tableId = '#src-sp-table' + tableNumber + ' tr';
+      let tableColumnNumber = 0;
+
+      let columnStatus = false;
+      let columnNameExists = false;
         let updatedColsData = {
           'UpdateCols': {
           }
@@ -615,9 +497,9 @@ const Actions = (() => {
                   jQuery('#editTableWarningModal').find('#modal-content').html("Column : '" + newColumnName + "'" + ' already exists in table : ' + "'" + tableName + "'" + '. Please try with a different column name.');
                   updatedColsData.UpdateCols[originalColumnName]['Rename'] = '';
                   columnNameExists = true;
-                  document.getElementById('edit-table-warning').addEventListener('click', () => {
-                    Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
-                  });
+                  // document.getElementById('edit-table-warning').addEventListener('click', () => {
+                  //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
+                  // });
                   break
                 }
               }
@@ -640,18 +522,21 @@ const Actions = (() => {
             tableColumnNumber++;
           }
         });
+
+        columnStatus = true;
         switch (columnNameExists) {
           case true:
+            return false;
             // store previous state
             // Store.updateSchemaScreen(Store.getinstance().tableData.reportTabContent);
             break
           case false:
-            tableData = await Fetch.getAppData('POST', '/typemap/table?table=' + tableName, updatedColsData);
-            if (tableData.ok) {
+            let fetchedTableData = await Fetch.getAppData('POST', '/typemap/table?table=' + tableName, updatedColsData);
+            if (fetchedTableData.ok) {
               console.log("called");
-              tableData = await tableData.json();
-              Store.updateTableData('reportTabContent', tableData);
-              Actions.ddlSummaryAndConversionApiCall();
+              console.log(tableData);
+              tableData = await fetchedTableData.json();
+              console.log(tableData);
               let checkInterleave = Store.getinstance().checkInterleave;
               if (checkInterleave[tableName]) {
                 let selectedValue;
@@ -670,20 +555,18 @@ const Actions = (() => {
                 }
               }
               Store.setTableChanges("saveMode");
-              Store.updatePrimaryKeys(tableData);
-              Store.updateTableData("reportTabContent", tableData);
-              await Actions.saveForeignKeys(schemaConversionObj, tableNumber, tableName, tableData);
-              await Actions.saveSecondaryIndexes(schemaConversionObj, tableNumber, tableName, tableData);
-              Actions.ddlSummaryAndConversionApiCall()
+              // Store.updatePrimaryKeys(tableData);
+              // Store.updateTableData("reportTabContent", tableData);
+              // Actions.ddlSummaryAndConversionApiCall()
             }
             else {
-              tableData = await tableData.text();
+              let modalData = await fetchedTableData.text();
               jQuery('#editTableWarningModal').modal();
-              jQuery('#editTableWarningModal').find('#modal-content').html(tableData);
-              
+              jQuery('#editTableWarningModal').find('#modal-content').html(modalData); 
+              return false;
             }
         }
-      }
+        return true;
     },
 
     saveForeignKeys: async (schemaConversionObj, tableNumber, tableName, tableData) => {
@@ -706,9 +589,9 @@ const Actions = (() => {
                 jQuery('#editTableWarningModal').modal();
                 jQuery('#editTableWarningModal').find('#modal-content').html("Foreign Key: " + renameFkMap[key] + " already exists in table: " + tableName + ". Please try with a different name.");
                 duplicateFound = true;
-                document.getElementById('edit-table-warning').addEventListener('click', () => {
-                  Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
-                });
+                // document.getElementById('edit-table-warning').addEventListener('click', () => {
+                //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
+                // });
               }
             }
             if (duplicateCheck.includes(renameFkMap[key])) {
@@ -716,9 +599,9 @@ const Actions = (() => {
               jQuery('#editTableWarningModal').modal();
               jQuery('#editTableWarningModal').find('#modal-content').html('Please use a different name for each foreign key');
               duplicateFound = true;
-              document.getElementById('edit-table-warning').addEventListener('click', () => {
-                Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
-              });
+              // document.getElementById('edit-table-warning').addEventListener('click', () => {
+              //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
+              // });
             }
             else {
               duplicateCheck.push(renameFkMap[key]);
@@ -726,6 +609,7 @@ const Actions = (() => {
           });
           switch (duplicateFound) {
             case true:
+              return false;
               // store previous state
               break;
             case false:
@@ -735,23 +619,26 @@ const Actions = (() => {
                 Store.setTableChanges("editMode");
                 jQuery('#editTableWarningModal').modal();
                 jQuery('#editTableWarningModal').find('#modal-content').html(fkTableData);
-                document.getElementById('edit-table-warning').addEventListener('click', () => {
-                  Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
-                });
+                // document.getElementById('edit-table-warning').addEventListener('click', () => {
+                //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
+                // });
+                return false;
               }
               else {
                 fkTableData = await fkTableData.json();
                 tableData = fkTableData;
-                Store.updatePrimaryKeys(tableData);
-                Store.updateTableData("reportTabContent", tableData);
+                // Store.updatePrimaryKeys(tableData);
+                // Store.updateTableData("reportTabContent", tableData);
               }
               break;
           }
         }
       }
+      return true;
     },
 
     saveSecondaryIndexes: async (schemaConversionObj, tableNumber, tableName, tableData) => {
+
       let secIndexTableData, renameIndexMap = {}, secIndexLength;
       if (schemaConversionObj.SpSchema[tableName].Indexes != null && schemaConversionObj.SpSchema[tableName].Indexes.length != 0) {
         secIndexLength = schemaConversionObj.SpSchema[tableName].Indexes.length;
@@ -771,9 +658,9 @@ const Actions = (() => {
                 jQuery('#editTableWarningModal').modal();
                 jQuery('#editTableWarningModal').find('#modal-content').html("Index: " + renameIndexMap[key] + " already exists in table: " + tableName + ". Please try with a different name.");
                 duplicateFound = true;
-                document.getElementById('edit-table-warning').addEventListener('click', () => {
-                  Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
-                });
+                // document.getElementById('edit-table-warning').addEventListener('click', () => {
+                //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
+                // });
               }
             }
             if (duplicateCheck.includes(renameIndexMap[key])) {
@@ -781,9 +668,9 @@ const Actions = (() => {
               jQuery('#editTableWarningModal').modal();
               jQuery('#editTableWarningModal').find('#modal-content').html('Please use a different name for each secondary index');
               duplicateFound = true;
-              document.getElementById('edit-table-warning').addEventListener('click', () => {
-                Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
-              });
+              // document.getElementById('edit-table-warning').addEventListener('click', () => {
+              //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
+              // });
             }
             else {
               duplicateCheck.push(renameIndexMap[key]);
@@ -792,6 +679,7 @@ const Actions = (() => {
           switch (duplicateFound) {
             case true:
               // store previous state
+              return false;
               break;
             case false:
               secIndexTableData = await Fetch.getAppData('POST', '/rename/indexes?table=' + tableName, renameIndexMap);
@@ -799,20 +687,22 @@ const Actions = (() => {
                 secIndexTableData = await secIndexTableData.text();
                 jQuery('#editTableWarningModal').modal();
                 jQuery('#editTableWarningModal').find('#modal-content').html(secIndexTableData);
-                document.getElementById('edit-table-warning').addEventListener('click', () => {
-                  Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
-                });
+                // document.getElementById('edit-table-warning').addEventListener('click', () => {
+                //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
+                // });
+                return false;
               }
               else {
                 secIndexTableData = await secIndexTableData.json();
                 tableData = secIndexTableData;
-                Store.updatePrimaryKeys(tableData);
-                Store.updateTableData("reportTabContent", tableData);
+                // Store.updatePrimaryKeys(tableData);
+                // Store.updateTableData("reportTabContent", tableData);
               }
               break;
           }
         }
       }
+      return true;
     },
 
     dropForeignKeyHandler: async (tableName, tableNumber, pos) => {
@@ -903,6 +793,14 @@ const Actions = (() => {
 
     getCurrentClickedCarousel: () => {
       return Store.getCurrentClickedCarousel();
+    },
+
+    getTableMode: (tableIndex) => {
+      return Store.getTableMode(tableIndex);
+    },
+
+    setTableMode: (tableIndex,val) => {
+      Store.setTableMode(tableIndex, val);
     }
 
   };

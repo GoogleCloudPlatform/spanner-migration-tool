@@ -14,6 +14,7 @@ const Store = (function () {
       report: new Array(1).fill(false),
       summary: new Array(1).fill(false),
     },
+    tableMode: new Array(1).fill(false),
     searchInputValue: {
       ddlTab: '',
       reportTab: '',
@@ -81,6 +82,7 @@ const Store = (function () {
         report: new Array(val).fill(false),
         summary: new Array(val).fill(false),
       }
+      instance.tableMode = new Array(val).fill(false)
     },
 
     setInterleave: (tableName, value) => {
@@ -166,6 +168,9 @@ const Store = (function () {
     },
    
     resetStore: () => {
+      tableChanges = "editMode";
+      checkInterLeaveArray = {};
+      currentClickedCarousel = 0;
       instance = {
         checkInterleave: {},
         currentTab: "reportTab",
@@ -175,6 +180,7 @@ const Store = (function () {
           report: new Array(1).fill(false),
           summary: new Array(1).fill(false),
         },
+        tableMode: new Array(1).fill(false),
         searchInputValue: {
           ddlTab: '',
           reportTab: '',
@@ -187,6 +193,9 @@ const Store = (function () {
         },
         tableBorderData: {},
         globalDataTypeList: {},
+
+
+        
       };
     },
 
@@ -196,6 +205,14 @@ const Store = (function () {
 
     getInterleaveConversionForATable:(tableName)=>{
         return instance.checkInterleave[tableName];
+    },
+
+    getTableMode: (tableIndex) => {
+       return instance.tableMode[tableIndex];
+    },
+
+    setTableMode:(tableIndex, val) => {
+      instance.tableMode[tableIndex] = val;
     }
 
   };

@@ -24,9 +24,34 @@ class DataTable extends HTMLElement {
     connectedCallback() {
         Actions.checkInterleaveConversion(this.tableName);
         this.checkInterLeave = Actions.getInterleaveConversionForATable(this.tableName);
+        // let tableMode = Actions.getTableMode(this.tableIndex);
+      
+        // if(tableMode){
+        //     debugger;
+        // let uncheckCount = [];
+        // let checkAllTableNumber = jQuery('#chck-all-' + this.tableIndex);
+        // console.log(checkAllTableNumber);
+        // checkAllTableNumber.addEventListener("click", () => {
+        //     let tableNumber = this.tableIndex;
+        //     let checkClassTableNumber = document.querySelector('.chck-class-' + tableNumber);
+        //     switch (jQuery(this).is(':checked')) {
+        //       case true:
+        //         checkClassTableNumber.prop('checked', true);
+        //         uncheckCount[tableNumber] = 0;
+        //         break;
+        //       case false:
+        //         checkClassTableNumber.prop('checked', false);
+        //         console.log(data.ToSpanner.Cols);
+        //         uncheckCount[tableNumber] = Object.keys(data.ToSpanner.Cols).length;
+        //         break;
+        //     }
+        //   });
+        // }
+
+        
     }
 
-    fkComponent(tableIndex, tableName, fkArray) {
+    fkComponent(tableIndex, tableName, fkArray, tableMode) {
         return `
             <div class="fk-card">
                 <div class="foreign-key-header" role="tab">
@@ -39,10 +64,10 @@ class DataTable extends HTMLElement {
                         <div class="mdc-card fk-content">
                             <fieldset class=${this.checkInterLeave == true ? "" : "template"} id="radio-btn-area${tableIndex}">
                                 <div class="radio-class">
-                                    <input type="radio" class="radio" value="add" checked="checked" disabled
+                                    <input type="radio" class="radio" value="add" checked="checked" ${tableMode?"":"disabled"}
                                         id="add${tableIndex}" name="fks${tableIndex}" />
                                     <label for="add">Use as Foreign Key</label>
-                                    <input type="radio" class="radio" value="interleave" disabled
+                                    <input type="radio" class="radio" value="interleave" ${tableMode?"":"disabled"}
                                         id="interleave${tableIndex}" name="fks${tableIndex}" />
                                     <label for="interleave">Convert to Interleave</label>
                                 </div>
@@ -62,18 +87,18 @@ class DataTable extends HTMLElement {
                                     return `
                                     <tr>
                                         <td class="acc-table-td">
-                                            <div class="template" id="rename-fk-${tableIndex}${index}">
+                                            <div class="${tableMode?'':'template'}" id="rename-fk-${tableIndex}${index}">
                                                 <input type="text" class="form-control spanner-input" autocomplete="off"
                                                     id="new-fk-val-${tableIndex}${index}" value=${fk.Name} />
                                             </div>
-                                            <div id="save-fk-${tableIndex}${index}">${fk.Name}</div>
+                                            <div id="save-fk-${tableIndex}${index}" class="${tableMode?'template':''}">${fk.Name}</div>
                                         </td>
                                         <td class="acc-table-td">${fk.Columns[0]}</td>
                                         <td class="acc-table-td">${fk.ReferTable}</td>
                                         <td class="acc-table-td">${fk.ReferColumns[0]}</td>
                                         <td class="acc-table-td">
                                             <button class="drop-button" id="${tableName}${index}foreignKey" data-toggle="tooltip"
-                                                data-placement="bottom" title="this will delete foreign key permanently" disabled>
+                                                data-placement="bottom" title="this will delete foreign key permanently" ${tableMode?"":"disabled"}>
                                                 <span><i class="large material-icons remove-icon vertical-alignment-middle">delete</i></span>
                                                 <span class="vertical-alignment-middle">Drop</span>
                                             </button>
@@ -90,7 +115,7 @@ class DataTable extends HTMLElement {
         `;
     }
 
-    secIndexComponent(tableIndex, tableName, secIndexArray) {
+    secIndexComponent(tableIndex, tableName, secIndexArray, tableMode) {
         return `
             <div>
                 <div class="foreign-key-header" role="tab">
@@ -121,11 +146,11 @@ class DataTable extends HTMLElement {
                                     return `
                                     <tr>
                                         <td class="acc-table-td">
-                                            <div class="template" id="rename-sec-index-${tableIndex}${index}">
+                                            <div class="${tableMode?'':'template'}" id="rename-sec-index-${tableIndex}${index}">
                                                 <input type="text" id="new-sec-index-val-${tableIndex}${index}" value=${secIndex.Name}
                                                     class="form-control spanner-input" autocomplete="off" />
                                             </div>
-                                            <div id="save-sec-index-${tableIndex}${index}">${secIndex.Name}</div>
+                                            <div class="${tableMode?'template':''}" id="save-sec-index-${tableIndex}${index}">${secIndex.Name}</div>
                                         </td>
                                         <td class="acc-table-td">${secIndex.Table}</td>
                                         <td class="acc-table-td">${secIndex.Unique}</td>
@@ -133,7 +158,7 @@ class DataTable extends HTMLElement {
                                         <td class="acc-table-td">
                                             <button class="drop-button" id="${tableName}${index}secIndex" data-toggle="tooltip"
                                                 data-placement="bottom" title="this will delete secondary index permanently"
-                                                disabled>
+                                                ${tableMode?"":"disabled"}>
                                                 <span><i
                                                         class="large material-icons remove-icon vertical-alignment-middle">delete</i></span>
                                                 <span class="vertical-alignment-middle">Drop</span>
@@ -169,6 +194,10 @@ class DataTable extends HTMLElement {
             }
         } 
         let sourceDbName = Actions.getSourceDbName();
+        let tableMode = Actions.getTableMode(tableIndex);
+        let dataTypesarray = Actions.getGlobalDataTypeList();
+
+        console.log(tableMode)
         this.innerHTML = 
             ` <div class="acc-card-content" id="acc-card-content">
                 <table class="acc-table" id="src-sp-table${tableIndex}">
@@ -180,10 +209,10 @@ class DataTable extends HTMLElement {
                         </tr>
                         <tr>
                             <th class="acc-table-th-src src-tab-cell">
-                                <span class="bmd-form-group is-filled template">
+                                <span class="bmd-form-group is-filled ${tableMode?'':'template'}">
                                     <div class="checkbox">
                                         <label>
-                                            <input type="checkbox" value="" id="chck-all-${tableIndex}" />
+                                            <input type="checkbox" value="" id="chck-all-${tableIndex}" checked=true/>
                                             <span class="checkbox-decorator">
                                                 <span class="check ml7"></span>
                                                 <div class="ripple-container"></div>
@@ -211,14 +240,15 @@ class DataTable extends HTMLElement {
                                     break
                                 }
                             } let currentColumnSrc = data.ToSource.Cols[tableColumn]; 
+                              let defaultdatatype = spTable.ColDefs[tableColumn].T.Name;
                             return `
                             <tr class="report-table-content">
                             <td class="acc-table-td src-tab-cell">
-                                <span class="bmd-form-group is-filled each-row-chck-box template">
+                                <span class="bmd-form-group is-filled each-row-chck-box ${tableMode?'':'template'}">
                                     <div class="checkbox">
                                         <label>
                                             <input type="checkbox" value="" id="chck-box-${tableIndex}"
-                                                class="chck-class-${tableIndex}" />
+                                                class="chck-class-${tableIndex}" checked=true/>
                                             <span class="checkbox-decorator"><span class="check"></span>
                                                 <div class="ripple-container"></div>
                                             </span>
@@ -234,7 +264,7 @@ class DataTable extends HTMLElement {
                                     id="src-column-name-${tableIndex}${index}${index}">${currentColumnSrc}</span>
                             </td>
                             <td class="sp-column acc-table-td spanner-tab-cell-${tableIndex}${index}">
-                                <div class="edit-column-name template" id="edit-column-name-${tableIndex}${index}">
+                                <div class="edit-column-name ${tableMode?'':'template'}" id="edit-column-name-${tableIndex}${index}">
                                     <span class="column left key-margin">
                                         ${pkFlag ?
                                     `<sub>${seqId}</sub>
@@ -248,7 +278,7 @@ class DataTable extends HTMLElement {
                                             value=${tableColumn} />
                                     </span>
                                 </div>
-                                <div id="save-column-name-${tableIndex}${index}">
+                                <div id="save-column-name-${tableIndex}${index}" class="${tableMode?'template':''}">
                                     <span class="column left pointer">
                                         ${pkFlag ?
                                     `<sub>${seqId}</sub>
@@ -263,13 +293,18 @@ class DataTable extends HTMLElement {
                                 ${srcTable.ColDefs[currentColumnSrc].Type.Name}</td>
                             <td class="sp-column acc-table-td spanner-tab-cell-${tableIndex}${index}"
                                 id="data-type-${tableIndex}${index}">
-                                <div id="save-data-type-${tableIndex}${index}">
-                                    ${spTable.ColDefs[tableColumn].T.Name}</div>
-                                <div class="template" id="edit-data-type-${tableIndex}${index}">
+                                <div class="${tableMode?'template':''}" id="save-data-type-${tableIndex}${index}">
+                                    ${defaultdatatype}</div>
+                                <div class="${tableMode?'':'template'}" id="edit-data-type-${tableIndex}${index}">
                                     <div class="form-group">
                                         <select class="form-control spanner-input report-table-select"
                                             id="data-type-${tableIndex}${index}${index}">
-                                            <option class="data-type-option template"></option>
+                                            ${
+                                                dataTypesarray[srcTable.ColDefs[currentColumnSrc].Type.Name]?.map((type)=>{
+                                                   return `<option class="data-type-option" value="${type.T}" ${defaultdatatype==type.T?"selected":""}>${type.T}</option>` ;     
+                                                }).join('')
+                                            }
+                                            
                                         </select>
                                     </div>
                                 </div>
@@ -295,12 +330,12 @@ class DataTable extends HTMLElement {
                                         ${spTable.ColDefs[tableColumn].NotNull ?
                                         (countSp[tableIndex][index] = countSp[tableIndex][index] + 1,
                                         notNullConstraint[parseInt(String(tableIndex) + String(index))] = 'Not Null',
-                                        `<option disabled class="active">
+                                        `<option ${tableMode?"":"disabled"} class="active">
                                             Not Null
                                         </option>`)
                                         :
                                         (notNullConstraint[parseInt(String(tableIndex) + String(index))] = '',
-                                        `<option disabled>
+                                        `<option ${tableMode?"":"disabled"}>
                                             Not Null
                                         </option>`)}
                                     </select>
@@ -310,8 +345,8 @@ class DataTable extends HTMLElement {
                         }).join("")}
                     </tbody>
                 </table>
-            ${spTable.Fks?.length > 0 ? this.fkComponent(tableIndex, tableName, spTable.Fks) : `<div></div>`}
-            ${this.secIndexComponent(tableIndex, tableName, spTable.Indexes)}
+            ${spTable.Fks?.length > 0 ? this.fkComponent(tableIndex, tableName, spTable.Fks, tableMode) : `<div></div>`}
+            ${this.secIndexComponent(tableIndex, tableName, spTable.Indexes, tableMode)}
             <div class="summary-card">
                 <div class="summary-card-header" role="tab">
                     <h5 class="mb-0">
@@ -325,6 +360,7 @@ class DataTable extends HTMLElement {
                 </div>
             </div>
         </div>`;
+
         jQuery("#src-sp-table" + tableIndex).DataTable({ "paging": false, "bSort": false });
         tableColumnsArray.map((columnName, index) => {
             new vanillaSelectBox('#srcConstraint' + tableIndex + index, {
@@ -338,8 +374,14 @@ class DataTable extends HTMLElement {
                 maxHeight: 300
             });
         });
+
         document.getElementById("editSpanner" + tableIndex).addEventListener("click", async (event) => {
-                await Actions.editAndSaveButtonHandler(event, tableIndex, tableName, notNullConstraint);
+                if(event.target.innerHTML.trim()=="Edit Spanner Schema") {
+                    Actions.setTableMode(tableIndex,true);
+                }
+                else {
+                await Actions.SaveButtonHandler(tableIndex, tableName, notNullConstraint);
+                }
             
         });
 
