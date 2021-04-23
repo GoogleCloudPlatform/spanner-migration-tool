@@ -156,19 +156,18 @@
   transform: rotate(180deg);
 }
 
-.show-carausel {
-  /* max-height: 99em; */
+/* .show-carausel {
   animation: openingcarausel 1.5s linear ;
 }
 
 @keyframes openingcarausel {
   0%{
-    /* max-height : 0em; */
+    max-height : 0em;
     opacity: 0 ;
   }
   100%{
-    /* max-height:99em; */
+    max-height:99em;
     opacity : 1;
   }
 
-}
+} */

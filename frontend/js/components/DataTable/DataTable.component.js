@@ -24,30 +24,6 @@ class DataTable extends HTMLElement {
     connectedCallback() {
         Actions.checkInterleaveConversion(this.tableName);
         this.checkInterLeave = Actions.getInterleaveConversionForATable(this.tableName);
-        // let tableMode = Actions.getTableMode(this.tableIndex);
-      
-        // if(tableMode){
-        //     debugger;
-        // let uncheckCount = [];
-        // let checkAllTableNumber = jQuery('#chck-all-' + this.tableIndex);
-        // console.log(checkAllTableNumber);
-        // checkAllTableNumber.addEventListener("click", () => {
-        //     let tableNumber = this.tableIndex;
-        //     let checkClassTableNumber = document.querySelector('.chck-class-' + tableNumber);
-        //     switch (jQuery(this).is(':checked')) {
-        //       case true:
-        //         checkClassTableNumber.prop('checked', true);
-        //         uncheckCount[tableNumber] = 0;
-        //         break;
-        //       case false:
-        //         checkClassTableNumber.prop('checked', false);
-        //         console.log(data.ToSpanner.Cols);
-        //         uncheckCount[tableNumber] = Object.keys(data.ToSpanner.Cols).length;
-        //         break;
-        //     }
-        //   });
-        // }
-
         
     }
 
@@ -72,6 +48,7 @@ class DataTable extends HTMLElement {
                                     <label for="interleave">Convert to Interleave</label>
                                 </div>
                             </fieldset>
+                            <br/>
                             <table class="fk-acc-table fk-table">
                                 <thead>
                                     <tr>
@@ -241,6 +218,7 @@ class DataTable extends HTMLElement {
                                 }
                             } let currentColumnSrc = data.ToSource.Cols[tableColumn]; 
                               let defaultdatatype = spTable.ColDefs[tableColumn].T.Name;
+                            //   console.log(srcTable.ColDefs[currentColumnSrc] , tableIndex,currentColumnSrc ); 
                             return `
                             <tr class="report-table-content">
                             <td class="acc-table-td src-tab-cell">
@@ -290,7 +268,7 @@ class DataTable extends HTMLElement {
                                 </div>
                             </td>
                             <td class="acc-table-td" id="src-data-type-${tableIndex}${index}">
-                                ${srcTable.ColDefs[currentColumnSrc].Type.Name}</td>
+                                ${srcTable.ColDefs[currentColumnSrc]?.Type.Name}</td>
                             <td class="sp-column acc-table-td spanner-tab-cell-${tableIndex}${index}"
                                 id="data-type-${tableIndex}${index}">
                                 <div class="${tableMode?'template':''}" id="save-data-type-${tableIndex}${index}">
@@ -380,9 +358,8 @@ class DataTable extends HTMLElement {
                     Actions.setTableMode(tableIndex,true);
                 }
                 else {
-                await Actions.SaveButtonHandler(tableIndex, tableName, notNullConstraint);
+                   await Actions.SaveButtonHandler(tableIndex, tableName, notNullConstraint);
                 }
-            
         });
 
         if (spTable.Fks !== null && spTable.Fks.length > 0) {

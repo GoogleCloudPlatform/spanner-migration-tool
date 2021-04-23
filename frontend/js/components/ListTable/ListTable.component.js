@@ -44,11 +44,8 @@ class ListTable extends HTMLElement {
     } 
     this.innerHTML = `
         <div class='mdc-card ${tabName}-content'>
-        ${tabName == "ddl" ? `<pre> <code>` : `<div>`}
-           ${RenderingObj?.split("\n").join(`<span class='sql-c'></span>`)}
-        ${tabName == "ddl" ? `</code> </pre>` : `</div>`}
-        </div>
-        `;
+        ${tabName == "ddl" ?`<pre><code>` : `<div>`}${RenderingObj?.split("\n").
+        join(`<span class='sql-c'></span>`)}${tabName == "ddl" ?`</code> </pre>`:`</div>`}</div>`;
   }
 
   constructor() {

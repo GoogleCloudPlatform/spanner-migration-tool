@@ -17,11 +17,6 @@
     margin-bottom: 24px;
 }
 
-.schema-screen-snackbar {
-    z-index: 10000 !important;
-    position: fixed;
-}
-
 .summary-main-content{
     background-color: #FFFFFF;
     padding-left: 40px;

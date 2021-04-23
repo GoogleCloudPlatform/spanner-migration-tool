@@ -5,6 +5,7 @@ import { readTextFile, showSnackbar } from "./../helpers/SchemaConversionHelper.
 var keysList = [];
 var orderId = 0;
 var temp = {};
+var reportTableData = {};
 /**
  * All the manipulations to the store happen via the actions mentioned in this module
  *
@@ -196,7 +197,7 @@ const Actions = (() => {
       jQuery("<a />", {
         download: "session.json",
         href: "data:application/json;charset=utf-8," + encodeURIComponent(reportJsonObj, null, 4),
-      }).appendTo("body").click(function () {jQuery(this).remove();})[0]
+      }).appendTo("body").click(function () { jQuery(this).remove(); })[0]
         .click();
     },
 
@@ -214,7 +215,7 @@ const Actions = (() => {
             jQuery("<a />", {
               download: schemaFileName,
               href: "data:application/json;charset=utf-8," + encodeURIComponent(text),
-            }).appendTo("body").click(function () {jQuery(this).remove();})[0]
+            }).appendTo("body").click(function () { jQuery(this).remove(); })[0]
               .click();
           });
         }
@@ -235,7 +236,7 @@ const Actions = (() => {
           jQuery("<a />", {
             download: reportFileName,
             href: "data:application/json;charset=utf-8," + encodeURIComponent(text),
-          }).appendTo("body").click(function () {jQuery(this).remove(); })[0]
+          }).appendTo("body").click(function () { jQuery(this).remove(); })[0]
             .click();
         });
       }
@@ -252,6 +253,7 @@ const Actions = (() => {
       let value = interleaveApiCallResp.tableInterleaveStatus.Possible;
       Store.setInterleave(tableName, value);
     },
+    
     setGlobalDataType: async () => {
       let globalDataTypeList = Store.getGlobalDataTypeList();
       let dataTypeListLength = Object.keys(globalDataTypeList).length;
@@ -278,16 +280,17 @@ const Actions = (() => {
       if (res) {
         res = await res.json();
         Store.updatePrimaryKeys(res);
-        Store.updateTableData("reportTabContent", res); }
+        Store.updateTableData("reportTabContent", res);
+      }
     },
 
     setGlobalDataTypeList: async () => {
       let res = await Fetch.getAppData("GET", "/typemap");
-      if(res.ok){
+      if (res.ok) {
         let result = await res.json();
         Store.setGlobalDataTypeList(result)
       }
-      else{
+      else {
         showSnackbar('Not able to fetch global datatype list !')
       }
     },
@@ -301,12 +304,10 @@ const Actions = (() => {
           if (dataTypeOptionArray[i].Brief !== "") {
             document.getElementById(`warning${idNum}`).classList.add("show");
             document.getElementById(`warning${idNum}`).classList.remove("hidden");
-
           }
           else {
             document.getElementById(`warning${idNum}`).classList.add("hidden");
             document.getElementById(`warning${idNum}`).classList.remove("show");
-
           }
         }
       }
@@ -390,15 +391,14 @@ const Actions = (() => {
         }
       }
       let generalModal = document.querySelector("hb-modal[modalId = createIndexModal]")
-      const { SrcSchema } = Store.getinstance().tableData.reportTabContent;
-
+      const { SpSchema } = Store.getinstance().tableData.reportTabContent;
       let content = `<hb-add-index-form tableName=${tableName} 
-      tableIndex=${tableIndex} coldata=${JSON.stringify(SrcSchema[tableName].ColNames)}  ></hb-add-index-form>`;
+      tableIndex=${tableIndex} coldata=${JSON.stringify(SpSchema[tableName].ColNames)}  ></hb-add-index-form>`;
       generalModal.setAttribute("content", content);
       jQuery("#createIndexModal").modal();
       resetIndexModal();
     },
-    
+
     closeSecIndexModal: () => {
       resetIndexModal();
       let generalModal = document.querySelector("hb-modal[modalId = createIndexModal]");
@@ -435,40 +435,42 @@ const Actions = (() => {
 
     SaveButtonHandler: async (tableNumber, tableName, notNullConstraint) => {
       let schemaConversionObj = Store.getinstance().tableData.reportTabContent
-      let fkStatus = false ;
-      let secIndexStatus = false ;
-      let columnStatus = false;
-      let tableData={};
-        
-      console.log(tableData);
+      let fkStatus = false,secIndexStatus = false,columnStatus = false;
+      let tableData={
+        data:{}
+      };
       columnStatus = await Actions.saveColumn(schemaConversionObj,tableNumber,tableName,notNullConstraint, tableData);
-      console.log(tableData);
+   
       if(columnStatus){
-        fkStatus = await Actions.saveForeignKeys(schemaConversionObj, tableNumber, tableName, tableData);
+        fkStatus = await Actions.saveForeignKeys(schemaConversionObj, tableNumber, tableName,tableData);
       }
-      console.log(tableData);
       if(fkStatus){
           secIndexStatus = await Actions.saveSecondaryIndexes(schemaConversionObj, tableNumber, tableName, tableData);
       }
-      console.log(tableData);
       if(fkStatus && secIndexStatus && columnStatus)
       {
           console.log("store updated");
-          Store.updatePrimaryKeys(tableData);
-          Store.updateTableData("reportTabContent", tableData);
+          console.log(tableData);
+          Store.updatePrimaryKeys(tableData.data);
+          Store.updateTableData("reportTabContent", tableData.data);
           Actions.ddlSummaryAndConversionApiCall();
           Store.setTableMode(tableNumber,false);
-
       }  
     },
 
     saveColumn: async (schemaConversionObj,tableNumber,tableName,notNullConstraint,tableData) => {
-      
+      debugger;
+      console.log(tableData);
+      let data ;
+      if (tableData.data.SpSchema != undefined)
+      { data = { ... tableData.data };}
+      else data = { ... schemaConversionObj };
       let tableId = '#src-sp-table' + tableNumber + ' tr';
       let tableColumnNumber = 0;
 
-      let columnStatus = false;
       let columnNameExists = false;
+      let columnStatus = false;
+    
         let updatedColsData = {
           'UpdateCols': {
           }
@@ -481,14 +483,14 @@ const Actions = (() => {
             if (newColumnNameEle) {
               newColumnName = newColumnNameEle.value;
             }
-            let originalColumnName = schemaConversionObj.ToSpanner[tableName].Cols[srcColumnName];
+            let originalColumnName = data.ToSpanner[tableName].Cols[srcColumnName];
             updatedColsData.UpdateCols[originalColumnName] = {};
             updatedColsData.UpdateCols[originalColumnName]['Removed'] = false;
             if (newColumnName === originalColumnName) {
               updatedColsData.UpdateCols[originalColumnName]['Rename'] = '';
             }
             else {
-              let columnsLength = Object.keys(schemaConversionObj.ToSpanner[tableName].Cols).length;
+              let columnsLength = Object.keys(data.ToSpanner[tableName].Cols).length;
               columnNameExists = false;
               for (let k = 0; k < columnsLength; k++) {
                 if (k != tableColumnNumber && newColumnName == document.getElementById('column-name-text-' + tableNumber + k + k).value) {
@@ -527,15 +529,13 @@ const Actions = (() => {
         switch (columnNameExists) {
           case true:
             return false;
-            // store previous state
-            // Store.updateSchemaScreen(Store.getinstance().tableData.reportTabContent);
-            break
+       
           case false:
             let fetchedTableData = await Fetch.getAppData('POST', '/typemap/table?table=' + tableName, updatedColsData);
             if (fetchedTableData.ok) {
-              console.log("called");
               console.log(tableData);
-              tableData = await fetchedTableData.json();
+              let tableDataTemp = await fetchedTableData.json();
+              tableData.data = tableDataTemp
               console.log(tableData);
               let checkInterleave = Store.getinstance().checkInterleave;
               if (checkInterleave[tableName]) {
@@ -551,13 +551,10 @@ const Actions = (() => {
                 if (selectedValue == 'interleave') {
                   let response = await Fetch.getAppData('GET', '/setparent?table=' + tableName + '&update=' + true);
                   response = await response.json();
-                  tableData = response.sessionState;
+                  tableData.data = response.sessionState;
                 }
               }
               Store.setTableChanges("saveMode");
-              // Store.updatePrimaryKeys(tableData);
-              // Store.updateTableData("reportTabContent", tableData);
-              // Actions.ddlSummaryAndConversionApiCall()
             }
             else {
               let modalData = await fetchedTableData.text();
@@ -569,14 +566,18 @@ const Actions = (() => {
         return true;
     },
 
-    saveForeignKeys: async (schemaConversionObj, tableNumber, tableName, tableData) => {
+    saveForeignKeys: async (schemaConversionObj,tableNumber, tableName ,tableData) => {
       let fkTableData, renameFkMap = {}, fkLength;
-      if (schemaConversionObj.SpSchema[tableName].Fks != null && schemaConversionObj.SpSchema[tableName].Fks.length != 0) {
-        fkLength = schemaConversionObj.SpSchema[tableName].Fks.length;
+      let data;
+      if (tableData.data.SpSchema != undefined) data = { ... tableData.data };
+      else data = { ... schemaConversionObj };
+    
+      if (data.SpSchema[tableName].Fks != null && data.SpSchema[tableName].Fks.length != 0) {
+        fkLength = data.SpSchema[tableName].Fks.length;
         for (let x = 0; x < fkLength; x++) {
           let newFkVal = document.getElementById('new-fk-val-' + tableNumber + x).value;
-          if (schemaConversionObj.SpSchema[tableName].Fks[x].Name != newFkVal)
-            renameFkMap[schemaConversionObj.SpSchema[tableName].Fks[x].Name] = newFkVal;
+          if (data.SpSchema[tableName].Fks[x].Name != newFkVal)
+            renameFkMap[data.SpSchema[tableName].Fks[x].Name] = newFkVal;
         }
         if (Object.keys(renameFkMap).length > 0) {
           let duplicateCheck = [];
@@ -584,7 +585,7 @@ const Actions = (() => {
           let keys = Object.keys(renameFkMap);
           keys.forEach(function (key) {
             for (let x = 0; x < fkLength; x++) {
-              if (schemaConversionObj.SpSchema[tableName].Fks[x].Name === renameFkMap[key]) {
+              if (data.SpSchema[tableName].Fks[x].Name === renameFkMap[key]) {
                 Store.setTableChanges("editMode");
                 jQuery('#editTableWarningModal').modal();
                 jQuery('#editTableWarningModal').find('#modal-content').html("Foreign Key: " + renameFkMap[key] + " already exists in table: " + tableName + ". Please try with a different name.");
@@ -610,8 +611,7 @@ const Actions = (() => {
           switch (duplicateFound) {
             case true:
               return false;
-              // store previous state
-              break;
+          
             case false:
               fkTableData = await Fetch.getAppData('POST', '/rename/fks?table=' + tableName, renameFkMap);
               if (!fkTableData.ok) {
@@ -626,26 +626,26 @@ const Actions = (() => {
               }
               else {
                 fkTableData = await fkTableData.json();
-                tableData = fkTableData;
-                // Store.updatePrimaryKeys(tableData);
-                // Store.updateTableData("reportTabContent", tableData);
+                tableData.data = fkTableData;
               }
-              break;
           }
         }
       }
       return true;
     },
 
-    saveSecondaryIndexes: async (schemaConversionObj, tableNumber, tableName, tableData) => {
-
+    saveSecondaryIndexes: async (schemaConversionObj,tableNumber, tableName, tableData) => {
+      let data;
+      if (tableData.data.SpSchema != undefined) data = { ... tableData.data };
+      else data = { ... schemaConversionObj };
       let secIndexTableData, renameIndexMap = {}, secIndexLength;
-      if (schemaConversionObj.SpSchema[tableName].Indexes != null && schemaConversionObj.SpSchema[tableName].Indexes.length != 0) {
-        secIndexLength = schemaConversionObj.SpSchema[tableName].Indexes.length;
+ 
+      if (data.SpSchema[tableName].Indexes != null && data.SpSchema[tableName].Indexes.length != 0) {
+        secIndexLength = data.SpSchema[tableName].Indexes.length;
         for (let x = 0; x < secIndexLength; x++) {
           let newSecIndexVal = document.getElementById('new-sec-index-val-' + tableNumber + x).value;
-          if (schemaConversionObj.SpSchema[tableName].Indexes[x].Name != newSecIndexVal)
-            renameIndexMap[schemaConversionObj.SpSchema[tableName].Indexes[x].Name] = newSecIndexVal;
+          if (data.SpSchema[tableName].Indexes[x].Name != newSecIndexVal)
+            renameIndexMap[data.SpSchema[tableName].Indexes[x].Name] = newSecIndexVal;
         }
         if (Object.keys(renameIndexMap).length > 0) {
           let duplicateCheck = [];
@@ -653,7 +653,7 @@ const Actions = (() => {
           let keys = Object.keys(renameIndexMap);
           keys.forEach(function (key) {
             for (let x = 0; x < secIndexLength; x++) {
-              if (schemaConversionObj.SpSchema[tableName].Indexes[x].Name === renameIndexMap[key]) {
+              if (data.SpSchema[tableName].Indexes[x].Name === renameIndexMap[key]) {
                 Store.setTableChanges("editMode");
                 jQuery('#editTableWarningModal').modal();
                 jQuery('#editTableWarningModal').find('#modal-content').html("Index: " + renameIndexMap[key] + " already exists in table: " + tableName + ". Please try with a different name.");
@@ -678,9 +678,8 @@ const Actions = (() => {
           });
           switch (duplicateFound) {
             case true:
-              // store previous state
               return false;
-              break;
+          
             case false:
               secIndexTableData = await Fetch.getAppData('POST', '/rename/indexes?table=' + tableName, renameIndexMap);
               if (!secIndexTableData.ok) {
@@ -694,11 +693,8 @@ const Actions = (() => {
               }
               else {
                 secIndexTableData = await secIndexTableData.json();
-                tableData = secIndexTableData;
-                // Store.updatePrimaryKeys(tableData);
-                // Store.updateTableData("reportTabContent", tableData);
+                tableData.data = secIndexTableData;
               }
-              break;
           }
         }
       }
@@ -711,7 +707,6 @@ const Actions = (() => {
       if (response.ok) {
         let responseCopy = response.clone();
         let jsonResponse = await responseCopy.json();
-        let textRresponse = await response.text();
         Store.updatePrimaryKeys(jsonResponse);
         Store.updateTableData("reportTabContent", jsonResponse);
 
@@ -759,11 +754,11 @@ const Actions = (() => {
       Store.getTableData(tabName);
     },
 
-    getSearchInputValue:(key)=>{
+    getSearchInputValue: (key) => {
       return Store.getSearchInputValue(key);
     },
 
-    getCurrentTab :()=>{
+    getCurrentTab: () => {
       return Store.getCurrentTab();
     },
 
@@ -776,7 +771,7 @@ const Actions = (() => {
     },
 
     getInterleaveConversionForATable: (tableName) => {
-     return Store.getInterleaveConversionForATable(tableName);
+      return Store.getInterleaveConversionForATable(tableName);
     },
 
     getSourceDbName: () => {
