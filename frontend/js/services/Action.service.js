@@ -670,7 +670,8 @@ const Actions = (() => {
               fkUpdate = await Actions.saveForeignKeys(data, tableNumber, tableName, reportTableData);
               indexUpdate = await Actions.saveSecondaryIndexes(data, tableNumber, tableName, reportTableData);
               if (fkUpdate[0] && indexUpdate[0]) {
-                reportTableData = indexUpdate[1];
+                reportTableData.SpSchema[tableName].Fks = fkUpdate[1].SpSchema[tableName].Fks;
+                reportTableData.SpSchema[tableName].Indexes = indexUpdate[1].SpSchema[tableName].Indexes;
                 Store.setTableChanges("saveMode");
                 Store.updatePrimaryKeys(reportTableData);
                 Store.updateTableData("reportTabContent", reportTableData);
