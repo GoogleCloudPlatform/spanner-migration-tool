@@ -1,7 +1,6 @@
 import Actions from "../../services/Action.service.js";
 import "../../components/Label/Label.component.js";
-
-const HISTORY_TABLE_HEADING = "Conversion history";
+import {HISTORY_TABLE_HEADING} from "./../../config/constantData.js";
 
 class HistoryTable extends HTMLElement {
   
@@ -12,7 +11,7 @@ class HistoryTable extends HTMLElement {
   render() {
     let sessionArray = JSON.parse(sessionStorage.getItem("sessionStorage"));
     this.innerHTML = `
-        <hb-label type="text" text="${HISTORY_TABLE_HEADING}"></hb-label>
+        <hb-label type="sessionHeading" text="${HISTORY_TABLE_HEADING}"></hb-label>
         <table class="table session-table">
               <thead>
                 <tr>
@@ -24,7 +23,7 @@ class HistoryTable extends HTMLElement {
               </thead>
               <tbody id='session-table-content'>
                 ${
-                  sessionArray !== null
+                  sessionArray!==null && sessionArray.length > 0
                     ? sessionArray
                         .map((session, index) => {
                           let timestampArray, sessionName, sessionDate, sessionTime;
@@ -42,9 +41,9 @@ class HistoryTable extends HTMLElement {
                           );
                           return `
                                 <tr class='sessions'>
-                                  <td class='col-2 session-table-td2 sessionName'>${sessionName}</td>
-                                  <td class='col-4 session-table-td2 sessionDate'>${sessionDate}</td>
-                                  <td class='col-2 session-table-td2 sessionTime'>${sessionTime}</td>
+                                  <td class='col-2 session-table-td2 session-dame'>${sessionName}</td>
+                                  <td class='col-4 session-table-td2 session-date'>${sessionDate}</td>
+                                  <td class='col-2 session-table-td2 session-time'>${sessionTime}</td>
                                   <td class='col-4 session-table-td2 session-action'>
                                     <a class="resume-session-link" id="session${index}" >Resume Session</a>
                                   </td>
@@ -52,10 +51,10 @@ class HistoryTable extends HTMLElement {
                         })
                         .join("")
                     : `
-                    <tr class='sessionTableImg'>
+                    <tr class='session-table-img'>
                         <td colspan='5' class='center session-image'><img src='Icons/Icons/Group 2154.svg' alt='nothing to show'></td>
                       </tr>
-                      <tr class='sessionTableNoContent'>
+                      <tr class='session-table-no-Content'>
                         <td colspan='5' class='center simple-grey-text'>No active session available! <br> Please connect a database to
                           initiate a new session.</td>
                       </tr>`
@@ -69,6 +68,7 @@ class HistoryTable extends HTMLElement {
           .addEventListener("click", async () => {
             await Actions.resumeSessionHandler(index, sessionArray);
             await Actions.ddlSummaryAndConversionApiCall();
+            await Actions.setGlobalDataTypeList()
             window.location.href = "#/schema-report";
           });
       });

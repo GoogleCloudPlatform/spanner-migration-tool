@@ -1,6 +1,5 @@
 import Forms from "../../services/Forms.service.js";
 import Actions from "../../services/Action.service.js";
-import Store from "../../services/Store.service.js";
 
 class ConnectToDbForm extends HTMLElement {
 
@@ -23,20 +22,24 @@ class ConnectToDbForm extends HTMLElement {
         });
         Forms.formButtonHandler("connect-form", "connect-button");
         document.getElementById("connect-button").addEventListener("click", async () => {
-            Actions.resetStore();
             response = await Actions.onconnect(document.getElementById('db-type').value, document.getElementById('db-host').value,
                 document.getElementById('db-port').value, document.getElementById('db-user').value,
                 document.getElementById('db-name').value, document.getElementById('db-password').value);
             if (response.ok) {
-                document.getElementById("convert-button").addEventListener("click", async () => {
-                    await Actions.showSchemaAssessment();
-                    await Actions.ddlSummaryAndConversionApiCall();
-                    window.location.href = '#/schema-report';
-                    Actions.sessionRetrieval(Store.getSourceDbName());
-                });
+                jQuery('#convert-button').off('click');
+                document.getElementById("convert-button").addEventListener("click", this.convertSchema);
             }
             Forms.resetConnectToDbModal();
         });
+    }
+
+    convertSchema = async () => {
+        await Actions.showSchemaAssessment();
+        await Actions.ddlSummaryAndConversionApiCall();
+        await Actions.setGlobalDataTypeList();
+        window.location.href = '#/schema-report';
+        Actions.sessionRetrieval(Actions.getSourceDbName());
+        document.getElementById("convert-button").removeEventListener('click', this.convertSchema);
     }
 
     render() {

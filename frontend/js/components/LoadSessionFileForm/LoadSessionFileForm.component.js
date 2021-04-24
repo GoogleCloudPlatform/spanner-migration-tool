@@ -1,6 +1,5 @@
 import Forms from "../../services/Forms.service.js";
 import Actions from "../../services/Action.service.js";
-import Store from "../../services/Store.service.js";
 
 class LoadSessionFileForm extends HTMLElement {
 
@@ -20,7 +19,6 @@ class LoadSessionFileForm extends HTMLElement {
     }
 
     storeSessionFilePath = async (dbType, filePath) => {
-        Actions.resetStore();
         let sourceTableFlag = '', loadSessionRes, ddlSummaryApiRes;
         if (dbType === 'mysql') {
             sourceTableFlag = 'MySQL';
@@ -34,9 +32,10 @@ class LoadSessionFileForm extends HTMLElement {
         }
         loadSessionRes = await Actions.onLoadSessionFile(filePath);
         ddlSummaryApiRes = await Actions.ddlSummaryAndConversionApiCall();
+        Actions.setGlobalDataTypeList();
         if (loadSessionRes && ddlSummaryApiRes) {
             window.location.href = '#/schema-report';
-            Actions.sessionRetrieval(Store.getSourceDbName());
+            Actions.sessionRetrieval(Actions.getSourceDbName());
         }
     }
 
@@ -44,7 +43,7 @@ class LoadSessionFileForm extends HTMLElement {
         this.innerHTML = `
                 <form id="load-session-form" class="load-session-form">
                     <div>
-                        <label class="modal-label" for="import-db-type">Database Type</label>
+                        <label for="import-db-type">Database Type</label>
                         <select class="form-control import-db-input" id="import-db-type" name="import-db-type">
                             <option class="template"></option>
                             <option value="mysql">MySQL</option>
@@ -52,7 +51,7 @@ class LoadSessionFileForm extends HTMLElement {
                         </select>
                     </div>
                     <div>
-                        <label class="modal-label" for="session-file-path">Path of the session File</label>
+                        <label for="session-file-path">Path of the session File</label>
                         <input class="form-control load-db-input" type="text" name="session-file-path"
                             id="session-file-path" autocomplete="off" />
                         <span class='form-error' id='load-session-error'></span>

@@ -1,5 +1,4 @@
 import Actions from "../../services/Action.service.js";
-import Store from "../../services/Store.service.js";
 class Search extends HTMLElement {
   get tabId() {
     return this.getAttribute("tabid");
@@ -35,10 +34,10 @@ class Search extends HTMLElement {
   render() {
     const { searchId } = this;
     this.innerHTML = `
-    <form class="form-inline d-flex justify-content-center md-form form-sm mt-0 searchForm" >
+    <form class="form-inline d-flex justify-content-center md-form form-sm mt-0 search-form" >
       <i class="fas fa-search" aria-hidden="true"></i>
-      <input class="form-control form-control-sm ml-3 w-75 searchBox" type="text" 
-      placeholder="Search table" value="${Store.getSearchInputValue(this.tabId)}" id="${searchId}" autocomplete='off' aria-label="Search" >
+      <input class="form-control form-control-sm ml-3 w-75 search-box" type="text" 
+      placeholder="Search table" value="${Actions.getSearchInputValue(this.tabId)}" id="${searchId}" autocomplete='off' aria-label="Search" >
     </form>`;
 
     document
@@ -50,9 +49,7 @@ class Search extends HTMLElement {
         )
       );
     let search = document.getElementById('search-input');
-    let {currentTab,searchInputValue } = Store.getinstance()
-    let value = searchInputValue[currentTab];
-    console.log(typeof value , value);
+    let value = Actions.getSearchInputValue(Actions.getCurrentTab())
     if(value.length > 0){
       search.value= value;
       this.focusCampo('search-input')

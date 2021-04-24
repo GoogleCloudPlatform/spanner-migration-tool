@@ -1,7 +1,7 @@
 import Actions from "../../services/Action.service.js";
-import Store from "../../services/Store.service.js";
-console.log('hi...');
+
 class Tab extends HTMLElement {
+  
   get tabId() {
     return this.getAttribute("tabid");
   }
@@ -29,7 +29,7 @@ class Tab extends HTMLElement {
 
   constructor() {
     super();
-    this.addEventListener("click", () => Actions.swithCurrentTab(`${this.tabId}Tab`));
+    this.addEventListener("click", () => Actions.switchCurrentTab(`${this.tabId}Tab`));
   }
 }
 

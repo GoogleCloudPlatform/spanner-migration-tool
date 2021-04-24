@@ -1,6 +1,5 @@
 import Forms from "../../services/Forms.service.js";
 import Actions from "../../services/Action.service.js";
-import Store from "../../services/Store.service.js";
 
 class AddIndexForm extends HTMLElement {
   get tableName() {
@@ -11,17 +10,20 @@ class AddIndexForm extends HTMLElement {
     return this.getAttribute("tableIndex");
   }
 
+  get data(){
+    return JSON.parse(this.getAttribute('colData'));
+  }
+
   connectedCallback() {
-    const { SrcSchema } = Store.getinstance().tableData.reportTabContent;
     this.render();
-    document.getElementById("indexName").addEventListener("focusout", () => {
+    document.getElementById("index-name").addEventListener("focusout", () => {
       Forms.validateInput(
-        document.getElementById("indexName"),
-        "indexNameError"
+        document.getElementById("index-name"),
+        "index-name-error"
       );
     });
 
-    Forms.formButtonHandler("createIndexForm", "createIndexButton");
+    Forms.formButtonHandler("create-index-form", "create-index-button");
 
     document
       .getElementById("createIndexModal")
@@ -31,17 +33,17 @@ class AddIndexForm extends HTMLElement {
       });
 
     document
-      .getElementById("createIndexButton")
+      .getElementById("create-index-button")
       .addEventListener("click", () => {
         Actions.fetchIndexFormValues(
           this.tableIndex,
           this.tableName,
-          document.getElementById("indexName").value,
-          document.getElementById("uniqueSwitch").checked
+          document.getElementById("index-name").value,
+          document.getElementById("unique-switch").checked
         );
       });
 
-    SrcSchema[this.tableName].ColNames.map((row, idx) => {
+   this.data.map((row, idx) => {
       document
         .getElementById("checkbox-" + row + "-" + idx)
         .addEventListener("click", () => {
@@ -51,22 +53,21 @@ class AddIndexForm extends HTMLElement {
   }
 
   render() {
-    const { SrcSchema } = Store.getinstance().tableData.reportTabContent;
     this.innerHTML = `
-    <form id="createIndexForm">
+    <form id="create-index-form">
         <div class="form-group sec-index-label">
-            <label for="indexName" class="bmd-label-floating black-label">Enter
+            <label for="index-name" class="bmd-label-floating black-label">Enter
                 secondary index name</label>
-            <input type="text" class="form-control black-border" name="indexName" 
-            id="indexName" autocomplete="off">
-            <span class='form-error' id='indexNameError'></span>
+            <input type="text" class="form-control black-border" name="index-name" 
+            id="index-name" autocomplete="off">
+            <span class='form-error' id='index-name-error'></span>
         </div>
         <div id="newIndexColumnListDiv" class="column-list-container">
-              ${SrcSchema[this.tableName].ColNames.map((row, idx) => {
+              ${this.data.map((row, idx) => {
                 return `
-                <div class="newIndexColumnList" id="indexColumnRow${idx}">
-                    <span class="orderId invisible-badge" id="order${row}${idx}">1</span>
-                    <span class="columnName">${row}</span>
+                <div class="new-index-column-list" id="indexColumnRow${idx}">
+                    <span class="order-id invisible-badge" id="order${row}${idx}">1</span>
+                    <span class="column-name">${row}</span>
                     <span class="bmd-form-group is-filled">
                         <div class="checkbox float-right" >
                             <label>
@@ -83,8 +84,8 @@ class AddIndexForm extends HTMLElement {
         <div class="unique-swith-container">
             <span class="unique-swith-label">Unique</span>
             <label class="switch">
-                <input id="uniqueSwitch" type="checkbox">
-                <span class="slider round" id="sliderSpan"></span>
+                <input id="unique-switch" type="checkbox">
+                <span class="slider round" id="slider-span"></span>
             </label>
         </div>
     </form>`;
