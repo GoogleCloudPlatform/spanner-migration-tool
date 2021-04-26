@@ -148,6 +148,7 @@ const Actions = (() => {
       sessionInfo.sourceDbType = dbType;
       sessionStorageArr.unshift(sessionInfo);
       sessionStorage.setItem("sessionStorage", JSON.stringify(sessionStorageArr));
+      sessionStorage.setItem('currentSessionIdx',0)
     },
 
     resumeSessionHandler: async (index, sessionArray) => {
@@ -171,6 +172,7 @@ const Actions = (() => {
         else {
           let payload = { Driver: driver, DBName: dbName, FilePath: path };
           let res = JSON.parse(text);
+          sessionStorage.setItem('currentSessionIdx', index)
           Store.updatePrimaryKeys(res);
           Store.updateTableData("reportTabContent", res);
           Store.setarraySize(Object.keys(res.SpSchema).length);
@@ -358,6 +360,10 @@ const Actions = (() => {
         res = await res.json();
         Store.updatePrimaryKeys(res);
         Store.updateTableData("reportTabContent", res);
+      }
+      else {
+        res = await res.text();
+        showSnackbar(res, " redBg");
       }
     },
 

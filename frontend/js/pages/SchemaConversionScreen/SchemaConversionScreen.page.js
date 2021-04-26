@@ -75,7 +75,6 @@ class SchemaConversionScreen extends HTMLElement {
     if (currentTab === "reportTab") {
       tableNameArray = Object.keys(currentTabContent.SpSchema)
                             .filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1);
-      // delete currentTabContent["Stats"];
     } else {
       tableNameArray = Object.keys(currentTabContent)
                             .filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1);
