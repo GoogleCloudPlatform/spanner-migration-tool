@@ -100,7 +100,7 @@ class SchemaConversionScreen extends HTMLElement {
         </ul>
       </div>
       <div class="status-icons">
-        <hb-search tabid="${currentTab}" searchid="search-input" class="inlineblock" ></hb-search>
+        <hb-search tabid="${currentTab}" class="inlineblock" ></hb-search>
         <hb-status-legend></hb-status-legend> 
       </div> 
       <div class="tab-bg" id='tabBg'>
@@ -180,7 +180,7 @@ class SchemaConversionScreen extends HTMLElement {
       this.sendDatatoReportTab(tableNameArray
         .filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1), currentTabContent);
       let carouselIndex = Actions.getCurrentClickedCarousel();
-      let mybtn = document.getElementById(`editSpanner${carouselIndex}`);
+      let mybtn = document.getElementById(`${carouselIndex}`);
       let hg = mybtn?.getBoundingClientRect().top + document.documentElement.scrollTop
       window.scrollBy(0,hg-100);
       document.getElementById(`index-key-${carouselIndex}`)?.classList.add('show');

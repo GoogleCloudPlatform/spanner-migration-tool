@@ -6,12 +6,14 @@
   background-color: #fdfdfd;
   box-shadow: 0px 3px 16px #00000029;
   margin-bottom: 20px;
-  border-radius: 10px !important;
+  border-radius: 10px;
 }
 
 .card .card-header {
   padding: 1rem;
   background-color: #fdfdfd;
+  border-radius: 10px;
+
 }
 
 .card-header a {
@@ -29,43 +31,40 @@
 }
 
 .orange-border-bottom {
-  border: 0.125rem solid ORANGE !important;
-  border-radius: 10px !important;
+  border: 0.125rem solid ORANGE;
 }
 
 .green-border-bottom {
-  border: 0.125rem solid #0f9d58 !important;
-  border-radius: 10px !important;
+  border: 0.125rem solid #0f9d58;
 }
 
 .blue-border-bottom {
-  border: 0.125rem solid #4285f4 !important;
-  border-radius: 10px !important;
+  border: 0.125rem solid #4285f4;
 }
 
 .yellow-border-bottom {
-  border: 0.125rem solid YELLoW !important;
-  border-radius: 10px !important;
+  border: 0.125rem solid YELLoW;
 }
 
 .no-border-bottom {
   border-bottom: 0px !important;
 }
+
 .card-orange-border {
-  border: 0.125rem solid ORANGE !important;
+  border: 0.125rem solid ORANGE;
   border-top: 0px !important;
 }
 
 .card-green-border {
-  border: 0.125rem solid #0f9d58 !important;
+  border: 0.125rem solid #0f9d58;
 }
 
 .card-blue-border {
-  border: 0.125rem solid #4285f4 !important;
+  border: 0.125rem solid #4285f4 ;
 }
 
 .card-yellow-border {
-  border: 0.125rem solid YELLOW !important;
+  border: 0.125rem solid YELLOW;
 }
 
 .spanner-text {
@@ -131,13 +130,13 @@
 
 .mdc-card-content {
   background: #fdfdfd;
-  border-radius: 0px 0px 10px 10px !important;
+  border-radius: 0px 0px 10px 10px;
   border-top: 0px !important;
   margin-top: -5px;
 }
 
 .table-card-border {
-  box-shadow: none !important;
+  box-shadow: none;
 }
 
 .rem-border-bottom {

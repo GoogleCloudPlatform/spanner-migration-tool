@@ -14,11 +14,11 @@ class HistoryTable extends HTMLElement {
         <hb-label type="sessionHeading" text="${HISTORY_TABLE_HEADING}"></hb-label>
         <table class="table session-table">
               <thead>
-                <tr>
-                  <th class='col-2 session-table-th2'>Session Name</th>
-                  <th class='col-4 session-table-th2'>Date</th>
-                  <th class='col-2 session-table-th2'>Time</th>
-                  <th class='col-4 session-table-th2'>Action Item</th>
+                <tr id="first-title-row">
+                  <th class='col-2'>Session Name</th>
+                  <th class='col-4'>Date</th>
+                  <th class='col-2'>Time</th>
+                  <th class='col-4'>Action Item</th>
                 </tr>
               </thead>
               <tbody id='session-table-content'>

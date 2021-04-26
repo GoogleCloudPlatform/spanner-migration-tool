@@ -253,6 +253,7 @@ const Actions = (() => {
       let value = interleaveApiCallResp.tableInterleaveStatus.Possible;
       Store.setInterleave(tableName, value);
     },
+
     setGlobalDataType: async () => {
       let globalDataTypeList = Store.getGlobalDataTypeList();
       let dataTypeListLength = Object.keys(globalDataTypeList).length;
@@ -663,7 +664,7 @@ const Actions = (() => {
                 if (selectedValue == 'interleave') {
                   let response = await Fetch.getAppData('GET', '/setparent?table=' + tableName + '&update=' + true);
                   response = await response.json();
-                  tableData = response.sessionState;
+                  let tableData = response.sessionState;
                   reportTableData = tableData;
                 }
               }

@@ -85,7 +85,7 @@ class Modal extends HTMLElement {
               <h5 class="modal-title modal-bg">${title}</h5>
               <i class="large material-icons close" data-dismiss="modal">cancel</i>
             </div>
-            <div class="modal-body ${modalBodyClass}">
+            <div id="modal-body-id" class="modal-body ${modalBodyClass}">
               <div><i class="large material-icons ${connectIconClass}">${contentIcon}</i></div>
               <div id="modal-content">${content.trim()}</div>
             </div>

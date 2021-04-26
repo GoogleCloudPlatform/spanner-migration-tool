@@ -1,6 +1,6 @@
-.spinner-backdrop {
+#toggle-spinner {
     position: fixed;
-    z-index: 999999 !important;
+    z-index: 999999 ;
     height: 2em;
     width: 2em;
     margin: auto;
@@ -10,7 +10,7 @@
     right: 0;
 }
   
-  .spinner-backdrop:before {
+  #toggle-spinner:before {
       content: '';
       display: block;
       position: fixed;
@@ -18,7 +18,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: #B9B9B9 0% 0% no-repeat padding-box !important;
+      background: #B9B9B9 0% 0% no-repeat padding-box;
       opacity: .26;
 }
 
