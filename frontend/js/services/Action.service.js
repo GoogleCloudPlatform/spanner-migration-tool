@@ -10,7 +10,6 @@ var reportTableData = {};
  * All the manipulations to the store happen via the actions mentioned in this module
  *
  */
-
 const resetIndexModal = () => {
   keysList = [];
   orderId = 0;
@@ -26,6 +25,10 @@ const Actions = (() => {
 
     resetStore: () => {
       Store.resetStore();
+    },
+
+    resetReportTableData: () => {
+      reportTableData = {};
     },
 
     onLoadDatabase: async (dbType, dumpFilePath) => {
@@ -145,6 +148,7 @@ const Actions = (() => {
       sessionInfo.sourceDbType = dbType;
       sessionStorageArr.unshift(sessionInfo);
       sessionStorage.setItem("sessionStorage", JSON.stringify(sessionStorageArr));
+      sessionStorage.setItem('currentSessionIdx',0)
     },
 
     resumeSessionHandler: async (index, sessionArray) => {
@@ -168,6 +172,7 @@ const Actions = (() => {
         else {
           let payload = { Driver: driver, DBName: dbName, FilePath: path };
           let res = JSON.parse(text);
+          sessionStorage.setItem('currentSessionIdx', index)
           Store.updatePrimaryKeys(res);
           Store.updateTableData("reportTabContent", res);
           Store.setarraySize(Object.keys(res.SpSchema).length);
@@ -253,6 +258,7 @@ const Actions = (() => {
       let value = interleaveApiCallResp.tableInterleaveStatus.Possible;
       Store.setInterleave(tableName, value);
     },
+
     setGlobalDataType: async () => {
       let globalDataTypeList = Store.getGlobalDataTypeList();
       let dataTypeListLength = Object.keys(globalDataTypeList).length;
@@ -354,6 +360,10 @@ const Actions = (() => {
         res = await res.json();
         Store.updatePrimaryKeys(res);
         Store.updateTableData("reportTabContent", res);
+      }
+      else {
+        res = await res.text();
+        showSnackbar(res, " redBg");
       }
     },
 
@@ -663,7 +673,7 @@ const Actions = (() => {
                 if (selectedValue == 'interleave') {
                   let response = await Fetch.getAppData('GET', '/setparent?table=' + tableName + '&update=' + true);
                   response = await response.json();
-                  tableData = response.sessionState;
+                  let tableData = response.sessionState;
                   reportTableData = tableData;
                 }
               }

@@ -8,8 +8,12 @@
   float: right;
 }
 
-.black-border {
-  border: 1px solid black !important;
+#index-checkbox.black-border, #index-name.black-border {
+  border: 1px solid black;
+}
+
+#index-name{
+margin-bottom: 22px;
 }
 
 .black-label {
@@ -105,5 +109,5 @@ input:checked + .slider:before {
 }
 
 .sec-index-label {
-  margin-bottom: 22px !important;
+  margin-bottom: 22px;
 }

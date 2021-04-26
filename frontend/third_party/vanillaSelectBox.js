@@ -155,7 +155,7 @@ function vanillaSelectBox(domSelector, options) {
         this.drop = document.createElement("div");
         this.main.appendChild(this.drop);
         this.drop.classList.add("vsb-menu");
-        this.drop.style.zIndex = 2000 - this.instanceOffset;
+        this.drop.style.zIndex = 20000 - this.instanceOffset;
         this.ul = document.createElement("ul");
         this.drop.appendChild(this.ul);
 

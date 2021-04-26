@@ -70,7 +70,6 @@ class TableCarousel extends HTMLElement {
     this.innerHTML = `
     <section class="${tabId}-section" id="${tableIndex}">
       <div class="card">
-
         <div role="tab" class="card-header ${tabId}-card-header ${carouselStatus ? 'no-border-bottom  rem-border-bottom':''}  ${panelColor}">
           <h5 class="mb-0">
             <a data-toggle="collapse" id="id-${tabId}-${tableIndex}">

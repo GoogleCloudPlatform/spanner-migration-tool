@@ -4,10 +4,6 @@ class Search extends HTMLElement {
     return this.getAttribute("tabid");
   }
 
-  get searchId() {
-    return this.getAttribute("searchid");
-  }
-
   focusCampo(id){
     var inputField = document.getElementById(id);
     if (inputField != null && inputField.value.length != 0){
@@ -32,19 +28,19 @@ class Search extends HTMLElement {
   }
 
   render() {
-    const { searchId } = this;
+  
     this.innerHTML = `
     <form class="form-inline d-flex justify-content-center md-form form-sm mt-0 search-form" >
       <i class="fas fa-search" aria-hidden="true"></i>
       <input class="form-control form-control-sm ml-3 w-75 search-box" type="text" 
-      placeholder="Search table" value="${Actions.getSearchInputValue(this.tabId)}" id="${searchId}" autocomplete='off' aria-label="Search" >
+      placeholder="Search table" value="${Actions.getSearchInputValue(this.tabId)}" id="search-input" autocomplete='off' aria-label="Search" >
     </form>`;
 
     document
-      .getElementById(this.searchId)
+      .getElementById('search-input')
       .addEventListener("keyup", (e) =>
         Actions.SearchTable(
-          document.getElementById(this.searchId).value,
+          document.getElementById('search-input').value,
           this.tabId
         )
       );

@@ -72,12 +72,9 @@ input[type="text"]:disabled {
   border-top: 4px solid;
   border-right: 4px solid transparent;
   border-left: 4px solid transparent;
-  right: 6px !important;
+  right: 6px;
 }
 
-.form-group {
-  margin-bottom: 0px;
-}
 
 .custom-file-control,
 .form-control {
@@ -94,7 +91,7 @@ label {
 
 button:disabled,
 button[disabled]{
-  border: 1px solid #999999 !important;
+  border: 1px solid #999999;
   background-color: #cccccc;
   color: #666666;
   cursor:not-allowed

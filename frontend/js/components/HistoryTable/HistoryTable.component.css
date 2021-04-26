@@ -4,9 +4,9 @@
   opacity: 1;
 }
 
-.session-table-th2 {
-  font-size: 20px !important;
-  color: #fdfdfd !important;
+#first-title-row th {
+  font-size: 20px;
+  color: #fdfdfd;
   background-color: #b9b9b9;
 }
 

@@ -4,7 +4,8 @@ const DEFAULT_INSTANCE = {
 
 const Store = (function () {
   var tableChanges = "editMode";
-  var currentClickedCarousel = 0;
+  var currentClickedCarousel = -1;
+ 
   var instance = {
     checkInterleave: {},
     currentTab: "reportTab",
@@ -166,6 +167,9 @@ const Store = (function () {
     },
    
     resetStore: () => {
+      tableChanges = "editMode";
+      currentClickedCarousel = -1;
+      checkInterLeaveArray = {};
       instance = {
         checkInterleave: {},
         currentTab: "reportTab",

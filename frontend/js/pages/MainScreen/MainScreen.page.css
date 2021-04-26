@@ -11,10 +11,6 @@
   margin-top: 20px;
 }
 
-/* .card-area {
-    background-color: #FDFDFD;
-} */
-
 .icons-card-section {
   display: flex;
   text-align: center;
@@ -50,14 +46,14 @@ h5 {
   font-size: 0.875rem;
 }
 
-.connect-icon-success {
+#modal-body-id div .connect-icon-success {
   margin-right: 6px;
-  color: #0f9d58 !important;
+  color: #0f9d58 ;
 }
 
-.connect-icon-failure {
+#modal-body-id div .connect-icon-failure {
   margin-right: 6px;
-  color: #db4437 !important;
+  color: #db4437;
 }
 
 .history-content {
