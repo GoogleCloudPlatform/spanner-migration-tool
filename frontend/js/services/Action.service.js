@@ -28,6 +28,10 @@ const Actions = (() => {
       Store.resetStore();
     },
 
+    resetReportTableData: () => {
+      reportTableData = {};
+    },
+
     onLoadDatabase: async (dbType, dumpFilePath) => {
       let reportData, sourceTableFlag, reportDataResp, reportDataCopy, jsonReportDataResp, requestCode;
       reportData = await Fetch.getAppData("POST", "/convert/dump", { Driver: dbType, Path: dumpFilePath });
@@ -145,6 +149,7 @@ const Actions = (() => {
       sessionInfo.sourceDbType = dbType;
       sessionStorageArr.unshift(sessionInfo);
       sessionStorage.setItem("sessionStorage", JSON.stringify(sessionStorageArr));
+      sessionStorage.setItem('currentSessionIdx',0)
     },
 
     resumeSessionHandler: async (index, sessionArray) => {
@@ -168,6 +173,7 @@ const Actions = (() => {
         else {
           let payload = { Driver: driver, DBName: dbName, FilePath: path };
           let res = JSON.parse(text);
+          sessionStorage.setItem('currentSessionIdx', index)
           Store.updatePrimaryKeys(res);
           Store.updateTableData("reportTabContent", res);
           Store.setarraySize(Object.keys(res.SpSchema).length);

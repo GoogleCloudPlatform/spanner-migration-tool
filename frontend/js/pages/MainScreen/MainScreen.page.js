@@ -20,6 +20,7 @@ class MainScreen extends HTMLElement {
     this.stateObserver = setInterval(this.observeState, 200);
     this.render();
     Actions.resetStore();
+    Actions.resetReportTableData()
     setActiveSelectedMenu('homeScreen')
   }
 

@@ -342,7 +342,6 @@ class DataTable extends HTMLElement {
         });
         document.getElementById("editSpanner" + tableIndex).addEventListener("click", async (event) => {
                 await Actions.editAndSaveButtonHandler(event, tableIndex, tableName, notNullConstraint);
-            
         });
 
         if (spTable.Fks !== null && spTable.Fks.length > 0) {
