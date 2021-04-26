@@ -10,7 +10,6 @@ var reportTableData = {};
  * All the manipulations to the store happen via the actions mentioned in this module
  *
  */
-
 const resetIndexModal = () => {
   keysList = [];
   orderId = 0;
@@ -26,6 +25,10 @@ const Actions = (() => {
 
     resetStore: () => {
       Store.resetStore();
+    },
+
+    resetReportTableData: () => {
+      reportTableData = {};
     },
 
     onLoadDatabase: async (dbType, dumpFilePath) => {

@@ -182,7 +182,7 @@ class SchemaConversionScreen extends HTMLElement {
       let carouselIndex = Actions.getCurrentClickedCarousel();
       let mybtn = document.getElementById(`${carouselIndex}`);
       let hg = mybtn?.getBoundingClientRect().top + document.documentElement.scrollTop
-      window.scrollBy(0,hg-100);
+      window.scrollBy(0,hg);
       document.getElementById(`index-key-${carouselIndex}`)?.classList.add('show');
       document.getElementById(`foreign-key-${carouselIndex}`)?.classList.add('show');
     }

@@ -166,6 +166,9 @@ const Store = (function () {
     },
    
     resetStore: () => {
+      tableChanges = "editMode";
+      currentClickedCarousel = -1;
+      checkInterLeaveArray = {};
       instance = {
         checkInterleave: {},
         currentTab: "reportTab",

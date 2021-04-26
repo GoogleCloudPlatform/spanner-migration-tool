@@ -47,12 +47,11 @@
 }
 
 .no-border-bottom {
-  border-bottom: 0px !important;
+  border-bottom: 0px ;
 }
 
 .card-orange-border {
   border: 0.125rem solid ORANGE;
-  border-top: 0px !important;
 }
 
 .card-green-border {
@@ -131,7 +130,7 @@
 .mdc-card-content {
   background: #fdfdfd;
   border-radius: 0px 0px 10px 10px;
-  border-top: 0px !important;
+  border-top: 0px ;
   margin-top: -5px;
 }
 

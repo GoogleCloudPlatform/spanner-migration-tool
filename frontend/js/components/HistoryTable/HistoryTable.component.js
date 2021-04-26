@@ -66,6 +66,7 @@ class HistoryTable extends HTMLElement {
         document
           .getElementById("session" + index)
           .addEventListener("click", async () => {
+            Actions.resetReportTableData();
             await Actions.resumeSessionHandler(index, sessionArray);
             await Actions.ddlSummaryAndConversionApiCall();
             await Actions.setGlobalDataTypeList()

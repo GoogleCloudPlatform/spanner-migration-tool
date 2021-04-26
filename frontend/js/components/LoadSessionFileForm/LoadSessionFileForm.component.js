@@ -30,6 +30,7 @@ class LoadSessionFileForm extends HTMLElement {
             Actions.setSourceDbName(sourceTableFlag)
 
         }
+        Actions.resetReportTableData();
         loadSessionRes = await Actions.onLoadSessionFile(filePath);
         ddlSummaryApiRes = await Actions.ddlSummaryAndConversionApiCall();
         Actions.setGlobalDataTypeList();
