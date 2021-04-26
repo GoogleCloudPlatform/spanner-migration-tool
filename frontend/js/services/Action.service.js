@@ -362,6 +362,10 @@ const Actions = (() => {
         Store.updatePrimaryKeys(res);
         Store.updateTableData("reportTabContent", res);
       }
+      else {
+        res = await res.text();
+        showSnackbar(res, " redBg");
+      }
     },
 
     createNewSecIndex: (id) => {
