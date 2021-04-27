@@ -36,6 +36,7 @@ class DefaultLayout extends HTMLElement {
         <div>${data.outerHTML}</div>`;
         Actions.hideSpinner()
         this.refreshHandler(data)
+        window.scrollTo(0,0)
     }
 
     constructor() {

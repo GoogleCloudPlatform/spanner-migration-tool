@@ -27,6 +27,14 @@ const Actions = (() => {
       Store.resetStore();
     },
 
+    setPageYOffset:(value)=>{
+      Store.setPageYOffset(value)
+    },
+
+    getPageYOffset:()=>{
+      return Store.getPageYOffset()
+    },
+
     resetReportTableData: () => {
       reportTableData = {};
     },

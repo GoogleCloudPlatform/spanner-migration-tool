@@ -178,12 +178,8 @@ class SchemaConversionScreen extends HTMLElement {
     if (currentTab === "reportTab") {
       this.sendDatatoReportTab(tableNameArray
         .filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1), currentTabContent);
-      let carouselIndex = Actions.getCurrentClickedCarousel();
-      let mybtn = document.getElementById(`${carouselIndex}`);
-      let hg = mybtn?.getBoundingClientRect().top + document.documentElement.scrollTop
-      window.scrollBy(0,hg);
-      document.getElementById(`index-key-${carouselIndex}`)?.classList.add('show');
-      document.getElementById(`foreign-key-${carouselIndex}`)?.classList.add('show');
+      window.scrollTo(0,Actions.getPageYOffset());
+      console.log('scroll....');
     }
   }
   constructor() {
@@ -191,7 +187,4 @@ class SchemaConversionScreen extends HTMLElement {
   }
 }
 
-window.customElements.define(
-  "hb-schema-conversion-screen",
-  SchemaConversionScreen
-);
+window.customElements.define("hb-schema-conversion-screen", SchemaConversionScreen);

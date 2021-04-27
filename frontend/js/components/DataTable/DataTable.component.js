@@ -34,7 +34,7 @@ class DataTable extends HTMLElement {
                         <a class="fk-font" data-toggle="collapse" href="#foreign-key-${tableIndex}"> Foreign Keys </a>
                     </h5>
                 </div>
-                <div class="collapse fk-collapse" id="foreign-key-${tableIndex}">
+                <div class="collapse fk-collapse show" id="foreign-key-${tableIndex}">
                     <div class="mdc-card mdc-card-content summary-border">
                         <div class="mdc-card fk-content">
                             <fieldset class=${this.checkInterLeave == true ? "" : "template"} id="radio-btn-area${tableIndex}">
@@ -101,7 +101,7 @@ class DataTable extends HTMLElement {
                         </a>
                     </h5>
                 </div>
-                <div class="collapse index-collapse" id="index-key-${tableIndex}">
+                <div class="collapse index-collapse show" id="index-key-${tableIndex}">
                     <div class="mdc-card mdc-card-content summary-border">
                         <div class="mdc-card fk-content">
                             <hb-site-button buttonid="${tableIndex}indexButton-${this.tableName}" classname="new-index-button"

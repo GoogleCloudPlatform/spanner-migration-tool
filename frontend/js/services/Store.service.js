@@ -5,7 +5,7 @@ const DEFAULT_INSTANCE = {
 const Store = (function () {
   var tableChanges = "editMode";
   var currentClickedCarousel = -1;
- 
+  var pageYOffset = 0;
   var instance = {
     checkInterleave: {},
     currentTab: "reportTab",
@@ -43,6 +43,16 @@ const Store = (function () {
 
     setTableChanges: (val) => {
       tableChanges = val;
+    },
+
+    setPageYOffset:(value)=>{
+      console.log(pageYOffset);
+      pageYOffset = value;
+    },
+
+    getPageYOffset:()=>{
+      console.log(pageYOffset);
+      return pageYOffset;
     },
 
     setCurrentClickedCarousel:(value)=>{
