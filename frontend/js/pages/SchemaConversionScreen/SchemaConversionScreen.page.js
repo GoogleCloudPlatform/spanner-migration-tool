@@ -55,7 +55,6 @@ class SchemaConversionScreen extends HTMLElement {
   observeState = () => {
     let updatedData = Store.getinstance();
     if (JSON.stringify(updatedData) !== JSON.stringify(this.data)) {
-      console.log(this.data);
       this.data = JSON.parse(JSON.stringify(updatedData));
       this.render();
     }
@@ -70,6 +69,7 @@ class SchemaConversionScreen extends HTMLElement {
       return;
     }
     const { currentTab, tableData, tableBorderData,searchInputValue } = this.data;
+    console.log(this.data);
     let currentTabContent = tableData[`${currentTab}Content`];
     const changingText = this.getChangingValue(currentTab);
     let tableNameArray;

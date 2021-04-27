@@ -441,14 +441,20 @@ const Actions = (() => {
       let data;
       if (tableData.data.SpSchema != undefined) data = { ...tableData.data };
       else data = { ...schemaConversionObj };
+      console.log(data);
+      console.log(tableData);
       columnStatus = await Actions.saveColumn(schemaConversionObj, tableNumber, tableName, notNullConstraint, tableData);
-
+       console.log(tableData);
       if (columnStatus) {
         fkStatus = await Actions.saveForeignKeys(schemaConversionObj, tableNumber, tableName, tableData);
       }
+      console.log(tableData);
+
       if (fkStatus) {
         secIndexStatus = await Actions.saveSecondaryIndexes(schemaConversionObj, tableNumber, tableName, tableData);
       }
+      console.log(tableData);
+
       if (fkStatus && secIndexStatus && columnStatus) {
         console.log("store updated");
         console.log(tableData);
@@ -460,11 +466,14 @@ const Actions = (() => {
     },
 
     saveColumn: async (schemaConversionObj, tableNumber, tableName, notNullConstraint, tableData) => {
-      debugger;
       console.log(tableData);
       let data;
-      if (tableData.data.SpSchema != undefined) data = { ...tableData.data };
+      if (tableData.data.SpSchema != undefined) {
+        console.log("i am executed");
+        data = { ...tableData.data };
+      }
       else data = { ...schemaConversionObj };
+      console.log(data);
       let tableId = '#src-sp-table' + tableNumber + ' tr';
       let tableColumnNumber = 0;
 
@@ -569,7 +578,9 @@ const Actions = (() => {
     saveForeignKeys: async (schemaConversionObj, tableNumber, tableName, tableData) => {
       let fkTableData, renameFkMap = {}, fkLength;
       let data;
-      if (tableData.data.SpSchema != undefined) data = { ...tableData.data };
+      if (tableData.data.SpSchema != undefined){ 
+        console.log("i am executed");
+        data = { ...tableData.data };}
       else data = { ...schemaConversionObj };
 
       if (data.SpSchema[tableName].Fks != null && data.SpSchema[tableName].Fks.length != 0) {
@@ -635,8 +646,13 @@ const Actions = (() => {
     },
 
     saveSecondaryIndexes: async (schemaConversionObj, tableNumber, tableName, tableData) => {
+      debugger;
       let data;
-      if (tableData.data.SpSchema != undefined) data = { ...tableData.data };
+      if (tableData.data.SpSchema != undefined){
+        console.log("i am executed");
+        data = { ...tableData.data };
+      console.log("where");
+      }
       else data = { ...schemaConversionObj };
       let secIndexTableData, renameIndexMap = {}, secIndexLength;
 
