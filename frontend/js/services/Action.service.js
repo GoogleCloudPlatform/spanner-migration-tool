@@ -576,36 +576,52 @@ const Actions = (() => {
     },
 
     saveForeignKeys: async (schemaConversionObj, tableNumber, tableName, tableData) => {
-      let fkTableData, renameFkMap = {}, fkLength;
+      let fkTableData, renameFkMap = {}, fkLength ;
+      let uniquevals;
+      let newFkValueArray = [];
       let data;
       if (tableData.data.SpSchema != undefined){ 
         console.log("i am executed");
         data = { ...tableData.data };}
       else data = { ...schemaConversionObj };
 
+
       if (data.SpSchema[tableName].Fks != null && data.SpSchema[tableName].Fks.length != 0) {
         fkLength = data.SpSchema[tableName].Fks.length;
         for (let x = 0; x < fkLength; x++) {
           let newFkVal = document.getElementById('new-fk-val-' + tableNumber + x).value;
+          newFkValueArray.push(newFkVal)
           if (data.SpSchema[tableName].Fks[x].Name != newFkVal)
             renameFkMap[data.SpSchema[tableName].Fks[x].Name] = newFkVal;
         }
+        uniquevals = [...new  Set(newFkValueArray)];
         if (Object.keys(renameFkMap).length > 0) {
           let duplicateCheck = [];
           let duplicateFound = false;
           let keys = Object.keys(renameFkMap);
+          let flag = false;
+          let dummyobj = {};
           keys.forEach(function (key) {
+
             for (let x = 0; x < fkLength; x++) {
               if (data.SpSchema[tableName].Fks[x].Name === renameFkMap[key]) {
+                if(uniquevals.length == newFkValueArray.length){
+                   flag = true;
+                   break ;
+                }
+                else{
                 Store.setTableChanges("editMode");
                 jQuery('#editTableWarningModal').modal();
                 jQuery('#editTableWarningModal').find('#modal-content').html("Foreign Key: " + renameFkMap[key] + " already exists in table: " + tableName + ". Please try with a different name.");
                 duplicateFound = true;
+                break;
+                }
                 // document.getElementById('edit-table-warning').addEventListener('click', () => {
                 //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
                 // });
               }
             }
+            
             if (duplicateCheck.includes(renameFkMap[key])) {
               Store.setTableChanges("editMode");
               jQuery('#editTableWarningModal').modal();
@@ -619,6 +635,19 @@ const Actions = (() => {
               duplicateCheck.push(renameFkMap[key]);
             }
           });
+          if(flag){
+              let dummyrenameFkMap = {};
+              keys.forEach(function (key){
+                dummyobj[key] = "yendex"+key;
+              });
+              fkTableData = await Fetch.getAppData('POST', '/rename/fks?table=' + tableName, dummyobj);
+              if(fkTableData.ok){
+                keys.forEach(function (key){
+                  dummyrenameFkMap[dummyobj[key]] = renameFkMap[key];
+                })
+              }
+              renameFkMap = dummyrenameFkMap;
+          }
           switch (duplicateFound) {
             case true:
               return false;
@@ -646,34 +675,47 @@ const Actions = (() => {
     },
 
     saveSecondaryIndexes: async (schemaConversionObj, tableNumber, tableName, tableData) => {
-      debugger;
+
       let data;
+      let newSecIndexArray = [];
+      let uniquevals;
+      let secIndexTableData, renameIndexMap = {}, secIndexLength;
+
       if (tableData.data.SpSchema != undefined){
         console.log("i am executed");
         data = { ...tableData.data };
       console.log("where");
       }
       else data = { ...schemaConversionObj };
-      let secIndexTableData, renameIndexMap = {}, secIndexLength;
 
       if (data.SpSchema[tableName].Indexes != null && data.SpSchema[tableName].Indexes.length != 0) {
         secIndexLength = data.SpSchema[tableName].Indexes.length;
         for (let x = 0; x < secIndexLength; x++) {
           let newSecIndexVal = document.getElementById('new-sec-index-val-' + tableNumber + x).value;
+          newSecIndexArray.push(newSecIndexVal)
           if (data.SpSchema[tableName].Indexes[x].Name != newSecIndexVal)
             renameIndexMap[data.SpSchema[tableName].Indexes[x].Name] = newSecIndexVal;
         }
+        uniquevals = [...new  Set(newSecIndexArray)];
         if (Object.keys(renameIndexMap).length > 0) {
           let duplicateCheck = [];
           let duplicateFound = false;
           let keys = Object.keys(renameIndexMap);
+          let flag = false;
           keys.forEach(function (key) {
             for (let x = 0; x < secIndexLength; x++) {
               if (data.SpSchema[tableName].Indexes[x].Name === renameIndexMap[key]) {
+                if(uniquevals.length == newSecIndexArray.length){
+                  flag = true;
+                  break ;
+               }
+                else{
                 Store.setTableChanges("editMode");
                 jQuery('#editTableWarningModal').modal();
                 jQuery('#editTableWarningModal').find('#modal-content').html("Index: " + renameIndexMap[key] + " already exists in table: " + tableName + ". Please try with a different name.");
                 duplicateFound = true;
+                break;
+                }
                 // document.getElementById('edit-table-warning').addEventListener('click', () => {
                 //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
                 // });
@@ -692,6 +734,20 @@ const Actions = (() => {
               duplicateCheck.push(renameIndexMap[key]);
             }
           });
+          if(flag){
+            let dummyobj = {};
+            let dummyrenameSecIndexMap = {};
+            keys.forEach(function (key){
+              dummyobj[key] = "yendex"+key;
+            });
+            secIndexTableData = await Fetch.getAppData('POST', '/rename/indexes?table=' + tableName, dummyobj);
+            if(secIndexTableData.ok){
+              keys.forEach(function (key){
+                dummyrenameSecIndexMap[dummyobj[key]] = renameIndexMap[key];
+              })
+            }
+            renameIndexMap = dummyrenameSecIndexMap;
+        }
           switch (duplicateFound) {
             case true:
               return false;
