@@ -43,12 +43,10 @@ const Store = (function () {
     },
 
     setPageYOffset:(value)=>{
-      console.log(pageYOffset);
       pageYOffset = value;
     },
 
     getPageYOffset:()=>{
-      console.log(pageYOffset);
       return pageYOffset;
     },
 
