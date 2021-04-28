@@ -578,13 +578,14 @@ const Actions = (() => {
       return true;
     },
 
-    saveForeignKeys: async (schemaConversionObj, tableNumber, tableName, tableData,errorMessage) => {
-      let fkTableData, renameFkMap = {}, fkLength ;
+    saveForeignKeys: async (schemaConversionObj, tableNumber, tableName, tableData, errorMessage) => {
+      let fkTableData, renameFkMap = {}, fkLength;
       let uniquevals;
       let newFkValueArray = [];
       let data;
-      if (tableData.data.SpSchema != undefined){ 
-        data = { ...tableData.data };}
+      if (tableData.data.SpSchema != undefined) {
+        data = { ...tableData.data };
+      }
       else data = { ...schemaConversionObj };
       if (data.SpSchema[tableName].Fks != null && data.SpSchema[tableName].Fks.length != 0) {
         fkLength = data.SpSchema[tableName].Fks.length;
@@ -608,17 +609,17 @@ const Actions = (() => {
                 if (uniquevals.length == newFkValueArray.length) {
                   flag = true;
                   break;
-                }else{
-                errorMessage.push("Foreign Key: " + renameFkMap[key] + " already exists in table: " + tableName + ". Please try with a different name.")
-                duplicateFound = true;
-                break;
+                } else {
+                  errorMessage.push("Foreign Key: " + renameFkMap[key] + " already exists in table: " + tableName + ". Please try with a different name.")
+                  duplicateFound = true;
+                  break;
                 }
               }
             }
 
             if (duplicateCheck.includes(renameFkMap[key])) {
               errorMessage.push('Please use a different name for each foreign key')
-              
+
               duplicateFound = true;
             }
             else {
@@ -629,7 +630,6 @@ const Actions = (() => {
             let dummyrenameFkMap = {};
             keys.forEach(function (key) {
               dummyobj[key] = new Date().toString() + key;
-              console.log(dummyobj[key]);
             });
             fkTableData = await Fetch.getAppData('POST', '/rename/fks?table=' + tableName, dummyobj);
             if (fkTableData.ok) {
