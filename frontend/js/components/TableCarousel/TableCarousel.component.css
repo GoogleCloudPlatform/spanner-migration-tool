@@ -138,8 +138,8 @@
   box-shadow: none;
 }
 
-.rem-border-bottom {
-  border-radius: 10px 10px 0px 0px !important;
+div.rem-border-bottom.card-header {
+  border-radius: 10px 10px 0px 0px ;
 }
 
 .rotate-icon {
