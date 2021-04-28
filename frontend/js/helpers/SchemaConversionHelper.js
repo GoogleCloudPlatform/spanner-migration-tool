@@ -139,7 +139,6 @@ export const checkBoxStateHandler = (tableIndex,numOfColumn)=> {
       case false:
         checkClassTableNumber.prop("checked", false);
         uncheckCount = numOfColumn;
-        console.log(uncheckCount);
         break;
     }
   });

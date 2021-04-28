@@ -369,6 +369,7 @@ const Actions = (() => {
         res = await res.json();
         Store.updatePrimaryKeys(res);
         Store.updateTableData("reportTabContent", res);
+        Actions.resetReportTableData();
       }
       else {
         res = await res.text();
@@ -456,20 +457,15 @@ const Actions = (() => {
     SaveButtonHandler: async (tableNumber, tableName, notNullConstraint) => {
       var errorMessage=[];
       let schemaConversionObj = { ...Store.getinstance().tableData.reportTabContent };
-
       let fkStatus = false, secIndexStatus = false, columnStatus = false;
-      let data;
-      if (tableData.data.SpSchema != undefined) data = { ...tableData.data };
-      else data = { ...schemaConversionObj };
-
       columnStatus = await Actions.saveColumn(schemaConversionObj, tableNumber, tableName, notNullConstraint, tableData ,errorMessage);
       fkStatus = await Actions.saveForeignKeys(schemaConversionObj, tableNumber, tableName, tableData,errorMessage);
       secIndexStatus = await Actions.saveSecondaryIndexes(schemaConversionObj, tableNumber, tableName, tableData,errorMessage);
-     
       if (fkStatus && secIndexStatus && columnStatus) {
         Store.updatePrimaryKeys(tableData.data);
         Store.updateTableData("reportTabContent", tableData.data);
         Actions.ddlSummaryAndConversionApiCall();
+        Actions.resetReportTableData();
         Store.setTableMode(tableNumber, false);
       }
       else{
@@ -511,8 +507,7 @@ const Actions = (() => {
             updatedColsData.UpdateCols[originalColumnName]['Rename'] = '';
           }
           else if (newColumnName == "") {
-            jQuery('#editTableWarningModal').modal();
-            jQuery('#editTableWarningModal').find('#modal-content').html("Column name(s) cannot be empty");
+            errorMessage.push("Column name(s) cannot be empty");
             columnNameEmpty = true;
           }
           else {
@@ -523,9 +518,6 @@ const Actions = (() => {
                 updatedColsData.UpdateCols[originalColumnName]['Rename'] = '';
                 columnNameExists = true;
                 errorMessage.push("Column : '" + newColumnName + "'" + ' already exists in table : ' + "'" + tableName + "'" + '. Please try with a different column name.')
-                // document.getElementById('edit-table-warning').addEventListener('click', () => {
-                //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
-                // });
                 break
               }
             }
@@ -580,21 +572,20 @@ const Actions = (() => {
           else {
               let modalData = await fetchedTableData.text();
               errorMessage.push(modalData)
-            // jQuery('#editTableWarningModal').modal();
-            // jQuery('#editTableWarningModal').find('#modal-content').html(modalData);
             return false;
           }
       }
       return true;
     },
 
-    saveForeignKeys: async (schemaConversionObj, tableNumber, tableName, tableData,errorMessage) => {
-      let fkTableData, renameFkMap = {}, fkLength ;
+    saveForeignKeys: async (schemaConversionObj, tableNumber, tableName, tableData, errorMessage) => {
+      let fkTableData, renameFkMap = {}, fkLength;
       let uniquevals;
       let newFkValueArray = [];
       let data;
-      if (tableData.data.SpSchema != undefined){ 
-        data = { ...tableData.data };}
+      if (tableData.data.SpSchema != undefined) {
+        data = { ...tableData.data };
+      }
       else data = { ...schemaConversionObj };
       if (data.SpSchema[tableName].Fks != null && data.SpSchema[tableName].Fks.length != 0) {
         fkLength = data.SpSchema[tableName].Fks.length;
@@ -618,27 +609,18 @@ const Actions = (() => {
                 if (uniquevals.length == newFkValueArray.length) {
                   flag = true;
                   break;
-                }else{
-                errorMessage.push("Foreign Key: " + renameFkMap[key] + " already exists in table: " + tableName + ". Please try with a different name.")
-                duplicateFound = true;
-                break;
+                } else {
+                  errorMessage.push("Foreign Key: " + renameFkMap[key] + " already exists in table: " + tableName + ". Please try with a different name.")
+                  duplicateFound = true;
+                  break;
                 }
-                // document.getElementById('edit-table-warning').addEventListener('click', () => {
-                //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
-                // });
               }
             }
 
             if (duplicateCheck.includes(renameFkMap[key])) {
-              // Store.setTableChanges("editMode");
-              // jQuery('#editTableWarningModal').modal();
-              // jQuery('#editTableWarningModal').find('#modal-content').html('Please use a different name for each foreign key');
               errorMessage.push('Please use a different name for each foreign key')
-              
+
               duplicateFound = true;
-              // document.getElementById('edit-table-warning').addEventListener('click', () => {
-              //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
-              // });
             }
             else {
               duplicateCheck.push(renameFkMap[key]);
@@ -647,7 +629,7 @@ const Actions = (() => {
           if (flag) {
             let dummyrenameFkMap = {};
             keys.forEach(function (key) {
-              dummyobj[key] = "yendex" + key;
+              dummyobj[key] = new Date().toString() + key;
             });
             fkTableData = await Fetch.getAppData('POST', '/rename/fks?table=' + tableName, dummyobj);
             if (fkTableData.ok) {
@@ -666,13 +648,6 @@ const Actions = (() => {
               if (!fkTableData.ok) {
                 fkTableData = await fkTableData.text();
                 errorMessage.push(fkTableData)
-                
-                // Store.setTableChanges("editMode");
-                // jQuery('#editTableWarningModal').modal();
-                // jQuery('#editTableWarningModal').find('#modal-content').html(fkTableData);
-                // document.getElementById('edit-table-warning').addEventListener('click', () => {
-                //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
-                // });
                 return false;
               }
               else {
@@ -718,29 +693,17 @@ const Actions = (() => {
                   break ;
                }
                 else{
-                // Store.setTableChanges("editMode");
-                // jQuery('#editTableWarningModal').modal();
-                // jQuery('#editTableWarningModal').find('#modal-content').html("Index: " + renameIndexMap[key] + " already exists in table: " + tableName + ". Please try with a different name.");
+               
                 errorMessage.push("Index: " + renameIndexMap[key] + " already exists in table: " + tableName + ". Please try with a different name.")
                 
                 duplicateFound = true;
                 break;
                 }
-                // document.getElementById('edit-table-warning').addEventListener('click', () => {
-                //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
-                // });
               }
             }
             if (duplicateCheck.includes(renameIndexMap[key])) {
-              // Store.setTableChanges("editMode");
-              // jQuery('#editTableWarningModal').modal();
-              // jQuery('#editTableWarningModal').find('#modal-content').html('Please use a different name for each secondary index');
               errorMessage.push('Please use a different name for each secondary index')
-              
               duplicateFound = true;
-              // document.getElementById('edit-table-warning').addEventListener('click', () => {
-              //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
-              // });
             }
             else {
               duplicateCheck.push(renameIndexMap[key]);
@@ -750,7 +713,7 @@ const Actions = (() => {
             let dummyobj = {};
             let dummyrenameSecIndexMap = {};
             keys.forEach(function (key) {
-              dummyobj[key] = "yendex" + key;
+              dummyobj[key] = new Date().toString() + key;
             });
             secIndexTableData = await Fetch.getAppData('POST', '/rename/indexes?table=' + tableName, dummyobj);
             if (secIndexTableData.ok) {
@@ -769,12 +732,6 @@ const Actions = (() => {
               if (!secIndexTableData.ok) {
                 secIndexTableData = await secIndexTableData.text();
                 errorMessage.push(secIndexTableData)
-                
-                // jQuery('#editTableWarningModal').modal();
-                // jQuery('#editTableWarningModal').find('#modal-content').html(secIndexTableData);
-                // document.getElementById('edit-table-warning').addEventListener('click', () => {
-                //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
-                // });
                 return false;
               }
               else {
@@ -795,6 +752,7 @@ const Actions = (() => {
         let jsonResponse = await responseCopy.json();
         Store.updatePrimaryKeys(jsonResponse);
         Store.updateTableData("reportTabContent", jsonResponse);
+        Actions.resetReportTableData();
 
         if (jsonResponse.SpSchema[tableName].Fks === null && jsonResponse.SpSchema[tableName].Fks.length === 0) {
           jQuery('#' + tableNumber).find('.fk-card').addClass('template');
@@ -810,6 +768,7 @@ const Actions = (() => {
         let jsonObj = await responseCopy.json();
         Store.updatePrimaryKeys(jsonObj);
         Store.updateTableData("reportTabContent", jsonObj);
+        Actions.resetReportTableData();
       }
     },
 
