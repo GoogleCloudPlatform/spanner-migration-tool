@@ -197,11 +197,7 @@
     color: #FF0000;
 }
 
-.success-modal-header {
-    background-color: #FFFFFF ;
-    border-top: 2px solid #4285F4 ;
-    border-bottom: 2px solid #4285F4 !important;
-}
+
 
 .error-modal-header {
     width: 545px;
@@ -235,23 +231,7 @@ h4 {
     margin-top: 0px;
 }
 
-.connectionSuccess {
-    margin: auto 0px;
-    margin-right: 6px;
-    padding: 0px;
-    color: #0F9D58 !important;
-    opacity: inherit;
-}
-
-.connectionFailure {
-    margin: auto 0px;
-    margin-right: 6px;
-    padding: 0px;
-    color: #DB4437 !important;
-    opacity: inherit;
-}
-
-.error-box {
+/* .error-box {
     height: 230px;
     background-color: #DCDCDC59;
     border: 1px solid #DCDCDC;
@@ -262,19 +242,9 @@ h4 {
     height: 40px;
 }
 
-.error-icon {
-    color: #FF0000;
-    font-size: 17px !important;
-    padding: 10px;
-}
 
-.unex-cond-icon {
-    color: #808080;
-    font-size: 17px !important;
-    padding: 10px;
-}
 
-.errorText {
+/* .errorText {
     font-size: 12px;
     color: #FF0000;
 }
@@ -287,7 +257,7 @@ h4 {
 .unexpectedText {
     color: #808080;
     font-size: 12px;
-}
+} */
 
 .dataTypeTable {
     width: 275px;
@@ -355,35 +325,6 @@ a {
     border: 1px;
 }
 
-.warningIcon {
-    display: inline-block !important;
-    margin-left: 18px;
-    font-size: 17px !important;
-    margin-top: 3px !important;
-    color: #E94E33;
-}
-
-.dataType {
-    color: #222222;
-    text-decoration: none;
-    display: inline-block !important;
-    padding-left: 5px !important;
-    margin-bottom: 1px !important;
-}
-
-.modal-backdrop {
-    background: #B9B9B9 0% 0% no-repeat padding-box !important;
-    opacity: 0.4;
-}
-
-select {
-    background-image: url(data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20256%20448%22%20enable-background%3D%22new%200%200%20256%20448%22%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E.arrow%7Bfill%3A%23424242%3B%7D%3C%2Fstyle%3E%3Cpath%20class%3D%22arrow%22%20d%3D%22M255.9%20168c0-4.2-1.6-7.9-4.8-11.2-3.2-3.2-6.9-4.8-11.2-4.8H16c-4.2%200-7.9%201.6-11.2%204.8S0%20163.8%200%20168c0%204.4%201.6%208.2%204.8%2011.4l112%20112c3.1%203.1%206.8%204.6%2011.2%204.6%204.4%200%208.2-1.5%2011.4-4.6l112-112c3-3.2%204.5-7%204.5-11.4z%22%2F%3E%3C%2Fsvg%3E%0A) !important;
-    background-position: right 10px center !important;
-    background-repeat: no-repeat !important;
-    background-size: auto 50% !important;
-    border-radius: 2px !important;
-}
-
 .dataTypeDropdown {
     padding-top: 2px;
     padding-bottom: 2px;
@@ -408,7 +349,7 @@ button {
 
 button:disabled,
 button[disabled]{
-  border: 1px solid #999999 !important;
+  border: 1px solid #999999 ;
   background-color: #cccccc;
   color: #666666;
   cursor:not-allowed
@@ -427,7 +368,7 @@ input[type=checkbox]{
 .expand{
     margin-bottom: 20px;
     background-color: #4285F4;
-    border: 1px solid #4285F4 !important;
+    border: 1px solid #4285F4;
     color: #FFFFFF;
     border-radius: 15px;
     padding: 4px 10px 4px 10px;
