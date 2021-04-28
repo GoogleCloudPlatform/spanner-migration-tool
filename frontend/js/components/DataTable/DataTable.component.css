@@ -36,10 +36,10 @@
   word-break: break-all;
 }
 
-.acc-table > tbody {
+.acc-table {
   display: block;
   overflow: auto;
-  max-height: 202px;
+  max-height: 280px;
 }
 
 .fk-acc-table > tbody {
