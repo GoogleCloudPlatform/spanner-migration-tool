@@ -520,7 +520,6 @@ const Actions = (() => {
             columnNameExists = false;
             for (let k = 0; k < columnsLength; k++) {
               if (k != tableColumnNumber && newColumnName == document.getElementById('column-name-text-' + tableNumber + k + k).value) {
-                Store.setTableChanges("editMode");
                 jQuery('#editTableWarningModal').modal();
                 jQuery('#editTableWarningModal').find('#modal-content').html("Column : '" + newColumnName + "'" + ' already exists in table : ' + "'" + tableName + "'" + '. Please try with a different column name.');
                 updatedColsData.UpdateCols[originalColumnName]['Rename'] = '';
@@ -580,7 +579,6 @@ const Actions = (() => {
                 tableData.data = response.sessionState;
               }
             }
-            Store.setTableChanges("saveMode");
           }
           else {
             let modalData = await fetchedTableData.text();
@@ -627,7 +625,6 @@ const Actions = (() => {
                    break ;
                 }
                 else{
-                Store.setTableChanges("editMode");
                 jQuery('#editTableWarningModal').modal();
                 jQuery('#editTableWarningModal').find('#modal-content').html("Foreign Key: " + renameFkMap[key] + " already exists in table: " + tableName + ". Please try with a different name.");
                 duplicateFound = true;
@@ -640,7 +637,6 @@ const Actions = (() => {
             }
             
             if (duplicateCheck.includes(renameFkMap[key])) {
-              Store.setTableChanges("editMode");
               jQuery('#editTableWarningModal').modal();
               jQuery('#editTableWarningModal').find('#modal-content').html('Please use a different name for each foreign key');
               duplicateFound = true;
@@ -673,7 +669,6 @@ const Actions = (() => {
               fkTableData = await Fetch.getAppData('POST', '/rename/fks?table=' + tableName, renameFkMap);
               if (!fkTableData.ok) {
                 fkTableData = await fkTableData.text();
-                Store.setTableChanges("editMode");
                 jQuery('#editTableWarningModal').modal();
                 jQuery('#editTableWarningModal').find('#modal-content').html(fkTableData);
                 // document.getElementById('edit-table-warning').addEventListener('click', () => {
@@ -727,7 +722,6 @@ const Actions = (() => {
                   break ;
                }
                 else{
-                Store.setTableChanges("editMode");
                 jQuery('#editTableWarningModal').modal();
                 jQuery('#editTableWarningModal').find('#modal-content').html("Index: " + renameIndexMap[key] + " already exists in table: " + tableName + ". Please try with a different name.");
                 duplicateFound = true;
@@ -739,7 +733,6 @@ const Actions = (() => {
               }
             }
             if (duplicateCheck.includes(renameIndexMap[key])) {
-              Store.setTableChanges("editMode");
               jQuery('#editTableWarningModal').modal();
               jQuery('#editTableWarningModal').find('#modal-content').html('Please use a different name for each secondary index');
               duplicateFound = true;

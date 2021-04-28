@@ -42,10 +42,6 @@ const Store = (function () {
       return tableChanges;
     },
 
-    setTableChanges: (val) => {
-      tableChanges = val;
-    },
-
     setPageYOffset:(value)=>{
       console.log(pageYOffset);
       pageYOffset = value;

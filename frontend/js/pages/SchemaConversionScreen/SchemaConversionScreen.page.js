@@ -58,10 +58,6 @@ class SchemaConversionScreen extends HTMLElement {
       this.data = JSON.parse(JSON.stringify(updatedData));
       this.render();
     }
-    if (Store.getTableChanges() == "saveMode" && JSON.stringify(updatedData) == JSON.stringify(this.data)) {
-      Store.setTableChanges("editMode");
-      this.render();
-    }
   };
 
   render() {
