@@ -388,6 +388,8 @@ class DataTable extends HTMLElement {
         }
 
         if(tableMode) checkBoxStateHandler(tableIndex , Object.keys(data.ToSpanner.Cols).length)
+        document.getElementById(`src-sp-table${tableIndex}`)?.style.removeProperty('width');
+
 
     }
 
