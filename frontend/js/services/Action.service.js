@@ -30,11 +30,11 @@ const Actions = (() => {
       Store.resetStore();
     },
 
-    setPageYOffset:(value)=>{
+    setPageYOffset: (value) => {
       Store.setPageYOffset(value)
     },
 
-    getPageYOffset:()=>{
+    getPageYOffset: () => {
       return Store.getPageYOffset()
     },
 
@@ -159,7 +159,7 @@ const Actions = (() => {
       sessionInfo.sourceDbType = dbType;
       sessionStorageArr.unshift(sessionInfo);
       sessionStorage.setItem("sessionStorage", JSON.stringify(sessionStorageArr));
-      sessionStorage.setItem('currentSessionIdx',0)
+      sessionStorage.setItem('currentSessionIdx', 0)
     },
 
     resumeSessionHandler: async (index, sessionArray) => {
@@ -489,6 +489,9 @@ const Actions = (() => {
       let tableColumnNumber = 0;
 
       let columnNameExists = false;
+      let columnNameEmpty = false;
+      let columnStatus = false;
+
       let updatedColsData = {
         'UpdateCols': {
         }
@@ -507,18 +510,19 @@ const Actions = (() => {
           if (newColumnName === originalColumnName) {
             updatedColsData.UpdateCols[originalColumnName]['Rename'] = '';
           }
+          else if (newColumnName == "") {
+            jQuery('#editTableWarningModal').modal();
+            jQuery('#editTableWarningModal').find('#modal-content').html("Column name(s) cannot be empty");
+            columnNameEmpty = true;
+          }
           else {
             let columnsLength = Object.keys(data.ToSpanner[tableName].Cols).length;
             columnNameExists = false;
             for (let k = 0; k < columnsLength; k++) {
               if (k != tableColumnNumber && newColumnName == document.getElementById('column-name-text-' + tableNumber + k + k).value) {
-                // Store.setTableChanges("editMode");
-                // jQuery('#editTableWarningModal').modal();
-                // jQuery('#editTableWarningModal').find('#modal-content').html("Column : '" + newColumnName + "'" + ' already exists in table : ' + "'" + tableName + "'" + '. Please try with a different column name.');
-                // updatedColsData.UpdateCols[originalColumnName]['Rename'] = '';
+                updatedColsData.UpdateCols[originalColumnName]['Rename'] = '';
                 columnNameExists = true;
                 errorMessage.push("Column : '" + newColumnName + "'" + ' already exists in table : ' + "'" + tableName + "'" + '. Please try with a different column name.')
-                
                 // document.getElementById('edit-table-warning').addEventListener('click', () => {
                 //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
                 // });
@@ -545,7 +549,8 @@ const Actions = (() => {
         }
       });
 
-      switch (columnNameExists) {
+      columnStatus = true;
+      switch (columnNameExists || columnNameEmpty) {
         case true:
           return false;
 
@@ -571,7 +576,6 @@ const Actions = (() => {
                 tableData.data = response.sessionState;
               }
             }
-            Store.setTableChanges("saveMode");
           }
           else {
               let modalData = await fetchedTableData.text();
@@ -592,7 +596,6 @@ const Actions = (() => {
       if (tableData.data.SpSchema != undefined){ 
         data = { ...tableData.data };}
       else data = { ...schemaConversionObj };
-
       if (data.SpSchema[tableName].Fks != null && data.SpSchema[tableName].Fks.length != 0) {
         fkLength = data.SpSchema[tableName].Fks.length;
         for (let x = 0; x < fkLength; x++) {
@@ -601,7 +604,7 @@ const Actions = (() => {
           if (data.SpSchema[tableName].Fks[x].Name != newFkVal)
             renameFkMap[data.SpSchema[tableName].Fks[x].Name] = newFkVal;
         }
-        uniquevals = [...new  Set(newFkValueArray)];
+        uniquevals = [...new Set(newFkValueArray)];
         if (Object.keys(renameFkMap).length > 0) {
           let duplicateCheck = [];
           let duplicateFound = false;
@@ -612,16 +615,11 @@ const Actions = (() => {
 
             for (let x = 0; x < fkLength; x++) {
               if (data.SpSchema[tableName].Fks[x].Name === renameFkMap[key]) {
-                if(uniquevals.length == newFkValueArray.length){
-                   flag = true;
-                   break ;
-                }
-                else{
-                // Store.setTableChanges("editMode");
-                // jQuery('#editTableWarningModal').modal();
-                // jQuery('#editTableWarningModal').find('#modal-content').html("Foreign Key: " + renameFkMap[key] + " already exists in table: " + tableName + ". Please try with a different name.");
+                if (uniquevals.length == newFkValueArray.length) {
+                  flag = true;
+                  break;
+                }else{
                 errorMessage.push("Foreign Key: " + renameFkMap[key] + " already exists in table: " + tableName + ". Please try with a different name.")
-                
                 duplicateFound = true;
                 break;
                 }
@@ -630,7 +628,7 @@ const Actions = (() => {
                 // });
               }
             }
-            
+
             if (duplicateCheck.includes(renameFkMap[key])) {
               // Store.setTableChanges("editMode");
               // jQuery('#editTableWarningModal').modal();
@@ -646,18 +644,18 @@ const Actions = (() => {
               duplicateCheck.push(renameFkMap[key]);
             }
           });
-          if(flag){
-              let dummyrenameFkMap = {};
-              keys.forEach(function (key){
-                dummyobj[key] = "yendex"+key;
-              });
-              fkTableData = await Fetch.getAppData('POST', '/rename/fks?table=' + tableName, dummyobj);
-              if(fkTableData.ok){
-                keys.forEach(function (key){
-                  dummyrenameFkMap[dummyobj[key]] = renameFkMap[key];
-                })
-              }
-              renameFkMap = dummyrenameFkMap;
+          if (flag) {
+            let dummyrenameFkMap = {};
+            keys.forEach(function (key) {
+              dummyobj[key] = "yendex" + key;
+            });
+            fkTableData = await Fetch.getAppData('POST', '/rename/fks?table=' + tableName, dummyobj);
+            if (fkTableData.ok) {
+              keys.forEach(function (key) {
+                dummyrenameFkMap[dummyobj[key]] = renameFkMap[key];
+              })
+            }
+            renameFkMap = dummyrenameFkMap;
           }
           switch (duplicateFound) {
             case true:
@@ -693,7 +691,7 @@ const Actions = (() => {
       let uniquevals;
       let secIndexTableData, renameIndexMap = {}, secIndexLength;
 
-      if (tableData.data.SpSchema != undefined){
+      if (tableData.data.SpSchema != undefined) {
         data = { ...tableData.data };
       }
       else data = { ...schemaConversionObj };
@@ -706,7 +704,7 @@ const Actions = (() => {
           if (data.SpSchema[tableName].Indexes[x].Name != newSecIndexVal)
             renameIndexMap[data.SpSchema[tableName].Indexes[x].Name] = newSecIndexVal;
         }
-        uniquevals = [...new  Set(newSecIndexArray)];
+        uniquevals = [...new Set(newSecIndexArray)];
         if (Object.keys(renameIndexMap).length > 0) {
           let duplicateCheck = [];
           let duplicateFound = false;
@@ -715,7 +713,7 @@ const Actions = (() => {
           keys.forEach(function (key) {
             for (let x = 0; x < secIndexLength; x++) {
               if (data.SpSchema[tableName].Indexes[x].Name === renameIndexMap[key]) {
-                if(uniquevals.length == newSecIndexArray.length){
+                if (uniquevals.length == newSecIndexArray.length) {
                   flag = true;
                   break ;
                }
@@ -748,20 +746,20 @@ const Actions = (() => {
               duplicateCheck.push(renameIndexMap[key]);
             }
           });
-          if(flag){
+          if (flag) {
             let dummyobj = {};
             let dummyrenameSecIndexMap = {};
-            keys.forEach(function (key){
-              dummyobj[key] = "yendex"+key;
+            keys.forEach(function (key) {
+              dummyobj[key] = "yendex" + key;
             });
             secIndexTableData = await Fetch.getAppData('POST', '/rename/indexes?table=' + tableName, dummyobj);
-            if(secIndexTableData.ok){
-              keys.forEach(function (key){
+            if (secIndexTableData.ok) {
+              keys.forEach(function (key) {
                 dummyrenameSecIndexMap[dummyobj[key]] = renameIndexMap[key];
               })
             }
             renameIndexMap = dummyrenameSecIndexMap;
-        }
+          }
           switch (duplicateFound) {
             case true:
               return false;

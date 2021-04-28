@@ -174,7 +174,6 @@ class DataTable extends HTMLElement {
         let tableMode = Actions.getTableMode(tableIndex);
         let dataTypesarray = Actions.getGlobalDataTypeList();
 
-        console.log(tableMode)
         this.innerHTML = 
             ` <div class="acc-card-content" id="acc-card-content">
                 <table class="acc-table" id="src-sp-table${tableIndex}">
@@ -218,7 +217,6 @@ class DataTable extends HTMLElement {
                                 }
                             } let currentColumnSrc = data.ToSource.Cols[tableColumn]; 
                               let defaultdatatype = spTable.ColDefs[tableColumn].T.Name;
-                            //   console.log(srcTable.ColDefs[currentColumnSrc] , tableIndex,currentColumnSrc ); 
                             return `
                             <tr class="report-table-content">
                             <td class="acc-table-td src-tab-cell">

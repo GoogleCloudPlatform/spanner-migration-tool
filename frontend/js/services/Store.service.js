@@ -35,19 +35,11 @@ const Store = (function () {
       return instance;
     },
 
-    getTableChanges: () => {
-      return tableChanges;
-    },
-
-    setTableChanges: (val) => {
-      tableChanges = val;
-    },
-
-    setPageYOffset: (value) => {
+    setPageYOffset:(value)=>{
       pageYOffset = value;
     },
 
-    getPageYOffset: () => {
+    getPageYOffset:()=>{
       return pageYOffset;
     },
 
