@@ -80,6 +80,4 @@ const router = () => {
 
 window.addEventListener("hashchange", router);
 window.addEventListener("load", router);
-window.addEventListener('scroll',()=>{
-  Actions.setPageYOffset(window.scrollY)
-})
+window.addEventListener('scroll',()=>{Actions.setPageYOffset(window.scrollY)})

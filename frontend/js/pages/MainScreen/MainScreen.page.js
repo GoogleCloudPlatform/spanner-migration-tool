@@ -22,7 +22,6 @@ class MainScreen extends HTMLElement {
     Actions.resetStore();
     Actions.resetReportTableData()
     setActiveSelectedMenu('homeScreen')
-    window.scrollBy(0,0);
   }
 
   disconnectedCallback() {

@@ -4,12 +4,11 @@ const DEFAULT_INSTANCE = {
 
 const Store = (function () {
   var tableChanges = "editMode";
-  // var currentClickedCarousel = -1;
   var pageYOffset = 0;
   var instance = {
     checkInterleave: {},
     currentTab: "reportTab",
-    sourceDbName: '',
+    sourceDbName: "",
     openStatus: {
       ddl: new Array(1).fill(false),
       report: new Array(1).fill(false),
@@ -17,23 +16,21 @@ const Store = (function () {
     },
     tableMode: new Array(1).fill(false),
     searchInputValue: {
-      ddlTab: '',
-      reportTab: '',
-      summaryTab: ''
+      ddlTab: "",
+      reportTab: "",
+      summaryTab: "",
     },
     tableData: {
       reportTabContent: {},
       ddlTabContent: {},
-      summaryTabContent: {}
+      summaryTabContent: {},
     },
     tableBorderData: {},
     globalDataTypeList: {},
-
   };
   let checkInterLeaveArray = {};
 
   return {
-
     getinstance: function () {
       return instance;
     },
@@ -46,23 +43,13 @@ const Store = (function () {
       tableChanges = val;
     },
 
-    setPageYOffset:(value)=>{
-      console.log(pageYOffset);
+    setPageYOffset: (value) => {
       pageYOffset = value;
     },
 
-    getPageYOffset:()=>{
-      console.log(pageYOffset);
+    getPageYOffset: () => {
       return pageYOffset;
     },
-
-    // setCurrentClickedCarousel:(value)=>{
-    //   currentClickedCarousel = value;
-    // },
-
-    // getCurrentClickedCarousel:()=>{
-    //   return currentClickedCarousel;
-    // },
 
     addAttrToStore: () => {
       if (!instance) {
@@ -70,7 +57,7 @@ const Store = (function () {
       }
       instance = { ...instance, something: "of value" };
     },
-    
+
     toggleStore: () => {
       if (!instance) {
         return;
@@ -87,24 +74,28 @@ const Store = (function () {
     setCurrentModal: (currentModal) => {
       instance = { ...instance, open: openVal };
     },
+
     setarraySize: (val) => {
       instance.openStatus = {
         ddl: new Array(val).fill(false),
         report: new Array(val).fill(false),
         summary: new Array(val).fill(false),
-      }
-      instance.tableMode = new Array(val).fill(false)
+      };
+      instance.tableMode = new Array(val).fill(false);
     },
 
     setInterleave: (tableName, value) => {
       checkInterLeaveArray[tableName] = value;
-      if (Object.keys(checkInterLeaveArray).length == instance.openStatus.report.length) {
+      if (
+        Object.keys(checkInterLeaveArray).length ==
+        instance.openStatus.report.length
+      ) {
         instance = { ...instance, checkInterleave: checkInterLeaveArray };
       }
     },
 
     switchCurrentTab: (tab) => {
-      instance = { ...instance, currentTab: tab }
+      instance = { ...instance, currentTab: tab };
     },
 
     openCarousel: (tableId, tableIndex) => {
@@ -122,7 +113,8 @@ const Store = (function () {
     updatePrimaryKeys: (tableData) => {
       let numOfSpannerTables = Object.keys(tableData.SpSchema).length;
       for (let x = 0; x < numOfSpannerTables; x++) {
-        let spannerTable = tableData.SpSchema[Object.keys(tableData.SpSchema)[x]];
+        let spannerTable =
+          tableData.SpSchema[Object.keys(tableData.SpSchema)[x]];
         let pkSeqId = 1;
         for (let y = 0; y < spannerTable.Pks.length; y++) {
           if (spannerTable.Pks[y].seqId == undefined) {
@@ -151,7 +143,7 @@ const Store = (function () {
     },
 
     getSourceDbName: () => {
-      return instance.sourceDbName
+      return instance.sourceDbName;
     },
 
     setGlobalDbType: (value) => {
@@ -163,7 +155,7 @@ const Store = (function () {
     },
 
     setGlobalDataTypeList: (value) => {
-      instance.globalDataTypeList = value
+      instance.globalDataTypeList = value;
     },
 
     getGlobalDataTypeList: () => {
@@ -177,15 +169,14 @@ const Store = (function () {
     getSearchInputValue: (key) => {
       return instance.searchInputValue[key];
     },
-   
+
     resetStore: () => {
       tableChanges = "editMode";
-      // currentClickedCarousel = -1;
       checkInterLeaveArray = {};
       instance = {
         checkInterleave: {},
         currentTab: "reportTab",
-        sourceDbName: '',
+        sourceDbName: "",
         openStatus: {
           ddl: new Array(1).fill(false),
           report: new Array(1).fill(false),
@@ -193,39 +184,35 @@ const Store = (function () {
         },
         tableMode: new Array(1).fill(false),
         searchInputValue: {
-          ddlTab: '',
-          reportTab: '',
-          summaryTab: ''
+          ddlTab: "",
+          reportTab: "",
+          summaryTab: "",
         },
         tableData: {
           reportTabContent: {},
           ddlTabContent: {},
-          summaryTabContent: {}
+          summaryTabContent: {},
         },
         tableBorderData: {},
         globalDataTypeList: {},
-
-
-        
       };
     },
 
-    getCurrentTab:()=>{
+    getCurrentTab: () => {
       return instance.currentTab;
     },
 
-    getInterleaveConversionForATable:(tableName)=>{
-        return instance.checkInterleave[tableName];
+    getInterleaveConversionForATable: (tableName) => {
+      return instance.checkInterleave[tableName];
     },
 
     getTableMode: (tableIndex) => {
-       return instance.tableMode[tableIndex];
+      return instance.tableMode[tableIndex];
     },
 
-    setTableMode:(tableIndex, val) => {
+    setTableMode: (tableIndex, val) => {
       instance.tableMode[tableIndex] = val;
-    }
-
+    },
   };
 })();
 

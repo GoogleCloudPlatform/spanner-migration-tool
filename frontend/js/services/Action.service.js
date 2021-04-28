@@ -8,6 +8,7 @@ var temp = {};
 var tableData = {
   data: {}
 };
+
 /**
  * All the manipulations to the store happen via the actions mentioned in this module
  *
@@ -453,50 +454,41 @@ const Actions = (() => {
     },
 
     SaveButtonHandler: async (tableNumber, tableName, notNullConstraint) => {
+      var errorMessage=[];
       let schemaConversionObj = { ...Store.getinstance().tableData.reportTabContent };
+
       let fkStatus = false, secIndexStatus = false, columnStatus = false;
       let data;
       if (tableData.data.SpSchema != undefined) data = { ...tableData.data };
       else data = { ...schemaConversionObj };
-      console.log(data);
-      console.log(tableData);
-      columnStatus = await Actions.saveColumn(schemaConversionObj, tableNumber, tableName, notNullConstraint, tableData);
-       console.log(tableData);
-      if (columnStatus) {
-        fkStatus = await Actions.saveForeignKeys(schemaConversionObj, tableNumber, tableName, tableData);
-      }
-      console.log(tableData);
 
-      if (fkStatus) {
-        secIndexStatus = await Actions.saveSecondaryIndexes(schemaConversionObj, tableNumber, tableName, tableData);
-      }
-      console.log(tableData);
-
+      columnStatus = await Actions.saveColumn(schemaConversionObj, tableNumber, tableName, notNullConstraint, tableData ,errorMessage);
+      fkStatus = await Actions.saveForeignKeys(schemaConversionObj, tableNumber, tableName, tableData,errorMessage);
+      secIndexStatus = await Actions.saveSecondaryIndexes(schemaConversionObj, tableNumber, tableName, tableData,errorMessage);
+     
       if (fkStatus && secIndexStatus && columnStatus) {
-        console.log("store updated");
-        console.log(tableData);
         Store.updatePrimaryKeys(tableData.data);
         Store.updateTableData("reportTabContent", tableData.data);
         Actions.ddlSummaryAndConversionApiCall();
         Store.setTableMode(tableNumber, false);
       }
+      else{
+        let message = errorMessage.map((msg,idx)=>`<span class="primary-color-number"><b>${idx+1}.</b></span> ${msg}`).join('<br/>')
+        jQuery('#editTableWarningModal').modal();
+        jQuery('#editTableWarningModal').find('#modal-content').html(`<div class="error-content-container">${message}<div>`);
+      }
     },
 
-    saveColumn: async (schemaConversionObj, tableNumber, tableName, notNullConstraint, tableData) => {
-      console.log(tableData);
+    saveColumn: async (schemaConversionObj, tableNumber, tableName, notNullConstraint, tableData,errorMessage) => {
       let data;
       if (tableData.data.SpSchema != undefined) {
-        console.log("i am executed");
         data = { ...tableData.data };
       }
       else data = { ...schemaConversionObj };
-      console.log(data);
       let tableId = '#src-sp-table' + tableNumber + ' tr';
       let tableColumnNumber = 0;
 
       let columnNameExists = false;
-      let columnStatus = false;
-
       let updatedColsData = {
         'UpdateCols': {
         }
@@ -520,11 +512,13 @@ const Actions = (() => {
             columnNameExists = false;
             for (let k = 0; k < columnsLength; k++) {
               if (k != tableColumnNumber && newColumnName == document.getElementById('column-name-text-' + tableNumber + k + k).value) {
-                Store.setTableChanges("editMode");
-                jQuery('#editTableWarningModal').modal();
-                jQuery('#editTableWarningModal').find('#modal-content').html("Column : '" + newColumnName + "'" + ' already exists in table : ' + "'" + tableName + "'" + '. Please try with a different column name.');
-                updatedColsData.UpdateCols[originalColumnName]['Rename'] = '';
+                // Store.setTableChanges("editMode");
+                // jQuery('#editTableWarningModal').modal();
+                // jQuery('#editTableWarningModal').find('#modal-content').html("Column : '" + newColumnName + "'" + ' already exists in table : ' + "'" + tableName + "'" + '. Please try with a different column name.');
+                // updatedColsData.UpdateCols[originalColumnName]['Rename'] = '';
                 columnNameExists = true;
+                errorMessage.push("Column : '" + newColumnName + "'" + ' already exists in table : ' + "'" + tableName + "'" + '. Please try with a different column name.')
+                
                 // document.getElementById('edit-table-warning').addEventListener('click', () => {
                 //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
                 // });
@@ -551,7 +545,6 @@ const Actions = (() => {
         }
       });
 
-      columnStatus = true;
       switch (columnNameExists) {
         case true:
           return false;
@@ -559,10 +552,8 @@ const Actions = (() => {
         case false:
           let fetchedTableData = await Fetch.getAppData('POST', '/typemap/table?table=' + tableName, updatedColsData);
           if (fetchedTableData.ok) {
-            console.log(tableData);
             let tableDataTemp = await fetchedTableData.json();
             tableData.data = tableDataTemp;
-            console.log(tableData);
             let checkInterleave = Store.getinstance().checkInterleave;
             if (checkInterleave[tableName]) {
               let selectedValue;
@@ -583,25 +574,24 @@ const Actions = (() => {
             Store.setTableChanges("saveMode");
           }
           else {
-            let modalData = await fetchedTableData.text();
-            jQuery('#editTableWarningModal').modal();
-            jQuery('#editTableWarningModal').find('#modal-content').html(modalData);
+              let modalData = await fetchedTableData.text();
+              errorMessage.push(modalData)
+            // jQuery('#editTableWarningModal').modal();
+            // jQuery('#editTableWarningModal').find('#modal-content').html(modalData);
             return false;
           }
       }
       return true;
     },
 
-    saveForeignKeys: async (schemaConversionObj, tableNumber, tableName, tableData) => {
+    saveForeignKeys: async (schemaConversionObj, tableNumber, tableName, tableData,errorMessage) => {
       let fkTableData, renameFkMap = {}, fkLength ;
       let uniquevals;
       let newFkValueArray = [];
       let data;
       if (tableData.data.SpSchema != undefined){ 
-        console.log("i am executed");
         data = { ...tableData.data };}
       else data = { ...schemaConversionObj };
-
 
       if (data.SpSchema[tableName].Fks != null && data.SpSchema[tableName].Fks.length != 0) {
         fkLength = data.SpSchema[tableName].Fks.length;
@@ -627,9 +617,11 @@ const Actions = (() => {
                    break ;
                 }
                 else{
-                Store.setTableChanges("editMode");
-                jQuery('#editTableWarningModal').modal();
-                jQuery('#editTableWarningModal').find('#modal-content').html("Foreign Key: " + renameFkMap[key] + " already exists in table: " + tableName + ". Please try with a different name.");
+                // Store.setTableChanges("editMode");
+                // jQuery('#editTableWarningModal').modal();
+                // jQuery('#editTableWarningModal').find('#modal-content').html("Foreign Key: " + renameFkMap[key] + " already exists in table: " + tableName + ". Please try with a different name.");
+                errorMessage.push("Foreign Key: " + renameFkMap[key] + " already exists in table: " + tableName + ". Please try with a different name.")
+                
                 duplicateFound = true;
                 break;
                 }
@@ -640,9 +632,11 @@ const Actions = (() => {
             }
             
             if (duplicateCheck.includes(renameFkMap[key])) {
-              Store.setTableChanges("editMode");
-              jQuery('#editTableWarningModal').modal();
-              jQuery('#editTableWarningModal').find('#modal-content').html('Please use a different name for each foreign key');
+              // Store.setTableChanges("editMode");
+              // jQuery('#editTableWarningModal').modal();
+              // jQuery('#editTableWarningModal').find('#modal-content').html('Please use a different name for each foreign key');
+              errorMessage.push('Please use a different name for each foreign key')
+              
               duplicateFound = true;
               // document.getElementById('edit-table-warning').addEventListener('click', () => {
               //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
@@ -673,9 +667,11 @@ const Actions = (() => {
               fkTableData = await Fetch.getAppData('POST', '/rename/fks?table=' + tableName, renameFkMap);
               if (!fkTableData.ok) {
                 fkTableData = await fkTableData.text();
-                Store.setTableChanges("editMode");
-                jQuery('#editTableWarningModal').modal();
-                jQuery('#editTableWarningModal').find('#modal-content').html(fkTableData);
+                errorMessage.push(fkTableData)
+                
+                // Store.setTableChanges("editMode");
+                // jQuery('#editTableWarningModal').modal();
+                // jQuery('#editTableWarningModal').find('#modal-content').html(fkTableData);
                 // document.getElementById('edit-table-warning').addEventListener('click', () => {
                 //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
                 // });
@@ -691,17 +687,14 @@ const Actions = (() => {
       return true;
     },
 
-    saveSecondaryIndexes: async (schemaConversionObj, tableNumber, tableName, tableData) => {
-
+    saveSecondaryIndexes: async (schemaConversionObj, tableNumber, tableName, tableData,errorMessage) => {
       let data;
       let newSecIndexArray = [];
       let uniquevals;
       let secIndexTableData, renameIndexMap = {}, secIndexLength;
 
       if (tableData.data.SpSchema != undefined){
-        console.log("i am executed");
         data = { ...tableData.data };
-      console.log("where");
       }
       else data = { ...schemaConversionObj };
 
@@ -727,9 +720,11 @@ const Actions = (() => {
                   break ;
                }
                 else{
-                Store.setTableChanges("editMode");
-                jQuery('#editTableWarningModal').modal();
-                jQuery('#editTableWarningModal').find('#modal-content').html("Index: " + renameIndexMap[key] + " already exists in table: " + tableName + ". Please try with a different name.");
+                // Store.setTableChanges("editMode");
+                // jQuery('#editTableWarningModal').modal();
+                // jQuery('#editTableWarningModal').find('#modal-content').html("Index: " + renameIndexMap[key] + " already exists in table: " + tableName + ". Please try with a different name.");
+                errorMessage.push("Index: " + renameIndexMap[key] + " already exists in table: " + tableName + ". Please try with a different name.")
+                
                 duplicateFound = true;
                 break;
                 }
@@ -739,9 +734,11 @@ const Actions = (() => {
               }
             }
             if (duplicateCheck.includes(renameIndexMap[key])) {
-              Store.setTableChanges("editMode");
-              jQuery('#editTableWarningModal').modal();
-              jQuery('#editTableWarningModal').find('#modal-content').html('Please use a different name for each secondary index');
+              // Store.setTableChanges("editMode");
+              // jQuery('#editTableWarningModal').modal();
+              // jQuery('#editTableWarningModal').find('#modal-content').html('Please use a different name for each secondary index');
+              errorMessage.push('Please use a different name for each secondary index')
+              
               duplicateFound = true;
               // document.getElementById('edit-table-warning').addEventListener('click', () => {
               //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
@@ -773,8 +770,10 @@ const Actions = (() => {
               secIndexTableData = await Fetch.getAppData('POST', '/rename/indexes?table=' + tableName, renameIndexMap);
               if (!secIndexTableData.ok) {
                 secIndexTableData = await secIndexTableData.text();
-                jQuery('#editTableWarningModal').modal();
-                jQuery('#editTableWarningModal').find('#modal-content').html(secIndexTableData);
+                errorMessage.push(secIndexTableData)
+                
+                // jQuery('#editTableWarningModal').modal();
+                // jQuery('#editTableWarningModal').find('#modal-content').html(secIndexTableData);
                 // document.getElementById('edit-table-warning').addEventListener('click', () => {
                 //   Store.updateTableData('reportTabContent', Store.getinstance().tableData.reportTabContent);
                 // });
@@ -874,10 +873,6 @@ const Actions = (() => {
     carouselStatus: (tabId) => {
       return Store.getinstance().openStatus[tabId];
     },
-
-    // getCurrentClickedCarousel: () => {
-    //   return Store.getCurrentClickedCarousel();
-    // },
 
     getTableMode: (tableIndex) => {
       return Store.getTableMode(tableIndex);

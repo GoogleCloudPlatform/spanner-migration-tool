@@ -123,3 +123,37 @@ export const recreateNode = (el) => {
   let newEl = el.cloneNode(false);
   el.parentNode.replaceChild(newEl, el);
 };
+
+export const checkBoxStateHandler = (tableIndex,numOfColumn)=> {
+  let uncheckCount;
+  let checkAllTableNumber = jQuery("#chck-all-" + tableIndex);
+  let checkClassTableNumber = jQuery(".chck-class-" + tableIndex);
+
+  checkAllTableNumber.click(function () {
+    checkClassTableNumber = jQuery(".chck-class-" + tableIndex);
+    switch (jQuery(this).is(":checked")) {
+      case true:
+        checkClassTableNumber.prop("checked", true);
+        uncheckCount = 0;
+        break;
+      case false:
+        checkClassTableNumber.prop("checked", false);
+        uncheckCount = numOfColumn;
+        console.log(uncheckCount);
+        break;
+    }
+  });
+
+  checkClassTableNumber.click(function () {
+    checkAllTableNumber = jQuery("#chck-all-" + tableIndex);
+    if (jQuery(this).is(":checked")) {
+      uncheckCount = uncheckCount - 1;
+      if (uncheckCount === 0) {
+        checkAllTableNumber.prop("checked", true);
+      }
+    } else {
+      uncheckCount = uncheckCount + 1;
+      checkAllTableNumber.prop("checked", false);
+    }
+  });
+}

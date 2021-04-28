@@ -1,5 +1,5 @@
 import "./../Modal/Modal.component.js";
-import { recreateNode } from './../../helpers/SchemaConversionHelper.js';
+import { recreateNode, checkBoxStateHandler } from './../../helpers/SchemaConversionHelper.js';
 import Actions from './../../services/Action.service.js';
 
 class DataTable extends HTMLElement {
@@ -388,6 +388,9 @@ class DataTable extends HTMLElement {
                 })
             });
         }
+
+        if(tableMode) checkBoxStateHandler(tableIndex , Object.keys(data.ToSpanner.Cols).length)
+
     }
 
     constructor() {
