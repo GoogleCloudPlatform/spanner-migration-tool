@@ -4,7 +4,7 @@ const DEFAULT_INSTANCE = {
 
 const Store = (function () {
   var tableChanges = "editMode";
-  var currentClickedCarousel = -1;
+  // var currentClickedCarousel = -1;
   var pageYOffset = 0;
   var instance = {
     checkInterleave: {},
@@ -15,6 +15,7 @@ const Store = (function () {
       report: new Array(1).fill(false),
       summary: new Array(1).fill(false),
     },
+    tableMode: new Array(1).fill(false),
     searchInputValue: {
       ddlTab: '',
       reportTab: '',
@@ -55,13 +56,13 @@ const Store = (function () {
       return pageYOffset;
     },
 
-    setCurrentClickedCarousel:(value)=>{
-      currentClickedCarousel = value;
-    },
+    // setCurrentClickedCarousel:(value)=>{
+    //   currentClickedCarousel = value;
+    // },
 
-    getCurrentClickedCarousel:()=>{
-      return currentClickedCarousel;
-    },
+    // getCurrentClickedCarousel:()=>{
+    //   return currentClickedCarousel;
+    // },
 
     addAttrToStore: () => {
       if (!instance) {
@@ -92,6 +93,7 @@ const Store = (function () {
         report: new Array(val).fill(false),
         summary: new Array(val).fill(false),
       }
+      instance.tableMode = new Array(val).fill(false)
     },
 
     setInterleave: (tableName, value) => {
@@ -178,7 +180,7 @@ const Store = (function () {
    
     resetStore: () => {
       tableChanges = "editMode";
-      currentClickedCarousel = -1;
+      // currentClickedCarousel = -1;
       checkInterLeaveArray = {};
       instance = {
         checkInterleave: {},
@@ -189,6 +191,7 @@ const Store = (function () {
           report: new Array(1).fill(false),
           summary: new Array(1).fill(false),
         },
+        tableMode: new Array(1).fill(false),
         searchInputValue: {
           ddlTab: '',
           reportTab: '',
@@ -201,6 +204,9 @@ const Store = (function () {
         },
         tableBorderData: {},
         globalDataTypeList: {},
+
+
+        
       };
     },
 
@@ -210,6 +216,14 @@ const Store = (function () {
 
     getInterleaveConversionForATable:(tableName)=>{
         return instance.checkInterleave[tableName];
+    },
+
+    getTableMode: (tableIndex) => {
+       return instance.tableMode[tableIndex];
+    },
+
+    setTableMode:(tableIndex, val) => {
+      instance.tableMode[tableIndex] = val;
     }
 
   };

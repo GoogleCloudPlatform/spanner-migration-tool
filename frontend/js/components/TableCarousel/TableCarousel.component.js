@@ -66,6 +66,8 @@ class TableCarousel extends HTMLElement {
     let cardColor = mdcCardBorder(color);
     let carouselStatus = Actions.carouselStatus(this.tabId)[this.tableIndex];
     let editButtonVisibleClass = carouselStatus ? 'show-content' : 'hide-content';
+    let tableMode = Actions.getTableMode(tableIndex);
+
  
     this.innerHTML = `
     <section class="${tabId}-section" id="${tableIndex}">
@@ -86,9 +88,9 @@ class TableCarousel extends HTMLElement {
                   <i class="large material-icons round-icon-size">circle</i>
                 </span>
                 <button class="edit-button ${editButtonVisibleClass}" id="editSpanner${tableIndex}">
-                  Edit Spanner Schema
+                  ${tableMode?"Save Changes" : " Edit Spanner Schema"}
                 </button>
-                <span id="edit-instruction${tableIndex}" class="right-align edit-instruction ${editButtonVisibleClass} blink">
+                <span id="edit-instruction${tableIndex}" class="right-align edit-instruction blink ${tableMode==false && carouselStatus ?"":"template"}">
                   Schema locked for editing. Unlock to change =>
                 </span> `
                 :
@@ -97,7 +99,7 @@ class TableCarousel extends HTMLElement {
           </h5>
         </div>
     
-        <div class="collapse ${tabId}-collapse ${carouselStatus?"show bs collapse":""}" id="${tabId}-${tableTitle}">
+        <div class="collapse ${tabId}-collapse ${carouselStatus?"show bs collapse show-carausel":""}" id="${tabId}-${tableTitle}">
           <div class="mdc-card mdc-card-content table-card-border ${cardColor}">
             ${ tabId == "report" ? `
             <hb-data-table tableName="${tableTitle}" tableIndex="${tableIndex}" ></hb-data-table>` 

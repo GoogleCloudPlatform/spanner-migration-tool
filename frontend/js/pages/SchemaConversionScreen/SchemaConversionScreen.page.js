@@ -17,7 +17,7 @@ import { TAB_CONFIG_DATA } from "./../../config/constantData.js";
 
 class SchemaConversionScreen extends HTMLElement {
   connectedCallback() {
-    this.stateObserver = setInterval(this.observeState, 100);
+    this.stateObserver = setInterval(this.observeState, 200);
     this.render();
   }
 
@@ -36,7 +36,7 @@ class SchemaConversionScreen extends HTMLElement {
         };
         let component = document.querySelector(`#reportTab${i}`);
         component.data = filterdata;
-        component.addEventListener('click', ()=>{Store.setCurrentClickedCarousel(i);})
+        // component.addEventListener('click', ()=>{Store.setCurrentClickedCarousel(i);})
       }
   }
 
@@ -69,6 +69,7 @@ class SchemaConversionScreen extends HTMLElement {
       return;
     }
     const { currentTab, tableData, tableBorderData,searchInputValue } = this.data;
+    console.log(this.data);
     let currentTabContent = tableData[`${currentTab}Content`];
     const changingText = this.getChangingValue(currentTab);
     let tableNameArray;
