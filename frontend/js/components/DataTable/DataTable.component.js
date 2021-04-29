@@ -22,9 +22,11 @@ class DataTable extends HTMLElement {
     }
 
     connectedCallback() {
-        Actions.checkInterleaveConversion(this.tableName);
         this.checkInterLeave = Actions.getInterleaveConversionForATable(this.tableName);
-        
+        if(this.checkInterLeave === undefined){
+           Actions.checkInterleaveConversion(this.tableName);
+          this.checkInterLeave = Actions.getInterleaveConversionForATable(this.tableName);
+        }
     }
 
     fkComponent(tableIndex, tableName, fkArray, tableMode) {
