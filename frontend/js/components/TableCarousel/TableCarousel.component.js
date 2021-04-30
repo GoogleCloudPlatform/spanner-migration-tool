@@ -93,9 +93,10 @@ class TableCarousel extends HTMLElement {
                 <button class="edit-button ${editButtonVisibleClass}" id="editSpanner${tableIndex}">
                   ${tableMode?"Save Changes" : " Edit Spanner Schema"}
                 </button>
-                <span id="edit-instruction${tableIndex}" class="right-align edit-instruction blink ${tableMode==false && carouselStatus ?"":"template"}">
+                ${tableMode==false && carouselStatus ? `
+                  <span id="edit-instruction${tableIndex}" class="right-align edit-instruction blink ">
                   Schema locked for editing. Unlock to change =>
-                </span> `
+                </span> `:`<div></div>`}`
                 :
                 ` <div></div> `
              }
