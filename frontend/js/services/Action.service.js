@@ -470,6 +470,7 @@ const Actions = (() => {
         Store.setTableMode(tableNumber, false);
       }
       else{
+        Actions.hideSpinner();
         let message = errorMessage.map((msg,idx)=>`<span class="primary-color-number"><b>${idx+1}.</b></span> ${msg}`).join('<br/>')
         jQuery('#editTableWarningModal').modal();
         jQuery('#editTableWarningModal').find('#modal-content').html(`<div class="error-content-container">${message}<div>`);
