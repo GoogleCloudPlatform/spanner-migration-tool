@@ -363,6 +363,7 @@ const Actions = (() => {
       else {
         newIndexPos = 0;
       }
+      Actions.showSpinner();
       let res = await Fetch.getAppData("POST", "/add/indexes?table=" + tableName, [newIndex]);
       if (res.ok) {
         jQuery("#createIndexModal").modal("hide");
@@ -746,6 +747,7 @@ const Actions = (() => {
 
     dropForeignKeyHandler: async (tableName, tableNumber, pos) => {
       let response;
+      Actions.showSpinner();
       response = await Fetch.getAppData('GET', '/drop/fk?table=' + tableName + '&pos=' + pos);
       if (response.ok) {
         let responseCopy = response.clone();
@@ -762,6 +764,7 @@ const Actions = (() => {
 
     dropSecondaryIndexHandler: async (tableName, tableNumber, pos) => {
       let response;
+      Actions.showSpinner();
       response = await Fetch.getAppData('GET', '/drop/secondaryindex?table=' + tableName + '&pos=' + pos);
       if (response.ok) {
         let responseCopy = response.clone();

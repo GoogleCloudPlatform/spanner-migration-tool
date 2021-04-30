@@ -18,9 +18,7 @@ import { TAB_CONFIG_DATA } from "./../../config/constantData.js";
 class SchemaConversionScreen extends HTMLElement {
   connectedCallback() {
     this.stateObserver = setInterval(this.observeState, 150);
-    Actions.showSpinner();
     this.render();
-    Actions.hideSpinner();
   }
 
   disconnectedCallback() {
@@ -182,6 +180,7 @@ class SchemaConversionScreen extends HTMLElement {
         .filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1), currentTabContent);
       window.scrollTo(0,Actions.getPageYOffset());
     }
+    Actions.hideSpinner();
   }
   constructor() {
     super();

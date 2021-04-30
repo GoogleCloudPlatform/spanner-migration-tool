@@ -360,9 +360,11 @@ class DataTable extends HTMLElement {
 
         document.getElementById("editSpanner" + tableIndex).addEventListener("click", async (event) => {
                 if(event.target.innerHTML.trim()=="Edit Spanner Schema") {
+                    Actions.showSpinner();
                     Actions.setTableMode(tableIndex,true);
                 }
                 else {
+                    Actions.showSpinner();
                    await Actions.SaveButtonHandler(tableIndex, tableName, notNullConstraint);
                 }
         });
