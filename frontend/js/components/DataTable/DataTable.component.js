@@ -67,11 +67,12 @@ class DataTable extends HTMLElement {
                                     return `
                                     <tr>
                                         <td class="acc-table-td">
-                                            <div class="${tableMode?'':'template'}" id="rename-fk-${tableIndex}${index}">
+                                            ${tableMode?`<div id="rename-fk-${tableIndex}${index}">
                                                 <input type="text" class="form-control spanner-input" autocomplete="off"
                                                     id="new-fk-val-${tableIndex}${index}" value=${fk.Name} />
-                                            </div>
-                                            <div id="save-fk-${tableIndex}${index}" class="${tableMode?'template':''}">${fk.Name}</div>
+                                            </div>`
+                                            :`<div id="save-fk-${tableIndex}${index}" >${fk.Name}</div>`
+                                            }
                                         </td>
                                         <td class="acc-table-td">${fk.Columns[0]}</td>
                                         <td class="acc-table-td">${fk.ReferTable}</td>
@@ -126,11 +127,12 @@ class DataTable extends HTMLElement {
                                     return `
                                     <tr>
                                         <td class="acc-table-td">
-                                            <div class="${tableMode?'':'template'}" id="rename-sec-index-${tableIndex}${index}">
+                                            ${tableMode?`<div  id="rename-sec-index-${tableIndex}${index}">
                                                 <input type="text" id="new-sec-index-val-${tableIndex}${index}" value=${secIndex.Name}
                                                     class="form-control spanner-input" autocomplete="off" />
-                                            </div>
-                                            <div class="${tableMode?'template':''}" id="save-sec-index-${tableIndex}${index}">${secIndex.Name}</div>
+                                            </div>`
+                                           :`<div id="save-sec-index-${tableIndex}${index}">${secIndex.Name}</div>`
+                                        }
                                         </td>
                                         <td class="acc-table-td">${secIndex.Table}</td>
                                         <td class="acc-table-td">${secIndex.Unique}</td>
@@ -247,7 +249,7 @@ class DataTable extends HTMLElement {
                                     id="src-column-name-${tableIndex}${index}${index}">${currentColumnSrc}</span>
                             </td>
                             <td class="sp-column acc-table-td spanner-tab-cell-${tableIndex}${index}">
-                                <div class="edit-column-name ${tableMode?'':'template'}" id="edit-column-name-${tableIndex}${index}">
+                                ${tableMode?`<div class="edit-column-name " id="edit-column-name-${tableIndex}${index}">
                                     <span class="column left key-margin">
                                         ${pkFlag ?
                                     `<sub>${seqId}</sub>
@@ -260,8 +262,9 @@ class DataTable extends HTMLElement {
                                             id="column-name-text-${tableIndex}${index}${index}" autocomplete="off"
                                             value=${tableColumn} />
                                     </span>
-                                </div>
-                                <div id="save-column-name-${tableIndex}${index}" class="${tableMode?'template':''}">
+                                </div>`
+                                : `
+                                <div id="save-column-name-${tableIndex}${index}">
                                     <span class="column left pointer">
                                         ${pkFlag ?
                                     `<sub>${seqId}</sub>
@@ -270,15 +273,14 @@ class DataTable extends HTMLElement {
                                         <img src="./Icons/Icons/ic_vpn_key_24px.svg" class="primary-key hidden" />`}
                                     </span>
                                     <span class="column right spanner-col-name-span pointer">${tableColumn}</span>
-                                </div>
+                                </div>`}
                             </td>
                             <td class="acc-table-td" id="src-data-type-${tableIndex}${index}">
                                 ${srcTable.ColDefs[currentColumnSrc]?.Type.Name}</td>
                             <td class="sp-column acc-table-td spanner-tab-cell-${tableIndex}${index}"
                                 id="data-type-${tableIndex}${index}">
-                                <div class="${tableMode?'template':''}" id="save-data-type-${tableIndex}${index}">
-                                    ${defaultdatatype}</div>
-                                <div class="${tableMode?'':'template'}" id="edit-data-type-${tableIndex}${index}">
+                                
+                                ${tableMode?`<div  id="edit-data-type-${tableIndex}${index}">
                                     <div class="form-group">
                                         <select class="form-control spanner-input report-table-select"
                                             id="data-type-${tableIndex}${index}${index}">
@@ -291,6 +293,10 @@ class DataTable extends HTMLElement {
                                         </select>
                                     </div>
                                 </div>
+                                `:`
+                                <div id="save-data-type-${tableIndex}${index}">
+                                ${defaultdatatype}</div>`
+                                }
                             </td>
                             <td class="acc-table-td">
                                 <select multiple size="1" class="form-control spanner-input report-table-select srcConstraint"
@@ -360,9 +366,11 @@ class DataTable extends HTMLElement {
 
         document.getElementById("editSpanner" + tableIndex).addEventListener("click", async (event) => {
                 if(event.target.innerHTML.trim()=="Edit Spanner Schema") {
+                    Actions.showSpinner();
                     Actions.setTableMode(tableIndex,true);
                 }
                 else {
+                    Actions.showSpinner();
                    await Actions.SaveButtonHandler(tableIndex, tableName, notNullConstraint);
                 }
         });

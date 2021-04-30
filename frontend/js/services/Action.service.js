@@ -367,6 +367,7 @@ const Actions = (() => {
       else {
         newIndexPos = 0;
       }
+      Actions.showSpinner();
       let res = await Fetch.getAppData("POST", "/add/indexes?table=" + tableName, [newIndex]);
       if (res.ok) {
         jQuery("#createIndexModal").modal("hide");
@@ -473,6 +474,7 @@ const Actions = (() => {
         Store.setTableMode(tableNumber, false);
       }
       else{
+        Actions.hideSpinner();
         let message = errorMessage.map((msg,idx)=>`<span class="primary-color-number"><b>${idx+1}.</b></span> ${msg}`).join('<br/>')
         jQuery('#editTableWarningModal').modal();
         jQuery('#editTableWarningModal').find('#modal-content').html(`<div class="error-content-container">${message}<div>`);
@@ -751,6 +753,7 @@ const Actions = (() => {
     dropForeignKeyHandler: async (tableName, tableNumber, pos) => {
       Actions.showSpinner()
       let response;
+      Actions.showSpinner();
       response = await Fetch.getAppData('GET', '/drop/fk?table=' + tableName + '&pos=' + pos);
       if (response.ok) {
         let responseCopy = response.clone();
@@ -768,6 +771,7 @@ const Actions = (() => {
     dropSecondaryIndexHandler: async (tableName, tableNumber, pos) => {
       Actions.showSpinner()
       let response;
+      Actions.showSpinner();
       response = await Fetch.getAppData('GET', '/drop/secondaryindex?table=' + tableName + '&pos=' + pos);
       if (response.ok) {
         let responseCopy = response.clone();

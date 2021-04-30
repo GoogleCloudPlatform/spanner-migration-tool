@@ -24,7 +24,6 @@ const Fetch = (() => {
                 showSnackbar(err, ' redBg');
             })
             .finally(() => {
-
             });
         });
     }
