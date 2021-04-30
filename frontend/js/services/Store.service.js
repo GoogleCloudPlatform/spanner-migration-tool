@@ -77,13 +77,7 @@ const Store = (function () {
     },
 
     setInterleave: (tableName, value) => {
-      checkInterLeaveArray[tableName] = value;
-      if (
-        Object.keys(checkInterLeaveArray).length ==
-        instance.openStatus.report.length
-      ) {
-        instance = { ...instance, checkInterleave: checkInterLeaveArray };
-      }
+     instance.checkInterleave[tableName] = value;
     },
 
     switchCurrentTab: (tab) => {

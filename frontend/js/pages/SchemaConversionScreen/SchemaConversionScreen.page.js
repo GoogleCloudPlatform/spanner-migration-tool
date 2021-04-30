@@ -17,8 +17,10 @@ import { TAB_CONFIG_DATA } from "./../../config/constantData.js";
 
 class SchemaConversionScreen extends HTMLElement {
   connectedCallback() {
-    this.stateObserver = setInterval(this.observeState, 200);
+    this.stateObserver = setInterval(this.observeState, 150);
+    Actions.showSpinner();
     this.render();
+    Actions.hideSpinner();
   }
 
   disconnectedCallback() {
@@ -66,6 +68,10 @@ class SchemaConversionScreen extends HTMLElement {
     }
     const { currentTab, tableData, tableBorderData,searchInputValue } = this.data;
     let currentTabContent = tableData[`${currentTab}Content`];
+    if(Object.keys(currentTabContent).length == 0) {
+      return;
+    }
+    console.log(this.data);
     const changingText = this.getChangingValue(currentTab);
     let tableNameArray;
     if (currentTab === "reportTab") {

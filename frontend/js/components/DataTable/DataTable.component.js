@@ -18,16 +18,17 @@ class DataTable extends HTMLElement {
 
     set data(value) {
         this._dta = value;
+        if(this._dta.SpSchema.Fks){
+            this.checkInterLeave = Actions.getInterleaveConversionForATable(this.tableName);
+            if(this.checkInterLeave === undefined){
+            Actions.checkInterleaveConversion(this.tableName);
+            this.checkInterLeave = Actions.getInterleaveConversionForATable(this.tableName);
+             }
+        }
         this.render()
     }
 
-    connectedCallback() {
-        this.checkInterLeave = Actions.getInterleaveConversionForATable(this.tableName);
-        if(this.checkInterLeave === undefined){
-           Actions.checkInterleaveConversion(this.tableName);
-          this.checkInterLeave = Actions.getInterleaveConversionForATable(this.tableName);
-        }
-    }
+    connectedCallback() {}
 
     fkComponent(tableIndex, tableName, fkArray, tableMode) {
         return `
@@ -40,7 +41,7 @@ class DataTable extends HTMLElement {
                 <div class="collapse fk-collapse show" id="foreign-key-${tableIndex}">
                     <div class="mdc-card mdc-card-content summary-border">
                         <div class="mdc-card fk-content">
-                            <fieldset class=${this.checkInterLeave == true ? "" : "template"} id="radio-btn-area${tableIndex}">
+                            ${this.checkInterLeave?`<fieldset id="radio-btn-area${tableIndex}">
                                 <div class="radio-class">
                                     <input type="radio" class="radio" value="add" checked="checked" ${tableMode?"":"disabled"}
                                         id="add${tableIndex}" name="fks${tableIndex}" />
@@ -49,7 +50,7 @@ class DataTable extends HTMLElement {
                                         id="interleave${tableIndex}" name="fks${tableIndex}" />
                                     <label for="interleave">Convert to Interleave</label>
                                 </div>
-                            </fieldset>
+                            </fieldset>`:`<div></div>`}
                             <br/>
                             <table class="fk-acc-table fk-table">
                                 <thead>
@@ -156,6 +157,7 @@ class DataTable extends HTMLElement {
     }
 
     render() {
+        console.log("in data table")
         let { tableName, tableIndex, data } = this;
         let countSrc = [], countSp = [], notNullConstraint = [];
         let spTable = data.SpSchema;
@@ -187,7 +189,7 @@ class DataTable extends HTMLElement {
                         </tr>
                         <tr>
                             <th class="acc-table-th-src src-tab-cell">
-                                <span class="bmd-form-group is-filled ${tableMode?'':'template'}">
+                                ${tableMode?`<span class="bmd-form-group is-filled">
                                     <div class="checkbox">
                                         <label>
                                             <input type="checkbox" value="" id="chck-all-${tableIndex}" checked=true/>
@@ -197,7 +199,8 @@ class DataTable extends HTMLElement {
                                             </span>
                                         </label>
                                     </div>
-                                </span>
+                                </span>`:`<div></div>`
+                                }
                                 ${sourceDbName}
                             </th>
                             <th class="acc-table-th-spn">Spanner</th>
@@ -206,8 +209,10 @@ class DataTable extends HTMLElement {
                             <th class="acc-table-th-src">${sourceDbName}</th>
                             <th class="acc-table-th-spn">Spanner</th>
                         </tr>
+                        
                     </thead>
                     <tbody class="acc-table-body">
+                        
                         ${tableColumnsArray.map((tableColumn, index) => {
                             let pkFlag = false, seqId;
                             countSrc[tableIndex][index] = 0;
@@ -222,7 +227,7 @@ class DataTable extends HTMLElement {
                             return `
                             <tr class="report-table-content">
                             <td class="acc-table-td src-tab-cell">
-                                <span class="bmd-form-group is-filled each-row-chck-box ${tableMode?'':'template'}">
+                                ${tableMode?`<span class="bmd-form-group is-filled each-row-chck-box">
                                     <div class="checkbox">
                                         <label>
                                             <input type="checkbox" value="" id="chck-box-${tableIndex}"
@@ -232,7 +237,7 @@ class DataTable extends HTMLElement {
                                             </span>
                                         </label>
                                     </div>
-                                </span>
+                                </span>`:`<div></div>`}
                                 <span class="column left">
                                     ${(currentColumnSrc != srcTable.PrimaryKeys[0].Column || srcTable.PrimaryKeys === null) ?
                                     `<img class="hidden ml-3" src="./Icons/Icons/ic_vpn_key_24px.svg" />` :

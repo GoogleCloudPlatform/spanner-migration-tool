@@ -32,7 +32,10 @@ class TableCarousel extends HTMLElement {
     this._data = value;
     this.render();
     this.addEventListenertoCarausal();
-    document.querySelector(`hb-data-table[tableName=${this.tableTitle}`).data =this._data; 
+    if(Actions.carouselStatus(this.tabId)[this.tableIndex]){
+      document.querySelector(`hb-data-table[tableName=${this.tableTitle}`).data =this._data; 
+    }
+   
   }
 
   get borderData() {
@@ -98,21 +101,22 @@ class TableCarousel extends HTMLElement {
              }
           </h5>
         </div>
-    
-        <div class="collapse ${tabId}-collapse ${carouselStatus?"show bs collapse show-carausel":""}" id="${tabId}-${tableTitle}">
-          <div class="mdc-card mdc-card-content table-card-border ${cardColor}">
-            ${ tabId == "report" ? `
-            <hb-data-table tableName="${tableTitle}" tableIndex="${tableIndex}" ></hb-data-table>` 
-            :
-            `<hb-list-table tabName="${tabId}" tableName="${tableTitle}" dta="${stringData}"></hb-list-table>`
-           }
-          </div>
-        </div>
+         ${
+           carouselStatus ? `<div class="collapse ${tabId}-collapse show bs collapse show-carausel" id="${tabId}-${tableTitle}">
+           <div class="mdc-card mdc-card-content table-card-border ${cardColor}">
+             ${ tabId == "report" ? `
+             <hb-data-table tableName="${tableTitle}" tableIndex="${tableIndex}" ></hb-data-table>` 
+             :
+             `<hb-list-table tabName="${tabId}" tableName="${tableTitle}" dta="${stringData}"></hb-list-table>`
+            }
+           </div>
+         </div>`:`<div></div>`
+         }
+        
 
       </div>
     </section> `;
-
-
+   
   }
 
   constructor() {
