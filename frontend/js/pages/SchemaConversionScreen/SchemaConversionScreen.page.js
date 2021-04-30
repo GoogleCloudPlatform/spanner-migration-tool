@@ -20,7 +20,6 @@ class SchemaConversionScreen extends HTMLElement {
     this.stateObserver = setInterval(this.observeState, 150);
     Actions.showSpinner();
     this.render();
-    Actions.hideSpinner();
   }
 
   disconnectedCallback() {
@@ -38,7 +37,6 @@ class SchemaConversionScreen extends HTMLElement {
         };
         let component = document.querySelector(`#reportTab${i}`);
         component.data = filterdata;
-        // component.addEventListener('click', ()=>{Store.setCurrentClickedCarousel(i);})
       }
   }
 
@@ -81,7 +79,7 @@ class SchemaConversionScreen extends HTMLElement {
       tableNameArray = Object.keys(currentTabContent)
                             .filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1);
     }
-
+    
     this.innerHTML = `
     <div class="summary-main-content" id='schema-screen-content'>
       <div id="snackbar"></div>
@@ -182,6 +180,7 @@ class SchemaConversionScreen extends HTMLElement {
         .filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1), currentTabContent);
       window.scrollTo(0,Actions.getPageYOffset());
     }
+    Actions.hideSpinner();
   }
   constructor() {
     super();

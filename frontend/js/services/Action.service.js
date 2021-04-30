@@ -136,10 +136,12 @@ const Actions = (() => {
       ddlData = await Fetch.getAppData("GET", "/ddl");
       summaryData = await Fetch.getAppData("GET", "/summary");
       conversionRate = await Fetch.getAppData("GET", "/conversion");
+      console.log(conversionRate);
       if (ddlData.ok && summaryData.ok && conversionRate.ok) {
         ddlDataJson = await ddlData.json();
         summaryDataJson = await summaryData.json();
         conversionRateJson = await conversionRate.json();
+        console.log(conversionRateJson);
         Store.updateTableData("ddlTabContent", ddlDataJson);
         Store.updateTableData("summaryTabContent", summaryDataJson);
         Store.updateTableBorderData(conversionRateJson);
@@ -197,6 +199,7 @@ const Actions = (() => {
     },
 
     expandAll: (text, buttonId) => {
+      Actions.showSpinner()
       if (text === "Expand All") {
         document.getElementById(buttonId).innerHTML = "Collapse All";
         Store.expandAll(true);
@@ -330,6 +333,7 @@ const Actions = (() => {
     },
 
     fetchIndexFormValues: async (tableIndex, tableName, name, uniqueness) => {
+      Actions.showSpinner()
       if (keysList.length === 0) {
         showSnackbar("Please select atleast one key to create a new index", " redBg");
         return;
@@ -745,6 +749,7 @@ const Actions = (() => {
     },
 
     dropForeignKeyHandler: async (tableName, tableNumber, pos) => {
+      Actions.showSpinner()
       let response;
       response = await Fetch.getAppData('GET', '/drop/fk?table=' + tableName + '&pos=' + pos);
       if (response.ok) {
@@ -761,6 +766,7 @@ const Actions = (() => {
     },
 
     dropSecondaryIndexHandler: async (tableName, tableNumber, pos) => {
+      Actions.showSpinner()
       let response;
       response = await Fetch.getAppData('GET', '/drop/secondaryindex?table=' + tableName + '&pos=' + pos);
       if (response.ok) {
@@ -784,6 +790,7 @@ const Actions = (() => {
     },
 
     switchCurrentTab: (tab) => {
+      Actions.showSpinner()
       Store.switchCurrentTab(tab)
     },
 

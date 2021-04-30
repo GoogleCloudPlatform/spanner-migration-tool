@@ -44,6 +44,7 @@ class TableCarousel extends HTMLElement {
 
   addEventListenertoCarausal() {
     document.getElementById(`id-${this.tabId}-${this.tableIndex}`).addEventListener('click',()=>{
+      Actions.showSpinner()
       if(Actions.carouselStatus(this.tabId)[this.tableIndex])
       {
         Actions.closeCarousel(this.tabId , this.tableIndex)

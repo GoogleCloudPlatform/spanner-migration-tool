@@ -6,7 +6,6 @@ import Actions from './Action.service.js';
  */
 const Fetch = (() => {
     let makeFetchCall = (method, url, payload, config, callback, snakbar) => {
-        Actions.showSpinner();
         return new Promise((resolve, reject) => {
             fetch(url, {
                 method: method,
@@ -25,7 +24,7 @@ const Fetch = (() => {
                 showSnackbar(err, ' redBg');
             })
             .finally(() => {
-               Actions.hideSpinner()
+
             });
         });
     }
