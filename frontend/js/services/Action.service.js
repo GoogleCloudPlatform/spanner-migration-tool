@@ -165,6 +165,7 @@ const Actions = (() => {
     },
 
     resumeSessionHandler: async (index, sessionArray) => {
+      Actions.showSpinner()
       let driver, path, dbName, sourceDb, pathArray, fileName, filePath;
       Store.setSourceDbName(sessionArray[index].sourceDbType)
       driver = sessionArray[index].driver;
@@ -179,6 +180,8 @@ const Actions = (() => {
           let storage = JSON.parse(sessionStorage.getItem('sessionStorage'))
           storage.splice(index, 1);
           sessionStorage.setItem('sessionStorage', JSON.stringify(storage))
+          debugger
+          Actions.hideSpinner()
           window.location.href = '/';
           showSnackbar(error, " redBg");
         }
@@ -274,6 +277,7 @@ const Actions = (() => {
     },
 
     setGlobalDataType: async () => {
+      // Actions.showSpinner()
       let globalDataTypeList = Store.getGlobalDataTypeList();
       let dataTypeListLength = Object.keys(globalDataTypeList).length;
       let dataTypeJson = {};
@@ -296,16 +300,20 @@ const Actions = (() => {
         }
       }
       let res = await Fetch.getAppData("POST", "/typemap/global", dataTypeJson);
+      console.log(res);
       if (res) {
         res = await res.json();
         Store.updatePrimaryKeys(res);
         Store.updateTableData("reportTabContent", res);
       }
+      else{
+        // Actions.hideSpinner()
+      }
     },
 
     setGlobalDataTypeList: async () => {
       let res = await Fetch.getAppData("GET", "/typemap");
-      if (res.ok) {
+      if (res) {
         let result = await res.json();
         Store.setGlobalDataTypeList(result)
       }

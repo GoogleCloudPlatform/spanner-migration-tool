@@ -14,6 +14,7 @@ class LoadSessionFileForm extends HTMLElement {
         });
         Forms.formButtonHandler("load-session-form", "load-session-button");
         document.getElementById("load-session-button").addEventListener("click", () => {
+            Actions.showSpinner()
             this.storeSessionFilePath(document.getElementById("import-db-type").value, document.getElementById("session-file-path").value);
         });
     }
@@ -37,6 +38,9 @@ class LoadSessionFileForm extends HTMLElement {
         if (loadSessionRes && ddlSummaryApiRes) {
             window.location.href = '#/schema-report';
             Actions.sessionRetrieval(Actions.getSourceDbName());
+        }
+        else{
+          Actions.hideSpinner()
         }
     }
 
