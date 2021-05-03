@@ -31,6 +31,12 @@ const Actions = (() => {
     },
 
     setPageYOffset: (value) => {
+      if(Store.getTableChanges()=="expand"){
+        let currTab = Store.getCurrentTab();
+        let buttonId = currTab.substr(0, currTab.length - 3)+"ExpandButton"
+        console.log(buttonId);
+        Actions.expandAll("Expand All",buttonId,10,20);
+      }
       Store.setPageYOffset(value)
     },
 
@@ -136,12 +142,10 @@ const Actions = (() => {
       ddlData = await Fetch.getAppData("GET", "/ddl");
       summaryData = await Fetch.getAppData("GET", "/summary");
       conversionRate = await Fetch.getAppData("GET", "/conversion");
-      console.log(conversionRate);
       if (ddlData.ok && summaryData.ok && conversionRate.ok) {
         ddlDataJson = await ddlData.json();
         summaryDataJson = await summaryData.json();
         conversionRateJson = await conversionRate.json();
-        console.log(conversionRateJson);
         Store.updateTableData("ddlTabContent", ddlDataJson);
         Store.updateTableData("summaryTabContent", summaryDataJson);
         Store.updateTableBorderData(conversionRateJson);
@@ -180,7 +184,6 @@ const Actions = (() => {
           let storage = JSON.parse(sessionStorage.getItem('sessionStorage'))
           storage.splice(index, 1);
           sessionStorage.setItem('sessionStorage', JSON.stringify(storage))
-          debugger
           Actions.hideSpinner()
           window.location.href = '/';
           showSnackbar(error, " redBg");
@@ -195,21 +198,23 @@ const Actions = (() => {
           await Fetch.getAppData("POST", "/session/resume", payload);
         }
       });
+      // Actions.hideSpinner();
     },
 
     SearchTable: (value, tabId) => {
       Store.setSearchInputValue(tabId, value)
     },
 
-    expandAll: (text, buttonId) => {
+    expandAll: (text, buttonId , x=0, y=10) => {
       Actions.showSpinner()
       if (text === "Expand All") {
         document.getElementById(buttonId).innerHTML = "Collapse All";
-        Store.expandAll(true);
+        Store.expandAll(x,y);
       }
       else {
+        Actions.showSpinner();
         document.getElementById(buttonId).innerHTML = "Expand All";
-        Store.expandAll(false);
+        Store.collapseAll(false);
       }
     },
 
@@ -277,7 +282,8 @@ const Actions = (() => {
     },
 
     setGlobalDataType: async () => {
-      // Actions.showSpinner()
+      Actions.showSpinner()
+      console.log("fired")
       let globalDataTypeList = Store.getGlobalDataTypeList();
       let dataTypeListLength = Object.keys(globalDataTypeList).length;
       let dataTypeJson = {};
@@ -305,9 +311,10 @@ const Actions = (() => {
         res = await res.json();
         Store.updatePrimaryKeys(res);
         Store.updateTableData("reportTabContent", res);
+        Actions.hideSpinner();
       }
       else{
-        // Actions.hideSpinner()
+        Actions.hideSpinner()
       }
     },
 
@@ -363,10 +370,12 @@ const Actions = (() => {
         newIndexPos = table.Indexes.length;
         for (let x = 0; x < table.Indexes.length; x++) {
           if (JSON.stringify(table.Indexes[x].Keys) === JSON.stringify(keysList)) {
+            Actions.hideSpinner();
             showSnackbar("Index with selected key(s) already exists.\n Please use different key(s)", " redBg");
             return;
           }
           else if (newIndex["Name"] === table.Indexes[x].Name) {
+            Actions.hideSpinner();
             showSnackbar("Index with name: " + newIndex["Name"] + " already exists.\n Please try with a different name", " redBg");
             return;
           }
@@ -759,7 +768,6 @@ const Actions = (() => {
     },
 
     dropForeignKeyHandler: async (tableName, tableNumber, pos) => {
-      Actions.showSpinner()
       let response;
       Actions.showSpinner();
       response = await Fetch.getAppData('GET', '/drop/fk?table=' + tableName + '&pos=' + pos);
@@ -779,7 +787,6 @@ const Actions = (() => {
     dropSecondaryIndexHandler: async (tableName, tableNumber, pos) => {
       Actions.showSpinner()
       let response;
-      Actions.showSpinner();
       response = await Fetch.getAppData('GET', '/drop/secondaryindex?table=' + tableName + '&pos=' + pos);
       if (response.ok) {
         let responseCopy = response.clone();
@@ -804,6 +811,7 @@ const Actions = (() => {
     switchCurrentTab: (tab) => {
       Actions.showSpinner()
       Store.switchCurrentTab(tab)
+      Actions.hideSpinner();
     },
 
     openCarousel: (tableId, tableIndex) => {

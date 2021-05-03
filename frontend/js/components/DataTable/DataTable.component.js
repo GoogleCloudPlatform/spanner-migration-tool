@@ -159,7 +159,6 @@ class DataTable extends HTMLElement {
     }
 
     render() {
-        console.log("in data table")
         let { tableName, tableIndex, data } = this;
         let countSrc = [], countSp = [], notNullConstraint = [];
         let spTable = data.SpSchema;
@@ -373,6 +372,7 @@ class DataTable extends HTMLElement {
                     Actions.showSpinner();
                    await Actions.SaveButtonHandler(tableIndex, tableName, notNullConstraint);
                 }
+                Actions.hideSpinner();
         });
 
         if (spTable.Fks !== null && spTable.Fks.length > 0) {

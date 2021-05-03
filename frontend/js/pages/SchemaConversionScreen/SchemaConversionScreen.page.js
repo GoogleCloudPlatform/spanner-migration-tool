@@ -58,6 +58,7 @@ class SchemaConversionScreen extends HTMLElement {
       this.data = JSON.parse(JSON.stringify(updatedData));
       this.render();
     }
+    Actions.hideSpinner();
   };
 
   render() {
@@ -67,6 +68,7 @@ class SchemaConversionScreen extends HTMLElement {
     const { currentTab, tableData, tableBorderData,searchInputValue } = this.data;
     let currentTabContent = tableData[`${currentTab}Content`];
     if(Object.keys(currentTabContent).length == 0) {
+      Actions.hideSpinner();
       return;
     }
     console.log(this.data);

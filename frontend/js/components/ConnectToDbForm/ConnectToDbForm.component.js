@@ -41,6 +41,7 @@ class ConnectToDbForm extends HTMLElement {
         window.location.href = '#/schema-report';
         Actions.sessionRetrieval(Actions.getSourceDbName());
         document.getElementById("convert-button").removeEventListener('click', this.convertSchema);
+        Actions.hideSpinner();
     }
 
     render() {
