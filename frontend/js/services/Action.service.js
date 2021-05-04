@@ -31,6 +31,12 @@ const Actions = (() => {
     },
 
     setPageYOffset: (value) => {
+      if(Store.getTableChanges()=="expand"){
+        let currTab = Store.getCurrentTab();
+        let buttonId = currTab.substr(0, currTab.length - 3)+"ExpandButton"
+        console.log(buttonId);
+        Actions.expandAll("Expand All",buttonId,10,20);
+      }
       Store.setPageYOffset(value)
     },
 
@@ -192,21 +198,23 @@ const Actions = (() => {
           await Fetch.getAppData("POST", "/session/resume", payload);
         }
       });
+      // Actions.hideSpinner();
     },
 
     SearchTable: (value, tabId) => {
       Store.setSearchInputValue(tabId, value)
     },
 
-    expandAll: (text, buttonId) => {
+    expandAll: (text, buttonId , x=0, y=10) => {
       Actions.showSpinner()
       if (text === "Expand All") {
         document.getElementById(buttonId).innerHTML = "Collapse All";
-        Store.expandAll(true);
+        Store.expandAll(x,y);
       }
       else {
+        Actions.showSpinner();
         document.getElementById(buttonId).innerHTML = "Expand All";
-        Store.expandAll(false);
+        Store.collapseAll(false);
       }
     },
 
@@ -274,7 +282,8 @@ const Actions = (() => {
     },
 
     setGlobalDataType: async () => {
-      // Actions.showSpinner()
+      Actions.showSpinner()
+      console.log("fired")
       let globalDataTypeList = Store.getGlobalDataTypeList();
       let dataTypeListLength = Object.keys(globalDataTypeList).length;
       let dataTypeJson = {};
@@ -302,9 +311,10 @@ const Actions = (() => {
         res = await res.json();
         Store.updatePrimaryKeys(res);
         Store.updateTableData("reportTabContent", res);
+        Actions.hideSpinner();
       }
       else{
-        // Actions.hideSpinner()
+        Actions.hideSpinner()
       }
     },
 
@@ -816,7 +826,6 @@ const Actions = (() => {
     },
 
     dropForeignKeyHandler: async (tableName, tableNumber, pos) => {
-      Actions.showSpinner()
       let response;
       Actions.showSpinner();
       response = await Fetch.getAppData('GET', '/drop/fk?table=' + tableName + '&pos=' + pos);
@@ -836,7 +845,6 @@ const Actions = (() => {
     dropSecondaryIndexHandler: async (tableName, tableNumber, pos) => {
       Actions.showSpinner()
       let response;
-      Actions.showSpinner();
       response = await Fetch.getAppData('GET', '/drop/secondaryindex?table=' + tableName + '&pos=' + pos);
       if (response.ok) {
         let responseCopy = response.clone();
@@ -861,6 +869,7 @@ const Actions = (() => {
     switchCurrentTab: (tab) => {
       if(Store.getCurrentTab() !== tab) Actions.showSpinner()
       Store.switchCurrentTab(tab)
+      Actions.hideSpinner();
     },
 
     openCarousel: (tableId, tableIndex) => {

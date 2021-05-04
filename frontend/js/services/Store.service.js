@@ -3,7 +3,7 @@ const DEFAULT_INSTANCE = {
 };
 
 const Store = (function () {
-  var tableChanges = "editMode";
+  var tableChanges = "collapse";
   var pageYOffset = 0;
   var instance = {
     checkInterleave: {},
@@ -42,6 +42,10 @@ const Store = (function () {
 
     getPageYOffset:()=>{
       return pageYOffset;
+    },
+
+    getTableChanges:()=>{
+      return tableChanges;
     },
 
     addAttrToStore: () => {
@@ -133,9 +137,30 @@ const Store = (function () {
       instance.tableBorderData = data;
     },
 
-    expandAll: (value) => {
+    collapseAll:(value) => {
       let key = instance.currentTab.substr(0, instance.currentTab.length - 3);
+      tableChanges = "collapse"
       instance.openStatus[key].fill(value);
+    },
+
+    expandAll: (x,y) => {
+      let key = instance.currentTab.substr(0, instance.currentTab.length - 3);     
+      tableChanges = "expand";
+      let openStatusarray = instance.openStatus[key];
+      for(let i =0; i<openStatusarray.length;i++)
+      {
+        let bottomval = document.getElementById(i).getBoundingClientRect().bottom;
+        let topval = document.getElementById(i).getBoundingClientRect().y;
+    
+        if(bottomval<-1000 || topval>2000)
+        {
+          openStatusarray[i] = false;
+        }
+        else
+        {
+          openStatusarray[i] = true;
+        }
+      }
     },
 
     setSourceDbName: (name) => {
@@ -171,7 +196,7 @@ const Store = (function () {
     },
 
     resetStore: () => {
-      tableChanges = "editMode";
+      tableChanges = "collapse";
       checkInterLeaveArray = {};
       instance = {
         checkInterleave: {},
