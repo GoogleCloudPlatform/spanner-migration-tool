@@ -34,7 +34,6 @@ const Actions = (() => {
       if(Store.getTableChanges()=="expand"){
         let currTab = Store.getCurrentTab();
         let buttonId = currTab.substr(0, currTab.length - 3)+"ExpandButton"
-        console.log(buttonId);
         Actions.expandAll("Expand All",buttonId,10,20);
       }
       Store.setPageYOffset(value)
@@ -499,6 +498,7 @@ const Actions = (() => {
     },
 
     saveColumn: async (schemaConversionObj, tableNumber, tableName, notNullConstraint, tableData,errorMessage) => {
+      console.log(notNullConstraint);
       let data;
       if (tableData.data.SpSchema != undefined) {
         data = { ...tableData.data };
@@ -550,7 +550,7 @@ const Actions = (() => {
           updatedColsData.UpdateCols[originalColumnName]['NotNull'] = 'ADDED';
           updatedColsData.UpdateCols[originalColumnName]['PK'] = '';
           updatedColsData.UpdateCols[originalColumnName]['ToType'] = document.getElementById('data-type-' + tableNumber + tableColumnNumber + tableColumnNumber).value;
-
+          console.log(parseInt(String(tableNumber) + String(tableColumnNumber)));
           if (notNullConstraint[parseInt(String(tableNumber) + String(tableColumnNumber))] === 'Not Null') {
             updatedColsData.UpdateCols[originalColumnName]['NotNull'] = 'ADDED';
           }

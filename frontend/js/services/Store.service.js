@@ -138,7 +138,7 @@ const Store = (function () {
         let bottomval = document.getElementById(i).getBoundingClientRect().bottom;
         let topval = document.getElementById(i).getBoundingClientRect().y;
     
-        if(bottomval<-1000 || topval>2000)
+        if(bottomval<0 || topval> window.innerHeight)
         {
           openStatusarray[i] = false;
         }
