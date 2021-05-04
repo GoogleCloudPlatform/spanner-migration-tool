@@ -15,6 +15,7 @@ const Store = (function () {
       summary: new Array(1).fill(false),
     },
     tableMode: new Array(1).fill(false),
+    currentPageNumber : new Array(1).fill(0),
     searchInputValue: {
       ddlTab: "",
       reportTab: "",
@@ -77,6 +78,7 @@ const Store = (function () {
         report: new Array(val).fill(false),
         summary: new Array(val).fill(false),
       };
+      instance.currentPageNumber=new Array(val).fill(0),
       instance.tableMode = new Array(val).fill(false);
     },
 
@@ -94,6 +96,18 @@ const Store = (function () {
 
     closeCarousel: (tableId, tableIndex) => {
       instance.openStatus[tableId][tableIndex] = false;
+    },
+
+    incrementPageNumber:(tableIndex)=>{
+      instance.currentPageNumber[tableIndex]++;
+    },
+
+    decrementPageNumber:(tableIndex)=>{
+      instance.currentPageNumber[tableIndex]--;
+    },
+
+    getCurrentPageNumber:(tableIndex)=>{
+      return instance.currentPageNumber[tableIndex]
     },
 
     getTableData: (tabName) => {

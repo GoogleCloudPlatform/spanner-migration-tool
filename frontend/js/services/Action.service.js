@@ -310,7 +310,7 @@ const Actions = (() => {
         res = await res.json();
         Store.updatePrimaryKeys(res);
         Store.updateTableData("reportTabContent", res);
-        Actions.hideSpinner();
+        // Actions.hideSpinner()
       }
       else{
         Actions.hideSpinner()
@@ -369,12 +369,12 @@ const Actions = (() => {
         newIndexPos = table.Indexes.length;
         for (let x = 0; x < table.Indexes.length; x++) {
           if (JSON.stringify(table.Indexes[x].Keys) === JSON.stringify(keysList)) {
-            Actions.hideSpinner();
+            Actions.hideSpinner()
             showSnackbar("Index with selected key(s) already exists.\n Please use different key(s)", " redBg");
             return;
           }
           else if (newIndex["Name"] === table.Indexes[x].Name) {
-            Actions.hideSpinner();
+            Actions.hideSpinner()
             showSnackbar("Index with name: " + newIndex["Name"] + " already exists.\n Please try with a different name", " redBg");
             return;
           }
@@ -383,7 +383,6 @@ const Actions = (() => {
       else {
         newIndexPos = 0;
       }
-      Actions.showSpinner();
       let res = await Fetch.getAppData("POST", "/add/indexes?table=" + tableName, [newIndex]);
       if (res.ok) {
         jQuery("#createIndexModal").modal("hide");
@@ -394,13 +393,14 @@ const Actions = (() => {
       }
       else {
         res = await res.text();
+        Actions.hideSpinner()
         showSnackbar(res, " redBg");
       }
     },
 
     createNewSecIndex: (id) => {
       let iIndex = id.indexOf("indexButton");
-      let tableIndex = id.substring(0, iIndex)
+      let tableIndex = id.substring(3, iIndex)
       let tableName = id.substring(iIndex + 12)
       let jsonObj = Store.getinstance().tableData.reportTabContent;
       if (document.getElementById("editSpanner" + tableIndex).innerHTML.trim() == "Save Changes") {
@@ -497,24 +497,69 @@ const Actions = (() => {
       }
     },
 
-    saveColumn: async (schemaConversionObj, tableNumber, tableName, notNullConstraint, tableData,errorMessage) => {
-      console.log(notNullConstraint);
+    isValueUpdated:(data,tableNumber,tableName,notNullConstraint)=>{
+      console.log(data);
+      let columnPerPage = 15;
+      let tableId = '#src-sp-table' + tableNumber + ' tr';
+      let pageNumber = Store.getCurrentPageNumber(tableNumber)
+      let pageColArray = data.SpSchema[tableName].ColNames
+          .filter((_, idx)=> idx>= pageNumber*columnPerPage && idx < pageNumber*columnPerPage + columnPerPage );
+     for(let i=0;i<columnPerPage ;i++)
+     {
+       let newName = document.getElementById('column-name-text-'+tableNumber+i+i).value;
+       let newType = document.getElementById('data-type-'+tableNumber+i+i).value;
+       let newConstraint = notNullConstraint[i] === 'Not Null';
+       console.log(newName,newType,newConstraint);
+       if(pageColArray[i] !== newName 
+        || newType !==  data.SpSchema[tableName].ColDefs[pageColArray[i]].T.Name 
+        || data.SpSchema[tableName].ColDefs[pageColArray[i]].NotNull !== newConstraint )
+        {
+          console.log(pageColArray[i] ,newName );
+          return true;
+        }
+     }
+     let flagofcheckbox = false;
+     jQuery(tableId).each(function (index) {
+      if (!(jQuery(this).find("input[type=checkbox]").is(":checked"))) {
+        flagofcheckbox = true;
+        return false;
+      }
+    })
+    if(flagofcheckbox){
+      return true;
+    }
+      return false;
+    },
+
+    saveColumn: async (schemaConversionObj, tableNumber, tableName, notNullConstraint, tableData,errorMessage,updateInStore = false) => {
       let data;
       if (tableData.data.SpSchema != undefined) {
         data = { ...tableData.data };
       }
-      else data = { ...schemaConversionObj };
+      else{
+        if(updateInStore)
+        {
+         data  = { ...Store.getinstance().tableData.reportTabContent };
+        }else{
+        data = { ...schemaConversionObj };
+        }
+      } 
+
+      if(updateInStore && !Actions.isValueUpdated(data,tableNumber,tableName,notNullConstraint)) {
+          return true;
+      }
       let tableId = '#src-sp-table' + tableNumber + ' tr';
       let tableColumnNumber = 0;
 
       let columnNameExists = false;
       let columnNameEmpty = false;
-      let columnStatus = false;
+      let columnStatus = false, duplicateInPage = false;
 
       let updatedColsData = {
         'UpdateCols': {
         }
       }
+      let newColArrayForDuplicateCheck = [];
       jQuery(tableId).each(function (index) {
         if (index > 1) {
           let newColumnName;
@@ -522,6 +567,7 @@ const Actions = (() => {
           let newColumnNameEle = document.getElementById('column-name-text-' + tableNumber + tableColumnNumber + tableColumnNumber);
           if (newColumnNameEle) {
             newColumnName = newColumnNameEle.value;
+            newColArrayForDuplicateCheck.push(newColumnName)
           }
           let originalColumnName = data.ToSpanner[tableName].Cols[srcColumnName];
           updatedColsData.UpdateCols[originalColumnName] = {};
@@ -534,10 +580,10 @@ const Actions = (() => {
             columnNameEmpty = true;
           }
           else {
-            let columnsLength = Object.keys(data.ToSpanner[tableName].Cols).length;
+            let columnsNamesArray = Object.keys(data.ToSpanner[tableName].Cols);
             columnNameExists = false;
-            for (let k = 0; k < columnsLength; k++) {
-              if (k != tableColumnNumber && newColumnName == document.getElementById('column-name-text-' + tableNumber + k + k).value) {
+            for (let k = 0; k < columnsNamesArray.length; k++) {
+              if (k != tableColumnNumber && newColumnName === columnsNamesArray[k] ) {
                 updatedColsData.UpdateCols[originalColumnName]['Rename'] = '';
                 columnNameExists = true;
                 errorMessage.push("Column : '" + newColumnName + "'" + ' already exists in table : ' + "'" + tableName + "'" + '. Please try with a different column name.')
@@ -565,14 +611,31 @@ const Actions = (() => {
       });
 
       columnStatus = true;
-      switch (columnNameExists || columnNameEmpty) {
+      const s = new Set(newColArrayForDuplicateCheck);
+      if(newColArrayForDuplicateCheck.length !== s.size){
+        duplicateInPage = true;
+        errorMessage.push('Two column have same name in the current page.')
+      }
+      switch (columnNameExists || columnNameEmpty || duplicateInPage ) {
         case true:
+          if(updateInStore){
+            Actions.hideSpinner()
+            let message = errorMessage.map((msg,idx)=>`<span class="primary-color-number"><b>${idx+1}.</b></span> ${msg}`).join('<br/>')
+            jQuery('#editTableWarningModal').modal();
+            jQuery('#editTableWarningModal').find('#modal-content').html(`<div class="error-content-container">${message}<div>`);
+            }
           return false;
 
         case false:
           let fetchedTableData = await Fetch.getAppData('POST', '/typemap/table?table=' + tableName, updatedColsData);
           if (fetchedTableData.ok) {
+            console.log("api called")
             let tableDataTemp = await fetchedTableData.json();
+            if(updateInStore){
+              Store.updatePrimaryKeys(tableDataTemp)
+              Store.updateTableData("reportTabContent", tableDataTemp);
+              Actions.resetReportTableData();
+            }
             tableData.data = tableDataTemp;
             let checkInterleave = Store.getinstance().checkInterleave;
             if (checkInterleave[tableName]) {
@@ -592,9 +655,15 @@ const Actions = (() => {
               }
             }
           }
-          else {
-              let modalData = await fetchedTableData.text();
-              errorMessage.push(modalData)
+          else {           
+            let modalData = await fetchedTableData.text();
+            errorMessage.push(modalData)
+            if(updateInStore){
+            Actions.hideSpinner()
+            let message = errorMessage.map((msg,idx)=>`<span class="primary-color-number"><b>${idx+1}.</b></span> ${msg}`).join('<br/>')
+            jQuery('#editTableWarningModal').modal();
+            jQuery('#editTableWarningModal').find('#modal-content').html(`<div class="error-content-container">${message}<div>`);
+            }
             return false;
           }
       }
@@ -809,9 +878,8 @@ const Actions = (() => {
     },
 
     switchCurrentTab: (tab) => {
-      Actions.showSpinner()
+      if(Store.getCurrentTab() !== tab) Actions.showSpinner()
       Store.switchCurrentTab(tab)
-      Actions.hideSpinner();
     },
 
     openCarousel: (tableId, tableIndex) => {
@@ -864,6 +932,17 @@ const Actions = (() => {
 
     setTableMode: (tableIndex, val) => {
       Store.setTableMode(tableIndex, val);
+    },
+    incrementPageNumber:(tableIndex)=>{
+     Store.incrementPageNumber(tableIndex);
+    },
+
+    decrementPageNumber:(tableIndex)=>{
+      Store.decrementPageNumber(tableIndex);
+    },
+
+    getCurrentPageNumber:(idx)=>{
+      return Store.getCurrentPageNumber(idx)
     }
 
   };
