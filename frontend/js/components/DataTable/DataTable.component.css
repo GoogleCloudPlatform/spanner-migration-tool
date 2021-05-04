@@ -280,3 +280,39 @@ table.dataTable thead td {
   background-size: auto 40% !important;
   border-radius: 2px !important;
 }
+
+.pagination-container{
+  display: flex;
+  justify-content: space-between;
+  align-content: center;
+  margin-top: 10px;
+}
+
+.pagination-text{
+  font-size: 0.9rem;
+  margin-left: 20px;
+}
+
+.pagination-number{
+padding: 2px 6px;
+border: 1px solid black;
+font-size: 1.1rem;
+margin-right: 5px;
+}
+
+.pagination-button{
+  border: none;
+  color: #4285f4;
+  font-weight: bold;
+  background-color: transparent;
+  margin-right: 5px;
+}
+
+.pagination-button:disabled{
+  border: none;
+  color: #828488;
+  font-weight: bold;
+  padding: 5px;
+  background-color: transparent;
+  margin-right: 5px;
+}

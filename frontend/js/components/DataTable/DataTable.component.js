@@ -109,7 +109,7 @@ class DataTable extends HTMLElement {
                 <div class="collapse index-collapse show" id="index-key-${tableIndex}">
                     <div class="mdc-card mdc-card-content summary-border">
                         <div class="mdc-card fk-content">
-                            <hb-site-button buttonid="${tableIndex}indexButton-${this.tableName}" classname="new-index-button"
+                            <hb-site-button buttonid="hb-${tableIndex}indexButton-${this.tableName}" classname="new-index-button"
                                 buttonaction="createNewSecIndex" text="Add Index"></hb-site-button>
 
                             <table class="index-acc-table fk-table">
@@ -159,7 +159,6 @@ class DataTable extends HTMLElement {
     }
 
     render() {
-        console.log("in data table")
         let { tableName, tableIndex, data } = this;
         let countSrc = [], countSp = [], notNullConstraint = [];
         let spTable = data.SpSchema;
@@ -179,6 +178,8 @@ class DataTable extends HTMLElement {
         let sourceDbName = Actions.getSourceDbName();
         let tableMode = Actions.getTableMode(tableIndex);
         let dataTypesarray = Actions.getGlobalDataTypeList();
+        let pageNumber = data.currentPageNumber;
+        let columnPerPage = 15;
 
         this.innerHTML = 
             ` <div class="acc-card-content" id="acc-card-content">
@@ -215,7 +216,7 @@ class DataTable extends HTMLElement {
                     </thead>
                     <tbody class="acc-table-body">
                         
-                        ${tableColumnsArray.map((tableColumn, index) => {
+                        ${tableColumnsArray.filter((_, idx)=> idx>= pageNumber*columnPerPage && idx < pageNumber*columnPerPage + columnPerPage ).map((tableColumn, index) => {
                             let pkFlag = false, seqId;
                             countSrc[tableIndex][index] = 0;
                             countSp[tableIndex][index] = 0;
@@ -334,6 +335,14 @@ class DataTable extends HTMLElement {
                         }).join("")}
                     </tbody>
                 </table>
+                <div class="pagination-container">
+                    <span class="pagination-text">Showing ${pageNumber*columnPerPage+1} to ${Math.min(pageNumber*columnPerPage + columnPerPage ,tableColumnsArray.length)} of ${tableColumnsArray.length} entries </span>
+                    <div>
+                        <button  class="pagination-button" id="pre-btn${tableIndex}" ${pageNumber <= 0 ? `disabled`:``}>&#8592; Pre </button>
+                        <span  class="pagination-number">${pageNumber+1}/${Math.ceil(tableColumnsArray.length / columnPerPage)}</span>
+                        <button  class="pagination-button" id="next-btn${tableIndex}" ${(pageNumber+1)*columnPerPage >= tableColumnsArray.length   ? `disabled`:``}> Next &#8594; </button>
+                    </div>
+                </div>
             ${spTable.Fks?.length > 0 ? this.fkComponent(tableIndex, tableName, spTable.Fks, tableMode) : `<div></div>`}
             ${this.secIndexComponent(tableIndex, tableName, spTable.Indexes, tableMode)}
             <div class="summary-card">
@@ -351,7 +360,7 @@ class DataTable extends HTMLElement {
         </div>`;
 
         jQuery("#src-sp-table" + tableIndex).DataTable({ "paging": false, "bSort": false });
-        tableColumnsArray.map((columnName, index) => {
+        tableColumnsArray.filter((_, idx)=> idx>= pageNumber*columnPerPage && idx < pageNumber*columnPerPage + columnPerPage ).map((columnName, index) => {
             new vanillaSelectBox('#srcConstraint' + tableIndex + index, {
                 placeHolder: countSrc[tableIndex][index] + " constraints selected",
                 maxWidth: 500,
@@ -363,7 +372,6 @@ class DataTable extends HTMLElement {
                 maxHeight: 300
             });
         });
-
         document.getElementById("editSpanner" + tableIndex).addEventListener("click", async (event) => {
                 if(event.target.innerHTML.trim()=="Edit Spanner Schema") {
                     Actions.showSpinner();
@@ -401,11 +409,30 @@ class DataTable extends HTMLElement {
                 })
             });
         }
+        
+        document.getElementById('pre-btn'+tableIndex).addEventListener('click', async()=>{
+            Actions.showSpinner()
+            let columnStatus = true;
+            if(tableMode ){
+            let errorMessage = [],updateInStore = true;
+            columnStatus = await Actions.saveColumn({}, tableIndex, tableName, notNullConstraint, {data:{}} ,errorMessage, updateInStore );
+            }
+            if(columnStatus) Actions.decrementPageNumber(tableIndex)
+        })
+
+        document.getElementById('next-btn'+tableIndex).addEventListener('click', async()=>{
+            Actions.showSpinner()
+            let columnStatus = true;
+            if(tableMode){
+            let errorMessage = [],updateInStore = true;
+            columnStatus = await Actions.saveColumn({}, tableIndex, tableName, notNullConstraint, {data:{}} ,errorMessage, updateInStore);
+            }
+            if(columnStatus)Actions.incrementPageNumber(tableIndex)
+        })
 
         if(tableMode) checkBoxStateHandler(tableIndex , Object.keys(data.ToSpanner.Cols).length)
         document.getElementById(`src-sp-table${tableIndex}`)?.style.removeProperty('width');
-
-
+        document.getElementById(`src-sp-table${tableIndex}_info`).style.display="none"
     }
 
     constructor() {

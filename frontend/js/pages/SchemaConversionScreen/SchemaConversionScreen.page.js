@@ -34,6 +34,7 @@ class SchemaConversionScreen extends HTMLElement {
           ToSource: currentTabContent.ToSource[tableNameArray[i]],
           ToSpanner: currentTabContent.ToSpanner[tableNameArray[i]],
           summary : Store.getinstance().tableData["summaryTabContent"][tableNameArray[i]],
+          currentPageNumber : Actions.getCurrentPageNumber(i)
         };
         let component = document.querySelector(`#reportTab${i}`);
         component.data = filterdata;
@@ -69,7 +70,6 @@ class SchemaConversionScreen extends HTMLElement {
     if(Object.keys(currentTabContent).length == 0) {
       return;
     }
-    console.log(this.data);
     const changingText = this.getChangingValue(currentTab);
     let tableNameArray;
     if (currentTab === "reportTab") {
