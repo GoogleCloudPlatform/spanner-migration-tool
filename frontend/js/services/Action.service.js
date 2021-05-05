@@ -26,6 +26,11 @@ const Actions = (() => {
       return "1";
     },
 
+    add:(a,b)=>{
+      console.log(a);
+      return a+b;
+    } ,
+
     resetStore: () => {
       Store.resetStore();
     },

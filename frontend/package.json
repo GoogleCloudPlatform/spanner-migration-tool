@@ -9,15 +9,20 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "jest": "^26.6.3"
+    "bootstrap": "^4.6.0",
+    "jest": "^26.6.3",
+    "jQuery": "^1.7.4"
   },
   "devDependencies": {
     "jest-esm-transformer": "^1.0.0"
   },
-  "jest":{
+  "jest": {
     "transform": {
       ".js": "jest-esm-transformer"
     },
-    "verbose":true
+    "verbose": true,
+    "setupFiles": [
+      "./jest_setup.js"
+    ]
   }
 }
