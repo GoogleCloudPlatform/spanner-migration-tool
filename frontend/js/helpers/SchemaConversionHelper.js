@@ -156,3 +156,29 @@ export const checkBoxStateHandler = (tableIndex,numOfColumn)=> {
     }
   });
 }
+
+export const editButtonHandler = (tableNumber, notNullConstraint) => {
+  let tableId = '#src-sp-table' + tableNumber + ' tr';
+  let tableColumnNumber = 0;
+  jQuery(tableId).each(function (index) {
+    if (index > 1) {
+      let constraintId = 'sp-constraint-' + tableNumber + tableColumnNumber;
+      jQuery('#sp-constraint-' + tableNumber + tableColumnNumber).on('change', function () {
+        let idNum = parseInt(jQuery(this).attr('id').match(/\d+/g), 10);
+        let constraints = document.getElementById(constraintId);
+        if (constraints) {
+          let constraintsLength = constraints.length;
+          for (let c = 0; c < constraintsLength; c++) {
+            if (constraints.options[c].selected) {
+              notNullConstraint[idNum] = 'Not Null';
+            }
+            else {
+              notNullConstraint[idNum] = '';
+            }
+          }
+        }
+      });
+      tableColumnNumber++;
+    }
+  });
+}
