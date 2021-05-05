@@ -381,7 +381,6 @@ class DataTable extends HTMLElement {
                     Actions.showSpinner();
                    await Actions.SaveButtonHandler(tableIndex, tableName, notNullConstraint);
                 }
-                Actions.hideSpinner();
         });
 
         if (spTable.Fks !== null && spTable.Fks.length > 0) {
