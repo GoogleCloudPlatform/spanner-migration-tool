@@ -1,5 +1,4 @@
 import {CLASS_NAMES} from "./../../config/constantData.js";
-
 class Label extends HTMLElement {
 
     get type() {

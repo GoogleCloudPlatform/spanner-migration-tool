@@ -1,5 +1,4 @@
 import Actions from "../../services/Action.service.js";
-
 class Tab extends HTMLElement {
   
   get tabId() {

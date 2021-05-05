@@ -1,5 +1,4 @@
 import Actions from "../../services/Action.service.js";
-
 class SiteButton extends HTMLElement {
   get buttonId() {
     return this.getAttribute("buttonid");
@@ -25,6 +24,10 @@ class SiteButton extends HTMLElement {
     this.innerHTML = `<button class="${this.className}" id="${this.buttonId}" >${this.text}</button>`;
   }
 
+  add(a,b){
+   return Actions.add(a,b)
+  }
+
   constructor() {
     super();
     this.addEventListener("click", () => {
@@ -39,10 +42,17 @@ class SiteButton extends HTMLElement {
         case "createNewSecIndex":
           Actions[this.buttonAction](this.buttonId);
           break;
+
+        case "add":
+          Actions[this.buttonAction](5,6)
+          break;
           
         default:
+          if(Actions[this.buttonAction])
+          {
             Actions[this.buttonAction]();
-            break;
+          }
+          break;
       }
     });
   }
