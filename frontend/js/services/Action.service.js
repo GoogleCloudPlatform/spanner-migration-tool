@@ -27,7 +27,6 @@ const Actions = (() => {
     },
 
     add:(a,b)=>{
-      console.log(a);
       return a+b;
     } ,
 

@@ -1,5 +1,4 @@
 import "./../MainScreen.page.js"
-import "./../../../components/LoadingSpinner/LoadingSpinner.component.js"
 
 describe(" mainscreen page render test",()=>{
     beforeAll(()=>{
@@ -39,14 +38,13 @@ describe(" mainscreen page render test",()=>{
 describe('modal opening tests',()=>{
 
     beforeAll(()=>{
-        document.body.innerHTML = '<div><hb-main-screen></hb-main-screen> <hb-loading-spinner></hb-loading-spinner> </div>'
+        document.body.innerHTML = '<div><hb-main-screen></hb-main-screen></div>'
         let btn = document.querySelectorAll('.image-icon')
         expect(btn.length).toBe(3)
         btn[2].click();
     })
 
     test('modal should open when you click hb-image-icon component',()=>{
-        expect(document.querySelector('hb-loading-spinner').innerHTML).not.toBe(null)
         expect(document.getElementById('loadSchemaModal').style.display).toBe('block')
         expect(document.getElementById('loadSchemaModal').className).toBe('modal show')
     });
@@ -68,21 +66,21 @@ describe('modal opening tests',()=>{
         
     });
 
-    test('Fill all details in model should get data',async ()=>{
-        document.body.innerHTML = '<div><hb-main-screen></hb-main-screen> <hb-loading-spinner></hb-loading-spinner> </div>'
+    // test('Fill all details in model should get data',async ()=>{
+    //     document.body.innerHTML = '<div><hb-main-screen></hb-main-screen> <hb-loading-spinner></hb-loading-spinner> </div>'
 
-        let input1 =document.getElementById('import-db-type');
-        let input2 = document.getElementById('session-file-path');
-        let btn = document.getElementById('load-session-button');
+    //     let input1 =document.getElementById('import-db-type');
+    //     let input2 = document.getElementById('session-file-path');
+    //     let btn = document.getElementById('load-session-button');
 
-        expect(btn.disabled).toBe(true)
-        input1.selectedIndex = 1; 
-        input2.value = "sagar.sql";   
-        btn.disabled = false;
-        expect(btn.disabled).toBe(false)
-        btn.click()
-        expect(document.getElementById('snackbar').classList).toBe('sam')
-    })
+    //     expect(btn.disabled).toBe(true)
+    //     input1.selectedIndex = 1; 
+    //     input2.value = "sagar.sql";   
+    //     btn.disabled = false;
+    //     expect(btn.disabled).toBe(false)
+    //     btn.click()
+    //     expect(document.getElementById('snackbar').classList).toBe('sam')
+    // })
 
     
 })

@@ -1,11 +1,11 @@
-import SiteButton from '../SiteButton.component.js'
+import '../SiteButton.component.js'
 afterEach(()=>{
     while(document.body.firstChild)
     {
         document.body.removeChild(document.body.firstChild)
     }
 })
-test('button component rendering and event listener' ,()=>{
+test('button component rendering and event listener added' ,()=>{
     document.body.innerHTML = `<hb-site-button buttonid="test-id" classname="test-class" 
     buttonaction="test-action" text="test Button"></hb-site-button>`
     let p = document.querySelector('hb-site-button');
