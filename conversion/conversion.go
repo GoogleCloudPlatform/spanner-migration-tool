@@ -474,7 +474,7 @@ func UpdateDDL(project, instance, dbName string, conv *internal.Conv, out *os.Fi
 		return fmt.Errorf("updateDatabaseDdl call failed: %w", analyzeError(err, project, instance))
 	}
 	fmt.Fprintf(out, "done.\n")
-        return nil
+	return nil
 }
 
 
