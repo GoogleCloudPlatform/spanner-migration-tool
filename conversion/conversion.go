@@ -802,16 +802,7 @@ func GetEndpoint() (string, error) {
 	endpoint := os.Getenv("SPANNER_ENDPOINT")
 	if endpoint != "" {
 		return endpoint, nil
-	}
-	cmd := exec.Command("gcloud", "config", "list", "--format", "value(api_endpoint_overrides.spanner)")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("call to gcloud to get spanner endpoint failed: %w", err)
-	}
-	if endpoint != "" {
-		endpoint = strings.TrimSpace(string(out))
-		return endpoint, nil
-	}
+	}	
 	return "", nil
 }
 
