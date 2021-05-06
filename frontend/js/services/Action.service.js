@@ -31,10 +31,10 @@ const Actions = (() => {
     },
 
     setPageYOffset: (value) => {
-      if(Store.getTableChanges()=="expand"){
+      if (Store.getTableChanges() == "expand") {
         let currTab = Store.getCurrentTab();
-        let buttonId = currTab.substr(0, currTab.length - 3)+"ExpandButton"
-        Actions.expandAll("Expand All",buttonId,10,20);
+        let buttonId = currTab.substr(0, currTab.length - 3) + "ExpandButton"
+        Actions.expandAll("Expand All", buttonId, 10, 20);
       }
       Store.setPageYOffset(value)
     },
@@ -204,11 +204,11 @@ const Actions = (() => {
       Store.setSearchInputValue(tabId, value)
     },
 
-    expandAll: (text, buttonId , x=0, y=10) => {
+    expandAll: (text, buttonId, x = 0, y = 10) => {
       Actions.showSpinner()
       if (text === "Expand All") {
         document.getElementById(buttonId).innerHTML = "Collapse All";
-        Store.expandAll(x,y);
+        Store.expandAll(x, y);
       }
       else {
         Actions.showSpinner();
@@ -282,7 +282,6 @@ const Actions = (() => {
 
     setGlobalDataType: async () => {
       Actions.showSpinner()
-      console.log("fired")
       let globalDataTypeList = Store.getGlobalDataTypeList();
       let dataTypeListLength = Object.keys(globalDataTypeList).length;
       let dataTypeJson = {};
@@ -305,14 +304,13 @@ const Actions = (() => {
         }
       }
       let res = await Fetch.getAppData("POST", "/typemap/global", dataTypeJson);
-      console.log(res);
       if (res) {
         res = await res.json();
         Store.updatePrimaryKeys(res);
         Store.updateTableData("reportTabContent", res);
         // Actions.hideSpinner()
       }
-      else{
+      else {
         Actions.hideSpinner()
       }
     },
@@ -476,12 +474,12 @@ const Actions = (() => {
     },
 
     SaveButtonHandler: async (tableNumber, tableName, notNullConstraint) => {
-      var errorMessage=[];
+      var errorMessage = [];
       let schemaConversionObj = { ...Store.getinstance().tableData.reportTabContent };
       let fkStatus = false, secIndexStatus = false, columnStatus = false;
-      columnStatus = await Actions.saveColumn(schemaConversionObj, tableNumber, tableName, notNullConstraint, tableData ,errorMessage);
-      fkStatus = await Actions.saveForeignKeys(schemaConversionObj, tableNumber, tableName, tableData,errorMessage);
-      secIndexStatus = await Actions.saveSecondaryIndexes(schemaConversionObj, tableNumber, tableName, tableData,errorMessage);
+      columnStatus = await Actions.saveColumn(schemaConversionObj, tableNumber, tableName, notNullConstraint, tableData, errorMessage);
+      fkStatus = await Actions.saveForeignKeys(schemaConversionObj, tableNumber, tableName, tableData, errorMessage);
+      secIndexStatus = await Actions.saveSecondaryIndexes(schemaConversionObj, tableNumber, tableName, tableData, errorMessage);
       if (fkStatus && secIndexStatus && columnStatus) {
         Store.updatePrimaryKeys(tableData.data);
         Store.updateTableData("reportTabContent", tableData.data);
@@ -489,64 +487,58 @@ const Actions = (() => {
         Actions.resetReportTableData();
         Store.setTableMode(tableNumber, false);
       }
-      else{
+      else {
         Actions.hideSpinner();
-        let message = errorMessage.map((msg,idx)=>`<span class="primary-color-number"><b>${idx+1}.</b></span> ${msg}`).join('<br/>')
+        let message = errorMessage.map((msg, idx) => `<span class="primary-color-number"><b>${idx + 1}.</b></span> ${msg}`).join('<br/>')
         jQuery('#editTableWarningModal').modal();
         jQuery('#editTableWarningModal').find('#modal-content').html(`<div class="error-content-container">${message}<div>`);
       }
     },
 
-    isValueUpdated:(data,tableNumber,tableName,notNullConstraint)=>{
-      console.log(data);
+    isValueUpdated: (data, tableNumber, tableName, notNullConstraint) => {
       let columnPerPage = 15;
       let tableId = '#src-sp-table' + tableNumber + ' tr';
       let pageNumber = Store.getCurrentPageNumber(tableNumber)
       let pageColArray = data.SpSchema[tableName].ColNames
-          .filter((_, idx)=> idx>= pageNumber*columnPerPage && idx < pageNumber*columnPerPage + columnPerPage );
-     for(let i=0;i<columnPerPage ;i++)
-     {
-       let newName = document.getElementById('column-name-text-'+tableNumber+i+i).value;
-       let newType = document.getElementById('data-type-'+tableNumber+i+i).value;
-       let newConstraint = notNullConstraint[i] === 'Not Null';
-       console.log(newName,newType,newConstraint);
-       if(pageColArray[i] !== newName 
-        || newType !==  data.SpSchema[tableName].ColDefs[pageColArray[i]].T.Name 
-        || data.SpSchema[tableName].ColDefs[pageColArray[i]].NotNull !== newConstraint )
-        {
-          console.log(pageColArray[i] ,newName );
+        .filter((_, idx) => idx >= pageNumber * columnPerPage && idx < pageNumber * columnPerPage + columnPerPage);
+      for (let i = 0; i < columnPerPage; i++) {
+        let newName = document.getElementById('column-name-text-' + tableNumber + i + i).value;
+        let newType = document.getElementById('data-type-' + tableNumber + i + i).value;
+        let newConstraint = notNullConstraint[i] === 'Not Null';
+        if (pageColArray[i] !== newName
+          || newType !== data.SpSchema[tableName].ColDefs[pageColArray[i]].T.Name
+          || data.SpSchema[tableName].ColDefs[pageColArray[i]].NotNull !== newConstraint) {
           return true;
         }
-     }
-     let flagofcheckbox = false;
-     jQuery(tableId).each(function (index) {
-      if (!(jQuery(this).find("input[type=checkbox]").is(":checked"))) {
-        flagofcheckbox = true;
-        return false;
       }
-    })
-    if(flagofcheckbox){
-      return true;
-    }
+      let flagofcheckbox = false;
+      jQuery(tableId).each(function (index) {
+        if (!(jQuery(this).find("input[type=checkbox]").is(":checked"))) {
+          flagofcheckbox = true;
+          return false;
+        }
+      })
+      if (flagofcheckbox) {
+        return true;
+      }
       return false;
     },
 
-    saveColumn: async (schemaConversionObj, tableNumber, tableName, notNullConstraint, tableData,errorMessage,updateInStore = false) => {
+    saveColumn: async (schemaConversionObj, tableNumber, tableName, notNullConstraint, tableData, errorMessage, updateInStore = false) => {
       let data;
       if (tableData.data.SpSchema != undefined) {
         data = { ...tableData.data };
       }
-      else{
-        if(updateInStore)
-        {
-         data  = { ...Store.getinstance().tableData.reportTabContent };
-        }else{
-        data = { ...schemaConversionObj };
+      else {
+        if (updateInStore) {
+          data = { ...Store.getinstance().tableData.reportTabContent };
+        } else {
+          data = { ...schemaConversionObj };
         }
-      } 
+      }
 
-      if(updateInStore && !Actions.isValueUpdated(data,tableNumber,tableName,notNullConstraint)) {
-          return true;
+      if (updateInStore && !Actions.isValueUpdated(data, tableNumber, tableName, notNullConstraint)) {
+        return true;
       }
       let tableId = '#src-sp-table' + tableNumber + ' tr';
       let tableColumnNumber = 0;
@@ -583,7 +575,7 @@ const Actions = (() => {
             let columnsNamesArray = Object.keys(data.ToSpanner[tableName].Cols);
             columnNameExists = false;
             for (let k = 0; k < columnsNamesArray.length; k++) {
-              if (k != tableColumnNumber && newColumnName === columnsNamesArray[k] ) {
+              if (k != tableColumnNumber && newColumnName === columnsNamesArray[k]) {
                 updatedColsData.UpdateCols[originalColumnName]['Rename'] = '';
                 columnNameExists = true;
                 errorMessage.push("Column : '" + newColumnName + "'" + ' already exists in table : ' + "'" + tableName + "'" + '. Please try with a different column name.')
@@ -596,7 +588,6 @@ const Actions = (() => {
           updatedColsData.UpdateCols[originalColumnName]['NotNull'] = 'ADDED';
           updatedColsData.UpdateCols[originalColumnName]['PK'] = '';
           updatedColsData.UpdateCols[originalColumnName]['ToType'] = document.getElementById('data-type-' + tableNumber + tableColumnNumber + tableColumnNumber).value;
-          console.log(parseInt(String(tableNumber) + String(tableColumnNumber)));
           if (notNullConstraint[parseInt(String(tableNumber) + String(tableColumnNumber))] === 'Not Null') {
             updatedColsData.UpdateCols[originalColumnName]['NotNull'] = 'ADDED';
           }
@@ -612,26 +603,25 @@ const Actions = (() => {
 
       columnStatus = true;
       const s = new Set(newColArrayForDuplicateCheck);
-      if(newColArrayForDuplicateCheck.length !== s.size){
+      if (newColArrayForDuplicateCheck.length !== s.size) {
         duplicateInPage = true;
         errorMessage.push('Two column have same name in the current page.')
       }
-      switch (columnNameExists || columnNameEmpty || duplicateInPage ) {
+      switch (columnNameExists || columnNameEmpty || duplicateInPage) {
         case true:
-          if(updateInStore){
+          if (updateInStore) {
             Actions.hideSpinner()
-            let message = errorMessage.map((msg,idx)=>`<span class="primary-color-number"><b>${idx+1}.</b></span> ${msg}`).join('<br/>')
+            let message = errorMessage.map((msg, idx) => `<span class="primary-color-number"><b>${idx + 1}.</b></span> ${msg}`).join('<br/>')
             jQuery('#editTableWarningModal').modal();
             jQuery('#editTableWarningModal').find('#modal-content').html(`<div class="error-content-container">${message}<div>`);
-            }
+          }
           return false;
 
         case false:
           let fetchedTableData = await Fetch.getAppData('POST', '/typemap/table?table=' + tableName, updatedColsData);
           if (fetchedTableData.ok) {
-            console.log("api called")
             let tableDataTemp = await fetchedTableData.json();
-            if(updateInStore){
+            if (updateInStore) {
               Store.updatePrimaryKeys(tableDataTemp)
               Store.updateTableData("reportTabContent", tableDataTemp);
               Actions.resetReportTableData();
@@ -655,14 +645,14 @@ const Actions = (() => {
               }
             }
           }
-          else {           
+          else {
             let modalData = await fetchedTableData.text();
             errorMessage.push(modalData)
-            if(updateInStore){
-            Actions.hideSpinner()
-            let message = errorMessage.map((msg,idx)=>`<span class="primary-color-number"><b>${idx+1}.</b></span> ${msg}`).join('<br/>')
-            jQuery('#editTableWarningModal').modal();
-            jQuery('#editTableWarningModal').find('#modal-content').html(`<div class="error-content-container">${message}<div>`);
+            if (updateInStore) {
+              Actions.hideSpinner()
+              let message = errorMessage.map((msg, idx) => `<span class="primary-color-number"><b>${idx + 1}.</b></span> ${msg}`).join('<br/>')
+              jQuery('#editTableWarningModal').modal();
+              jQuery('#editTableWarningModal').find('#modal-content').html(`<div class="error-content-container">${message}<div>`);
             }
             return false;
           }
@@ -752,7 +742,7 @@ const Actions = (() => {
       return true;
     },
 
-    saveSecondaryIndexes: async (schemaConversionObj, tableNumber, tableName, tableData,errorMessage) => {
+    saveSecondaryIndexes: async (schemaConversionObj, tableNumber, tableName, tableData, errorMessage) => {
       let data;
       let newSecIndexArray = [];
       let uniquevals;
@@ -782,14 +772,14 @@ const Actions = (() => {
               if (data.SpSchema[tableName].Indexes[x].Name === renameIndexMap[key]) {
                 if (uniquevals.length == newSecIndexArray.length) {
                   flag = true;
-                  break ;
-               }
-                else{
-               
-                errorMessage.push("Index: " + renameIndexMap[key] + " already exists in table: " + tableName + ". Please try with a different name.")
-                
-                duplicateFound = true;
-                break;
+                  break;
+                }
+                else {
+
+                  errorMessage.push("Index: " + renameIndexMap[key] + " already exists in table: " + tableName + ". Please try with a different name.")
+
+                  duplicateFound = true;
+                  break;
                 }
               }
             }
@@ -878,7 +868,7 @@ const Actions = (() => {
     },
 
     switchCurrentTab: (tab) => {
-      if(Store.getCurrentTab() !== tab) Actions.showSpinner()
+      if (Store.getCurrentTab() !== tab) Actions.showSpinner()
       Store.switchCurrentTab(tab)
     },
 
@@ -933,15 +923,15 @@ const Actions = (() => {
     setTableMode: (tableIndex, val) => {
       Store.setTableMode(tableIndex, val);
     },
-    incrementPageNumber:(tableIndex)=>{
-     Store.incrementPageNumber(tableIndex);
+    incrementPageNumber: (tableIndex) => {
+      Store.incrementPageNumber(tableIndex);
     },
 
-    decrementPageNumber:(tableIndex)=>{
+    decrementPageNumber: (tableIndex) => {
       Store.decrementPageNumber(tableIndex);
     },
 
-    getCurrentPageNumber:(idx)=>{
+    getCurrentPageNumber: (idx) => {
       return Store.getCurrentPageNumber(idx)
     }
 
