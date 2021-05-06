@@ -49,9 +49,9 @@ import (
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/ssh/terminal"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
-	"google.golang.org/api/option"
 
 	"github.com/cloudspannerecosystem/harbourbridge/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -413,8 +413,8 @@ func GetDatabaseAdminClient() (*database.DatabaseAdminClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	if  endpoint != "" {
-		opt := []option.ClientOption{ option.WithEndpoint(endpoint), }
+	if endpoint != "" {
+		opt := []option.ClientOption{option.WithEndpoint(endpoint)}
 		return database.NewDatabaseAdminClient(ctx, opt...)
 	}
 	return database.NewDatabaseAdminClient(ctx)
@@ -427,7 +427,7 @@ func GetDatabaseAdminClient() (*database.DatabaseAdminClient, error) {
 func CreateDatabase(project, instance, dbName string, conv *internal.Conv, out *os.File) (string, error) {
 	fmt.Fprintf(out, "Creating new database %s in instance %s with default permissions ... ", dbName, instance)
 	ctx := context.Background()
-	adminClient, err := GetDatabaseAdminClient() 
+	adminClient, err := GetDatabaseAdminClient()
 	if err != nil {
 		return "", fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
 	}
@@ -468,7 +468,7 @@ func UpdateDDL(project, instance, dbName string, conv *internal.Conv, out *os.Fi
 		Statements: schema,
 	})
 	if err != nil {
-		return fmt.Errorf("can't build UpdateDatabaseDdlRequest: %w", analyzeError(err, project, instance))		
+		return fmt.Errorf("can't build UpdateDatabaseDdlRequest: %w", analyzeError(err, project, instance))
 	}
 	if err := op.Wait(ctx); err != nil {
 		return fmt.Errorf("updateDatabaseDdl call failed: %w", analyzeError(err, project, instance))
@@ -477,12 +477,11 @@ func UpdateDDL(project, instance, dbName string, conv *internal.Conv, out *os.Fi
 	return nil
 }
 
-
 // UpdateDDLForeignKeys updates the Spanner database with foreign key
 // constraints using ALTER TABLE statements.
 func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv, out *os.File) error {
 	ctx := context.Background()
-	adminClient, err := GetDatabaseAdminClient() 
+	adminClient, err := GetDatabaseAdminClient()
 	if err != nil {
 		return fmt.Errorf("can't create admin client: %w\n", analyzeError(err, project, instance))
 	}
@@ -573,14 +572,14 @@ func GetInstanceAdminClient() (*instance.InstanceAdminClient, error) {
 		return nil, err
 	}
 	if endpoint != "" {
-		opt := []option.ClientOption{ option.WithEndpoint(endpoint), }
+		opt := []option.ClientOption{option.WithEndpoint(endpoint)}
 		return instance.NewInstanceAdminClient(ctx, opt...)
 	}
 	return instance.NewInstanceAdminClient(ctx)
 }
 
 func getInstances(project string) ([]string, error) {
-	instanceClient, err := GetInstanceAdminClient() 
+	instanceClient, err := GetInstanceAdminClient()
 	if err != nil {
 		return nil, analyzeError(err, project, "")
 	}
@@ -802,7 +801,7 @@ func GetEndpoint() (string, error) {
 	endpoint := os.Getenv("SPANNER_ENDPOINT")
 	if endpoint != "" {
 		return endpoint, nil
-	}	
+	}
 	return "", nil
 }
 
@@ -810,7 +809,7 @@ func GetEndpoint() (string, error) {
 func GetClient(db string) (*sp.Client, error) {
 	ctx := context.Background()
 	if endpoint, _ := GetEndpoint(); endpoint != "" {
-		opt := []option.ClientOption{ option.WithEndpoint(endpoint), }
+		opt := []option.ClientOption{option.WithEndpoint(endpoint)}
 		return sp.NewClient(ctx, db, opt...)
 	}
 	return sp.NewClient(ctx, db)

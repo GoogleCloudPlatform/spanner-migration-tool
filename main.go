@@ -172,7 +172,7 @@ func commandLine(driver, projectID, instanceID, dbName string, ioHelper *convers
 			return err
 		}
 	}
-    db := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	db := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	if useExistingDb {
 		err = conversion.UpdateDDL(projectID, instanceID, dbName, conv, ioHelper.Out)
 		if err != nil {
@@ -185,7 +185,7 @@ func commandLine(driver, projectID, instanceID, dbName string, ioHelper *convers
 			fmt.Printf("\nCan't create database: %v\n", err)
 			return fmt.Errorf("can't create database")
 		}
-	}	
+	}
 
 	client, err := conversion.GetClient(db)
 	if err != nil {
