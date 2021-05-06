@@ -796,7 +796,7 @@ func generateName(prefix string) (string, error) {
 }
 
 // GetEndpoint returns the spanner endpoint we should use to connect to the service.
-// Use the environment variable SPANNER_ENDPOINT or gcloud api_endpoint_overrides.spanner if set.
+// Use the environment variable SPANNER_ENDPOINT if set.
 // Othewise use the default endpoint.
 func GetEndpoint() (string, error) {
 	endpoint := os.Getenv("SPANNER_ENDPOINT")
