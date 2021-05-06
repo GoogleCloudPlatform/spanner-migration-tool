@@ -175,10 +175,10 @@ func commandLine(driver, projectID, instanceID, dbName string, ioHelper *convers
         db := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
         if useExistingDb {
 		err = conversion.UpdateDDL(projectID, instanceID, dbName, conv, ioHelper.Out)
-                if err != nil {
-                        fmt.Printf("\nCan't update database with new schema: %v\n", err)
-                        return fmt.Errorf("can't update existing database, consider a fresh database")
-                }
+		if err != nil {
+			fmt.Printf("\nCan't update database with new schema: %v\n", err)
+			return fmt.Errorf("can't update existing database, consider a fresh database")
+		}
 	} else {
 		db, err = conversion.CreateDatabase(projectID, instanceID, dbName, conv, ioHelper.Out)
 		if err != nil {
