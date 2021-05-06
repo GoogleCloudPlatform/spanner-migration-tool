@@ -10,8 +10,8 @@ class AddIndexForm extends HTMLElement {
     return this.getAttribute("tableIndex");
   }
 
-  get data(){
-    return JSON.parse(this.getAttribute('colData'));
+  get data() {
+    return JSON.parse(this.getAttribute("colData"));
   }
 
   connectedCallback() {
@@ -24,16 +24,16 @@ class AddIndexForm extends HTMLElement {
     });
 
     Forms.formButtonHandler("create-index-form", "create-index-button");
-
-    document
-      .getElementById("createIndexModal")
+    if(document.getElementById("createIndexModal")){
+      console.log('sagar..');
+      document.getElementById("createIndexModal")
       .querySelector("i")
       .addEventListener("click", () => {
         Actions.closeSecIndexModal();
-      });
+      });}
 
-    document
-      .getElementById("create-index-button")
+    if(document.getElementById("create-index-button")){
+        document.getElementById("create-index-button")
       .addEventListener("click", () => {
         Actions.fetchIndexFormValues(
           this.tableIndex,
@@ -42,8 +42,9 @@ class AddIndexForm extends HTMLElement {
           document.getElementById("unique-switch").checked
         );
       });
+    }
 
-   this.data.map((row, idx) => {
+    this.data.map((row, idx) => {
       document
         .getElementById("checkbox-" + row + "-" + idx)
         .addEventListener("click", () => {
@@ -64,7 +65,7 @@ class AddIndexForm extends HTMLElement {
         </div>
         <div id="newIndexColumnListDiv" class="column-list-container">
               ${this.data.map((row, idx) => {
-                return `
+                  return `
                 <div class="new-index-column-list" id="indexColumnRow${idx}">
                     <span class="order-id invisible-badge" id="order${row}${idx}">1</span>
                     <span class="column-name">${row}</span>
@@ -79,7 +80,8 @@ class AddIndexForm extends HTMLElement {
                         </div>
                     </span>
                 </div>`;
-              }).join("")}  
+                })
+                .join("")}  
         </div>
         <div class="unique-swith-container">
             <span class="unique-swith-label">Unique</span>
