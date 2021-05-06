@@ -59,7 +59,6 @@ class SchemaConversionScreen extends HTMLElement {
       this.data = JSON.parse(JSON.stringify(updatedData));
       this.render();
     }
-    Actions.hideSpinner();
   };
 
   render() {

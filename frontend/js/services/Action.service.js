@@ -34,7 +34,6 @@ const Actions = (() => {
       if(Store.getTableChanges()=="expand"){
         let currTab = Store.getCurrentTab();
         let buttonId = currTab.substr(0, currTab.length - 3)+"ExpandButton"
-        console.log(buttonId);
         Actions.expandAll("Expand All",buttonId,10,20);
       }
       Store.setPageYOffset(value)
@@ -311,7 +310,7 @@ const Actions = (() => {
         res = await res.json();
         Store.updatePrimaryKeys(res);
         Store.updateTableData("reportTabContent", res);
-        Actions.hideSpinner();
+        // Actions.hideSpinner()
       }
       else{
         Actions.hideSpinner()
@@ -501,6 +500,7 @@ const Actions = (() => {
     isValueUpdated:(data,tableNumber,tableName,notNullConstraint)=>{
       console.log(data);
       let columnPerPage = 15;
+      let tableId = '#src-sp-table' + tableNumber + ' tr';
       let pageNumber = Store.getCurrentPageNumber(tableNumber)
       let pageColArray = data.SpSchema[tableName].ColNames
           .filter((_, idx)=> idx>= pageNumber*columnPerPage && idx < pageNumber*columnPerPage + columnPerPage );
@@ -518,6 +518,16 @@ const Actions = (() => {
           return true;
         }
      }
+     let flagofcheckbox = false;
+     jQuery(tableId).each(function (index) {
+      if (!(jQuery(this).find("input[type=checkbox]").is(":checked"))) {
+        flagofcheckbox = true;
+        return false;
+      }
+    })
+    if(flagofcheckbox){
+      return true;
+    }
       return false;
     },
 
@@ -586,7 +596,7 @@ const Actions = (() => {
           updatedColsData.UpdateCols[originalColumnName]['NotNull'] = 'ADDED';
           updatedColsData.UpdateCols[originalColumnName]['PK'] = '';
           updatedColsData.UpdateCols[originalColumnName]['ToType'] = document.getElementById('data-type-' + tableNumber + tableColumnNumber + tableColumnNumber).value;
-
+          console.log(parseInt(String(tableNumber) + String(tableColumnNumber)));
           if (notNullConstraint[parseInt(String(tableNumber) + String(tableColumnNumber))] === 'Not Null') {
             updatedColsData.UpdateCols[originalColumnName]['NotNull'] = 'ADDED';
           }
@@ -619,6 +629,7 @@ const Actions = (() => {
         case false:
           let fetchedTableData = await Fetch.getAppData('POST', '/typemap/table?table=' + tableName, updatedColsData);
           if (fetchedTableData.ok) {
+            console.log("api called")
             let tableDataTemp = await fetchedTableData.json();
             if(updateInStore){
               Store.updatePrimaryKeys(tableDataTemp)
@@ -644,15 +655,15 @@ const Actions = (() => {
               }
             }
           }
-          else {
+          else {           
+            let modalData = await fetchedTableData.text();
+            errorMessage.push(modalData)
             if(updateInStore){
-              Actions.hideSpinner()
+            Actions.hideSpinner()
             let message = errorMessage.map((msg,idx)=>`<span class="primary-color-number"><b>${idx+1}.</b></span> ${msg}`).join('<br/>')
             jQuery('#editTableWarningModal').modal();
             jQuery('#editTableWarningModal').find('#modal-content').html(`<div class="error-content-container">${message}<div>`);
             }
-            let modalData = await fetchedTableData.text();
-            errorMessage.push(modalData)
             return false;
           }
       }
@@ -869,7 +880,6 @@ const Actions = (() => {
     switchCurrentTab: (tab) => {
       if(Store.getCurrentTab() !== tab) Actions.showSpinner()
       Store.switchCurrentTab(tab)
-      Actions.hideSpinner();
     },
 
     openCarousel: (tableId, tableIndex) => {
