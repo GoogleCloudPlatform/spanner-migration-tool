@@ -4,7 +4,7 @@ import { tooltipHandler } from "../../helpers/SchemaConversionHelper.js";
 class EditGlobalDataTypeForm extends HTMLElement {
     connectedCallback() {
         this.render();
-        document.getElementById("data-type-button").addEventListener("click", async () => {
+        document.getElementById("data-type-button")?.addEventListener("click", async () => {
                 await Actions.setGlobalDataType();
                 await Actions.ddlSummaryAndConversionApiCall();
             });

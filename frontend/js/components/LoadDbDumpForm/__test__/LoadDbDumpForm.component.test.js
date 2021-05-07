@@ -6,6 +6,7 @@ test('Load Db Dump File Form Rendering', () => {
     expect(component).not.toBe(null);
     expect(document.getElementById('load-db-type')).not.toBe(null);
     expect(document.getElementById('dump-file-path')).not.toBe(null);
+<<<<<<< HEAD
     // expect(document.getElementById('load-connect-button')).not.toBe(null);
 });
 
@@ -25,4 +26,16 @@ test('on confirm button click of load db dump file, modal should hide', () => {
     // expect(btn.disabled).toBe(false);
     // btn.click();
     expect(document.getElementById('loadDatabaseDumpModal')).toBe(null);
+=======
+});
+
+test('Load Db Dump File Form Validation', () => {
+    let dbType = document.getElementById('load-db-type');
+    let filePath = document.getElementById('dump-file-path');
+    expect(dbType).not.toBe(null);
+    expect(filePath).not.toBe(null);
+    dbType.selectedIndex = 1;
+    filePath.value = "a.sql";
+    expect(document.getElementById('dump-file-path').value).toBe('a.sql');
+>>>>>>> 29f55aed13cf42d3a38128a5503447d803ee40a5
 });
