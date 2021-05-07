@@ -25,7 +25,6 @@ class AddIndexForm extends HTMLElement {
 
     Forms.formButtonHandler("create-index-form", "create-index-button");
     if(document.getElementById("createIndexModal")){
-      console.log('sagar..');
       document.getElementById("createIndexModal")
       .querySelector("i")
       .addEventListener("click", () => {
