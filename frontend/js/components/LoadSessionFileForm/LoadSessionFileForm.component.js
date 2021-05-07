@@ -16,7 +16,7 @@ class LoadSessionFileForm extends HTMLElement {
             Forms.validateInput(document.getElementById('session-file-path'), 'load-session-error');
         });
         Forms.formButtonHandler("load-session-form", "load-session-button");
-        document.getElementById("load-session-button").addEventListener("click", () => {
+        document.getElementById("load-session-button")?.addEventListener("click", () => {
             Actions.showSpinner()
             this.storeSessionFilePath(document.getElementById("import-db-type").value, document.getElementById("session-file-path").value);
         });

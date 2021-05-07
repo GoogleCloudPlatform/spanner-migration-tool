@@ -14,6 +14,7 @@ test('Connect to db form rendering', () => {
 });
 
 test('Connect to db form validation', () => {
+    document.body.innerHTML = `<hb-connect-to-db-form></hb-connect-to-db-form>`;
     let dbType = document.getElementById('db-type');
     let dbHost = document.getElementById('db-host');
     let dbPort = document.getElementById('db-port');
@@ -33,7 +34,7 @@ test('Connect to db form validation', () => {
     dbName.value = "sakila";
     dbPassword.value = "mysql";
     expect(dbHost.value).toBe('localhost');
-    expect(dbPort.value).toBe(3306);
+    expect(dbPort.value).toBe("3306");
     expect(dbUser.value).toBe('root');
     expect(dbName.value).toBe('sakila');
     expect(dbPassword.value).toBe('mysql');

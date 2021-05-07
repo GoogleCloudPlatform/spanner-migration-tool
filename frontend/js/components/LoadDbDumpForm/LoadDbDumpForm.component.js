@@ -15,11 +15,11 @@ class LoadDbDumpForm extends HTMLElement {
         document.getElementById('dump-file-path').addEventListener('focusout', () => {
             Forms.validateInput(document.getElementById('dump-file-path'), 'file-path-error');
         })
-        if(document.getElementById('load-connect-button')){document.getElementById('load-connect-button').addEventListener('click', () => {
+        document.getElementById('load-connect-button')?.addEventListener('click', () => {
             Actions.showSpinner()
             this.storeDumpFileValues(document.getElementById("load-db-type").value, document.getElementById("dump-file-path").value);
         });
-    }
+
         Forms.formButtonHandler("load-db-form", "load-connect-button");
     }
 
