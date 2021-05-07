@@ -88,6 +88,7 @@ const Store = (function () {
 
     switchCurrentTab: (tab) => {
       instance = { ...instance, currentTab: tab };
+      // console.log(instance)
     },
 
     openCarousel: (tableId, tableIndex) => {

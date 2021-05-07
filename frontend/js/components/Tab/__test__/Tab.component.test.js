@@ -10,21 +10,31 @@ afterEach(()=>{
 })
 
 test('current tab features',()=>{
-    document.body.innerHTML = `<hb-tab currentTab=${report} ><hb-tab/>`;
+    document.body.innerHTML = `<hb-tab currentTab="reportTab" ><hb-tab/>`;
     let tab = document.querySelector('#reportTab')
     expect(tab.className).toBe("nav-link active show")
+    let otherTab = document.querySelector('#ddlTab')
+    expect(otherTab.className).toBe("nav-link ")
+})
+
+test('total tabs',()=>{
+    document.body.innerHTML = `<div><hb-loading-spinner></hb-loading-spinner> <hb-tab currentTab="reportTab"><hb-tab/></div>`;
+    let tabsarray = document.querySelectorAll('li.nav-item');
+    expect(tabsarray.length).toBe(3);
 
 })
 
 test('disabled tab features',()=>{
     let currenttab = Store.getinstance().currentTab;
+    // console.log(currenttab);
     document.body.innerHTML = `<div><hb-loading-spinner></hb-loading-spinner> <hb-tab currentTab=${currenttab}><hb-tab/></div>`;
     let tab = document.querySelector('#ddlTab')
+    // console.log(tab)
     expect(tab.className).toBe("nav-link ")
-    let switchtab = document.getElementsByTagName('hb-tab')[0];
-    expect(switchtab.tabId).toBe("ddl")
-    switchtab.click();
-    console.log("something")
-    // expect(tab.className).toBe("nav-link active show")
-
+    tab.click();
+    currenttab = Store.getinstance().currentTab
+    console.log(currenttab)
+    document.body.innerHTML = `<div><hb-loading-spinner></hb-loading-spinner> <hb-tab currentTab=${currenttab}><hb-tab/></div>`;
+    tab = document.querySelector('#ddlTab')
+    expect(tab.className).toBe("nav-link active show")
 })

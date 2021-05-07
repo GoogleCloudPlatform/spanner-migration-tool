@@ -8,7 +8,6 @@ describe(" mainscreen page render test",()=>{
     test('hb-label component on mainscreen rendered',()=>{
         expect(document.querySelectorAll('hb-label').length).toBe(6)
         expect(document.querySelectorAll('hb-label')[0].innerHTML).not.toBe(null)
-
     });
 
     test('hb-ui-image component rendered',()=>{
