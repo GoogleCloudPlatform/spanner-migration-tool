@@ -1,7 +1,8 @@
 import "./../Modal/Modal.component.js";
+import "./../SiteButton/SiteButton.component.js"
 import { recreateNode, checkBoxStateHandler } from './../../helpers/SchemaConversionHelper.js';
 import Actions from './../../services/Action.service.js';
-
+import {vanillaSelectBox} from './../../../third_party/dummy.js'
 class DataTable extends HTMLElement {
 
     get tableName() {
@@ -111,7 +112,6 @@ class DataTable extends HTMLElement {
                         <div class="mdc-card fk-content">
                             <hb-site-button buttonid="hb-${tableIndex}indexButton-${this.tableName}" classname="new-index-button"
                                 buttonaction="createNewSecIndex" text="Add Index"></hb-site-button>
-
                             <table class="index-acc-table fk-table">
                                 ${ secIndexArray && secIndexArray.length > 0 ? `<thead>
                                     <tr>
@@ -372,7 +372,7 @@ class DataTable extends HTMLElement {
                 maxHeight: 300
             });
         });
-        document.getElementById("editSpanner" + tableIndex).addEventListener("click", async (event) => {
+        document.getElementById("editSpanner" + tableIndex)?.addEventListener("click", async (event) => {
                 if(event.target.innerHTML.trim()=="Edit Spanner Schema") {
                     Actions.showSpinner();
                     Actions.setTableMode(tableIndex,true);
