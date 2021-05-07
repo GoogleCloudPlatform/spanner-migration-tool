@@ -6,10 +6,13 @@ class ConnectToDbForm extends HTMLElement {
     connectedCallback() {
         this.render();
         let response;
-        let modalData = document.getElementById("connectToDbModal");
-        modalData.querySelector("i").addEventListener("click", () => {
-            Forms.resetConnectToDbModal();
-        });
+        if (document.getElementById("connectToDbModal")) {
+            document.getElementById("connectToDbModal")
+            .querySelector("i")
+            .addEventListener("click", () => {
+                Forms.resetConnectToDbModal();
+            });
+        }
         document.getElementById("db-type").addEventListener("change", () => {
             Forms.toggleDbType();
         });

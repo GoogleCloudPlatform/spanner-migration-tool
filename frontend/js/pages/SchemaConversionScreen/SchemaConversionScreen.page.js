@@ -13,7 +13,6 @@ import Store from "./../../services/Store.service.js";
 import "../../services/Fetch.service.js";
 
 // constants
-import { TAB_CONFIG_DATA } from "./../../config/constantData.js";
 
 class SchemaConversionScreen extends HTMLElement {
   connectedCallback() {
@@ -91,13 +90,7 @@ class SchemaConversionScreen extends HTMLElement {
         </h4>
       </div>
       <div class="report-tabs">
-        <ul class="nav nav-tabs md-tabs" role="tablist">
-           ${TAB_CONFIG_DATA.map((tab) => {
-             return `<hb-tab open="${
-               Store.getinstance().currentTab === `${tab.id}Tab`
-             }" tabid="${tab.id}" text="${tab.text}"></hb-tab>`;
-           }).join("")} 
-        </ul>
+           <hb-tab currentTab = ${currentTab}>
       </div>
       <div class="status-icons">
         <hb-search tabid="${currentTab}" class="inlineblock" ></hb-search>

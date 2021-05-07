@@ -5,10 +5,13 @@ class LoadSessionFileForm extends HTMLElement {
 
     connectedCallback() {
         this.render();
-        let modalData = document.getElementById("loadSchemaModal");
-        modalData.querySelector("i").addEventListener("click", () => {
-            Forms.resetLoadSessionModal();
-        });
+        if (document.getElementById("loadSchemaModal")) {
+            document.getElementById("loadSchemaModal")
+            .querySelector("i")
+            .addEventListener("click", () => {
+                Forms.resetLoadSessionModal();
+            });
+        }
         document.getElementById("session-file-path").addEventListener("focusout", () => {
             Forms.validateInput(document.getElementById('session-file-path'), 'load-session-error');
         });
@@ -39,8 +42,8 @@ class LoadSessionFileForm extends HTMLElement {
             window.location.href = '#/schema-report';
             Actions.sessionRetrieval(Actions.getSourceDbName());
         }
-        else{
-          Actions.hideSpinner()
+        else {
+            Actions.hideSpinner()
         }
     }
 

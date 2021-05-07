@@ -152,7 +152,7 @@ const Store = (function () {
         let bottomval = document.getElementById(i).getBoundingClientRect().bottom;
         let topval = document.getElementById(i).getBoundingClientRect().y;
     
-        if(bottomval<0 || topval> window.innerHeight)
+        if(bottomval<-1000 || topval> window.innerHeight +1000)
         {
           openStatusarray[i] = false;
         }

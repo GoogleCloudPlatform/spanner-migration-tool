@@ -286,7 +286,6 @@ const Actions = (() => {
 
     setGlobalDataType: async () => {
       Actions.showSpinner()
-      console.log("fired")
       let globalDataTypeList = Store.getGlobalDataTypeList();
       let dataTypeListLength = Object.keys(globalDataTypeList).length;
       let dataTypeJson = {};
@@ -309,7 +308,6 @@ const Actions = (() => {
         }
       }
       let res = await Fetch.getAppData("POST", "/typemap/global", dataTypeJson);
-      console.log(res);
       if (res) {
         res = await res.json();
         Store.updatePrimaryKeys(res);
@@ -502,7 +500,6 @@ const Actions = (() => {
     },
 
     isValueUpdated:(data,tableNumber,tableName,notNullConstraint)=>{
-      console.log(data);
       let columnPerPage = 15;
       let tableId = '#src-sp-table' + tableNumber + ' tr';
       let pageNumber = Store.getCurrentPageNumber(tableNumber)
@@ -513,12 +510,10 @@ const Actions = (() => {
        let newName = document.getElementById('column-name-text-'+tableNumber+i+i).value;
        let newType = document.getElementById('data-type-'+tableNumber+i+i).value;
        let newConstraint = notNullConstraint[i] === 'Not Null';
-       console.log(newName,newType,newConstraint);
        if(pageColArray[i] !== newName 
         || newType !==  data.SpSchema[tableName].ColDefs[pageColArray[i]].T.Name 
         || data.SpSchema[tableName].ColDefs[pageColArray[i]].NotNull !== newConstraint )
         {
-          console.log(pageColArray[i] ,newName );
           return true;
         }
      }
@@ -600,7 +595,6 @@ const Actions = (() => {
           updatedColsData.UpdateCols[originalColumnName]['NotNull'] = 'ADDED';
           updatedColsData.UpdateCols[originalColumnName]['PK'] = '';
           updatedColsData.UpdateCols[originalColumnName]['ToType'] = document.getElementById('data-type-' + tableNumber + tableColumnNumber + tableColumnNumber).value;
-          console.log(parseInt(String(tableNumber) + String(tableColumnNumber)));
           if (notNullConstraint[parseInt(String(tableNumber) + String(tableColumnNumber))] === 'Not Null') {
             updatedColsData.UpdateCols[originalColumnName]['NotNull'] = 'ADDED';
           }
@@ -633,7 +627,6 @@ const Actions = (() => {
         case false:
           let fetchedTableData = await Fetch.getAppData('POST', '/typemap/table?table=' + tableName, updatedColsData);
           if (fetchedTableData.ok) {
-            console.log("api called")
             let tableDataTemp = await fetchedTableData.json();
             if(updateInStore){
               Store.updatePrimaryKeys(tableDataTemp)
@@ -883,7 +876,8 @@ const Actions = (() => {
 
     switchCurrentTab: (tab) => {
       if(Store.getCurrentTab() !== tab) Actions.showSpinner()
-      Store.switchCurrentTab(tab)
+      Store.switchCurrentTab(tab);
+
     },
 
     openCarousel: (tableId, tableIndex) => {
