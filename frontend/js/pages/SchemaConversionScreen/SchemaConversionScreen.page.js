@@ -15,6 +15,11 @@ import "../../services/Fetch.service.js";
 // constants
 
 class SchemaConversionScreen extends HTMLElement {
+
+  get testing(){
+    return this.getAttribute("testing");
+  }
+
   connectedCallback() {
     this.stateObserver = setInterval(this.observeState, 150);
     Actions.showSpinner()
@@ -38,6 +43,11 @@ class SchemaConversionScreen extends HTMLElement {
         let component = document.querySelector(`#reportTab${i}`);
         component.data = filterdata;
       }
+  }
+
+  set Data(data) {
+      this.data = data;
+      this.render();
   }
 
   getChangingValue(currentTab) {
@@ -65,6 +75,7 @@ class SchemaConversionScreen extends HTMLElement {
       return;
     }
     const { currentTab, tableData, tableBorderData,searchInputValue } = this.data;
+    // console.log(tableData);
     let currentTabContent = tableData[`${currentTab}Content`];
     if(Object.keys(currentTabContent).length == 0) {
       Actions.hideSpinner();
@@ -169,10 +180,12 @@ class SchemaConversionScreen extends HTMLElement {
       connectIconClass="" modalBodyClass="" title="Select keys for new index"></hb-modal>`;
 
     initSchemaScreenTasks();
-    if (currentTab === "reportTab") {
+    if (currentTab === "reportTab" && !this.testing) {
       this.sendDatatoReportTab(tableNameArray
         .filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1), currentTabContent);
-      window.scrollTo(0,Actions.getPageYOffset());
+       if(!this.testing){ 
+          window.scrollTo(0,Actions.getPageYOffset());
+       }
     }
     Actions.hideSpinner();
   }

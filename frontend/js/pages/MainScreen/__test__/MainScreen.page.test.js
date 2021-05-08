@@ -58,11 +58,11 @@ describe('modal opening tests',()=>{
         expect(btn).not.toBe(null)
         expect(btn.disabled).toBe(true)
         input1.selectedIndex = 1; 
-        input2.value = "sagar.sql";      
+        input2.value = "sagar.sql"; 
         expect(document.getElementById('session-file-path').value).toBe('sagar.sql')
-        btn.disabled = false;
-        expect(btn.disabled).toBe(false)
-        
+        setTimeout(()=>{
+        expect(2+2).toBe(5)
+        },0)     
     });
 
     // test('Fill all details in model should get data',async ()=>{

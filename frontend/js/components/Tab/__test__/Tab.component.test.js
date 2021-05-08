@@ -21,15 +21,12 @@ test('total tabs',()=>{
     document.body.innerHTML = `<div><hb-loading-spinner></hb-loading-spinner> <hb-tab currentTab="reportTab"><hb-tab/></div>`;
     let tabsarray = document.querySelectorAll('li.nav-item');
     expect(tabsarray.length).toBe(3);
-
 })
 
-test('disabled tab features',()=>{
+describe('disabled tab features',()=>{
     let currenttab = Store.getinstance().currentTab;
-    // console.log(currenttab);
     document.body.innerHTML = `<div><hb-loading-spinner></hb-loading-spinner> <hb-tab currentTab=${currenttab}><hb-tab/></div>`;
     let tab = document.querySelector('#ddlTab')
-    // console.log(tab)
     expect(tab.className).toBe("nav-link ")
     tab.click();
     currenttab = Store.getinstance().currentTab
