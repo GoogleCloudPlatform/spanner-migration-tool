@@ -1,6 +1,6 @@
 import "./../MainScreen.page.js"
 
-describe(" mainscreen page render test",()=>{
+describe("mainscreen page render test",()=>{
     beforeAll(()=>{
         document.body.innerHTML = '<hb-main-screen></hb-main-screen>'
     })
@@ -46,42 +46,7 @@ describe('modal opening tests',()=>{
     test('modal should open when you click hb-image-icon component',()=>{
         expect(document.getElementById('loadSchemaModal').style.display).toBe('block')
         expect(document.getElementById('loadSchemaModal').className).toBe('modal show')
-    });
-
-    test('button should be enabled when both value provided ',()=>{
-
-        let input1 =document.getElementById('import-db-type');
-        let input2 = document.getElementById('session-file-path');
-        let btn = document.getElementById('load-session-button');
-        expect(input1).not.toBe(null)
-        expect(input2).not.toBe(null)
-        expect(btn).not.toBe(null)
-        expect(btn.disabled).toBe(true)
-        input1.selectedIndex = 1; 
-        input2.value = "sagar.sql"; 
-        expect(document.getElementById('session-file-path').value).toBe('sagar.sql')
-        setTimeout(()=>{
-        expect(2+2).toBe(5)
-        },0)     
-    });
-
-    // test('Fill all details in model should get data',async ()=>{
-    //     document.body.innerHTML = '<div><hb-main-screen></hb-main-screen> <hb-loading-spinner></hb-loading-spinner> </div>'
-
-    //     let input1 =document.getElementById('import-db-type');
-    //     let input2 = document.getElementById('session-file-path');
-    //     let btn = document.getElementById('load-session-button');
-
-    //     expect(btn.disabled).toBe(true)
-    //     input1.selectedIndex = 1; 
-    //     input2.value = "sagar.sql";   
-    //     btn.disabled = false;
-    //     expect(btn.disabled).toBe(false)
-    //     btn.click()
-    //     expect(document.getElementById('snackbar').classList).toBe('sam')
-    // })
-
-    
+    }); 
 })
 
 

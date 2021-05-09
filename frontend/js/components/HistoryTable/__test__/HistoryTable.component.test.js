@@ -13,7 +13,6 @@ test('conditional rendering in history table',()=>{
     let sessionArray = JSON.parse(sessionStorage.getItem("sessionStorage"));
     document.body.innerHTML = `<hb-history-table></hb-history-table>`
     if(sessionArray){
-        console.log("inside")
         let rows = document.querySelectorAll('tr.sessions');
         expect(rows.length).toBe(sessionArray.length);
     }
