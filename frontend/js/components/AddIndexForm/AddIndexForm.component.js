@@ -24,23 +24,26 @@ class AddIndexForm extends HTMLElement {
     });
 
     Forms.formButtonHandler("create-index-form", "create-index-button");
-    if(document.getElementById("createIndexModal")){
-      document.getElementById("createIndexModal")
-      .querySelector("i")
-      .addEventListener("click", () => {
-        Actions.closeSecIndexModal();
-      });}
+    if (document.getElementById("createIndexModal")) {
+      document
+        .getElementById("createIndexModal")
+        .querySelector("i")
+        .addEventListener("click", () => {
+          Actions.closeSecIndexModal();
+        });
+    }
 
-    if(document.getElementById("create-index-button")){
-        document.getElementById("create-index-button")
-      .addEventListener("click", () => {
-        Actions.fetchIndexFormValues(
-          this.tableIndex,
-          this.tableName,
-          document.getElementById("index-name").value,
-          document.getElementById("unique-switch").checked
-        );
-      });
+    if (document.getElementById("create-index-button")) {
+      document
+        .getElementById("create-index-button")
+        .addEventListener("click", () => {
+          Actions.fetchIndexFormValues(
+            this.tableIndex,
+            this.tableName,
+            document.getElementById("index-name").value,
+            document.getElementById("unique-switch").checked
+          );
+        });
     }
 
     this.data.map((row, idx) => {
@@ -63,7 +66,8 @@ class AddIndexForm extends HTMLElement {
             <span class='form-error' id='index-name-error'></span>
         </div>
         <div id="newIndexColumnListDiv" class="column-list-container">
-              ${this.data.map((row, idx) => {
+              ${this.data
+                .map((row, idx) => {
                   return `
                 <div class="new-index-column-list" id="indexColumnRow${idx}">
                     <span class="order-id invisible-badge" id="order${row}${idx}">1</span>

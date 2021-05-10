@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest --watchAll"
+    "test": "jest --watchAll --verbose",
+    "puppeteer": "node puppeteerTest.js"
   },
   "author": "",
   "license": "ISC",
@@ -23,5 +24,8 @@
     "setupFiles": [
       "./jest_setup.js"
     ]
+  },
+  "dependencies": {
+    "puppeteer": "^9.1.1"
   }
 }
