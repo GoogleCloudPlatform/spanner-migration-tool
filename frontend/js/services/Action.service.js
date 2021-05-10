@@ -26,6 +26,10 @@ const Actions = (() => {
       return "1";
     },
 
+    add:(a,b)=>{
+      return a+b;
+    } ,
+
     resetStore: () => {
       Store.resetStore();
     },
@@ -495,11 +499,16 @@ const Actions = (() => {
       }
     },
 
+<<<<<<< HEAD
     isValueUpdated: (data, tableNumber, tableName, notNullConstraint) => {
+=======
+    isValueUpdated:(data,tableNumber,tableName,notNullConstraint)=>{
+>>>>>>> hb-ui-test-with-jest
       let columnPerPage = 15;
       let tableId = '#src-sp-table' + tableNumber + ' tr';
       let pageNumber = Store.getCurrentPageNumber(tableNumber)
       let pageColArray = data.SpSchema[tableName].ColNames
+<<<<<<< HEAD
         .filter((_, idx) => idx >= pageNumber * columnPerPage && idx < pageNumber * columnPerPage + columnPerPage);
       for (let i = 0; i < columnPerPage; i++) {
         let newName = document.getElementById('column-name-text-' + tableNumber + i + i).value;
@@ -508,6 +517,18 @@ const Actions = (() => {
         if (pageColArray[i] !== newName
           || newType !== data.SpSchema[tableName].ColDefs[pageColArray[i]].T.Name
           || data.SpSchema[tableName].ColDefs[pageColArray[i]].NotNull !== newConstraint) {
+=======
+          .filter((_, idx)=> idx>= pageNumber*columnPerPage && idx < pageNumber*columnPerPage + columnPerPage );
+     for(let i=0;i<columnPerPage ;i++)
+     {
+       let newName = document.getElementById('column-name-text-'+tableNumber+i+i).value;
+       let newType = document.getElementById('data-type-'+tableNumber+i+i).value;
+       let newConstraint = notNullConstraint[i] === 'Not Null';
+       if(pageColArray[i] !== newName 
+        || newType !==  data.SpSchema[tableName].ColDefs[pageColArray[i]].T.Name 
+        || data.SpSchema[tableName].ColDefs[pageColArray[i]].NotNull !== newConstraint )
+        {
+>>>>>>> hb-ui-test-with-jest
           return true;
         }
       }
@@ -868,8 +889,14 @@ const Actions = (() => {
     },
 
     switchCurrentTab: (tab) => {
+<<<<<<< HEAD
       if (Store.getCurrentTab() !== tab) Actions.showSpinner()
       Store.switchCurrentTab(tab)
+=======
+      if(Store.getCurrentTab() !== tab) Actions.showSpinner()
+      Store.switchCurrentTab(tab);
+
+>>>>>>> hb-ui-test-with-jest
     },
 
     openCarousel: (tableId, tableIndex) => {

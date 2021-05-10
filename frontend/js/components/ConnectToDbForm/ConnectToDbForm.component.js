@@ -6,10 +6,13 @@ class ConnectToDbForm extends HTMLElement {
     connectedCallback() {
         this.render();
         let response;
-        let modalData = document.getElementById("connectToDbModal");
-        modalData.querySelector("i").addEventListener("click", () => {
-            Forms.resetConnectToDbModal();
-        });
+        if (document.getElementById("connectToDbModal")) {
+            document.getElementById("connectToDbModal")
+            .querySelector("i")
+            .addEventListener("click", () => {
+                Forms.resetConnectToDbModal();
+            });
+        }
         document.getElementById("db-type").addEventListener("change", () => {
             Forms.toggleDbType();
         });
@@ -21,13 +24,13 @@ class ConnectToDbForm extends HTMLElement {
             }
         });
         Forms.formButtonHandler("connect-form", "connect-button");
-        document.getElementById("connect-button").addEventListener("click", async () => {
+        document.getElementById("connect-button")?.addEventListener("click", async () => {
             response = await Actions.onconnect(document.getElementById('db-type').value, document.getElementById('db-host').value,
                 document.getElementById('db-port').value, document.getElementById('db-user').value,
                 document.getElementById('db-name').value, document.getElementById('db-password').value);
             if (response.ok) {
-                jQuery('#convert-button').off('click');
-                document.getElementById("convert-button").addEventListener("click", this.convertSchema);
+                jQuery('#convert-button')?.off('click');
+                document.getElementById("convert-button")?.addEventListener("click", this.convertSchema);
             }
             Forms.resetConnectToDbModal();
         });

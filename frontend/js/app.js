@@ -19,7 +19,7 @@ const SchemaComponent = {
   render: () => {
     document.getElementById(
       "app"
-    ).innerHTML = `<hb-default-layout><hb-schema-conversion-screen></hb-schema-conversion-screen></<hb-default-layout>`;
+    ).innerHTML = `<hb-default-layout><hb-schema-conversion-screen ></hb-schema-conversion-screen></<hb-default-layout>`;
   },
 };
 

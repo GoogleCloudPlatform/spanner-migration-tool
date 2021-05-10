@@ -51,7 +51,7 @@ class HistoryTable extends HTMLElement {
                         })
                         .join("")
                     : `
-                    <tr class='session-table-img'>
+                      <tr class='session-table-img'>
                         <td colspan='5' class='center session-image'><img src='Icons/Icons/Group 2154.svg' alt='nothing to show'></td>
                       </tr>
                       <tr class='session-table-no-Content'>

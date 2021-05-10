@@ -13,9 +13,13 @@ import Store from "./../../services/Store.service.js";
 import "../../services/Fetch.service.js";
 
 // constants
-import { TAB_CONFIG_DATA } from "./../../config/constantData.js";
 
 class SchemaConversionScreen extends HTMLElement {
+
+  get testing(){
+    return this.getAttribute("testing");
+  }
+
   connectedCallback() {
     this.stateObserver = setInterval(this.observeState, 150);
     Actions.showSpinner()
@@ -39,6 +43,11 @@ class SchemaConversionScreen extends HTMLElement {
         let component = document.querySelector(`#reportTab${i}`);
         component.data = filterdata;
       }
+  }
+
+  set Data(data) {
+      this.data = data;
+      this.render();
   }
 
   getChangingValue(currentTab) {
@@ -66,6 +75,7 @@ class SchemaConversionScreen extends HTMLElement {
       return;
     }
     const { currentTab, tableData, tableBorderData,searchInputValue } = this.data;
+    // console.log(tableData);
     let currentTabContent = tableData[`${currentTab}Content`];
     if(Object.keys(currentTabContent).length == 0) {
       Actions.hideSpinner();
@@ -91,13 +101,7 @@ class SchemaConversionScreen extends HTMLElement {
         </h4>
       </div>
       <div class="report-tabs">
-        <ul class="nav nav-tabs md-tabs" role="tablist">
-           ${TAB_CONFIG_DATA.map((tab) => {
-             return `<hb-tab open="${
-               Store.getinstance().currentTab === `${tab.id}Tab`
-             }" tabid="${tab.id}" text="${tab.text}"></hb-tab>`;
-           }).join("")} 
-        </ul>
+           <hb-tab currentTab = ${currentTab}>
       </div>
       <div class="status-icons">
         <hb-search tabid="${currentTab}" class="inlineblock" ></hb-search>
@@ -176,10 +180,12 @@ class SchemaConversionScreen extends HTMLElement {
       connectIconClass="" modalBodyClass="" title="Select keys for new index"></hb-modal>`;
 
     initSchemaScreenTasks();
-    if (currentTab === "reportTab") {
+    if (currentTab === "reportTab" && !this.testing) {
       this.sendDatatoReportTab(tableNameArray
         .filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1), currentTabContent);
-      window.scrollTo(0,Actions.getPageYOffset());
+       if(!this.testing){ 
+          window.scrollTo(0,Actions.getPageYOffset());
+       }
     }
     Actions.hideSpinner();
   }
