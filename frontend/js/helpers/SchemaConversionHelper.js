@@ -123,3 +123,62 @@ export const recreateNode = (el) => {
   let newEl = el.cloneNode(false);
   el.parentNode.replaceChild(newEl, el);
 };
+
+export const checkBoxStateHandler = (tableIndex,numOfColumn)=> {
+  let uncheckCount;
+  let checkAllTableNumber = jQuery("#chck-all-" + tableIndex);
+  let checkClassTableNumber = jQuery(".chck-class-" + tableIndex);
+
+  checkAllTableNumber.click(function () {
+    checkClassTableNumber = jQuery(".chck-class-" + tableIndex);
+    switch (jQuery(this).is(":checked")) {
+      case true:
+        checkClassTableNumber.prop("checked", true);
+        uncheckCount = 0;
+        break;
+      case false:
+        checkClassTableNumber.prop("checked", false);
+        uncheckCount = numOfColumn;
+        break;
+    }
+  });
+
+  checkClassTableNumber.click(function () {
+    checkAllTableNumber = jQuery("#chck-all-" + tableIndex);
+    if (jQuery(this).is(":checked")) {
+      uncheckCount = uncheckCount - 1;
+      if (uncheckCount === 0) {
+        checkAllTableNumber.prop("checked", true);
+      }
+    } else {
+      uncheckCount = uncheckCount + 1;
+      checkAllTableNumber.prop("checked", false);
+    }
+  });
+}
+
+export const editButtonHandler = (tableNumber, notNullConstraint) => {
+  let tableId = '#src-sp-table' + tableNumber + ' tr';
+  let tableColumnNumber = 0;
+  jQuery(tableId).each(function (index) {
+    if (index > 1) {
+      let constraintId = 'sp-constraint-' + tableNumber + tableColumnNumber;
+      jQuery('#sp-constraint-' + tableNumber + tableColumnNumber).on('change', function () {
+        let idNum = parseInt(jQuery(this).attr('id').match(/\d+/g), 10);
+        let constraints = document.getElementById(constraintId);
+        if (constraints) {
+          let constraintsLength = constraints.length;
+          for (let c = 0; c < constraintsLength; c++) {
+            if (constraints.options[c].selected) {
+              notNullConstraint[idNum] = 'Not Null';
+            }
+            else {
+              notNullConstraint[idNum] = '';
+            }
+          }
+        }
+      });
+      tableColumnNumber++;
+    }
+  });
+}

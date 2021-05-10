@@ -15,16 +15,15 @@ class DefaultLayout extends HTMLElement {
         if(Object.keys(Store.getinstance().tableData.reportTabContent).length === 0){
             let sessionArray = JSON.parse(sessionStorage.getItem("sessionStorage"));
             let idx = sessionStorage.getItem('currentSessionIdx')
-            if(idx === null) sessionStorage.setItem('currentSessionIdx',0)
-            if(!sessionArray || sessionArray.length === 0)
+            if(!sessionArray || sessionArray.length === 0 || idx === null)
             {
                 window.location.href = '/';
             }
-            await Actions.resumeSessionHandler(sessionStorage.getItem('currentSessionIdx'), sessionArray);
+            await Actions.resumeSessionHandler(idx, sessionArray);
             await Actions.ddlSummaryAndConversionApiCall();
             await Actions.setGlobalDataTypeList()
         }
-    }
+      }
     }
     
     render(data) {
@@ -36,6 +35,7 @@ class DefaultLayout extends HTMLElement {
         <div>${data.outerHTML}</div>`;
         Actions.hideSpinner()
         this.refreshHandler(data)
+        window.scrollTo(0,0)
     }
 
     constructor() {

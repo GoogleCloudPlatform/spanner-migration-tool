@@ -17,7 +17,8 @@ import { TAB_CONFIG_DATA } from "./../../config/constantData.js";
 
 class SchemaConversionScreen extends HTMLElement {
   connectedCallback() {
-    this.stateObserver = setInterval(this.observeState, 100);
+    this.stateObserver = setInterval(this.observeState, 150);
+    Actions.showSpinner()
     this.render();
   }
 
@@ -33,10 +34,10 @@ class SchemaConversionScreen extends HTMLElement {
           ToSource: currentTabContent.ToSource[tableNameArray[i]],
           ToSpanner: currentTabContent.ToSpanner[tableNameArray[i]],
           summary : Store.getinstance().tableData["summaryTabContent"][tableNameArray[i]],
+          currentPageNumber : Actions.getCurrentPageNumber(i)
         };
         let component = document.querySelector(`#reportTab${i}`);
         component.data = filterdata;
-        component.addEventListener('click', ()=>{Store.setCurrentClickedCarousel(i);})
       }
   }
 
@@ -58,10 +59,6 @@ class SchemaConversionScreen extends HTMLElement {
       this.data = JSON.parse(JSON.stringify(updatedData));
       this.render();
     }
-    if (Store.getTableChanges() == "saveMode" && JSON.stringify(updatedData) == JSON.stringify(this.data)) {
-      Store.setTableChanges("editMode");
-      this.render();
-    }
   };
 
   render() {
@@ -70,6 +67,10 @@ class SchemaConversionScreen extends HTMLElement {
     }
     const { currentTab, tableData, tableBorderData,searchInputValue } = this.data;
     let currentTabContent = tableData[`${currentTab}Content`];
+    if(Object.keys(currentTabContent).length == 0) {
+      Actions.hideSpinner();
+      return;
+    }
     const changingText = this.getChangingValue(currentTab);
     let tableNameArray;
     if (currentTab === "reportTab") {
@@ -79,7 +80,7 @@ class SchemaConversionScreen extends HTMLElement {
       tableNameArray = Object.keys(currentTabContent)
                             .filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1);
     }
-
+    
     this.innerHTML = `
     <div class="summary-main-content" id='schema-screen-content'>
       <div id="snackbar"></div>
@@ -178,20 +179,13 @@ class SchemaConversionScreen extends HTMLElement {
     if (currentTab === "reportTab") {
       this.sendDatatoReportTab(tableNameArray
         .filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1), currentTabContent);
-      let carouselIndex = Actions.getCurrentClickedCarousel();
-      let mybtn = document.getElementById(`${carouselIndex}`);
-      let hg = mybtn?.getBoundingClientRect().top + document.documentElement.scrollTop
-      window.scrollBy(0,hg);
-      document.getElementById(`index-key-${carouselIndex}`)?.classList.add('show');
-      document.getElementById(`foreign-key-${carouselIndex}`)?.classList.add('show');
+      window.scrollTo(0,Actions.getPageYOffset());
     }
+    Actions.hideSpinner();
   }
   constructor() {
     super();
   }
 }
 
-window.customElements.define(
-  "hb-schema-conversion-screen",
-  SchemaConversionScreen
-);
+window.customElements.define("hb-schema-conversion-screen", SchemaConversionScreen);

@@ -72,7 +72,7 @@ class AddIndexForm extends HTMLElement {
                         <div class="checkbox float-right" >
                             <label>
                                 <input type="checkbox" value="" id="checkbox-${row}-${idx}">
-                                <span class="checkbox-decorator"><span id="index-checkbox" class="check black-border" ></span>
+                                <span class="checkbox-decorator"><span id="index-checkbox-${row}-${idx}" class="check black-border" ></span>
                                     <div class="ripple-container"></div>
                                 </span>
                             </label>

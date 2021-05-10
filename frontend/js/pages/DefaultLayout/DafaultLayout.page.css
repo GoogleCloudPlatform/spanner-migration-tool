@@ -96,3 +96,11 @@ button[disabled]{
   color: #666666;
   cursor:not-allowed
 }
+
+.primary-color-number{
+  color: #4285f4;
+}
+
+.error-content-container{
+  max-height: 310px;
+}

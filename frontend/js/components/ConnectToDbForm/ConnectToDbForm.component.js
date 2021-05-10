@@ -34,6 +34,7 @@ class ConnectToDbForm extends HTMLElement {
     }
 
     convertSchema = async () => {
+        Actions.showSpinner()
         await Actions.showSchemaAssessment();
         await Actions.ddlSummaryAndConversionApiCall();
         await Actions.setGlobalDataTypeList();

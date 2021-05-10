@@ -32,7 +32,10 @@ class TableCarousel extends HTMLElement {
     this._data = value;
     this.render();
     this.addEventListenertoCarausal();
-    document.querySelector(`hb-data-table[tableName=${this.tableTitle}`).data =this._data; 
+    if(Actions.carouselStatus(this.tabId)[this.tableIndex]){
+      document.querySelector(`hb-data-table[tableName=${this.tableTitle}`).data =this._data; 
+    }
+   
   }
 
   get borderData() {
@@ -41,6 +44,7 @@ class TableCarousel extends HTMLElement {
 
   addEventListenertoCarausal() {
     document.getElementById(`id-${this.tabId}-${this.tableIndex}`).addEventListener('click',()=>{
+      Actions.showSpinner()
       if(Actions.carouselStatus(this.tabId)[this.tableIndex])
       {
         Actions.closeCarousel(this.tabId , this.tableIndex)
@@ -66,6 +70,8 @@ class TableCarousel extends HTMLElement {
     let cardColor = mdcCardBorder(color);
     let carouselStatus = Actions.carouselStatus(this.tabId)[this.tableIndex];
     let editButtonVisibleClass = carouselStatus ? 'show-content' : 'hide-content';
+    let tableMode = Actions.getTableMode(tableIndex);
+
  
     this.innerHTML = `
     <section class="${tabId}-section" id="${tableIndex}">
@@ -86,31 +92,33 @@ class TableCarousel extends HTMLElement {
                   <i class="large material-icons round-icon-size">circle</i>
                 </span>
                 <button class="edit-button ${editButtonVisibleClass}" id="editSpanner${tableIndex}">
-                  Edit Spanner Schema
+                  ${tableMode?"Save Changes" : " Edit Spanner Schema"}
                 </button>
-                <span id="edit-instruction${tableIndex}" class="right-align edit-instruction ${editButtonVisibleClass} blink">
+                ${tableMode==false && carouselStatus ? `
+                  <span id="edit-instruction${tableIndex}" class="right-align edit-instruction blink ">
                   Schema locked for editing. Unlock to change =>
-                </span> `
+                </span> `:`<div></div>`}`
                 :
                 ` <div></div> `
              }
           </h5>
         </div>
-    
-        <div class="collapse ${tabId}-collapse ${carouselStatus?"show bs collapse":""}" id="${tabId}-${tableTitle}">
-          <div class="mdc-card mdc-card-content table-card-border ${cardColor}">
-            ${ tabId == "report" ? `
-            <hb-data-table tableName="${tableTitle}" tableIndex="${tableIndex}" ></hb-data-table>` 
-            :
-            `<hb-list-table tabName="${tabId}" tableName="${tableTitle}" dta="${stringData}"></hb-list-table>`
-           }
-          </div>
-        </div>
+         ${
+           carouselStatus ? `<div class="collapse ${tabId}-collapse show bs collapse show-carausel" id="${tabId}-${tableTitle}">
+           <div class="mdc-card mdc-card-content table-card-border ${cardColor}">
+             ${ tabId == "report" ? `
+             <hb-data-table tableName="${tableTitle}" tableIndex="${tableIndex}" ></hb-data-table>` 
+             :
+             `<hb-list-table tabName="${tabId}" tableName="${tableTitle}" dta="${stringData}"></hb-list-table>`
+            }
+           </div>
+         </div>`:`<div></div>`
+         }
+        
 
       </div>
     </section> `;
-
-
+   
   }
 
   constructor() {
