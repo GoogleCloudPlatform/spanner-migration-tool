@@ -396,63 +396,67 @@ let TableData = {
       "summary":"dummy summary content"
   }
 
-  beforeEach(()=>{
-    document.body.innerHTML = `<hb-data-table tableName="test table title" tableIndex="0"></hb-data-table>`;
-  })
+  describe('dataTable tests',()=>{
 
-  test('should not render if data not passed ', () => {
-    let dataTable = document.querySelector("hb-data-table");
-  expect(dataTable).not.toBe(null);
-  expect(dataTable.innerHTML).toBe("");
-  })
-  
+        beforeEach(()=>{
+            document.body.innerHTML = `<hb-data-table tableName="test table title" tableIndex="0"></hb-data-table>`;
+        })
 
-test("data table component should render with given data", () => {
-  let dataTable = document.querySelector("hb-data-table");
-  expect(dataTable).not.toBe(null);
-  expect(dataTable.innerHTML).toBe("");
-  expect(dataTable.tableName).toBe('test table title');
-  dataTable.data = TableData;
-  dataTable.setAttribute("tableName",'sam');
-  expect(dataTable.tableName).toBe('sam');
-  expect(dataTable.innerHTML).not.toBe("");
-  expect(document.querySelector('.fk-card')).not.toBe(null)
-  expect(document.querySelector('.collapse.index-collapse.show')).not.toBe(null)
-  expect(document.querySelector('hb-site-button').buttonAction).toBe('createNewSecIndex')
-});
+        test('should not render if data not passed ', () => {
+            let dataTable = document.querySelector("hb-data-table");
+        expect(dataTable).not.toBe(null);
+        expect(dataTable.innerHTML).toBe("");
+        })
+        
 
-test('pagination section should render',()=>{
-  let dataTable = document.querySelector("hb-data-table");
-  dataTable.data = TableData;
-  expect(document.querySelector('#pre-btn0')).not.toBe(null)
-  expect(document.querySelector('.pagination-number')).not.toBe(null)
-  expect(document.querySelector('#next-btn0')).not.toBe(null)
+        test("data table component should render with given data", () => {
+        let dataTable = document.querySelector("hb-data-table");
+        expect(dataTable).not.toBe(null);
+        expect(dataTable.innerHTML).toBe("");
+        expect(dataTable.tableName).toBe('test table title');
+        dataTable.data = TableData;
+        dataTable.setAttribute("tableName",'sam');
+        expect(dataTable.tableName).toBe('sam');
+        expect(dataTable.innerHTML).not.toBe("");
+        expect(document.querySelector('.fk-card')).not.toBe(null)
+        expect(document.querySelector('.collapse.index-collapse.show')).not.toBe(null)
+        expect(document.querySelector('hb-site-button').buttonAction).toBe('createNewSecIndex')
+        });
 
-})
+        test('pagination section should render',()=>{
+        let dataTable = document.querySelector("hb-data-table");
+        dataTable.data = TableData;
+        expect(document.querySelector('#pre-btn0')).not.toBe(null)
+        expect(document.querySelector('.pagination-number')).not.toBe(null)
+        expect(document.querySelector('#next-btn0')).not.toBe(null)
 
-test('foreign key table should render ', ()=>{
-  let dataTable = document.querySelector("hb-data-table");
-  dataTable.data = TableData;
-  let fkSection = document.querySelectorAll('#fk-table-body-0 > tr')
-  expect(fkSection.length).toBe(TableData.SrcSchema.ForeignKeys.length)
- 
-})
+        })
 
-test('secondary index table should render',()=>{
-  let dataTable = document.querySelector("hb-data-table");
-  dataTable.data = TableData;
-  let fkSection = document.querySelectorAll('.index-acc-table.fk-table > tbody > tr')
-  expect(fkSection.length).toBe(TableData.SrcSchema.Indexes.length)
-  expect(document.querySelector(".new-index-button")).not.toBe(null)
-  expect(document.querySelector(".new-index-button")).not.toBe(null)
-})
+        test('foreign key table should render ', ()=>{
+        let dataTable = document.querySelector("hb-data-table");
+        dataTable.data = TableData;
+        let fkSection = document.querySelectorAll('#fk-table-body-0 > tr')
+        expect(fkSection.length).toBe(TableData.SrcSchema.ForeignKeys.length)
+        
+        })
 
-test('summary component should render', ()=>{
-  let dataTable = document.querySelector("hb-data-table");
-  dataTable.data = TableData;
-  expect(document.querySelector('hb-list-table')).not.toBe(null)
-  expect(document.querySelector('hb-list-table')).not.toBe('undefined')
-  expect(document.querySelector('hb-list-table').getAttribute('dta')).toBe("dummy summary content")
+        test('secondary index table should render',()=>{
+        let dataTable = document.querySelector("hb-data-table");
+        dataTable.data = TableData;
+        let fkSection = document.querySelectorAll('.index-acc-table.fk-table > tbody > tr')
+        expect(fkSection.length).toBe(TableData.SrcSchema.Indexes.length)
+        expect(document.querySelector(".new-index-button")).not.toBe(null)
+        expect(document.querySelector(".new-index-button")).not.toBe(null)
+        })
+
+        test('summary component should render', ()=>{
+        let dataTable = document.querySelector("hb-data-table");
+        dataTable.data = TableData;
+        expect(document.querySelector('hb-list-table')).not.toBe(null)
+        expect(document.querySelector('hb-list-table')).not.toBe('undefined')
+        expect(document.querySelector('hb-list-table').getAttribute('dta')).toBe("dummy summary content")
+        })
+
 })
 
 

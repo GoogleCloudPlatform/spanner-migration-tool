@@ -75,7 +75,6 @@ class SchemaConversionScreen extends HTMLElement {
       return;
     }
     const { currentTab, tableData, tableBorderData,searchInputValue } = this.data;
-    // console.log(tableData);
     let currentTabContent = tableData[`${currentTab}Content`];
     if(Object.keys(currentTabContent).length == 0) {
       Actions.hideSpinner();
