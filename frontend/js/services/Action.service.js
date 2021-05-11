@@ -918,6 +918,9 @@ const Actions = (() => {
         },
 
         changePage: (tableIndex,pageindex) => {
+            if(Actions.getCurrentPageNumber(tableIndex) == pageindex){
+                Actions.hideSpinner();
+            }
             Store.setPageNumber(tableIndex,pageindex);
         }
 

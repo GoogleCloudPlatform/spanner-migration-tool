@@ -242,7 +242,6 @@ const Store = (function () {
 
     setPageNumber: (tableIndex, pageNumber) => {
       instance.currentPageNumber[tableIndex] = pageNumber;
-
     }
   };
 })();

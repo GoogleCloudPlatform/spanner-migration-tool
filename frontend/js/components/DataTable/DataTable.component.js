@@ -164,6 +164,7 @@ class DataTable extends HTMLElement {
         let spTable = data.SpSchema;
         let srcTable = data.SrcSchema;
         let tableColumnsArray = data.SpSchema.ColNames;
+        let tableColumnsArrayLength = tableColumnsArray.length;
         let pksSp = [...spTable.Pks];
         let pksSpLength = pksSp.length;
         let pkSeqId = 1;
@@ -180,9 +181,10 @@ class DataTable extends HTMLElement {
         let dataTypesarray = Actions.getGlobalDataTypeList();
         let pageNumber = data.currentPageNumber;
         let columnPerPage = 15;
+        let maxPossiblePageNumber =  Math.ceil(tableColumnsArrayLength / columnPerPage);
         let tableColumnsArrayCurrent = [];
         let z = 0;
-        for(let i= pageNumber*columnPerPage ;i < Math.min(tableColumnsArray.length, pageNumber*columnPerPage+15) ; i++ )
+        for(let i= pageNumber*columnPerPage ;i < Math.min(tableColumnsArrayLength, pageNumber*columnPerPage+15) ; i++ )
         {
             tableColumnsArrayCurrent[z]=tableColumnsArray[i];
             z++;
@@ -345,12 +347,12 @@ class DataTable extends HTMLElement {
                     </tbody>
                 </table>
                 <div class="pagination-container">
-                    <span class="pagination-text">Showing ${pageNumber * columnPerPage + 1} to ${Math.min(pageNumber * columnPerPage + columnPerPage, tableColumnsArray.length)} of ${tableColumnsArray.length} entries </span>
+                    <span class="pagination-text">Showing ${pageNumber * columnPerPage + 1} to ${Math.min(pageNumber * columnPerPage + columnPerPage, tableColumnsArrayLength)} of ${tableColumnsArrayLength} entries </span>
                     <div>
                         <button  class="pagination-button" id="pre-btn${tableIndex}" ${pageNumber <= 0 ? `disabled` : ``}>&#8592; Pre </button>
-                        <input class="pagination-input" type="number" min="1" max="${Math.ceil(tableColumnsArray.length / columnPerPage)}" value="${parseInt(pageNumber)+1}" id="pagination-input-id-${tableIndex}" />
-                        <span  class="pagination-number">/${Math.ceil(tableColumnsArray.length / columnPerPage)}</span>
-                        <button  class="pagination-button" id="next-btn${tableIndex}" ${(pageNumber + 1) * columnPerPage >= tableColumnsArray.length ? `disabled` : ``}> Next &#8594; </button>
+                        <input class="pagination-input" type="number" min="1" max="${ maxPossiblePageNumber}" value="${parseInt(pageNumber)+1}" id="pagination-input-id-${tableIndex}" />
+                        <span  class="pagination-number">/${ maxPossiblePageNumber}</span>
+                        <button  class="pagination-button" id="next-btn${tableIndex}" ${(pageNumber + 1) * columnPerPage >= tableColumnsArrayLength ? `disabled` : ``}> Next &#8594; </button>
                     </div>
                 </div>
             ${spTable.Fks?.length > 0 ? this.fkComponent(tableIndex, tableName, spTable.Fks, tableMode) : `<div></div>`}
@@ -394,15 +396,17 @@ class DataTable extends HTMLElement {
         });
         document.getElementById("pagination-input-id-"+tableIndex).addEventListener("keypress",(e)=>{
             if(e.key === "Enter" && e.target.value != pageNumber+1){
-                if(e.target.value>0 && e.target.value<= Math.ceil(tableColumnsArray.length / columnPerPage) ) {
+                if(e.target.value>0 && e.target.value<=  maxPossiblePageNumber ) {
                     Actions.showSpinner();
                     Actions.changePage(tableIndex,parseInt(e.target.value)-1);
                 }
-                else if(e.target.value >Math.ceil(tableColumnsArray.length / columnPerPage)  ){
+                else if(e.target.value > maxPossiblePageNumber ){
+                    document.getElementById("pagination-input-id-"+tableIndex).value = maxPossiblePageNumber;
                     Actions.showSpinner();
-                    Actions.changePage(tableIndex,parseInt(Math.ceil(tableColumnsArray.length / columnPerPage))-1);
+                    Actions.changePage(tableIndex,parseInt(maxPossiblePageNumber)-1);
                 }
                 else if(e.target.value < 1){
+                    document.getElementById("pagination-input-id-"+tableIndex).value = 1;
                     Actions.showSpinner();
                     Actions.changePage(tableIndex,0);
                 }
