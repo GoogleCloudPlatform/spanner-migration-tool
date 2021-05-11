@@ -44,6 +44,7 @@ class LoadDbDumpForm extends HTMLElement {
             window.location.href = '#/schema-report';
             Actions.sessionRetrieval(Actions.getSourceDbName());
         } else {
+            debugger;
             Actions.hideSpinner()
         }
     }

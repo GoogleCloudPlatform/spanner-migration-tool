@@ -180,6 +180,13 @@ class DataTable extends HTMLElement {
         let dataTypesarray = Actions.getGlobalDataTypeList();
         let pageNumber = data.currentPageNumber;
         let columnPerPage = 15;
+        let tableColumnsArrayCurrent = [];
+        let z = 0;
+        for(let i= pageNumber*columnPerPage ;i < Math.min(tableColumnsArray.length, pageNumber*columnPerPage+15) ; i++ )
+        {
+            tableColumnsArrayCurrent[z]=tableColumnsArray[i];
+            z++;
+        }
 
         this.innerHTML =
             ` <div class="acc-card-content" id="acc-card-content">
@@ -216,7 +223,9 @@ class DataTable extends HTMLElement {
                     </thead>
                     <tbody class="acc-table-body">
                         
-                        ${tableColumnsArray.filter((_, idx) => idx >= pageNumber * columnPerPage && idx < pageNumber * columnPerPage + columnPerPage).map((tableColumn, index) => {
+                        ${
+                            // filter((_, idx) => idx >= pageNumber * columnPerPage && idx < pageNumber * columnPerPage + columnPerPage)          
+                tableColumnsArrayCurrent.map((tableColumn, index) => {
                 let pkFlag = false, seqId;
                 countSrc[tableIndex][index] = 0;
                 countSp[tableIndex][index] = 0;
@@ -339,7 +348,8 @@ class DataTable extends HTMLElement {
                     <span class="pagination-text">Showing ${pageNumber * columnPerPage + 1} to ${Math.min(pageNumber * columnPerPage + columnPerPage, tableColumnsArray.length)} of ${tableColumnsArray.length} entries </span>
                     <div>
                         <button  class="pagination-button" id="pre-btn${tableIndex}" ${pageNumber <= 0 ? `disabled` : ``}>&#8592; Pre </button>
-                        <span  class="pagination-number">${pageNumber + 1}/${Math.ceil(tableColumnsArray.length / columnPerPage)}</span>
+                        <input class="pagination-input" type="number" min="1" max="${Math.ceil(tableColumnsArray.length / columnPerPage)}" value="${parseInt(pageNumber)+1}" id="pagination-input-id-${tableIndex}" />
+                        <span  class="pagination-number">/${Math.ceil(tableColumnsArray.length / columnPerPage)}</span>
                         <button  class="pagination-button" id="next-btn${tableIndex}" ${(pageNumber + 1) * columnPerPage >= tableColumnsArray.length ? `disabled` : ``}> Next &#8594; </button>
                     </div>
                 </div>
@@ -360,7 +370,7 @@ class DataTable extends HTMLElement {
         </div>`;
 
         jQuery("#src-sp-table" + tableIndex).DataTable({ "paging": false, "bSort": false });
-        tableColumnsArray.filter((_, idx) => idx >= pageNumber * columnPerPage && idx < pageNumber * columnPerPage + columnPerPage).map((columnName, index) => {
+        tableColumnsArrayCurrent.map((columnName, index) => {
             new vanillaSelectBox('#srcConstraint' + tableIndex + index, {
                 placeHolder: countSrc[tableIndex][index] + " constraints selected",
                 maxWidth: 500,
@@ -382,6 +392,22 @@ class DataTable extends HTMLElement {
                    await Actions.SaveButtonHandler(tableIndex, tableName, notNullConstraint);
                 }
         });
+        document.getElementById("pagination-input-id-"+tableIndex).addEventListener("keypress",(e)=>{
+            if(e.key === "Enter" && e.target.value != pageNumber+1){
+                if(e.target.value>0 && e.target.value<= Math.ceil(tableColumnsArray.length / columnPerPage) ) {
+                    Actions.showSpinner();
+                    Actions.changePage(tableIndex,parseInt(e.target.value)-1);
+                }
+                else if(e.target.value >Math.ceil(tableColumnsArray.length / columnPerPage)  ){
+                    Actions.showSpinner();
+                    Actions.changePage(tableIndex,parseInt(Math.ceil(tableColumnsArray.length / columnPerPage))-1);
+                }
+                else if(e.target.value < 1){
+                    Actions.showSpinner();
+                    Actions.changePage(tableIndex,0);
+                }
+            }
+        })
 
         if (spTable.Fks !== null && spTable.Fks.length > 0) {
             spTable.Fks.map((fk, index) => {
