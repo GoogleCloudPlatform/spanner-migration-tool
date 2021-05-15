@@ -133,7 +133,7 @@ func TestIntegration_PGDUMP_SimpleUse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open the test data file: %v", err)
 	}
-	err = cmd.CommandLine(conversion.PGDUMP, projectID, instanceID, dbName /*dataOnly=*/, false /*schemaOnly=*/, false /*sessionJSON=*/, "", &conversion.IOStreams{In: f, Out: os.Stdout}, filePrefix, now)
+	err = cmd.CommandLine(conversion.PGDUMP, projectID, instanceID, dbName, /*dataOnly=*/false, /*schemaOnly=*/false, /*schemaSampleSize=*/0, /*sessionJSON=*/"", &conversion.IOStreams{In: f, Out: os.Stdout}, filePrefix, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +190,7 @@ func TestIntegration_POSTGRES_SimpleUse(t *testing.T) {
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
-	err := cmd.CommandLine(conversion.POSTGRES, projectID, instanceID, dbName /*dataOnly=*/, false /*schemaOnly=*/, false /*sessionJSON=*/, "", &conversion.IOStreams{Out: os.Stdout}, filePrefix, now)
+	err := cmd.CommandLine(conversion.POSTGRES, projectID, instanceID, dbName, /*dataOnly=*/false, /*schemaOnly=*/false, /*schemaSampleSize=*/0, /*sessionJSON=*/"", &conversion.IOStreams{Out: os.Stdout}, filePrefix, now)
 	if err != nil {
 		t.Fatal(err)
 	}

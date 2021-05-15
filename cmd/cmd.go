@@ -16,7 +16,6 @@
 package cmd
 
 import (
-	"flag"
 	"fmt"
 	"time"
 
@@ -29,21 +28,15 @@ var (
 	reportFile  = "report.txt"
 	schemaFile  = "schema.txt"
 	sessionFile = "session.json"
-
-	schemaSampleSize = int64(0)
 )
-
-func init() {
-	flag.Int64Var(&schemaSampleSize, "schema-sample-size", int64(100000), "schema-sample-size: the number of rows to use for inferring schema (only for DynamoDB)")
-}
 
 // CommandLine provides the core processing for HarbourBridge when run as a command-line tool.
 // It performs the following steps:
 // 1. Run schema conversion (if dataOnly is set to false)
 // 2. Create database (if schemaOnly is set to false)
 // 3. Run data conversion (if schemaOnly is set to false)
-// 4. Generate report (if schemaOnly is set to false)
-func CommandLine(driver, projectID, instanceID, dbName string, dataOnly, schemaOnly bool, sessionJSON string, ioHelper *conversion.IOStreams, outputFilePrefix string, now time.Time) error {
+// 4. Generate report
+func CommandLine(driver, projectID, instanceID, dbName string, dataOnly, schemaOnly bool, schemaSampleSize int64, sessionJSON string, ioHelper *conversion.IOStreams, outputFilePrefix string, now time.Time) error {
 	var conv *internal.Conv
 	var err error
 	if !dataOnly {

@@ -37,6 +37,7 @@ var (
 	instanceOverride string
 	filePrefix       = ""
 	driverName       = conversion.PGDUMP
+	schemaSampleSize = int64(0)
 	verbose          bool
 	schemaOnly       bool
 	dataOnly         bool
@@ -49,6 +50,7 @@ func init() {
 	flag.StringVar(&instanceOverride, "instance", "", "instance: Spanner instance to use")
 	flag.StringVar(&filePrefix, "prefix", "", "prefix: file prefix for generated files")
 	flag.StringVar(&driverName, "driver", "pg_dump", "driver name: flag for accessing source DB or dump files (accepted values are \"pg_dump\", \"postgres\", \"mysqldump\", and \"mysql\")")
+	flag.Int64Var(&schemaSampleSize, "schema-sample-size", int64(100000), "schema-sample-size: the number of rows to use for inferring schema (only for DynamoDB)")
 	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
 	flag.BoolVar(&schemaOnly, "schema-only", false, "schema-only: in this mode we do schema conversion, but skip data conversion")
 	flag.BoolVar(&dataOnly, "data-only", false, "data-only: in this mode we skip schema conversion and just do data conversion (use the session flag to specify the session file for schema and data mapping)")
@@ -70,6 +72,7 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
+	// Note: the web interface does not use any commandline flags.
 	if webapi {
 		web.WebApp()
 		return
@@ -129,7 +132,9 @@ func main() {
 		filePrefix = dbName + "."
 	}
 
-	err = cmd.CommandLine(driverName, project, instance, dbName, dataOnly, schemaOnly, sessionJSON, ioHelper, filePrefix, now)
+	// TODO (agasheesh@): Collect all the config state in a single struct and pass the same to CommandLine instead of
+	// passing multiple parameters. Config state would be populated by parsing the flags and environment variables.
+	err = cmd.CommandLine(driverName, project, instance, dbName, dataOnly, schemaOnly, schemaSampleSize, sessionJSON, ioHelper, filePrefix, now)
 	if err != nil {
 		panic(err)
 	}
