@@ -7,13 +7,21 @@ name: integration-tests-against-emulator
 jobs:
   test:
     runs-on: ubuntu-latest
-    # set PostgreSQL related environment variables
     env:
+      # set PostgreSQL related environment variables
       PGHOST: localhost
       PGPORT: 5432
       PGUSER: postgres
       PGDATABASE: postgres
       PGPASSWORD: postgres
+
+      # set MySQL related environment variables
+      DB_HOST: localhost
+      MYSQLHOST: localhost
+      MYSQLPORT: 3306
+      MYSQLUSER: root
+      MYSQLDATABASE: test
+      MYSQLPWD: root
 
     services:
       emulator:
@@ -31,6 +39,15 @@ jobs:
         - 5432:5432
         # needed because the postgres container does not provide a healthcheck
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      mariadb:
+        image: mariadb:10.3
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: test
+        ports:
+        - 3306:3306
+        # needed because the mysql container does not provide a healthcheck
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
 
     steps:
       - uses: actions/checkout@v2
@@ -44,6 +61,14 @@ jobs:
           sudo apt-get -yq install libpq-dev postgresql-client-12
       - run: psql --version
       - run: psql -f test_data/pg_dump.test.out
+
+      # init a MySQL database from the test_data
+      - name: Install MySQL client required for loading .sql files
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-client
+      - run: mysql --version
+      - run: mysql -v -P 3306 --protocol=tcp -u root -proot test < test_data/mysqldump.test.out
 
       # create a spanner instance
       - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
