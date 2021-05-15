@@ -31,7 +31,6 @@ import (
 
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
-	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/cmd"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"google.golang.org/api/iterator"
@@ -42,7 +41,6 @@ var (
 	projectID  string
 	instanceID string
 
-	instanceAdmin *instance.InstanceAdminClient
 	databaseAdmin *database.DatabaseAdminClient
 )
 
@@ -96,17 +94,6 @@ func dropDatabase(t *testing.T, dbPath string) {
 	}
 }
 
-func cleanupFiles(t *testing.T, files []string) {
-	for _, file := range files {
-		if _, err := os.Stat(file); err == nil {
-			err = os.Remove(file)
-			if err != nil {
-				t.Errorf("failed to delete file: %v", file)
-			}
-		}
-	}
-}
-
 func prepareIntegrationTest(t *testing.T) string {
 	if databaseAdmin == nil {
 		t.Skip("Integration tests skipped")
@@ -133,7 +120,7 @@ func TestIntegration_PGDUMP_SimpleUse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open the test data file: %v", err)
 	}
-	err = cmd.CommandLine(conversion.PGDUMP, projectID, instanceID, dbName, /*dataOnly=*/false, /*schemaOnly=*/false, /*schemaSampleSize=*/0, /*sessionJSON=*/"", &conversion.IOStreams{In: f, Out: os.Stdout}, filePrefix, now)
+	err = cmd.CommandLine(conversion.PGDUMP, projectID, instanceID, dbName, false, false, 0, "", &conversion.IOStreams{In: f, Out: os.Stdout}, filePrefix, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +177,7 @@ func TestIntegration_POSTGRES_SimpleUse(t *testing.T) {
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
-	err := cmd.CommandLine(conversion.POSTGRES, projectID, instanceID, dbName, /*dataOnly=*/false, /*schemaOnly=*/false, /*schemaSampleSize=*/0, /*sessionJSON=*/"", &conversion.IOStreams{Out: os.Stdout}, filePrefix, now)
+	err := cmd.CommandLine(conversion.POSTGRES, projectID, instanceID, dbName, false, false, 0, "", &conversion.IOStreams{Out: os.Stdout}, filePrefix, now)
 	if err != nil {
 		t.Fatal(err)
 	}
