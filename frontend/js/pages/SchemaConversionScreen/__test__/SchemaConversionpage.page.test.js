@@ -102,20 +102,34 @@ afterEach(() => {
   }
 });
 
-test("empty data test", () => {
-  document.body.innerHTML =
-    "<div><hb-loading-spinner></hb-loading-spinner><hb-schema-conversion-screen></hb-schema-conversion-screen></div>";
-  let btn = document.getElementsByTagName("hb-site-button");
-  expect(btn.length).toBe(0);
-});
+describe('empty data test',()=>{
+
+  afterEach(() => {
+    while (document.body.firstChild) {
+      document.body.removeChild(document.body.firstChild);
+    }
+  });
+  
+  test("empty data test", () => {
+    document.body.innerHTML =
+      "<div><hb-loading-spinner></hb-loading-spinner><hb-schema-conversion-screen></hb-schema-conversion-screen></div>";
+    let btn = document.getElementsByTagName("hb-site-button");
+    expect(btn.length).toBe(0);
+  });
+})
 
 describe("rendering test", () => {
-
   beforeEach(() => {
     document.body.innerHTML =
       '<div><hb-loading-spinner></hb-loading-spinner><hb-schema-conversion-screen testing = "true"></hb-schema-conversion-screen></div>';
     let page = document.querySelector("hb-schema-conversion-screen");
     page.Data = TableData;
+  });
+
+  afterEach(() => {
+    while (document.body.firstChild) {
+      document.body.removeChild(document.body.firstChild);
+    }
   });
 
   test("site button rendering test", () => {

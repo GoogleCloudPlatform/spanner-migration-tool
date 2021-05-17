@@ -208,6 +208,7 @@ const Store = (function () {
           summary: new Array(1).fill(false),
         },
         tableMode: new Array(1).fill(false),
+        currentPageNumber : new Array(1).fill(0),
         searchInputValue: {
           ddlTab: "",
           reportTab: "",
@@ -238,6 +239,10 @@ const Store = (function () {
     setTableMode: (tableIndex, val) => {
       instance.tableMode[tableIndex] = val;
     },
+
+    setPageNumber: (tableIndex, pageNumber) => {
+      instance.currentPageNumber[tableIndex] = pageNumber;
+    }
   };
 })();
 

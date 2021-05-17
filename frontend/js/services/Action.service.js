@@ -59,11 +59,13 @@ const Actions = (() => {
             reportDataResp = await reportData.text();
             if (requestCode != 200) {
                 showSnackbar(reportDataResp, " redBg");
+                Actions.hideSpinner();
                 return false;
             } else {
                 jsonReportDataResp = await reportDataCopy.json();
                 if (Object.keys(jsonReportDataResp.SpSchema).length == 0) {
                     showSnackbar("Please select valid file", " redBg");
+                    Actions.hideSpinner();
                     return false;
                 } else {
                     jQuery("#loadDatabaseDumpModal").modal("hide");
@@ -913,7 +915,15 @@ const Actions = (() => {
 
         getCurrentPageNumber: (idx) => {
             return Store.getCurrentPageNumber(idx)
+        },
+
+        changePage: (tableIndex,pageindex) => {
+            if(Actions.getCurrentPageNumber(tableIndex) == pageindex){
+                Actions.hideSpinner();
+            }
+            Store.setPageNumber(tableIndex,pageindex);
         }
+
 
     };
 })();
