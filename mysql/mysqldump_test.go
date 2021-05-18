@@ -831,7 +831,7 @@ func TestProcessMySQLDump_GetDDL(t *testing.T) {
 	c := ddl.Config{Tables: true}
 	// normalizeSpace isn't perfect, but it handles most of the
 	// usual discretionary space issues.
-	assert.Equal(t, normalizeSpace(expected), normalizeSpace(strings.Join(conv.GetDDL(c), " ")))
+	assert.Equal(t, normalizeSpace(expected), normalizeSpace(strings.Join(conv.SpSchema.GetDDL(c), " ")))
 }
 
 func TestProcessMySQLDump_Rows(t *testing.T) {

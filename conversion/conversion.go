@@ -87,16 +87,6 @@ func SchemaConv(driver string, ioHelper *IOStreams, schemaSampleSize int64) (*in
 	}
 }
 
-// Check if schema contains interleaved tables.
-func checkInterleaved(conv *internal.Conv) bool {
-	for _, table := range conv.SpSchema {
-		if table.Parent != "" {
-			return true
-		}
-	}
-	return false
-}
-
 func DataConv(driver string, ioHelper *IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*spanner.BatchWriter, error) {
 	config := spanner.BatchWriterConfig{
 		BytesLimit: 100 * 1000 * 1000,
@@ -108,7 +98,7 @@ func DataConv(driver string, ioHelper *IOStreams, client *sp.Client, conv *inter
 	case POSTGRES, MYSQL:
 		return dataFromSQL(driver, config, client, conv)
 	case PGDUMP, MYSQLDUMP:
-		if checkInterleaved(conv) {
+		if conv.SpSchema.CheckInterleaved() {
 			return nil, fmt.Errorf("HarbourBridge does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql.")
 		}
 		return dataFromDump(driver, config, ioHelper, client, conv, dataOnly)
@@ -421,7 +411,7 @@ func CreateDatabase(project, instance, dbName string, conv *internal.Conv, out *
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
-	schema := conv.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false})
+	schema := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false})
 	op, err := adminClient.CreateDatabase(ctx, &adminpb.CreateDatabaseRequest{
 		Parent:          fmt.Sprintf("projects/%s/instances/%s", project, instance),
 		CreateStatement: "CREATE DATABASE `" + dbName + "`",
@@ -449,7 +439,7 @@ func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv,
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
-	fkStmts := conv.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: false, ForeignKeys: true})
+	fkStmts := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: false, ForeignKeys: true})
 	if len(fkStmts) == 0 {
 		return nil
 	}
@@ -560,7 +550,7 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 	// legal Cloud Spanner DDL (Cloud Spanner doesn't currently support comments).
 	// Change 'Comments' to false and 'ProtectIds' to true to write out a
 	// schema file that is legal Cloud Spanner DDL.
-	ddl := conv.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true})
+	ddl := conv.SpSchema.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true})
 	if len(ddl) == 0 {
 		ddl = []string{"\n-- Schema is empty -- no tables found\n"}
 	}
@@ -828,7 +818,7 @@ func SetRowStats(driver string, conv *internal.Conv, db *sql.DB) error {
 	case POSTGRES:
 		postgres.SetRowStats(conv, db)
 	default:
-		return fmt.Errorf("Could get rows stats for '%s' driver", driver)
+		return fmt.Errorf("Could not set rows stats for '%s' driver", driver)
 	}
 	return nil
 }

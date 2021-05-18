@@ -83,7 +83,7 @@ func TestPrintCreateTable(t *testing.T) {
 		"mytable",
 		[]string{"col1", "col2", "col3"},
 		cds,
-		[]IndexKey{IndexKey{Col: "col1", Desc: true}},
+		[]IndexKey{{Col: "col1", Desc: true}},
 		nil,
 		nil,
 		"",
@@ -93,7 +93,7 @@ func TestPrintCreateTable(t *testing.T) {
 		"mytable",
 		[]string{"col1", "col2", "col3"},
 		cds,
-		[]IndexKey{IndexKey{Col: "col1", Desc: true}},
+		[]IndexKey{{Col: "col1", Desc: true}},
 		nil,
 		nil,
 		"parent",
@@ -116,17 +116,17 @@ func TestPrintCreateTable(t *testing.T) {
 
 func TestPrintCreateIndex(t *testing.T) {
 	ci := []CreateIndex{
-		CreateIndex{
+		{
 			"myindex",
 			"mytable",
 			/*Unique =*/ false,
-			[]IndexKey{IndexKey{Col: "col1", Desc: true}, IndexKey{Col: "col2"}},
+			[]IndexKey{{Col: "col1", Desc: true}, {Col: "col2"}},
 		},
-		CreateIndex{
+		{
 			"myindex2",
 			"mytable",
 			/*Unique =*/ true,
-			[]IndexKey{IndexKey{Col: "col1", Desc: true}, IndexKey{Col: "col2"}},
+			[]IndexKey{{Col: "col1", Desc: true}, {Col: "col2"}},
 		}}
 	tests := []struct {
 		name       string
@@ -145,13 +145,13 @@ func TestPrintCreateIndex(t *testing.T) {
 
 func TestPrintForeignKey(t *testing.T) {
 	fk := []Foreignkey{
-		Foreignkey{
+		{
 			"fk_test",
 			[]string{"c1", "c2"},
 			"ref_table",
 			[]string{"ref_c1", "ref_c2"},
 		},
-		Foreignkey{
+		{
 			"",
 			[]string{"c1"},
 			"ref_table",
@@ -174,13 +174,13 @@ func TestPrintForeignKey(t *testing.T) {
 }
 func TestPrintForeignKeyAlterTable(t *testing.T) {
 	fk := []Foreignkey{
-		Foreignkey{
+		{
 			"fk_test",
 			[]string{"c1", "c2"},
 			"ref_table",
 			[]string{"ref_c1", "ref_c2"},
 		},
-		Foreignkey{
+		{
 			"",
 			[]string{"c1"},
 			"ref_table",
@@ -201,6 +201,75 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 	for _, tc := range tests {
 		assert.Equal(t, normalizeSpace(tc.expected), normalizeSpace(tc.fk.PrintForeignKeyAlterTable(Config{ProtectIds: tc.protectIds}, tc.table)))
 	}
+}
+
+func TestGetDDL(t *testing.T) {
+	s := NewSchema()
+	s["table1"] = CreateTable{
+		Name:     "table1",
+		ColNames: []string{"a", "b"},
+		ColDefs: map[string]ColumnDef{
+			"a": {Name: "a", T: Type{Name: Int64}},
+			"b": {Name: "b", T: Type{Name: Int64}},
+		},
+		Pks:     []IndexKey{{Col: "a"}},
+		Fks:     []Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "ref_table1", ReferColumns: []string{"ref_b"}}},
+		Indexes: []CreateIndex{{Name: "index1", Table: "table1", Unique: false, Keys: []IndexKey{{Col: "b", Desc: false}}}},
+	}
+	s["table2"] = CreateTable{
+		Name:     "table2",
+		ColNames: []string{"a", "b", "c"},
+		ColDefs: map[string]ColumnDef{
+			"a": {Name: "a", T: Type{Name: Int64}},
+			"b": {Name: "b", T: Type{Name: Int64}},
+			"c": {Name: "c", T: Type{Name: Int64}},
+		},
+		Pks:     []IndexKey{{Col: "a"}},
+		Fks:     []Foreignkey{{Name: "fk2", Columns: []string{"b", "c"}, ReferTable: "ref_table2", ReferColumns: []string{"ref_b", "ref_c"}}},
+		Indexes: []CreateIndex{{Name: "index2", Table: "table2", Unique: true, Keys: []IndexKey{{Col: "b", Desc: true}, {Col: "c", Desc: false}}}},
+	}
+	s["table3"] = CreateTable{
+		Name:     "table3",
+		ColNames: []string{"a", "b", "c"},
+		ColDefs: map[string]ColumnDef{
+			"a": ColumnDef{Name: "a", T: Type{Name: Int64}},
+			"b": ColumnDef{Name: "b", T: Type{Name: Int64}},
+			"c": ColumnDef{Name: "c", T: Type{Name: Int64}},
+		},
+		Pks:    []IndexKey{IndexKey{Col: "a"}, IndexKey{Col: "b"}},
+		Fks:    []Foreignkey{Foreignkey{Name: "fk3", Columns: []string{"c"}, ReferTable: "ref_table3", ReferColumns: []string{"ref_c"}}},
+		Parent: "table1",
+	}
+	tablesOnly := s.GetDDL(Config{Tables: true, ForeignKeys: false})
+	e := []string{
+		"CREATE TABLE table1 (\n    a INT64,\n    b INT64 \n) PRIMARY KEY (a)",
+		"CREATE INDEX index1 ON table1 (b)",
+		"CREATE TABLE table2 (\n    a INT64,\n    b INT64,\n    c INT64 \n) PRIMARY KEY (a)",
+		"CREATE UNIQUE INDEX index2 ON table2 (b DESC, c)",
+		"CREATE TABLE table3 (\n    a INT64,\n    b INT64,\n    c INT64 \n) PRIMARY KEY (a, b),\nINTERLEAVE IN PARENT table1",
+	}
+	assert.ElementsMatch(t, e, tablesOnly)
+
+	fksOnly := s.GetDDL(Config{Tables: false, ForeignKeys: true})
+	e2 := []string{
+		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_b)",
+		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES ref_table2 (ref_b, ref_c)",
+		"ALTER TABLE table3 ADD CONSTRAINT fk3 FOREIGN KEY (c) REFERENCES ref_table3 (ref_c)",
+	}
+	assert.ElementsMatch(t, e2, fksOnly)
+
+	tablesAndFks := s.GetDDL(Config{Tables: true, ForeignKeys: true})
+	e3 := []string{
+		"CREATE TABLE table1 (\n    a INT64,\n    b INT64 \n) PRIMARY KEY (a)",
+		"CREATE INDEX index1 ON table1 (b)",
+		"CREATE TABLE table2 (\n    a INT64,\n    b INT64,\n    c INT64 \n) PRIMARY KEY (a)",
+		"CREATE UNIQUE INDEX index2 ON table2 (b DESC, c)",
+		"CREATE TABLE table3 (\n    a INT64,\n    b INT64,\n    c INT64 \n) PRIMARY KEY (a, b),\nINTERLEAVE IN PARENT table1",
+		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_b)",
+		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES ref_table2 (ref_b, ref_c)",
+		"ALTER TABLE table3 ADD CONSTRAINT fk3 FOREIGN KEY (c) REFERENCES ref_table3 (ref_c)",
+	}
+	assert.ElementsMatch(t, e3, tablesAndFks)
 }
 
 func normalizeSpace(s string) string {

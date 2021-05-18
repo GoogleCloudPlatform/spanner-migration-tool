@@ -23,6 +23,7 @@ package ddl
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -247,6 +248,79 @@ func (k Foreignkey) PrintForeignKeyAlterTable(c Config, tableName string) string
 		s = fmt.Sprintf("CONSTRAINT %s ", c.quote(k.Name))
 	}
 	return fmt.Sprintf("ALTER TABLE %s ADD %sFOREIGN KEY (%s) REFERENCES %s (%s)", c.quote(tableName), s, strings.Join(cols, ", "), c.quote(k.ReferTable), strings.Join(referCols, ", "))
+}
+
+type Schema map[string]CreateTable
+
+func NewSchema() Schema {
+	return make(map[string]CreateTable)
+}
+
+// GetDDL returns the string representation of Spanner schema represented by Schema struct.
+// Tables are printed in alphabetical order with one exception: interleaved
+// tables are potentially out of order since they must appear after the
+// definition of their parent table.
+func (s Schema) GetDDL(c Config) []string {
+	var ddl []string
+
+	var tableNames []string
+	for t := range s {
+		tableNames = append(tableNames, t)
+	}
+	sort.Strings(tableNames)
+
+	if c.Tables {
+		tableQueue := tableNames
+		printed := make(map[string]bool)
+		for len(tableQueue) > 0 {
+			tableName := tableQueue[0]
+			table := s[tableName]
+			tableQueue = tableQueue[1:]
+
+			// Print table t if either:
+			// a) t is not interleaved in another table, or
+			// b) t is interleaved in another table and that table has already been printed.
+			if table.Parent == "" || printed[table.Parent] {
+				ddl = append(ddl, table.PrintCreateTable(c))
+				for _, index := range table.Indexes {
+					ddl = append(ddl, index.PrintCreateIndex(c))
+				}
+				printed[tableName] = true
+			} else {
+				// We can't print table t now because its parent hasn't been printed.
+				// Add it at end of tables and we'll try again later.
+				// We might need multiple iterations to print chains of interleaved tables,
+				// but we will always make progress because interleaved tables can't
+				// have cycles. In principle this could be O(n^2), but in practice chains
+				// of interleaved tables are small.
+				tableQueue = append(tableQueue, tableName)
+			}
+		}
+	}
+	// Append foreign key constraints to DDL.
+	// We always use alter table statements for foreign key constraints.
+	// The alternative of putting foreign key constraints in-line as part of create
+	// table statements is tricky because of table order (need to define tables
+	// before they are referenced by foreign key constraints) and the possibility
+	// of circular foreign keys definitions. We opt for simplicity.
+	if c.ForeignKeys {
+		for _, t := range tableNames {
+			for _, fk := range s[t].Fks {
+				ddl = append(ddl, fk.PrintForeignKeyAlterTable(c, t))
+			}
+		}
+	}
+	return ddl
+}
+
+// CheckInterleaved checks if schema contains interleaved tables.
+func (s Schema) CheckInterleaved() bool {
+	for _, table := range s {
+		if table.Parent != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func maxStringLength(s []string) int {
