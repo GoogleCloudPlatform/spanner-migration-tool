@@ -20,7 +20,7 @@ jobs:
 
       - run: go test -v ./...
 
-      - run: cd frontend && nom run test
+      - run: cd frontend && npm run test
 
 workflows:
   version: 2
