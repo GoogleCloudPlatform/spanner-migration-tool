@@ -1,0 +1,106 @@
+body {
+  font-family: "Source Sans Pro";
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #d3d3d3;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #b4afaf;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a19b9b;
+}
+
+input[type="text"]:disabled {
+  background: #dddddd;
+}
+
+.hidden {
+  visibility: hidden;
+}
+
+.show {
+  visibility: visible;
+}
+
+#snackbar {
+  visibility: hidden;
+  min-width: 250px;
+  margin-left: -125px;
+  color: #ffffff;
+  text-align: center;
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-weight: bold;
+  position: fixed;
+  z-index: 1;
+  right: 0;
+  bottom: 15px;
+  white-space: pre-wrap;
+}
+
+.show-snackbar {
+  visibility: visible !important;
+  -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
+  animation: fadein 0.5s, fadeout 0.5s 2.5s;
+}
+
+.greenBg {
+  background-color: #0f9d58;
+  opacity: 0.8;
+}
+
+.redBg {
+  background-color: #ff0000;
+  opacity: 0.7;
+}
+
+.caret {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-left: 2px;
+  vertical-align: middle;
+  border-top: 4px dashed;
+  border-top: 4px solid;
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+  right: 6px;
+}
+
+
+.custom-file-control,
+.form-control {
+  color: #121213;
+  border: 1px solid #dddddd;
+}
+
+.custom-file-control,
+.form-control,
+input::placeholder,
+label {
+  line-height: 1;
+}
+
+button:disabled,
+button[disabled]{
+  border: 1px solid #999999;
+  background-color: #cccccc;
+  color: #666666;
+  cursor:not-allowed
+}
+
+.primary-color-number{
+  color: #4285f4;
+}
+
+.error-content-container{
+  max-height: 310px;
+}
