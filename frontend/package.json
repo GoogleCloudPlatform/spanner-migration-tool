@@ -26,14 +26,7 @@
         ]
     },
     "dependencies": {
-<<<<<<< HEAD
-<<<<<<< HEAD
         "downloads-folder": "^3.0.1",
-=======
->>>>>>> 44b091c (frontend folder added with test data)
-=======
-        "downloads-folder": "^3.0.1",
->>>>>>> 2f62454 (Adding configuration changes)
         "puppeteer": "^9.1.1"
     }
 }
