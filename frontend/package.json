@@ -26,6 +26,7 @@
         ]
     },
     "dependencies": {
+        "downloads-folder": "^3.0.1",
         "puppeteer": "^9.1.1"
     }
 }

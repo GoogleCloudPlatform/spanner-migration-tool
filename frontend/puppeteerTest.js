@@ -110,7 +110,7 @@ const navigateToSchemaPage = async(page) => {
     await page.waitForTimeout(200);
 
     await page.waitForSelector(homePage.dbFileName);
-    await page.type(homePage.dbFileName, "z/a.sql");
+    await page.type(homePage.dbFileName, "test_data/frontend/sakila.sql");
 
     await page.waitForTimeout(200);
 
