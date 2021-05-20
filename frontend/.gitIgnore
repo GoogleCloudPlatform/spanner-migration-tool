@@ -2,3 +2,5 @@ node_modules
 .DS_Store
 settings.json
 *.session.json
+*.report.txt
+*.schema.txt
