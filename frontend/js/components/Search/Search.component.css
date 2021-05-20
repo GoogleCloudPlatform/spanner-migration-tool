@@ -1,0 +1,17 @@
+#search-input {
+    border-left: 0px;
+    border-top: 0px;
+    border-right: 0px;
+    border-bottom: 1px solid #808080;
+    width: 200px;
+    outline: none;
+}
+
+.search-form {
+    margin-right: 30px;
+}
+
+.fa-search:before {
+    content: "\f002";
+    color: #4285F4;
+}
