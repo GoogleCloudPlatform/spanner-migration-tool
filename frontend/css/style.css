@@ -1,0 +1,399 @@
+#upload {
+    display: none
+}
+
+#upload_link {
+    text-decoration: underline;
+    color: #4285F4;
+    margin-left: -81px;
+}
+
+.btn:focus {
+    box-shadow: none ;
+}
+
+.connect-opt-cls {
+    color: #808080;
+    font-size: 24px;
+    font-weight: 600;
+    text-align: center;
+    padding-top: 16px;
+}
+
+.bg-grey {
+    background-color: #DCDCDC;
+    width: auto;
+    height: 100%;
+}
+
+.card-section {
+    margin-top: 32px;
+    margin-bottom: 0px;
+    width: 845px;
+    height: 230px;
+}
+
+.card-text-section {
+    margin-top: 16px;
+}
+
+.card-alignment {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}
+
+.card-1-alignment {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    position: relative;
+    left: -18%;
+    padding-bottom: 51px;
+}
+
+.card-2-alignment {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    position: relative;
+    left: 0%;
+    padding-bottom: 51px;
+}
+
+.card-3-alignment {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    position: relative;
+    left: 18%;
+    padding-bottom: 16px;
+}
+
+.import-text {
+    text-align: center;
+    font-weight: 500;
+    color: #5E5752;
+    width: 158px;
+    height: 70px;
+    font-size: 22px;
+    padding-top: 5px;
+}
+
+.icon-size {
+    color: #0000FF;
+    font-size: 70px ;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 140px ;
+    cursor: pointer;
+}
+
+.login-icon {
+    color: #0000FF;
+    font-size: 70px ;
+    padding-bottom: 40px;
+}
+
+.dataTypeTable-td {
+    padding: 10px;
+    text-align: center;
+    font-size: 12px;
+}
+
+.dataTypeTable-th {
+    color: #FFFFFF;
+    padding: 10px;
+    text-align: center;
+    font-size: 12px;
+    background-color: #0000FF;
+}
+
+.bg-login {
+    background-color: #DCDCDC4D;
+}
+
+.login-card-size {
+    margin: auto;
+    margin-top: 3.5%;
+    height: 550px;
+    width: 400px;
+}
+
+.sign-main {
+    width: 500px;
+    margin-top: 10%;
+}
+
+#landing-screen {
+    background-color: #DCDCDC4D;
+    background-size: cover;
+    min-height: 100vh;
+}
+
+.card-content {
+    text-align: center;
+    vertical-align: middle;
+    margin: auto;
+}
+
+.title {
+    color: #0000FF;
+    font-size: 20px;
+    font-weight: bold;
+    padding-bottom: 40px;
+}
+
+.inputBox {
+    height: 40px;
+    width: 350px;
+    font-size: 10pt;
+}
+
+.customButton {
+    height: 40px;
+}
+
+.forgotTitle {
+    margin-right: 175px;
+    margin-top: 5px;
+    margin-bottom: 30px;
+}
+
+.connect-modal-position {
+    top: 50%;
+    margin-top: -215px;
+    width: 545px;
+}
+
+.load-modal-position {
+    top: 50%;
+    margin-top: -150px;
+    width: 475px;
+}
+
+.conversion-modal-position {
+    margin-top: 85px;
+    width: 500px;
+}
+
+.dataTypeMapping-modal-position {
+    margin-top: 65px;
+    width: 560px;
+}
+
+.success-bg {
+    font-weight: 600;
+    background-color: #FFFFFF;
+    color: #4285F4;
+}
+
+.error-modal-bg {
+    background-color: #80808078;
+    color: #FF0000;
+}
+
+.error-modal-header {
+    width: 545px;
+    height: 56px;
+}
+
+.error-modal-position {
+    width: 545px;
+    margin-right: 400px;
+}
+
+label {
+    font-weight: normal;
+}
+
+button:focus,
+button:active {
+    border: 1px solid #FFFFFF;
+    outline: 0;
+}
+
+.dropdown-toggle:after {
+    margin-top: 8px;
+    float: right;
+}
+
+h4 {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 0px;
+    margin-top: 0px;
+}
+
+/* .error-box {
+    height: 230px;
+    background-color: #DCDCDC59;
+    border: 1px solid #DCDCDC;
+}
+
+.error-box-header {
+    border: 1px solid #DCDCDC;
+    height: 40px;
+}
+
+
+
+/* .errorText {
+    font-size: 12px;
+    color: #FF0000;
+}
+
+.warningText {
+    color: #FFB200;
+    font-size: 12px;
+}
+
+.unexpectedText {
+    color: #808080;
+    font-size: 12px;
+} */
+
+.dataTypeTable {
+    width: 275px;
+    background-color: #DCDCDC;
+    height: 275px;
+    margin: auto;
+    margin-top: 40px;
+    margin-bottom: 40px;
+}
+
+.success-modal-content {
+    webkit-box-shadow: 0 0 0;
+    box-shadow: 0 0 0;
+    border-radius: 0;
+    width: 300px;
+    height: 170px;
+    padding: 12px;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin-left: -150px;
+    margin-top: -150px;
+    background-color: #FDFDFD;
+}
+
+.success-modal-footer {
+    width: 300px;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin-left: -150px;
+    margin-top: 0px;
+    text-align: right;
+}
+
+.error-message {
+    font-size: 12px;
+}
+
+.success-modal-position {
+    top: 50%;
+    left: 50%;
+    margin-top: -150px;
+    margin-left: -200px;
+    width: 380px;
+}
+
+.success-modal-body {
+    padding: 24px;
+    font-size: 16px;
+    background-color: #F4F4F4;
+}
+
+.fa {
+    margin-left: -12px;
+    margin-right: 8px;
+}
+
+a {
+    color: #4285F4;
+}
+
+.data-type-select {
+    background-color: #F2F2F2;
+    border: 1px;
+}
+
+.dataTypeDropdown {
+    padding-top: 2px;
+    padding-bottom: 2px;
+    padding-left: 6px;
+}
+
+ul {
+    list-style-type: none;
+    padding-inline-start: 0px;
+}
+
+button {
+    cursor: pointer;
+}
+
+.title {
+    color: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    padding-bottom: inherit;
+}
+
+button:disabled,
+button[disabled]{
+  border: 1px solid #999999 ;
+  background-color: #cccccc;
+  color: #666666;
+  cursor:not-allowed
+}
+
+thead, tbody tr {
+    display:table;
+    width:100%;
+    table-layout:fixed;
+}
+
+input[type=checkbox]{
+    float: left;
+}
+
+.expand{
+    margin-bottom: 20px;
+    background-color: #4285F4;
+    border: 1px solid #4285F4;
+    color: #FFFFFF;
+    border-radius: 15px;
+    padding: 4px 10px 4px 10px;
+}
+
+.expand:hover {
+    background-color: #CBCBCB;
+    color: #4285F4;
+}
+
+.title {
+    color: inherit;
+    font-size: 15px;
+    font-weight: inherit;
+    padding-bottom: inherit;
+}
+
+.form-group {
+  margin-bottom: 0px;
+}
+
+.custom-file-control,
+.form-control {
+  color: #121213;
+  border: 1px solid #DDDDDD;  
+}
+
+.custom-file-control, .form-control, input::placeholder, label {
+  line-height: 1;
+}

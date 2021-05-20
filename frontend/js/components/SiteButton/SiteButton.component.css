@@ -1,0 +1,38 @@
+.download-button{
+    font-size: 16px;
+    font-weight: bold;
+    float: right;
+    background-color: #4285F4;
+    border: 1px solid #4285F4;
+    color: #FDFDFD;
+    border-radius: 20px;
+    padding: 10px;
+    outline: none;
+}
+
+.download-button:hover {
+    background-color: #CBCBCB;
+    color: #4285F4;
+}
+
+.expand{
+    margin-bottom: 20px;
+    background-color: #4285F4;
+    border: 1px solid #4285F4;
+    color: #FFFFFF;
+    border-radius: 15px;
+    padding: 4px 10px 4px 10px;
+}
+
+.expand:hover {
+    background-color: #CBCBCB;
+    color: #4285F4;
+}
+
+.right-align{
+    float: right;
+}
+
+button{
+    cursor: pointer;
+}

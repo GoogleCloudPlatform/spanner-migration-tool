@@ -1,0 +1,26 @@
+.heading {
+    font-size: 32px;
+    font-weight: 600;
+}
+
+.sub-heading {
+    font-size: 26px;
+    font-weight: 500;
+    color: #5E5752;
+    margin-top: 20px;
+}
+
+.session-heading {
+    padding-bottom: 20px;
+    font-size: 26px;
+    color: #5E5752;
+    font-weight: 600;
+}
+
+.text {
+    font-weight: 500;
+    height: 35px;
+    font-size: 22px;
+    color: #5E5752;
+    padding-top: 5px;
+}

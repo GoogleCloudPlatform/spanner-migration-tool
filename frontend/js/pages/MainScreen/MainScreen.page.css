@@ -1,0 +1,63 @@
+.page-heading {
+  padding: 0 40px;
+  margin-top: 72px;
+  background-color: #fdfdfd;
+}
+
+.page-heading .page-sub-heading {
+  font-size: 26px;
+  font-weight: 500;
+  color: #5e5752;
+  margin-top: 20px;
+}
+
+.icons-card-section {
+  display: flex;
+  text-align: center;
+  justify-content: space-around;
+  margin: 40px;
+}
+
+.icons-card-section .icon-card {
+  margin-right: 50px;
+}
+
+.warning-icon {
+  color: #e1ad01d4;
+}
+
+.pointer {
+  cursor: pointer;
+}
+
+.template {
+  display: none;
+}
+
+.hidden {
+  visibility: hidden;
+}
+
+.ml-3 {
+  margin-left: 3px;
+}
+
+h5 {
+  font-size: 0.875rem;
+}
+
+#modal-body-id div .connect-icon-success {
+  margin-right: 6px;
+  color: #0f9d58 ;
+}
+
+#modal-body-id div .connect-icon-failure {
+  margin-right: 6px;
+  color: #db4437;
+}
+
+.history-content {
+  padding: 0 40px;
+  margin-top: 72px;
+  background-color: #fdfdfd;
+}

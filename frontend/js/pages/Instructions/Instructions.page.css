@@ -1,0 +1,42 @@
+.instructions-div {
+    padding: 40px;
+    padding-top: 60px;
+}
+
+.instructions-icon {
+    height: 200px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.textCenter {
+    text-align: center;
+}
+
+.instructions-main-heading {
+    font-size: 1.25rem;
+    color: #4285F4;
+    font-weight: bold;
+}
+
+.instructions-sub-heading {
+    font-size: 1rem;
+    color: #4285F4;
+    font-weight: bold;
+}
+
+.instructions-command {
+    background-color: #8080806b;
+    border-radius: 5px;
+    padding: 0px 5px;
+}
+
+.instructions-img-width {
+    width: 800px;
+}
+
+.instructionsLink {
+    color: #4285F4;
+    text-decoration: underline;
+}

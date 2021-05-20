@@ -1,0 +1,65 @@
+.pointer-style {
+  cursor: pointer;
+}
+
+.navbar,
+.navbar:hover,
+.navbar:active,
+.navbar:visited,
+.navbar:focus {
+  text-decoration: none;
+}
+
+.navbar-static-top {
+  float: left;
+  padding: 0px;
+  box-shadow: none;
+}
+
+.header-topic .active {
+  color: #4285f4;
+}
+
+a{
+  color: #4285f4;
+}
+
+a:hover{
+  color: inherit;
+}
+
+.logo {
+  color: #4285f4;
+  width: 45px;
+  margin-top: 8px;
+  margin-right: 40px;
+  margin-left: 40px;
+}
+
+.header-topic {
+  font-size: 20px;
+  font-weight: 600;
+  margin-right: 30px;
+  padding-top: 15px;
+  padding-bottom: 15px;
+}
+
+.inactive {
+  color: #5e5752;
+}
+
+header.main-header {
+  color: #000000;
+  position: fixed;
+  top: 0;
+  height: 60px;
+  width: 100%;
+  z-index: 999999;
+  background: #ffffff 0% 0% no-repeat padding-box;
+  box-shadow: 0px 3px 1px #00000014;
+  opacity: 1;
+}
+
+header.main-header a:hover {
+  text-decoration: none;
+}
