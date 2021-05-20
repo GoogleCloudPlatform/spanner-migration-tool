@@ -24,9 +24,14 @@ jobs:
 
       - node/install:
           install-npm: true
+      
+      - node/install-packages:
+          app-dir: frontend
+          cacahe-path: frontend/node_modules
+
       - run: node --version
-      - run: cd frontend && npm install
-      - run: npm run test
+
+      - run: cd frontend && npm run test
 
 workflows:
   version: 2
