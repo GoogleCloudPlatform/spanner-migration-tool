@@ -1,7 +1,9 @@
 # Golang CircleCI 2.0 configuration file
 #
 # Check https://circleci.com/docs/2.0/language-go/ for more details
-version: 2
+version: 2.1
+orbs:
+  node: circleci/node@4.3.0
 jobs:
   build_and_test:
     docker:
@@ -19,6 +21,13 @@ jobs:
             echo 'export GOOGLE_APPLICATION_CREDENTIALS=$HOME/gcloud-service-key.json' >> $BASH_ENV
 
       - run: go test -v ./...
+
+      - node/install:
+          install-npm: true
+
+      - run: node --version
+      
+      - run: cd frontend && npm install && npm run test
 
 workflows:
   version: 2

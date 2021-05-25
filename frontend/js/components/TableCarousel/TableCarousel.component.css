@@ -1,0 +1,171 @@
+.round-icon-size {
+  font-size: 18px;
+}
+
+.card {
+  background-color: #fdfdfd;
+  box-shadow: 0px 3px 16px #00000029;
+  margin-bottom: 20px;
+  border-radius: 10px;
+}
+
+.card .card-header {
+  padding: 1rem;
+  background-color: #fdfdfd;
+  border-radius: 10px;
+
+}
+
+.card-header a {
+  cursor: pointer;
+  padding-left: 20px;
+  letter-spacing: 0px;
+  color: #000000;
+  opacity: 1;
+  font-size: 24px;
+}
+
+.card-header a i {
+  padding-top: 2px;
+  float: left;
+}
+
+.orange-border-bottom {
+  border: 0.125rem solid ORANGE;
+}
+
+.green-border-bottom {
+  border: 0.125rem solid #0f9d58;
+}
+
+.blue-border-bottom {
+  border: 0.125rem solid #4285f4;
+}
+
+.yellow-border-bottom {
+  border: 0.125rem solid YELLoW;
+}
+
+.no-border-bottom {
+  border-bottom: 0px ;
+}
+
+.card-orange-border {
+  border: 0.125rem solid ORANGE;
+}
+
+.card-green-border {
+  border: 0.125rem solid #0f9d58;
+}
+
+.card-blue-border {
+  border: 0.125rem solid #4285f4 ;
+}
+
+.card-yellow-border {
+  border: 0.125rem solid YELLOW;
+}
+
+.spanner-text {
+  margin-top: 5.4px;
+  font-size: 15px;
+  margin-right: 18px;
+}
+
+.source-text {
+  margin-top: 5.4px;
+  font-size: 15px;
+  margin-right: 24px;
+}
+
+.spanner-icon {
+  margin-top: 5px;
+  color: #3a78c1;
+  font-size: 18px;
+  margin-right: 6px;
+}
+
+.source-icon {
+  font-size: 18px;
+  margin-right: 6px;
+  color: #cbcbcb;
+  margin-top: 5px;
+}
+
+.right-align {
+  float: right;
+}
+
+.show-content {
+  display: block;
+}
+
+.hide-content {
+  display: none;
+}
+
+.edit-instruction {
+  color: #0f9d58;
+  font-size: 16px;
+  font-weight: bold;
+  margin-top: 6px;
+  margin-right: 4px;
+}
+
+.blink {
+  animation: blinker 2s linear infinite;
+  font-family: sans-serif;
+}
+
+@keyframes blinker {
+  50% {
+    opacity: 0;
+  }
+}
+
+.summary-collapse {
+  text-align: left;
+}
+
+.mdc-card-content {
+  background: #fdfdfd;
+  border-radius: 0px 0px 10px 10px;
+  border-top: 0px ;
+  margin-top: -5px;
+}
+
+.table-card-border {
+  box-shadow: none;
+}
+
+div.rem-border-bottom.card-header {
+  border-radius: 10px 10px 0px 0px ;
+}
+
+.rotate-icon {
+  -moz-transition: all 0.001s linear;
+  -webkit-transition: all 0.001s linear;
+  transition: all 0.001s linear;
+}
+
+.rotate-icon.down {
+  -moz-transform: rotate(180deg);
+  -webkit-transform: rotate(180deg);
+  transform: rotate(180deg);
+}
+
+/* .show-carausel {
+  animation: openingcarausel 1.5s linear ;
+}
+
+@keyframes openingcarausel {
+  0%{
+    max-height : 0em;
+    opacity: 0 ;
+  }
+  100%{
+    max-height:99em;
+    opacity : 1;
+  }
+
+} */

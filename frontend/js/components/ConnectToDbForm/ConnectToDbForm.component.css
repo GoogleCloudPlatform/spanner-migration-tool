@@ -1,0 +1,13 @@
+.custom-file-control,
+.form-control,
+.is-focused .custom-file-control,
+.is-focused .form-control,
+.custom-file-control:read-only,
+.form-control:read-only {
+    background-image: none;
+}
+
+#sqlFieldsButtons .modal-footer {
+    padding: 8px 24px 20px 20px;
+    border-top: 0;
+}

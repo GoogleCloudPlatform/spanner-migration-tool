@@ -1,0 +1,325 @@
+.acc-card-content {
+  text-align: center;
+  vertical-align: middle;
+  margin: auto;
+  background-color: #dcdcdc47;
+  height: auto;
+}
+
+.acc-table-th {
+  padding: 10px;
+  background-color: #0000ff;
+  color: #ffffff;
+}
+
+.acc-table-th-src {
+  text-align: center;
+  color: #5e5752;
+  background-color: #cbcbcb;
+  border-radius: 0 0 10px 10px;
+  padding: 10px;
+}
+
+.acc-table-th-spn {
+  text-align: center;
+  background: #3a78c1;
+  color: #ffffff;
+  border-radius: 0 0 10px 10px;
+  padding: 10px;
+  border-right: 1px solid #80808073;
+}
+
+.acc-table-td {
+  padding: 10px;
+  font-size: 16px;
+  text-align: center;
+  word-break: break-all;
+}
+
+.acc-table {
+  display: block;
+  overflow: auto;
+  max-height: 280px;
+}
+
+.fk-acc-table > tbody {
+  display: block;
+  overflow: auto;
+  max-height: 202px;
+}
+
+.fk-table tr {
+  border: 1px solid #cccccc;
+  border-top: 0px;
+  border-collapse: collapse;
+}
+
+.fk-table th {
+  border-top: 1px solid #cccccc;
+  background-color: #ededed;
+  color: #5e5752;
+}
+
+.drop-button {
+  color: #ff5400cc;
+  background-color: #ffffff;
+  border: 1px solid #ff5400cc;
+  border-radius: 20px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.remove-icon {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.index-acc-table > tbody {
+  display: block;
+  overflow: auto;
+  max-height: 202px;
+}
+
+.acc-column {
+  color: #5e5752;
+  background: #ededed;
+  text-align: center;
+  padding: 10px;
+}
+
+.bmd-form-group .checkbox {
+  display: table-caption;
+  float: left;
+}
+
+.checkbox label input[type="checkbox"]:checked+.checkbox-decorator .check:before,
+label.checkbox-inline input[type="checkbox"]:checked+ .checkbox-decorator.check:before {
+  color: #4285f4;
+  box-shadow: 0 0 0 10px, 10px -10px 0 10px, 32px 0 0 20px, 32px 0 20px,
+    -5px 5px 0 10px, 20px -12px 0 11px;
+  animation: b 0.3s forwards;
+}
+
+.checkbox label input[type="checkbox"]:checked + .checkbox-decorator .check,
+label.checkbox-inline input[type="checkbox"]:checked + .checkbox-decorator.check {
+  color: #4285f4;
+  border-color: #4285f4;
+}
+.checkbox label .checkbox-decorator,
+label.checkbox-inline .checkbox-decorator .check {
+  left: 0;
+  margin: -0.7em;
+  line-height: 0.7;
+  vertical-align: middle;
+  cursor: pointer;
+  border-radius: 100%;
+}
+
+.spanner-input {
+  border: 1px solid #0c0c0c61;
+  padding-left: 4px;
+}
+
+.key-margin {
+  margin-top: 5px;
+  margin-right: 12px;
+}
+
+.primary-key:hover {
+  display: block;
+}
+
+.summary-card {
+  margin-bottom: 0px;
+  border: 1px solid #8080806b;
+  border-radius: 0px 0px 10px 10px;
+  background-color: #fdfdfd;
+  box-shadow: 0px 3px 16px #00000029;
+}
+
+.summary-font {
+  font-size: 16px;
+  color: #4285f4;
+  float: left;
+  margin-top: -10px;
+  font-weight: 700;
+}
+
+.summary-collapse,
+.inner-summary-collapse {
+  text-align: left;
+}
+
+.summary-card-header {
+  padding: 1rem;
+  background-color: #fdfdfd;
+  border-radius: 10px;
+}
+
+.summary-card-header a i {
+  padding-top: 2px;
+  float: left;
+}
+
+.summary-border {
+  border: 0px;
+  margin-top: 0px;
+}
+
+.fk-card {
+  margin-bottom: 0px;
+  border: 1px solid #8080806b;
+  background-color: #fdfdfd;
+  box-shadow: 0px 3px 16px #00000029;
+}
+
+.foreign-key-header {
+  padding: 1rem;
+  background-color: #fdfdfd;
+  height: 0px;
+}
+
+.fk-font,
+.index-font {
+  font-size: 16px;
+  color: #4285f4;
+  float: left;
+  margin-top: -10px;
+  font-weight: 700;
+}
+
+.fk-collapse,
+.index-collapse {
+  text-align: left;
+}
+
+.radio-class {
+  float: left;
+  clear: none;
+}
+label {
+  float: left;
+  clear: none;
+  display: block;
+  margin-right: 15px;
+}
+
+input[type="radio"],
+input.radio {
+  float: left;
+  clear: none;
+  margin: 2px 15px 0 2px;
+}
+
+.new-index-button {
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 20px;
+  margin-bottom: 20px;
+  border: 1px solid #4285f4;
+  color: #ffffff;
+  background: #4285f4;
+}
+
+.vertical-alignment-middle {
+  vertical-align: middle;
+}
+
+.ml7 {
+  margin-left: -7px;
+}
+
+.sp-column {
+  border-right: 1px solid #80808073;
+  text-align: center;
+}
+
+.fk-content {
+  border: 1px solid #80808096;
+  border-left: 10px solid #80808029;
+  margin-left: 17px;
+  margin-right: 17px;
+  padding: 20px;
+  font-size: 16px;
+}
+
+.column {
+  float: left;
+}
+
+.left {
+  width: 10%;
+}
+
+.right {
+  width: 60%;
+}
+
+table.dataTable thead th,
+table.dataTable thead td {
+  border-bottom: none;
+  padding: 10px 18px;
+}
+
+.custom-file-control:focus,
+.form-control:focus {
+  color: #121213;
+  border-color: #4285f4;
+}
+
+.form-group{
+  margin-bottom: 0px;
+}
+
+.report-table-select, .report-table-select:focus {
+  margin-bottom: 0px !important;
+  border-radius: 2px !important;
+  background-image: url(data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20256%20448%22%20enable-background%3D%22new%200%200%20256%20448%22%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E.arrow%7Bfill%3A%23424242%3B%7D%3C%2Fstyle%3E%3Cpath%20class%3D%22arrow%22%20d%3D%22M255.9%20168c0-4.2-1.6-7.9-4.8-11.2-3.2-3.2-6.9-4.8-11.2-4.8H16c-4.2%200-7.9%201.6-11.2%204.8S0%20163.8%200%20168c0%204.4%201.6%208.2%204.8%2011.4l112%20112c3.1%203.1%206.8%204.6%2011.2%204.6%204.4%200%208.2-1.5%2011.4-4.6l112-112c3-3.2%204.5-7%204.5-11.4z%22%2F%3E%3C%2Fsvg%3E%0A) !important;
+  background-position: right 3px center !important;
+  background-repeat: no-repeat !important;
+  background-size: auto 40% !important;
+  border-radius: 2px !important;
+}
+
+.pagination-container{
+  display: flex;
+  justify-content: space-between;
+  align-content: center;
+  margin-top: 10px;
+}
+
+.pagination-text{
+  font-size: 0.9rem;
+  margin-left: 20px;
+}
+
+.pagination-number{
+padding: 4px 9px;
+border: 1px solid black;
+font-size: 1.1rem;
+margin-right: 5px;
+}
+
+.pagination-input{
+  padding: 1.6px 3px;
+  border: 1px solid black;
+  font-size: 1.1rem;
+  margin-right: 0px;
+}
+
+.pagination-button{
+  border: none;
+  color: #4285f4;
+  font-weight: bold;
+  background-color: transparent;
+  margin-right: 5px;
+}
+
+.pagination-button:disabled{
+  border: none;
+  color: #828488;
+  font-weight: bold;
+  padding: 5px;
+  background-color: transparent;
+  margin-right: 5px;
+}

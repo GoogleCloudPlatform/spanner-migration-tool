@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="83" height="83.103" viewBox="0 0 83 83.103">
+  <g id="Group_2048" data-name="Group 2048" transform="translate(12633 11517)">
+    <g id="Group_2017" data-name="Group 2017" transform="translate(-12622.682 -11515.281)">
+      <g id="Group_2016" data-name="Group 2016">
+        <rect id="Rectangle_1727" data-name="Rectangle 1727" width="63.46" height="47.232" transform="translate(55.346 1.938) rotate(90)" fill="#5e5752"/>
+        <rect id="Rectangle_1728" data-name="Rectangle 1728" width="63.46" height="25.19" rx="2" transform="translate(0 0)" fill="#7b7b7c"/>
+        <rect id="Rectangle_1729" data-name="Rectangle 1729" width="63.46" height="25.19" rx="2" transform="translate(0 28.097)" fill="#7b7b7c"/>
+        <rect id="Rectangle_1730" data-name="Rectangle 1730" width="63.46" height="25.19" rx="2" transform="translate(0 56.194)" fill="#7b7b7c"/>
+        <rect id="Rectangle_1731" data-name="Rectangle 1731" width="63.46" height="3.875" transform="translate(0 10.681)" fill="#4285f4"/>
+        <rect id="Rectangle_1732" data-name="Rectangle 1732" width="63.46" height="3.875" transform="translate(0 38.778)" fill="#4285f4"/>
+        <rect id="Rectangle_1733" data-name="Rectangle 1733" width="63.46" height="3.875" transform="translate(0 66.874)" fill="#4285f4"/>
+        <circle id="Ellipse_144" data-name="Ellipse 144" cx="1.453" cy="1.453" r="1.453" transform="translate(46.215 2.18)" fill="#4285f4"/>
+        <circle id="Ellipse_145" data-name="Ellipse 145" cx="1.453" cy="1.453" r="1.453" transform="translate(51.301 2.18)" fill="#4285f4"/>
+        <circle id="Ellipse_146" data-name="Ellipse 146" cx="1.453" cy="1.453" r="1.453" transform="translate(56.388 2.18)" fill="#4285f4"/>
+        <circle id="Ellipse_147" data-name="Ellipse 147" cx="1.453" cy="1.453" r="1.453" transform="translate(46.215 29.792)" fill="#4285f4"/>
+        <circle id="Ellipse_148" data-name="Ellipse 148" cx="1.453" cy="1.453" r="1.453" transform="translate(51.301 29.792)" fill="#4285f4"/>
+        <circle id="Ellipse_149" data-name="Ellipse 149" cx="1.453" cy="1.453" r="1.453" transform="translate(56.388 29.792)" fill="#4285f4"/>
+        <circle id="Ellipse_150" data-name="Ellipse 150" cx="1.453" cy="1.453" r="1.453" transform="translate(46.215 57.405)" fill="#4285f4"/>
+        <circle id="Ellipse_151" data-name="Ellipse 151" cx="1.453" cy="1.453" r="1.453" transform="translate(51.301 57.405)" fill="#4285f4"/>
+        <circle id="Ellipse_152" data-name="Ellipse 152" cx="1.453" cy="1.453" r="1.453" transform="translate(56.388 57.405)" fill="#4285f4"/>
+      </g>
+    </g>
+    <rect id="Rectangle_1773" data-name="Rectangle 1773" width="83" height="83" transform="translate(-12633 -11517)" fill="rgba(255,255,255,0)"/>
+  </g>
+</svg>
