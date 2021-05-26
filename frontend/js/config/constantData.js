@@ -83,17 +83,17 @@ export const MAIN_PAGE_STATIC_CONTENT = {
 export const TAB_CONFIG_DATA = [
   {
     id: "report",
-    text: "Conversion Report",
+    text: "Schema",
   },
 
   {
     id: "ddl",
-    text: "DDL Statements",
+    text: "DDL",
   },
   
   {
     id: "summary",
-    text: "Summary Report",
+    text: "Warnings",
   },
 ];
 

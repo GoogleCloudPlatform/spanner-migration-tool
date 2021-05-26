@@ -94,7 +94,7 @@ class SchemaConversionScreen extends HTMLElement {
     <div class="summary-main-content" id='schema-screen-content'>
       <div id="snackbar"></div>
       <div>
-        <h4 class="report-header">Recommended Schema Conversion Report
+        <h4 class="report-header">Schema Conversion Report
             <hb-site-button buttonid="download-schema" classname="download-button" 
                 buttonaction="downloadSession" text="Download Session File"></hb-site-button>
         </h4>
