@@ -1,30 +1,33 @@
-# HarbourBridge: Turnkey Spanner Evaluation
+# HarbourBridge: Spanner Evaluation and Migration
 
 [![cloudspannerecosystem](https://circleci.com/gh/cloudspannerecosystem/harbourbridge.svg?style=svg)](https://circleci.com/gh/cloudspannerecosystem/harbourbridge)
 
-HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation,
-using data from an existing PostgreSQL or MySQL database. The tool ingests schema
-and data from either a pg_dump/mysqldump file or directly from the source database,
-automatically builds a Spanner schema, and creates a new Spanner database populated
-with data from the source database.
+HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation and
+migration, using data from an existing PostgreSQL or MySQL database. The tool
+ingests schema and data from either a pg_dump/mysqldump file or directly from
+the source database, and supports both schema and data migration. For schema
+migration, HarbourBridge automatically builds a Spanner schema from the schema
+of the source database. This schema can be customized using the HarbourBridge
+schema assistant. For data migration, HarbourBridge creates a new Spanner
+database using the Spanner schema built during schema migration, and populates
+it with data from the source database.
 
-HarbourBridge is designed to simplify Spanner evaluation, and in particular to
-bootstrap the process by getting moderate-size PostgreSQL/MySQL datasets into Spanner
-(up to a few tens of GB). Many features of PostgreSQL/MySQL, especially those that don't map
-directly to Spanner features, are ignored, e.g. (non-primary) indexes,
-functions, and sequences. Types such as integers, floats, char/text, bools,
+For more details on schema customization and use of the schema assistant, see
+[web/README](web/README.md). The rest of this README describes the command-line
+capabilities of HarbourBridge.
+
+HarbourBridge is designed to simplify Spanner evaluation and migration, and in
+particular for migrating moderate-size PostgreSQL/MySQL datasets to Spanner (up
+to about 100GB). Many features of PostgreSQL/MySQL, especially those that don't
+map directly to Spanner features, are ignored, e.g. stored functions and
+procedures, and sequences. Types such as integers, floats, char/text, bools,
 timestamps, and (some) array types, map fairly directly to Spanner, but many
 other types do not and instead are mapped to Spanner's `STRING(MAX)`.
 
 View HarbourBridge as a way to get up and running fast, so you can focus on
 critical things like tuning performance and getting the most out of
 Spanner. Expect that you'll need to tweak and enhance what HarbourBridge
-produces to complete your evaluation. For example, while HarbourBridge preserves
-primary keys, it does not currently translate other indexes. So, you'll need to
-add [Spanner secondary
-indexes](https://cloud.google.com/spanner/docs/secondary-indexes) if your SQL
-queries rely on PostgreSQL/MySQL indexes that have been dropped. HarbourBridge is not
-intended for production database migration.
+produces.
 
 To use the tool on a PostgreSQL database called mydb, run
 
@@ -301,7 +304,7 @@ and [MySQL schema conversion](mysql/README.md#schema-conversion) sections respec
 HarbourBridge converts PostgreSQL/MySQL data to Spanner data based on the Spanner
 schema it constructs. Conversion for most data types is fairly straightforward,
 but several types deserve discussion. Note that HarbourBridge is not intended
-for databases larger than few tens of GB. Details on HarbourBridge data conversion
+for databases larger than about 100GB. Details on HarbourBridge data conversion
 for PostgreSQL and MySQL can be found in the
 [PostgreSQL data conversion](postgres/README.md#data-conversion)
 and [MySQL data conversion](mysql/README.md#data-conversion) sections respectively.
