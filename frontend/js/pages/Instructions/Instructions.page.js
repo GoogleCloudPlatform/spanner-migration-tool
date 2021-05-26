@@ -36,29 +36,29 @@ class Instructions extends HTMLElement {
                 <br>
                 <h3 class="instructions-main-heading">2 &nbsp; &nbsp; &nbsp;Key Features of UI</h3>
                 <ul>
-                    <li>- Connecting to a new database</li>
-                    <li>- Load dump file</li>
-                    <li>- Load session file</li>
-                    <li>- Storing session for each conversion</li>
-                    <li>- Edit data type globally for each table in schema</li>
-                    <li>- Edit data type, column name, constraint for a particular table</li>
-                    <li>- Edit foreign key and secondary index name</li>
-                    <li>- Drop a column from a table</li>
-                    <li>- Drop foreign key from a table</li>
-                    <li>- Drop secondary index from a table</li>
-                    <li>- Convert foreign key into interleave table</li>
-                    <li>- Search a table</li>
-                    <li>- Download schema, report and session files</li>
+                    <li> Connecting to a new database</li>
+                    <li> Load dump file</li>
+                    <li> Load session file</li>
+                    <li> Storing session for each conversion</li>
+                    <li> Edit data type globally for each table in schema</li>
+                    <li> Edit data type, column name, constraint for a particular table</li>
+                    <li> Edit foreign key and secondary index name</li>
+                    <li> Drop a column from a table</li>
+                    <li> Drop foreign key from a table</li>
+                    <li> Drop secondary index from a table</li>
+                    <li> Convert foreign key into interleave table</li>
+                    <li> Search a table</li>
+                    <li> Download schema, report and session files</li>
                 </ul>
                 <br>
 
                 <h3 class="instructions-main-heading">3 &nbsp; &nbsp; &nbsp;UI Setup</h3>
                 <ul>
-                    <li>- Install go in local</li>
-                    <li>- Clone harbourbridge project and run following command in the terminal: <br>
+                    <li> Install go in local</li>
+                    <li> Clone harbourbridge project and run following command in the terminal: <br>
                         <span class="instructions-command">go run main.go --web</span>
                     </li>
-                    <li>- Open <span class="instructions-command">http://localhost:8080</span>in browser</li>
+                    <li> Open <span class="instructions-command">http://localhost:8080</span>in browser</li>
                 </ul>
                 <br>
 
@@ -66,8 +66,8 @@ class Instructions extends HTMLElement {
                     source database</h3>
                 <h4 class="instructions-sub-heading">4.1 &nbsp; &nbsp; &nbsp;Connect to Database</h4>
                 <ul>
-                    <li>- Enter database details in connect to database dialog box</li>
-                    <li>- Input Fields: database type, database host, database port, database user, database name, database password
+                    <li> Enter database details in connect to database dialog box</li>
+                    <li> Input Fields: database type, database host, database port, database user, database name, database password
                     </li>
                 </ul>
                 <br>
@@ -78,8 +78,8 @@ class Instructions extends HTMLElement {
 
                 <h4 class="instructions-sub-heading">4.2 &nbsp; &nbsp; &nbsp;Load Database Dump</h4>
                 <ul>
-                    <li>- Enter dump file path in load database dialog box</li>
-                    <li>- Input Fields: database type, file path</li>
+                    <li> Enter dump file path in load database dialog box</li>
+                    <li> Input Fields: database type, file path</li>
                 </ul>
                 <br>
                 <img class="instructions-img-width" src='userManualImages/loadDumpFile.png'>
@@ -87,8 +87,8 @@ class Instructions extends HTMLElement {
 
                 <h4 class="instructions-sub-heading">4.3 &nbsp; &nbsp; &nbsp;Import Schema File</h4>
                 <ul>
-                    <li>- Enter session file path in load session dialog box</li>
-                    <li>- Input Fields: database type, session file path</li>
+                    <li> Enter session file path in load session dialog box</li>
+                    <li> Input Fields: database type, session file path</li>
                 </ul>
                 <br>
                 <img class="instructions-img-width" src='userManualImages/loadSessionFile.png'>
@@ -96,7 +96,7 @@ class Instructions extends HTMLElement {
 
                 <h3 class="instructions-main-heading">5 &nbsp; &nbsp; &nbsp;Session Table</h3>
                 <ul>
-                    <li>- Session table is used to store the previous sessions of schema conversion</li>
+                    <li> Session table is used to store the previous sessions of schema conversion</li>
                 </ul>
                 <br>
                 <img class="instructions-img-width" src='userManualImages/sessionTable.png'>
@@ -104,9 +104,9 @@ class Instructions extends HTMLElement {
 
                 <h3 class="instructions-main-heading">6 &nbsp; &nbsp; &nbsp;Edit Global Data Type</h3>
                 <ul>
-                    <li>- Click on edit global data type button on the screen</li>
-                    <li>- Select required spanner data type from the dropdown available for each source data type</li>
-                    <li>- Click on next button after making all the changes</li>
+                    <li> Click on edit global data type button on the screen</li>
+                    <li> Select required spanner data type from the dropdown available for each source data type</li>
+                    <li> Click on next button after making all the changes</li>
                 </ul>
                 <br>
                 <img class="instructions-img-width" src='userManualImages/globalDataTypeMapping.png'>
@@ -115,15 +115,15 @@ class Instructions extends HTMLElement {
                 <h3 class="instructions-main-heading">7 &nbsp; &nbsp; &nbsp;Edit Spanner Schema for a
                     particular table</h3>
                 <ul>
-                    <li>- Expand any table</li>
-                    <li>- Click on edit spanner schema button</li>
-                    <li>- Edit column name/ data type/ constraint of spanner schema</li>
-                    <li>- Edit name of secondary index or foreign key</li>
-                    <li>- Select to convert foreign key to interleave or use as is (if option is available)</li>
-                    <li>- Drop a column by unselecting any checkbox</li>
-                    <li>- Drop a foreign key or secondary index by expanding foreign keys or secondary indexes tab inside table</li>
-                    <li>- Click on save changes button to save the changes</li>
-                    <li>- If current table is involved in foreign key/secondary indexes relationship with other table then user will
+                    <li> Expand any table</li>
+                    <li> Click on edit spanner schema button</li>
+                    <li> Edit column name/ data type/ constraint of spanner schema</li>
+                    <li> Edit name of secondary index or foreign key</li>
+                    <li> Select to convert foreign key to interleave or use as is (if option is available)</li>
+                    <li> Drop a column by unselecting any checkbox</li>
+                    <li> Drop a foreign key or secondary index by expanding foreign keys or secondary indexes tab inside table</li>
+                    <li> Click on save changes button to save the changes</li>
+                    <li> If current table is involved in foreign key/secondary indexes relationship with other table then user will
                         be prompt to delete foreign key or secondary indexes and then proceed with save changes</li>
                 </ul>
                 <br>
@@ -141,9 +141,9 @@ class Instructions extends HTMLElement {
 
                 <h3 class="instructions-main-heading">8 &nbsp; &nbsp; &nbsp;Download Session File</h3>
                 <ul>
-                    <li>- Save all the changes done in spanner schema table wise or globally</li>
-                    <li>- Click on download session file button on the top right corner</li>
-                    <li>- Save the generated session file with all the changes in local machine</li>
+                    <li> Save all the changes done in spanner schema table wise or globally</li>
+                    <li> Click on download session file button on the top right corner</li>
+                    <li> Save the generated session file with all the changes in local machine</li>
                 </ul>
                 <br>
                 <img class="instructions-img-width" src='userManualImages/downloadSessionFile.png'>

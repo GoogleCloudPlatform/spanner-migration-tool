@@ -343,7 +343,8 @@ const Actions = (() => {
         fetchIndexFormValues: async(tableIndex, tableName, name, uniqueness) => {
             Actions.showSpinner()
             if (keysList.length === 0) {
-                showSnackbar("Please select atleast one key to create a new index", " redBg");
+                Actions.hideSpinner()
+                showSnackbar("Please select atleast one key column to create a new index", " redBg");
                 return;
             }
             let newIndex = {};
