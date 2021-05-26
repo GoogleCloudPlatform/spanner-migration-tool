@@ -1169,6 +1169,7 @@ func init() {
 		}
 		postgresTypeMap[srcType] = l
 	}
+	sessionState.conv = internal.MakeConv()
 }
 
 func WebApp() {

@@ -24,10 +24,10 @@ jobs:
 
       - node/install:
           install-npm: true
-          
-      - run: node --version
 
-      - run: cd frontend && npm run test
+      - run: node --version
+      
+      - run: cd frontend && npm install && npm run test
 
 workflows:
   version: 2

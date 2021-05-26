@@ -1,11 +1,10 @@
-# HarbourBridge: Web APIs (Experimental)
+# HarbourBridge: Schema Assistant (alpha release)
 
-HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation
-and migration. This README provides details of the tool's Web APIs capabilities,
-Web APIs allows user to visualize the conversion using UI and interact with the
-tool to customize some of the conversion. For general HarbourBridge information
-see this [README](https:githubcomcloudspannerecosystemharbourbridge#harbourbridge-turnkey-spanner-evaluation). Note that this feature is experimental, and should not be used for
-production database.
+HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation and
+migration. This README provides details of the HarbourBridge schema assistant,
+which supports schema customization. For general HarbourBridge information see
+this [README](https:githubcomcloudspannerecosystemharbourbridge). Note that the
+schema assistant is currently in alpha release.
 
 ### Starting web server for HarbourBridge
 
@@ -27,9 +26,9 @@ You can go to `<base-url>/` to visit the UI of the tool.
 
     eg: localhost:8080/
 
-For more details on how to use the UI, you can visit: `<base-url>/userManual.html`.
+For more details on how to use the UI, you can visit: `<base-url>/#/instructions`.
 
-    eg: localhost:8080/userManual.html
+    eg: localhost:8080/#/instructions
 
 <ins>**Note:**</ins>
 
