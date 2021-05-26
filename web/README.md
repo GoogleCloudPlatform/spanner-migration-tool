@@ -26,9 +26,9 @@ You can go to `<base-url>/` to visit the UI of the tool.
 
     eg: localhost:8080/
 
-For more details on how to use the UI, you can visit: `<base-url>/userManual.html`.
+For more details on how to use the UI, you can visit: `<base-url>/#/instructions`.
 
-    eg: localhost:8080/userManual.html
+    eg: localhost:8080/#/instructions
 
 <ins>**Note:**</ins>
 
