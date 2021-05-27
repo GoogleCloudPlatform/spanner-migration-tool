@@ -757,7 +757,7 @@ func getNegativeUnaryVals(valExpr *driver.ValueExpr) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("unexpected UnaryOperationExpr with value %v", val)
 		}
-		return fmt.Sprintf("-%v", floatVal), nil
+		return fmt.Sprintf("%v", -1*floatVal), nil
 	default:
 		return "", fmt.Errorf("unexpected UnaryOperationExpr value with type %T", val)
 	}
