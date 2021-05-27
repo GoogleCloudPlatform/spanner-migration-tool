@@ -25,6 +25,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/pingcap/parser"
 	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/parser/opcode"
 	driver "github.com/pingcap/tidb/types/parser_driver"
 )
 
@@ -726,6 +727,19 @@ func getVals(row []ast.ExprNode) ([]string, error) {
 		switch valueNode := item.(type) {
 		case *driver.ValueExpr:
 			values = append(values, fmt.Sprintf("%v", valueNode.GetValue()))
+		case *ast.UnaryOperationExpr:
+			if valueNode.Op != opcode.Minus {
+				return nil, fmt.Errorf("unexpected UnaryOperationExpr node with opcode %v", valueNode.Op)
+			}
+			valExpr, ok := valueNode.V.(*driver.ValueExpr)
+			if !ok {
+				return nil, fmt.Errorf("unexpected UnaryOperationExpr node with value type %T", valueNode.V)
+			}
+			value, ok := valExpr.GetValue().(int64)
+			if !ok {
+				return nil, fmt.Errorf("unexpected UnaryOperationExpr node with value %v", valExpr.GetValue())
+			}
+			values = append(values, fmt.Sprintf("%v", -1 * value))
 		default:
 			return nil, fmt.Errorf("unexpected value node %T", valueNode)
 		}
