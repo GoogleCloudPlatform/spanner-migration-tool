@@ -25,8 +25,8 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/pingcap/parser"
 	"github.com/pingcap/parser/ast"
-	"github.com/pingcap/tidb/types"
 	"github.com/pingcap/parser/opcode"
+	"github.com/pingcap/tidb/types"
 	driver "github.com/pingcap/tidb/types/parser_driver"
 )
 
@@ -751,7 +751,7 @@ func getVals(row []ast.ExprNode) ([]string, error) {
 func getNegativeUnaryVals(valExpr *driver.ValueExpr) (string, error) {
 	switch val := valExpr.GetValue().(type) {
 	case int64:
-		return fmt.Sprintf("%v", -1 * val), nil
+		return fmt.Sprintf("%v", -1*val), nil
 	case *types.MyDecimal:
 		floatVal, err := val.ToFloat64()
 		if err != nil {
