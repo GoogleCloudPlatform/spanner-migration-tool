@@ -129,12 +129,14 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, T
 func convBool(conv *internal.Conv, val string) (bool, error) {
 	b, err := strconv.ParseBool(val)
 	if err != nil {
-		// MySQL allows non-boolean values in boolean columns.
-		// If we can't parse as boolean, try to re-parse as INT64
-		// and treat as true if value is non-zero.
-		// Note: if ParseBool fails, then val is probably a non-zero number.
+		// MySQL uses TINYINT(1) to implement BOOL/BOOLEAN, and does not
+		// enforce/validate boolean values i.e. any value that can be stored
+		// in a TINYINT (-128 to 127) can be stored in BOOL/BOOLEAN.
+		// If ParseBool(val) fails, this is very likely the cause.
+		// To handle this, re-parse as INT64 and treat as true if value is non-zero.
+		// Note: if ParseBool(val) fails, then val is probably a non-zero number.
 		i, err2 := convInt64(val)
-		if err2 == nil {
+		if err2 == nil && i >= -128 && i <= 127 {
 			b = i != 0
 			conv.Unexpected(fmt.Sprintf("Expected boolean value, but found integer value %v; mapping it to %v\n", val, b))
 			return b, err2
