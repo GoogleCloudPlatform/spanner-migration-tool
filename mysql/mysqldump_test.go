@@ -738,6 +738,15 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 			expectedData: []spannerData{
 				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), int64(88), int64(44), int64(22), float64(444.9876)}}},
 		},
+		{
+			name: "Data conversion: negative values for smallint, mediumint, bigint, double",
+			input: `
+	CREATE TABLE test (id integer PRIMARY KEY, a smallint, b mediumint, c bigint, d double);
+	INSERT INTO test (id, a, b, c, d) VALUES (-1, -88, -44, -22, -444.9876);
+	`,
+			expectedData: []spannerData{
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(-1), int64(-88), int64(-44), int64(-22), float64(-444.9876)}}},
+		},
 		// test with different timezone
 		{
 			name: "Data conversion:  text, timestamp, datetime, varchar",

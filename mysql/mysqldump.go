@@ -25,6 +25,8 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/pingcap/parser"
 	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/parser/opcode"
+	"github.com/pingcap/tidb/types"
 	driver "github.com/pingcap/tidb/types/parser_driver"
 )
 
@@ -726,11 +728,39 @@ func getVals(row []ast.ExprNode) ([]string, error) {
 		switch valueNode := item.(type) {
 		case *driver.ValueExpr:
 			values = append(values, fmt.Sprintf("%v", valueNode.GetValue()))
+		case *ast.UnaryOperationExpr:
+			if valueNode.Op != opcode.Minus {
+				return nil, fmt.Errorf("unexpected UnaryOperationExpr node with opcode %v", valueNode.Op)
+			}
+			valExpr, ok := valueNode.V.(*driver.ValueExpr)
+			if !ok {
+				return nil, fmt.Errorf("unexpected UnaryOperationExpr node with value type %T", valueNode.V)
+			}
+			value, err := getNegativeUnaryVals(valExpr)
+			if err != nil {
+				return nil, fmt.Errorf("unexpected UnaryOperationExpr node with value %v", valExpr.GetValue())
+			}
+			values = append(values, value)
 		default:
 			return nil, fmt.Errorf("unexpected value node %T", valueNode)
 		}
 	}
 	return values, nil
+}
+
+func getNegativeUnaryVals(valExpr *driver.ValueExpr) (string, error) {
+	switch val := valExpr.GetValue().(type) {
+	case int64:
+		return fmt.Sprintf("%v", -1*val), nil
+	case *types.MyDecimal:
+		floatVal, err := val.ToFloat64()
+		if err != nil {
+			return "", fmt.Errorf("unexpected UnaryOperationExpr with value %v", val)
+		}
+		return fmt.Sprintf("%v", -1*floatVal), nil
+	default:
+		return "", fmt.Errorf("unexpected UnaryOperationExpr value with type %T", val)
+	}
 }
 
 func getTableNameInsert(stmt *ast.TableRefsClause) (string, error) {
