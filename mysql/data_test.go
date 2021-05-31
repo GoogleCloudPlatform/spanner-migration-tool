@@ -74,7 +74,13 @@ func TestConvertData(t *testing.T) {
 		in    string      // Input value for conversion.
 		e     interface{} // Expected result.
 	}{
-		{"bool", ddl.Type{Name: ddl.Bool}, "", "1", true},
+		{"bool 0", ddl.Type{Name: ddl.Bool}, "", "0", false},
+		{"bool 1", ddl.Type{Name: ddl.Bool}, "", "1", true},
+		{"bool true", ddl.Type{Name: ddl.Bool}, "", "true", true},
+		{"bool false", ddl.Type{Name: ddl.Bool}, "", "false", false},
+		{"bool 5", ddl.Type{Name: ddl.Bool}, "", "5", true},
+		{"bool -128", ddl.Type{Name: ddl.Bool}, "", "-128", true},
+		{"bool 127", ddl.Type{Name: ddl.Bool}, "", "127", true},
 		{"bytes", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, "", string([]byte{137, 80}), []byte{0x89, 0x50}}, // need some other approach to testblob type
 		{"date", ddl.Type{Name: ddl.Date}, "", "2019-10-29", getDate("2019-10-29")},
 		{"float64", ddl.Type{Name: ddl.Float64}, "", "42.6", float64(42.6)},
@@ -226,6 +232,11 @@ func TestConvertError(t *testing.T) {
 			name: "Error in bool",
 			cols: []string{"a", "b", "c"},
 			vals: []string{"6", "6.6", "truee"},
+		},
+		{
+			name: "Error in bool 128",
+			cols: []string{"a", "b", "c"},
+			vals: []string{"6", "6.6", "128"},
 		},
 	}
 	tableName := "testtable"

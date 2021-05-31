@@ -77,7 +77,7 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 		if spColDef.T.IsArray {
 			x, err = convArray(spColDef.T, srcColDef.Type.Name, vals[i])
 		} else {
-			x, err = convScalar(spColDef.T, srcColDef.Type.Name, conv.TimezoneOffset, vals[i])
+			x, err = convScalar(conv, spColDef.T, srcColDef.Type.Name, conv.TimezoneOffset, vals[i])
 		}
 		if err != nil {
 			return "", []string{}, []interface{}{}, err
@@ -98,7 +98,7 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 // appropriate Spanner value. It is the caller's responsibility to
 // detect and handle NULL values: convScalar will return error if a
 // NULL value is passed.
-func convScalar(spannerType ddl.Type, srcTypeName string, TimezoneOffset string, val string) (interface{}, error) {
+func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, TimezoneOffset string, val string) (interface{}, error) {
 	// Whitespace within the val string is considered part of the data value.
 	// Note that many of the underlying conversions functions we use (like
 	// strconv.ParseFloat and strconv.ParseInt) return "invalid syntax"
@@ -106,7 +106,7 @@ func convScalar(spannerType ddl.Type, srcTypeName string, TimezoneOffset string,
 	// We do not expect mysqldump to generate such output.
 	switch spannerType.Name {
 	case ddl.Bool:
-		return convBool(val)
+		return convBool(conv, val)
 	case ddl.Bytes:
 		return convBytes(val)
 	case ddl.Date:
@@ -126,9 +126,21 @@ func convScalar(spannerType ddl.Type, srcTypeName string, TimezoneOffset string,
 	}
 }
 
-func convBool(val string) (bool, error) {
+func convBool(conv *internal.Conv, val string) (bool, error) {
 	b, err := strconv.ParseBool(val)
 	if err != nil {
+		// MySQL uses TINYINT(1) to implement BOOL/BOOLEAN, and does not
+		// enforce/validate boolean values i.e. any value that can be stored
+		// in a TINYINT (-128 to 127) can be stored in BOOL/BOOLEAN.
+		// If ParseBool(val) fails, this is very likely the cause.
+		// To handle this, re-parse as INT64 and treat as true if value is non-zero.
+		// Note: if ParseBool(val) fails, then val is probably a non-zero number.
+		i, err2 := convInt64(val)
+		if err2 == nil && i >= -128 && i <= 127 {
+			b = i != 0
+			conv.Unexpected(fmt.Sprintf("Expected boolean value, but found integer value %v; mapping it to %v\n", val, b))
+			return b, err2
+		}
 		return b, fmt.Errorf("can't convert to bool: %w", err)
 	}
 	return b, err
