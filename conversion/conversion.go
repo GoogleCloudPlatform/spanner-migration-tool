@@ -499,6 +499,7 @@ func GetInstance(project string, out *os.File) (string, error) {
 		fmt.Fprintf(out, "Could not find any Spanner instances for project %s\n", project)
 		return "", fmt.Errorf("no Spanner instances for %s", project)
 	}
+
 	// Note: we could ask for user input to select/confirm which Spanner
 	// instance to use, but that interacts poorly with piping pg_dump/mysqldump data
 	// to the tool via stdin.
@@ -538,25 +539,25 @@ func getInstances(project string) ([]string, error) {
 
 // WriteSchemaFile writes DDL statements in a file. It includes CREATE TABLE
 // statements and ALTER TABLE statements to add foreign keys.
+// The parameter name should end with a .txt.
 func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.File) {
 	f, err := os.Create(name)
 	if err != nil {
 		fmt.Fprintf(out, "Can't create schema file %s: %v\n", name, err)
 		return
 	}
-	// The schema file we write out includes comments, includes foreign keys
+
+	// The schema file we write out below is optimized for reading. It includes comments, foreign keys
 	// and doesn't add backticks around table and column names. This file is
 	// intended for explanatory and documentation purposes, and is not strictly
 	// legal Cloud Spanner DDL (Cloud Spanner doesn't currently support comments).
-	// Change 'Comments' to false and 'ProtectIds' to true to write out a
-	// schema file that is legal Cloud Spanner DDL.
-	ddl := conv.SpSchema.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true})
-	if len(ddl) == 0 {
-		ddl = []string{"\n-- Schema is empty -- no tables found\n"}
+	spDDL := conv.SpSchema.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true})
+	if len(spDDL) == 0 {
+		spDDL = []string{"\n-- Schema is empty -- no tables found\n"}
 	}
 	l := []string{
 		fmt.Sprintf("-- Schema generated %s\n", now.Format("2006-01-02 15:04:05")),
-		strings.Join(ddl, ";\n\n"),
+		strings.Join(spDDL, ";\n\n"),
 		"\n",
 	}
 	if _, err := f.WriteString(strings.Join(l, "")); err != nil {
@@ -564,6 +565,32 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 		return
 	}
 	fmt.Fprintf(out, "Wrote schema to file '%s'.\n", name)
+
+	// Convert <file_name>.<ext> to <file_name>.ddl.<ext>.
+	nameSplit := strings.Split(name, ".")
+	nameSplit = append(nameSplit[:len(nameSplit)-1], "ddl", nameSplit[len(nameSplit)-1])
+	name = strings.Join(nameSplit, ".")
+	f, err = os.Create(name)
+	if err != nil {
+		fmt.Fprintf(out, "Can't create legal schema ddl file %s: %v\n", name, err)
+		return
+	}
+
+	// We change 'Comments' to false and 'ProtectIds' to true below to write out a
+	// schema file that is a legal Cloud Spanner DDL.
+	spDDL = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true})
+	if len(spDDL) == 0 {
+		spDDL = []string{"\n-- Schema is empty -- no tables found\n"}
+	}
+	l = []string{
+		strings.Join(spDDL, ";\n\n"),
+		"\n",
+	}
+	if _, err = f.WriteString(strings.Join(l, "")); err != nil {
+		fmt.Fprintf(out, "Can't write out legal schema ddl file: %v\n", err)
+		return
+	}
+	fmt.Fprintf(out, "Wrote legal schema ddl to file '%s'.\n", name)
 }
 
 // WriteSessionFile writes conv struct to a file in JSON format.
@@ -585,6 +612,25 @@ func WriteSessionFile(conv *internal.Conv, name string, out *os.File) {
 		return
 	}
 	fmt.Fprintf(out, "Wrote session to file '%s'.\n", name)
+}
+
+// WriteConvGeneratedFiles creates a directory labeled downloads with the current timestamp
+// where it writes the sessionfile, report summary and DDLs then returns the directory where it writes.
+func WriteConvGeneratedFiles(conv *internal.Conv, dbName string, driver string, BytesRead int64, out *os.File) (string, error) {
+	now := time.Now()
+	dirPath := "harbour_bridge_output/" + dbName + "/"
+	err := os.MkdirAll(dirPath, os.ModePerm)
+	if err != nil {
+		fmt.Fprintf(out, "Can't create directory %s: %v\n", dirPath, err)
+		return "", err
+	}
+	schemaFileName := dirPath + dbName + "_schema.txt"
+	WriteSchemaFile(conv, now, schemaFileName, out)
+	reportFileName := dirPath + dbName + "_report.txt"
+	Report(driver, nil, BytesRead, "", conv, reportFileName, out)
+	sessionFileName := dirPath + dbName + ".session.json"
+	WriteSessionFile(conv, sessionFileName, out)
+	return dirPath, nil
 }
 
 // ReadSessionFile reads a session JSON file and
