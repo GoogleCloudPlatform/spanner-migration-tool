@@ -92,6 +92,11 @@ puppeteer.launch(config.launchOptions).then(async(browser) => {
     */
     await resumeSession(page);
 
+    /*
+    14. Rename a column then revert back to original name
+    */
+    await renameAndRevertColumnName(page);
+    
     // Close Browser
     await browser.close();
 });
@@ -558,6 +563,65 @@ const resumeSession = async(page) => {
     await page.waitForTimeout(200);
 
     await passed(13);
+};
+
+const renameAndRevertColumnName = async(page) => {
+    // expand customer table
+    await page.waitForSelector(homePage.customerTable);
+    await page.click(homePage.customerTable);
+
+    await page.waitForTimeout(200);
+
+    // click edit schema button
+    await page.waitForSelector(homePage.customerEditSchemaButton);
+    await page.click(homePage.customerEditSchemaButton);
+
+    await page.waitForTimeout(200);
+
+    // Change the value of the 6th column (566 means table 5 column 6, 0-indexed)
+    // from "active" to "changed"
+    await page.waitForSelector("input#column-name-text-566");
+    await page.evaluate(
+        () => (document.getElementById("column-name-text-566").value = "changed")
+    );
+
+    await page.waitForTimeout(200);
+
+    // click save schema
+    await page.waitForSelector(homePage.customerEditSchemaButton);
+    await page.click(homePage.customerEditSchemaButton);
+
+    await page.waitForTimeout(200);
+
+    // again click edit schema
+    await page.waitForSelector(homePage.customerEditSchemaButton);
+    await page.click(homePage.customerEditSchemaButton);
+
+    await page.waitForTimeout(200);
+
+    // change column name back to "active"
+    await page.waitForSelector("input#column-name-text-566");
+    await page.evaluate(
+        () => (document.getElementById("column-name-text-566").value = "active")
+    );
+
+    await page.waitForTimeout(200);
+
+    // click save
+    await page.waitForSelector(homePage.customerEditSchemaButton);
+    await page.click(homePage.customerEditSchemaButton);
+
+    try {
+        // wait for error message for 400 ms
+        await page.waitForSelector(homePage.errorModalButton, {timeout: 400});
+        // it reached here hence an error message popped up
+        await page.click(homePage.errorModalButton);
+        await console.log("Test Failed: ", 14)
+    } catch (e) {
+        // timeout occured hence there was no error message
+        await passed(14);
+    }
+
 };
 
 let arr = [];
