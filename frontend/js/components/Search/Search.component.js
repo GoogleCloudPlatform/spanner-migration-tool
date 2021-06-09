@@ -33,16 +33,20 @@ class Search extends HTMLElement {
         <form class="form-inline d-flex justify-content-center md-form form-sm mt-0 search-form" >
           <i class="fas fa-search" aria-hidden="true"></i>
           <input class="form-control form-control-sm ml-3 w-75 search-box" type="text" 
-          placeholder="Search table" value="" id="search-input" autocomplete='off' aria-label="Search" >
+          placeholder="Search table" value="${Actions.getSearchInputValue(this.tabId)}" id="search-input" autocomplete='off' aria-label="Search" >
         </form>`;
 
         document
             .getElementById('search-input')
-            .addEventListener("keyup", (e) =>
-                Actions.SearchTable(
-                    document.getElementById('search-input').value,
-                    this.tabId
-                )
+            .addEventListener("keyup", (e) => {
+                if (e.key === "Enter" || e.target.value.length === 0) {
+                    e.preventDefault()
+                    Actions.SearchTable(
+                        document.getElementById('search-input').value,
+                        this.tabId
+                    )
+                }
+            }
             );
         let value = Actions.getSearchInputValue(Actions.getCurrentTab())
         if (value.length > 0) {
