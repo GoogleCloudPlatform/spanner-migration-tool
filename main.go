@@ -55,7 +55,7 @@ func init() {
 	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
 	flag.BoolVar(&schemaOnly, "schema-only", false, "schema-only: in this mode we do schema conversion, but skip data conversion")
 	flag.BoolVar(&dataOnly, "data-only", false, "data-only: in this mode we skip schema conversion and just do data conversion (use the session flag to specify the session file for schema and data mapping)")
-	flag.BoolVar(&skipForeignKeys, "skip-foreign-keys", false, "skip-foreign-keys: in this mode we do not update the foreign keys after data migration is complete")
+	flag.BoolVar(&skipForeignKeys, "skip-foreign-keys", false, "skip-foreign-keys: if true, skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
 	flag.StringVar(&sessionJSON, "session", "", "session: specifies the file we restore session state from (used in schema-only to provide schema and data mapping)")
 	flag.BoolVar(&webapi, "web", false, "web: run the web interface (experimental)")
 }
