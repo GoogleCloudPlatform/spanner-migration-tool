@@ -284,9 +284,11 @@ Any data in the source database will be ignored.
 A spanner database will be created based on the schema state provided
 by a session file (`-session`) and data will be migrated.
 
-`-skip-foreign-keys` Specifies that foreign key creation will be skipped after 
-data migration is complete. It cannot be used with schema-only mode. This flag does not 
-omit Foreign Key statements in the generated DDL.
+`-skip-foreign-keys` Controls whether we add foreign key constraints after
+data migration is complete. This flag cannot be used with schema-only mode,
+and does not affect the generation of foreign key statements during schema
+processing i.e. foreign key constraints will still appear in the generated Spanner
+DDL files.
 
 `-session` Specifies a session file that contains all schema and data 
 conversion state endcoded as JSON.
