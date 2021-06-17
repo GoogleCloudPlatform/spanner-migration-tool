@@ -41,6 +41,7 @@ var (
 	verbose          bool
 	schemaOnly       bool
 	dataOnly         bool
+	skipForeignKeys  bool
 	sessionJSON      string
 	webapi           bool
 )
@@ -54,6 +55,7 @@ func init() {
 	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
 	flag.BoolVar(&schemaOnly, "schema-only", false, "schema-only: in this mode we do schema conversion, but skip data conversion")
 	flag.BoolVar(&dataOnly, "data-only", false, "data-only: in this mode we skip schema conversion and just do data conversion (use the session flag to specify the session file for schema and data mapping)")
+	flag.BoolVar(&skipForeignKeys, "skip-foreign-keys", false, "skip-foreign-keys: in this mode we do not update the foreign keys after data migration is complete")
 	flag.StringVar(&sessionJSON, "session", "", "session: specifies the file we restore session state from (used in schema-only to provide schema and data mapping)")
 	flag.BoolVar(&webapi, "web", false, "web: run the web interface (experimental)")
 }
@@ -91,6 +93,9 @@ func main() {
 	}
 	if dataOnly && sessionJSON == "" {
 		panic(fmt.Errorf("when using data-only mode, the session must specify the session file to use"))
+	}
+	if schemaOnly && skipForeignKeys {
+		panic(fmt.Errorf("can't use both schema-only and skip-foreign-keys at once. Foreign Key creation can only be skipped when data migration takes place."))
 	}
 
 	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
@@ -134,7 +139,7 @@ func main() {
 
 	// TODO (agasheesh@): Collect all the config state in a single struct and pass the same to CommandLine instead of
 	// passing multiple parameters. Config state would be populated by parsing the flags and environment variables.
-	err = cmd.CommandLine(driverName, project, instance, dbName, dataOnly, schemaOnly, schemaSampleSize, sessionJSON, ioHelper, filePrefix, now)
+	err = cmd.CommandLine(driverName, project, instance, dbName, dataOnly, schemaOnly, skipForeignKeys, schemaSampleSize, sessionJSON, ioHelper, filePrefix, now)
 	if err != nil {
 		panic(err)
 	}
