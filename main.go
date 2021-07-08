@@ -44,6 +44,9 @@ var (
 	skipForeignKeys  bool
 	sessionJSON      string
 	webapi           bool
+
+	// flags not exposed in the documentation
+	maxWorkers = int64(10)
 )
 
 func init() {
@@ -58,6 +61,9 @@ func init() {
 	flag.BoolVar(&skipForeignKeys, "skip-foreign-keys", false, "skip-foreign-keys: if true, skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
 	flag.StringVar(&sessionJSON, "session", "", "session: specifies the file we restore session state from (used in schema-only to provide schema and data mapping)")
 	flag.BoolVar(&webapi, "web", false, "web: run the web interface (experimental)")
+
+	// flags not exposed in the documentation
+	flag.Int64Var(&maxWorkers, "max-workers", int64(10), "max-workers: set the maximum number of concurrent workers during foreign key creation")
 }
 
 func usage() {
@@ -139,7 +145,7 @@ func main() {
 
 	// TODO (agasheesh@): Collect all the config state in a single struct and pass the same to CommandLine instead of
 	// passing multiple parameters. Config state would be populated by parsing the flags and environment variables.
-	err = cmd.CommandLine(driverName, project, instance, dbName, dataOnly, schemaOnly, skipForeignKeys, schemaSampleSize, sessionJSON, ioHelper, filePrefix, now)
+	err = cmd.CommandLine(driverName, project, instance, dbName, dataOnly, schemaOnly, skipForeignKeys, maxWorkers, schemaSampleSize, sessionJSON, ioHelper, filePrefix, now)
 	if err != nil {
 		panic(err)
 	}
