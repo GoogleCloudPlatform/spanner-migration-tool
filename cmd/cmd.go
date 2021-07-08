@@ -36,7 +36,7 @@ var (
 // 2. Create database (if schemaOnly is set to false)
 // 3. Run data conversion (if schemaOnly is set to false)
 // 4. Generate report
-func CommandLine(driver, projectID, instanceID, dbName string, dataOnly, schemaOnly bool, skipForeignKeys bool, schemaSampleSize int64, sessionJSON string, ioHelper *conversion.IOStreams, outputFilePrefix string, now time.Time) error {
+func CommandLine(driver, projectID, instanceID, dbName string, dataOnly, schemaOnly bool, skipForeignKeys bool, maxWorkers, schemaSampleSize int64, sessionJSON string, ioHelper *conversion.IOStreams, outputFilePrefix string, now time.Time) error {
 	var conv *internal.Conv
 	var err error
 	if !dataOnly {
@@ -80,7 +80,7 @@ func CommandLine(driver, projectID, instanceID, dbName string, dataOnly, schemaO
 		return fmt.Errorf("can't finish data conversion")
 	}
 	if !skipForeignKeys {
-		if err = conversion.UpdateDDLForeignKeys(projectID, instanceID, dbName, conv, ioHelper.Out); err != nil {
+		if err = conversion.UpdateDDLForeignKeys(projectID, instanceID, dbName, maxWorkers, conv, ioHelper.Out); err != nil {
 			fmt.Printf("\nCan't perform update operation on db %s with foreign keys: %v\n", db, err)
 			return fmt.Errorf("can't perform update schema with foreign keys")
 		}
