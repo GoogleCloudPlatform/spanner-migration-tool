@@ -45,6 +45,7 @@ import (
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/aws"
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
