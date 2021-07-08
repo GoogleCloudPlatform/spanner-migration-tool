@@ -44,6 +44,7 @@ import (
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/aws"
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
@@ -216,7 +217,14 @@ func dataFromSQL(driver string, config spanner.BatchWriterConfig, client *sp.Cli
 func schemaFromDynamoDB(sampleSize int64) (*internal.Conv, error) {
 	conv := internal.MakeConv()
 	mySession := session.Must(session.NewSession())
-	client := dydb.New(mySession)
+	cfg := aws.Config{}
+	endpointOverride := os.Getenv("DYNAMODB_ENDPOINT_OVERRIDE")
+	if endpointOverride != "" {
+		cfg = aws.Config{
+			Endpoint: aws.String(endpointOverride),
+		}
+	}
+	client := dydb.New(mySession, &cfg)
 	err := dynamodb.ProcessSchema(conv, client, []string{}, sampleSize)
 	if err != nil {
 		return nil, err
@@ -226,7 +234,14 @@ func schemaFromDynamoDB(sampleSize int64) (*internal.Conv, error) {
 
 func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
 	mySession := session.Must(session.NewSession())
-	dyclient := dydb.New(mySession)
+	cfg := aws.Config{}
+	endpointOverride := os.Getenv("DYNAMODB_ENDPOINT_OVERRIDE")
+	if endpointOverride != "" {
+		cfg = aws.Config{
+			Endpoint: aws.String(endpointOverride),
+		}
+	}
+	dyclient := dydb.New(mySession, &cfg)
 
 	dynamodb.SetRowStats(conv, dyclient)
 	totalRows := conv.Rows()
