@@ -214,8 +214,8 @@ func checkResults(t *testing.T, dbPath string) {
 }
 
 func checkBigInt(ctx context.Context, t *testing.T, client *spanner.Client) {
-	var quantity int64
-	iter := client.Single().Read(ctx, "cart", spanner.Key{"901e-a6cfc2b502dc", "abc-123"}, []string{"quantity"})
+	stmt := spanner.Statement{SQL: `SELECT Year, Title, Plot FROM Movies`}
+	iter := client.Single().Query(ctx, stmt)
 	defer iter.Stop()
 	for {
 		row, err := iter.Next()
@@ -223,14 +223,17 @@ func checkBigInt(ctx context.Context, t *testing.T, client *spanner.Client) {
 			break
 		}
 		if err != nil {
+			log.Println("Error reading row: ", err)
 			t.Fatal(err)
+			break
 		}
-		if err := row.Columns(&quantity); err != nil {
+		var year, title, plot string
+		if err := row.Columns(&year, &title, &plot); err != nil {
+			log.Println("Error reading into variables: ", err)
 			t.Fatal(err)
+			break
 		}
-	}
-	if got, want := quantity, int64(1); got != want {
-		t.Fatalf("quantities are not correct: got %v, want %v", got, want)
+		log.Printf("Found the following:\nYear: %s\nTitle: %s\nPlot: %s\n", year, title, plot)
 	}
 }
 
