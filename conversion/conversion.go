@@ -214,9 +214,7 @@ func dataFromSQL(driver string, config spanner.BatchWriterConfig, client *sp.Cli
 	return writer, nil
 }
 
-func schemaFromDynamoDB(sampleSize int64) (*internal.Conv, error) {
-	conv := internal.MakeConv()
-	mySession := session.Must(session.NewSession())
+func getDynamoDBClientConfig() aws.Config {
 	cfg := aws.Config{}
 	endpointOverride := os.Getenv("DYNAMODB_ENDPOINT_OVERRIDE")
 	if endpointOverride != "" {
@@ -224,6 +222,13 @@ func schemaFromDynamoDB(sampleSize int64) (*internal.Conv, error) {
 			Endpoint: aws.String(endpointOverride),
 		}
 	}
+	return cfg
+}
+
+func schemaFromDynamoDB(sampleSize int64) (*internal.Conv, error) {
+	conv := internal.MakeConv()
+	mySession := session.Must(session.NewSession())
+	cfg := getDynamoDBClientConfig()
 	client := dydb.New(mySession, &cfg)
 	err := dynamodb.ProcessSchema(conv, client, []string{}, sampleSize)
 	if err != nil {
@@ -234,13 +239,7 @@ func schemaFromDynamoDB(sampleSize int64) (*internal.Conv, error) {
 
 func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
 	mySession := session.Must(session.NewSession())
-	cfg := aws.Config{}
-	endpointOverride := os.Getenv("DYNAMODB_ENDPOINT_OVERRIDE")
-	if endpointOverride != "" {
-		cfg = aws.Config{
-			Endpoint: aws.String(endpointOverride),
-		}
-	}
+	cfg := getDynamoDBClientConfig()
 	dyclient := dydb.New(mySession, &cfg)
 	dynamodb.SetRowStats(conv, dyclient)
 	totalRows := conv.Rows()

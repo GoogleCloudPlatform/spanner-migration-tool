@@ -27,6 +27,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/cmd"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/stretchr/testify/assert"
 
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
@@ -210,10 +211,10 @@ func checkResults(t *testing.T, dbPath string) {
 	}
 	defer client.Close()
 
-	checkBigInt(ctx, t, client)
+	checkRow(ctx, t, client)
 }
 
-func checkBigInt(ctx context.Context, t *testing.T, client *spanner.Client) {
+func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
 	stmt := spanner.Statement{SQL: `SELECT Year, Title, Plot FROM Movies`}
 	iter := client.Single().Query(ctx, stmt)
 	defer iter.Stop()
@@ -233,7 +234,9 @@ func checkBigInt(ctx context.Context, t *testing.T, client *spanner.Client) {
 			t.Fatal(err)
 			break
 		}
-		log.Printf("Found the following:\nYear: %s\nTitle: %s\nPlot: %s\n", year, title, plot)
+		assert.Equal(t, year, "2015")
+		assert.Equal(t, title, "The Big New Movie")
+		assert.Equal(t, plot, "Nothing happens at all.")
 	}
 }
 
