@@ -440,7 +440,6 @@ func UpdateDDLForeignKeys(project, instance, dbName string, maxWorkers int64, co
 	}
 	msg := fmt.Sprintf("Updating schema of database %s in instance %s with foreign key constraints ...", dbName, instance)
 	p := internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose())
-
 	type Pair struct {
 		a, b interface{}
 	}
@@ -467,7 +466,6 @@ func UpdateDDLForeignKeys(project, instance, dbName string, maxWorkers int64, co
 					continue
 				}
 				defer adminClient.Close()
-
 				op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 					Database:   fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName),
 					Statements: []string{fkStmt},
