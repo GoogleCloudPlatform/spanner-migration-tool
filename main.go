@@ -44,6 +44,7 @@ var (
 	skipForeignKeys  bool
 	sessionJSON      string
 	webapi           bool
+	dumpFile         string
 )
 
 func init() {
@@ -58,6 +59,7 @@ func init() {
 	flag.BoolVar(&skipForeignKeys, "skip-foreign-keys", false, "skip-foreign-keys: if true, skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
 	flag.StringVar(&sessionJSON, "session", "", "session: specifies the file we restore session state from (used in schema-only to provide schema and data mapping)")
 	flag.BoolVar(&webapi, "web", false, "web: run the web interface (experimental)")
+	flag.StringVar(&dumpFile, "dump-file", "", "location of dump file to process")
 }
 
 func usage() {
@@ -97,6 +99,8 @@ func main() {
 	if schemaOnly && skipForeignKeys {
 		panic(fmt.Errorf("can't use both schema-only and skip-foreign-keys at once. Foreign Key creation can only be skipped when data migration takes place."))
 	}
+
+	loadDumpFileIfExists(dumpFile)
 
 	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
 	fmt.Println("Using driver (source DB):", driverName)
@@ -142,5 +146,18 @@ func main() {
 	err = cmd.CommandLine(driverName, project, instance, dbName, dataOnly, schemaOnly, skipForeignKeys, schemaSampleSize, sessionJSON, ioHelper, filePrefix, now)
 	if err != nil {
 		panic(err)
+	}
+}
+
+func loadDumpFileIfExists(dumpFile string) {
+	if dumpFile != "" {
+		fmt.Printf("\nloading dump file from path: %s\n", dumpFile)
+		file, err := os.Open(dumpFile)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer file.Close()
+		os.Stdin = file
 	}
 }
