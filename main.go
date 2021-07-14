@@ -100,9 +100,9 @@ func main() {
 		panic(fmt.Errorf("can't use both schema-only and skip-foreign-keys at once. Foreign Key creation can only be skipped when data migration takes place."))
 	}
 
-	loadDumpFileIfExists(dumpFile)
+	input := loadInput(dumpFile)
 
-	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
+	ioHelper := &conversion.IOStreams{In: input, Out: os.Stdout}
 	fmt.Println("Using driver (source DB):", driverName)
 
 	var project, instance string
@@ -149,15 +149,14 @@ func main() {
 	}
 }
 
-func loadDumpFileIfExists(dumpFile string) {
+func loadInput(dumpFile string) *os.File {
 	if dumpFile != "" {
 		fmt.Printf("\nloading dump file from path: %s\n", dumpFile)
 		file, err := os.Open(dumpFile)
-		if err != nil {
+		if err == nil {
 			fmt.Println(err)
-			return
+			return file
 		}
-		defer file.Close()
-		os.Stdin = file
 	}
+	return os.Stdin
 }
