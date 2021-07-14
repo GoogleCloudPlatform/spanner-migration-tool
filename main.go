@@ -153,10 +153,11 @@ func loadInput(dumpFile string) *os.File {
 	if dumpFile != "" {
 		fmt.Printf("\nloading dump file from path: %s\n", dumpFile)
 		file, err := os.Open(dumpFile)
-		if err == nil {
-			fmt.Println(err)
-			return file
+		if err != nil {
+			fmt.Printf("\nerror reading file: %v err:%v", dumpFile, err)
+			panic(fmt.Errorf("cannot open file"))
 		}
+		return file
 	}
 	return os.Stdin
 }
