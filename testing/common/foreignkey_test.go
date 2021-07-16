@@ -143,12 +143,15 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 	t.Parallel()
 
 	dbName := fmt.Sprintf("foreign-key-test-two-tables")
+
+	// Build a conv without foreign key statements to create just the tables during CreateDatabase.
 	conv := BuildConv(t)
 
 	dbpath, err := conversion.CreateDatabase(projectID, instanceID, dbName, conv, os.Stdout)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	addForeignKeysToConv(conv, t)
 	if err = conversion.UpdateDDLForeignKeys(projectID, instanceID, dbName, 3, conv, os.Stdout); err != nil {
 		t.Fatalf("\nCan't perform update operation on db %s with foreign keys: %v\n", dbpath, err)
@@ -158,6 +161,10 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not read DDL from database %s: %v", dbpath, err)
 	}
+
+	// Each statement in the response is the DDL for a whole table including column names, foreign key statements and primary keys.
+	// The data type is bytes. Sample resp.Statements:
+	// ["2021/07/16 13:45:14 CREATE TABLE table_a (\n  col1 STRING(10),\n  col2 STRING(10),\n) PRIMARY KEY(col1);"]
 	var stmta, stmtb string
 	if strings.Contains(resp.Statements[0], "CREATE TABLE table_a") {
 		stmta, stmtb = resp.Statements[0], resp.Statements[1]
@@ -172,9 +179,10 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 		"CONSTRAINT fk_3 FOREIGN KEY(col3) REFERENCES table_b(col3),",
 		"CONSTRAINT fk_4 FOREIGN KEY(col4) REFERENCES table_b(col4),",
 		"CONSTRAINT fk_5 FOREIGN KEY(col5) REFERENCES table_b(col5),",
-		"CONSTRAINT fk_6 FOREIGN KEY(col6) REFERENCES table_b(col6)",
+		"CONSTRAINT fk_6 FOREIGN KEY(col6) REFERENCES table_b(col6),",
 	}
 	var gotFkStmts []string
+	// Filter out just the foreign key statements
 	for _, Stmt := range strings.Split(stmta, "\n") {
 		if strings.Contains(Stmt, "FOREIGN KEY") {
 			gotFkStmts = append(gotFkStmts, strings.TrimSpace(Stmt))
@@ -183,10 +191,6 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 
 	sort.Strings(gotFkStmts)
 	sort.Strings(wantFkStmts)
-	log.Println("Want:")
-	log.Println(wantFkStmts)
-	log.Println("Got:")
-	log.Println(gotFkStmts)
 
 	assert.Equal(t, wantFkStmts, gotFkStmts)
 
