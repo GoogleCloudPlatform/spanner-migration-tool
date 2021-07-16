@@ -47,7 +47,7 @@ var (
 	databaseAdmin *database.DatabaseAdminClient
 )
 
-// Create struct to hold info about new item in dynamodb
+// Create struct to hold info about new item in dynamodb.
 type Item struct {
 	Year   string
 	Title  string
