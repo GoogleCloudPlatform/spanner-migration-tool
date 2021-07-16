@@ -45,7 +45,7 @@ var (
 	sessionJSON      string
 	webapi           bool
 
-	// flags not exposed in the documentation
+	// Flags not exposed in the documentation.
 	maxWorkers = int64(10)
 )
 
@@ -62,7 +62,7 @@ func init() {
 	flag.StringVar(&sessionJSON, "session", "", "session: specifies the file we restore session state from (used in schema-only to provide schema and data mapping)")
 	flag.BoolVar(&webapi, "web", false, "web: run the web interface (experimental)")
 
-	// flags not exposed in the documentation
+	// Flags not exposed in the documentation.
 	flag.Int64Var(&maxWorkers, "max-workers", int64(10), "max-workers: set the maximum number of concurrent workers during foreign key creation")
 }
 

@@ -182,7 +182,7 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 		"CONSTRAINT fk_6 FOREIGN KEY(col6) REFERENCES table_b(col6),",
 	}
 	var gotFkStmts []string
-	// Filter out just the foreign key statements
+	// Filter out just the foreign key statements.
 	for _, Stmt := range strings.Split(stmta, "\n") {
 		if strings.Contains(Stmt, "FOREIGN KEY") {
 			gotFkStmts = append(gotFkStmts, strings.TrimSpace(Stmt))
