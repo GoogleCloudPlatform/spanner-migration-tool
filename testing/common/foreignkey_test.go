@@ -20,12 +20,15 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/stretchr/testify/assert"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 
@@ -155,9 +158,38 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not read DDL from database %s: %v", dbpath, err)
 	}
-	for _, s := range resp.Statements {
-		log.Printf("%s;\n", s)
+	var stmta, stmtb string
+	if strings.Contains(resp.Statements[0], "CREATE TABLE table_a") {
+		stmta, stmtb = resp.Statements[0], resp.Statements[1]
+	} else {
+		stmta, stmtb = resp.Statements[1], resp.Statements[0]
 	}
+	assert.False(t, strings.Contains(stmtb, "FOREIGN KEY"))
+
+	wantFkStmts := []string{
+		"CONSTRAINT fk_1 FOREIGN KEY(col1) REFERENCES table_b(col1),",
+		"CONSTRAINT fk_2 FOREIGN KEY(col2) REFERENCES table_b(col2),",
+		"CONSTRAINT fk_3 FOREIGN KEY(col3) REFERENCES table_b(col3),",
+		"CONSTRAINT fk_4 FOREIGN KEY(col4) REFERENCES table_b(col4),",
+		"CONSTRAINT fk_5 FOREIGN KEY(col5) REFERENCES table_b(col5),",
+		"CONSTRAINT fk_6 FOREIGN KEY(col6) REFERENCES table_b(col6)",
+	}
+	var gotFkStmts []string
+	for _, Stmt := range strings.Split(stmta, "\n") {
+		if strings.Contains(Stmt, "FOREIGN KEY") {
+			gotFkStmts = append(gotFkStmts, strings.TrimSpace(Stmt))
+		}
+	}
+
+	sort.Strings(gotFkStmts)
+	sort.Strings(wantFkStmts)
+	log.Println("Want:")
+	log.Println(wantFkStmts)
+	log.Println("Got:")
+	log.Println(gotFkStmts)
+
+	assert.Equal(t, wantFkStmts, gotFkStmts)
+
 	// Drop the database later.
 	defer dropDatabase(t, dbpath)
 
