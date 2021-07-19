@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql_test
+package conversion_test
 
 import (
 	"context"
@@ -92,40 +92,33 @@ func dropDatabase(t *testing.T, dbPath string) {
 	}
 }
 
-func BuildConv(t *testing.T) *internal.Conv {
+func BuildConv(t *testing.T, numCols int) *internal.Conv {
 	conv := internal.MakeConv()
+	colNames := []string{}
+	colDefs := map[string]ddl.ColumnDef{}
+	for i := 1; i <= numCols; i++ {
+		currColName := fmt.Sprintf("col%d", i)
+		colNames = append(colNames, currColName)
+		colDefs[currColName] = ddl.ColumnDef{Name: currColName, T: ddl.Type{Name: ddl.String, Len: int64(10)}}
+	}
 	conv.SpSchema["table_a"] = ddl.CreateTable{
 		Name:     "table_a",
-		ColNames: []string{"col1", "col2", "col3", "col4", "col5", "col6"},
-		ColDefs: map[string]ddl.ColumnDef{
-			"col1": ddl.ColumnDef{Name: "col1", T: ddl.Type{Name: ddl.String, Len: int64(10)}},
-			"col2": ddl.ColumnDef{Name: "col2", T: ddl.Type{Name: ddl.String, Len: int64(10)}},
-			"col3": ddl.ColumnDef{Name: "col3", T: ddl.Type{Name: ddl.String, Len: int64(10)}},
-			"col4": ddl.ColumnDef{Name: "col4", T: ddl.Type{Name: ddl.String, Len: int64(10)}},
-			"col5": ddl.ColumnDef{Name: "col5", T: ddl.Type{Name: ddl.String, Len: int64(10)}},
-			"col6": ddl.ColumnDef{Name: "col6", T: ddl.Type{Name: ddl.String, Len: int64(10)}},
-		},
-		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "col1"}},
+		ColNames: colNames,
+		ColDefs:  colDefs,
+		Pks:      []ddl.IndexKey{ddl.IndexKey{Col: "col1"}},
 	}
 	conv.SpSchema["table_b"] = ddl.CreateTable{
 		Name:     "table_b",
-		ColNames: []string{"col1", "col2", "col3", "col4", "col5", "col6"},
-		ColDefs: map[string]ddl.ColumnDef{
-			"col1": ddl.ColumnDef{Name: "col1", T: ddl.Type{Name: ddl.String, Len: int64(10)}},
-			"col2": ddl.ColumnDef{Name: "col2", T: ddl.Type{Name: ddl.String, Len: int64(10)}},
-			"col3": ddl.ColumnDef{Name: "col3", T: ddl.Type{Name: ddl.String, Len: int64(10)}},
-			"col4": ddl.ColumnDef{Name: "col4", T: ddl.Type{Name: ddl.String, Len: int64(10)}},
-			"col5": ddl.ColumnDef{Name: "col5", T: ddl.Type{Name: ddl.String, Len: int64(10)}},
-			"col6": ddl.ColumnDef{Name: "col6", T: ddl.Type{Name: ddl.String, Len: int64(10)}},
-		},
-		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "col1"}},
+		ColNames: colNames,
+		ColDefs:  colDefs,
+		Pks:      []ddl.IndexKey{ddl.IndexKey{Col: "col1"}},
 	}
 	return conv
 }
 
-func addForeignKeysToConv(conv *internal.Conv, t *testing.T) {
+func addForeignKeysToConv(t *testing.T, conv *internal.Conv, numFks int) {
 	var foreignKeys []ddl.Foreignkey
-	for i := 1; i <= 6; i++ {
+	for i := 1; i <= numFks; i++ {
 		foreignKey := ddl.Foreignkey{
 			Name:         fmt.Sprintf("fk_%d", i),
 			Columns:      []string{fmt.Sprintf("col%d", i)},
@@ -138,24 +131,7 @@ func addForeignKeysToConv(conv *internal.Conv, t *testing.T) {
 	conv.SpSchema["table_a"] = spTable
 }
 
-func TestUpdateDDLForeignKeys(t *testing.T) {
-	onlyRunForEmulatorTest(t)
-	t.Parallel()
-
-	dbName := fmt.Sprintf("foreign-key-test-two-tables")
-
-	// Build a conv without foreign key statements to create just the tables during CreateDatabase.
-	conv := BuildConv(t)
-
-	dbpath, err := conversion.CreateDatabase(projectID, instanceID, dbName, conv, os.Stdout)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	addForeignKeysToConv(conv, t)
-	if err = conversion.UpdateDDLForeignKeys(projectID, instanceID, dbName, 3, conv, os.Stdout); err != nil {
-		t.Fatalf("\nCan't perform update operation on db %s with foreign keys: %v\n", dbpath, err)
-	}
+func checkResults(t *testing.T, dbpath string, numFks int) {
 	ctx := context.Background()
 	resp, err := databaseAdmin.GetDatabaseDdl(ctx, &databasepb.GetDatabaseDdlRequest{Database: dbpath})
 	if err != nil {
@@ -173,13 +149,10 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 	}
 	assert.False(t, strings.Contains(stmtb, "FOREIGN KEY"))
 
-	wantFkStmts := []string{
-		"CONSTRAINT fk_1 FOREIGN KEY(col1) REFERENCES table_b(col1),",
-		"CONSTRAINT fk_2 FOREIGN KEY(col2) REFERENCES table_b(col2),",
-		"CONSTRAINT fk_3 FOREIGN KEY(col3) REFERENCES table_b(col3),",
-		"CONSTRAINT fk_4 FOREIGN KEY(col4) REFERENCES table_b(col4),",
-		"CONSTRAINT fk_5 FOREIGN KEY(col5) REFERENCES table_b(col5),",
-		"CONSTRAINT fk_6 FOREIGN KEY(col6) REFERENCES table_b(col6),",
+	wantFkStmts := []string{}
+	for i := 1; i <= numFks; i++ {
+		fkStmt := fmt.Sprintf("CONSTRAINT fk_%d FOREIGN KEY(col%d) REFERENCES table_b(col%d),", i, i, i)
+		wantFkStmts = append(wantFkStmts, fkStmt)
 	}
 	var gotFkStmts []string
 	// Filter out just the foreign key statements.
@@ -193,10 +166,60 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 	sort.Strings(wantFkStmts)
 
 	assert.Equal(t, wantFkStmts, gotFkStmts)
+}
 
+func UpdateDDLForeignKeysTest(t *testing.T, dbName string, numCols, numWorkers, numFks int) {
+	// Build a conv without foreign key statements to create just the tables during CreateDatabase.
+	conv := BuildConv(t, numCols)
+
+	dbpath, err := conversion.CreateDatabase(projectID, instanceID, dbName, conv, os.Stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	addForeignKeysToConv(t, conv, numFks)
+	if err = conversion.UpdateDDLForeignKeys(projectID, instanceID, dbName, int64(numWorkers), conv, os.Stdout); err != nil {
+		t.Fatalf("\nCan't perform update operation on db %s with foreign keys: %v\n", dbpath, err)
+	}
+
+	checkResults(t, dbName, numFks)
 	// Drop the database later.
 	defer dropDatabase(t, dbpath)
+}
 
+func TestUpdateDDLForeignKeysWorkersEqualFks(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	t.Parallel()
+	dbName := fmt.Sprintf("ForeignKeyTestWorkersEqualFks")
+	UpdateDDLForeignKeysTest(t, dbName, 10, 8, 8)
+}
+
+func TestUpdateDDLForeignKeysWorkersLessThanFks(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	t.Parallel()
+	dbName := fmt.Sprintf("ForeignKeyTestWorkersLessThanFks")
+	UpdateDDLForeignKeysTest(t, dbName, 10, 3, 8)
+}
+
+func TestUpdateDDLForeignKeysWorkersMoreThanFks(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	t.Parallel()
+	dbName := fmt.Sprintf("ForeignKeyTestWorkersMoreThanFks")
+	UpdateDDLForeignKeysTest(t, dbName, 10, 16, 8)
+}
+
+func TestUpdateDDLForeignKeysSingleWorker(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	t.Parallel()
+	dbName := fmt.Sprintf("ForeignKeyTestWorkersSingleWorker")
+	UpdateDDLForeignKeysTest(t, dbName, 5, 1, 4)
+}
+
+func TestUpdateDDLForeignKeysSingleFk(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	t.Parallel()
+	dbName := fmt.Sprintf("ForeignKeyTestWorkersSingleFk")
+	UpdateDDLForeignKeysTest(t, dbName, 1, 5, 1)
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {

@@ -440,32 +440,36 @@ func UpdateDDLForeignKeys(project, instance, dbName string, maxWorkers int64, co
 	}
 	msg := fmt.Sprintf("Updating schema of database %s in instance %s with foreign key constraints ...", dbName, instance)
 	p := internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose())
-	type Pair struct {
-		a, b interface{}
+	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	if err != nil {
+		fmt.Printf("can't create admin client: %s\n", analyzeError(err, project, instance))
+		conv.Unexpected(fmt.Sprintf("can't create admin client: %s\n", analyzeError(err, project, instance)))
+		return err
 	}
-	fkStmtsQueue := make(chan string, len(fkStmts))
-	results := make(chan Pair, len(fkStmts))
+	defer adminClient.Close()
+
+	type Result struct {
+		fkStmt string
+		err    error
+	}
+	fkStmtsChan := make(chan string, len(fkStmts))
+	results := make(chan Result, len(fkStmts))
 
 	for _, fkStmt := range fkStmts {
-		fkStmtsQueue <- fkStmt
+		fkStmtsChan <- fkStmt
 	}
-	close(fkStmtsQueue)
+	close(fkStmtsChan)
 
+	// We dispatch parallel foreign key create requests to ensure the backfill runs in parallel to reduce overall time.
+	// This cuts down the time taken to a third (approx) compared to Serial and Batched creation. We also do not want to create
+	// too many requests and get throttled due to network or hitting catalog memory limits.
 	// Spawn `maxWorkers` go routines that each read one fkStatement from the fkStmtsQueue channel.
 	// On succesful creation of a foreign key, push a Pair to the results channel where Pair.b is 1
 	// on success and 0 on failure.
 	for i := int64(1); i <= maxWorkers; i++ {
-		go func(fkStmtsQueue <-chan string, results chan<- Pair) {
+		go func(fkStmtsChan <-chan string, results chan<- Result) {
 
-			for fkStmt := range fkStmtsQueue {
-				adminClient, err := database.NewDatabaseAdminClient(ctx)
-				if err != nil {
-					fmt.Printf("can't create admin client: %s\n", analyzeError(err, project, instance))
-					conv.Unexpected(fmt.Sprintf("can't create admin client: %s\n", analyzeError(err, project, instance)))
-					results <- Pair{fkStmt, 0}
-					continue
-				}
-				defer adminClient.Close()
+			for fkStmt := range fkStmtsChan {
 				op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 					Database:   fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName),
 					Statements: []string{fkStmt},
@@ -473,24 +477,24 @@ func UpdateDDLForeignKeys(project, instance, dbName string, maxWorkers int64, co
 				if err != nil {
 					fmt.Printf("Cannot submit request for create foreign key with statement %s: %s\n", fkStmt, err)
 					conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
-					results <- Pair{fkStmt, 0}
+					results <- Result{fkStmt, err}
 					continue
 				}
 				if err := op.Wait(ctx); err != nil {
 					fmt.Printf("Can't add foreign key with statement %s: %s\n", fkStmt, err)
 					conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
-					results <- Pair{fkStmt, 0}
+					results <- Result{fkStmt, err}
 					continue
 				}
 				internal.VerbosePrintln("Updated schema with statement: " + fkStmt)
-				results <- Pair{fkStmt, 1}
+				results <- Result{fkStmt, nil}
 			}
-		}(fkStmtsQueue, results)
+		}(fkStmtsChan, results)
 	}
 	progress := int64(0)
 	for i := 1; i <= len(fkStmts); i++ {
-		pair := <-results
-		if pair.b == 1 {
+		result := <-results
+		if result.err == nil {
 			progress++
 			p.MaybeReport(progress)
 		}
