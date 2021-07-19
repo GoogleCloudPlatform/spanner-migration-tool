@@ -209,7 +209,7 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 		return
 	}
 	tableName, err := getTableName(stmt.Table)
-	internal.VerbosePrintf("processing create table elem=%s stmt=%s\n", tableName, stmt)
+	internal.VerbosePrintf("processing create table elem=%s stmt=%v\n", tableName, stmt)
 	if err != nil {
 		logStmtError(conv, stmt, fmt.Errorf("can't get table name: %w", err))
 		return
