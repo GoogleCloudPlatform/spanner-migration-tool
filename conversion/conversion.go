@@ -214,23 +214,20 @@ func dataFromSQL(driver string, config spanner.BatchWriterConfig, client *sp.Cli
 	return writer, nil
 }
 
-func getDynamoDBClientConfig() aws.Config {
+func getDynamoDBClientConfig() *aws.Config {
 	cfg := aws.Config{}
 	endpointOverride := os.Getenv("DYNAMODB_ENDPOINT_OVERRIDE")
 	if endpointOverride != "" {
-		cfg = aws.Config{
-			Endpoint: aws.String(endpointOverride),
-		}
+		cfg.Endpoint = aws.String(endpointOverride)
 	}
-	return cfg
+	return &cfg
 }
 
 func schemaFromDynamoDB(sampleSize int64) (*internal.Conv, error) {
 	conv := internal.MakeConv()
 	mySession := session.Must(session.NewSession())
-	cfg := getDynamoDBClientConfig()
-	client := dydb.New(mySession, &cfg)
-	err := dynamodb.ProcessSchema(conv, client, []string{}, sampleSize)
+	dydbClient := dydb.New(mySession, getDynamoDBClientConfig())
+	err := dynamodb.ProcessSchema(conv, dydbClient, []string{}, sampleSize)
 	if err != nil {
 		return nil, err
 	}
@@ -239,9 +236,8 @@ func schemaFromDynamoDB(sampleSize int64) (*internal.Conv, error) {
 
 func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
 	mySession := session.Must(session.NewSession())
-	cfg := getDynamoDBClientConfig()
-	dyclient := dydb.New(mySession, &cfg)
-	dynamodb.SetRowStats(conv, dyclient)
+	dydbClient := dydb.New(mySession, getDynamoDBClientConfig())
+	dynamodb.SetRowStats(conv, dydbClient)
 	totalRows := conv.Rows()
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose())
 
@@ -262,7 +258,7 @@ func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv 
 			writer.AddRow(table, cols, vals)
 		})
 
-	err := dynamodb.ProcessData(conv, dyclient)
+	err := dynamodb.ProcessData(conv, dydbClient)
 	if err != nil {
 		return nil, err
 	}
