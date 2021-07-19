@@ -247,17 +247,14 @@ func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string]
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-		unique := false
 		ignored := schema.Ignored{}
 		for _, c := range constraints[colName] {
 			// c can be UNIQUE, PRIMARY KEY, FOREIGN KEY or CHECK
 			// We've already filtered out PRIMARY KEY.
 			switch c {
-			case "UNIQUE":
-				unique = true
 			case "CHECK":
 				ignored.Check = true
-			case "FOREIGN KEY", "PRIMARY KEY":
+			case "FOREIGN KEY", "PRIMARY KEY", "UNIQUE":
 				// Nothing to do here -- these are both handled elsewhere.
 			}
 		}
@@ -269,7 +266,6 @@ func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string]
 			Name:    colName,
 			Type:    toType(dataType, columnType, charMaxLen, numericPrecision, numericScale),
 			NotNull: toNotNull(conv, isNullable),
-			Unique:  unique,
 			Ignored: ignored,
 		}
 		colDefs[colName] = c
@@ -283,7 +279,7 @@ func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string]
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
 func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]string, map[string][]string, error) {
-	q := `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
+	q := `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE, t.CONSTRAINT_NAME
               FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
                 INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
                   ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND t.TABLE_NAME=k.TABLE_NAME
@@ -294,10 +290,10 @@ func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]str
 	}
 	defer rows.Close()
 	var primaryKeys []string
-	var col, constraint string
+	var col, constraint, constraintName string
 	m := make(map[string][]string)
 	for rows.Next() {
-		err := rows.Scan(&col, &constraint)
+		err := rows.Scan(&col, &constraint, &constraintName)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
