@@ -43,6 +43,7 @@ import (
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	_ "github.com/go-sql-driver/mysql"
@@ -213,11 +214,20 @@ func dataFromSQL(driver string, config spanner.BatchWriterConfig, client *sp.Cli
 	return writer, nil
 }
 
+func getDynamoDBClientConfig() *aws.Config {
+	cfg := aws.Config{}
+	endpointOverride := os.Getenv("DYNAMODB_ENDPOINT_OVERRIDE")
+	if endpointOverride != "" {
+		cfg.Endpoint = aws.String(endpointOverride)
+	}
+	return &cfg
+}
+
 func schemaFromDynamoDB(sampleSize int64) (*internal.Conv, error) {
 	conv := internal.MakeConv()
 	mySession := session.Must(session.NewSession())
-	client := dydb.New(mySession)
-	err := dynamodb.ProcessSchema(conv, client, []string{}, sampleSize)
+	dydbClient := dydb.New(mySession, getDynamoDBClientConfig())
+	err := dynamodb.ProcessSchema(conv, dydbClient, []string{}, sampleSize)
 	if err != nil {
 		return nil, err
 	}
@@ -226,9 +236,8 @@ func schemaFromDynamoDB(sampleSize int64) (*internal.Conv, error) {
 
 func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
 	mySession := session.Must(session.NewSession())
-	dyclient := dydb.New(mySession)
-
-	dynamodb.SetRowStats(conv, dyclient)
+	dydbClient := dydb.New(mySession, getDynamoDBClientConfig())
+	dynamodb.SetRowStats(conv, dydbClient)
 	totalRows := conv.Rows()
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose())
 
@@ -249,7 +258,7 @@ func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv 
 			writer.AddRow(table, cols, vals)
 		})
 
-	err := dynamodb.ProcessData(conv, dyclient)
+	err := dynamodb.ProcessData(conv, dydbClient)
 	if err != nil {
 		return nil, err
 	}
