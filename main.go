@@ -41,8 +41,10 @@ var (
 	verbose          bool
 	schemaOnly       bool
 	dataOnly         bool
+	skipForeignKeys  bool
 	sessionJSON      string
 	webapi           bool
+	dumpFilePath     string
 )
 
 func init() {
@@ -54,8 +56,10 @@ func init() {
 	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
 	flag.BoolVar(&schemaOnly, "schema-only", false, "schema-only: in this mode we do schema conversion, but skip data conversion")
 	flag.BoolVar(&dataOnly, "data-only", false, "data-only: in this mode we skip schema conversion and just do data conversion (use the session flag to specify the session file for schema and data mapping)")
+	flag.BoolVar(&skipForeignKeys, "skip-foreign-keys", false, "skip-foreign-keys: if true, skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
 	flag.StringVar(&sessionJSON, "session", "", "session: specifies the file we restore session state from (used in schema-only to provide schema and data mapping)")
 	flag.BoolVar(&webapi, "web", false, "web: run the web interface (experimental)")
+	flag.StringVar(&dumpFilePath, "dump-file", "", "dump-file: location of dump file to process")
 }
 
 func usage() {
@@ -92,8 +96,12 @@ func main() {
 	if dataOnly && sessionJSON == "" {
 		panic(fmt.Errorf("when using data-only mode, the session must specify the session file to use"))
 	}
+	if schemaOnly && skipForeignKeys {
+		panic(fmt.Errorf("can't use both schema-only and skip-foreign-keys at once. Foreign Key creation can only be skipped when data migration takes place."))
+	}
 
-	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
+	input := loadInput(dumpFilePath)
+	ioHelper := &conversion.IOStreams{In: input, Out: os.Stdout}
 	fmt.Println("Using driver (source DB):", driverName)
 
 	var project, instance string
@@ -134,8 +142,23 @@ func main() {
 
 	// TODO (agasheesh@): Collect all the config state in a single struct and pass the same to CommandLine instead of
 	// passing multiple parameters. Config state would be populated by parsing the flags and environment variables.
-	err = cmd.CommandLine(driverName, project, instance, dbName, dataOnly, schemaOnly, schemaSampleSize, sessionJSON, ioHelper, filePrefix, now)
+	err = cmd.CommandLine(driverName, project, instance, dbName, dataOnly, schemaOnly, skipForeignKeys, schemaSampleSize, sessionJSON, ioHelper, filePrefix, now)
 	if err != nil {
 		panic(err)
 	}
+}
+
+// Load the dump file if parameter has been passed by the user.
+// If no parameter has been passed, then read from standard input
+func loadInput(dumpFile string) *os.File {
+	if dumpFile != "" {
+		fmt.Printf("\nloading dump file from path: %s\n", dumpFile)
+		file, err := os.Open(dumpFile)
+		if err != nil {
+			fmt.Printf("\nerror reading file: %v err:%v", dumpFile, err)
+			panic(err)
+		}
+		return file
+	}
+	return os.Stdin
 }

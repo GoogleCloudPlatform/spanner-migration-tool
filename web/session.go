@@ -37,6 +37,7 @@ type session struct {
 }
 
 func createSession(w http.ResponseWriter, r *http.Request) {
+	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
 	now := time.Now()
 	dbName := sessionState.dbName
 	var err error
@@ -46,12 +47,13 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Can not create database name : %v", err), http.StatusInternalServerError)
 		}
 	}
-	sessionFile := ".session.json"
-	filePrefix := "frontend/"
-	out := os.Stdout
-	filePath := filePrefix + dbName + sessionFile
-	conversion.WriteSessionFile(sessionState.conv, filePath, out)
+	dirPath, err := conversion.WriteConvGeneratedFiles(sessionState.conv, dbName, sessionState.driver, ioHelper.BytesRead, ioHelper.Out)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Cannot write files : %v", err), http.StatusInternalServerError)
+	}
+	filePath := dirPath + dbName + ".session.json"
 	session := session{Driver: sessionState.driver, FilePath: filePath, DBName: dbName, CreatedAt: now.Format(time.RFC1123)}
+	sessionState.dbName = dbName
 	sessionState.sessionFile = filePath
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(session)
