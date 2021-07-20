@@ -544,6 +544,18 @@ const Actions = (() => {
                 'UpdateCols': {}
             }
             let newColArrayForDuplicateCheck = [];
+            let columnsNamesArray = [];
+            // We follow this approach to create columnsNamesArray to ensure the order of column names in the array is the consistent with what is seen in the UI.
+            // This is needed later on where we compare the array index with tableColumnNumber.
+            jQuery(tableId).each(function(index) {
+                if (index > 1) {
+                    let srcColumnName = document.getElementById('src-column-name-' + tableNumber + tableColumnNumber + tableColumnNumber).innerHTML;
+                    let originalColumnName = data.ToSpanner[tableName].Cols[srcColumnName];
+                    columnsNamesArray.push(originalColumnName)
+                    tableColumnNumber++;
+                }
+            });
+            tableColumnNumber = 0;
             jQuery(tableId).each(function(index) {
                 if (index > 1) {
                     let newColumnName;
@@ -562,7 +574,6 @@ const Actions = (() => {
                         errorMessage.push("Column name(s) cannot be empty");
                         columnNameEmpty = true;
                     } else {
-                        let columnsNamesArray = Object.keys(data.ToSpanner[tableName].Cols);
                         columnNameExists = false;
                         for (let k = 0; k < columnsNamesArray.length; k++) {
                             if (k != tableColumnNumber && newColumnName === columnsNamesArray[k]) {
