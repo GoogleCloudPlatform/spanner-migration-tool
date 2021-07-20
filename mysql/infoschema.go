@@ -279,7 +279,7 @@ func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string]
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
 func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]string, map[string][]string, error) {
-	q := `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE, t.CONSTRAINT_NAME
+	q := `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
               FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
                 INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
                   ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND t.TABLE_NAME=k.TABLE_NAME
@@ -290,10 +290,10 @@ func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]str
 	}
 	defer rows.Close()
 	var primaryKeys []string
-	var col, constraint, constraintName string
+	var col, constraint string
 	m := make(map[string][]string)
 	for rows.Next() {
-		err := rows.Scan(&col, &constraint, &constraintName)
+		err := rows.Scan(&col, &constraint)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
