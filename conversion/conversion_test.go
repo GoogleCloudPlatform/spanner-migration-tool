@@ -168,7 +168,7 @@ func checkResults(t *testing.T, dbpath string, numFks int) {
 	assert.Equal(t, wantFkStmts, gotFkStmts)
 }
 
-func UpdateDDLForeignKeysTest(t *testing.T, dbName string, numCols, numWorkers, numFks int) {
+func UpdateDDLForeignKeysUtil(t *testing.T, dbName string, numCols, numWorkers, numFks int) {
 	// Build a conv without foreign key statements to create just the tables during CreateDatabase.
 	conv := BuildConv(t, numCols)
 
@@ -187,39 +187,15 @@ func UpdateDDLForeignKeysTest(t *testing.T, dbName string, numCols, numWorkers, 
 	defer dropDatabase(t, dbpath)
 }
 
-func TestUpdateDDLForeignKeysWorkersEqualFks(t *testing.T) {
+func TestUpdateDDLForeignKeys(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
-	dbName := fmt.Sprintf("test-workers-equal-fks")
-	UpdateDDLForeignKeysTest(t, dbName, 10, 8, 8)
-}
 
-func TestUpdateDDLForeignKeysWorkersLessThanFks(t *testing.T) {
-	onlyRunForEmulatorTest(t)
-	t.Parallel()
-	dbName := fmt.Sprintf("test-workers-less-than-fks")
-	UpdateDDLForeignKeysTest(t, dbName, 10, 3, 8)
-}
-
-func TestUpdateDDLForeignKeysWorkersMoreThanFks(t *testing.T) {
-	onlyRunForEmulatorTest(t)
-	t.Parallel()
-	dbName := fmt.Sprintf("test-workers-more-than-fks")
-	UpdateDDLForeignKeysTest(t, dbName, 10, 16, 8)
-}
-
-func TestUpdateDDLForeignKeysSingleWorker(t *testing.T) {
-	onlyRunForEmulatorTest(t)
-	t.Parallel()
-	dbName := fmt.Sprintf("test-single-worker")
-	UpdateDDLForeignKeysTest(t, dbName, 5, 1, 4)
-}
-
-func TestUpdateDDLForeignKeysSingleFk(t *testing.T) {
-	onlyRunForEmulatorTest(t)
-	t.Parallel()
-	dbName := fmt.Sprintf("test-single-fk")
-	UpdateDDLForeignKeysTest(t, dbName, 1, 5, 1)
+	UpdateDDLForeignKeysUtil(t, "test-workers-equal-fks", 10, 8, 8)
+	UpdateDDLForeignKeysUtil(t, "test-workers-less-than-fks", 10, 3, 8)
+	UpdateDDLForeignKeysUtil(t, "test-workers-more-than-fks", 10, 16, 8)
+	UpdateDDLForeignKeysUtil(t, "test-single-worker", 5, 1, 4)
+	UpdateDDLForeignKeysUtil(t, "test-single-fk", 1, 5, 1)
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {
