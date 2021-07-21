@@ -439,7 +439,7 @@ func UpdateDDLForeignKeys(project, instance, dbName string, maxWorkers int64, co
 	if len(fkStmts) == 0 {
 		return nil
 	}
-	msg := fmt.Sprintf("Updating schema of database %s in instance %s with foreign key constraints ...", dbName, instance)
+	msg := fmt.Sprintf("Updating schema of database %s in instance %s with foreign key constraints ...\n", dbName, instance)
 	p := internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose())
 
 	type Result struct {
@@ -471,7 +471,7 @@ func UpdateDDLForeignKeys(project, instance, dbName string, maxWorkers int64, co
 					continue
 				}
 				defer adminClient.Close()
-
+				fmt.Printf("Submitting new FK create request for %s: %s\n", dbName, fkStmt[35:45])
 				op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 					Database:   fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName),
 					Statements: []string{fkStmt},
@@ -496,6 +496,7 @@ func UpdateDDLForeignKeys(project, instance, dbName string, maxWorkers int64, co
 	progress := int64(0)
 	for i := 1; i <= len(fkStmts); i++ {
 		result := <-results
+		fmt.Printf("Got result: %s %s\n", result.fkStmt[35:45], result.err)
 		if result.err == nil {
 			progress++
 			p.MaybeReport(progress)

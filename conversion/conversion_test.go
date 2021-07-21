@@ -192,9 +192,13 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 	t.Parallel()
 
 	UpdateDDLForeignKeysUtil(t, "test-workers-equal-fks", 10, 8, 8)
+	log.Println("===========\n\n\nGAP\n\n===========")
 	UpdateDDLForeignKeysUtil(t, "test-workers-less-than-fks", 10, 3, 8)
+	log.Println("===========\n\n\nGAP\n\n===========")
 	UpdateDDLForeignKeysUtil(t, "test-workers-more-than-fks", 10, 16, 8)
+	log.Println("===========\n\n\nGAP\n\n===========")
 	UpdateDDLForeignKeysUtil(t, "test-single-worker", 5, 1, 4)
+	log.Println("===========\n\n\nGAP\n\n===========")
 	UpdateDDLForeignKeysUtil(t, "test-single-fk", 1, 5, 1)
 }
 
