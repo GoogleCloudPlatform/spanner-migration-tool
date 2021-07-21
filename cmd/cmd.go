@@ -30,7 +30,7 @@ var (
 	sessionFile = "session.json"
 
 	// Set the maximum number of concurrent workers during foreign key creation.
-	maxWorkers = int64(10)
+	maxWorkers = 10
 )
 
 // CommandLine provides the core processing for HarbourBridge when run as a command-line tool.
