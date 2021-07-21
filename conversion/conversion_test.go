@@ -190,35 +190,35 @@ func UpdateDDLForeignKeysTest(t *testing.T, dbName string, numCols, numWorkers, 
 func TestUpdateDDLForeignKeysWorkersEqualFks(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
-	dbName := fmt.Sprintf("ForeignKeyTestWorkersEqualFks")
+	dbName := fmt.Sprintf("test-workers-equal-fks")
 	UpdateDDLForeignKeysTest(t, dbName, 10, 8, 8)
 }
 
 func TestUpdateDDLForeignKeysWorkersLessThanFks(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
-	dbName := fmt.Sprintf("ForeignKeyTestWorkersLessThanFks")
+	dbName := fmt.Sprintf("test-workers-less-than-fks")
 	UpdateDDLForeignKeysTest(t, dbName, 10, 3, 8)
 }
 
 func TestUpdateDDLForeignKeysWorkersMoreThanFks(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
-	dbName := fmt.Sprintf("ForeignKeyTestWorkersMoreThanFks")
+	dbName := fmt.Sprintf("test-workers-more-than-fks")
 	UpdateDDLForeignKeysTest(t, dbName, 10, 16, 8)
 }
 
 func TestUpdateDDLForeignKeysSingleWorker(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
-	dbName := fmt.Sprintf("ForeignKeyTestWorkersSingleWorker")
+	dbName := fmt.Sprintf("test-single-worker")
 	UpdateDDLForeignKeysTest(t, dbName, 5, 1, 4)
 }
 
 func TestUpdateDDLForeignKeysSingleFk(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
-	dbName := fmt.Sprintf("ForeignKeyTestWorkersSingleFk")
+	dbName := fmt.Sprintf("test-single-fk")
 	UpdateDDLForeignKeysTest(t, dbName, 1, 5, 1)
 }
 

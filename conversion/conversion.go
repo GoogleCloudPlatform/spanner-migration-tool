@@ -431,6 +431,14 @@ func CreateDatabase(project, instance, dbName string, conv *internal.Conv, out *
 // constraints using ALTER TABLE statements.
 func UpdateDDLForeignKeys(project, instance, dbName string, maxWorkers int64, conv *internal.Conv, out *os.File) error {
 	ctx := context.Background()
+	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	if err != nil {
+		fmt.Printf("can't create admin client: %s\n", analyzeError(err, project, instance))
+		conv.Unexpected(fmt.Sprintf("can't create admin client: %s\n", analyzeError(err, project, instance)))
+		return err
+	}
+	defer adminClient.Close()
+
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
@@ -440,13 +448,6 @@ func UpdateDDLForeignKeys(project, instance, dbName string, maxWorkers int64, co
 	}
 	msg := fmt.Sprintf("Updating schema of database %s in instance %s with foreign key constraints ...", dbName, instance)
 	p := internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose())
-	adminClient, err := database.NewDatabaseAdminClient(ctx)
-	if err != nil {
-		fmt.Printf("can't create admin client: %s\n", analyzeError(err, project, instance))
-		conv.Unexpected(fmt.Sprintf("can't create admin client: %s\n", analyzeError(err, project, instance)))
-		return err
-	}
-	defer adminClient.Close()
 
 	type Result struct {
 		fkStmt string
