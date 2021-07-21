@@ -255,7 +255,7 @@ func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string]
 			case "CHECK":
 				ignored.Check = true
 			case "FOREIGN KEY", "PRIMARY KEY", "UNIQUE":
-				// Nothing to do here -- these are both handled elsewhere.
+				// Nothing to do here -- these are all handled elsewhere.
 			}
 		}
 		ignored.Default = colDefault.Valid
