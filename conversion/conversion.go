@@ -498,6 +498,7 @@ func UpdateDDLForeignKeys(project, instance, dbName string, maxWorkers int64, co
 		result := <-results
 		fmt.Printf("Got result: %s %s\n", result.fkStmt[35:45], result.err)
 		if result.err == nil {
+			fmt.Printf("Updating progress cuz %s returned %s\n", result.fkStmt[35:45], result.err)
 			progress++
 			p.MaybeReport(progress)
 		}
