@@ -466,6 +466,7 @@ func UpdateDDLForeignKeys(project, instance, dbName string, maxWorkers int, conv
 	// Ensure atmost `maxWorkers` go routines run in parallel that each update the ddl with one foreign key statement.
 	for _, fkStmt := range fkStmts {
 		workerId := <-workers
+		fmt.Printf("worker %d handling %s\n", workerId, fkStmt)
 		go func(fkStmt string, workerId int) {
 			fmt.Printf("Submitting new FK create request for %s: %s\n", dbName, fkStmt[35:45])
 			op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
