@@ -209,6 +209,7 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 		return
 	}
 	tableName, err := getTableName(stmt.Table)
+	internal.VerbosePrintf("processing create table elem=%s stmt=%v\n", tableName, stmt)
 	if err != nil {
 		logStmtError(conv, stmt, fmt.Errorf("can't get table name: %w", err))
 		return
@@ -271,11 +272,8 @@ func processConstraint(conv *internal.Conv, table string, constraint *ast.Constr
 	case ast.ConstraintIndex:
 		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Keys: toSchemaKeys(constraint.Keys)})
 	case ast.ConstraintUniq:
-		// Convert unique column constraint in MySQL to a corresponding unique index in Spanner since
-		// Spanner doesn't support unique constraints on columns.
-		// TODO: Avoid Spanner-specific schema transformations in this file -- they should only
-		// appear in toddl.go. This file should focus on generic transformation from source
-		// database schemas into schema.go.
+		// Convert unique column constraint in mysql to a corresponding unique index in schema
+		// Note that schema represents all unique constraints as indexes.
 		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Unique: true, Keys: toSchemaKeys(constraint.Keys)})
 	default:
 		updateCols(conv, ct, constraint.Keys, st.ColDefs, table)
@@ -328,13 +326,10 @@ func updateCols(conv *internal.Conv, ct ast.ConstraintType, colNames []*ast.Inde
 		colName := column.Column.OrigColName()
 		cd := colDef[colName]
 		switch ct {
-		case ast.ConstraintUniq:
-			cd.Unique = true
 		case ast.ConstraintCheck:
 			cd.Ignored.Check = true
 		case ast.ConstraintPrimaryKey:
 			cd.NotNull = true
-			cd.Unique = true
 		}
 		colDef[colName] = cd
 	}
@@ -375,11 +370,8 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 					conv.SrcSchema[tableName] = ctable
 				}
 				if constraint.isUniqueKey {
-					// Convert unique column constraint in mysql to a corresponding unique index in Spanner since
-					// Spanner doesn't support unique constraints on columns.
-					// TODO: Avoid Spanner-specific schema transformations in this file -- they should only
-					// appear in toddl.go. This file should focus on generic transformation from source
-					// database schemas into schema.go.
+					// Convert unique column constraint in mysql to a corresponding unique index in schema
+					// Note that schema represents all unique constraints as indexes.
 					ctable := conv.SrcSchema[tableName]
 					ctable.Indexes = append(ctable.Indexes, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{Column: colname, Desc: false}}})
 					conv.SrcSchema[tableName] = ctable
@@ -449,7 +441,6 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 		switch op := elem.Tp; op {
 		case ast.ColumnOptionPrimaryKey:
 			column.NotNull = true
-			column.Unique = true
 			// If primary key is defined in a column then `isPk` will be true
 			// and this column will be added in colDef as primary keys.
 			cc.isPk = true
@@ -468,7 +459,6 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 				column.Ignored.Default = true
 			}
 		case ast.ColumnOptionUniqKey:
-			column.Unique = true
 			cc.isUniqueKey = true
 		case ast.ColumnOptionCheck:
 			column.Ignored.Check = true
