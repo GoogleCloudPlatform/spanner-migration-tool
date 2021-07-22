@@ -74,6 +74,11 @@ const (
 	DYNAMODB string = "dynamodb"
 )
 
+var (
+	// Set the maximum number of concurrent workers during foreign key creation.
+	MaxWorkers = 10
+)
+
 func SchemaConv(driver string, ioHelper *IOStreams, schemaSampleSize int64) (*internal.Conv, error) {
 	switch driver {
 	case POSTGRES, MYSQL:
@@ -429,7 +434,7 @@ func CreateDatabase(project, instance, dbName string, conv *internal.Conv, out *
 
 // UpdateDDLForeignKeys updates the Spanner database with foreign key
 // constraints using ALTER TABLE statements.
-func UpdateDDLForeignKeys(project, instance, dbName string, maxWorkers int, conv *internal.Conv, out *os.File) error {
+func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv, out *os.File) error {
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
 	if err != nil {
@@ -453,22 +458,23 @@ func UpdateDDLForeignKeys(project, instance, dbName string, maxWorkers int, conv
 		fkStmt string
 		err    error
 	}
-	workers := make(chan int, maxWorkers)
+	workers := make(chan int, MaxWorkers)
 	results := make(chan Result, len(fkStmts))
 
-	for i := 1; i <= maxWorkers; i++ {
+	for i := 1; i <= MaxWorkers; i++ {
 		workers <- i
 	}
 
 	// We dispatch parallel foreign key create requests to ensure the backfill runs in parallel to reduce overall time.
 	// This cuts down the time taken to a third (approx) compared to Serial and Batched creation. We also do not want to create
 	// too many requests and get throttled due to network or hitting catalog memory limits.
-	// Ensure atmost `maxWorkers` go routines run in parallel that each update the ddl with one foreign key statement.
+	// Ensure atmost `MaxWorkers` go routines run in parallel that each update the ddl with one foreign key statement.
 	for _, fkStmt := range fkStmts {
 		workerId := <-workers
 		fmt.Printf("worker %d handling %s\n", workerId, fkStmt)
 		go func(fkStmt string, workerId int) {
-			fmt.Printf("Submitting new FK create request for %s: %s\n", dbName, fkStmt[35:45])
+			defer func() { workers <- workerId }()
+			fmt.Printf("Submitting new FK create request for %s: %s\n", dbName, fkStmt)
 			op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 				Database:   fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName),
 				Statements: []string{fkStmt},
@@ -477,19 +483,16 @@ func UpdateDDLForeignKeys(project, instance, dbName string, maxWorkers int, conv
 				fmt.Printf("Cannot submit request for create foreign key with statement %s: %s\n", fkStmt, err)
 				conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
 				results <- Result{fkStmt, err}
-				workers <- workerId
 				return
 			}
 			if err := op.Wait(ctx); err != nil {
 				fmt.Printf("Can't add foreign key with statement %s: %s\n", fkStmt, err)
 				conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
 				results <- Result{fkStmt, err}
-				workers <- workerId
 				return
 			}
 			internal.VerbosePrintln("Updated schema with statement: " + fkStmt)
 			results <- Result{fkStmt, nil}
-			workers <- workerId
 		}(fkStmt, workerId)
 	}
 	progress := int64(0)
@@ -500,7 +503,7 @@ func UpdateDDLForeignKeys(project, instance, dbName string, maxWorkers int, conv
 			p.MaybeReport(progress)
 		}
 	}
-	//p.Done()
+	p.Done()
 	return nil
 }
 

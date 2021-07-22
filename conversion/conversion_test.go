@@ -178,7 +178,8 @@ func UpdateDDLForeignKeysUtil(t *testing.T, dbName string, numCols, numWorkers, 
 	}
 
 	addForeignKeysToConv(t, conv, numFks)
-	if err = conversion.UpdateDDLForeignKeys(projectID, instanceID, dbName, numWorkers, conv, os.Stdout); err != nil {
+	conversion.MaxWorkers = numWorkers
+	if err = conversion.UpdateDDLForeignKeys(projectID, instanceID, dbName, conv, os.Stdout); err != nil {
 		t.Fatalf("\nCan't perform update operation on db %s with foreign keys: %v\n", dbName, err)
 	}
 
