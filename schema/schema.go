@@ -72,6 +72,17 @@ type Key struct {
 }
 
 // Index represents a database index.
+// Index represents a database index.
+// The only way we represent unique constraints is via indexes. All source database
+// unique constraints will be transformed into this representation, including:
+// i) A column level constraint (as part of a CREATE TABLE statement)
+// ii) A table level constraint (as part of a CREATE TABLE statement)
+// iii) An index (as part of a CREATE TABLE statement)
+// iv) Added via an ALTER TABLE constraint (changing column constraints, table constraints or index definitions)
+// v) Added via a CREATE UNIQUE INDEX statement (which internally maps to an alter table statement).
+// We use this single representation of unique constraints to simplify their processing and avoid having
+// to handle lots of cases for the same concept. Our choice of an index representation for unique is largely
+// motivated by the fact that databases typically implement UNIQUE via an index.
 type Index struct {
 	Name   string
 	Unique bool
