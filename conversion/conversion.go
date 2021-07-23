@@ -36,6 +36,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -438,9 +439,7 @@ func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv,
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
 	if err != nil {
-		fmt.Printf("can't create admin client: %s\n", analyzeError(err, project, instance))
-		conv.Unexpected(fmt.Sprintf("can't create admin client: %s\n", analyzeError(err, project, instance)))
-		return err
+		return fmt.Errorf("can't create admin client: %w\n", analyzeError(err, project, instance))
 	}
 	defer adminClient.Close()
 
@@ -454,16 +453,12 @@ func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv,
 	msg := fmt.Sprintf("Updating schema of database %s in instance %s with foreign key constraints ...\n", dbName, instance)
 	p := internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose())
 
-	type Result struct {
-		fkStmt string
-		err    error
-	}
 	workers := make(chan int, MaxWorkers)
-	results := make(chan Result, len(fkStmts))
-
 	for i := 1; i <= MaxWorkers; i++ {
 		workers <- i
 	}
+	var progressMutex sync.Mutex
+	progress := int64(0)
 
 	// We dispatch parallel foreign key create requests to ensure the backfill runs in parallel to reduce overall time.
 	// This cuts down the time taken to a third (approx) compared to Serial and Batched creation. We also do not want to create
@@ -471,10 +466,17 @@ func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv,
 	// Ensure atmost `MaxWorkers` go routines run in parallel that each update the ddl with one foreign key statement.
 	for _, fkStmt := range fkStmts {
 		workerId := <-workers
-		fmt.Printf("worker %d handling %s\n", workerId, fkStmt)
 		go func(fkStmt string, workerId int) {
-			defer func() { workers <- workerId }()
-			fmt.Printf("Submitting new FK create request for %s: %s\n", dbName, fkStmt)
+			defer func() {
+				workers <- workerId
+
+				// Locking the progress reporting otherwise progress results displayed could be in random order.
+				progressMutex.Lock()
+				progress++
+				p.MaybeReport(progress)
+				progressMutex.Unlock()
+			}()
+			internal.VerbosePrintf("Submitting new FK create request for %s: %s\n", dbName, fkStmt)
 			op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 				Database:   fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName),
 				Statements: []string{fkStmt},
@@ -482,26 +484,15 @@ func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv,
 			if err != nil {
 				fmt.Printf("Cannot submit request for create foreign key with statement %s: %s\n", fkStmt, err)
 				conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
-				results <- Result{fkStmt, err}
 				return
 			}
 			if err := op.Wait(ctx); err != nil {
 				fmt.Printf("Can't add foreign key with statement %s: %s\n", fkStmt, err)
 				conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
-				results <- Result{fkStmt, err}
 				return
 			}
 			internal.VerbosePrintln("Updated schema with statement: " + fkStmt)
-			results <- Result{fkStmt, nil}
 		}(fkStmt, workerId)
-	}
-	progress := int64(0)
-	for i := 1; i <= len(fkStmts); i++ {
-		result := <-results
-		if result.err == nil {
-			progress++
-			p.MaybeReport(progress)
-		}
 	}
 	p.Done()
 	return nil

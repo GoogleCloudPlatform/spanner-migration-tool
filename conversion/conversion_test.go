@@ -92,7 +92,7 @@ func dropDatabase(t *testing.T, dbPath string) {
 	}
 }
 
-func BuildConv(t *testing.T, numCols int) *internal.Conv {
+func BuildConv(t *testing.T, numCols, numFks int) *internal.Conv {
 	conv := internal.MakeConv()
 	colNames := []string{}
 	colDefs := map[string]ddl.ColumnDef{}
@@ -101,22 +101,7 @@ func BuildConv(t *testing.T, numCols int) *internal.Conv {
 		colNames = append(colNames, currColName)
 		colDefs[currColName] = ddl.ColumnDef{Name: currColName, T: ddl.Type{Name: ddl.String, Len: int64(10)}}
 	}
-	conv.SpSchema["table_a"] = ddl.CreateTable{
-		Name:     "table_a",
-		ColNames: colNames,
-		ColDefs:  colDefs,
-		Pks:      []ddl.IndexKey{ddl.IndexKey{Col: "col1"}},
-	}
-	conv.SpSchema["table_b"] = ddl.CreateTable{
-		Name:     "table_b",
-		ColNames: colNames,
-		ColDefs:  colDefs,
-		Pks:      []ddl.IndexKey{ddl.IndexKey{Col: "col1"}},
-	}
-	return conv
-}
 
-func addForeignKeysToConv(t *testing.T, conv *internal.Conv, numFks int) {
 	var foreignKeys []ddl.Foreignkey
 	for i := 1; i <= numFks; i++ {
 		foreignKey := ddl.Foreignkey{
@@ -126,9 +111,21 @@ func addForeignKeysToConv(t *testing.T, conv *internal.Conv, numFks int) {
 			ReferColumns: []string{fmt.Sprintf("col%d", i)}}
 		foreignKeys = append(foreignKeys, foreignKey)
 	}
-	spTable := conv.SpSchema["table_a"]
-	spTable.Fks = foreignKeys
-	conv.SpSchema["table_a"] = spTable
+
+	conv.SpSchema["table_a"] = ddl.CreateTable{
+		Name:     "table_a",
+		ColNames: colNames,
+		ColDefs:  colDefs,
+		Pks:      []ddl.IndexKey{ddl.IndexKey{Col: "col1"}},
+		Fks:      foreignKeys,
+	}
+	conv.SpSchema["table_b"] = ddl.CreateTable{
+		Name:     "table_b",
+		ColNames: colNames,
+		ColDefs:  colDefs,
+		Pks:      []ddl.IndexKey{ddl.IndexKey{Col: "col1"}},
+	}
+	return conv
 }
 
 func checkResults(t *testing.T, dbpath string, numFks int) {
@@ -168,31 +165,34 @@ func checkResults(t *testing.T, dbpath string, numFks int) {
 	assert.Equal(t, wantFkStmts, gotFkStmts)
 }
 
-func UpdateDDLForeignKeysUtil(t *testing.T, dbName string, numCols, numWorkers, numFks int) {
-	// Build a conv without foreign key statements to create just the tables during CreateDatabase.
-	conv := BuildConv(t, numCols)
-
-	dbpath, err := conversion.CreateDatabase(projectID, instanceID, dbName, conv, os.Stdout)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	addForeignKeysToConv(t, conv, numFks)
-	conversion.MaxWorkers = numWorkers
-	if err = conversion.UpdateDDLForeignKeys(projectID, instanceID, dbName, conv, os.Stdout); err != nil {
-		t.Fatalf("\nCan't perform update operation on db %s with foreign keys: %v\n", dbName, err)
-	}
-
-	checkResults(t, dbpath, numFks)
-	// Drop the database later.
-	defer dropDatabase(t, dbpath)
-}
-
 func TestUpdateDDLForeignKeys(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
-	UpdateDDLForeignKeysUtil(t, "test-workers-five-fks", 10, 1, 5)
-	UpdateDDLForeignKeysUtil(t, "test-workers-ten-fks", 10, 1, 10)
+	foreignKeyTests := []struct {
+		dbName     string
+		numCols    int // Number of columns in the table.
+		numFks     int // Number of foreign keys we want to add (ensure it is not greater than numCols).
+		numWorkers int // Number of concurrent workers (we set it as 1 for now since spanner emulator does not support concurrent schema updates yet).
+	}{
+		{"test-workers-five-fks", 10, 5, 1},
+		{"test-workers-ten-fks", 10, 10, 1},
+	}
+
+	for _, tc := range foreignKeyTests {
+		conv := BuildConv(t, tc.numCols, tc.numFks)
+		dbpath, err := conversion.CreateDatabase(projectID, instanceID, tc.dbName, conv, os.Stdout)
+		if err != nil {
+			t.Fatal(err)
+		}
+		conversion.MaxWorkers = tc.numWorkers
+		if err = conversion.UpdateDDLForeignKeys(projectID, instanceID, tc.dbName, conv, os.Stdout); err != nil {
+			t.Fatalf("\nCan't perform update operation on db %s with foreign keys: %v\n", tc.dbName, err)
+		}
+
+		checkResults(t, dbpath, tc.numFks)
+		// Drop the database later.
+		defer dropDatabase(t, dbpath)
+	}
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {
