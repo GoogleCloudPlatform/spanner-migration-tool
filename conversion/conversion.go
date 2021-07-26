@@ -450,7 +450,7 @@ func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv,
 	if len(fkStmts) == 0 {
 		return nil
 	}
-	msg := fmt.Sprintf("Updating schema of database %s in instance %s with foreign key constraints ...\n", dbName, instance)
+	msg := fmt.Sprintf("Updating schema of database %s in instance %s with foreign key constraints ...", dbName, instance)
 	p := internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose())
 
 	workers := make(chan int, MaxWorkers)
