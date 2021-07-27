@@ -22,6 +22,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	spangres "github.com/cloudspannerecosystem/harbourbridge/spangres"
 	_ "github.com/go-sql-driver/mysql" // The driver should be used via the database/sql package.
 	_ "github.com/lib/pq"
 )
@@ -39,7 +40,11 @@ func ProcessInfoSchema(conv *internal.Conv, db *sql.DB, dbName string) error {
 			return err
 		}
 	}
-	schemaToDDL(conv)
+	if conv.TargetDb == "spangres" {
+		spangres.SchemaToDDL(conv)
+	} else {
+		schemaToDDL(conv)
+	}
 	conv.AddPrimaryKeys()
 	return nil
 }

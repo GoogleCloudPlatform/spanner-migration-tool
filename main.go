@@ -45,6 +45,7 @@ var (
 	sessionJSON      string
 	webapi           bool
 	dumpFilePath     string
+	targetDb         = conversion.TARGET_SPANNER
 )
 
 func init() {
@@ -60,6 +61,7 @@ func init() {
 	flag.StringVar(&sessionJSON, "session", "", "session: specifies the file we restore session state from (used in schema-only to provide schema and data mapping)")
 	flag.BoolVar(&webapi, "web", false, "web: run the web interface (experimental)")
 	flag.StringVar(&dumpFilePath, "dump-file", "", "dump-file: location of dump file to process")
+	flag.StringVar(&targetDb, "target-db", "", "target-db: the db which is the target for this migration. Defaults to spanner")
 }
 
 func usage() {
@@ -142,7 +144,7 @@ func main() {
 
 	// TODO (agasheesh@): Collect all the config state in a single struct and pass the same to CommandLine instead of
 	// passing multiple parameters. Config state would be populated by parsing the flags and environment variables.
-	err = cmd.CommandLine(driverName, project, instance, dbName, dataOnly, schemaOnly, skipForeignKeys, schemaSampleSize, sessionJSON, ioHelper, filePrefix, now)
+	err = cmd.CommandLine(driverName, project, instance, dbName, dataOnly, schemaOnly, skipForeignKeys, schemaSampleSize, sessionJSON, ioHelper, filePrefix, now, targetDb)
 	if err != nil {
 		panic(err)
 	}
