@@ -73,7 +73,8 @@ const (
 	// DYNAMODB is the driver name for AWS DynamoDB.
 	// This is an experimental driver; implementation in progress.
 	DYNAMODB string = "dynamodb"
-	// Target db for which schema is being generated
+
+	// Target db for which schema is being generated.
 	TARGET_SPANNER  string = "spanner"
 	TARGET_SPANGRES string = "spangres"
 )

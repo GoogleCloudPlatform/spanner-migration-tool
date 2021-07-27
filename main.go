@@ -61,7 +61,7 @@ func init() {
 	flag.StringVar(&sessionJSON, "session", "", "session: specifies the file we restore session state from (used in schema-only to provide schema and data mapping)")
 	flag.BoolVar(&webapi, "web", false, "web: run the web interface (experimental)")
 	flag.StringVar(&dumpFilePath, "dump-file", "", "dump-file: location of dump file to process")
-	flag.StringVar(&targetDb, "target-db", "", "target-db: the db which is the target for this migration. Defaults to spanner")
+	flag.StringVar(&targetDb, "target-db", conversion.TARGET_SPANNER, "target-db: the db which is the target for this migration. Defaults to spanner")
 }
 
 func usage() {
