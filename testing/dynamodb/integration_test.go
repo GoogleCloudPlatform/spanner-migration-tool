@@ -175,7 +175,6 @@ func populateDynamoDB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got error calling CreateTable: %s", err)
 	}
-
 	dydbRecord := DydbRecord{
 		AttrString:    "abcd",
 		AttrInt:       10,
