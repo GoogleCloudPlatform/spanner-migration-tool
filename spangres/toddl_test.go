@@ -79,7 +79,7 @@ func TestToSpannerType(t *testing.T) {
 			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
 			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 			"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-			"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
+			"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
 		},
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
