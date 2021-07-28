@@ -23,7 +23,6 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	spangres "github.com/cloudspannerecosystem/harbourbridge/spangres"
 	"github.com/pingcap/parser"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/opcode"
@@ -72,11 +71,7 @@ func ProcessMySQLDump(conv *internal.Conv, r *internal.Reader) error {
 		}
 	}
 	if conv.SchemaMode() {
-		if conv.TargetDb == "spangres" {
-			spangres.SchemaToDDL(conv)
-		} else {
-			schemaToDDL(conv)
-		}
+		schemaToDDL(conv)
 		conv.AddPrimaryKeys()
 	}
 	return nil

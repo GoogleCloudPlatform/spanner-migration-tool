@@ -26,7 +26,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	spangres "github.com/cloudspannerecosystem/harbourbridge/spangres"
+	"github.com/cloudspannerecosystem/harbourbridge/spangres"
 )
 
 type copyOrInsert struct {

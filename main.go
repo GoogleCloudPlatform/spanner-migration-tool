@@ -102,6 +102,14 @@ func main() {
 		panic(fmt.Errorf("can't use both schema-only and skip-foreign-keys at once. Foreign Key creation can only be skipped when data migration takes place."))
 	}
 
+	if targetDb == conversion.TARGET_SPANGRES {
+		if !(driverName == conversion.PGDUMP || driverName == conversion.POSTGRES) {
+			panic(fmt.Errorf("cannot convert to spangres when source is not postgres target: %s driver: %s", targetDb, driverName))
+		}
+	} else if targetDb != conversion.TARGET_SPANNER {
+		panic(fmt.Errorf("unkown taget %s", targetDb))
+	}
+
 	input := loadInput(dumpFilePath)
 	ioHelper := &conversion.IOStreams{In: input, Out: os.Stdout}
 	fmt.Println("Using driver (source DB):", driverName)
