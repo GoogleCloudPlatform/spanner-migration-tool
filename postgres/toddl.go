@@ -64,9 +64,15 @@ func schemaToDDL(conv *internal.Conv) error {
 			}
 			spColNames = append(spColNames, colName)
 			ty, issues := toSpannerType(conv, srcCol.Type.Name, srcCol.Type.Mods)
-			if len(srcCol.Type.ArrayBounds) > 1 {
-				ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-				issues = append(issues, internal.MultiDimensionalArray)
+
+			if conv.TargetDb == "experimental_postgres" { //TODO : Use constant instead. Using string to prevent import cycle
+				ty = overrideExperimentalType(srcCol, ty)
+			} else {
+				if len(srcCol.Type.ArrayBounds) > 1 {
+					ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+					issues = append(issues, internal.MultiDimensionalArray)
+				}
+				ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
 			}
 			// TODO: add issues for all elements of srcCol.Ignored.
 			if srcCol.Ignored.ForeignKey {
@@ -78,7 +84,7 @@ func schemaToDDL(conv *internal.Conv) error {
 			if len(issues) > 0 {
 				conv.Issues[srcTable.Name][srcCol.Name] = issues
 			}
-			ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
+
 			spColDef[colName] = ddl.ColumnDef{
 				Name:    colName,
 				T:       ty,
@@ -160,6 +166,18 @@ func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.Type, []in
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	}
 	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
+}
+
+// Override the types to map to experimental postgres types
+func overrideExperimentalType(srcCol schema.Column, originalType ddl.Type) ddl.Type {
+	switch originalType.Name {
+	case ddl.Numeric, ddl.Date:
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+	}
+	if len(srcCol.Type.ArrayBounds) > 0 {
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+	}
+	return originalType
 }
 
 func quoteIfNeeded(s string) string {

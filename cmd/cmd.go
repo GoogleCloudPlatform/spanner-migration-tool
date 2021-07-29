@@ -36,11 +36,11 @@ var (
 // 2. Create database (if schemaOnly is set to false)
 // 3. Run data conversion (if schemaOnly is set to false)
 // 4. Generate report
-func CommandLine(driver, projectID, instanceID, dbName string, dataOnly, schemaOnly, skipForeignKeys bool, schemaSampleSize int64, sessionJSON string, ioHelper *conversion.IOStreams, outputFilePrefix string, now time.Time, targetDb string) error {
+func CommandLine(driver, targetDb, projectID, instanceID, dbName string, dataOnly, schemaOnly, skipForeignKeys bool, schemaSampleSize int64, sessionJSON string, ioHelper *conversion.IOStreams, outputFilePrefix string, now time.Time) error {
 	var conv *internal.Conv
 	var err error
 	if !dataOnly {
-		conv, err = conversion.SchemaConv(driver, ioHelper, schemaSampleSize)
+		conv, err = conversion.SchemaConv(driver, targetDb, ioHelper, schemaSampleSize)
 		if err != nil {
 			return err
 		}
@@ -61,7 +61,6 @@ func CommandLine(driver, projectID, instanceID, dbName string, dataOnly, schemaO
 			return err
 		}
 	}
-	conv.TargetDb = targetDb
 
 	db, err := conversion.CreateDatabase(projectID, instanceID, dbName, conv, ioHelper.Out)
 	if err != nil {

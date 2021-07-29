@@ -1,0 +1,42 @@
+{
+ "SpSchema": {
+  "t1": {
+   "Name": "",
+   "ColNames": null,
+   "ColDefs": null,
+   "Pks": null,
+   "Fks": null,
+   "Indexes": [
+    {
+     "Name": "idx1",
+     "Table": "t1",
+     "Unique": false,
+     "Keys": [
+      {
+       "Col": "b",
+       "Desc": false
+      }
+     ]
+    }
+   ],
+   "Parent": "",
+   "Comment": ""
+  }
+ },
+ "SyntheticPKeys": null,
+ "SrcSchema": null,
+ "Issues": null,
+ "ToSpanner": null,
+ "ToSource": null,
+ "Location": null,
+ "Stats": {
+  "Rows": null,
+  "GoodRows": null,
+  "BadRows": null,
+  "Statement": null,
+  "Unexpected": null,
+  "Reparsed": 0
+ },
+ "TimezoneOffset": "",
+ "TargetDb": ""
+}

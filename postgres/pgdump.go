@@ -26,7 +26,6 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/spangres"
 )
 
 type copyOrInsert struct {
@@ -77,11 +76,7 @@ func ProcessPgDump(conv *internal.Conv, r *internal.Reader) error {
 		}
 	}
 	if conv.SchemaMode() {
-		if conv.TargetDb == "spangres" {
-			spangres.SchemaToDDL(conv)
-		} else {
-			schemaToDDL(conv)
-		}
+		schemaToDDL(conv)
 		conv.AddPrimaryKeys()
 	}
 

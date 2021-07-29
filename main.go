@@ -61,7 +61,7 @@ func init() {
 	flag.StringVar(&sessionJSON, "session", "", "session: specifies the file we restore session state from (used in schema-only to provide schema and data mapping)")
 	flag.BoolVar(&webapi, "web", false, "web: run the web interface (experimental)")
 	flag.StringVar(&dumpFilePath, "dump-file", "", "dump-file: location of dump file to process")
-	flag.StringVar(&targetDb, "target-db", conversion.TARGET_SPANNER, "target-db: the db which is the target for this migration. Defaults to spanner")
+	flag.StringVar(&targetDb, "target-db", conversion.TARGET_SPANNER, "target-db: Specifies the target DB. Defaults to spanner")
 }
 
 func usage() {
@@ -102,17 +102,17 @@ func main() {
 		panic(fmt.Errorf("can't use both schema-only and skip-foreign-keys at once. Foreign Key creation can only be skipped when data migration takes place."))
 	}
 
-	if targetDb == conversion.TARGET_SPANGRES {
+	if targetDb == conversion.TARGET_EXPERIMENTAL_POSTGRES {
 		if !(driverName == conversion.PGDUMP || driverName == conversion.POSTGRES) {
-			panic(fmt.Errorf("cannot convert to spangres when source is not postgres target: %s driver: %s", targetDb, driverName))
+			panic(fmt.Errorf("can only convert to experimental postgres when source %s or %s. (target-db: %s driver: %s)", conversion.PGDUMP, conversion.POSTGRES, targetDb, driverName))
 		}
 	} else if targetDb != conversion.TARGET_SPANNER {
-		panic(fmt.Errorf("unkown taget %s", targetDb))
+		panic(fmt.Errorf("unkown target-db %s", targetDb))
 	}
 
 	input := loadInput(dumpFilePath)
 	ioHelper := &conversion.IOStreams{In: input, Out: os.Stdout}
-	fmt.Println("Using driver (source DB):", driverName)
+	fmt.Printf("Using driver (source DB): %s target-db: %s\n", driverName, targetDb)
 
 	var project, instance string
 	if !schemaOnly {
@@ -152,7 +152,7 @@ func main() {
 
 	// TODO (agasheesh@): Collect all the config state in a single struct and pass the same to CommandLine instead of
 	// passing multiple parameters. Config state would be populated by parsing the flags and environment variables.
-	err = cmd.CommandLine(driverName, project, instance, dbName, dataOnly, schemaOnly, skipForeignKeys, schemaSampleSize, sessionJSON, ioHelper, filePrefix, now, targetDb)
+	err = cmd.CommandLine(driverName, targetDb, project, instance, dbName, dataOnly, schemaOnly, skipForeignKeys, schemaSampleSize, sessionJSON, ioHelper, filePrefix, now)
 	if err != nil {
 		panic(err)
 	}

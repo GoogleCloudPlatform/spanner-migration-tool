@@ -28,7 +28,6 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/spangres"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -50,11 +49,7 @@ func ProcessInfoSchema(conv *internal.Conv, db *sql.DB) error {
 			return err
 		}
 	}
-	if conv.TargetDb == "spangres" { //TODO - read this from a constants file
-		spangres.SchemaToDDL(conv)
-	} else {
-		schemaToDDL(conv)
-	}
+	schemaToDDL(conv)
 	conv.AddPrimaryKeys()
 	return nil
 }
