@@ -1,4 +1,0 @@
-CREATE TABLE `` (
-) PRIMARY KEY ();
-
-CREATE INDEX `idx1` ON `t1` (`b`)

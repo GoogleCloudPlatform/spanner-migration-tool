@@ -1,5 +1,0 @@
--- Schema generated 2021-07-29 07:59:27
-CREATE TABLE  (
-) PRIMARY KEY ();
-
-CREATE INDEX idx1 ON t1 (b)
