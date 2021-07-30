@@ -73,14 +73,18 @@ const (
 	// DYNAMODB is the driver name for AWS DynamoDB.
 	// This is an experimental driver; implementation in progress.
 	DYNAMODB string = "dynamodb"
+
+	// Target db for which schema is being generated.
+	TARGET_SPANNER               string = "spanner"
+	TARGET_EXPERIMENTAL_POSTGRES string = "experimental_postgres"
 )
 
-func SchemaConv(driver string, ioHelper *IOStreams, schemaSampleSize int64) (*internal.Conv, error) {
+func SchemaConv(driver string, targetDb string, ioHelper *IOStreams, schemaSampleSize int64) (*internal.Conv, error) {
 	switch driver {
 	case POSTGRES, MYSQL:
-		return schemaFromSQL(driver)
+		return schemaFromSQL(driver, targetDb)
 	case PGDUMP, MYSQLDUMP:
-		return schemaFromDump(driver, ioHelper)
+		return schemaFromDump(driver, targetDb, ioHelper)
 	case DYNAMODB:
 		return schemaFromDynamoDB(schemaSampleSize)
 	default:
@@ -153,7 +157,7 @@ func mysqlDriverConfig() (string, error) {
 	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, server, port, dbname), nil
 }
 
-func schemaFromSQL(driver string) (*internal.Conv, error) {
+func schemaFromSQL(driver string, targetDb string) (*internal.Conv, error) {
 	driverConfig, err := driverConfig(driver)
 	if err != nil {
 		return nil, err
@@ -163,6 +167,7 @@ func schemaFromSQL(driver string) (*internal.Conv, error) {
 		return nil, err
 	}
 	conv := internal.MakeConv()
+	conv.TargetDb = targetDb
 	err = ProcessInfoSchema(driver, conv, sourceDB)
 	if err != nil {
 		return nil, err
@@ -271,7 +276,7 @@ type IOStreams struct {
 	BytesRead           int64
 }
 
-func schemaFromDump(driver string, ioHelper *IOStreams) (*internal.Conv, error) {
+func schemaFromDump(driver string, targetDb string, ioHelper *IOStreams) (*internal.Conv, error) {
 	f, n, err := getSeekable(ioHelper.In)
 	if err != nil {
 		printSeekError(driver, err, ioHelper.Out)
@@ -280,6 +285,7 @@ func schemaFromDump(driver string, ioHelper *IOStreams) (*internal.Conv, error) 
 	ioHelper.SeekableIn = f
 	ioHelper.BytesRead = n
 	conv := internal.MakeConv()
+	conv.TargetDb = targetDb
 	p := internal.NewProgress(n, "Generating schema", internal.Verbose())
 	r := internal.NewReader(bufio.NewReader(f), p)
 	conv.SetSchemaMode() // Build schema and ignore data in dump.

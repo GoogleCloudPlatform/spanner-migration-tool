@@ -192,7 +192,7 @@ func TestIntegration_DYNAMODB_SimpleUse(t *testing.T) {
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
-	err := cmd.CommandLine(conversion.DYNAMODB, projectID, instanceID, dbName, false, false, false, 0, "", &conversion.IOStreams{Out: os.Stdout}, filePrefix, now)
+	err := cmd.CommandLine(conversion.DYNAMODB, "spanner", projectID, instanceID, dbName, false, false, false, 0, "", &conversion.IOStreams{Out: os.Stdout}, filePrefix, now)
 	if err != nil {
 		t.Fatal(err)
 	}
