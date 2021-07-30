@@ -168,7 +168,7 @@ func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.Type, []in
 	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 }
 
-// Override the types to map to experimental postgres types
+// Override the types to map to experimental postgres types.
 func overrideExperimentalType(srcCol schema.Column, originalType ddl.Type) ddl.Type {
 	switch originalType.Name {
 	case ddl.Numeric, ddl.Date:
