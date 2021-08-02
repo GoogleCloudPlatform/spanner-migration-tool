@@ -23,8 +23,14 @@ jobs:
       MYSQLDATABASE: test
       MYSQLPWD: root
 
+      # set DynamoDB related environment variables
+      AWS_ACCESS_KEY_ID: dummyId
+      AWS_SECRET_ACCESS_KEY: dummyKey
+      AWS_REGION: dummyRegion
+      DYNAMODB_ENDPOINT_OVERRIDE: http://localhost:8000
+
     services:
-      emulator:
+      spanner_emulator:
         image: gcr.io/cloud-spanner-emulator/emulator:1.2.0
         ports:
           - 9010:9010
@@ -48,6 +54,11 @@ jobs:
         - 3306:3306
         # needed because the mysql container does not provide a healthcheck
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+      dynamodb_emulator:
+        image: amazon/dynamodb-local
+        ports:
+        - 8000:8000
+        options: --workdir /home/dynamodblocal --health-cmd "curl --fail http://127.0.0.1:8000/shell/ || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
       - uses: actions/checkout@v2
@@ -71,7 +82,7 @@ jobs:
       - run: mysql -v -P 3306 --protocol=tcp -u root -proot test < test_data/mysqldump.test.out
 
       # create a spanner instance
-      - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+      - uses: google-github-actions/setup-gcloud@master
         with:
           version: '290.0.1'
       - run: gcloud info

@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql_test
+package dynamodb_test
 
 import (
 	"context"
@@ -27,11 +27,16 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/cmd"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/stretchr/testify/assert"
 
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"google.golang.org/api/iterator"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
@@ -41,6 +46,14 @@ var (
 
 	databaseAdmin *database.DatabaseAdminClient
 )
+
+// Create struct to hold info about new item in dynamodb.
+type Item struct {
+	Year   string
+	Title  string
+	Plot   string
+	Rating float64
+}
 
 func TestMain(m *testing.M) {
 	cleanup := initIntegrationTests()
@@ -100,35 +113,74 @@ func prepareIntegrationTest(t *testing.T) string {
 	if err != nil {
 		log.Fatal(err)
 	}
+	populateDynamoDB(t)
 	return tmpdir
 }
 
-func TestIntegration_MYSQLDUMP_SimpleUse(t *testing.T) {
-	t.Parallel()
-
-	tmpdir := prepareIntegrationTest(t)
-	defer os.RemoveAll(tmpdir)
-
-	now := time.Now()
-	dbName, _ := conversion.GetDatabaseName(conversion.MYSQLDUMP, now)
-	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	dataFilepath := "../../test_data/mysqldump.test.out"
-	filePrefix := filepath.Join(tmpdir, dbName+".")
-	f, err := os.Open(dataFilepath)
-	if err != nil {
-		t.Fatalf("failed to open the test data file: %v", err)
+func populateDynamoDB(t *testing.T) {
+	cfg := aws.Config{
+		Endpoint: aws.String("http://localhost:8000"),
 	}
-	err = cmd.CommandLine(conversion.MYSQLDUMP, "spanner", projectID, instanceID, dbName, false, false, false, 0, "", &conversion.IOStreams{In: f, Out: os.Stdout}, filePrefix, now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Drop the database later.
-	defer dropDatabase(t, dbPath)
+	sess := session.Must(session.NewSession())
+	dydbClient := dydb.New(sess, &cfg)
 
-	checkResults(t, dbPath)
+	tableName := "Movies"
+	createTableInput := &dydb.CreateTableInput{
+		AttributeDefinitions: []*dydb.AttributeDefinition{
+			{
+				AttributeName: aws.String("Year"),
+				AttributeType: aws.String("S"),
+			},
+			{
+				AttributeName: aws.String("Title"),
+				AttributeType: aws.String("S"),
+			},
+		},
+		KeySchema: []*dydb.KeySchemaElement{
+			{
+				AttributeName: aws.String("Year"),
+				KeyType:       aws.String("HASH"),
+			},
+			{
+				AttributeName: aws.String("Title"),
+				KeyType:       aws.String("RANGE"),
+			},
+		},
+		ProvisionedThroughput: &dydb.ProvisionedThroughput{
+			ReadCapacityUnits:  aws.Int64(10),
+			WriteCapacityUnits: aws.Int64(10),
+		},
+		TableName: aws.String(tableName),
+	}
+	_, err := dydbClient.CreateTable(createTableInput)
+	if err != nil {
+		t.Fatalf("Got error calling CreateTable: %s", err)
+	}
+
+	item := Item{
+		Year:   "2015",
+		Title:  "The Big New Movie",
+		Plot:   "Nothing happens at all.",
+		Rating: 0.0,
+	}
+	av, err := dynamodbattribute.MarshalMap(item)
+	if err != nil {
+		t.Fatalf("Got error marshalling new movie item: %s", err)
+	}
+
+	putItemInput := &dydb.PutItemInput{
+		Item:      av,
+		TableName: aws.String(tableName),
+	}
+
+	_, err = dydbClient.PutItem(putItemInput)
+	if err != nil {
+		t.Fatalf("Got error calling PutItem: %s", err)
+	}
+	log.Println("Successfully created table and put item for dynamodb")
 }
 
-func TestIntegration_MYSQL_SimpleUse(t *testing.T) {
+func TestIntegration_DYNAMODB_SimpleUse(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
 
@@ -136,11 +188,11 @@ func TestIntegration_MYSQL_SimpleUse(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
-	dbName, _ := conversion.GetDatabaseName(conversion.MYSQL, now)
+	dbName, _ := conversion.GetDatabaseName(conversion.DYNAMODB, now)
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
-	err := cmd.CommandLine(conversion.MYSQL, "spanner", projectID, instanceID, dbName, false, false, false, 0, "", &conversion.IOStreams{Out: os.Stdout}, filePrefix, now)
+	err := cmd.CommandLine(conversion.DYNAMODB, "spanner", projectID, instanceID, dbName, false, false, false, 0, "", &conversion.IOStreams{Out: os.Stdout}, filePrefix, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,12 +211,12 @@ func checkResults(t *testing.T, dbPath string) {
 	}
 	defer client.Close()
 
-	checkBigInt(ctx, t, client)
+	checkRow(ctx, t, client)
 }
 
-func checkBigInt(ctx context.Context, t *testing.T, client *spanner.Client) {
-	var quantity int64
-	iter := client.Single().Read(ctx, "cart", spanner.Key{"901e-a6cfc2b502dc", "abc-123"}, []string{"quantity"})
+func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
+	stmt := spanner.Statement{SQL: `SELECT Year, Title, Plot FROM Movies`}
+	iter := client.Single().Query(ctx, stmt)
 	defer iter.Stop()
 	for {
 		row, err := iter.Next()
@@ -172,14 +224,20 @@ func checkBigInt(ctx context.Context, t *testing.T, client *spanner.Client) {
 			break
 		}
 		if err != nil {
+			log.Println("Error reading row: ", err)
 			t.Fatal(err)
+			break
 		}
-		if err := row.Columns(&quantity); err != nil {
+		var year, title, plot string
+		if err := row.Columns(&year, &title, &plot); err != nil {
+			log.Println("Error reading into variables: ", err)
 			t.Fatal(err)
+			break
 		}
-	}
-	if got, want := quantity, int64(1); got != want {
-		t.Fatalf("quantities are not correct: got %v, want %v", got, want)
+		// TODO: Modify to compare entire row instead of each literal individually.
+		assert.Equal(t, year, "2015")
+		assert.Equal(t, title, "The Big New Movie")
+		assert.Equal(t, plot, "Nothing happens at all.")
 	}
 }
 

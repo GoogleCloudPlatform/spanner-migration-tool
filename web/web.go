@@ -166,7 +166,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("failed to open dump file %v : %v", dc.FilePath, err), http.StatusNotFound)
 		return
 	}
-	conv, err := conversion.SchemaConv(dc.Driver, &conversion.IOStreams{In: f, Out: os.Stdout}, 0)
+	conv, err := conversion.SchemaConv(dc.Driver, conversion.TARGET_SPANNER, &conversion.IOStreams{In: f, Out: os.Stdout}, 0)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
@@ -770,26 +770,12 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 // updateSessionFile updates the content of session file with
-// latest sessionState.conv.
+// latest sessionState.conv while also dumping schemas and report.
 func updateSessionFile() error {
-	filePath := sessionState.sessionFile
-	if filePath == "" {
-		return fmt.Errorf("Session file path is empty")
-	}
-	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
+	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
+	_, err := conversion.WriteConvGeneratedFiles(sessionState.conv, sessionState.dbName, sessionState.driver, ioHelper.BytesRead, ioHelper.Out)
 	if err != nil {
-		return err
-	}
-	convJSON, err := json.MarshalIndent(sessionState.conv, "", " ")
-	if err != nil {
-		return err
-	}
-	err = f.Truncate(0)
-	if err != nil {
-		return err
-	}
-	if _, err := f.Write(convJSON); err != nil {
-		return err
+		return fmt.Errorf("encountered error %w. Cannot write files", err)
 	}
 	return nil
 }

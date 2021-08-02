@@ -36,6 +36,7 @@ type Conv struct {
 	sampleBadRows  rowSamples     // Rows that generated errors during conversion.
 	Stats          stats
 	TimezoneOffset string // Timezone offset for timestamp conversion.
+	TargetDb       string // The target database to which HarbourBridge is writing.
 }
 
 type mode int

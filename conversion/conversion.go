@@ -44,6 +44,7 @@ import (
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	_ "github.com/go-sql-driver/mysql"
@@ -73,6 +74,10 @@ const (
 	// DYNAMODB is the driver name for AWS DynamoDB.
 	// This is an experimental driver; implementation in progress.
 	DYNAMODB string = "dynamodb"
+
+	// Target db for which schema is being generated.
+	TARGET_SPANNER               string = "spanner"
+	TARGET_EXPERIMENTAL_POSTGRES string = "experimental_postgres"
 )
 
 var (
@@ -80,12 +85,12 @@ var (
 	MaxWorkers = 10
 )
 
-func SchemaConv(driver string, ioHelper *IOStreams, schemaSampleSize int64) (*internal.Conv, error) {
+func SchemaConv(driver string, targetDb string, ioHelper *IOStreams, schemaSampleSize int64) (*internal.Conv, error) {
 	switch driver {
 	case POSTGRES, MYSQL:
-		return schemaFromSQL(driver)
+		return schemaFromSQL(driver, targetDb)
 	case PGDUMP, MYSQLDUMP:
-		return schemaFromDump(driver, ioHelper)
+		return schemaFromDump(driver, targetDb, ioHelper)
 	case DYNAMODB:
 		return schemaFromDynamoDB(schemaSampleSize)
 	default:
@@ -158,7 +163,7 @@ func mysqlDriverConfig() (string, error) {
 	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, server, port, dbname), nil
 }
 
-func schemaFromSQL(driver string) (*internal.Conv, error) {
+func schemaFromSQL(driver string, targetDb string) (*internal.Conv, error) {
 	driverConfig, err := driverConfig(driver)
 	if err != nil {
 		return nil, err
@@ -168,6 +173,7 @@ func schemaFromSQL(driver string) (*internal.Conv, error) {
 		return nil, err
 	}
 	conv := internal.MakeConv()
+	conv.TargetDb = targetDb
 	err = ProcessInfoSchema(driver, conv, sourceDB)
 	if err != nil {
 		return nil, err
@@ -219,11 +225,20 @@ func dataFromSQL(driver string, config spanner.BatchWriterConfig, client *sp.Cli
 	return writer, nil
 }
 
+func getDynamoDBClientConfig() *aws.Config {
+	cfg := aws.Config{}
+	endpointOverride := os.Getenv("DYNAMODB_ENDPOINT_OVERRIDE")
+	if endpointOverride != "" {
+		cfg.Endpoint = aws.String(endpointOverride)
+	}
+	return &cfg
+}
+
 func schemaFromDynamoDB(sampleSize int64) (*internal.Conv, error) {
 	conv := internal.MakeConv()
 	mySession := session.Must(session.NewSession())
-	client := dydb.New(mySession)
-	err := dynamodb.ProcessSchema(conv, client, []string{}, sampleSize)
+	dydbClient := dydb.New(mySession, getDynamoDBClientConfig())
+	err := dynamodb.ProcessSchema(conv, dydbClient, []string{}, sampleSize)
 	if err != nil {
 		return nil, err
 	}
@@ -232,9 +247,8 @@ func schemaFromDynamoDB(sampleSize int64) (*internal.Conv, error) {
 
 func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
 	mySession := session.Must(session.NewSession())
-	dyclient := dydb.New(mySession)
-
-	dynamodb.SetRowStats(conv, dyclient)
+	dydbClient := dydb.New(mySession, getDynamoDBClientConfig())
+	dynamodb.SetRowStats(conv, dydbClient)
 	totalRows := conv.Rows()
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose())
 
@@ -255,7 +269,7 @@ func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv 
 			writer.AddRow(table, cols, vals)
 		})
 
-	err := dynamodb.ProcessData(conv, dyclient)
+	err := dynamodb.ProcessData(conv, dydbClient)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +282,7 @@ type IOStreams struct {
 	BytesRead           int64
 }
 
-func schemaFromDump(driver string, ioHelper *IOStreams) (*internal.Conv, error) {
+func schemaFromDump(driver string, targetDb string, ioHelper *IOStreams) (*internal.Conv, error) {
 	f, n, err := getSeekable(ioHelper.In)
 	if err != nil {
 		printSeekError(driver, err, ioHelper.Out)
@@ -277,6 +291,7 @@ func schemaFromDump(driver string, ioHelper *IOStreams) (*internal.Conv, error) 
 	ioHelper.SeekableIn = f
 	ioHelper.BytesRead = n
 	conv := internal.MakeConv()
+	conv.TargetDb = targetDb
 	p := internal.NewProgress(n, "Generating schema", internal.Verbose())
 	r := internal.NewReader(bufio.NewReader(f), p)
 	conv.SetSchemaMode() // Build schema and ignore data in dump.
@@ -527,6 +542,7 @@ func GetInstance(project string, out *os.File) (string, error) {
 		fmt.Fprintf(out, "Could not find any Spanner instances for project %s\n", project)
 		return "", fmt.Errorf("no Spanner instances for %s", project)
 	}
+
 	// Note: we could ask for user input to select/confirm which Spanner
 	// instance to use, but that interacts poorly with piping pg_dump/mysqldump data
 	// to the tool via stdin.
@@ -566,25 +582,25 @@ func getInstances(project string) ([]string, error) {
 
 // WriteSchemaFile writes DDL statements in a file. It includes CREATE TABLE
 // statements and ALTER TABLE statements to add foreign keys.
+// The parameter name should end with a .txt.
 func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.File) {
 	f, err := os.Create(name)
 	if err != nil {
 		fmt.Fprintf(out, "Can't create schema file %s: %v\n", name, err)
 		return
 	}
-	// The schema file we write out includes comments, includes foreign keys
+
+	// The schema file we write out below is optimized for reading. It includes comments, foreign keys
 	// and doesn't add backticks around table and column names. This file is
 	// intended for explanatory and documentation purposes, and is not strictly
 	// legal Cloud Spanner DDL (Cloud Spanner doesn't currently support comments).
-	// Change 'Comments' to false and 'ProtectIds' to true to write out a
-	// schema file that is legal Cloud Spanner DDL.
-	ddl := conv.SpSchema.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true})
-	if len(ddl) == 0 {
-		ddl = []string{"\n-- Schema is empty -- no tables found\n"}
+	spDDL := conv.SpSchema.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true})
+	if len(spDDL) == 0 {
+		spDDL = []string{"\n-- Schema is empty -- no tables found\n"}
 	}
 	l := []string{
 		fmt.Sprintf("-- Schema generated %s\n", now.Format("2006-01-02 15:04:05")),
-		strings.Join(ddl, ";\n\n"),
+		strings.Join(spDDL, ";\n\n"),
 		"\n",
 	}
 	if _, err := f.WriteString(strings.Join(l, "")); err != nil {
@@ -592,6 +608,32 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 		return
 	}
 	fmt.Fprintf(out, "Wrote schema to file '%s'.\n", name)
+
+	// Convert <file_name>.<ext> to <file_name>.ddl.<ext>.
+	nameSplit := strings.Split(name, ".")
+	nameSplit = append(nameSplit[:len(nameSplit)-1], "ddl", nameSplit[len(nameSplit)-1])
+	name = strings.Join(nameSplit, ".")
+	f, err = os.Create(name)
+	if err != nil {
+		fmt.Fprintf(out, "Can't create legal schema ddl file %s: %v\n", name, err)
+		return
+	}
+
+	// We change 'Comments' to false and 'ProtectIds' to true below to write out a
+	// schema file that is a legal Cloud Spanner DDL.
+	spDDL = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true})
+	if len(spDDL) == 0 {
+		spDDL = []string{"\n-- Schema is empty -- no tables found\n"}
+	}
+	l = []string{
+		strings.Join(spDDL, ";\n\n"),
+		"\n",
+	}
+	if _, err = f.WriteString(strings.Join(l, "")); err != nil {
+		fmt.Fprintf(out, "Can't write out legal schema ddl file: %v\n", err)
+		return
+	}
+	fmt.Fprintf(out, "Wrote legal schema ddl to file '%s'.\n", name)
 }
 
 // WriteSessionFile writes conv struct to a file in JSON format.
@@ -613,6 +655,25 @@ func WriteSessionFile(conv *internal.Conv, name string, out *os.File) {
 		return
 	}
 	fmt.Fprintf(out, "Wrote session to file '%s'.\n", name)
+}
+
+// WriteConvGeneratedFiles creates a directory labeled downloads with the current timestamp
+// where it writes the sessionfile, report summary and DDLs then returns the directory where it writes.
+func WriteConvGeneratedFiles(conv *internal.Conv, dbName string, driver string, BytesRead int64, out *os.File) (string, error) {
+	now := time.Now()
+	dirPath := "harbour_bridge_output/" + dbName + "/"
+	err := os.MkdirAll(dirPath, os.ModePerm)
+	if err != nil {
+		fmt.Fprintf(out, "Can't create directory %s: %v\n", dirPath, err)
+		return "", err
+	}
+	schemaFileName := dirPath + dbName + "_schema.txt"
+	WriteSchemaFile(conv, now, schemaFileName, out)
+	reportFileName := dirPath + dbName + "_report.txt"
+	Report(driver, nil, BytesRead, "", conv, reportFileName, out)
+	sessionFileName := dirPath + dbName + ".session.json"
+	WriteSessionFile(conv, sessionFileName, out)
+	return dirPath, nil
 }
 
 // ReadSessionFile reads a session JSON file and
