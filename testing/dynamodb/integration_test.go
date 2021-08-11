@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/big"
 	"os"
 	"path/filepath"
 	"testing"
@@ -27,16 +28,17 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/cmd"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
-	"google.golang.org/api/iterator"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"google.golang.org/api/iterator"
 	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
@@ -45,14 +47,34 @@ var (
 	instanceID string
 
 	databaseAdmin *database.DatabaseAdminClient
+	dydbClient    *dydb.DynamoDB
 )
 
 // Create struct to hold info about new item in dynamodb.
-type Item struct {
-	Year   string
-	Title  string
-	Plot   string
-	Rating float64
+type DydbRecord struct {
+	AttrString    string
+	AttrInt       int
+	AttrFloat     float64
+	AttrBool      bool
+	AttrBytes     []byte
+	AttrNumberSet []float64 `dynamodbav:",numberset"`
+	AttrByteSet   [][]byte
+	AttrStringSet []string `dynamodbav:",stringset"`
+	AttrList      []interface{}
+	AttrMap       map[string]int
+}
+
+type SpannerRecord struct {
+	AttrString    string
+	AttrInt       int64
+	AttrFloat     float64
+	AttrBool      bool
+	AttrBytes     []byte
+	AttrNumberSet []float64
+	AttrByteSet   [][]byte
+	AttrStringSet []string
+	AttrList      string
+	AttrMap       string
 }
 
 func TestMain(m *testing.M) {
@@ -91,6 +113,12 @@ func initIntegrationTests() (cleanup func()) {
 		log.Fatalf("cannot create databaseAdmin client: %v", err)
 	}
 
+	cfg := aws.Config{
+		Endpoint: aws.String("http://localhost:8000"),
+	}
+	sess := session.Must(session.NewSession())
+	dydbClient = dydb.New(sess, &cfg)
+
 	return func() {
 		databaseAdmin.Close()
 	}
@@ -103,6 +131,11 @@ func dropDatabase(t *testing.T, dbPath string) {
 	if err := databaseAdmin.DropDatabase(ctx, &databasepb.DropDatabaseRequest{Database: dbPath}); err != nil {
 		t.Fatalf("failed to drop testing database %v: %v", dbPath, err)
 	}
+
+	deleteTableInput := &dydb.DeleteTableInput{
+		TableName: aws.String("table_test"),
+	}
+	dydbClient.DeleteTable(deleteTableInput)
 }
 
 func prepareIntegrationTest(t *testing.T) string {
@@ -118,32 +151,18 @@ func prepareIntegrationTest(t *testing.T) string {
 }
 
 func populateDynamoDB(t *testing.T) {
-	cfg := aws.Config{
-		Endpoint: aws.String("http://localhost:8000"),
-	}
-	sess := session.Must(session.NewSession())
-	dydbClient := dydb.New(sess, &cfg)
-
-	tableName := "Movies"
+	tableName := "table_test"
 	createTableInput := &dydb.CreateTableInput{
 		AttributeDefinitions: []*dydb.AttributeDefinition{
 			{
-				AttributeName: aws.String("Year"),
-				AttributeType: aws.String("S"),
-			},
-			{
-				AttributeName: aws.String("Title"),
+				AttributeName: aws.String("AttrString"),
 				AttributeType: aws.String("S"),
 			},
 		},
 		KeySchema: []*dydb.KeySchemaElement{
 			{
-				AttributeName: aws.String("Year"),
+				AttributeName: aws.String("AttrString"),
 				KeyType:       aws.String("HASH"),
-			},
-			{
-				AttributeName: aws.String("Title"),
-				KeyType:       aws.String("RANGE"),
 			},
 		},
 		ProvisionedThroughput: &dydb.ProvisionedThroughput{
@@ -156,14 +175,19 @@ func populateDynamoDB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got error calling CreateTable: %s", err)
 	}
-
-	item := Item{
-		Year:   "2015",
-		Title:  "The Big New Movie",
-		Plot:   "Nothing happens at all.",
-		Rating: 0.0,
+	dydbRecord := DydbRecord{
+		AttrString:    "abcd",
+		AttrInt:       10,
+		AttrFloat:     14.5,
+		AttrBool:      true,
+		AttrBytes:     []byte{48, 49},
+		AttrNumberSet: []float64{1.5, 2.5, 3.5},
+		AttrByteSet:   [][]byte{[]byte{48, 49}, []byte{50, 51}},
+		AttrStringSet: []string{"abc", "xyz"},
+		AttrList:      []interface{}{"str-1", 12.34, true},
+		AttrMap:       map[string]int{"key": 100},
 	}
-	av, err := dynamodbattribute.MarshalMap(item)
+	av, err := dynamodbattribute.MarshalMap(dydbRecord)
 	if err != nil {
 		t.Fatalf("Got error marshalling new movie item: %s", err)
 	}
@@ -215,7 +239,20 @@ func checkResults(t *testing.T, dbPath string) {
 }
 
 func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
-	stmt := spanner.Statement{SQL: `SELECT Year, Title, Plot FROM Movies`}
+	wantRecord := SpannerRecord{
+		AttrString:    "abcd",
+		AttrInt:       int64(10),
+		AttrFloat:     float64(14.5),
+		AttrBool:      true,
+		AttrBytes:     []byte{48, 49},
+		AttrNumberSet: []float64{1.5, 2.5, 3.5},
+		AttrByteSet:   [][]byte{[]byte{48, 49}, []byte{50, 51}},
+		AttrStringSet: []string{"abc", "xyz"},
+		AttrList:      "[\"str-1\",\"12.34\",true]",
+		AttrMap:       "{\"key\":\"100\"}",
+	}
+	gotRecord := SpannerRecord{}
+	stmt := spanner.Statement{SQL: `SELECT AttrString, AttrInt, AttrFloat, AttrBool, AttrBytes, AttrNumberSet, AttrByteSet, AttrStringSet, AttrList, AttrMap FROM table_test`}
 	iter := client.Single().Query(ctx, stmt)
 	defer iter.Stop()
 	for {
@@ -228,17 +265,24 @@ func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
 			t.Fatal(err)
 			break
 		}
-		var year, title, plot string
-		if err := row.Columns(&year, &title, &plot); err != nil {
+		var AttrInt, AttrFloat big.Rat
+		var AttrNumberSet []big.Rat
+		if err := row.Columns(&gotRecord.AttrString, &AttrInt, &AttrFloat, &gotRecord.AttrBool, &gotRecord.AttrBytes, &AttrNumberSet, &gotRecord.AttrByteSet, &gotRecord.AttrStringSet, &gotRecord.AttrList, &gotRecord.AttrMap); err != nil {
 			log.Println("Error reading into variables: ", err)
 			t.Fatal(err)
 			break
 		}
-		// TODO: Modify to compare entire row instead of each literal individually.
-		assert.Equal(t, year, "2015")
-		assert.Equal(t, title, "The Big New Movie")
-		assert.Equal(t, plot, "Nothing happens at all.")
+		gotRecord.AttrFloat, _ = AttrFloat.Float64()
+		floatVal, _ := AttrInt.Float64()
+		gotRecord.AttrInt = int64(floatVal)
+		floatSet := []float64{}
+		for _, numericVal := range AttrNumberSet {
+			floatVal, _ = numericVal.Float64()
+			floatSet = append(floatSet, floatVal)
+		}
+		gotRecord.AttrNumberSet = floatSet
 	}
+	assert.True(t, cmp.Equal(wantRecord, gotRecord))
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {
