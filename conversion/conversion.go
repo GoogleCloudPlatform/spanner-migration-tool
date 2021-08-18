@@ -483,13 +483,12 @@ func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv,
 		workerId := <-workers
 		go func(fkStmt string, workerId int) {
 			defer func() {
-				workers <- workerId
-
 				// Locking the progress reporting otherwise progress results displayed could be in random order.
 				progressMutex.Lock()
 				progress++
 				p.MaybeReport(progress)
 				progressMutex.Unlock()
+				workers <- workerId
 			}()
 			internal.VerbosePrintf("Submitting new FK create request for %s: %s\n", dbName, fkStmt)
 			op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
@@ -508,6 +507,10 @@ func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv,
 			}
 			internal.VerbosePrintln("Updated schema with statement: " + fkStmt)
 		}(fkStmt, workerId)
+	}
+	// Wait for all the goroutines to finish.
+	for i := 1; i <= MaxWorkers; i++ {
+		<-workers
 	}
 	p.Done()
 	return nil

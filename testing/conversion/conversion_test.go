@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// TODO: Refactor this file and other integration tests by moving all common code
+// to remove redundancy.
+
 package conversion_test
 
 import (
@@ -31,7 +34,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
-
 	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
