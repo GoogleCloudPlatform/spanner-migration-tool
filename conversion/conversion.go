@@ -36,6 +36,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -77,6 +78,11 @@ const (
 	// Target db for which schema is being generated.
 	TARGET_SPANNER               string = "spanner"
 	TARGET_EXPERIMENTAL_POSTGRES string = "experimental_postgres"
+)
+
+var (
+	// Set the maximum number of concurrent workers during foreign key creation.
+	MaxWorkers = 10
 )
 
 func SchemaConv(driver string, targetDb string, ioHelper *IOStreams, schemaSampleSize int64) (*internal.Conv, error) {
@@ -451,6 +457,7 @@ func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv,
 		return fmt.Errorf("can't create admin client: %w\n", analyzeError(err, project, instance))
 	}
 	defer adminClient.Close()
+
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
@@ -460,26 +467,50 @@ func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv,
 	}
 	msg := fmt.Sprintf("Updating schema of database %s in instance %s with foreign key constraints ...", dbName, instance)
 	p := internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose())
-	for i, fkStmt := range fkStmts {
-		// TODO: Improve performance of the foreign key constraint updates.
-		// For example, issue all of the update ops first before waiting for them to complete
-		// so that that can execute in parallel. We could also print out ids of the
-		// long-running operations.
-		op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
-			Database:   fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName),
-			Statements: []string{fkStmt},
-		})
-		if err != nil {
-			fmt.Printf("Can't add foreign key with statement %s: %s\n", fkStmt, err)
-			conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
-			continue
-		}
-		if err := op.Wait(ctx); err != nil {
-			fmt.Printf("Can't add foreign key with statement %s: %s\n", fkStmt, err)
-			conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
-		}
-		internal.VerbosePrintln("Updated schema with statement: " + fkStmt)
-		p.MaybeReport(int64(i + 1))
+
+	workers := make(chan int, MaxWorkers)
+	for i := 1; i <= MaxWorkers; i++ {
+		workers <- i
+	}
+	var progressMutex sync.Mutex
+	progress := int64(0)
+
+	// We dispatch parallel foreign key create requests to ensure the backfill runs in parallel to reduce overall time.
+	// This cuts down the time taken to a third (approx) compared to Serial and Batched creation. We also do not want to create
+	// too many requests and get throttled due to network or hitting catalog memory limits.
+	// Ensure atmost `MaxWorkers` go routines run in parallel that each update the ddl with one foreign key statement.
+	for _, fkStmt := range fkStmts {
+		workerId := <-workers
+		go func(fkStmt string, workerId int) {
+			defer func() {
+				// Locking the progress reporting otherwise progress results displayed could be in random order.
+				progressMutex.Lock()
+				progress++
+				p.MaybeReport(progress)
+				progressMutex.Unlock()
+				workers <- workerId
+			}()
+			internal.VerbosePrintf("Submitting new FK create request for %s: %s\n", dbName, fkStmt)
+			op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
+				Database:   fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName),
+				Statements: []string{fkStmt},
+			})
+			if err != nil {
+				fmt.Printf("Cannot submit request for create foreign key with statement %s: %s\n", fkStmt, err)
+				conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
+				return
+			}
+			if err := op.Wait(ctx); err != nil {
+				fmt.Printf("Can't add foreign key with statement %s: %s\n", fkStmt, err)
+				conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
+				return
+			}
+			internal.VerbosePrintln("Updated schema with statement: " + fkStmt)
+		}(fkStmt, workerId)
+	}
+	// Wait for all the goroutines to finish.
+	for i := 1; i <= MaxWorkers; i++ {
+		<-workers
 	}
 	p.Done()
 	return nil
