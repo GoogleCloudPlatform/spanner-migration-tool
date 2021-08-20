@@ -396,9 +396,11 @@ func TestParseIndexes(t *testing.T) {
 	attrNameA := "a"
 	attrNameB := "b"
 	attrNameC := "c"
+	attrNameD := "d"
 	hashKeyType := "HASH"
 	sortKeyType := "RANGE"
-	indexName := "secondary_index_c"
+	globalIndexName := "secondary_index_c"
+	localIndexName := "secondary_index_d"
 	describeTableOutputs := []dynamodb.DescribeTableOutput{
 		{
 			Table: &dynamodb.TableDescription{
@@ -409,9 +411,17 @@ func TestParseIndexes(t *testing.T) {
 				},
 				GlobalSecondaryIndexes: []*dynamodb.GlobalSecondaryIndexDescription{
 					{
-						IndexName: &indexName,
+						IndexName: &globalIndexName,
 						KeySchema: []*dynamodb.KeySchemaElement{
 							{AttributeName: &attrNameC, KeyType: &hashKeyType},
+						},
+					},
+				},
+				LocalSecondaryIndexes: []*dynamodb.LocalSecondaryIndexDescription{
+					{
+						IndexName: &localIndexName,
+						KeySchema: []*dynamodb.KeySchemaElement{
+							{AttributeName: &attrNameD, KeyType: &hashKeyType},
 						},
 					},
 				},
@@ -430,7 +440,10 @@ func TestParseIndexes(t *testing.T) {
 
 	pKeys := []schema.Key{{Column: "a"}, {Column: "b"}}
 	assert.Equal(t, pKeys, dySchema.PrimaryKeys)
-	secIndexes := []schema.Index{{Name: "secondary_index_c", Keys: []schema.Key{{Column: "c"}}}}
+	secIndexes := []schema.Index{
+		{Name: "secondary_index_c", Keys: []schema.Key{{Column: "c"}}},
+		{Name: "secondary_index_d", Keys: []schema.Key{{Column: "d"}}},
+	}
 	assert.Equal(t, secIndexes, dySchema.Indexes)
 }
 

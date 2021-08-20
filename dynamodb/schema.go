@@ -128,13 +128,21 @@ func analyzeMetadata(client dynamoClient, s *schema.Table) error {
 		s.PrimaryKeys = append(s.PrimaryKeys, schema.Key{Column: *i.AttributeName})
 	}
 
-	// Secondary indexes
+	// Secondary indexes from GlobalSecondaryIndexes
 	for _, i := range result.Table.GlobalSecondaryIndexes {
 		var keys []schema.Key
 		for _, j := range i.KeySchema {
 			keys = append(keys, schema.Key{Column: *j.AttributeName})
 		}
-		// s.SecIndexes = append(s.SecIndexes, index{Name: *i.IndexName, Keys: keys})
+		s.Indexes = append(s.Indexes, schema.Index{Name: *i.IndexName, Keys: keys})
+	}
+
+	// Secondary indexes from LocalSecondaryIndexes
+	for _, i := range result.Table.LocalSecondaryIndexes {
+		var keys []schema.Key
+		for _, j := range i.KeySchema {
+			keys = append(keys, schema.Key{Column: *j.AttributeName})
+		}
 		s.Indexes = append(s.Indexes, schema.Index{Name: *i.IndexName, Keys: keys})
 	}
 
