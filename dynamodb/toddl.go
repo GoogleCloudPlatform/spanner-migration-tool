@@ -28,15 +28,11 @@ import (
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
 func schemaToDDL(conv *internal.Conv) error {
-	// Tracks Spanner names that have been used for foreign key constraints
-	// and indexes. We use this to ensure we generate unique names when
-	// we map from MySQL to Spanner since Spanner requires all foreign
-	// key and index names to be distinct (you can't use the same name
-	// for a foreign key constraint and an index).
+	// Tracks Spanner names that have been used for indexes. We use this to ensure we generate unique names when
+	// we map from DynamoDB to Spanner since we want Spanner table names and index names to be distinct.
 	usedNames := make(map[string]bool)
-	// As Spanner uses same namespace for table names, foreign key constraint
-	// names and index names, we need to pre-populate usedNames with Spanner table
-	// names to handle collision with foreign key names and index names.
+	// We need to pre-populate usedNames with Spanner table
+	// names to handle collision with table names, foreign key names and index names.
 	for _, srcTable := range conv.SrcSchema {
 		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
 		if err != nil {
@@ -148,7 +144,7 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 			spKeys = append(spKeys, ddl.IndexKey{Col: spCol, Desc: k.Desc})
 		}
 		if srcIndex.Name == "" {
-			// Generate a name if index name is empty in MySQL.
+			// Generate a name if index name is empty in DynamoDB.
 			// Collision of index name will be handled by ToSpannerIndexName.
 			srcIndex.Name = fmt.Sprintf("Index_%s", srcTable)
 		}
