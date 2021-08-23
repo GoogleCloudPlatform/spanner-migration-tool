@@ -46,7 +46,7 @@ func TestToSpannerType(t *testing.T) {
 		PrimaryKeys: []schema.Key{{Column: "a"}, {Column: "b"}},
 		Indexes: []schema.Index{
 			{Name: "index1", Keys: []schema.Key{{Column: "b"}, {Column: "c"}}},
-			{Name: "index2", Keys: []schema.Key{{Column: "d"}}},
+			{Name: "test", Keys: []schema.Key{{Column: "d"}}},
 		},
 	}
 	conv.SrcSchema[name] = srcSchema
@@ -72,7 +72,7 @@ func TestToSpannerType(t *testing.T) {
 		Pks: []ddl.IndexKey{{Col: "a"}, {Col: "b"}},
 		Indexes: []ddl.CreateIndex{
 			{Name: "index1", Table: name, Keys: []ddl.IndexKey{{Col: "b"}, {Col: "c"}}},
-			{Name: "index2", Table: name, Keys: []ddl.IndexKey{{Col: "d"}}},
+			{Name: "test_2", Table: name, Keys: []ddl.IndexKey{{Col: "d"}}},
 		},
 	}
 	assert.Equal(t, expected, actual)
