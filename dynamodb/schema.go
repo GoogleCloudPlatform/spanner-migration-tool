@@ -123,41 +123,55 @@ func analyzeMetadata(client dynamoClient, s *schema.Table) error {
 		return fmt.Errorf("failed to make a DescribeTable API call for table %v: %v", s.Name, err)
 	}
 
-	// Primary keys
+	// Primary keys.
 	for _, i := range result.Table.KeySchema {
 		s.PrimaryKeys = append(s.PrimaryKeys, schema.Key{Column: *i.AttributeName})
 	}
 
-	// Secondary indexes
+	// DynamoDB supports 2 types of indexes: Global Secondary Indexes (GSI) and Local Secondary Indexes (LSI).
+	// In GSI, dydb creates another global table for indexes that scales seperately.
+	// As for LSI, every partition in dydb maintains its own local index for that partition.
+	// For spanner, we should convert both these types as how dydb implements them is irrelevant.
+	// For more details, checkout https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/LSI.html
+
+	// Convert secondary indexes from GlobalSecondaryIndexes.
 	for _, i := range result.Table.GlobalSecondaryIndexes {
-		var keys []schema.Key
-		for _, j := range i.KeySchema {
-			keys = append(keys, schema.Key{Column: *j.AttributeName})
-		}
-		// s.SecIndexes = append(s.SecIndexes, index{Name: *i.IndexName, Keys: keys})
-		s.Indexes = append(s.Indexes, schema.Index{Name: *i.IndexName, Keys: keys})
+		s.Indexes = append(s.Indexes, getSchemaIndexStruct(*i.IndexName, i.KeySchema))
+	}
+
+	// Convert secondary indexes from LocalSecondaryIndexes.
+	for _, i := range result.Table.LocalSecondaryIndexes {
+		s.Indexes = append(s.Indexes, getSchemaIndexStruct(*i.IndexName, i.KeySchema))
 	}
 
 	return nil
+}
+
+func getSchemaIndexStruct(indexName string, keySchema []*dynamodb.KeySchemaElement) schema.Index {
+	var keys []schema.Key
+	for _, j := range keySchema {
+		keys = append(keys, schema.Key{Column: *j.AttributeName})
+	}
+	return schema.Index{Name: indexName, Keys: keys}
 }
 
 func scanSampleData(client dynamoClient, sampleSize int64, table string) (map[string]map[string]int64, int64, error) {
 	// A map from column name to a count map of possible data types.
 	stats := make(map[string]map[string]int64)
 	var count int64
-	// Build the query input parameters
+	// Build the query input parameters.
 	params := &dynamodb.ScanInput{
 		TableName: aws.String(table),
 	}
 
 	for {
-		// Make the DynamoDB Query API call
+		// Make the DynamoDB Query API call.
 		result, err := client.Scan(params)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to make Query API call for table %v: %v", table, err)
 		}
 
-		// Iterate the items returned
+		// Iterate the items returned.
 		for _, attrsMap := range result.Items {
 			for attrName, attr := range attrsMap {
 				if _, ok := stats[attrName]; !ok {

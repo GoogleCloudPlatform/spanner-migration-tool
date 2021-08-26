@@ -43,7 +43,12 @@ func TestToSpannerType(t *testing.T) {
 			"j": {Name: "j", Type: schema.Type{Name: typeNumberSet}},
 			"k": {Name: "k", Type: schema.Type{Name: typeNumberStringSet}},
 		},
-		PrimaryKeys: []schema.Key{{Column: "a"}, {Column: "b"}}}
+		PrimaryKeys: []schema.Key{{Column: "a"}, {Column: "b"}},
+		Indexes: []schema.Index{
+			{Name: "index1", Keys: []schema.Key{{Column: "b"}, {Column: "c"}}},
+			{Name: "test", Keys: []schema.Key{{Column: "d"}}},
+		},
+	}
 	conv.SrcSchema[name] = srcSchema
 	assert.Nil(t, schemaToDDL(conv))
 	actual := conv.SpSchema[name]
@@ -65,6 +70,10 @@ func TestToSpannerType(t *testing.T) {
 			"k": {Name: "k", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}},
 		},
 		Pks: []ddl.IndexKey{{Col: "a"}, {Col: "b"}},
+		Indexes: []ddl.CreateIndex{
+			{Name: "index1", Table: name, Keys: []ddl.IndexKey{{Col: "b"}, {Col: "c"}}},
+			{Name: "test_2", Table: name, Keys: []ddl.IndexKey{{Col: "d"}}},
+		},
 	}
 	assert.Equal(t, expected, actual)
 }
