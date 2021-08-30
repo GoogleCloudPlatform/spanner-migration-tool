@@ -21,6 +21,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cloudspannerecosystem/harbourbridge/databases/common"
+	"github.com/cloudspannerecosystem/harbourbridge/databases/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/pingcap/parser"
@@ -71,7 +73,8 @@ func ProcessMySQLDump(conv *internal.Conv, r *internal.Reader) error {
 		}
 	}
 	if conv.SchemaMode() {
-		schemaToDDL(conv)
+		//schemaToDDL(conv)
+		common.SchemaToDDL(conv, mysql.MySQLToSpannerDdl{})
 		conv.AddPrimaryKeys()
 	}
 	return nil

@@ -26,6 +26,8 @@ import (
 	"cloud.google.com/go/civil"
 	_ "github.com/lib/pq" // we will use database/sql package instead of using this package directly
 
+	"github.com/cloudspannerecosystem/harbourbridge/databases/common"
+	"github.com/cloudspannerecosystem/harbourbridge/databases/postgres"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -49,7 +51,8 @@ func ProcessInfoSchema(conv *internal.Conv, db *sql.DB) error {
 			return err
 		}
 	}
-	schemaToDDL(conv)
+	//schemaToDDL(conv)
+	common.SchemaToSpannerDDL(conv, postgres.PostgresToSpannerDdl{})
 	conv.AddPrimaryKeys()
 	return nil
 }

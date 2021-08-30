@@ -24,6 +24,8 @@ import (
 	pg_query "github.com/lfittl/pg_query_go"
 	nodes "github.com/lfittl/pg_query_go/nodes"
 
+	"github.com/cloudspannerecosystem/harbourbridge/databases/common"
+	"github.com/cloudspannerecosystem/harbourbridge/databases/postgres"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 )
@@ -76,7 +78,8 @@ func ProcessPgDump(conv *internal.Conv, r *internal.Reader) error {
 		}
 	}
 	if conv.SchemaMode() {
-		schemaToDDL(conv)
+		//schemaToDDL(conv)
+		common.SchemaToSpannerDDL(conv, postgres.PostgresToSpannerDdl{})
 		conv.AddPrimaryKeys()
 	}
 
