@@ -13,7 +13,7 @@ environment variable.
 Before running HarbourBridge, make sure that you have
 [set up your AWS credentials/region](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html)
 correctly. HarbourBridge accesses your DynamoDB database via the aws go sdk
-package. If you use a custom endpoint for dynamodb, you can specify that using the environment variable DYNAMODB_ENDPOINT_OVERRIDE.
+package. If you use a custom endpoint for dynamodb, you can specify that using the environment variable `DYNAMODB_ENDPOINT_OVERRIDE`.
 ```sh
 export DYNAMODB_ENDPOINT_OVERRIDE=http://dynamodb.us-west-2.amazonaws.com`
 ```

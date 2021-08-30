@@ -3,7 +3,7 @@
 [![cloudspannerecosystem](https://circleci.com/gh/cloudspannerecosystem/harbourbridge.svg?style=svg)](https://circleci.com/gh/cloudspannerecosystem/harbourbridge)
 
 HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation and
-migration, using data from an existing PostgreSQL, MySQL and DynamoDB database. The tool
+migration, using data from an existing PostgreSQL, MySQL or DynamoDB database. The tool
 ingests schema and data from either a pg_dump/mysqldump file or directly from
 the source database, and supports both schema and data migration. For schema
 migration, HarbourBridge automatically builds a Spanner schema from the schema
@@ -205,12 +205,10 @@ to check the number of rows in table `mytable`.
 
 The tables created by HarbourBridge provide a starting point for evaluation of
 Spanner. While they preserve much of the core structure of your PostgreSQL/MySQL
-schema and data, many key features have been dropped, including (non-primary)
-indexes, functions, sequences, procedures, triggers, and views. For DynamoDB, the conversion from schemaless to schema is focused on the use-case where customers use DynamoDB in a consistent, structured way with a fairly well defined set of columns and types.
+schema and data, many key features have been dropped, including functions, sequences, procedures, triggers, and views. For DynamoDB, the conversion from schemaless to schema is focused on the use-case where customers use DynamoDB in a consistent, structured way with a fairly well defined set of columns and types.
 
 As a result, the out-of-the-box performance you get from these tables could be
-slower than what you get from PostgreSQL/MySQL/DynamoDB. HarbourBridge does preserve primary
-keys. If your SQL query performance relies on PostgreSQL/MySQL/DynamoDB indexes that are dropped, then the performance of the tables created by HarbourBridge could be significantly impaired.
+slower than what you get from PostgreSQL/MySQL/DynamoDB. 
 
 To improve performance, consider adding [Secondary
 Indexes](https://cloud.google.com/spanner/docs/secondary-indexes) to the tables
@@ -315,8 +313,8 @@ Details on HarbourBridge example usage can be found here:
 
 Details on HarbourBridge schema conversion can be found here:
 - [PostgreSQL schema conversion](postgres/README.md#schema-conversion)
-- [MySQL schema conversion](mysql/README.md#schema-conversion) sections respectively.
-- [DynamoDB schema conversion](dynamodb/README.md#schema-conversion) sections respectively.
+- [MySQL schema conversion](mysql/README.md#schema-conversion)
+- [DynamoDB schema conversion](dynamodb/README.md#schema-conversion)
 
 ## Data Conversion
 
