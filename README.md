@@ -3,7 +3,7 @@
 [![cloudspannerecosystem](https://circleci.com/gh/cloudspannerecosystem/harbourbridge.svg?style=svg)](https://circleci.com/gh/cloudspannerecosystem/harbourbridge)
 
 HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation and
-migration, using data from an existing PostgreSQL or MySQL database. The tool
+migration, using data from an existing PostgreSQL, MySQL and DynamoDB database. The tool
 ingests schema and data from either a pg_dump/mysqldump file or directly from
 the source database, and supports both schema and data migration. For schema
 migration, HarbourBridge automatically builds a Spanner schema from the schema
@@ -17,12 +17,13 @@ For more details on schema customization and use of the schema assistant, see
 capabilities of HarbourBridge.
 
 HarbourBridge is designed to simplify Spanner evaluation and migration, and in
-particular for migrating moderate-size PostgreSQL/MySQL datasets to Spanner (up
+particular for migrating moderate-size PostgreSQL/MySQL/DynamoDB datasets to Spanner (up
 to about 100GB). Many features of PostgreSQL/MySQL, especially those that don't
 map directly to Spanner features, are ignored, e.g. stored functions and
 procedures, and sequences. Types such as integers, floats, char/text, bools,
 timestamps, and (some) array types, map fairly directly to Spanner, but many
 other types do not and instead are mapped to Spanner's `STRING(MAX)`.
+DynamoDB is a NoSQL database hence, there is no clear mapping between DynamoDB and Spanner. The schema is inferred based on a certain amount of sampled data.
 
 View HarbourBridge as a way to get up and running fast, so you can focus on
 critical things like tuning performance and getting the most out of
@@ -44,6 +45,11 @@ To use the tool on a MySQL database called mydb, run
 mysqldump mydb | harbourbridge -driver=mysqldump
 ```
 
+To use the tool on a DynamoDB database, run
+```sh
+harbourbridge -driver=dynamodb
+```
+
 HarbourBridge accepts pg_dump/mysqldump's standard plain-text format, but not archive or
 custom formats. More details on usage can be found in [Example usage](#example-usage) section.
 
@@ -58,7 +64,7 @@ level, and the database created by HarbourBridge will inherit default
 permissions from the instance. All data written by HarbourBridge is visible to
 anyone who can access the created database.**
 
-As it processes the PostgreSQL/MySQL data, HarbourBridge reports on progress, provides
+As it processes the data, HarbourBridge reports on progress, provides
 stats on the schema and data conversion steps, and an overall assessment of the
 quality of the conversion. It also generates a schema file, report file and
 a session file (and a bad-data file if data was dropped). See
@@ -138,15 +144,18 @@ To use the tool on a MySQL database called mydb, run
 mysqldump mydb | $GOPATH/bin/harbourbridge -driver=mysqldump
 ```
 
+To use the tool on a DynamoDB database, run
+
+```sh
+$GOPATH/bin/harbourbridge -driver=dynamodb
+```
 More details on running harbourbridge can be found in [Example usage](#example-usage) section.
 
 This command will use the cloud project specified by the `GCLOUD_PROJECT`
 environment variable, automatically determine the Cloud Spanner instance
 associated with this project, convert the PostgreSQL/MySQL schema for `mydb` to a
-Spanner schema, create a new Cloud Spanner database with this schema, and
-finally, populate this new database with the data from `mydb`. If project has
-multiple instances, then list of available instances will be shown and you will have to
-pick one of the available instances and set the `--instance` flag. The new Cloud
+Spanner schema or infer a schema from the DynamoDB instance, create a new Cloud Spanner database 
+with this schema, and finally, populate this new database with the data from the source database. If the project has multiple instances, then list of available instances will be shown and you will have to pick one of the available instances and set the `--instance` flag. The new Cloud
 Spanner database will have a name of the form `{DRIVER}_{DATE}_{RANDOM}`, where`{DRIVER}`
 is the drivername specified,`{DATE}`is today's date, and`{RANDOM}` is a random suffix for
 uniqueness.
@@ -197,13 +206,11 @@ to check the number of rows in table `mytable`.
 The tables created by HarbourBridge provide a starting point for evaluation of
 Spanner. While they preserve much of the core structure of your PostgreSQL/MySQL
 schema and data, many key features have been dropped, including (non-primary)
-indexes, functions, sequences, procedures, triggers, and views.
+indexes, functions, sequences, procedures, triggers, and views. For DynamoDB, the conversion from schemaless to schema is focused on the use-case where customers use DynamoDB in a consistent, structured way with a fairly well defined set of columns and types.
 
 As a result, the out-of-the-box performance you get from these tables could be
-slower than what you get from PostgreSQL/MySQL. HarbourBridge does preserve primary
-keys, but we do not currently translate other indexes. If your SQL query
-performance relies on PostgreSQL/MySQL indexes that are dropped, then the performance
-of the tables created by HarbourBridge could be significantly impaired.
+slower than what you get from PostgreSQL/MySQL/DynamoDB. HarbourBridge does preserve primary
+keys. If your SQL query performance relies on PostgreSQL/MySQL/DynamoDB indexes that are dropped, then the performance of the tables created by HarbourBridge could be significantly impaired.
 
 To improve performance, consider adding [Secondary
 Indexes](https://cloud.google.com/spanner/docs/secondary-indexes) to the tables
@@ -270,6 +277,9 @@ appropriate instance using gcloud.
 `-driver` Specifies the driver to use for schema and data conversion. Supported drivers
 are _'postgres'_, _'pg_dump'_, _'mysql'_ and _'mysqldump'_. By default, the driver is _'pg_dump'_.
 
+`-schema-sample-size` Specifies the number of rows to use for inferring schema (only for DynamoDB). 
+By default, the schema sample size is 100000.
+
 `-prefix` Specifies a file prefix for the report, schema, and bad-data files
 written by the tool. If no file prefix is specified, the name of the Spanner
 database (plus a '.') is used.
@@ -295,25 +305,28 @@ conversion state endcoded as JSON.
 
 ## Example Usage
 
-Details on HarbourBridge example usage for PostgreSQL and MySQL can be
-found in the [PostgreSQL example usage](postgres/README.md#example-postgresql-usage)
-and [MySQL example usage](mysql/README.md#example-mysql-usage) sections respectively.
+Details on HarbourBridge example usage can be found here: 
+- [PostgreSQL example usage](postgres/README.md#example-postgresql-usage)
+- [MySQL example usage](mysql/README.md#example-mysql-usage)
+- [DynamoDB example usage](dynamodb/README.md#example-dynamodb-usage)
+
 
 ## Schema Conversion
 
-Details on HarbourBridge schema conversion for PostgreSQL and MySQL can be
-found in the [PostgreSQL schema conversion](postgres/README.md#schema-conversion)
-and [MySQL schema conversion](mysql/README.md#schema-conversion) sections respectively.
+Details on HarbourBridge schema conversion can be found here:
+- [PostgreSQL schema conversion](postgres/README.md#schema-conversion)
+- [MySQL schema conversion](mysql/README.md#schema-conversion) sections respectively.
+- [DynamoDB schema conversion](dynamodb/README.md#schema-conversion) sections respectively.
 
 ## Data Conversion
 
-HarbourBridge converts PostgreSQL/MySQL data to Spanner data based on the Spanner
+HarbourBridge converts PostgreSQL/MySQL/DynamoDB data to Spanner data based on the Spanner
 schema it constructs. Conversion for most data types is fairly straightforward,
 but several types deserve discussion. Note that HarbourBridge is not intended
-for databases larger than about 100GB. Details on HarbourBridge data conversion
-for PostgreSQL and MySQL can be found in the
-[PostgreSQL data conversion](postgres/README.md#data-conversion)
-and [MySQL data conversion](mysql/README.md#data-conversion) sections respectively.
+for databases larger than about 100GB. Details on HarbourBridge data conversion can be found here:
+- [PostgreSQL data conversion](postgres/README.md#data-conversion)
+- [MySQL data conversion](mysql/README.md#data-conversion)
+- [DynamoDB data conversion](dynamodb/README.md#data-conversion)
 
 ## Troubleshooting Guide
 
@@ -364,9 +377,9 @@ It is also possible to configure access via pg_dump's command-line options
 #### 1.2 Direct access to PostgreSQL
 
 In this case, HarbourBridge connects directly to the PostgreSQL
-database to retrieve table schema and data. Set the --driver='postgres'
-and provide the environment variables _PGHOST_, _PGPORT_, _PGUSER_, 
-_PGDATABASE_. Password can be specified either in the _PGPASSWORD_
+database to retrieve table schema and data. Set the `-driver=postgres`
+and provide the environment variables `_PGHOST_`, `_PGPORT_`, `_PGUSER_`, 
+`_PGDATABASE_`. Password can be specified either in the `_PGPASSWORD_`
 environment variable or provided at the password prompt.
 
 #### 1.3 mysqldump
@@ -381,10 +394,18 @@ database. See the [mysql](https://dev.mysql.com/doc/refman/8.0/en/mysql-commands
 #### 1.4 Direct access to MySQL
 
 In this case, HarbourBridge connects directly to the MySQL
-database to retrieve table schema and data. Set the --driver='mysql'
-and provide the environment variables _MYSQLHOST_, _MYSQLPORT_, _MYSQLUSER_, 
-_MYSQLDATABASE_. Password can be specified either in the _MYSQLPWD_
+database to retrieve table schema and data. Set the `-driver=mysql`
+and provide the environment variables `_MYSQLHOST_`, `_MYSQLPORT_`, `_MYSQLUSER_`, 
+`_MYSQLDATABASE_`. Password can be specified either in the `_MYSQLPWD_`
 environment variable or provided at the password prompt.
+
+
+#### 1.5 Direct access to DynamoDB
+
+In this case, HarbourBridge connects directly to the DynamoDB
+database to retrieve table schema and data. Set the `-driver=dynamodb`
+and provide the environment variables `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`.
+If you use a custom endpoint for dynamodb, you can specify that using the environment variable `DYNAMODB_ENDPOINT_OVERRIDE`.
 
 ### 2. Verify dump output
 
