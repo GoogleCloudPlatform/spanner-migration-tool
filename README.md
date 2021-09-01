@@ -23,7 +23,8 @@ map directly to Spanner features, are ignored, e.g. stored functions and
 procedures, and sequences. Types such as integers, floats, char/text, bools,
 timestamps, and (some) array types, map fairly directly to Spanner, but many
 other types do not and instead are mapped to Spanner's `STRING(MAX)`.
-DynamoDB is a NoSQL database hence, there is no clear mapping between DynamoDB and Spanner. The schema is inferred based on a certain amount of sampled data.
+DynamoDB is a NoSQL database hence, there is no clear mapping between DynamoDB and Spanner. 
+The schema is inferred based on a certain amount of sampled data.
 
 View HarbourBridge as a way to get up and running fast, so you can focus on
 critical things like tuning performance and getting the most out of
@@ -153,9 +154,11 @@ More details on running harbourbridge can be found in [Example usage](#example-u
 
 This command will use the cloud project specified by the `GCLOUD_PROJECT`
 environment variable, automatically determine the Cloud Spanner instance
-associated with this project, convert the PostgreSQL/MySQL schema for `mydb` to a
-Spanner schema or infer a schema from the DynamoDB instance, create a new Cloud Spanner database 
-with this schema, and finally, populate this new database with the data from the source database. If the project has multiple instances, then list of available instances will be shown and you will have to pick one of the available instances and set the `--instance` flag. The new Cloud
+associated with this project, convert the source schema to a Spanner schema (For MySQL/Postgres) or
+infer a schema from the DynamoDB instance, create a new Cloud Spanner database
+with this schema, and finally, populate this new database with the data from the source database. 
+If the project has multiple instances, then list of available instances will be shown and you will 
+have to pick one of the available instances and set the `--instance` flag. The new Cloud
 Spanner database will have a name of the form `{DRIVER}_{DATE}_{RANDOM}`, where`{DRIVER}`
 is the drivername specified,`{DATE}`is today's date, and`{RANDOM}` is a random suffix for
 uniqueness.
@@ -205,7 +208,10 @@ to check the number of rows in table `mytable`.
 
 The tables created by HarbourBridge provide a starting point for evaluation of
 Spanner. While they preserve much of the core structure of your PostgreSQL/MySQL
-schema and data, many key features have been dropped, including functions, sequences, procedures, triggers, and views. For DynamoDB, the conversion from schemaless to schema is focused on the use-case where customers use DynamoDB in a consistent, structured way with a fairly well defined set of columns and types.
+schema and data, many key features have been dropped, including functions, sequences, procedures,
+triggers, and views. For DynamoDB, the conversion from schemaless to schema is focused on the
+use-case where customers use DynamoDB in a consistent, structured way with a fairly well defined set
+of columns and types.
 
 As a result, the out-of-the-box performance you get from these tables could be
 slower than what you get from PostgreSQL/MySQL/DynamoDB. 
@@ -276,7 +282,7 @@ appropriate instance using gcloud.
 are _'postgres'_, _'pg_dump'_, _'mysql'_ and _'mysqldump'_. By default, the driver is _'pg_dump'_.
 
 `-schema-sample-size` Specifies the number of rows to use for inferring schema (only for DynamoDB). 
-By default, the schema sample size is 100000.
+By default, the schema sample size is 100,000.
 
 `-prefix` Specifies a file prefix for the report, schema, and bad-data files
 written by the tool. If no file prefix is specified, the name of the Spanner
