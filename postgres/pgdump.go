@@ -78,8 +78,11 @@ func ProcessPgDump(conv *internal.Conv, r *internal.Reader) error {
 		}
 	}
 	if conv.SchemaMode() {
-		//schemaToDDL(conv)
-		common.SchemaToSpannerDDL(conv, postgres.PostgresToSpannerDdl{})
+		if conv.SourceTargetDbFlow {
+			common.SchemaToSpannerDDL(conv, postgres.PostgresToSpannerDdl{})
+		} else {
+			schemaToDDL(conv)
+		}
 		conv.AddPrimaryKeys()
 	}
 

@@ -41,8 +41,11 @@ func ProcessInfoSchema(conv *internal.Conv, db *sql.DB, dbName string) error {
 			return err
 		}
 	}
-	//schemaToDDL(conv)
-	common.SchemaToSpannerDDL(conv, mysql.MySQLToSpannerDdl{})
+	if conv.SourceTargetDbFlow {
+		common.SchemaToSpannerDDL(conv, mysql.MySQLToSpannerDdl{})
+	} else {
+		schemaToDDL(conv)
+	}
 	conv.AddPrimaryKeys()
 	return nil
 }

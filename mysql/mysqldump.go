@@ -73,8 +73,11 @@ func ProcessMySQLDump(conv *internal.Conv, r *internal.Reader) error {
 		}
 	}
 	if conv.SchemaMode() {
-		//schemaToDDL(conv)
-		common.SchemaToDDL(conv, mysql.MySQLToSpannerDdl{})
+		if conv.SourceTargetDbFlow {
+			common.SchemaToSpannerDDL(conv, mysql.MySQLToSpannerDdl{})
+		} else {
+			schemaToDDL(conv)
+		}
 		conv.AddPrimaryKeys()
 	}
 	return nil

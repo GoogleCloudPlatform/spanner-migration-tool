@@ -51,8 +51,11 @@ func ProcessInfoSchema(conv *internal.Conv, db *sql.DB) error {
 			return err
 		}
 	}
-	//schemaToDDL(conv)
-	common.SchemaToSpannerDDL(conv, postgres.PostgresToSpannerDdl{})
+	if conv.SourceTargetDbFlow {
+		common.SchemaToSpannerDDL(conv, postgres.PostgresToSpannerDdl{})
+	} else {
+		schemaToDDL(conv)
+	}
 	conv.AddPrimaryKeys()
 	return nil
 }

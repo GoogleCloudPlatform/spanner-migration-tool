@@ -24,19 +24,20 @@ import (
 
 // Conv contains all schema and data conversion state.
 type Conv struct {
-	mode           mode                                // Schema mode or data mode.
-	SpSchema       ddl.Schema                          // Maps Spanner table name to Spanner schema.
-	SyntheticPKeys map[string]SyntheticPKey            // Maps Spanner table name to synthetic primary key (if needed).
-	SrcSchema      map[string]schema.Table             // Maps source-DB table name to schema information.
-	Issues         map[string]map[string][]SchemaIssue // Maps source-DB table/col to list of schema conversion issues.
-	ToSpanner      map[string]NameAndCols              // Maps from source-DB table name to Spanner name and column mapping.
-	ToSource       map[string]NameAndCols              // Maps from Spanner table name to source-DB table name and column mapping.
-	dataSink       func(table string, cols []string, values []interface{})
-	Location       *time.Location // Timezone (for timestamp conversion).
-	sampleBadRows  rowSamples     // Rows that generated errors during conversion.
-	Stats          stats
-	TimezoneOffset string // Timezone offset for timestamp conversion.
-	TargetDb       string // The target database to which HarbourBridge is writing.
+	mode               mode                                // Schema mode or data mode.
+	SpSchema           ddl.Schema                          // Maps Spanner table name to Spanner schema.
+	SyntheticPKeys     map[string]SyntheticPKey            // Maps Spanner table name to synthetic primary key (if needed).
+	SrcSchema          map[string]schema.Table             // Maps source-DB table name to schema information.
+	Issues             map[string]map[string][]SchemaIssue // Maps source-DB table/col to list of schema conversion issues.
+	ToSpanner          map[string]NameAndCols              // Maps from source-DB table name to Spanner name and column mapping.
+	ToSource           map[string]NameAndCols              // Maps from Spanner table name to source-DB table name and column mapping.
+	dataSink           func(table string, cols []string, values []interface{})
+	Location           *time.Location // Timezone (for timestamp conversion).
+	sampleBadRows      rowSamples     // Rows that generated errors during conversion.
+	Stats              stats
+	TimezoneOffset     string // Timezone offset for timestamp conversion.
+	TargetDb           string // The target database to which HarbourBridge is writing.
+	SourceTargetDbFlow bool   // Flag to trigger generic source-target mapping flow
 }
 
 type mode int
