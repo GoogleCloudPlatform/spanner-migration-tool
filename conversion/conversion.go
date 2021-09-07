@@ -417,6 +417,70 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 	return fcopy, n, nil
 }
 
+func VerifyTargetDb(targetDb, project, instance, dbName string) (string, bool, error) {
+	ctx := context.Background()
+	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	if err != nil {
+		return "", false, fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
+	}
+	defer adminClient.Close()
+
+	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
+	_, err = adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: dbPath})
+	if err != nil {
+		// Differentiate between "db does not exist" and other errors? Assuming err means db does not exist for now
+		return targetDb, true, nil
+	}
+	//if resp.DatabaseDialect == "POSTGRESQL" {
+	//	targetDb = TARGET_EXPERIMENTAL_POSTGRES
+	//} else {
+	//	targetDb = TARGET_SPANNER
+	//}
+	dbDdl, err := adminClient.GetDatabaseDdl(ctx, &adminpb.GetDatabaseDdlRequest{Database: dbPath})
+	if err != nil {
+		fmt.Printf("\nCan't fetch database ddl: %v\n", err)
+		return "", false, fmt.Errorf("can't fetch database ddl")
+	}
+	if len(dbDdl.Statements) != 0 {
+		fmt.Printf("\nWriting to existing databases with non-empty ddl not supported\n")
+		return "", false, fmt.Errorf("Writing to existing databases with non-empty ddl not supported")
+	}
+	return targetDb, false, nil
+}
+
+func CreateOrUpdateDatabase(targetDb, project, instance, dbName string, isNewDb bool, conv *internal.Conv, out *os.File) (string, error) {
+	ctx := context.Background()
+	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	if err != nil {
+		return "", fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
+	}
+	defer adminClient.Close()
+
+	if isNewDb {
+		// Add support for dialect to create spangers dbs?
+		dbPath, err := CreateDatabase(project, instance, dbName, conv, out)
+		if err != nil {
+			fmt.Printf("\nCan't create database: %v\n", err)
+			return "", fmt.Errorf("can't create database")
+		}
+		return dbPath, nil
+	}
+	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
+	op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
+		Database:   dbPath,
+		Statements: conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false}),
+	})
+	if err != nil {
+		fmt.Printf("Cannot submit update schema request: %s\n", err)
+		return "", fmt.Errorf("Can't submit update schema request: %s", err)
+	}
+	if err := op.Wait(ctx); err != nil {
+		fmt.Printf("Can't update schema statement: %s\n", err)
+		return "", fmt.Errorf("Can't update schema statement: %s\n", err)
+	}
+	return dbPath, nil
+}
+
 // CreateDatabase returns a newly create Spanner DB.
 // It automatically determines an appropriate project, selects a
 // Spanner instance to use, generates a new Spanner DB name,

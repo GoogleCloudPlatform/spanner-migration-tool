@@ -39,6 +39,10 @@ var (
 func CommandLine(driver, targetDb, projectID, instanceID, dbName string, dataOnly, schemaOnly, skipForeignKeys bool, schemaSampleSize int64, sessionJSON string, ioHelper *conversion.IOStreams, outputFilePrefix string, now time.Time) error {
 	var conv *internal.Conv
 	var err error
+	targetDb, isNewDb, err := conversion.VerifyTargetDb(targetDb, projectID, instanceID, dbName)
+	if err != nil {
+		return err
+	}
 	if !dataOnly {
 		conv, err = conversion.SchemaConv(driver, targetDb, ioHelper, schemaSampleSize)
 		if err != nil {
@@ -62,7 +66,7 @@ func CommandLine(driver, targetDb, projectID, instanceID, dbName string, dataOnl
 		}
 	}
 
-	db, err := conversion.CreateDatabase(projectID, instanceID, dbName, conv, ioHelper.Out)
+	db, err := conversion.CreateOrUpdateDatabase(targetDb, projectID, instanceID, dbName, isNewDb, conv, ioHelper.Out)
 	if err != nil {
 		fmt.Printf("\nCan't create database: %v\n", err)
 		return fmt.Errorf("can't create database")
