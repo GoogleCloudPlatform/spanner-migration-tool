@@ -12,8 +12,15 @@ environment variable.
 
 Before running HarbourBridge, make sure that you have
 [set up your AWS credentials/region](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html)
-correctly. HarbourBridge accesses your DynamoDB database via the aws go sdk
-package.
+correctly (set the environment variables `AWS_ACCESS_KEY_ID`, 
+`AWS_SECRET_ACCESS_KEY`, `AWS_REGION`). HarbourBridge accesses your 
+DynamoDB database via the aws go sdk package. If you use a custom endpoint
+for dynamodb, you can specify that using the environment variable 
+`DYNAMODB_ENDPOINT_OVERRIDE`.
+
+```sh
+export DYNAMODB_ENDPOINT_OVERRIDE=http://dynamodb.us-west-2.amazonaws.com`
+```
 
 To use the tool on a DynamoDB database (it will migrate all tables),
 run
@@ -130,4 +137,5 @@ The row result contains the data type and data itself. According to our
 [inferred schema](#schema-inference), we will parse the row to a format that
 Cloud Spanner can support. If the value parsing fails, we would drop the entire
 row and record it as bad data in the report. If a column does not appear or 
-column has a NULL data type, we would process this as a NULL value in Cloud Spanner. 
+column has a NULL data type, we would process this as a NULL value in 
+Cloud Spanner. 
