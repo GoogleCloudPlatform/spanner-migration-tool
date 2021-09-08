@@ -23,8 +23,8 @@ map directly to Spanner features, are ignored, e.g. stored functions and
 procedures, and sequences. Types such as integers, floats, char/text, bools,
 timestamps, and (some) array types, map fairly directly to Spanner, but many
 other types do not and instead are mapped to Spanner's `STRING(MAX)`.
-DynamoDB is a NoSQL database hence, there is no clear mapping between DynamoDB and 
-Spanner.  The schema is inferred based on a certain amount of sampled data.
+In the case of DynamoDB, the schema is inferred based on a certain 
+amount of sampled data.
 
 View HarbourBridge as a way to get up and running fast, so you can focus on
 critical things like tuning performance and getting the most out of
@@ -219,10 +219,7 @@ a consistent, structured way with a fairly well defined set of columns and types
 As a result, the out-of-the-box performance you get from these tables could be
 slower than what you get from PostgreSQL/MySQL/DynamoDB. 
 
-To improve performance, consider adding [Secondary
-Indexes](https://cloud.google.com/spanner/docs/secondary-indexes) to the tables
-created by HarbourBridge, using the existing PostgreSQL/MySQL indexes as a guide. 
-Also consider using [Interleaved
+To improve performance, also consider using [Interleaved
 Tables](https://cloud.google.com/spanner/docs/schema-and-data-model#creating-interleaved-tables)
 to tune performance.
 
