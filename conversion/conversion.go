@@ -452,7 +452,7 @@ func CreateOrUpdateDatabase(targetDb, project, instance, dbName string, existing
 	defer adminClient.Close()
 
 	if existingDb {
-		dbPath, err := UpdateDatabase(project, instance, dbName, conv)
+		dbPath, err := UpdateDatabase(project, instance, dbName, conv, out)
 		if err != nil {
 			fmt.Printf("\nCan't update database schema: %v\n", err)
 			return "", fmt.Errorf("can't update database schema")
@@ -501,7 +501,8 @@ func CreateDatabase(project, instance, dbName string, conv *internal.Conv, out *
 }
 
 // UpdateDatabase updates the DDL of the spanner DB and return the path.
-func UpdateDatabase(project, instance, dbName string, conv *internal.Conv) (string, error) {
+func UpdateDatabase(project, instance, dbName string, conv *internal.Conv, out *os.File) (string, error) {
+	fmt.Fprintf(out, "Updating schema for database %s in instance %s ... ", dbName, instance)
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
 	if err != nil {
@@ -520,6 +521,7 @@ func UpdateDatabase(project, instance, dbName string, conv *internal.Conv) (stri
 	if err := op.Wait(ctx); err != nil {
 		return "", fmt.Errorf("Can't update schema statement: %s\n", err)
 	}
+	fmt.Fprintf(out, "done.\n")
 	return dbPath, nil
 }
 
