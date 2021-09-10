@@ -51,6 +51,7 @@ import (
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/ssh/terminal"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
@@ -424,7 +425,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 func CreateDatabase(project, instance, dbName string, conv *internal.Conv, out *os.File) (string, error) {
 	fmt.Fprintf(out, "Creating new database %s in instance %s with default permissions ... ", dbName, instance)
 	ctx := context.Background()
-	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	adminClient, err := NewDatabaseAdminClient(ctx)
 	if err != nil {
 		return "", fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
 	}
@@ -452,7 +453,7 @@ func CreateDatabase(project, instance, dbName string, conv *internal.Conv, out *
 // constraints using ALTER TABLE statements.
 func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv, out *os.File) error {
 	ctx := context.Background()
-	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	adminClient, err := NewDatabaseAdminClient(ctx)
 	if err != nil {
 		return fmt.Errorf("can't create admin client: %w\n", analyzeError(err, project, instance))
 	}
@@ -564,7 +565,7 @@ func GetInstance(project string, out *os.File) (string, error) {
 
 func getInstances(project string) ([]string, error) {
 	ctx := context.Background()
-	instanceClient, err := instance.NewInstanceAdminClient(ctx)
+	instanceClient, err := NewInstanceAdminClient(ctx)
 	if err != nil {
 		return nil, analyzeError(err, project, "")
 	}
@@ -823,10 +824,37 @@ func generateName(prefix string) (string, error) {
 	return fmt.Sprintf("%s_%x-%x", prefix, b[0:2], b[2:4]), nil
 }
 
-// GetClient returns new spanner client.
+// NewSpannerClient returns a new Spanner client.
+// It respects SPANNER_API_ENDPOINT.
+func NewSpannerClient(ctx context.Context, db string) (*sp.Client, error) {
+	if endpoint := os.Getenv("SPANNER_API_ENDPOINT"); endpoint != "" {
+		return sp.NewClient(ctx, db, option.WithEndpoint(endpoint))
+	}
+	return sp.NewClient(ctx, db)
+}
+
+// GetClient returns a new Spanner client.  It uses the background context.
 func GetClient(db string) (*sp.Client, error) {
 	ctx := context.Background()
-	return sp.NewClient(ctx, db)
+	return NewSpannerClient(ctx, db)
+}
+
+// NewDatabaseAdminClient returns a new db-admin client.
+// It respects SPANNER_API_ENDPOINT.
+func NewDatabaseAdminClient(ctx context.Context) (*database.DatabaseAdminClient, error) {
+	if endpoint := os.Getenv("SPANNER_API_ENDPOINT"); endpoint != "" {
+		return database.NewDatabaseAdminClient(ctx, option.WithEndpoint(endpoint))
+	}
+	return database.NewDatabaseAdminClient(ctx)
+}
+
+// NewInstanceAdminClient returns a new instance-admin client.
+// It respects SPANNER_API_ENDPOINT.
+func NewInstanceAdminClient(ctx context.Context) (*instance.InstanceAdminClient, error) {
+	if endpoint := os.Getenv("SPANNER_API_ENDPOINT"); endpoint != "" {
+		return instance.NewInstanceAdminClient(ctx, option.WithEndpoint(endpoint))
+	}
+	return instance.NewInstanceAdminClient(ctx)
 }
 
 func getSize(f *os.File) (int64, error) {
