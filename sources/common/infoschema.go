@@ -28,23 +28,24 @@ import (
 
 type BaseInfoSchema interface {
 	GetBaseDdl() BaseToDdl
+	GetDbName() string
 	GetIgnoredSchemas() map[string]bool
 	GetTableName(dbName string, tableName string) string
-	GetTablesQuery(dbName string) string
+	GetTablesQuery() string
 	GetColumnsQuery() string
 	BuildColNameList(srcSchema schema.Table, srcColName []string) string
 	GetConstraintsQuery() string
 	GetForeignKeysQuery() string
 	GetIndexesQuery() string
-	ToType(dataType string, columnType string, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type
-	ProcessDataRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, vals []string)
+	ToType(dataType string, columnType string, colExtra sql.NullString, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type
+	ProcessDataRows(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, rows *sql.Rows)
 }
 
 // ProcessInfoSchema performs schema conversion for source database
 // 'db'. Information schema tables are a broadly supported ANSI standard,
 // and we use them to obtain source database's schema information.
-func ProcessInfoSchema(conv *internal.Conv, db *sql.DB, dbName string, baseInfoSchema BaseInfoSchema) error {
-	tables, err := getTables(db, baseInfoSchema.GetTablesQuery(dbName), baseInfoSchema.GetIgnoredSchemas())
+func ProcessInfoSchema(conv *internal.Conv, db *sql.DB, baseInfoSchema BaseInfoSchema) error {
+	tables, err := getTables(db, baseInfoSchema)
 	if err != nil {
 		return err
 	}
@@ -66,16 +67,16 @@ func ProcessInfoSchema(conv *internal.Conv, db *sql.DB, dbName string, baseInfoS
 //
 // Using database/sql library we pass *sql.RawBytes to rows.scan.
 // RawBytes is a byte slice and values can be easily converted to string.
-func ProcessSQLData(conv *internal.Conv, db *sql.DB, dbName string, baseInfoSchema BaseInfoSchema) {
+func ProcessSQLData(conv *internal.Conv, db *sql.DB, baseInfoSchema BaseInfoSchema) {
 	// TODO: refactor to use the set of tables computed by
 	// ProcessInfoSchema instead of computing them again.
-	tables, err := getTables(db, baseInfoSchema.GetTablesQuery(dbName), baseInfoSchema.GetIgnoredSchemas())
+	tables, err := getTables(db, baseInfoSchema)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
 		return
 	}
 	for _, t := range tables {
-		srcTable := t.name
+		srcTable := baseInfoSchema.GetTableName(baseInfoSchema.GetDbName(), t.name)
 		srcSchema, ok := conv.SrcSchema[srcTable]
 		if !ok {
 			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
@@ -115,25 +116,13 @@ func ProcessSQLData(conv *internal.Conv, db *sql.DB, dbName string, baseInfoSche
 			conv.Unexpected(fmt.Sprintf("Can't get schemas for table %s", srcTable))
 			continue
 		}
-		v, scanArgs := buildVals(len(srcCols))
-		for rows.Next() {
-			// get RawBytes from data.
-			err = rows.Scan(scanArgs...)
-			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
-				// Scan failed, so we don't have any data to add to bad rows.
-				conv.StatsAddBadRow(srcTable, conv.DataMode())
-				continue
-			}
-			values := valsToStrings(v)
-			baseInfoSchema.ProcessDataRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, values)
-		}
+		baseInfoSchema.ProcessDataRows(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, rows)
 	}
 }
 
 // SetRowStats populates conv with the number of rows in each table.
-func SetRowStats(conv *internal.Conv, db *sql.DB, dbName string, baseInfoSchema BaseInfoSchema) {
-	tables, err := getTables(db, baseInfoSchema.GetTablesQuery(dbName), baseInfoSchema.GetIgnoredSchemas())
+func SetRowStats(conv *internal.Conv, db *sql.DB, baseInfoSchema BaseInfoSchema) {
+	tables, err := getTables(db, baseInfoSchema)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
 		return
@@ -168,8 +157,8 @@ type schemaAndName struct {
 // Note that sql.DB already effectively has the dbName
 // embedded within it (dbName is part of the DSN passed to sql.Open),
 // but unfortunately there is no way to extract it from sql.DB.
-func getTables(db *sql.DB, q string, ignoredSchema map[string]bool) ([]schemaAndName, error) {
-	rows, err := db.Query(q)
+func getTables(db *sql.DB, baseInfoSchema BaseInfoSchema) ([]schemaAndName, error) {
+	rows, err := db.Query(baseInfoSchema.GetTablesQuery(), baseInfoSchema.GetDbName())
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get tables: %w", err)
 	}
@@ -178,7 +167,7 @@ func getTables(db *sql.DB, q string, ignoredSchema map[string]bool) ([]schemaAnd
 	var tables []schemaAndName
 	for rows.Next() {
 		rows.Scan(&tableSchema, &tableName)
-		if !ignoredSchema[tableSchema] {
+		if !baseInfoSchema.GetIgnoredSchemas()[tableSchema] {
 			tables = append(tables, schemaAndName{schema: tableSchema, name: tableName})
 		}
 	}
@@ -248,7 +237,7 @@ func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string]
 		}
 		c := schema.Column{
 			Name:    colName,
-			Type:    baseInfoSchema.ToType(dataType, columnType, charMaxLen, numericPrecision, numericScale),
+			Type:    baseInfoSchema.ToType(dataType, columnType, colExtra, charMaxLen, numericPrecision, numericScale),
 			NotNull: toNotNull(conv, isNullable),
 			Ignored: ignored,
 		}
@@ -278,7 +267,7 @@ func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName, baseIn
 			continue
 		}
 		if col == "" || constraint == "" {
-			conv.Unexpected(fmt.Sprintf("Got empty col or constraint"))
+			conv.Unexpected("Got empty col or constraint")
 			continue
 		}
 		switch constraint {
@@ -319,7 +308,7 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName, baseIn
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-		tableName := refTable //TODO buildTableName(refSchema, refTable)
+		tableName := baseInfoSchema.GetTableName(refSchema, refTable)
 		if _, found := fKeys[fKeyName]; found {
 			fk := fKeys[fKeyName]
 			fk.cols = append(fk.cols, col)
@@ -349,19 +338,19 @@ func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName, baseInfoSc
 		return nil, err
 	}
 	defer rows.Close()
-	var name, column, sequence, nonUnique string
+	var name, column, sequence, isUnique string
 	var collation sql.NullString
 	indexMap := make(map[string]schema.Index)
 	var indexNames []string
 	var indexes []schema.Index
 	for rows.Next() {
-		if err := rows.Scan(&name, &column, &sequence, &collation, &nonUnique); err != nil {
+		if err := rows.Scan(&name, &column, &sequence, &collation, &isUnique); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
 		if _, found := indexMap[name]; !found {
 			indexNames = append(indexNames, name)
-			indexMap[name] = schema.Index{Name: name, Unique: (nonUnique == "0")}
+			indexMap[name] = schema.Index{Name: name, Unique: (isUnique == "1")}
 		}
 		index := indexMap[name]
 		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation.Valid && collation.String == "D")})
@@ -382,33 +371,4 @@ func toNotNull(conv *internal.Conv, isNullable string) bool {
 	}
 	conv.Unexpected(fmt.Sprintf("isNullable column has unknown value: %s", isNullable))
 	return false
-}
-
-// buildVals constructs []sql.RawBytes value containers to scan row
-// results into.  Returns both the underlying containers (as a slice)
-// as well as an interface{} of pointers to containers to pass to
-// rows.Scan.
-func buildVals(n int) (v []sql.RawBytes, iv []interface{}) {
-	v = make([]sql.RawBytes, n)
-	// rows.Scan wants '[]interface{}' as an argument, so we must copy the
-	// references into such a slice.
-	iv = make([]interface{}, len(v))
-	for i := range v {
-		iv[i] = &v[i]
-	}
-	return v, iv
-}
-
-func valsToStrings(vals []sql.RawBytes) []string {
-	toString := func(val sql.RawBytes) string {
-		if val == nil {
-			return "NULL"
-		}
-		return string(val)
-	}
-	var s []string
-	for _, v := range vals {
-		s = append(s, toString(v))
-	}
-	return s
 }

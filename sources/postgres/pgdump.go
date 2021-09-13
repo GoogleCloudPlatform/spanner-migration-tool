@@ -27,7 +27,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
 )
 
 type copyOrInsert struct {
@@ -78,7 +77,7 @@ func ProcessPgDump(conv *internal.Conv, r *internal.Reader) error {
 		}
 	}
 	if conv.SchemaMode() {
-		common.SchemaToSpannerDDL(conv, postgres.PostgresToSpannerDdl{})
+		common.SchemaToSpannerDDL(conv, PostgresToSpannerDdl{})
 		conv.AddPrimaryKeys()
 	}
 
