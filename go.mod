@@ -32,7 +32,9 @@ replace google.golang.org/grpc => google.golang.org/grpc v1.29.1
 
 // DO NOT MERGE to mainline -- temporary workaround until PG support is
 // available in cloud.google.com/go/spanner public release.
-// Versions below corresponds to 'type-annotation' branch in the forked repo.
+// Versions below corresponds to 'type-annotation' branch in both the forked repos.
 replace cloud.google.com/go => github.com/hengfengli/google-cloud-go v0.48.1-0.20210903130221-989a19403c8c
 
 replace cloud.google.com/go/spanner => github.com/hengfengli/google-cloud-go/spanner v1.1.1-0.20210903130221-989a19403c8c
+
+replace google.golang.org/genproto => github.com/hengfengli/go-genproto v0.0.0-20210914051132-d2ab1d87ef40
