@@ -417,11 +417,11 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 	return fcopy, n, nil
 }
 
-func VerifyTargetDb(targetDb, project, instance, dbName string) (string, bool, error) {
+func CheckExistingDb(project, instance, dbName string) (bool, error) {
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
 	if err != nil {
-		return "", false, fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
+		return false, fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
 	}
 	defer adminClient.Close()
 
@@ -429,21 +429,21 @@ func VerifyTargetDb(targetDb, project, instance, dbName string) (string, bool, e
 	_, err = adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: dbPath})
 	if err != nil {
 		if containsAny(strings.ToLower(err.Error()), []string{"database not found"}) {
-			return targetDb, false, nil
+			return false, nil
 		}
-		return "", false, fmt.Errorf("can't get database info: %s", err)
+		return false, fmt.Errorf("can't get database info: %s", err)
 	}
 	dbDdl, err := adminClient.GetDatabaseDdl(ctx, &adminpb.GetDatabaseDdlRequest{Database: dbPath})
 	if err != nil {
-		return "", false, fmt.Errorf("can't fetch database ddl")
+		return false, fmt.Errorf("can't fetch database ddl")
 	}
 	if len(dbDdl.Statements) != 0 {
-		return "", false, fmt.Errorf("HarbourBridge supports writing to existing databases only if they have an empty schema.")
+		return false, fmt.Errorf("HarbourBridge supports writing to existing databases only if they have an empty schema")
 	}
-	return targetDb, true, nil
+	return true, nil
 }
 
-func CreateOrUpdateDatabase(targetDb, project, instance, dbName string, existingDb bool, conv *internal.Conv, out *os.File) (string, error) {
+func CreateOrUpdateDatabase(project, instance, dbName string, dbExists bool, conv *internal.Conv, out *os.File) (string, error) {
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
 	if err != nil {
@@ -451,7 +451,7 @@ func CreateOrUpdateDatabase(targetDb, project, instance, dbName string, existing
 	}
 	defer adminClient.Close()
 
-	if existingDb {
+	if dbExists {
 		dbPath, err := UpdateDatabase(project, instance, dbName, conv, out)
 		if err != nil {
 			fmt.Printf("\nCan't update database schema: %v\n", err)
