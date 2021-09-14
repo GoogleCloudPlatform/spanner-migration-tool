@@ -490,11 +490,14 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 	// using backticks (to avoid any issues with Spanner reserved words).
 	// Foreign Keys are set to false since we create them post data migration.
 	schema := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false})
-	op, err := adminClient.CreateDatabase(ctx, &adminpb.CreateDatabaseRequest{
+	req := &adminpb.CreateDatabaseRequest{
 		Parent:          fmt.Sprintf("projects/%s/instances/%s", project, instance),
 		CreateStatement: "CREATE DATABASE `" + dbName + "`",
 		ExtraStatements: schema,
-	})
+		// TODO(agasheesh): Set database_dialect optionally as following.
+		// DatabaseDialect: adminpb.DatabaseDialect_POSTGRESQL,
+	}
+	op, err := adminClient.CreateDatabase(ctx, req)
 	if err != nil {
 		return fmt.Errorf("can't build CreateDatabaseRequest: %w", AnalyzeError(err, dbURI))
 	}
