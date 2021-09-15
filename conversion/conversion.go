@@ -417,30 +417,48 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 	return fcopy, n, nil
 }
 
-func CheckExistingDb(project, instance, dbName string) (bool, error) {
+// VerifyDb checks whether the db exists and if it does, verifies if the schema is what we currently support.
+func VerifyDb(project, instance, dbName string) (dbExists bool, err error) {
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
 	if err != nil {
 		return false, fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
 	}
 	defer adminClient.Close()
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
+	dbExists, err = CheckExistingDb(ctx, adminClient, project, instance, dbURI)
+	if err != nil {
+		return dbExists, err
+	}
+	if dbExists {
+		err = ValidateDDL(ctx, adminClient, dbURI)
+	}
+	return dbExists, err
+}
 
-	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
-	_, err = adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: dbPath})
+// CheckExistingDb checks whether the dbURI exists or not.
+func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminClient, project, instance, dbURI string) (bool, error) {
+	_, err := adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: dbURI})
 	if err != nil {
 		if containsAny(strings.ToLower(err.Error()), []string{"database not found"}) {
 			return false, nil
 		}
 		return false, fmt.Errorf("can't get database info: %s", err)
 	}
-	dbDdl, err := adminClient.GetDatabaseDdl(ctx, &adminpb.GetDatabaseDdlRequest{Database: dbPath})
+	return true, nil
+}
+
+// ValidateDDL verifies if an existing DB's ddl follows what is supported by harbourbridge. Currently,
+// we only support empty schema when db already exists.
+func ValidateDDL(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) error {
+	dbDdl, err := adminClient.GetDatabaseDdl(ctx, &adminpb.GetDatabaseDdlRequest{Database: dbURI})
 	if err != nil {
-		return false, fmt.Errorf("can't fetch database ddl")
+		return fmt.Errorf("can't fetch database ddl: %v", err)
 	}
 	if len(dbDdl.Statements) != 0 {
-		return false, fmt.Errorf("HarbourBridge supports writing to existing databases only if they have an empty schema")
+		return fmt.Errorf("HarbourBridge supports writing to existing databases only if they have an empty schema")
 	}
-	return true, nil
+	return nil
 }
 
 func CreateOrUpdateDatabase(project, instance, dbName string, dbExists bool, conv *internal.Conv, out *os.File) (string, error) {

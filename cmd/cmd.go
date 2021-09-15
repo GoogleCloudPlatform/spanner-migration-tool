@@ -39,7 +39,7 @@ var (
 func CommandLine(driver, targetDb, projectID, instanceID, dbName string, dataOnly, schemaOnly, skipForeignKeys bool, schemaSampleSize int64, sessionJSON string, ioHelper *conversion.IOStreams, outputFilePrefix string, now time.Time) error {
 	var conv *internal.Conv
 	var err error
-	dbExists, err := conversion.CheckExistingDb(projectID, instanceID, dbName)
+	dbExists, err := conversion.VerifyDb(projectID, instanceID, dbName)
 	if err != nil {
 		return err
 	}
