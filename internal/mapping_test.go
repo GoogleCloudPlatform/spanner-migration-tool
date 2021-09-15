@@ -130,6 +130,8 @@ func TestGetSpannerId(t *testing.T) {
 		{"Bad name with collision", "in\tdex", "in_dex_9"},
 		{"Bad name with collision 2", "in\ndex", "in_dex_10"},
 		{"Bad name with collision 3", "in?dex", "in_dex_11"},
+		{"Name with different case collision", "INdex1", "INdex1_12"},
+		{"Bad name with different case collision", "IN\tDex", "IN_Dex_13"},
 	}
 	for _, tc := range basicTests {
 		spKeyName := getSpannerId(tc.srcKeyName, schemaIndexKeys)

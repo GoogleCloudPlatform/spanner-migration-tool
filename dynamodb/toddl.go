@@ -17,6 +17,7 @@ package dynamodb
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"unicode"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -39,7 +40,7 @@ func schemaToDDL(conv *internal.Conv) error {
 			conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
 			continue
 		}
-		usedNames[spTableName] = true
+		usedNames[strings.ToLower(spTableName)] = true
 	}
 	for _, srcTable := range conv.SrcSchema {
 		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)

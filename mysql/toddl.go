@@ -17,6 +17,7 @@ package mysql
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"unicode"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -47,7 +48,9 @@ func schemaToDDL(conv *internal.Conv) error {
 			conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
 			continue
 		}
-		usedNames[spTableName] = true
+		// TODO: MySQL allows table names that differ only in case while spanner does not. We need to check
+		// lower cased name collisions for table names as well.
+		usedNames[strings.ToLower(spTableName)] = true
 	}
 	for _, srcTable := range conv.SrcSchema {
 		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)

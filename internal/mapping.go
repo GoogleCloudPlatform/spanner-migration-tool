@@ -166,7 +166,7 @@ func ToSpannerIndexName(srcId string, used map[string]bool) string {
 
 func getSpannerId(srcId string, used map[string]bool) string {
 	spKeyName, _ := FixName(srcId)
-	if _, found := used[spKeyName]; found {
+	if _, found := used[strings.ToLower(spKeyName)]; found {
 		// spKeyName has been used before.
 		// Add unique postfix: use number of keys so far.
 		// However, there is a chance this has already been used,
@@ -174,14 +174,14 @@ func getSpannerId(srcId string, used map[string]bool) string {
 		id := len(used)
 		for {
 			c := spKeyName + "_" + strconv.Itoa(id)
-			if _, found := used[c]; !found {
+			if _, found := used[strings.ToLower(c)]; !found {
 				spKeyName = c
 				break
 			}
 			id++
 		}
 	}
-	used[spKeyName] = true
+	used[strings.ToLower(spKeyName)] = true
 	return spKeyName
 }
 
