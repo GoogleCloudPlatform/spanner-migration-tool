@@ -426,7 +426,7 @@ func VerifyDb(project, instance, dbName string) (dbExists bool, err error) {
 	}
 	defer adminClient.Close()
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
-	dbExists, err = CheckExistingDb(ctx, adminClient, project, instance, dbURI)
+	dbExists, err = CheckExistingDb(ctx, adminClient, dbURI)
 	if err != nil {
 		return dbExists, err
 	}
@@ -437,7 +437,7 @@ func VerifyDb(project, instance, dbName string) (dbExists bool, err error) {
 }
 
 // CheckExistingDb checks whether the dbURI exists or not.
-func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminClient, project, instance, dbURI string) (bool, error) {
+func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) (bool, error) {
 	_, err := adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: dbURI})
 	if err != nil {
 		if containsAny(strings.ToLower(err.Error()), []string{"database not found"}) {

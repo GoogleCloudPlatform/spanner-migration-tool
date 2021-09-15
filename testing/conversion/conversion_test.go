@@ -41,6 +41,7 @@ var (
 	projectID  string
 	instanceID string
 
+	ctx           context.Context
 	databaseAdmin *database.DatabaseAdminClient
 )
 
@@ -55,7 +56,7 @@ func initTests() (cleanup func()) {
 	projectID = os.Getenv("HARBOURBRIDGE_TESTS_GCLOUD_PROJECT_ID")
 	instanceID = os.Getenv("HARBOURBRIDGE_TESTS_GCLOUD_INSTANCE_ID")
 
-	ctx := context.Background()
+	ctx = context.Background()
 	flag.Parse() // Needed for testing.Short().
 	noop := func() {}
 
@@ -94,8 +95,11 @@ func dropDatabase(t *testing.T, dbPath string) {
 	}
 }
 
-func BuildConv(t *testing.T, numCols, numFks int) *internal.Conv {
+func BuildConv(t *testing.T, numCols, numFks int, makeEmpty bool) *internal.Conv {
 	conv := internal.MakeConv()
+	if makeEmpty {
+		return conv
+	}
 	colNames := []string{}
 	colDefs := map[string]ddl.ColumnDef{}
 	for i := 1; i <= numCols; i++ {
@@ -131,7 +135,6 @@ func BuildConv(t *testing.T, numCols, numFks int) *internal.Conv {
 }
 
 func checkResults(t *testing.T, dbpath string, numFks int) {
-	ctx := context.Background()
 	resp, err := databaseAdmin.GetDatabaseDdl(ctx, &databasepb.GetDatabaseDdlRequest{Database: dbpath})
 	if err != nil {
 		t.Fatalf("Could not read DDL from database %s: %v", dbpath, err)
@@ -170,7 +173,7 @@ func checkResults(t *testing.T, dbpath string, numFks int) {
 func TestUpdateDDLForeignKeys(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
-	foreignKeyTests := []struct {
+	testCases := []struct {
 		dbName     string
 		numCols    int // Number of columns in the table.
 		numFks     int // Number of foreign keys we want to add (ensure it is not greater than numCols).
@@ -180,8 +183,8 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 		{"test-workers-ten-fks", 10, 10, 1},
 	}
 
-	for _, tc := range foreignKeyTests {
-		conv := BuildConv(t, tc.numCols, tc.numFks)
+	for _, tc := range testCases {
+		conv := BuildConv(t, tc.numCols, tc.numFks, false)
 		dbpath, err := conversion.CreateDatabase(projectID, instanceID, tc.dbName, conv, os.Stdout)
 		if err != nil {
 			t.Fatal(err)
@@ -194,6 +197,91 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 		checkResults(t, dbpath, tc.numFks)
 		// Drop the database later.
 		defer dropDatabase(t, dbpath)
+	}
+}
+
+func TestVerifyDb(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+
+	testCases := []struct {
+		dbName      string
+		dbExists    bool
+		emptySchema bool
+	}{
+		{"verifydb-exists-schema", true, false},
+		{"verifydb-exists-noschema", true, true},
+		{"verifydb-does-not-exist", false, true},
+	}
+
+	for _, tc := range testCases {
+		if tc.dbExists {
+			dbURI, err := conversion.CreateDatabase(projectID, instanceID, tc.dbName, BuildConv(t, 2, 0, tc.emptySchema), os.Stdout)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer dropDatabase(t, dbURI)
+			dbExists, err := conversion.VerifyDb(projectID, instanceID, tc.dbName)
+			assert.True(t, dbExists)
+			if tc.emptySchema {
+				assert.Nil(t, err)
+			} else {
+				assert.NotNil(t, err)
+			}
+		} else {
+			dbExists, err := conversion.VerifyDb(projectID, instanceID, tc.dbName)
+			assert.Nil(t, err)
+			assert.False(t, dbExists)
+		}
+
+	}
+}
+
+func TestCheckExistingDb(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+
+	dbURI, err := conversion.CreateDatabase(projectID, instanceID, "check-db-exists", internal.MakeConv(), os.Stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dropDatabase(t, dbURI)
+	testCases := []struct {
+		dbName   string
+		dbExists bool
+	}{
+		{"check-db-exists", true},
+		{"check-db-does-not-exist", false},
+	}
+
+	for _, tc := range testCases {
+		dbExists, err := conversion.CheckExistingDb(ctx, databaseAdmin, fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, tc.dbName))
+		assert.Nil(t, err)
+		assert.Equal(t, tc.dbExists, dbExists)
+	}
+}
+
+func TestValidateDDL(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+
+	testCases := []struct {
+		dbName      string
+		emptySchema bool
+	}{
+		{"validate-ddl-empty-schema", true},
+		{"validate-ddl-non-empty-schema", false},
+	}
+
+	for _, tc := range testCases {
+		dbURI, err := conversion.CreateDatabase(projectID, instanceID, tc.dbName, BuildConv(t, 2, 0, tc.emptySchema), os.Stdout)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer dropDatabase(t, dbURI)
+		err = conversion.ValidateDDL(ctx, databaseAdmin, dbURI)
+		if tc.emptySchema {
+			assert.Nil(t, err)
+		} else {
+			assert.NotNil(t, err)
+		}
 	}
 }
 
