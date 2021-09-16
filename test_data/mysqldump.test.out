@@ -31,6 +31,8 @@ CREATE TABLE `cart` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+CREATE INDEX idx ON `cart` (`quantity`);
+
 --
 -- Dumping data for table `cart`
 --
@@ -56,6 +58,8 @@ CREATE TABLE `products` (
   PRIMARY KEY (`product_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+CREATE INDEX IDX ON `products` (`description`);
 
 --
 -- Dumping data for table `products`
