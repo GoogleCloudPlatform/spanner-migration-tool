@@ -538,7 +538,7 @@ func UpdateDatabase(project, instance, dbName string, conv *internal.Conv, out *
 	if err := op.Wait(ctx); err != nil {
 		return "", fmt.Errorf("can't update schema statement: %s", err)
 	}
-	fmt.Fprintf(out, "Updating schema successfully.\n")
+	fmt.Fprintf(out, "Updated schema successfully.\n")
 	return dbURI, nil
 }
 
