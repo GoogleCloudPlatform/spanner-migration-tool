@@ -491,7 +491,7 @@ func CreateOrUpdateDatabase(project, instance, dbName string, dbExists bool, con
 // Spanner instance to use, generates a new Spanner DB name,
 // and call into the Spanner admin interface to create the new DB.
 func CreateDatabase(project, instance, dbName string, conv *internal.Conv, out *os.File) (string, error) {
-	fmt.Fprintf(out, "Creating new database %s in instance %s with default permissions ... ", dbName, instance)
+	fmt.Fprintf(out, "Creating new database %s in instance %s with default permissions ... \n", dbName, instance)
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
 	if err != nil {
@@ -513,13 +513,13 @@ func CreateDatabase(project, instance, dbName string, conv *internal.Conv, out *
 	if _, err := op.Wait(ctx); err != nil {
 		return "", fmt.Errorf("createDatabase call failed: %w", analyzeError(err, project, instance))
 	}
-	fmt.Fprintf(out, "done.\n")
+	fmt.Fprintf(out, "Created database successfully.\n")
 	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName), nil
 }
 
 // UpdateDatabase updates the DDL of the spanner DB and return the path.
 func UpdateDatabase(project, instance, dbName string, conv *internal.Conv, out *os.File) (string, error) {
-	fmt.Fprintf(out, "Updating schema for database %s in instance %s ... ", dbName, instance)
+	fmt.Fprintf(out, "Updating schema for database %s in instance %s ... \n", dbName, instance)
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
 	if err != nil {
@@ -538,7 +538,7 @@ func UpdateDatabase(project, instance, dbName string, conv *internal.Conv, out *
 	if err := op.Wait(ctx); err != nil {
 		return "", fmt.Errorf("can't update schema statement: %s", err)
 	}
-	fmt.Fprintf(out, "done.\n")
+	fmt.Fprintf(out, "Updating schema successfully.\n")
 	return dbURI, nil
 }
 
