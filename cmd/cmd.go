@@ -66,26 +66,26 @@ func CommandLine(driver, targetDb, projectID, instanceID, dbName string, dataOnl
 		}
 	}
 
-	db, err := conversion.CreateOrUpdateDatabase(projectID, instanceID, dbName, dbExists, conv, ioHelper.Out)
+	dbURI, err := conversion.CreateOrUpdateDatabase(projectID, instanceID, dbName, dbExists, conv, ioHelper.Out)
 	if err != nil {
 		return fmt.Errorf("can't create/update database: %v", err)
 	}
 
-	client, err := conversion.GetClient(db)
+	client, err := conversion.GetClient(dbURI)
 	if err != nil {
-		return fmt.Errorf("can't create client for db %s: %v", db, err)
+		return fmt.Errorf("can't create client for db %s: %v", dbURI, err)
 	}
 
 	bw, err := conversion.DataConv(driver, ioHelper, client, conv, dataOnly)
 	if err != nil {
-		return fmt.Errorf("can't finish data conversion for db %s: %v", db, err)
+		return fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 	}
 	if !skipForeignKeys {
 		if err = conversion.UpdateDDLForeignKeys(projectID, instanceID, dbName, conv, ioHelper.Out); err != nil {
-			return fmt.Errorf("can't perform update operation on db %s with foreign keys: %v", db, err)
+			return fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
 		}
 	}
-	banner := conversion.GetBanner(now, db)
+	banner := conversion.GetBanner(now, dbURI)
 	conversion.Report(driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, outputFilePrefix+reportFile, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, outputFilePrefix+badDataFile, ioHelper.Out)
 	return nil

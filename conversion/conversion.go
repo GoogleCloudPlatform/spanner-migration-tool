@@ -461,7 +461,7 @@ func ValidateDDL(ctx context.Context, adminClient *database.DatabaseAdminClient,
 	return nil
 }
 
-func CreateOrUpdateDatabase(project, instance, dbName string, dbExists bool, conv *internal.Conv, out *os.File) (string, error) {
+func CreateOrUpdateDatabase(project, instance, dbName string, dbExists bool, conv *internal.Conv, out *os.File) (dbURI string, err error) {
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
 	if err != nil {
@@ -470,20 +470,19 @@ func CreateOrUpdateDatabase(project, instance, dbName string, dbExists bool, con
 	defer adminClient.Close()
 
 	if dbExists {
-		dbPath, err := UpdateDatabase(project, instance, dbName, conv, out)
+		dbURI, err = UpdateDatabase(project, instance, dbName, conv, out)
 		if err != nil {
 			fmt.Printf("\nCan't update database schema: %v\n", err)
 			return "", fmt.Errorf("can't update database schema")
 		}
-		return dbPath, nil
+		return dbURI, nil
 	} else {
-		// Add support for dialect to create spangers dbs?
-		dbPath, err := CreateDatabase(project, instance, dbName, conv, out)
+		dbURI, err = CreateDatabase(project, instance, dbName, conv, out)
 		if err != nil {
 			fmt.Printf("\nCan't create database: %v\n", err)
 			return "", fmt.Errorf("can't create database")
 		}
-		return dbPath, nil
+		return dbURI, nil
 	}
 }
 
@@ -528,19 +527,19 @@ func UpdateDatabase(project, instance, dbName string, conv *internal.Conv, out *
 	}
 	defer adminClient.Close()
 
-	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
 	op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
-		Database:   dbPath,
+		Database:   dbURI,
 		Statements: conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false}),
 	})
 	if err != nil {
-		return "", fmt.Errorf("Can't submit update schema request: %s", err)
+		return "", fmt.Errorf("can't submit update schema request: %s", err)
 	}
 	if err := op.Wait(ctx); err != nil {
-		return "", fmt.Errorf("Can't update schema statement: %s\n", err)
+		return "", fmt.Errorf("can't update schema statement: %s", err)
 	}
 	fmt.Fprintf(out, "done.\n")
-	return dbPath, nil
+	return dbURI, nil
 }
 
 // UpdateDDLForeignKeys updates the Spanner database with foreign key
@@ -549,7 +548,7 @@ func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv,
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
 	if err != nil {
-		return fmt.Errorf("can't create admin client: %w\n", analyzeError(err, project, instance))
+		return fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
 	}
 	defer adminClient.Close()
 
