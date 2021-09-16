@@ -105,7 +105,7 @@ to set up your local development environment with authentication credentials.
 Set the GCLOUD_PROJECT environment variable to your Google Cloud project ID:
 
 ```sh
-export GCLOUD_PROJECT=[MY_PROJECT_ID]
+export GCLOUD_PROJECT=my-project-id
 ```
 
 If you do not already have a Cloud Spanner instance, or you want to use a
@@ -178,7 +178,7 @@ conversion), a session file and a bad data file (if any data was dropped).
 If you don't have ready access to a PostgreSQL or MySQL database, some example
 dump files can be found [here](examples). The files
 [cart.pg_dump](examples/cart.pg_dump) and
-[cart.mysqldump](examples/cart.mysqldump] contain pg_dump and mysqldump output
+[cart.mysqldump](examples/cart.mysqldump) contain pg_dump and mysqldump output
 for a very basic shopping cart application (just two tables, one for products
 and one for user carts). The files [singers.pg_dump](examples/singers.pg_dump)
 and [singers.mysqldump](examples/singers.mysqldump) contain pg_dump and

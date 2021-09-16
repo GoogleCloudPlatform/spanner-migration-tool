@@ -41,6 +41,7 @@ var (
 	projectID  string
 	instanceID string
 
+	ctx           context.Context
 	databaseAdmin *database.DatabaseAdminClient
 )
 
@@ -55,7 +56,7 @@ func initIntegrationTests() (cleanup func()) {
 	projectID = os.Getenv("HARBOURBRIDGE_TESTS_GCLOUD_PROJECT_ID")
 	instanceID = os.Getenv("HARBOURBRIDGE_TESTS_GCLOUD_INSTANCE_ID")
 
-	ctx := context.Background()
+	ctx = context.Background()
 	flag.Parse() // Needed for testing.Short().
 	noop := func() {}
 
@@ -85,12 +86,12 @@ func initIntegrationTests() (cleanup func()) {
 	}
 }
 
-func dropDatabase(t *testing.T, dbPath string) {
+func dropDatabase(t *testing.T, dbURI string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	// Drop the testing database.
-	if err := databaseAdmin.DropDatabase(ctx, &databasepb.DropDatabaseRequest{Database: dbPath}); err != nil {
-		t.Fatalf("failed to drop testing database %v: %v", dbPath, err)
+	if err := databaseAdmin.DropDatabase(ctx, &databasepb.DropDatabaseRequest{Database: dbURI}); err != nil {
+		t.Fatalf("failed to drop testing database %v: %v", dbURI, err)
 	}
 }
 
@@ -113,21 +114,21 @@ func TestIntegration_PGDUMP_SimpleUse(t *testing.T) {
 
 	now := time.Now()
 	dbName, _ := conversion.GetDatabaseName(conversion.PGDUMP, now)
-	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	dataFilepath := "../../test_data/pg_dump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 	f, err := os.Open(dataFilepath)
 	if err != nil {
 		t.Fatalf("failed to open the test data file: %v", err)
 	}
-	err = cmd.CommandLine(conversion.PGDUMP, "spanner", projectID, instanceID, dbName, false, false, false, 0, "", &conversion.IOStreams{In: f, Out: os.Stdout}, filePrefix, now)
+	err = cmd.CommandLine(ctx, conversion.PGDUMP, "spanner", dbURI, false, false, false, 0, "", &conversion.IOStreams{In: f, Out: os.Stdout}, filePrefix, now)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Drop the database later.
-	defer dropDatabase(t, dbPath)
+	defer dropDatabase(t, dbURI)
 
-	checkResults(t, dbPath)
+	checkResults(t, dbURI)
 }
 
 func TestIntegration_PGDUMP_Command(t *testing.T) {
@@ -138,7 +139,7 @@ func TestIntegration_PGDUMP_Command(t *testing.T) {
 
 	now := time.Now()
 	dbName, _ := conversion.GetDatabaseName(conversion.PGDUMP, now)
-	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 
 	dataFilepath := "../../test_data/pg_dump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName+".")
@@ -160,9 +161,9 @@ func TestIntegration_PGDUMP_Command(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Drop the database later.
-	defer dropDatabase(t, dbPath)
+	defer dropDatabase(t, dbURI)
 
-	checkResults(t, dbPath)
+	checkResults(t, dbURI)
 }
 
 func TestIntegration_PGDUMP_SchemaCommand(t *testing.T) {
@@ -197,17 +198,17 @@ func TestIntegration_POSTGRES_SimpleUse(t *testing.T) {
 
 	now := time.Now()
 	dbName, _ := conversion.GetDatabaseName(conversion.POSTGRES, now)
-	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
-	err := cmd.CommandLine(conversion.POSTGRES, "spanner", projectID, instanceID, dbName, false, false, false, 0, "", &conversion.IOStreams{Out: os.Stdout}, filePrefix, now)
+	err := cmd.CommandLine(ctx, conversion.POSTGRES, "spanner", dbURI, false, false, false, 0, "", &conversion.IOStreams{Out: os.Stdout}, filePrefix, now)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Drop the database later.
-	defer dropDatabase(t, dbPath)
+	defer dropDatabase(t, dbURI)
 
-	checkResults(t, dbPath)
+	checkResults(t, dbURI)
 }
 
 func TestIntegration_POSTGRES_Command(t *testing.T) {
@@ -219,7 +220,7 @@ func TestIntegration_POSTGRES_Command(t *testing.T) {
 
 	now := time.Now()
 	dbName, _ := conversion.GetDatabaseName(conversion.POSTGRES, now)
-	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
 	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -instance %s -dbname %s -prefix %s -driver %s", instanceID, dbName, filePrefix, conversion.POSTGRES))
@@ -235,9 +236,9 @@ func TestIntegration_POSTGRES_Command(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Drop the database later.
-	defer dropDatabase(t, dbPath)
+	defer dropDatabase(t, dbURI)
 
-	checkResults(t, dbPath)
+	checkResults(t, dbURI)
 }
 
 func TestIntegration_POSTGRES_SchemaCommand(t *testing.T) {
@@ -258,10 +259,9 @@ func TestIntegration_POSTGRES_SchemaCommand(t *testing.T) {
 	}
 }
 
-func checkResults(t *testing.T, dbPath string) {
+func checkResults(t *testing.T, dbURI string) {
 	// Make a query to check results.
-	ctx := context.Background()
-	client, err := spanner.NewClient(ctx, dbPath)
+	client, err := spanner.NewClient(ctx, dbURI)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -16,9 +16,11 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"time"
 
+	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
@@ -36,10 +38,9 @@ var (
 // 2. Create database (if schemaOnly is set to false)
 // 3. Run data conversion (if schemaOnly is set to false)
 // 4. Generate report
-func CommandLine(driver, targetDb, projectID, instanceID, dbName string, dataOnly, schemaOnly, skipForeignKeys bool, schemaSampleSize int64, sessionJSON string, ioHelper *conversion.IOStreams, outputFilePrefix string, now time.Time) error {
+func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, schemaOnly, skipForeignKeys bool, schemaSampleSize int64, sessionJSON string, ioHelper *conversion.IOStreams, outputFilePrefix string, now time.Time) error {
 	var conv *internal.Conv
 	var err error
-
 	if !dataOnly {
 		conv, err = conversion.SchemaConv(driver, targetDb, ioHelper, schemaSampleSize)
 		if err != nil {
@@ -62,13 +63,17 @@ func CommandLine(driver, targetDb, projectID, instanceID, dbName string, dataOnl
 			return err
 		}
 	}
-
-	dbURI, err := conversion.CreateOrUpdateDatabase(projectID, instanceID, dbName, conv, ioHelper.Out)
+	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	if err != nil {
+		return fmt.Errorf("can't create admin client: %w", conversion.AnalyzeError(err, dbURI))
+	}
+	defer adminClient.Close()
+	err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, conv, ioHelper.Out)
 	if err != nil {
 		return fmt.Errorf("can't create/update database: %v", err)
 	}
 
-	client, err := conversion.GetClient(dbURI)
+	client, err := conversion.GetClient(ctx, dbURI)
 	if err != nil {
 		return fmt.Errorf("can't create client for db %s: %v", dbURI, err)
 	}
@@ -78,7 +83,7 @@ func CommandLine(driver, targetDb, projectID, instanceID, dbName string, dataOnl
 		return fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 	}
 	if !skipForeignKeys {
-		if err = conversion.UpdateDDLForeignKeys(projectID, instanceID, dbName, conv, ioHelper.Out); err != nil {
+		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
 			return fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
 		}
 	}
