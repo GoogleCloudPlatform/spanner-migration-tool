@@ -39,10 +39,6 @@ var (
 func CommandLine(driver, targetDb, projectID, instanceID, dbName string, dataOnly, schemaOnly, skipForeignKeys bool, schemaSampleSize int64, sessionJSON string, ioHelper *conversion.IOStreams, outputFilePrefix string, now time.Time) error {
 	var conv *internal.Conv
 	var err error
-	dbExists, err := conversion.VerifyDb(projectID, instanceID, dbName)
-	if err != nil {
-		return err
-	}
 	if !dataOnly {
 		conv, err = conversion.SchemaConv(driver, targetDb, ioHelper, schemaSampleSize)
 		if err != nil {
@@ -66,26 +62,30 @@ func CommandLine(driver, targetDb, projectID, instanceID, dbName string, dataOnl
 		}
 	}
 
-	dbURI, err := conversion.CreateOrUpdateDatabase(projectID, instanceID, dbName, dbExists, conv, ioHelper.Out)
+	db, err := conversion.CreateDatabase(projectID, instanceID, dbName, conv, ioHelper.Out)
 	if err != nil {
-		return fmt.Errorf("can't create/update database: %v", err)
+		fmt.Printf("\nCan't create database: %v\n", err)
+		return fmt.Errorf("can't create database")
 	}
 
-	client, err := conversion.GetClient(dbURI)
+	client, err := conversion.GetClient(db)
 	if err != nil {
-		return fmt.Errorf("can't create client for db %s: %v", dbURI, err)
+		fmt.Printf("\nCan't create client for db %s: %v\n", db, err)
+		return fmt.Errorf("can't create Spanner client")
 	}
 
 	bw, err := conversion.DataConv(driver, ioHelper, client, conv, dataOnly)
 	if err != nil {
-		return fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
+		fmt.Printf("\nCan't finish data conversion for db %s: %v\n", db, err)
+		return fmt.Errorf("can't finish data conversion")
 	}
 	if !skipForeignKeys {
 		if err = conversion.UpdateDDLForeignKeys(projectID, instanceID, dbName, conv, ioHelper.Out); err != nil {
-			return fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
+			fmt.Printf("\nCan't perform update operation on db %s with foreign keys: %v\n", db, err)
+			return fmt.Errorf("can't perform update schema with foreign keys")
 		}
 	}
-	banner := conversion.GetBanner(now, dbURI)
+	banner := conversion.GetBanner(now, db)
 	conversion.Report(driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, outputFilePrefix+reportFile, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, outputFilePrefix+badDataFile, ioHelper.Out)
 	return nil
