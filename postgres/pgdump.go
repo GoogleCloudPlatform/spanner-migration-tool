@@ -113,7 +113,7 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []*pg_q
 			conv.Stats.Reparsed++
 		}
 		if r.EOF {
-			return nil, nil, fmt.Errorf("Error parsing last %d line(s) of input", len(l))
+			return nil, nil, fmt.Errorf("error parsing last %d line(s) of input", len(l))
 		}
 	}
 }
@@ -169,7 +169,7 @@ func processStatements(conv *internal.Conv, rawStmts []*pg_query.RawStmt) *copyO
 				conv.Unexpected("CopyFrom is not the last statement in batch: ignoring following statements")
 				conv.ErrorInStatement(PrNodeType(n.CopyStmt))
 			}
-			return processCopyStmt(conv, node)
+			return processCopyStmt(conv, n.CopyStmt)
 		case *pg_query.Node_CreateStmt:
 			if conv.SchemaMode() {
 				processCreateStmt(conv, node)
@@ -370,9 +370,7 @@ func processInsertStmt(conv *internal.Conv, n *pg_query.InsertStmt) *copyOrInser
 	return nil
 }
 
-func processCopyStmt(conv *internal.Conv, node *pg_query.Node) *copyOrInsert {
-	n := node.GetNode().(*pg_query.Node_CopyStmt).CopyStmt
-
+func processCopyStmt(conv *internal.Conv, n *pg_query.CopyStmt) *copyOrInsert {
 	// Always return a copyOrInsert{stmt: copyFrom, ...} even if we
 	// encounter errors. Otherwise we won't be able to parse
 	// the data portion of the COPY-FROM statement, and we'll
@@ -385,7 +383,7 @@ func processCopyStmt(conv *internal.Conv, node *pg_query.Node) *copyOrInsert {
 			conv.Unexpected(fmt.Sprintf("Processing %v statement: %s", reflect.TypeOf(n), err))
 		}
 	} else {
-		logStmtError(conv, node, fmt.Errorf("relation is nil"))
+		logStmtError(conv, n, fmt.Errorf("relation is nil"))
 	}
 	if _, ok := conv.SrcSchema[table]; !ok {
 		// If we don't have schema information for a table, we drop all copy
@@ -550,8 +548,6 @@ func extractConstraints(conv *internal.Conv, n *pg_query.Node, table string, l [
 						conv.ErrorInStatement(PrNodeType(d))
 						continue
 					}
-					// fmt.Printf("k = %+v\n", k)
-					// os.Exit(0)
 					cols = append(cols, k)
 				}
 				for _, attr := range c.PkAttrs {
@@ -671,7 +667,6 @@ func toIndexKeys(conv *internal.Conv, idxName string, s []*pg_query.Node) (l []s
 		switch e := k.GetNode().(type) {
 		case *pg_query.Node_IndexElem:
 			if e.IndexElem.Name == "" {
-				fmt.Printf("e.IndexElem = %+v\n", e.IndexElem)
 				conv.Unexpected(fmt.Sprintf("Failed to process index %s: empty index column name", idxName))
 				continue
 			}
