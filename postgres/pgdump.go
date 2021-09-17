@@ -372,7 +372,7 @@ func processInsertStmt(conv *internal.Conv, n *pg_query.InsertStmt) *copyOrInser
 
 func processCopyStmt(conv *internal.Conv, node *pg_query.Node) *copyOrInsert {
 	n := node.GetNode().(*pg_query.Node_CopyStmt).CopyStmt
-	
+
 	// Always return a copyOrInsert{stmt: copyFrom, ...} even if we
 	// encounter errors. Otherwise we won't be able to parse
 	// the data portion of the COPY-FROM statement, and we'll
@@ -571,7 +571,7 @@ func extractConstraints(conv *internal.Conv, n *pg_query.Node, table string, l [
 					k, err := getString(key)
 					if err != nil {
 						conv.Unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(d), err.Error()))
-						conv.ErrorInStatement(fmt.Sprintf("%v.%v",PrNodeType(i),PrNodeType(d)))
+						conv.ErrorInStatement(fmt.Sprintf("%v.%v", PrNodeType(i), PrNodeType(d)))
 						continue
 					}
 					cols = append(cols, k)
@@ -677,7 +677,7 @@ func toIndexKeys(conv *internal.Conv, idxName string, s []*pg_query.Node) (l []s
 			}
 			desc := false
 			if e.IndexElem.Ordering == pg_query.SortByDir_SORTBY_DESC {
-				desc = true	
+				desc = true
 			}
 			l = append(l, schema.Key{Column: e.IndexElem.Name, Desc: desc})
 		}
