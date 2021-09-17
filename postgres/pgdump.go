@@ -175,7 +175,7 @@ func processStatements(conv *internal.Conv, rawStmts []*pg_query.RawStmt) *copyO
 				processCreateStmt(conv, node)
 			}
 		case *pg_query.Node_InsertStmt:
-			return processInsertStmt(conv, node)
+			return processInsertStmt(conv, n.InsertStmt)
 		case *pg_query.Node_VariableSetStmt:
 			if conv.SchemaMode() {
 				processVariableSetStmt(conv, n.VariableSetStmt)
@@ -331,15 +331,14 @@ func processColumn(conv *internal.Conv, node *pg_query.Node, table string) (stri
 	return name, schema.Column{Name: name, Type: ty}, analyzeColDefConstraints(conv, node, table, n.Constraints, name), nil
 }
 
-func processInsertStmt(conv *internal.Conv, node *pg_query.Node) *copyOrInsert {
-	n := node.GetNode().(*pg_query.Node_InsertStmt).InsertStmt
+func processInsertStmt(conv *internal.Conv, n *pg_query.InsertStmt) *copyOrInsert {
 	if n.Relation == nil {
-		logStmtError(conv, node, fmt.Errorf("relation is nil"))
+		logStmtError(conv, n, fmt.Errorf("relation is nil"))
 		return nil
 	}
 	table, err := getTableName(conv, n.Relation)
 	if err != nil {
-		logStmtError(conv, node, fmt.Errorf("can't get table name: %w", err))
+		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
 		return nil
 	}
 	if _, ok := conv.SrcSchema[table]; !ok {
@@ -353,14 +352,14 @@ func processInsertStmt(conv *internal.Conv, node *pg_query.Node) *copyOrInsert {
 	conv.StatsAddRow(table, conv.SchemaMode())
 	colNames, err := getCols(conv, table, n.Cols)
 	if err != nil {
-		logStmtError(conv, node, fmt.Errorf("can't get col name: %w", err))
+		logStmtError(conv, n, fmt.Errorf("can't get col name: %w", err))
 		conv.StatsAddBadRow(table, conv.SchemaMode())
 		return nil
 	}
-	var values []string
+
 	switch sel := n.SelectStmt.GetNode().(type) {
 	case *pg_query.Node_SelectStmt:
-		values = getVals(conv, sel.SelectStmt.ValuesLists, n)
+		values := getVals(conv, sel.SelectStmt.ValuesLists, n)
 		conv.DataStatement(PrNodeType(sel))
 		if conv.DataMode() {
 			return &copyOrInsert{stmt: insert, table: table, cols: colNames, vals: values}
@@ -477,8 +476,7 @@ func getTypeID(nodes []*pg_query.Node) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		s = strings.TrimPrefix(s, "str:")
-		ids = append(ids, trimQuote(s))
+		ids = append(ids, s)
 	}
 	if len(ids) > 1 && ids[0] == "pg_catalog" {
 		ids = ids[1:]
@@ -716,22 +714,29 @@ func getCols(conv *internal.Conv, table string, nodes []*pg_query.Node) (cols []
 // getVals extracts and returns the values for an InsertStatement.
 func getVals(conv *internal.Conv, l []*pg_query.Node, n *pg_query.InsertStmt) (values []string) {
 	for _, vl := range l {
-		switch c := vl.GetNode().(type) {
-		case *pg_query.Node_AConst:
-			switch st := c.AConst.Val.GetNode().(type) {
-			case *pg_query.Node_String_:
-				values = append(values, st.String_.String())
-			case *pg_query.Node_Integer:
-				// For uniformity, convert to string and handle everything in
-				// dataConversion(). If performance of insert statements becomes a
-				// high priority (it isn't right now), then consider preserving int64
-				// here to avoid the int64 -> string -> int64 conversions.
-				values = append(values, strconv.FormatInt(int64(st.Integer.Ival), 10))
-			default:
-				conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node for A_Const Val", reflect.TypeOf(n), reflect.TypeOf(st)))
+		switch vals := vl.GetNode().(type) {
+		case *pg_query.Node_List:
+			for _, val := range vals.List.Items {
+				switch c := val.GetNode().(type) {
+				case *pg_query.Node_AConst:
+					switch st := c.AConst.Val.GetNode().(type) {
+					case *pg_query.Node_String_:
+						values = append(values, trimString(st.String_))
+					case *pg_query.Node_Integer:
+						// For uniformity, convert to string and handle everything in
+						// dataConversion(). If performance of insert statements becomes a
+						// high priority (it isn't right now), then consider preserving int64
+						// here to avoid the int64 -> string -> int64 conversions.
+						values = append(values, strconv.FormatInt(int64(st.Integer.Ival), 10))
+					default:
+						conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node for A_Const Val", reflect.TypeOf(n), reflect.TypeOf(st)))
+					}
+				default:
+					conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node in ValuesList", reflect.TypeOf(n), reflect.TypeOf(c)))
+				}
 			}
 		default:
-			conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node in ValuesList", reflect.TypeOf(n), reflect.TypeOf(vl)))
+			conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s in ValuesList", reflect.TypeOf(n), reflect.TypeOf(vals)))
 		}
 	}
 	return values
@@ -749,6 +754,10 @@ func getString(node *pg_query.Node) (string, error) {
 	default:
 		return "", fmt.Errorf("node %v is a not String node", reflect.TypeOf(node))
 	}
+}
+
+func trimString(s *pg_query.String) string {
+	return strings.ReplaceAll(trimQuote(strings.TrimPrefix(s.String(), "str:")), "\\n", "\n")
 }
 
 // checkEmpty verifies that pkeys is empty and generates a warning if it isn't.
