@@ -26,7 +26,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	pg_query "github.com/lfittl/pg_query_go"
+	pg_query "github.com/pganalyze/pg_query_go/v2"
 	"github.com/stretchr/testify/assert"
 )
 

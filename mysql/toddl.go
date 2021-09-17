@@ -231,7 +231,7 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 		for _, k := range srcIndex.Keys {
 			spCol, err := internal.GetSpannerCol(conv, srcTable, k.Column, true)
 			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Can't map index key column name for table %s", srcTable))
+				conv.Unexpected(fmt.Sprintf("Can't map index key column name for table %s column %s", srcTable, k.Column))
 				continue
 			}
 			spKeys = append(spKeys, ddl.IndexKey{Col: spCol, Desc: k.Desc})

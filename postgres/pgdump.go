@@ -21,8 +21,7 @@ import (
 	"strings"
 	"time"
 
-	pg_query "github.com/lfittl/pg_query_go"
-	nodes "github.com/lfittl/pg_query_go/nodes"
+	pg_query "github.com/pganalyze/pg_query_go/v2"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
@@ -85,7 +84,7 @@ func ProcessPgDump(conv *internal.Conv, r *internal.Reader) error {
 
 // readAndParseChunk parses a chunk of pg_dump data, returning the bytes read,
 // the parsed AST (nil if nothing read), and whether we've hit end-of-file.
-func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []nodes.Node, error) {
+func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []*pg_query.RawStmt, error) {
 	var l [][]byte
 	for {
 		b := r.ReadLine()
@@ -104,7 +103,7 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []nodes
 			}
 			tree, err := pg_query.Parse(string(s))
 			if err == nil {
-				return s, tree.Statements, nil
+				return s, tree.Stmts, nil
 			}
 			// Likely causes of failing to parse:
 			// a) complex statements with embedded semicolons e.g. 'CREATE FUNCTION'
@@ -156,101 +155,100 @@ func processCopyBlock(conv *internal.Conv, srcTable string, srcCols []string, r 
 // copyOrInsert if a COPY-FROM or INSERT statement is encountered.
 // Note that the actual parsing/processing of COPY-FROM data blocks is
 // handled elsewhere (see process.go).
-func processStatements(conv *internal.Conv, statements []nodes.Node) *copyOrInsert {
+func processStatements(conv *internal.Conv, rawStmts []*pg_query.RawStmt) *copyOrInsert {
 	// Typically we'll have only one statement, but we handle the general case.
-	for i, node := range statements {
-		switch n := node.(type) {
-		// Unwrap RawStatement.
-		case nodes.RawStmt:
-			node = n.Stmt
-		}
-		switch n := node.(type) {
-		case nodes.AlterTableStmt:
+	for i, rawStmt := range rawStmts {
+		node := rawStmt.Stmt
+		switch n := node.GetNode().(type) {
+		case *pg_query.Node_AlterTableStmt:
 			if conv.SchemaMode() {
-				processAlterTableStmt(conv, n)
+				processAlterTableStmt(conv, node)
 			}
-		case nodes.CopyStmt:
-			if i != len(statements)-1 {
+		case *pg_query.Node_CopyStmt:
+			if i != len(rawStmts)-1 {
 				conv.Unexpected("CopyFrom is not the last statement in batch: ignoring following statements")
-				conv.ErrorInStatement(prNodes([]nodes.Node{node}))
+				conv.ErrorInStatement(PrNodeType(n.CopyStmt))
 			}
-			return processCopyStmt(conv, n)
-		case nodes.CreateStmt:
+			return processCopyStmt(conv, node)
+		case *pg_query.Node_CreateStmt:
 			if conv.SchemaMode() {
-				processCreateStmt(conv, n)
+				processCreateStmt(conv, node)
 			}
-		case nodes.InsertStmt:
-			return processInsertStmt(conv, n)
-		case nodes.VariableSetStmt:
+		case *pg_query.Node_InsertStmt:
+			return processInsertStmt(conv, node)
+		case *pg_query.Node_VariableSetStmt:
 			if conv.SchemaMode() {
-				processVariableSetStmt(conv, n)
+				processVariableSetStmt(conv, n.VariableSetStmt)
 			}
-		case nodes.IndexStmt:
+		case *pg_query.Node_IndexStmt:
 			if conv.SchemaMode() {
-				processIndexStmt(conv, n)
+				processIndexStmt(conv, n.IndexStmt)
 			}
 		default:
-			conv.SkipStatement(prNodes([]nodes.Node{node}))
+			conv.SkipStatement(PrNodeType(n))
 		}
 	}
 	return nil
 }
 
-func processIndexStmt(conv *internal.Conv, n nodes.IndexStmt) {
+func processIndexStmt(conv *internal.Conv, n *pg_query.IndexStmt) {
 	if n.Relation == nil {
-		logStmtError(conv, n, fmt.Errorf("cannot process index statement with nil relation."))
+		logStmtError(conv, n, fmt.Errorf("cannot process index statement with nil relation"))
 		return
 	}
-	tableName, err := getTableName(conv, *n.Relation)
+	tableName, err := getTableName(conv, n.Relation)
 	if err != nil {
 		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
 		return
 	}
 	if ctable, ok := conv.SrcSchema[tableName]; ok {
 		ctable.Indexes = append(ctable.Indexes, schema.Index{
-			Name:   *n.Idxname,
+			Name:   n.Idxname,
 			Unique: n.Unique,
-			Keys:   toIndexKeys(n.IndexParams.Items),
+			Keys:   toIndexKeys(conv, n.Idxname, n.IndexParams),
 		})
 		conv.SrcSchema[tableName] = ctable
 	} else {
 		conv.Unexpected(fmt.Sprintf("Table %s not found while processing index statement", tableName))
-		conv.SkipStatement(prNodes([]nodes.Node{n}))
+		conv.SkipStatement(PrNodeType(n))
 	}
 }
 
-func processAlterTableStmt(conv *internal.Conv, n nodes.AlterTableStmt) {
+func processAlterTableStmt(conv *internal.Conv, node *pg_query.Node) {
+	n := node.GetNode().(*pg_query.Node_AlterTableStmt).AlterTableStmt
 	if n.Relation == nil {
-		logStmtError(conv, n, fmt.Errorf("relation is nil"))
+		logStmtError(conv, node, fmt.Errorf("relation is nil"))
 		return
 	}
-	table, err := getTableName(conv, *n.Relation)
+	table, err := getTableName(conv, n.Relation)
 	if err != nil {
-		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
+		logStmtError(conv, node, fmt.Errorf("can't get table name: %w", err))
 		return
 	}
 	if _, ok := conv.SrcSchema[table]; ok {
-		for _, i := range n.Cmds.Items {
-			switch a := i.(type) {
-			case nodes.AlterTableCmd:
+		for _, i := range n.Cmds {
+			cmd := i.GetNode()
+			switch t := cmd.(type) {
+			case *pg_query.Node_AlterTableCmd:
+				a := t.AlterTableCmd
 				switch {
-				case a.Subtype == nodes.AT_SetNotNull && a.Name != nil:
-					c := constraint{ct: nodes.CONSTR_NOTNULL, cols: []string{*a.Name}}
+				case a.Subtype == pg_query.AlterTableType_AT_SetNotNull && a.Name != "": // TODO: do we still need a.Name != ""
+					c := constraint{ct: pg_query.ConstrType_CONSTR_NOTNULL, cols: []string{a.Name}}
 					updateSchema(conv, table, []constraint{c}, "ALTER TABLE")
-					conv.SchemaStatement(prNodes([]nodes.Node{n, a}))
-				case a.Subtype == nodes.AT_AddConstraint && a.Def != nil:
-					switch d := a.Def.(type) {
-					case nodes.Constraint:
-						updateSchema(conv, table, extractConstraints(conv, n, table, []nodes.Node{d}), "ALTER TABLE")
-						conv.SchemaStatement(prNodes([]nodes.Node{n, a, d}))
+					conv.SchemaStatement(strings.Join([]string{PrNodeType(n), PrNodeType(t)}, "."))
+				case a.Subtype == pg_query.AlterTableType_AT_AddConstraint && a.Def != nil:
+					switch at := a.Def.GetNode().(type) {
+					case *pg_query.Node_Constraint:
+						updateSchema(conv, table, extractConstraints(conv, node, table, []*pg_query.Node{a.Def}), "ALTER TABLE")
+						conv.SchemaStatement(strings.Join([]string{PrNodeType(n), PrNodeType(t), PrNodeType(at)}, "."))
 					default:
-						conv.SkipStatement(prNodes([]nodes.Node{n, a, d}))
+						conv.SkipStatement(strings.Join([]string{PrNodeType(n), PrNodeType(t), PrNodeType(at)}, "."))
 					}
 				default:
-					conv.SkipStatement(prNodes([]nodes.Node{n, a}))
+					conv.SkipStatement(strings.Join([]string{PrNodeType(n), PrNodeType(t)}, "."))
 				}
 			default:
-				conv.SkipStatement(prNodes([]nodes.Node{n, a}))
+				conv.SkipStatement(strings.Join([]string{PrNodeType(n), PrNodeType(t)}, "."))
 			}
 		}
 	} else {
@@ -259,68 +257,70 @@ func processAlterTableStmt(conv *internal.Conv, n nodes.AlterTableStmt) {
 		// track tables created by "CREATE TABLE", this lookup can fail.
 		// For debugging purposes we log the lookup failure if we're
 		// in verbose mode, but otherwise  we just skip these statements.
-		conv.SkipStatement(prNodes([]nodes.Node{n}))
+		conv.SkipStatement(PrNodeType(n))
 		internal.VerbosePrintf("Processing %v statement: table %s not found", reflect.TypeOf(n), table)
 	}
 }
 
-func processCreateStmt(conv *internal.Conv, n nodes.CreateStmt) {
+func processCreateStmt(conv *internal.Conv, node *pg_query.Node) {
+	n := node.GetNode().(*pg_query.Node_CreateStmt).CreateStmt
 	var colNames []string
 	colDef := make(map[string]schema.Column)
 	if n.Relation == nil {
-		logStmtError(conv, n, fmt.Errorf("relation is nil"))
+		logStmtError(conv, node, fmt.Errorf("relation is nil"))
 		return
 	}
-	table, err := getTableName(conv, *n.Relation)
+	table, err := getTableName(conv, n.Relation)
 	if err != nil {
-		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
+		logStmtError(conv, node, fmt.Errorf("can't get table name: %w", err))
 		return
 	}
-	if len(n.InhRelations.Items) > 0 {
+	if len(n.InhRelations) > 0 {
 		// Skip inherited tables.
-		conv.SkipStatement(prNodes([]nodes.Node{n}))
+		conv.SkipStatement(PrNodeType(n))
 		conv.Unexpected(fmt.Sprintf("Found inherited table %s -- we do not currently handle inherited tables", table))
 		internal.VerbosePrintf("Processing %v statement: table %s is inherited table", reflect.TypeOf(n), table)
 		return
 	}
 	var constraints []constraint
-	for _, te := range n.TableElts.Items {
-		switch i := te.(type) {
-		case nodes.ColumnDef:
-			name, col, cdConstraints, err := processColumn(conv, i, table)
+	for _, te := range n.TableElts {
+		switch te.GetNode().(type) {
+		case *pg_query.Node_ColumnDef:
+			name, col, cdConstraints, err := processColumn(conv, te, table)
 			if err != nil {
-				logStmtError(conv, n, err)
+				logStmtError(conv, node, err)
 				return
 			}
 			colNames = append(colNames, name)
 			colDef[name] = col
 			constraints = append(constraints, cdConstraints...)
-		case nodes.Constraint:
+		case *pg_query.Node_Constraint:
 			// Note: there should be at most one Constraint node in
 			// n.TableElts.Items. We don't check this. We just keep
 			// collecting constraints.
-			constraints = append(constraints, extractConstraints(conv, n, table, []nodes.Node{i})...)
+			constraints = append(constraints, extractConstraints(conv, node, table, []*pg_query.Node{te})...)
 		default:
-			conv.Unexpected(fmt.Sprintf("Found %s node while processing CreateStmt TableElts", PrNodeType(i)))
+			conv.Unexpected(fmt.Sprintf("Found %s node while processing CreateStmt TableElts", PrNodeType(te)))
 		}
 	}
-	conv.SchemaStatement(prNodes([]nodes.Node{n}))
+	conv.SchemaStatement(PrNodeType(n))
 	conv.SrcSchema[table] = schema.Table{
 		Name:     table,
 		ColNames: colNames,
 		ColDefs:  colDef}
-	// Note: constraints contains all info about primary keys,
-	// not-null keys and foreign keys.
+	// Note: constraints contains all info about primary keys, not-null keys
+	// and foreign keys.
 	updateSchema(conv, table, constraints, "CREATE TABLE")
 }
 
-func processColumn(conv *internal.Conv, n nodes.ColumnDef, table string) (string, schema.Column, []constraint, error) {
+func processColumn(conv *internal.Conv, node *pg_query.Node, table string) (string, schema.Column, []constraint, error) {
+	n := node.GetNode().(*pg_query.Node_ColumnDef).ColumnDef
 	mods := getTypeMods(conv, n.TypeName.Typmods)
-	if n.Colname == nil {
-		return "", schema.Column{}, nil, fmt.Errorf("colname is nil")
+	if n.Colname == "" {
+		return "", schema.Column{}, nil, fmt.Errorf("colname is empty string")
 	}
-	name := *n.Colname
-	tid, err := getTypeID(n.TypeName.Names.Items)
+	name := n.Colname
+	tid, err := getTypeID(n.TypeName.Names)
 	if err != nil {
 		return "", schema.Column{}, nil, fmt.Errorf("can't get type id for %s: %w", name, err)
 	}
@@ -328,39 +328,40 @@ func processColumn(conv *internal.Conv, n nodes.ColumnDef, table string) (string
 		Name:        tid,
 		Mods:        mods,
 		ArrayBounds: getArrayBounds(conv, n.TypeName.ArrayBounds)}
-	return name, schema.Column{Name: name, Type: ty}, analyzeColDefConstraints(conv, n, table, n.Constraints.Items, name), nil
+	return name, schema.Column{Name: name, Type: ty}, analyzeColDefConstraints(conv, node, table, n.Constraints, name), nil
 }
 
-func processInsertStmt(conv *internal.Conv, n nodes.InsertStmt) *copyOrInsert {
+func processInsertStmt(conv *internal.Conv, node *pg_query.Node) *copyOrInsert {
+	n := node.GetNode().(*pg_query.Node_InsertStmt).InsertStmt
 	if n.Relation == nil {
-		logStmtError(conv, n, fmt.Errorf("relation is nil"))
+		logStmtError(conv, node, fmt.Errorf("relation is nil"))
 		return nil
 	}
-	table, err := getTableName(conv, *n.Relation)
+	table, err := getTableName(conv, n.Relation)
 	if err != nil {
-		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
+		logStmtError(conv, node, fmt.Errorf("can't get table name: %w", err))
 		return nil
 	}
 	if _, ok := conv.SrcSchema[table]; !ok {
 		// If we don't have schema information for a table, we drop all insert
 		// statements for it. The most likely reason we don't have schema information
 		// for a table is that it is an inherited table - we skip all inherited tables.
-		conv.SkipStatement(prNodes([]nodes.Node{n}))
+		conv.SkipStatement(PrNodeType(n))
 		internal.VerbosePrintf("Processing %v statement: table %s not found", reflect.TypeOf(n), table)
 		return nil
 	}
 	conv.StatsAddRow(table, conv.SchemaMode())
-	colNames, err := getCols(conv, table, n.Cols.Items)
+	colNames, err := getCols(conv, table, n.Cols)
 	if err != nil {
-		logStmtError(conv, n, fmt.Errorf("can't get col name: %w", err))
+		logStmtError(conv, node, fmt.Errorf("can't get col name: %w", err))
 		conv.StatsAddBadRow(table, conv.SchemaMode())
 		return nil
 	}
 	var values []string
-	switch sel := n.SelectStmt.(type) {
-	case nodes.SelectStmt:
-		values = getVals(conv, sel.ValuesLists, n)
-		conv.DataStatement(prNodes([]nodes.Node{n}))
+	switch sel := n.SelectStmt.GetNode().(type) {
+	case *pg_query.Node_SelectStmt:
+		values = getVals(conv, sel.SelectStmt.ValuesLists, n)
+		conv.DataStatement(PrNodeType(sel))
 		if conv.DataMode() {
 			return &copyOrInsert{stmt: insert, table: table, cols: colNames, vals: values}
 		}
@@ -370,7 +371,9 @@ func processInsertStmt(conv *internal.Conv, n nodes.InsertStmt) *copyOrInsert {
 	return nil
 }
 
-func processCopyStmt(conv *internal.Conv, n nodes.CopyStmt) *copyOrInsert {
+func processCopyStmt(conv *internal.Conv, node *pg_query.Node) *copyOrInsert {
+	n := node.GetNode().(*pg_query.Node_CopyStmt).CopyStmt
+	
 	// Always return a copyOrInsert{stmt: copyFrom, ...} even if we
 	// encounter errors. Otherwise we won't be able to parse
 	// the data portion of the COPY-FROM statement, and we'll
@@ -378,23 +381,23 @@ func processCopyStmt(conv *internal.Conv, n nodes.CopyStmt) *copyOrInsert {
 	table := "BOGUS_COPY_FROM_TABLE"
 	var err error
 	if n.Relation != nil {
-		table, err = getTableName(conv, *n.Relation)
+		table, err = getTableName(conv, n.Relation)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Processing %v statement: %s", reflect.TypeOf(n), err))
 		}
 	} else {
-		logStmtError(conv, n, fmt.Errorf("relation is nil"))
+		logStmtError(conv, node, fmt.Errorf("relation is nil"))
 	}
 	if _, ok := conv.SrcSchema[table]; !ok {
 		// If we don't have schema information for a table, we drop all copy
 		// statements for it. The most likely reason we don't have schema information
 		// for a table is that it is an inherited table - we skip all inherited tables.
-		conv.SkipStatement(prNodes([]nodes.Node{n}))
+		conv.SkipStatement(PrNodeType(n))
 		internal.VerbosePrintf("Processing %v statement: table %s not found", reflect.TypeOf(n), table)
 		return &copyOrInsert{stmt: copyFrom, table: table, cols: []string{}}
 	}
 	var cols []string
-	for _, a := range n.Attlist.Items {
+	for _, a := range n.Attlist {
 		s, err := getString(a)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Processing %v statement Attlist: %s", reflect.TypeOf(n), err))
@@ -402,57 +405,58 @@ func processCopyStmt(conv *internal.Conv, n nodes.CopyStmt) *copyOrInsert {
 		}
 		cols = append(cols, s)
 	}
-	conv.DataStatement(prNodes([]nodes.Node{n}))
+	conv.DataStatement(PrNodeType(n))
 	return &copyOrInsert{stmt: copyFrom, table: table, cols: cols}
 }
 
-func processVariableSetStmt(conv *internal.Conv, n nodes.VariableSetStmt) {
-	if n.Name != nil && *n.Name == "timezone" {
-		if len(n.Args.Items) == 1 {
-			switch c := n.Args.Items[0].(type) {
-			case nodes.A_Const:
-				tz, err := getString(c.Val)
+func processVariableSetStmt(conv *internal.Conv, n *pg_query.VariableSetStmt) {
+	if n.Name == "timezone" {
+		if len(n.Args) == 1 {
+			node := n.Args[0]
+			switch c := node.GetNode().(type) {
+			case *pg_query.Node_AConst:
+				tz, err := getString(c.AConst.Val)
 				if err != nil {
-					logStmtError(conv, n, fmt.Errorf("can't get Arg: %w", err))
+					logStmtError(conv, node, fmt.Errorf("can't get Arg: %w", err))
 					return
 				}
 				loc, err := time.LoadLocation(tz)
 				if err != nil {
-					logStmtError(conv, n, err)
+					logStmtError(conv, node, err)
 					return
 				}
 				conv.SetLocation(loc)
 			default:
-				logStmtError(conv, n, fmt.Errorf("found %s node in Arg", reflect.TypeOf(c)))
+				logStmtError(conv, node, fmt.Errorf("found %s node in Arg", reflect.TypeOf(c)))
 				return
 			}
 		}
 	}
 }
 
-func getTypeMods(conv *internal.Conv, t nodes.List) (l []int64) {
-	for _, x := range t.Items {
-		switch t1 := x.(type) {
-		case nodes.A_Const:
-			switch t2 := t1.Val.(type) {
-			case nodes.Integer:
-				l = append(l, t2.Ival)
+func getTypeMods(conv *internal.Conv, t []*pg_query.Node) (l []int64) {
+	for _, x := range t {
+		switch t1 := x.GetNode().(type) {
+		case *pg_query.Node_AConst:
+			switch t2 := t1.AConst.Val.GetNode().(type) {
+			case *pg_query.Node_Integer:
+				l = append(l, int64(t2.Integer.Ival))
 			default:
-				conv.Unexpected(fmt.Sprintf("Found %s node while processing Typmods", PrNodeType(t1.Val)))
+				conv.Unexpected(fmt.Sprintf("Found %s node while processing Typmods", PrNodeType(t2)))
 			}
 		default:
-			conv.Unexpected(fmt.Sprintf("Found %s node while processing Typmods", PrNodeType(x)))
+			conv.Unexpected(fmt.Sprintf("Found %s node while processing Typmods", PrNodeType(t1)))
 		}
 	}
 	return l
 }
 
-func getArrayBounds(conv *internal.Conv, t nodes.List) (l []int64) {
-	for _, x := range t.Items {
-		switch t := x.(type) {
-		case nodes.Integer:
+func getArrayBounds(conv *internal.Conv, t []*pg_query.Node) (l []int64) {
+	for _, x := range t {
+		switch t := x.GetNode().(type) {
+		case *pg_query.Node_Integer:
 			// 'Ival' provides the array bound (-1 for an array where bound is not specified).
-			l = append(l, t.Ival)
+			l = append(l, int64(t.Integer.Ival))
 		default:
 			conv.Unexpected(fmt.Sprintf("Found %s node while processing ArrayBounds", PrNodeType(x)))
 		}
@@ -460,7 +464,7 @@ func getArrayBounds(conv *internal.Conv, t nodes.List) (l []int64) {
 	return l
 }
 
-func getTypeID(l []nodes.Node) (string, error) {
+func getTypeID(nodes []*pg_query.Node) (string, error) {
 	// The pg_query library generates a pg_catalog schema prefix for most
 	// types, but not for all. Typically "aliases" don't have the prefix.
 	// For example, "boolean" is parsed to ["pg_catalog", "bool"], but "bool" is
@@ -468,12 +472,13 @@ func getTypeID(l []nodes.Node) (string, error) {
 	// is parsed to just ["date"].
 	// For simplicity, we strip off the pg_catalog prefix.
 	var ids []string
-	for _, t := range l {
-		s, err := getString(t)
+	for _, node := range nodes {
+		s, err := getString(node)
 		if err != nil {
 			return "", err
 		}
-		ids = append(ids, s)
+		s = strings.TrimPrefix(s, "str:")
+		ids = append(ids, trimQuote(s))
 	}
 	if len(ids) > 1 && ids[0] == "pg_catalog" {
 		ids = ids[1:]
@@ -483,7 +488,7 @@ func getTypeID(l []nodes.Node) (string, error) {
 
 // getTableName extracts the table name from RangeVar n, and returns
 // the raw extracted name (the PostgreSQL table name).
-func getTableName(conv *internal.Conv, n nodes.RangeVar) (string, error) {
+func getTableName(conv *internal.Conv, n *pg_query.RangeVar) (string, error) {
 	// RangeVar is used to represent table names. It consists of three components:
 	//  Catalogname: database name; either not specified or the current database
 	//  Schemaname: schemas are PostgreSql namepaces; often unspecified; defaults to "public"
@@ -496,21 +501,21 @@ func getTableName(conv *internal.Conv, n nodes.RangeVar) (string, error) {
 	// c) Schemaname is dropped if it is "public".
 	// d) return error if Relname is nil or "".
 	var l []string
-	if n.Catalogname != nil {
-		l = append(l, *n.Catalogname)
+	if n.Catalogname != "" {
+		l = append(l, n.Catalogname)
 	}
-	if n.Schemaname != nil && *n.Schemaname != "public" { // Don't include "public".
-		l = append(l, *n.Schemaname)
+	if n.Schemaname != "" && n.Schemaname != "public" { // Don't include "public".
+		l = append(l, n.Schemaname)
 	}
-	if n.Relname == nil && *n.Relname == "" {
+	if n.Relname == "" {
 		return "", fmt.Errorf("relname is empty: can't build table name")
 	}
-	l = append(l, *n.Relname)
+	l = append(l, n.Relname)
 	return strings.Join(l, "."), nil
 }
 
 type constraint struct {
-	ct   nodes.ConstrType
+	ct   pg_query.ConstrType
 	cols []string
 	name string // Used for FOREIGN KEY or SECONDARY INDEX
 	/* Fields used for FOREIGN KEY constraints: */
@@ -520,58 +525,61 @@ type constraint struct {
 
 // extractConstraints traverses a list of nodes (expecting them to be
 // Constraint nodes), and collects the constraints they represent.
-func extractConstraints(conv *internal.Conv, n nodes.Node, table string, l []nodes.Node) (cs []constraint) {
+func extractConstraints(conv *internal.Conv, n *pg_query.Node, table string, l []*pg_query.Node) (cs []constraint) {
 	for _, i := range l {
-		switch d := i.(type) {
-		case nodes.Constraint:
+		switch d := i.GetNode().(type) {
+		case *pg_query.Node_Constraint:
+			c := d.Constraint
 			var cols, referCols []string
 			var referTable string
 			var conName string
-			switch d.Contype {
-			case nodes.CONSTR_FOREIGN:
-				t, err := getTableName(conv, *d.Pktable)
+			switch c.Contype {
+			case pg_query.ConstrType_CONSTR_FOREIGN:
+				t, err := getTableName(conv, c.Pktable)
 				if err != nil {
-					conv.Unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(n), err.Error()))
-					conv.ErrorInStatement(prNodes([]nodes.Node{n, d}))
+					conv.Unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(d), err.Error()))
+					conv.ErrorInStatement(PrNodeType(d))
 					continue
 				}
 				referTable = t
-				if d.Conname != nil {
-					conName = *d.Conname
+				if c.Conname != "" {
+					conName = c.Conname
 				}
-				for i := range d.FkAttrs.Items {
-					k, err := getString(d.FkAttrs.Items[i])
+				for _, attr := range c.FkAttrs {
+					k, err := getString(attr)
 					if err != nil {
-						conv.Unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(n), err.Error()))
-						conv.ErrorInStatement(prNodes([]nodes.Node{n, d}))
+						conv.Unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(d), err.Error()))
+						conv.ErrorInStatement(PrNodeType(d))
 						continue
 					}
+					// fmt.Printf("k = %+v\n", k)
+					// os.Exit(0)
 					cols = append(cols, k)
 				}
-				for i := range d.PkAttrs.Items {
-					f, err := getString(d.PkAttrs.Items[i])
+				for _, attr := range c.PkAttrs {
+					f, err := getString(attr)
 					if err != nil {
-						conv.Unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(n), err.Error()))
-						conv.ErrorInStatement(prNodes([]nodes.Node{n, d}))
+						conv.Unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(d), err.Error()))
+						conv.ErrorInStatement(PrNodeType(d))
 						continue
 					}
 					referCols = append(referCols, f)
 				}
 			default:
-				if d.Conname != nil {
-					conName = *d.Conname
+				if c.Conname != "" {
+					conName = c.Conname
 				}
-				for _, j := range d.Keys.Items {
-					k, err := getString(j)
+				for _, key := range c.Keys {
+					k, err := getString(key)
 					if err != nil {
-						conv.Unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(n), err.Error()))
-						conv.ErrorInStatement(prNodes([]nodes.Node{n, d}))
+						conv.Unexpected(fmt.Sprintf("Processing %v statement: error processing constraints: %s", reflect.TypeOf(d), err.Error()))
+						conv.ErrorInStatement(fmt.Sprintf("%v.%v",PrNodeType(i),PrNodeType(d)))
 						continue
 					}
 					cols = append(cols, k)
 				}
 			}
-			cs = append(cs, constraint{ct: d.Contype, cols: cols, name: conName, referCols: referCols, referTable: referTable})
+			cs = append(cs, constraint{ct: c.Contype, cols: cols, name: conName, referCols: referCols, referTable: referTable})
 		default:
 			conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node while processing constraints\n", reflect.TypeOf(n), reflect.TypeOf(d)))
 		}
@@ -582,7 +590,7 @@ func extractConstraints(conv *internal.Conv, n nodes.Node, table string, l []nod
 // analyzeColDefConstraints is like extractConstraints, but is specifially for
 // ColDef constraints. These constraints don't specify a key since they
 // are constraints for the column defined by ColDef.
-func analyzeColDefConstraints(conv *internal.Conv, n nodes.Node, table string, l []nodes.Node, pgCol string) (cs []constraint) {
+func analyzeColDefConstraints(conv *internal.Conv, n *pg_query.Node, table string, l []*pg_query.Node, pgCol string) (cs []constraint) {
 	// Do generic constraint processing and then set the keys of each constraint
 	// to {pgCol}.
 	for _, c := range extractConstraints(conv, n, table, l) {
@@ -600,7 +608,7 @@ func analyzeColDefConstraints(conv *internal.Conv, n nodes.Node, table string, l
 func updateSchema(conv *internal.Conv, table string, cs []constraint, stmtType string) {
 	for _, c := range cs {
 		switch c.ct {
-		case nodes.CONSTR_PRIMARY:
+		case pg_query.ConstrType_CONSTR_PRIMARY:
 			ct := conv.SrcSchema[table]
 			checkEmpty(conv, ct.PrimaryKeys, stmtType)
 			ct.PrimaryKeys = toSchemaKeys(conv, table, c.cols) // Drop any previous primary keys.
@@ -609,13 +617,13 @@ func updateSchema(conv *internal.Conv, table string, cs []constraint, stmtType s
 			// In PostgreSQL, the primary key constraint is a combination of
 			// NOT NULL and UNIQUE i.e. primary keys must be NOT NULL.
 			// We preserve PostgreSQL semantics and enforce NOT NULL.
-			updateCols(nodes.CONSTR_NOTNULL, c.cols, ct.ColDefs)
+			updateCols(pg_query.ConstrType_CONSTR_NOTNULL, c.cols, ct.ColDefs)
 			conv.SrcSchema[table] = ct
-		case nodes.CONSTR_FOREIGN:
+		case pg_query.ConstrType_CONSTR_FOREIGN:
 			ct := conv.SrcSchema[table]
 			ct.ForeignKeys = append(ct.ForeignKeys, toForeignKeys(c)) // Append to previous foreign keys.
 			conv.SrcSchema[table] = ct
-		case nodes.CONSTR_UNIQUE:
+		case pg_query.ConstrType_CONSTR_UNIQUE:
 			// Convert unique column constraint in postgres to a corresponding unique index in Spanner since
 			// Spanner doesn't support unique constraints on columns.
 			// TODO: Avoid Spanner-specific schema transformations in this file -- they should only
@@ -634,14 +642,14 @@ func updateSchema(conv *internal.Conv, table string, cs []constraint, stmtType s
 
 // updateCols updates colDef with new constraints. Specifically, we apply
 // 'ct' to each column in colNames.
-func updateCols(ct nodes.ConstrType, colNames []string, colDef map[string]schema.Column) {
+func updateCols(ct pg_query.ConstrType, colNames []string, colDef map[string]schema.Column) {
 	// TODO: add cases for other constraints.
 	for _, c := range colNames {
 		cd := colDef[c]
 		switch ct {
-		case nodes.CONSTR_NOTNULL:
+		case pg_query.ConstrType_CONSTR_NOTNULL:
 			cd.NotNull = true
-		case nodes.CONSTR_DEFAULT:
+		case pg_query.ConstrType_CONSTR_DEFAULT:
 			cd.Ignored.Default = true
 		}
 		colDef[c] = cd
@@ -660,16 +668,23 @@ func toSchemaKeys(conv *internal.Conv, table string, s []string) (l []schema.Key
 }
 
 // toIndexKeys converts a list of PostgreSQL index keys to schema index keys.
-func toIndexKeys(s []nodes.Node) []schema.Key {
-	var l []schema.Key
+func toIndexKeys(conv *internal.Conv, idxName string, s []*pg_query.Node) (l []schema.Key) {
 	for _, k := range s {
-		desc := false
-		if k.(nodes.IndexElem).Ordering == nodes.SORTBY_DESC {
-			desc = true
+		switch e := k.GetNode().(type) {
+		case *pg_query.Node_IndexElem:
+			if e.IndexElem.Name == "" {
+				fmt.Printf("e.IndexElem = %+v\n", e.IndexElem)
+				conv.Unexpected(fmt.Sprintf("Failed to process index %s: empty index column name", idxName))
+				continue
+			}
+			desc := false
+			if e.IndexElem.Ordering == pg_query.SortByDir_SORTBY_DESC {
+				desc = true	
+			}
+			l = append(l, schema.Key{Column: e.IndexElem.Name, Desc: desc})
 		}
-		l = append(l, schema.Key{Column: *k.(nodes.IndexElem).Name, Desc: desc})
 	}
-	return l
+	return
 }
 
 // toForeignKeys converts a string list of PostgreSQL foreign keys to
@@ -684,12 +699,12 @@ func toForeignKeys(fk constraint) (fkey schema.ForeignKey) {
 }
 
 // getCols extracts and returns the column names for an InsertStatement.
-func getCols(conv *internal.Conv, table string, l []nodes.Node) (cols []string, err error) {
-	for _, n := range l {
-		switch r := n.(type) {
-		case nodes.ResTarget:
-			if r.Name != nil {
-				cols = append(cols, *r.Name)
+func getCols(conv *internal.Conv, table string, nodes []*pg_query.Node) (cols []string, err error) {
+	for _, node := range nodes {
+		switch r := node.GetNode().(type) {
+		case *pg_query.Node_ResTarget:
+			if r.ResTarget.Name != "" {
+				cols = append(cols, r.ResTarget.Name)
 			}
 		default:
 			return nil, fmt.Errorf("expecting ResTarget node but got %v node while processing Cols", reflect.TypeOf(r))
@@ -699,40 +714,38 @@ func getCols(conv *internal.Conv, table string, l []nodes.Node) (cols []string, 
 }
 
 // getVals extracts and returns the values for an InsertStatement.
-func getVals(conv *internal.Conv, l [][]nodes.Node, n nodes.InsertStmt) (values []string) {
+func getVals(conv *internal.Conv, l []*pg_query.Node, n *pg_query.InsertStmt) (values []string) {
 	for _, vl := range l {
-		for _, v := range vl {
-			switch c := v.(type) {
-			case nodes.A_Const:
-				switch st := c.Val.(type) {
-				case nodes.String:
-					values = append(values, st.Str)
-				case nodes.Integer:
-					// For uniformity, convert to string and handle everything in
-					// dataConversion(). If performance of insert statements becomes a
-					// high priority (it isn't right now), then consider preserving int64
-					// here to avoid the int64 -> string -> int64 conversions.
-					values = append(values, strconv.FormatInt(st.Ival, 10))
-				default:
-					conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node for A_Const Val", reflect.TypeOf(n), reflect.TypeOf(c.Val)))
-				}
+		switch c := vl.GetNode().(type) {
+		case *pg_query.Node_AConst:
+			switch st := c.AConst.Val.GetNode().(type) {
+			case *pg_query.Node_String_:
+				values = append(values, st.String_.String())
+			case *pg_query.Node_Integer:
+				// For uniformity, convert to string and handle everything in
+				// dataConversion(). If performance of insert statements becomes a
+				// high priority (it isn't right now), then consider preserving int64
+				// here to avoid the int64 -> string -> int64 conversions.
+				values = append(values, strconv.FormatInt(int64(st.Integer.Ival), 10))
 			default:
-				conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node in ValuesList", reflect.TypeOf(n), reflect.TypeOf(v)))
+				conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node for A_Const Val", reflect.TypeOf(n), reflect.TypeOf(st)))
 			}
+		default:
+			conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node in ValuesList", reflect.TypeOf(n), reflect.TypeOf(vl)))
 		}
 	}
 	return values
 }
 
-func logStmtError(conv *internal.Conv, n nodes.Node, err error) {
-	conv.Unexpected(fmt.Sprintf("Processing %v statement: %s", reflect.TypeOf(n), err))
-	conv.ErrorInStatement(prNodes([]nodes.Node{n}))
+func logStmtError(conv *internal.Conv, node interface{}, err error) {
+	conv.Unexpected(fmt.Sprintf("Processing %v statement: %s", reflect.TypeOf(node), err))
+	conv.ErrorInStatement(PrNodeType(node))
 }
 
-func getString(node nodes.Node) (string, error) {
-	switch n := node.(type) {
-	case nodes.String:
-		return n.Str, nil
+func getString(node *pg_query.Node) (string, error) {
+	switch n := node.GetNode().(type) {
+	case *pg_query.Node_String_:
+		return trimQuote(strings.TrimPrefix(n.String_.String(), "str:")), nil
 	default:
 		return "", fmt.Errorf("node %v is a not String node", reflect.TypeOf(node))
 	}
@@ -747,14 +760,16 @@ func checkEmpty(conv *internal.Conv, pkeys []schema.Key, stmtType string) {
 }
 
 // PrNodeType strips off "pg_query." prefix from nodes.Nodes type.
-func PrNodeType(n nodes.Node) string {
-	return strings.TrimPrefix(reflect.TypeOf(n).Name(), "pg_query.")
+func PrNodeType(node interface{}) string {
+	return strings.TrimPrefix(strings.TrimPrefix(reflect.TypeOf(node).String(), "*pg_query."), "Node_")
 }
 
-func prNodes(l []nodes.Node) string {
-	var s []string
-	for _, n := range l {
-		s = append(s, PrNodeType(n))
+func trimQuote(s string) string {
+	if len(s) > 0 && s[0] == '"' {
+		s = s[1:]
 	}
-	return strings.Join(s, ".")
+	if len(s) > 0 && s[len(s)-1] == '"' {
+		s = s[:len(s)-1]
+	}
+	return s
 }

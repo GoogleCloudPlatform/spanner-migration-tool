@@ -17,8 +17,6 @@ package internal
 import (
 	"testing"
 
-	pg_query "github.com/lfittl/pg_query_go"
-	nodes "github.com/lfittl/pg_query_go/nodes"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -107,10 +105,4 @@ func TestAddPrimaryKeys(t *testing.T) {
 		Pks: []ddl.IndexKey{{Col: "synth_id"}}}
 	assert.Equal(t, e, conv.SpSchema["table"])
 	assert.Equal(t, SyntheticPKey{Col: "synth_id", Sequence: 0}, conv.SyntheticPKeys["table"])
-}
-
-func parse(t *testing.T, s string) []nodes.Node {
-	tree, err := pg_query.Parse(s)
-	assert.Nil(t, err, "Failed to parse")
-	return tree.Statements
 }
