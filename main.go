@@ -48,6 +48,22 @@ var (
 	targetDb         = conversion.TARGET_SPANNER
 )
 
+func resetFlagVars() {
+	dbNameOverride = ""
+	instanceOverride = ""
+	filePrefix = ""
+	driverName = conversion.PGDUMP
+	schemaSampleSize = int64(0)
+	verbose = false
+	schemaOnly = false
+	dataOnly = false
+	skipForeignKeys = false
+	sessionJSON = ""
+	webapi = false
+	dumpFilePath = ""
+	targetDb = conversion.TARGET_SPANNER
+}
+
 func init() {
 	flag.StringVar(&dbNameOverride, "dbname", "", "dbname: name to use for Spanner DB")
 	flag.StringVar(&instanceOverride, "instance", "", "instance: Spanner instance to use")
@@ -75,6 +91,7 @@ Sample usage:
 }
 
 func main() {
+	resetFlagVars()
 	flag.Usage = usage
 	flag.Parse()
 
