@@ -72,10 +72,6 @@ func SchemaToSpannerDDL(conv *internal.Conv, toddlImpl BaseToDdl) error {
 			}
 			spColNames = append(spColNames, colName)
 			ty, issues := toddlImpl.ToSpannerType(conv, srcCol.Type)
-			if len(srcCol.Type.ArrayBounds) > 1 {
-				ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-				issues = append(issues, internal.MultiDimensionalArray)
-			}
 			// TODO(hengfeng): add issues for all elements of srcCol.Ignored.
 			if srcCol.Ignored.ForeignKey {
 				issues = append(issues, internal.ForeignKey)
