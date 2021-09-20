@@ -158,7 +158,7 @@ type schemaAndName struct {
 // embedded within it (dbName is part of the DSN passed to sql.Open),
 // but unfortunately there is no way to extract it from sql.DB.
 func getTables(db *sql.DB, baseInfoSchema BaseInfoSchema) ([]schemaAndName, error) {
-	rows, err := db.Query(baseInfoSchema.GetTablesQuery(), baseInfoSchema.GetDbName())
+	rows, err := db.Query(baseInfoSchema.GetTablesQuery())
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get tables: %w", err)
 	}

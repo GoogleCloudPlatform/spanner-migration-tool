@@ -177,7 +177,7 @@ func (pis PostgresInfoSchema) GetIndexesQuery() string {
 			a.attname AS column_name,
 			1 + Array_position(i.indkey, a.attnum) AS column_position,
 			CASE o.OPTION & 1 WHEN 1 THEN 'D' ELSE 'A' END AS order,			
-			CASE WHEN i.indisunique WHEN 'true' THEN 1 ELSE 0 AS is_unique
+			CASE i.indisunique WHEN 'true' THEN 1 ELSE 0 END AS is_unique
 		FROM pg_index AS i
 		JOIN pg_class AS trel
 		ON trel.oid = i.indrelid
