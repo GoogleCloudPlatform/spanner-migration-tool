@@ -31,23 +31,23 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// type BaseInfoSchema interface {
-// 	GetBaseDdl() BaseToDdl
-// 	GetIgnoredSchemas() map[string]bool
-// 	GetTableName(dbName string, tableName string) string
-// 	GetTablesQuery(dbName string) string
-// 	GetColumnsQuery() string
-//  BuildColNameList(srcSchema schema.Table, srcColName []string) string
-// 	GetConstraintsQuery() string
-// 	GetForeignKeysQuery() string
-// 	GetIndexesQuery() string
-// 	ToType(dataType string, columnType string, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type
-// 	// ProcessDataRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, vals []string)
-// }
-
 // Postgres specific implementation for InfoSchema
 type PostgresInfoSchema struct {
-	dbName string
+	DbName string
+}
+
+func GetCurrentDbName(db *sql.DB) (string, error) {
+	var tableSchema string
+	rows, err := db.Query("SELECT current_database();")
+	if err != nil {
+		return tableSchema, fmt.Errorf("couldn't get tables: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		rows.Scan(&tableSchema)
+		return tableSchema, nil
+	}
+	return tableSchema, nil
 }
 
 func (pis PostgresInfoSchema) GetBaseDdl() common.BaseToDdl {
@@ -55,7 +55,7 @@ func (pis PostgresInfoSchema) GetBaseDdl() common.BaseToDdl {
 }
 
 func (pis PostgresInfoSchema) GetDbName() string {
-	return pis.dbName
+	return pis.DbName
 }
 
 func (pis PostgresInfoSchema) GetIgnoredSchemas() map[string]bool {

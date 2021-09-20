@@ -31,6 +31,8 @@ import (
 	driver "github.com/pingcap/tidb/types/parser_driver"
 )
 
+type MysqlDbDump struct{}
+
 // TODO: consider refactoring mysqldump.go and pgdump.go to extract
 // common code-paths/logic into a shared set of utils.
 
@@ -50,12 +52,20 @@ var spatialRegexps = func() []*regexp.Regexp {
 var spatialIndexRegex = regexp.MustCompile("(?i)\\sSPATIAL\\s")
 var spatialSridRegex = regexp.MustCompile("(?i)\\sSRID\\s\\d*")
 
+func (mdd MysqlDbDump) GetBaseDdl() common.BaseToDdl {
+	return MySQLToSpannerDdl{}
+}
+
+func (mdd MysqlDbDump) ProcessDump(conv *internal.Conv, r *internal.Reader) error {
+	return processMySQLDump(conv, r)
+}
+
 // ProcessMySQLDump reads mysqldump data from r and does schema or data conversion,
 // depending on whether conv is configured for schema mode or data mode.
 // In schema mode, ProcessMySQLDump incrementally builds a schema (updating conv).
 // In data mode, ProcessMySQLDump uses this schema to convert MySQL data
 // and writes it to Spanner, using the data sink specified in conv.
-func ProcessMySQLDump(conv *internal.Conv, r *internal.Reader) error {
+func processMySQLDump(conv *internal.Conv, r *internal.Reader) error {
 	for {
 		startLine := r.LineNumber
 		startOffset := r.Offset
@@ -70,10 +80,6 @@ func ProcessMySQLDump(conv *internal.Conv, r *internal.Reader) error {
 		if r.EOF {
 			break
 		}
-	}
-	if conv.SchemaMode() {
-		common.SchemaToSpannerDDL(conv, MySQLToSpannerDdl{})
-		conv.AddPrimaryKeys()
 	}
 	return nil
 }

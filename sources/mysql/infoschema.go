@@ -29,7 +29,7 @@ import (
 
 // MySQL specific implementation for InfoSchema
 type MySQLInfoSchema struct {
-	dbName string
+	DbName string
 }
 
 func (mis MySQLInfoSchema) GetBaseDdl() common.BaseToDdl {
@@ -37,7 +37,7 @@ func (mis MySQLInfoSchema) GetBaseDdl() common.BaseToDdl {
 }
 
 func (mis MySQLInfoSchema) GetDbName() string {
-	return mis.dbName
+	return mis.DbName
 }
 
 func (mis MySQLInfoSchema) GetIgnoredSchemas() map[string]bool {
@@ -74,7 +74,7 @@ func (mis MySQLInfoSchema) GetTableName(dbName string, tableName string, withQuo
 
 func (mis MySQLInfoSchema) GetTablesQuery() string {
 	return fmt.Sprintf("SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE' and table_schema='%s'",
-		mis.dbName)
+		mis.DbName)
 }
 
 func (mis MySQLInfoSchema) GetColumnsQuery() string {

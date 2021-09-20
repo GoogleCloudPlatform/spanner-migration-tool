@@ -16,6 +16,7 @@ package internal
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
@@ -138,7 +139,8 @@ func MakeConv() *Conv {
 			Statement:  make(map[string]*statementStat),
 			Unexpected: make(map[string]int64),
 		},
-		TimezoneOffset: "+00:00", // By default, use +00:00 offset which is equal to UTC timezone
+		TimezoneOffset:     "+00:00", // By default, use +00:00 offset which is equal to UTC timezone
+		SourceTargetDbFlow: os.Getenv("enableSourceTargetFlow") == "true",
 	}
 }
 

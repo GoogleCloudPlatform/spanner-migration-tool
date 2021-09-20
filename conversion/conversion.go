@@ -58,6 +58,8 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/postgres"
+	"github.com/cloudspannerecosystem/harbourbridge/sources"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -880,6 +882,14 @@ func GetBanner(now time.Time, db string) string {
 
 // ProcessDump invokes process dump function from a sql package based on driver selected.
 func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
+	if conv.SourceTargetDbFlow {
+		infoSchema, err := sources.GetDbDump(driver, conv)
+		if err != nil {
+			return err
+		}
+		return common.ProcessDbDump(conv, r, infoSchema)
+	}
+	//TODO Delete below code once source flow tested
 	switch driver {
 	case MYSQLDUMP:
 		return mysql.ProcessMySQLDump(conv, r)
@@ -892,6 +902,14 @@ func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 
 // ProcessInfoSchema invokes process infoschema function from a sql package based on driver selected.
 func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB) error {
+	if conv.SourceTargetDbFlow {
+		infoSchema, err := sources.GetInfoSchema(driver, conv, db)
+		if err != nil {
+			return err
+		}
+		return common.ProcessInfoSchema(conv, db, infoSchema)
+	}
+	//TODO Delete below code once source flow tested
 	switch driver {
 	case MYSQL:
 		return mysql.ProcessInfoSchema(conv, db, os.Getenv("MYSQLDATABASE"))
@@ -904,6 +922,15 @@ func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB) error {
 
 // SetRowStats invokes SetRowStats function from a sql package based on driver selected.
 func SetRowStats(driver string, conv *internal.Conv, db *sql.DB) error {
+	if conv.SourceTargetDbFlow {
+		infoSchema, err := sources.GetInfoSchema(driver, conv, db)
+		if err != nil {
+			return err
+		}
+		common.SetRowStats(conv, db, infoSchema)
+		return nil
+	}
+	//TODO Delete below code once source flow tested
 	switch driver {
 	case MYSQL:
 		mysql.SetRowStats(conv, db, os.Getenv("MYSQLDATABASE"))
@@ -917,6 +944,15 @@ func SetRowStats(driver string, conv *internal.Conv, db *sql.DB) error {
 
 // ProcessSQLData invokes ProcessSQLData function from a sql package based on driver selected.
 func ProcessSQLData(driver string, conv *internal.Conv, db *sql.DB) error {
+	if conv.SourceTargetDbFlow {
+		infoSchema, err := sources.GetInfoSchema(driver, conv, db)
+		if err != nil {
+			return err
+		}
+		common.ProcessSQLData(conv, db, infoSchema)
+		return nil
+	}
+	//TODO Delete below code once source flow tested
 	switch driver {
 	case MYSQL:
 		mysql.ProcessSQLData(conv, db, os.Getenv("MYSQLDATABASE"))
