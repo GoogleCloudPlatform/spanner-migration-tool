@@ -100,11 +100,11 @@ func TestProcessInfoSchema(t *testing.T) {
 			query: "SELECT (.+) FROM pg_index (.+)",
 			args:  []driver.Value{"public", "cart"},
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
-			rows: [][]driver.Value{{"index1", "userid", 1, "false", "ASC"},
-				{"index2", "userid", 1, "true", "ASC"},
-				{"index2", "productid", 2, "true", "DESC"},
-				{"index3", "productid", 1, "true", "DESC"},
-				{"index3", "userid", 2, "true", "ASC"},
+			rows: [][]driver.Value{{"index1", "userid", 1, "A", 0},
+				{"index2", "userid", 1, "A", 1},
+				{"index2", "productid", 2, "D", 1},
+				{"index3", "productid", 1, "D", 1},
+				{"index3", "userid", 2, "A", 1},
 			},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
@@ -326,7 +326,7 @@ func TestProcessSqlData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	common.ProcessSQLData(conv, db, PostgresInfoSchema{"test"})
+	common.ProcessSQLData(conv, db, PostgresInfoSchema{"public"})
 
 	assert.Equal(t,
 		[]spannerData{
@@ -444,7 +444,7 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM pg_index (.+)",
 			args:  []driver.Value{"public", "test"},
-			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
+			cols:  []string{"index_name", "column_name", "column_position", "order", "is_unique"},
 		},
 		// Note: go-sqlmock mocks specify an ordered sequence
 		// of queries and results.  This (repeated) entry is
@@ -464,7 +464,7 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
-	err := common.ProcessInfoSchema(conv, db, PostgresInfoSchema{"test"})
+	err := common.ProcessInfoSchema(conv, db, PostgresInfoSchema{"public"})
 	assert.Nil(t, err)
 	conv.SetDataMode()
 	var rows []spannerData
@@ -472,7 +472,7 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	common.ProcessSQLData(conv, db, PostgresInfoSchema{"test"})
+	common.ProcessSQLData(conv, db, PostgresInfoSchema{"public"})
 	assert.Equal(t, []spannerData{
 		{table: "test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), int64(0)}},
 		{table: "test", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), int64(-9223372036854775808)}}},

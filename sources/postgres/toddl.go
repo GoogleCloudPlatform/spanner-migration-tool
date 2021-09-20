@@ -37,6 +37,7 @@ func (psc PostgresToSpannerDdl) ToSpannerType(conv *internal.Conv, columnType sc
 			ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 			issues = append(issues, internal.MultiDimensionalArray)
 		}
+		ty.IsArray = len(columnType.ArrayBounds) == 1
 	}
 	return ty, issues
 }

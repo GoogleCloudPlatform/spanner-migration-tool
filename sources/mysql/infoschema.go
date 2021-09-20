@@ -64,12 +64,16 @@ func (mis MySQLInfoSchema) BuildColNameList(srcSchema schema.Table, srcColName [
 	return colList[:len(colList)-1]
 }
 
-func (mis MySQLInfoSchema) GetTableName(dbName string, tableName string) string {
-	return fmt.Sprintf("`%s`.`%s`", dbName, tableName)
+func (mis MySQLInfoSchema) GetTableName(dbName string, tableName string, withQuotes bool) string {
+	if withQuotes {
+		return fmt.Sprintf("`%s`.`%s`", dbName, tableName)
+	} else {
+		return fmt.Sprintf("%s.%s", dbName, tableName)
+	}
 }
 
 func (mis MySQLInfoSchema) GetTablesQuery() string {
-	return fmt.Sprintf("SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE' and table_schema=`%s`",
+	return fmt.Sprintf("SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE' and table_schema='%s'",
 		mis.dbName)
 }
 
@@ -77,6 +81,60 @@ func (mis MySQLInfoSchema) GetColumnsQuery() string {
 	return `SELECT c.column_name, c.data_type, c.column_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, c.extra
 	FROM information_schema.COLUMNS c
 	where table_schema = ? and table_name = ? ORDER BY c.ordinal_position;`
+}
+
+func (mis MySQLInfoSchema) ProcessColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string) {
+	colDefs := make(map[string]schema.Column)
+	var colNames []string
+	var colName, dataType, isNullable, columnType string
+	var colDefault, colExtra sql.NullString
+	var charMaxLen, numericPrecision, numericScale sql.NullInt64
+	for cols.Next() {
+		err := cols.Scan(&colName, &dataType, &columnType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &colExtra)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+			continue
+		}
+		ignored := schema.Ignored{}
+		for _, c := range constraints[colName] {
+			// c can be UNIQUE, PRIMARY KEY, FOREIGN KEY or CHECK
+			// We've already filtered out PRIMARY KEY.
+			switch c {
+			case "CHECK":
+				ignored.Check = true
+			case "FOREIGN KEY", "PRIMARY KEY", "UNIQUE":
+				// Nothing to do here -- these are all handled elsewhere.
+			}
+		}
+		ignored.Default = colDefault.Valid
+		if colExtra.String == "auto_increment" {
+			ignored.AutoIncrement = true
+		}
+		c := schema.Column{
+			Name:    colName,
+			Type:    toType(dataType, columnType, charMaxLen, numericPrecision, numericScale),
+			NotNull: common.ToNotNull(conv, isNullable),
+			Ignored: ignored,
+		}
+		colDefs[colName] = c
+		colNames = append(colNames, colName)
+	}
+	return colDefs, colNames
+}
+
+func toType(dataType string, columnType string, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {
+	switch {
+	case dataType == "set":
+		return schema.Type{Name: dataType, ArrayBounds: []int64{-1}}
+	case charLen.Valid:
+		return schema.Type{Name: dataType, Mods: []int64{charLen.Int64}}
+	case dataType == "decimal" && numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0:
+		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
+	case dataType == "decimal" && numericPrecision.Valid:
+		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
+	default:
+		return schema.Type{Name: dataType}
+	}
 }
 
 func (mis MySQLInfoSchema) GetConstraintsQuery() string {
@@ -105,27 +163,12 @@ func (mis MySQLInfoSchema) GetForeignKeysQuery() string {
 }
 
 func (mis MySQLInfoSchema) GetIndexesQuery() string {
-	return `SELECT DISTINCT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION,NOT NON_UNIQUE AS IS_UNIQUE
+	return `SELECT DISTINCT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,CASE WHEN COLLATION IS NULL THEN "A" ELSE COLLATION END,NOT NON_UNIQUE AS IS_UNIQUE
 		FROM INFORMATION_SCHEMA.STATISTICS 
 		WHERE TABLE_SCHEMA = ?
 			AND TABLE_NAME = ?
 			AND INDEX_NAME != 'PRIMARY' 
 		ORDER BY INDEX_NAME, SEQ_IN_INDEX;`
-}
-
-func (mis MySQLInfoSchema) ToType(dataType string, columnType string, colExtra sql.NullString, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {
-	switch {
-	case dataType == "set":
-		return schema.Type{Name: dataType, ArrayBounds: []int64{-1}}
-	case charLen.Valid:
-		return schema.Type{Name: dataType, Mods: []int64{charLen.Int64}}
-	case dataType == "decimal" && numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0:
-		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
-	case dataType == "decimal" && numericPrecision.Valid:
-		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
-	default:
-		return schema.Type{Name: dataType}
-	}
 }
 
 func (mis MySQLInfoSchema) ProcessDataRows(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, rows *sql.Rows) {

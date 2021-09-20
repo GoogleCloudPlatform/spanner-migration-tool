@@ -34,6 +34,7 @@ func (msc MySQLToSpannerDdl) ToSpannerType(conv *internal.Conv, columnType schem
 		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 		issues = append(issues, internal.MultiDimensionalArray)
 	}
+	ty.IsArray = len(columnType.ArrayBounds) == 1
 	return ty, issues
 }
 

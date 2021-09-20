@@ -67,11 +67,18 @@ func (pis PostgresInfoSchema) GetIgnoredSchemas() map[string]bool {
 	return ignored
 }
 
-func (pis PostgresInfoSchema) GetTableName(dbName string, tableName string) string {
-	if dbName == "public" { // Drop 'public' prefix.
-		return tableName
+func (pis PostgresInfoSchema) GetTableName(dbName string, tableName string, withQuotes bool) string {
+	if withQuotes {
+		// if dbName == "public" { // Drop 'public' prefix.
+		// 	return fmt.Sprintf("\"%s\"", tableName)
+		// }
+		return fmt.Sprintf(`"%s"."%s"`, dbName, tableName)
+	} else {
+		if dbName == "public" { // Drop 'public' prefix.
+			return tableName
+		}
+		return fmt.Sprintf("%s.%s", dbName, tableName)
 	}
-	return fmt.Sprintf("%s.%s", dbName, tableName)
 }
 
 func (pis PostgresInfoSchema) GetTablesQuery() string {
@@ -84,6 +91,43 @@ func (pis PostgresInfoSchema) GetColumnsQuery() string {
 	   ON ((c.table_catalog, c.table_schema, c.table_name, 'TABLE', c.dtd_identifier)
 		   = (e.object_catalog, e.object_schema, e.object_name, e.object_type, e.collection_type_identifier))
 	where table_schema = $1 and table_name = $2 ORDER BY c.ordinal_position;`
+}
+
+func (pis PostgresInfoSchema) ProcessColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string) {
+	colDefs := make(map[string]schema.Column)
+	var colNames []string
+	var colName, dataType, isNullable string
+	var colDefault, elementDataType sql.NullString
+	var charMaxLen, numericPrecision, numericScale sql.NullInt64
+	for cols.Next() {
+		err := cols.Scan(&colName, &dataType, &elementDataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
+			continue
+		}
+		ignored := schema.Ignored{}
+		for _, c := range constraints[colName] {
+			// c can be UNIQUE, PRIMARY KEY, FOREIGN KEY,
+			// or CHECK (based on msql, sql server, postgres docs).
+			// We've already filtered out PRIMARY KEY.
+			switch c {
+			case "CHECK":
+				ignored.Check = true
+			case "FOREIGN KEY", "PRIMARY KEY", "UNIQUE":
+				// Nothing to do here -- these are handled elsewhere.
+			}
+		}
+		ignored.Default = colDefault.Valid
+		c := schema.Column{
+			Name:    colName,
+			Type:    toType(dataType, elementDataType, charMaxLen, numericPrecision, numericScale),
+			NotNull: common.ToNotNull(conv, isNullable),
+			Ignored: ignored,
+		}
+		colDefs[colName] = c
+		colNames = append(colNames, colName)
+	}
+	return colDefs, colNames
 }
 
 func (pis PostgresInfoSchema) BuildColNameList(srcSchema schema.Table, srcColName []string) string {
@@ -132,8 +176,8 @@ func (pis PostgresInfoSchema) GetIndexesQuery() string {
 			irel.relname AS index_name,
 			a.attname AS column_name,
 			1 + Array_position(i.indkey, a.attnum) AS column_position,
-			CASE WHEN i.indisunique THEN 1 ELSE 0 AS is_unique,
-			CASE o.OPTION & 1 WHEN 1 THEN 'D' ELSE 'A' END AS order
+			CASE o.OPTION & 1 WHEN 1 THEN 'D' ELSE 'A' END AS order,			
+			CASE WHEN i.indisunique WHEN 'true' THEN 1 ELSE 0 AS is_unique
 		FROM pg_index AS i
 		JOIN pg_class AS trel
 		ON trel.oid = i.indrelid
@@ -157,23 +201,6 @@ func (pis PostgresInfoSchema) GetIndexesQuery() string {
 				array_position(i.indkey, a.attnum),
 				o.OPTION,i.indisunique
 		ORDER BY irel.relname, array_position(i.indkey, a.attnum);`
-}
-
-func (pis PostgresInfoSchema) ToType(dataType string, columnType string, elementDataType sql.NullString, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {
-	switch {
-	case dataType == "ARRAY" && elementDataType.Valid:
-		return schema.Type{Name: elementDataType.String, ArrayBounds: []int64{-1}}
-		// TODO: handle error cases.
-		// TODO: handle case of multiple array bounds.
-	case charLen.Valid:
-		return schema.Type{Name: dataType, Mods: []int64{charLen.Int64}}
-	case dataType == "numeric" && numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0:
-		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
-	case dataType == "numeric" && numericPrecision.Valid:
-		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
-	default:
-		return schema.Type{Name: dataType}
-	}
 }
 
 func (pis PostgresInfoSchema) ProcessDataRows(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, rows *sql.Rows) {

@@ -30,14 +30,14 @@ type BaseInfoSchema interface {
 	GetBaseDdl() BaseToDdl
 	GetDbName() string
 	GetIgnoredSchemas() map[string]bool
-	GetTableName(dbName string, tableName string) string
+	GetTableName(dbName string, tableName string, withQuotes bool) string
 	GetTablesQuery() string
 	GetColumnsQuery() string
+	ProcessColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string)
 	BuildColNameList(srcSchema schema.Table, srcColName []string) string
 	GetConstraintsQuery() string
 	GetForeignKeysQuery() string
 	GetIndexesQuery() string
-	ToType(dataType string, columnType string, colExtra sql.NullString, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type
 	ProcessDataRows(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, rows *sql.Rows)
 }
 
@@ -76,7 +76,7 @@ func ProcessSQLData(conv *internal.Conv, db *sql.DB, baseInfoSchema BaseInfoSche
 		return
 	}
 	for _, t := range tables {
-		srcTable := baseInfoSchema.GetTableName(baseInfoSchema.GetDbName(), t.name)
+		srcTable := baseInfoSchema.GetTableName(baseInfoSchema.GetDbName(), t.name, false)
 		srcSchema, ok := conv.SrcSchema[srcTable]
 		if !ok {
 			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
@@ -92,7 +92,7 @@ func ProcessSQLData(conv *internal.Conv, db *sql.DB, baseInfoSchema BaseInfoSche
 		// MySQL schema and name can be arbitrary strings.
 		// Ideally we would pass schema/name as a query parameter,
 		// but MySQL doesn't support this. So we quote it instead.
-		q := fmt.Sprintf("SELECT %s FROM `%s`.`%s`;", colNameList, t.schema, t.name)
+		q := fmt.Sprintf("SELECT %s FROM %s;", colNameList, baseInfoSchema.GetTableName(baseInfoSchema.GetDbName(), t.name, true))
 		rows, err := db.Query(q)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", t.name, err))
@@ -128,7 +128,7 @@ func SetRowStats(conv *internal.Conv, db *sql.DB, baseInfoSchema BaseInfoSchema)
 		return
 	}
 	for _, t := range tables {
-		q := fmt.Sprintf("SELECT COUNT(*) FROM %s;", baseInfoSchema.GetTableName(t.schema, t.name))
+		q := fmt.Sprintf("SELECT COUNT(*) FROM %s;", baseInfoSchema.GetTableName(t.schema, t.name, true))
 		tableName := t.name
 		rows, err := db.Query(q)
 		if err != nil {
@@ -192,8 +192,8 @@ func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName, baseInfo
 	if err != nil {
 		return fmt.Errorf("couldn't get indexes for table %s.%s: %s", table.schema, table.name, err)
 	}
-	colDefs, colNames := processColumns(conv, cols, constraints, baseInfoSchema)
-	name := baseInfoSchema.GetTableName(table.schema, table.name)
+	colDefs, colNames := baseInfoSchema.ProcessColumns(conv, cols, constraints)
+	name := baseInfoSchema.GetTableName(table.schema, table.name, false)
 	var schemaPKeys []schema.Key
 	for _, k := range primaryKeys {
 		schemaPKeys = append(schemaPKeys, schema.Key{Column: k})
@@ -206,45 +206,6 @@ func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName, baseInfo
 		Indexes:     indexes,
 		ForeignKeys: foreignKeys}
 	return nil
-}
-
-func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string, baseInfoSchema BaseInfoSchema) (map[string]schema.Column, []string) {
-	colDefs := make(map[string]schema.Column)
-	var colNames []string
-	var colName, dataType, isNullable, columnType string
-	var colDefault, colExtra sql.NullString
-	var charMaxLen, numericPrecision, numericScale sql.NullInt64
-	for cols.Next() {
-		err := cols.Scan(&colName, &dataType, &columnType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &colExtra)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
-			continue
-		}
-		ignored := schema.Ignored{}
-		for _, c := range constraints[colName] {
-			// c can be UNIQUE, PRIMARY KEY, FOREIGN KEY or CHECK
-			// We've already filtered out PRIMARY KEY.
-			switch c {
-			case "CHECK":
-				ignored.Check = true
-			case "FOREIGN KEY", "PRIMARY KEY", "UNIQUE":
-				// Nothing to do here -- these are all handled elsewhere.
-			}
-		}
-		ignored.Default = colDefault.Valid
-		if colExtra.String == "auto_increment" {
-			ignored.AutoIncrement = true
-		}
-		c := schema.Column{
-			Name:    colName,
-			Type:    baseInfoSchema.ToType(dataType, columnType, colExtra, charMaxLen, numericPrecision, numericScale),
-			NotNull: toNotNull(conv, isNullable),
-			Ignored: ignored,
-		}
-		colDefs[colName] = c
-		colNames = append(colNames, colName)
-	}
-	return colDefs, colNames
 }
 
 // getConstraints returns a list of primary keys and by-column map of
@@ -308,7 +269,7 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName, baseIn
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-		tableName := baseInfoSchema.GetTableName(refSchema, refTable)
+		tableName := baseInfoSchema.GetTableName(refSchema, refTable, false)
 		if _, found := fKeys[fKeyName]; found {
 			fk := fKeys[fKeyName]
 			fk.cols = append(fk.cols, col)
@@ -338,13 +299,12 @@ func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName, baseInfoSc
 		return nil, err
 	}
 	defer rows.Close()
-	var name, column, sequence, isUnique string
-	var collation sql.NullString
+	var name, column, sequence, order, isUnique string
 	indexMap := make(map[string]schema.Index)
 	var indexNames []string
 	var indexes []schema.Index
 	for rows.Next() {
-		if err := rows.Scan(&name, &column, &sequence, &collation, &isUnique); err != nil {
+		if err := rows.Scan(&name, &column, &sequence, &order, &isUnique); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
@@ -353,22 +313,11 @@ func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName, baseInfoSc
 			indexMap[name] = schema.Index{Name: name, Unique: (isUnique == "1")}
 		}
 		index := indexMap[name]
-		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation.Valid && collation.String == "D")})
+		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (order == "D")})
 		indexMap[name] = index
 	}
 	for _, k := range indexNames {
 		indexes = append(indexes, indexMap[k])
 	}
 	return indexes, nil
-}
-
-func toNotNull(conv *internal.Conv, isNullable string) bool {
-	switch isNullable {
-	case "YES":
-		return false
-	case "NO":
-		return true
-	}
-	conv.Unexpected(fmt.Sprintf("isNullable column has unknown value: %s", isNullable))
-	return false
 }
