@@ -39,7 +39,7 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 
 		{
 			query: "SELECT (.+) FROM information_schema.tables where table_type = 'BASE TABLE'  and (.+)",
-			args:  []driver.Value{"test"},
+			args:  []driver.Value{},
 			cols:  []string{"table_schema", "table_name"},
 			rows: [][]driver.Value{
 				{"test", "user"},
@@ -284,7 +284,7 @@ func TestProcessSQLData(t *testing.T) {
 	ms := []mockSpec{
 		{
 			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE' and (.+)",
-			args:  []driver.Value{"test"},
+			args:  []driver.Value{},
 			cols:  []string{"table_schema", "table_name"},
 			rows:  [][]driver.Value{{"test", "te st"}},
 		}, {
@@ -342,7 +342,7 @@ func TestProcessSQLData_MultiCol(t *testing.T) {
 	ms := []mockSpec{
 		{
 			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE' and (.+)",
-			args:  []driver.Value{"test"},
+			args:  []driver.Value{},
 			cols:  []string{"table_schema", "table_name"},
 			rows:  [][]driver.Value{{"test", "test"}},
 		}, {
@@ -374,7 +374,7 @@ func TestProcessSQLData_MultiCol(t *testing.T) {
 		// the set of tables via a SQL query.
 		{
 			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE' and (.+)",
-			args:  []driver.Value{"test"},
+			args:  []driver.Value{},
 			cols:  []string{"table_schema", "table_name"},
 			rows:  [][]driver.Value{{"test", "test"}},
 		}, {
@@ -424,7 +424,7 @@ func TestSetRowStats(t *testing.T) {
 	ms := []mockSpec{
 		{
 			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE' and (.+)",
-			args:  []driver.Value{"test"},
+			args:  []driver.Value{},
 			cols:  []string{"table_schema", "table_name"},
 			rows:  [][]driver.Value{{"test", "test1"}, {"test", "test2"}},
 		}, {
