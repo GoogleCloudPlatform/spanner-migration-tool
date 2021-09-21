@@ -43,6 +43,16 @@ INSERT INTO `cart` VALUES ('901e-a6cfc2b502dc','abc-123',1,'2020-07-20 05:10:26'
 /*!40000 ALTER TABLE `cart` ENABLE KEYS */;
 UNLOCK TABLES;
 
+DROP TABLE IF EXISTS `CART`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `CART` (
+  `user_id` varchar(20) NOT NULL,
+  `product_id` varchar(20) NOT NULL,
+  PRIMARY KEY (`user_id`,`product_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
 --
 -- Table structure for table `products`
 --
