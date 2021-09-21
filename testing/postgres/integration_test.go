@@ -165,6 +165,29 @@ func TestIntegration_PGDUMP_Command(t *testing.T) {
 	checkResults(t, dbPath)
 }
 
+func TestIntegration_PGDUMP_SchemaCommand(t *testing.T) {
+	t.Parallel()
+
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	dataFilepath := "../../test_data/pg_dump.test.out"
+	// Be aware that when testing with the command, the time `now` might be
+	// different between file prefixes and the contents in the files. This
+	// is because file prefixes use `now` from here (the test function) and
+	// the generated time in the files uses a `now` inside the command, which
+	// can be different.
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge schema < %s", dataFilepath))
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("stdout: %q\n", out.String())
+		fmt.Printf("stderr: %q\n", stderr.String())
+		t.Fatal(err)
+	}
+}
+
 func TestIntegration_POSTGRES_SimpleUse(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
@@ -215,6 +238,24 @@ func TestIntegration_POSTGRES_Command(t *testing.T) {
 	defer dropDatabase(t, dbPath)
 
 	checkResults(t, dbPath)
+}
+
+func TestIntegration_POSTGRES_SchemaCommand(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	t.Parallel()
+
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge schema -driver %s", conversion.POSTGRES))
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("stdout: %q\n", out.String())
+		fmt.Printf("stderr: %q\n", stderr.String())
+		t.Fatal(err)
+	}
 }
 
 func checkResults(t *testing.T, dbPath string) {

@@ -16,12 +16,12 @@ import (
 
 // SchemaCmd struct with flags.
 type SchemaCmd struct {
-	prompt       bool
+	prompt           bool
 	filePrefix       string
-	driverName string
-	schemaSampleSize  int64
-	dumpFilePath string
-	targetDb string
+	driverName       string
+	schemaSampleSize int64
+	dumpFilePath     string
+	targetDb         string
 }
 
 // Name returns the name of operation.
@@ -58,15 +58,24 @@ func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
 func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	input := loadInput(cmd.dumpFilePath)
 	ioHelper := &conversion.IOStreams{In: input, Out: os.Stdout}
+	if ioHelper.SeekableIn != nil {
+		defer ioHelper.In.Close()
+	}
+
+	// If filePrefix not explicitly set, use generated dbName.
+	if cmd.filePrefix == "" {
+		dbName, err := conversion.GetDatabaseName(cmd.driverName, time.Now())
+		if err != nil {
+			log.Fatalf("can't generate database name for prefix: %v\n", err)
+		}
+		cmd.filePrefix = dbName + "."
+	}
 
 	var conv *internal.Conv
 	var err error
 	conv, err = conversion.SchemaConv(cmd.driverName, cmd.targetDb, ioHelper, cmd.schemaSampleSize)
 	if err != nil {
 		log.Fatal(err)
-	}
-	if ioHelper.SeekableIn != nil {
-		defer ioHelper.In.Close()
 	}
 
 	now := time.Now()

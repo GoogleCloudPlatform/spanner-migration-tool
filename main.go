@@ -87,15 +87,16 @@ func main() {
 	defer conversion.Close(lf)
 
 	// TODO: Remove this check and always run HB in subcommands mode once
-	// global command line mode is deprecated.
-	if (os.Args[1] != "" && !strings.HasPrefix(os.Args[1], "-")) {
+	// global command line mode is deprecated. We can also enable support for
+	// top-level flags in subcommand then.
+	if os.Args[1] != "" && !strings.HasPrefix(os.Args[1], "-") {
 		// Using HB CLI in subcommand mode.
 		subcommands.Register(subcommands.HelpCommand(), "")
 		subcommands.Register(subcommands.CommandsCommand(), "")
 		subcommands.Register(&cli.SchemaCmd{}, "")
 		flag.Parse()
 		os.Exit(int(subcommands.Execute(ctx)))
-	} 
+	}
 	// Running HB CLI in global command line mode.
 	setupGlobalFlags()
 	flag.Usage = usage
@@ -115,7 +116,7 @@ func main() {
 		panic(fmt.Errorf("when using data-only mode, the session must specify the session file to use"))
 	}
 	if schemaOnly && skipForeignKeys {
-		panic(fmt.Errorf("can't use both schema-only and skip-foreign-keys at once. Foreign Key creation can only be skipped when data migration takes place."))
+		panic(fmt.Errorf("can't use both schema-only and skip-foreign-keys at once, foreign Key creation can only be skipped when data migration takes place"))
 	}
 
 	if targetDb == conversion.TARGET_EXPERIMENTAL_POSTGRES {
