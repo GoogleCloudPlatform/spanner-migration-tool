@@ -94,7 +94,7 @@ func dropDatabase(t *testing.T, dbPath string) {
 	}
 }
 
-func prepareTmpDir(t *testing.T) string {
+func prepareIntegrationTest(t *testing.T) string {
 	tmpdir, err := ioutil.TempDir(".", "int-test-")
 	if err != nil {
 		log.Fatal(err)
@@ -106,7 +106,7 @@ func TestIntegration_MYSQLDUMP_SimpleUse(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
 
-	tmpdir := prepareTmpDir(t)
+	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
@@ -132,7 +132,7 @@ func TestIntegration_MYSQL_SimpleUse(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
 
-	tmpdir := prepareTmpDir(t)
+	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
@@ -150,7 +150,7 @@ func TestIntegration_MYSQL_SimpleUse(t *testing.T) {
 	checkResults(t, dbPath)
 }
 
-func schemaOnlyTest(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string) {
+func Integration_MySQLDUMP_SchemaOnly(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string) {
 	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -driver mysqldump -schema-only -dbname %s -prefix %s < %s", dbName, filePrefix, dumpFilePath))
 	var out, stderr bytes.Buffer
 	cmd.Stdout = &out
@@ -174,7 +174,7 @@ func schemaOnlyTest(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath 
 	}
 }
 
-func dataOnlyTest(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dumpFilePath string) {
+func Integration_MySQLDUMP_DataOnly(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dumpFilePath string) {
 	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -driver mysqldump -data-only -instance %s -dbname %s -prefix %s -session %s < %s", instanceID, dbName, filePrefix, sessionFile, dumpFilePath))
 	var out, stderr bytes.Buffer
 	cmd.Stdout = &out
@@ -191,19 +191,19 @@ func dataOnlyTest(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dumpFile
 	checkResults(t, dbURI)
 }
 
-func TestMainApp(t *testing.T) {
-	tmpdir := prepareTmpDir(t)
+func TestIntegration_MySQLDUMP_SchemaOnly_DataOnly(t *testing.T) {
+	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
 	dbName := "test-individual-flows"
 	dumpFilePath := "../../test_data/mysqldump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 	sessionFile := fmt.Sprintf("%ssession.json", filePrefix)
-	schemaOnlyTest(t, dbName, filePrefix, sessionFile, dumpFilePath)
+	Integration_MySQLDUMP_SchemaOnly(t, dbName, filePrefix, sessionFile, dumpFilePath)
 	// Skip data only test if emulator is not running.
 	onlyRunForEmulatorTest(t)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	dataOnlyTest(t, dbName, dbURI, filePrefix, sessionFile, dumpFilePath)
+	Integration_MySQLDUMP_DataOnly(t, dbName, dbURI, filePrefix, sessionFile, dumpFilePath)
 }
 
 func checkResults(t *testing.T, dbPath string) {
