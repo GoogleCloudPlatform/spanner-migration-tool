@@ -17,7 +17,6 @@ package dynamodb
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"unicode"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -29,18 +28,18 @@ import (
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
 func schemaToDDL(conv *internal.Conv) error {
-	// Tracks Spanner names that have been used for indexes. We use this to ensure we generate unique names when
-	// we map from DynamoDB to Spanner since we want Spanner table names and index names to be distinct.
-	usedNames := make(map[string]bool)
-	// We need to pre-populate usedNames with Spanner table names to handle collisions
-	// with table names, foreign key names and index names.
+	// conv.UsedNames tracks Spanner names that have been used for table names, foreign key constraints
+	// and indexes. We use this to ensure we generate unique names when
+	// we map from MySQL to Spanner since Spanner requires all these names to be
+	// distinct and should not differ only in case.
+	// We need to pre-populate conv.UsedNames with Spanner table
+	// names to handle collision with foreign key names and index names.
 	for _, srcTable := range conv.SrcSchema {
-		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
+		_, err := internal.GetSpannerTable(conv, srcTable.Name)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
 			continue
 		}
-		usedNames[strings.ToLower(spTableName)] = true
 	}
 	for _, srcTable := range conv.SrcSchema {
 		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
@@ -78,7 +77,7 @@ func schemaToDDL(conv *internal.Conv) error {
 			ColNames: spColNames,
 			ColDefs:  spColDef,
 			Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
-			Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes, usedNames),
+			Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes),
 			Comment:  comment}
 	}
 	return nil
@@ -132,7 +131,7 @@ func cvtPrimaryKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Key) 
 	return spKeys
 }
 
-func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcIndexes []schema.Index, usedNames map[string]bool) []ddl.CreateIndex {
+func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcIndexes []schema.Index) []ddl.CreateIndex {
 	var spIndexes []ddl.CreateIndex
 	for _, srcIndex := range srcIndexes {
 		var spKeys []ddl.IndexKey
@@ -144,7 +143,7 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 			}
 			spKeys = append(spKeys, ddl.IndexKey{Col: spCol, Desc: k.Desc})
 		}
-		spIndexName := internal.ToSpannerIndexName(srcIndex.Name, usedNames)
+		spIndexName := internal.ToSpannerIndexName(conv, srcIndex.Name)
 		spIndex := ddl.CreateIndex{
 			Name:   spIndexName,
 			Table:  spTableName,

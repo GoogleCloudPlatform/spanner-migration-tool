@@ -17,7 +17,6 @@ package mysql
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"unicode"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -33,24 +32,18 @@ import (
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
 func schemaToDDL(conv *internal.Conv) error {
-	// Tracks Spanner names that have been used for foreign key constraints
+	// conv.UsedNames tracks Spanner names that have been used for table names, foreign key constraints
 	// and indexes. We use this to ensure we generate unique names when
-	// we map from MySQL to Spanner since Spanner requires all foreign
-	// key and index names to be distinct (you can't use the same name
-	// for a foreign key constraint and an index).
-	usedNames := make(map[string]bool)
-	// As Spanner uses same namespace for table names, foreign key constraint
-	// names and index names, we need to pre-populate usedNames with Spanner table
+	// we map from MySQL to Spanner since Spanner requires all these names to be
+	// distinct and should not differ only in case.
+	// We need to pre-populate conv.UsedNames with Spanner table
 	// names to handle collision with foreign key names and index names.
 	for _, srcTable := range conv.SrcSchema {
-		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
+		_, err := internal.GetSpannerTable(conv, srcTable.Name)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
 			continue
 		}
-		// TODO: MySQL allows table names that differ only in case while spanner does not. We need to check
-		// lower cased name collisions for table names as well.
-		usedNames[strings.ToLower(spTableName)] = true
 	}
 	for _, srcTable := range conv.SrcSchema {
 		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
@@ -102,8 +95,8 @@ func schemaToDDL(conv *internal.Conv) error {
 			ColNames: spColNames,
 			ColDefs:  spColDef,
 			Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
-			Fks:      cvtForeignKeys(conv, srcTable.Name, srcTable.ForeignKeys, usedNames),
-			Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes, usedNames),
+			Fks:      cvtForeignKeys(conv, srcTable.Name, srcTable.ForeignKeys),
+			Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes),
 			Comment:  comment}
 	}
 	internal.ResolveRefs(conv)
@@ -193,7 +186,7 @@ func cvtPrimaryKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Key) 
 	return spKeys
 }
 
-func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.ForeignKey, usedNames map[string]bool) []ddl.Foreignkey {
+func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.ForeignKey) []ddl.Foreignkey {
 	var spKeys []ddl.Foreignkey
 	for _, key := range srcKeys {
 		if len(key.Columns) != len(key.ReferColumns) {
@@ -216,7 +209,7 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 			spCols = append(spCols, spCol)
 			spReferCols = append(spReferCols, spReferCol)
 		}
-		spKeyName := internal.ToSpannerForeignKey(key.Name, usedNames)
+		spKeyName := internal.ToSpannerForeignKey(conv, key.Name)
 		spKey := ddl.Foreignkey{
 			Name:         spKeyName,
 			Columns:      spCols,
@@ -227,7 +220,7 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 	return spKeys
 }
 
-func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcIndexes []schema.Index, usedNames map[string]bool) []ddl.CreateIndex {
+func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcIndexes []schema.Index) []ddl.CreateIndex {
 	var spIndexes []ddl.CreateIndex
 	for _, srcIndex := range srcIndexes {
 		var spKeys []ddl.IndexKey
@@ -244,7 +237,7 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 			// Collision of index name will be handled by ToSpannerIndexName.
 			srcIndex.Name = fmt.Sprintf("Index_%s", srcTable)
 		}
-		spIndexName := internal.ToSpannerIndexName(srcIndex.Name, usedNames)
+		spIndexName := internal.ToSpannerIndexName(conv, srcIndex.Name)
 		spIndex := ddl.CreateIndex{
 			Name:   spIndexName,
 			Table:  spTableName,

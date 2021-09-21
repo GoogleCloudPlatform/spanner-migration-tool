@@ -34,11 +34,12 @@ func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
 	if srcTable == "" {
 		return "", fmt.Errorf("bad parameter: table string is empty")
 	}
+	// Once computed, return cached result.
 	if sp, found := conv.ToSpanner[srcTable]; found {
 		return sp.Name, nil
 	}
 	spTable, _ := FixName(srcTable)
-	if _, found := conv.ToSource[spTable]; found {
+	if _, found := conv.UsedNames[strings.ToLower(spTable)]; found {
 		// s has been used before i.e. FixName caused a collision.
 		// Add unique postfix: use number of tables so far.
 		// However, there is a chance this has already been used,
@@ -46,7 +47,7 @@ func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
 		id := len(conv.ToSpanner)
 		for {
 			t := spTable + "_" + strconv.Itoa(id)
-			if _, found := conv.ToSource[t]; !found {
+			if _, found := conv.UsedNames[strings.ToLower(t)]; !found {
 				spTable = t
 				break
 			}
@@ -56,6 +57,7 @@ func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
 	if spTable != srcTable {
 		VerbosePrintf("Mapping source DB table %s to Spanner table %s\n", srcTable, spTable)
 	}
+	conv.UsedNames[strings.ToLower(spTable)] = true
 	conv.ToSpanner[srcTable] = NameAndCols{Name: spTable, Cols: make(map[string]string)}
 	conv.ToSource[spTable] = NameAndCols{Name: srcTable, Cols: make(map[string]string)}
 	return spTable, nil
@@ -144,11 +146,11 @@ func GetSpannerCols(conv *Conv, srcTable string, srcCols []string) ([]string, er
 // (across the database). But in some source databases, such as PostgreSQL,
 // they only have to be unique for a table. Hence we must map each source
 // constraint name to a unique spanner constraint name.
-func ToSpannerForeignKey(srcId string, used map[string]bool) string {
+func ToSpannerForeignKey(conv *Conv, srcId string) string {
 	if srcId == "" {
 		return ""
 	}
-	return getSpannerId(srcId, used)
+	return getSpannerId(conv, srcId)
 }
 
 // ToSpannerIndexName maps source index name to legal Spanner index name.
@@ -160,28 +162,28 @@ func ToSpannerForeignKey(srcId string, used map[string]bool) string {
 // (across the database). But in some source databases, such as MySQL,
 // they only have to be unique for a table. Hence we must map each source
 // constraint name to a unique spanner constraint name.
-func ToSpannerIndexName(srcId string, used map[string]bool) string {
-	return getSpannerId(srcId, used)
+func ToSpannerIndexName(conv *Conv, srcId string) string {
+	return getSpannerId(conv, srcId)
 }
 
-func getSpannerId(srcId string, used map[string]bool) string {
+func getSpannerId(conv *Conv, srcId string) string {
 	spKeyName, _ := FixName(srcId)
-	if _, found := used[strings.ToLower(spKeyName)]; found {
+	if _, found := conv.UsedNames[strings.ToLower(spKeyName)]; found {
 		// spKeyName has been used before.
 		// Add unique postfix: use number of keys so far.
 		// However, there is a chance this has already been used,
 		// so need to iterate.
-		id := len(used)
+		id := len(conv.UsedNames)
 		for {
 			c := spKeyName + "_" + strconv.Itoa(id)
-			if _, found := used[strings.ToLower(c)]; !found {
+			if _, found := conv.UsedNames[strings.ToLower(c)]; !found {
 				spKeyName = c
 				break
 			}
 			id++
 		}
 	}
-	used[strings.ToLower(spKeyName)] = true
+	conv.UsedNames[strings.ToLower(spKeyName)] = true
 	return spKeyName
 }
 
