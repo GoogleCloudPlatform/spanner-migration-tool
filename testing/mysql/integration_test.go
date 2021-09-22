@@ -118,7 +118,7 @@ func TestIntegration_MYSQLDUMP_SimpleUse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open the test data file: %v", err)
 	}
-	err = cli.CommandLine(conversion.MYSQLDUMP, "spanner", projectID, instanceID, dbName, false, false, false, 0, "", &conversion.IOStreams{In: f, Out: os.Stdout}, filePrefix, now)
+	err = cmd.CommandLine(conversion.MYSQLDUMP, "spanner", projectID, instanceID, dbName, false, false, false, 0, "", &conversion.IOStreams{In: f, Out: os.Stdout}, filePrefix, now)
 	if err != nil {
 		t.Fatal(err)
 	}

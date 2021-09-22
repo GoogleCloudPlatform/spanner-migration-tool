@@ -94,7 +94,7 @@ func main() {
 		// Using HB CLI in subcommand mode.
 		subcommands.Register(subcommands.HelpCommand(), "")
 		subcommands.Register(subcommands.CommandsCommand(), "")
-		subcommands.Register(&cli.SchemaCmd{}, "")
+		subcommands.Register(&cmd.SchemaCmd{}, "")
 		flag.Parse()
 		os.Exit(int(subcommands.Execute(ctx)))
 	}
