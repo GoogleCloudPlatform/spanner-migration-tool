@@ -462,7 +462,7 @@ environment variable.
 
 #### 3.2 Unparsable dump output
 
-HarbourBridge uses the [pg_query_go](https://github.com/lfittl/pg_query_go)
+HarbourBridge uses the [pg_query_go](https://github.com/pganalyze/pg_query_go)
 library for parsing pg_dump and [pingcap parser](https://github.com/pingcap/parser) 
 for parsing mysqldump. It is possible that the pg_dump/mysqldump output is 
 corrupted or uses features that aren't parseable. Parsing errors should 
