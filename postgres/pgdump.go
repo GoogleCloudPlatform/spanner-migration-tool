@@ -745,14 +745,10 @@ func logStmtError(conv *internal.Conv, node interface{}, err error) {
 func getString(node *pg_query.Node) (string, error) {
 	switch n := node.GetNode().(type) {
 	case *pg_query.Node_String_:
-		return trimQuote(strings.TrimPrefix(n.String_.String(), "str:")), nil
+		return trimString(n.String_), nil
 	default:
-		return "", fmt.Errorf("node %v is a not String node", reflect.TypeOf(node))
+		return "", fmt.Errorf("node %v is a not String node", reflect.TypeOf(n))
 	}
-}
-
-func trimString(s *pg_query.String) string {
-	return strings.ReplaceAll(trimQuote(strings.TrimPrefix(s.String(), "str:")), "\\n", "\n")
 }
 
 // checkEmpty verifies that pkeys is empty and generates a warning if it isn't.
@@ -763,9 +759,19 @@ func checkEmpty(conv *internal.Conv, pkeys []schema.Key, stmtType string) {
 	}
 }
 
-// PrNodeType strips off "pg_query." prefix from nodes.Nodes type.
+// PrNodeType strips off "pg_query." and "Node_" prefixes from nodes.Nodes type.
 func PrNodeType(node interface{}) string {
 	return strings.TrimPrefix(strings.TrimPrefix(reflect.TypeOf(node).String(), "*pg_query."), "Node_")
+}
+
+func trimString(s *pg_query.String) string {
+	str := strings.TrimPrefix(s.String(), "str:")
+	str = trimEscapeChars(str)
+	return trimQuote(str)
+}
+
+func trimEscapeChars(s string) string {
+	return strings.ReplaceAll(s, "\\n", "\n")
 }
 
 func trimQuote(s string) string {
