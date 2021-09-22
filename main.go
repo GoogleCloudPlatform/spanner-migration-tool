@@ -29,6 +29,7 @@ import (
 	_ "github.com/lib/pq"
 
 	"github.com/cloudspannerecosystem/harbourbridge/cmd"
+	"github.com/cloudspannerecosystem/harbourbridge/common"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/web"
@@ -127,7 +128,7 @@ func main() {
 		panic(fmt.Errorf("unkown target-db %s", targetDb))
 	}
 
-	input := loadInput(dumpFilePath)
+	input := common.OpenDump(dumpFilePath)
 	ioHelper := &conversion.IOStreams{In: input, Out: os.Stdout}
 	fmt.Printf("Using driver (source DB): %s target-db: %s\n", driverName, targetDb)
 
@@ -173,19 +174,4 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-}
-
-// Load the dump file if parameter has been passed by the user.
-// If no parameter has been passed, then read from standard input
-func loadInput(dumpFile string) *os.File {
-	if dumpFile != "" {
-		fmt.Printf("\nloading dump file from path: %s\n", dumpFile)
-		file, err := os.Open(dumpFile)
-		if err != nil {
-			fmt.Printf("\nerror reading file: %v err:%v", dumpFile, err)
-			panic(err)
-		}
-		return file
-	}
-	return os.Stdin
 }
