@@ -31,6 +31,7 @@ type Conv struct {
 	Issues         map[string]map[string][]SchemaIssue // Maps source-DB table/col to list of schema conversion issues.
 	ToSpanner      map[string]NameAndCols              // Maps from source-DB table name to Spanner name and column mapping.
 	ToSource       map[string]NameAndCols              // Maps from Spanner table name to source-DB table name and column mapping.
+	UsedNames      map[string]bool                     // Map storing the names that are already assigned to tables, indices or foreign key contraints.
 	dataSink       func(table string, cols []string, values []interface{})
 	Location       *time.Location // Timezone (for timestamp conversion).
 	sampleBadRows  rowSamples     // Rows that generated errors during conversion.
@@ -128,6 +129,7 @@ func MakeConv() *Conv {
 		Issues:         make(map[string]map[string][]SchemaIssue),
 		ToSpanner:      make(map[string]NameAndCols),
 		ToSource:       make(map[string]NameAndCols),
+		UsedNames:      make(map[string]bool),
 		Location:       time.Local, // By default, use go's local time, which uses $TZ (when set).
 		sampleBadRows:  rowSamples{bytesLimit: 10 * 1000 * 1000},
 		Stats: stats{

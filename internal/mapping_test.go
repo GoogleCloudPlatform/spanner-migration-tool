@@ -40,6 +40,8 @@ func TestGetSpannerTable(t *testing.T) {
 		{"Illegal start character", "2table", false, "Atable"},
 		{"Illegal start character with collision (1)", "_table", false, "Atable_8"},
 		{"Illegal start character with collision (2)", "\ntable", false, "Atable_9"},
+		{"Name differing only in case", "TABLE", false, "TABLE_10"},
+		{"Illegal differing only in case", "TAB\nLE_5", false, "TAB_LE_5_11"},
 	}
 	for _, tc := range basicTests {
 		spTable, err := GetSpannerTable(conv, tc.srcTable)
@@ -94,8 +96,7 @@ func TestGetSpannerCol(t *testing.T) {
 }
 
 func TestToSpannerForeignKey(t *testing.T) {
-	schemaForeignKeys := make(map[string]bool)
-
+	conv := MakeConv()
 	basicTests := []struct {
 		name       string // Name of test.
 		srcKeyName string // Source foreign key name.
@@ -105,14 +106,13 @@ func TestToSpannerForeignKey(t *testing.T) {
 		{"Empty name", "", ""},
 	}
 	for _, tc := range basicTests {
-		spKeyName := ToSpannerForeignKey(tc.srcKeyName, schemaForeignKeys)
+		spKeyName := ToSpannerForeignKey(conv, tc.srcKeyName)
 		assert.Equal(t, tc.spKeyName, spKeyName, tc.name)
 	}
 }
 
 func TestGetSpannerId(t *testing.T) {
-	schemaIndexKeys := make(map[string]bool)
-
+	conv := MakeConv()
 	basicTests := []struct {
 		name       string // Name of test.
 		srcKeyName string // Source key name.
@@ -130,9 +130,11 @@ func TestGetSpannerId(t *testing.T) {
 		{"Bad name with collision", "in\tdex", "in_dex_9"},
 		{"Bad name with collision 2", "in\ndex", "in_dex_10"},
 		{"Bad name with collision 3", "in?dex", "in_dex_11"},
+		{"Name with different case collision", "INdex1", "INdex1_12"},
+		{"Bad name with different case collision", "IN\tDex", "IN_Dex_13"},
 	}
 	for _, tc := range basicTests {
-		spKeyName := getSpannerId(tc.srcKeyName, schemaIndexKeys)
+		spKeyName := getSpannerId(conv, tc.srcKeyName)
 		assert.Equal(t, tc.spKeyName, spKeyName, tc.name)
 	}
 }
