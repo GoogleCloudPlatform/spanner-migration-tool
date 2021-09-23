@@ -150,7 +150,7 @@ func TestIntegration_MYSQL_SimpleUse(t *testing.T) {
 	checkResults(t, dbPath)
 }
 
-func Integration_MySQLDUMP_SchemaOnly(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string) {
+func runSchemaOnly(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string) {
 	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -driver mysqldump -schema-only -dbname %s -prefix %s < %s", dbName, filePrefix, dumpFilePath))
 	var out, stderr bytes.Buffer
 	cmd.Stdout = &out
@@ -160,6 +160,32 @@ func Integration_MySQLDUMP_SchemaOnly(t *testing.T, dbName, filePrefix, sessionF
 		fmt.Printf("stderr: %q\n", stderr.String())
 		t.Fatal(err)
 	}
+}
+
+func runDataOnly(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dumpFilePath string) {
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -driver mysqldump -data-only -instance %s -dbname %s -prefix %s -session %s < %s", instanceID, dbName, filePrefix, sessionFile, dumpFilePath))
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("GCLOUD_PROJECT=%s", projectID),
+	)
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("stdout: %q\n", out.String())
+		fmt.Printf("stderr: %q\n", stderr.String())
+		t.Fatal(err)
+	}
+}
+
+func TestIntegration_MySQLDUMP_SchemaOnly(t *testing.T) {
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	dbName := "test-schema-only-mode"
+	dumpFilePath := "../../test_data/mysqldump.test.out"
+	filePrefix := filepath.Join(tmpdir, dbName+".")
+	sessionFile := fmt.Sprintf("%ssession.json", filePrefix)
+	runSchemaOnly(t, dbName, filePrefix, sessionFile, dumpFilePath)
 	if _, err := os.Stat(fmt.Sprintf("%sreport.txt", filePrefix)); os.IsNotExist(err) {
 		t.Fatalf("report file not generated during schema-only test")
 	}
@@ -174,36 +200,21 @@ func Integration_MySQLDUMP_SchemaOnly(t *testing.T, dbName, filePrefix, sessionF
 	}
 }
 
-func Integration_MySQLDUMP_DataOnly(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dumpFilePath string) {
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -driver mysqldump -data-only -instance %s -dbname %s -prefix %s -session %s < %s", instanceID, dbName, filePrefix, sessionFile, dumpFilePath))
-	var out, stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	cmd.Env = append(os.Environ(),
-		fmt.Sprintf("GCLOUD_PROJECT=%s", projectID),
-	)
-	if err := cmd.Run(); err != nil {
-		fmt.Printf("stdout: %q\n", out.String())
-		fmt.Printf("stderr: %q\n", stderr.String())
-		t.Fatal(err)
-	}
-	defer dropDatabase(t, dbURI)
-	checkResults(t, dbURI)
-}
-
-func TestIntegration_MySQLDUMP_SchemaOnly_DataOnly(t *testing.T) {
+func TestIntegration_MySQLDUMP_DataOnly(t *testing.T) {
+	onlyRunForEmulatorTest(t)
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
-	dbName := "test-individual-flows"
+	dbName := "test-data-only-mode"
 	dumpFilePath := "../../test_data/mysqldump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 	sessionFile := fmt.Sprintf("%ssession.json", filePrefix)
-	Integration_MySQLDUMP_SchemaOnly(t, dbName, filePrefix, sessionFile, dumpFilePath)
-	// Skip data only test if emulator is not running.
-	onlyRunForEmulatorTest(t)
+	runSchemaOnly(t, dbName, filePrefix, sessionFile, dumpFilePath)
+
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	Integration_MySQLDUMP_DataOnly(t, dbName, dbURI, filePrefix, sessionFile, dumpFilePath)
+	runDataOnly(t, dbName, dbURI, filePrefix, sessionFile, dumpFilePath)
+	defer dropDatabase(t, dbURI)
+	checkResults(t, dbURI)
 }
 
 func checkResults(t *testing.T, dbPath string) {
