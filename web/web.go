@@ -36,8 +36,8 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/mysql"
-	"github.com/cloudspannerecosystem/harbourbridge/postgres"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
