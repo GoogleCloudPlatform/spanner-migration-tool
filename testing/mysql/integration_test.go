@@ -156,8 +156,8 @@ func runSchemaOnly(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath s
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		fmt.Printf("stdout: %q\n", out.String())
-		fmt.Printf("stderr: %q\n", stderr.String())
+		log.Printf("stdout: %q\n", out.String())
+		log.Printf("stderr: %q\n", stderr.String())
 		t.Fatal(err)
 	}
 }
@@ -171,8 +171,8 @@ func runDataOnly(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dumpFileP
 		fmt.Sprintf("GCLOUD_PROJECT=%s", projectID),
 	)
 	if err := cmd.Run(); err != nil {
-		fmt.Printf("stdout: %q\n", out.String())
-		fmt.Printf("stderr: %q\n", stderr.String())
+		log.Printf("stdout: %q\n", out.String())
+		log.Printf("stderr: %q\n", stderr.String())
 		t.Fatal(err)
 	}
 }
