@@ -43,6 +43,10 @@ INSERT INTO `cart` VALUES ('901e-a6cfc2b502dc','abc-123',1,'2020-07-20 05:10:26'
 /*!40000 ALTER TABLE `cart` ENABLE KEYS */;
 UNLOCK TABLES;
 
+--
+-- Table name `CART` differs only case from the table `cart`.
+-- This was added to cover more cases in our integration tests.
+--
 DROP TABLE IF EXISTS `CART`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -69,6 +73,10 @@ CREATE TABLE `products` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+--
+-- The index name `IDX` differs only in case from index idx on `cart`.
+-- This was added to cover more cases in our integration tests.
+--
 CREATE INDEX IDX ON `products` (`description`);
 
 --

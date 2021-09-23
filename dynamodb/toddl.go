@@ -28,12 +28,8 @@ import (
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
 func schemaToDDL(conv *internal.Conv) error {
-	// conv.UsedNames tracks Spanner names that have been used for table names, foreign key constraints
-	// and indexes. We use this to ensure we generate unique names when
-	// we map from MySQL to Spanner since Spanner requires all these names to be
-	// distinct and should not differ only in case.
 	// We need to pre-populate conv.UsedNames with Spanner table
-	// names to handle collision with foreign key names and index names.
+	// names to handle collision with index names.
 	for _, srcTable := range conv.SrcSchema {
 		_, err := internal.GetSpannerTable(conv, srcTable.Name)
 		if err != nil {

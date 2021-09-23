@@ -30,6 +30,11 @@ import (
 // a) the new table name is legal
 // b) the new table name doesn't clash with other Spanner table names
 // c) we consistently return the same name for this table.
+//
+// conv.UsedNames tracks Spanner names that have been used for table names, foreign key constraints
+// and indexes. We use this to ensure we generate unique names when
+// we map from MySQL to Spanner since Spanner requires all these names to be
+// distinct and should not differ only in case.
 func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
 	if srcTable == "" {
 		return "", fmt.Errorf("bad parameter: table string is empty")
@@ -166,6 +171,10 @@ func ToSpannerIndexName(conv *Conv, srcId string) string {
 	return getSpannerId(conv, srcId)
 }
 
+// conv.UsedNames tracks Spanner names that have been used for table names, foreign key constraints
+// and indexes. We use this to ensure we generate unique names when
+// we map from MySQL to Spanner since Spanner requires all these names to be
+// distinct and should not differ only in case.
 func getSpannerId(conv *Conv, srcId string) string {
 	spKeyName, _ := FixName(srcId)
 	if _, found := conv.UsedNames[strings.ToLower(spKeyName)]; found {
