@@ -418,12 +418,85 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 	return fcopy, n, nil
 }
 
+// VerifyDb checks whether the db exists and if it does, verifies if the schema is what we currently support.
+func VerifyDb(project, instance, dbName string) (dbExists bool, err error) {
+	ctx := context.Background()
+	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	if err != nil {
+		return false, fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
+	}
+	defer adminClient.Close()
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
+	dbExists, err = CheckExistingDb(ctx, adminClient, dbURI)
+	if err != nil {
+		return dbExists, err
+	}
+	if dbExists {
+		err = ValidateDDL(ctx, adminClient, dbURI)
+	}
+	return dbExists, err
+}
+
+// CheckExistingDb checks whether the database with dbURI exists or not.
+func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) (bool, error) {
+	_, err := adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: dbURI})
+	if err != nil {
+		if containsAny(strings.ToLower(err.Error()), []string{"database not found"}) {
+			return false, nil
+		}
+		return false, fmt.Errorf("can't get database info: %s", err)
+	}
+	return true, nil
+}
+
+// ValidateDDL verifies if an existing DB's ddl follows what is supported by harbourbridge. Currently,
+// we only support empty schema when db already exists.
+func ValidateDDL(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) error {
+	dbDdl, err := adminClient.GetDatabaseDdl(ctx, &adminpb.GetDatabaseDdlRequest{Database: dbURI})
+	if err != nil {
+		return fmt.Errorf("can't fetch database ddl: %v", err)
+	}
+	if len(dbDdl.Statements) != 0 {
+		return fmt.Errorf("HarbourBridge supports writing to existing databases only if they have an empty schema")
+	}
+	return nil
+}
+
+func CreateOrUpdateDatabase(project, instance, dbName string, conv *internal.Conv, out *os.File) (dbURI string, err error) {
+	ctx := context.Background()
+	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	if err != nil {
+		return "", fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
+	}
+	defer adminClient.Close()
+
+	dbExists, err := VerifyDb(project, instance, dbName)
+	if err != nil {
+		return "", err
+	}
+	if dbExists {
+		dbURI, err = UpdateDatabase(project, instance, dbName, conv, out)
+		if err != nil {
+			fmt.Printf("\nCan't update database schema: %v\n", err)
+			return "", fmt.Errorf("can't update database schema")
+		}
+		return dbURI, nil
+	} else {
+		dbURI, err = CreateDatabase(project, instance, dbName, conv, out)
+		if err != nil {
+			fmt.Printf("\nCan't create database: %v\n", err)
+			return "", fmt.Errorf("can't create database")
+		}
+		return dbURI, nil
+	}
+}
+
 // CreateDatabase returns a newly create Spanner DB.
 // It automatically determines an appropriate project, selects a
 // Spanner instance to use, generates a new Spanner DB name,
 // and call into the Spanner admin interface to create the new DB.
 func CreateDatabase(project, instance, dbName string, conv *internal.Conv, out *os.File) (string, error) {
-	fmt.Fprintf(out, "Creating new database %s in instance %s with default permissions ... ", dbName, instance)
+	fmt.Fprintf(out, "Creating new database %s in instance %s with default permissions ... \n", dbName, instance)
 	ctx := context.Background()
 	adminClient, err := NewDatabaseAdminClient(ctx)
 	if err != nil {
@@ -433,6 +506,7 @@ func CreateDatabase(project, instance, dbName string, conv *internal.Conv, out *
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
+	// Foreign Keys are set to false since we create them post data migration.
 	schema := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false})
 	op, err := adminClient.CreateDatabase(ctx, &adminpb.CreateDatabaseRequest{
 		Parent:          fmt.Sprintf("projects/%s/instances/%s", project, instance),
@@ -445,8 +519,37 @@ func CreateDatabase(project, instance, dbName string, conv *internal.Conv, out *
 	if _, err := op.Wait(ctx); err != nil {
 		return "", fmt.Errorf("createDatabase call failed: %w", analyzeError(err, project, instance))
 	}
-	fmt.Fprintf(out, "done.\n")
+	fmt.Fprintf(out, "Created database successfully.\n")
 	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName), nil
+}
+
+// UpdateDatabase updates the DDL of the spanner DB and return the path.
+func UpdateDatabase(project, instance, dbName string, conv *internal.Conv, out *os.File) (string, error) {
+	fmt.Fprintf(out, "Updating schema for database %s in instance %s ... \n", dbName, instance)
+	ctx := context.Background()
+	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	if err != nil {
+		return "", fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
+	}
+	defer adminClient.Close()
+
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
+	// The schema we send to Spanner excludes comments (since Cloud
+	// Spanner DDL doesn't accept them), and protects table and col names
+	// using backticks (to avoid any issues with Spanner reserved words).
+	// Foreign Keys are set to false since we create them post data migration.
+	op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
+		Database:   dbURI,
+		Statements: conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false}),
+	})
+	if err != nil {
+		return "", fmt.Errorf("can't submit update schema request: %s", err)
+	}
+	if err := op.Wait(ctx); err != nil {
+		return "", fmt.Errorf("can't update schema statement: %s", err)
+	}
+	fmt.Fprintf(out, "Updated schema successfully.\n")
+	return dbURI, nil
 }
 
 // UpdateDDLForeignKeys updates the Spanner database with foreign key
@@ -455,7 +558,7 @@ func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv,
 	ctx := context.Background()
 	adminClient, err := NewDatabaseAdminClient(ctx)
 	if err != nil {
-		return fmt.Errorf("can't create admin client: %w\n", analyzeError(err, project, instance))
+		return fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
 	}
 	defer adminClient.Close()
 
