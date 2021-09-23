@@ -88,8 +88,8 @@ Analysis of statements in pg_dump output, broken down by statement type.
   schema   data   skip  error  statement
   --------------------------------------
        5      0      0      0  CreateStmt
-See github.com/lfittl/pg_query_go/nodes for definitions of statement types
-(lfittl/pg_query_go is the library we use for parsing pg_dump output).
+See github.com/pganalyze/pg_query_go for definitions of statement types
+(pganalyze/pg_query_go is the library we use for parsing pg_dump output).
 
 ----------------------------
 Table bad_schema
@@ -150,7 +150,7 @@ Unexpected Conditions
 ----------------------------
 For debugging only. This section provides details of unexpected conditions
 encountered as we processed the pg_dump data. In particular, the AST node
-representation used by the lfittl/pg_query_go library used for parsing
+representation used by the pganalyze/pg_query_go library used for parsing
 pg_dump output is highly permissive: almost any construct can appear at
 any node in the AST tree. The list details all unexpected nodes and
 conditions.

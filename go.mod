@@ -8,10 +8,11 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.4.1
 	github.com/aws/aws-sdk-go v1.34.5
 	github.com/go-sql-driver/mysql v1.5.0
+	github.com/google/go-cmp v0.5.6
 	github.com/gorilla/handlers v1.5.0
 	github.com/gorilla/mux v1.7.3
-	github.com/lfittl/pg_query_go v1.0.0
 	github.com/lib/pq v1.9.0
+	github.com/pganalyze/pg_query_go/v2 v2.0.5
 	//github.com/pingcap/parser v3.0.12+incompatible
 	github.com/pingcap/parser v0.0.0-20200422082501-7329d80eaf2c
 	github.com/pingcap/tidb v1.1.0-beta.0.20200423105559-af376db3dc46

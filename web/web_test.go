@@ -2142,8 +2142,6 @@ func TestAddIndexes(t *testing.T) {
 			assert.Equal(t, tc.expectedConv, res)
 		}
 	}
-
-	fmt.Println(tc)
 }
 
 func TestDropSecondaryIndex(t *testing.T) {

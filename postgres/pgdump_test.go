@@ -26,7 +26,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	pg_query "github.com/lfittl/pg_query_go"
+	pg_query "github.com/pganalyze/pg_query_go/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -783,7 +783,7 @@ func TestProcessPgDump_WithUnparsableContent(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expect an error, but got nil")
 	}
-	if !strings.Contains(err.Error(), "Error parsing") {
+	if !strings.Contains(strings.ToLower(err.Error()), "error parsing") {
 		t.Fatalf("Expect a parsing error, but got %q", err)
 	}
 }
