@@ -29,7 +29,6 @@ import (
 	_ "github.com/lib/pq"
 
 	"github.com/cloudspannerecosystem/harbourbridge/cmd"
-	"github.com/cloudspannerecosystem/harbourbridge/common"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/web"
@@ -127,10 +126,9 @@ func main() {
 	} else if targetDb != conversion.TARGET_SPANNER {
 		panic(fmt.Errorf("unkown target-db %s", targetDb))
 	}
-
-	input := common.OpenDump(dumpFilePath)
-	ioHelper := &conversion.IOStreams{In: input, Out: os.Stdout}
 	fmt.Printf("Using driver (source DB): %s target-db: %s\n", driverName, targetDb)
+
+	ioHelper := conversion.NewIOStreams(driverName, dumpFilePath)
 
 	var project, instance string
 	if !schemaOnly {
@@ -170,7 +168,7 @@ func main() {
 
 	// TODO (agasheesh@): Collect all the config state in a single struct and pass the same to CommandLine instead of
 	// passing multiple parameters. Config state would be populated by parsing the flags and environment variables.
-	err = cmd.CommandLine(driverName, targetDb, project, instance, dbName, dataOnly, schemaOnly, skipForeignKeys, schemaSampleSize, sessionJSON, ioHelper, filePrefix, now)
+	err = cmd.CommandLine(driverName, targetDb, project, instance, dbName, dataOnly, schemaOnly, skipForeignKeys, schemaSampleSize, sessionJSON, &ioHelper, filePrefix, now)
 	if err != nil {
 		panic(err)
 	}

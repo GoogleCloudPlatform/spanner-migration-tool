@@ -9,7 +9,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/google/subcommands"
@@ -55,8 +54,7 @@ func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
 }
 
 func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	input := common.OpenDump(cmd.dumpFilePath)
-	ioHelper := &conversion.IOStreams{In: input, Out: os.Stdout}
+	ioHelper := conversion.NewIOStreams(cmd.driverName, cmd.dumpFilePath)
 	if ioHelper.SeekableIn != nil {
 		defer ioHelper.In.Close()
 	}
@@ -72,7 +70,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 
 	var conv *internal.Conv
 	var err error
-	conv, err = conversion.SchemaConv(cmd.driverName, cmd.targetDb, ioHelper, cmd.schemaSampleSize)
+	conv, err = conversion.SchemaConv(cmd.driverName, cmd.targetDb, &ioHelper, cmd.schemaSampleSize)
 	if err != nil {
 		log.Fatal(err)
 	}
