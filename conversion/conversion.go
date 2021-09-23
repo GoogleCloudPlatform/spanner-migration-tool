@@ -436,7 +436,7 @@ func VerifyDb(project, instance, dbName string) (dbExists bool, err error) {
 	return dbExists, err
 }
 
-// CheckExistingDb checks whether the dbURI exists or not.
+// CheckExistingDb checks whether the database with dbURI exists or not.
 func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) (bool, error) {
 	_, err := adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: dbURI})
 	if err != nil {
@@ -505,6 +505,7 @@ func CreateDatabase(project, instance, dbName string, conv *internal.Conv, out *
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
+	// Foreign Keys are set to false since we create them post data migration.
 	schema := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false})
 	op, err := adminClient.CreateDatabase(ctx, &adminpb.CreateDatabaseRequest{
 		Parent:          fmt.Sprintf("projects/%s/instances/%s", project, instance),
@@ -532,6 +533,10 @@ func UpdateDatabase(project, instance, dbName string, conv *internal.Conv, out *
 	defer adminClient.Close()
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
+	// The schema we send to Spanner excludes comments (since Cloud
+	// Spanner DDL doesn't accept them), and protects table and col names
+	// using backticks (to avoid any issues with Spanner reserved words).
+	// Foreign Keys are set to false since we create them post data migration.
 	op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 		Database:   dbURI,
 		Statements: conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false}),
