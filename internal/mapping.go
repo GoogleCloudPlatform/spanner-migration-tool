@@ -22,6 +22,28 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
+// GenerateUniqueName creates a new unique name from the used map. This also ensures the
+// new name does not differ only in case.
+func GenerateUniqueName(name string, used map[string]bool) string {
+	fixedName, _ := FixName(name)
+	if _, found := used[strings.ToLower(fixedName)]; found {
+		// fixedName has been used before i.e. FixName caused a collision.
+		// Add unique postfix: use number of tables so far.
+		// However, there is a chance this has already been used,
+		// so need to iterate.
+		id := len(used)
+		for {
+			t := fixedName + "_" + strconv.Itoa(id)
+			if _, found := used[strings.ToLower(t)]; !found {
+				fixedName = t
+				break
+			}
+			id++
+		}
+	}
+	return fixedName
+}
+
 // GetSpannerTable maps a source DB table name into a legal Spanner table
 // name. Note that source DB column names can be essentially any string, but
 // Spanner column names must use a limited character set. This means that
@@ -30,10 +52,9 @@ import (
 // a) the new table name is legal
 // b) the new table name doesn't clash with other Spanner table names
 // c) we consistently return the same name for this table.
-//
 // conv.UsedNames tracks Spanner names that have been used for table names, foreign key constraints
 // and indexes. We use this to ensure we generate unique names when
-// we map from MySQL to Spanner since Spanner requires all these names to be
+// we map from source databases to Spanner since Spanner requires all these names to be
 // distinct and should not differ only in case.
 func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
 	if srcTable == "" {
@@ -43,22 +64,7 @@ func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
 	if sp, found := conv.ToSpanner[srcTable]; found {
 		return sp.Name, nil
 	}
-	spTable, _ := FixName(srcTable)
-	if _, found := conv.UsedNames[strings.ToLower(spTable)]; found {
-		// s has been used before i.e. FixName caused a collision.
-		// Add unique postfix: use number of tables so far.
-		// However, there is a chance this has already been used,
-		// so need to iterate.
-		id := len(conv.ToSpanner)
-		for {
-			t := spTable + "_" + strconv.Itoa(id)
-			if _, found := conv.UsedNames[strings.ToLower(t)]; !found {
-				spTable = t
-				break
-			}
-			id++
-		}
-	}
+	spTable := GenerateUniqueName(srcTable, conv.UsedNames)
 	if spTable != srcTable {
 		VerbosePrintf("Mapping source DB table %s to Spanner table %s\n", srcTable, spTable)
 	}
@@ -173,25 +179,10 @@ func ToSpannerIndexName(conv *Conv, srcId string) string {
 
 // conv.UsedNames tracks Spanner names that have been used for table names, foreign key constraints
 // and indexes. We use this to ensure we generate unique names when
-// we map from MySQL to Spanner since Spanner requires all these names to be
+// we map from source databases to Spanner since Spanner requires all these names to be
 // distinct and should not differ only in case.
 func getSpannerId(conv *Conv, srcId string) string {
-	spKeyName, _ := FixName(srcId)
-	if _, found := conv.UsedNames[strings.ToLower(spKeyName)]; found {
-		// spKeyName has been used before.
-		// Add unique postfix: use number of keys so far.
-		// However, there is a chance this has already been used,
-		// so need to iterate.
-		id := len(conv.UsedNames)
-		for {
-			c := spKeyName + "_" + strconv.Itoa(id)
-			if _, found := conv.UsedNames[strings.ToLower(c)]; !found {
-				spKeyName = c
-				break
-			}
-			id++
-		}
-	}
+	spKeyName := GenerateUniqueName(srcId, conv.UsedNames)
 	conv.UsedNames[strings.ToLower(spKeyName)] = true
 	return spKeyName
 }

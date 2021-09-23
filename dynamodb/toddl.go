@@ -28,15 +28,6 @@ import (
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
 func schemaToDDL(conv *internal.Conv) error {
-	// We need to pre-populate conv.UsedNames with Spanner table
-	// names to handle collision with index names.
-	for _, srcTable := range conv.SrcSchema {
-		_, err := internal.GetSpannerTable(conv, srcTable.Name)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
-			continue
-		}
-	}
 	for _, srcTable := range conv.SrcSchema {
 		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
 		if err != nil {
