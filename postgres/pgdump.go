@@ -294,8 +294,8 @@ func processCreateStmt(conv *internal.Conv, n *pg_query.CreateStmt) {
 			constraints = append(constraints, cdConstraints...)
 		case *pg_query.Node_Constraint:
 			// Note: there should be at most one Constraint node in
-			// n.TableElts.Items. We don't check this. We just keep
-			// collecting constraints.
+			// n.TableElts. We don't check this. We just keep collecting
+			// constraints.
 			constraints = append(constraints, extractConstraints(conv, printNodeType(n), table, []*pg_query.Node{te})...)
 		default:
 			conv.Unexpected(fmt.Sprintf("Found %s node while processing CreateStmt TableElts", printNodeType(te)))
@@ -406,22 +406,22 @@ func processCopyStmt(conv *internal.Conv, n *pg_query.CopyStmt) *copyOrInsert {
 func processVariableSetStmt(conv *internal.Conv, n *pg_query.VariableSetStmt) {
 	if n.Name == "timezone" {
 		if len(n.Args) == 1 {
-			node := n.Args[0]
-			switch c := node.GetNode().(type) {
+			arg := n.Args[0]
+			switch c := arg.GetNode().(type) {
 			case *pg_query.Node_AConst:
 				tz, err := getString(c.AConst.Val)
 				if err != nil {
-					logStmtError(conv, node, fmt.Errorf("can't get Arg: %w", err))
+					logStmtError(conv, c, fmt.Errorf("can't get Arg: %w", err))
 					return
 				}
 				loc, err := time.LoadLocation(tz)
 				if err != nil {
-					logStmtError(conv, node, err)
+					logStmtError(conv, c, err)
 					return
 				}
 				conv.SetLocation(loc)
 			default:
-				logStmtError(conv, node, fmt.Errorf("found %s node in Arg", printNodeType(c)))
+				logStmtError(conv, arg, fmt.Errorf("found %s node in Arg", printNodeType(c)))
 				return
 			}
 		}
@@ -705,6 +705,9 @@ func getCols(conv *internal.Conv, table string, nodes []*pg_query.Node) (cols []
 
 // getVals extracts and returns the values for an InsertStatement.
 func getVals(conv *internal.Conv, vll []*pg_query.Node, n *pg_query.InsertStmt) (values []string) {
+	// TODO (agasheesh): Handling of multi-row insert statements is broken. See
+	// https://github.com/cloudspannerecosystem/harbourbridge/issues/176 for
+	// more details.
 	for _, vl := range vll {
 		switch vals := vl.GetNode().(type) {
 		case *pg_query.Node_List:
