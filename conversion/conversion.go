@@ -461,7 +461,7 @@ func ValidateDDL(ctx context.Context, adminClient *database.DatabaseAdminClient,
 	return nil
 }
 
-func CreateOrUpdateDatabase(project, instance, dbName string, dbExists bool, conv *internal.Conv, out *os.File) (dbURI string, err error) {
+func CreateOrUpdateDatabase(project, instance, dbName string, conv *internal.Conv, out *os.File) (dbURI string, err error) {
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
 	if err != nil {
@@ -469,6 +469,10 @@ func CreateOrUpdateDatabase(project, instance, dbName string, dbExists bool, con
 	}
 	defer adminClient.Close()
 
+	dbExists, err := VerifyDb(project, instance, dbName)
+	if err != nil {
+		return "", err
+	}
 	if dbExists {
 		dbURI, err = UpdateDatabase(project, instance, dbName, conv, out)
 		if err != nil {
