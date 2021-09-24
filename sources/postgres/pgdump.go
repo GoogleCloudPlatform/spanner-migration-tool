@@ -28,6 +28,8 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 )
 
+type PostgresDbDump struct{}
+
 type copyOrInsert struct {
 	stmt  stmtType
 	table string
@@ -42,12 +44,20 @@ const (
 	insert
 )
 
+func (pdd PostgresDbDump) GetBaseDdl() common.BaseToDdl {
+	return PostgresToSpannerDdl{}
+}
+
+func (pdd PostgresDbDump) ProcessDump(conv *internal.Conv, r *internal.Reader) error {
+	return processPgDump(conv, r)
+}
+
 // ProcessPgDump reads pg_dump data from r and does schema or data conversion,
 // depending on whether conv is configured for schema mode or data mode.
 // In schema mode, ProcessPgDump incrementally builds a schema (updating conv).
 // In data mode, ProcessPgDump uses this schema to convert PostgreSQL data
 // and writes it to Spanner, using the data sink specified in conv.
-func ProcessPgDump(conv *internal.Conv, r *internal.Reader) error {
+func processPgDump(conv *internal.Conv, r *internal.Reader) error {
 	for {
 		startLine := r.LineNumber
 		startOffset := r.Offset
@@ -77,11 +87,6 @@ func ProcessPgDump(conv *internal.Conv, r *internal.Reader) error {
 			break
 		}
 	}
-	if conv.SchemaMode() {
-		common.SchemaToSpannerDDL(conv, PostgresToSpannerDdl{})
-		conv.AddPrimaryKeys()
-	}
-
 	return nil
 }
 

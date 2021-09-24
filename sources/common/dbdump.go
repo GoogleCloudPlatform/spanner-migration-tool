@@ -29,7 +29,10 @@ type BaseDbDump interface {
 // In data mode, this method uses this schema to convert data
 // and writes it to Spanner, using the data sink specified in conv.
 func ProcessDbDump(conv *internal.Conv, r *internal.Reader, baseDbDump BaseDbDump) error {
-	baseDbDump.ProcessDump(conv, r)
+	err := baseDbDump.ProcessDump(conv, r)
+	if err != nil {
+		return err
+	}
 	if conv.SchemaMode() {
 		SchemaToSpannerDDL(conv, baseDbDump.GetBaseDdl())
 		conv.AddPrimaryKeys()
