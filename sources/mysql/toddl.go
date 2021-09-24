@@ -15,86 +15,30 @@
 package mysql
 
 import (
-	"fmt"
-	"strconv"
-	"unicode"
-
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// TODO: refactor this file to avoid the duplication with postgres/toddl.go.
-// The core difference between the two files is toSpannerType, which maps
-// type ids (which differ between MySQL and PostgreSQL) to Spanner types.
-
-// schemaToDDL performs schema conversion from the source DB schema to
-// Spanner. It uses the source schema in conv.SrcSchema, and writes
-// the Spanner schema to conv.SpSchema.
-func schemaToDDL(conv *internal.Conv) error {
-	for _, srcTable := range conv.SrcSchema {
-		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
-			continue
-		}
-		var spColNames []string
-		spColDef := make(map[string]ddl.ColumnDef)
-		conv.Issues[srcTable.Name] = make(map[string][]internal.SchemaIssue)
-		// Iterate over columns using ColNames order.
-		for _, srcColName := range srcTable.ColNames {
-			srcCol := srcTable.ColDefs[srcColName]
-			colName, err := internal.GetSpannerCol(conv, srcTable.Name, srcCol.Name, false)
-			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Couldn't map source column %s of table %s to Spanner: %s", srcTable.Name, srcCol.Name, err))
-				continue
-			}
-			spColNames = append(spColNames, colName)
-			ty, issues := toSpannerType(conv, srcCol.Type.Name, srcCol.Type.Mods)
-			if len(srcCol.Type.ArrayBounds) > 1 {
-				ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-				issues = append(issues, internal.MultiDimensionalArray)
-			}
-			// TODO(hengfeng): add issues for all elements of srcCol.Ignored.
-			if srcCol.Ignored.ForeignKey {
-				issues = append(issues, internal.ForeignKey)
-			}
-			if srcCol.Ignored.Default {
-				issues = append(issues, internal.DefaultValue)
-			}
-			if srcCol.Ignored.AutoIncrement {
-				issues = append(issues, internal.AutoIncrement)
-			}
-			if len(issues) > 0 {
-				conv.Issues[srcTable.Name][srcCol.Name] = issues
-			}
-			ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
-			spColDef[colName] = ddl.ColumnDef{
-				Name:    colName,
-				T:       ty,
-				NotNull: srcCol.NotNull,
-				Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
-			}
-		}
-		comment := "Spanner schema for source table " + quoteIfNeeded(srcTable.Name)
-		conv.SpSchema[spTableName] = ddl.CreateTable{
-			Name:     spTableName,
-			ColNames: spColNames,
-			ColDefs:  spColDef,
-			Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
-			Fks:      cvtForeignKeys(conv, srcTable.Name, srcTable.ForeignKeys),
-			Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes),
-			Comment:  comment}
-	}
-	internal.ResolveRefs(conv)
-	return nil
+// MySQL specific implementation for ToDdl
+type MySQLToSpannerDdl struct {
 }
 
 // toSpannerType maps a scalar source schema type (defined by id and
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
-func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
+func (msc MySQLToSpannerDdl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+	ty, issues := toSpannerTypeInternal(conv, columnType.Name, columnType.Mods)
+	if len(columnType.ArrayBounds) > 1 {
+		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+		issues = append(issues, internal.MultiDimensionalArray)
+	}
+	ty.IsArray = len(columnType.ArrayBounds) == 1
+	return ty, issues
+}
+
+func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
 	switch id {
 	case "bool", "boolean":
 		return ddl.Type{Name: ddl.Bool}, nil
@@ -148,90 +92,4 @@ func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.Type, []in
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Time}
 	}
 	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
-}
-
-func quoteIfNeeded(s string) string {
-	for _, r := range s {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsPunct(r) {
-			continue
-		}
-		return strconv.Quote(s)
-	}
-	return s
-}
-
-func cvtPrimaryKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Key) []ddl.IndexKey {
-	var spKeys []ddl.IndexKey
-	for _, k := range srcKeys {
-		spCol, err := internal.GetSpannerCol(conv, srcTable, k.Column, true)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Can't map key for table %s", srcTable))
-			continue
-		}
-		spKeys = append(spKeys, ddl.IndexKey{Col: spCol, Desc: k.Desc})
-	}
-	return spKeys
-}
-
-func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.ForeignKey) []ddl.Foreignkey {
-	var spKeys []ddl.Foreignkey
-	for _, key := range srcKeys {
-		if len(key.Columns) != len(key.ReferColumns) {
-			conv.Unexpected(fmt.Sprintf("ConvertForeignKeys: columns and referColumns don't have the same lengths: len(columns)=%d, len(referColumns)=%d for source table: %s, referenced table: %s", len(key.Columns), len(key.ReferColumns), srcTable, key.ReferTable))
-			continue
-		}
-		spReferTable, err := internal.GetSpannerTable(conv, key.ReferTable)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Can't map foreign key for source table: %s, referenced table: %s", srcTable, key.ReferTable))
-			continue
-		}
-		var spCols, spReferCols []string
-		for i, col := range key.Columns {
-			spCol, err1 := internal.GetSpannerCol(conv, srcTable, col, false)
-			spReferCol, err2 := internal.GetSpannerCol(conv, key.ReferTable, key.ReferColumns[i], false)
-			if err1 != nil || err2 != nil {
-				conv.Unexpected(fmt.Sprintf("Can't map foreign key for table: %s, referenced table: %s, column: %s", srcTable, key.ReferTable, col))
-				continue
-			}
-			spCols = append(spCols, spCol)
-			spReferCols = append(spReferCols, spReferCol)
-		}
-		spKeyName := internal.ToSpannerForeignKey(conv, key.Name)
-		spKey := ddl.Foreignkey{
-			Name:         spKeyName,
-			Columns:      spCols,
-			ReferTable:   spReferTable,
-			ReferColumns: spReferCols}
-		spKeys = append(spKeys, spKey)
-	}
-	return spKeys
-}
-
-func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcIndexes []schema.Index) []ddl.CreateIndex {
-	var spIndexes []ddl.CreateIndex
-	for _, srcIndex := range srcIndexes {
-		var spKeys []ddl.IndexKey
-		for _, k := range srcIndex.Keys {
-			spCol, err := internal.GetSpannerCol(conv, srcTable, k.Column, true)
-			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Can't map index key column name for table %s column %s", srcTable, k.Column))
-				continue
-			}
-			spKeys = append(spKeys, ddl.IndexKey{Col: spCol, Desc: k.Desc})
-		}
-		if srcIndex.Name == "" {
-			// Generate a name if index name is empty in MySQL.
-			// Collision of index name will be handled by ToSpannerIndexName.
-			srcIndex.Name = fmt.Sprintf("Index_%s", srcTable)
-		}
-		spIndexName := internal.ToSpannerIndexName(conv, srcIndex.Name)
-		spIndex := ddl.CreateIndex{
-			Name:   spIndexName,
-			Table:  spTableName,
-			Unique: srcIndex.Unique,
-			Keys:   spKeys,
-		}
-		spIndexes = append(spIndexes, spIndex)
-	}
-	return spIndexes
 }

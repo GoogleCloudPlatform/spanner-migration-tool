@@ -28,6 +28,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -49,7 +50,7 @@ func ProcessInfoSchema(conv *internal.Conv, db *sql.DB) error {
 			return err
 		}
 	}
-	schemaToDDL(conv)
+	common.SchemaToSpannerDDL(conv, PostgresToSpannerDdl{})
 	conv.AddPrimaryKeys()
 	return nil
 }

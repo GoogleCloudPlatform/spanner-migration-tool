@@ -22,6 +22,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	_ "github.com/go-sql-driver/mysql" // The driver should be used via the database/sql package.
 	_ "github.com/lib/pq"
 )
@@ -39,7 +40,7 @@ func ProcessInfoSchema(conv *internal.Conv, db *sql.DB, dbName string) error {
 			return err
 		}
 	}
-	schemaToDDL(conv)
+	common.SchemaToSpannerDDL(conv, MySQLToSpannerDdl{})
 	conv.AddPrimaryKeys()
 	return nil
 }
