@@ -511,6 +511,16 @@ func TestProcessPgDump(t *testing.T) {
 				spannerData{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a42", "b6", int64(2)}}},
 		},
 		{
+			name: "INSERT with multiple rows",
+			input: "CREATE TABLE test (a text NOT NULL, b text NOT NULL, n bigint);\n" +
+				"ALTER TABLE ONLY test ADD CONSTRAINT test_pkey PRIMARY KEY (a, b);" +
+				"INSERT INTO test (a, b, n) VALUES ('a42', 'b6', 2), ('a43', 'b7', 3);",
+			expectedData: []spannerData{
+				spannerData{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a42", "b6", int64(2)}},
+				spannerData{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a43", "b7", int64(3)}},
+			},
+		},
+		{
 			name: "INSERT with no cols",
 			input: "CREATE TABLE test (a text NOT NULL, b text NOT NULL, n bigint);\n" +
 				"ALTER TABLE ONLY test ADD CONSTRAINT test_pkey PRIMARY KEY (a, b);" +

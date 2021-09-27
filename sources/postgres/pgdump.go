@@ -31,7 +31,7 @@ type copyOrInsert struct {
 	stmt  stmtType
 	table string
 	cols  []string
-	vals  []string // Empty for COPY-FROM.
+	rows  [][]string // Empty for COPY-FROM.
 }
 
 type stmtType int
@@ -61,12 +61,14 @@ func ProcessPgDump(conv *internal.Conv, r *internal.Reader) error {
 			case copyFrom:
 				processCopyBlock(conv, ci.table, ci.cols, r)
 			case insert:
-				// Handle INSERT statements where columns are not
-				// specified i.e. an insert for all table columns.
-				if len(ci.cols) == 0 {
-					ProcessDataRow(conv, ci.table, conv.SrcSchema[ci.table].ColNames, ci.vals)
-				} else {
-					ProcessDataRow(conv, ci.table, ci.cols, ci.vals)
+				for _, vals := range ci.rows {
+					// Handle INSERT statements where columns are not
+					// specified i.e. an insert for all table columns.
+					if len(ci.cols) == 0 {
+						ProcessDataRow(conv, ci.table, conv.SrcSchema[ci.table].ColNames, vals)
+					} else {
+						ProcessDataRow(conv, ci.table, ci.cols, vals)
+					}
 				}
 			}
 		}
@@ -356,10 +358,10 @@ func processInsertStmt(conv *internal.Conv, n *pg_query.InsertStmt) *copyOrInser
 
 	switch sel := n.SelectStmt.GetNode().(type) {
 	case *pg_query.Node_SelectStmt:
-		values := getVals(conv, sel.SelectStmt.ValuesLists, n)
+		rows := getRows(conv, sel.SelectStmt.ValuesLists, n)
 		conv.DataStatement(printNodeType(sel))
 		if conv.DataMode() {
-			return &copyOrInsert{stmt: insert, table: table, cols: colNames, vals: values}
+			return &copyOrInsert{stmt: insert, table: table, cols: colNames, rows: rows}
 		}
 	default:
 		conv.Unexpected(fmt.Sprintf("Found %s node while processing InsertStmt SelectStmt", printNodeType(sel)))
@@ -703,12 +705,10 @@ func getCols(conv *internal.Conv, table string, nodes []*pg_query.Node) (cols []
 	return cols, nil
 }
 
-// getVals extracts and returns the values for an InsertStatement.
-func getVals(conv *internal.Conv, vll []*pg_query.Node, n *pg_query.InsertStmt) (values []string) {
-	// TODO (agasheesh): Handling of multi-row insert statements is broken. See
-	// https://github.com/cloudspannerecosystem/harbourbridge/issues/176 for
-	// more details.
+// getRows extracts and returns the rows for an InsertStatement.
+func getRows(conv *internal.Conv, vll []*pg_query.Node, n *pg_query.InsertStmt) (rows [][]string) {
 	for _, vl := range vll {
+		var values []string
 		switch vals := vl.GetNode().(type) {
 		case *pg_query.Node_List:
 			for _, v := range vals.List.Items {
@@ -733,8 +733,11 @@ func getVals(conv *internal.Conv, vll []*pg_query.Node, n *pg_query.InsertStmt) 
 		default:
 			conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s in ValuesList", printNodeType(n), printNodeType(vals)))
 		}
+		if len(values) > 0 {
+			rows = append(rows, values)
+		}
 	}
-	return values
+	return rows
 }
 
 func logStmtError(conv *internal.Conv, node interface{}, err error) {
