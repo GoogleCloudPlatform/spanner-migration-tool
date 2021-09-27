@@ -712,15 +712,14 @@ COPY test (id, a, b, c, d, e, f, g) FROM stdin;
 func TestProcessPgDump_GetDDL(t *testing.T) {
 	conv, _ := runProcessPgDump("CREATE TABLE cart (productid text, userid text, quantity bigint);\n" +
 		"ALTER TABLE ONLY cart ADD CONSTRAINT cart_pkey PRIMARY KEY (productid, userid);")
-	expected := "CREATE TABLE cart (\n" +
-		"productid STRING(MAX) NOT NULL,\n" +
-		"userid STRING(MAX) NOT NULL,\n" +
-		"quantity INT64\n" +
-		") PRIMARY KEY (productid, userid)"
-	// normalizeSpace isn't perfect, but it handles most of the
-	// usual discretionary space issues.
+	expected :=
+`CREATE TABLE cart (
+  productid STRING(MAX) NOT NULL,
+  userid STRING(MAX) NOT NULL,
+  quantity INT64,
+) PRIMARY KEY (productid, userid)`
 	c := ddl.Config{Tables: true}
-	assert.Equal(t, normalizeSpace(expected), normalizeSpace(strings.Join(conv.SpSchema.GetDDL(c), " ")))
+	assert.Equal(t, expected, strings.Join(conv.SpSchema.GetDDL(c), " "))
 }
 
 func TestProcessPgDump_Rows(t *testing.T) {
@@ -845,10 +844,6 @@ func stripSchemaComments(spSchema map[string]ddl.CreateTable) map[string]ddl.Cre
 		spSchema[t] = ct
 	}
 	return spSchema
-}
-
-func normalizeSpace(s string) string {
-	return strings.Join(strings.Fields(s), " ")
 }
 
 func bitReverse(i int64) int64 {

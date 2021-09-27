@@ -181,14 +181,9 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	var col []string
 	var colComment []string
 	var keys []string
-	for i, cn := range ct.ColNames {
+	for _, cn := range ct.ColNames {
 		s, c := ct.ColDefs[cn].PrintColumnDef(config)
-		s = "\n    " + s
-		if i < len(ct.ColNames)-1 {
-			s += ","
-		} else {
-			s += " "
-		}
+		s = "  " + s + ",\n"
 		col = append(col, s)
 		colComment = append(colComment, c)
 	}
@@ -211,7 +206,7 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	if ct.Parent != "" {
 		interleave = ",\nINTERLEAVE IN PARENT " + config.quote(ct.Parent)
 	}
-	return fmt.Sprintf("%sCREATE TABLE %s (%s\n) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
+	return fmt.Sprintf("%sCREATE TABLE %s (\n%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 }
 
 // CreateIndex encodes the following DDL definition:
