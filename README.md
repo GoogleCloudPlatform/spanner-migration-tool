@@ -312,17 +312,17 @@ conversion state endcoded as JSON.
 ## Example Usage
 
 Details on HarbourBridge example usage can be found here: 
-- [PostgreSQL example usage](postgres/README.md#example-postgresql-usage)
-- [MySQL example usage](mysql/README.md#example-mysql-usage)
-- [DynamoDB example usage](dynamodb/README.md#example-dynamodb-usage)
+- [PostgreSQL example usage](sources/postgres/README.md#example-postgresql-usage)
+- [MySQL example usage](sources/mysql/README.md#example-mysql-usage)
+- [DynamoDB example usage](sources/dynamodb/README.md#example-dynamodb-usage)
 
 
 ## Schema Conversion
 
 Details on HarbourBridge schema conversion can be found here:
-- [PostgreSQL schema conversion](postgres/README.md#schema-conversion)
-- [MySQL schema conversion](mysql/README.md#schema-conversion)
-- [DynamoDB schema conversion](dynamodb/README.md#schema-conversion)
+- [PostgreSQL schema conversion](sources/postgres/README.md#schema-conversion)
+- [MySQL schema conversion](sources/mysql/README.md#schema-conversion)
+- [DynamoDB schema conversion](sources/dynamodb/README.md#schema-conversion)
 
 ## Data Conversion
 
@@ -331,9 +331,9 @@ the Spanner schema it constructs. Conversion for most data types is fairly
 straightforward, but several types deserve discussion. Note that HarbourBridge 
 is not intended for databases larger than about 100GB. Details on HarbourBridge 
 data conversion can be found here:
-- [PostgreSQL data conversion](postgres/README.md#data-conversion)
-- [MySQL data conversion](mysql/README.md#data-conversion)
-- [DynamoDB data conversion](dynamodb/README.md#data-conversion)
+- [PostgreSQL data conversion](sources/postgres/README.md#data-conversion)
+- [MySQL data conversion](sources/mysql/README.md#data-conversion)
+- [DynamoDB data conversion](sources/dynamodb/README.md#data-conversion)
 
 ## Troubleshooting Guide
 
@@ -474,13 +474,13 @@ HarbourBridge uses standard Google Cloud credential mechanisms for accessing
 Cloud Spanner. If this is mis-configured, you may see errors containing
 "unauthenticated", or "cannot fetch token", or "could not find default
 credentials". You might need to run `gcloud auth application-default login`. 
-See the [Before you begin](#before-you-being) section for details.
+See the [Before you begin](#before-you-begin) section for details.
 
 #### 3.4 Can't create database
 
 In this case, the error message printed by the tool should help identify the
 cause. It could be an API permissions issue. For example, the Cloud Spanner API
-may not be appropriately configured. See [Before you begin](#before-you-being)
+may not be appropriately configured. See [Before you begin](#before-you-begin)
 section for details. Alternatively, you have have hit the limit on the number of
 databases per instances (currently 100). This can occur if you re-run the
 HarbourBridge tool many times, since each run creates a new database. In this
