@@ -17,35 +17,43 @@ package common
 import (
 	"database/sql"
 	"fmt"
-	"sort"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	_ "github.com/go-sql-driver/mysql" // The driver should be used via the database/sql package.
-	_ "github.com/lib/pq"
 )
 
 type BaseInfoSchema interface {
 	GetBaseDdl() BaseToDdl
-	GetDbName() string
-	GetIgnoredSchemas() map[string]bool
-	GetTableName(dbName string, tableName string, withQuotes bool) string
-	GetTablesQuery() string
-	GetColumnsQuery() string
+	GetTableName(dbName string, tableName string) string
+	GetTables(db *sql.DB) ([]SchemaAndName, error)
+	GetColumns(table SchemaAndName, db *sql.DB) (*sql.Rows, error) //TODO - merge this method and ProcessColumns for cleaner interface
 	ProcessColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string)
-	BuildColNameList(srcSchema schema.Table, srcColName []string) string
-	GetConstraintsQuery() string
-	GetForeignKeysQuery() string
-	GetIndexesQuery() string
+	GetRowsFromTable(conv *internal.Conv, db *sql.DB, table SchemaAndName) (*sql.Rows, error)
+	GetRowCount(db *sql.DB, table SchemaAndName) (int64, error)
+	GetConstraints(conv *internal.Conv, db *sql.DB, table SchemaAndName) ([]string, map[string][]string, error)
+	GetForeignKeys(conv *internal.Conv, db *sql.DB, table SchemaAndName) (foreignKeys []schema.ForeignKey, err error)
+	GetIndexes(conv *internal.Conv, db *sql.DB, table SchemaAndName) ([]schema.Index, error)
 	ProcessDataRows(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, rows *sql.Rows)
+}
+
+type SchemaAndName struct {
+	Schema string
+	Name   string
+}
+
+type FkConstraint struct {
+	Name    string
+	Table   string
+	Refcols []string
+	Cols    []string
 }
 
 // ProcessInfoSchema performs schema conversion for source database
 // 'db'. Information schema tables are a broadly supported ANSI standard,
 // and we use them to obtain source database's schema information.
 func ProcessInfoSchema(conv *internal.Conv, db *sql.DB, baseInfoSchema BaseInfoSchema) error {
-	tables, err := getTables(db, baseInfoSchema)
+	tables, err := baseInfoSchema.GetTables(db)
 	if err != nil {
 		return err
 	}
@@ -60,7 +68,7 @@ func ProcessInfoSchema(conv *internal.Conv, db *sql.DB, baseInfoSchema BaseInfoS
 }
 
 // ProcessSQLData performs data conversion for source database
-// 'db'. For each table, we extract data using a "SELECT (colNamesList)" query,
+// 'db'. For each table, we extract and
 // convert the data to Spanner data (based on the source and Spanner
 // schemas), and write it to Spanner.  If we can't get/process data
 // for a table, we skip that table and process the remaining tables.
@@ -70,36 +78,26 @@ func ProcessInfoSchema(conv *internal.Conv, db *sql.DB, baseInfoSchema BaseInfoS
 func ProcessSQLData(conv *internal.Conv, db *sql.DB, baseInfoSchema BaseInfoSchema) {
 	// TODO: refactor to use the set of tables computed by
 	// ProcessInfoSchema instead of computing them again.
-	tables, err := getTables(db, baseInfoSchema)
+	tables, err := baseInfoSchema.GetTables(db)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
 		return
 	}
 	for _, t := range tables {
-		srcTable := baseInfoSchema.GetTableName(baseInfoSchema.GetDbName(), t.name, false)
+		srcTable := baseInfoSchema.GetTableName(t.Schema, t.Name)
 		srcSchema, ok := conv.SrcSchema[srcTable]
 		if !ok {
 			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
 			conv.Unexpected(fmt.Sprintf("Can't get schemas for table %s", srcTable))
 			continue
 		}
-		srcCols := srcSchema.ColNames
-		if len(srcCols) == 0 {
-			conv.Unexpected(fmt.Sprintf("Couldn't get source columns for table %s ", t.name))
-			continue
-		}
-		colNameList := baseInfoSchema.BuildColNameList(srcSchema, srcCols)
-		// MySQL schema and name can be arbitrary strings.
-		// Ideally we would pass schema/name as a query parameter,
-		// but MySQL doesn't support this. So we quote it instead.
-		q := fmt.Sprintf("SELECT %s FROM %s;", colNameList, baseInfoSchema.GetTableName(baseInfoSchema.GetDbName(), t.name, true))
-		rows, err := db.Query(q)
+		rows, err := baseInfoSchema.GetRowsFromTable(conv, db, t)
 		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", t.name, err))
+			conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", t.Name, err))
 			continue
 		}
 		defer rows.Close()
-		srcCols, _ = rows.Columns()
+		srcCols, _ := rows.Columns()
 		spTable, err := internal.GetSpannerTable(conv, srcTable)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't get spanner table : %s", err))
@@ -107,7 +105,7 @@ func ProcessSQLData(conv *internal.Conv, db *sql.DB, baseInfoSchema BaseInfoSche
 		}
 		spCols, err := internal.GetSpannerCols(conv, srcTable, srcCols)
 		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Couldn't get spanner columns for table %s : err = %s", t.name, err))
+			conv.Unexpected(fmt.Sprintf("Couldn't get spanner columns for table %s : err = %s", t.Name, err))
 			continue
 		}
 		spSchema, ok := conv.SpSchema[spTable]
@@ -122,78 +120,46 @@ func ProcessSQLData(conv *internal.Conv, db *sql.DB, baseInfoSchema BaseInfoSche
 
 // SetRowStats populates conv with the number of rows in each table.
 func SetRowStats(conv *internal.Conv, db *sql.DB, baseInfoSchema BaseInfoSchema) {
-	tables, err := getTables(db, baseInfoSchema)
+	tables, err := baseInfoSchema.GetTables(db)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
 		return
 	}
 	for _, t := range tables {
-		q := fmt.Sprintf("SELECT COUNT(*) FROM %s;", baseInfoSchema.GetTableName(t.schema, t.name, true))
-		tableName := t.name
-		rows, err := db.Query(q)
+		tableName := baseInfoSchema.GetTableName(t.Schema, t.Name)
+		count, err := baseInfoSchema.GetRowCount(db, t)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't get number of rows for table %s", tableName))
 			continue
 		}
-		defer rows.Close()
-		var count int64
-		if rows.Next() {
-			err := rows.Scan(&count)
-			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Can't get row count: %s", err))
-				continue
-			}
-			conv.Stats.Rows[tableName] += count
-		}
+		conv.Stats.Rows[tableName] += count
 	}
 }
 
-type schemaAndName struct {
-	schema string
-	name   string
-}
-
-// getTables return list of tables in the selected database.
-// Note that sql.DB already effectively has the dbName
-// embedded within it (dbName is part of the DSN passed to sql.Open),
-// but unfortunately there is no way to extract it from sql.DB.
-func getTables(db *sql.DB, baseInfoSchema BaseInfoSchema) ([]schemaAndName, error) {
-	rows, err := db.Query(baseInfoSchema.GetTablesQuery())
+func processTable(conv *internal.Conv, db *sql.DB, table SchemaAndName, baseInfoSchema BaseInfoSchema) error {
+	cols, err := baseInfoSchema.GetColumns(table, db)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't get tables: %w", err)
-	}
-	defer rows.Close()
-	var tableSchema, tableName string
-	var tables []schemaAndName
-	for rows.Next() {
-		rows.Scan(&tableSchema, &tableName)
-		if !baseInfoSchema.GetIgnoredSchemas()[tableSchema] {
-			tables = append(tables, schemaAndName{schema: tableSchema, name: tableName})
-		}
-	}
-	return tables, nil
-}
-
-func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName, baseInfoSchema BaseInfoSchema) error {
-	cols, err := db.Query(baseInfoSchema.GetColumnsQuery(), table.schema, table.name)
-	if err != nil {
-		return fmt.Errorf("couldn't get schema for table %s.%s: %s", table.schema, table.name, err)
+		return fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
 	}
 	defer cols.Close()
-	primaryKeys, constraints, err := getConstraints(conv, db, table, baseInfoSchema)
+
+	primaryKeys, constraints, err := baseInfoSchema.GetConstraints(conv, db, table)
 	if err != nil {
-		return fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.schema, table.name, err)
+		return fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.Schema, table.Name, err)
 	}
-	foreignKeys, err := getForeignKeys(conv, db, table, baseInfoSchema)
+	foreignKeys, err := baseInfoSchema.GetForeignKeys(conv, db, table)
 	if err != nil {
-		return fmt.Errorf("couldn't get foreign key constraints for table %s.%s: %s", table.schema, table.name, err)
+		return fmt.Errorf("couldn't get foreign key constraints for table %s.%s: %s", table.Schema, table.Name, err)
 	}
-	indexes, err := getIndexes(conv, db, table, baseInfoSchema)
+	indexes, err := baseInfoSchema.GetIndexes(conv, db, table)
 	if err != nil {
-		return fmt.Errorf("couldn't get indexes for table %s.%s: %s", table.schema, table.name, err)
+		return fmt.Errorf("couldn't get indexes for table %s.%s: %s", table.Schema, table.Name, err)
 	}
 	colDefs, colNames := baseInfoSchema.ProcessColumns(conv, cols, constraints)
-	name := baseInfoSchema.GetTableName(table.schema, table.name, false)
+	if err != nil {
+		return fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
+	}
+	name := baseInfoSchema.GetTableName(table.Schema, table.Name)
 	var schemaPKeys []schema.Key
 	for _, k := range primaryKeys {
 		schemaPKeys = append(schemaPKeys, schema.Key{Column: k})
@@ -206,118 +172,4 @@ func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName, baseInfo
 		Indexes:     indexes,
 		ForeignKeys: foreignKeys}
 	return nil
-}
-
-// getConstraints returns a list of primary keys and by-column map of
-// other constraints.  Note: we need to preserve ordinal order of
-// columns in primary key constraints.
-// Note that foreign key constraints are handled in getForeignKeys.
-func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName, baseInfoSchema BaseInfoSchema) ([]string, map[string][]string, error) {
-	rows, err := db.Query(baseInfoSchema.GetConstraintsQuery(), table.schema, table.name)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer rows.Close()
-	var primaryKeys []string
-	var col, constraint string
-	m := make(map[string][]string)
-	for rows.Next() {
-		err := rows.Scan(&col, &constraint)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
-			continue
-		}
-		if col == "" || constraint == "" {
-			conv.Unexpected("Got empty col or constraint")
-			continue
-		}
-		switch constraint {
-		case "PRIMARY KEY":
-			primaryKeys = append(primaryKeys, col)
-		default:
-			m[col] = append(m[col], constraint)
-		}
-	}
-	return primaryKeys, m, nil
-}
-
-type fkConstraint struct {
-	name    string
-	table   string
-	refcols []string
-	cols    []string
-}
-
-// getForeignKeys return list all the foreign keys constraints.
-// MySQL supports cross-database foreign key constraints. We ignore
-// them because HarbourBridge works database at a time (a specific run
-// of HarbourBridge focuses on a specific database) and so we can't handle
-// them effectively.
-func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName, baseInfoSchema BaseInfoSchema) (foreignKeys []schema.ForeignKey, err error) {
-	rows, err := db.Query(baseInfoSchema.GetForeignKeysQuery(), table.schema, table.name)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var col, refSchema, refCol, refTable, fKeyName string
-	fKeys := make(map[string]fkConstraint)
-	var keyNames []string
-
-	for rows.Next() {
-		err := rows.Scan(&refSchema, &refTable, &col, &refCol, &fKeyName)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
-			continue
-		}
-		tableName := baseInfoSchema.GetTableName(refSchema, refTable, false)
-		if _, found := fKeys[fKeyName]; found {
-			fk := fKeys[fKeyName]
-			fk.cols = append(fk.cols, col)
-			fk.refcols = append(fk.refcols, refCol)
-			fKeys[fKeyName] = fk
-			continue
-		}
-		fKeys[fKeyName] = fkConstraint{name: fKeyName, table: tableName, refcols: []string{refCol}, cols: []string{col}}
-		keyNames = append(keyNames, fKeyName)
-	}
-	sort.Strings(keyNames)
-	for _, k := range keyNames {
-		foreignKeys = append(foreignKeys,
-			schema.ForeignKey{
-				Name:         fKeys[k].name,
-				Columns:      fKeys[k].cols,
-				ReferTable:   fKeys[k].table,
-				ReferColumns: fKeys[k].refcols})
-	}
-	return foreignKeys, nil
-}
-
-// getIndexes return a list of all indexes for the specified table.
-func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName, baseInfoSchema BaseInfoSchema) ([]schema.Index, error) {
-	rows, err := db.Query(baseInfoSchema.GetIndexesQuery(), table.schema, table.name)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var name, column, sequence, order, isUnique string
-	indexMap := make(map[string]schema.Index)
-	var indexNames []string
-	var indexes []schema.Index
-	for rows.Next() {
-		if err := rows.Scan(&name, &column, &sequence, &order, &isUnique); err != nil {
-			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
-			continue
-		}
-		if _, found := indexMap[name]; !found {
-			indexNames = append(indexNames, name)
-			indexMap[name] = schema.Index{Name: name, Unique: (isUnique == "1")}
-		}
-		index := indexMap[name]
-		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (order == "D")})
-		indexMap[name] = index
-	}
-	for _, k := range indexNames {
-		indexes = append(indexes, indexMap[k])
-	}
-	return indexes, nil
 }
