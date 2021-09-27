@@ -18,9 +18,11 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -30,6 +32,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/web"
+	"github.com/google/subcommands"
 )
 
 var (
@@ -48,7 +51,7 @@ var (
 	targetDb         = conversion.TARGET_SPANNER
 )
 
-func init() {
+func setupGlobalFlags() {
 	flag.StringVar(&dbNameOverride, "dbname", "", "dbname: name to use for Spanner DB")
 	flag.StringVar(&instanceOverride, "instance", "", "instance: Spanner instance to use")
 	flag.StringVar(&filePrefix, "prefix", "", "prefix: file prefix for generated files")
@@ -75,6 +78,27 @@ Sample usage:
 }
 
 func main() {
+	ctx := context.Background()
+	lf, err := conversion.SetupLogFile()
+	if err != nil {
+		fmt.Printf("\nCan't set up log file: %v\n", err)
+		panic(fmt.Errorf("can't set up log file"))
+	}
+	defer conversion.Close(lf)
+
+	// TODO: Remove this check and always run HB in subcommands mode once
+	// global command line mode is deprecated. We can also enable support for
+	// top-level flags in subcommand then.
+	if os.Args[1] != "" && !strings.HasPrefix(os.Args[1], "-") {
+		// Using HB CLI in subcommand mode.
+		subcommands.Register(subcommands.HelpCommand(), "")
+		subcommands.Register(subcommands.CommandsCommand(), "")
+		subcommands.Register(&cmd.SchemaCmd{}, "")
+		flag.Parse()
+		os.Exit(int(subcommands.Execute(ctx)))
+	}
+	// Running HB CLI in global command line mode.
+	setupGlobalFlags()
 	flag.Usage = usage
 	flag.Parse()
 
@@ -85,13 +109,6 @@ func main() {
 	}
 
 	internal.VerboseInit(verbose)
-	lf, err := conversion.SetupLogFile()
-	if err != nil {
-		fmt.Printf("\nCan't set up log file: %v\n", err)
-		panic(fmt.Errorf("can't set up log file"))
-	}
-	defer conversion.Close(lf)
-
 	if schemaOnly && dataOnly {
 		panic(fmt.Errorf("can't use both schema-only and data-only modes at once"))
 	}
@@ -99,7 +116,7 @@ func main() {
 		panic(fmt.Errorf("when using data-only mode, the session must specify the session file to use"))
 	}
 	if schemaOnly && skipForeignKeys {
-		panic(fmt.Errorf("can't use both schema-only and skip-foreign-keys at once. Foreign Key creation can only be skipped when data migration takes place."))
+		panic(fmt.Errorf("can't use both schema-only and skip-foreign-keys at once, foreign Key creation can only be skipped when data migration takes place"))
 	}
 
 	if targetDb == conversion.TARGET_EXPERIMENTAL_POSTGRES {
@@ -109,10 +126,9 @@ func main() {
 	} else if targetDb != conversion.TARGET_SPANNER {
 		panic(fmt.Errorf("unkown target-db %s", targetDb))
 	}
-
-	input := loadInput(dumpFilePath)
-	ioHelper := &conversion.IOStreams{In: input, Out: os.Stdout}
 	fmt.Printf("Using driver (source DB): %s target-db: %s\n", driverName, targetDb)
+
+	ioHelper := conversion.NewIOStreams(driverName, dumpFilePath)
 
 	var project, instance string
 	if !schemaOnly {
@@ -152,23 +168,8 @@ func main() {
 
 	// TODO (agasheesh@): Collect all the config state in a single struct and pass the same to CommandLine instead of
 	// passing multiple parameters. Config state would be populated by parsing the flags and environment variables.
-	err = cmd.CommandLine(driverName, targetDb, project, instance, dbName, dataOnly, schemaOnly, skipForeignKeys, schemaSampleSize, sessionJSON, ioHelper, filePrefix, now)
+	err = cmd.CommandLine(driverName, targetDb, project, instance, dbName, dataOnly, schemaOnly, skipForeignKeys, schemaSampleSize, sessionJSON, &ioHelper, filePrefix, now)
 	if err != nil {
 		panic(err)
 	}
-}
-
-// Load the dump file if parameter has been passed by the user.
-// If no parameter has been passed, then read from standard input
-func loadInput(dumpFile string) *os.File {
-	if dumpFile != "" {
-		fmt.Printf("\nloading dump file from path: %s\n", dumpFile)
-		file, err := os.Open(dumpFile)
-		if err != nil {
-			fmt.Printf("\nerror reading file: %v err:%v", dumpFile, err)
-			panic(err)
-		}
-		return file
-	}
-	return os.Stdin
 }

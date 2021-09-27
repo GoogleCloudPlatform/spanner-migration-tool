@@ -283,6 +283,23 @@ type IOStreams struct {
 	BytesRead           int64
 }
 
+// NewIOStreams returns a new IOStreams struct such that input stream is set
+// to open file descriptor for dumpFile if driver is PGDUMP or MYSQLDUMP.
+// Input stream defaults to stdin. Output stream is always set to stdout.
+func NewIOStreams(driver string, dumpFile string) IOStreams {
+	io := IOStreams{In: os.Stdin, Out: os.Stdout}
+	if (driver == PGDUMP || driver == MYSQLDUMP) && dumpFile != "" {
+		fmt.Printf("\nLoading dump file from path: %s\n", dumpFile)
+		f, err := os.Open(dumpFile)
+		if err != nil {
+			fmt.Printf("\nError reading dump file: %v err:%v\n", dumpFile, err)
+			log.Fatal(err)
+		}
+		io.In = f
+	}
+	return io
+}
+
 func schemaFromDump(driver string, targetDb string, ioHelper *IOStreams) (*internal.Conv, error) {
 	f, n, err := getSeekable(ioHelper.In)
 	if err != nil {
