@@ -436,14 +436,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 }
 
 // VerifyDb checks whether the db exists and if it does, verifies if the schema is what we currently support.
-func VerifyDb(project, instance, dbName string) (dbExists bool, err error) {
-	ctx := context.Background()
-	adminClient, err := database.NewDatabaseAdminClient(ctx)
-	if err != nil {
-		return false, fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
-	}
-	defer adminClient.Close()
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
+func VerifyDb(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) (dbExists bool, err error) {
 	dbExists, err = CheckExistingDb(ctx, adminClient, dbURI)
 	if err != nil {
 		return dbExists, err
@@ -479,47 +472,32 @@ func ValidateDDL(ctx context.Context, adminClient *database.DatabaseAdminClient,
 	return nil
 }
 
-func CreateOrUpdateDatabase(project, instance, dbName string, conv *internal.Conv, out *os.File) (dbURI string, err error) {
-	ctx := context.Background()
-	adminClient, err := database.NewDatabaseAdminClient(ctx)
+func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File) error {
+	dbExists, err := VerifyDb(ctx, adminClient, dbURI)
 	if err != nil {
-		return "", fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
-	}
-	defer adminClient.Close()
-
-	dbExists, err := VerifyDb(project, instance, dbName)
-	if err != nil {
-		return "", err
+		return err
 	}
 	if dbExists {
-		dbURI, err = UpdateDatabase(project, instance, dbName, conv, out)
+		err := UpdateDatabase(ctx, adminClient, dbURI, conv, out)
 		if err != nil {
-			fmt.Printf("\nCan't update database schema: %v\n", err)
-			return "", fmt.Errorf("can't update database schema")
+			return fmt.Errorf("can't update database schema: %v", err)
 		}
-		return dbURI, nil
 	} else {
-		dbURI, err = CreateDatabase(project, instance, dbName, conv, out)
+		err := CreateDatabase(ctx, adminClient, dbURI, conv, out)
 		if err != nil {
-			fmt.Printf("\nCan't create database: %v\n", err)
-			return "", fmt.Errorf("can't create database")
+			return fmt.Errorf("can't create database: %v", err)
 		}
-		return dbURI, nil
 	}
+	return nil
 }
 
 // CreateDatabase returns a newly create Spanner DB.
 // It automatically determines an appropriate project, selects a
 // Spanner instance to use, generates a new Spanner DB name,
 // and call into the Spanner admin interface to create the new DB.
-func CreateDatabase(project, instance, dbName string, conv *internal.Conv, out *os.File) (string, error) {
+func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File) error {
+	project, instance, dbName := parseDbURI(dbURI)
 	fmt.Fprintf(out, "Creating new database %s in instance %s with default permissions ... \n", dbName, instance)
-	ctx := context.Background()
-	adminClient, err := NewDatabaseAdminClient(ctx)
-	if err != nil {
-		return "", fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
-	}
-	defer adminClient.Close()
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
@@ -531,26 +509,17 @@ func CreateDatabase(project, instance, dbName string, conv *internal.Conv, out *
 		ExtraStatements: schema,
 	})
 	if err != nil {
-		return "", fmt.Errorf("can't build CreateDatabaseRequest: %w", analyzeError(err, project, instance))
+		return fmt.Errorf("can't build CreateDatabaseRequest: %w", AnalyzeError(err, dbURI))
 	}
 	if _, err := op.Wait(ctx); err != nil {
-		return "", fmt.Errorf("createDatabase call failed: %w", analyzeError(err, project, instance))
+		return fmt.Errorf("createDatabase call failed: %w", AnalyzeError(err, dbURI))
 	}
 	fmt.Fprintf(out, "Created database successfully.\n")
-	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName), nil
+	return nil
 }
 
-// UpdateDatabase updates the DDL of the spanner DB and return the path.
-func UpdateDatabase(project, instance, dbName string, conv *internal.Conv, out *os.File) (string, error) {
-	fmt.Fprintf(out, "Updating schema for database %s in instance %s ... \n", dbName, instance)
-	ctx := context.Background()
-	adminClient, err := database.NewDatabaseAdminClient(ctx)
-	if err != nil {
-		return "", fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
-	}
-	defer adminClient.Close()
-
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
+func UpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File) error {
+	fmt.Fprintf(out, "Updating schema for %s with default permissions ... \n", dbURI)
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
@@ -560,25 +529,51 @@ func UpdateDatabase(project, instance, dbName string, conv *internal.Conv, out *
 		Statements: conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false}),
 	})
 	if err != nil {
-		return "", fmt.Errorf("can't submit update schema request: %s", err)
+		return fmt.Errorf("can't build UpdateDatabaseDdlRequest: %w", AnalyzeError(err, dbURI))
 	}
 	if err := op.Wait(ctx); err != nil {
-		return "", fmt.Errorf("can't update schema statement: %s", err)
+		return fmt.Errorf("UpdateDatabaseDdl call failed: %w", AnalyzeError(err, dbURI))
 	}
 	fmt.Fprintf(out, "Updated schema successfully.\n")
-	return dbURI, nil
+	return nil
+}
+
+// parseURI parses an unknown URI string that could be a database, instance or project URI.
+func parseURI(URI string) (project, instance, dbName string) {
+	project, instance, dbName = "", "", ""
+	if strings.Contains(URI, "databases") {
+		project, instance, dbName = parseDbURI(URI)
+	} else if strings.Contains(URI, "instances") {
+		project, instance = parseInstanceURI(URI)
+	} else if strings.Contains(URI, "projects") {
+		project = parseProjectURI(URI)
+	}
+	return
+}
+
+func parseDbURI(dbURI string) (project, instance, dbName string) {
+	split := strings.Split(dbURI, "/databases/")
+	project, instance = parseInstanceURI(split[0])
+	dbName = split[1]
+	return
+}
+
+func parseInstanceURI(instanceURI string) (project, instance string) {
+	split := strings.Split(instanceURI, "/instances/")
+	project = parseProjectURI(split[0])
+	instance = split[1]
+	return
+}
+
+func parseProjectURI(projectURI string) (project string) {
+	split := strings.Split(projectURI, "/")
+	project = split[1]
+	return
 }
 
 // UpdateDDLForeignKeys updates the Spanner database with foreign key
 // constraints using ALTER TABLE statements.
-func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv, out *os.File) error {
-	ctx := context.Background()
-	adminClient, err := NewDatabaseAdminClient(ctx)
-	if err != nil {
-		return fmt.Errorf("can't create admin client: %w", analyzeError(err, project, instance))
-	}
-	defer adminClient.Close()
-
+func UpdateDDLForeignKeys(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File) error {
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
@@ -586,7 +581,7 @@ func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv,
 	if len(fkStmts) == 0 {
 		return nil
 	}
-	msg := fmt.Sprintf("Updating schema of database %s in instance %s with foreign key constraints ...", dbName, instance)
+	msg := fmt.Sprintf("Updating schema of database %s with foreign key constraints ...", dbURI)
 	p := internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose())
 
 	workers := make(chan int, MaxWorkers)
@@ -611,9 +606,9 @@ func UpdateDDLForeignKeys(project, instance, dbName string, conv *internal.Conv,
 				progressMutex.Unlock()
 				workers <- workerId
 			}()
-			internal.VerbosePrintf("Submitting new FK create request for %s: %s\n", dbName, fkStmt)
+			internal.VerbosePrintf("Submitting new FK create request: %s\n", fkStmt)
 			op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
-				Database:   fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName),
+				Database:   dbURI,
 				Statements: []string{fkStmt},
 			})
 			if err != nil {
@@ -657,8 +652,8 @@ func GetProject() (string, error) {
 // GetInstance returns the Spanner instance we should use for creating DBs.
 // If the user specified instance (via flag 'instance') then use that.
 // Otherwise try to deduce the instance using gcloud.
-func GetInstance(project string, out *os.File) (string, error) {
-	l, err := getInstances(project)
+func GetInstance(ctx context.Context, project string, out *os.File) (string, error) {
+	l, err := getInstances(ctx, project)
 	if err != nil {
 		return "", err
 	}
@@ -683,11 +678,10 @@ func GetInstance(project string, out *os.File) (string, error) {
 		"Please use the flag '--instance' to select an instance", project)
 }
 
-func getInstances(project string) ([]string, error) {
-	ctx := context.Background()
-	instanceClient, err := NewInstanceAdminClient(ctx)
+func getInstances(ctx context.Context, project string) ([]string, error) {
+	instanceClient, err := instance.NewInstanceAdminClient(ctx)
 	if err != nil {
-		return nil, analyzeError(err, project, "")
+		return nil, AnalyzeError(err, fmt.Sprintf("projects/%s", project))
 	}
 	it := instanceClient.ListInstances(ctx, &instancepb.ListInstancesRequest{Parent: fmt.Sprintf("projects/%s", project)})
 	var l []string
@@ -697,7 +691,7 @@ func getInstances(project string) ([]string, error) {
 			break
 		}
 		if err != nil {
-			return nil, analyzeError(err, project, "")
+			return nil, AnalyzeError(err, fmt.Sprintf("projects/%s", project))
 		}
 		l = append(l, strings.TrimPrefix(resp.Name, fmt.Sprintf("projects/%s/instances/", project)))
 	}
@@ -879,9 +873,10 @@ func getPassword() string {
 	return strings.TrimSpace(string(bytePassword))
 }
 
-// analyzeError inspects an error returned from Cloud Spanner and adds information
+// AnalyzeError inspects an error returned from Cloud Spanner and adds information
 // about potential root causes e.g. authentication issues.
-func analyzeError(err error, project, instance string) error {
+func AnalyzeError(err error, URI string) error {
+	project, instance, _ := parseURI(URI)
 	e := strings.ToLower(err.Error())
 	if containsAny(e, []string{"unauthenticated", "cannot fetch token", "default credentials"}) {
 		return fmt.Errorf("%w.\n"+`
@@ -954,8 +949,7 @@ func NewSpannerClient(ctx context.Context, db string) (*sp.Client, error) {
 }
 
 // GetClient returns a new Spanner client.  It uses the background context.
-func GetClient(db string) (*sp.Client, error) {
-	ctx := context.Background()
+func GetClient(ctx context.Context, db string) (*sp.Client, error) {
 	return NewSpannerClient(ctx, db)
 }
 

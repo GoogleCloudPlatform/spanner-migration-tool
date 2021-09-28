@@ -141,7 +141,7 @@ func main() {
 
 		instance = instanceOverride
 		if instance == "" {
-			instance, err = conversion.GetInstance(project, ioHelper.Out)
+			instance, err = conversion.GetInstance(ctx, project, ioHelper.Out)
 			if err != nil {
 				fmt.Printf("\nCan't get instance: %v\n", err)
 				panic(fmt.Errorf("can't get instance"))
@@ -160,6 +160,7 @@ func main() {
 			panic(fmt.Errorf("can't get database name"))
 		}
 	}
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
 
 	// If filePrefix not explicitly set, use dbName.
 	if filePrefix == "" {
@@ -168,7 +169,7 @@ func main() {
 
 	// TODO (agasheesh@): Collect all the config state in a single struct and pass the same to CommandLine instead of
 	// passing multiple parameters. Config state would be populated by parsing the flags and environment variables.
-	err = cmd.CommandLine(driverName, targetDb, project, instance, dbName, dataOnly, schemaOnly, skipForeignKeys, schemaSampleSize, sessionJSON, &ioHelper, filePrefix, now)
+	err = cmd.CommandLine(ctx, driverName, targetDb, dbURI, dataOnly, schemaOnly, skipForeignKeys, schemaSampleSize, sessionJSON, &ioHelper, filePrefix, now)
 	if err != nil {
 		panic(err)
 	}
