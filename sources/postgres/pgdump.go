@@ -733,9 +733,10 @@ func getRows(conv *internal.Conv, vll []*pg_query.Node, n *pg_query.InsertStmt) 
 		default:
 			conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s in ValuesList", printNodeType(n), printNodeType(vals)))
 		}
-		if len(values) > 0 {
-			rows = append(rows, values)
-		}
+		// If some or all of vals failed to parse, then size of values will be
+		// less than the number of columns, and the same will be caught as a
+		// BadRow in ProcessDataRow.
+		rows = append(rows, values)
 	}
 	return rows
 }
