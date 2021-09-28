@@ -32,27 +32,31 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// TODO: All of the queries to get tables and table data should be in
-// a single transaction to ensure we obtain a consistent snapshot of
-// schema information and table data (pg_dump does something
-// similar).
+// Postgres specific implementation for InfoSchema
+type PostgresInfoSchema struct {
+}
 
-// ProcessInfoSchema performs schema conversion for source database
-// 'db'. Information schema tables are a broadly supported ANSI standard,
-// and we use them to obtain source database's schema information.
-func ProcessInfoSchema(conv *internal.Conv, db *sql.DB) error {
-	tables, err := getTables(db)
+func (pis PostgresInfoSchema) GetBaseDdl() common.BaseToDdl {
+	return PostgresToSpannerDdl{}
+}
+
+func (pis PostgresInfoSchema) GetTableName(schema string, tableName string) string {
+	if schema == "public" { // Drop 'public' prefix.
+		return tableName
+	}
+	return fmt.Sprintf("%s.%s", schema, tableName)
+}
+
+func (pis PostgresInfoSchema) GetRowsFromTable(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) (*sql.Rows, error) {
+	// PostgreSQL schema and name can be arbitrary strings.
+	// Ideally we would pass schema/name as a query parameter,
+	// but PostgreSQL doesn't support this. So we quote it instead.
+	q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, table.Schema, table.Name)
+	rows, err := db.Query(q)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	for _, t := range tables {
-		if err := processTable(conv, db, t); err != nil {
-			return err
-		}
-	}
-	common.SchemaToSpannerDDL(conv, PostgresToSpannerDdl{})
-	conv.AddPrimaryKeys()
-	return nil
+	return rows, err
 }
 
 // ProcessSQLData performs data conversion for source database
@@ -74,55 +78,24 @@ func ProcessInfoSchema(conv *internal.Conv, db *sql.DB) error {
 // We choose to do all type conversions explicitly ourselves so that
 // we can generate more targeted error messages: hence we pass
 // *interface{} parameters to row.Scan.
-func ProcessSQLData(conv *internal.Conv, db *sql.DB) {
-	// TODO: refactor to use the set of tables computed by
-	// ProcessInfoSchema instead of computing them again.
-	tables, err := getTables(db)
-	if err != nil {
-		conv.Unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
-		return
-	}
-	for _, t := range tables {
-		// PostgreSQL schema and name can be arbitrary strings.
-		// Ideally we would pass schema/name as a query parameter,
-		// but PostgreSQL doesn't support this. So we quote it instead.
-		q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, t.schema, t.name)
-		rows, err := db.Query(q)
+func (pis PostgresInfoSchema) ProcessDataRows(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, rows *sql.Rows) {
+	v, iv := buildVals(len(srcCols))
+	for rows.Next() {
+		err := rows.Scan(iv...)
 		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Couldn't get data for table: %s", err))
+			conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
+			// Scan failed, so we don't have any data to add to bad rows.
+			conv.StatsAddBadRow(srcTable, conv.DataMode())
 			continue
 		}
-		defer rows.Close()
-		srcTable := buildTableName(t.schema, t.name)
-		srcCols, err1 := rows.Columns()
-		spTable, err2 := internal.GetSpannerTable(conv, srcTable)
-		spCols, err3 := internal.GetSpannerCols(conv, srcTable, srcCols)
-		spSchema, ok1 := conv.SpSchema[spTable]
-		srcSchema, ok2 := conv.SrcSchema[srcTable]
-		if err1 != nil || err2 != nil || err3 != nil || !ok1 || !ok2 {
-			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
-			conv.Unexpected(fmt.Sprintf("Can't get cols and schemas for table %s: err1=%s, err2=%s, err3=%s, ok1=%t, ok2=%t",
-				srcTable, err1, err2, err3, ok1, ok2))
+		cvtCols, cvtVals, err := convertSQLRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, v)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
+			conv.StatsAddBadRow(srcTable, conv.DataMode())
+			conv.CollectBadRow(srcTable, srcCols, valsToStrings(v))
 			continue
 		}
-		v, iv := buildVals(len(srcCols))
-		for rows.Next() {
-			err := rows.Scan(iv...)
-			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
-				// Scan failed, so we don't have any data to add to bad rows.
-				conv.StatsAddBadRow(srcTable, conv.DataMode())
-				continue
-			}
-			cvtCols, cvtVals, err := ConvertSQLRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, v)
-			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
-				conv.StatsAddBadRow(srcTable, conv.DataMode())
-				conv.CollectBadRow(srcTable, srcCols, valsToStrings(v))
-				continue
-			}
-			conv.WriteRow(srcTable, spTable, cvtCols, cvtVals)
-		}
+		conv.WriteRow(srcTable, spTable, cvtCols, cvtVals)
 	}
 }
 
@@ -132,7 +105,7 @@ func ProcessSQLData(conv *internal.Conv, db *sql.DB) {
 // ConvertSQLRow returns cols as well as converted values. This is
 // because cols can change when we add a column (synthetic primary
 // key) or because we drop columns (handling of NULL values).
-func ConvertSQLRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, srcVals []interface{}) ([]string, []interface{}, error) {
+func convertSQLRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, srcVals []interface{}) ([]string, []interface{}, error) {
 	var vs []interface{}
 	var cs []string
 	for i := range srcCols {
@@ -166,45 +139,30 @@ func ConvertSQLRow(conv *internal.Conv, srcTable string, srcCols []string, srcSc
 	return cs, vs, nil
 }
 
-// SetRowStats populates conv with the number of rows in each table.
-func SetRowStats(conv *internal.Conv, db *sql.DB) {
-	// TODO: refactor to use the set of tables computed by
-	// ProcessInfoSchema instead of computing them again.
-	tables, err := getTables(db)
+// GetRowCount with number of rows in each table.
+func (pis PostgresInfoSchema) GetRowCount(db *sql.DB, table common.SchemaAndName) (int64, error) {
+	// PostgreSQL schema and name can be arbitrary strings.
+	// Ideally we would pass schema/name as a query parameter,
+	// but PostgreSQL doesn't support this. So we quote it instead.
+	q := fmt.Sprintf(`SELECT COUNT(*) FROM "%s"."%s";`, table.Schema, table.Name)
+	rows, err := db.Query(q)
 	if err != nil {
-		conv.Unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
-		return
+		return 0, err
 	}
-	for _, t := range tables {
-		// PostgreSQL schema and name can be arbitrary strings.
-		// Ideally we would pass schema/name as a query parameter,
-		// but PostgreSQL doesn't support this. So we quote it instead.
-		q := fmt.Sprintf(`SELECT COUNT(*) FROM "%s"."%s";`, t.schema, t.name)
-		tableName := buildTableName(t.schema, t.name)
-		rows, err := db.Query(q)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Couldn't get number of rows for table %s", tableName))
-			continue
-		}
-		defer rows.Close()
-		var count int64
-		if rows.Next() {
-			err := rows.Scan(&count)
-			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Can't get row count: %s", err))
-				continue
-			}
-			conv.Stats.Rows[tableName] += count
-		}
+	defer rows.Close()
+	var count int64
+	if rows.Next() {
+		err := rows.Scan(&count)
+		return count, err
 	}
+	return 0, nil //Check if 0 is ok to return
 }
 
-type schemaAndName struct {
-	schema string // PostgreSQL schema (aka namespace for PostgreSQL objects).
-	name   string
-}
-
-func getTables(db *sql.DB) ([]schemaAndName, error) {
+// TODO: All of the queries to get tables and table data should be in
+// a single transaction to ensure we obtain a consistent snapshot of
+// schema information and table data (pg_dump does something
+// similar).
+func (pis PostgresInfoSchema) GetTables(db *sql.DB) ([]common.SchemaAndName, error) {
 	ignored := make(map[string]bool)
 	// Ignore all system tables: we just want to convert user tables.
 	for _, s := range []string{"information_schema", "postgres", "pg_catalog", "pg_temp_1", "pg_toast", "pg_toast_temp_1"} {
@@ -217,60 +175,26 @@ func getTables(db *sql.DB) ([]schemaAndName, error) {
 	}
 	defer rows.Close()
 	var tableSchema, tableName string
-	var tables []schemaAndName
+	var tables []common.SchemaAndName
 	for rows.Next() {
 		rows.Scan(&tableSchema, &tableName)
 		if !ignored[tableSchema] {
-			tables = append(tables, schemaAndName{schema: tableSchema, name: tableName})
+			tables = append(tables, common.SchemaAndName{Schema: tableSchema, Name: tableName})
 		}
 	}
 	return tables, nil
 }
 
-func processTable(conv *internal.Conv, db *sql.DB, table schemaAndName) error {
-	cols, err := getColumns(table, db)
-	if err != nil {
-		return fmt.Errorf("couldn't get schema for table %s.%s: %s", table.schema, table.name, err)
-	}
-	defer cols.Close()
-	primaryKeys, constraints, err := getConstraints(conv, db, table)
-	if err != nil {
-		return fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.schema, table.name, err)
-	}
-	foreignKeys, err := getForeignKeys(conv, db, table)
-	if err != nil {
-		return fmt.Errorf("couldn't get foreign key constraints for table %s.%s: %s", table.schema, table.name, err)
-	}
-	indexes, err := getIndexes(conv, db, table)
-	if err != nil {
-		return fmt.Errorf("couldn't get indexes for table %s.%s: %s", table.schema, table.name, err)
-	}
-	colDefs, colNames := processColumns(conv, cols, constraints)
-	name := buildTableName(table.schema, table.name)
-	var schemaPKeys []schema.Key
-	for _, k := range primaryKeys {
-		schemaPKeys = append(schemaPKeys, schema.Key{Column: k})
-	}
-	conv.SrcSchema[name] = schema.Table{
-		Name:        name,
-		ColNames:    colNames,
-		ColDefs:     colDefs,
-		PrimaryKeys: schemaPKeys,
-		Indexes:     indexes,
-		ForeignKeys: foreignKeys}
-	return nil
-}
-
-func getColumns(table schemaAndName, db *sql.DB) (*sql.Rows, error) {
+func (pis PostgresInfoSchema) GetColumns(table common.SchemaAndName, db *sql.DB) (*sql.Rows, error) {
 	q := `SELECT c.column_name, c.data_type, e.data_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale
               FROM information_schema.COLUMNS c LEFT JOIN information_schema.element_types e
                  ON ((c.table_catalog, c.table_schema, c.table_name, 'TABLE', c.dtd_identifier)
                      = (e.object_catalog, e.object_schema, e.object_name, e.object_type, e.collection_type_identifier))
               where table_schema = $1 and table_name = $2 ORDER BY c.ordinal_position;`
-	return db.Query(q, table.schema, table.name)
+	return db.Query(q, table.Schema, table.Name)
 }
 
-func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string) {
+func (pis PostgresInfoSchema) ProcessColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string) {
 	colDefs := make(map[string]schema.Column)
 	var colNames []string
 	var colName, dataType, isNullable string
@@ -311,13 +235,13 @@ func processColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string]
 // other constraints.  Note: we need to preserve ordinal order of
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
-func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]string, map[string][]string, error) {
+func (pis PostgresInfoSchema) GetConstraints(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) ([]string, map[string][]string, error) {
 	q := `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
               FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
                 INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
                   ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA
               WHERE k.TABLE_SCHEMA = $1 AND k.TABLE_NAME = $2 ORDER BY k.ordinal_position;`
-	rows, err := db.Query(q, table.schema, table.name)
+	rows, err := db.Query(q, table.Schema, table.Name)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -345,15 +269,8 @@ func getConstraints(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]str
 	return primaryKeys, m, nil
 }
 
-type fkConstraint struct {
-	name    string
-	table   string
-	refcols []string
-	cols    []string
-}
-
 // getForeignKeys returns a list of all the foreign key constraints.
-func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (foreignKeys []schema.ForeignKey, err error) {
+func (pis PostgresInfoSchema) GetForeignKeys(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
 	q := `SELECT 
 		schema_name AS "TABLE_SCHEMA", 
 		cl.relname AS "TABLE_NAME", 
@@ -378,30 +295,30 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
    		JOIN PG_ATTRIBUTE att2 ON
        		att2.attrelid = con.conrelid AND att2.attnum = con.parent;`
 
-	rows, err := db.Query(q, table.schema, table.name)
+	rows, err := db.Query(q, table.Schema, table.Name)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var refTable schemaAndName
+	var refTable common.SchemaAndName
 	var col, refCol, fKeyName string
-	fKeys := make(map[string]fkConstraint)
+	fKeys := make(map[string]common.FkConstraint)
 	var keyNames []string
 	for rows.Next() {
-		err := rows.Scan(&refTable.schema, &refTable.name, &col, &refCol, &fKeyName)
+		err := rows.Scan(&refTable.Schema, &refTable.Name, &col, &refCol, &fKeyName)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-		tableName := buildTableName(refTable.schema, refTable.name)
+		tableName := pis.GetTableName(refTable.Schema, refTable.Name)
 		if _, found := fKeys[fKeyName]; found {
 			fk := fKeys[fKeyName]
-			fk.cols = append(fk.cols, col)
-			fk.refcols = append(fk.refcols, refCol)
+			fk.Cols = append(fk.Cols, col)
+			fk.Refcols = append(fk.Refcols, refCol)
 			fKeys[fKeyName] = fk
 			continue
 		}
-		fKeys[fKeyName] = fkConstraint{name: fKeyName, table: tableName, refcols: []string{refCol}, cols: []string{col}}
+		fKeys[fKeyName] = common.FkConstraint{Name: fKeyName, Table: tableName, Refcols: []string{refCol}, Cols: []string{col}}
 		keyNames = append(keyNames, fKeyName)
 	}
 
@@ -409,10 +326,10 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 	for _, k := range keyNames {
 		foreignKeys = append(foreignKeys,
 			schema.ForeignKey{
-				Name:         fKeys[k].name,
-				Columns:      fKeys[k].cols,
-				ReferTable:   fKeys[k].table,
-				ReferColumns: fKeys[k].refcols})
+				Name:         fKeys[k].Name,
+				Columns:      fKeys[k].Cols,
+				ReferTable:   fKeys[k].Table,
+				ReferColumns: fKeys[k].Refcols})
 	}
 	return foreignKeys, nil
 }
@@ -421,7 +338,7 @@ func getForeignKeys(conv *internal.Conv, db *sql.DB, table schemaAndName) (forei
 // Note: Extracting index definitions from PostgreSQL information schema tables is complex.
 // See https://stackoverflow.com/questions/6777456/list-all-index-names-column-names-and-its-table-name-of-a-postgresql-database/44460269#44460269
 // for background.
-func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]schema.Index, error) {
+func (pis PostgresInfoSchema) GetIndexes(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) ([]schema.Index, error) {
 	q := `SELECT
 			irel.relname AS index_name,
 			a.attname AS column_name,
@@ -451,7 +368,7 @@ func getIndexes(conv *internal.Conv, db *sql.DB, table schemaAndName) ([]schema.
            		array_position(i.indkey, a.attnum),
            		o.OPTION,i.indisunique
 		ORDER BY irel.relname, array_position(i.indkey, a.attnum);`
-	rows, err := db.Query(q, table.schema, table.name)
+	rows, err := db.Query(q, table.Schema, table.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -637,11 +554,4 @@ func valsToStrings(vals []interface{}) []string {
 		s = append(s, toString(v))
 	}
 	return s
-}
-
-func buildTableName(schema, name string) string {
-	if schema == "public" { // Drop 'public' prefix.
-		return name
-	}
-	return fmt.Sprintf("%s.%s", schema, name)
 }

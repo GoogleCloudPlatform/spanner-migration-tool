@@ -127,7 +127,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	case "mysql":
 		err = common.ProcessInfoSchema(conv, sessionState.sourceDB, mysql.MySQLInfoSchema{sessionState.dbName})
 	case "postgres":
-		err = postgres.ProcessInfoSchema(conv, sessionState.sourceDB)
+		err = common.ProcessInfoSchema(conv, sessionState.sourceDB, postgres.PostgresInfoSchema{})
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.driver), http.StatusBadRequest)
 		return

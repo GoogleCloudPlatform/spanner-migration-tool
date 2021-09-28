@@ -1052,7 +1052,7 @@ func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB) error {
 	case MYSQL:
 		return common.ProcessInfoSchema(conv, db, mysql.MySQLInfoSchema{os.Getenv("MYSQLDATABASE")})
 	case POSTGRES:
-		return postgres.ProcessInfoSchema(conv, db)
+		return common.ProcessInfoSchema(conv, db, postgres.PostgresInfoSchema{})
 	default:
 		return fmt.Errorf("schema conversion for driver %s not supported", driver)
 	}
@@ -1064,7 +1064,7 @@ func SetRowStats(driver string, conv *internal.Conv, db *sql.DB) error {
 	case MYSQL:
 		common.SetRowStats(conv, db, mysql.MySQLInfoSchema{os.Getenv("MYSQLDATABASE")})
 	case POSTGRES:
-		postgres.SetRowStats(conv, db)
+		common.SetRowStats(conv, db, postgres.PostgresInfoSchema{})
 	default:
 		return fmt.Errorf("Could not set rows stats for '%s' driver", driver)
 	}
@@ -1074,10 +1074,11 @@ func SetRowStats(driver string, conv *internal.Conv, db *sql.DB) error {
 // ProcessSQLData invokes ProcessSQLData function from a sql package based on driver selected.
 func ProcessSQLData(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
+	//TODO - move this logic into a factory within the sources dir
 	case MYSQL:
 		common.ProcessSQLData(conv, db, mysql.MySQLInfoSchema{os.Getenv("MYSQLDATABASE")})
 	case POSTGRES:
-		postgres.ProcessSQLData(conv, db)
+		common.ProcessSQLData(conv, db, postgres.PostgresInfoSchema{})
 	default:
 		return fmt.Errorf("Data conversion for driver %s is not supported", driver)
 	}

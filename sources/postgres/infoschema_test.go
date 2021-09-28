@@ -24,6 +24,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/stretchr/testify/assert"
 )
@@ -194,7 +195,7 @@ func TestProcessInfoSchema(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
-	err := ProcessInfoSchema(conv, db)
+	err := common.ProcessInfoSchema(conv, db, PostgresInfoSchema{})
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"user": ddl.CreateTable{
@@ -325,7 +326,7 @@ func TestProcessSqlData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	ProcessSQLData(conv, db)
+	common.ProcessSQLData(conv, db, PostgresInfoSchema{})
 
 	assert.Equal(t,
 		[]spannerData{
@@ -402,7 +403,7 @@ func TestConvertSqlRow_SingleCol(t *testing.T) {
 			Name:     tableName,
 			ColNames: []string{col},
 			ColDefs:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: tc.spType}}}
-		ac, av, err := ConvertSQLRow(conv, tableName, cols, srcSchema, tableName, cols, spSchema, []interface{}{tc.in})
+		ac, av, err := convertSQLRow(conv, tableName, cols, srcSchema, tableName, cols, spSchema, []interface{}{tc.in})
 		assert.Equal(t, cols, ac)
 		assert.Equal(t, []interface{}{tc.e}, av)
 		assert.Nil(t, err)
@@ -463,7 +464,7 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
-	err := ProcessInfoSchema(conv, db)
+	err := common.ProcessInfoSchema(conv, db, PostgresInfoSchema{})
 	assert.Nil(t, err)
 	conv.SetDataMode()
 	var rows []spannerData
@@ -471,7 +472,7 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	ProcessSQLData(conv, db)
+	common.ProcessSQLData(conv, db, PostgresInfoSchema{})
 	assert.Equal(t, []spannerData{
 		{table: "test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), int64(0)}},
 		{table: "test", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), int64(-9223372036854775808)}}},
@@ -498,7 +499,7 @@ func TestSetRowStats(t *testing.T) {
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
 	conv.SetDataMode()
-	SetRowStats(conv, db)
+	common.SetRowStats(conv, db, PostgresInfoSchema{})
 	assert.Equal(t, int64(5), conv.Stats.Rows["test1"])
 	assert.Equal(t, int64(142), conv.Stats.Rows["test2"])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
