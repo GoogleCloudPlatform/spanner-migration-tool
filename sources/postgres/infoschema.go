@@ -222,7 +222,7 @@ func (pis PostgresInfoSchema) ProcessColumns(conv *internal.Conv, cols *sql.Rows
 		c := schema.Column{
 			Name:    colName,
 			Type:    toType(dataType, elementDataType, charMaxLen, numericPrecision, numericScale),
-			NotNull: toNotNull(conv, isNullable),
+			NotNull: common.ToNotNull(conv, isNullable),
 			Ignored: ignored,
 		}
 		colDefs[colName] = c
@@ -411,17 +411,6 @@ func toType(dataType string, elementDataType sql.NullString, charLen sql.NullInt
 	default:
 		return schema.Type{Name: dataType}
 	}
-}
-
-func toNotNull(conv *internal.Conv, isNullable string) bool {
-	switch isNullable {
-	case "YES":
-		return false
-	case "NO":
-		return true
-	}
-	conv.Unexpected(fmt.Sprintf("isNullable column has unknown value: %s", isNullable))
-	return false
 }
 
 func cvtSQLArray(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {

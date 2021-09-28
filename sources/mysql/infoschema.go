@@ -170,7 +170,7 @@ func (mis MySQLInfoSchema) ProcessColumns(conv *internal.Conv, cols *sql.Rows, c
 		c := schema.Column{
 			Name:    colName,
 			Type:    toType(dataType, columnType, charMaxLen, numericPrecision, numericScale),
-			NotNull: toNotNull(conv, isNullable),
+			NotNull: common.ToNotNull(conv, isNullable),
 			Ignored: ignored,
 		}
 		colDefs[colName] = c
@@ -323,17 +323,6 @@ func toType(dataType string, columnType string, charLen sql.NullInt64, numericPr
 	default:
 		return schema.Type{Name: dataType}
 	}
-}
-
-func toNotNull(conv *internal.Conv, isNullable string) bool {
-	switch isNullable {
-	case "YES":
-		return false
-	case "NO":
-		return true
-	}
-	conv.Unexpected(fmt.Sprintf("isNullable column has unknown value: %s", isNullable))
-	return false
 }
 
 // buildVals constructs []sql.RawBytes value containers to scan row
