@@ -1038,9 +1038,9 @@ func GetBanner(now time.Time, db string) string {
 func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 	switch driver {
 	case MYSQLDUMP:
-		return common.ProcessDbDump(conv, r, mysql.MysqlDbDump{})
+		return common.ProcessDbDump(conv, r, mysql.DbDumpImpl{})
 	case PGDUMP:
-		return common.ProcessDbDump(conv, r, postgres.PostgresDbDump{})
+		return common.ProcessDbDump(conv, r, postgres.DbDumpImpl{})
 	default:
 		return fmt.Errorf("process dump for driver %s not supported", driver)
 	}
@@ -1050,9 +1050,9 @@ func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
 	case MYSQL:
-		return common.ProcessInfoSchema(conv, db, mysql.MySQLInfoSchema{os.Getenv("MYSQLDATABASE")})
+		return common.ProcessInfoSchema(conv, db, mysql.InfoSchemaImpl{os.Getenv("MYSQLDATABASE")})
 	case POSTGRES:
-		return common.ProcessInfoSchema(conv, db, postgres.PostgresInfoSchema{})
+		return common.ProcessInfoSchema(conv, db, postgres.InfoSchemaImpl{})
 	default:
 		return fmt.Errorf("schema conversion for driver %s not supported", driver)
 	}
@@ -1062,9 +1062,9 @@ func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB) error {
 func SetRowStats(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
 	case MYSQL:
-		common.SetRowStats(conv, db, mysql.MySQLInfoSchema{os.Getenv("MYSQLDATABASE")})
+		common.SetRowStats(conv, db, mysql.InfoSchemaImpl{os.Getenv("MYSQLDATABASE")})
 	case POSTGRES:
-		common.SetRowStats(conv, db, postgres.PostgresInfoSchema{})
+		common.SetRowStats(conv, db, postgres.InfoSchemaImpl{})
 	default:
 		return fmt.Errorf("Could not set rows stats for '%s' driver", driver)
 	}
@@ -1076,9 +1076,9 @@ func ProcessSQLData(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
 	//TODO - move this logic into a factory within the sources dir
 	case MYSQL:
-		common.ProcessSQLData(conv, db, mysql.MySQLInfoSchema{os.Getenv("MYSQLDATABASE")})
+		common.ProcessSQLData(conv, db, mysql.InfoSchemaImpl{os.Getenv("MYSQLDATABASE")})
 	case POSTGRES:
-		common.ProcessSQLData(conv, db, postgres.PostgresInfoSchema{})
+		common.ProcessSQLData(conv, db, postgres.InfoSchemaImpl{})
 	default:
 		return fmt.Errorf("Data conversion for driver %s is not supported", driver)
 	}

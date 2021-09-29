@@ -24,35 +24,14 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-type BaseToDdl interface {
+type ToDdl interface {
 	ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue)
 }
 
-// TODO: refactor this file to avoid the duplication with postgres/toddl.go.
-// The core difference between the two files is toSpannerType, which maps
-// type ids (which differ between MySQL and PostgreSQL) to Spanner types.
-
-// schemaToDDL performs schema conversion from the source DB schema to
+// schemaToSpannerDDL performs schema conversion from the source DB schema to
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
-func SchemaToSpannerDDL(conv *internal.Conv, toddlImpl BaseToDdl) error {
-	// Tracks Spanner names that have been used for foreign key constraints
-	// and indexes. We use this to ensure we generate unique names when
-	// we map from Source to Spanner since Spanner requires all foreign
-	// key and index names to be distinct (you can't use the same name
-	// for a foreign key constraint and an index).
-	usedNames := make(map[string]bool)
-	// As Spanner uses same namespace for table names, foreign key constraint
-	// names and index names, we need to pre-populate usedNames with Spanner table
-	// names to handle collision with foreign key names and index names.
-	for _, srcTable := range conv.SrcSchema {
-		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
-			continue
-		}
-		usedNames[spTableName] = true
-	}
+func SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error {
 	for _, srcTable := range conv.SrcSchema {
 		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
 		if err != nil {
@@ -71,7 +50,7 @@ func SchemaToSpannerDDL(conv *internal.Conv, toddlImpl BaseToDdl) error {
 				continue
 			}
 			spColNames = append(spColNames, colName)
-			ty, issues := toddlImpl.ToSpannerType(conv, srcCol.Type)
+			ty, issues := toddl.ToSpannerType(conv, srcCol.Type)
 			// TODO(hengfeng): add issues for all elements of srcCol.Ignored.
 			if srcCol.Ignored.ForeignKey {
 				issues = append(issues, internal.ForeignKey)
@@ -170,7 +149,7 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 		for _, k := range srcIndex.Keys {
 			spCol, err := internal.GetSpannerCol(conv, srcTable, k.Column, true)
 			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Can't map index key column name for table %s", srcTable))
+				conv.Unexpected(fmt.Sprintf("Can't map index key column name for table %s column %s", srcTable, k.Column))
 				continue
 			}
 			spKeys = append(spKeys, ddl.IndexKey{Col: spCol, Desc: k.Desc})

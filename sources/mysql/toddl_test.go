@@ -66,7 +66,7 @@ func TestToSpannerType(t *testing.T) {
 		},
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "aref"}},
 	}
-	assert.Nil(t, common.SchemaToSpannerDDL(conv, MySQLToSpannerDdl{}))
+	assert.Nil(t, common.SchemaToSpannerDDL(conv, ToDdlImpl{}))
 	actual := conv.SpSchema[name]
 	dropComments(&actual) // Don't test comment.
 	expected := ddl.CreateTable{

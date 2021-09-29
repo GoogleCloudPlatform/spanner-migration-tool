@@ -33,21 +33,21 @@ import (
 )
 
 // Postgres specific implementation for InfoSchema
-type PostgresInfoSchema struct {
+type InfoSchemaImpl struct {
 }
 
-func (pis PostgresInfoSchema) GetBaseDdl() common.BaseToDdl {
-	return PostgresToSpannerDdl{}
+func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
+	return ToDdlImpl{}
 }
 
-func (pis PostgresInfoSchema) GetTableName(schema string, tableName string) string {
+func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 	if schema == "public" { // Drop 'public' prefix.
 		return tableName
 	}
 	return fmt.Sprintf("%s.%s", schema, tableName)
 }
 
-func (pis PostgresInfoSchema) GetRowsFromTable(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) (*sql.Rows, error) {
+func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) (*sql.Rows, error) {
 	// PostgreSQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but PostgreSQL doesn't support this. So we quote it instead.
@@ -78,7 +78,7 @@ func (pis PostgresInfoSchema) GetRowsFromTable(conv *internal.Conv, db *sql.DB, 
 // We choose to do all type conversions explicitly ourselves so that
 // we can generate more targeted error messages: hence we pass
 // *interface{} parameters to row.Scan.
-func (pis PostgresInfoSchema) ProcessDataRows(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, rows *sql.Rows) {
+func (isi InfoSchemaImpl) ProcessDataRows(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, rows *sql.Rows) {
 	v, iv := buildVals(len(srcCols))
 	for rows.Next() {
 		err := rows.Scan(iv...)
@@ -140,7 +140,7 @@ func convertSQLRow(conv *internal.Conv, srcTable string, srcCols []string, srcSc
 }
 
 // GetRowCount with number of rows in each table.
-func (pis PostgresInfoSchema) GetRowCount(db *sql.DB, table common.SchemaAndName) (int64, error) {
+func (isi InfoSchemaImpl) GetRowCount(db *sql.DB, table common.SchemaAndName) (int64, error) {
 	// PostgreSQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but PostgreSQL doesn't support this. So we quote it instead.
@@ -162,7 +162,7 @@ func (pis PostgresInfoSchema) GetRowCount(db *sql.DB, table common.SchemaAndName
 // a single transaction to ensure we obtain a consistent snapshot of
 // schema information and table data (pg_dump does something
 // similar).
-func (pis PostgresInfoSchema) GetTables(db *sql.DB) ([]common.SchemaAndName, error) {
+func (isi InfoSchemaImpl) GetTables(db *sql.DB) ([]common.SchemaAndName, error) {
 	ignored := make(map[string]bool)
 	// Ignore all system tables: we just want to convert user tables.
 	for _, s := range []string{"information_schema", "postgres", "pg_catalog", "pg_temp_1", "pg_toast", "pg_toast_temp_1"} {
@@ -185,7 +185,7 @@ func (pis PostgresInfoSchema) GetTables(db *sql.DB) ([]common.SchemaAndName, err
 	return tables, nil
 }
 
-func (pis PostgresInfoSchema) GetColumns(table common.SchemaAndName, db *sql.DB) (*sql.Rows, error) {
+func (isi InfoSchemaImpl) GetColumns(table common.SchemaAndName, db *sql.DB) (*sql.Rows, error) {
 	q := `SELECT c.column_name, c.data_type, e.data_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale
               FROM information_schema.COLUMNS c LEFT JOIN information_schema.element_types e
                  ON ((c.table_catalog, c.table_schema, c.table_name, 'TABLE', c.dtd_identifier)
@@ -194,7 +194,7 @@ func (pis PostgresInfoSchema) GetColumns(table common.SchemaAndName, db *sql.DB)
 	return db.Query(q, table.Schema, table.Name)
 }
 
-func (pis PostgresInfoSchema) ProcessColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string) {
+func (isi InfoSchemaImpl) ProcessColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string) {
 	colDefs := make(map[string]schema.Column)
 	var colNames []string
 	var colName, dataType, isNullable string
@@ -235,7 +235,7 @@ func (pis PostgresInfoSchema) ProcessColumns(conv *internal.Conv, cols *sql.Rows
 // other constraints.  Note: we need to preserve ordinal order of
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
-func (pis PostgresInfoSchema) GetConstraints(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) ([]string, map[string][]string, error) {
+func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) ([]string, map[string][]string, error) {
 	q := `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
               FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
                 INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
@@ -270,7 +270,7 @@ func (pis PostgresInfoSchema) GetConstraints(conv *internal.Conv, db *sql.DB, ta
 }
 
 // getForeignKeys returns a list of all the foreign key constraints.
-func (pis PostgresInfoSchema) GetForeignKeys(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
+func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
 	q := `SELECT 
 		schema_name AS "TABLE_SCHEMA", 
 		cl.relname AS "TABLE_NAME", 
@@ -310,7 +310,7 @@ func (pis PostgresInfoSchema) GetForeignKeys(conv *internal.Conv, db *sql.DB, ta
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-		tableName := pis.GetTableName(refTable.Schema, refTable.Name)
+		tableName := isi.GetTableName(refTable.Schema, refTable.Name)
 		if _, found := fKeys[fKeyName]; found {
 			fk := fKeys[fKeyName]
 			fk.Cols = append(fk.Cols, col)
@@ -338,7 +338,7 @@ func (pis PostgresInfoSchema) GetForeignKeys(conv *internal.Conv, db *sql.DB, ta
 // Note: Extracting index definitions from PostgreSQL information schema tables is complex.
 // See https://stackoverflow.com/questions/6777456/list-all-index-names-column-names-and-its-table-name-of-a-postgresql-database/44460269#44460269
 // for background.
-func (pis PostgresInfoSchema) GetIndexes(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) ([]schema.Index, error) {
+func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) ([]schema.Index, error) {
 	q := `SELECT
 			irel.relname AS index_name,
 			a.attname AS column_name,

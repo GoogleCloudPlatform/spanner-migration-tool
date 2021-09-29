@@ -29,19 +29,19 @@ import (
 )
 
 // MySQL specific implementation for InfoSchema
-type MySQLInfoSchema struct {
+type InfoSchemaImpl struct {
 	DbName string
 }
 
-func (mis MySQLInfoSchema) GetBaseDdl() common.BaseToDdl {
-	return MySQLToSpannerDdl{}
+func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
+	return ToDdlImpl{}
 }
 
-func (mis MySQLInfoSchema) GetTableName(dbName string, tableName string) string {
+func (isi InfoSchemaImpl) GetTableName(dbName string, tableName string) string {
 	return tableName
 }
 
-func (mis MySQLInfoSchema) GetRowsFromTable(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) (*sql.Rows, error) {
+func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) (*sql.Rows, error) {
 	srcSchema := conv.SrcSchema[table.Name]
 	srcCols := srcSchema.ColNames
 	if len(srcCols) == 0 {
@@ -77,7 +77,7 @@ func buildColNameList(srcSchema schema.Table, srcColName []string) string {
 	return colList[:len(colList)-1]
 }
 
-func (mis MySQLInfoSchema) ProcessDataRows(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, rows *sql.Rows) {
+func (isi InfoSchemaImpl) ProcessDataRows(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, rows *sql.Rows) {
 	v, scanArgs := buildVals(len(srcCols))
 	for rows.Next() {
 		// get RawBytes from data.
@@ -94,7 +94,7 @@ func (mis MySQLInfoSchema) ProcessDataRows(conv *internal.Conv, srcTable string,
 }
 
 // GetRowCount with number of rows in each table.
-func (mis MySQLInfoSchema) GetRowCount(db *sql.DB, table common.SchemaAndName) (int64, error) {
+func (isi InfoSchemaImpl) GetRowCount(db *sql.DB, table common.SchemaAndName) (int64, error) {
 	// MySQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but MySQL doesn't support this. So we quote it instead.
@@ -116,10 +116,10 @@ func (mis MySQLInfoSchema) GetRowCount(db *sql.DB, table common.SchemaAndName) (
 // Note that sql.DB already effectively has the dbName
 // embedded within it (dbName is part of the DSN passed to sql.Open),
 // but unfortunately there is no way to extract it from sql.DB.
-func (mis MySQLInfoSchema) GetTables(db *sql.DB) ([]common.SchemaAndName, error) {
+func (isi InfoSchemaImpl) GetTables(db *sql.DB) ([]common.SchemaAndName, error) {
 	// In MySQL, schema is the same as database name.
 	q := "SELECT table_name FROM information_schema.tables where table_type = 'BASE TABLE' and table_schema=?"
-	rows, err := db.Query(q, mis.DbName)
+	rows, err := db.Query(q, isi.DbName)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get tables: %w", err)
 	}
@@ -128,19 +128,19 @@ func (mis MySQLInfoSchema) GetTables(db *sql.DB) ([]common.SchemaAndName, error)
 	var tables []common.SchemaAndName
 	for rows.Next() {
 		rows.Scan(&tableName)
-		tables = append(tables, common.SchemaAndName{Schema: mis.DbName, Name: tableName})
+		tables = append(tables, common.SchemaAndName{Schema: isi.DbName, Name: tableName})
 	}
 	return tables, nil
 }
 
-func (mis MySQLInfoSchema) GetColumns(table common.SchemaAndName, db *sql.DB) (*sql.Rows, error) {
+func (isi InfoSchemaImpl) GetColumns(table common.SchemaAndName, db *sql.DB) (*sql.Rows, error) {
 	q := `SELECT c.column_name, c.data_type, c.column_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, c.extra
               FROM information_schema.COLUMNS c
               where table_schema = ? and table_name = ? ORDER BY c.ordinal_position;`
 	return db.Query(q, table.Schema, table.Name)
 }
 
-func (mis MySQLInfoSchema) ProcessColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string) {
+func (isi InfoSchemaImpl) ProcessColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string) {
 	colDefs := make(map[string]schema.Column)
 	var colNames []string
 	var colName, dataType, isNullable, columnType string
@@ -183,7 +183,7 @@ func (mis MySQLInfoSchema) ProcessColumns(conv *internal.Conv, cols *sql.Rows, c
 // other constraints.  Note: we need to preserve ordinal order of
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
-func (mis MySQLInfoSchema) GetConstraints(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) ([]string, map[string][]string, error) {
+func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) ([]string, map[string][]string, error) {
 	q := `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
               FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
                 INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
@@ -222,7 +222,7 @@ func (mis MySQLInfoSchema) GetConstraints(conv *internal.Conv, db *sql.DB, table
 // them because HarbourBridge works database at a time (a specific run
 // of HarbourBridge focuses on a specific database) and so we can't handle
 // them effectively.
-func (mis MySQLInfoSchema) GetForeignKeys(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
+func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
 	q := `SELECT k.REFERENCED_TABLE_NAME,k.COLUMN_NAME,k.REFERENCED_COLUMN_NAME,k.CONSTRAINT_NAME
 		FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t 
 		INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k 
@@ -275,7 +275,7 @@ func (mis MySQLInfoSchema) GetForeignKeys(conv *internal.Conv, db *sql.DB, table
 }
 
 // getIndexes return a list of all indexes for the specified table.
-func (mis MySQLInfoSchema) GetIndexes(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) ([]schema.Index, error) {
+func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) ([]schema.Index, error) {
 	q := `SELECT DISTINCT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION,NON_UNIQUE
 		FROM INFORMATION_SCHEMA.STATISTICS 
 		WHERE TABLE_SCHEMA = ?

@@ -914,7 +914,7 @@ func runProcessMySQLDump(s string) (*internal.Conv, []spannerData) {
 	conv := internal.MakeConv()
 	conv.SetLocation(time.UTC)
 	conv.SetSchemaMode()
-	mysqlDbDump := MysqlDbDump{}
+	mysqlDbDump := DbDumpImpl{}
 	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), mysqlDbDump)
 	conv.SetDataMode()
 	var rows []spannerData

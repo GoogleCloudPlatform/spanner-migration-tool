@@ -18,8 +18,8 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
 
-type BaseDbDump interface {
-	GetBaseDdl() BaseToDdl
+type DbDump interface {
+	GetToDdl() ToDdl
 	ProcessDump(conv *internal.Conv, r *internal.Reader) error
 }
 
@@ -28,13 +28,13 @@ type BaseDbDump interface {
 // In schema mode, this method incrementally builds a schema (updating conv).
 // In data mode, this method uses this schema to convert data
 // and writes it to Spanner, using the data sink specified in conv.
-func ProcessDbDump(conv *internal.Conv, r *internal.Reader, baseDbDump BaseDbDump) error {
-	err := baseDbDump.ProcessDump(conv, r)
+func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump) error {
+	err := dbDump.ProcessDump(conv, r)
 	if err != nil {
 		return err
 	}
 	if conv.SchemaMode() {
-		SchemaToSpannerDDL(conv, baseDbDump.GetBaseDdl())
+		SchemaToSpannerDDL(conv, dbDump.GetToDdl())
 		conv.AddPrimaryKeys()
 	}
 	return nil

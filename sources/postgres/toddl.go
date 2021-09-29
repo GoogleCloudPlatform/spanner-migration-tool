@@ -21,14 +21,14 @@ import (
 )
 
 // Postgres specific implementation for ToDdl
-type PostgresToSpannerDdl struct {
+type ToDdlImpl struct {
 }
 
 // toSpannerType maps a scalar source schema type (defined by id and
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
-func (psc PostgresToSpannerDdl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	ty, issues := toSpannerTypeInternal(conv, columnType.Name, columnType.Mods)
 	if conv.TargetDb == "experimental_postgres" { //TODO : Use constant instead. Using string to prevent import cycle
 		ty = overrideExperimentalType(columnType, ty)

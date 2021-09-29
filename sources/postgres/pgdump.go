@@ -28,7 +28,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 )
 
-type PostgresDbDump struct{}
+type DbDumpImpl struct{}
 
 type copyOrInsert struct {
 	stmt  stmtType
@@ -44,11 +44,11 @@ const (
 	insert
 )
 
-func (pdd PostgresDbDump) GetBaseDdl() common.BaseToDdl {
-	return PostgresToSpannerDdl{}
+func (ddi DbDumpImpl) GetToDdl() common.ToDdl {
+	return ToDdlImpl{}
 }
 
-func (pdd PostgresDbDump) ProcessDump(conv *internal.Conv, r *internal.Reader) error {
+func (ddi DbDumpImpl) ProcessDump(conv *internal.Conv, r *internal.Reader) error {
 	return processPgDump(conv, r)
 }
 

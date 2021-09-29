@@ -21,14 +21,14 @@ import (
 )
 
 // MySQL specific implementation for ToDdl
-type MySQLToSpannerDdl struct {
+type ToDdlImpl struct {
 }
 
 // toSpannerType maps a scalar source schema type (defined by id and
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
-func (msc MySQLToSpannerDdl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	ty, issues := toSpannerTypeInternal(conv, columnType.Name, columnType.Mods)
 	if len(columnType.ArrayBounds) > 1 {
 		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}

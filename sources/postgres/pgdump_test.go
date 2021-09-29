@@ -790,7 +790,7 @@ func TestProcessPgDump_WithUnparsableContent(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetLocation(time.UTC)
 	conv.SetSchemaMode()
-	err := common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), PostgresDbDump{})
+	err := common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), DbDumpImpl{})
 	if err == nil {
 		t.Fatalf("Expect an error, but got nil")
 	}
@@ -803,7 +803,7 @@ func runProcessPgDump(s string) (*internal.Conv, []spannerData) {
 	conv := internal.MakeConv()
 	conv.SetLocation(time.UTC)
 	conv.SetSchemaMode()
-	pgDump := PostgresDbDump{}
+	pgDump := DbDumpImpl{}
 	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), pgDump)
 	conv.SetDataMode()
 	var rows []spannerData
