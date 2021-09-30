@@ -83,7 +83,7 @@ const (
 
 var (
 	// Set the maximum number of concurrent workers during foreign key creation.
-	MaxWorkers = 10
+	MaxWorkers = 20
 )
 
 func SchemaConv(driver string, targetDb string, ioHelper *IOStreams, schemaSampleSize int64) (*internal.Conv, error) {
@@ -201,7 +201,7 @@ func dataFromSQL(driver string, config spanner.BatchWriterConfig, client *sp.Cli
 		return nil, err
 	}
 	totalRows := conv.Rows()
-	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose())
+	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 	rows := int64(0)
 	config.Write = func(m []*sp.Mutation) error {
 		_, err := client.Apply(context.Background(), m)
@@ -251,7 +251,7 @@ func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv 
 	dydbClient := dydb.New(mySession, getDynamoDBClientConfig())
 	dynamodb.SetRowStats(conv, dydbClient)
 	totalRows := conv.Rows()
-	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose())
+	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 
 	rows := int64(0)
 	config.Write = func(m []*sp.Mutation) error {
@@ -310,7 +310,7 @@ func schemaFromDump(driver string, targetDb string, ioHelper *IOStreams) (*inter
 	ioHelper.BytesRead = n
 	conv := internal.MakeConv()
 	conv.TargetDb = targetDb
-	p := internal.NewProgress(n, "Generating schema", internal.Verbose())
+	p := internal.NewProgress(n, "Generating schema", internal.Verbose(), false)
 	r := internal.NewReader(bufio.NewReader(f), p)
 	conv.SetSchemaMode() // Build schema and ignore data in dump.
 	conv.SetDataSink(nil)
@@ -345,7 +345,7 @@ func dataFromDump(driver string, config spanner.BatchWriterConfig, ioHelper *IOS
 	}
 	totalRows := conv.Rows()
 
-	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose())
+	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 	r := internal.NewReader(bufio.NewReader(ioHelper.SeekableIn), nil)
 	rows := int64(0)
 	config.Write = func(m []*sp.Mutation) error {
@@ -582,7 +582,7 @@ func UpdateDDLForeignKeys(ctx context.Context, adminClient *database.DatabaseAdm
 		return nil
 	}
 	msg := fmt.Sprintf("Updating schema of database %s with foreign key constraints ...", dbURI)
-	p := internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose())
+	p := internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose(), true)
 
 	workers := make(chan int, MaxWorkers)
 	for i := 1; i <= MaxWorkers; i++ {
@@ -612,12 +612,12 @@ func UpdateDDLForeignKeys(ctx context.Context, adminClient *database.DatabaseAdm
 				Statements: []string{fkStmt},
 			})
 			if err != nil {
-				fmt.Printf("Cannot submit request for create foreign key with statement %s: %s\n", fkStmt, err)
+				fmt.Printf("Cannot submit request for create foreign key with statement: %s\n due to error: %s. Skipping this foreign key...\n", fkStmt, err)
 				conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
 				return
 			}
 			if err := op.Wait(ctx); err != nil {
-				fmt.Printf("Can't add foreign key with statement %s: %s\n", fkStmt, err)
+				fmt.Printf("Can't add foreign key with statement: %s\n due to error: %s. Skipping this foreign key...\n", fkStmt, err)
 				conv.Unexpected(fmt.Sprintf("Can't add foreign key with statement %s: %s", fkStmt, err))
 				return
 			}
