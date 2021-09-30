@@ -18,6 +18,7 @@ package internal
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -104,22 +105,10 @@ func (p *Progress) reportFraction(firstCall bool) {
 	if firstCall {
 		fmt.Printf("%s: %d/%d", p.message, p.progress, p.total)
 	} else {
-		delStr := strings.Repeat("\b", countDigits(p.progress-1)+countDigits(p.total)+1)
+		delStr := strings.Repeat("\b", len(strconv.Itoa(int(p.progress-1)))+1+len(strconv.Itoa(int(p.total))))
 		fmt.Printf(delStr+"%d/%d", p.progress, p.total)
 	}
 	if p.progress == p.total {
 		fmt.Printf("\n")
 	}
-}
-
-func countDigits(n int64) int {
-	if n == 0 {
-		return 1
-	}
-	res := 0
-	for n > 0 {
-		n /= 10
-		res += 1
-	}
-	return res
 }
