@@ -40,6 +40,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+	"net/url"
 
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
@@ -54,6 +55,10 @@ import (
 	"google.golang.org/api/option"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
+	
+	"cloud.google.com/go/storage"
+	//"google.golang.org/appengine"
+	//"google.golang.org/appengine/file"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -270,14 +275,81 @@ type IOStreams struct {
 	BytesRead           int64
 }
 
+// downloadFromGCS returns the dump file that is downloaded from GCS
+func downloadFromGCS(bucketName string, filePath string) (*os.File, error) {
+	ctx := context.Background()
+
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		fmt.Printf("Failed to create GCS client for bucket %q", bucketName)
+		log.Fatal(err)
+	}
+	defer client.Close()
+
+	bucket := client.Bucket(bucketName)
+	rc, err := bucket.Object(filePath).NewReader(ctx)
+	if err != nil {
+		fmt.Printf("readFile: unable to open file from bucket %q, file %q: %v", bucketName, filePath, err)
+		log.Fatal(err)
+		return nil, err
+	}
+	defer rc.Close()
+	r := bufio.NewReader(rc)
+
+	tmpfile, err := ioutil.TempFile("", "harbourbridge.gcs.data")
+	if err != nil {
+		fmt.Printf("saveFile: unable to open temporary file to save dump file from GCS bucket %v", err)
+		log.Fatal(err)
+		return nil, err
+	}
+	syscall.Unlink(tmpfile.Name()) // File will be deleted when this process exits.
+
+	fmt.Printf("\nDownloading dump file from GCS bucket %s, path %s\n", bucketName, filePath)
+	buffer := make([]byte, 10024)
+	for {
+		// read a chunk
+		n, err := r.Read(buffer[:cap(buffer)])
+
+		if err != nil && err != io.EOF {
+			fmt.Printf("readFile: unable to read entire dump file from bucket %s, file %s: %v", bucketName, filePath, err)
+			log.Fatal(err)
+			return nil, err
+		}
+		if n == 0 && err == io.EOF {
+			break
+		}
+
+		// write a chunk
+		if _, err = tmpfile.Write(buffer[:n]); err != nil {
+			fmt.Printf("saveFile: unable to save read data from bucket %s, file %s: %v", bucketName, filePath, err)
+			log.Fatal(err)
+		}
+	}
+
+	return tmpfile, nil
+}
+
 // NewIOStreams returns a new IOStreams struct such that input stream is set
 // to open file descriptor for dumpFile if driver is PGDUMP or MYSQLDUMP.
 // Input stream defaults to stdin. Output stream is always set to stdout.
 func NewIOStreams(driver string, dumpFile string) IOStreams {
 	io := IOStreams{In: os.Stdin, Out: os.Stdout}
+	u, err := url.Parse(dumpFile)
+	if err != nil {
+		fmt.Printf("parseFilePath: unable to parse path for dump file %s", dumpFile)
+		log.Fatal(err)
+	}
 	if (driver == constants.PGDUMP || driver == constants.MYSQLDUMP) && dumpFile != "" {
 		fmt.Printf("\nLoading dump file from path: %s\n", dumpFile)
-		f, err := os.Open(dumpFile)
+		var f *os.File
+		var err error
+		if u.Scheme == "gs" {
+			bucketName := u.Host
+			filePath := u.Path[1:] // removes "/" from beginning of path
+			f, err = downloadFromGCS(bucketName, filePath)
+		} else {
+			f, err = os.Open(dumpFile)
+		}
 		if err != nil {
 			fmt.Printf("\nError reading dump file: %v err:%v\n", dumpFile, err)
 			log.Fatal(err)
