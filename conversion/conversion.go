@@ -57,8 +57,6 @@ import (
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 	
 	"cloud.google.com/go/storage"
-	//"google.golang.org/appengine"
-	//"google.golang.org/appengine/file"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
