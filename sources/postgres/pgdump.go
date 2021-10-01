@@ -44,6 +44,7 @@ const (
 	insert
 )
 
+//Functions below implement the common.DbDump interface
 func (ddi DbDumpImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
 }

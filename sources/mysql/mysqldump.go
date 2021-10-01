@@ -49,6 +49,7 @@ var spatialSridRegex = regexp.MustCompile("(?i)\\sSRID\\s\\d*")
 
 type DbDumpImpl struct{}
 
+//Functions below implement the common.DbDump interface
 func (ddi DbDumpImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
 }

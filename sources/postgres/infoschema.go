@@ -36,6 +36,7 @@ import (
 type InfoSchemaImpl struct {
 }
 
+//Functions below implement the common.InfoSchema interface
 func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
 }

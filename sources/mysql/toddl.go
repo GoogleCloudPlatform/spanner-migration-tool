@@ -24,6 +24,7 @@ import (
 type ToDdlImpl struct {
 }
 
+// Functions below implement the common.ToDdl interface
 // toSpannerType maps a scalar source schema type (defined by id and
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
