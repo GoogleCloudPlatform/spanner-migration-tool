@@ -26,11 +26,10 @@ type DbDump interface {
 // ProcessDbDump reads dump data from r and does schema or data conversion,
 // depending on whether conv is configured for schema mode or data mode.
 // In schema mode, this method incrementally builds a schema (updating conv).
-// In data mode, this method uses this schema to convert data
-// and writes it to Spanner, using the data sink specified in conv.
+// In data mode, this method uses this schema to convert data and writes it
+// to Spanner, using the data sink specified in conv.
 func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump) error {
-	err := dbDump.ProcessDump(conv, r)
-	if err != nil {
+	if err := dbDump.ProcessDump(conv, r); err != nil {
 		return err
 	}
 	if conv.SchemaMode() {

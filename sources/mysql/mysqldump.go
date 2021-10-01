@@ -31,11 +31,6 @@ import (
 	driver "github.com/pingcap/tidb/types/parser_driver"
 )
 
-type DbDumpImpl struct{}
-
-// TODO: consider refactoring mysqldump.go and pgdump.go to extract
-// common code-paths/logic into a shared set of utils.
-
 var valuesRegexp = regexp.MustCompile("\\((.*?)\\)")
 var insertRegexp = regexp.MustCompile("INSERT\\sINTO\\s(.*?)\\sVALUES\\s")
 var unsupportedRegexp = regexp.MustCompile("function|procedure|trigger")
@@ -51,6 +46,8 @@ var spatialRegexps = func() []*regexp.Regexp {
 }()
 var spatialIndexRegex = regexp.MustCompile("(?i)\\sSPATIAL\\s")
 var spatialSridRegex = regexp.MustCompile("(?i)\\sSRID\\s\\d*")
+
+type DbDumpImpl struct{}
 
 func (ddi DbDumpImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}

@@ -68,10 +68,10 @@ func ProcessInfoSchema(conv *internal.Conv, db *sql.DB, infoSchema InfoSchema) e
 }
 
 // ProcessSQLData performs data conversion for source database
-// 'db'. For each table, we extract and
-// convert the data to Spanner data (based on the source and Spanner
-// schemas), and write it to Spanner.  If we can't get/process data
-// for a table, we skip that table and process the remaining tables.
+// 'db'. For each table, we extract and convert the data to Spanner data
+// (based on the source and Spanner schemas), and write it to Spanner.
+// If we can't get/process data for a table, we skip that table and process
+// the remaining tables.
 //
 // Using database/sql library we pass *sql.RawBytes to rows.scan.
 // RawBytes is a byte slice and values can be easily converted to string.
@@ -110,6 +110,7 @@ func ProcessSQLData(conv *internal.Conv, db *sql.DB, infoSchema InfoSchema) {
 		}
 		spSchema, ok := conv.SpSchema[spTable]
 		if !ok {
+			//TODO - check why Bad rows are not being added in above conditions
 			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
 			conv.Unexpected(fmt.Sprintf("Can't get schemas for table %s", srcTable))
 			continue
