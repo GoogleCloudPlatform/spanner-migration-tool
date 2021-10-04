@@ -16,26 +16,35 @@
 // HarbourBridge.
 package internal
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
 
 // Progress provides console progress functionality. i.e. it reports what
 // percentage of a task is complete to the console, overwriting previous
 // progress percentage with new progress.
 type Progress struct {
-	total    int64  // How much we have to do.
-	progress int64  // How much we have done so far.
-	pct      int    // Percentage done i.e. progress/total * 100
-	message  string // Name of task being monitored.
-	verbose  bool   // If true, print detailed info about each progress step.
+	total      int64  // How much we have to do.
+	progress   int64  // How much we have done so far.
+	pct        int    // Percentage done i.e. progress/total * 100
+	message    string // Name of task being monitored.
+	verbose    bool   // If true, print detailed info about each progress step.
+	fractional bool   // If true, report progress in fractions instead of percentages.
 }
 
 // NewProgress creates and returns a Progress instance.
-func NewProgress(total int64, message string, verbose bool) *Progress {
-	p := &Progress{total, 0, 0, message, verbose}
+func NewProgress(total int64, message string, verbose, fractional bool) *Progress {
+	p := &Progress{total, 0, 0, message, verbose, fractional}
 	if total == 0 {
 		p.pct = 100
 	}
-	p.report(true)
+	if p.fractional {
+		p.reportFraction(true)
+	} else {
+		p.reportPct(true)
+	}
 	return p
 }
 
@@ -46,6 +55,10 @@ func NewProgress(total int64, message string, verbose bool) *Progress {
 func (p *Progress) MaybeReport(progress int64) {
 	if progress > p.progress {
 		p.progress = progress
+		if p.fractional {
+			p.reportFraction(false)
+			return
+		}
 		var pct int
 		if p.total > 0 {
 			pct = int((progress * 100) / p.total)
@@ -57,7 +70,7 @@ func (p *Progress) MaybeReport(progress int64) {
 		}
 		if pct > p.pct {
 			p.pct = pct
-			p.report(false)
+			p.reportPct(false)
 		}
 
 	}
@@ -69,7 +82,7 @@ func (p *Progress) Done() {
 	p.MaybeReport(p.total)
 }
 
-func (p *Progress) report(firstCall bool) {
+func (p *Progress) reportPct(firstCall bool) {
 	if p.verbose {
 		fmt.Printf("%s: %2d%%\n", p.message, p.pct)
 		return
@@ -80,6 +93,24 @@ func (p *Progress) report(firstCall bool) {
 		fmt.Printf("\b\b\b%2d%%", p.pct)
 	}
 	if p.pct == 100 {
+		fmt.Printf("\n")
+	}
+}
+
+func (p *Progress) reportFraction(firstCall bool) {
+	if p.verbose {
+		fmt.Printf("%s: %d/%d\n", p.message, p.progress, p.total)
+		return
+	}
+	if firstCall {
+		fmt.Printf("%s: %d/%d", p.message, p.progress, p.total)
+	} else {
+		// We delete the previous outputted fraction hence, adding backspace that many number of times.
+		// The length of the previous outputted fraction would be len(p.progress-1) +len(total) and 1 for the "/".
+		delStr := strings.Repeat("\b", len(strconv.Itoa(int(p.progress-1)))+1+len(strconv.Itoa(int(p.total))))
+		fmt.Printf(delStr+"%d/%d", p.progress, p.total)
+	}
+	if p.progress == p.total {
 		fmt.Printf("\n")
 	}
 }

@@ -23,7 +23,7 @@ import (
 
 func TestProgress(t *testing.T) {
 	total := int64(4321)
-	p := NewProgress(total, "Progress", false)
+	p := NewProgress(total, "Progress", false, false)
 	assert.Equal(t, 0, p.pct)
 	time.Sleep(500 * time.Millisecond)
 	for _, v := range []int64{1000, 2000, 3000} {
@@ -37,12 +37,12 @@ func TestProgress(t *testing.T) {
 	p.MaybeReport(5000)
 	assert.Equal(t, 100, p.pct) // Never exceed 100%.
 	// Test corner case where total is 0.
-	p = NewProgress(0, "Progress", false)
+	p = NewProgress(0, "Progress", false, false)
 	assert.Equal(t, 100, p.pct)
 }
 
 func TestDone(t *testing.T) {
-	p := NewProgress(567, "Progress", false)
+	p := NewProgress(567, "Progress", false, false)
 	assert.Equal(t, 0, p.pct)
 	p.Done()
 	assert.Equal(t, 100, p.pct)
