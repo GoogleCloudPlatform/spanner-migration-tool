@@ -83,6 +83,9 @@ const (
 
 var (
 	// Set the maximum number of concurrent workers during foreign key creation.
+	// This number should not be too high so as to not hit the AdminQuota limit.
+	// AdminQuota limits are mentioned here: https://cloud.google.com/spanner/quotas#administrative_limits
+	// If facing a quota limit error, consider reducing this value.
 	MaxWorkers = 20
 )
 
@@ -580,6 +583,16 @@ func UpdateDDLForeignKeys(ctx context.Context, adminClient *database.DatabaseAdm
 	fkStmts := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: false, ForeignKeys: true})
 	if len(fkStmts) == 0 {
 		return nil
+	}
+	if len(fkStmts) > 50 {
+		fmt.Println(`
+Warning: Large number of foreign keys detected. Spanner can take a long amount of 
+time to create foreign keys (over 5 mins per batch of Foreign Keys even with no data). 
+Harbourbridge does not have control over a single foreign key creation time. The number 
+of concurrent Foreign Key Creation Requests sent to spanner can be increased by 
+tweaking the MaxWorkers variable (https://github.com/cloudspannerecosystem/harbourbridge/blob/master/conversion/conversion.go#L89).
+However, setting it to a very high value might lead to exceeding the admin quota limit.
+Recommended value is between 20-30.`)
 	}
 	msg := fmt.Sprintf("Updating schema of database %s with foreign key constraints ...", dbURI)
 	p := internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose(), true)

@@ -105,6 +105,8 @@ func (p *Progress) reportFraction(firstCall bool) {
 	if firstCall {
 		fmt.Printf("%s: %d/%d", p.message, p.progress, p.total)
 	} else {
+		// We delete the previous outputted fraction hence, adding backspace that many number of times.
+		// The length of the previous outputted fraction would be len(p.progress-1) +len(total) and 1 for the "/".
 		delStr := strings.Repeat("\b", len(strconv.Itoa(int(p.progress-1)))+1+len(strconv.Itoa(int(p.total))))
 		fmt.Printf(delStr+"%d/%d", p.progress, p.total)
 	}
