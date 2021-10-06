@@ -316,7 +316,7 @@ Spanner DDL files.
 conversion state endcoded as JSON.
 
 `-dump-file` Specifies the path where the dump file is stored. 
-If the location is Google Cloud Spanner (GCS), you can use the following format:
+If the location is Google Cloud Storage (GCS), you can use the following format:
 `-dump-file=gs://{bucket_name}/{path/to/dump_file}`. Please ensure you have
 read pemissions to the GCS bucket you would like to use. 
 
