@@ -34,6 +34,8 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
 	"google.golang.org/api/iterator"
 	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+	storage "cloud.google.com/go/storage"
+	"google.golang.org/api/option"
 )
 
 var (
@@ -226,6 +228,107 @@ func TestIntegration_POSTGRES_SchemaSubcommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestIntegration_PGDUMP_Command_GCS(t *testing.T) {
+	t.Parallel()
+
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+	createGCSBucketWithDumpfile()
+
+	now := time.Now()
+	dbName, _ := conversion.GetDatabaseName(conversion.PGDUMP, now)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+
+	dataFilepath := "gs://test-bucket/pg_dump.test.out"
+	filePrefix := filepath.Join(tmpdir, dbName+".")
+	// Be aware that when testing with the command, the time `now` might be
+	// different between file prefixes and the contents in the files. This
+	// is because file prefixes use `now` from here (the test function) and
+	// the generated time in the files uses a `now` inside the command, which
+	// can be different.
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -instance %s -dbname %s -prefix %s < %s", instanceID, dbName, filePrefix, dataFilepath))
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("GCLOUD_PROJECT=%s", projectID),
+	)
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("stdout: %q\n", out.String())
+		fmt.Printf("stderr: %q\n", stderr.String())
+		t.Fatal(err)
+	}
+	// Drop the database later.
+	defer dropDatabase(t, dbURI)
+
+	checkResults(t, dbURI)
+}
+
+func TestIntegration_PGDUMP_SchemaCommand_GCS(t *testing.T) {
+	t.Parallel()
+
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+	createGCSBucketWithDumpfile()
+
+	dataFilepath := "gs://test-bucket/pg_dump.test.out"
+	// Be aware that when testing with the command, the time `now` might be
+	// different between file prefixes and the contents in the files. This
+	// is because file prefixes use `now` from here (the test function) and
+	// the generated time in the files uses a `now` inside the command, which
+	// can be different.
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge schema < %s", dataFilepath))
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("stdout: %q\n", out.String())
+		fmt.Printf("stderr: %q\n", stderr.String())
+		t.Fatal(err)
+	}
+}
+
+func createGCSBucketWithDumpfile(){
+	client, err := storage.NewClient(ctx, option.WithEndpoint("http://localhost:9000/storage/v1/"))
+    if err != nil {
+        log.Fatal(err)
+    }
+	defer client.Close()
+    // This request is directed to http://localhost:9000/storage/v1/
+    // instead of https://storage.googleapis.com/storage/v1/
+	bucketName := "test-bucket"
+	err = client.Bucket(bucketName).Create(ctx, projectID, nil)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+	bkt := client.Bucket(bucketName)
+	obj := bkt.Object("pg_dump.test.out")
+
+	localDumpFilePath := "../../test_data/pg_dump.test.out"
+	localDumpFile, err := os.Open(localDumpFilePath)
+	if err != nil {
+        log.Fatal(err)
+    }
+
+	dumpFile, err := ioutil.ReadAll(localDumpFile)
+	if err != nil {
+        log.Fatal(err)
+    }
+
+    // Upload dump file to bucket
+    w := obj.NewWriter(ctx)
+	_, err = fmt.Fprintf(w, string(dumpFile))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    if err := w.Close(); err != nil {
+        log.Fatal(err)
+    }
+	
 }
 
 func checkResults(t *testing.T, dbURI string) {
