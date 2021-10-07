@@ -49,10 +49,10 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, db *sql.DB, tabl
 		conv.Unexpected(fmt.Sprintf("Couldn't get source columns for table %s ", table.Name))
 		return nil, nil
 	}
-	colNameList := buildColNameList(srcSchema, srcCols)
 	// MySQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but MySQL doesn't support this. So we quote it instead.
+	colNameList := buildColNameList(srcSchema, srcCols)
 	q := fmt.Sprintf("SELECT %s FROM `%s`.`%s`;", colNameList, table.Schema, table.Name)
 	rows, err := db.Query(q)
 	return rows, err

@@ -25,7 +25,7 @@ import (
 
 type InfoSchema interface {
 	GetToDdl() ToDdl
-	GetTableName(dbName string, tableName string) string
+	GetTableName(schema string, tableName string) string
 	GetTables(db *sql.DB) ([]SchemaAndName, error)
 	GetColumns(table SchemaAndName, db *sql.DB) (*sql.Rows, error) //TODO - merge this method and ProcessColumns for cleaner interface
 	ProcessColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string)
