@@ -54,7 +54,6 @@ class ConnectToDbForm extends HTMLElement {
                     <option value="" class="template"></option>
                     <option value="mysql">MySQL</option>
                     <option value="postgres">Postgres</option>
-                    <option value='dynamodb'>dynamoDB</option>
                 </select>
             </div>
             <div id="sql-fields" class="template">
