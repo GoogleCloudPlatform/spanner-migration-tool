@@ -23,15 +23,13 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/pingcap/parser"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/opcode"
 	"github.com/pingcap/tidb/types"
 	driver "github.com/pingcap/tidb/types/parser_driver"
 )
-
-// TODO: consider refactoring mysqldump.go and pgdump.go to extract
-// common code-paths/logic into a shared set of utils.
 
 var valuesRegexp = regexp.MustCompile("\\((.*?)\\)")
 var insertRegexp = regexp.MustCompile("INSERT\\sINTO\\s(.*?)\\sVALUES\\s")
@@ -49,12 +47,23 @@ var spatialRegexps = func() []*regexp.Regexp {
 var spatialIndexRegex = regexp.MustCompile("(?i)\\sSPATIAL\\s")
 var spatialSridRegex = regexp.MustCompile("(?i)\\sSRID\\s\\d*")
 
+type DbDumpImpl struct{}
+
+//Functions below implement the common.DbDump interface
+func (ddi DbDumpImpl) GetToDdl() common.ToDdl {
+	return ToDdlImpl{}
+}
+
+func (ddi DbDumpImpl) ProcessDump(conv *internal.Conv, r *internal.Reader) error {
+	return processMySQLDump(conv, r)
+}
+
 // ProcessMySQLDump reads mysqldump data from r and does schema or data conversion,
 // depending on whether conv is configured for schema mode or data mode.
 // In schema mode, ProcessMySQLDump incrementally builds a schema (updating conv).
 // In data mode, ProcessMySQLDump uses this schema to convert MySQL data
 // and writes it to Spanner, using the data sink specified in conv.
-func ProcessMySQLDump(conv *internal.Conv, r *internal.Reader) error {
+func processMySQLDump(conv *internal.Conv, r *internal.Reader) error {
 	for {
 		startLine := r.LineNumber
 		startOffset := r.Offset
@@ -69,10 +78,6 @@ func ProcessMySQLDump(conv *internal.Conv, r *internal.Reader) error {
 		if r.EOF {
 			break
 		}
-	}
-	if conv.SchemaMode() {
-		schemaToDDL(conv)
-		conv.AddPrimaryKeys()
 	}
 	return nil
 }

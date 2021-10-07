@@ -56,6 +56,7 @@ import (
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
@@ -1037,9 +1038,9 @@ func GetBanner(now time.Time, db string) string {
 func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 	switch driver {
 	case MYSQLDUMP:
-		return mysql.ProcessMySQLDump(conv, r)
+		return common.ProcessDbDump(conv, r, mysql.DbDumpImpl{})
 	case PGDUMP:
-		return postgres.ProcessPgDump(conv, r)
+		return common.ProcessDbDump(conv, r, postgres.DbDumpImpl{})
 	default:
 		return fmt.Errorf("process dump for driver %s not supported", driver)
 	}
@@ -1049,9 +1050,9 @@ func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
 	case MYSQL:
-		return mysql.ProcessInfoSchema(conv, db, os.Getenv("MYSQLDATABASE"))
+		return common.ProcessInfoSchema(conv, db, mysql.InfoSchemaImpl{os.Getenv("MYSQLDATABASE")})
 	case POSTGRES:
-		return postgres.ProcessInfoSchema(conv, db)
+		return common.ProcessInfoSchema(conv, db, postgres.InfoSchemaImpl{})
 	default:
 		return fmt.Errorf("schema conversion for driver %s not supported", driver)
 	}
@@ -1061,9 +1062,9 @@ func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB) error {
 func SetRowStats(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
 	case MYSQL:
-		mysql.SetRowStats(conv, db, os.Getenv("MYSQLDATABASE"))
+		common.SetRowStats(conv, db, mysql.InfoSchemaImpl{os.Getenv("MYSQLDATABASE")})
 	case POSTGRES:
-		postgres.SetRowStats(conv, db)
+		common.SetRowStats(conv, db, postgres.InfoSchemaImpl{})
 	default:
 		return fmt.Errorf("Could not set rows stats for '%s' driver", driver)
 	}
@@ -1073,10 +1074,11 @@ func SetRowStats(driver string, conv *internal.Conv, db *sql.DB) error {
 // ProcessSQLData invokes ProcessSQLData function from a sql package based on driver selected.
 func ProcessSQLData(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
+	//TODO - move this logic into a factory within the sources dir
 	case MYSQL:
-		mysql.ProcessSQLData(conv, db, os.Getenv("MYSQLDATABASE"))
+		common.ProcessSQLData(conv, db, mysql.InfoSchemaImpl{os.Getenv("MYSQLDATABASE")})
 	case POSTGRES:
-		postgres.ProcessSQLData(conv, db)
+		common.ProcessSQLData(conv, db, postgres.InfoSchemaImpl{})
 	default:
 		return fmt.Errorf("Data conversion for driver %s is not supported", driver)
 	}

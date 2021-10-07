@@ -1,3 +1,4 @@
 .idea/
 main
 web/harbour_bridge_output/
+*__debug_bin*

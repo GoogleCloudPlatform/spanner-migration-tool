@@ -19,6 +19,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/stretchr/testify/assert"
 )
@@ -65,7 +66,7 @@ func TestToSpannerType(t *testing.T) {
 		},
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "aref"}},
 	}
-	assert.Nil(t, schemaToDDL(conv))
+	assert.Nil(t, common.SchemaToSpannerDDL(conv, ToDdlImpl{}))
 	actual := conv.SpSchema[name]
 	dropComments(&actual) // Don't test comment.
 	expected := ddl.CreateTable{

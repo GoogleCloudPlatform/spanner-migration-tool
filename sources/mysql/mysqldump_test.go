@@ -24,6 +24,7 @@ import (
 
 	"cloud.google.com/go/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/stretchr/testify/assert"
 )
@@ -913,13 +914,14 @@ func runProcessMySQLDump(s string) (*internal.Conv, []spannerData) {
 	conv := internal.MakeConv()
 	conv.SetLocation(time.UTC)
 	conv.SetSchemaMode()
-	ProcessMySQLDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil))
+	mysqlDbDump := DbDumpImpl{}
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), mysqlDbDump)
 	conv.SetDataMode()
 	var rows []spannerData
 	conv.SetDataSink(func(table string, cols []string, vals []interface{}) {
 		rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 	})
-	ProcessMySQLDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil))
+	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), mysqlDbDump)
 	return conv, rows
 }
 

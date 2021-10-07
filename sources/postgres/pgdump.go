@@ -25,7 +25,10 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 )
+
+type DbDumpImpl struct{}
 
 type copyOrInsert struct {
 	stmt  stmtType
@@ -41,12 +44,21 @@ const (
 	insert
 )
 
+//Functions below implement the common.DbDump interface
+func (ddi DbDumpImpl) GetToDdl() common.ToDdl {
+	return ToDdlImpl{}
+}
+
+func (ddi DbDumpImpl) ProcessDump(conv *internal.Conv, r *internal.Reader) error {
+	return processPgDump(conv, r)
+}
+
 // ProcessPgDump reads pg_dump data from r and does schema or data conversion,
 // depending on whether conv is configured for schema mode or data mode.
 // In schema mode, ProcessPgDump incrementally builds a schema (updating conv).
 // In data mode, ProcessPgDump uses this schema to convert PostgreSQL data
 // and writes it to Spanner, using the data sink specified in conv.
-func ProcessPgDump(conv *internal.Conv, r *internal.Reader) error {
+func processPgDump(conv *internal.Conv, r *internal.Reader) error {
 	for {
 		startLine := r.LineNumber
 		startOffset := r.Offset
@@ -76,11 +88,6 @@ func ProcessPgDump(conv *internal.Conv, r *internal.Reader) error {
 			break
 		}
 	}
-	if conv.SchemaMode() {
-		schemaToDDL(conv)
-		conv.AddPrimaryKeys()
-	}
-
 	return nil
 }
 

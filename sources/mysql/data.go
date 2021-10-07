@@ -29,10 +29,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// TODO: mysql/data.go and postgres/data.go share significant chunks of common code.
-// The key differences are in convArray and convTimestamp. Consider refactoring using
-// a go interface that provides the basic conv functions for each type.
-
 // ProcessDataRow converts a row of data and writes it out to Spanner.
 // srcTable and srcCols are the source table and columns respectively,
 // and vals contains string data to be converted to appropriate types

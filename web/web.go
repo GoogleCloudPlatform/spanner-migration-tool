@@ -36,6 +36,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -124,9 +125,9 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	var err error
 	switch sessionState.driver {
 	case "mysql":
-		err = mysql.ProcessInfoSchema(conv, sessionState.sourceDB, sessionState.dbName)
+		err = common.ProcessInfoSchema(conv, sessionState.sourceDB, mysql.InfoSchemaImpl{sessionState.dbName})
 	case "postgres":
-		err = postgres.ProcessInfoSchema(conv, sessionState.sourceDB)
+		err = common.ProcessInfoSchema(conv, sessionState.sourceDB, postgres.InfoSchemaImpl{})
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.driver), http.StatusBadRequest)
 		return
