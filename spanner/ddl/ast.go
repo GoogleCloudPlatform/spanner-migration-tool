@@ -45,6 +45,8 @@ const (
 	Timestamp string = "TIMESTAMP"
 	// Numeric represent NUMERIC type.
 	Numeric string = "NUMERIC"
+	// Json represent JSON type.
+	Json string = "JSON"
 	// MaxLength is a sentinel for Type's Len field, representing the MAX value.
 	MaxLength = math.MaxInt64
 )

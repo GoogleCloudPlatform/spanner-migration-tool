@@ -147,6 +147,8 @@ func toSpannerType(conv *internal.Conv, id string, mods []int64) (ddl.Type, []in
 			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
 		}
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+	case "json":
+		return ddl.Type{Name: ddl.Json}, nil
 	}
 	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 }

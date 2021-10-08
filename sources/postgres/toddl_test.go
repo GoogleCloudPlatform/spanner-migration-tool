@@ -105,7 +105,7 @@ func TestToExperimentalSpannerType(t *testing.T) {
 	name := "test"
 	srcSchema := schema.Table{
 		Name:     name,
-		ColNames: []string{"a", "b", "c", "d", "e", "f"},
+		ColNames: []string{"a", "b", "c", "d", "e", "f", "g"},
 		ColDefs: map[string]schema.Column{
 			"a": schema.Column{Name: "a", Type: schema.Type{Name: "int8"}},
 			"b": schema.Column{Name: "b", Type: schema.Type{Name: "float4"}},
@@ -113,6 +113,7 @@ func TestToExperimentalSpannerType(t *testing.T) {
 			"d": schema.Column{Name: "d", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
 			"e": schema.Column{Name: "e", Type: schema.Type{Name: "numeric"}},
 			"f": schema.Column{Name: "f", Type: schema.Type{Name: "date"}},
+			"g": schema.Column{Name: "g", Type: schema.Type{Name: "json"}},
 		},
 		PrimaryKeys: []schema.Key{schema.Key{Column: "a"}},
 		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"dref"}},
@@ -146,7 +147,7 @@ func TestToExperimentalSpannerType(t *testing.T) {
 	dropComments(&actual) // Don't test comment.
 	expected := ddl.CreateTable{
 		Name:     name,
-		ColNames: []string{"a", "b", "c", "d", "e", "f"},
+		ColNames: []string{"a", "b", "c", "d", "e", "f", "g"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
 			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
@@ -154,6 +155,7 @@ func TestToExperimentalSpannerType(t *testing.T) {
 			"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
 			"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.Json}},
 		},
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
 		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"dref"}},
