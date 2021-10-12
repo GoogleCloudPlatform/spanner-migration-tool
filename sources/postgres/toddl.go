@@ -62,6 +62,9 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 	case "bytea":
 		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 	case "date":
+		if conv.TargetDb == "experimental_postgres" {
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		}
 		return ddl.Type{Name: ddl.Date}, nil
 	case "float8", "double precision":
 		return ddl.Type{Name: ddl.Float64}, nil

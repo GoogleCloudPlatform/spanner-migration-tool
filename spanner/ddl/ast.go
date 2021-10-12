@@ -31,24 +31,44 @@ import (
 const (
 	// Bool represent BOOL type.
 	Bool string = "BOOL"
+
 	// Bytes represent BYTES type.
 	Bytes string = "BYTES"
+	// PGBytea represent BYTEA type, which is BYTES type in PG.
+	PGBytea string = "BYTEA"
+
 	// Date represent DATE type.
 	Date string = "DATE"
+
 	// Float64 represent FLOAT64 type.
 	Float64 string = "FLOAT64"
+	// PGFloat8 represent FLOAT8 type, which is double type in PG.
+	PGFloat8 string = "FLOAT8"
+
 	// Int64 represent INT64 type.
 	Int64 string = "INT64"
+	// PGInt8 respresent INT8, which is INT type in PG.
+	PGInt8 string = "INT8"
+
 	// String represent STRING type.
 	String string = "STRING"
+	// PGVarchar represent VARCHAR, which is STRING type in PG.
+	PGVarchar string = "VARCHAR"
+
 	// Timestamp represent TIMESTAMP type.
 	Timestamp string = "TIMESTAMP"
+	// PGTimestamptz represent TIMESTAMPTZ, which is TIMESTAMP type in PG.
+	PGTimestamptz string = "TIMESTAMPTZ"
+
 	// Numeric represent NUMERIC type.
 	Numeric string = "NUMERIC"
 	// Json represent JSON type.
 	Json string = "JSON"
+
 	// MaxLength is a sentinel for Type's Len field, representing the MAX value.
 	MaxLength = math.MaxInt64
+	// PGMaxLength represents sentinel for Type's Len field in PG.
+	PGMaxLength = 2621440
 )
 
 // Type represents the type of a column.
@@ -83,6 +103,37 @@ func (ty Type) PrintColumnDefType() string {
 	return str
 }
 
+func (ty Type) PGPrintColumnDefType() string {
+	var str string
+	switch ty.Name {
+	case Bytes:
+		str = PGBytea
+	case Float64:
+		str = PGFloat8
+	case Int64:
+		str = PGInt8
+	case String:
+		str = PGVarchar
+	case Timestamp:
+		str = PGTimestamptz
+	default:
+		str = ty.Name
+	}
+	if ty.Name == String || ty.Name == Bytes {
+		str += "("
+		if ty.Len == MaxLength || ty.Len == PGMaxLength {
+			str += fmt.Sprintf("%v", PGMaxLength)
+		} else {
+			str += strconv.FormatInt(ty.Len, 10)
+		}
+		str += ")"
+	}
+	if ty.IsArray {
+		str = "ARRAY<" + str + ">"
+	}
+	return str
+}
+
 // ColumnDef encodes the following DDL definition:
 //     column_def:
 //       column_name type [NOT NULL] [options_def]
@@ -99,6 +150,7 @@ type Config struct {
 	ProtectIds  bool // If true, table and col names are quoted using backticks (avoids reserved-word issue).
 	Tables      bool // If true, print tables
 	ForeignKeys bool // If true, print foreign key constraints.
+	TargetDb string
 }
 
 func (c Config) quote(s string) string {
@@ -112,7 +164,12 @@ func (c Config) quote(s string) string {
 // comment. These are returned as separate strings to support formatting
 // needs of PrintCreateTable.
 func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
-	s := fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
+	var s string
+	if c.TargetDb == "experimental_postgres" {
+		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PGPrintColumnDefType())
+	} else {
+		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
+	}
 	if cd.NotNull {
 		s += " NOT NULL"
 	}
@@ -181,11 +238,25 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	var col []string
 	var colComment []string
 	var keys []string
-	for _, cn := range ct.ColNames {
-		s, c := ct.ColDefs[cn].PrintColumnDef(config)
-		s = "  " + s + ",\n"
-		col = append(col, s)
-		colComment = append(colComment, c)
+	if config.TargetDb == "experimental_postgres" {
+		for i, cn := range ct.ColNames {
+			s, c := ct.ColDefs[cn].PrintColumnDef(config)
+			s = "\n    " + s
+			if i < len(ct.ColNames)-1 {
+				s += ","
+			} else {
+				s += ","
+			}
+			col = append(col, s)
+			colComment = append(colComment, c)
+		}
+	} else {
+		for _, cn := range ct.ColNames {
+			s, c := ct.ColDefs[cn].PrintColumnDef(config)
+			s = "  " + s + ",\n"
+			col = append(col, s)
+			colComment = append(colComment, c)
+		}
 	}
 	n := maxStringLength(col)
 	var cols string
@@ -205,6 +276,9 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	var interleave string
 	if ct.Parent != "" {
 		interleave = ",\nINTERLEAVE IN PARENT " + config.quote(ct.Parent)
+	}
+	if config.TargetDb == "experimental_postgres" {
+		return fmt.Sprintf("%sCREATE TABLE %s (%s\n    PRIMARY KEY (%s)\n) %s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 	}
 	return fmt.Sprintf("%sCREATE TABLE %s (\n%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 }
@@ -227,7 +301,7 @@ func (ci CreateIndex) PrintCreateIndex(c Config) string {
 		keys = append(keys, p.PrintIndexKey(c))
 	}
 	var unique string
-	if ci.Unique == true {
+	if ci.Unique  {
 		unique = "UNIQUE "
 	}
 	return fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)", unique, c.quote(ci.Name), c.quote(ci.Table), strings.Join(keys, ", "))
