@@ -40,6 +40,7 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) 
 		}
 		ty.IsArray = len(columnType.ArrayBounds) == 1
 	}
+	ty.IsArray = len(columnType.ArrayBounds) == 1
 	return ty, issues
 }
 
@@ -62,9 +63,6 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 	case "bytea":
 		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 	case "date":
-		if conv.TargetDb == "experimental_postgres" {
-			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-		}
 		return ddl.Type{Name: ddl.Date}, nil
 	case "float8", "double precision":
 		return ddl.Type{Name: ddl.Float64}, nil
@@ -108,16 +106,4 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 		return ddl.Type{Name: ddl.Json}, nil
 	}
 	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
-}
-
-// Override the types to map to experimental postgres types.
-func overrideExperimentalType(columnType schema.Type, originalType ddl.Type) ddl.Type {
-	switch originalType.Name {
-	case ddl.Numeric, ddl.Date:
-		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-	}
-	if len(columnType.ArrayBounds) > 0 {
-		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-	}
-	return originalType
 }
