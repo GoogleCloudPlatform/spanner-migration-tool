@@ -78,7 +78,7 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 	case "set", "enum":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "json":
-		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		return ddl.Type{Name: ddl.Json}, nil
 	case "binary", "varbinary":
 		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 	case "tinyblob", "mediumblob", "blob", "longblob":
