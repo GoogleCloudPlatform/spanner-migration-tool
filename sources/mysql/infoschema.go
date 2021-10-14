@@ -31,6 +31,7 @@ import (
 // InfoSchemaImpl is MySQL specific implementation for InfoSchema.
 type InfoSchemaImpl struct {
 	DbName string
+	Db     *sql.DB
 }
 
 // GetToDdl implement the common.InfoSchema interface.
@@ -44,7 +45,7 @@ func (isi InfoSchemaImpl) GetTableName(dbName string, tableName string) string {
 }
 
 // GetRowsFromTable returns a sql Rows object for a table.
-func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) (*sql.Rows, error) {
+func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, table common.SchemaAndName) (*sql.Rows, error) {
 	srcSchema := conv.SrcSchema[table.Name]
 	srcCols := srcSchema.ColNames
 	if len(srcCols) == 0 {
@@ -56,7 +57,7 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, db *sql.DB, tabl
 	// but MySQL doesn't support this. So we quote it instead.
 	colNameList := buildColNameList(srcSchema, srcCols)
 	q := fmt.Sprintf("SELECT %s FROM `%s`.`%s`;", colNameList, table.Schema, table.Name)
-	rows, err := db.Query(q)
+	rows, err := isi.Db.Query(q)
 	return rows, err
 }
 
@@ -98,12 +99,12 @@ func (isi InfoSchemaImpl) ProcessDataRows(conv *internal.Conv, srcTable string, 
 }
 
 // GetRowCount with number of rows in each table.
-func (isi InfoSchemaImpl) GetRowCount(db *sql.DB, table common.SchemaAndName) (int64, error) {
+func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error) {
 	// MySQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but MySQL doesn't support this. So we quote it instead.
 	q := fmt.Sprintf("SELECT COUNT(*) FROM `%s`.`%s`;", table.Schema, table.Name)
-	rows, err := db.Query(q)
+	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return 0, err
 	}
@@ -120,10 +121,10 @@ func (isi InfoSchemaImpl) GetRowCount(db *sql.DB, table common.SchemaAndName) (i
 // Note that sql.DB already effectively has the dbName
 // embedded within it (dbName is part of the DSN passed to sql.Open),
 // but unfortunately there is no way to extract it from sql.DB.
-func (isi InfoSchemaImpl) GetTables(db *sql.DB) ([]common.SchemaAndName, error) {
+func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	// In MySQL, schema is the same as database name.
 	q := "SELECT table_name FROM information_schema.tables where table_type = 'BASE TABLE' and table_schema=?"
-	rows, err := db.Query(q, isi.DbName)
+	rows, err := isi.Db.Query(q, isi.DbName)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get tables: %w", err)
 	}
@@ -138,11 +139,11 @@ func (isi InfoSchemaImpl) GetTables(db *sql.DB) ([]common.SchemaAndName, error) 
 }
 
 // GetColumns returns a list of columns with their data type
-func (isi InfoSchemaImpl) GetColumns(table common.SchemaAndName, db *sql.DB) (*sql.Rows, error) {
+func (isi InfoSchemaImpl) GetColumns(table common.SchemaAndName) (*sql.Rows, error) {
 	q := `SELECT c.column_name, c.data_type, c.column_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, c.extra
               FROM information_schema.COLUMNS c
               where table_schema = ? and table_name = ? ORDER BY c.ordinal_position;`
-	return db.Query(q, table.Schema, table.Name)
+	return isi.Db.Query(q, table.Schema, table.Name)
 }
 
 // ProcessColumns returns a list of Column objects and names// ProcessColumns
@@ -189,13 +190,13 @@ func (isi InfoSchemaImpl) ProcessColumns(conv *internal.Conv, cols *sql.Rows, co
 // other constraints.  Note: we need to preserve ordinal order of
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
-func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) ([]string, map[string][]string, error) {
+func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, map[string][]string, error) {
 	q := `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
               FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
                 INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
                   ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND t.TABLE_NAME=k.TABLE_NAME
               WHERE k.TABLE_SCHEMA = ? AND k.TABLE_NAME = ? ORDER BY k.ordinal_position;`
-	rows, err := db.Query(q, table.Schema, table.Name)
+	rows, err := isi.Db.Query(q, table.Schema, table.Name)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -228,7 +229,7 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, db *sql.DB, table 
 // them because HarbourBridge works database at a time (a specific run
 // of HarbourBridge focuses on a specific database) and so we can't handle
 // them effectively.
-func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
+func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
 	q := `SELECT k.REFERENCED_TABLE_NAME,k.COLUMN_NAME,k.REFERENCED_COLUMN_NAME,k.CONSTRAINT_NAME
 		FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t 
 		INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k 
@@ -243,7 +244,7 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, db *sql.DB, table 
 			k.REFERENCED_TABLE_NAME,
 			k.COLUMN_NAME,
 			k.ORDINAL_POSITION;`
-	rows, err := db.Query(q, table.Schema, table.Name)
+	rows, err := isi.Db.Query(q, table.Schema, table.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -281,14 +282,14 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, db *sql.DB, table 
 }
 
 // GetIndexes return a list of all indexes for the specified table.
-func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) ([]schema.Index, error) {
+func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName) ([]schema.Index, error) {
 	q := `SELECT DISTINCT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION,NON_UNIQUE
 		FROM INFORMATION_SCHEMA.STATISTICS 
 		WHERE TABLE_SCHEMA = ?
 			AND TABLE_NAME = ?
 			AND INDEX_NAME != 'PRIMARY' 
 		ORDER BY INDEX_NAME, SEQ_IN_INDEX;`
-	rows, err := db.Query(q, table.Schema, table.Name)
+	rows, err := isi.Db.Query(q, table.Schema, table.Name)
 	if err != nil {
 		return nil, err
 	}

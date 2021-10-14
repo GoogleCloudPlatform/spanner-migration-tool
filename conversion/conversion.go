@@ -1162,9 +1162,9 @@ func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
 	case constants.MYSQL:
-		return common.ProcessInfoSchema(conv, db, mysql.InfoSchemaImpl{conv.SrcDbName})
+		return common.ProcessInfoSchema(conv, mysql.InfoSchemaImpl{DbName: conv.SrcDbName, Db: db})
 	case constants.POSTGRES:
-		return common.ProcessInfoSchema(conv, db, postgres.InfoSchemaImpl{})
+		return common.ProcessInfoSchema(conv, postgres.InfoSchemaImpl{Db: db})
 	default:
 		return fmt.Errorf("schema conversion for driver %s not supported", driver)
 	}
@@ -1174,9 +1174,9 @@ func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB) error {
 func SetRowStats(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
 	case constants.MYSQL:
-		common.SetRowStats(conv, db, mysql.InfoSchemaImpl{conv.SrcDbName})
+		common.SetRowStats(conv, mysql.InfoSchemaImpl{DbName: conv.SrcDbName, Db: db})
 	case constants.POSTGRES:
-		common.SetRowStats(conv, db, postgres.InfoSchemaImpl{})
+		common.SetRowStats(conv, postgres.InfoSchemaImpl{Db: db})
 	default:
 		return fmt.Errorf("could not set rows stats for '%s' driver", driver)
 	}
@@ -1188,9 +1188,9 @@ func ProcessSQLData(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
 	//TODO - move this logic into a factory within the sources dir
 	case constants.MYSQL:
-		common.ProcessSQLData(conv, db, mysql.InfoSchemaImpl{conv.SrcDbName})
+		common.ProcessSQLData(conv, mysql.InfoSchemaImpl{DbName: conv.SrcDbName, Db: db})
 	case constants.POSTGRES:
-		common.ProcessSQLData(conv, db, postgres.InfoSchemaImpl{})
+		common.ProcessSQLData(conv, postgres.InfoSchemaImpl{Db: db})
 	default:
 		return fmt.Errorf("data conversion for driver %s is not supported", driver)
 	}
