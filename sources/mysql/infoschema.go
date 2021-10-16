@@ -45,18 +45,18 @@ func (isi InfoSchemaImpl) GetTableName(dbName string, tableName string) string {
 }
 
 // GetRowsFromTable returns a sql Rows object for a table.
-func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, table common.SchemaAndName) (*sql.Rows, error) {
-	srcSchema := conv.SrcSchema[table.Name]
+func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
+	srcSchema := conv.SrcSchema[srcTable]
 	srcCols := srcSchema.ColNames
 	if len(srcCols) == 0 {
-		conv.Unexpected(fmt.Sprintf("Couldn't get source columns for table %s ", table.Name))
+		conv.Unexpected(fmt.Sprintf("Couldn't get source columns for table %s ", srcTable))
 		return nil, nil
 	}
 	// MySQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but MySQL doesn't support this. So we quote it instead.
 	colNameList := buildColNameList(srcSchema, srcCols)
-	q := fmt.Sprintf("SELECT %s FROM `%s`.`%s`;", colNameList, table.Schema, table.Name)
+	q := fmt.Sprintf("SELECT %s FROM `%s`.`%s`;", colNameList, srcSchema.Name, srcTable)
 	rows, err := isi.Db.Query(q)
 	return rows, err
 }
@@ -81,8 +81,15 @@ func buildColNameList(srcSchema schema.Table, srcColName []string) string {
 	return colList[:len(colList)-1]
 }
 
-// ProcessDataRows performs data conversion for source database.
-func (isi InfoSchemaImpl) ProcessDataRows(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, rows *sql.Rows) {
+// ProcessData performs data conversion for source database.
+func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) {
+	rowsInterface, err := isi.GetRowsFromTable(conv, srcTable)
+	rows := rowsInterface.(*sql.Rows)
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTable, err))
+	}
+	defer rows.Close()
+	srcCols, _ := rows.Columns()
 	v, scanArgs := buildVals(len(srcCols))
 	for rows.Next() {
 		// get RawBytes from data.
@@ -139,7 +146,7 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 }
 
 // GetColumns returns a list of columns with their data type
-func (isi InfoSchemaImpl) GetColumns(table common.SchemaAndName) (*sql.Rows, error) {
+func (isi InfoSchemaImpl) GetColumns(table common.SchemaAndName) (interface{}, error) {
 	q := `SELECT c.column_name, c.data_type, c.column_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, c.extra
               FROM information_schema.COLUMNS c
               where table_schema = ? and table_name = ? ORDER BY c.ordinal_position;`
@@ -147,12 +154,13 @@ func (isi InfoSchemaImpl) GetColumns(table common.SchemaAndName) (*sql.Rows, err
 }
 
 // ProcessColumns returns a list of Column objects and names// ProcessColumns
-func (isi InfoSchemaImpl) ProcessColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string) {
+func (isi InfoSchemaImpl) ProcessColumns(conv *internal.Conv, colsInterface interface{}, constraints map[string][]string) (map[string]schema.Column, []string) {
 	colDefs := make(map[string]schema.Column)
 	var colNames []string
 	var colName, dataType, isNullable, columnType string
 	var colDefault, colExtra sql.NullString
 	var charMaxLen, numericPrecision, numericScale sql.NullInt64
+	cols := colsInterface.(*sql.Rows)
 	for cols.Next() {
 		err := cols.Scan(&colName, &dataType, &columnType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &colExtra)
 		if err != nil {

@@ -249,7 +249,7 @@ func dataFromSQL(driver, sqlConnectionStr string, config spanner.BatchWriterConf
 		func(table string, cols []string, vals []interface{}) {
 			writer.AddRow(table, cols, vals)
 		})
-	err = ProcessSQLData(driver, conv, sourceDB)
+	err = ProcessData(driver, conv, sourceDB)
 	if err != nil {
 		return nil, err
 	}
@@ -1183,14 +1183,14 @@ func SetRowStats(driver string, conv *internal.Conv, db *sql.DB) error {
 	return nil
 }
 
-// ProcessSQLData invokes ProcessSQLData function from a sql package based on driver selected.
-func ProcessSQLData(driver string, conv *internal.Conv, db *sql.DB) error {
+// ProcessData invokes ProcessData function from a sql package based on driver selected.
+func ProcessData(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
 	//TODO - move this logic into a factory within the sources dir
 	case constants.MYSQL:
-		common.ProcessSQLData(conv, mysql.InfoSchemaImpl{DbName: conv.SrcDbName, Db: db})
+		common.ProcessData(conv, mysql.InfoSchemaImpl{DbName: conv.SrcDbName, Db: db})
 	case constants.POSTGRES:
-		common.ProcessSQLData(conv, postgres.InfoSchemaImpl{Db: db})
+		common.ProcessData(conv, postgres.InfoSchemaImpl{Db: db})
 	default:
 		return fmt.Errorf("data conversion for driver %s is not supported", driver)
 	}
