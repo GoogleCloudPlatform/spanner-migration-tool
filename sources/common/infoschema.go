@@ -15,7 +15,7 @@
 package common
 
 import (
-	sql "database/sql"
+	"database/sql"
 	"fmt"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
