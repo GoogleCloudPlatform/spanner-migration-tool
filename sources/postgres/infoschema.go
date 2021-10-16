@@ -51,11 +51,12 @@ func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 }
 
 // GetRowsFromTable returns a sql Rows object for a table.
-func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, table common.SchemaAndName) (*sql.Rows, error) {
+func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
+	srcSchema := conv.SrcSchema[srcTable]
 	// PostgreSQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but PostgreSQL doesn't support this. So we quote it instead.
-	q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, table.Schema, table.Name)
+	q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, srcSchema.Name, srcTable)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err
@@ -82,7 +83,14 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, table common.Sch
 // We choose to do all type conversions explicitly ourselves so that
 // we can generate more targeted error messages: hence we pass
 // *interface{} parameters to row.Scan.
-func (isi InfoSchemaImpl) ProcessDataRows(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, rows *sql.Rows) {
+func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) {
+	rowsInterface, err := isi.GetRowsFromTable(conv, srcTable)
+	rows := rowsInterface.(*sql.Rows)
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTable, err))
+	}
+	defer rows.Close()
+	srcCols, _ := rows.Columns()
 	v, iv := buildVals(len(srcCols))
 	for rows.Next() {
 		err := rows.Scan(iv...)
@@ -191,7 +199,7 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 }
 
 // GetColumns returns a list of columns with their data type
-func (isi InfoSchemaImpl) GetColumns(table common.SchemaAndName) (*sql.Rows, error) {
+func (isi InfoSchemaImpl) GetColumns(table common.SchemaAndName) (interface{}, error) {
 	q := `SELECT c.column_name, c.data_type, e.data_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale
               FROM information_schema.COLUMNS c LEFT JOIN information_schema.element_types e
                  ON ((c.table_catalog, c.table_schema, c.table_name, 'TABLE', c.dtd_identifier)
@@ -201,12 +209,13 @@ func (isi InfoSchemaImpl) GetColumns(table common.SchemaAndName) (*sql.Rows, err
 }
 
 // ProcessColumns returns a list of Column objects and names
-func (isi InfoSchemaImpl) ProcessColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string) {
+func (isi InfoSchemaImpl) ProcessColumns(conv *internal.Conv, colsInterface interface{}, constraints map[string][]string) (map[string]schema.Column, []string) {
 	colDefs := make(map[string]schema.Column)
 	var colNames []string
 	var colName, dataType, isNullable string
 	var colDefault, elementDataType sql.NullString
 	var charMaxLen, numericPrecision, numericScale sql.NullInt64
+	cols := colsInterface.(*sql.Rows)
 	for cols.Next() {
 		err := cols.Scan(&colName, &dataType, &elementDataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale)
 		if err != nil {
