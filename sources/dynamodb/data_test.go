@@ -38,7 +38,6 @@ func TestProcessDataRow(t *testing.T) {
 	numStr1 := "10.1"
 	numStr2 := "12.34"
 	numVal1 := big.NewRat(101, 10)
-	numVal2 := big.NewRat(89, 1)
 
 	boolVal := true
 	items := []map[string]*dynamodb.AttributeValue{
@@ -92,11 +91,6 @@ func TestProcessDataRow(t *testing.T) {
 				table: tableName,
 				cols:  cols,
 				vals:  []interface{}{"str-1", *numVal1, "12.34", true},
-			},
-			{
-				table: tableName,
-				cols:  cols,
-				vals:  []interface{}{"str-2", *numVal2, nil, nil},
 			},
 		},
 		rows,

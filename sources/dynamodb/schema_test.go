@@ -91,6 +91,23 @@ func TestProcessSchema(t *testing.T) {
 		},
 		{
 			Table: &dynamodb.TableDescription{
+				TableName: &tableNameA,
+				KeySchema: []*dynamodb.KeySchemaElement{
+					{AttributeName: &attrNameA, KeyType: &hashKeyType},
+				},
+			},
+		},
+		{
+			Table: &dynamodb.TableDescription{
+				TableName: &tableNameB,
+				KeySchema: []*dynamodb.KeySchemaElement{
+					{AttributeName: &attrNameA, KeyType: &hashKeyType},
+					{AttributeName: &attrNameB, KeyType: &sortKeyType},
+				},
+			},
+		},
+		{
+			Table: &dynamodb.TableDescription{
 				TableName: &tableNameB,
 				KeySchema: []*dynamodb.KeySchemaElement{
 					{AttributeName: &attrNameA, KeyType: &hashKeyType},
@@ -212,6 +229,15 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 				},
 			},
 		},
+		{
+			Table: &dynamodb.TableDescription{
+				TableName: &tableNameA,
+				KeySchema: []*dynamodb.KeySchemaElement{
+					{AttributeName: &attrNameA, KeyType: &hashKeyType},
+					{AttributeName: &attrNameB, KeyType: &sortKeyType},
+				},
+			},
+		},
 	}
 	scanOutputs := []dynamodb.ScanOutput{
 		{
@@ -273,12 +299,9 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 
 func TestProcessData(t *testing.T) {
 	strA := "str-1"
-	strB := "str-2"
 	numStr1 := "10.1"
 	numStr2 := "12.34"
-	numStr3 := "89.0"
 	numVal1 := big.NewRat(101, 10)
-	numVal2 := big.NewRat(89, 1)
 
 	boolVal := true
 	scanOutputs := []dynamodb.ScanOutput{
@@ -289,17 +312,6 @@ func TestProcessData(t *testing.T) {
 					"b": {N: &numStr1},
 					"c": {N: &numStr2},
 					"d": {BOOL: &boolVal},
-				},
-			},
-			LastEvaluatedKey: map[string]*dynamodb.AttributeValue{
-				"a": {S: &strA},
-			},
-		},
-		{
-			Items: []map[string]*dynamodb.AttributeValue{
-				{
-					"a": {S: &strB},
-					"b": {N: &numStr3},
 				},
 			},
 		},
@@ -348,11 +360,6 @@ func TestProcessData(t *testing.T) {
 				table: tableName,
 				cols:  cols,
 				vals:  []interface{}{"str-1", *numVal1, "12.34", true},
-			},
-			{
-				table: tableName,
-				cols:  cols,
-				vals:  []interface{}{"str-2", *numVal2, nil, nil},
 			},
 		},
 		rows,
@@ -584,7 +591,7 @@ func TestInfoSchemaImpl_GetConstraints(t *testing.T) {
 	primaryKeys, constraints, err := isi.GetConstraints(conv, dySchema)
 	assert.Nil(t, err)
 
-	pKeys := []schema.Key{{Column: "a"}, {Column: "b"}}
+	pKeys := []string{"a", "b"}
 	assert.Equal(t, pKeys, primaryKeys)
 	assert.Empty(t, constraints)
 }
@@ -604,7 +611,7 @@ func TestInfoSchemaImpl_GetTables(t *testing.T) {
 	isi := InfoSchemaImpl{client, 10}
 	tables, err := isi.GetTables()
 	assert.Nil(t, err)
-	assert.Equal(t, []string{"table-a", "table-b"}, tables)
+	assert.Equal(t, []common.SchemaAndName{{"", "table-a"}, {"", "table-b"}}, tables)
 }
 
 func TestInfoSchemaImpl_GetTableName(t *testing.T) {

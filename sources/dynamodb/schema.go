@@ -168,16 +168,17 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 // on the source and Spanner schemas), and write it to Spanner. If we can't
 // get/process data for a table, we skip that table and process the remaining
 // tables.
-func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) {
+func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) error {
 	rows, err := isi.GetRowsFromTable(conv, srcTable)
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTable, err))
+		return err
+	}
 	// Iterate the items returned.
 	for _, attrsMap := range rows.([]map[string]*dynamodb.AttributeValue) {
 		ProcessDataRow(attrsMap, conv, srcTable, srcSchema, spTable, spCols, spSchema)
 	}
-	if err != nil {
-		conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
-		conv.Unexpected(fmt.Sprintf("Can't scan the data for table %s: %s", srcTable, err))
-	}
+	return nil
 }
 
 func getSchemaIndexStruct(indexName string, keySchema []*dynamodb.KeySchemaElement) schema.Index {
