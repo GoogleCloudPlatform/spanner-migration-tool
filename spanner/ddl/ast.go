@@ -126,7 +126,10 @@ func (ty Type) PGPrintColumnDefType() string {
 	default:
 		str = ty.Name
 	}
-	if ty.Name == String || ty.Name == Bytes || ty.Name == Date {
+	// PG doesn't support variable length Bytea and thus doesn't support
+	// setting length (or max length) for the Bytes.
+	// if ty.Name == String || ty.Name == Bytes || ty.Name == Date {
+	if ty.Name == String || ty.Name == Date {
 		str += "("
 		if ty.Len == MaxLength || ty.Len == PGMaxLength {
 			str += fmt.Sprintf("%v", PGMaxLength)

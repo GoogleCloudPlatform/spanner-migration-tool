@@ -22,13 +22,18 @@ SET default_tablespace = '';
 -- Name: Types; Type: TABLE; Schema: public; Owner: postgres
 --
 -- PostgreSQL type name  | Spanner type | Printed in schema | Comment
+-- BOOL                  | BOOL         | BOOL              | bool is an alias for boolean type
 -- BIGINT (8 bytes)      | INT64        | INT8              |
+-- BYTEA                 | BYTES(MAX)   | BYTEA             |
 -- INT (same as INTEGER) | INT64        | INT8              |
 -- INTEGER (4 bytes)     | INT64        | INT8              |
 -- INT8 (8 bytes)        | INT64        | INT8              |
 -- PG_CATALOG.INT8       | INT64        | INT8              |
 -- DOUBLE PRECISION      | DOUBLE       | FLOAT8            | 15 decimal digits precision
 -- FLOAT8                | DOUBLE       | FLOAT8            | float8 is an alias for double precision type
+-- CHARACTER VARYING     | STRING(MAX)  | VARCHAR           |
+-- TEXT                  | STRING(MAX)  | VARCHAR           |
+-- VARCHAR               | STRING(MAX)  | VARCHAR           | varchar is an alias for character varying type
 --
 
 CREATE TABLE public.types (
@@ -41,6 +46,25 @@ CREATE TABLE public.types (
 );
 
 ALTER TABLE public.types OWNER TO postgres;
+
+CREATE TABLE public.types2 (
+    c_int8    int8,
+    c_boolean  boolean,
+    c_bool  bool,
+    c_bytea  bytea
+);
+
+ALTER TABLE public.types2 OWNER TO postgres;
+
+CREATE TABLE public.string_types (
+    c_character_varying character_varying,
+    c_character_varying_n  character_varying(50),
+    c_text text,
+    c_varchar  varchar,
+    c_varchar_n  varchar(50)
+);
+
+ALTER TABLE public.string_types OWNER TO postgres;
 
 --
 -- Name: cart; Type: TABLE; Schema: public; Owner: postgres
@@ -80,6 +104,23 @@ COPY public.types (bigint_col, int_col, integer_col, int8_col, c_double_precisio
 \.
 
 --
+-- Data for Name: types2; Type: TABLE DATA; Schema: public; Owner: postgres
+-- TODO: Check if `\\x0001beef` getting converted to Bytea with value `AAG+7w==` is correct.
+--
+
+COPY public.types2 (c_int8, c_boolean, c_bool, c_bytea) FROM stdin;
+1	true	false	\\x0001beef
+\.
+
+--
+-- Data for Name: string_types; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.string_types (c_character_varying, c_character_varying_n, c_text, c_varchar, c_varchar_n) FROM stdin;
+character_varying text	character_varying_n text	c_text text	c_varchar text	c_varchar_n text
+\.
+
+--
 -- Data for Name: cart; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -105,6 +146,20 @@ zxi-631	Glass vase	55.50	2020-06-10
 
 ALTER TABLE ONLY public.types
     ADD CONSTRAINT types_pkey PRIMARY KEY (bigint_col, int_col);
+
+--
+-- Name: types types2_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.types2
+    ADD CONSTRAINT types2_pkey PRIMARY KEY (c_int8);
+
+--
+-- Name: string_types string_types_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.string_types
+    ADD CONSTRAINT string_types_pkey PRIMARY KEY (c_character_varying);
 
 --
 -- Name: cart cart_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
