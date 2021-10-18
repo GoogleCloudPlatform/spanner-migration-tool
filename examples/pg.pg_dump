@@ -19,24 +19,28 @@ SET row_security = off;
 SET default_tablespace = '';
 
 --
--- Name: integers; Type: TABLE; Schema: public; Owner: postgres
+-- Name: Types; Type: TABLE; Schema: public; Owner: postgres
 --
--- PostgreSQL type name  | Spanner type | Printed in schema
--- BIGINT (8 bytes)      | INT64        | INT8
--- INT (same as INTEGER) | INT64        | INT8
--- INTEGER (4 bytes)     | INT64        | INT8
--- INT8 (8 bytes)        | INT64        | INT8
--- PG_CATALOG.INT8       | INT64        | INT8
+-- PostgreSQL type name  | Spanner type | Printed in schema | Comment
+-- BIGINT (8 bytes)      | INT64        | INT8              |
+-- INT (same as INTEGER) | INT64        | INT8              |
+-- INTEGER (4 bytes)     | INT64        | INT8              |
+-- INT8 (8 bytes)        | INT64        | INT8              |
+-- PG_CATALOG.INT8       | INT64        | INT8              |
+-- DOUBLE PRECISION      | DOUBLE       | FLOAT8            | 15 decimal digits precision
+-- FLOAT8                | DOUBLE       | FLOAT8            | float8 is an alias for double precision type
 --
 
-CREATE TABLE public.integers (
+CREATE TABLE public.types (
     bigint_col bigint NOT NULL,
     int_col int NOT NULL,
     integer_col integer,
-    int8_col int8
+    int8_col int8,
+    c_double_precision double precision,
+    c_float8 float8
 );
 
-ALTER TABLE public.integers OWNER TO postgres;
+ALTER TABLE public.types OWNER TO postgres;
 
 --
 -- Name: cart; Type: TABLE; Schema: public; Owner: postgres
@@ -66,13 +70,13 @@ CREATE TABLE public.products (
 ALTER TABLE public.products OWNER TO postgres;
 
 --
--- Data for Name: integers; Type: TABLE DATA; Schema: public; Owner: postgres
+-- Data for Name: types; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.integers (bigint_col, int_col, integer_col, int8_col) FROM stdin;
-1	2	3	4
--9223372036854775807	-2147483647	-2147483647	-9223372036854775807
-9223372036854775807	2147483647	2147483647	9223372036854775807
+COPY public.types (bigint_col, int_col, integer_col, int8_col, c_double_precision, c_float8) FROM stdin;
+1	2	3	4	1234.5678	1234.5678
+-9223372036854775807	-2147483647	-2147483647	-9223372036854775807	1E-307	1E-307
+9223372036854775807	2147483647	2147483647	9223372036854775807	1E+308	1E+308
 \.
 
 --
@@ -96,11 +100,11 @@ zxi-631	Glass vase	55.50	2020-06-10
 \.
 
 --
--- Name: integers integers_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: types types_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
-ALTER TABLE ONLY public.integers
-    ADD CONSTRAINT integers_pkey PRIMARY KEY (bigint_col, int_col);
+ALTER TABLE ONLY public.types
+    ADD CONSTRAINT types_pkey PRIMARY KEY (bigint_col, int_col);
 
 --
 -- Name: cart cart_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
