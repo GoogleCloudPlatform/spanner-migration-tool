@@ -34,7 +34,7 @@ type mockSpec struct {
 	rows  [][]driver.Value // Set of rows returned.
 }
 
-func TestProcessInfoSchemaMYSQL(t *testing.T) {
+func TestProcessSchemaMYSQL(t *testing.T) {
 	ms := []mockSpec{
 
 		{
@@ -194,7 +194,7 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
-	err := common.ProcessInfoSchema(conv, db, InfoSchemaImpl{"test"})
+	err := common.ProcessSchema(conv, InfoSchemaImpl{"test", db})
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"user": ddl.CreateTable{
@@ -280,7 +280,7 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 
-func TestProcessSQLData(t *testing.T) {
+func TestProcessData(t *testing.T) {
 	ms := []mockSpec{
 		{
 			query: "SELECT table_name FROM information_schema.tables where table_type = 'BASE TABLE' and (.+)",
@@ -321,7 +321,7 @@ func TestProcessSQLData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	common.ProcessSQLData(conv, db, InfoSchemaImpl{"test"})
+	common.ProcessData(conv, InfoSchemaImpl{"test", db})
 	assert.Equal(t,
 		[]spannerData{
 			spannerData{table: "te_st", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(42.3), int64(3), "cat"}},
@@ -333,7 +333,7 @@ func TestProcessSQLData(t *testing.T) {
 	assert.Equal(t, int64(1), conv.Unexpecteds()) // Bad row generates an entry in unexpected.
 }
 
-func TestProcessSQLData_MultiCol(t *testing.T) {
+func TestProcessData_MultiCol(t *testing.T) {
 	// Tests multi-column behavior of ProcessSQLData (including
 	// handling of null columns and synthetic keys). Also tests
 	// the combination of ProcessInfoSchema and ProcessSQLData
@@ -387,7 +387,7 @@ func TestProcessSQLData_MultiCol(t *testing.T) {
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
-	err := common.ProcessInfoSchema(conv, db, InfoSchemaImpl{"test"})
+	err := common.ProcessSchema(conv, InfoSchemaImpl{"test", db})
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"test": ddl.CreateTable{
@@ -411,7 +411,7 @@ func TestProcessSQLData_MultiCol(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	common.ProcessSQLData(conv, db, InfoSchemaImpl{"test"})
+	common.ProcessData(conv, InfoSchemaImpl{"test", db})
 	assert.Equal(t, []spannerData{
 		{table: "test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), int64(0)}},
 		{table: "test", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), int64(-9223372036854775808)}}},
@@ -439,7 +439,7 @@ func TestSetRowStats(t *testing.T) {
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
 	conv.SetDataMode()
-	common.SetRowStats(conv, db, InfoSchemaImpl{"test"})
+	common.SetRowStats(conv, InfoSchemaImpl{"test", db})
 	assert.Equal(t, int64(5), conv.Stats.Rows["test1"])
 	assert.Equal(t, int64(142), conv.Stats.Rows["test2"])
 	assert.Equal(t, int64(0), conv.Unexpecteds())

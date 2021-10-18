@@ -198,24 +198,22 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	return tables, nil
 }
 
-// GetColumns returns a list of columns with their data type
-func (isi InfoSchemaImpl) GetColumns(table common.SchemaAndName) (interface{}, error) {
+// GetColumns returns a list of Column objects and names
+func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
 	q := `SELECT c.column_name, c.data_type, e.data_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale
               FROM information_schema.COLUMNS c LEFT JOIN information_schema.element_types e
                  ON ((c.table_catalog, c.table_schema, c.table_name, 'TABLE', c.dtd_identifier)
                      = (e.object_catalog, e.object_schema, e.object_name, e.object_type, e.collection_type_identifier))
               where table_schema = $1 and table_name = $2 ORDER BY c.ordinal_position;`
-	return isi.Db.Query(q, table.Schema, table.Name)
-}
-
-// ProcessColumns returns a list of Column objects and names
-func (isi InfoSchemaImpl) ProcessColumns(conv *internal.Conv, colsInterface interface{}, constraints map[string][]string) (map[string]schema.Column, []string) {
+	cols, err := isi.Db.Query(q, table.Schema, table.Name)
+	if err != nil {
+		return nil, nil, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
+	}
 	colDefs := make(map[string]schema.Column)
 	var colNames []string
 	var colName, dataType, isNullable string
 	var colDefault, elementDataType sql.NullString
 	var charMaxLen, numericPrecision, numericScale sql.NullInt64
-	cols := colsInterface.(*sql.Rows)
 	for cols.Next() {
 		err := cols.Scan(&colName, &dataType, &elementDataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale)
 		if err != nil {
@@ -244,7 +242,7 @@ func (isi InfoSchemaImpl) ProcessColumns(conv *internal.Conv, colsInterface inte
 		colDefs[colName] = c
 		colNames = append(colNames, colName)
 	}
-	return colDefs, colNames
+	return colDefs, colNames, nil
 }
 
 // GetConstraints returns a list of primary keys and by-column map of

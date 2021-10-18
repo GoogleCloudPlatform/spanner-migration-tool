@@ -202,7 +202,7 @@ func schemaFromSQL(driver, sqlConnectionStr, targetDb string) (*internal.Conv, e
 	conv := internal.MakeConv()
 	conv.TargetDb = targetDb
 	conv.SrcDbName = getDbNameFromSQLConnectionStr(driver, sqlConnectionStr)
-	err = ProcessInfoSchema(driver, conv, sourceDB)
+	err = ProcessSchema(driver, conv, sourceDB)
 	if err != nil {
 		return nil, err
 	}
@@ -1158,13 +1158,13 @@ func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 	}
 }
 
-// ProcessInfoSchema invokes process infoschema function from a sql package based on driver selected.
-func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB) error {
+// ProcessSchema invokes processSchema function from a sql package based on driver selected.
+func ProcessSchema(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
 	case constants.MYSQL:
-		return common.ProcessInfoSchema(conv, mysql.InfoSchemaImpl{DbName: conv.SrcDbName, Db: db})
+		return common.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: conv.SrcDbName, Db: db})
 	case constants.POSTGRES:
-		return common.ProcessInfoSchema(conv, postgres.InfoSchemaImpl{Db: db})
+		return common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: db})
 	default:
 		return fmt.Errorf("schema conversion for driver %s not supported", driver)
 	}

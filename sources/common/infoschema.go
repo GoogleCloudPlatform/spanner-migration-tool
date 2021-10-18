@@ -15,7 +15,6 @@
 package common
 
 import (
-	"database/sql"
 	"fmt"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -28,8 +27,7 @@ type InfoSchema interface {
 	GetToDdl() ToDdl
 	GetTableName(schema string, tableName string) string
 	GetTables() ([]SchemaAndName, error)
-	GetColumns(table SchemaAndName) (interface{}, error) //TODO - merge this method and ProcessColumns for cleaner interface
-	ProcessColumns(conv *internal.Conv, cols interface{}, constraints map[string][]string) (map[string]schema.Column, []string)
+	GetColumns(conv *internal.Conv, table SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error)
 	GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error)
 	GetRowCount(table SchemaAndName) (int64, error)
 	GetConstraints(conv *internal.Conv, table SchemaAndName) ([]string, map[string][]string, error)
@@ -52,10 +50,10 @@ type FkConstraint struct {
 	Cols    []string
 }
 
-// ProcessInfoSchema performs schema conversion for source database
+// ProcessSchema performs schema conversion for source database
 // 'db'. Information schema tables are a broadly supported ANSI standard,
 // and we use them to obtain source database's schema information.
-func ProcessInfoSchema(conv *internal.Conv, infoSchema InfoSchema) error {
+func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema) error {
 	tables, err := infoSchema.GetTables()
 	if err != nil {
 		return err
@@ -109,13 +107,6 @@ func SetRowStats(conv *internal.Conv, infoSchema InfoSchema) {
 }
 
 func processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) error {
-	cols, err := infoSchema.GetColumns(table)
-	if err != nil {
-		return fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
-	}
-	// TODO(charvisingla) To be removed in the subsequent PRs for sql removal from common.
-	defer cols.(*sql.Rows).Close()
-
 	primaryKeys, constraints, err := infoSchema.GetConstraints(conv, table)
 	if err != nil {
 		return fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.Schema, table.Name, err)
@@ -128,7 +119,7 @@ func processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchem
 	if err != nil {
 		return fmt.Errorf("couldn't get indexes for table %s.%s: %s", table.Schema, table.Name, err)
 	}
-	colDefs, colNames := infoSchema.ProcessColumns(conv, cols, constraints)
+	colDefs, colNames, err := infoSchema.GetColumns(conv, table, constraints, primaryKeys)
 	if err != nil {
 		return fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
 	}
