@@ -644,6 +644,36 @@ func TestInfoSchemaImpl_GetTableName(t *testing.T) {
 //
 //}
 
+func TestInfoSchemaImpl_GetTableName(t *testing.T) {
+	tableNameA := "table-a"
+
+	client := &mockDynamoClient{}
+	isi := InfoSchemaImpl{client, 10}
+	table := isi.GetTableName("", tableNameA)
+	assert.Equal(t, tableNameA, table)
+}
+
+//
+//func TestInfoSchemaImpl_GetColumns(t *testing.T) {
+//
+//}
+//
+//func TestInfoSchemaImpl_GetForeignKeys(t *testing.T) {
+//
+//}
+//
+//func TestInfoSchemaImpl_GetRowCount(t *testing.T) {
+//
+//}
+//
+//func TestInfoSchemaImpl_GetRowsFromTable(t *testing.T) {
+//
+//}
+//
+//func TestInfoSchemaImpl_ProcessData(t *testing.T) {
+//
+//}
+
 func stripSchemaComments(spSchema map[string]ddl.CreateTable) map[string]ddl.CreateTable {
 	for t, ct := range spSchema {
 		for c, cd := range ct.ColDefs {
