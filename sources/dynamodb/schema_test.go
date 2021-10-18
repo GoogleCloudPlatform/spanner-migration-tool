@@ -623,26 +623,203 @@ func TestInfoSchemaImpl_GetTableName(t *testing.T) {
 	assert.Equal(t, tableNameA, table)
 }
 
-//
-//func TestInfoSchemaImpl_GetColumns(t *testing.T) {
-//
-//}
-//
-//func TestInfoSchemaImpl_GetForeignKeys(t *testing.T) {
-//
-//}
-//
-//func TestInfoSchemaImpl_GetRowCount(t *testing.T) {
-//
-//}
-//
-//func TestInfoSchemaImpl_GetRowsFromTable(t *testing.T) {
-//
-//}
-//
-//func TestInfoSchemaImpl_ProcessData(t *testing.T) {
-//
-//}
+func TestInfoSchemaImpl_GetColumns(t *testing.T) {
+	strA := "str-1"
+	strB := "str-2"
+	numStr := "10"
+	scanOutputs := []dynamodb.ScanOutput{
+		{
+			Items: []map[string]*dynamodb.AttributeValue{
+				{
+					"a": {S: &strA},
+				},
+				{
+					"a": {N: &numStr},
+				},
+			},
+			LastEvaluatedKey: map[string]*dynamodb.AttributeValue{
+				"a": {S: &strA},
+			},
+		},
+		{
+			Items: []map[string]*dynamodb.AttributeValue{
+				{
+					"a": {S: &strB},
+					"b": {N: &numStr},
+				},
+				{
+					// This will not be scaned due to the sample size.
+					"a": {N: &numStr},
+					"b": {S: &strB},
+				},
+			},
+		},
+	}
+
+	conv := internal.MakeConv()
+	client := &mockDynamoClient{
+		scanOutputs: scanOutputs,
+	}
+	dySchema := common.SchemaAndName{Name: "test"}
+
+	isi := InfoSchemaImpl{client, 10}
+
+	colDefs, colNames, err := isi.GetColumns(conv, dySchema, nil, nil)
+	assert.Nil(t, err)
+	expectColNames := []string{
+		"a", "b",
+	}
+	assert.ElementsMatch(t, expectColNames, colNames)
+	assert.Equal(t, map[string]schema.Column{
+		"a": {Name: "a", Type: schema.Type{Name: "String", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}},
+		"b": {Name: "b", Type: schema.Type{Name: "String", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}}},
+		colDefs)
+}
+
+func TestInfoSchemaImpl_GetForeignKeys(t *testing.T) {
+	dySchema := common.SchemaAndName{Name: "test"}
+	conv := internal.MakeConv()
+	client := &mockDynamoClient{}
+	isi := InfoSchemaImpl{client, 10}
+	fk, err := isi.GetForeignKeys(conv, dySchema)
+	assert.Nil(t, err)
+	assert.Nil(t, fk)
+}
+
+func TestInfoSchemaImpl_GetRowCount(t *testing.T) {
+	tableNameA := "test_a"
+	tableItemCountA := int64(10)
+
+	describeTableOutputs := []dynamodb.DescribeTableOutput{
+		{
+			Table: &dynamodb.TableDescription{
+				TableName: &tableNameA,
+				ItemCount: &tableItemCountA,
+			},
+		},
+	}
+
+	client := &mockDynamoClient{
+		describeTableOutputs: describeTableOutputs,
+	}
+
+	isi := InfoSchemaImpl{client, 10}
+	dySchema := common.SchemaAndName{Name: tableNameA}
+
+	rowCount, err := isi.GetRowCount(dySchema)
+	assert.Nil(t, err)
+	assert.Equal(t, tableItemCountA, rowCount)
+}
+
+func TestInfoSchemaImpl_GetRowsFromTable(t *testing.T) {
+	strA := "str-1"
+	numStr1 := "10.1"
+	numStr2 := "12.34"
+
+	boolVal := true
+	scanOutputs := []dynamodb.ScanOutput{
+		{
+			Items: []map[string]*dynamodb.AttributeValue{
+				{
+					"a": {S: &strA},
+					"b": {N: &numStr1},
+					"c": {N: &numStr2},
+					"d": {BOOL: &boolVal},
+				},
+			},
+		},
+	}
+
+	conv := internal.MakeConv()
+	client := &mockDynamoClient{
+		scanOutputs: scanOutputs,
+	}
+	tableName := "testtable"
+	isi := InfoSchemaImpl{client, 10}
+
+	rows, err := isi.GetRowsFromTable(conv, tableName)
+	assert.Nil(t, err)
+	assert.Equal(t, []map[string]*dynamodb.AttributeValue{{
+		"a": {S: &strA},
+		"b": {N: &numStr1},
+		"c": {N: &numStr2},
+		"d": {BOOL: &boolVal}}},
+		rows,
+	)
+}
+
+func TestInfoSchemaImpl_ProcessData(t *testing.T) {
+	strA := "str-1"
+	numStr1 := "10.1"
+	numStr2 := "12.34"
+	numVal1 := big.NewRat(101, 10)
+
+	boolVal := true
+	scanOutputs := []dynamodb.ScanOutput{
+		{
+			Items: []map[string]*dynamodb.AttributeValue{
+				{
+					"a": {S: &strA},
+					"b": {N: &numStr1},
+					"c": {N: &numStr2},
+					"d": {BOOL: &boolVal},
+				},
+			},
+		},
+	}
+
+	client := &mockDynamoClient{
+		scanOutputs: scanOutputs,
+	}
+	isi := InfoSchemaImpl{client, 10}
+
+	tableName := "testtable"
+	cols := []string{"a", "b", "c", "d"}
+	spSchema := ddl.CreateTable{
+		Name:     tableName,
+		ColNames: cols,
+		ColDefs: map[string]ddl.ColumnDef{
+			"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
+			"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
+		},
+		Pks: []ddl.IndexKey{{Col: "a"}},
+	}
+	conv := buildConv(
+		spSchema,
+		schema.Table{
+			Name:     tableName,
+			ColNames: cols,
+			ColDefs: map[string]schema.Column{
+				"a": {Name: "a", Type: schema.Type{Name: typeString}},
+				"b": {Name: "b", Type: schema.Type{Name: typeNumber}},
+				"c": {Name: "c", Type: schema.Type{Name: typeNumberString}},
+				"d": {Name: "d", Type: schema.Type{Name: typeBool}},
+			},
+			PrimaryKeys: []schema.Key{{Column: "a"}},
+		},
+	)
+
+	var rows []spannerData
+	conv.SetDataSink(
+		func(table string, cols []string, vals []interface{}) {
+			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
+		})
+	err := isi.ProcessData(conv, tableName, conv.SrcSchema[tableName], tableName,
+		cols, spSchema)
+	assert.Nil(t, err)
+	assert.Equal(t,
+		[]spannerData{
+			{
+				table: tableName,
+				cols:  cols,
+				vals:  []interface{}{"str-1", *numVal1, "12.34", true},
+			},
+		},
+		rows,
+	)
+}
 
 func TestInfoSchemaImpl_GetTableName(t *testing.T) {
 	tableNameA := "table-a"
