@@ -16,11 +16,14 @@ package dynamodb
 
 import (
 	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/stretchr/testify/assert"
 )
@@ -32,6 +35,7 @@ type mockDynamoClient struct {
 	describeTableOutputs   []dynamodb.DescribeTableOutput
 	scanCallCount          int
 	scanOutputs            []dynamodb.ScanOutput
+	dynamodbiface.DynamoDBAPI
 }
 
 func (m *mockDynamoClient) ListTables(input *dynamodb.ListTablesInput) (*dynamodb.ListTablesOutput, error) {
@@ -143,11 +147,10 @@ func TestProcessSchema(t *testing.T) {
 		describeTableOutputs: describeTableOutputs,
 		scanOutputs:          scanOutputs,
 	}
-	tables := []string{}
 	sampleSize := int64(10000)
 
 	conv := internal.MakeConv()
-	err := ProcessSchema(conv, client, tables, sampleSize)
+	err := common.ProcessSchema(conv, InfoSchemaImpl{client, sampleSize})
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -238,11 +241,10 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 		describeTableOutputs: describeTableOutputs,
 		scanOutputs:          scanOutputs,
 	}
-	tables := []string{}
 	sampleSize := int64(10000)
 
 	conv := internal.MakeConv()
-	err := ProcessSchema(conv, client, tables, sampleSize)
+	err := common.ProcessSchema(conv, InfoSchemaImpl{client, sampleSize})
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -269,8 +271,95 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 
+func TestProcessData(t *testing.T) {
+	strA := "str-1"
+	strB := "str-2"
+	numStr1 := "10.1"
+	numStr2 := "12.34"
+	numStr3 := "89.0"
+	numVal1 := big.NewRat(101, 10)
+	numVal2 := big.NewRat(89, 1)
+
+	boolVal := true
+	scanOutputs := []dynamodb.ScanOutput{
+		{
+			Items: []map[string]*dynamodb.AttributeValue{
+				{
+					"a": {S: &strA},
+					"b": {N: &numStr1},
+					"c": {N: &numStr2},
+					"d": {BOOL: &boolVal},
+				},
+			},
+			LastEvaluatedKey: map[string]*dynamodb.AttributeValue{
+				"a": {S: &strA},
+			},
+		},
+		{
+			Items: []map[string]*dynamodb.AttributeValue{
+				{
+					"a": {S: &strB},
+					"b": {N: &numStr3},
+				},
+			},
+		},
+	}
+
+	client := &mockDynamoClient{
+		scanOutputs: scanOutputs,
+	}
+
+	tableName := "testtable"
+	cols := []string{"a", "b", "c", "d"}
+	conv := buildConv(
+		ddl.CreateTable{
+			Name:     tableName,
+			ColNames: cols,
+			ColDefs: map[string]ddl.ColumnDef{
+				"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
+				"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
+			},
+			Pks: []ddl.IndexKey{{Col: "a"}},
+		},
+		schema.Table{
+			Name:     tableName,
+			ColNames: cols,
+			ColDefs: map[string]schema.Column{
+				"a": {Name: "a", Type: schema.Type{Name: typeString}},
+				"b": {Name: "b", Type: schema.Type{Name: typeNumber}},
+				"c": {Name: "c", Type: schema.Type{Name: typeNumberString}},
+				"d": {Name: "d", Type: schema.Type{Name: typeBool}},
+			},
+			PrimaryKeys: []schema.Key{{Column: "a"}},
+		},
+	)
+	conv.SetDataMode()
+	var rows []spannerData
+	conv.SetDataSink(
+		func(table string, cols []string, vals []interface{}) {
+			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
+		})
+	common.ProcessData(conv, InfoSchemaImpl{client, 10})
+	assert.Equal(t,
+		[]spannerData{
+			{
+				table: tableName,
+				cols:  cols,
+				vals:  []interface{}{"str-1", *numVal1, "12.34", true},
+			},
+			{
+				table: tableName,
+				cols:  cols,
+				vals:  []interface{}{"str-2", *numVal2, nil, nil},
+			},
+		},
+		rows,
+	)
+}
+
 func TestInferDataTypes(t *testing.T) {
-	dySchema := schema.Table{Name: "test"}
 	stats := map[string]map[string]int64{
 		"all_rows_not_null": {
 			"Number": 1000,
@@ -317,14 +406,15 @@ func TestInferDataTypes(t *testing.T) {
 		},
 		"empty_stats": {},
 	}
-	inferDataTypes(stats, 1000, &dySchema)
+	colDefs, colNames, err := inferDataTypes(stats, 1000, make([]string, 0))
+	assert.Nil(t, err)
 	expectColNames := []string{
 		"all_rows_not_null", "err_row", "err_null_row", "enough_null_row",
 		"not_conflict_row", "conflict_row", "equal_conflict_rows",
 		"not_conflict_row_with_noise", "conflict_row_with_noise",
 		"equal_conflict_row_with_noise",
 	}
-	assert.ElementsMatch(t, expectColNames, dySchema.ColNames)
+	assert.ElementsMatch(t, expectColNames, colNames)
 	assert.Equal(t, map[string]schema.Column{
 		"all_rows_not_null":             {Name: "all_rows_not_null", Type: schema.Type{Name: "Number"}, NotNull: true},
 		"err_row":                       {Name: "err_row", Type: schema.Type{Name: "Number"}, NotNull: true},
@@ -336,7 +426,7 @@ func TestInferDataTypes(t *testing.T) {
 		"not_conflict_row_with_noise":   {Name: "not_conflict_row_with_noise", Type: schema.Type{Name: "Number"}, NotNull: false},
 		"conflict_row_with_noise":       {Name: "conflict_row_with_noise", Type: schema.Type{Name: "String"}, NotNull: false},
 		"equal_conflict_row_with_noise": {Name: "equal_conflict_row_with_noise", Type: schema.Type{Name: "String"}, NotNull: false},
-	}, dySchema.ColDefs)
+	}, colDefs)
 }
 
 func TestScanSampleData(t *testing.T) {
@@ -391,7 +481,7 @@ func TestScanSampleData(t *testing.T) {
 	assert.Equal(t, expectedStats, stats)
 }
 
-func TestParseIndexes(t *testing.T) {
+func TestInfoSchemaImpl_GetIndexes(t *testing.T) {
 	tableName := "test"
 	attrNameA := "a"
 	attrNameB := "b"
@@ -433,21 +523,73 @@ func TestParseIndexes(t *testing.T) {
 		describeTableOutputs: describeTableOutputs,
 	}
 
-	dySchema := schema.Table{Name: "test"}
-
-	err := analyzeMetadata(client, &dySchema)
+	dySchema := common.SchemaAndName{Name: "test"}
+	conv := internal.MakeConv()
+	isi := InfoSchemaImpl{client, 10}
+	indexes, err := isi.GetIndexes(conv, dySchema)
 	assert.Nil(t, err)
 
-	pKeys := []schema.Key{{Column: "a"}, {Column: "b"}}
-	assert.Equal(t, pKeys, dySchema.PrimaryKeys)
 	secIndexes := []schema.Index{
 		{Name: "secondary_index_c", Keys: []schema.Key{{Column: "c"}}},
 		{Name: "secondary_index_d", Keys: []schema.Key{{Column: "d"}}},
 	}
-	assert.Equal(t, secIndexes, dySchema.Indexes)
+	assert.Equal(t, secIndexes, indexes)
 }
 
-func TestListTables(t *testing.T) {
+func TestInfoSchemaImpl_GetConstraints(t *testing.T) {
+	tableName := "test"
+	attrNameA := "a"
+	attrNameB := "b"
+	attrNameC := "c"
+	attrNameD := "d"
+	hashKeyType := "HASH"
+	sortKeyType := "RANGE"
+	globalIndexName := "secondary_index_c"
+	localIndexName := "secondary_index_d"
+	describeTableOutputs := []dynamodb.DescribeTableOutput{
+		{
+			Table: &dynamodb.TableDescription{
+				TableName: &tableName,
+				KeySchema: []*dynamodb.KeySchemaElement{
+					{AttributeName: &attrNameA, KeyType: &hashKeyType},
+					{AttributeName: &attrNameB, KeyType: &sortKeyType},
+				},
+				GlobalSecondaryIndexes: []*dynamodb.GlobalSecondaryIndexDescription{
+					{
+						IndexName: &globalIndexName,
+						KeySchema: []*dynamodb.KeySchemaElement{
+							{AttributeName: &attrNameC, KeyType: &hashKeyType},
+						},
+					},
+				},
+				LocalSecondaryIndexes: []*dynamodb.LocalSecondaryIndexDescription{
+					{
+						IndexName: &localIndexName,
+						KeySchema: []*dynamodb.KeySchemaElement{
+							{AttributeName: &attrNameD, KeyType: &hashKeyType},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	client := &mockDynamoClient{
+		describeTableOutputs: describeTableOutputs,
+	}
+
+	dySchema := common.SchemaAndName{Name: "test"}
+	conv := internal.MakeConv()
+	isi := InfoSchemaImpl{client, 10}
+	primaryKeys, constraints, err := isi.GetConstraints(conv, dySchema)
+	assert.Nil(t, err)
+
+	pKeys := []schema.Key{{Column: "a"}, {Column: "b"}}
+	assert.Equal(t, pKeys, primaryKeys)
+	assert.Empty(t, constraints)
+}
+
+func TestInfoSchemaImpl_GetTables(t *testing.T) {
 	tableNameA := "table-a"
 	tableNameB := "table-b"
 
@@ -459,11 +601,41 @@ func TestListTables(t *testing.T) {
 	client := &mockDynamoClient{
 		listTableOutputs: listTableOutputs,
 	}
-
-	tables, err := listTables(client)
+	isi := InfoSchemaImpl{client, 10}
+	tables, err := isi.GetTables()
 	assert.Nil(t, err)
 	assert.Equal(t, []string{"table-a", "table-b"}, tables)
 }
+
+func TestInfoSchemaImpl_GetTableName(t *testing.T) {
+	tableNameA := "table-a"
+
+	client := &mockDynamoClient{}
+	isi := InfoSchemaImpl{client, 10}
+	table := isi.GetTableName("", tableNameA)
+	assert.Equal(t, tableNameA, table)
+}
+
+//
+//func TestInfoSchemaImpl_GetColumns(t *testing.T) {
+//
+//}
+//
+//func TestInfoSchemaImpl_GetForeignKeys(t *testing.T) {
+//
+//}
+//
+//func TestInfoSchemaImpl_GetRowCount(t *testing.T) {
+//
+//}
+//
+//func TestInfoSchemaImpl_GetRowsFromTable(t *testing.T) {
+//
+//}
+//
+//func TestInfoSchemaImpl_ProcessData(t *testing.T) {
+//
+//}
 
 func stripSchemaComments(spSchema map[string]ddl.CreateTable) map[string]ddl.CreateTable {
 	for t, ct := range spSchema {
@@ -550,7 +722,7 @@ func TestSetRowStats(t *testing.T) {
 		describeTableOutputs: describeTableOutputs,
 	}
 
-	SetRowStats(conv, client)
+	common.SetRowStats(conv, InfoSchemaImpl{client, 10})
 
 	assert.Equal(t, tableItemCountA, conv.Stats.Rows[tableNameA])
 	assert.Equal(t, tableItemCountB, conv.Stats.Rows[tableNameB])

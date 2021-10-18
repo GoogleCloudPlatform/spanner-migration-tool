@@ -19,74 +19,20 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// ProcessData performs data conversion for DynamoDB database. For each table,
-// we extract data using Scan requests, convert the data to Spanner data (based
-// on the source and Spanner schemas), and write it to Spanner. If we can't
-// get/process data for a table, we skip that table and process the remaining
-// tables.
-func ProcessData(conv *internal.Conv, client dynamoClient) error {
-	for srcTable, srcSchema := range conv.SrcSchema {
-		spTable, err1 := internal.GetSpannerTable(conv, srcTable)
-		spCols, err2 := internal.GetSpannerCols(conv, srcTable, srcSchema.ColNames)
-		spSchema, ok := conv.SpSchema[spTable]
-		if err1 != nil || err2 != nil || !ok {
-			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
-			conv.Unexpected(fmt.Sprintf("Can't get cols and schemas for table %s: err1=%s, err2=%s, ok=%t",
-				srcTable, err1, err2, ok))
-			continue
-		}
-
-		err := scan(srcTable, client, func(m map[string]*dynamodb.AttributeValue) {
-			spVals, badCols, srcStrVals := cvtRow(m, srcSchema, spSchema, spCols)
-			if len(badCols) == 0 {
-				conv.WriteRow(srcTable, spTable, spCols, spVals)
-			} else {
-				conv.Unexpected(fmt.Sprintf("Data conversion error for table %s in column(s) %s\n", srcTable, badCols))
-				conv.StatsAddBadRow(srcTable, conv.DataMode())
-				conv.CollectBadRow(srcTable, srcSchema.ColNames, srcStrVals)
-			}
-		})
-		if err != nil {
-			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
-			conv.Unexpected(fmt.Sprintf("Can't scan the data for table %s: %s", srcTable, err))
-		}
-	}
-	return nil
-}
-
-func scan(table string, client dynamoClient, f func(map[string]*dynamodb.AttributeValue)) error {
-	var lastEvaluatedKey map[string]*dynamodb.AttributeValue
-	for {
-		// Build the query input parameters.
-		params := &dynamodb.ScanInput{
-			TableName: aws.String(table),
-		}
-		if lastEvaluatedKey != nil {
-			params.ExclusiveStartKey = lastEvaluatedKey
-		}
-
-		// Make the DynamoDB Query API call.
-		result, err := client.Scan(params)
-		if err != nil {
-			return fmt.Errorf("failed to make Query API call for table %v: %v", table, err)
-		}
-
-		// Iterate the items returned.
-		for _, attrsMap := range result.Items {
-			f(attrsMap)
-		}
-		if result.LastEvaluatedKey == nil {
-			return nil
-		}
-		// If there are more rows, then continue.
-		lastEvaluatedKey = result.LastEvaluatedKey
+func ProcessDataRow(m map[string]*dynamodb.AttributeValue, conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) {
+	spVals, badCols, srcStrVals := cvtRow(m, srcSchema, spSchema, spCols)
+	if len(badCols) == 0 {
+		conv.WriteRow(srcTable, spTable, spCols, spVals)
+	} else {
+		conv.Unexpected(fmt.Sprintf("Data conversion error for table %s in column(s) %s\n", srcTable, badCols))
+		conv.StatsAddBadRow(srcTable, conv.DataMode())
+		conv.CollectBadRow(srcTable, srcSchema.ColNames, srcStrVals)
 	}
 }
 

@@ -33,58 +33,38 @@ type spannerData struct {
 	vals  []interface{}
 }
 
-func TestProcessData(t *testing.T) {
+func TestProcessDataRow(t *testing.T) {
 	strA := "str-1"
-	strB := "str-2"
 	numStr1 := "10.1"
 	numStr2 := "12.34"
-	numStr3 := "89.0"
 	numVal1 := big.NewRat(101, 10)
 	numVal2 := big.NewRat(89, 1)
 
 	boolVal := true
-	scanOutputs := []dynamodb.ScanOutput{
+	items := []map[string]*dynamodb.AttributeValue{
 		{
-			Items: []map[string]*dynamodb.AttributeValue{
-				{
-					"a": {S: &strA},
-					"b": {N: &numStr1},
-					"c": {N: &numStr2},
-					"d": {BOOL: &boolVal},
-				},
-			},
-			LastEvaluatedKey: map[string]*dynamodb.AttributeValue{
-				"a": {S: &strA},
-			},
+			"a": {S: &strA},
+			"b": {N: &numStr1},
+			"c": {N: &numStr2},
+			"d": {BOOL: &boolVal},
 		},
-		{
-			Items: []map[string]*dynamodb.AttributeValue{
-				{
-					"a": {S: &strB},
-					"b": {N: &numStr3},
-				},
-			},
-		},
-	}
-
-	client := &mockDynamoClient{
-		scanOutputs: scanOutputs,
 	}
 
 	tableName := "testtable"
 	cols := []string{"a", "b", "c", "d"}
-	conv := buildConv(
-		ddl.CreateTable{
-			Name:     tableName,
-			ColNames: cols,
-			ColDefs: map[string]ddl.ColumnDef{
-				"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-				"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
-				"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-				"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
-			},
-			Pks: []ddl.IndexKey{{Col: "a"}},
+	spSchema := ddl.CreateTable{
+		Name:     tableName,
+		ColNames: cols,
+		ColDefs: map[string]ddl.ColumnDef{
+			"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
+			"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
 		},
+		Pks: []ddl.IndexKey{{Col: "a"}},
+	}
+	conv := buildConv(
+		spSchema,
 		schema.Table{
 			Name:     tableName,
 			ColNames: cols,
@@ -103,7 +83,9 @@ func TestProcessData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	ProcessData(conv, client)
+	for _, attrsMap := range items {
+		ProcessDataRow(attrsMap, conv, tableName, conv.SrcSchema[tableName], tableName, cols, spSchema)
+	}
 	assert.Equal(t,
 		[]spannerData{
 			{
