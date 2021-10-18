@@ -116,10 +116,17 @@ func (ty Type) PGPrintColumnDefType() string {
 		str = PGVarchar
 	case Timestamp:
 		str = PGTimestamptz
+	case Date:
+		// When processing a column/value of type date for PG, we don't convert
+		// to String in the beginning to allow for the input values to be
+		// validated as valid dates. When writing DDL (schema) or values (data)
+		// to Spanner, we do the conversion.
+		str = PGVarchar
+		ty.Len = PGMaxLength
 	default:
 		str = ty.Name
 	}
-	if ty.Name == String || ty.Name == Bytes {
+	if ty.Name == String || ty.Name == Bytes || ty.Name == Date {
 		str += "("
 		if ty.Len == MaxLength || ty.Len == PGMaxLength {
 			str += fmt.Sprintf("%v", PGMaxLength)

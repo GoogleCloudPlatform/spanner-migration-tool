@@ -19,6 +19,26 @@ SET row_security = off;
 SET default_tablespace = '';
 
 --
+-- Name: integers; Type: TABLE; Schema: public; Owner: postgres
+--
+-- PostgreSQL type name  | Spanner type | Printed in schema
+-- BIGINT (8 bytes)      | INT64        | INT8
+-- INT (same as INTEGER) | INT64        | INT8
+-- INTEGER (4 bytes)     | INT64        | INT8
+-- INT8 (8 bytes)        | INT64        | INT8
+-- PG_CATALOG.INT8       | INT64        | INT8
+--
+
+CREATE TABLE public.integers (
+    bigint_col bigint NOT NULL,
+    int_col int NOT NULL,
+    integer_col integer,
+    int8_col int8
+);
+
+ALTER TABLE public.integers OWNER TO postgres;
+
+--
 -- Name: cart; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -46,13 +66,23 @@ CREATE TABLE public.products (
 ALTER TABLE public.products OWNER TO postgres;
 
 --
+-- Data for Name: integers; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.integers (bigint_col, int_col, integer_col, int8_col) FROM stdin;
+1	2	3	4
+-9223372036854775807	-2147483647	-2147483647	-9223372036854775807
+9223372036854775807	2147483647	2147483647	9223372036854775807
+\.
+
+--
 -- Data for Name: cart; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.cart (user_id, product_id, quantity, last_modified) FROM stdin;
 901e-a6cfc2b502dc	abc-123	1	2020-07-20 05:10:26
 901e-a6cfc2b502dc	axd-673	2	2020-07-20 05:10:43
-a86b-82493320a775	zxi-631	5	2020-07-20 05:10:46
+a86b-82493320a775	zxi-631	-5	2020-07-20 05:10:46
 \.
 
 --
@@ -64,6 +94,13 @@ abc-123	Blue suede shoes	141.99	2020-06-06
 axd-673	Antique typewriter	99.99	2020-06-07
 zxi-631	Glass vase	55.50	2020-06-10
 \.
+
+--
+-- Name: integers integers_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.integers
+    ADD CONSTRAINT integers_pkey PRIMARY KEY (bigint_col, int_col);
 
 --
 -- Name: cart cart_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
