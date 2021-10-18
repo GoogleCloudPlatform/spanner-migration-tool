@@ -48,14 +48,6 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 				{"test"},
 				{"test_ref"}},
 		}, {
-			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
-			args:  []driver.Value{"test", "user"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
-			rows: [][]driver.Value{
-				{"user_id", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"name", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"ref", "bigint", "bigint", "NO", nil, nil, nil, nil, nil}},
-		}, {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"test", "user"},
 			cols:  []string{"column_name", "constraint_type"},
@@ -73,16 +65,16 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
 			args:  []driver.Value{"test", "user"},
 			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
-		},
-		{
+		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
-			args:  []driver.Value{"test", "cart"},
+			args:  []driver.Value{"test", "user"},
 			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
 			rows: [][]driver.Value{
-				{"productid", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"userid", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"quantity", "bigint", "bigint", "YES", nil, nil, 64, 0, nil}},
-		}, {
+				{"user_id", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"name", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"ref", "bigint", "bigint", "NO", nil, nil, nil, nil, nil}},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"test", "cart"},
 			cols:  []string{"column_name", "constraint_type"},
@@ -108,11 +100,12 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 				{"index3", "userid", 2, "D", "0"}},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
-			args:  []driver.Value{"test", "product"},
+			args:  []driver.Value{"test", "cart"},
 			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
 			rows: [][]driver.Value{
-				{"product_id", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"product_name", "text", "text", "NO", nil, nil, nil, nil, nil}},
+				{"productid", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"userid", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"quantity", "bigint", "bigint", "YES", nil, nil, 64, 0, nil}},
 		}, {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"test", "product"},
@@ -126,6 +119,28 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 		}, {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
 			args:  []driver.Value{"test", "product"},
+			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
+		}, {
+			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			args:  []driver.Value{"test", "product"},
+			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
+			rows: [][]driver.Value{
+				{"product_id", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"product_name", "text", "text", "NO", nil, nil, nil, nil, nil}},
+		}, {
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
+			args:  []driver.Value{"test", "test"},
+			cols:  []string{"column_name", "constraint_type"},
+			rows:  [][]driver.Value{{"id", "PRIMARY KEY"}, {"id", "FOREIGN KEY"}},
+		}, {
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
+			args:  []driver.Value{"test", "test"},
+			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME", "CONSTRAINT_NAME"},
+			rows: [][]driver.Value{{"test_ref", "id", "ref_id", "fk_test4"},
+				{"test_ref", "txt", "ref_txt", "fk_test4"}},
+		}, {
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
+			args:  []driver.Value{"test", "test"},
 			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
@@ -154,29 +169,6 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 				{"vc6", "varchar", "varchar(6)", "YES", nil, 6, nil, nil, nil}},
 		}, {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
-			args:  []driver.Value{"test", "test"},
-			cols:  []string{"column_name", "constraint_type"},
-			rows:  [][]driver.Value{{"id", "PRIMARY KEY"}, {"id", "FOREIGN KEY"}},
-		}, {
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
-			args:  []driver.Value{"test", "test"},
-			cols:  []string{"REFERENCED_TABLE_NAME", "COLUMN_NAME", "REFERENCED_COLUMN_NAME", "CONSTRAINT_NAME"},
-			rows: [][]driver.Value{{"test_ref", "id", "ref_id", "fk_test4"},
-				{"test_ref", "txt", "ref_txt", "fk_test4"}},
-		}, {
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
-			args:  []driver.Value{"test", "test"},
-			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
-		}, {
-			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
-			args:  []driver.Value{"test", "test_ref"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
-			rows: [][]driver.Value{
-				{"ref_id", "bigint", "bigint", "NO", nil, nil, 64, 0, nil},
-				{"ref_txt", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"abc", "text", "text", "NO", nil, nil, nil, nil, nil}},
-		}, {
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"test", "test_ref"},
 			cols:  []string{"column_name", "constraint_type"},
 			rows: [][]driver.Value{
@@ -190,6 +182,14 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
 			args:  []driver.Value{"test", "test_ref"},
 			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
+		}, {
+			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			args:  []driver.Value{"test", "test_ref"},
+			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
+			rows: [][]driver.Value{
+				{"ref_id", "bigint", "bigint", "NO", nil, nil, 64, 0, nil},
+				{"ref_txt", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"abc", "text", "text", "NO", nil, nil, nil, nil, nil}},
 		},
 	}
 	db := mkMockDB(t, ms)
@@ -283,11 +283,6 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 func TestProcessData(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: "SELECT table_name FROM information_schema.tables where table_type = 'BASE TABLE' and (.+)",
-			args:  []driver.Value{"test"},
-			cols:  []string{"table_name"},
-			rows:  [][]driver.Value{{"te st"}},
-		}, {
 			query: "SELECT (.+) FROM `test`.`te st`",
 			cols:  []string{"a a", " b", " c "},
 			rows: [][]driver.Value{
@@ -308,6 +303,7 @@ func TestProcessData(t *testing.T) {
 			}},
 		schema.Table{
 			Name:     "te st",
+			Schema:   "test",
 			ColNames: []string{"a_a", "_b", "_c_"},
 			ColDefs: map[string]schema.Column{
 				"a a": schema.Column{Name: "a a", Type: schema.Type{Name: "float"}},
@@ -346,15 +342,6 @@ func TestProcessData_MultiCol(t *testing.T) {
 			cols:  []string{"table_name"},
 			rows:  [][]driver.Value{{"test"}},
 		}, {
-			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
-			args:  []driver.Value{"test", "test"},
-			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
-			rows: [][]driver.Value{
-				{"a", "text", "text", "NO", nil, nil, nil, nil, nil},
-				{"b", "double", "double", "YES", nil, nil, 53, nil, nil},
-				{"c", "bigint", "bigint", "YES", nil, nil, 64, 0, nil}},
-		},
-		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"test", "test"},
 			cols:  []string{"column_name", "constraint_type"},
@@ -367,17 +354,16 @@ func TestProcessData_MultiCol(t *testing.T) {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.STATISTICS (.+)",
 			args:  []driver.Value{"test", "test"},
 			cols:  []string{"INDEX_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "COLLATION", "NON_UNIQUE"},
-		},
-		// Note: go-sqlmock mocks specify an ordered sequence
-		// of queries and results.  This (repeated) entry is
-		// needed because ProcessSQLData (redundantly) gets
-		// the set of tables via a SQL query.
-		{
-			query: "SELECT table_name FROM information_schema.tables where table_type = 'BASE TABLE' and (.+)",
-			args:  []driver.Value{"test"},
-			cols:  []string{"table_name"},
-			rows:  [][]driver.Value{{"test"}},
 		}, {
+			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			args:  []driver.Value{"test", "test"},
+			cols:  []string{"column_name", "data_type", "column_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale", "extra"},
+			rows: [][]driver.Value{
+				{"a", "text", "text", "NO", nil, nil, nil, nil, nil},
+				{"b", "double", "double", "YES", nil, nil, 53, nil, nil},
+				{"c", "bigint", "bigint", "YES", nil, nil, 64, 0, nil}},
+		},
+		{
 			query: "SELECT (.+) FROM `test`.`test`",
 			cols:  []string{"a", "b", "c"},
 			rows: [][]driver.Value{

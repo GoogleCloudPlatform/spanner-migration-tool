@@ -52,11 +52,10 @@ func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 
 // GetRowsFromTable returns a sql Rows object for a table.
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
-	srcSchema := conv.SrcSchema[srcTable]
 	// PostgreSQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but PostgreSQL doesn't support this. So we quote it instead.
-	q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, srcSchema.Name, srcTable)
+	q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, conv.SrcSchema[srcTable].Schema, srcTable)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err
@@ -83,12 +82,13 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string)
 // We choose to do all type conversions explicitly ourselves so that
 // we can generate more targeted error messages: hence we pass
 // *interface{} parameters to row.Scan.
-func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) {
+func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) error {
 	rowsInterface, err := isi.GetRowsFromTable(conv, srcTable)
-	rows := rowsInterface.(*sql.Rows)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTable, err))
+		return err
 	}
+	rows := rowsInterface.(*sql.Rows)
 	defer rows.Close()
 	srcCols, _ := rows.Columns()
 	v, iv := buildVals(len(srcCols))
@@ -109,6 +109,7 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 		}
 		conv.WriteRow(srcTable, spTable, cvtCols, cvtVals)
 	}
+	return nil
 }
 
 // ConvertSQLRow performs data conversion for a single row of data

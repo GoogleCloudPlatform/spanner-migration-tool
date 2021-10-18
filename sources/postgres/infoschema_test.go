@@ -37,7 +37,7 @@ type mockSpec struct {
 	rows  [][]driver.Value // Set of rows returned.
 }
 
-func TestProcessInfoSchema(t *testing.T) {
+func TestProcessSchema(t *testing.T) {
 	ms := []mockSpec{
 		{
 			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
@@ -48,15 +48,6 @@ func TestProcessInfoSchema(t *testing.T) {
 				{"public", "product"},
 				{"public", "test"},
 				{"public", "test_ref"}},
-		},
-		{
-			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
-			args:  []driver.Value{"public", "user"},
-			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
-			rows: [][]driver.Value{
-				{"user_id", "text", nil, "NO", nil, nil, nil, nil},
-				{"name", "text", nil, "NO", nil, nil, nil, nil},
-				{"ref", "bigint", nil, "YES", nil, nil, nil, nil}},
 		}, {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"public", "user"},
@@ -77,12 +68,12 @@ func TestProcessInfoSchema(t *testing.T) {
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
-			args:  []driver.Value{"public", "cart"},
+			args:  []driver.Value{"public", "user"},
 			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
 			rows: [][]driver.Value{
-				{"productid", "text", nil, "NO", nil, nil, nil, nil},
-				{"userid", "text", nil, "NO", nil, nil, nil, nil},
-				{"quantity", "bigint", nil, "YES", nil, nil, 64, 0}},
+				{"user_id", "text", nil, "NO", nil, nil, nil, nil},
+				{"name", "text", nil, "NO", nil, nil, nil, nil},
+				{"ref", "bigint", nil, "YES", nil, nil, nil, nil}},
 		}, {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"public", "cart"},
@@ -109,11 +100,12 @@ func TestProcessInfoSchema(t *testing.T) {
 			},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
-			args:  []driver.Value{"public", "product"},
+			args:  []driver.Value{"public", "cart"},
 			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
 			rows: [][]driver.Value{
-				{"product_id", "text", nil, "NO", nil, nil, nil, nil},
-				{"product_name", "text", nil, "NO", nil, nil, nil, nil}},
+				{"productid", "text", nil, "NO", nil, nil, nil, nil},
+				{"userid", "text", nil, "NO", nil, nil, nil, nil},
+				{"quantity", "bigint", nil, "YES", nil, nil, 64, 0}},
 		}, {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"public", "product"},
@@ -127,6 +119,28 @@ func TestProcessInfoSchema(t *testing.T) {
 		}, {
 			query: "SELECT (.+) FROM pg_index (.+)",
 			args:  []driver.Value{"public", "product"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
+		}, {
+			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			args:  []driver.Value{"public", "product"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			rows: [][]driver.Value{
+				{"product_id", "text", nil, "NO", nil, nil, nil, nil},
+				{"product_name", "text", nil, "NO", nil, nil, nil, nil}},
+		}, {
+			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
+			args:  []driver.Value{"public", "test"},
+			cols:  []string{"column_name", "constraint_type"},
+			rows:  [][]driver.Value{{"id", "PRIMARY KEY"}},
+		}, {
+			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
+			args:  []driver.Value{"public", "test"},
+			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
+			rows: [][]driver.Value{{"public", "test_ref", "id", "ref_id", "fk_test4"},
+				{"public", "test_ref", "txt", "ref_txt", "fk_test4"}},
+		}, {
+			query: "SELECT (.+) FROM pg_index (.+)",
+			args:  []driver.Value{"public", "test"},
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
@@ -156,29 +170,6 @@ func TestProcessInfoSchema(t *testing.T) {
 				{"vc6", "character varying", nil, "YES", nil, 6, nil, nil}},
 		}, {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
-			args:  []driver.Value{"public", "test"},
-			cols:  []string{"column_name", "constraint_type"},
-			rows:  [][]driver.Value{{"id", "PRIMARY KEY"}},
-		}, {
-			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
-			args:  []driver.Value{"public", "test"},
-			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
-			rows: [][]driver.Value{{"public", "test_ref", "id", "ref_id", "fk_test4"},
-				{"public", "test_ref", "txt", "ref_txt", "fk_test4"}},
-		}, {
-			query: "SELECT (.+) FROM pg_index (.+)",
-			args:  []driver.Value{"public", "test"},
-			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
-		}, {
-			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
-			args:  []driver.Value{"public", "test_ref"},
-			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
-			rows: [][]driver.Value{
-				{"ref_id", "bigint", nil, "NO", nil, nil, 64, 0},
-				{"ref_txt", "text", nil, "NO", nil, nil, nil, nil},
-				{"abc", "text", nil, "NO", nil, nil, nil, nil}},
-		}, {
-			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"public", "test_ref"},
 			cols:  []string{"column_name", "constraint_type"},
 			rows: [][]driver.Value{
@@ -192,6 +183,14 @@ func TestProcessInfoSchema(t *testing.T) {
 			query: "SELECT (.+) FROM pg_index (.+)",
 			args:  []driver.Value{"public", "test_ref"},
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
+		}, {
+			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			args:  []driver.Value{"public", "test_ref"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			rows: [][]driver.Value{
+				{"ref_id", "bigint", nil, "NO", nil, nil, 64, 0},
+				{"ref_txt", "text", nil, "NO", nil, nil, nil, nil},
+				{"abc", "text", nil, "NO", nil, nil, nil, nil}},
 		},
 	}
 	db := mkMockDB(t, ms)
@@ -288,13 +287,9 @@ func TestProcessInfoSchema(t *testing.T) {
 // handling of bad rows and table and column renaming. The core data
 // conversion work of ProcessSqlData is done by ConvertData, which is
 // extensively is tested by TestConvertSqlRow.
-func TestProcessSqlData(t *testing.T) {
+func TestProcessData(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
-			cols:  []string{"table_schema", "table_name"},
-			rows:  [][]driver.Value{{"public", "te st"}},
-		}, {
 			query: `SELECT [*] FROM "public"."te st"`, // query is a regexp!
 			cols:  []string{"a a", " b", " c "},
 			rows: [][]driver.Value{
@@ -315,6 +310,7 @@ func TestProcessSqlData(t *testing.T) {
 			}},
 		schema.Table{
 			Name:     "te st",
+			Schema:   "public",
 			ColNames: []string{"a_a", "_b", "_c_"},
 			ColDefs: map[string]schema.Column{
 				"a a": schema.Column{Name: "a a", Type: schema.Type{Name: "float4"}},
@@ -423,15 +419,6 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			cols:  []string{"table_schema", "table_name"},
 			rows:  [][]driver.Value{{"public", "test"}},
 		}, {
-			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
-			args:  []driver.Value{"public", "test"},
-			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
-			rows: [][]driver.Value{
-				{"a", "text", nil, "NO", nil, nil, nil, nil},
-				{"b", "double precision", nil, "YES", nil, nil, 53, nil},
-				{"c", "bigint", nil, "YES", nil, nil, 64, 0}},
-		},
-		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"column_name", "constraint_type"},
@@ -446,15 +433,14 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			query: "SELECT (.+) FROM pg_index (.+)",
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
-		},
-		// Note: go-sqlmock mocks specify an ordered sequence
-		// of queries and results.  This (repeated) entry is
-		// needed because ProcessSqlData (redundantly) gets
-		// the set of tables via a SQL query.
-		{
-			query: "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'",
-			cols:  []string{"table_schema", "table_name"},
-			rows:  [][]driver.Value{{"public", "test"}},
+		}, {
+			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			args:  []driver.Value{"public", "test"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			rows: [][]driver.Value{
+				{"a", "text", nil, "NO", nil, nil, nil, nil},
+				{"b", "double precision", nil, "YES", nil, nil, 53, nil},
+				{"c", "bigint", nil, "YES", nil, nil, 64, 0}},
 		}, {
 			query: `SELECT [*] FROM "public"."test"`, // query is a regexp!
 			cols:  []string{"a", "b", "c"},

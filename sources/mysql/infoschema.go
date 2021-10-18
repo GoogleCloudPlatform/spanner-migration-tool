@@ -56,7 +56,7 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string)
 	// Ideally we would pass schema/name as a query parameter,
 	// but MySQL doesn't support this. So we quote it instead.
 	colNameList := buildColNameList(srcSchema, srcCols)
-	q := fmt.Sprintf("SELECT %s FROM `%s`.`%s`;", colNameList, srcSchema.Name, srcTable)
+	q := fmt.Sprintf("SELECT %s FROM `%s`.`%s`;", colNameList, conv.SrcSchema[srcTable].Schema, srcTable)
 	rows, err := isi.Db.Query(q)
 	return rows, err
 }
@@ -82,12 +82,13 @@ func buildColNameList(srcSchema schema.Table, srcColName []string) string {
 }
 
 // ProcessData performs data conversion for source database.
-func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) {
+func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) error {
 	rowsInterface, err := isi.GetRowsFromTable(conv, srcTable)
-	rows := rowsInterface.(*sql.Rows)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTable, err))
+		return err
 	}
+	rows := rowsInterface.(*sql.Rows)
 	defer rows.Close()
 	srcCols, _ := rows.Columns()
 	v, scanArgs := buildVals(len(srcCols))
@@ -103,6 +104,7 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 		values := valsToStrings(v)
 		ProcessDataRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, values)
 	}
+	return nil
 }
 
 // GetRowCount with number of rows in each table.
