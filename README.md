@@ -290,7 +290,7 @@ the driver is _'pg_dump'_.
 written by the tool. If no file prefix is specified, the name of the Spanner
 database (plus a '.') is used.
 
-`-v` Specifies verbose mode. This will cause HarbourBridge to output detailed
+`-v` or `-verbose` Specifies verbose mode. This will cause HarbourBridge to output detailed
 messages about the conversion.
 
 `-schema-only` Specifies that only schema processing will be performed.
