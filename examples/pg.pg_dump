@@ -29,12 +29,20 @@ SET default_tablespace = '';
 -- INTEGER (4 bytes)     | INT64        | INT8              |
 -- INT8 (8 bytes)        | INT64        | INT8              |
 -- PG_CATALOG.INT8       | INT64        | INT8              |
+-- DECIMAL               | PG.NUMERIC   | NUMERIC           | decimal is an alias for numeric type
+-- NUMERIC               | PG.NUMERIC   | NUMERIC           |
 -- DOUBLE PRECISION      | DOUBLE       | FLOAT8            | 15 decimal digits precision
 -- FLOAT8                | DOUBLE       | FLOAT8            | float8 is an alias for double precision type
 -- CHARACTER VARYING     | STRING(MAX)  | VARCHAR           |
 -- TEXT                  | STRING(MAX)  | VARCHAR           |
 -- VARCHAR               | STRING(MAX)  | VARCHAR           | varchar is an alias for character varying type
 --
+
+-- Commentary on NUMERIC and PG.NUMERIC types --
+-- GoogleSQL's NUMERIC type is fixed precision and scale (precision=38, scale=9).
+-- Whereas, PostgreSQL's NUMERIC can be user-defined precision and scale
+-- e.g., Numeric(100, 60) or arbitary precision (precision=147455, scale=16383).
+-- For PG, HB converts to PGNumeric type which also has arbitrary precision.
 
 CREATE TABLE public.types (
     bigint_col bigint NOT NULL,
@@ -47,11 +55,16 @@ CREATE TABLE public.types (
 
 ALTER TABLE public.types OWNER TO postgres;
 
+-- TODO: Add support for converting numeric(20,15) to PG.NUMERIC(20,15) type in
+-- HB. As of this writing, PG doesn't support precision qualifiers in schema.
 CREATE TABLE public.types2 (
     c_int8    int8,
     c_boolean  boolean,
     c_bool  bool,
-    c_bytea  bytea
+    c_bytea  bytea,
+    c_numeric  numeric,
+    c_numeric_n  numeric(20,15), -- This will translate to numeric today. See TODO above.
+    c_decimal  decimal
 );
 
 ALTER TABLE public.types2 OWNER TO postgres;
@@ -105,11 +118,16 @@ COPY public.types (bigint_col, int_col, integer_col, int8_col, c_double_precisio
 
 --
 -- Data for Name: types2; Type: TABLE DATA; Schema: public; Owner: postgres
--- TODO: Check if `\\x0001beef` getting converted to Bytea with value `AAG+7w==` is correct.
+--
+-- TODO 1: Check if `\\x0001beef` getting converted to Bytea with value `AAG+7w==` is correct.
+--
+-- TODO 2: c_pg_numeric is intentionally out of range for GoogleSQL's Numeric
+-- which has (precision=38, scale=9) and thus is a good test that this gets
+-- cast as PG.Numeric type which is arbitary precision.
 --
 
-COPY public.types2 (c_int8, c_boolean, c_bool, c_bytea) FROM stdin;
-1	true	false	\\x0001beef
+COPY public.types2 (c_int8, c_boolean, c_bool, c_bytea, c_numeric, c_numeric_n, c_decimal) FROM stdin;
+1	true	false	\\x0001beef	444.9876	122333.444455555666666	111.2345
 \.
 
 --
