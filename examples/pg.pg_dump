@@ -21,21 +21,23 @@ SET default_tablespace = '';
 --
 -- Name: Types; Type: TABLE; Schema: public; Owner: postgres
 --
--- PostgreSQL type name  | Spanner type | Printed in schema | Comment
--- BOOL                  | BOOL         | BOOL              | bool is an alias for boolean type
--- BIGINT (8 bytes)      | INT64        | INT8              |
--- BYTEA                 | BYTES(MAX)   | BYTEA             |
--- INT (same as INTEGER) | INT64        | INT8              |
--- INTEGER (4 bytes)     | INT64        | INT8              |
--- INT8 (8 bytes)        | INT64        | INT8              |
--- PG_CATALOG.INT8       | INT64        | INT8              |
--- DECIMAL               | PG.NUMERIC   | NUMERIC           | decimal is an alias for numeric type
--- NUMERIC               | PG.NUMERIC   | NUMERIC           |
--- DOUBLE PRECISION      | DOUBLE       | FLOAT8            | 15 decimal digits precision
--- FLOAT8                | DOUBLE       | FLOAT8            | float8 is an alias for double precision type
--- CHARACTER VARYING     | STRING(MAX)  | VARCHAR           |
--- TEXT                  | STRING(MAX)  | VARCHAR           |
--- VARCHAR               | STRING(MAX)  | VARCHAR           | varchar is an alias for character varying type
+-- PostgreSQL type name     | Spanner type | Printed in schema | Comment
+-- BOOL                     | BOOL         | BOOL              | bool is an alias for boolean type
+-- BIGINT (8 bytes)         | INT64        | INT8              |
+-- BYTEA                    | BYTES(MAX)   | BYTEA             |
+-- INT (same as INTEGER)    | INT64        | INT8              |
+-- INTEGER (4 bytes)        | INT64        | INT8              |
+-- INT8 (8 bytes)           | INT64        | INT8              |
+-- PG_CATALOG.INT8          | INT64        | INT8              |
+-- DECIMAL                  | PG.NUMERIC   | NUMERIC           | decimal is an alias for numeric type
+-- NUMERIC                  | PG.NUMERIC   | NUMERIC           |
+-- DOUBLE PRECISION         | DOUBLE       | FLOAT8            | 15 decimal digits precision
+-- FLOAT8                   | DOUBLE       | FLOAT8            | float8 is an alias for double precision type
+-- CHARACTER VARYING        | STRING(MAX)  | VARCHAR           |
+-- TEXT                     | STRING(MAX)  | VARCHAR           |
+-- VARCHAR                  | STRING(MAX)  | VARCHAR           | varchar is an alias for character varying type
+-- TIMESTAMPTZ              | TIMESTAMP    | TIMESTAMPTZ       | timestamptz is an alias for 'timestamp with time zone' type
+-- TIMESTAMP WITH TIME ZONE | TIMESTAMP    | TIMESTAMPTZ       |
 --
 
 -- Commentary on NUMERIC and PG.NUMERIC types --
@@ -69,15 +71,31 @@ CREATE TABLE public.types2 (
 
 ALTER TABLE public.types2 OWNER TO postgres;
 
+CREATE TABLE public.types3 (
+    c_timestamp_with_time_zone timestamp with time zone,
+    c_timestamptz timestamptz
+);
+
+ALTER TABLE public.types3 OWNER TO postgres;
+
 CREATE TABLE public.string_types (
-    c_character_varying character_varying,
-    c_character_varying_n  character_varying(50),
+    c_character_varying character varying,
+    c_character_varying_n  character varying(50),
     c_text text,
     c_varchar  varchar,
     c_varchar_n  varchar(50)
 );
 
 ALTER TABLE public.string_types OWNER TO postgres;
+
+CREATE TABLE public.unsupported_types (
+    c_int8    int8,
+    c_int8_arr int8 array, -- converted to string type in both schema and data
+    c_date date, -- converted to string type in both schema and data
+    c_timestamp_without_time_zone timestamp without time zone -- converted to timestamptz, local timezone assumed
+);
+
+ALTER TABLE public.unsupported_types OWNER TO postgres;
 
 --
 -- Name: cart; Type: TABLE; Schema: public; Owner: postgres
@@ -131,6 +149,23 @@ COPY public.types2 (c_int8, c_boolean, c_bool, c_bytea, c_numeric, c_numeric_n, 
 \.
 
 --
+-- Data for Name: types3; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.types3 (c_timestamp_with_time_zone, c_timestamptz) FROM stdin;
+2019-10-29 05:30:00+10:30	2019-10-29 05:30:00+10:30
+2019-10-29 05:30:00	2019-10-29 05:30:00
+\.
+
+--
+-- Data for Name: unsupported_types; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.unsupported_types (c_int8, c_int8_arr, c_date, c_timestamp_without_time_zone) FROM stdin;
+1	{42,6}	2019-10-29	2019-10-29 05:30:00
+\.
+
+--
 -- Data for Name: string_types; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -171,6 +206,20 @@ ALTER TABLE ONLY public.types
 
 ALTER TABLE ONLY public.types2
     ADD CONSTRAINT types2_pkey PRIMARY KEY (c_int8);
+
+--
+-- Name: types types3_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.types3
+    ADD CONSTRAINT types3_pkey PRIMARY KEY (c_timestamp_with_time_zone);
+
+--
+-- Name: types unsupported_types_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.unsupported_types
+    ADD CONSTRAINT unsupported_types_pkey PRIMARY KEY (c_int8);
 
 --
 -- Name: string_types string_types_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres

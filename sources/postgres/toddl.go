@@ -40,7 +40,6 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) 
 		}
 		ty.IsArray = len(columnType.ArrayBounds) == 1
 	}
-	ty.IsArray = len(columnType.ArrayBounds) == 1
 	return ty, issues
 }
 
@@ -106,4 +105,12 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 		return ddl.Type{Name: ddl.Json}, nil
 	}
 	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
+}
+
+// Override the types to map to experimental postgres types.
+func overrideExperimentalType(columnType schema.Type, originalType ddl.Type) ddl.Type {
+	if len(columnType.ArrayBounds) > 0 {
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+	}
+	return originalType
 }
