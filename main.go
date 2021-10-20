@@ -58,6 +58,7 @@ func setupGlobalFlags() {
 	flag.StringVar(&driverName, "driver", "pg_dump", "driver name: flag for accessing source DB or dump files (accepted values are \"pg_dump\", \"postgres\", \"mysqldump\", and \"mysql\")")
 	flag.Int64Var(&schemaSampleSize, "schema-sample-size", int64(100000), "schema-sample-size: the number of rows to use for inferring schema (only for DynamoDB)")
 	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
+	flag.BoolVar(&verbose, "verbose", false, "verbose: print additional output")
 	flag.BoolVar(&schemaOnly, "schema-only", false, "schema-only: in this mode we do schema conversion, but skip data conversion")
 	flag.BoolVar(&dataOnly, "data-only", false, "data-only: in this mode we skip schema conversion and just do data conversion (use the session flag to specify the session file for schema and data mapping)")
 	flag.BoolVar(&skipForeignKeys, "skip-foreign-keys", false, "skip-foreign-keys: if true, skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
@@ -65,6 +66,16 @@ func setupGlobalFlags() {
 	flag.BoolVar(&webapi, "web", false, "web: run the web interface (experimental)")
 	flag.StringVar(&dumpFilePath, "dump-file", "", "dump-file: location of dump file to process")
 	flag.StringVar(&targetDb, "target-db", conversion.TARGET_SPANNER, "target-db: Specifies the target DB. Defaults to spanner")
+}
+
+func didSetVerboseTwice() bool{
+	numTimesSet := 0
+	flag.Visit(func(f *flag.Flag) {
+        if f.Name == "v" || f.Name == "verbose" {
+            numTimesSet++
+        }
+    })
+    return numTimesSet > 1
 }
 
 func usage() {
@@ -108,6 +119,10 @@ func main() {
 		return
 	}
 
+	if didSetVerboseTwice() {
+		panic(fmt.Errorf("cannot set both -v and -verbose flags"))
+	}
+	
 	internal.VerboseInit(verbose)
 	if schemaOnly && dataOnly {
 		panic(fmt.Errorf("can't use both schema-only and data-only modes at once"))
