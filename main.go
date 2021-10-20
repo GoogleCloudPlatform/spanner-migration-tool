@@ -68,9 +68,9 @@ func setupGlobalFlags() {
 	flag.StringVar(&targetDb, "target-db", conversion.TARGET_SPANNER, "target-db: Specifies the target DB. Defaults to spanner")
 }
 
-func didSetVerboseAlready() bool{
+func didSetVerboseTwice() bool{
 	numTimesSet := 0
-    flag.Visit(func(f *flag.Flag) {
+	flag.Visit(func(f *flag.Flag) {
         if f.Name == "v" || f.Name == "verbose" {
             numTimesSet++
         }
@@ -119,8 +119,8 @@ func main() {
 		return
 	}
 
-	if(didSetVerboseAlready()){
-		panic(fmt.Errorf("can't use both -v and -verbose flags, must use only one"))
+	if didSetVerboseTwice() {
+		panic(fmt.Errorf("cannot set both -v and -verbose flags"))
 	}
 	
 	internal.VerboseInit(verbose)
