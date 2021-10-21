@@ -24,13 +24,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/cmd"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
-	"github.com/stretchr/testify/assert"
 
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
@@ -229,7 +227,6 @@ func checkResults(t *testing.T, dbURI string) {
 	defer client.Close()
 
 	checkBigInt(ctx, t, client)
-	checkJson(ctx, t, client, dbURI)
 }
 
 func checkBigInt(ctx context.Context, t *testing.T, client *spanner.Client) {
@@ -251,27 +248,6 @@ func checkBigInt(ctx context.Context, t *testing.T, client *spanner.Client) {
 	if got, want := quantity, int64(1); got != want {
 		t.Fatalf("quantities are not correct: got %v, want %v", got, want)
 	}
-}
-
-func checkJson(ctx context.Context, t *testing.T, client *spanner.Client, dbURI string) {
-	resp, err := databaseAdmin.GetDatabaseDdl(ctx, &databasepb.GetDatabaseDdlRequest{Database: dbURI})
-	if err != nil {
-		t.Fatalf("Could not read DDL from database %s: %v", dbURI, err)
-	}
-	for _, stmt := range resp.Statements {
-		if strings.Contains(stmt, "CREATE TABLE customers") {
-			assert.True(t, strings.Contains(stmt, "customer_profile JSON"))
-		}
-	}
-	stmt := spanner.Statement{
-		SQL: `SELECT COUNT(*) FROM customers`,
-	}
-	iter := client.Single().Query(ctx, stmt)
-	defer iter.Stop()
-	row, _ := iter.Next()
-	var rowCount int64 = 0
-	row.Columns(&rowCount)
-	assert.Equal(t, 2, rowCount)
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {
