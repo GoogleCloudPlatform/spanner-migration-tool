@@ -117,7 +117,9 @@ Spanner instance.
 
 Install Go ([download](https://golang.org/doc/install)) on your development
 machine if it is not already installed, configure the GOPATH environment
-variable if it is not already configured using `export GOPATH=$(go env GOPATH)`, and [test your installation](https://golang.org/doc/install#testing).
+variable if it is not already configured using 
+`export GOPATH=$(go env GOPATH)`, and 
+[test your installation](https://golang.org/doc/install#testing).
 
 ### Installing HarbourBridge
 
