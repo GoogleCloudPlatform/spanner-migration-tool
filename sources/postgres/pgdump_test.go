@@ -624,15 +624,15 @@ COPY test (id, a, b, c, d) FROM stdin;
 				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), int64(88), int64(44), int64(22), "444.987600000"}}},
 		},
 		{
-			name: "Data conversion: serial, text, timestamp, timestamptz, varchar",
+			name: "Data conversion: serial, text, timestamp, timestamptz, varchar, json",
 			input: `
-CREATE TABLE test (id integer PRIMARY KEY, a serial, b text, c timestamp, d timestamptz, e varchar);
-COPY test (id, a, b, c, d, e) FROM stdin;
-1	2	my text	2019-10-29 05:30:00	2019-10-29 05:30:00+10:30	my varchar
+CREATE TABLE test (id integer PRIMARY KEY, a serial, b text, c timestamp, d timestamptz, e varchar, f json);
+COPY test (id, a, b, c, d, e, f) FROM stdin;
+1	2	my text	2019-10-29 05:30:00	2019-10-29 05:30:00+10:30	my varchar	{"k":"k1", "v":"v1"}
 \.
 `,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d", "e"}, vals: []interface{}{int64(1), int64(2), "my text", getTime(t, "2019-10-29T05:30:00Z"), getTime(t, "2019-10-29T05:30:00+10:30"), "my varchar"}}},
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d", "e", "f"}, vals: []interface{}{int64(1), int64(2), "my text", getTime(t, "2019-10-29T05:30:00Z"), getTime(t, "2019-10-29T05:30:00+10:30"), "my varchar", "{\"k\":\"k1\", \"v\":\"v1\"}"}}},
 		},
 	}
 	for _, tc := range multiColTests {
