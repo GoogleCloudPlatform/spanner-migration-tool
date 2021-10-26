@@ -69,6 +69,7 @@ func TestProcessPgDump(t *testing.T) {
 		{"varchar", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"varchar(42)", ddl.Type{Name: ddl.String, Len: int64(42)}},
 		{"json", ddl.Type{Name: ddl.Json}},
+		{"jsonb", ddl.Type{Name: ddl.Json}},
 	}
 	for _, tc := range scalarTests {
 		conv, _ := runProcessPgDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
@@ -626,13 +627,13 @@ COPY test (id, a, b, c, d) FROM stdin;
 		{
 			name: "Data conversion: serial, text, timestamp, timestamptz, varchar, json",
 			input: `
-CREATE TABLE test (id integer PRIMARY KEY, a serial, b text, c timestamp, d timestamptz, e varchar, f json);
-COPY test (id, a, b, c, d, e, f) FROM stdin;
-1	2	my text	2019-10-29 05:30:00	2019-10-29 05:30:00+10:30	my varchar	{"k":"k1", "v":"v1"}
+CREATE TABLE test (id integer PRIMARY KEY, a serial, b text, c timestamp, d timestamptz, e varchar, f json, g jsonb);
+COPY test (id, a, b, c, d, e, f, g) FROM stdin;
+1	2	my text	2019-10-29 05:30:00	2019-10-29 05:30:00+10:30	my varchar	{"k":"k1", "v":"v1"}	{"k":"k2", "v":"v2"}
 \.
 `,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d", "e", "f"}, vals: []interface{}{int64(1), int64(2), "my text", getTime(t, "2019-10-29T05:30:00Z"), getTime(t, "2019-10-29T05:30:00+10:30"), "my varchar", "{\"k\":\"k1\", \"v\":\"v1\"}"}}},
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d", "e", "f", "g"}, vals: []interface{}{int64(1), int64(2), "my text", getTime(t, "2019-10-29T05:30:00Z"), getTime(t, "2019-10-29T05:30:00+10:30"), "my varchar", "{\"k\":\"k1\", \"v\":\"v1\"}", "{\"k\":\"k2\", \"v\":\"v2\"}"}}},
 		},
 	}
 	for _, tc := range multiColTests {
