@@ -68,6 +68,7 @@ func TestProcessPgDump(t *testing.T) {
 		{"timestamptz(5)", ddl.Type{Name: ddl.Timestamp}},
 		{"varchar", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		{"varchar(42)", ddl.Type{Name: ddl.String, Len: int64(42)}},
+		{"json", ddl.Type{Name: ddl.Json}},
 	}
 	for _, tc := range scalarTests {
 		conv, _ := runProcessPgDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
