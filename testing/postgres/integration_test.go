@@ -178,7 +178,7 @@ func TestIntegration_PGDUMP_SchemaCommand(t *testing.T) {
 	// is because file prefixes use `now` from here (the test function) and
 	// the generated time in the files uses a `now` inside the command, which
 	// can be different.
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge schema < %s", dataFilepath))
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge schema -source=pg < %s", dataFilepath))
 	var out, stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
@@ -248,7 +248,7 @@ func TestIntegration_POSTGRES_SchemaCommand(t *testing.T) {
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge schema -driver %s", conversion.POSTGRES))
+	cmd := exec.Command("bash", "-c", "go run github.com/cloudspannerecosystem/harbourbridge schema -source=postgres")
 	var out, stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr

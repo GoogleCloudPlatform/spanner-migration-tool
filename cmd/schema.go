@@ -16,11 +16,11 @@ import (
 
 // SchemaCmd struct with flags.
 type SchemaCmd struct {
-	filePrefix       string
-	driverName       string
-	schemaSampleSize int64
-	dumpFilePath     string
-	targetDb         string
+	source string
+	sourceProfile string
+	target string
+	targetProfile string
+	filePrefix       string // TODO: move filePrefix to global flags
 }
 
 // Name returns the name of operation.
@@ -46,31 +46,59 @@ environment variables. The schema flags are:
 
 // SetFlags sets the flags.
 func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
+	f.StringVar(&cmd.source, "source", "", "Flag for specifying source DB, (accepted values are \"PostgreSQL\", \"MySQL\", and \"DynamoDB\")")
+	f.StringVar(&cmd.sourceProfile, "source-profile", "", "Flag for specifying connection profile for source database")
+	f.StringVar(&cmd.target, "target", "Spanner", "Specifies the target DB, defaults to Spanner (accepted values: \"Spanner\")")
+	f.StringVar(&cmd.targetProfile, "target-profile", "", "Flag for specifying connection profile for target database")
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
-	f.StringVar(&cmd.driverName, "driver", "pg_dump", "Flag for specifying source DB or dump files (accepted values are \"pg_dump\", \"postgres\", \"mysqldump\", \"mysql\", and \"dynamodb\")")
-	f.Int64Var(&cmd.schemaSampleSize, "schema-sample-size", int64(100000), "Number of rows to use for inferring schema (only for DynamoDB)")
-	f.StringVar(&cmd.dumpFilePath, "dump-file", "", "Location of dump file to process")
-	f.StringVar(&cmd.targetDb, "target-db", "", "Specifies the target DB, defaults to spanner")
 }
 
 func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	ioHelper := conversion.NewIOStreams(cmd.driverName, cmd.dumpFilePath)
+	sourceProfile, err := NewSourceProfile(cmd.sourceProfile, cmd.source)
+	if err != nil {
+		log.Fatal(err)
+	}
+	driverName, err := sourceProfile.ToLegacyDriver(cmd.source)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("legacy driverName = %+v\n", driverName)
+
+	targetProfile, err := NewTargetProfile(cmd.targetProfile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	targetDb := targetProfile.ToLegacyTargetDb()
+	fmt.Printf("legacy targetDb = %+v\n", targetDb)
+
+	dumpFilePath := ""
+	if sourceProfile.ty == SourceProfileTypeFile && (sourceProfile.file.format == "" || sourceProfile.file.format == "dump") {
+		dumpFilePath = sourceProfile.file.path
+	}
+	ioHelper := conversion.NewIOStreams(driverName, dumpFilePath)
 	if ioHelper.SeekableIn != nil {
 		defer ioHelper.In.Close()
 	}
 
 	// If filePrefix not explicitly set, use generated dbName.
 	if cmd.filePrefix == "" {
-		dbName, err := conversion.GetDatabaseName(cmd.driverName, time.Now())
+		dbName, err := conversion.GetDatabaseName(driverName, time.Now())
 		if err != nil {
 			log.Fatalf("can't generate database name for prefix: %v\n", err)
 		}
 		cmd.filePrefix = dbName + "."
 	}
 
+	schemaSampleSize := int64(100000)
+	if sourceProfile.ty == SourceProfileTypeConnection {
+		if sourceProfile.conn.ty == SourceProfileConnectionTypeDynamoDB {
+			if sourceProfile.conn.dydb.schemaSampleSize != 0 {
+				schemaSampleSize = sourceProfile.conn.dydb.schemaSampleSize
+			}
+		}
+	}
 	var conv *internal.Conv
-	var err error
-	conv, err = conversion.SchemaConv(cmd.driverName, cmd.targetDb, &ioHelper, cmd.schemaSampleSize)
+	conv, err = conversion.SchemaConv(driverName, targetDb, &ioHelper, schemaSampleSize)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -78,6 +106,6 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	now := time.Now()
 	conversion.WriteSchemaFile(conv, now, cmd.filePrefix+schemaFile, ioHelper.Out)
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
-	conversion.Report(cmd.driverName, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
+	conversion.Report(driverName, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
 	return subcommands.ExitSuccess
 }
