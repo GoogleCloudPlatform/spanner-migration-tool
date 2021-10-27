@@ -17,7 +17,7 @@ const (
 )
 
 type SourceProfileFile struct {
-	path string
+	path   string
 	format string
 }
 
@@ -48,9 +48,9 @@ const (
 type SourceProfileConnectionMySQL struct {
 	host string // Same as MYSQLHOST environment variable
 	port string // Same as MYSQLPORT environment variable
-	user string	// Same as MYSQLUSER environment variable
-	db string	// Same as MYSQLDATABASE environment variable
-	pwd string	// Same as MYSQLPWD environment variable
+	user string // Same as MYSQLUSER environment variable
+	db   string // Same as MYSQLDATABASE environment variable
+	pwd  string // Same as MYSQLPWD environment variable
 }
 
 func NewSourceProfileConnectionMySQL(params map[string]string) SourceProfileConnectionMySQL {
@@ -75,11 +75,11 @@ func NewSourceProfileConnectionMySQL(params map[string]string) SourceProfileConn
 }
 
 type SourceProfileConnectionPostgreSQL struct {
-	host string	// Same as PGHOST environment variable
-	port string	// Same as PGPORT environment variable
-	user string	// Same as PGUSER environment variable
-	db string	// Same as PGDATABASE environment variable
-	pwd string	// Same as PGPASSWORD environment variable
+	host string // Same as PGHOST environment variable
+	port string // Same as PGPORT environment variable
+	user string // Same as PGUSER environment variable
+	db   string // Same as PGDATABASE environment variable
+	pwd  string // Same as PGPASSWORD environment variable
 }
 
 func NewSourceProfileConnectionPostgreSQL(params map[string]string) SourceProfileConnectionPostgreSQL {
@@ -103,11 +103,11 @@ func NewSourceProfileConnectionPostgreSQL(params map[string]string) SourceProfil
 }
 
 type SourceProfileConnectionDynamoDB struct {
-	awsAccessKeyID string		// Same as AWS_ACCESS_KEY_ID environment variable
-	awsSecretAccessKey string	// Same as AWS_SECRET_ACCESS_KEY environment variable
-	awsRegion string			// Same as AWS_REGION environment variable
-	dydbEndpoint string			// Same as DYNAMODB_ENDPOINT_OVERRIDE environment variable
-	schemaSampleSize int64		// Number of rows to use for inferring schema (default 100,000)
+	awsAccessKeyID     string // Same as AWS_ACCESS_KEY_ID environment variable
+	awsSecretAccessKey string // Same as AWS_SECRET_ACCESS_KEY environment variable
+	awsRegion          string // Same as AWS_REGION environment variable
+	dydbEndpoint       string // Same as DYNAMODB_ENDPOINT_OVERRIDE environment variable
+	schemaSampleSize   int64  // Number of rows to use for inferring schema (default 100,000)
 }
 
 func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfileConnectionDynamoDB, error) {
@@ -135,31 +135,34 @@ func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfile
 }
 
 type SourceProfileConnection struct {
-	ty SourceProfileConnectionType
+	ty    SourceProfileConnectionType
 	mysql SourceProfileConnectionMySQL
-	pg SourceProfileConnectionPostgreSQL
-	dydb SourceProfileConnectionDynamoDB
+	pg    SourceProfileConnectionPostgreSQL
+	dydb  SourceProfileConnectionDynamoDB
 }
 
 func NewSourceProfileConnection(source string, params map[string]string) (SourceProfileConnection, error) {
 	conn := SourceProfileConnection{}
 	switch strings.ToLower(source) {
-	case "mysql": {
-		conn.ty = SourceProfileConnectionTypeMySQL
-		conn.mysql = NewSourceProfileConnectionMySQL(params)
-	}
-	case "postgresql", "postgres", "pg": {
-		conn.ty = SourceProfileConnectionTypePostgreSQL
-		conn.pg = NewSourceProfileConnectionPostgreSQL(params)
-	}
-	case "dynamodb": {
-		conn.ty = SourceProfileConnectionTypeDynamoDB
-		dydb, err := NewSourceProfileConnectionDynamoDB(params)
-		conn.dydb = dydb
-		if err != nil {
-			return conn, err
+	case "mysql":
+		{
+			conn.ty = SourceProfileConnectionTypeMySQL
+			conn.mysql = NewSourceProfileConnectionMySQL(params)
 		}
-	}
+	case "postgresql", "postgres", "pg":
+		{
+			conn.ty = SourceProfileConnectionTypePostgreSQL
+			conn.pg = NewSourceProfileConnectionPostgreSQL(params)
+		}
+	case "dynamodb":
+		{
+			conn.ty = SourceProfileConnectionTypeDynamoDB
+			dydb, err := NewSourceProfileConnectionDynamoDB(params)
+			conn.dydb = dydb
+			if err != nil {
+				return conn, err
+			}
+		}
 	default:
 		return conn, fmt.Errorf("invalid source database: %v", source)
 	}
@@ -175,36 +178,38 @@ func NewSourceProfileConfig(path string) SourceProfileConfig {
 }
 
 type SourceProfile struct {
-	ty SourceProfileType
-	file SourceProfileFile
-	conn SourceProfileConnection
+	ty     SourceProfileType
+	file   SourceProfileFile
+	conn   SourceProfileConnection
 	config SourceProfileConfig
 }
 
-func (src SourceProfile) ToLegacyDriver (source string) (string, error){
+func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 	switch src.ty {
-	case SourceProfileTypeFile: {
-		switch strings.ToLower(source) {
-		case "mysql":
-			return "mysqldump", nil
-		case "postgresql", "pg":
-			return "pg_dump", nil
-		default:
-			return "", fmt.Errorf("invalid source database %v for source-profile type file", strings.ToLower(source))
+	case SourceProfileTypeFile:
+		{
+			switch strings.ToLower(source) {
+			case "mysql":
+				return "mysqldump", nil
+			case "postgresql", "postgres", "pg":
+				return "pg_dump", nil
+			default:
+				return "", fmt.Errorf("invalid source database %v for source-profile type file", strings.ToLower(source))
+			}
 		}
-	}
-	case SourceProfileTypeConnection: {
-		switch strings.ToLower(source) {
-		case "mysql":
-			return "mysql", nil
-		case "postgresql", "pg":
-			return "postgres", nil
-		case "dynamodb":
-			return "dynamodb", nil
-		default:
-			return "", fmt.Errorf("invalid source database %v for source-profile direct connect", strings.ToLower(source))
+	case SourceProfileTypeConnection:
+		{
+			switch strings.ToLower(source) {
+			case "mysql":
+				return "mysql", nil
+			case "postgresql", "postgres", "pg":
+				return "postgres", nil
+			case "dynamodb":
+				return "dynamodb", nil
+			default:
+				return "", fmt.Errorf("invalid source database %v for source-profile direct connect", strings.ToLower(source))
+			}
 		}
-	}
 	case SourceProfileTypeConfig:
 		return "", fmt.Errorf("specifying source-profile using config not implemented")
 	default:
@@ -243,7 +248,7 @@ func NewSourceProfile(str string, source string) (SourceProfile, error) {
 				return SourceProfile{}, fmt.Errorf("duplicate key in source profile: %v", s[0])
 			}
 			params[s[0]] = s[1]
-		}	
+		}
 	}
 
 	if _, ok := params["file"]; ok || filePipedToStdin() {
@@ -261,7 +266,7 @@ func NewSourceProfile(str string, source string) (SourceProfile, error) {
 	}
 }
 
-var filePipedToStdin = func () bool {
+var filePipedToStdin = func() bool {
 	stat, _ := os.Stdin.Stat()
 	// Data is being piped to stdin, if true. Else, stdin is from a terminal.
 	return (stat.Mode() & os.ModeCharDevice) == 0

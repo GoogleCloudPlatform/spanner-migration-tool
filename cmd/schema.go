@@ -16,11 +16,11 @@ import (
 
 // SchemaCmd struct with flags.
 type SchemaCmd struct {
-	source string
+	source        string
 	sourceProfile string
-	target string
+	target        string
 	targetProfile string
-	filePrefix       string // TODO: move filePrefix to global flags
+	filePrefix    string // TODO: move filePrefix to global flags
 }
 
 // Name returns the name of operation.

@@ -20,11 +20,11 @@ const (
 )
 
 type TargetProfileConnectionSpanner struct {
-	endpoint string	// Same as SPANNER_API_ENDPOINT environment variable
-	project string  // Same as GCLOUD_PROJECT environment variable
+	endpoint string // Same as SPANNER_API_ENDPOINT environment variable
+	project  string // Same as GCLOUD_PROJECT environment variable
 	instance string
-	dbname string
-	dialect string
+	dbname   string
+	dialect  string
 }
 
 type TargetProfileConnection struct {
@@ -33,26 +33,28 @@ type TargetProfileConnection struct {
 }
 
 type TargetProfile struct {
-	ty TargetProfileType
+	ty   TargetProfileType
 	conn TargetProfileConnection
 }
 
 func (trg TargetProfile) ToLegacyTargetDb() string {
 	switch trg.ty {
-	case TargetProfileTypeConnection: {
-		conn := trg.conn
-		switch conn.ty {
-		case TargetProfileConnectionTypeSpanner: {
-			sp := conn.sp
-			if len(sp.dialect) > 0 && strings.ToLower(sp.dialect) == "postgresql" {
-				return "experimental_postgres"	
+	case TargetProfileTypeConnection:
+		{
+			conn := trg.conn
+			switch conn.ty {
+			case TargetProfileConnectionTypeSpanner:
+				{
+					sp := conn.sp
+					if len(sp.dialect) > 0 && strings.ToLower(sp.dialect) == "postgresql" {
+						return "experimental_postgres"
+					}
+					return "spanner"
+				}
+			default:
+				return "spanner"
 			}
-			return "spanner"
 		}
-		default:
-			return "spanner"
-		}
-	}
 	default:
 		return "spanner"
 	}
@@ -90,7 +92,7 @@ func NewTargetProfile(str string) (TargetProfile, error) {
 				return TargetProfile{}, fmt.Errorf("duplicate key in source profile: %v", s[0])
 			}
 			params[s[0]] = s[1]
-		}	
+		}
 	}
 
 	sp := TargetProfileConnectionSpanner{}
