@@ -27,7 +27,7 @@ the source database.
 The tool can also be applied to an existing pg_dump file:
 
 ```sh
-harbourbridge -source=postgres < my_pg_dump_file
+harbourbridge schema -source=postgres < my_pg_dump_file
 ```
 
 To specify a particular Spanner instance to use during data migration, run:

@@ -86,10 +86,10 @@ func NewTargetProfile(str string) (TargetProfile, error) {
 		for _, kv := range kvs {
 			s := strings.Split(strings.TrimSpace(kv), "=")
 			if len(s) != 2 {
-				return TargetProfile{}, fmt.Errorf("invalid key, value in source profile (expected format: key1=value1): %v", kv)
+				return TargetProfile{}, fmt.Errorf("invalid key, value in target-profile (expected format: key1=value1): %v", kv)
 			}
 			if _, ok := params[s[0]]; ok {
-				return TargetProfile{}, fmt.Errorf("duplicate key in source profile: %v", s[0])
+				return TargetProfile{}, fmt.Errorf("duplicate key in target-profile: %v", s[0])
 			}
 			params[s[0]] = s[1]
 		}

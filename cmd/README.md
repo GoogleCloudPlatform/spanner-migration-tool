@@ -374,7 +374,7 @@ codebase from the github repository and use "go run":
 git clone https://github.com/cloudspannerecosystem/harbourbridge
 cd harbourbridge
 pg_dump mydb > mydb.pg_dump
-go run github.com/cloudspannerecosystem/harbourbridge -source=postgresql < mydb.pg_dump
+go run github.com/cloudspannerecosystem/harbourbridge schema -source=postgresql < mydb.pg_dump
 ```
 
 This workflow also allows you to modify or customize the HarbourBridge codebase.

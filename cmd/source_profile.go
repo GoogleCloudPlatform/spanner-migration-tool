@@ -111,6 +111,7 @@ type SourceProfileConnectionDynamoDB struct {
 }
 
 func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfileConnectionDynamoDB, error) {
+	// TODO: Populate environment variables for DynamoDB if passed as flags.
 	dydb := SourceProfileConnectionDynamoDB{}
 	if awsAccessKeyID, ok := params["awsAccessKeyID"]; ok {
 		dydb.awsAccessKeyID = awsAccessKeyID
