@@ -277,7 +277,7 @@ type IOStreams struct {
 func downloadFromGCS(bucketName string, filePath string) (*os.File, error) {
 	ctx := context.Background()
 
-	client, err := storage.NewClient(ctx)
+	client, err := storage.NewClient(ctx, option.WithoutAuthentication(), option.WithEndpoint("http://0.0.0.0:4443/storage/v1/b"))
 	if err != nil {
 		fmt.Printf("Failed to create GCS client for bucket %q", bucketName)
 		log.Fatal(err)
@@ -303,17 +303,28 @@ func downloadFromGCS(bucketName string, filePath string) (*os.File, error) {
 	syscall.Unlink(tmpfile.Name()) // File will be deleted when this process exits.
 
 	fmt.Printf("\nDownloading dump file from GCS bucket %s, path %s\n", bucketName, filePath)
+<<<<<<< HEAD
 	buffer := make([]byte, 10024)
 	for {
 		// read a chunk
 		n, err := r.Read(buffer[:cap(buffer)])
 
+=======
+	buffer := make([]byte, 1024)
+	for {
+		// read a chunk
+		n, err := r.Read(buffer)
+>>>>>>> 0a18d17 (removed test)
 		if err != nil && err != io.EOF {
 			fmt.Printf("readFile: unable to read entire dump file from bucket %s, file %s: %v", bucketName, filePath, err)
 			log.Fatal(err)
 			return nil, err
 		}
+<<<<<<< HEAD
 		if n == 0 && err == io.EOF {
+=======
+		if n == 0 {
+>>>>>>> 0a18d17 (removed test)
 			break
 		}
 
