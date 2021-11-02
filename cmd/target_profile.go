@@ -79,10 +79,10 @@ func (trg TargetProfile) ToLegacyTargetDb() string {
 // Example: -target-profile="instance=my-instance1,dbname=my-new-db1"
 // Example: -target-profile="instance=my-instance1,dbname=my-new-db1,dialect=PostgreSQL"
 //
-func NewTargetProfile(str string) (TargetProfile, error) {
+func NewTargetProfile(s string) (TargetProfile, error) {
 	params := make(map[string]string)
-	if len(str) > 0 {
-		kvs := strings.Split(str, ",")
+	if len(s) > 0 {
+		kvs := strings.Split(s, ",")
 		for _, kv := range kvs {
 			s := strings.Split(strings.TrimSpace(kv), "=")
 			if len(s) != 2 {

@@ -38,7 +38,7 @@ func TestNewSourceProfileFile(t *testing.T) {
 			want:         SourceProfileFile{format: "dump", path: "file1.mysqldump"},
 		},
 		{
-			name:         "only path param, no file piped -- defauly dump format",
+			name:         "only path param, no file piped -- default dump format",
 			params:       map[string]string{"file": "file1.mysqldump"},
 			pipedToStdin: false,
 			want:         SourceProfileFile{format: "dump", path: "file1.mysqldump"},

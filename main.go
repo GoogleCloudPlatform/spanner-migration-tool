@@ -100,7 +100,7 @@ func main() {
 	// TODO: Remove this check and always run HB in subcommands mode once
 	// global command line mode is deprecated. We can also enable support for
 	// top-level flags in subcommand then.
-	if os.Args[1] != "" && !strings.HasPrefix(os.Args[1], "-") {
+	if len(os.Args) > 1 && os.Args[1] != "" && !strings.HasPrefix(os.Args[1], "-") {
 		// Using HB CLI in subcommand mode.
 		subcommands.Register(subcommands.HelpCommand(), "")
 		subcommands.Register(subcommands.CommandsCommand(), "")

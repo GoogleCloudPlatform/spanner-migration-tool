@@ -27,17 +27,17 @@ The tool can also be applied to an existing mysqldump file:
 harbourbridge schema -source=mysql < my_mysqldump_file
 ```
 
-To specify a particular Spanner instance to use, run:
+To specify a particular Spanner instance to use during data migration, run:
 
 ```sh
-harbourbridge schema -source=mysql -target-profile="instance=my-spanner-instance" < my_mysqldump_file
+harbourbridge data -source=mysql -target-profile="instance=my-spanner-instance" < my_mysqldump_file
 ```
 
 By default, HarbourBridge will generate a new Spanner database name to populate.
 You can override this and specify the database name to use by:
 
 ```sh
-harbourbridge schema -source=mysql -target-profile="dbname=my-spanner-database-name" < my_mysqldump_file
+harbourbridge data -source=mysql -target-profile="dbname=my-spanner-database-name" < my_mysqldump_file
 ```
 
 HarbourBridge generates a report file, a schema file, and a bad-data file (if

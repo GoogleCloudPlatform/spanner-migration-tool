@@ -30,7 +30,7 @@ func NewSourceProfileFile(params map[string]string) SourceProfileFile {
 		profile.format = format
 		// TODO: Add check that format takes values from ["dump", "csv", "avro", ... etc]
 	} else {
-		fmt.Printf("User did not specify `format` in source-profile, defaulting to \"dump\"\n")
+		fmt.Printf("source-profile format defaulting to `dump`\n")
 		profile.format = "dump"
 	}
 	return profile
@@ -165,7 +165,7 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 			}
 		}
 	default:
-		return conn, fmt.Errorf("invalid source database: %v", source)
+		return conn, fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
 	}
 	return conn, nil
 }
@@ -194,8 +194,10 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 				return "mysqldump", nil
 			case "postgresql", "postgres", "pg":
 				return "pg_dump", nil
+			case "dynamodb":
+				return "", fmt.Errorf("dump files are not supported with DynamoDB")
 			default:
-				return "", fmt.Errorf("invalid source database %v for source-profile type file", strings.ToLower(source))
+				return "", fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
 			}
 		}
 	case SourceProfileTypeConnection:
@@ -208,7 +210,7 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 			case "dynamodb":
 				return "dynamodb", nil
 			default:
-				return "", fmt.Errorf("invalid source database %v for source-profile direct connect", strings.ToLower(source))
+				return "", fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
 			}
 		}
 	case SourceProfileTypeConfig:
@@ -235,11 +237,15 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 //
 // Format 3. Specify a config file that specifies source connection profile.
 //
-func NewSourceProfile(str string, source string) (SourceProfile, error) {
+func NewSourceProfile(s string, source string) (SourceProfile, error) {
+	if source == "" {
+		return SourceProfile{}, fmt.Errorf("cannot leave -source flag empty, please specify source databases e.g., -source=postgres etc")
+	}
+
 	params := make(map[string]string)
 
-	if len(str) > 0 {
-		kvs := strings.Split(str, ",")
+	if len(s) > 0 {
+		kvs := strings.Split(s, ",")
 		for _, kv := range kvs {
 			s := strings.Split(strings.TrimSpace(kv), "=")
 			if len(s) != 2 {
@@ -255,6 +261,9 @@ func NewSourceProfile(str string, source string) (SourceProfile, error) {
 	if _, ok := params["file"]; ok || filePipedToStdin() {
 		profile := NewSourceProfileFile(params)
 		return SourceProfile{ty: SourceProfileTypeFile, file: profile}, nil
+	} else if format, ok := params["format"]; ok {
+		// File is not passed in from stdin or specified using "file" flag.
+		return SourceProfile{ty: SourceProfileTypeFile}, fmt.Errorf("file not specified, but format set to %v", format)
 	} else if file, ok := params["config"]; ok {
 		config := NewSourceProfileConfig(file)
 		return SourceProfile{ty: SourceProfileTypeConfig, config: config}, fmt.Errorf("source-profile type config not yet implemented")
