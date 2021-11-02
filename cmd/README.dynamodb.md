@@ -29,10 +29,16 @@ run
 harbourbridge schema -source=dynamodb
 ```
 
-Due the schemaless nature of DynamoDB, the tool infers the schema based on a
-certain amount of sampled data, by default, 100000 rows. If a table has more
-rows than the default value, we only use 100000 rows for estimating the schema.
-You can change this value via the flag `schema-sample-size`. For example,
+### Source profile (`-source-profile`)
+
+HarbourBridge accepts the following options for --source-profile for DynamoDB,
+specified as "key1=value1,key2=value,..." pairs:
+
+`-schema-sample-size` Due to the schemaless nature of DynamoDB, the tool infers
+the schema based on a certain amount of sampled data, by default, 100000 rows.
+If a table has more rows than the default value, we only use 100000 rows for 
+estimating the schema. This flag lets you specify the number of rows to use for
+inferring schema. The default value is 100,000.
 
 ```sh
 harbourbridge schema -source=dynamodb -source-profile="schema-sample-size=500000"

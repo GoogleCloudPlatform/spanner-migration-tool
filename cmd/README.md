@@ -314,8 +314,14 @@ conversion state endcoded as JSON.
 HarbourBridge accepts the following options for --source-profile,
 specified as "key1=value1,key2=value,..." pairs:
 
-`-schema-sample-size` Specifies the number of rows to use for inferring schema 
-(only for DynamoDB). By default, the schema sample size is 100,000.
+`-file` Specifies the full path of the file to use for reading source database
+schema and/or data. This can also point to a file stored in GCS e.g., 
+gcs://<bucket_name>/<file_path>. This flag is optional, and file can also be
+piped to stdin, if available locally.
+
+`-format` Specifies the format of the file. This flag is also optional, and
+defaults to `dump`. This may be extended in future to support other formats
+such as `csv`, `avro` etc.
 
 ### Target profile (`-target-profile`)
 

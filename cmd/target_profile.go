@@ -37,6 +37,10 @@ type TargetProfile struct {
 	conn TargetProfileConnection
 }
 
+// ToLegacyTargetDb converts source profile to equivalent legacy global flag
+// -target-db etc since the rest of the codebase still uses the same.
+// TODO: Deprecate this function and pass around TargetProfile across the
+// codebase wherever information about target connection is required.
 func (trg TargetProfile) ToLegacyTargetDb() string {
 	switch trg.ty {
 	case TargetProfileTypeConnection:
@@ -80,19 +84,9 @@ func (trg TargetProfile) ToLegacyTargetDb() string {
 // Example: -target-profile="instance=my-instance1,dbname=my-new-db1,dialect=PostgreSQL"
 //
 func NewTargetProfile(s string) (TargetProfile, error) {
-	params := make(map[string]string)
-	if len(s) > 0 {
-		kvs := strings.Split(s, ",")
-		for _, kv := range kvs {
-			s := strings.Split(strings.TrimSpace(kv), "=")
-			if len(s) != 2 {
-				return TargetProfile{}, fmt.Errorf("invalid key, value in target-profile (expected format: key1=value1): %v", kv)
-			}
-			if _, ok := params[s[0]]; ok {
-				return TargetProfile{}, fmt.Errorf("duplicate key in target-profile: %v", s[0])
-			}
-			params[s[0]] = s[1]
-		}
+	params, err := parseProfile(s)
+	if err != nil {
+		return TargetProfile{}, fmt.Errorf("could not parse target profile, error = %v", err)
 	}
 
 	sp := TargetProfileConnectionSpanner{}

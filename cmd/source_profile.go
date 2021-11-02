@@ -61,6 +61,8 @@ func NewSourceProfileConnectionMySQL(params map[string]string) SourceProfileConn
 	}
 	if port, ok := params["port"]; ok {
 		mysql.port = port
+	} else { // Set default port for mysql, which rarely changes.
+		mysql.port = "3306"
 	}
 	if user, ok := params["user"]; ok {
 		mysql.user = user
@@ -89,6 +91,8 @@ func NewSourceProfileConnectionPostgreSQL(params map[string]string) SourceProfil
 	}
 	if port, ok := params["port"]; ok {
 		pg.port = port
+	} else { // Set default port for postgresql, which rarely changes.
+		pg.port = "5432"
 	}
 	if user, ok := params["user"]; ok {
 		pg.user = user
@@ -185,6 +189,10 @@ type SourceProfile struct {
 	config SourceProfileConfig
 }
 
+// ToLegacyDriver converts source profile to equivalent legacy global flags
+// e.g., -driver, -dump-file etc since the rest of the codebase still uses the
+// same. TODO: Deprecate this function and pass around SourceProfile across the
+// codebase wherever information about source connection is required.
 func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 	switch src.ty {
 	case SourceProfileTypeFile:
@@ -241,21 +249,9 @@ func NewSourceProfile(s string, source string) (SourceProfile, error) {
 	if source == "" {
 		return SourceProfile{}, fmt.Errorf("cannot leave -source flag empty, please specify source databases e.g., -source=postgres etc")
 	}
-
-	params := make(map[string]string)
-
-	if len(s) > 0 {
-		kvs := strings.Split(s, ",")
-		for _, kv := range kvs {
-			s := strings.Split(strings.TrimSpace(kv), "=")
-			if len(s) != 2 {
-				return SourceProfile{}, fmt.Errorf("invalid key, value in source profile (expected format: key1=value1): %v", kv)
-			}
-			if _, ok := params[s[0]]; ok {
-				return SourceProfile{}, fmt.Errorf("duplicate key in source profile: %v", s[0])
-			}
-			params[s[0]] = s[1]
-		}
+	params, err := parseProfile(s)
+	if err != nil {
+		return SourceProfile{}, fmt.Errorf("could not parse source profile, error = %v", err)
 	}
 
 	if _, ok := params["file"]; ok || filePipedToStdin() {
