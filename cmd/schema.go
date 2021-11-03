@@ -36,10 +36,10 @@ func (cmd *SchemaCmd) Synopsis() string {
 func (cmd *SchemaCmd) Usage() string {
 	return fmt.Sprintf(`%v schema -source=[source] -source-profile="key1=value1,key2=value2" ...
 
-Convert schema for source db specified by driver. Source db dump file can be
-specified by either file param in source-profile or piped to stdin. Connection
-profile for source databases in direct connect mode can be specified by setting
-appropriate environment variables. The schema flags are:
+Convert schema for source db specified by source and source-profile. Source db
+dump file can be specified by either file param in source-profile or piped to
+stdin. Connection profile for source databases in direct connect mode can be
+specified by setting appropriate environment variables. The schema flags are:
 `, path.Base(os.Args[0]))
 }
 
