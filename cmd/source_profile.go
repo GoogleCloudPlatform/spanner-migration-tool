@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 )
 
 type SourceProfileType int
@@ -56,24 +57,47 @@ type SourceProfileConnectionMySQL struct {
 }
 
 func NewSourceProfileConnectionMySQL(params map[string]string) SourceProfileConnectionMySQL {
-	// TODO: Move parsing of environment variables in this function.
 	mysql := SourceProfileConnectionMySQL{}
 	if host, ok := params["host"]; ok {
 		mysql.host = host
+	} else {
+		mysql.host = os.Getenv("MYSQLHOST")
 	}
+
 	if port, ok := params["port"]; ok {
 		mysql.port = port
-	} else { // Set default port for mysql, which rarely changes.
-		mysql.port = "3306"
+	} else {
+		mysql.port = os.Getenv("MYSQLPORT")
+		if mysql.port == "" {
+			// Set default port for mysql, which rarely changes.
+			mysql.port = "3306"
+		}
 	}
+
 	if user, ok := params["user"]; ok {
 		mysql.user = user
+	} else {
+		mysql.user = os.Getenv("MYSQLUSER")
 	}
+
 	if db, ok := params["db_name"]; ok {
 		mysql.db = db
+	} else {
+		mysql.db = os.Getenv("MYSQLDATABASE")
 	}
+
+	if mysql.host == "" || mysql.port == "" || mysql.user == "" || mysql.db == "" {
+		fmt.Printf("Please specify host, port, user and database either in the source profile or using MYSQLHOST, MYSQLPORT, MYSQLUSER and MYSQLDATABASE environment variables.\n")
+		// TODO: Throw error earlier here.
+	}
+
 	if pwd, ok := params["password"]; ok {
 		mysql.pwd = pwd
+	} else {
+		mysql.pwd = os.Getenv("MYSQLPWD")
+		if mysql.pwd == "" {
+			mysql.pwd = conversion.GetPassword()
+		}
 	}
 	return mysql
 }
@@ -90,20 +114,44 @@ func NewSourceProfileConnectionPostgreSQL(params map[string]string) SourceProfil
 	pg := SourceProfileConnectionPostgreSQL{}
 	if host, ok := params["host"]; ok {
 		pg.host = host
+	} else {
+		pg.host = os.Getenv("PGHOST")
 	}
+
 	if port, ok := params["port"]; ok {
 		pg.port = port
-	} else { // Set default port for postgresql, which rarely changes.
-		pg.port = "5432"
+	} else {
+		pg.port = os.Getenv("PGPORT")
+		if pg.port == "" {
+			// Set default port for postgresql, which rarely changes.
+			pg.port = "5432"
+		}
 	}
+
 	if user, ok := params["user"]; ok {
 		pg.user = user
+	} else {
+		pg.user = os.Getenv("PGUSER")
 	}
+
 	if db, ok := params["db_name"]; ok {
 		pg.db = db
+	} else {
+		pg.db = os.Getenv("PGDATABASE")
 	}
+
+	if pg.host == "" || pg.port == "" || pg.user == "" || pg.db == "" {
+		fmt.Printf("Please specify host, port, user and database either in the source profile or using PGHOST, PGPORT, PGUSER and PGDATABASE environment variables.\n")
+		// TODO: Throw error earlier here.
+	}
+
 	if pwd, ok := params["password"]; ok {
 		pg.pwd = pwd
+	} else {
+		pg.pwd = os.Getenv("PGPASSWORD")
+		if pg.pwd == "" {
+			pg.pwd = conversion.GetPassword()
+		}
 	}
 	return pg
 }

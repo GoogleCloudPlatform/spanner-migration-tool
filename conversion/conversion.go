@@ -130,7 +130,7 @@ func pgDriverConfig() (string, error) {
 	}
 	password := os.Getenv("PGPASSWORD")
 	if password == "" {
-		password = getPassword()
+		password = GetPassword()
 	}
 	return PGDriverConfigStr(server, port, user, password, dbname), nil
 }
@@ -150,7 +150,7 @@ func mysqlDriverConfig() (string, error) {
 	}
 	password := os.Getenv("MYSQLPWD")
 	if password == "" {
-		password = getPassword()
+		password = GetPassword()
 	}
 	return MySQLDriverConfigStr(server, port, user, password, dbname), nil
 }
@@ -887,7 +887,7 @@ func GetDatabaseName(driver string, now time.Time) (string, error) {
 	return generateName(fmt.Sprintf("%s_%s", driver, now.Format("2006-01-02")))
 }
 
-func getPassword() string {
+func GetPassword() string {
 	fmt.Print("Enter Password: ")
 	bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
 	if err != nil {
