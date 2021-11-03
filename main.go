@@ -121,7 +121,7 @@ func main() {
 
 	// Note: the web interface does not use any commandline flags.
 	if webapi {
-		web.WebApp()
+		web.App()
 		return
 	}
 

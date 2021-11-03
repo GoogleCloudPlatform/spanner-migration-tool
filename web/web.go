@@ -1160,7 +1160,7 @@ func init() {
 	sessionState.conv = internal.MakeConv()
 }
 
-// WebApp connects to the web app
+// App connects to the web app
 func App() {
 	addr := ":8080"
 	router := getRoutes()
