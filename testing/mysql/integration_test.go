@@ -223,7 +223,7 @@ func runDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dum
 }
 
 func runEvalSubcommand(t *testing.T, dbName, dbURI, filePrefix, dumpFilePath string) {
-	args := fmt.Sprintf("data -source=mysql -prefix %s -target-profile='instance=%s,dbname=%s' < %s", filePrefix, instanceID, dbName, dumpFilePath)
+	args := fmt.Sprintf("eval -source=mysql -prefix %s -target-profile='instance=%s,dbname=%s' < %s", filePrefix, instanceID, dbName, dumpFilePath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
