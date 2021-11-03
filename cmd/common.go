@@ -1,9 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
+	"os"
 	"strings"
+	"time"
+
+	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 )
 
 // Parses input string `s` as a map of key-value pairs. It's expected that the
@@ -40,4 +45,35 @@ func parseProfile(s string) (map[string]string, error) {
 		params[s[0]] = s[1]
 	}
 	return params, nil
+}
+
+func getResourceIds(ctx context.Context, targetProfile TargetProfile, now time.Time, driverName string, out *os.File) (string, string, string, error) {
+	var err error
+	project := targetProfile.conn.sp.project
+	if project == "" {
+		project, err = conversion.GetProject()
+		if err != nil {
+			return "", "", "", fmt.Errorf("can't get project: %v", err)
+		}
+	}
+	fmt.Println("Using Google Cloud project:", project)
+
+	instance := targetProfile.conn.sp.instance
+	if instance == "" {
+		instance, err = conversion.GetInstance(ctx, project, out)
+		if err != nil {
+			return "", "", "", fmt.Errorf("can't get instance: %v", err)
+		}
+	}
+	fmt.Println("Using Cloud Spanner instance:", instance)
+	conversion.PrintPermissionsWarning(driverName, out)
+
+	dbName := targetProfile.conn.sp.dbname
+	if dbName == "" {
+		dbName, err = conversion.GetDatabaseName(driverName, now)
+		if err != nil {
+			return "", "", "", fmt.Errorf("can't get database name: %v", err)
+		}
+	}
+	return project, instance, dbName, err
 }

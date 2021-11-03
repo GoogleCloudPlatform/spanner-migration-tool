@@ -15,20 +15,19 @@
 package mysql_test
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/cmd"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
 
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
@@ -152,28 +151,17 @@ func TestIntegration_MYSQL_SimpleUse(t *testing.T) {
 }
 
 func runSchemaOnly(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string) {
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -driver mysqldump -schema-only -dbname %s -prefix %s < %s", dbName, filePrefix, dumpFilePath))
-	var out, stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		log.Printf("stdout: %q\n", out.String())
-		log.Printf("stderr: %q\n", stderr.String())
+	args := fmt.Sprintf("-driver mysqldump -schema-only -dbname %s -prefix %s < %s", dbName, filePrefix, dumpFilePath)
+	err := common.RunCommand(args, projectID)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func runDataOnly(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dumpFilePath string) {
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -driver mysqldump -data-only -instance %s -dbname %s -prefix %s -session %s < %s", instanceID, dbName, filePrefix, sessionFile, dumpFilePath))
-	var out, stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	cmd.Env = append(os.Environ(),
-		fmt.Sprintf("GCLOUD_PROJECT=%s", projectID),
-	)
-	if err := cmd.Run(); err != nil {
-		log.Printf("stdout: %q\n", out.String())
-		log.Printf("stderr: %q\n", stderr.String())
+	args := fmt.Sprintf("-driver mysqldump -data-only -instance %s -dbname %s -prefix %s -session %s < %s", instanceID, dbName, filePrefix, sessionFile, dumpFilePath)
+	err := common.RunCommand(args, projectID)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
@@ -214,6 +202,85 @@ func TestIntegration_MySQLDUMP_DataOnly(t *testing.T) {
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	runDataOnly(t, dbName, dbURI, filePrefix, sessionFile, dumpFilePath)
+	defer dropDatabase(t, dbURI)
+	checkResults(t, dbURI)
+}
+
+func runSchemaSubcommand(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string) {
+	args := fmt.Sprintf("schema -prefix %s -source=mysql -target-profile='dbname=%s' < %s", filePrefix, dbName, dumpFilePath)
+	err := common.RunCommand(args, projectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func runDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dumpFilePath string) {
+	args := fmt.Sprintf("data -source=mysql -prefix %s -session %s -target-profile='instance=%s,dbname=%s' < %s", filePrefix, sessionFile, instanceID, dbName, dumpFilePath)
+	err := common.RunCommand(args, projectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func runEvalSubcommand(t *testing.T, dbName, dbURI, filePrefix, dumpFilePath string) {
+	args := fmt.Sprintf("eval -source=mysql -prefix %s -target-profile='instance=%s,dbname=%s' < %s", filePrefix, instanceID, dbName, dumpFilePath)
+	err := common.RunCommand(args, projectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestIntegration_MySQLDUMP_SchemaSubcommand(t *testing.T) {
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	dbName := "test-schema-subcommand"
+	dumpFilePath := "../../test_data/mysqldump.test.out"
+	filePrefix := filepath.Join(tmpdir, dbName+".")
+	sessionFile := fmt.Sprintf("%ssession.json", filePrefix)
+	runSchemaSubcommand(t, dbName, filePrefix, sessionFile, dumpFilePath)
+	if _, err := os.Stat(fmt.Sprintf("%sreport.txt", filePrefix)); os.IsNotExist(err) {
+		t.Fatalf("report file not generated during schema-only test")
+	}
+	if _, err := os.Stat(fmt.Sprintf("%sschema.ddl.txt", filePrefix)); os.IsNotExist(err) {
+		t.Fatalf("legal ddl file not generated during schema-only test")
+	}
+	if _, err := os.Stat(fmt.Sprintf("%sschema.txt", filePrefix)); os.IsNotExist(err) {
+		t.Fatalf("readable schema file not generated during schema-only test")
+	}
+	if _, err := os.Stat(sessionFile); os.IsNotExist(err) {
+		t.Fatalf("session file not generated during schema-only test")
+	}
+}
+
+func TestIntegration_MySQLDUMP_DataSubcommand(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	dbName := "test-data-subcommand"
+	dumpFilePath := "../../test_data/mysqldump.test.out"
+	filePrefix := filepath.Join(tmpdir, dbName+".")
+	sessionFile := fmt.Sprintf("%ssession.json", filePrefix)
+	runSchemaSubcommand(t, dbName, filePrefix, sessionFile, dumpFilePath)
+
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	runDataSubcommand(t, dbName, dbURI, filePrefix, sessionFile, dumpFilePath)
+	defer dropDatabase(t, dbURI)
+	checkResults(t, dbURI)
+}
+
+func TestIntegration_MySQLDUMP_EvalSubcommand(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	dbName := "test-eval-subcommand"
+	dumpFilePath := "../../test_data/mysqldump.test.out"
+	filePrefix := filepath.Join(tmpdir, dbName+".")
+
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	runEvalSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath)
 	defer dropDatabase(t, dbURI)
 	checkResults(t, dbURI)
 }

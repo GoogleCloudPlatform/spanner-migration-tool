@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"time"
 
-	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
@@ -63,7 +62,7 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 			return err
 		}
 	}
-	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	adminClient, err := conversion.NewDatabaseAdminClient(ctx)
 	if err != nil {
 		return fmt.Errorf("can't create admin client: %w", conversion.AnalyzeError(err, dbURI))
 	}
