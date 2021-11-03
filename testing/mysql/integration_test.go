@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudspannerecosystem/harbourbridge/cmd"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
 
@@ -102,7 +101,7 @@ func prepareIntegrationTest(t *testing.T) string {
 	return tmpdir
 }
 
-func TestIntegration_MYSQLDUMP_SimpleUse(t *testing.T) {
+func TestIntegration_MYSQLDUMP_Command(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
 
@@ -114,11 +113,9 @@ func TestIntegration_MYSQLDUMP_SimpleUse(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	dataFilepath := "../../test_data/mysqldump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName+".")
-	f, err := os.Open(dataFilepath)
-	if err != nil {
-		t.Fatalf("failed to open the test data file: %v", err)
-	}
-	err = cmd.CommandLine(ctx, conversion.MYSQLDUMP, "spanner", dbURI, false, false, false, 0, "", &conversion.IOStreams{In: f, Out: os.Stdout}, filePrefix, now)
+
+	args := fmt.Sprintf("-driver %s -prefix %s -instance %s -dbname %s < %s", conversion.MYSQLDUMP, filePrefix, instanceID, dbName, dataFilepath)
+	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +125,7 @@ func TestIntegration_MYSQLDUMP_SimpleUse(t *testing.T) {
 	checkResults(t, dbURI)
 }
 
-func TestIntegration_MYSQL_SimpleUse(t *testing.T) {
+func TestIntegration_MYSQL_Command(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
 
@@ -140,7 +137,8 @@ func TestIntegration_MYSQL_SimpleUse(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
-	err := cmd.CommandLine(ctx, conversion.MYSQL, "spanner", dbURI, false, false, false, 0, "", &conversion.IOStreams{Out: os.Stdout}, filePrefix, now)
+	args := fmt.Sprintf("-driver %s -prefix %s -instance %s -dbname %s", conversion.MYSQL, filePrefix, instanceID, dbName)
+	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
 	}
