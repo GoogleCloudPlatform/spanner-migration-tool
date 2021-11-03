@@ -168,7 +168,7 @@ func (c Config) quote(s string) string {
 // needs of PrintCreateTable.
 func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 	var s string
-	if c.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+	if c.TargetDb == constants.TargetExperimentalPostgres {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PGPrintColumnDefType())
 	} else {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
@@ -267,7 +267,7 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 
 	var interleave string
 	if ct.Parent != "" {
-		if config.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+		if config.TargetDb == constants.TargetExperimentalPostgres {
 			// PG spanner only supports PRIMARY KEY() inside the CREATE TABLE()
 			// and thus INTERLEAVE follows immediately after closing brace.
 			interleave = " INTERLEAVE IN PARENT " + config.quote(ct.Parent)
@@ -276,7 +276,7 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 		}
 	}
 
-	if config.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+	if config.TargetDb == constants.TargetExperimentalPostgres {
 		return fmt.Sprintf("%sCREATE TABLE %s (\n%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 	}
 	return fmt.Sprintf("%sCREATE TABLE %s (\n%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)

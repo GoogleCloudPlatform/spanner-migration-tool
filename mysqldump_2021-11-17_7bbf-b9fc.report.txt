@@ -1,0 +1,57 @@
+Generated at 2021-11-17 21:48:46 for db projects/sample-apps-intern/instances/ipham-test/databases/mysqldump_2021-11-17_7bbf-b9fc
+
+----------------------------
+Summary of Conversion
+----------------------------
+Schema conversion: EXCELLENT (all columns mapped cleanly).
+Data conversion: EXCELLENT (all 21 rows written to Spanner).
+
+The remainder of this report provides stats on the mysqldump statements
+processed, followed by a table-by-table listing of schema and data conversion
+details. For background on the schema and data conversion process used, and
+explanations of the terms and notes used in this report, see HarbourBridge's
+README.
+
+----------------------------
+Statements Processed
+----------------------------
+Analysis of statements in mysqldump output, broken down by statement type.
+  schema: statements successfully processed for Spanner schema information.
+    data: statements successfully processed for data.
+    skip: statements not relevant for Spanner schema or data.
+   error: statements that could not be processed.
+  --------------------------------------
+  schema   data   skip  error  statement
+  --------------------------------------
+       0      0      6      0  AlterTableStmt
+       3      0      0      0  CreateTableStmt
+       0      0      3      0  DropTableStmt
+       0      3      0      0  InsertStmt
+       0      0      3      0  LockTablesStmt
+       0      0      3      0  UnlockTablesStmt
+See https://github.com/pingcap/parser for definitions of statement types
+(pingcap/parser is the library we use for parsing mysqldump output).
+
+----------------------------
+Table Albums
+----------------------------
+Schema conversion: EXCELLENT (all columns mapped cleanly).
+Data conversion: EXCELLENT (all 7 rows written to Spanner).
+
+----------------------------
+Table Singers
+----------------------------
+Schema conversion: EXCELLENT (all columns mapped cleanly).
+Data conversion: EXCELLENT (all 5 rows written to Spanner).
+
+----------------------------
+Table Songs
+----------------------------
+Schema conversion: EXCELLENT (all columns mapped cleanly).
+Data conversion: EXCELLENT (all 9 rows written to Spanner).
+
+----------------------------
+Unexpected Conditions
+----------------------------
+There were no unexpected conditions encountered during processing.
+

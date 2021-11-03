@@ -119,7 +119,7 @@ func buildTableReport(conv *Conv, srcTable string, badWrites map[string]int64) t
 	if err != nil || !ok1 || !ok2 {
 		m := "bad source-DB-to-Spanner table mapping or Spanner schema"
 		conv.Unexpected("report: " + m)
-		tr.Body = []tableReportBody{tableReportBody{Heading: "Internal error: " + m}}
+		tr.Body = []tableReportBody{{Heading: "Internal error: " + m}}
 		return tr
 	}
 	issues, cols, warnings := analyzeCols(conv, srcTable, spTable)
@@ -247,7 +247,7 @@ func fillRowStats(conv *Conv, srcTable string, badWrites map[string]int64, tr *t
 	tr.badRows = badConvRows + badRowWrites
 }
 
-// Provides a description and severity for each schema issue.
+// IssueDB provides a description and severity for each schema issue.
 // Note on batch: for some issues, we'd like to report just the first instance
 // in a table and suppress other instances i.e. adding more instances
 // of the issue in the same table has little value and could be very noisy.

@@ -1503,7 +1503,7 @@ func runProcessPgDump(s string) (*internal.Conv, []spannerData) {
 
 func runProcessPgDumpPGTarget(s string) (*internal.Conv, []spannerData) {
 	conv := internal.MakeConv()
-	conv.TargetDb = constants.TARGET_EXPERIMENTAL_POSTGRES
+	conv.TargetDb = constants.TargetExperimentalPostgres
 	conv.SetLocation(time.UTC)
 	conv.SetSchemaMode()
 	pgDump := DbDumpImpl{}

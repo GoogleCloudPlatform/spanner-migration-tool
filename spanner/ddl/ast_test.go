@@ -91,7 +91,7 @@ func TestPrintColumnDefPG(t *testing.T) {
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, protectIds: true, expected: "`col1` INT8"},
 	}
 	for _, tc := range tests {
-		s, _ := tc.in.PrintColumnDef(Config{ProtectIds: tc.protectIds, TargetDb: constants.TARGET_EXPERIMENTAL_POSTGRES})
+		s, _ := tc.in.PrintColumnDef(Config{ProtectIds: tc.protectIds, TargetDb: constants.TargetExperimentalPostgres})
 		assert.Equal(t, tc.expected, s)
 	}
 }
@@ -108,7 +108,7 @@ func TestPrintIndexKey(t *testing.T) {
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.in.PrintIndexKey(Config{ProtectIds: tc.protectIds}))
-		assert.Equal(t, tc.expected, tc.in.PrintIndexKey(Config{ProtectIds: tc.protectIds, TargetDb: constants.TARGET_EXPERIMENTAL_POSTGRES}))
+		assert.Equal(t, tc.expected, tc.in.PrintIndexKey(Config{ProtectIds: tc.protectIds, TargetDb: constants.TargetExperimentalPostgres}))
 	}
 }
 
@@ -246,7 +246,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.ct.PrintCreateTable(Config{ProtectIds: tc.protectIds, TargetDb: constants.TARGET_EXPERIMENTAL_POSTGRES}))
+		assert.Equal(t, tc.expected, tc.ct.PrintCreateTable(Config{ProtectIds: tc.protectIds, TargetDb: constants.TargetExperimentalPostgres}))
 	}
 }
 
@@ -276,7 +276,7 @@ func TestPrintCreateIndex(t *testing.T) {
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.index.PrintCreateIndex(Config{ProtectIds: tc.protectIds}))
-		assert.Equal(t, tc.expected, tc.index.PrintCreateIndex(Config{ProtectIds: tc.protectIds, TargetDb: constants.TARGET_EXPERIMENTAL_POSTGRES}))
+		assert.Equal(t, tc.expected, tc.index.PrintCreateIndex(Config{ProtectIds: tc.protectIds, TargetDb: constants.TargetExperimentalPostgres}))
 	}
 }
 
@@ -307,7 +307,7 @@ func TestPrintForeignKey(t *testing.T) {
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.fk.PrintForeignKey(Config{ProtectIds: tc.protectIds}))
-		assert.Equal(t, tc.expected, tc.fk.PrintForeignKey(Config{ProtectIds: tc.protectIds, TargetDb: constants.TARGET_EXPERIMENTAL_POSTGRES}))
+		assert.Equal(t, tc.expected, tc.fk.PrintForeignKey(Config{ProtectIds: tc.protectIds, TargetDb: constants.TargetExperimentalPostgres}))
 	}
 }
 
@@ -339,7 +339,7 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.fk.PrintForeignKeyAlterTable(Config{ProtectIds: tc.protectIds}, tc.table))
-		assert.Equal(t, tc.expected, tc.fk.PrintForeignKeyAlterTable(Config{ProtectIds: tc.protectIds, TargetDb: constants.TARGET_EXPERIMENTAL_POSTGRES}, tc.table))
+		assert.Equal(t, tc.expected, tc.fk.PrintForeignKeyAlterTable(Config{ProtectIds: tc.protectIds, TargetDb: constants.TargetExperimentalPostgres}, tc.table))
 	}
 }
 
@@ -473,7 +473,7 @@ func TestGetPGDDL(t *testing.T) {
 		Fks:    []Foreignkey{{Name: "fk3", Columns: []string{"c"}, ReferTable: "ref_table3", ReferColumns: []string{"ref_c"}}},
 		Parent: "table1",
 	}
-	tablesOnly := s.GetDDL(Config{Tables: true, ForeignKeys: false, TargetDb: constants.TARGET_EXPERIMENTAL_POSTGRES})
+	tablesOnly := s.GetDDL(Config{Tables: true, ForeignKeys: false, TargetDb: constants.TargetExperimentalPostgres})
 	e := []string{
 		"CREATE TABLE table1 (\n" +
 			"	a INT8,\n" +
@@ -497,7 +497,7 @@ func TestGetPGDDL(t *testing.T) {
 	}
 	assert.ElementsMatch(t, e, tablesOnly)
 
-	fksOnly := s.GetDDL(Config{Tables: false, ForeignKeys: true, TargetDb: constants.TARGET_EXPERIMENTAL_POSTGRES})
+	fksOnly := s.GetDDL(Config{Tables: false, ForeignKeys: true, TargetDb: constants.TargetExperimentalPostgres})
 	e2 := []string{
 		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_b)",
 		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES ref_table2 (ref_b, ref_c)",
@@ -505,7 +505,7 @@ func TestGetPGDDL(t *testing.T) {
 	}
 	assert.ElementsMatch(t, e2, fksOnly)
 
-	tablesAndFks := s.GetDDL(Config{Tables: true, ForeignKeys: true, TargetDb: constants.TARGET_EXPERIMENTAL_POSTGRES})
+	tablesAndFks := s.GetDDL(Config{Tables: true, ForeignKeys: true, TargetDb: constants.TargetExperimentalPostgres})
 	e3 := []string{
 		"CREATE TABLE table1 (\n" +
 			"	a INT8,\n" +

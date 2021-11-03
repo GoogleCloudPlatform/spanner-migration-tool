@@ -1,0 +1,607 @@
+{
+ "SpSchema": {
+  "Albums": {
+   "Name": "Albums",
+   "ColNames": [
+    "SingerId",
+    "AlbumId",
+    "AlbumTitle",
+    "ReleaseDate"
+   ],
+   "ColDefs": {
+    "AlbumId": {
+     "Name": "AlbumId",
+     "T": {
+      "Name": "INT64",
+      "Len": 0,
+      "IsArray": false
+     },
+     "NotNull": true,
+     "Comment": "From: AlbumId bigint(20)"
+    },
+    "AlbumTitle": {
+     "Name": "AlbumTitle",
+     "T": {
+      "Name": "STRING",
+      "Len": 9223372036854775807,
+      "IsArray": false
+     },
+     "NotNull": false,
+     "Comment": "From: AlbumTitle text"
+    },
+    "ReleaseDate": {
+     "Name": "ReleaseDate",
+     "T": {
+      "Name": "DATE",
+      "Len": 0,
+      "IsArray": false
+     },
+     "NotNull": false,
+     "Comment": "From: ReleaseDate date"
+    },
+    "SingerId": {
+     "Name": "SingerId",
+     "T": {
+      "Name": "INT64",
+      "Len": 0,
+      "IsArray": false
+     },
+     "NotNull": true,
+     "Comment": "From: SingerId bigint(20)"
+    }
+   },
+   "Pks": [
+    {
+     "Col": "SingerId",
+     "Desc": false
+    },
+    {
+     "Col": "AlbumId",
+     "Desc": false
+    }
+   ],
+   "Fks": null,
+   "Indexes": null,
+   "Parent": "",
+   "Comment": "Spanner schema for source table Albums"
+  },
+  "Singers": {
+   "Name": "Singers",
+   "ColNames": [
+    "SingerId",
+    "FirstName",
+    "LastName",
+    "BirthDate"
+   ],
+   "ColDefs": {
+    "BirthDate": {
+     "Name": "BirthDate",
+     "T": {
+      "Name": "DATE",
+      "Len": 0,
+      "IsArray": false
+     },
+     "NotNull": false,
+     "Comment": "From: BirthDate date"
+    },
+    "FirstName": {
+     "Name": "FirstName",
+     "T": {
+      "Name": "STRING",
+      "Len": 9223372036854775807,
+      "IsArray": false
+     },
+     "NotNull": false,
+     "Comment": "From: FirstName text"
+    },
+    "LastName": {
+     "Name": "LastName",
+     "T": {
+      "Name": "STRING",
+      "Len": 9223372036854775807,
+      "IsArray": false
+     },
+     "NotNull": false,
+     "Comment": "From: LastName text"
+    },
+    "SingerId": {
+     "Name": "SingerId",
+     "T": {
+      "Name": "INT64",
+      "Len": 0,
+      "IsArray": false
+     },
+     "NotNull": true,
+     "Comment": "From: SingerId bigint(20)"
+    }
+   },
+   "Pks": [
+    {
+     "Col": "SingerId",
+     "Desc": false
+    }
+   ],
+   "Fks": null,
+   "Indexes": null,
+   "Parent": "",
+   "Comment": "Spanner schema for source table Singers"
+  },
+  "Songs": {
+   "Name": "Songs",
+   "ColNames": [
+    "SingerId",
+    "AlbumId",
+    "TrackId",
+    "SongName"
+   ],
+   "ColDefs": {
+    "AlbumId": {
+     "Name": "AlbumId",
+     "T": {
+      "Name": "INT64",
+      "Len": 0,
+      "IsArray": false
+     },
+     "NotNull": true,
+     "Comment": "From: AlbumId bigint(20)"
+    },
+    "SingerId": {
+     "Name": "SingerId",
+     "T": {
+      "Name": "INT64",
+      "Len": 0,
+      "IsArray": false
+     },
+     "NotNull": true,
+     "Comment": "From: SingerId bigint(20)"
+    },
+    "SongName": {
+     "Name": "SongName",
+     "T": {
+      "Name": "STRING",
+      "Len": 9223372036854775807,
+      "IsArray": false
+     },
+     "NotNull": false,
+     "Comment": "From: SongName text"
+    },
+    "TrackId": {
+     "Name": "TrackId",
+     "T": {
+      "Name": "INT64",
+      "Len": 0,
+      "IsArray": false
+     },
+     "NotNull": true,
+     "Comment": "From: TrackId bigint(20)"
+    }
+   },
+   "Pks": [
+    {
+     "Col": "SingerId",
+     "Desc": false
+    },
+    {
+     "Col": "AlbumId",
+     "Desc": false
+    },
+    {
+     "Col": "TrackId",
+     "Desc": false
+    }
+   ],
+   "Fks": null,
+   "Indexes": null,
+   "Parent": "",
+   "Comment": "Spanner schema for source table Songs"
+  }
+ },
+ "SyntheticPKeys": {},
+ "SrcSchema": {
+  "Albums": {
+   "Name": "Albums",
+   "ColNames": [
+    "SingerId",
+    "AlbumId",
+    "AlbumTitle",
+    "ReleaseDate"
+   ],
+   "ColDefs": {
+    "AlbumId": {
+     "Name": "AlbumId",
+     "Type": {
+      "Name": "bigint",
+      "Mods": [
+       20
+      ],
+      "ArrayBounds": null
+     },
+     "NotNull": true,
+     "Ignored": {
+      "Check": false,
+      "Identity": false,
+      "Default": false,
+      "Exclusion": false,
+      "ForeignKey": false,
+      "AutoIncrement": false
+     }
+    },
+    "AlbumTitle": {
+     "Name": "AlbumTitle",
+     "Type": {
+      "Name": "text",
+      "Mods": null,
+      "ArrayBounds": null
+     },
+     "NotNull": false,
+     "Ignored": {
+      "Check": false,
+      "Identity": false,
+      "Default": false,
+      "Exclusion": false,
+      "ForeignKey": false,
+      "AutoIncrement": false
+     }
+    },
+    "ReleaseDate": {
+     "Name": "ReleaseDate",
+     "Type": {
+      "Name": "date",
+      "Mods": null,
+      "ArrayBounds": null
+     },
+     "NotNull": false,
+     "Ignored": {
+      "Check": false,
+      "Identity": false,
+      "Default": false,
+      "Exclusion": false,
+      "ForeignKey": false,
+      "AutoIncrement": false
+     }
+    },
+    "SingerId": {
+     "Name": "SingerId",
+     "Type": {
+      "Name": "bigint",
+      "Mods": [
+       20
+      ],
+      "ArrayBounds": null
+     },
+     "NotNull": true,
+     "Ignored": {
+      "Check": false,
+      "Identity": false,
+      "Default": false,
+      "Exclusion": false,
+      "ForeignKey": false,
+      "AutoIncrement": false
+     }
+    }
+   },
+   "PrimaryKeys": [
+    {
+     "Column": "SingerId",
+     "Desc": false
+    },
+    {
+     "Column": "AlbumId",
+     "Desc": false
+    }
+   ],
+   "ForeignKeys": null,
+   "Indexes": null
+  },
+  "Singers": {
+   "Name": "Singers",
+   "ColNames": [
+    "SingerId",
+    "FirstName",
+    "LastName",
+    "BirthDate"
+   ],
+   "ColDefs": {
+    "BirthDate": {
+     "Name": "BirthDate",
+     "Type": {
+      "Name": "date",
+      "Mods": null,
+      "ArrayBounds": null
+     },
+     "NotNull": false,
+     "Ignored": {
+      "Check": false,
+      "Identity": false,
+      "Default": false,
+      "Exclusion": false,
+      "ForeignKey": false,
+      "AutoIncrement": false
+     }
+    },
+    "FirstName": {
+     "Name": "FirstName",
+     "Type": {
+      "Name": "text",
+      "Mods": null,
+      "ArrayBounds": null
+     },
+     "NotNull": false,
+     "Ignored": {
+      "Check": false,
+      "Identity": false,
+      "Default": false,
+      "Exclusion": false,
+      "ForeignKey": false,
+      "AutoIncrement": false
+     }
+    },
+    "LastName": {
+     "Name": "LastName",
+     "Type": {
+      "Name": "text",
+      "Mods": null,
+      "ArrayBounds": null
+     },
+     "NotNull": false,
+     "Ignored": {
+      "Check": false,
+      "Identity": false,
+      "Default": false,
+      "Exclusion": false,
+      "ForeignKey": false,
+      "AutoIncrement": false
+     }
+    },
+    "SingerId": {
+     "Name": "SingerId",
+     "Type": {
+      "Name": "bigint",
+      "Mods": [
+       20
+      ],
+      "ArrayBounds": null
+     },
+     "NotNull": true,
+     "Ignored": {
+      "Check": false,
+      "Identity": false,
+      "Default": false,
+      "Exclusion": false,
+      "ForeignKey": false,
+      "AutoIncrement": false
+     }
+    }
+   },
+   "PrimaryKeys": [
+    {
+     "Column": "SingerId",
+     "Desc": false
+    }
+   ],
+   "ForeignKeys": null,
+   "Indexes": null
+  },
+  "Songs": {
+   "Name": "Songs",
+   "ColNames": [
+    "SingerId",
+    "AlbumId",
+    "TrackId",
+    "SongName"
+   ],
+   "ColDefs": {
+    "AlbumId": {
+     "Name": "AlbumId",
+     "Type": {
+      "Name": "bigint",
+      "Mods": [
+       20
+      ],
+      "ArrayBounds": null
+     },
+     "NotNull": true,
+     "Ignored": {
+      "Check": false,
+      "Identity": false,
+      "Default": false,
+      "Exclusion": false,
+      "ForeignKey": false,
+      "AutoIncrement": false
+     }
+    },
+    "SingerId": {
+     "Name": "SingerId",
+     "Type": {
+      "Name": "bigint",
+      "Mods": [
+       20
+      ],
+      "ArrayBounds": null
+     },
+     "NotNull": true,
+     "Ignored": {
+      "Check": false,
+      "Identity": false,
+      "Default": false,
+      "Exclusion": false,
+      "ForeignKey": false,
+      "AutoIncrement": false
+     }
+    },
+    "SongName": {
+     "Name": "SongName",
+     "Type": {
+      "Name": "text",
+      "Mods": null,
+      "ArrayBounds": null
+     },
+     "NotNull": false,
+     "Ignored": {
+      "Check": false,
+      "Identity": false,
+      "Default": false,
+      "Exclusion": false,
+      "ForeignKey": false,
+      "AutoIncrement": false
+     }
+    },
+    "TrackId": {
+     "Name": "TrackId",
+     "Type": {
+      "Name": "bigint",
+      "Mods": [
+       20
+      ],
+      "ArrayBounds": null
+     },
+     "NotNull": true,
+     "Ignored": {
+      "Check": false,
+      "Identity": false,
+      "Default": false,
+      "Exclusion": false,
+      "ForeignKey": false,
+      "AutoIncrement": false
+     }
+    }
+   },
+   "PrimaryKeys": [
+    {
+     "Column": "SingerId",
+     "Desc": false
+    },
+    {
+     "Column": "AlbumId",
+     "Desc": false
+    },
+    {
+     "Column": "TrackId",
+     "Desc": false
+    }
+   ],
+   "ForeignKeys": null,
+   "Indexes": null
+  }
+ },
+ "Issues": {
+  "Albums": {},
+  "Singers": {},
+  "Songs": {}
+ },
+ "ToSpanner": {
+  "Albums": {
+   "Name": "Albums",
+   "Cols": {
+    "AlbumId": "AlbumId",
+    "AlbumTitle": "AlbumTitle",
+    "ReleaseDate": "ReleaseDate",
+    "SingerId": "SingerId"
+   }
+  },
+  "Singers": {
+   "Name": "Singers",
+   "Cols": {
+    "BirthDate": "BirthDate",
+    "FirstName": "FirstName",
+    "LastName": "LastName",
+    "SingerId": "SingerId"
+   }
+  },
+  "Songs": {
+   "Name": "Songs",
+   "Cols": {
+    "AlbumId": "AlbumId",
+    "SingerId": "SingerId",
+    "SongName": "SongName",
+    "TrackId": "TrackId"
+   }
+  }
+ },
+ "ToSource": {
+  "Albums": {
+   "Name": "Albums",
+   "Cols": {
+    "AlbumId": "AlbumId",
+    "AlbumTitle": "AlbumTitle",
+    "ReleaseDate": "ReleaseDate",
+    "SingerId": "SingerId"
+   }
+  },
+  "Singers": {
+   "Name": "Singers",
+   "Cols": {
+    "BirthDate": "BirthDate",
+    "FirstName": "FirstName",
+    "LastName": "LastName",
+    "SingerId": "SingerId"
+   }
+  },
+  "Songs": {
+   "Name": "Songs",
+   "Cols": {
+    "AlbumId": "AlbumId",
+    "SingerId": "SingerId",
+    "SongName": "SongName",
+    "TrackId": "TrackId"
+   }
+  }
+ },
+ "UsedNames": {
+  "albums": true,
+  "singers": true,
+  "songs": true
+ },
+ "Location": {},
+ "Stats": {
+  "Rows": {
+   "Albums": 7,
+   "Singers": 5,
+   "Songs": 9
+  },
+  "GoodRows": {},
+  "BadRows": {},
+  "Statement": {
+   "AlterTableStmt": {
+    "Schema": 0,
+    "Data": 0,
+    "Skip": 6,
+    "Error": 0
+   },
+   "CreateTableStmt": {
+    "Schema": 3,
+    "Data": 0,
+    "Skip": 0,
+    "Error": 0
+   },
+   "DropTableStmt": {
+    "Schema": 0,
+    "Data": 0,
+    "Skip": 3,
+    "Error": 0
+   },
+   "InsertStmt": {
+    "Schema": 0,
+    "Data": 3,
+    "Skip": 0,
+    "Error": 0
+   },
+   "LockTablesStmt": {
+    "Schema": 0,
+    "Data": 0,
+    "Skip": 3,
+    "Error": 0
+   },
+   "UnlockTablesStmt": {
+    "Schema": 0,
+    "Data": 0,
+    "Skip": 3,
+    "Error": 0
+   }
+  },
+  "Unexpected": {},
+  "Reparsed": 0
+ },
+ "TimezoneOffset": "+00:00",
+ "TargetDb": "spanner"
+}

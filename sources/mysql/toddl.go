@@ -32,7 +32,7 @@ type ToDdlImpl struct {
 // conversion issues encountered.
 func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	ty, issues := toSpannerTypeInternal(conv, columnType.Name, columnType.Mods)
-	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+	if conv.TargetDb == constants.TargetExperimentalPostgres {
 		ty = overrideExperimentalType(columnType, ty)
 	} else {
 		if len(columnType.ArrayBounds) > 1 {

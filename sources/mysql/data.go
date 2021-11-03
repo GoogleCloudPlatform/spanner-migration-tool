@@ -178,7 +178,7 @@ func convInt64(val string) (int64, error) {
 // convNumeric maps a source database string value (representing a numeric)
 // into a string representing a valid Spanner numeric.
 func convNumeric(conv *internal.Conv, val string) (interface{}, error) {
-	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+	if conv.TargetDb == constants.TargetExperimentalPostgres {
 		return spanner.PGNumeric{Numeric: val, Valid: true}, nil
 	} else {
 		r := new(big.Rat)

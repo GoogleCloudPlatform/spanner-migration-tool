@@ -1,0 +1,20 @@
+CREATE TABLE `Albums` (
+    `SingerId` INT64 NOT NULL,
+    `AlbumId` INT64 NOT NULL,
+    `AlbumTitle` STRING(MAX),
+    `ReleaseDate` DATE 
+) PRIMARY KEY (`SingerId`, `AlbumId`);
+
+CREATE TABLE `Singers` (
+    `SingerId` INT64 NOT NULL,
+    `FirstName` STRING(MAX),
+    `LastName` STRING(MAX),
+    `BirthDate` DATE 
+) PRIMARY KEY (`SingerId`);
+
+CREATE TABLE `Songs` (
+    `SingerId` INT64 NOT NULL,
+    `AlbumId` INT64 NOT NULL,
+    `TrackId` INT64 NOT NULL,
+    `SongName` STRING(MAX) 
+) PRIMARY KEY (`SingerId`, `AlbumId`, `TrackId`)
