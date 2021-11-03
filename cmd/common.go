@@ -28,7 +28,7 @@ func parseProfile(s string) (map[string]string, error) {
 	if len(records) > 1 {
 		return params, fmt.Errorf("contains invalid newline characters")
 	}
-	
+
 	for _, kv := range records[0] {
 		s := strings.Split(strings.TrimSpace(kv), "=")
 		if len(s) != 2 {
