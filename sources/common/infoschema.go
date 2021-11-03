@@ -167,6 +167,7 @@ func processTable(conv *internal.Conv, db *sql.DB, table SchemaAndName, infoSche
 			for _, constraint := range constraintList {
 				if constraint == "UNIQUE" {
 					schemaPKeys = append(schemaPKeys, schema.Key{Column: col})
+					break
 				}
 			}
 		}
