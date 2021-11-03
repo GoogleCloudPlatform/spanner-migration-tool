@@ -37,16 +37,22 @@ func (cmd *SchemaCmd) Usage() string {
 	return fmt.Sprintf(`%v schema -source=[source] -source-profile="key1=value1,key2=value2" ...
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 00e463e (Add data and eval subcommands to harbourbridge command line interface (#212))
 Convert schema for source db specified by source and source-profile. Source db
 dump file can be specified by either file param in source-profile or piped to
 stdin. Connection profile for source databases in direct connect mode can be
 specified by setting appropriate environment variables. The schema flags are:
+<<<<<<< HEAD
 =======
 Convert schema for source db specified by driver. Source db dump file can be
 specified by either file param in source-profile or piped to stdin. Connection
 profile for source databases in direct connect mode can be specified by setting
 appropriate environment variables. The schema flags are:
 >>>>>>> 6522c9b (Add support for source-profile and target-profile in subcommands. (#208))
+=======
+>>>>>>> 00e463e (Add data and eval subcommands to harbourbridge command line interface (#212))
 `, path.Base(os.Args[0]))
 }
 
@@ -61,6 +67,9 @@ func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
 
 func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 00e463e (Add data and eval subcommands to harbourbridge command line interface (#212))
 	var err error
 	defer func() {
 		if err != nil {
@@ -68,6 +77,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		}
 	}()
 
+<<<<<<< HEAD
 	sourceProfile, err := NewSourceProfile(cmd.sourceProfile, cmd.source)
 	if err != nil {
 		return subcommands.ExitUsageError
@@ -76,23 +86,33 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	if err != nil {
 		return subcommands.ExitUsageError
 =======
+=======
+>>>>>>> 00e463e (Add data and eval subcommands to harbourbridge command line interface (#212))
 	sourceProfile, err := NewSourceProfile(cmd.sourceProfile, cmd.source)
 	if err != nil {
-		panic(err)
+		return subcommands.ExitUsageError
 	}
 	driverName, err := sourceProfile.ToLegacyDriver(cmd.source)
 	if err != nil {
+<<<<<<< HEAD
 		panic(err)
 >>>>>>> 6522c9b (Add support for source-profile and target-profile in subcommands. (#208))
+=======
+		return subcommands.ExitUsageError
+>>>>>>> 00e463e (Add data and eval subcommands to harbourbridge command line interface (#212))
 	}
 
 	targetProfile, err := NewTargetProfile(cmd.targetProfile)
 	if err != nil {
 <<<<<<< HEAD
+<<<<<<< HEAD
 		return subcommands.ExitUsageError
 =======
 		panic(err)
 >>>>>>> 6522c9b (Add support for source-profile and target-profile in subcommands. (#208))
+=======
+		return subcommands.ExitUsageError
+>>>>>>> 00e463e (Add data and eval subcommands to harbourbridge command line interface (#212))
 	}
 	targetDb := targetProfile.ToLegacyTargetDb()
 
@@ -110,11 +130,16 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		dbName, err := conversion.GetDatabaseName(driverName, time.Now())
 		if err != nil {
 <<<<<<< HEAD
+<<<<<<< HEAD
 			err = fmt.Errorf("can't generate database name for prefix: %v", err)
 			return subcommands.ExitFailure
 =======
 			panic(fmt.Errorf("can't generate database name for prefix: %v", err))
 >>>>>>> 6522c9b (Add support for source-profile and target-profile in subcommands. (#208))
+=======
+			err = fmt.Errorf("can't generate database name for prefix: %v", err)
+			return subcommands.ExitFailure
+>>>>>>> 00e463e (Add data and eval subcommands to harbourbridge command line interface (#212))
 		}
 		cmd.filePrefix = dbName + "."
 	}
@@ -131,10 +156,14 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	conv, err = conversion.SchemaConv(driverName, targetDb, &ioHelper, schemaSampleSize)
 	if err != nil {
 <<<<<<< HEAD
+<<<<<<< HEAD
 		return subcommands.ExitFailure
 =======
 		panic(err)
 >>>>>>> 6522c9b (Add support for source-profile and target-profile in subcommands. (#208))
+=======
+		return subcommands.ExitFailure
+>>>>>>> 00e463e (Add data and eval subcommands to harbourbridge command line interface (#212))
 	}
 
 	now := time.Now()

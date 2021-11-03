@@ -2,6 +2,7 @@ package cmd
 
 import (
 <<<<<<< HEAD
+<<<<<<< HEAD
 	"context"
 	"encoding/csv"
 	"fmt"
@@ -11,10 +12,20 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 =======
+=======
+	"context"
+>>>>>>> 00e463e (Add data and eval subcommands to harbourbridge command line interface (#212))
 	"encoding/csv"
 	"fmt"
+	"os"
 	"strings"
+<<<<<<< HEAD
 >>>>>>> 6522c9b (Add support for source-profile and target-profile in subcommands. (#208))
+=======
+	"time"
+
+	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+>>>>>>> 00e463e (Add data and eval subcommands to harbourbridge command line interface (#212))
 )
 
 // Parses input string `s` as a map of key-value pairs. It's expected that the
@@ -53,6 +64,9 @@ func parseProfile(s string) (map[string]string, error) {
 	return params, nil
 }
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 00e463e (Add data and eval subcommands to harbourbridge command line interface (#212))
 
 func getResourceIds(ctx context.Context, targetProfile TargetProfile, now time.Time, driverName string, out *os.File) (string, string, string, error) {
 	var err error
@@ -84,5 +98,8 @@ func getResourceIds(ctx context.Context, targetProfile TargetProfile, now time.T
 	}
 	return project, instance, dbName, err
 }
+<<<<<<< HEAD
 =======
 >>>>>>> 6522c9b (Add support for source-profile and target-profile in subcommands. (#208))
+=======
+>>>>>>> 00e463e (Add data and eval subcommands to harbourbridge command line interface (#212))
