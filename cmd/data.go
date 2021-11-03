@@ -89,7 +89,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	}
 
 	now := time.Now()
-	project, instance, dbName, err := getSpannerIds(ctx, targetProfile, now, driverName, ioHelper.Out)
+	project, instance, dbName, err := getResourceIds(ctx, targetProfile, now, driverName, ioHelper.Out)
 	if err != nil {
 		return subcommands.ExitUsageError
 	}

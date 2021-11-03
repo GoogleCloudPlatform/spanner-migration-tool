@@ -115,7 +115,7 @@ func (cmd *EvalCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
 	conversion.Report(driverName, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
 
-	project, instance, dbName, err := getSpannerIds(ctx, targetProfile, now, driverName, ioHelper.Out)
+	project, instance, dbName, err := getResourceIds(ctx, targetProfile, now, driverName, ioHelper.Out)
 	if err != nil {
 		return subcommands.ExitUsageError
 	}

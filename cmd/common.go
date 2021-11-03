@@ -47,7 +47,7 @@ func parseProfile(s string) (map[string]string, error) {
 	return params, nil
 }
 
-func getSpannerIds(ctx context.Context, targetProfile TargetProfile, now time.Time, driverName string, out *os.File) (string, string, string, error) {
+func getResourceIds(ctx context.Context, targetProfile TargetProfile, now time.Time, driverName string, out *os.File) (string, string, string, error) {
 	var err error
 	project := targetProfile.conn.sp.project
 	if project == "" {
