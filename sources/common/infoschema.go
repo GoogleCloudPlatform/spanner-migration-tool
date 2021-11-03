@@ -23,6 +23,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
+// InfoSchema contains database information
 type InfoSchema interface {
 	GetToDdl() ToDdl
 	GetTableName(schema string, tableName string) string
@@ -37,11 +38,13 @@ type InfoSchema interface {
 	ProcessDataRows(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, rows *sql.Rows)
 }
 
+// SchemaAndName contains the schema and name for a table
 type SchemaAndName struct {
 	Schema string
 	Name   string
 }
 
+// FkConstraint contains foreign key constraints
 type FkConstraint struct {
 	Name    string
 	Table   string

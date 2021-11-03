@@ -39,7 +39,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// This interface is meant to be implemented by all sources. When support for a
+// ToDdl interface is meant to be implemented by all sources. When support for a
 // new target database is added, please add a new method here with the output
 // type expected. In case a particular source to target transoformation is not
 // supported, an error is to be returned by the corresponding method.
@@ -47,7 +47,7 @@ type ToDdl interface {
 	ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue)
 }
 
-// schemaToSpannerDDL performs schema conversion from the source DB schema to
+// SchemaToSpannerDDL performs schema conversion from the source DB schema to
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
 func SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error {
