@@ -32,15 +32,16 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// Postgres specific implementation for InfoSchema
+// InfoSchemaImpl postgres specific implementation for InfoSchema
 type InfoSchemaImpl struct {
 }
 
-//Functions below implement the common.InfoSchema interface
+// GetToDdl function below implement the common.InfoSchema interface
 func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
 }
 
+// GetTableName returns table name
 func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 	if schema == "public" { // Drop 'public' prefix.
 		return tableName
@@ -48,6 +49,7 @@ func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 	return fmt.Sprintf("%s.%s", schema, tableName)
 }
 
+// GetRowsFromTable returns a sql Rows object for a table
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) (*sql.Rows, error) {
 	// PostgreSQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
@@ -60,7 +62,7 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, db *sql.DB, tabl
 	return rows, err
 }
 
-// ProcessSQLData performs data conversion for source database
+// ProcessDataRows performs data conversion for source database
 // 'db'. For each table, we extract data using a "SELECT *" query,
 // convert the data to Spanner data (based on the source and Spanner
 // schemas), and write it to Spanner.  If we can't get/process data
@@ -159,6 +161,7 @@ func (isi InfoSchemaImpl) GetRowCount(db *sql.DB, table common.SchemaAndName) (i
 	return 0, nil //Check if 0 is ok to return
 }
 
+// GetTables return list of tables in the selected database.
 // TODO: All of the queries to get tables and table data should be in
 // a single transaction to ensure we obtain a consistent snapshot of
 // schema information and table data (pg_dump does something
@@ -186,6 +189,7 @@ func (isi InfoSchemaImpl) GetTables(db *sql.DB) ([]common.SchemaAndName, error) 
 	return tables, nil
 }
 
+// GetColumns returns a list of columns with their data type
 func (isi InfoSchemaImpl) GetColumns(table common.SchemaAndName, db *sql.DB) (*sql.Rows, error) {
 	q := `SELECT c.column_name, c.data_type, e.data_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale
               FROM information_schema.COLUMNS c LEFT JOIN information_schema.element_types e
@@ -195,6 +199,7 @@ func (isi InfoSchemaImpl) GetColumns(table common.SchemaAndName, db *sql.DB) (*s
 	return db.Query(q, table.Schema, table.Name)
 }
 
+// ProcessColumns
 func (isi InfoSchemaImpl) ProcessColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string) {
 	colDefs := make(map[string]schema.Column)
 	var colNames []string
@@ -232,7 +237,7 @@ func (isi InfoSchemaImpl) ProcessColumns(conv *internal.Conv, cols *sql.Rows, co
 	return colDefs, colNames
 }
 
-// getConstraints returns a list of primary keys and by-column map of
+// GetConstraints returns a list of primary keys and by-column map of
 // other constraints.  Note: we need to preserve ordinal order of
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
@@ -270,7 +275,7 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, db *sql.DB, table 
 	return primaryKeys, m, nil
 }
 
-// getForeignKeys returns a list of all the foreign key constraints.
+// GetForeignKeys returns a list of all the foreign key constraints.
 func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
 	q := `SELECT 
 		schema_name AS "TABLE_SCHEMA", 
@@ -335,7 +340,7 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, db *sql.DB, table 
 	return foreignKeys, nil
 }
 
-// getIndexes return a list of all indexes for the specified table.
+// GetIndexes return a list of all indexes for the specified table.
 // Note: Extracting index definitions from PostgreSQL information schema tables is complex.
 // See https://stackoverflow.com/questions/6777456/list-all-index-names-column-names-and-its-table-name-of-a-postgresql-database/44460269#44460269
 // for background.
@@ -512,7 +517,7 @@ func cvtSQLScalar(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, 
 		case time.Time:
 			return v, nil
 		}
-	case ddl.Json:
+	case ddl.JSON:
 		switch v := val.(type) {
 		case string:
 			return string(v), nil

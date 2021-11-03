@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package postgres handles schema and data migrations from Postgres
 package postgres
 
 import (
@@ -21,11 +22,11 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// Postgres specific implementation for ToDdl
+// ToDdlImpl Postgres specific implementation for ToDdl
 type ToDdlImpl struct {
 }
 
-// toSpannerType maps a scalar source schema type (defined by id and
+// ToSpannerType maps a scalar source schema type (defined by id and
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
@@ -102,7 +103,7 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 		}
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "json", "jsonb":
-		return ddl.Type{Name: ddl.Json}, nil
+		return ddl.Type{Name: ddl.JSON}, nil
 	}
 	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 }

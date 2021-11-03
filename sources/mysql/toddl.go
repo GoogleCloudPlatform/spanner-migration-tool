@@ -22,15 +22,15 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// MySQL specific implementation for ToDdl
+// ToDdlImpl MySQL specific implementation for ToDdl
 type ToDdlImpl struct {
 }
 
-// Functions below implement the common.ToDdl interface
-// toSpannerType maps a scalar source schema type (defined by id and
+// ToSpannerType maps a scalar source schema type (defined by id and
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
+// Functions below implement the common.ToDdl interface
 func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	ty, issues := toSpannerTypeInternal(conv, columnType.Name, columnType.Mods)
 	if conv.TargetDb == constants.TargetExperimentalPostgres {
@@ -84,7 +84,7 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 	case "set", "enum":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "json":
-		return ddl.Type{Name: ddl.Json}, nil
+		return ddl.Type{Name: ddl.JSON}, nil
 	case "binary", "varbinary":
 		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 	case "tinyblob", "mediumblob", "blob", "longblob":

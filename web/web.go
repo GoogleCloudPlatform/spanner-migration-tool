@@ -43,7 +43,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
-	_ "github.com/lib/pq"
 )
 
 // TODO:(searce):
@@ -342,7 +341,7 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 	srcTableName := sessionState.conv.ToSource[table].Name
 	for colName, v := range t.UpdateCols {
 		if v.Removed {
-			err, status := canRemoveColumn(colName, table)
+			status, err := canRemoveColumn(colName, table)
 			if err != nil {
 				err = rollback(err)
 				http.Error(w, fmt.Sprintf("%v", err), status)
@@ -439,6 +438,7 @@ func getReportFile(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(reportAbsPath))
 }
 
+// TableInterleaveStatus
 type TableInterleaveStatus struct {
 	Possible bool
 	Parent   string
@@ -856,19 +856,19 @@ func isReferencedByFK(col, table string) (bool, string) {
 	return false, ""
 }
 
-func canRemoveColumn(colName, table string) (error, int) {
+func canRemoveColumn(colName, table string) (int, error) {
 	if isPartOfPK := isPartOfPK(colName, table); isPartOfPK {
-		return fmt.Errorf("column is part of primary key"), http.StatusBadRequest
+		return http.StatusBadRequest, fmt.Errorf("column is part of primary key")
 	}
 	if isPartOfSecondaryIndex, _ := isPartOfSecondaryIndex(colName, table); isPartOfSecondaryIndex {
-		return fmt.Errorf("column is part of secondary index, remove secondary index before making the update"), http.StatusPreconditionFailed
+		return http.StatusPreconditionFailed, fmt.Errorf("column is part of secondary index, remove secondary index before making the update")
 	}
 	isPartOfFK := isPartOfFK(colName, table)
 	isReferencedByFK, _ := isReferencedByFK(colName, table)
 	if isPartOfFK || isReferencedByFK {
-		return fmt.Errorf("column is part of foreign key relation, remove foreign key constraint before making the update"), http.StatusPreconditionFailed
+		return http.StatusPreconditionFailed, fmt.Errorf("column is part of foreign key relation, remove foreign key constraint before making the update")
 	}
-	return nil, http.StatusOK
+	return http.StatusOK, nil
 }
 
 func canRenameOrChangeType(colName, table string) (error, int) {
@@ -888,10 +888,9 @@ func canRenameOrChangeType(colName, table string) (error, int) {
 		if isReferencedByFK {
 			return fmt.Errorf("Column : '%s' in table : '%s' is part of foreign key relation with table : '%s', remove foreign key constraint before making the update",
 				colName, table, relationTable), http.StatusPreconditionFailed
-		} else {
-			return fmt.Errorf("Column : '%s' in table : '%s' is part of foreign keys, remove foreign key constraint before making the update",
-				colName, table), http.StatusPreconditionFailed
 		}
+		return fmt.Errorf("Column : '%s' in table : '%s' is part of foreign keys, remove foreign key constraint before making the update",
+			colName, table), http.StatusPreconditionFailed
 	}
 	return nil, http.StatusOK
 }
@@ -1102,6 +1101,7 @@ func getFilePrefix(now time.Time) (string, error) {
 	return dbName + ".", nil
 }
 
+// SessionState stores information for the current migration session
 type SessionState struct {
 	sourceDB    *sql.DB        // Connection to source database in case of direct connection
 	dbName      string         // Name of source database
@@ -1160,7 +1160,8 @@ func init() {
 	sessionState.conv = internal.MakeConv()
 }
 
-func WebApp() {
+// WebApp connects to the web app
+func App() {
 	addr := ":8080"
 	router := getRoutes()
 	log.Printf("Starting server at port 8080\n")

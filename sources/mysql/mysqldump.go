@@ -47,13 +47,15 @@ var spatialRegexps = func() []*regexp.Regexp {
 var spatialIndexRegex = regexp.MustCompile("(?i)\\sSPATIAL\\s")
 var spatialSridRegex = regexp.MustCompile("(?i)\\sSRID\\s\\d*")
 
+// DbDumpImpl
 type DbDumpImpl struct{}
 
-//Functions below implement the common.DbDump interface
+// GetToDdl function below implement the common.DbDump interface
 func (ddi DbDumpImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
 }
 
+// ProcessDump processes the mysql dump
 func (ddi DbDumpImpl) ProcessDump(conv *internal.Conv, r *internal.Reader) error {
 	return processMySQLDump(conv, r)
 }
@@ -161,7 +163,7 @@ func processStatement(conv *internal.Conv, stmt ast.StmtNode) bool {
 
 func processCreateIndex(conv *internal.Conv, stmt *ast.CreateIndexStmt) {
 	if stmt.Table == nil {
-		logStmtError(conv, stmt, fmt.Errorf("cannot process index statement with nil table."))
+		logStmtError(conv, stmt, fmt.Errorf("cannot process index statement with nil table"))
 		return
 	}
 	tableName, err := getTableName(stmt.Table)

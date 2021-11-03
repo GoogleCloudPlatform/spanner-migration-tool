@@ -49,7 +49,7 @@ const (
 	// Numeric represent NUMERIC type.
 	Numeric string = "NUMERIC"
 	// Json represent JSON type.
-	Json string = "JSON"
+	JSON string = "JSON"
 	// MaxLength is a sentinel for Type's Len field, representing the MAX value.
 	MaxLength = math.MaxInt64
 
@@ -320,8 +320,10 @@ func (k Foreignkey) PrintForeignKeyAlterTable(c Config, tableName string) string
 	return fmt.Sprintf("ALTER TABLE %s ADD %sFOREIGN KEY (%s) REFERENCES %s (%s)", c.quote(tableName), s, strings.Join(cols, ", "), c.quote(k.ReferTable), strings.Join(referCols, ", "))
 }
 
+// Schema
 type Schema map[string]CreateTable
 
+// NewSchema
 func NewSchema() Schema {
 	return make(map[string]CreateTable)
 }
