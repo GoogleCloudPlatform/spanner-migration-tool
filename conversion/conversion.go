@@ -20,7 +20,6 @@
 // 			key public type definitions next (although often it makes sense to put them next to public functions that use them)
 // 			then public functions (and relevant type definitions)
 // 			and helper functions and other non-public definitions last (generally in order of importance)
-
 package conversion
 
 import (
@@ -74,6 +73,7 @@ var (
 	MaxWorkers = 20
 )
 
+// SchemaConv performs the schema conversion
 // The sqlConnectionStr param provides the connection details to use the go SQL library.
 // It is empty in the following cases:
 //  - Driver is DynamoDB or a dump file mode.
@@ -92,6 +92,7 @@ func SchemaConv(driver, sqlConnectionStr, targetDb string, ioHelper *IOStreams, 
 	}
 }
 
+// DataConv performs the data conversion
 // The sqlConnectionStr param provides the connection details to use the go SQL library.
 // It is empty in the following cases:
 //  - Driver is DynamoDB or a dump file mode.
@@ -308,6 +309,7 @@ func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv 
 	return writer, nil
 }
 
+// IOStreams is a struct that contains the file descriptor for dumpFile
 type IOStreams struct {
 	In, SeekableIn, Out *os.File
 	BytesRead           int64
@@ -564,11 +566,12 @@ func ValidateDDL(ctx context.Context, adminClient *database.DatabaseAdminClient,
 		return fmt.Errorf("can't fetch database ddl: %v", err)
 	}
 	if len(dbDdl.Statements) != 0 {
-		return fmt.Errorf("HarbourBridge supports writing to existing databases only if they have an empty schema")
+		return fmt.Errorf("harbourBridge supports writing to existing databases only if they have an empty schema")
 	}
 	return nil
 }
 
+// CreatesOrUpdatesDatabase updates an existing Spanner database or creates a new one if one does not exist
 func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File) error {
 	dbExists, err := VerifyDb(ctx, adminClient, dbURI)
 	if err != nil {
@@ -630,6 +633,7 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 	return nil
 }
 
+// UpdateDatabase updates an existing spanner database
 func UpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File) error {
 	fmt.Fprintf(out, "Updating schema for %s with default permissions ... \n", dbURI)
 	// The schema we send to Spanner excludes comments (since Cloud
