@@ -227,6 +227,28 @@ func TestIntegration_DYNAMODB_SimpleUse(t *testing.T) {
 	checkResults(t, dbURI)
 }
 
+func TestIntegration_DYNAMODB_Eval(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	t.Parallel()
+
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	now := time.Now()
+	dbName, _ := conversion.GetDatabaseName(conversion.DYNAMODB, now)
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	filePrefix := filepath.Join(tmpdir, dbName+".")
+
+	err := cmd.CommandLine(ctx, conversion.DYNAMODB, "spanner", dbURI, false, false, false, 0, "", &conversion.IOStreams{Out: os.Stdout}, filePrefix, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Drop the database later.
+	defer dropDatabase(t, dbURI)
+
+	checkResults(t, dbURI)
+}
+
 func checkResults(t *testing.T, dbURI string) {
 	// Make a query to check results.
 	client, err := spanner.NewClient(ctx, dbURI)

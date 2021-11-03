@@ -15,20 +15,19 @@
 package mysql_test
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/cmd"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
 
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
@@ -152,28 +151,17 @@ func TestIntegration_MYSQL_SimpleUse(t *testing.T) {
 }
 
 func runSchemaOnly(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string) {
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -driver mysqldump -schema-only -dbname %s -prefix %s < %s", dbName, filePrefix, dumpFilePath))
-	var out, stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		log.Printf("stdout: %q\n", out.String())
-		log.Printf("stderr: %q\n", stderr.String())
+	args := fmt.Sprintf("-driver mysqldump -schema-only -dbname %s -prefix %s < %s", dbName, filePrefix, dumpFilePath)
+	err := common.RunCommand(args, projectID)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func runDataOnly(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dumpFilePath string) {
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -driver mysqldump -data-only -instance %s -dbname %s -prefix %s -session %s < %s", instanceID, dbName, filePrefix, sessionFile, dumpFilePath))
-	var out, stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	cmd.Env = append(os.Environ(),
-		fmt.Sprintf("GCLOUD_PROJECT=%s", projectID),
-	)
-	if err := cmd.Run(); err != nil {
-		log.Printf("stdout: %q\n", out.String())
-		log.Printf("stderr: %q\n", stderr.String())
+	args := fmt.Sprintf("-driver mysqldump -data-only -instance %s -dbname %s -prefix %s -session %s < %s", instanceID, dbName, filePrefix, sessionFile, dumpFilePath)
+	err := common.RunCommand(args, projectID)
+	if err != nil {
 		t.Fatal(err)
 	}
 }

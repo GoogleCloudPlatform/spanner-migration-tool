@@ -106,6 +106,7 @@ func main() {
 		subcommands.Register(subcommands.CommandsCommand(), "")
 		subcommands.Register(&cmd.SchemaCmd{}, "")
 		subcommands.Register(&cmd.DataCmd{}, "")
+		subcommands.Register(&cmd.EvalCmd{}, "")
 		flag.Parse()
 		os.Exit(int(subcommands.Execute(ctx)))
 	}

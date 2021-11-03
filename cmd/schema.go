@@ -53,18 +53,25 @@ func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
 }
 
 func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+	var err error
+	defer func() {
+		if err != nil {
+			fmt.Printf("FATAL error: %v\n", err)
+		}
+	}()
+
 	sourceProfile, err := NewSourceProfile(cmd.sourceProfile, cmd.source)
 	if err != nil {
-		panic(err)
+		return subcommands.ExitUsageError
 	}
 	driverName, err := sourceProfile.ToLegacyDriver(cmd.source)
 	if err != nil {
-		panic(err)
+		return subcommands.ExitUsageError
 	}
 
 	targetProfile, err := NewTargetProfile(cmd.targetProfile)
 	if err != nil {
-		panic(err)
+		return subcommands.ExitUsageError
 	}
 	targetDb := targetProfile.ToLegacyTargetDb()
 
@@ -81,7 +88,8 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	if cmd.filePrefix == "" {
 		dbName, err := conversion.GetDatabaseName(driverName, time.Now())
 		if err != nil {
-			panic(fmt.Errorf("can't generate database name for prefix: %v", err))
+			err = fmt.Errorf("can't generate database name for prefix: %v", err)
+			return subcommands.ExitFailure
 		}
 		cmd.filePrefix = dbName + "."
 	}
@@ -97,7 +105,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	var conv *internal.Conv
 	conv, err = conversion.SchemaConv(driverName, targetDb, &ioHelper, schemaSampleSize)
 	if err != nil {
-		panic(err)
+		return subcommands.ExitFailure
 	}
 
 	now := time.Now()

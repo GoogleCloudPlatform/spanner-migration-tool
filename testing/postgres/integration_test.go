@@ -15,7 +15,6 @@
 package postgres_test
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -23,7 +22,6 @@ import (
 	"log"
 	"math/big"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -33,6 +31,7 @@ import (
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/cmd"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
 	"google.golang.org/api/iterator"
 	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
@@ -143,23 +142,13 @@ func TestIntegration_PGDUMP_Command(t *testing.T) {
 
 	dataFilepath := "../../test_data/pg_dump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName+".")
-	// Be aware that when testing with the command, the time `now` might be
-	// different between file prefixes and the contents in the files. This
-	// is because file prefixes use `now` from here (the test function) and
-	// the generated time in the files uses a `now` inside the command, which
-	// can be different.
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -instance %s -dbname %s -prefix %s < %s", instanceID, dbName, filePrefix, dataFilepath))
-	var out, stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	cmd.Env = append(os.Environ(),
-		fmt.Sprintf("GCLOUD_PROJECT=%s", projectID),
-	)
-	if err := cmd.Run(); err != nil {
-		fmt.Printf("stdout: %q\n", out.String())
-		fmt.Printf("stderr: %q\n", stderr.String())
+
+	args := fmt.Sprintf("-instance %s -dbname %s -prefix %s < %s", instanceID, dbName, filePrefix, dataFilepath)
+	err := common.RunCommand(args, projectID)
+	if err != nil {
 		t.Fatal(err)
 	}
+
 	// Drop the database later.
 	defer dropDatabase(t, dbURI)
 
@@ -173,18 +162,10 @@ func TestIntegration_PGDUMP_SchemaCommand(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	dataFilepath := "../../test_data/pg_dump.test.out"
-	// Be aware that when testing with the command, the time `now` might be
-	// different between file prefixes and the contents in the files. This
-	// is because file prefixes use `now` from here (the test function) and
-	// the generated time in the files uses a `now` inside the command, which
-	// can be different.
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge schema -source=pg < %s", dataFilepath))
-	var out, stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		fmt.Printf("stdout: %q\n", out.String())
-		fmt.Printf("stderr: %q\n", stderr.String())
+
+	args := fmt.Sprintf("schema -source=pg < %s", dataFilepath)
+	err := common.RunCommand(args, projectID)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
@@ -223,16 +204,9 @@ func TestIntegration_POSTGRES_Command(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge -instance %s -dbname %s -prefix %s -driver %s", instanceID, dbName, filePrefix, conversion.POSTGRES))
-	var out, stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	cmd.Env = append(os.Environ(),
-		fmt.Sprintf("GCLOUD_PROJECT=%s", projectID),
-	)
-	if err := cmd.Run(); err != nil {
-		fmt.Printf("stdout: %q\n", out.String())
-		fmt.Printf("stderr: %q\n", stderr.String())
+	args := fmt.Sprintf("-instance %s -dbname %s -prefix %s -driver %s", instanceID, dbName, filePrefix, conversion.POSTGRES)
+	err := common.RunCommand(args, projectID)
+	if err != nil {
 		t.Fatal(err)
 	}
 	// Drop the database later.
@@ -248,13 +222,9 @@ func TestIntegration_POSTGRES_SchemaCommand(t *testing.T) {
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
-	cmd := exec.Command("bash", "-c", "go run github.com/cloudspannerecosystem/harbourbridge schema -source=postgres")
-	var out, stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		fmt.Printf("stdout: %q\n", out.String())
-		fmt.Printf("stderr: %q\n", stderr.String())
+	args := "schema -source=postgres"
+	err := common.RunCommand(args, projectID)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
