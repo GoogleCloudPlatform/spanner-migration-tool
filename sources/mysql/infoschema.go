@@ -80,7 +80,7 @@ func buildColNameList(srcSchema schema.Table, srcColName []string) string {
 	return colList[:len(colList)-1]
 }
 
-// ProcessDataRows 
+// ProcessDataRows
 func (isi InfoSchemaImpl) ProcessDataRows(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, rows *sql.Rows) {
 	v, scanArgs := buildVals(len(srcCols))
 	for rows.Next() {
