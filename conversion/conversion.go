@@ -73,10 +73,10 @@ var (
 	MaxWorkers = 20
 )
 
-func SchemaConv(driver string, targetDb string, ioHelper *IOStreams, schemaSampleSize int64) (*internal.Conv, error) {
+func SchemaConv(driver, driverConfig, targetDb string, ioHelper *IOStreams, schemaSampleSize int64) (*internal.Conv, error) {
 	switch driver {
 	case constants.POSTGRES, constants.MYSQL:
-		return schemaFromSQL(driver, targetDb)
+		return schemaFromSQL(driver, driverConfig, targetDb)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		return schemaFromDump(driver, targetDb, ioHelper)
 	case constants.DYNAMODB:
@@ -108,7 +108,7 @@ func DataConv(driver string, ioHelper *IOStreams, client *sp.Client, conv *inter
 	}
 }
 
-func driverConfig(driver string) (string, error) {
+func getDriverConfig(driver string) (string, error) {
 	switch driver {
 	case constants.POSTGRES:
 		return pgDriverConfig()
@@ -132,7 +132,11 @@ func pgDriverConfig() (string, error) {
 	if password == "" {
 		password = getPassword()
 	}
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", server, port, user, password, dbname), nil
+	return PGDriverConfigStr(server, port, user, password, dbname), nil
+}
+
+func PGDriverConfigStr(server, port, user, password, dbname string) string {
+	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", server, port, user, password, dbname)
 }
 
 func mysqlDriverConfig() (string, error) {
@@ -148,13 +152,20 @@ func mysqlDriverConfig() (string, error) {
 	if password == "" {
 		password = getPassword()
 	}
-	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, server, port, dbname), nil
+	return MySQLDriverConfigStr(server, port, user, password, dbname), nil
 }
 
-func schemaFromSQL(driver string, targetDb string) (*internal.Conv, error) {
-	driverConfig, err := driverConfig(driver)
-	if err != nil {
-		return nil, err
+func MySQLDriverConfigStr(server, port, user, password, dbname string) string {
+	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, server, port, dbname)
+}
+
+func schemaFromSQL(driver, driverConfig, targetDb string) (*internal.Conv, error) {
+	if driverConfig == "" {
+		var err error
+		driverConfig, err = getDriverConfig(driver)
+		if err != nil {
+			return nil, err
+		}
 	}
 	sourceDB, err := sql.Open(driver, driverConfig)
 	if err != nil {
@@ -175,7 +186,7 @@ func dataFromSQL(driver string, config spanner.BatchWriterConfig, client *sp.Cli
 	// share code with dataFromPgDump. Use single transaction for
 	// reading schema and data from source db to get consistent
 	// dump.
-	driverConfig, err := driverConfig(driver)
+	driverConfig, err := getDriverConfig(driver)
 	if err != nil {
 		return nil, err
 	}

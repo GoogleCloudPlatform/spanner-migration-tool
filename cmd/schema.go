@@ -95,15 +95,23 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	}
 
 	schemaSampleSize := int64(100000)
+	driverConfig := ""
 	if sourceProfile.ty == SourceProfileTypeConnection {
 		if sourceProfile.conn.ty == SourceProfileConnectionTypeDynamoDB {
 			if sourceProfile.conn.dydb.schemaSampleSize != 0 {
 				schemaSampleSize = sourceProfile.conn.dydb.schemaSampleSize
 			}
+		} else if sourceProfile.conn.ty == SourceProfileConnectionTypeMySQL {
+			connParams := sourceProfile.conn.mysql
+			driverConfig = conversion.MySQLDriverConfigStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
+		} else {
+			connParams := sourceProfile.conn.pg
+			driverConfig = conversion.PGDriverConfigStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
 		}
 	}
+
 	var conv *internal.Conv
-	conv, err = conversion.SchemaConv(driverName, targetDb, &ioHelper, schemaSampleSize)
+	conv, err = conversion.SchemaConv(driverName, driverConfig, targetDb, &ioHelper, schemaSampleSize)
 	if err != nil {
 		return subcommands.ExitFailure
 	}

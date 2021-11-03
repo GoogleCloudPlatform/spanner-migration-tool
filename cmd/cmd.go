@@ -41,7 +41,7 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 	var conv *internal.Conv
 	var err error
 	if !dataOnly {
-		conv, err = conversion.SchemaConv(driver, targetDb, ioHelper, schemaSampleSize)
+		conv, err = conversion.SchemaConv(driver, "", targetDb, ioHelper, schemaSampleSize)
 		if err != nil {
 			return err
 		}
