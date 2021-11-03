@@ -36,10 +36,17 @@ func (cmd *SchemaCmd) Synopsis() string {
 func (cmd *SchemaCmd) Usage() string {
 	return fmt.Sprintf(`%v schema -source=[source] -source-profile="key1=value1,key2=value2" ...
 
+<<<<<<< HEAD
 Convert schema for source db specified by source and source-profile. Source db
 dump file can be specified by either file param in source-profile or piped to
 stdin. Connection profile for source databases in direct connect mode can be
 specified by setting appropriate environment variables. The schema flags are:
+=======
+Convert schema for source db specified by driver. Source db dump file can be
+specified by either file param in source-profile or piped to stdin. Connection
+profile for source databases in direct connect mode can be specified by setting
+appropriate environment variables. The schema flags are:
+>>>>>>> 6522c9b (Add support for source-profile and target-profile in subcommands. (#208))
 `, path.Base(os.Args[0]))
 }
 
@@ -53,6 +60,7 @@ func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
 }
 
 func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+<<<<<<< HEAD
 	var err error
 	defer func() {
 		if err != nil {
@@ -67,11 +75,24 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	driverName, err := sourceProfile.ToLegacyDriver(cmd.source)
 	if err != nil {
 		return subcommands.ExitUsageError
+=======
+	sourceProfile, err := NewSourceProfile(cmd.sourceProfile, cmd.source)
+	if err != nil {
+		panic(err)
+	}
+	driverName, err := sourceProfile.ToLegacyDriver(cmd.source)
+	if err != nil {
+		panic(err)
+>>>>>>> 6522c9b (Add support for source-profile and target-profile in subcommands. (#208))
 	}
 
 	targetProfile, err := NewTargetProfile(cmd.targetProfile)
 	if err != nil {
+<<<<<<< HEAD
 		return subcommands.ExitUsageError
+=======
+		panic(err)
+>>>>>>> 6522c9b (Add support for source-profile and target-profile in subcommands. (#208))
 	}
 	targetDb := targetProfile.ToLegacyTargetDb()
 
@@ -88,8 +109,12 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	if cmd.filePrefix == "" {
 		dbName, err := conversion.GetDatabaseName(driverName, time.Now())
 		if err != nil {
+<<<<<<< HEAD
 			err = fmt.Errorf("can't generate database name for prefix: %v", err)
 			return subcommands.ExitFailure
+=======
+			panic(fmt.Errorf("can't generate database name for prefix: %v", err))
+>>>>>>> 6522c9b (Add support for source-profile and target-profile in subcommands. (#208))
 		}
 		cmd.filePrefix = dbName + "."
 	}
@@ -105,7 +130,11 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	var conv *internal.Conv
 	conv, err = conversion.SchemaConv(driverName, targetDb, &ioHelper, schemaSampleSize)
 	if err != nil {
+<<<<<<< HEAD
 		return subcommands.ExitFailure
+=======
+		panic(err)
+>>>>>>> 6522c9b (Add support for source-profile and target-profile in subcommands. (#208))
 	}
 
 	now := time.Now()

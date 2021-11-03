@@ -1,6 +1,7 @@
 package cmd
 
 import (
+<<<<<<< HEAD
 	"context"
 	"encoding/csv"
 	"fmt"
@@ -9,6 +10,11 @@ import (
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+=======
+	"encoding/csv"
+	"fmt"
+	"strings"
+>>>>>>> 6522c9b (Add support for source-profile and target-profile in subcommands. (#208))
 )
 
 // Parses input string `s` as a map of key-value pairs. It's expected that the
@@ -46,6 +52,7 @@ func parseProfile(s string) (map[string]string, error) {
 	}
 	return params, nil
 }
+<<<<<<< HEAD
 
 func getResourceIds(ctx context.Context, targetProfile TargetProfile, now time.Time, driverName string, out *os.File) (string, string, string, error) {
 	var err error
@@ -77,3 +84,5 @@ func getResourceIds(ctx context.Context, targetProfile TargetProfile, now time.T
 	}
 	return project, instance, dbName, err
 }
+=======
+>>>>>>> 6522c9b (Add support for source-profile and target-profile in subcommands. (#208))

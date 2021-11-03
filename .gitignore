@@ -2,4 +2,8 @@
 main
 web/harbour_bridge_output/
 *__debug_bin*
+<<<<<<< HEAD
 *.code-workspace
+=======
+*.code-workspace
+>>>>>>> 6522c9b (Add support for source-profile and target-profile in subcommands. (#208))
