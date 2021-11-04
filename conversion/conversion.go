@@ -304,7 +304,11 @@ func downloadFromGCS(bucketName string, filePath string) (*os.File, error) {
 
 	fmt.Printf("\nDownloading dump file from GCS bucket %s, path %s\n", bucketName, filePath)
 <<<<<<< HEAD
+<<<<<<< HEAD
 	buffer := make([]byte, 10024)
+=======
+	buffer := make([]byte, 1024)
+>>>>>>> f77db99 (rebase)
 	for {
 		// read a chunk
 		n, err := r.Read(buffer[:cap(buffer)])
