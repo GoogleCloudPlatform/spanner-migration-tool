@@ -29,7 +29,6 @@ import (
 
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
-	"github.com/cloudspannerecosystem/harbourbridge/cmd"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
 	"google.golang.org/api/iterator"
@@ -105,31 +104,6 @@ func prepareIntegrationTest(t *testing.T) string {
 	return tmpdir
 }
 
-func TestIntegration_PGDUMP_SimpleUse(t *testing.T) {
-	t.Parallel()
-
-	tmpdir := prepareIntegrationTest(t)
-	defer os.RemoveAll(tmpdir)
-
-	now := time.Now()
-	dbName, _ := conversion.GetDatabaseName(conversion.PGDUMP, now)
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	dataFilepath := "../../test_data/pg_dump.test.out"
-	filePrefix := filepath.Join(tmpdir, dbName+".")
-	f, err := os.Open(dataFilepath)
-	if err != nil {
-		t.Fatalf("failed to open the test data file: %v", err)
-	}
-	err = cmd.CommandLine(ctx, conversion.PGDUMP, "spanner", dbURI, false, false, false, 0, "", &conversion.IOStreams{In: f, Out: os.Stdout}, filePrefix, now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Drop the database later.
-	defer dropDatabase(t, dbURI)
-
-	checkResults(t, dbURI)
-}
-
 func TestIntegration_PGDUMP_Command(t *testing.T) {
 	t.Parallel()
 
@@ -143,12 +117,11 @@ func TestIntegration_PGDUMP_Command(t *testing.T) {
 	dataFilepath := "../../test_data/pg_dump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
-	args := fmt.Sprintf("-instance %s -dbname %s -prefix %s < %s", instanceID, dbName, filePrefix, dataFilepath)
+	args := fmt.Sprintf("-prefix %s -instance %s -dbname %s < %s", filePrefix, instanceID, dbName, dataFilepath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	// Drop the database later.
 	defer dropDatabase(t, dbURI)
 
@@ -173,7 +146,6 @@ func TestIntegration_PGDUMP_EvalSubcommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	// Drop the database later.
 	defer dropDatabase(t, dbURI)
 
@@ -193,28 +165,6 @@ func TestIntegration_PGDUMP_SchemaSubcommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-}
-
-func TestIntegration_POSTGRES_SimpleUse(t *testing.T) {
-	onlyRunForEmulatorTest(t)
-	t.Parallel()
-
-	tmpdir := prepareIntegrationTest(t)
-	defer os.RemoveAll(tmpdir)
-
-	now := time.Now()
-	dbName, _ := conversion.GetDatabaseName(conversion.POSTGRES, now)
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	filePrefix := filepath.Join(tmpdir, dbName+".")
-
-	err := cmd.CommandLine(ctx, conversion.POSTGRES, "spanner", dbURI, false, false, false, 0, "", &conversion.IOStreams{Out: os.Stdout}, filePrefix, now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Drop the database later.
-	defer dropDatabase(t, dbURI)
-
-	checkResults(t, dbURI)
 }
 
 func TestIntegration_POSTGRES_Command(t *testing.T) {
