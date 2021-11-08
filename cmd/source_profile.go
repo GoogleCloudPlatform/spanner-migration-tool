@@ -56,50 +56,44 @@ type SourceProfileConnectionMySQL struct {
 	pwd  string // Same as MYSQLPWD environment variable
 }
 
-func NewSourceProfileConnectionMySQL(params map[string]string) SourceProfileConnectionMySQL {
+func NewSourceProfileConnectionMySQL(params map[string]string) (SourceProfileConnectionMySQL, error) {
 	mysql := SourceProfileConnectionMySQL{}
-	if host, ok := params["host"]; ok {
-		mysql.host = host
-	} else {
+	host, hostOk := params["host"]
+	user, userOk := params["user"]
+	db, dbOk := params["db_name"]
+	port, portOk := params["port"]
+	pwd, pwdOk := params["password"]
+	if hostOk && userOk && dbOk {
+		// If atleast host, username and dbname are provided through source-profile,
+		// go ahead and use source-profile. Port and password handled later even if they are empty.
+		mysql.host, mysql.user, mysql.db, mysql.port, mysql.pwd = host, user, db, port, pwd
+	} else if !hostOk && !userOk && !dbOk && !portOk && !pwdOk {
+		// No connection params provided through source-profile. Fetching from env variables.
+		fmt.Printf("Connection parameters not specified in source-profile. Reading from environment variables...\n")
 		mysql.host = os.Getenv("MYSQLHOST")
-	}
-
-	if port, ok := params["port"]; ok {
-		mysql.port = port
-	} else {
-		mysql.port = os.Getenv("MYSQLPORT")
-		if mysql.port == "" {
-			// Set default port for mysql, which rarely changes.
-			mysql.port = "3306"
-		}
-	}
-
-	if user, ok := params["user"]; ok {
-		mysql.user = user
-	} else {
 		mysql.user = os.Getenv("MYSQLUSER")
-	}
-
-	if db, ok := params["db_name"]; ok {
-		mysql.db = db
-	} else {
 		mysql.db = os.Getenv("MYSQLDATABASE")
-	}
-
-	if mysql.host == "" || mysql.port == "" || mysql.user == "" || mysql.db == "" {
-		fmt.Printf("Please specify host, port, user and database either in the source profile or using MYSQLHOST, MYSQLPORT, MYSQLUSER and MYSQLDATABASE environment variables.\n")
-		// TODO: Throw error earlier here.
-	}
-
-	if pwd, ok := params["password"]; ok {
-		mysql.pwd = pwd
-	} else {
+		mysql.port = os.Getenv("MYSQLPORT")
 		mysql.pwd = os.Getenv("MYSQLPWD")
-		if mysql.pwd == "" {
-			mysql.pwd = conversion.GetPassword()
-		}
+	} else {
+		// Partial params provided through source profile. Ask user to provide all.
+		return mysql, fmt.Errorf("please specify host, port, user and db_name in the source profile")
 	}
-	return mysql
+
+	// Throw same error if the input entered is empty.
+	if mysql.host == "" || mysql.user == "" || mysql.db == "" {
+		return mysql, fmt.Errorf("found empty string for host/user/db. please specify host, port, user and db_name in the source profile")
+	}
+
+	if mysql.port == "" {
+		// Set default port for mysql, which rarely changes.
+		mysql.port = "3306"
+	}
+	if mysql.pwd == "" {
+		mysql.pwd = conversion.GetPassword()
+	}
+
+	return mysql, nil
 }
 
 type SourceProfileConnectionPostgreSQL struct {
@@ -110,50 +104,42 @@ type SourceProfileConnectionPostgreSQL struct {
 	pwd  string // Same as PGPASSWORD environment variable
 }
 
-func NewSourceProfileConnectionPostgreSQL(params map[string]string) SourceProfileConnectionPostgreSQL {
+func NewSourceProfileConnectionPostgreSQL(params map[string]string) (SourceProfileConnectionPostgreSQL, error) {
 	pg := SourceProfileConnectionPostgreSQL{}
-	if host, ok := params["host"]; ok {
-		pg.host = host
-	} else {
+	host, hostOk := params["host"]
+	user, userOk := params["user"]
+	db, dbOk := params["db_name"]
+	port, portOk := params["port"]
+	pwd, pwdOk := params["password"]
+	if hostOk && userOk && dbOk {
+		// All connection params provided through source-profile. Port and password handled later.
+		pg.host, pg.user, pg.db, pg.port, pg.pwd = host, user, db, port, pwd
+	} else if !hostOk && !userOk && !dbOk && !portOk && !pwdOk {
+		// No connection params provided through source-profile. Fetching from env variables.
+		fmt.Printf("Connection parameters not specified in source-profile. Reading from environment variables...\n")
 		pg.host = os.Getenv("PGHOST")
-	}
-
-	if port, ok := params["port"]; ok {
-		pg.port = port
-	} else {
-		pg.port = os.Getenv("PGPORT")
-		if pg.port == "" {
-			// Set default port for postgresql, which rarely changes.
-			pg.port = "5432"
-		}
-	}
-
-	if user, ok := params["user"]; ok {
-		pg.user = user
-	} else {
 		pg.user = os.Getenv("PGUSER")
-	}
-
-	if db, ok := params["db_name"]; ok {
-		pg.db = db
-	} else {
 		pg.db = os.Getenv("PGDATABASE")
-	}
-
-	if pg.host == "" || pg.port == "" || pg.user == "" || pg.db == "" {
-		fmt.Printf("Please specify host, port, user and database either in the source profile or using PGHOST, PGPORT, PGUSER and PGDATABASE environment variables.\n")
-		// TODO: Throw error earlier here.
-	}
-
-	if pwd, ok := params["password"]; ok {
-		pg.pwd = pwd
-	} else {
+		pg.port = os.Getenv("PGPORT")
 		pg.pwd = os.Getenv("PGPASSWORD")
-		if pg.pwd == "" {
-			pg.pwd = conversion.GetPassword()
-		}
+	} else {
+		return pg, fmt.Errorf("please specify host, port, user and db_name in the source profile")
 	}
-	return pg
+
+	// Throw same error if the input entered is empty.
+	if pg.host == "" || pg.user == "" || pg.db == "" {
+		return pg, fmt.Errorf("found empty string for host/user/db. please specify host, port, user and db_name in the source profile")
+	}
+
+	if pg.port == "" {
+		// Set default port for postgresql, which rarely changes.
+		pg.port = "5432"
+	}
+	if pg.pwd == "" {
+		pg.pwd = conversion.GetPassword()
+	}
+
+	return pg, nil
 }
 
 type SourceProfileConnectionDynamoDB struct {
@@ -202,12 +188,20 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 	case "mysql":
 		{
 			conn.ty = SourceProfileConnectionTypeMySQL
-			conn.mysql = NewSourceProfileConnectionMySQL(params)
+			mysqlconn, err := NewSourceProfileConnectionMySQL(params)
+			conn.mysql = mysqlconn
+			if err != nil {
+				return conn, err
+			}
 		}
 	case "postgresql", "postgres", "pg":
 		{
 			conn.ty = SourceProfileConnectionTypePostgreSQL
-			conn.pg = NewSourceProfileConnectionPostgreSQL(params)
+			pgconn, err := NewSourceProfileConnectionPostgreSQL(params)
+			conn.pg = pgconn
+			if err != nil {
+				return conn, err
+			}
 		}
 	case "dynamodb":
 		{

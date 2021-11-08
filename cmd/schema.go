@@ -101,6 +101,9 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 			if sourceProfile.conn.dydb.schemaSampleSize != 0 {
 				schemaSampleSize = sourceProfile.conn.dydb.schemaSampleSize
 			}
+			// For DynamoDB, the SDK only reads credentials from env variables.
+			// There is no way to pass them through the code hence, don't need to override
+			// driver config for DynamoDB.
 		} else if sourceProfile.conn.ty == SourceProfileConnectionTypeMySQL {
 			connParams := sourceProfile.conn.mysql
 			driverConfig = conversion.MySQLDriverConfigStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
