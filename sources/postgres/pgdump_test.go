@@ -1383,7 +1383,7 @@ func TestProcessPgDump_GetDDL(t *testing.T) {
 	conv, _ := runProcessPgDump("CREATE TABLE cart (productid text, userid text, quantity bigint);\n" +
 		"ALTER TABLE ONLY cart ADD CONSTRAINT cart_pkey PRIMARY KEY (productid, userid);")
 	expected :=
-`CREATE TABLE cart (
+		`CREATE TABLE cart (
   productid STRING(MAX) NOT NULL,
   userid STRING(MAX) NOT NULL,
   quantity INT64,
@@ -1396,7 +1396,7 @@ func TestProcessPgDump_GetPGDDL(t *testing.T) {
 	conv, _ := runProcessPgDumpPGTarget("CREATE TABLE cart (productid text, userid text, quantity bigint);\n" +
 		"ALTER TABLE ONLY cart ADD CONSTRAINT cart_pkey PRIMARY KEY (productid, userid);")
 	expected :=
-`CREATE TABLE cart (
+		`CREATE TABLE cart (
     productid VARCHAR(2621440) NOT NULL,
     userid VARCHAR(2621440) NOT NULL,
     quantity INT8,

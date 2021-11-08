@@ -108,7 +108,7 @@ func TestPrintCreateTable(t *testing.T) {
 			"no quote",
 			false,
 			t1,
-`CREATE TABLE mytable (
+			`CREATE TABLE mytable (
   col1 INT64 NOT NULL,
   col2 STRING(MAX),
   col3 BYTES(42),
@@ -118,17 +118,17 @@ func TestPrintCreateTable(t *testing.T) {
 			"quote",
 			true,
 			t1,
-"CREATE TABLE `mytable` (\n"+
-"  `col1` INT64 NOT NULL,\n"+
-"  `col2` STRING(MAX),\n"+
-"  `col3` BYTES(42),\n"+
-") PRIMARY KEY (`col1` DESC)",
+			"CREATE TABLE `mytable` (\n" +
+				"  `col1` INT64 NOT NULL,\n" +
+				"  `col2` STRING(MAX),\n" +
+				"  `col3` BYTES(42),\n" +
+				") PRIMARY KEY (`col1` DESC)",
 		},
 		{
 			"interleaved",
 			false,
 			t2,
-`CREATE TABLE mytable (
+			`CREATE TABLE mytable (
   col1 INT64 NOT NULL,
   col2 STRING(MAX),
   col3 BYTES(42),
@@ -270,18 +270,18 @@ func TestGetDDL(t *testing.T) {
 	}
 	tablesOnly := s.GetDDL(Config{Tables: true, ForeignKeys: false})
 	e := []string{
-`CREATE TABLE table1 (
+		`CREATE TABLE table1 (
   a INT64,
   b INT64,
 ) PRIMARY KEY (a)`,
-`CREATE INDEX index1 ON table1 (b)`,
-`CREATE TABLE table2 (
+		`CREATE INDEX index1 ON table1 (b)`,
+		`CREATE TABLE table2 (
   a INT64,
   b INT64,
   c INT64,
 ) PRIMARY KEY (a)`,
-`CREATE UNIQUE INDEX index2 ON table2 (b DESC, c)`,
-`CREATE TABLE table3 (
+		`CREATE UNIQUE INDEX index2 ON table2 (b DESC, c)`,
+		`CREATE TABLE table3 (
   a INT64,
   b INT64,
   c INT64,
@@ -300,26 +300,26 @@ INTERLEAVE IN PARENT table1`,
 
 	tablesAndFks := s.GetDDL(Config{Tables: true, ForeignKeys: true})
 	e3 := []string{
-`CREATE TABLE table1 (
+		`CREATE TABLE table1 (
   a INT64,
   b INT64,
 ) PRIMARY KEY (a)`,
-`CREATE INDEX index1 ON table1 (b)`,
-`CREATE TABLE table2 (
+		`CREATE INDEX index1 ON table1 (b)`,
+		`CREATE TABLE table2 (
   a INT64,
   b INT64,
   c INT64,
 ) PRIMARY KEY (a)`,
-`CREATE UNIQUE INDEX index2 ON table2 (b DESC, c)`,
-`CREATE TABLE table3 (
+		`CREATE UNIQUE INDEX index2 ON table2 (b DESC, c)`,
+		`CREATE TABLE table3 (
   a INT64,
   b INT64,
   c INT64,
 ) PRIMARY KEY (a, b),
 INTERLEAVE IN PARENT table1`,
-`ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_b)`,
-`ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES ref_table2 (ref_b, ref_c)`,
-`ALTER TABLE table3 ADD CONSTRAINT fk3 FOREIGN KEY (c) REFERENCES ref_table3 (ref_c)`,
+		`ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_b)`,
+		`ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES ref_table2 (ref_b, ref_c)`,
+		`ALTER TABLE table3 ADD CONSTRAINT fk3 FOREIGN KEY (c) REFERENCES ref_table3 (ref_c)`,
 	}
 	assert.ElementsMatch(t, e3, tablesAndFks)
 }

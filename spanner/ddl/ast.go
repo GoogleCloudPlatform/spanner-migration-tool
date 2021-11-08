@@ -162,7 +162,7 @@ type Config struct {
 	ProtectIds  bool // If true, table and col names are quoted using backticks (avoids reserved-word issue).
 	Tables      bool // If true, print tables
 	ForeignKeys bool // If true, print foreign key constraints.
-	TargetDb string
+	TargetDb    string
 }
 
 func (c Config) quote(s string) string {
@@ -313,7 +313,7 @@ func (ci CreateIndex) PrintCreateIndex(c Config) string {
 		keys = append(keys, p.PrintIndexKey(c))
 	}
 	var unique string
-	if ci.Unique  {
+	if ci.Unique {
 		unique = "UNIQUE "
 	}
 	return fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)", unique, c.quote(ci.Name), c.quote(ci.Table), strings.Join(keys, ", "))

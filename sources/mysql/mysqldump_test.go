@@ -834,7 +834,7 @@ func TestProcessMySQLDump_GetDDL(t *testing.T) {
 	conv, _ := runProcessMySQLDump("CREATE TABLE cart (productid text, userid text, quantity bigint);\n" +
 		"ALTER TABLE cart ADD CONSTRAINT cart_pkey PRIMARY KEY (productid, userid);")
 	expected :=
-`CREATE TABLE cart (
+		`CREATE TABLE cart (
   productid STRING(MAX) NOT NULL,
   userid STRING(MAX) NOT NULL,
   quantity INT64,

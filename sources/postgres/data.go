@@ -188,11 +188,9 @@ func convInt64(val string) (int64, error) {
 
 // convNumeric maps a source database string value (representing a numeric)
 // into a string representing a valid Spanner numeric.
-// Ideally we would just return a *big.Rat, but spanner.Mutation
-// doesn't currently support use of *big.Rat.
 func convNumeric(conv *internal.Conv, val string) (interface{}, error) {
 	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
-		return spanner.PGNumeric{val, true}, nil
+		return spanner.PGNumeric{Numeric: val, Valid: true}, nil
 	} else {
 		r := new(big.Rat)
 		if _, ok := r.SetString(val); !ok {

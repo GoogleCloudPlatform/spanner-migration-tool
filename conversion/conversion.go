@@ -490,7 +490,7 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 	// using backticks (to avoid any issues with Spanner reserved words).
 	// Foreign Keys are set to false since we create them post data migration.
 	req := &adminpb.CreateDatabaseRequest{
-		Parent:          fmt.Sprintf("projects/%s/instances/%s", project, instance),
+		Parent: fmt.Sprintf("projects/%s/instances/%s", project, instance),
 	}
 	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
 		// PG doesn't allow backticks around the database name.
