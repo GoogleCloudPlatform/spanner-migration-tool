@@ -165,6 +165,8 @@ func convDate(conv *internal.Conv, val string) (interface{}, error) {
 		return d, fmt.Errorf("can't convert to date: %w", err)
 	}
 	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+		// For TARGET_EXPERIMENTAL_POSTGRES, civil.ParseDate call is only used
+		// as a validation step, and we throw its result away and return 'val'.
 		return val, nil
 	}
 	return d, err

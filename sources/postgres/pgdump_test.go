@@ -1383,11 +1383,11 @@ func TestProcessPgDump_GetDDL(t *testing.T) {
 	conv, _ := runProcessPgDump("CREATE TABLE cart (productid text, userid text, quantity bigint);\n" +
 		"ALTER TABLE ONLY cart ADD CONSTRAINT cart_pkey PRIMARY KEY (productid, userid);")
 	expected :=
-		`CREATE TABLE cart (
-  productid STRING(MAX) NOT NULL,
-  userid STRING(MAX) NOT NULL,
-  quantity INT64,
-) PRIMARY KEY (productid, userid)`
+		"CREATE TABLE cart (\n" +
+			"	productid STRING(MAX) NOT NULL,\n" +
+			"	userid STRING(MAX) NOT NULL,\n" +
+			"	quantity INT64,\n" +
+			") PRIMARY KEY (productid, userid)"
 	c := ddl.Config{Tables: true}
 	assert.Equal(t, expected, strings.Join(conv.SpSchema.GetDDL(c), " "))
 }
@@ -1396,12 +1396,12 @@ func TestProcessPgDump_GetPGDDL(t *testing.T) {
 	conv, _ := runProcessPgDumpPGTarget("CREATE TABLE cart (productid text, userid text, quantity bigint);\n" +
 		"ALTER TABLE ONLY cart ADD CONSTRAINT cart_pkey PRIMARY KEY (productid, userid);")
 	expected :=
-		`CREATE TABLE cart (
-    productid VARCHAR(2621440) NOT NULL,
-    userid VARCHAR(2621440) NOT NULL,
-    quantity INT8,
-    PRIMARY KEY (productid, userid)
-) `
+		"CREATE TABLE cart (\n" +
+			"	productid VARCHAR(2621440) NOT NULL,\n" +
+			"	userid VARCHAR(2621440) NOT NULL,\n" +
+			"	quantity INT8,\n" +
+			"	PRIMARY KEY (productid, userid)\n" +
+			")"
 	c := ddl.Config{Tables: true, TargetDb: conv.TargetDb}
 	assert.Equal(t, expected, strings.Join(conv.SpSchema.GetDDL(c), " "))
 }

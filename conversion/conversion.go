@@ -493,14 +493,15 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 		Parent: fmt.Sprintf("projects/%s/instances/%s", project, instance),
 	}
 	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
-		// PG doesn't allow backticks around the database name.
+		// TARGET_EXPERIMENTAL_POSTGRES doesn't support:
+		// a) backticks around the database name, and
+		// b) DDL statements as part of a CreateDatabase operation (so schema
+		// must be set using a separate UpdateDatabase operation).
 		req.CreateStatement = "CREATE DATABASE " + dbName
 		req.DatabaseDialect = adminpb.DatabaseDialect_POSTGRESQL
 	} else {
 		req.CreateStatement = "CREATE DATABASE `" + dbName + "`"
-		// PG doesn't allow extra statements during database creation.
-		schema := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, TargetDb: conv.TargetDb})
-		req.ExtraStatements = schema
+		req.ExtraStatements = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, TargetDb: conv.TargetDb})
 	}
 
 	op, err := adminClient.CreateDatabase(ctx, req)

@@ -834,11 +834,11 @@ func TestProcessMySQLDump_GetDDL(t *testing.T) {
 	conv, _ := runProcessMySQLDump("CREATE TABLE cart (productid text, userid text, quantity bigint);\n" +
 		"ALTER TABLE cart ADD CONSTRAINT cart_pkey PRIMARY KEY (productid, userid);")
 	expected :=
-		`CREATE TABLE cart (
-  productid STRING(MAX) NOT NULL,
-  userid STRING(MAX) NOT NULL,
-  quantity INT64,
-) PRIMARY KEY (productid, userid)`
+		"CREATE TABLE cart (\n" +
+			"	productid STRING(MAX) NOT NULL,\n" +
+			"	userid STRING(MAX) NOT NULL,\n" +
+			"	quantity INT64,\n" +
+			") PRIMARY KEY (productid, userid)"
 	c := ddl.Config{Tables: true}
 	assert.Equal(t, expected, strings.Join(conv.SpSchema.GetDDL(c), " "))
 }

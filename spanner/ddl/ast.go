@@ -128,10 +128,15 @@ func (ty Type) PGPrintColumnDefType() string {
 	default:
 		str = ty.Name
 	}
+	// PG doesn't support array types, and we don't expect to receive a type
+	// with IsArray set to true. In the unlikely event, set to string type.
+	if ty.IsArray {
+		str = PGVarchar
+		ty.Len = PGMaxLength
+	}
 	// PG doesn't support variable length Bytea and thus doesn't support
 	// setting length (or max length) for the Bytes.
-	// if ty.Name == String || ty.Name == Bytes || ty.Name == Date {
-	if ty.Name == String || ty.Name == Date {
+	if ty.Name == String || ty.Name == Date || ty.IsArray {
 		str += "("
 		if ty.Len == MaxLength || ty.Len == PGMaxLength {
 			str += fmt.Sprintf("%v", PGMaxLength)
@@ -139,9 +144,6 @@ func (ty Type) PGPrintColumnDefType() string {
 			str += strconv.FormatInt(ty.Len, 10)
 		}
 		str += ")"
-	}
-	if ty.IsArray {
-		str = "ARRAY<" + str + ">"
 	}
 	return str
 }
@@ -251,21 +253,16 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	var colComment []string
 	var keys []string
 	if config.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
-		for i, cn := range ct.ColNames {
+		for _, cn := range ct.ColNames {
 			s, c := ct.ColDefs[cn].PrintColumnDef(config)
-			s = "\n    " + s
-			if i < len(ct.ColNames)-1 {
-				s += ","
-			} else {
-				s += ","
-			}
+			s = "\n\t" + s + ","
 			col = append(col, s)
 			colComment = append(colComment, c)
 		}
 	} else {
 		for _, cn := range ct.ColNames {
 			s, c := ct.ColDefs[cn].PrintColumnDef(config)
-			s = "  " + s + ",\n"
+			s = "\t" + s + ",\n"
 			col = append(col, s)
 			colComment = append(colComment, c)
 		}
@@ -287,10 +284,14 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	}
 	var interleave string
 	if ct.Parent != "" {
-		interleave = ",\nINTERLEAVE IN PARENT " + config.quote(ct.Parent)
+		if config.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+			interleave = " INTERLEAVE IN PARENT " + config.quote(ct.Parent)
+		} else {
+			interleave = ",\nINTERLEAVE IN PARENT " + config.quote(ct.Parent)
+		}
 	}
 	if config.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
-		return fmt.Sprintf("%sCREATE TABLE %s (%s\n    PRIMARY KEY (%s)\n) %s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
+		return fmt.Sprintf("%sCREATE TABLE %s (%s\n\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 	}
 	return fmt.Sprintf("%sCREATE TABLE %s (\n%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 }
