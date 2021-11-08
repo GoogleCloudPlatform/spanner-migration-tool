@@ -492,7 +492,7 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 	req := &adminpb.CreateDatabaseRequest{
 		Parent:          fmt.Sprintf("projects/%s/instances/%s", project, instance),
 	}
-	if conv.TargetDb == TARGET_EXPERIMENTAL_POSTGRES {
+	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
 		// PG doesn't allow backticks around the database name.
 		req.CreateStatement = "CREATE DATABASE " + dbName
 		req.DatabaseDialect = adminpb.DatabaseDialect_POSTGRESQL
@@ -512,7 +512,7 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 	}
 	fmt.Fprintf(out, "Created database successfully.\n")
 
-	if conv.TargetDb == TARGET_EXPERIMENTAL_POSTGRES {
+	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
 		// Update schema separately for PG databases.
 		return UpdateDatabase(ctx, adminClient, dbURI, conv, out)
 	}

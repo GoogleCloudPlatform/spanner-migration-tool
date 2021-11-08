@@ -26,6 +26,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 )
 
 const (
@@ -175,7 +177,7 @@ func (c Config) quote(s string) string {
 // needs of PrintCreateTable.
 func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 	var s string
-	if c.TargetDb == "experimental_postgres" {
+	if c.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PGPrintColumnDefType())
 	} else {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
@@ -248,7 +250,7 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	var col []string
 	var colComment []string
 	var keys []string
-	if config.TargetDb == "experimental_postgres" {
+	if config.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
 		for i, cn := range ct.ColNames {
 			s, c := ct.ColDefs[cn].PrintColumnDef(config)
 			s = "\n    " + s
@@ -287,7 +289,7 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	if ct.Parent != "" {
 		interleave = ",\nINTERLEAVE IN PARENT " + config.quote(ct.Parent)
 	}
-	if config.TargetDb == "experimental_postgres" {
+	if config.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
 		return fmt.Sprintf("%sCREATE TABLE %s (%s\n    PRIMARY KEY (%s)\n) %s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 	}
 	return fmt.Sprintf("%sCREATE TABLE %s (\n%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)

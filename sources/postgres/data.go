@@ -26,6 +26,7 @@ import (
 
 	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner"
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -163,7 +164,7 @@ func convDate(conv *internal.Conv, val string) (interface{}, error) {
 	if err != nil {
 		return d, fmt.Errorf("can't convert to date: %w", err)
 	}
-	if conv.TargetDb == "experimental_postgres" {
+	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
 		return val, nil
 	}
 	return d, err
@@ -190,7 +191,7 @@ func convInt64(val string) (int64, error) {
 // Ideally we would just return a *big.Rat, but spanner.Mutation
 // doesn't currently support use of *big.Rat.
 func convNumeric(conv *internal.Conv, val string) (interface{}, error) {
-	if conv.TargetDb == "experimental_postgres" {
+	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
 		return spanner.PGNumeric{val, true}, nil
 	} else {
 		r := new(big.Rat)

@@ -17,6 +17,7 @@ package postgres
 import (
 	"bufio"
 	"fmt"
+	"math/big"
 	"math/bits"
 	"strings"
 	"testing"
@@ -24,6 +25,7 @@ import (
 
 	"cloud.google.com/go/spanner"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -622,7 +624,7 @@ COPY test (id, a, b, c, d) FROM stdin;
 \.
 `,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), int64(88), int64(44), int64(22), "444.987600000"}}},
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), int64(88), int64(44), int64(22), big.NewRat(1112469, 2500)}}},
 		},
 		{
 			name: "Data conversion: serial, text, timestamp, timestamptz, varchar, json",
@@ -744,17 +746,17 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 		noIssues(conv, t, "Scalar type: "+tc.ty)
 		assert.Equal(t, conv.SpSchema["t"].ColDefs["a"].T, tc.expected, "Scalar type: "+tc.ty)
 	}
-	// Next test array types and not null.
+	// Next test array types and not null. For PG Spanner, all array types mapped to string.
 	singleColTests := []struct {
 		ty       string
 		expected ddl.ColumnDef
 	}{
 		{"text", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}},
 		{"text NOT NULL", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
-		{"text array[4]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}}},
-		{"text[4]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}}},
-		{"text[]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}}},
-		{"text[][]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}}, // Unrecognized array type mapped to string.
+		{"text array[4]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}},
+		{"text[4]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}},
+		{"text[]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}},
+		{"text[][]", ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}},
 	}
 	for _, tc := range singleColTests {
 		conv, _ := runProcessPgDumpPGTarget(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
@@ -1290,7 +1292,7 @@ COPY test (id, a, b, c, d) FROM stdin;
 \.
 `,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), int64(88), int64(44), int64(22), "444.987600000"}}},
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), int64(88), int64(44), int64(22), spanner.PGNumeric{Numeric: "444.9876", Valid: true}}}},
 		},
 		{
 			name: "Data conversion: serial, text, timestamp, timestamptz, varchar",
@@ -1348,14 +1350,14 @@ COPY test (id, a, b, c, d, e) FROM stdin;
 				"\\N	\\N	\\N	\\N	\\N	\\\\x0001beef	\\N\n" + // Good
 				"\\N	\\N	\\N	\\N	\\N	\\ \\x0001beef	\\N\n" + // Error
 				"\\N	\\N	\\N	\\N	\\N	\\N	{42,6}\n" + // Good
-				"\\N	\\N	\\N	\\N	\\N	\\N	{42, 6}\n" + // Error
+				"\\N	\\N	\\N	\\N	\\N	\\N	{42, 6}\n" + // Good
 				"\\.\n",
 			expectedData: []spannerData{
 				spannerData{
 					table: "test", cols: []string{"int8", "float8", "bool", "timestamp", "date", "bytea", "arr", "synth_id"},
 					vals: []interface{}{int64(7), float64(42.1), true, getTime(t, "2019-10-29T05:30:00Z"),
 						"2019-10-29", []byte{0x0, 0x1, 0xbe, 0xef},
-						[]spanner.NullInt64{{Int64: 42, Valid: true}, {Int64: 6, Valid: true}},
+						"{42,6}",
 						bitReverse(0)}},
 				spannerData{table: "test", cols: []string{"int8", "synth_id"}, vals: []interface{}{int64(7), bitReverse(1)}},
 				spannerData{table: "test", cols: []string{"float8", "synth_id"}, vals: []interface{}{float64(42.1), bitReverse(2)}},
@@ -1363,15 +1365,15 @@ COPY test (id, a, b, c, d, e) FROM stdin;
 				spannerData{table: "test", cols: []string{"timestamp", "synth_id"}, vals: []interface{}{getTime(t, "2019-10-29T05:30:00Z"), bitReverse(4)}},
 				spannerData{table: "test", cols: []string{"date", "synth_id"}, vals: []interface{}{"2019-10-29", bitReverse(5)}},
 				spannerData{table: "test", cols: []string{"bytea", "synth_id"}, vals: []interface{}{[]byte{0x0, 0x1, 0xbe, 0xef}, bitReverse(6)}},
-				spannerData{table: "test", cols: []string{"arr", "synth_id"},
-					vals: []interface{}{[]spanner.NullInt64{{Int64: 42, Valid: true}, {Int64: 6, Valid: true}}, bitReverse(7)}},
+				spannerData{table: "test", cols: []string{"arr", "synth_id"}, vals: []interface{}{"{42,6}", bitReverse(7)}},
+				spannerData{table: "test", cols: []string{"arr", "synth_id"}, vals: []interface{}{"{42, 6}", bitReverse(8)}},
 			},
 		},
 	}
 	for _, tc := range dataErrorTests {
 		conv, rows := runProcessPgDumpPGTarget(tc.input)
 		assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
-		assert.Equal(t, conv.BadRows(), int64(7), tc.name+": Error count did not match")
+		assert.Equal(t, conv.BadRows(), int64(6), tc.name+": Error count did not match")
 	}
 }
 
@@ -1500,7 +1502,7 @@ func runProcessPgDump(s string) (*internal.Conv, []spannerData) {
 
 func runProcessPgDumpPGTarget(s string) (*internal.Conv, []spannerData) {
 	conv := internal.MakeConv()
-	conv.TargetDb = "experimental_postgres"
+	conv.TargetDb = constants.TARGET_EXPERIMENTAL_POSTGRES
 	conv.SetLocation(time.UTC)
 	conv.SetSchemaMode()
 	pgDump := DbDumpImpl{}
