@@ -35,7 +35,7 @@ func (cmd *SchemaCmd) Synopsis() string {
 // Usage returns usage info of the command.
 func (cmd *SchemaCmd) Usage() string {
 	return fmt.Sprintf(`%v schema -source=[source] -source-profile="key1=value1,key2=value2" ...
-	
+
 Convert schema for source db specified by source and source-profile. Source db
 dump file can be specified by either file param in source-profile or piped to
 stdin. Connection profile for source databases in direct connect mode can be

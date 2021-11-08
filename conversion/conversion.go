@@ -33,6 +33,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -40,7 +41,6 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
-	"net/url"
 
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
@@ -55,7 +55,7 @@ import (
 	"google.golang.org/api/option"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
-	
+
 	"cloud.google.com/go/storage"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
