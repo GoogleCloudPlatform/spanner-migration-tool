@@ -98,15 +98,26 @@ func (cmd *EvalCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	}
 
 	schemaSampleSize := int64(100000)
+	sqlConnectionStr := ""
 	if sourceProfile.ty == SourceProfileTypeConnection {
 		if sourceProfile.conn.ty == SourceProfileConnectionTypeDynamoDB {
 			if sourceProfile.conn.dydb.schemaSampleSize != 0 {
 				schemaSampleSize = sourceProfile.conn.dydb.schemaSampleSize
 			}
+			// For DynamoDB, the SDK only reads credentials from env variables.
+			// There is no way to pass them through the code hence, don't need to override
+			// sqlConnectionStr for DynamoDB.
+		} else if sourceProfile.conn.ty == SourceProfileConnectionTypeMySQL {
+			connParams := sourceProfile.conn.mysql
+			sqlConnectionStr = conversion.GetMYSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
+		} else {
+			connParams := sourceProfile.conn.pg
+			sqlConnectionStr = conversion.GetPGSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
 		}
 	}
+
 	var conv *internal.Conv
-	conv, err = conversion.SchemaConv(driverName, targetDb, &ioHelper, schemaSampleSize)
+	conv, err = conversion.SchemaConv(driverName, sqlConnectionStr, targetDb, &ioHelper, schemaSampleSize)
 	if err != nil {
 		panic(err)
 	}
@@ -140,7 +151,7 @@ func (cmd *EvalCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		return subcommands.ExitFailure
 	}
 
-	bw, err := conversion.DataConv(driverName, &ioHelper, client, conv, true)
+	bw, err := conversion.DataConv(driverName, sqlConnectionStr, &ioHelper, client, conv, true)
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 		return subcommands.ExitFailure

@@ -73,10 +73,10 @@ var (
 	MaxWorkers = 20
 )
 
-func SchemaConv(driver, driverConfig, targetDb string, ioHelper *IOStreams, schemaSampleSize int64) (*internal.Conv, error) {
+func SchemaConv(driver, sqlConnectionStr, targetDb string, ioHelper *IOStreams, schemaSampleSize int64) (*internal.Conv, error) {
 	switch driver {
 	case constants.POSTGRES, constants.MYSQL:
-		return schemaFromSQL(driver, driverConfig, targetDb)
+		return schemaFromSQL(driver, sqlConnectionStr, targetDb)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		return schemaFromDump(driver, targetDb, ioHelper)
 	case constants.DYNAMODB:
@@ -86,7 +86,7 @@ func SchemaConv(driver, driverConfig, targetDb string, ioHelper *IOStreams, sche
 	}
 }
 
-func DataConv(driver string, ioHelper *IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*spanner.BatchWriter, error) {
+func DataConv(driver, sqlConnectionStr string, ioHelper *IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*spanner.BatchWriter, error) {
 	config := spanner.BatchWriterConfig{
 		BytesLimit: 100 * 1000 * 1000,
 		WriteLimit: 40,
@@ -95,7 +95,7 @@ func DataConv(driver string, ioHelper *IOStreams, client *sp.Client, conv *inter
 	}
 	switch driver {
 	case constants.POSTGRES, constants.MYSQL:
-		return dataFromSQL(driver, config, client, conv)
+		return dataFromSQL(driver, sqlConnectionStr, config, client, conv)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		if conv.SpSchema.CheckInterleaved() {
 			return nil, fmt.Errorf("HarbourBridge does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql.")
@@ -108,66 +108,67 @@ func DataConv(driver string, ioHelper *IOStreams, client *sp.Client, conv *inter
 	}
 }
 
-func getDriverConfig(driver string) (string, error) {
+func generateSQLConnectionStr(driver string) (string, error) {
 	switch driver {
 	case constants.POSTGRES:
-		return pgDriverConfig()
+		return generatePGSQLConnectionStr()
 	case constants.MYSQL:
-		return mysqlDriverConfig()
+		return generateMYSQLConnectionStr()
 	default:
-		return "", fmt.Errorf("Driver %s not supported", driver)
+		return "", fmt.Errorf("driver %s not supported", driver)
 	}
 }
 
-func pgDriverConfig() (string, error) {
+func generatePGSQLConnectionStr() (string, error) {
 	server := os.Getenv("PGHOST")
 	port := os.Getenv("PGPORT")
 	user := os.Getenv("PGUSER")
 	dbname := os.Getenv("PGDATABASE")
 	if server == "" || port == "" || user == "" || dbname == "" {
 		fmt.Printf("Please specify host, port, user and database using PGHOST, PGPORT, PGUSER and PGDATABASE environment variables\n")
-		return "", fmt.Errorf("Could not connect to source database")
+		return "", fmt.Errorf("could not connect to source database")
 	}
 	password := os.Getenv("PGPASSWORD")
 	if password == "" {
 		password = GetPassword()
 	}
-	return PGDriverConfigStr(server, port, user, password, dbname), nil
+	return GetPGSQLConnectionStr(server, port, user, password, dbname), nil
 }
 
-func PGDriverConfigStr(server, port, user, password, dbname string) string {
+func GetPGSQLConnectionStr(server, port, user, password, dbname string) string {
 	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", server, port, user, password, dbname)
 }
 
-func mysqlDriverConfig() (string, error) {
+func generateMYSQLConnectionStr() (string, error) {
 	server := os.Getenv("MYSQLHOST")
 	port := os.Getenv("MYSQLPORT")
 	user := os.Getenv("MYSQLUSER")
 	dbname := os.Getenv("MYSQLDATABASE")
 	if server == "" || port == "" || user == "" || dbname == "" {
 		fmt.Printf("Please specify host, port, user and database using MYSQLHOST, MYSQLPORT, MYSQLUSER and MYSQLDATABASE environment variables\n")
-		return "", fmt.Errorf("Could not connect to source database")
+		return "", fmt.Errorf("could not connect to source database")
 	}
 	password := os.Getenv("MYSQLPWD")
 	if password == "" {
 		password = GetPassword()
 	}
-	return MySQLDriverConfigStr(server, port, user, password, dbname), nil
+	return GetMYSQLConnectionStr(server, port, user, password, dbname), nil
 }
 
-func MySQLDriverConfigStr(server, port, user, password, dbname string) string {
+func GetMYSQLConnectionStr(server, port, user, password, dbname string) string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, server, port, dbname)
 }
 
-func schemaFromSQL(driver, driverConfig, targetDb string) (*internal.Conv, error) {
-	if driverConfig == "" {
+func schemaFromSQL(driver, sqlConnectionStr, targetDb string) (*internal.Conv, error) {
+	if sqlConnectionStr == "" {
+		// If empty, this is called as part of the old command line workflow.
 		var err error
-		driverConfig, err = getDriverConfig(driver)
+		sqlConnectionStr, err = generateSQLConnectionStr(driver)
 		if err != nil {
 			return nil, err
 		}
 	}
-	sourceDB, err := sql.Open(driver, driverConfig)
+	sourceDB, err := sql.Open(driver, sqlConnectionStr)
 	if err != nil {
 		return nil, err
 	}
@@ -180,17 +181,21 @@ func schemaFromSQL(driver, driverConfig, targetDb string) (*internal.Conv, error
 	return conv, nil
 }
 
-func dataFromSQL(driver string, config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
-	// TODO: Refactor to avoid redundant calls to driverConfig and
+func dataFromSQL(driver, sqlConnectionStr string, config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
+	// TODO: Refactor to avoid redundant calls to sqlConnectionStr and
 	// Open in schemaFromSQL and dataFromSQL. Also refactor to
 	// share code with dataFromPgDump. Use single transaction for
 	// reading schema and data from source db to get consistent
 	// dump.
-	driverConfig, err := getDriverConfig(driver)
-	if err != nil {
-		return nil, err
+	if sqlConnectionStr == "" {
+		// If empty, this is called as part of the old command line workflow.
+		var err error
+		sqlConnectionStr, err = generateSQLConnectionStr(driver)
+		if err != nil {
+			return nil, err
+		}
 	}
-	sourceDB, err := sql.Open(driver, driverConfig)
+	sourceDB, err := sql.Open(driver, sqlConnectionStr)
 	if err != nil {
 		return nil, err
 	}

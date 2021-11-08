@@ -77,7 +77,7 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 		return fmt.Errorf("can't create client for db %s: %v", dbURI, err)
 	}
 
-	bw, err := conversion.DataConv(driver, ioHelper, client, conv, dataOnly)
+	bw, err := conversion.DataConv(driver, "", ioHelper, client, conv, dataOnly)
 	if err != nil {
 		return fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 	}
