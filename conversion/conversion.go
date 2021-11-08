@@ -277,7 +277,7 @@ type IOStreams struct {
 func downloadFromGCS(bucketName string, filePath string) (*os.File, error) {
 	ctx := context.Background()
 
-	client, err := storage.NewClient(ctx, option.WithoutAuthentication(), option.WithEndpoint("http://0.0.0.0:4443/storage/v1/b"))
+	client, err := storage.NewClient(ctx)
 	if err != nil {
 		fmt.Printf("Failed to create GCS client for bucket %q", bucketName)
 		log.Fatal(err)
@@ -303,32 +303,17 @@ func downloadFromGCS(bucketName string, filePath string) (*os.File, error) {
 	syscall.Unlink(tmpfile.Name()) // File will be deleted when this process exits.
 
 	fmt.Printf("\nDownloading dump file from GCS bucket %s, path %s\n", bucketName, filePath)
-<<<<<<< HEAD
-<<<<<<< HEAD
-	buffer := make([]byte, 10024)
-=======
 	buffer := make([]byte, 1024)
->>>>>>> f77db99 (rebase)
 	for {
 		// read a chunk
 		n, err := r.Read(buffer[:cap(buffer)])
 
-=======
-	buffer := make([]byte, 1024)
-	for {
-		// read a chunk
-		n, err := r.Read(buffer)
->>>>>>> 0a18d17 (removed test)
 		if err != nil && err != io.EOF {
 			fmt.Printf("readFile: unable to read entire dump file from bucket %s, file %s: %v", bucketName, filePath, err)
 			log.Fatal(err)
 			return nil, err
 		}
-<<<<<<< HEAD
 		if n == 0 && err == io.EOF {
-=======
-		if n == 0 {
->>>>>>> 0a18d17 (removed test)
 			break
 		}
 
@@ -349,11 +334,7 @@ func NewIOStreams(driver string, dumpFile string) IOStreams {
 	io := IOStreams{In: os.Stdin, Out: os.Stdout}
 	u, err := url.Parse(dumpFile)
 	if err != nil {
-<<<<<<< HEAD
-		fmt.Printf("parseFilePath: unable to parse path for dump file %s", dumpFile)
-=======
 		fmt.Printf("parseFilePath: unable parse file path for dumpfile %s", dumpFile)
->>>>>>> a3b03e7 (cleaning)
 		log.Fatal(err)
 	}
 	if (driver == constants.PGDUMP || driver == constants.MYSQLDUMP) && dumpFile != "" {
