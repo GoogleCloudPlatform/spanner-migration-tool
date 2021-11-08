@@ -128,21 +128,8 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		err = fmt.Errorf("can't create/update database: %v", err)
 		return subcommands.ExitFailure
 	}
-	sqlConnectionStr := ""
-	if sourceProfile.ty == SourceProfileTypeConnection {
-		// For DynamoDB, the SDK only reads credentials from env variables.
-		// There is no way to pass them through the code hence, don't need to override
-		// sqlConnectionStr for DynamoDB.
-		if sourceProfile.conn.ty == SourceProfileConnectionTypeMySQL {
-			connParams := sourceProfile.conn.mysql
-			sqlConnectionStr = conversion.GetMYSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
-		} else if sourceProfile.conn.ty == SourceProfileConnectionTypePostgreSQL {
-			connParams := sourceProfile.conn.pg
-			sqlConnectionStr = conversion.GetPGSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
-		}
-	}
 
-	bw, err := conversion.DataConv(driverName, sqlConnectionStr, &ioHelper, client, conv, true)
+	bw, err := conversion.DataConv(driverName, getSQLConnectionStr(sourceProfile), &ioHelper, client, conv, true)
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 		return subcommands.ExitFailure

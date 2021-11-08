@@ -94,27 +94,8 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		cmd.filePrefix = dbName + "."
 	}
 
-	schemaSampleSize := int64(100000)
-	sqlConnectionStr := ""
-	if sourceProfile.ty == SourceProfileTypeConnection {
-		if sourceProfile.conn.ty == SourceProfileConnectionTypeDynamoDB {
-			if sourceProfile.conn.dydb.schemaSampleSize != 0 {
-				schemaSampleSize = sourceProfile.conn.dydb.schemaSampleSize
-			}
-			// For DynamoDB, the SDK only reads credentials from env variables.
-			// There is no way to pass them through the code hence, don't need to override
-			// sqlConnectionStr for DynamoDB.
-		} else if sourceProfile.conn.ty == SourceProfileConnectionTypeMySQL {
-			connParams := sourceProfile.conn.mysql
-			sqlConnectionStr = conversion.GetMYSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
-		} else {
-			connParams := sourceProfile.conn.pg
-			sqlConnectionStr = conversion.GetPGSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
-		}
-	}
-
 	var conv *internal.Conv
-	conv, err = conversion.SchemaConv(driverName, sqlConnectionStr, targetDb, &ioHelper, schemaSampleSize)
+	conv, err = conversion.SchemaConv(driverName, getSQLConnectionStr(sourceProfile), targetDb, &ioHelper, getSchemaSampleSize(sourceProfile))
 	if err != nil {
 		return subcommands.ExitFailure
 	}

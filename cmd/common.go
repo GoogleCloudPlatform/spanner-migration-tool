@@ -77,3 +77,32 @@ func getResourceIds(ctx context.Context, targetProfile TargetProfile, now time.T
 	}
 	return project, instance, dbName, err
 }
+
+func getSQLConnectionStr(sourceProfile SourceProfile) string {
+	sqlConnectionStr := ""
+	if sourceProfile.ty == SourceProfileTypeConnection {
+		// For DynamoDB, the SDK only reads credentials from env variables.
+		// There is no way to pass them through the code hence, don't need to override
+		// sqlConnectionStr for DynamoDB.
+		if sourceProfile.conn.ty == SourceProfileConnectionTypeMySQL {
+			connParams := sourceProfile.conn.mysql
+			sqlConnectionStr = conversion.GetMYSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
+		} else if sourceProfile.conn.ty == SourceProfileConnectionTypePostgreSQL {
+			connParams := sourceProfile.conn.pg
+			sqlConnectionStr = conversion.GetPGSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
+		}
+	}
+	return sqlConnectionStr
+}
+
+func getSchemaSampleSize(sourceProfile SourceProfile) int64 {
+	schemaSampleSize := int64(100000)
+	if sourceProfile.ty == SourceProfileTypeConnection {
+		if sourceProfile.conn.ty == SourceProfileConnectionTypeDynamoDB {
+			if sourceProfile.conn.dydb.schemaSampleSize != 0 {
+				schemaSampleSize = sourceProfile.conn.dydb.schemaSampleSize
+			}
+		}
+	}
+	return schemaSampleSize
+}

@@ -113,7 +113,7 @@ func main() {
 	}
 	fmt.Printf("\nWarning: Found usage of deprecated flags. Support for these " +
 		"flags will be discontinued soon. It is recommended to use Harbourbridge " +
-		"in subcommand mode.\n\n")
+		"in subcommand mode with connection profiles.\n\n")
 	// Running HB CLI in global command line mode.
 	setupGlobalFlags()
 	flag.Usage = usage
