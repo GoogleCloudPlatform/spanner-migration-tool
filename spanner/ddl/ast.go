@@ -252,21 +252,13 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	var col []string
 	var colComment []string
 	var keys []string
-	if config.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
-		for _, cn := range ct.ColNames {
-			s, c := ct.ColDefs[cn].PrintColumnDef(config)
-			s = "\n\t" + s + ","
-			col = append(col, s)
-			colComment = append(colComment, c)
-		}
-	} else {
-		for _, cn := range ct.ColNames {
-			s, c := ct.ColDefs[cn].PrintColumnDef(config)
-			s = "\t" + s + ",\n"
-			col = append(col, s)
-			colComment = append(colComment, c)
-		}
+	for _, cn := range ct.ColNames {
+		s, c := ct.ColDefs[cn].PrintColumnDef(config)
+		s = "\t" + s + ",\n"
+		col = append(col, s)
+		colComment = append(colComment, c)
 	}
+
 	n := maxStringLength(col)
 	var cols string
 	for i, c := range col {
@@ -275,6 +267,7 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 			cols += strings.Repeat(" ", n-len(c)) + " -- " + colComment[i]
 		}
 	}
+
 	for _, p := range ct.Pks {
 		keys = append(keys, p.PrintIndexKey(config))
 	}
@@ -282,6 +275,7 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	if config.Comments && len(ct.Comment) > 0 {
 		tableComment = "--\n-- " + ct.Comment + "\n--\n"
 	}
+
 	var interleave string
 	if ct.Parent != "" {
 		if config.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
@@ -290,8 +284,9 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 			interleave = ",\nINTERLEAVE IN PARENT " + config.quote(ct.Parent)
 		}
 	}
+
 	if config.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
-		return fmt.Sprintf("%sCREATE TABLE %s (%s\n\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
+		return fmt.Sprintf("%sCREATE TABLE %s (\n%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 	}
 	return fmt.Sprintf("%sCREATE TABLE %s (\n%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 }
