@@ -35,11 +35,10 @@ func (cmd *SchemaCmd) Synopsis() string {
 // Usage returns usage info of the command.
 func (cmd *SchemaCmd) Usage() string {
 	return fmt.Sprintf(`%v schema -source=[source] -source-profile="key1=value1,key2=value2" ...
-
-Convert schema for source db specified by driver. Source db dump file can be
-specified by either file param in source-profile or piped to stdin. Connection
-profile for source databases in direct connect mode can be specified by setting
-appropriate environment variables. The schema flags are:
+Convert schema for source db specified by source and source-profile. Source db
+dump file can be specified by either file param in source-profile or piped to
+stdin. Connection profile for source databases in direct connect mode can be
+specified by setting appropriate environment variables. The schema flags are:
 `, path.Base(os.Args[0]))
 }
 
@@ -53,18 +52,25 @@ func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
 }
 
 func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+	var err error
+	defer func() {
+		if err != nil {
+			fmt.Printf("FATAL error: %v\n", err)
+		}
+	}()
+
 	sourceProfile, err := NewSourceProfile(cmd.sourceProfile, cmd.source)
 	if err != nil {
-		panic(err)
+		return subcommands.ExitUsageError
 	}
 	driverName, err := sourceProfile.ToLegacyDriver(cmd.source)
 	if err != nil {
-		panic(err)
+		return subcommands.ExitUsageError
 	}
 
 	targetProfile, err := NewTargetProfile(cmd.targetProfile)
 	if err != nil {
-		panic(err)
+		return subcommands.ExitUsageError
 	}
 	targetDb := targetProfile.ToLegacyTargetDb()
 
@@ -81,7 +87,8 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	if cmd.filePrefix == "" {
 		dbName, err := conversion.GetDatabaseName(driverName, time.Now())
 		if err != nil {
-			panic(fmt.Errorf("can't generate database name for prefix: %v", err))
+			err = fmt.Errorf("can't generate database name for prefix: %v", err)
+			return subcommands.ExitFailure
 		}
 		cmd.filePrefix = dbName + "."
 	}
@@ -97,7 +104,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	var conv *internal.Conv
 	conv, err = conversion.SchemaConv(driverName, targetDb, &ioHelper, schemaSampleSize)
 	if err != nil {
-		panic(err)
+		return subcommands.ExitFailure
 	}
 
 	now := time.Now()
