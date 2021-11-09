@@ -165,7 +165,6 @@ func processTable(conv *internal.Conv, db *sql.DB, table SchemaAndName, infoSche
 	for _, k := range primaryKeys {
 		schemaPKeys = append(schemaPKeys, schema.Key{Column: k})
 	}
-
 	conv.SrcSchema[name] = schema.Table{
 		Name:        name,
 		ColNames:    colNames,
