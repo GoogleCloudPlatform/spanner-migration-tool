@@ -17,6 +17,7 @@ package postgres
 import (
 	"testing"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
@@ -102,7 +103,7 @@ func TestToSpannerType(t *testing.T) {
 func TestToExperimentalSpannerType(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
-	conv.TargetDb = "experimental_postgres"
+	conv.TargetDb = constants.TARGET_EXPERIMENTAL_POSTGRES
 	name := "test"
 	srcSchema := schema.Table{
 		Name:     name,

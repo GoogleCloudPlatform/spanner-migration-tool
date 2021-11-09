@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
 	"github.com/google/go-cmp/cmp"
@@ -213,11 +214,11 @@ func TestIntegration_DYNAMODB_Command(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
-	dbName, _ := conversion.GetDatabaseName(conversion.DYNAMODB, now)
+	dbName, _ := conversion.GetDatabaseName(constants.DYNAMODB, now)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
-	args := fmt.Sprintf("-driver %s -prefix %s -instance %s -dbname %s", conversion.DYNAMODB, filePrefix, instanceID, dbName)
+	args := fmt.Sprintf("-driver %s -prefix %s -instance %s -dbname %s", constants.DYNAMODB, filePrefix, instanceID, dbName)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)

@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
 
@@ -109,12 +110,12 @@ func TestIntegration_MYSQLDUMP_Command(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
-	dbName, _ := conversion.GetDatabaseName(conversion.MYSQLDUMP, now)
+	dbName, _ := conversion.GetDatabaseName(constants.MYSQLDUMP, now)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	dataFilepath := "../../test_data/mysqldump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
-	args := fmt.Sprintf("-driver %s -prefix %s -instance %s -dbname %s < %s", conversion.MYSQLDUMP, filePrefix, instanceID, dbName, dataFilepath)
+	args := fmt.Sprintf("-driver %s -prefix %s -instance %s -dbname %s < %s", constants.MYSQLDUMP, filePrefix, instanceID, dbName, dataFilepath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -133,11 +134,11 @@ func TestIntegration_MYSQL_Command(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
-	dbName, _ := conversion.GetDatabaseName(conversion.MYSQL, now)
+	dbName, _ := conversion.GetDatabaseName(constants.MYSQL, now)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
-	args := fmt.Sprintf("-driver %s -prefix %s -instance %s -dbname %s", conversion.MYSQL, filePrefix, instanceID, dbName)
+	args := fmt.Sprintf("-driver %s -prefix %s -instance %s -dbname %s", constants.MYSQL, filePrefix, instanceID, dbName)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)

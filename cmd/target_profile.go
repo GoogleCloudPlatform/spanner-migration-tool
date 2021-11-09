@@ -3,6 +3,8 @@ package cmd
 import (
 	"fmt"
 	"strings"
+
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 )
 
 type TargetProfileType int
@@ -50,17 +52,17 @@ func (trg TargetProfile) ToLegacyTargetDb() string {
 			case TargetProfileConnectionTypeSpanner:
 				{
 					sp := conn.sp
-					if len(sp.dialect) > 0 && strings.ToLower(sp.dialect) == "postgresql" {
-						return "experimental_postgres"
+					if len(sp.dialect) > 0 && strings.ToLower(sp.dialect) == constants.DIALECT_POSTGRESQL {
+						return constants.TARGET_EXPERIMENTAL_POSTGRES
 					}
-					return "spanner"
+					return constants.TARGET_SPANNER
 				}
 			default:
-				return "spanner"
+				return constants.TARGET_SPANNER
 			}
 		}
 	default:
-		return "spanner"
+		return constants.TARGET_SPANNER
 	}
 }
 

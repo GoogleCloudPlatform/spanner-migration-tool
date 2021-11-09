@@ -29,6 +29,7 @@ import (
 	_ "github.com/lib/pq"
 
 	"github.com/cloudspannerecosystem/harbourbridge/cmd"
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/web"
@@ -39,7 +40,7 @@ var (
 	dbNameOverride   string
 	instanceOverride string
 	filePrefix       = ""
-	driverName       = conversion.PGDUMP
+	driverName       = constants.PGDUMP
 	schemaSampleSize = int64(0)
 	verbose          bool
 	schemaOnly       bool
@@ -48,14 +49,14 @@ var (
 	sessionJSON      string
 	webapi           bool
 	dumpFilePath     string
-	targetDb         = conversion.TARGET_SPANNER
+	targetDb         = constants.TARGET_SPANNER
 )
 
 func setupGlobalFlags() {
 	flag.StringVar(&dbNameOverride, "dbname", "", "dbname: name to use for Spanner DB")
 	flag.StringVar(&instanceOverride, "instance", "", "instance: Spanner instance to use")
 	flag.StringVar(&filePrefix, "prefix", "", "prefix: file prefix for generated files")
-	flag.StringVar(&driverName, "driver", "pg_dump", "driver name: flag for accessing source DB or dump files (accepted values are \"pg_dump\", \"postgres\", \"mysqldump\", and \"mysql\")")
+	flag.StringVar(&driverName, "driver", constants.PGDUMP, "driver name: flag for accessing source DB or dump files (accepted values are \"pg_dump\", \"postgres\", \"mysqldump\", and \"mysql\")")
 	flag.Int64Var(&schemaSampleSize, "schema-sample-size", int64(100000), "schema-sample-size: the number of rows to use for inferring schema (only for DynamoDB)")
 	flag.BoolVar(&verbose, "v", false, "verbose: print additional output")
 	flag.BoolVar(&verbose, "verbose", false, "verbose: print additional output")
@@ -65,7 +66,7 @@ func setupGlobalFlags() {
 	flag.StringVar(&sessionJSON, "session", "", "session: specifies the file we restore session state from (used in data-only to provide schema and data mapping)")
 	flag.BoolVar(&webapi, "web", false, "web: run the web interface (experimental)")
 	flag.StringVar(&dumpFilePath, "dump-file", "", "dump-file: location of dump file to process")
-	flag.StringVar(&targetDb, "target-db", conversion.TARGET_SPANNER, "target-db: Specifies the target DB. Defaults to spanner")
+	flag.StringVar(&targetDb, "target-db", constants.TARGET_SPANNER, "target-db: Specifies the target DB. Defaults to spanner")
 }
 
 func didSetVerboseTwice() bool {
@@ -136,11 +137,11 @@ func main() {
 		panic(fmt.Errorf("can't use both schema-only and skip-foreign-keys at once, foreign Key creation can only be skipped when data migration takes place"))
 	}
 
-	if targetDb == conversion.TARGET_EXPERIMENTAL_POSTGRES {
-		if !(driverName == conversion.PGDUMP || driverName == conversion.POSTGRES) {
-			panic(fmt.Errorf("can only convert to experimental postgres when source %s or %s. (target-db: %s driver: %s)", conversion.PGDUMP, conversion.POSTGRES, targetDb, driverName))
+	if targetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+		if !(driverName == constants.PGDUMP || driverName == constants.POSTGRES) {
+			panic(fmt.Errorf("can only convert to experimental postgres when source %s or %s. (target-db: %s driver: %s)", constants.PGDUMP, constants.POSTGRES, targetDb, driverName))
 		}
-	} else if targetDb != conversion.TARGET_SPANNER {
+	} else if targetDb != constants.TARGET_SPANNER {
 		panic(fmt.Errorf("unkown target-db %s", targetDb))
 	}
 	fmt.Printf("Using driver (source DB): %s target-db: %s\n", driverName, targetDb)

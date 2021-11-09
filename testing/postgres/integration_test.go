@@ -29,6 +29,7 @@ import (
 
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
 	"google.golang.org/api/iterator"
@@ -111,7 +112,7 @@ func TestIntegration_PGDUMP_Command(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
-	dbName, _ := conversion.GetDatabaseName(conversion.PGDUMP, now)
+	dbName, _ := conversion.GetDatabaseName(constants.PGDUMP, now)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 
 	dataFilepath := "../../test_data/pg_dump.test.out"
@@ -135,7 +136,7 @@ func TestIntegration_PGDUMP_EvalSubcommand(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
-	dbName, _ := conversion.GetDatabaseName(conversion.PGDUMP, now)
+	dbName, _ := conversion.GetDatabaseName(constants.PGDUMP, now)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 
 	dataFilepath := "../../test_data/pg_dump.test.out"
@@ -175,11 +176,11 @@ func TestIntegration_POSTGRES_Command(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
-	dbName, _ := conversion.GetDatabaseName(conversion.POSTGRES, now)
+	dbName, _ := conversion.GetDatabaseName(constants.POSTGRES, now)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
-	args := fmt.Sprintf("-instance %s -dbname %s -prefix %s -driver %s", instanceID, dbName, filePrefix, conversion.POSTGRES)
+	args := fmt.Sprintf("-instance %s -dbname %s -prefix %s -driver %s", instanceID, dbName, filePrefix, constants.POSTGRES)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -198,7 +199,7 @@ func TestIntegration_POSTGRES_EvalSubcommand(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
-	dbName, _ := conversion.GetDatabaseName(conversion.POSTGRES, now)
+	dbName, _ := conversion.GetDatabaseName(constants.POSTGRES, now)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 

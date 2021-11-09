@@ -23,6 +23,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -45,7 +46,7 @@ func TestGetTypeMapNoDriver(t *testing.T) {
 }
 
 func TestGetTypeMapPostgres(t *testing.T) {
-	sessionState.driver = "postgres"
+	sessionState.driver = constants.POSTGRES
 	sessionState.conv = internal.MakeConv()
 	buildConvPostgres(sessionState.conv)
 	req, err := http.NewRequest("GET", "/typemap", nil)
@@ -624,7 +625,7 @@ func TestUpdateTableSchema(t *testing.T) {
 		},
 	}
 	for _, tc := range tc {
-		sessionState.driver = "mysql"
+		sessionState.driver = constants.MYSQL
 		sessionState.conv = tc.conv
 		payload := tc.payload
 		req, err := http.NewRequest("POST", "/typemap/table?table="+tc.table, strings.NewReader(payload))
@@ -769,7 +770,7 @@ func TestSetTypeMapGlobalLevelPostgres(t *testing.T) {
 		},
 	}
 	for _, tc := range tc {
-		sessionState.driver = "postgres"
+		sessionState.driver = constants.POSTGRES
 		sessionState.conv = internal.MakeConv()
 		buildConvPostgres(sessionState.conv)
 		payload := tc.payload
@@ -797,7 +798,7 @@ func TestSetTypeMapGlobalLevelPostgres(t *testing.T) {
 }
 
 func TestGetConversionPostgres(t *testing.T) {
-	sessionState.driver = "postgres"
+	sessionState.driver = constants.POSTGRES
 	sessionState.conv = internal.MakeConv()
 	buildConvPostgres(sessionState.conv)
 	req, err := http.NewRequest("GET", "/conversion", nil)
@@ -819,7 +820,7 @@ func TestGetConversionPostgres(t *testing.T) {
 }
 
 func TestGetTypeMapMySQL(t *testing.T) {
-	sessionState.driver = "mysql"
+	sessionState.driver = constants.MYSQL
 	sessionState.conv = internal.MakeConv()
 	buildConvMySQL(sessionState.conv)
 	req, err := http.NewRequest("GET", "/typemap", nil)
@@ -1003,7 +1004,7 @@ func TestSetTypeMapGlobalLevelMySQL(t *testing.T) {
 		},
 	}
 	for _, tc := range tc {
-		sessionState.driver = "mysql"
+		sessionState.driver = constants.MYSQL
 		sessionState.conv = internal.MakeConv()
 		buildConvMySQL(sessionState.conv)
 		payload := tc.payload
@@ -1030,7 +1031,7 @@ func TestSetTypeMapGlobalLevelMySQL(t *testing.T) {
 }
 
 func TestGetConversionMySQL(t *testing.T) {
-	sessionState.driver = "mysql"
+	sessionState.driver = constants.MYSQL
 	sessionState.conv = internal.MakeConv()
 	buildConvMySQL(sessionState.conv)
 	req, err := http.NewRequest("GET", "/conversion", nil)
@@ -1300,7 +1301,7 @@ func TestSetParentTable(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		sessionState.driver = "mysql"
+		sessionState.driver = constants.MYSQL
 		sessionState.conv = tc.ct
 		update := true
 		req, err := http.NewRequest("GET", fmt.Sprintf("/setparent?table=%s&update=%v", tc.table, update), nil)
@@ -1396,7 +1397,7 @@ func TestDropForeignKey(t *testing.T) {
 		},
 	}
 	for _, tc := range tc {
-		sessionState.driver = "mysql"
+		sessionState.driver = constants.MYSQL
 		sessionState.conv = tc.conv
 		req, err := http.NewRequest("GET", "/drop/fk?table="+tc.table+"&pos="+tc.position, nil)
 		if err != nil {
@@ -1620,7 +1621,7 @@ func TestRenameIndexes(t *testing.T) {
 	}
 
 	for _, tc := range tc {
-		sessionState.driver = "mysql"
+		sessionState.driver = constants.MYSQL
 		sessionState.conv = tc.conv
 
 		inputBytes, err := json.Marshal(tc.input)
@@ -1886,7 +1887,7 @@ func TestRenameForeignKeys(t *testing.T) {
 		},
 	}
 	for _, tc := range tc {
-		sessionState.driver = "mysql"
+		sessionState.driver = constants.MYSQL
 		sessionState.conv = tc.conv
 
 		inputBytes, err := json.Marshal(tc.input)
@@ -2115,7 +2116,7 @@ func TestAddIndexes(t *testing.T) {
 	}
 
 	for _, tc := range tc {
-		sessionState.driver = "mysql"
+		sessionState.driver = constants.MYSQL
 		sessionState.conv = tc.conv
 
 		inputBytes, err := json.Marshal(tc.input)
@@ -2198,7 +2199,7 @@ func TestDropSecondaryIndex(t *testing.T) {
 		},
 	}
 	for _, tc := range tc {
-		sessionState.driver = "mysql"
+		sessionState.driver = constants.MYSQL
 		sessionState.conv = tc.conv
 		req, err := http.NewRequest("GET", "/drop/secondaryindex?table="+tc.table+"&pos="+tc.position, nil)
 		if err != nil {

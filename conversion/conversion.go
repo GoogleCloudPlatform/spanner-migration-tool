@@ -55,6 +55,7 @@ import (
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/dynamodb"
@@ -62,24 +63,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-)
-
-const (
-	// PGDUMP is the driver name for pg_dump.
-	PGDUMP string = "pg_dump"
-	// POSTGRES is the driver name for PostgreSQL.
-	POSTGRES string = "postgres"
-	// MYSQLDUMP is the driver name for mysqldump.
-	MYSQLDUMP string = "mysqldump"
-	// MYSQL is the driver name for MySQL.
-	MYSQL string = "mysql"
-	// DYNAMODB is the driver name for AWS DynamoDB.
-	// This is an experimental driver; implementation in progress.
-	DYNAMODB string = "dynamodb"
-
-	// Target db for which schema is being generated.
-	TARGET_SPANNER               string = "spanner"
-	TARGET_EXPERIMENTAL_POSTGRES string = "experimental_postgres"
 )
 
 var (
@@ -92,11 +75,11 @@ var (
 
 func SchemaConv(driver string, targetDb string, ioHelper *IOStreams, schemaSampleSize int64) (*internal.Conv, error) {
 	switch driver {
-	case POSTGRES, MYSQL:
+	case constants.POSTGRES, constants.MYSQL:
 		return schemaFromSQL(driver, targetDb)
-	case PGDUMP, MYSQLDUMP:
+	case constants.PGDUMP, constants.MYSQLDUMP:
 		return schemaFromDump(driver, targetDb, ioHelper)
-	case DYNAMODB:
+	case constants.DYNAMODB:
 		return schemaFromDynamoDB(schemaSampleSize)
 	default:
 		return nil, fmt.Errorf("schema conversion for driver %s not supported", driver)
@@ -111,14 +94,14 @@ func DataConv(driver string, ioHelper *IOStreams, client *sp.Client, conv *inter
 		Verbose:    internal.Verbose(),
 	}
 	switch driver {
-	case POSTGRES, MYSQL:
+	case constants.POSTGRES, constants.MYSQL:
 		return dataFromSQL(driver, config, client, conv)
-	case PGDUMP, MYSQLDUMP:
+	case constants.PGDUMP, constants.MYSQLDUMP:
 		if conv.SpSchema.CheckInterleaved() {
 			return nil, fmt.Errorf("HarbourBridge does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql.")
 		}
 		return dataFromDump(driver, config, ioHelper, client, conv, dataOnly)
-	case DYNAMODB:
+	case constants.DYNAMODB:
 		return dataFromDynamoDB(config, client, conv)
 	default:
 		return nil, fmt.Errorf("data conversion for driver %s not supported", driver)
@@ -127,9 +110,9 @@ func DataConv(driver string, ioHelper *IOStreams, client *sp.Client, conv *inter
 
 func driverConfig(driver string) (string, error) {
 	switch driver {
-	case POSTGRES:
+	case constants.POSTGRES:
 		return pgDriverConfig()
-	case MYSQL:
+	case constants.MYSQL:
 		return mysqlDriverConfig()
 	default:
 		return "", fmt.Errorf("Driver %s not supported", driver)
@@ -292,7 +275,7 @@ type IOStreams struct {
 // Input stream defaults to stdin. Output stream is always set to stdout.
 func NewIOStreams(driver string, dumpFile string) IOStreams {
 	io := IOStreams{In: os.Stdin, Out: os.Stdout}
-	if (driver == PGDUMP || driver == MYSQLDUMP) && dumpFile != "" {
+	if (driver == constants.PGDUMP || driver == constants.MYSQLDUMP) && dumpFile != "" {
 		fmt.Printf("\nLoading dump file from path: %s\n", dumpFile)
 		f, err := os.Open(dumpFile)
 		if err != nil {
@@ -1037,9 +1020,9 @@ func GetBanner(now time.Time, db string) string {
 // ProcessDump invokes process dump function from a sql package based on driver selected.
 func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 	switch driver {
-	case MYSQLDUMP:
+	case constants.MYSQLDUMP:
 		return common.ProcessDbDump(conv, r, mysql.DbDumpImpl{})
-	case PGDUMP:
+	case constants.PGDUMP:
 		return common.ProcessDbDump(conv, r, postgres.DbDumpImpl{})
 	default:
 		return fmt.Errorf("process dump for driver %s not supported", driver)
@@ -1049,9 +1032,9 @@ func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 // ProcessInfoSchema invokes process infoschema function from a sql package based on driver selected.
 func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
-	case MYSQL:
+	case constants.MYSQL:
 		return common.ProcessInfoSchema(conv, db, mysql.InfoSchemaImpl{os.Getenv("MYSQLDATABASE")})
-	case POSTGRES:
+	case constants.POSTGRES:
 		return common.ProcessInfoSchema(conv, db, postgres.InfoSchemaImpl{})
 	default:
 		return fmt.Errorf("schema conversion for driver %s not supported", driver)
@@ -1061,9 +1044,9 @@ func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB) error {
 // SetRowStats invokes SetRowStats function from a sql package based on driver selected.
 func SetRowStats(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
-	case MYSQL:
+	case constants.MYSQL:
 		common.SetRowStats(conv, db, mysql.InfoSchemaImpl{os.Getenv("MYSQLDATABASE")})
-	case POSTGRES:
+	case constants.POSTGRES:
 		common.SetRowStats(conv, db, postgres.InfoSchemaImpl{})
 	default:
 		return fmt.Errorf("Could not set rows stats for '%s' driver", driver)
@@ -1075,9 +1058,9 @@ func SetRowStats(driver string, conv *internal.Conv, db *sql.DB) error {
 func ProcessSQLData(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
 	//TODO - move this logic into a factory within the sources dir
-	case MYSQL:
+	case constants.MYSQL:
 		common.ProcessSQLData(conv, db, mysql.InfoSchemaImpl{os.Getenv("MYSQLDATABASE")})
-	case POSTGRES:
+	case constants.POSTGRES:
 		common.ProcessSQLData(conv, db, postgres.InfoSchemaImpl{})
 	default:
 		return fmt.Errorf("Data conversion for driver %s is not supported", driver)
