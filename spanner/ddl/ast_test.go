@@ -533,25 +533,3 @@ func TestGetPGDDL(t *testing.T) {
 	}
 	assert.ElementsMatch(t, e3, tablesAndFks)
 }
-
-// CREATE TABLE albums (
-// 	singerid INT8 NOT NULL,
-// 	albumid INT8 NOT NULL,
-// 	albumtitle VARCHAR,
-// 	releasedate VARCHAR,
-// 	PRIMARY KEY(singerid, albumid)
-//   );
-
-//   CREATE TABLE CLIENT_FORM_DATA_HISTORY (
-// 	CLIENT_FORM_DATA_ID STRING(128) NOT NULL,
-// 	CLIENT_ID INT64 NOT NULL,
-// 	FORM_ID INT64 NOT NULL,
-// 	ELIGIBILITY_ID INT64,
-// 	REC_STAT BYTES(1) NOT NULL,
-// 	CREATE_UID STRING(50),
-// 	CREATE_DATE TIMESTAMP,
-// 	UPDATE_UID STRING(50),
-// 	UPDATE_DATE TIMESTAMP,
-// 	SysStartTime TIMESTAMP NOT NULL,
-// 	SysEndTime TIMESTAMP NOT NULL,
-//   ) PRIMARY KEY(CLIENT_FORM_DATA_ID);
