@@ -419,7 +419,7 @@ func cvtSQLArray(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, v
 	if !ok {
 		return nil, fmt.Errorf("can't convert array values to []byte")
 	}
-	return convArray(conv, spCd.T, srcCd.Type.Name, conv.Location, string(a))
+	return convArray(spCd.T, srcCd.Type.Name, conv.Location, string(a))
 }
 
 // cvtSQLScalar converts a values returned from a SQL query to a
@@ -459,7 +459,7 @@ func cvtSQLScalar(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, 
 		// civil.Date (used by the Spanner client library).
 		switch v := val.(type) {
 		case string:
-			return convDate(conv, v)
+			return convDate(v)
 		case time.Time:
 			return civil.DateOf(v), nil
 		}

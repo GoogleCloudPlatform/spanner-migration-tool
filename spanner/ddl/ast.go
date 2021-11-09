@@ -31,44 +31,40 @@ import (
 )
 
 const (
+	// Types supported by Spanner with google_standard_sql (default) dialect.
 	// Bool represent BOOL type.
 	Bool string = "BOOL"
-
 	// Bytes represent BYTES type.
 	Bytes string = "BYTES"
-	// PGBytea represent BYTEA type, which is BYTES type in PG.
-	PGBytea string = "BYTEA"
-
 	// Date represent DATE type.
 	Date string = "DATE"
-
 	// Float64 represent FLOAT64 type.
 	Float64 string = "FLOAT64"
-	// PGFloat8 represent FLOAT8 type, which is double type in PG.
-	PGFloat8 string = "FLOAT8"
-
 	// Int64 represent INT64 type.
 	Int64 string = "INT64"
-	// PGInt8 respresent INT8, which is INT type in PG.
-	PGInt8 string = "INT8"
-
 	// String represent STRING type.
 	String string = "STRING"
-	// PGVarchar represent VARCHAR, which is STRING type in PG.
-	PGVarchar string = "VARCHAR"
-
 	// Timestamp represent TIMESTAMP type.
 	Timestamp string = "TIMESTAMP"
-	// PGTimestamptz represent TIMESTAMPTZ, which is TIMESTAMP type in PG.
-	PGTimestamptz string = "TIMESTAMPTZ"
-
 	// Numeric represent NUMERIC type.
 	Numeric string = "NUMERIC"
 	// Json represent JSON type.
 	Json string = "JSON"
-
 	// MaxLength is a sentinel for Type's Len field, representing the MAX value.
 	MaxLength = math.MaxInt64
+
+	// Types specific to Spanner with postgresql dialect, when they differ from
+	// Spanner with google_standard_sql.
+	// PGBytea represent BYTEA type, which is BYTES type in PG.
+	PGBytea string = "BYTEA"
+	// PGFloat8 represent FLOAT8 type, which is double type in PG.
+	PGFloat8 string = "FLOAT8"
+	// PGInt8 respresent INT8, which is INT type in PG.
+	PGInt8 string = "INT8"
+	// PGVarchar represent VARCHAR, which is STRING type in PG.
+	PGVarchar string = "VARCHAR"
+	// PGTimestamptz represent TIMESTAMPTZ, which is TIMESTAMP type in PG.
+	PGTimestamptz string = "TIMESTAMPTZ"
 	// PGMaxLength represents sentinel for Type's Len field in PG.
 	PGMaxLength = 2621440
 )
@@ -279,6 +275,8 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	var interleave string
 	if ct.Parent != "" {
 		if config.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+			// PG spanner only supports PRIMARY KEY() inside the CREATE TABLE()
+			// and thus INTERLEAVE follows immediately after closing brace.
 			interleave = " INTERLEAVE IN PARENT " + config.quote(ct.Parent)
 		} else {
 			interleave = ",\nINTERLEAVE IN PARENT " + config.quote(ct.Parent)

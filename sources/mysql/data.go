@@ -107,7 +107,7 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, T
 	case ddl.Bytes:
 		return convBytes(val)
 	case ddl.Date:
-		return convDate(conv, val)
+		return convDate(val)
 	case ddl.Float64:
 		return convFloat64(val)
 	case ddl.Int64:
@@ -151,15 +151,10 @@ func convBytes(val string) ([]byte, error) {
 	return b, nil
 }
 
-func convDate(conv *internal.Conv, val string) (interface{}, error) {
+func convDate(val string) (civil.Date, error) {
 	d, err := civil.ParseDate(val)
 	if err != nil {
 		return d, fmt.Errorf("can't convert to date: %w", err)
-	}
-	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
-		// For TARGET_EXPERIMENTAL_POSTGRES, civil.ParseDate call is only used
-		// as a validation step, and we throw its result away and return 'val'.
-		return val, nil
 	}
 	return d, err
 }

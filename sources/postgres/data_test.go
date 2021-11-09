@@ -84,7 +84,7 @@ func TestConvertData(t *testing.T) {
 			spanner.NullBool{Bool: true, Valid: true}, spanner.NullBool{Bool: false, Valid: true},
 			spanner.NullBool{Valid: false}}},
 		{"bytes array", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength, IsArray: true}, "", `{"\\x0001beef",NULL}`, [][]byte{{0x0, 0x1, 0xbe, 0xef}, nil}},
-		{"date array", ddl.Type{Name: ddl.Date, IsArray: true}, "", "{2019-10-29,NULL,2019-10-28}", []interface{}{
+		{"date array", ddl.Type{Name: ddl.Date, IsArray: true}, "", "{2019-10-29,NULL,2019-10-28}", []spanner.NullDate{
 			spanner.NullDate{Date: getDate("2019-10-29"), Valid: true},
 			spanner.NullDate{Valid: false},
 			spanner.NullDate{Date: getDate("2019-10-28"), Valid: true}}},

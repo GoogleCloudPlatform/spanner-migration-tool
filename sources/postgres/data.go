@@ -87,7 +87,7 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, vals []
 		var x interface{}
 		var err error
 		if spColDef.T.IsArray {
-			x, err = convArray(conv, spColDef.T, srcColDef.Type.Name, conv.Location, vals[i])
+			x, err = convArray(spColDef.T, srcColDef.Type.Name, conv.Location, vals[i])
 		} else {
 			x, err = convScalar(conv, spColDef.T, srcColDef.Type.Name, conv.Location, vals[i])
 		}
@@ -122,7 +122,7 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, l
 	case ddl.Bytes:
 		return convBytes(val)
 	case ddl.Date:
-		return convDate(conv, val)
+		return convDate(val)
 	case ddl.Float64:
 		return convFloat64(val)
 	case ddl.Int64:
@@ -159,15 +159,10 @@ func convBytes(val string) ([]byte, error) {
 	return b, err
 }
 
-func convDate(conv *internal.Conv, val string) (interface{}, error) {
+func convDate(val string) (civil.Date, error) {
 	d, err := civil.ParseDate(val)
 	if err != nil {
 		return d, fmt.Errorf("can't convert to date: %w", err)
-	}
-	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
-		// For TARGET_EXPERIMENTAL_POSTGRES, civil.ParseDate call is only used
-		// as a validation step, and we throw its result away and return 'val'.
-		return val, nil
 	}
 	return d, err
 }
@@ -248,7 +243,7 @@ func convTimestamp(srcTypeName string, location *time.Location, val string) (t t
 // is NULL. However, convArray does handle the case where individual
 // array elements are NULL. In other words, convArray handles "{1,
 // NULL, 2}", but it does not handle "NULL" (it returns error).
-func convArray(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, location *time.Location, v string) (interface{}, error) {
+func convArray(spannerType ddl.Type, srcTypeName string, location *time.Location, v string) (interface{}, error) {
 	v = strings.TrimSpace(v)
 	// Handle empty array. Note that we use an empty NullString array
 	// for all Spanner array types since this will be converted to the
@@ -302,7 +297,7 @@ func convArray(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, lo
 		}
 		return r, nil
 	case ddl.Date:
-		var r []interface{}
+		var r []spanner.NullDate
 		for _, s := range a {
 			if s == "NULL" {
 				r = append(r, spanner.NullDate{Valid: false})
@@ -312,16 +307,11 @@ func convArray(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, lo
 			if err != nil {
 				return []spanner.NullDate{}, err
 			}
-			date, err := convDate(conv, s)
+			date, err := convDate(s)
 			if err != nil {
 				return []spanner.NullDate{}, err
 			}
-			switch d := date.(type) {
-			case civil.Date:
-				r = append(r, spanner.NullDate{Date: d, Valid: true})
-			case string:
-				r = append(r, spanner.NullString{StringVal: d, Valid: true})
-			}
+			r = append(r, spanner.NullDate{Date: date, Valid: true})
 		}
 		return r, nil
 	case ddl.Float64:
