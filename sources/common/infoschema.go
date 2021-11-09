@@ -162,20 +162,10 @@ func processTable(conv *internal.Conv, db *sql.DB, table SchemaAndName, infoSche
 	}
 	name := infoSchema.GetTableName(table.Schema, table.Name)
 	var schemaPKeys []schema.Key
-	if len(primaryKeys) == 0 {
-		for col, constraintList := range constraints {
-			for _, constraint := range constraintList {
-				if constraint == "UNIQUE" {
-					schemaPKeys = append(schemaPKeys, schema.Key{Column: col})
-					break
-				}
-			}
-		}
-	} else {
-		for _, k := range primaryKeys {
-			schemaPKeys = append(schemaPKeys, schema.Key{Column: k})
-		}
+	for _, k := range primaryKeys {
+		schemaPKeys = append(schemaPKeys, schema.Key{Column: k})
 	}
+
 	conv.SrcSchema[name] = schema.Table{
 		Name:        name,
 		ColNames:    colNames,

@@ -60,7 +60,7 @@ func TestProcessInfoSchemaMYSQL(t *testing.T) {
 			args:  []driver.Value{"test", "user"},
 			cols:  []string{"column_name", "constraint_type"},
 			rows: [][]driver.Value{
-				{"user_id", "UNIQUE"},
+				{"user_id", "PRIMARY KEY"},
 				{"ref", "FOREIGN KEY"}},
 		}, {
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",

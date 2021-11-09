@@ -36,8 +36,9 @@ type Conv struct {
 	Location       *time.Location // Timezone (for timestamp conversion).
 	sampleBadRows  rowSamples     // Rows that generated errors during conversion.
 	Stats          stats
-	TimezoneOffset string // Timezone offset for timestamp conversion.
-	TargetDb       string // The target database to which HarbourBridge is writing.
+	TimezoneOffset string            // Timezone offset for timestamp conversion.
+	TargetDb       string            // The target database to which HarbourBridge is writing.
+	UniquePKey     map[string]string // Maps Spanner table name to unique column name being used as primary key (if needed).
 }
 
 type mode int
@@ -140,6 +141,7 @@ func MakeConv() *Conv {
 			Unexpected: make(map[string]int64),
 		},
 		TimezoneOffset: "+00:00", // By default, use +00:00 offset which is equal to UTC timezone
+		UniquePKey:     make(map[string]string),
 	}
 }
 
@@ -256,12 +258,34 @@ func (conv *Conv) SampleBadRows(n int) []string {
 func (conv *Conv) AddPrimaryKeys() {
 	for t, ct := range conv.SpSchema {
 		if len(ct.Pks) == 0 {
-			k := conv.buildPrimaryKey(t)
-			ct.ColNames = append(ct.ColNames, k)
-			ct.ColDefs[k] = ddl.ColumnDef{Name: k, T: ddl.Type{Name: ddl.Int64}}
-			ct.Pks = []ddl.IndexKey{{Col: k}}
+			primaryKeyPopulated := false
+			// Populating column with unique constraint as primary key in case
+			// table doesn't have primary key and removing the unique index.
+			if len(ct.Indexes) != 0 {
+				for i, index := range ct.Indexes {
+					if index.Unique {
+						ct.Pks = []ddl.IndexKey{{Col: index.Keys[0].Col}}
+						conv.UniquePKey[t] = index.Keys[0].Col
+						primaryKeyPopulated = true
+						if len(ct.Indexes) == 1 {
+							ct.Indexes = nil
+						} else {
+							tempIndex := ct.Indexes[:i]
+							tempIndex = append(tempIndex, ct.Indexes[i+1:]...)
+							ct.Indexes = tempIndex
+						}
+						break
+					}
+				}
+			}
+			if !primaryKeyPopulated {
+				k := conv.buildPrimaryKey(t)
+				ct.ColNames = append(ct.ColNames, k)
+				ct.ColDefs[k] = ddl.ColumnDef{Name: k, T: ddl.Type{Name: ddl.Int64}}
+				ct.Pks = []ddl.IndexKey{{Col: k}}
+				conv.SyntheticPKeys[t] = SyntheticPKey{k, 0}
+			}
 			conv.SpSchema[t] = ct
-			conv.SyntheticPKeys[t] = SyntheticPKey{k, 0}
 		}
 	}
 }
