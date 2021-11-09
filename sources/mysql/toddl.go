@@ -34,7 +34,7 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) 
 	ty, issues := toSpannerTypeInternal(conv, columnType.Name, columnType.Mods)
 	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
 		ty = overrideExperimentalType(columnType, ty)
-	} else {	
+	} else {
 		if len(columnType.ArrayBounds) > 1 {
 			ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 			issues = append(issues, internal.MultiDimensionalArray)
