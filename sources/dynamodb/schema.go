@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 )
 
 const (
@@ -70,7 +71,7 @@ func ProcessSchema(conv *internal.Conv, client dynamoClient, tables []string, sa
 			return err
 		}
 	}
-	schemaToDDL(conv)
+	common.SchemaToSpannerDDL(conv, ToDdlImpl{})
 	conv.AddPrimaryKeys()
 	return nil
 }
