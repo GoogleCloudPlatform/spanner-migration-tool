@@ -110,11 +110,11 @@ COPY public.types (bigint_col, int_col, integer_col, int8_col, c_double_precisio
 --
 -- Data for Name: types2; Type: TABLE DATA; Schema: public; Owner: postgres
 --
--- TODO 1: Check if `\\x0001beef` getting converted to Bytea with value `AAG+7w==` is correct.
---
--- TODO 2: c_pg_numeric is intentionally out of range for GoogleSQL's Numeric
+-- c_pg_numeric is intentionally out of range for GoogleSQL's Numeric
 -- which has (precision=38, scale=9) and thus is a good test that this gets
 -- cast as PG.Numeric type which is arbitary precision.
+--
+-- TODO: Check if `\\x0001beef` getting converted to Bytea with value `AAG+7w==` is correct.
 --
 
 COPY public.types2 (c_int8, c_boolean, c_bool, c_bytea, c_numeric, c_numeric_n, c_decimal) FROM stdin;

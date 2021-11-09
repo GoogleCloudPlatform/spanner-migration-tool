@@ -17,6 +17,7 @@ package mysql
 import (
 	"bufio"
 	"fmt"
+	"math/big"
 	"math/bits"
 	"strings"
 	"testing"
@@ -728,7 +729,7 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 	INSERT INTO test (id, a, b, c) VALUES (1,'2019-10-29',4.444,5.44444);
 	`,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), "5.444440000"}}},
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), big.NewRat(136111, 25000)}}},
 		},
 		{
 			name: "Data conversion: smallint, mediumint, bigint, double",

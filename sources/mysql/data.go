@@ -24,6 +24,7 @@ import (
 
 	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner"
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -106,13 +107,13 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, T
 	case ddl.Bytes:
 		return convBytes(val)
 	case ddl.Date:
-		return convDate(val)
+		return convDate(conv, val)
 	case ddl.Float64:
 		return convFloat64(val)
 	case ddl.Int64:
 		return convInt64(val)
 	case ddl.Numeric:
-		return convNumeric(val)
+		return convNumeric(conv, val)
 	case ddl.String:
 		return val, nil
 	case ddl.Timestamp:
@@ -150,10 +151,15 @@ func convBytes(val string) ([]byte, error) {
 	return b, nil
 }
 
-func convDate(val string) (civil.Date, error) {
+func convDate(conv *internal.Conv, val string) (interface{}, error) {
 	d, err := civil.ParseDate(val)
 	if err != nil {
 		return d, fmt.Errorf("can't convert to date: %w", err)
+	}
+	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+		// For TARGET_EXPERIMENTAL_POSTGRES, civil.ParseDate call is only used
+		// as a validation step, and we throw its result away and return 'val'.
+		return val, nil
 	}
 	return d, err
 }
@@ -176,15 +182,16 @@ func convInt64(val string) (int64, error) {
 
 // convNumeric maps a source database string value (representing a numeric)
 // into a string representing a valid Spanner numeric.
-// Ideally we would just return a *big.Rat, but spanner.Mutation
-// doesn't currently support use of *big.Rat.
-// TODO: return *big.Rat when client library supports it.
-func convNumeric(val string) (string, error) {
-	r := new(big.Rat)
-	if _, ok := r.SetString(val); !ok {
-		return "", fmt.Errorf("can't convert %q to big.Rat", val)
+func convNumeric(conv *internal.Conv, val string) (interface{}, error) {
+	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+		return spanner.PGNumeric{Numeric: val, Valid: true}, nil
+	} else {
+		r := new(big.Rat)
+		if _, ok := r.SetString(val); !ok {
+			return "", fmt.Errorf("can't convert %q to big.Rat", val)
+		}
+		return r, nil
 	}
-	return spanner.NumericString(r), nil
 }
 
 // convTimestamp maps a source DB timestamp into a go Time Spanner timestamp

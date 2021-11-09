@@ -111,6 +111,8 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 func overrideExperimentalType(columnType schema.Type, originalType ddl.Type) ddl.Type {
 	if len(columnType.ArrayBounds) > 0 {
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+	} else if columnType.Name == "json" || columnType.Name == "jsonb" {
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 	}
 	return originalType
 }
