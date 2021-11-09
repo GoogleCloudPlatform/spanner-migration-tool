@@ -489,12 +489,22 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
 	// Foreign Keys are set to false since we create them post data migration.
-	schema := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false})
-	op, err := adminClient.CreateDatabase(ctx, &adminpb.CreateDatabaseRequest{
-		Parent:          fmt.Sprintf("projects/%s/instances/%s", project, instance),
-		CreateStatement: "CREATE DATABASE `" + dbName + "`",
-		ExtraStatements: schema,
-	})
+	req := &adminpb.CreateDatabaseRequest{
+		Parent: fmt.Sprintf("projects/%s/instances/%s", project, instance),
+	}
+	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+		// TARGET_EXPERIMENTAL_POSTGRES doesn't support:
+		// a) backticks around the database name, and
+		// b) DDL statements as part of a CreateDatabase operation (so schema
+		// must be set using a separate UpdateDatabase operation).
+		req.CreateStatement = "CREATE DATABASE " + dbName
+		req.DatabaseDialect = adminpb.DatabaseDialect_POSTGRESQL
+	} else {
+		req.CreateStatement = "CREATE DATABASE `" + dbName + "`"
+		req.ExtraStatements = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, TargetDb: conv.TargetDb})
+	}
+
+	op, err := adminClient.CreateDatabase(ctx, req)
 	if err != nil {
 		return fmt.Errorf("can't build CreateDatabaseRequest: %w", AnalyzeError(err, dbURI))
 	}
@@ -502,6 +512,11 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 		return fmt.Errorf("createDatabase call failed: %w", AnalyzeError(err, dbURI))
 	}
 	fmt.Fprintf(out, "Created database successfully.\n")
+
+	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+		// Update schema separately for PG databases.
+		return UpdateDatabase(ctx, adminClient, dbURI, conv, out)
+	}
 	return nil
 }
 
@@ -511,10 +526,12 @@ func UpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
 	// Foreign Keys are set to false since we create them post data migration.
-	op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
+	schema := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: false, Tables: true, ForeignKeys: false, TargetDb: conv.TargetDb})
+	req := &adminpb.UpdateDatabaseDdlRequest{
 		Database:   dbURI,
-		Statements: conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false}),
-	})
+		Statements: schema,
+	}
+	op, err := adminClient.UpdateDatabaseDdl(ctx, req)
 	if err != nil {
 		return fmt.Errorf("can't build UpdateDatabaseDdlRequest: %w", AnalyzeError(err, dbURI))
 	}

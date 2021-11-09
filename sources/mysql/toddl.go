@@ -15,6 +15,7 @@
 package mysql
 
 import (
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -31,11 +32,15 @@ type ToDdlImpl struct {
 // conversion issues encountered.
 func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	ty, issues := toSpannerTypeInternal(conv, columnType.Name, columnType.Mods)
-	if len(columnType.ArrayBounds) > 1 {
-		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-		issues = append(issues, internal.MultiDimensionalArray)
+	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+		ty = overrideExperimentalType(columnType, ty)
+	} else {
+		if len(columnType.ArrayBounds) > 1 {
+			ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+			issues = append(issues, internal.MultiDimensionalArray)
+		}
+		ty.IsArray = len(columnType.ArrayBounds) == 1
 	}
-	ty.IsArray = len(columnType.ArrayBounds) == 1
 	return ty, issues
 }
 
@@ -93,4 +98,16 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Time}
 	}
 	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
+}
+
+// Override the types to map to experimental postgres types.
+func overrideExperimentalType(columnType schema.Type, originalType ddl.Type) ddl.Type {
+	if len(columnType.ArrayBounds) > 0 {
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+	} else if columnType.Name == "date" {
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+	} else if columnType.Name == "json" {
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+	}
+	return originalType
 }

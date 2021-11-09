@@ -17,6 +17,7 @@ package mysql
 import (
 	"bufio"
 	"fmt"
+	"math/big"
 	"math/bits"
 	"strings"
 	"testing"
@@ -103,81 +104,81 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 			input: "CREATE TABLE cart (productid text, userid text, quantity bigint);\n" +
 				"ALTER TABLE cart ADD CONSTRAINT cart_pkey PRIMARY KEY (productid, userid);\n",
 			expectedSchema: map[string]ddl.CreateTable{
-				"cart": ddl.CreateTable{
+				"cart": {
 					Name:     "cart",
 					ColNames: []string{"productid", "userid", "quantity"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"productid": ddl.ColumnDef{Name: "productid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						"userid":    ddl.ColumnDef{Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
+						"productid": {Name: "productid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"userid":    {Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"quantity":  {Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "productid"}, ddl.IndexKey{Col: "userid"}}}},
+					Pks: []ddl.IndexKey{{Col: "productid"}, {Col: "userid"}}}},
 		},
 		{
 			name:  "Shopping cart with no primary key",
 			input: "CREATE TABLE cart (productid text, userid text NOT NULL, quantity bigint);\n",
 			expectedSchema: map[string]ddl.CreateTable{
-				"cart": ddl.CreateTable{
+				"cart": {
 					Name:     "cart",
 					ColNames: []string{"productid", "userid", "quantity", "synth_id"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"productid": ddl.ColumnDef{Name: "productid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"userid":    ddl.ColumnDef{Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
-						"synth_id":  ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+						"productid": {Name: "productid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"userid":    {Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"quantity":  {Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
+						"synth_id":  {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}}}},
+					Pks: []ddl.IndexKey{{Col: "synth_id"}}}},
 		},
 		{
 			name:  "Create table with single primary key",
 			input: "CREATE TABLE test (a text PRIMARY KEY, b text);\n",
 			expectedSchema: map[string]ddl.CreateTable{
-				"test": ddl.CreateTable{
+				"test": {
 					Name:     "test",
 					ColNames: []string{"a", "b"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}}},
+					Pks: []ddl.IndexKey{{Col: "a"}}}},
 		},
 		{
 			name:  "Create table with multiple primary keys",
 			input: "CREATE TABLE test (a text, b text, n bigint, PRIMARY KEY (a, b) );\n",
 			expectedSchema: map[string]ddl.CreateTable{
-				"test": ddl.CreateTable{
+				"test": {
 					Name:     "test",
 					ColNames: []string{"a", "b", "n"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						"n": ddl.ColumnDef{Name: "n", T: ddl.Type{Name: ddl.Int64}},
+						"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"n": {Name: "n", T: ddl.Type{Name: ddl.Int64}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}, ddl.IndexKey{Col: "b"}}}},
+					Pks: []ddl.IndexKey{{Col: "a"}, {Col: "b"}}}},
 		},
 		{
 			name: "Create table with single foreign key",
 			input: "CREATE TABLE test (a SMALLINT, b text, PRIMARY KEY (a) );\n" +
 				"CREATE TABLE test2 (c SMALLINT, d SMALLINT, CONSTRAINT `fk_test` FOREIGN KEY (d) REFERENCES test (a) ON DELETE RESTRICT ON UPDATE CASCADE );",
 			expectedSchema: map[string]ddl.CreateTable{
-				"test": ddl.CreateTable{
+				"test": {
 					Name:     "test",
 					ColNames: []string{"a", "b"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}},
-				"test2": ddl.CreateTable{
+					Pks: []ddl.IndexKey{{Col: "a"}}},
+				"test2": {
 					Name:     "test2",
 					ColNames: []string{"c", "d", "synth_id"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
-						"d":        ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Int64}},
-						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+						"c":        {Name: "c", T: ddl.Type{Name: ddl.Int64}},
+						"d":        {Name: "d", T: ddl.Type{Name: ddl.Int64}},
+						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}}}}},
+					Pks: []ddl.IndexKey{{Col: "synth_id"}},
+					Fks: []ddl.Foreignkey{{Name: "fk_test", Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}}}}},
 		},
 		{
 			name: "Create table with multiple foreign key test constraint name",
@@ -728,7 +729,7 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 	INSERT INTO test (id, a, b, c) VALUES (1,'2019-10-29',4.444,5.44444);
 	`,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), "5.444440000"}}},
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), big.NewRat(136111, 25000)}}},
 		},
 		{
 			name: "Data conversion: smallint, mediumint, bigint, double",
@@ -833,15 +834,14 @@ func TestProcessMySQLDump_DataError(t *testing.T) {
 func TestProcessMySQLDump_GetDDL(t *testing.T) {
 	conv, _ := runProcessMySQLDump("CREATE TABLE cart (productid text, userid text, quantity bigint);\n" +
 		"ALTER TABLE cart ADD CONSTRAINT cart_pkey PRIMARY KEY (productid, userid);")
-	expected := "CREATE TABLE cart (\n" +
-		"productid STRING(MAX) NOT NULL,\n" +
-		"userid STRING(MAX) NOT NULL,\n" +
-		"quantity INT64\n" +
-		") PRIMARY KEY (productid, userid)"
+	expected :=
+		"CREATE TABLE cart (\n" +
+			"	productid STRING(MAX) NOT NULL,\n" +
+			"	userid STRING(MAX) NOT NULL,\n" +
+			"	quantity INT64,\n" +
+			") PRIMARY KEY (productid, userid)"
 	c := ddl.Config{Tables: true}
-	// normalizeSpace isn't perfect, but it handles most of the
-	// usual discretionary space issues.
-	assert.Equal(t, normalizeSpace(expected), normalizeSpace(strings.Join(conv.SpSchema.GetDDL(c), " ")))
+	assert.Equal(t, expected, strings.Join(conv.SpSchema.GetDDL(c), " "))
 }
 
 func TestProcessMySQLDump_Rows(t *testing.T) {
@@ -953,10 +953,6 @@ func stripSchemaComments(spSchema map[string]ddl.CreateTable) map[string]ddl.Cre
 		spSchema[t] = ct
 	}
 	return spSchema
-}
-
-func normalizeSpace(s string) string {
-	return strings.Join(strings.Fields(s), " ")
 }
 
 func bitReverse(i int64) int64 {

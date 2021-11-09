@@ -1,0 +1,176 @@
+-- MySQL dump 10.17  Distrib 10.3.23-MariaDB, for debian-linux-gnu (x86_64)
+--
+-- Host: 127.0.0.1    Database: singers
+-- ------------------------------------------------------
+-- Server version	5.7.25-google-log
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+--
+-- Name: Types; Type: TABLE; Schema: public; Owner: postgres
+--
+-- PostgreSQL type name     | Spanner type | Printed in schema | Comment
+-- BOOL, BOOLEAN, TINYINT(1)| BOOL         | BOOL              | bool is an alias for boolean type
+-- BINARY, VARBINARY        | BYTES(MAX)   | BYTEA             |
+-- BLOB, MEDIUMBLOB         | BYTES(MAX)   | BYTEA             |
+-- TINYBLOB, LONGBLOB       | BYTES(MAX)   | BYTEA             |
+-- BIT                      | BYTES(MAX)   | BYTEA             |
+-- BIGINT (8 bytes)         | INT64        | INT8              |
+-- INTEGER, MEDIUMINT       | INT64        | INT8              |
+-- TINYINT, SMALLINT        | INT64        | INT8              |
+-- DECIMAL                  | PG.NUMERIC   | NUMERIC           | decimal is an alias for numeric type
+-- NUMERIC                  | PG.NUMERIC   | NUMERIC           |
+-- DOUBLE                   | FLOAT64      | FLOAT8            | 15 decimal digits precision
+-- FLOAT                    | FLOAT64      | FLOAT8            |
+-- CHAR                     | STRING(1)    | VARCHAR(1)        | CHAR defaults to length 1
+-- CHAR(N)                  | STRING(N)    | VARCHAR(N)        | c
+-- TEXT, MEDIUMTEXT         | STRING(MAX)  | VARCHAR(MAX)      |
+-- TINYTEXT, LONGTEXT       | STRING(MAX)  | VARCHAR(MAX)      |
+-- VARCHAR                  | STRING(MAX)  | VARCHAR(MAX)      |
+-- VARCHAR(N)               | STRING(N)    | VARCHAR(N)        |
+-- TIMESTAMP                | TIMESTAMP    | TIMESTAMPTZ       |
+-- DATETIME                 | TIMESTAMP    | TIMESTAMPTZ       |
+-- JSON                     | STRING(MAX)  | VARCHAR(MAX)      |
+-- DATE                     | STRING(MAX)  | VARCHAR(MAX)      | unsupported type
+-- ENUM                     | STRING(MAX)  | VARCHAR(MAX)      | unsupported type
+--
+
+--
+-- Table structure for table `types`
+--
+
+DROP TABLE IF EXISTS `int_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `int_types` (
+  `c_bigint` bigint(20) NOT NULL,
+  `c_integer` integer NOT NULL,
+  `c_mediumint` mediumint,
+  `c_smallint` smallint,
+  `c_tinyint` tinyint,
+  PRIMARY KEY (`c_bigint`,`c_integer`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `int_types`
+--
+
+LOCK TABLES `int_types` WRITE;
+/*!40000 ALTER TABLE `int_types` DISABLE KEYS */;
+INSERT INTO `int_types` VALUES (-4294967295,-2147483648,-8388608,-32768,-128),(1,1,1,1,1),(4294967295,2147483648,8388608,32768,128);
+/*!40000 ALTER TABLE `int_types` ENABLE KEYS */;
+UNLOCK TABLES;
+
+DROP TABLE IF EXISTS `misc_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `misc_types` (
+  `c_bigint` bigint(20) NOT NULL,
+  `c_bool` bool NOT NULL,
+  `c_boolean` bool,
+  `c_tinyint1` tinyint(1),
+  PRIMARY KEY (`c_bigint`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `misc_types`
+--
+
+LOCK TABLES `misc_types` WRITE;
+/*!40000 ALTER TABLE `misc_types` DISABLE KEYS */;
+INSERT INTO `misc_types` VALUES (1,false,false,false),(2,true,true,true);
+/*!40000 ALTER TABLE `misc_types` ENABLE KEYS */;
+UNLOCK TABLES;
+
+DROP TABLE IF EXISTS `string_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `string_types` (
+  `c_bigint` bigint(20) NOT NULL,
+  `c_char` char NOT NULL,
+  `c_char_n` char(5),
+  `c_text` text,
+  `c_mediumtext` mediumtext,
+  `c_longtext` longtext,
+  `c_tinytext` tinytext,
+  PRIMARY KEY (`c_bigint`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `string_types`
+--
+
+LOCK TABLES `string_types` WRITE;
+/*!40000 ALTER TABLE `string_types` DISABLE KEYS */;
+INSERT INTO `string_types` VALUES (1,'a','abcde','c_text text','c_mediumtext text','c_longtext text','c_tinytext text');
+/*!40000 ALTER TABLE `string_types` ENABLE KEYS */;
+UNLOCK TABLES;
+
+DROP TABLE IF EXISTS `unsupported_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `unsupported_types` (
+  `c_bigint` bigint(20) NOT NULL,
+  `c_date` date, -- converted to string type in both schema and data
+  `c_json` json, -- converted to string type in both schema and data
+  `c_enum` enum('t1','t2'), -- converted to string type in both schema and data
+  PRIMARY KEY (`c_bigint`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `unsupported_types`
+--
+
+LOCK TABLES `unsupported_types` WRITE;
+/*!40000 ALTER TABLE `unsupported_types` DISABLE KEYS */;
+INSERT INTO `unsupported_types` VALUES (1,'2020-09-23','{}','t1'),(2,'2022-10-23','{"k":"k1"}','t2');
+/*!40000 ALTER TABLE `unsupported_types` ENABLE KEYS */;
+UNLOCK TABLES;
+
+DROP TABLE IF EXISTS `decimal_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `decimal_types` (
+  `c_bigint` bigint(20) NOT NULL,
+  `c_double` double,
+  `c_float` float,
+  `c_decimal` decimal,
+  `c_numeric` numeric,
+  PRIMARY KEY (`c_bigint`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `decimal_types`
+--
+
+LOCK TABLES `decimal_types` WRITE;
+/*!40000 ALTER TABLE `decimal_types` DISABLE KEYS */;
+INSERT INTO `decimal_types` VALUES (1,1E-307,1E-307,111.2345,122333.44445555),(2,1E+308,1E+308,0.2345,122333.444455555666666);
+/*!40000 ALTER TABLE `decimal_types` ENABLE KEYS */;
+UNLOCK TABLES;
+
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed on 2020-08-10 18:42:10

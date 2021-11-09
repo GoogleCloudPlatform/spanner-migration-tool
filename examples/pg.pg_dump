@@ -1,0 +1,197 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 9.6.18
+-- Dumped by pg_dump version 12.3 (Debian 12.3-1)
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+SET default_tablespace = '';
+
+--
+-- Name: Types; Type: TABLE; Schema: public; Owner: postgres
+--
+-- PostgreSQL type name     | Spanner type | Printed in schema | Comment
+-- BOOL                     | BOOL         | BOOL              | bool is an alias for boolean type
+-- BIGINT (8 bytes)         | INT64        | INT8              |
+-- BYTEA                    | BYTES(MAX)   | BYTEA             |
+-- INT (same as INTEGER)    | INT64        | INT8              |
+-- INTEGER (4 bytes)        | INT64        | INT8              |
+-- INT8 (8 bytes)           | INT64        | INT8              |
+-- PG_CATALOG.INT8          | INT64        | INT8              |
+-- DECIMAL                  | PG.NUMERIC   | NUMERIC           | decimal is an alias for numeric type
+-- NUMERIC                  | PG.NUMERIC   | NUMERIC           |
+-- DOUBLE PRECISION         | DOUBLE       | FLOAT8            | 15 decimal digits precision
+-- FLOAT8                   | DOUBLE       | FLOAT8            | float8 is an alias for double precision type
+-- CHARACTER VARYING        | STRING(MAX)  | VARCHAR           |
+-- TEXT                     | STRING(MAX)  | VARCHAR           |
+-- VARCHAR                  | STRING(MAX)  | VARCHAR           | varchar is an alias for character varying type
+-- TIMESTAMPTZ              | TIMESTAMP    | TIMESTAMPTZ       | timestamptz is an alias for 'timestamp with time zone' type
+-- TIMESTAMP WITH TIME ZONE | TIMESTAMP    | TIMESTAMPTZ       |
+--
+
+-- Commentary on NUMERIC and PG.NUMERIC types --
+-- GoogleSQL's NUMERIC type is fixed precision and scale (precision=38, scale=9).
+-- Whereas, PostgreSQL's NUMERIC can be user-defined precision and scale
+-- e.g., Numeric(100, 60) or arbitary precision (precision=147455, scale=16383).
+-- For PG, HB converts to PGNumeric type which also has arbitrary precision.
+
+CREATE TABLE public.types (
+    bigint_col bigint NOT NULL,
+    int_col int NOT NULL,
+    integer_col integer,
+    int8_col int8,
+    c_double_precision double precision,
+    c_float8 float8
+);
+
+ALTER TABLE public.types OWNER TO postgres;
+
+-- TODO: Add support for converting numeric(20,15) to PG.NUMERIC(20,15) type in
+-- HB. As of this writing, PG doesn't support precision qualifiers in schema.
+CREATE TABLE public.types2 (
+    c_int8    int8,
+    c_boolean  boolean,
+    c_bool  bool,
+    c_bytea  bytea,
+    c_numeric  numeric,
+    c_numeric_n  numeric(20,15), -- This will translate to numeric today. See TODO above.
+    c_decimal  decimal
+);
+
+ALTER TABLE public.types2 OWNER TO postgres;
+
+CREATE TABLE public.types3 (
+    c_timestamp_with_time_zone timestamp with time zone,
+    c_timestamptz timestamptz
+);
+
+ALTER TABLE public.types3 OWNER TO postgres;
+
+CREATE TABLE public.string_types (
+    c_character_varying character varying,
+    c_character_varying_n  character varying(50),
+    c_text text,
+    c_varchar  varchar,
+    c_varchar_n  varchar(50)
+);
+
+ALTER TABLE public.string_types OWNER TO postgres;
+
+CREATE TABLE public.unsupported_types (
+    c_int8    int8,
+    c_int8_arr int8 array, -- converted to string type in both schema and data
+    c_date date, -- converted to string type in both schema and data
+    c_timestamp_without_time_zone timestamp without time zone -- converted to timestamptz, local timezone assumed
+);
+
+ALTER TABLE public.unsupported_types OWNER TO postgres;
+
+--
+-- Data for Name: types; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.types (bigint_col, int_col, integer_col, int8_col, c_double_precision, c_float8) FROM stdin;
+1	2	3	4	1234.5678	1234.5678
+-9223372036854775807	-2147483647	-2147483647	-9223372036854775807	1E-307	1E-307
+9223372036854775807	2147483647	2147483647	9223372036854775807	1E+308	1E+308
+\.
+
+--
+-- Data for Name: types2; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+-- c_pg_numeric is intentionally out of range for GoogleSQL's Numeric
+-- which has (precision=38, scale=9) and thus is a good test that this gets
+-- cast as PG.Numeric type which is arbitary precision.
+--
+-- TODO: Check if `\\x0001beef` getting converted to Bytea with value `AAG+7w==` is correct.
+--
+
+COPY public.types2 (c_int8, c_boolean, c_bool, c_bytea, c_numeric, c_numeric_n, c_decimal) FROM stdin;
+1	true	false	\\x0001beef	444.9876	122333.444455555666666	111.2345
+\.
+
+--
+-- Data for Name: types3; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.types3 (c_timestamp_with_time_zone, c_timestamptz) FROM stdin;
+2019-10-29 05:30:00+10:30	2019-10-29 05:30:00+10:30
+2019-10-29 05:30:00	2019-10-29 05:30:00
+\.
+
+--
+-- Data for Name: unsupported_types; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.unsupported_types (c_int8, c_int8_arr, c_date, c_timestamp_without_time_zone) FROM stdin;
+1	{42,6}	2019-10-29	2019-10-29 05:30:00
+\.
+
+--
+-- Data for Name: string_types; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.string_types (c_character_varying, c_character_varying_n, c_text, c_varchar, c_varchar_n) FROM stdin;
+character_varying text	character_varying_n text	c_text text	c_varchar text	c_varchar_n text
+\.
+
+--
+-- Name: types types_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.types
+    ADD CONSTRAINT types_pkey PRIMARY KEY (bigint_col, int_col);
+
+--
+-- Name: types types2_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.types2
+    ADD CONSTRAINT types2_pkey PRIMARY KEY (c_int8);
+
+--
+-- Name: types types3_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.types3
+    ADD CONSTRAINT types3_pkey PRIMARY KEY (c_timestamp_with_time_zone);
+
+--
+-- Name: types unsupported_types_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.unsupported_types
+    ADD CONSTRAINT unsupported_types_pkey PRIMARY KEY (c_int8);
+
+--
+-- Name: string_types string_types_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.string_types
+    ADD CONSTRAINT string_types_pkey PRIMARY KEY (c_character_varying);
+
+--
+-- Name: SCHEMA public; Type: ACL; Schema: -; Owner: cloudsqlsuperuser
+--
+
+REVOKE ALL ON SCHEMA public FROM cloudsqladmin;
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+GRANT ALL ON SCHEMA public TO cloudsqlsuperuser;
+GRANT ALL ON SCHEMA public TO PUBLIC;
+
+
+--
+-- PostgreSQL database dump complete
+--
+

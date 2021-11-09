@@ -24,6 +24,7 @@ import (
 
 	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner"
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -112,7 +113,7 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, T
 	case ddl.Int64:
 		return convInt64(val)
 	case ddl.Numeric:
-		return convNumeric(val)
+		return convNumeric(conv, val)
 	case ddl.String:
 		return val, nil
 	case ddl.Timestamp:
@@ -176,15 +177,16 @@ func convInt64(val string) (int64, error) {
 
 // convNumeric maps a source database string value (representing a numeric)
 // into a string representing a valid Spanner numeric.
-// Ideally we would just return a *big.Rat, but spanner.Mutation
-// doesn't currently support use of *big.Rat.
-// TODO: return *big.Rat when client library supports it.
-func convNumeric(val string) (string, error) {
-	r := new(big.Rat)
-	if _, ok := r.SetString(val); !ok {
-		return "", fmt.Errorf("can't convert %q to big.Rat", val)
+func convNumeric(conv *internal.Conv, val string) (interface{}, error) {
+	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+		return spanner.PGNumeric{Numeric: val, Valid: true}, nil
+	} else {
+		r := new(big.Rat)
+		if _, ok := r.SetString(val); !ok {
+			return "", fmt.Errorf("can't convert %q to big.Rat", val)
+		}
+		return r, nil
 	}
-	return spanner.NumericString(r), nil
 }
 
 // convTimestamp maps a source DB timestamp into a go Time Spanner timestamp

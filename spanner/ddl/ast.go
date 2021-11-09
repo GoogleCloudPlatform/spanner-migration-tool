@@ -26,9 +26,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 )
 
 const (
+	// Types supported by Spanner with google_standard_sql (default) dialect.
 	// Bool represent BOOL type.
 	Bool string = "BOOL"
 	// Bytes represent BYTES type.
@@ -49,6 +52,21 @@ const (
 	Json string = "JSON"
 	// MaxLength is a sentinel for Type's Len field, representing the MAX value.
 	MaxLength = math.MaxInt64
+
+	// Types specific to Spanner with postgresql dialect, when they differ from
+	// Spanner with google_standard_sql.
+	// PGBytea represent BYTEA type, which is BYTES type in PG.
+	PGBytea string = "BYTEA"
+	// PGFloat8 represent FLOAT8 type, which is double type in PG.
+	PGFloat8 string = "FLOAT8"
+	// PGInt8 respresent INT8, which is INT type in PG.
+	PGInt8 string = "INT8"
+	// PGVarchar represent VARCHAR, which is STRING type in PG.
+	PGVarchar string = "VARCHAR"
+	// PGTimestamptz represent TIMESTAMPTZ, which is TIMESTAMP type in PG.
+	PGTimestamptz string = "TIMESTAMPTZ"
+	// PGMaxLength represents sentinel for Type's Len field in PG.
+	PGMaxLength = 2621440
 )
 
 // Type represents the type of a column.
@@ -83,6 +101,42 @@ func (ty Type) PrintColumnDefType() string {
 	return str
 }
 
+func (ty Type) PGPrintColumnDefType() string {
+	var str string
+	switch ty.Name {
+	case Bytes:
+		str = PGBytea
+	case Float64:
+		str = PGFloat8
+	case Int64:
+		str = PGInt8
+	case String:
+		str = PGVarchar
+	case Timestamp:
+		str = PGTimestamptz
+	default:
+		str = ty.Name
+	}
+	// PG doesn't support array types, and we don't expect to receive a type
+	// with IsArray set to true. In the unlikely event, set to string type.
+	if ty.IsArray {
+		str = PGVarchar
+		ty.Len = PGMaxLength
+	}
+	// PG doesn't support variable length Bytea and thus doesn't support
+	// setting length (or max length) for the Bytes.
+	if ty.Name == String || ty.IsArray {
+		str += "("
+		if ty.Len == MaxLength || ty.Len == PGMaxLength {
+			str += fmt.Sprintf("%v", PGMaxLength)
+		} else {
+			str += strconv.FormatInt(ty.Len, 10)
+		}
+		str += ")"
+	}
+	return str
+}
+
 // ColumnDef encodes the following DDL definition:
 //     column_def:
 //       column_name type [NOT NULL] [options_def]
@@ -99,6 +153,7 @@ type Config struct {
 	ProtectIds  bool // If true, table and col names are quoted using backticks (avoids reserved-word issue).
 	Tables      bool // If true, print tables
 	ForeignKeys bool // If true, print foreign key constraints.
+	TargetDb    string
 }
 
 func (c Config) quote(s string) string {
@@ -112,7 +167,12 @@ func (c Config) quote(s string) string {
 // comment. These are returned as separate strings to support formatting
 // needs of PrintCreateTable.
 func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
-	s := fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
+	var s string
+	if c.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PGPrintColumnDefType())
+	} else {
+		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
+	}
 	if cd.NotNull {
 		s += " NOT NULL"
 	}
@@ -181,17 +241,13 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	var col []string
 	var colComment []string
 	var keys []string
-	for i, cn := range ct.ColNames {
+	for _, cn := range ct.ColNames {
 		s, c := ct.ColDefs[cn].PrintColumnDef(config)
-		s = "\n    " + s
-		if i < len(ct.ColNames)-1 {
-			s += ","
-		} else {
-			s += " "
-		}
+		s = "\t" + s + ",\n"
 		col = append(col, s)
 		colComment = append(colComment, c)
 	}
+
 	n := maxStringLength(col)
 	var cols string
 	for i, c := range col {
@@ -200,6 +256,7 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 			cols += strings.Repeat(" ", n-len(c)) + " -- " + colComment[i]
 		}
 	}
+
 	for _, p := range ct.Pks {
 		keys = append(keys, p.PrintIndexKey(config))
 	}
@@ -207,11 +264,22 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	if config.Comments && len(ct.Comment) > 0 {
 		tableComment = "--\n-- " + ct.Comment + "\n--\n"
 	}
+
 	var interleave string
 	if ct.Parent != "" {
-		interleave = ",\nINTERLEAVE IN PARENT " + config.quote(ct.Parent)
+		if config.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+			// PG spanner only supports PRIMARY KEY() inside the CREATE TABLE()
+			// and thus INTERLEAVE follows immediately after closing brace.
+			interleave = " INTERLEAVE IN PARENT " + config.quote(ct.Parent)
+		} else {
+			interleave = ",\nINTERLEAVE IN PARENT " + config.quote(ct.Parent)
+		}
 	}
-	return fmt.Sprintf("%sCREATE TABLE %s (%s\n) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
+
+	if config.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+		return fmt.Sprintf("%sCREATE TABLE %s (\n%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
+	}
+	return fmt.Sprintf("%sCREATE TABLE %s (\n%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 }
 
 // CreateIndex encodes the following DDL definition:
@@ -232,7 +300,7 @@ func (ci CreateIndex) PrintCreateIndex(c Config) string {
 		keys = append(keys, p.PrintIndexKey(c))
 	}
 	var unique string
-	if ci.Unique == true {
+	if ci.Unique {
 		unique = "UNIQUE "
 	}
 	return fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)", unique, c.quote(ci.Name), c.quote(ci.Table), strings.Join(keys, ", "))
