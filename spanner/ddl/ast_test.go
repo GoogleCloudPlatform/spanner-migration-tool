@@ -53,7 +53,6 @@ func TestPrintScalarTypePG(t *testing.T) {
 		{Type{Name: String, Len: int64(42)}, "VARCHAR(42)"},
 		{Type{Name: Bytes, Len: MaxLength}, "BYTEA"},
 		{Type{Name: Bytes, Len: int64(42)}, "BYTEA"},
-		{Type{Name: Date}, "VARCHAR(2621440)"},
 		{Type{Name: Timestamp}, "TIMESTAMPTZ"},
 	}
 	for _, tc := range tests {

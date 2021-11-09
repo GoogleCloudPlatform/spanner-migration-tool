@@ -114,13 +114,6 @@ func (ty Type) PGPrintColumnDefType() string {
 		str = PGVarchar
 	case Timestamp:
 		str = PGTimestamptz
-	case Date:
-		// When processing a column/value of type date for PG, we don't convert
-		// to String in the beginning to allow for the input values to be
-		// validated as valid dates. When writing DDL (schema) or values (data)
-		// to Spanner, we do the conversion.
-		str = PGVarchar
-		ty.Len = PGMaxLength
 	default:
 		str = ty.Name
 	}
@@ -132,7 +125,7 @@ func (ty Type) PGPrintColumnDefType() string {
 	}
 	// PG doesn't support variable length Bytea and thus doesn't support
 	// setting length (or max length) for the Bytes.
-	if ty.Name == String || ty.Name == Date || ty.IsArray {
+	if ty.Name == String || ty.IsArray {
 		str += "("
 		if ty.Len == MaxLength || ty.Len == PGMaxLength {
 			str += fmt.Sprintf("%v", PGMaxLength)
