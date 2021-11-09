@@ -34,6 +34,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
@@ -88,9 +89,9 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	}
 	var dataSourceName string
 	switch config.Driver {
-	case "postgres":
+	case constants.POSTGRES:
 		dataSourceName = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", config.Host, config.Port, config.User, config.Password, config.Database)
-	case "mysql":
+	case constants.MYSQL:
 		dataSourceName = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", config.User, config.Password, config.Host, config.Port, config.Database)
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", config.Driver), http.StatusBadRequest)
@@ -124,9 +125,9 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	conv := internal.MakeConv()
 	var err error
 	switch sessionState.driver {
-	case "mysql":
+	case constants.MYSQL:
 		err = common.ProcessInfoSchema(conv, sessionState.sourceDB, mysql.InfoSchemaImpl{sessionState.dbName})
-	case "postgres":
+	case constants.POSTGRES:
 		err = common.ProcessInfoSchema(conv, sessionState.sourceDB, postgres.InfoSchemaImpl{})
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.driver), http.StatusBadRequest)
@@ -167,7 +168,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("failed to open dump file %v : %v", dc.FilePath, err), http.StatusNotFound)
 		return
 	}
-	conv, err := conversion.SchemaConv(dc.Driver, conversion.TARGET_SPANNER, &conversion.IOStreams{In: f, Out: os.Stdout}, 0)
+	conv, err := conversion.SchemaConv(dc.Driver, constants.TARGET_SPANNER, &conversion.IOStreams{In: f, Out: os.Stdout}, 0)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
@@ -239,9 +240,9 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	}
 	var typeMap map[string][]typeIssue
 	switch sessionState.driver {
-	case "mysql", "mysqldump":
+	case constants.MYSQL, constants.MYSQLDUMP:
 		typeMap = mysqlTypeMap
-	case "postgres", "pg_dump":
+	case constants.POSTGRES, constants.PGDUMP:
 		typeMap = postgresTypeMap
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.driver), http.StatusBadRequest)
@@ -1026,9 +1027,9 @@ func getType(newType, table, colName string, srcTableName string) (ddl.CreateTab
 	var ty ddl.Type
 	var issues []internal.SchemaIssue
 	switch sessionState.driver {
-	case "mysql", "mysqldump":
+	case constants.MYSQL, constants.MYSQLDUMP:
 		ty, issues = toSpannerTypeMySQL(srcCol.Type.Name, newType, srcCol.Type.Mods)
-	case "pg_dump", "postgres":
+	case constants.PGDUMP, constants.POSTGRES:
 		ty, issues = toSpannerTypePostgres(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	default:
 		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.driver)

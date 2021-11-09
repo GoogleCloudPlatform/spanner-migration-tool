@@ -20,6 +20,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -444,11 +445,11 @@ func writeStmtStats(driverName string, conv *Conv, w *bufio.Writer) {
 		s := conv.Stats.Statement[x.statement]
 		fmt.Fprintf(w, "  %6d %6d %6d %6d  %s\n", s.Schema, s.Data, s.Skip, s.Error, x.statement)
 	}
-	if driverName == "pg_dump" {
+	if driverName == constants.PGDUMP {
 		w.WriteString("See github.com/pganalyze/pg_query_go for definitions of statement types\n")
 		w.WriteString("(pganalyze/pg_query_go is the library we use for parsing pg_dump output).\n")
 		w.WriteString("\n")
-	} else if driverName == "mysqldump" {
+	} else if driverName == constants.MYSQLDUMP {
 		w.WriteString("See https://github.com/pingcap/parser for definitions of statement types\n")
 		w.WriteString("(pingcap/parser is the library we use for parsing mysqldump output).\n")
 		w.WriteString("\n")
@@ -468,14 +469,14 @@ func writeUnexpectedConditions(driverName string, conv *Conv, w *bufio.Writer) {
 		return
 	}
 	switch driverName {
-	case "mysqldump":
+	case constants.MYSQLDUMP:
 		w.WriteString("For debugging only. This section provides details of unexpected conditions\n")
 		w.WriteString("encountered as we processed the mysqldump data. In particular, the AST node\n")
 		w.WriteString("representation used by the pingcap/parser library used for parsing\n")
 		w.WriteString("mysqldump output is highly permissive: almost any construct can appear at\n")
 		w.WriteString("any node in the AST tree. The list details all unexpected nodes and\n")
 		w.WriteString("conditions.\n")
-	case "pg_dump":
+	case constants.PGDUMP:
 		w.WriteString("For debugging only. This section provides details of unexpected conditions\n")
 		w.WriteString("encountered as we processed the pg_dump data. In particular, the AST node\n")
 		w.WriteString("representation used by the pganalyze/pg_query_go library used for parsing\n")

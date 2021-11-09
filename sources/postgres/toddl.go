@@ -15,6 +15,7 @@
 package postgres
 
 import (
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -30,7 +31,7 @@ type ToDdlImpl struct {
 // conversion issues encountered.
 func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	ty, issues := toSpannerTypeInternal(conv, columnType.Name, columnType.Mods)
-	if conv.TargetDb == "experimental_postgres" { //TODO : Use constant instead. Using string to prevent import cycle
+	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
 		ty = overrideExperimentalType(columnType, ty)
 	} else {
 		if len(columnType.ArrayBounds) > 1 {

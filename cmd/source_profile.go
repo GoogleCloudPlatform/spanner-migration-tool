@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 )
 
 type SourceProfileType int
@@ -199,9 +201,9 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 		{
 			switch strings.ToLower(source) {
 			case "mysql":
-				return "mysqldump", nil
+				return constants.MYSQLDUMP, nil
 			case "postgresql", "postgres", "pg":
-				return "pg_dump", nil
+				return constants.PGDUMP, nil
 			case "dynamodb":
 				return "", fmt.Errorf("dump files are not supported with DynamoDB")
 			default:
@@ -212,11 +214,11 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 		{
 			switch strings.ToLower(source) {
 			case "mysql":
-				return "mysql", nil
+				return constants.MYSQL, nil
 			case "postgresql", "postgres", "pg":
-				return "postgres", nil
+				return constants.POSTGRES, nil
 			case "dynamodb":
-				return "dynamodb", nil
+				return constants.DYNAMODB, nil
 			default:
 				return "", fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
 			}
