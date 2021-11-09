@@ -24,41 +24,44 @@ on a PostgreSQL database (via go's database/sql package).
 To use HarbourBridge on a PostgreSQL database called mydb using pg_dump output,run:
 
 ```sh
-pg_dump mydb | harbourbridge -driver=pg_dump
+pg_dump mydb | harbourbridge schema -source=postgresql
 ```
+
+You can use one of `postgresql`, `postgres`, or `pg` to specify PostgreSQL as
+the source database.
 
 The tool can also be applied to an existing pg_dump file:
 
 ```sh
-harbourbridge -driver=pg_dump < my_pg_dump_file
+harbourbridge schema -source=postgres < my_pg_dump_file
 ```
 
-To specify a particular Spanner instance to use, run:
+To specify a particular Spanner instance to use during data migration, run:
 
 ```sh
-pg_dump mydb | harbourbridge -driver=pg_dump -instance my-spanner-instance
+harbourbridge data -source=postgres -target-profile="instance=my-spanner-instance" < my_pg_dump_file
 ```
 
 By default, HarbourBridge will generate a new Spanner database name to populate.
 You can override this and specify the database name to use by:
 
 ```sh
-pg_dump mydb | harbourbridge -driver=pg_dump -dbname my-spanner-database-name
+harbourbridge data -source=postgres -target-profile="dbname=my-spanner-database-name,instance=my-spanner-instance" < my_pg_dump_file
 ```
 
 HarbourBridge generates a report file, a schema file, and a bad-data file (if
-there are bad-data rows). You can control where these files are written by
-specifying a file prefix. For example,
+there are bad-data rows during data migration). You can control where these
+files are written by specifying a file prefix. For example,
 
 ```sh
-pg_dump mydb | harbourbridge -driver=pg_dump -prefix mydb.
+harbourbridge schema -prefix=mydb. -source=pg < my_pg_dump_file
 ```
 
 will write files `mydb.report.txt`, `mydb.schema.txt`, and
 `mydb.dropped.txt`. The prefix can also be a directory. For example,
 
 ```sh
-pg_dump mydb | harbourbridge -driver=pg_dump -prefix ~/spanner-eval-mydb/
+harbourbridge schema -prefix=~/spanner-eval-mydb/ -source=pg < my_pg_dump_file
 ```
 
 would write the files into the directory `~/spanner-eval-mydb/`. Note
@@ -69,15 +72,15 @@ that HarbourBridge will not create directories as it writes these files.
 To use the tool directly on a PostgresSQL database called mydb, run
 
 ```sh
-harbourbridge -driver=postgres
+harbourbridge schema -source=postgres
 ```
 
 It is assumed that _PGHOST_, _PGPORT_, _PGUSER_, _PGDATABASE_ environment
-variables are set. Password can be specified either in the _PGPASSWORD_ environment
-variable or provided at the password prompt.
+variables are set. Password can be specified either in the _PGPASSWORD_
+environment variable or provided at the password prompt.
 
-Note that all of the options described in the previous section on using pg_dump can
-also be used with "-driver=postgres".
+Note that all of the options described in the previous section when specifying
+a dump file can also be used when directly connecting to a PostgreSQL database.
 
 ## Schema Conversion
 

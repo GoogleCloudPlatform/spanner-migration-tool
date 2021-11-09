@@ -31,34 +31,50 @@ critical things like tuning performance and getting the most out of
 Spanner. Expect that you'll need to tweak and enhance what HarbourBridge
 produces.
 
-To use the tool on a PostgreSQL database called mydb, run
+Below are some quick starter examples on how to run HarbourBridge. You can look
+at specific sections for PostgreSQL, MySQL etc for detailed examples.
+
+For example, to generate Spanner schema from a PostgreSQL dump file, run
 
 ```sh
-# By default, the driver is "pg_dump".
-pg_dump mydb | harbourbridge
-# Or,
-pg_dump mydb | harbourbridge -driver=pg_dump
+# Generate pg_dump file.
+pg_dump mydb > mydb.pg_dump
+
+harbourbridge schema -source=postgresql -source-profile="format=dump" < mydb.pg_dump
+# Or, (By default, format is "dump" when specifying input files)
+harbourbridge schema -source=postgresql < mydb.pg_dump
+# Or, you can specify full path to the dump file
+harbourbridge schema -source=postgresql -source-profile="format=dump,file=<full path to dump file>"
+# You can also specify path to a file stored in GCS (Google Cloud Storage)
+harbourbridge schema -source=postgresql -source-profile="format=dump,file=gs://<bucket_name>/<file_path>"
+
+# Target is Spanner by default, but you can also specify it explicitly.
+harbourbridge schema -source=postgresql -source-profile="format=dump" -target=spanner < mydb.pg_dump
 ```
 
-To use the tool on a MySQL database called mydb, run
+Similarly, you can use the tool for other source databases.
 
 ```sh
-mysqldump mydb | harbourbridge -driver=mysqldump
+# Generate Spanner schema from a MySQL dump file
+mysqldump mydb > mydb.mysqldump
+harbourbridge schema -source=mysql < mydb.mysqldump
 ```
 
-To use the tool on a DynamoDB database, run
+Generate Spanner schema by directly connecting to a DynamoDB database,
 ```sh
-harbourbridge -driver=dynamodb
+# Set the environment variables `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+# , `AWS_REGION` and then run,
+harbourbridge schema -source=dynamodb
 ```
 
-HarbourBridge accepts pg_dump/mysqldump's standard plain-text format, but 
-not archive or custom formats. More details on usage can be found in 
+Note: HarbourBridge accepts pg_dump/mysqldump's standard plain-text format, 
+but not archive or custom formats. More details on usage can be found in 
 [Example usage](#example-usage) section.
 
-HarbourBridge automatically determines the cloud project and Spanner instance to
-use, and generates a new Spanner database name (prefixed with `{driver}_` and
-today's date). Command-line flags can be used to explicitly set the Spanner
-instance or database name. See [Options](#options).
+HarbourBridge automatically determines the cloud project to use, and generates
+a new Spanner database name (prefixed with `{source}_` and today's date).
+Command-line flags can be used to explicitly set the Spanner instance or
+database name. See [Options](#options).
 
 **WARNING: Please check that permissions for the Spanner instance used by
 HarbourBridge are appropriate. Spanner manages access control at the database
@@ -117,8 +133,7 @@ Spanner instance.
 
 Install Go ([download](https://golang.org/doc/install)) on your development
 machine if it is not already installed, configure the GOPATH environment
-variable if it is not already configured using 
-`export GOPATH=$(go env GOPATH)`, and 
+variable if it is not already configured, and
 [test your installation](https://golang.org/doc/install#testing).
 
 ### Installing HarbourBridge
@@ -143,19 +158,21 @@ This workflow also allows you to modify or customize the HarbourBridge codebase.
 To use the tool on a PostgreSQL database called mydb, run
 
 ```sh
-pg_dump mydb | harbourbridge -driver=pg_dump
+pg_dump mydb > mydb.pg_dump
+harbourbridge schema -source=postgresql < mydb.pg_dump
 ```
 
 To use the tool on a MySQL database called mydb, run
 
 ```sh
-mysqldump mydb | harbourbridge -driver=mysqldump
+mysqldump mydb > mydb.mysqldump
+harbourbridge schema -source=mysql < mydb.mysqldump
 ```
 
 To use the tool on a DynamoDB database, run
 
 ```sh
-harbourbridge -driver=dynamodb
+harbourbridge schema -source=dynamodb
 ```
 More details on running harbourbridge can be found in [Example usage](#example-usage) section.
 
@@ -167,10 +184,10 @@ new Cloud Spanner database with this schema, and finally, populate this new
 database with the data from the source database. 
 If the project has multiple instances, then list of available instances 
 will be shown and you will have to pick one of the available instances and 
-set the `--instance` flag. The new Cloud Spanner database will have a name of 
-the form `{DRIVER}_{DATE}_{RANDOM}`, where`{DRIVER}` is the drivername 
-specified,`{DATE}`is today's date, and`{RANDOM}` is a random suffix for 
-uniqueness.
+set the `--instance` flag in target-profile. The new Cloud Spanner database
+will have a name of the form `{SOURCE}_{DATE}_{RANDOM}`, where`{SOURCE}` is
+the source specified,`{DATE}`is today's date, and`{RANDOM}` is a random
+suffix for uniqueness.
 
 See the [Troubleshooting Guide](#troubleshooting-guide) for help on debugging
 issues.
@@ -190,11 +207,10 @@ and one for user carts). The files [singers.pg_dump](examples/singers.pg_dump)
 and [singers.mysqldump](examples/singers.mysqldump) contain pg_dump and
 mysqldump output for a version of the [Cloud Spanner
 singers](https://cloud.google.com/spanner/docs/schema-and-data-model#creating_a_table)
-example. To use HarbourBridge on cart.pg_dump, download the file locally and
-run
+example. To use HarbourBridge on cart.pg_dump, download the file locally and run
 
 ```
-harbourbridge -driver=pg_dump < cart.pg_dump
+harbourbridge schema -source=postgresql < cart.pg_dump
 ```
 
 ### Verifying Results
@@ -273,38 +289,20 @@ By default, these files are prefixed by the name of the Spanner database (with a
 dot separator). The file prefix can be overridden using the `-prefix`
 [option](#options).
 
-## Options
+## Command line flags
 
-HarbourBridge accepts the following options:
+`-source` Required flag. Specifies the source database. Supported source
+databases are _'postgres'_, _'mysql'_ and _'dynamodb'_.
 
-`-dbname` Specifies the name of the Spanner database to create. This must be a
-new database. If dbname is not specified, HarbourBridge creates a new unique
-dbname.
-
-`-instance` Specifies the Spanner instance to use. The new database will be
-created in this instance. If not specified, the tool automatically determines an
-appropriate instance using gcloud.
-
-`-driver` Specifies the driver to use for schema and data conversion. Supported 
-drivers are _'postgres'_, _'pg_dump'_, _'mysql'_ and _'mysqldump'_. By default, 
-the driver is _'pg_dump'_.
-
-`-schema-sample-size` Specifies the number of rows to use for inferring schema 
-(only for DynamoDB). By default, the schema sample size is 100,000.
+`-target` Optional flag. Specifies the target database. Defaults to _'spanner'_ 
+, which is the only supported target database today.
 
 `-prefix` Specifies a file prefix for the report, schema, and bad-data files
 written by the tool. If no file prefix is specified, the name of the Spanner
 database (plus a '.') is used.
 
-`-v` or `-verbose` Specifies verbose mode. This will cause HarbourBridge to output detailed
-messages about the conversion.
-
-`-schema-only` Specifies that only schema processing will be performed.
-Any data in the source database will be ignored.
-
-`-data-only` Specifies that only data migration will be performed.
-A spanner database will be created based on the schema state provided
-by a session file (`-session`) and data will be migrated.
+`-v` or `-verbose` Specifies verbose mode. This will cause HarbourBridge to
+output detailed messages about the conversion.
 
 `-skip-foreign-keys` Controls whether we add foreign key constraints after
 data migration is complete. This flag cannot be used with schema-only mode,
@@ -315,10 +313,41 @@ Spanner DDL files.
 `-session` Specifies a session file that contains all schema and data 
 conversion state endcoded as JSON.
 
-`-dump-file` Specifies the path where the dump file is stored. 
-If the location is Google Cloud Storage (GCS), you can use the following format:
-`-dump-file=gs://{bucket_name}/{path/to/dump_file}`. Please ensure you have
-read pemissions to the GCS bucket you would like to use. 
+### Source profile (`-source-profile`)
+
+HarbourBridge accepts the following options for --source-profile,
+specified as "key1=value1,key2=value,..." pairs:
+
+`file` Specifies the full path of the file to use for reading source database
+schema and/or data. This param is optional, and the file can also be piped to
+stdin, if available locally.
+
+If the file is located in Google Cloud Storage (GCS), you can use the
+following format: `file=gs://{bucket_name}/{path/to/file}`. Please ensure you
+have read pemissions to the GCS bucket you would like to use. 
+
+`format` Specifies the format of the file. This param is also optional, and
+defaults to `dump`. This may be extended in future to support other formats
+such as `csv`, `avro` etc.
+
+### Target profile (`-target-profile`)
+
+HarbourBridge accepts the following options for --target-profile,
+specified as "key1=value1,key2=value,..." pairs:
+
+`dbname` Specifies the name of the Spanner database to create. This must be a
+new database. If dbname is not specified, HarbourBridge creates a new unique
+dbname.
+
+`instance` Specifies the Spanner instance to use. The new database will be
+created in this instance. If not specified, the tool automatically determines an
+appropriate instance using gcloud.
+
+`dialect` Specifies the dialect of Spanner database. By default, Spanner
+databases are created with GoogleSQL dialect. You can override the same by
+setting `dialect=PostgreSQL` in the `-target-profile`. Learn more about support
+for PostgreSQL dialect in Cloud Spanner at
+https://cloud.google.com/spanner/docs/postgresql-interface.
 
 ## Example Usage
 

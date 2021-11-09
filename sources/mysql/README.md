@@ -24,26 +24,26 @@ on a MySQL database (via go's database/sql package).
 To use HarbourBridge on a MySQL database called mydb using mysqldump, run:
 
 ```sh
-mysqldump mydb | harbourbridge -driver=mysqldump
+mysqldump mydb | harbourbridge schema -source=mysql
 ```
 
 The tool can also be applied to an existing mysqldump file:
 
 ```sh
-harbourbridge -driver=mysqldump < my_mysqldump_file
+harbourbridge schema -source=mysql < my_mysqldump_file
 ```
 
-To specify a particular Spanner instance to use, run:
+To specify a particular Spanner instance to use during data migration, run:
 
 ```sh
-mysqldump mydb | harbourbridge -driver=mysqldump -instance my-spanner-instance
+harbourbridge data -source=mysql -target-profile="instance=my-spanner-instance" < my_mysqldump_file
 ```
 
 By default, HarbourBridge will generate a new Spanner database name to populate.
 You can override this and specify the database name to use by:
 
 ```sh
-mysqldump mydb | harbourbridge -driver=mysqldump -dbname my-spanner-database-name
+harbourbridge data -source=mysql -target-profile="dbname=my-spanner-database-name" < my_mysqldump_file
 ```
 
 HarbourBridge generates a report file, a schema file, and a bad-data file (if
@@ -51,14 +51,14 @@ there are bad-data rows). You can control where these files are written by
 specifying a file prefix. For example,
 
 ```sh
-mysqldump mydb | harbourbridge -prefix mydb. -driver=mysqldump
+harbourbridge schema -prefix=mydb. -source=mysql < my_mysqldump_file
 ```
 
 will write files `mydb.report.txt`, `mydb.schema.txt`, and
 `mydb.dropped.txt`. The prefix can also be a directory. For example,
 
 ```sh
-mysqldump mydb | harbourbridge -prefix ~/spanner-eval-mydb/ -driver=mysqldump
+harbourbridge schema -prefix=~/spanner-eval-mydb/ -source=mysql < my_mysqldump_file
 ```
 
 would write the files into the directory `~/spanner-eval-mydb/`. Note
@@ -69,15 +69,15 @@ that HarbourBridge will not create directories as it writes these files.
 To use the tool directly on a MySQL database called mydb, run
 
 ```sh
-harbourbridge -driver=mysql
+harbourbridge schema -source=mysql
 ```
 
 It is assumed that _MYSQLHOST_, _MYSQLPORT_, _MYSQLUSER_, _MYSQLDATABASE_ environment
 variables are set. Password can be specified either in the _MYSQLPWD_ environment
 variable or provided at the password prompt.
 
-Note that all of the options described in the previous section on using mysqldump
-can also be used with "-driver=mysql".
+Note that all of the options described in the previous section on read from a
+mysqldump file can also be used when directly connecting to a mysql database.
 
 ## Schema Conversion
 
