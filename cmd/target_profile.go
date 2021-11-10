@@ -39,7 +39,7 @@ type TargetProfile struct {
 	conn TargetProfileConnection
 }
 
-// ToLegacyTargetDb converts source profile to equivalent legacy global flag
+// ToLegacyTargetDb converts source-profile to equivalent legacy global flag
 // -target-db etc since the rest of the codebase still uses the same.
 // TODO: Deprecate this function and pass around TargetProfile across the
 // codebase wherever information about target connection is required.
