@@ -7,8 +7,14 @@ see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbour
 
 ## Example PostgreSQL Usage
 
-The following examples assume `harbourbridge` has been added to your PATH
-environment variable.
+The following examples assume `harbourbridge` alias has been setup as
+following.
+
+```sh
+git clone https://github.com/cloudspannerecosystem/harbourbridge
+cd harbourbridge
+alias harbourbridge="go run github.com/cloudspannerecosystem/harbourbridge"
+```
 
 HarbourBridge can either be used with pg_dump or it can be run directly
 on a PostgreSQL database (via go's database/sql package).
