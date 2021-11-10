@@ -171,8 +171,8 @@ func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 }
 
 // TODO: Pass around cmd.SourceProfile instead of sqlConnectionStr.
-// Doing that requires refactoring since that woul dintroduce a circular dependency between
-// conversion.go and cmd/source_profile.go
+// Doing that requires refactoring since that would introduce a circular dependency between
+// conversion.go and cmd/source_profile.go.
 func schemaFromSQL(driver, sqlConnectionStr, targetDb string) (*internal.Conv, error) {
 	if sqlConnectionStr == "" {
 		// If empty, this is called as part of the old command line workflow.

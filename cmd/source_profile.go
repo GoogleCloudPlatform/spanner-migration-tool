@@ -175,9 +175,12 @@ func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfile
 		os.Setenv("AWS_SECRET_ACCESS_KEY", awsSecretAccessKey)
 		os.Setenv("AWS_REGION", awsRegion)
 		// Endpoint is optional. If not provided, the SDK infers endpoint from AWS_REGION.
-		if endpointOk {
-			os.Setenv("DYNAMODB_ENDPOINT_OVERRIDE", dydbEndpoint)
+		// We should explicitly set it to "" if not provided to handle the case
+		// when the user already has an env variable DYNAMODB_ENDPOINT_OVERRIDE.
+		if !endpointOk {
+			dydbEndpoint = ""
 		}
+		os.Setenv("DYNAMODB_ENDPOINT_OVERRIDE", dydbEndpoint)
 	} else {
 		return dydb, fmt.Errorf("please specify awsAccessKeyID, awsSecretAccessKey, awsRegion in the source-profile")
 
