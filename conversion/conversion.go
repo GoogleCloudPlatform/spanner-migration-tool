@@ -159,6 +159,20 @@ func GetMYSQLConnectionStr(server, port, user, password, dbname string) string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, server, port, dbname)
 }
 
+func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
+	switch driver {
+	case constants.POSTGRES:
+		dbParam := strings.Split(sqlConnectionStr, " ")[4]
+		return strings.Split(dbParam, "=")[1]
+	case constants.MYSQL:
+		return strings.Split(sqlConnectionStr, ")/")[1]
+	}
+	return ""
+}
+
+// TODO: Pass around cmd.SourceProfile instead of sqlConnectionStr.
+// Doing that requires refactoring since that woul dintroduce a circular dependency between
+// conversion.go and cmd/source_profile.go
 func schemaFromSQL(driver, sqlConnectionStr, targetDb string) (*internal.Conv, error) {
 	if sqlConnectionStr == "" {
 		// If empty, this is called as part of the old command line workflow.
@@ -174,6 +188,7 @@ func schemaFromSQL(driver, sqlConnectionStr, targetDb string) (*internal.Conv, e
 	}
 	conv := internal.MakeConv()
 	conv.TargetDb = targetDb
+	conv.SrcDbName = getDbNameFromSQLConnectionStr(driver, sqlConnectionStr)
 	err = ProcessInfoSchema(driver, conv, sourceDB)
 	if err != nil {
 		return nil, err
@@ -1066,7 +1081,7 @@ func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
 	case constants.MYSQL:
-		return common.ProcessInfoSchema(conv, db, mysql.InfoSchemaImpl{os.Getenv("MYSQLDATABASE")})
+		return common.ProcessInfoSchema(conv, db, mysql.InfoSchemaImpl{conv.SrcDbName})
 	case constants.POSTGRES:
 		return common.ProcessInfoSchema(conv, db, postgres.InfoSchemaImpl{})
 	default:
@@ -1078,11 +1093,11 @@ func ProcessInfoSchema(driver string, conv *internal.Conv, db *sql.DB) error {
 func SetRowStats(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
 	case constants.MYSQL:
-		common.SetRowStats(conv, db, mysql.InfoSchemaImpl{os.Getenv("MYSQLDATABASE")})
+		common.SetRowStats(conv, db, mysql.InfoSchemaImpl{conv.SrcDbName})
 	case constants.POSTGRES:
 		common.SetRowStats(conv, db, postgres.InfoSchemaImpl{})
 	default:
-		return fmt.Errorf("Could not set rows stats for '%s' driver", driver)
+		return fmt.Errorf("could not set rows stats for '%s' driver", driver)
 	}
 	return nil
 }
@@ -1092,11 +1107,11 @@ func ProcessSQLData(driver string, conv *internal.Conv, db *sql.DB) error {
 	switch driver {
 	//TODO - move this logic into a factory within the sources dir
 	case constants.MYSQL:
-		common.ProcessSQLData(conv, db, mysql.InfoSchemaImpl{os.Getenv("MYSQLDATABASE")})
+		common.ProcessSQLData(conv, db, mysql.InfoSchemaImpl{conv.SrcDbName})
 	case constants.POSTGRES:
 		common.ProcessSQLData(conv, db, postgres.InfoSchemaImpl{})
 	default:
-		return fmt.Errorf("Data conversion for driver %s is not supported", driver)
+		return fmt.Errorf("data conversion for driver %s is not supported", driver)
 	}
 	return nil
 }

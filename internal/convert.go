@@ -28,6 +28,7 @@ type Conv struct {
 	SpSchema       ddl.Schema                          // Maps Spanner table name to Spanner schema.
 	SyntheticPKeys map[string]SyntheticPKey            // Maps Spanner table name to synthetic primary key (if needed).
 	SrcSchema      map[string]schema.Table             // Maps source-DB table name to schema information.
+	SrcDbName      string                              // Name of the source database. Currently only used for mysql infoschema.
 	Issues         map[string]map[string][]SchemaIssue // Maps source-DB table/col to list of schema conversion issues.
 	ToSpanner      map[string]NameAndCols              // Maps from source-DB table name to Spanner name and column mapping.
 	ToSource       map[string]NameAndCols              // Maps from Spanner table name to source-DB table name and column mapping.

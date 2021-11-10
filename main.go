@@ -112,7 +112,7 @@ func main() {
 		os.Exit(int(subcommands.Execute(ctx)))
 	}
 	fmt.Printf("\nWarning: Found usage of deprecated flags. Support for these " +
-		"flags will be discontinued soon. It is recommended to use Harbourbridge " +
+		"flags will be discontinued soon.\nIt is recommended to use Harbourbridge " +
 		"using connection profiles. Checkout usage here: https://github.com/cloudspannerecosystem/harbourbridge/tree/master/cmd#command-line-flags\n\n")
 	// Running HB CLI in global command line mode.
 	setupGlobalFlags()
