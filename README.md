@@ -129,10 +129,10 @@ and use "go run":
 ```sh
 git clone https://github.com/cloudspannerecosystem/harbourbridge
 cd harbourbridge
-pg_dump mydb | go run github.com/cloudspannerecosystem/harbourbridge -driver=pg_dump
+go run github.com/cloudspannerecosystem/harbourbridge -driver=pg_dump < my_pg_dump_file
 ```
 
-```
+```sh
 alias harbourbridge="go run github.com/cloudspannerecosystem/harbourbridge"
 ```
 
