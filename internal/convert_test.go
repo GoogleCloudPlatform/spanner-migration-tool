@@ -89,10 +89,10 @@ func TestAddPrimaryKeys(t *testing.T) {
 		inputSchema    map[string]ddl.CreateTable
 		expectedSchema map[string]ddl.CreateTable
 		syntheticKey   string
-		uniqueKey      string
+		uniqueKey      []string
 	}{
 		{
-			name: "unique key as primary key",
+			name: "single unique key as primary key",
 			inputSchema: map[string]ddl.CreateTable{
 				"table": {
 					Name:     "table",
@@ -115,7 +115,33 @@ func TestAddPrimaryKeys(t *testing.T) {
 					},
 					Pks: []ddl.IndexKey{{Col: "b"}}},
 			},
-			uniqueKey: "b",
+			uniqueKey: []string{"b"},
+		},
+		{
+			name: "multiple unique key as primary key",
+			inputSchema: map[string]ddl.CreateTable{
+				"table": {
+					Name:     "table",
+					ColNames: []string{"a", "b"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
+					},
+					Pks:     []ddl.IndexKey{},
+					Indexes: []ddl.CreateIndex{{Name: "", Table: "", Unique: true, Keys: []ddl.IndexKey{{Col: "a"}, {Col: "b"}}}},
+				},
+			},
+			expectedSchema: map[string]ddl.CreateTable{
+				"table": {
+					Name:     "table",
+					ColNames: []string{"a", "b"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
+					},
+					Pks: []ddl.IndexKey{{Col: "a"}, {Col: "b"}}},
+			},
+			uniqueKey: []string{"a", "b"},
 		},
 		{
 			name: "in case two unique keys are present first one is taken as primary key",
@@ -143,7 +169,7 @@ func TestAddPrimaryKeys(t *testing.T) {
 					Indexes: []ddl.CreateIndex{{Name: "", Table: "", Unique: true, Keys: []ddl.IndexKey{{Col: "b"}}}},
 				},
 			},
-			uniqueKey: "a",
+			uniqueKey: []string{"a"},
 		},
 		{
 			name: "unique index doesn't exist so synthetic primary key created",
@@ -208,7 +234,7 @@ func TestAddPrimaryKeys(t *testing.T) {
 		if tc.expectedSchema != nil {
 			assert.Equal(t, tc.expectedSchema["table"], conv.SpSchema["table"])
 		}
-		if tc.uniqueKey != "" {
+		if tc.uniqueKey != nil {
 			assert.Equal(t, tc.uniqueKey, conv.UniquePKey["table"])
 		}
 		if tc.syntheticKey != "" {

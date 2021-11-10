@@ -36,9 +36,9 @@ type Conv struct {
 	Location       *time.Location // Timezone (for timestamp conversion).
 	sampleBadRows  rowSamples     // Rows that generated errors during conversion.
 	Stats          stats
-	TimezoneOffset string            // Timezone offset for timestamp conversion.
-	TargetDb       string            // The target database to which HarbourBridge is writing.
-	UniquePKey     map[string]string // Maps Spanner table name to unique column name being used as primary key (if needed).
+	TimezoneOffset string              // Timezone offset for timestamp conversion.
+	TargetDb       string              // The target database to which HarbourBridge is writing.
+	UniquePKey     map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
 }
 
 type mode int
@@ -141,7 +141,7 @@ func MakeConv() *Conv {
 			Unexpected: make(map[string]int64),
 		},
 		TimezoneOffset: "+00:00", // By default, use +00:00 offset which is equal to UTC timezone
-		UniquePKey:     make(map[string]string),
+		UniquePKey:     make(map[string][]string),
 	}
 }
 
@@ -264,8 +264,10 @@ func (conv *Conv) AddPrimaryKeys() {
 			if len(ct.Indexes) != 0 {
 				for i, index := range ct.Indexes {
 					if index.Unique {
-						ct.Pks = []ddl.IndexKey{{Col: index.Keys[0].Col}}
-						conv.UniquePKey[t] = index.Keys[0].Col
+						for _, indexKey := range index.Keys {
+							ct.Pks = append(ct.Pks, ddl.IndexKey{Col: indexKey.Col, Desc: indexKey.Desc})
+							conv.UniquePKey[t] = append(conv.UniquePKey[t], indexKey.Col)
+						}
 						primaryKeyPopulated = true
 						if len(ct.Indexes) == 1 {
 							ct.Indexes = nil

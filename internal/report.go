@@ -129,7 +129,7 @@ func buildTableReport(conv *Conv, srcTable string, badWrites map[string]int64) t
 		tr.SyntheticPKey = pk.Col
 		tr.Body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, &pk.Col, nil)
 	} else if pk, ok := conv.UniquePKey[spTable]; ok {
-		tr.Body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, nil, &pk)
+		tr.Body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, nil, pk)
 	} else {
 		tr.Body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, nil, nil)
 	}
@@ -139,7 +139,7 @@ func buildTableReport(conv *Conv, srcTable string, badWrites map[string]int64) t
 	return tr
 }
 
-func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]SchemaIssue, spSchema ddl.CreateTable, srcSchema schema.Table, syntheticPK *string, uniquePK *string) []tableReportBody {
+func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]SchemaIssue, spSchema ddl.CreateTable, srcSchema schema.Table, syntheticPK *string, uniquePK []string) []tableReportBody {
 	var body []tableReportBody
 	for _, p := range []struct {
 		heading  string
@@ -167,7 +167,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 			// Warning about using a column with unique constraint as primary key
 			// in case primary key is absent.
 			if p.severity == warning {
-				l = append(l, fmt.Sprintf("Column '%s' was used as primary key because it had UNIQUE constraint and this table didn't have a primary key. Spanner requires a primary key for every table", *uniquePK))
+				l = append(l, fmt.Sprintf("Column '%s' was used as primary key because it had UNIQUE constraint and this table didn't have a primary key. Spanner requires a primary key for every table", strings.Join(uniquePK, ", ")))
 			}
 		}
 		issueBatcher := make(map[SchemaIssue]bool)
