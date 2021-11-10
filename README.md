@@ -123,34 +123,39 @@ variable if it is not already configured using
 
 ### Installing HarbourBridge
 
-Download the tool to your machine and install it.
+You can make a copy of the HarbourBridge codebase from the github repository
+and use "go run":
 
 ```sh
-GO111MODULE=on go get github.com/cloudspannerecosystem/harbourbridge
+git clone https://github.com/cloudspannerecosystem/harbourbridge
+cd harbourbridge
+go run github.com/cloudspannerecosystem/harbourbridge -driver=pg_dump < my_pg_dump_file
 ```
 
-The tool should now be installed as `$GOPATH/bin/harbourbridge`.
-See the [Troubleshooting Guide](#troubleshooting-guide) if you run
-into any issues.
+```sh
+alias harbourbridge="go run github.com/cloudspannerecosystem/harbourbridge"
+```
+
+This workflow also allows you to modify or customize the HarbourBridge codebase.
 
 ### Running HarbourBridge
 
 To use the tool on a PostgreSQL database called mydb, run
 
 ```sh
-pg_dump mydb | $GOPATH/bin/harbourbridge -driver=pg_dump
+pg_dump mydb | harbourbridge -driver=pg_dump
 ```
 
 To use the tool on a MySQL database called mydb, run
 
 ```sh
-mysqldump mydb | $GOPATH/bin/harbourbridge -driver=mysqldump
+mysqldump mydb | harbourbridge -driver=mysqldump
 ```
 
 To use the tool on a DynamoDB database, run
 
 ```sh
-$GOPATH/bin/harbourbridge -driver=dynamodb
+harbourbridge -driver=dynamodb
 ```
 More details on running harbourbridge can be found in [Example usage](#example-usage) section.
 
@@ -189,7 +194,7 @@ example. To use HarbourBridge on cart.pg_dump, download the file locally and
 run
 
 ```
-$GOPATH/bin/harbourbridge -driver=pg_dump < cart.pg_dump
+harbourbridge -driver=pg_dump < cart.pg_dump
 ```
 
 ### Verifying Results
@@ -337,27 +342,6 @@ data conversion can be found here:
 - [DynamoDB data conversion](sources/dynamodb/README.md#data-conversion)
 
 ## Troubleshooting Guide
-
-HarbourBridge is written using the Go module system, and so it must be
-installed in [module-aware mode](https://golang.org/cmd/go/#hdr-Module_support).
-This can be achived by setting the environment variable `GO111MODULE` to `on`
-before calling "go get" e.g.
-
-```sh
-GO111MODULE=on go get github.com/cloudspannerecosystem/harbourbridge
-```
-
-As an alternative to "go get", you can make a copy of the HarbourBridge
-codebase from the github repository and use "go run":
-
-```sh
-git clone https://github.com/cloudspannerecosystem/harbourbridge
-cd harbourbridge
-pg_dump mydb | go run github.com/cloudspannerecosystem/harbourbridge -driver=pg_dump
-
-```
-
-This workflow also allows you to modify or customize the HarbourBridge codebase.
 
 The following steps can help diagnose common issues encountered while running
 HarbourBridge.

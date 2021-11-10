@@ -7,8 +7,14 @@ HarbourBridge information see this [README](https://github.com/cloudspannerecosy
 
 ## Example DynamoDB Usage
 
-The following examples assume `harbourbridge` has been added to your PATH
-environment variable.
+The following examples assume `harbourbridge` alias has been setup as
+following.
+
+```sh
+git clone https://github.com/cloudspannerecosystem/harbourbridge
+cd harbourbridge
+alias harbourbridge="go run github.com/cloudspannerecosystem/harbourbridge"
+```
 
 Before running HarbourBridge, make sure that you have
 [set up your AWS credentials/region](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html)

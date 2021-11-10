@@ -8,8 +8,14 @@ schema assistant is currently in alpha release.
 
 ### Starting web server for HarbourBridge
 
-The following example assume `harbourbridge` has been added to your PATH
-environment variable.
+The following examples assume `harbourbridge` alias has been setup as
+following.
+
+```sh
+git clone https://github.com/cloudspannerecosystem/harbourbridge
+cd harbourbridge
+alias harbourbridge="go run github.com/cloudspannerecosystem/harbourbridge"
+```
 
 HarbourBridge's Web API feature can be used with all the driver modes available,
 using mysql or postgres dump or direct connection.
