@@ -129,7 +129,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		return subcommands.ExitFailure
 	}
 
-	bw, err := conversion.DataConv(driverName, getSQLConnectionStr(sourceProfile), &ioHelper, client, conv, true)
+	bw, err := conversion.DataConv(driverName, getSQLConnectionStr(sourceProfile), &ioHelper, client, conv, true, getSchemaSampleSize(sourceProfile))
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 		return subcommands.ExitFailure
