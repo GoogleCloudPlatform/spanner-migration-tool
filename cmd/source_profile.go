@@ -168,7 +168,7 @@ func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfile
 		// No connection params provided through source-profile. Fetching from env variables.
 		fmt.Printf("Connection parameters not specified in source-profile. Reading from " +
 			"environment variables AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, DYNAMODB_ENDPOINT_OVERRIDE(optional)...\n")
-		//Don't need to do anything as they are handled later.
+		// Don't need to do anything as they are handled later.
 	} else if idOk && keyOk && regionOk {
 		// Override env variables for these params as source-profile takes precedence.
 		os.Setenv("AWS_ACCESS_KEY_ID", awsAccessKeyID)

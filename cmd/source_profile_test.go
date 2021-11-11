@@ -53,3 +53,100 @@ func TestNewSourceProfileFile(t *testing.T) {
 		assert.Equal(t, profile, tc.want, tc.name)
 	}
 }
+
+func TestNewSourceProfileConnectionSQL(t *testing.T) {
+	// Avoid getting/settinng env variables in the unit tests.
+	testCases := []struct {
+		name          string
+		params        map[string]string
+		errorExpected bool
+	}{
+		{
+			name:          "mandatory params provided",
+			params:        map[string]string{"host": "a", "user": "b", "db_name": "c", "password": "e"},
+			errorExpected: false,
+		},
+		{
+			name:          "partial mandatory params provided",
+			params:        map[string]string{"user": "b", "db_name": "c"},
+			errorExpected: true,
+		},
+		{
+			name:          "no mandatory params but optional provided",
+			params:        map[string]string{"port": "b"},
+			errorExpected: true,
+		},
+		{
+			name:          "partial mandatory params and optional provided",
+			params:        map[string]string{"host": "a", "port": "b"},
+			errorExpected: true,
+		},
+		{
+			name:          "all params provided",
+			params:        map[string]string{"host": "a", "user": "b", "db_name": "c", "port": "d", "password": "e"},
+			errorExpected: false,
+		},
+		{
+			name:          "empty mandatory param",
+			params:        map[string]string{"host": "", "user": "b", "db_name": "c"},
+			errorExpected: true,
+		},
+		{
+			name:          "empty port",
+			params:        map[string]string{"host": "a", "user": "b", "db_name": "c", "password": "e"},
+			errorExpected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		_, pgErr := NewSourceProfileConnectionPostgreSQL(tc.params)
+		_, mysqlErr := NewSourceProfileConnectionMySQL(tc.params)
+		assert.Equal(t, tc.errorExpected, pgErr != nil)
+		assert.Equal(t, tc.errorExpected, mysqlErr != nil)
+	}
+}
+
+func TestNewSourceProfileConnectionDynamoDB(t *testing.T) {
+	// Avoid getting/settinng env variables in the unit tests.
+	testCases := []struct {
+		name          string
+		params        map[string]string
+		errorExpected bool
+	}{
+		{
+			name:          "no params",
+			params:        map[string]string{},
+			errorExpected: false,
+		},
+		{
+			name:          "valid schema sample size",
+			params:        map[string]string{"schemaSampleSize": "15"},
+			errorExpected: false,
+		},
+		{
+			name:          "invalid schema sample size",
+			params:        map[string]string{"schemaSampleSize": "a"},
+			errorExpected: true,
+		},
+		{
+			name:          "no mandatory params but optional provided",
+			params:        map[string]string{"dydbEndpoint": "b"},
+			errorExpected: true,
+		},
+		{
+			name:          "partial mandatory params",
+			params:        map[string]string{"awsRegion": "a"},
+			errorExpected: true,
+		},
+		{
+			name:          "partial mandatory params and optional provided",
+			params:        map[string]string{"awsAccessKeyID": "a", "dydbEndpoint": "b"},
+			errorExpected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		_, err := NewSourceProfileConnectionDynamoDB(tc.params)
+		assert.Equal(t, tc.errorExpected, err != nil)
+	}
+}
