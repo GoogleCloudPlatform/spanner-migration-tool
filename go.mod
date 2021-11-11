@@ -3,8 +3,9 @@ module github.com/cloudspannerecosystem/harbourbridge
 go 1.13
 
 require (
-	cloud.google.com/go v0.93.3
+	cloud.google.com/go v0.94.1
 	cloud.google.com/go/spanner v1.10.0
+	cloud.google.com/go/storage v1.17.0
 	github.com/DATA-DOG/go-sqlmock v1.4.1
 	github.com/aws/aws-sdk-go v1.34.5
 	github.com/go-sql-driver/mysql v1.5.0
@@ -21,8 +22,8 @@ require (
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/tools v0.1.7 // indirect
-	google.golang.org/api v0.54.0
-	google.golang.org/genproto v0.0.0-20210827211047-25e5f791fe06
+	google.golang.org/api v0.57.0
+	google.golang.org/genproto v0.0.0-20210921142501-181ce0d877f6
 )
 
 // cloud.google.com/go will upgrade grpc to v1.40.0

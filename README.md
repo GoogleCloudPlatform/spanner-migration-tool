@@ -315,6 +315,11 @@ Spanner DDL files.
 `-session` Specifies a session file that contains all schema and data 
 conversion state endcoded as JSON.
 
+`-dump-file` Specifies the path where the dump file is stored. 
+If the location is Google Cloud Storage (GCS), you can use the following format:
+`-dump-file=gs://{bucket_name}/{path/to/dump_file}`. Please ensure you have
+read pemissions to the GCS bucket you would like to use. 
+
 ## Example Usage
 
 Details on HarbourBridge example usage can be found here: 
