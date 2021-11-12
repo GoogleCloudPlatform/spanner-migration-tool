@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package MySQL handles schema and data migrations from MySQL
+// Package MySQL handles schema and data migrations from MySQL.
 package mysql
 
 import (
@@ -22,7 +22,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// ToDdlImpl MySQL specific implementation for ToDdl
+// ToDdlImpl MySQL specific implementation for ToDdl.
 type ToDdlImpl struct {
 }
 

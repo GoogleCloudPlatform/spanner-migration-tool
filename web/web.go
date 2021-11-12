@@ -351,7 +351,7 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if v.Rename != "" && v.Rename != colName {
-			if err, status := canRenameOrChangeType(colName, table); err != nil {
+			if status, err := canRenameOrChangeType(colName, table); err != nil {
 				err = rollback(err)
 				http.Error(w, fmt.Sprintf("%v", err), status)
 				return
@@ -372,7 +372,7 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if typeChange {
-				if err, status := canRenameOrChangeType(colName, table); err != nil {
+				if status, err := canRenameOrChangeType(colName, table); err != nil {
 					err = rollback(err)
 					http.Error(w, fmt.Sprintf("%v", err), status)
 					return
@@ -438,7 +438,7 @@ func getReportFile(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(reportAbsPath))
 }
 
-// TableInterleaveStatus
+// TableInterleaveStatus stores data regarding interleave status.
 type TableInterleaveStatus struct {
 	Possible bool
 	Parent   string
@@ -871,28 +871,28 @@ func canRemoveColumn(colName, table string) (int, error) {
 	return http.StatusOK, nil
 }
 
-func canRenameOrChangeType(colName, table string) (error, int) {
+func canRenameOrChangeType(colName, table string) (int, error) {
 	isPartOfPK := isPartOfPK(colName, table)
 	isParent, childSchema := isParent(table)
 	isChild := sessionState.conv.SpSchema[table].Parent != ""
 	if isPartOfPK && (isParent || isChild) {
-		return fmt.Errorf("Column : '%s' in table : '%s' is part of parent-child relation with schema : '%s'", colName, table, childSchema), http.StatusBadRequest
+		return http.StatusBadRequest, fmt.Errorf("column : '%s' in table : '%s' is part of parent-child relation with schema : '%s'", colName, table, childSchema) 
 	}
 	if isPartOfSecondaryIndex, indexName := isPartOfSecondaryIndex(colName, table); isPartOfSecondaryIndex {
-		return fmt.Errorf("Column : '%s' in table : '%s' is part of secondary index : '%s', remove secondary index before making the update",
-			colName, table, indexName), http.StatusPreconditionFailed
+		return  http.StatusPreconditionFailed, fmt.Errorf("column : '%s' in table : '%s' is part of secondary index : '%s', remove secondary index before making the update",
+			colName, table, indexName)
 	}
 	isPartOfFK := isPartOfFK(colName, table)
 	isReferencedByFK, relationTable := isReferencedByFK(colName, table)
 	if isPartOfFK || isReferencedByFK {
 		if isReferencedByFK {
-			return fmt.Errorf("Column : '%s' in table : '%s' is part of foreign key relation with table : '%s', remove foreign key constraint before making the update",
-				colName, table, relationTable), http.StatusPreconditionFailed
+			return http.StatusPreconditionFailed, fmt.Errorf("column : '%s' in table : '%s' is part of foreign key relation with table : '%s', remove foreign key constraint before making the update",
+			colName, table, relationTable)
 		}
-		return fmt.Errorf("Column : '%s' in table : '%s' is part of foreign keys, remove foreign key constraint before making the update",
-			colName, table), http.StatusPreconditionFailed
+		return http.StatusPreconditionFailed, fmt.Errorf("column : '%s' in table : '%s' is part of foreign keys, remove foreign key constraint before making the update",
+		colName, table)
 	}
-	return nil, http.StatusOK
+	return http.StatusOK, nil
 }
 
 func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tableInterleaveStatus *TableInterleaveStatus) bool {
@@ -1101,7 +1101,7 @@ func getFilePrefix(now time.Time) (string, error) {
 	return dbName + ".", nil
 }
 
-// SessionState stores information for the current migration session
+// SessionState stores information for the current migration session.
 type SessionState struct {
 	sourceDB    *sql.DB        // Connection to source database in case of direct connection
 	dbName      string         // Name of source database
@@ -1160,7 +1160,7 @@ func init() {
 	sessionState.conv = internal.MakeConv()
 }
 
-// App connects to the web app
+// App connects to the web app.
 func App() {
 	addr := ":8080"
 	router := getRoutes()

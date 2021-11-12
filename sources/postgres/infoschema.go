@@ -32,16 +32,16 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// InfoSchemaImpl postgres specific implementation for InfoSchema
+// InfoSchemaImpl postgres specific implementation for InfoSchema.
 type InfoSchemaImpl struct {
 }
 
-// GetToDdl function below implement the common.InfoSchema interface
+// GetToDdl function below implement the common.InfoSchema interface.
 func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
 }
 
-// GetTableName returns table name
+// GetTableName returns table name.
 func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 	if schema == "public" { // Drop 'public' prefix.
 		return tableName
@@ -49,7 +49,7 @@ func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 	return fmt.Sprintf("%s.%s", schema, tableName)
 }
 
-// GetRowsFromTable returns a sql Rows object for a table
+// GetRowsFromTable returns a sql Rows object for a table.
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) (*sql.Rows, error) {
 	// PostgreSQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
@@ -199,7 +199,7 @@ func (isi InfoSchemaImpl) GetColumns(table common.SchemaAndName, db *sql.DB) (*s
 	return db.Query(q, table.Schema, table.Name)
 }
 
-// ProcessColumns
+// ProcessColumns returns a list of Column objects and names
 func (isi InfoSchemaImpl) ProcessColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string) {
 	colDefs := make(map[string]schema.Column)
 	var colNames []string

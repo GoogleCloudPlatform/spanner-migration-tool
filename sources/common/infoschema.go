@@ -23,7 +23,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// InfoSchema contains database information
+// InfoSchema contains database information.
 type InfoSchema interface {
 	GetToDdl() ToDdl
 	GetTableName(schema string, tableName string) string

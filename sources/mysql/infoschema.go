@@ -28,22 +28,22 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// InfoSchemaImpl is MySQL specific implementation for InfoSchema
+// InfoSchemaImpl is MySQL specific implementation for InfoSchema.
 type InfoSchemaImpl struct {
 	DbName string
 }
 
-// GetToDdl implement the common.InfoSchema interface
+// GetToDdl implement the common.InfoSchema interface.
 func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
 }
 
-// GetTableName returns table name
+// GetTableName returns table name.
 func (isi InfoSchemaImpl) GetTableName(dbName string, tableName string) string {
 	return tableName
 }
 
-// GetRowsFromTable returns a sql Rows object for a table
+// GetRowsFromTable returns a sql Rows object for a table.
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) (*sql.Rows, error) {
 	srcSchema := conv.SrcSchema[table.Name]
 	srcCols := srcSchema.ColNames
@@ -80,7 +80,7 @@ func buildColNameList(srcSchema schema.Table, srcColName []string) string {
 	return colList[:len(colList)-1]
 }
 
-// ProcessDataRows
+// ProcessDataRows performs data conversion for source database.
 func (isi InfoSchemaImpl) ProcessDataRows(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, rows *sql.Rows) {
 	v, scanArgs := buildVals(len(srcCols))
 	for rows.Next() {
@@ -145,7 +145,7 @@ func (isi InfoSchemaImpl) GetColumns(table common.SchemaAndName, db *sql.DB) (*s
 	return db.Query(q, table.Schema, table.Name)
 }
 
-// ProcessColumns
+// ProcessColumns returns a list of Column objects and names// ProcessColumns
 func (isi InfoSchemaImpl) ProcessColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string) {
 	colDefs := make(map[string]schema.Column)
 	var colNames []string

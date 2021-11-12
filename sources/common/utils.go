@@ -6,7 +6,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
 
-// ToNotNull returns true if a column is not nullable and false if it is
+// ToNotNull returns true if a column is not nullable and false if it is.
 func ToNotNull(conv *internal.Conv, isNullable string) bool {
 	switch isNullable {
 	case "YES":

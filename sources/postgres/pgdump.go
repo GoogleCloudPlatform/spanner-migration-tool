@@ -28,7 +28,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 )
 
-// DbDumpImpl Postgres specific implementation for DdlDumpImpl
+// DbDumpImpl Postgres specific implementation for DdlDumpImpl.
 type DbDumpImpl struct{}
 
 type copyOrInsert struct {

@@ -47,15 +47,15 @@ var spatialRegexps = func() []*regexp.Regexp {
 var spatialIndexRegex = regexp.MustCompile("(?i)\\sSPATIAL\\s")
 var spatialSridRegex = regexp.MustCompile("(?i)\\sSRID\\s\\d*")
 
-// DbDumpImpl
+// DbDumpImpl MySQL specific implementation for DdlDumpImpl.
 type DbDumpImpl struct{}
 
-// GetToDdl function below implement the common.DbDump interface
+// GetToDdl function below implement the common.DbDump interface.
 func (ddi DbDumpImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
 }
 
-// ProcessDump processes the mysql dump
+// ProcessDump processes the mysql dump.
 func (ddi DbDumpImpl) ProcessDump(conv *internal.Conv, r *internal.Reader) error {
 	return processMySQLDump(conv, r)
 }

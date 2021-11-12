@@ -309,7 +309,7 @@ func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv 
 	return writer, nil
 }
 
-// IOStreams is a struct that contains the file descriptor for dumpFile
+// IOStreams is a struct that contains the file descriptor for dumpFile.
 type IOStreams struct {
 	In, SeekableIn, Out *os.File
 	BytesRead           int64
@@ -571,7 +571,7 @@ func ValidateDDL(ctx context.Context, adminClient *database.DatabaseAdminClient,
 	return nil
 }
 
-// CreatesOrUpdatesDatabase updates an existing Spanner database or creates a new one if one does not exist
+// CreatesOrUpdatesDatabase updates an existing Spanner database or creates a new one if one does not exist.
 func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File) error {
 	dbExists, err := VerifyDb(ctx, adminClient, dbURI)
 	if err != nil {
@@ -633,7 +633,7 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 	return nil
 }
 
-// UpdateDatabase updates an existing spanner database
+// UpdateDatabase updates an existing spanner database.
 func UpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File) error {
 	fmt.Fprintf(out, "Updating schema for %s with default permissions ... \n", dbURI)
 	// The schema we send to Spanner excludes comments (since Cloud

@@ -97,7 +97,7 @@ type tableReportBody struct {
 	Lines   []string
 }
 
-// AnalyzeTables generates table reports for all processed tables
+// AnalyzeTables generates table reports for all processed tables.
 func AnalyzeTables(conv *Conv, badWrites map[string]int64) (r []tableReport) {
 	// Process tables in alphabetical order. This ensures that tables
 	// appear in alphabetical order in report.txt.
@@ -380,7 +380,7 @@ func rateConversion(rows, badRows, cols, warnings int64, missingPKey, summary bo
 	return rate
 }
 
-// GenerateSummary creates a summarized version of a tableReport
+// GenerateSummary creates a summarized version of a tableReport.
 func GenerateSummary(conv *Conv, r []tableReport, badWrites map[string]int64) string {
 	cols := int64(0)
 	warnings := int64(0)
@@ -409,7 +409,7 @@ func GenerateSummary(conv *Conv, r []tableReport, badWrites map[string]int64) st
 	return rateConversion(rows, badRows, cols, warnings, missingPKey, true, conv.SchemaMode())
 }
 
-// IgnoredStatements creates a list of statements to ignore
+// IgnoredStatements creates a list of statements to ignore.
 func IgnoredStatements(conv *Conv) (l []string) {
 	for s := range conv.Stats.Statement {
 		switch s {

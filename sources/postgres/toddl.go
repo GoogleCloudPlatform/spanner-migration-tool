@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package postgres handles schema and data migrations from Postgres
+// Package postgres handles schema and data migrations from Postgres.
 package postgres
 
 import (
@@ -22,7 +22,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// ToDdlImpl Postgres specific implementation for ToDdl
+// ToDdlImpl Postgres specific implementation for ToDdl.
 type ToDdlImpl struct {
 }
 

@@ -320,10 +320,10 @@ func (k Foreignkey) PrintForeignKeyAlterTable(c Config, tableName string) string
 	return fmt.Sprintf("ALTER TABLE %s ADD %sFOREIGN KEY (%s) REFERENCES %s (%s)", c.quote(tableName), s, strings.Join(cols, ", "), c.quote(k.ReferTable), strings.Join(referCols, ", "))
 }
 
-// Schema
+// Schema stores a map of table names and Tables.
 type Schema map[string]CreateTable
 
-// NewSchema
+// NewSchema creates a new Schema object.
 func NewSchema() Schema {
 	return make(map[string]CreateTable)
 }
