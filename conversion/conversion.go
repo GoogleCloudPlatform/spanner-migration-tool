@@ -567,7 +567,7 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 		// a) backticks around the database name, and
 		// b) DDL statements as part of a CreateDatabase operation (so schema
 		// must be set using a separate UpdateDatabase operation).
-		req.CreateStatement = "CREATE DATABASE " + dbName
+		req.CreateStatement = "CREATE DATABASE \"" + dbName + "\""
 		req.DatabaseDialect = adminpb.DatabaseDialect_POSTGRESQL
 	} else {
 		req.CreateStatement = "CREATE DATABASE `" + dbName + "`"
