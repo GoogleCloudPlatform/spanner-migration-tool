@@ -876,10 +876,10 @@ func canRenameOrChangeType(colName, table string) (int, error) {
 	isParent, childSchema := isParent(table)
 	isChild := sessionState.conv.SpSchema[table].Parent != ""
 	if isPartOfPK && (isParent || isChild) {
-		return http.StatusBadRequest, fmt.Errorf("column : '%s' in table : '%s' is part of parent-child relation with schema : '%s'", colName, table, childSchema) 
+		return http.StatusBadRequest, fmt.Errorf("column : '%s' in table : '%s' is part of parent-child relation with schema : '%s'", colName, table, childSchema)
 	}
 	if isPartOfSecondaryIndex, indexName := isPartOfSecondaryIndex(colName, table); isPartOfSecondaryIndex {
-		return  http.StatusPreconditionFailed, fmt.Errorf("column : '%s' in table : '%s' is part of secondary index : '%s', remove secondary index before making the update",
+		return http.StatusPreconditionFailed, fmt.Errorf("column : '%s' in table : '%s' is part of secondary index : '%s', remove secondary index before making the update",
 			colName, table, indexName)
 	}
 	isPartOfFK := isPartOfFK(colName, table)
@@ -887,10 +887,10 @@ func canRenameOrChangeType(colName, table string) (int, error) {
 	if isPartOfFK || isReferencedByFK {
 		if isReferencedByFK {
 			return http.StatusPreconditionFailed, fmt.Errorf("column : '%s' in table : '%s' is part of foreign key relation with table : '%s', remove foreign key constraint before making the update",
-			colName, table, relationTable)
+				colName, table, relationTable)
 		}
 		return http.StatusPreconditionFailed, fmt.Errorf("column : '%s' in table : '%s' is part of foreign keys, remove foreign key constraint before making the update",
-		colName, table)
+			colName, table)
 	}
 	return http.StatusOK, nil
 }

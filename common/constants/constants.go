@@ -21,7 +21,7 @@ const (
 	DYNAMODB string = "dynamodb"
 
 	// Target db for which schema is being generated.
-	TargetSpanner               string = "spanner"
+	TargetSpanner              string = "spanner"
 	TargetExperimentalPostgres string = "experimental_postgres"
 
 	// Supported dialects for Cloud Spanner database.
