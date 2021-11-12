@@ -49,7 +49,14 @@ func cvtRow(attrsMap map[string]*dynamodb.AttributeValue, srcSchema schema.Table
 			srcStrVal = "null"
 		} else {
 			// Convert data to the target type.
-			spVal, err = cvtColValue(attrsMap[srcCol], srcSchema.ColDefs[srcCol].Type.Name, spSchema.ColDefs[spCols[i]].T.Name)
+			spCol := spCols[i]
+			spColDef := spSchema.ColDefs[spCol]
+			srcColDef := srcSchema.ColDefs[srcCol]
+			if spColDef.T.IsArray {
+				spVal, err = convArray(attrsMap[srcCol], srcColDef.Type.Name, spColDef.T.Name)
+			} else {
+				spVal, err = convScalar(attrsMap[srcCol], srcColDef.Type.Name, spColDef.T.Name)
+			}
 			if err != nil {
 				badCols = append(badCols, srcCol)
 			}
@@ -61,7 +68,46 @@ func cvtRow(attrsMap map[string]*dynamodb.AttributeValue, srcSchema schema.Table
 	return spVals, badCols, srcStrVals
 }
 
-func cvtColValue(attrVal *dynamodb.AttributeValue, srcType string, spType string) (interface{}, error) {
+func convArray(attrVal *dynamodb.AttributeValue, srcType string, spType string) (interface{}, error) {
+	switch spType {
+	case ddl.Bytes:
+		switch srcType {
+		case typeBinarySet:
+			return attrVal.BS, nil
+		}
+	case ddl.String:
+		switch srcType {
+		case typeStringSet:
+			var strArr []string
+			for _, s := range attrVal.SS {
+				strArr = append(strArr, *s)
+			}
+			return strArr, nil
+		case typeNumberStringSet:
+			var strArr []string
+			for _, s := range attrVal.NS {
+				strArr = append(strArr, *s)
+			}
+			return strArr, nil
+		}
+	case ddl.Numeric:
+		switch srcType {
+		case typeNumberSet:
+			var numArr []big.Rat
+			for _, s := range attrVal.NS {
+				val, ok := (&big.Rat{}).SetString(*s)
+				if !ok {
+					return nil, fmt.Errorf("failed to convert '%v' to an NUMERIC array", attrVal.NS)
+				}
+				numArr = append(numArr, *val)
+			}
+			return numArr, nil
+		}
+	}
+	return nil, fmt.Errorf("can't convert value of type %s to Spanner type %s", attrVal.GoString(), spType)
+}
+
+func convScalar(attrVal *dynamodb.AttributeValue, srcType string, spType string) (interface{}, error) {
 	switch spType {
 	case ddl.Bool:
 		switch srcType {
@@ -72,12 +118,14 @@ func cvtColValue(attrVal *dynamodb.AttributeValue, srcType string, spType string
 		switch srcType {
 		case typeBinary:
 			return attrVal.B, nil
-		case typeBinarySet:
-			return attrVal.BS, nil
 		}
 	case ddl.String:
 		switch srcType {
-		case typeMap, typeList:
+		case typeString:
+			return *attrVal.S, nil
+		case typeNumberString:
+			return *attrVal.N, nil
+		case typeMap, typeList, typeStringSet, typeNumberStringSet, typeNumberSet, typeBinarySet:
 			// For typeMap and typeList, attrVal is a very verbose data
 			// structure that contains null entries for unused type cases. We
 			// strip these out using stripNull. If it is important that the
@@ -95,22 +143,6 @@ func cvtColValue(attrVal *dynamodb.AttributeValue, srcType string, spType string
 				return nil, fmt.Errorf("failed to convert %v to a json string", attrVal.GoString())
 			}
 			return string(b), nil
-		case typeString:
-			return *attrVal.S, nil
-		case typeStringSet:
-			var strArr []string
-			for _, s := range attrVal.SS {
-				strArr = append(strArr, *s)
-			}
-			return strArr, nil
-		case typeNumberString:
-			return *attrVal.N, nil
-		case typeNumberStringSet:
-			var strArr []string
-			for _, s := range attrVal.NS {
-				strArr = append(strArr, *s)
-			}
-			return strArr, nil
 		}
 	case ddl.Numeric:
 		switch srcType {
@@ -121,16 +153,6 @@ func cvtColValue(attrVal *dynamodb.AttributeValue, srcType string, spType string
 				return nil, fmt.Errorf("failed to convert '%v' to an NUMERIC type", s)
 			}
 			return *val, nil
-		case typeNumberSet:
-			var numArr []big.Rat
-			for _, s := range attrVal.NS {
-				val, ok := (&big.Rat{}).SetString(*s)
-				if !ok {
-					return nil, fmt.Errorf("failed to convert '%v' to an NUMERIC array", attrVal.NS)
-				}
-				numArr = append(numArr, *val)
-			}
-			return numArr, nil
 		}
 	}
 	return nil, fmt.Errorf("can't convert value of type %s to Spanner type %s", attrVal.GoString(), spType)
