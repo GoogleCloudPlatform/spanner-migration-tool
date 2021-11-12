@@ -25,22 +25,22 @@ type OneshotCmd struct {
 
 // Name returns the name of operation.
 func (cmd *OneshotCmd) Name() string {
-	return "eval"
+	return "oneshot"
 }
 
 // Synopsis returns summary of operation.
 func (cmd *OneshotCmd) Synopsis() string {
-	return "evaluate schema and data migration from source db to target db"
+	return "schema and data migration from source db to target db in oneshot"
 }
 
 // Usage returns usage info of the command.
 func (cmd *OneshotCmd) Usage() string {
-	return fmt.Sprintf(`%v eval -source=[source] -target-profile="instance=my-instance"...
+	return fmt.Sprintf(`%v oneshot -source=[source] -target-profile="instance=my-instance"...
 
-Evaluate schema and data migration from source db to target db. Source db dump
+Migrate schema and data from source db to target db in oneshot. Source db dump
 file can be specified by either file param in source-profile or piped to stdin.
 Connection profile for source databases in direct connect mode can be specified
-by setting appropriate environment variables. The eval flags are:
+by setting appropriate params in source-profile. The oneshot flags are:
 `, path.Base(os.Args[0]))
 }
 

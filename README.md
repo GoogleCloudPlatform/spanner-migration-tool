@@ -399,62 +399,16 @@ database. Source profile configuration varies depending on the database.
 
 #### 1.1 Direct access to PostgreSQL
 
-In this case, HarbourBridge connects directly to the PostgreSQL database to
-retrieve table schema and data. Set the `-source=postgres` and corresponding
-source profile connection parameters `host`, `port`, `user`, `db_name` and
-`password`.
-
-For example to perform schema conversion, run
-
-```sh
-harbourbridge schema -source=postgres -source-profile="host=<>,port=<>,user=<>,db_name=<>"
-```
-
-Parameters `port` and `password` are optional. Port (`port`) defaults to `5432`
-for PostgreSQL source. Password can be provided at the password prompt.
-
-(⚠ Deprecated ⚠) Set environment variables `PGHOST`, `PGPORT`, `PGUSER`,
-`PGDATABASE` for direct access. Password can be specified either in the
-`PGPASSWORD` environment variable or provided at the password prompt.
+See [Directly connecting to a PostgreSQL database](sources/postgres/README.md#directly-connecting-to-a-postgresql-database) for troubleshooting direct access to PostgreSQL.
 
 #### 1.2 Direct access to MySQL
 
-In this case, HarbourBridge connects directly to the MySQL database to retrieve
-table schema and data. Set the `-source=mysql` and corresponding source profile
-connection parameters `host`, `port`, `user`, `db_name` and `password`.
-
-For example to perform schema conversion, run
-
-```sh
-harbourbridge schema -source=mysql -source-profile="host=<>,port=<>,user=<>,db_name=<>"
-```
-
-Parameters `port` and `password` are optional. Port (`port`) defaults to `3306`
-for MySQL source. Password can be provided at the password prompt.
-
-(⚠ Deprecated ⚠) Set environment variables `MYSQLHOST`, `MYSQLPORT`,
-`MYSQLUSER`, `MYSQLDATABASE`. Password can be specified either in the
-`MYSQLPWD` environment variable or provided at the password prompt.
+See [Directly connecting to a MySQL database](sources/mysql/README.md#directly-connecting-to-a-mysql-database) for troubleshooting direct access to MySQL.
 
 #### 1.3 Direct access to DynamoDB
 
-In this case, HarbourBridge connects directly to the DynamoDB
-database to retrieve table schema and data. Set the `-source=dynamodb`
-and provide the environment variables `AWS_ACCESS_KEY_ID`,
-`AWS_SECRET_ACCESS_KEY`, `AWS_REGION`. If you use a custom endpoint for
-dynamodb, you can specify that using the environment variable
-`DYNAMODB_ENDPOINT_OVERRIDE`.
-
-Instead of setting the environment variables, you
-can pass corresponding source profile connection parameters `aws-access-key-id`
-, `aws-secret-access-key`, `aws-region`. Custom endpoint can be specified using
-`dydb-endpoint` param.
-
-For example to perform schema conversion, run
-
-```sh
-harbourbridge schema -source=dynamodb -source-profile="aws-access-key-id=<>,aws-secret-access-key=<>,aws-region=<>"
-```
+See [DynamoDB example usage](sources/dynamodb/README.md#example-dynamodb-usage)
+for troubleshooting direct access to DynamoDB.
 
 ### 2. Generating dump files
 

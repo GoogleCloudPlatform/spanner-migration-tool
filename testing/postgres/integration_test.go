@@ -129,7 +129,7 @@ func TestIntegration_PGDUMP_Command(t *testing.T) {
 	checkResults(t, dbURI)
 }
 
-func TestIntegration_PGDUMP_EvalSubcommand(t *testing.T) {
+func TestIntegration_PGDUMP_OneshotSubcommand(t *testing.T) {
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
@@ -142,7 +142,7 @@ func TestIntegration_PGDUMP_EvalSubcommand(t *testing.T) {
 	dataFilepath := "../../test_data/pg_dump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
-	args := fmt.Sprintf("eval -prefix %s -source=postgres -target-profile='instance=%s,dbname=%s' < %s", filePrefix, instanceID, dbName, dataFilepath)
+	args := fmt.Sprintf("oneshot -prefix %s -source=postgres -target-profile='instance=%s,dbname=%s' < %s", filePrefix, instanceID, dbName, dataFilepath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -191,7 +191,7 @@ func TestIntegration_POSTGRES_Command(t *testing.T) {
 	checkResults(t, dbURI)
 }
 
-func TestIntegration_POSTGRES_EvalSubcommand(t *testing.T) {
+func TestIntegration_POSTGRES_OneshotSubcommand(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
 
@@ -203,7 +203,7 @@ func TestIntegration_POSTGRES_EvalSubcommand(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
-	args := fmt.Sprintf("eval -prefix %s -source=postgres -target-profile='instance=%s,dbname=%s'", filePrefix, instanceID, dbName)
+	args := fmt.Sprintf("oneshot -prefix %s -source=postgres -target-profile='instance=%s,dbname=%s'", filePrefix, instanceID, dbName)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)

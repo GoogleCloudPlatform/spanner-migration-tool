@@ -41,7 +41,7 @@ func (cmd *DataCmd) Usage() string {
 Migrate data from source db to target db. Source db dump file can be specified
 by either file param in source-profile or piped to stdin. Connection profile
 for source databases in direct connect mode can be specified by setting
-appropriate environment variables. The data flags are:
+appropriate params in source-profile. The data flags are:
 `, path.Base(os.Args[0]))
 }
 

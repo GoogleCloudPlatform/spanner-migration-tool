@@ -1,67 +1,65 @@
-# HarbourBridge: Turnkey PostgreSQL-to-Spanner Evaluation
+# HarbourBridge: PostgreSQL-to-Spanner Evaluation and Migration
 
 HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation,
 using data from an existing PostgreSQL or MySQL database. This README provides
 details of the tool's PostgreSQL capabilities. For general HarbourBridge information
-see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbourbridge-turnkey-spanner-evaluation).
+see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbourbridge-spanner-evaluation-and-migration).
 
 ## Example PostgreSQL Usage
-
-The following examples assume `harbourbridge` alias has been setup as
-following.
-
-```sh
-git clone https://github.com/cloudspannerecosystem/harbourbridge
-cd harbourbridge
-alias harbourbridge="go run github.com/cloudspannerecosystem/harbourbridge"
-```
 
 HarbourBridge can either be used with pg_dump or it can be run directly
 on a PostgreSQL database (via go's database/sql package).
 
 ### Using HarbourBridge with pg_dump
 
-To use HarbourBridge on a PostgreSQL database called mydb using pg_dump output,run:
+The tool can used to migrate schema from an existing pg_dump file:
 
 ```sh
-pg_dump mydb | harbourbridge schema -source=postgresql
+harbourbridge schema -source=postgresql < my_pg_dump_file
 ```
 
-You can use one of `postgresql`, `postgres`, or `pg` to specify PostgreSQL as
-the source database.
+You can use either of `postgresql`, `postgres`, or `pg` to `-source` to specify
+PostgreSQL as the source database.
 
-The tool can also be applied to an existing pg_dump file:
+This will generate a session file with `session.json` suffix. This file contains
+schema mapping from source to destination. You will need to specify this file
+during data migration. You can also specify a particular Spanner instance to use
+during data migration.
+
+For example, run
 
 ```sh
-harbourbridge schema -source=postgres < my_pg_dump_file
-```
-
-To specify a particular Spanner instance to use during data migration, run:
-
-```sh
-harbourbridge data -source=postgres -target-profile="instance=my-spanner-instance" < my_pg_dump_file
+harbourbridge data -session=mydb.session.json -source=pg -target-profile="instance=my-spanner-instance" < my_pg_dump_file
 ```
 
 By default, HarbourBridge will generate a new Spanner database name to populate.
 You can override this and specify the database name to use by:
 
 ```sh
-harbourbridge data -source=postgres -target-profile="dbname=my-spanner-database-name,instance=my-spanner-instance" < my_pg_dump_file
+harbourbridge data -session=mydb.session.json -source=pg -target-profile="instance=my-spanner-instance,dbname=my-spanner-database-name" < my_pg_dump_file
+```
+
+You can also run HarbourBridge in a oneshot mode, where it will perform both
+schema and data migration. This is useful for quick evaluation when source
+database size is small.
+
+```sh
+harbourbridge oneshot -source=pg -target-profile="instance=my-spanner-instance" < my_pg_dump_file
 ```
 
 HarbourBridge generates a report file, a schema file, and a bad-data file (if
-there are bad-data rows during data migration). You can control where these
-files are written by specifying a file prefix. For example,
+there are bad-data rows). You can control where these files are written by
+specifying a file prefix. For example,
 
 ```sh
-harbourbridge schema -prefix=mydb. -source=pg < my_pg_dump_file
+harbourbridge schema -prefix=mydb. -source=postgres < my_pg_dump_file
 ```
 
 will write files `mydb.report.txt`, `mydb.schema.txt`, and
 `mydb.dropped.txt`. The prefix can also be a directory. For example,
 
 ```sh
-harbourbridge schema -prefix=~/spanner-eval-mydb/ -source=pg < my_pg_dump_file
+harbourbridge schema -prefix=~/spanner-eval-mydb/ -source=postgres < my_pg_dump_file
 ```
 
 would write the files into the directory `~/spanner-eval-mydb/`. Note
@@ -69,18 +67,26 @@ that HarbourBridge will not create directories as it writes these files.
 
 ### Directly connecting to a PostgreSQL database
 
-To use the tool directly on a PostgresSQL database called mydb, run
+In this case, HarbourBridge connects directly to the PostgreSQL database to
+retrieve table schema and data. Set the `-source=postgres` and corresponding
+source profile connection parameters `host`, `port`, `user`, `db_name` and
+`password`.
+
+For example to perform schema conversion, run
 
 ```sh
-harbourbridge schema -source=postgres
+harbourbridge schema -source=postgres -source-profile="host=<>,port=<>,user=<>,db_name=<>"
 ```
 
-It is assumed that _PGHOST_, _PGPORT_, _PGUSER_, _PGDATABASE_ environment
-variables are set. Password can be specified either in the _PGPASSWORD_
-environment variable or provided at the password prompt.
+Parameters `port` and `password` are optional. Port (`port`) defaults to `5432`
+for PostgreSQL source. Password can be provided at the password prompt.
 
-Note that all of the options described in the previous section when specifying
-a dump file can also be used when directly connecting to a PostgreSQL database.
+(⚠ Deprecated ⚠) Set environment variables `PGHOST`, `PGPORT`, `PGUSER`,
+`PGDATABASE` for direct access. Password can be specified either in the
+`PGPASSWORD` environment variable or provided at the password prompt.
+
+Note that the various target-profile params described in the previous section
+are also applicable in direct connect mode.
 
 ## Schema Conversion
 
