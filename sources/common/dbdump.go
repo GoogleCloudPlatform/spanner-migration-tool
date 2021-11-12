@@ -18,7 +18,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
 
-// DbDump
+// DbDump common interface for database dump functions.
 type DbDump interface {
 	GetToDdl() ToDdl
 	ProcessDump(conv *internal.Conv, r *internal.Reader) error
