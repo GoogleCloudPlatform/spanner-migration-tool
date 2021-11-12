@@ -92,6 +92,30 @@ func TestAddPrimaryKeys(t *testing.T) {
 		uniqueKey      []string
 	}{
 		{
+			name: "primary key already exists",
+			inputSchema: map[string]ddl.CreateTable{
+				"table": {
+					Name:     "table",
+					ColNames: []string{"a", "b"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
+					},
+					Pks: []ddl.IndexKey{{Col: "a"}}}},
+
+			expectedSchema: map[string]ddl.CreateTable{
+				"table": {
+					Name:     "table",
+					ColNames: []string{"a", "b"},
+					ColDefs: map[string]ddl.ColumnDef{
+						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
+					},
+					Pks: []ddl.IndexKey{{Col: "a"}},
+				},
+			},
+		},
+		{
 			name: "single unique key as primary key",
 			inputSchema: map[string]ddl.CreateTable{
 				"table": {
@@ -113,7 +137,8 @@ func TestAddPrimaryKeys(t *testing.T) {
 						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
 						"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
 					},
-					Pks: []ddl.IndexKey{{Col: "b"}}},
+					Pks:     []ddl.IndexKey{{Col: "b"}},
+					Indexes: []ddl.CreateIndex{}},
 			},
 			uniqueKey: []string{"b"},
 		},
@@ -139,7 +164,8 @@ func TestAddPrimaryKeys(t *testing.T) {
 						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
 						"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
 					},
-					Pks: []ddl.IndexKey{{Col: "a"}, {Col: "b"}}},
+					Pks:     []ddl.IndexKey{{Col: "a"}, {Col: "b"}},
+					Indexes: []ddl.CreateIndex{}},
 			},
 			uniqueKey: []string{"a", "b"},
 		},

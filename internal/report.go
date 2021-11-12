@@ -167,7 +167,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 			// Warning about using a column with unique constraint as primary key
 			// in case primary key is absent.
 			if p.severity == warning {
-				l = append(l, fmt.Sprintf("Column '%s' was used as primary key because it had UNIQUE constraint and this table didn't have a primary key. Spanner requires a primary key for every table", strings.Join(uniquePK, ", ")))
+				l = append(l, fmt.Sprintf("UNIQUE constraint on column(s) '%s' replaced with primary key since this table didn't have one. Spanner requires a primary key for every table", strings.Join(uniquePK, ", ")))
 			}
 		}
 		issueBatcher := make(map[SchemaIssue]bool)

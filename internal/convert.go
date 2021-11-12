@@ -269,13 +269,7 @@ func (conv *Conv) AddPrimaryKeys() {
 							conv.UniquePKey[t] = append(conv.UniquePKey[t], indexKey.Col)
 						}
 						primaryKeyPopulated = true
-						if len(ct.Indexes) == 1 {
-							ct.Indexes = nil
-						} else {
-							tempIndex := ct.Indexes[:i]
-							tempIndex = append(tempIndex, ct.Indexes[i+1:]...)
-							ct.Indexes = tempIndex
-						}
+						ct.Indexes = append(ct.Indexes[:i], ct.Indexes[i+1:]...)
 						break
 					}
 				}

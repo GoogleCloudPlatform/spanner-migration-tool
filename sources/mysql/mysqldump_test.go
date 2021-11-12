@@ -365,7 +365,8 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "b"}, ddl.IndexKey{Col: "c"}}}},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "b"}, ddl.IndexKey{Col: "c"}},
+					Indexes: []ddl.CreateIndex{}}},
 		},
 		{
 			name: "Create table with multiple index keys with different order",
@@ -426,7 +427,9 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "b"}, ddl.IndexKey{Col: "c"}}}},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "b"}, ddl.IndexKey{Col: "c"}},
+					Indexes: []ddl.CreateIndex{},
+				}},
 		},
 		{
 			name: "Alter table add index keys",
@@ -445,7 +448,9 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "b"}, ddl.IndexKey{Col: "c"}}}},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "b"}, ddl.IndexKey{Col: "c"}},
+					Indexes: []ddl.CreateIndex{},
+				}},
 		},
 		{
 			name: "Create index statement",
@@ -485,7 +490,9 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "b"}, ddl.IndexKey{Col: "c"}}}},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "b"}, ddl.IndexKey{Col: "c"}},
+					Indexes: []ddl.CreateIndex{},
+				}},
 		},
 		{
 			name:  "Create table with mysql schema",
