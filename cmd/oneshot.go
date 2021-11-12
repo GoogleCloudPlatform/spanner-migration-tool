@@ -13,8 +13,8 @@ import (
 	"github.com/google/subcommands"
 )
 
-// EvalCmd struct with flags.
-type EvalCmd struct {
+// OneshotCmd struct with flags.
+type OneshotCmd struct {
 	source          string
 	sourceProfile   string
 	target          string
@@ -24,17 +24,17 @@ type EvalCmd struct {
 }
 
 // Name returns the name of operation.
-func (cmd *EvalCmd) Name() string {
+func (cmd *OneshotCmd) Name() string {
 	return "eval"
 }
 
 // Synopsis returns summary of operation.
-func (cmd *EvalCmd) Synopsis() string {
+func (cmd *OneshotCmd) Synopsis() string {
 	return "evaluate schema and data migration from source db to target db"
 }
 
 // Usage returns usage info of the command.
-func (cmd *EvalCmd) Usage() string {
+func (cmd *OneshotCmd) Usage() string {
 	return fmt.Sprintf(`%v eval -source=[source] -target-profile="instance=my-instance"...
 
 Evaluate schema and data migration from source db to target db. Source db dump
@@ -45,7 +45,7 @@ by setting appropriate environment variables. The eval flags are:
 }
 
 // SetFlags sets the flags.
-func (cmd *EvalCmd) SetFlags(f *flag.FlagSet) {
+func (cmd *OneshotCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.source, "source", "", "Flag for specifying source DB, (e.g., `PostgreSQL`, `MySQL`, `DynamoDB`)")
 	f.StringVar(&cmd.sourceProfile, "source-profile", "", "Flag for specifying connection profile for source database e.g., \"file=<path>,format=dump\"")
 	f.StringVar(&cmd.target, "target", "Spanner", "Specifies the target DB, defaults to Spanner (accepted values: `Spanner`)")
@@ -54,7 +54,7 @@ func (cmd *EvalCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
 }
 
-func (cmd *EvalCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+func (cmd *OneshotCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	var err error
 	defer func() {
 		if err != nil {

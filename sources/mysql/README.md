@@ -259,12 +259,12 @@ type, which supports UTF-8.
 As noted earlier when discussing [schema conversion of
 Spatial datatype](#spatial-datatype), Spanner does not support spatial datatypes and are
 mapped to `STRING(MAX)` Spanner type. Data conversion for spatial datatypes is different
-for both `mysql` and `mysqldump` driver.
+for both `mysql` direct connect and `mysqldump` file.
 
-- MySQL information schema approach (`-driver=mysql`) : Data from MySQL is fetched using
+- MySQL information schema approach (direct connect) : Data from MySQL is fetched using
   'ST_AsText(g)' function which converts a value in internal geometry format to its WKT(Well-Known Text)
   representation and returns the string result. This value will be stored as `STRING` in Spanner.
-- MySQL dump approach (`-driver=mysqldump`) : Mysqldump will have the internal geometry data in
+- MySQL dump approach : Mysqldump will have the internal geometry data in
   binary format. It cannot be converted to WKT format and there is no proper method for mysqldump
   generation of spatial datatypes also. Thus, this value will just be fetched as a `TEXT` type and
   converted to Spanner type `STRING`.

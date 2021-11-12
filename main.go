@@ -107,7 +107,7 @@ func main() {
 		subcommands.Register(subcommands.CommandsCommand(), "")
 		subcommands.Register(&cmd.SchemaCmd{}, "")
 		subcommands.Register(&cmd.DataCmd{}, "")
-		subcommands.Register(&cmd.EvalCmd{}, "")
+		subcommands.Register(&cmd.OneshotCmd{}, "")
 		flag.Parse()
 		os.Exit(int(subcommands.Execute(ctx)))
 	}

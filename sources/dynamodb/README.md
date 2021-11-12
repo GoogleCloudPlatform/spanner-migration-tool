@@ -28,8 +28,7 @@ for dynamodb, you can specify that using the environment variable
 export DYNAMODB_ENDPOINT_OVERRIDE=http://dynamodb.us-west-2.amazonaws.com`
 ```
 
-To use the tool on a DynamoDB database (it will migrate all tables),
-run
+To use the tool on a DynamoDB database to migrate schema, run
 
 ```sh
 harbourbridge schema -source=dynamodb
@@ -37,10 +36,9 @@ harbourbridge schema -source=dynamodb
 
 ### Source profile (`-source-profile`)
 
-HarbourBridge accepts the following options for --source-profile for DynamoDB,
-specified as "key1=value1,key2=value,..." pairs:
+HarbourBridge accepts the following additional params for --source-profile for DynamoDB:
 
-`-schema-sample-size` Due to the schemaless nature of DynamoDB, the tool infers
+`schema-sample-size` Due to the schemaless nature of DynamoDB, the tool infers
 the schema based on a certain amount of sampled data, by default, 100000 rows.
 If a table has more rows than the default value, we only use 100000 rows for 
 estimating the schema. This flag lets you specify the number of rows to use for
