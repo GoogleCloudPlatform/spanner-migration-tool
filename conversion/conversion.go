@@ -73,6 +73,11 @@ var (
 	MaxWorkers = 20
 )
 
+// The sqlConnectionStr param provides the connection details to use the go SQL library.
+// It is empty in the following cases:
+//  - Driver is DynamoDB or a dump file mode.
+//  - This function is called as part of the legacy global CLI flag mode. (This string is constructed from env variables later on)
+// When using source-profile, the sqlConnectionStr is constructed from the input params.
 func SchemaConv(driver, sqlConnectionStr, targetDb string, ioHelper *IOStreams, schemaSampleSize int64) (*internal.Conv, error) {
 	switch driver {
 	case constants.POSTGRES, constants.MYSQL:
@@ -86,6 +91,11 @@ func SchemaConv(driver, sqlConnectionStr, targetDb string, ioHelper *IOStreams, 
 	}
 }
 
+// The sqlConnectionStr param provides the connection details to use the go SQL library.
+// It is empty in the following cases:
+//  - Driver is DynamoDB or a dump file mode.
+//  - This function is called as part of the legacy global CLI flag mode. (This string is constructed from env variables later on)
+// When using source-profile, the sqlConnectionStr is constructed from the input params.
 func DataConv(driver, sqlConnectionStr string, ioHelper *IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*spanner.BatchWriter, error) {
 	config := spanner.BatchWriterConfig{
 		BytesLimit: 100 * 1000 * 1000,
@@ -174,8 +184,9 @@ func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 // Doing that requires refactoring since that would introduce a circular dependency between
 // conversion.go and cmd/source_profile.go.
 func schemaFromSQL(driver, sqlConnectionStr, targetDb string) (*internal.Conv, error) {
+	// If empty, this is called as part of the legacy mode witih global CLI flags.
+	// When using source-profile mode is used, the sqlConnectionStr is already populated.
 	if sqlConnectionStr == "" {
-		// If empty, this is called as part of the old command line workflow.
 		var err error
 		sqlConnectionStr, err = generateSQLConnectionStr(driver)
 		if err != nil {

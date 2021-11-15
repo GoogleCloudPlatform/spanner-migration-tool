@@ -81,15 +81,18 @@ func getResourceIds(ctx context.Context, targetProfile TargetProfile, now time.T
 func getSQLConnectionStr(sourceProfile SourceProfile) string {
 	sqlConnectionStr := ""
 	if sourceProfile.ty == SourceProfileTypeConnection {
-		// For DynamoDB, the SDK only reads credentials from env variables.
-		// There is no way to pass them through the code hence, don't need to override
-		// sqlConnectionStr for DynamoDB.
-		if sourceProfile.conn.ty == SourceProfileConnectionTypeMySQL {
+		switch sourceProfile.conn.ty {
+		case SourceProfileConnectionTypeMySQL:
 			connParams := sourceProfile.conn.mysql
-			sqlConnectionStr = conversion.GetMYSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
-		} else if sourceProfile.conn.ty == SourceProfileConnectionTypePostgreSQL {
+			return conversion.GetMYSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
+		case SourceProfileConnectionTypePostgreSQL:
 			connParams := sourceProfile.conn.pg
-			sqlConnectionStr = conversion.GetPGSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
+			return conversion.GetPGSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
+		case SourceProfileConnectionTypeDynamoDB:
+			// For DynamoDB, client provided by aws-sdk reads connection credentials from env variables only.
+			// Thus, there is no need to create sqlConnectionStr for the same. We instead set the env variables
+			// programmatically if not set.
+			return ""
 		}
 	}
 	return sqlConnectionStr

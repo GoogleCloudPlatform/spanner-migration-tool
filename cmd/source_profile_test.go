@@ -128,21 +128,6 @@ func TestNewSourceProfileConnectionDynamoDB(t *testing.T) {
 			params:        map[string]string{"schemaSampleSize": "a"},
 			errorExpected: true,
 		},
-		{
-			name:          "no mandatory params but optional provided",
-			params:        map[string]string{"dydbEndpoint": "b"},
-			errorExpected: true,
-		},
-		{
-			name:          "partial mandatory params",
-			params:        map[string]string{"awsRegion": "a"},
-			errorExpected: true,
-		},
-		{
-			name:          "partial mandatory params and optional provided",
-			params:        map[string]string{"awsAccessKeyID": "a", "dydbEndpoint": "b"},
-			errorExpected: true,
-		},
 	}
 
 	for _, tc := range testCases {
