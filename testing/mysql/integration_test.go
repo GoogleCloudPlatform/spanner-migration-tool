@@ -126,21 +126,6 @@ func TestIntegration_MYSQLDUMP_Command(t *testing.T) {
 	checkResults(t, dbURI)
 }
 
-func clearEnvVariables(vars []string) map[string]string {
-	envVars := make(map[string]string)
-	for _, v := range vars {
-		envVars[v] = os.Getenv(v)
-		os.Setenv(v, "")
-	}
-	return envVars
-}
-
-func restoreEnvVariables(params map[string]string) {
-	for k, v := range params {
-		os.Setenv(k, v)
-	}
-}
-
 func TestIntegration_MySQL_EvalSubcommand(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
@@ -153,10 +138,10 @@ func TestIntegration_MySQL_EvalSubcommand(t *testing.T) {
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
 	host, user, db_name, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), os.Getenv("MYSQLDATABASE"), os.Getenv("MYSQLPWD")
-	envVars := clearEnvVariables([]string{"MYSQLHOST", "MYSQLUSER", "MYSQLDATABASE", "MYSQLPWD"})
+	envVars := common.ClearEnvVariables([]string{"MYSQLHOST", "MYSQLUSER", "MYSQLDATABASE", "MYSQLPWD"})
 	args := fmt.Sprintf("eval -source=%s -prefix=%s -source-profile='host=%s,user=%s,db_name=%s,password=%s' -target-profile='instance=%s,dbname=%s'", constants.MYSQL, filePrefix, host, user, db_name, password, instanceID, dbName)
 	err := common.RunCommand(args, projectID)
-	restoreEnvVariables(envVars)
+	common.RestoreEnvVariables(envVars)
 	if err != nil {
 		t.Fatal(err)
 	}
