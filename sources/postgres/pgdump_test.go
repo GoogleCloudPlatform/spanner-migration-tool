@@ -330,15 +330,15 @@ func TestProcessPgDump(t *testing.T) {
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
 					Name:     "test",
-					ColNames: []string{"a", "b", "c", "synth_id"},
+					ColNames: []string{"a", "b", "c"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "c", Desc: true}, ddl.IndexKey{Col: "b", Desc: false}}}}}},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "c", Desc: true}, ddl.IndexKey{Col: "b", Desc: false}},
+					Indexes: []ddl.CreateIndex{},
+				}},
 		},
 		{
 			name: "Create table with unique constraint",
@@ -351,15 +351,15 @@ func TestProcessPgDump(t *testing.T) {
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
 					Name:     "test",
-					ColNames: []string{"a", "b", "c", "synth_id"},
+					ColNames: []string{"a", "b", "c"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}}}},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "b"}},
+					Indexes: []ddl.CreateIndex{},
+				}},
 		},
 		{
 			name: "Alter table add unique constraint",
@@ -372,15 +372,15 @@ func TestProcessPgDump(t *testing.T) {
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
 					Name:     "test",
-					ColNames: []string{"a", "b", "c", "synth_id"},
+					ColNames: []string{"a", "b", "c"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "b"}, ddl.IndexKey{Col: "c"}},
+					Indexes: []ddl.CreateIndex{},
+				}},
 		},
 		{
 			name:  "Create table with pg schema",
@@ -998,15 +998,15 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
 					Name:     "test",
-					ColNames: []string{"a", "b", "c", "synth_id"},
+					ColNames: []string{"a", "b", "c"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "c", Desc: true}, ddl.IndexKey{Col: "b", Desc: false}}}}}},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "c", Desc: true}, ddl.IndexKey{Col: "b", Desc: false}},
+					Indexes: []ddl.CreateIndex{},
+				}},
 		},
 		{
 			name: "Create table with unique constraint",
@@ -1019,15 +1019,15 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
 					Name:     "test",
-					ColNames: []string{"a", "b", "c", "synth_id"},
+					ColNames: []string{"a", "b", "c"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}}}}}},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "b"}},
+					Indexes: []ddl.CreateIndex{},
+				}},
 		},
 		{
 			name: "Alter table add unique constraint",
@@ -1040,15 +1040,15 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
 					Name:     "test",
-					ColNames: []string{"a", "b", "c", "synth_id"},
+					ColNames: []string{"a", "b", "c"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "b"}, ddl.IndexKey{Col: "c"}},
+					Indexes: []ddl.CreateIndex{},
+				}},
 		},
 		{
 			name:  "Create table with pg schema",

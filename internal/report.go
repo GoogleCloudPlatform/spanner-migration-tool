@@ -127,9 +127,11 @@ func buildTableReport(conv *Conv, srcTable string, badWrites map[string]int64) t
 	tr.Warnings = warnings
 	if pk, ok := conv.SyntheticPKeys[spTable]; ok {
 		tr.SyntheticPKey = pk.Col
-		tr.Body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, &pk.Col)
+		tr.Body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, &pk.Col, nil)
+	} else if pk, ok := conv.UniquePKey[spTable]; ok {
+		tr.Body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, nil, pk)
 	} else {
-		tr.Body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, nil)
+		tr.Body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, nil, nil)
 	}
 	if !conv.SchemaMode() {
 		fillRowStats(conv, srcTable, badWrites, &tr)
@@ -137,7 +139,7 @@ func buildTableReport(conv *Conv, srcTable string, badWrites map[string]int64) t
 	return tr
 }
 
-func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]SchemaIssue, spSchema ddl.CreateTable, srcSchema schema.Table, syntheticPK *string) []tableReportBody {
+func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]SchemaIssue, spSchema ddl.CreateTable, srcSchema schema.Table, syntheticPK *string, uniquePK []string) []tableReportBody {
 	var body []tableReportBody
 	for _, p := range []struct {
 		heading  string
@@ -159,6 +161,13 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 			// Much of the generic code for processing issues assumes we have both.
 			if p.severity == warning {
 				l = append(l, fmt.Sprintf("Column '%s' was added because this table didn't have a primary key. Spanner requires a primary key for every table", *syntheticPK))
+			}
+		}
+		if uniquePK != nil {
+			// Warning about using a column with unique constraint as primary key
+			// in case primary key is absent.
+			if p.severity == warning {
+				l = append(l, fmt.Sprintf("UNIQUE constraint on column(s) '%s' replaced with primary key since this table didn't have one. Spanner requires a primary key for every table", strings.Join(uniquePK, ", ")))
 			}
 		}
 		issueBatcher := make(map[SchemaIssue]bool)
