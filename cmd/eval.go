@@ -97,16 +97,10 @@ func (cmd *EvalCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		cmd.filePrefix = dbName + "."
 	}
 
-	schemaSampleSize := int64(100000)
-	if sourceProfile.ty == SourceProfileTypeConnection {
-		if sourceProfile.conn.ty == SourceProfileConnectionTypeDynamoDB {
-			if sourceProfile.conn.dydb.schemaSampleSize != 0 {
-				schemaSampleSize = sourceProfile.conn.dydb.schemaSampleSize
-			}
-		}
-	}
+	sqlConnectionStr := getSQLConnectionStr(sourceProfile)
+
 	var conv *internal.Conv
-	conv, err = conversion.SchemaConv(driverName, targetDb, &ioHelper, schemaSampleSize)
+	conv, err = conversion.SchemaConv(driverName, sqlConnectionStr, targetDb, &ioHelper, getSchemaSampleSize(sourceProfile))
 	if err != nil {
 		panic(err)
 	}
@@ -140,7 +134,7 @@ func (cmd *EvalCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		return subcommands.ExitFailure
 	}
 
-	bw, err := conversion.DataConv(driverName, &ioHelper, client, conv, true)
+	bw, err := conversion.DataConv(driverName, sqlConnectionStr, &ioHelper, client, conv, true)
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 		return subcommands.ExitFailure

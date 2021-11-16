@@ -27,3 +27,20 @@ func RunCommand(args string, projectID string) error {
 	}
 	return nil
 }
+
+// Clears the env variables specified in the input list and stashes the values
+// in a map.
+func ClearEnvVariables(vars []string) map[string]string {
+	envVars := make(map[string]string)
+	for _, v := range vars {
+		envVars[v] = os.Getenv(v)
+		os.Setenv(v, "")
+	}
+	return envVars
+}
+
+func RestoreEnvVariables(params map[string]string) {
+	for k, v := range params {
+		os.Setenv(k, v)
+	}
+}

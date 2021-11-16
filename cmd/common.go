@@ -77,3 +77,35 @@ func getResourceIds(ctx context.Context, targetProfile TargetProfile, now time.T
 	}
 	return project, instance, dbName, err
 }
+
+func getSQLConnectionStr(sourceProfile SourceProfile) string {
+	sqlConnectionStr := ""
+	if sourceProfile.ty == SourceProfileTypeConnection {
+		switch sourceProfile.conn.ty {
+		case SourceProfileConnectionTypeMySQL:
+			connParams := sourceProfile.conn.mysql
+			return conversion.GetMYSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
+		case SourceProfileConnectionTypePostgreSQL:
+			connParams := sourceProfile.conn.pg
+			return conversion.GetPGSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
+		case SourceProfileConnectionTypeDynamoDB:
+			// For DynamoDB, client provided by aws-sdk reads connection credentials from env variables only.
+			// Thus, there is no need to create sqlConnectionStr for the same. We instead set the env variables
+			// programmatically if not set.
+			return ""
+		}
+	}
+	return sqlConnectionStr
+}
+
+func getSchemaSampleSize(sourceProfile SourceProfile) int64 {
+	schemaSampleSize := int64(100000)
+	if sourceProfile.ty == SourceProfileTypeConnection {
+		if sourceProfile.conn.ty == SourceProfileConnectionTypeDynamoDB {
+			if sourceProfile.conn.dydb.schemaSampleSize != 0 {
+				schemaSampleSize = sourceProfile.conn.dydb.schemaSampleSize
+			}
+		}
+	}
+	return schemaSampleSize
+}

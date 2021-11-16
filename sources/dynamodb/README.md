@@ -48,7 +48,7 @@ harbourbridge -driver=dynamodb -schema-sample-size=500000
 
 The HarbourBridge tool maps DynamoDB types to Spanner types as follows:
 
-| PostgreSQL Type    | Spanner Type               | Notes                                     |
+| DynamoDB Type    | Spanner Type               | Notes                                     |
 | ------------------ | -------------------------- | ----------------------------------------- |
 | `Number`           | `NUMERIC` or `STRING`      | defaults to NUMERIC, otherwise, STRING    |
 | `String`           | `STRING`                   |                                           |

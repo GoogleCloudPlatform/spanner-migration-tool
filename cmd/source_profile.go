@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 )
 
 type SourceProfileType int
@@ -55,27 +56,55 @@ type SourceProfileConnectionMySQL struct {
 	pwd  string // Same as MYSQLPWD environment variable
 }
 
-func NewSourceProfileConnectionMySQL(params map[string]string) SourceProfileConnectionMySQL {
-	// TODO: Move parsing of environment variables in this function.
+func NewSourceProfileConnectionMySQL(params map[string]string) (SourceProfileConnectionMySQL, error) {
 	mysql := SourceProfileConnectionMySQL{}
-	if host, ok := params["host"]; ok {
-		mysql.host = host
+	host, hostOk := params["host"]
+	user, userOk := params["user"]
+	db, dbOk := params["db_name"]
+	port, portOk := params["port"]
+	pwd, pwdOk := params["password"]
+	// We don't users to mix and match params from source-profile and environment variables.
+	// We either try to get all params from the source-profile and if none are set, we read from the env variables.
+	if !(hostOk || userOk || dbOk || portOk || pwdOk) {
+		// No connection params provided through source-profile. Fetching from env variables.
+		fmt.Printf("Connection parameters not specified in source-profile. Reading from " +
+			"environment variables MYSQLHOST, MYSQLUSER, MYSQLDATABASE, MYSQLPORT, MYSQLPWD...\n")
+		mysql.host = os.Getenv("MYSQLHOST")
+		mysql.user = os.Getenv("MYSQLUSER")
+		mysql.db = os.Getenv("MYSQLDATABASE")
+		mysql.port = os.Getenv("MYSQLPORT")
+		mysql.pwd = os.Getenv("MYSQLPWD")
+		// Throw error if the input entered is empty.
+		if mysql.host == "" || mysql.user == "" || mysql.db == "" {
+			return mysql, fmt.Errorf("found empty string for MYSQLHOST/MYSQLUSER/MYSQLDATABASE. Please specify these environment variables with correct values")
+		}
+	} else if hostOk && userOk && dbOk {
+		// If atleast host, username and dbname are provided through source-profile,
+		// go ahead and use source-profile. Port and password handled later even if they are empty.
+		mysql.host, mysql.user, mysql.db, mysql.port, mysql.pwd = host, user, db, port, pwd
+		// Throw error if the input entered is empty.
+		if mysql.host == "" || mysql.user == "" || mysql.db == "" {
+			return mysql, fmt.Errorf("found empty string for host/user/db_name. Please specify host, port, user and db_name in the source-profile")
+		}
+	} else {
+		// Partial params provided through source-profile. Ask user to provide all through the source-profile.
+		return mysql, fmt.Errorf("please specify host, port, user and db_name in the source-profile")
 	}
-	if port, ok := params["port"]; ok {
-		mysql.port = port
-	} else { // Set default port for mysql, which rarely changes.
+
+	// Throw same error if the input entered is empty.
+	if mysql.host == "" || mysql.user == "" || mysql.db == "" {
+		return mysql, fmt.Errorf("found empty string for host/user/db. please specify host, port, user and db_name in the source-profile")
+	}
+
+	if mysql.port == "" {
+		// Set default port for mysql, which rarely changes.
 		mysql.port = "3306"
 	}
-	if user, ok := params["user"]; ok {
-		mysql.user = user
+	if mysql.pwd == "" {
+		mysql.pwd = conversion.GetPassword()
 	}
-	if db, ok := params["db_name"]; ok {
-		mysql.db = db
-	}
-	if pwd, ok := params["password"]; ok {
-		mysql.pwd = pwd
-	}
-	return mysql
+
+	return mysql, nil
 }
 
 type SourceProfileConnectionPostgreSQL struct {
@@ -86,29 +115,55 @@ type SourceProfileConnectionPostgreSQL struct {
 	pwd  string // Same as PGPASSWORD environment variable
 }
 
-func NewSourceProfileConnectionPostgreSQL(params map[string]string) SourceProfileConnectionPostgreSQL {
+func NewSourceProfileConnectionPostgreSQL(params map[string]string) (SourceProfileConnectionPostgreSQL, error) {
 	pg := SourceProfileConnectionPostgreSQL{}
-	if host, ok := params["host"]; ok {
-		pg.host = host
+	host, hostOk := params["host"]
+	user, userOk := params["user"]
+	db, dbOk := params["db_name"]
+	port, portOk := params["port"]
+	pwd, pwdOk := params["password"]
+	// We don't users to mix and match params from source-profile and environment variables.
+	// We either try to get all params from the source-profile and if none are set, we read from the env variables.
+	if !(hostOk || userOk || dbOk || portOk || pwdOk) {
+		// No connection params provided through source-profile. Fetching from env variables.
+		fmt.Printf("Connection parameters not specified in source-profile. Reading from " +
+			"environment variables PGHOST, PGUSER, PGDATABASE, PGPORT, PGPASSWORD...\n")
+		pg.host = os.Getenv("PGHOST")
+		pg.user = os.Getenv("PGUSER")
+		pg.db = os.Getenv("PGDATABASE")
+		pg.port = os.Getenv("PGPORT")
+		pg.pwd = os.Getenv("PGPASSWORD")
+		// Throw error if the input entered is empty.
+		if pg.host == "" || pg.user == "" || pg.db == "" {
+			return pg, fmt.Errorf("found empty string for PGHOST/PGUSER/PGDATABASE. Please specify these environment variables with correct values")
+		}
+	} else if hostOk && userOk && dbOk {
+		// All connection params provided through source-profile. Port and password handled later.
+		pg.host, pg.user, pg.db, pg.port, pg.pwd = host, user, db, port, pwd
+		// Throw error if the input entered is empty.
+		if pg.host == "" || pg.user == "" || pg.db == "" {
+			return pg, fmt.Errorf("found empty string for host/user/db_name. Please specify host, port, user and db_name in the source-profile")
+		}
+	} else {
+		// Partial params provided through source-profile. Ask user to provide all through the source-profile.
+		return pg, fmt.Errorf("please specify host, port, user and db_name in the source-profile")
 	}
-	if port, ok := params["port"]; ok {
-		pg.port = port
-	} else { // Set default port for postgresql, which rarely changes.
+
+	if pg.port == "" {
+		// Set default port for postgresql, which rarely changes.
 		pg.port = "5432"
 	}
-	if user, ok := params["user"]; ok {
-		pg.user = user
+	if pg.pwd == "" {
+		pg.pwd = conversion.GetPassword()
 	}
-	if db, ok := params["db_name"]; ok {
-		pg.db = db
-	}
-	if pwd, ok := params["password"]; ok {
-		pg.pwd = pwd
-	}
-	return pg
+
+	return pg, nil
 }
 
 type SourceProfileConnectionDynamoDB struct {
+	// These connection params are not used currently because the SDK reads directly from the env variables.
+	// These are still kept around as reference when we refactor passing
+	// SourceProfile instead of sqlConnectionStr around.
 	awsAccessKeyID     string // Same as AWS_ACCESS_KEY_ID environment variable
 	awsSecretAccessKey string // Same as AWS_SECRET_ACCESS_KEY environment variable
 	awsRegion          string // Same as AWS_REGION environment variable
@@ -117,26 +172,29 @@ type SourceProfileConnectionDynamoDB struct {
 }
 
 func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfileConnectionDynamoDB, error) {
-	// TODO: Populate environment variables for DynamoDB if passed as flags.
 	dydb := SourceProfileConnectionDynamoDB{}
-	if awsAccessKeyID, ok := params["awsAccessKeyID"]; ok {
-		dydb.awsAccessKeyID = awsAccessKeyID
-	}
-	if awsSecretAccessKey, ok := params["awsSecretAccessKey"]; ok {
-		dydb.awsSecretAccessKey = awsSecretAccessKey
-	}
-	if awsRegion, ok := params["awsRegion"]; ok {
-		dydb.awsRegion = awsRegion
-	}
-	if dydbEndpoint, ok := params["dydbEndpoint"]; ok {
-		dydb.dydbEndpoint = dydbEndpoint
-	}
 	if schemaSampleSize, ok := params["schemaSampleSize"]; ok {
 		schemaSampleSizeInt, err := strconv.Atoi(schemaSampleSize)
 		if err != nil {
 			return dydb, fmt.Errorf("could not parse schemaSampleSize = %v as a valid int64", schemaSampleSize)
 		}
 		dydb.schemaSampleSize = int64(schemaSampleSizeInt)
+	}
+	// For DynamoDB, the preferred way to provide connection params is through env variables.
+	// Unlike postgres and mysql, there may not be deprecation of env variables, hence it
+	// is better to override env variables optionally via source profile params.
+	var ok bool
+	if dydb.awsAccessKeyID, ok = params["awsAccessKeyID"]; ok {
+		os.Setenv("AWS_ACCESS_KEY_ID", dydb.awsAccessKeyID)
+	}
+	if dydb.awsSecretAccessKey, ok = params["awsSecretAccessKey"]; ok {
+		os.Setenv("AWS_SECRET_ACCESS_KEY", dydb.awsAccessKeyID)
+	}
+	if dydb.awsRegion, ok = params["awsRegion"]; ok {
+		os.Setenv("AWS_REGION", dydb.awsAccessKeyID)
+	}
+	if dydb.dydbEndpoint, ok = params["dydbEndpoint"]; ok {
+		os.Setenv("DYNAMODB_ENDPOINT_OVERRIDE", dydb.awsAccessKeyID)
 	}
 	return dydb, nil
 }
@@ -150,22 +208,28 @@ type SourceProfileConnection struct {
 
 func NewSourceProfileConnection(source string, params map[string]string) (SourceProfileConnection, error) {
 	conn := SourceProfileConnection{}
+	var err error
 	switch strings.ToLower(source) {
 	case "mysql":
 		{
 			conn.ty = SourceProfileConnectionTypeMySQL
-			conn.mysql = NewSourceProfileConnectionMySQL(params)
+			conn.mysql, err = NewSourceProfileConnectionMySQL(params)
+			if err != nil {
+				return conn, err
+			}
 		}
 	case "postgresql", "postgres", "pg":
 		{
 			conn.ty = SourceProfileConnectionTypePostgreSQL
-			conn.pg = NewSourceProfileConnectionPostgreSQL(params)
+			conn.pg, err = NewSourceProfileConnectionPostgreSQL(params)
+			if err != nil {
+				return conn, err
+			}
 		}
 	case "dynamodb":
 		{
 			conn.ty = SourceProfileConnectionTypeDynamoDB
-			dydb, err := NewSourceProfileConnectionDynamoDB(params)
-			conn.dydb = dydb
+			conn.dydb, err = NewSourceProfileConnectionDynamoDB(params)
 			if err != nil {
 				return conn, err
 			}
@@ -191,7 +255,7 @@ type SourceProfile struct {
 	config SourceProfileConfig
 }
 
-// ToLegacyDriver converts source profile to equivalent legacy global flags
+// ToLegacyDriver converts source-profile to equivalent legacy global flags
 // e.g., -driver, -dump-file etc since the rest of the codebase still uses the
 // same. TODO: Deprecate this function and pass around SourceProfile across the
 // codebase wherever information about source connection is required.
@@ -230,8 +294,8 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 	}
 }
 
-// Source profile is passed as a list of key value pairs on the command line.
-// Following 3 formats are supported as valid source profiles.
+// Flag source-profile is passed as a list of key value pairs on the command line.
+// Following 3 formats are supported as a valid source-profile.
 //
 // Format 1. Specify file path and file format.
 // File path can be a local file path or a gcs file path. Support for more file
@@ -253,7 +317,7 @@ func NewSourceProfile(s string, source string) (SourceProfile, error) {
 	}
 	params, err := parseProfile(s)
 	if err != nil {
-		return SourceProfile{}, fmt.Errorf("could not parse source profile, error = %v", err)
+		return SourceProfile{}, fmt.Errorf("could not parse source-profile, error = %v", err)
 	}
 
 	if _, ok := params["file"]; ok || filePipedToStdin() {

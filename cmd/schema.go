@@ -94,16 +94,8 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		cmd.filePrefix = dbName + "."
 	}
 
-	schemaSampleSize := int64(100000)
-	if sourceProfile.ty == SourceProfileTypeConnection {
-		if sourceProfile.conn.ty == SourceProfileConnectionTypeDynamoDB {
-			if sourceProfile.conn.dydb.schemaSampleSize != 0 {
-				schemaSampleSize = sourceProfile.conn.dydb.schemaSampleSize
-			}
-		}
-	}
 	var conv *internal.Conv
-	conv, err = conversion.SchemaConv(driverName, targetDb, &ioHelper, schemaSampleSize)
+	conv, err = conversion.SchemaConv(driverName, getSQLConnectionStr(sourceProfile), targetDb, &ioHelper, getSchemaSampleSize(sourceProfile))
 	if err != nil {
 		return subcommands.ExitFailure
 	}

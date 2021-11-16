@@ -41,7 +41,9 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 	var conv *internal.Conv
 	var err error
 	if !dataOnly {
-		conv, err = conversion.SchemaConv(driver, targetDb, ioHelper, schemaSampleSize)
+		// We pass an empty string to the sqlConnectionStr parameter as this is the legacy codepath,
+		// which reads the environment variables and constructs the string later on.
+		conv, err = conversion.SchemaConv(driver, "", targetDb, ioHelper, schemaSampleSize)
 		if err != nil {
 			return err
 		}
@@ -77,7 +79,9 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 		return fmt.Errorf("can't create client for db %s: %v", dbURI, err)
 	}
 
-	bw, err := conversion.DataConv(driver, ioHelper, client, conv, dataOnly)
+	// We pass an empty string to the sqlConnectionStr parameter as this is the legacy codepath,
+	// which reads the environment variables and constructs the string later on.
+	bw, err := conversion.DataConv(driver, "", ioHelper, client, conv, dataOnly)
 	if err != nil {
 		return fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 	}
