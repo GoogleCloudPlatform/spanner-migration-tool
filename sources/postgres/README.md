@@ -39,12 +39,12 @@ You can override this and specify the database name to use by:
 harbourbridge data -session=mydb.session.json -source=pg -target-profile="instance=my-spanner-instance,dbname=my-spanner-database-name" < my_pg_dump_file
 ```
 
-You can also run HarbourBridge in a oneshot mode, where it will perform both
+You can also run HarbourBridge in a schema-and-data mode, where it will perform both
 schema and data migration. This is useful for quick evaluation when source
 database size is small.
 
 ```sh
-harbourbridge oneshot -source=pg -target-profile="instance=my-spanner-instance" < my_pg_dump_file
+harbourbridge schema-and-data -source=pg -target-profile="instance=my-spanner-instance" < my_pg_dump_file
 ```
 
 HarbourBridge generates a report file, a schema file, and a bad-data file (if

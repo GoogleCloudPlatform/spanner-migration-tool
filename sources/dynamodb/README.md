@@ -51,12 +51,12 @@ You can override this and specify the database name to use by:
 harbourbridge data -session=mydb.session.json -source=dynamodb -source-profile="aws-access-key-id=<>,..." -target-profile="instance=my-spanner-instance,..."
 ```
 
-You can also run HarbourBridge in a oneshot mode, where it will perform both
+You can also run HarbourBridge in a schema-and-data mode, where it will perform both
 schema and data migration. This is useful for quick evaluation when source
 database size is small.
 
 ```sh
-harbourbridge oneshot -source=dynamodb -source-profile="aws-access-key-id=<>,..." -target-profile="instance=my-spanner-instance,..."
+harbourbridge schema-and-data -source=dynamodb -source-profile="aws-access-key-id=<>,..." -target-profile="instance=my-spanner-instance,..."
 ```
 
 HarbourBridge generates a report file, a schema file, and a bad-data file (if

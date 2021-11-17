@@ -246,8 +246,8 @@ func runDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dum
 	}
 }
 
-func runOneshotSubcommand(t *testing.T, dbName, dbURI, filePrefix, dumpFilePath string) {
-	args := fmt.Sprintf("oneshot -source=mysql -prefix %s -target-profile='instance=%s,dbname=%s' < %s", filePrefix, instanceID, dbName, dumpFilePath)
+func runSchemaAndDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, dumpFilePath string) {
+	args := fmt.Sprintf("schema-and-data -source=mysql -prefix %s -target-profile='instance=%s,dbname=%s' < %s", filePrefix, instanceID, dbName, dumpFilePath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -294,17 +294,17 @@ func TestIntegration_MySQLDUMP_DataSubcommand(t *testing.T) {
 	checkResults(t, dbURI)
 }
 
-func TestIntegration_MySQLDUMP_OneshotSubcommand(t *testing.T) {
+func TestIntegration_MySQLDUMP_SchemaAndDataSubcommand(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
-	dbName := "test-oneshot-subcommand"
+	dbName := "test-schema-and-data-subcommand"
 	dumpFilePath := "../../test_data/mysqldump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	runOneshotSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath)
+	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath)
 	defer dropDatabase(t, dbURI)
 	checkResults(t, dbURI)
 }
