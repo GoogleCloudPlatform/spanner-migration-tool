@@ -74,7 +74,7 @@ var (
 )
 
 // SchemaConv performs the schema conversion
-// TODO: Pass around cmd.SourceProfile instead of sqlConnectionStr.
+// TODO: Pass around cmd.SourceProfile instead of sqlConnectionStr and schemaSampleSize.
 // Doing that requires refactoring since that would introduce a circular dependency between
 // conversion.go and cmd/source_profile.go.
 // The sqlConnectionStr param provides the connection details to use the go SQL library.
