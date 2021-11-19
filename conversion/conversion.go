@@ -20,7 +20,6 @@
 // 			key public type definitions next (although often it makes sense to put them next to public functions that use them)
 // 			then public functions (and relevant type definitions)
 // 			and helper functions and other non-public definitions last (generally in order of importance)
-
 package conversion
 
 import (
@@ -48,8 +47,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
-	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/lib/pq"
 	"golang.org/x/crypto/ssh/terminal"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
@@ -76,6 +73,7 @@ var (
 	MaxWorkers = 20
 )
 
+// SchemaConv performs the schema conversion
 // The sqlConnectionStr param provides the connection details to use the go SQL library.
 // It is empty in the following cases:
 //  - Driver is DynamoDB or a dump file mode.
@@ -94,6 +92,7 @@ func SchemaConv(driver, sqlConnectionStr, targetDb string, ioHelper *IOStreams, 
 	}
 }
 
+// DataConv performs the data conversion
 // The sqlConnectionStr param provides the connection details to use the go SQL library.
 // It is empty in the following cases:
 //  - Driver is DynamoDB or a dump file mode.
@@ -111,7 +110,7 @@ func DataConv(driver, sqlConnectionStr string, ioHelper *IOStreams, client *sp.C
 		return dataFromSQL(driver, sqlConnectionStr, config, client, conv)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		if conv.SpSchema.CheckInterleaved() {
-			return nil, fmt.Errorf("HarbourBridge does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql.")
+			return nil, fmt.Errorf("harbourBridge does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql")
 		}
 		return dataFromDump(driver, config, ioHelper, client, conv, dataOnly)
 	case constants.DYNAMODB:
@@ -310,6 +309,7 @@ func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv 
 	return writer, nil
 }
 
+// IOStreams is a struct that contains the file descriptor for dumpFile.
 type IOStreams struct {
 	In, SeekableIn, Out *os.File
 	BytesRead           int64
@@ -530,7 +530,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 	if err != nil {
 		return nil, 0, fmt.Errorf("can't reset file offset: %w", err)
 	}
-	n, err := getSize(fcopy)
+	n, _ := getSize(fcopy)
 	return fcopy, n, nil
 }
 
@@ -566,11 +566,12 @@ func ValidateDDL(ctx context.Context, adminClient *database.DatabaseAdminClient,
 		return fmt.Errorf("can't fetch database ddl: %v", err)
 	}
 	if len(dbDdl.Statements) != 0 {
-		return fmt.Errorf("HarbourBridge supports writing to existing databases only if they have an empty schema")
+		return fmt.Errorf("harbourBridge supports writing to existing databases only if they have an empty schema")
 	}
 	return nil
 }
 
+// CreatesOrUpdatesDatabase updates an existing Spanner database or creates a new one if one does not exist.
 func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File) error {
 	dbExists, err := VerifyDb(ctx, adminClient, dbURI)
 	if err != nil {
@@ -604,8 +605,8 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 	req := &adminpb.CreateDatabaseRequest{
 		Parent: fmt.Sprintf("projects/%s/instances/%s", project, instance),
 	}
-	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
-		// TARGET_EXPERIMENTAL_POSTGRES doesn't support:
+	if conv.TargetDb == constants.TargetExperimentalPostgres {
+		// TargetExperimentalPostgres doesn't support:
 		// a) backticks around the database name, and
 		// b) DDL statements as part of a CreateDatabase operation (so schema
 		// must be set using a separate UpdateDatabase operation).
@@ -625,13 +626,14 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 	}
 	fmt.Fprintf(out, "Created database successfully.\n")
 
-	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+	if conv.TargetDb == constants.TargetExperimentalPostgres {
 		// Update schema separately for PG databases.
 		return UpdateDatabase(ctx, adminClient, dbURI, conv, out)
 	}
 	return nil
 }
 
+// UpdateDatabase updates an existing spanner database.
 func UpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File) error {
 	fmt.Fprintf(out, "Updating schema for %s with default permissions ... \n", dbURI)
 	// The schema we send to Spanner excludes comments (since Cloud
@@ -722,15 +724,15 @@ Recommended value is between 20-30.`)
 	// too many requests and get throttled due to network or hitting catalog memory limits.
 	// Ensure atmost `MaxWorkers` go routines run in parallel that each update the ddl with one foreign key statement.
 	for _, fkStmt := range fkStmts {
-		workerId := <-workers
-		go func(fkStmt string, workerId int) {
+		workerID := <-workers
+		go func(fkStmt string, workerID int) {
 			defer func() {
 				// Locking the progress reporting otherwise progress results displayed could be in random order.
 				progressMutex.Lock()
 				progress++
 				p.MaybeReport(progress)
 				progressMutex.Unlock()
-				workers <- workerId
+				workers <- workerID
 			}()
 			internal.VerbosePrintf("Submitting new FK create request: %s\n", fkStmt)
 			op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
@@ -748,7 +750,7 @@ Recommended value is between 20-30.`)
 				return
 			}
 			internal.VerbosePrintln("Updated schema with statement: " + fkStmt)
-		}(fkStmt, workerId)
+		}(fkStmt, workerID)
 	}
 	// Wait for all the goroutines to finish.
 	for i := 1; i <= MaxWorkers; i++ {
@@ -1005,21 +1007,19 @@ func AnalyzeError(err error, URI string) error {
 	project, instance, _ := parseURI(URI)
 	e := strings.ToLower(err.Error())
 	if containsAny(e, []string{"unauthenticated", "cannot fetch token", "default credentials"}) {
-		return fmt.Errorf("%w.\n"+`
+		return fmt.Errorf("%w."+`
 Possible cause: credentials are mis-configured. Do you need to run
 
   gcloud auth application-default login
 
 or configure environment variable GOOGLE_APPLICATION_CREDENTIALS.
-See https://cloud.google.com/docs/authentication/getting-started.
-`, err)
+See https://cloud.google.com/docs/authentication/getting-started`, err)
 	}
 	if containsAny(e, []string{"instance not found"}) && instance != "" {
 		return fmt.Errorf("%w.\n"+`
 Possible cause: Spanner instance specified via instance option does not exist.
 Please check that '%s' is correct and that it is a valid Spanner
-instance for project %s.
-`, err, instance, project)
+instance for project %s`, err, instance, project)
 	}
 	return err
 }

@@ -28,20 +28,22 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// MySQL specific implementation for InfoSchema
+// InfoSchemaImpl is MySQL specific implementation for InfoSchema.
 type InfoSchemaImpl struct {
 	DbName string
 }
 
-//Functions below implement the common.InfoSchema interface
+// GetToDdl implement the common.InfoSchema interface.
 func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
 }
 
+// GetTableName returns table name.
 func (isi InfoSchemaImpl) GetTableName(dbName string, tableName string) string {
 	return tableName
 }
 
+// GetRowsFromTable returns a sql Rows object for a table.
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) (*sql.Rows, error) {
 	srcSchema := conv.SrcSchema[table.Name]
 	srcCols := srcSchema.ColNames
@@ -78,6 +80,7 @@ func buildColNameList(srcSchema schema.Table, srcColName []string) string {
 	return colList[:len(colList)-1]
 }
 
+// ProcessDataRows performs data conversion for source database.
 func (isi InfoSchemaImpl) ProcessDataRows(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, rows *sql.Rows) {
 	v, scanArgs := buildVals(len(srcCols))
 	for rows.Next() {
@@ -113,7 +116,7 @@ func (isi InfoSchemaImpl) GetRowCount(db *sql.DB, table common.SchemaAndName) (i
 	return 0, nil //Check if 0 is ok to return
 }
 
-// getTables return list of tables in the selected database.
+// GetTables return list of tables in the selected database.
 // Note that sql.DB already effectively has the dbName
 // embedded within it (dbName is part of the DSN passed to sql.Open),
 // but unfortunately there is no way to extract it from sql.DB.
@@ -134,6 +137,7 @@ func (isi InfoSchemaImpl) GetTables(db *sql.DB) ([]common.SchemaAndName, error) 
 	return tables, nil
 }
 
+// GetColumns returns a list of columns with their data type
 func (isi InfoSchemaImpl) GetColumns(table common.SchemaAndName, db *sql.DB) (*sql.Rows, error) {
 	q := `SELECT c.column_name, c.data_type, c.column_type, c.is_nullable, c.column_default, c.character_maximum_length, c.numeric_precision, c.numeric_scale, c.extra
               FROM information_schema.COLUMNS c
@@ -141,6 +145,7 @@ func (isi InfoSchemaImpl) GetColumns(table common.SchemaAndName, db *sql.DB) (*s
 	return db.Query(q, table.Schema, table.Name)
 }
 
+// ProcessColumns returns a list of Column objects and names// ProcessColumns
 func (isi InfoSchemaImpl) ProcessColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string) {
 	colDefs := make(map[string]schema.Column)
 	var colNames []string
@@ -180,7 +185,7 @@ func (isi InfoSchemaImpl) ProcessColumns(conv *internal.Conv, cols *sql.Rows, co
 	return colDefs, colNames
 }
 
-// getConstraints returns a list of primary keys and by-column map of
+// GetConstraints returns a list of primary keys and by-column map of
 // other constraints.  Note: we need to preserve ordinal order of
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
@@ -218,7 +223,7 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, db *sql.DB, table 
 	return primaryKeys, m, nil
 }
 
-// getForeignKeys return list all the foreign keys constraints.
+// GetForeignKeys return list all the foreign keys constraints.
 // MySQL supports cross-database foreign key constraints. We ignore
 // them because HarbourBridge works database at a time (a specific run
 // of HarbourBridge focuses on a specific database) and so we can't handle
@@ -275,7 +280,7 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, db *sql.DB, table 
 	return foreignKeys, nil
 }
 
-// getIndexes return a list of all indexes for the specified table.
+// GetIndexes return a list of all indexes for the specified table.
 func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, db *sql.DB, table common.SchemaAndName) ([]schema.Index, error) {
 	q := `SELECT DISTINCT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION,NON_UNIQUE
 		FROM INFORMATION_SCHEMA.STATISTICS 

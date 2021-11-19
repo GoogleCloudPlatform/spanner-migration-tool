@@ -111,7 +111,7 @@ func TestToSpannerForeignKey(t *testing.T) {
 	}
 }
 
-func TestGetSpannerId(t *testing.T) {
+func TestGetSpannerID(t *testing.T) {
 	conv := MakeConv()
 	basicTests := []struct {
 		name       string // Name of test.
@@ -134,7 +134,7 @@ func TestGetSpannerId(t *testing.T) {
 		{"Bad name with different case collision", "IN\tDex", "IN_Dex_13"},
 	}
 	for _, tc := range basicTests {
-		spKeyName := getSpannerId(conv, tc.srcKeyName)
+		spKeyName := getSpannerID(conv, tc.srcKeyName)
 		assert.Equal(t, tc.spKeyName, spKeyName, tc.name)
 	}
 }

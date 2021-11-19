@@ -118,7 +118,7 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, T
 		return val, nil
 	case ddl.Timestamp:
 		return convTimestamp(srcTypeName, TimezoneOffset, val)
-	case ddl.Json:
+	case ddl.JSON:
 		return val, nil
 	default:
 		return val, fmt.Errorf("data conversion not implemented for type %v", spannerType.Name)
@@ -178,7 +178,7 @@ func convInt64(val string) (int64, error) {
 // convNumeric maps a source database string value (representing a numeric)
 // into a string representing a valid Spanner numeric.
 func convNumeric(conv *internal.Conv, val string) (interface{}, error) {
-	if conv.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+	if conv.TargetDb == constants.TargetExperimentalPostgres {
 		return spanner.PGNumeric{Numeric: val, Valid: true}, nil
 	} else {
 		r := new(big.Rat)

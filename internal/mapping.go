@@ -43,7 +43,7 @@ func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
 	if sp, found := conv.ToSpanner[srcTable]; found {
 		return sp.Name, nil
 	}
-	spTable := getSpannerId(conv, srcTable)
+	spTable := getSpannerID(conv, srcTable)
 	if spTable != srcTable {
 		VerbosePrintf("Mapping source DB table %s to Spanner table %s\n", srcTable, spTable)
 	}
@@ -135,11 +135,11 @@ func GetSpannerCols(conv *Conv, srcTable string, srcCols []string) ([]string, er
 // (across the database). But in some source databases, such as PostgreSQL,
 // they only have to be unique for a table. Hence we must map each source
 // constraint name to a unique spanner constraint name.
-func ToSpannerForeignKey(conv *Conv, srcId string) string {
-	if srcId == "" {
+func ToSpannerForeignKey(conv *Conv, srcID string) string {
+	if srcID == "" {
 		return ""
 	}
-	return getSpannerId(conv, srcId)
+	return getSpannerID(conv, srcID)
 }
 
 // ToSpannerIndexName maps source index name to legal Spanner index name.
@@ -151,16 +151,16 @@ func ToSpannerForeignKey(conv *Conv, srcId string) string {
 // (across the database). But in some source databases, such as MySQL,
 // they only have to be unique for a table. Hence we must map each source
 // constraint name to a unique spanner constraint name.
-func ToSpannerIndexName(conv *Conv, srcId string) string {
-	return getSpannerId(conv, srcId)
+func ToSpannerIndexName(conv *Conv, srcID string) string {
+	return getSpannerID(conv, srcID)
 }
 
 // conv.UsedNames tracks Spanner names that have been used for table names, foreign key constraints
 // and indexes. We use this to ensure we generate unique names when
 // we map from source dbs to Spanner since Spanner requires all these names to be
 // distinct and should not differ only in case.
-func getSpannerId(conv *Conv, srcId string) string {
-	spKeyName, _ := FixName(srcId)
+func getSpannerID(conv *Conv, srcID string) string {
+	spKeyName, _ := FixName(srcID)
 	if _, found := conv.UsedNames[strings.ToLower(spKeyName)]; found {
 		// spKeyName has been used before.
 		// Add unique postfix: use number of keys so far.
@@ -226,7 +226,7 @@ func resolveTableRef(conv *Conv, tableRef string) (string, error) {
 			return t, nil
 		}
 	}
-	return "", fmt.Errorf("Can't resolve table %v", tableRef)
+	return "", fmt.Errorf("can't resolve table %v", tableRef)
 }
 
 func resolveColRefs(conv *Conv, tableRef string, colRefs []string) ([]string, error) {
@@ -245,7 +245,7 @@ func resolveColRefs(conv *Conv, tableRef string, colRefs []string) ([]string, er
 				return c, nil
 			}
 		}
-		return "", fmt.Errorf("Can't resolve column: table=%v, column=%v", tableRef, colRef)
+		return "", fmt.Errorf("can't resolve column: table=%v, column=%v", tableRef, colRef)
 	}
 	var cols []string
 	for _, colRef := range colRefs {

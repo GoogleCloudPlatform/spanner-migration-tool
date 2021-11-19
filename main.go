@@ -49,7 +49,7 @@ var (
 	sessionJSON      string
 	webapi           bool
 	dumpFilePath     string
-	targetDb         = constants.TARGET_SPANNER
+	targetDb         = constants.TargetSpanner
 )
 
 func setupGlobalFlags() {
@@ -66,7 +66,7 @@ func setupGlobalFlags() {
 	flag.StringVar(&sessionJSON, "session", "", "session: specifies the file we restore session state from (used in data-only to provide schema and data mapping)")
 	flag.BoolVar(&webapi, "web", false, "web: run the web interface (experimental)")
 	flag.StringVar(&dumpFilePath, "dump-file", "", "dump-file: location of dump file to process")
-	flag.StringVar(&targetDb, "target-db", constants.TARGET_SPANNER, "target-db: Specifies the target DB. Defaults to spanner")
+	flag.StringVar(&targetDb, "target-db", constants.TargetSpanner, "target-db: Specifies the target DB. Defaults to spanner")
 }
 
 func didSetVerboseTwice() bool {
@@ -121,7 +121,7 @@ func main() {
 
 	// Note: the web interface does not use any commandline flags.
 	if webapi {
-		web.WebApp()
+		web.App()
 		return
 	}
 
@@ -140,11 +140,11 @@ func main() {
 		panic(fmt.Errorf("can't use both schema-only and skip-foreign-keys at once, foreign Key creation can only be skipped when data migration takes place"))
 	}
 
-	if targetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+	if targetDb == constants.TargetExperimentalPostgres {
 		if !(driverName == constants.PGDUMP || driverName == constants.POSTGRES) {
 			panic(fmt.Errorf("can only convert to experimental postgres when source %s or %s. (target-db: %s driver: %s)", constants.PGDUMP, constants.POSTGRES, targetDb, driverName))
 		}
-	} else if targetDb != constants.TARGET_SPANNER {
+	} else if targetDb != constants.TargetSpanner {
 		panic(fmt.Errorf("unkown target-db %s", targetDb))
 	}
 	fmt.Printf("Using driver (source DB): %s target-db: %s\n", driverName, targetDb)

@@ -28,6 +28,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 )
 
+// DbDumpImpl Postgres specific implementation for DdlDumpImpl.
 type DbDumpImpl struct{}
 
 type copyOrInsert struct {
@@ -44,16 +45,17 @@ const (
 	insert
 )
 
-//Functions below implement the common.DbDump interface
+// GetToDdl functions below implement the common.DbDump interface
 func (ddi DbDumpImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
 }
 
+// ProcessDump calls processPgDump to read a Postgres dump file
 func (ddi DbDumpImpl) ProcessDump(conv *internal.Conv, r *internal.Reader) error {
 	return processPgDump(conv, r)
 }
 
-// ProcessPgDump reads pg_dump data from r and does schema or data conversion,
+// processPgDump reads pg_dump data from r and does schema or data conversion,
 // depending on whether conv is configured for schema mode or data mode.
 // In schema mode, ProcessPgDump incrementally builds a schema (updating conv).
 // In data mode, ProcessPgDump uses this schema to convert PostgreSQL data

@@ -103,7 +103,7 @@ func TestToSpannerType(t *testing.T) {
 func TestToExperimentalSpannerType(t *testing.T) {
 	conv := internal.MakeConv()
 	conv.SetSchemaMode()
-	conv.TargetDb = constants.TARGET_EXPERIMENTAL_POSTGRES
+	conv.TargetDb = constants.TargetExperimentalPostgres
 	name := "test"
 	srcSchema := schema.Table{
 		Name:     name,

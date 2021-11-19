@@ -53,16 +53,16 @@ func (trg TargetProfile) ToLegacyTargetDb() string {
 				{
 					sp := conn.sp
 					if len(sp.dialect) > 0 && strings.ToLower(sp.dialect) == constants.DIALECT_POSTGRESQL {
-						return constants.TARGET_EXPERIMENTAL_POSTGRES
+						return constants.TargetExperimentalPostgres
 					}
-					return constants.TARGET_SPANNER
+					return constants.TargetSpanner
 				}
 			default:
-				return constants.TARGET_SPANNER
+				return constants.TargetSpanner
 			}
 		}
 	default:
-		return constants.TARGET_SPANNER
+		return constants.TargetSpanner
 	}
 }
 

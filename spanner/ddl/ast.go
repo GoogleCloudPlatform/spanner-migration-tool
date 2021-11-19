@@ -49,7 +49,7 @@ const (
 	// Numeric represent NUMERIC type.
 	Numeric string = "NUMERIC"
 	// Json represent JSON type.
-	Json string = "JSON"
+	JSON string = "JSON"
 	// MaxLength is a sentinel for Type's Len field, representing the MAX value.
 	MaxLength = math.MaxInt64
 
@@ -168,7 +168,7 @@ func (c Config) quote(s string) string {
 // needs of PrintCreateTable.
 func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 	var s string
-	if c.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+	if c.TargetDb == constants.TargetExperimentalPostgres {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PGPrintColumnDefType())
 	} else {
 		s = fmt.Sprintf("%s %s", c.quote(cd.Name), cd.T.PrintColumnDefType())
@@ -267,7 +267,7 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 
 	var interleave string
 	if ct.Parent != "" {
-		if config.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+		if config.TargetDb == constants.TargetExperimentalPostgres {
 			// PG spanner only supports PRIMARY KEY() inside the CREATE TABLE()
 			// and thus INTERLEAVE follows immediately after closing brace.
 			interleave = " INTERLEAVE IN PARENT " + config.quote(ct.Parent)
@@ -276,7 +276,7 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 		}
 	}
 
-	if config.TargetDb == constants.TARGET_EXPERIMENTAL_POSTGRES {
+	if config.TargetDb == constants.TargetExperimentalPostgres {
 		return fmt.Sprintf("%sCREATE TABLE %s (\n%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 	}
 	return fmt.Sprintf("%sCREATE TABLE %s (\n%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
@@ -320,8 +320,10 @@ func (k Foreignkey) PrintForeignKeyAlterTable(c Config, tableName string) string
 	return fmt.Sprintf("ALTER TABLE %s ADD %sFOREIGN KEY (%s) REFERENCES %s (%s)", c.quote(tableName), s, strings.Join(cols, ", "), c.quote(k.ReferTable), strings.Join(referCols, ", "))
 }
 
+// Schema stores a map of table names and Tables.
 type Schema map[string]CreateTable
 
+// NewSchema creates a new Schema object.
 func NewSchema() Schema {
 	return make(map[string]CreateTable)
 }
