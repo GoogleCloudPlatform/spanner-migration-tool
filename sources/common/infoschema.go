@@ -15,7 +15,6 @@
 package common
 
 import (
-	"database/sql"
 	"fmt"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -27,15 +26,14 @@ import (
 type InfoSchema interface {
 	GetToDdl() ToDdl
 	GetTableName(schema string, tableName string) string
-	GetTables(db *sql.DB) ([]SchemaAndName, error)
-	GetColumns(table SchemaAndName, db *sql.DB) (*sql.Rows, error) //TODO - merge this method and ProcessColumns for cleaner interface
-	ProcessColumns(conv *internal.Conv, cols *sql.Rows, constraints map[string][]string) (map[string]schema.Column, []string)
-	GetRowsFromTable(conv *internal.Conv, db *sql.DB, table SchemaAndName) (*sql.Rows, error)
-	GetRowCount(db *sql.DB, table SchemaAndName) (int64, error)
-	GetConstraints(conv *internal.Conv, db *sql.DB, table SchemaAndName) ([]string, map[string][]string, error)
-	GetForeignKeys(conv *internal.Conv, db *sql.DB, table SchemaAndName) (foreignKeys []schema.ForeignKey, err error)
-	GetIndexes(conv *internal.Conv, db *sql.DB, table SchemaAndName) ([]schema.Index, error)
-	ProcessDataRows(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, rows *sql.Rows)
+	GetTables() ([]SchemaAndName, error)
+	GetColumns(conv *internal.Conv, table SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error)
+	GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error)
+	GetRowCount(table SchemaAndName) (int64, error)
+	GetConstraints(conv *internal.Conv, table SchemaAndName) ([]string, map[string][]string, error)
+	GetForeignKeys(conv *internal.Conv, table SchemaAndName) (foreignKeys []schema.ForeignKey, err error)
+	GetIndexes(conv *internal.Conv, table SchemaAndName) ([]schema.Index, error)
+	ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) error
 }
 
 // SchemaAndName contains the schema and name for a table
@@ -52,16 +50,16 @@ type FkConstraint struct {
 	Cols    []string
 }
 
-// ProcessInfoSchema performs schema conversion for source database
+// ProcessSchema performs schema conversion for source database
 // 'db'. Information schema tables are a broadly supported ANSI standard,
 // and we use them to obtain source database's schema information.
-func ProcessInfoSchema(conv *internal.Conv, db *sql.DB, infoSchema InfoSchema) error {
-	tables, err := infoSchema.GetTables(db)
+func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema) error {
+	tables, err := infoSchema.GetTables()
 	if err != nil {
 		return err
 	}
 	for _, t := range tables {
-		if err := processTable(conv, db, t, infoSchema); err != nil {
+		if err := processTable(conv, t, infoSchema); err != nil {
 			return err
 		}
 	}
@@ -70,68 +68,39 @@ func ProcessInfoSchema(conv *internal.Conv, db *sql.DB, infoSchema InfoSchema) e
 	return nil
 }
 
-// ProcessSQLData performs data conversion for source database
+// ProcessData performs data conversion for source database
 // 'db'. For each table, we extract and convert the data to Spanner data
 // (based on the source and Spanner schemas), and write it to Spanner.
 // If we can't get/process data for a table, we skip that table and process
 // the remaining tables.
-//
-// Using database/sql library we pass *sql.RawBytes to rows.scan.
-// RawBytes is a byte slice and values can be easily converted to string.
-func ProcessSQLData(conv *internal.Conv, db *sql.DB, infoSchema InfoSchema) {
-	// TODO: refactor to use the set of tables computed by
-	// ProcessInfoSchema instead of computing them again.
-	tables, err := infoSchema.GetTables(db)
-	if err != nil {
-		conv.Unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
-		return
-	}
-	for _, t := range tables {
-		srcTable := infoSchema.GetTableName(t.Schema, t.Name)
-		srcSchema, ok := conv.SrcSchema[srcTable]
-		if !ok {
-			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
-			conv.Unexpected(fmt.Sprintf("Can't get schemas for table %s", srcTable))
-			continue
-		}
-		rows, err := infoSchema.GetRowsFromTable(conv, db, t)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", t.Name, err))
-			continue
-		}
-		defer rows.Close()
-		srcCols, _ := rows.Columns()
-		spTable, err := internal.GetSpannerTable(conv, srcTable)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Couldn't get spanner table : %s", err))
-			continue
-		}
-		spCols, err := internal.GetSpannerCols(conv, srcTable, srcCols)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Couldn't get spanner columns for table %s : err = %s", t.Name, err))
-			continue
-		}
+func ProcessData(conv *internal.Conv, infoSchema InfoSchema) {
+	for srcTable, srcSchema := range conv.SrcSchema {
+		spTable, err1 := internal.GetSpannerTable(conv, srcTable)
+		spCols, err2 := internal.GetSpannerCols(conv, srcTable, srcSchema.ColNames)
 		spSchema, ok := conv.SpSchema[spTable]
-		if !ok {
-			//TODO - check why Bad rows are not being added in above conditions
+		if err1 != nil || err2 != nil || !ok {
 			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
-			conv.Unexpected(fmt.Sprintf("Can't get schemas for table %s", srcTable))
+			conv.Unexpected(fmt.Sprintf("Can't get cols and schemas for table %s: err1=%s, err2=%s, ok=%t",
+				srcTable, err1, err2, ok))
 			continue
 		}
-		infoSchema.ProcessDataRows(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, rows)
+		err := infoSchema.ProcessData(conv, srcTable, srcSchema, spTable, spCols, spSchema)
+		if err != nil {
+			return
+		}
 	}
 }
 
 // SetRowStats populates conv with the number of rows in each table.
-func SetRowStats(conv *internal.Conv, db *sql.DB, infoSchema InfoSchema) {
-	tables, err := infoSchema.GetTables(db)
+func SetRowStats(conv *internal.Conv, infoSchema InfoSchema) {
+	tables, err := infoSchema.GetTables()
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
 		return
 	}
 	for _, t := range tables {
 		tableName := infoSchema.GetTableName(t.Schema, t.Name)
-		count, err := infoSchema.GetRowCount(db, t)
+		count, err := infoSchema.GetRowCount(t)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't get number of rows for table %s", tableName))
 			continue
@@ -140,26 +109,20 @@ func SetRowStats(conv *internal.Conv, db *sql.DB, infoSchema InfoSchema) {
 	}
 }
 
-func processTable(conv *internal.Conv, db *sql.DB, table SchemaAndName, infoSchema InfoSchema) error {
-	cols, err := infoSchema.GetColumns(table, db)
-	if err != nil {
-		return fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
-	}
-	defer cols.Close()
-
-	primaryKeys, constraints, err := infoSchema.GetConstraints(conv, db, table)
+func processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) error {
+	primaryKeys, constraints, err := infoSchema.GetConstraints(conv, table)
 	if err != nil {
 		return fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.Schema, table.Name, err)
 	}
-	foreignKeys, err := infoSchema.GetForeignKeys(conv, db, table)
+	foreignKeys, err := infoSchema.GetForeignKeys(conv, table)
 	if err != nil {
 		return fmt.Errorf("couldn't get foreign key constraints for table %s.%s: %s", table.Schema, table.Name, err)
 	}
-	indexes, err := infoSchema.GetIndexes(conv, db, table)
+	indexes, err := infoSchema.GetIndexes(conv, table)
 	if err != nil {
 		return fmt.Errorf("couldn't get indexes for table %s.%s: %s", table.Schema, table.Name, err)
 	}
-	colDefs, colNames := infoSchema.ProcessColumns(conv, cols, constraints)
+	colDefs, colNames, err := infoSchema.GetColumns(conv, table, constraints, primaryKeys)
 	if err != nil {
 		return fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
 	}
@@ -170,6 +133,7 @@ func processTable(conv *internal.Conv, db *sql.DB, table SchemaAndName, infoSche
 	}
 	conv.SrcSchema[name] = schema.Table{
 		Name:        name,
+		Schema:      table.Schema,
 		ColNames:    colNames,
 		ColDefs:     colDefs,
 		PrimaryKeys: schemaPKeys,

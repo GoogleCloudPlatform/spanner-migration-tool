@@ -34,6 +34,7 @@ import (
 // Table represents a database table.
 type Table struct {
 	Name        string
+	Schema      string
 	ColNames    []string          // List of column names (for predictable iteration order e.g. printing).
 	ColDefs     map[string]Column // Details of columns.
 	PrimaryKeys []Key
