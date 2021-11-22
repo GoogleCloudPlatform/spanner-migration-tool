@@ -328,45 +328,55 @@ func NewSchema() Schema {
 	return make(map[string]CreateTable)
 }
 
+// Tables are ordered in alphabetical order with one exception: interleaved
+// tables appear after the definition of their parent table.
+func OrderTable(s Schema) []string {
+	var tableNames, sortedTableNames []string
+	for t := range s {
+		tableNames = append(tableNames, t)
+	}
+	sort.Strings(tableNames)
+	tableQueue := tableNames
+	printed := make(map[string]bool)
+	for len(tableQueue) > 0 {
+		tableName := tableQueue[0]
+		table := s[tableName]
+		tableQueue = tableQueue[1:]
+
+		// Print table t if either:
+		// a) t is not interleaved in another table, or
+		// b) t is interleaved in another table and that table has already been printed.
+		if table.Parent == "" || printed[table.Parent] {
+			sortedTableNames = append(sortedTableNames, tableName)
+			printed[tableName] = true
+		} else {
+			// We can't print table t now because its parent hasn't been printed.
+			// Add it at end of tables and we'll try again later.
+			// We might need multiple iterations to print chains of interleaved tables,
+			// but we will always make progress because interleaved tables can't
+			// have cycles. In principle this could be O(n^2), but in practice chains
+			// of interleaved tables are small.
+			tableQueue = append(tableQueue, tableName)
+		}
+	}
+	return sortedTableNames
+}
+
 // GetDDL returns the string representation of Spanner schema represented by Schema struct.
 // Tables are printed in alphabetical order with one exception: interleaved
 // tables are potentially out of order since they must appear after the
 // definition of their parent table.
 func (s Schema) GetDDL(c Config) []string {
 	var ddl []string
-
-	var tableNames []string
-	for t := range s {
-		tableNames = append(tableNames, t)
-	}
-	sort.Strings(tableNames)
+	sortedTableNames := OrderTable(s)
 
 	if c.Tables {
-		tableQueue := tableNames
-		printed := make(map[string]bool)
-		for len(tableQueue) > 0 {
-			tableName := tableQueue[0]
-			table := s[tableName]
-			tableQueue = tableQueue[1:]
-
-			// Print table t if either:
-			// a) t is not interleaved in another table, or
-			// b) t is interleaved in another table and that table has already been printed.
-			if table.Parent == "" || printed[table.Parent] {
-				ddl = append(ddl, table.PrintCreateTable(c))
-				for _, index := range table.Indexes {
-					ddl = append(ddl, index.PrintCreateIndex(c))
-				}
-				printed[tableName] = true
-			} else {
-				// We can't print table t now because its parent hasn't been printed.
-				// Add it at end of tables and we'll try again later.
-				// We might need multiple iterations to print chains of interleaved tables,
-				// but we will always make progress because interleaved tables can't
-				// have cycles. In principle this could be O(n^2), but in practice chains
-				// of interleaved tables are small.
-				tableQueue = append(tableQueue, tableName)
+		for _, tableName := range sortedTableNames {
+			ddl = append(ddl, s[tableName].PrintCreateTable(c))
+			for _, index := range s[tableName].Indexes {
+				ddl = append(ddl, index.PrintCreateIndex(c))
 			}
+
 		}
 	}
 	// Append foreign key constraints to DDL.
@@ -376,7 +386,7 @@ func (s Schema) GetDDL(c Config) []string {
 	// before they are referenced by foreign key constraints) and the possibility
 	// of circular foreign keys definitions. We opt for simplicity.
 	if c.ForeignKeys {
-		for _, t := range tableNames {
+		for _, t := range sortedTableNames {
 			for _, fk := range s[t].Fks {
 				ddl = append(ddl, fk.PrintForeignKeyAlterTable(c, t))
 			}
