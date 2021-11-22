@@ -126,20 +126,20 @@ func TestIntegration_MYSQLDUMP_Command(t *testing.T) {
 	checkResults(t, dbURI)
 }
 
-func TestIntegration_MySQL_EvalSubcommand(t *testing.T) {
+func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
-	dbName := "mysql-dc-eval-src-params"
+	dbName := "mysql-dc-schema-and-data-src-params"
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
 	host, user, db_name, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), os.Getenv("MYSQLDATABASE"), os.Getenv("MYSQLPWD")
 	envVars := common.ClearEnvVariables([]string{"MYSQLHOST", "MYSQLUSER", "MYSQLDATABASE", "MYSQLPWD"})
-	args := fmt.Sprintf("eval -source=%s -prefix=%s -source-profile='host=%s,user=%s,db_name=%s,password=%s' -target-profile='instance=%s,dbname=%s'", constants.MYSQL, filePrefix, host, user, db_name, password, instanceID, dbName)
+	args := fmt.Sprintf("schema-and-data -source=%s -prefix=%s -source-profile='host=%s,user=%s,db_name=%s,password=%s' -target-profile='instance=%s,dbname=%s'", constants.MYSQL, filePrefix, host, user, db_name, password, instanceID, dbName)
 	err := common.RunCommand(args, projectID)
 	common.RestoreEnvVariables(envVars)
 	if err != nil {
