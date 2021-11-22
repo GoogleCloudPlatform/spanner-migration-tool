@@ -173,10 +173,10 @@ type SourceProfileConnectionDynamoDB struct {
 
 func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfileConnectionDynamoDB, error) {
 	dydb := SourceProfileConnectionDynamoDB{}
-	if schemaSampleSize, ok := params["schemaSampleSize"]; ok {
+	if schemaSampleSize, ok := params["schema-sample-size"]; ok {
 		schemaSampleSizeInt, err := strconv.Atoi(schemaSampleSize)
 		if err != nil {
-			return dydb, fmt.Errorf("could not parse schemaSampleSize = %v as a valid int64", schemaSampleSize)
+			return dydb, fmt.Errorf("could not parse schema-sample-size = %v as a valid int64", schemaSampleSize)
 		}
 		dydb.schemaSampleSize = int64(schemaSampleSizeInt)
 	}
@@ -184,16 +184,16 @@ func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfile
 	// Unlike postgres and mysql, there may not be deprecation of env variables, hence it
 	// is better to override env variables optionally via source profile params.
 	var ok bool
-	if dydb.awsAccessKeyID, ok = params["awsAccessKeyID"]; ok {
+	if dydb.awsAccessKeyID, ok = params["aws-access-key-id"]; ok {
 		os.Setenv("AWS_ACCESS_KEY_ID", dydb.awsAccessKeyID)
 	}
-	if dydb.awsSecretAccessKey, ok = params["awsSecretAccessKey"]; ok {
+	if dydb.awsSecretAccessKey, ok = params["aws-secret-access-key"]; ok {
 		os.Setenv("AWS_SECRET_ACCESS_KEY", dydb.awsAccessKeyID)
 	}
-	if dydb.awsRegion, ok = params["awsRegion"]; ok {
+	if dydb.awsRegion, ok = params["aws-region"]; ok {
 		os.Setenv("AWS_REGION", dydb.awsAccessKeyID)
 	}
-	if dydb.dydbEndpoint, ok = params["dydbEndpoint"]; ok {
+	if dydb.dydbEndpoint, ok = params["dydb-endpoint"]; ok {
 		os.Setenv("DYNAMODB_ENDPOINT_OVERRIDE", dydb.awsAccessKeyID)
 	}
 	return dydb, nil

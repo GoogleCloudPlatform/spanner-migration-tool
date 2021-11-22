@@ -13,8 +13,8 @@ import (
 	"github.com/google/subcommands"
 )
 
-// EvalCmd struct with flags.
-type EvalCmd struct {
+// SchemaAndDataCmd struct with flags.
+type SchemaAndDataCmd struct {
 	source          string
 	sourceProfile   string
 	target          string
@@ -24,28 +24,28 @@ type EvalCmd struct {
 }
 
 // Name returns the name of operation.
-func (cmd *EvalCmd) Name() string {
-	return "eval"
+func (cmd *SchemaAndDataCmd) Name() string {
+	return "schema-and-data"
 }
 
 // Synopsis returns summary of operation.
-func (cmd *EvalCmd) Synopsis() string {
-	return "evaluate schema and data migration from source db to target db"
+func (cmd *SchemaAndDataCmd) Synopsis() string {
+	return "schema and data migration from source db to target db in schema-and-data"
 }
 
 // Usage returns usage info of the command.
-func (cmd *EvalCmd) Usage() string {
-	return fmt.Sprintf(`%v eval -source=[source] -target-profile="instance=my-instance"...
+func (cmd *SchemaAndDataCmd) Usage() string {
+	return fmt.Sprintf(`%v schema-and-data -source=[source] -target-profile="instance=my-instance"...
 
-Evaluate schema and data migration from source db to target db. Source db dump
+Migrate schema and data from source db to target db in schema-and-data. Source db dump
 file can be specified by either file param in source-profile or piped to stdin.
 Connection profile for source databases in direct connect mode can be specified
-by setting appropriate environment variables. The eval flags are:
+by setting appropriate params in source-profile. The schema-and-data flags are:
 `, path.Base(os.Args[0]))
 }
 
 // SetFlags sets the flags.
-func (cmd *EvalCmd) SetFlags(f *flag.FlagSet) {
+func (cmd *SchemaAndDataCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.source, "source", "", "Flag for specifying source DB, (e.g., `PostgreSQL`, `MySQL`, `DynamoDB`)")
 	f.StringVar(&cmd.sourceProfile, "source-profile", "", "Flag for specifying connection profile for source database e.g., \"file=<path>,format=dump\"")
 	f.StringVar(&cmd.target, "target", "Spanner", "Specifies the target DB, defaults to Spanner (accepted values: `Spanner`)")
@@ -54,7 +54,7 @@ func (cmd *EvalCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
 }
 
-func (cmd *EvalCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	var err error
 	defer func() {
 		if err != nil {

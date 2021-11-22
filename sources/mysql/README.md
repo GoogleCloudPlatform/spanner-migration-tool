@@ -1,49 +1,50 @@
-# HarbourBridge: Turnkey MySQL-to-Spanner Evaluation
+# HarbourBridge: MySQL-to-Spanner Evaluation and Migration
 
-HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation,
-using data from an existing PostgreSQL or MySQL database. This README provides
+HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation and migration,
+using data from an existing database. This README provides
 details of the tool's MySQL capabilities. For general HarbourBridge information
-see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbourbridge-turnkey-spanner-evaluation).
+see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbourbridge-spanner-evaluation-and-migration).
 
 ## Example MySQL Usage
-
-The following examples assume `harbourbridge` alias has been setup as
-following.
-
-```sh
-git clone https://github.com/cloudspannerecosystem/harbourbridge
-cd harbourbridge
-alias harbourbridge="go run github.com/cloudspannerecosystem/harbourbridge"
-```
 
 HarbourBridge can either be used with mysqldump or it can be run directly
 on a MySQL database (via go's database/sql package).
 
+The following examples assume a `harbourbridge` alias has been setup as described
+in the [Installing HarbourBridge](https://github.com/cloudspannerecosystem/harbourbridge#installing-harbourbridge) section of the main README.
+
 ### Using HarbourBridge with mysqldump
 
-To use HarbourBridge on a MySQL database called mydb using mysqldump, run:
+The tool can used to migrate schema from an existing mysqldump file:
 
 ```sh
-mysqldump mydb | harbourbridge -driver=mysqldump
+harbourbridge schema -source=mysql < my_mysqldump_file
 ```
 
-The tool can also be applied to an existing mysqldump file:
+This will generate a session file with `session.json` suffix. This file contains
+schema mapping from source to destination. You will need to specify this file
+during data migration. You can also specify a particular Spanner instance to use
+during data migration.
+
+For example, run
 
 ```sh
-harbourbridge -driver=mysqldump < my_mysqldump_file
-```
-
-To specify a particular Spanner instance to use, run:
-
-```sh
-mysqldump mydb | harbourbridge -driver=mysqldump -instance my-spanner-instance
+harbourbridge data -session=mydb.session.json -source=mysql -target-profile="instance=my-spanner-instance" < my_mysqldump_file
 ```
 
 By default, HarbourBridge will generate a new Spanner database name to populate.
 You can override this and specify the database name to use by:
 
 ```sh
-mysqldump mydb | harbourbridge -driver=mysqldump -dbname my-spanner-database-name
+harbourbridge data -session=mydb.session.json -source=mysql -target-profile="instance=my-spanner-instance,dbname=my-spanner-database-name" < my_mysqldump_file
+```
+
+You can also run HarbourBridge in a schema-and-data mode, where it will perform both
+schema and data migration. This is useful for quick evaluation when source
+database size is small.
+
+```sh
+harbourbridge schema-and-data -source=mysql -target-profile="instance=my-spanner-instance" < my_mysqldump_file
 ```
 
 HarbourBridge generates a report file, a schema file, and a bad-data file (if
@@ -51,14 +52,14 @@ there are bad-data rows). You can control where these files are written by
 specifying a file prefix. For example,
 
 ```sh
-mysqldump mydb | harbourbridge -prefix mydb. -driver=mysqldump
+harbourbridge schema -prefix=mydb. -source=mysql < my_mysqldump_file
 ```
 
 will write files `mydb.report.txt`, `mydb.schema.txt`, and
 `mydb.dropped.txt`. The prefix can also be a directory. For example,
 
 ```sh
-mysqldump mydb | harbourbridge -prefix ~/spanner-eval-mydb/ -driver=mysqldump
+harbourbridge schema -prefix=~/spanner-eval-mydb/ -source=mysql < my_mysqldump_file
 ```
 
 would write the files into the directory `~/spanner-eval-mydb/`. Note
@@ -66,18 +67,25 @@ that HarbourBridge will not create directories as it writes these files.
 
 ### Directly connecting to a MySQL database
 
-To use the tool directly on a MySQL database called mydb, run
+In this case, HarbourBridge connects directly to the MySQL database to retrieve
+table schema and data. Set the `-source=mysql` and corresponding source profile
+connection parameters `host`, `port`, `user`, `db_name` and `password`.
+
+For example to perform schema conversion, run
 
 ```sh
-harbourbridge -driver=mysql
+harbourbridge schema -source=mysql -source-profile="host=<>,port=<>,user=<>,db_name=<>"
 ```
 
-It is assumed that _MYSQLHOST_, _MYSQLPORT_, _MYSQLUSER_, _MYSQLDATABASE_ environment
-variables are set. Password can be specified either in the _MYSQLPWD_ environment
-variable or provided at the password prompt.
+Parameters `port` and `password` are optional. Port (`port`) defaults to `3306`
+for MySQL source. Password can be provided at the password prompt.
 
-Note that all of the options described in the previous section on using mysqldump
-can also be used with "-driver=mysql".
+(⚠ Deprecated ⚠) Set environment variables `MYSQLHOST`, `MYSQLPORT`,
+`MYSQLUSER`, `MYSQLDATABASE`. Password can be specified either in the
+`MYSQLPWD` environment variable or provided at the password prompt.
+
+Note that the various target-profile params described in the previous section
+are also applicable in direct connect mode.
 
 ## Schema Conversion
 
@@ -258,13 +266,13 @@ type, which supports UTF-8.
 
 As noted earlier when discussing [schema conversion of
 Spatial datatype](#spatial-datatype), Spanner does not support spatial datatypes and are
-mapped to `STRING(MAX)` Spanner type. Data conversion for spatial datatypes is different
-for both `mysql` and `mysqldump` driver.
+mapped to `STRING(MAX)` Spanner type. There are differences in data conversion for spatial
+datatypes depending on whether direct connect or a mysqldump file is used.
 
-- MySQL information schema approach (`-driver=mysql`) : Data from MySQL is fetched using
+- MySQL information schema approach (direct connect) : Data from MySQL is fetched using
   'ST_AsText(g)' function which converts a value in internal geometry format to its WKT(Well-Known Text)
   representation and returns the string result. This value will be stored as `STRING` in Spanner.
-- MySQL dump approach (`-driver=mysqldump`) : Mysqldump will have the internal geometry data in
+- MySQL dump approach : Mysqldump will have the internal geometry data in
   binary format. It cannot be converted to WKT format and there is no proper method for mysqldump
   generation of spatial datatypes also. Thus, this value will just be fetched as a `TEXT` type and
   converted to Spanner type `STRING`.

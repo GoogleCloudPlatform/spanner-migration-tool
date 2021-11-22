@@ -120,12 +120,12 @@ func TestNewSourceProfileConnectionDynamoDB(t *testing.T) {
 		},
 		{
 			name:          "valid schema sample size",
-			params:        map[string]string{"schemaSampleSize": "15"},
+			params:        map[string]string{"schema-sample-size": "15"},
 			errorExpected: false,
 		},
 		{
 			name:          "invalid schema sample size",
-			params:        map[string]string{"schemaSampleSize": "a"},
+			params:        map[string]string{"schema-sample-size": "a"},
 			errorExpected: true,
 		},
 	}

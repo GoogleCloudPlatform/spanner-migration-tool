@@ -38,8 +38,8 @@ func (cmd *SchemaCmd) Usage() string {
 
 Convert schema for source db specified by source and source-profile. Source db
 dump file can be specified by either file param in source-profile or piped to
-stdin. Connection profile for source databases in direct connect mode can be
-specified by setting appropriate environment variables. The schema flags are:
+stdin. Connection profile for source database in direct connect mode can be
+specified by setting appropriate params in source-profile. The schema flags are:
 `, path.Base(os.Args[0]))
 }
 
