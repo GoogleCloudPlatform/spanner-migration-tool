@@ -133,7 +133,7 @@ func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
-	dbName := "mysql-dc-schema-and-data-src-params"
+	dbName := "mysql-dc-schema-and-data"
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
@@ -299,7 +299,7 @@ func TestIntegration_MySQLDUMP_SchemaAndDataSubcommand(t *testing.T) {
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
-	dbName := "test-schema-and-data-subcommand"
+	dbName := "test-schema-and-data"
 	dumpFilePath := "../../test_data/mysqldump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
