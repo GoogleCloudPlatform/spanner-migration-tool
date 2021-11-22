@@ -272,8 +272,8 @@ harbourbridge <subcommand> flags
 
 ### Getting Help
 
-The command hb help displays the available subcommands and the important global flags. The hb flags command displays the list of all available global flags, including flags from other libraries that HarbourBridge uses.
-  
+The command `harbourbridge help` displays the available subcommands and the important global flags.
+
 ```text
     commands   list all subcommand names
     help   describe subcommands and their syntax
