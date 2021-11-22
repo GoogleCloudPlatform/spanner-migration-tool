@@ -35,7 +35,7 @@ For some quick starter examples on how to run HarbourBridge, take a look at
 [Quickstart Guide](#quickstart-guide).
 
 HarbourBridge automatically determines the cloud project to use, and generates
-a new Spanner database name (prefixed with `{source}_` and today's date).
+a new Spanner database name.
 Command-line flags can be used to explicitly set the Spanner instance or
 database name. See [Command line flags](#command-line-flags).
 
@@ -107,7 +107,7 @@ and use "go run".
 ```sh
 git clone https://github.com/cloudspannerecosystem/harbourbridge
 cd harbourbridge
-go run github.com/cloudspannerecosystem/harbourbridge schema -source=postgres < my_pg_dump_file
+go run github.com/cloudspannerecosystem/harbourbridge help
 ```
 
 Examples below assume that `harbourbridge` alias is set as following
@@ -124,20 +124,20 @@ To use the tool on a PostgreSQL database called mydb, run
 
 ```sh
 pg_dump mydb > mydb.pg_dump
-harbourbridge schema -source=postgresql < mydb.pg_dump
+harbourbridge schema-and-data -source=postgresql < mydb.pg_dump
 ```
 
 To use the tool on a MySQL database called mydb, run
 
 ```sh
 mysqldump mydb > mydb.mysqldump
-harbourbridge schema -source=mysql < mydb.mysqldump
+harbourbridge schema-and-data -source=mysql < mydb.mysqldump
 ```
 
 To use the tool on a DynamoDB database, run
 
 ```sh
-harbourbridge schema -source=dynamodb
+harbourbridge schema-and-data -source=dynamodb
 ```
 
 Note: HarbourBridge accepts pg_dump/mysqldump's standard plain-text format,
@@ -157,8 +157,8 @@ database with the data from the source database.
 If the project has multiple instances, then list of available instances
 will be shown and you will have to pick one of the available instances and
 set the `--instance` flag in target-profile. The new Cloud Spanner database
-will have a name of the form `{SOURCE}_{DATE}_{RANDOM}`, where`{SOURCE}` is
-the source specified,`{DATE}`is today's date, and`{RANDOM}` is a random
+will have a name of the form `{SOURCE}_{DATE}_{RANDOM}`, where`{SOURCE}` is the
+value of the source flag,`{DATE}`is today's date, and`{RANDOM}` is a random
 suffix for uniqueness.
 
 See the [Troubleshooting Guide](#troubleshooting-guide) for help on debugging
@@ -331,7 +331,11 @@ Spanner DDL files.
 `-session` Specifies a session file that contains all schema and data
 conversion state endcoded as JSON.
 
-#### `-source-profile`
+`-source-profile` Specifies detailed parameters for the source database such as connection parameters. See [Source Profile](#source-profile) for details.
+
+`-target-profile` Specifies detailed parameters for the target database. See [Target Profile](#target-profile) for details.
+
+### Source Profile
 
 HarbourBridge accepts the following params for --source-profile,
 specified as "key1=value1,key2=value,..." pairs:
@@ -348,7 +352,7 @@ have read pemissions to the GCS bucket you would like to use.
 defaults to `dump`. This may be extended in future to support other formats
 such as `csv`, `avro` etc.
 
-#### `-target-profile`
+### Target Profile
 
 HarbourBridge accepts the following options for --target-profile,
 specified as "key1=value1,key2=value,..." pairs:

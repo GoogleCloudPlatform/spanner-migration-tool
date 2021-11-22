@@ -10,6 +10,9 @@ see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbour
 HarbourBridge can either be used with pg_dump or it can be run directly
 on a PostgreSQL database (via go's database/sql package).
 
+The following examples assume a `harbourbridge` alias has been setup as described
+in the [Installing HarbourBridge](https://github.com/cloudspannerecosystem/harbourbridge#installing-harbourbridge) section of the main README.
+
 ### Using HarbourBridge with pg_dump
 
 The tool can used to migrate schema from an existing pg_dump file:
@@ -18,8 +21,8 @@ The tool can used to migrate schema from an existing pg_dump file:
 harbourbridge schema -source=postgresql < my_pg_dump_file
 ```
 
-You can use either of `postgresql`, `postgres`, or `pg` to `-source` to specify
-PostgreSQL as the source database.
+You can use any of `postgresql`, `postgres`, or `pg` as the argument to the
+`-source` flag. They all specify PostgreSQL as the source database.
 
 This will generate a session file with `session.json` suffix. This file contains
 schema mapping from source to destination. You will need to specify this file
@@ -81,9 +84,9 @@ harbourbridge schema -source=postgres -source-profile="host=<>,port=<>,user=<>,d
 Parameters `port` and `password` are optional. Port (`port`) defaults to `5432`
 for PostgreSQL source. Password can be provided at the password prompt.
 
-(⚠ Deprecated ⚠) Set environment variables `PGHOST`, `PGPORT`, `PGUSER`,
-`PGDATABASE` for direct access. Password can be specified either in the
-`PGPASSWORD` environment variable or provided at the password prompt.
+Alternatively, you can also set environment variables `PGHOST`, `PGPORT`,
+`PGUSER`, `PGDATABASE` for direct access. Password can be specified either in
+the `PGPASSWORD` environment variable or provided at the password prompt.
 
 Note that the various target-profile params described in the previous section
 are also applicable in direct connect mode.

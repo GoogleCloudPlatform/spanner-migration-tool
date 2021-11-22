@@ -15,6 +15,9 @@ DynamoDB database via the aws go sdk package. If you use a custom endpoint
 for dynamodb, you can specify that using the environment variable
 `DYNAMODB_ENDPOINT_OVERRIDE`.
 
+The following examples assume a harbourbridge alias has been setup as described
+in the [Installing HarbourBridge](https://github.com/cloudspannerecosystem/harbourbridge#installing-harbourbridge) section of the main README.
+
 For example, run
 
 ```sh

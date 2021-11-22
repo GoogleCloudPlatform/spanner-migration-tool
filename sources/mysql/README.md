@@ -10,6 +10,9 @@ see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbour
 HarbourBridge can either be used with mysqldump or it can be run directly
 on a MySQL database (via go's database/sql package).
 
+The following examples assume a `harbourbridge` alias has been setup as described
+in the [Installing HarbourBridge](https://github.com/cloudspannerecosystem/harbourbridge#installing-harbourbridge) section of the main README.
+
 ### Using HarbourBridge with mysqldump
 
 The tool can used to migrate schema from an existing mysqldump file:
@@ -263,8 +266,8 @@ type, which supports UTF-8.
 
 As noted earlier when discussing [schema conversion of
 Spatial datatype](#spatial-datatype), Spanner does not support spatial datatypes and are
-mapped to `STRING(MAX)` Spanner type. Data conversion for spatial datatypes is different
-for both `mysql` direct connect and `mysqldump` file.
+mapped to `STRING(MAX)` Spanner type. There are differences in data conversion for spatial
+datatypes depending on whether direct connect or a mysqldump file is used.
 
 - MySQL information schema approach (direct connect) : Data from MySQL is fetched using
   'ST_AsText(g)' function which converts a value in internal geometry format to its WKT(Well-Known Text)
