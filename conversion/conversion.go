@@ -83,11 +83,9 @@ var (
 //  - This function is called as part of the legacy global CLI flag mode. (This string is constructed from env variables later on)
 // When using source-profile, the sqlConnectionStr is constructed from the input params.
 func SchemaConv(driver, sqlConnectionStr, targetDb string, ioHelper *IOStreams, schemaSampleSize int64) (*internal.Conv, error) {
-	conv := internal.MakeConv()
-	conv.TargetDb = targetDb
 	switch driver {
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB:
-		return schemaFromDatabase(driver, sqlConnectionStr, conv, schemaSampleSize)
+		return schemaFromDatabase(driver, sqlConnectionStr, targetDb, schemaSampleSize)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		return schemaFromDump(driver, targetDb, ioHelper)
 	default:
@@ -121,7 +119,7 @@ func DataConv(driver, sqlConnectionStr string, ioHelper *IOStreams, client *sp.C
 	}
 }
 
-func driverConfig(driver string, sqlConnectionStr string) (interface{}, error) {
+func connectionConfig(driver string, sqlConnectionStr string) (interface{}, error) {
 	switch driver {
 	case constants.POSTGRES:
 		// If empty, this is called as part of the legacy mode witih global CLI flags.
@@ -195,7 +193,9 @@ func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 	return ""
 }
 
-func schemaFromDatabase(driver, sqlConnectionStr string, conv *internal.Conv, schemaSampleSize int64) (*internal.Conv, error) {
+func schemaFromDatabase(driver, sqlConnectionStr, targetDb string, schemaSampleSize int64) (*internal.Conv, error) {
+	conv := internal.MakeConv()
+	conv.TargetDb = targetDb
 	infoSchema, err := GetInfoSchema(driver, sqlConnectionStr, schemaSampleSize)
 	if err != nil {
 		return conv, err
@@ -209,9 +209,6 @@ func dataFromDatabase(driver, sqlConnectionStr string, config spanner.BatchWrite
 		return nil, err
 	}
 	common.SetRowStats(conv, infoSchema)
-	if err != nil {
-		return nil, err
-	}
 	totalRows := conv.Rows()
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 	rows := int64(0)
@@ -1094,29 +1091,29 @@ func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 }
 
 func GetInfoSchema(driver, sqlConnectionStr string, schemaSampleSize int64) (common.InfoSchema, error) {
-	driverConfig, err := driverConfig(driver, sqlConnectionStr)
+	connectionConfig, err := connectionConfig(driver, sqlConnectionStr)
 	if err != nil {
 		return nil, err
 	}
 	switch driver {
 	case constants.MYSQL:
-		db, err := sql.Open(driver, driverConfig.(string))
-		dbName := getDbNameFromSQLConnectionStr(driver, driverConfig.(string))
+		db, err := sql.Open(driver, connectionConfig.(string))
+		dbName := getDbNameFromSQLConnectionStr(driver, connectionConfig.(string))
 		if err != nil {
 			return nil, err
 		}
 		return mysql.InfoSchemaImpl{DbName: dbName, Db: db}, nil
 	case constants.POSTGRES:
-		db, err := sql.Open(driver, driverConfig.(string))
+		db, err := sql.Open(driver, connectionConfig.(string))
 		if err != nil {
 			return nil, err
 		}
 		return postgres.InfoSchemaImpl{Db: db}, nil
 	case constants.DYNAMODB:
 		mySession := session.Must(session.NewSession())
-		dydbClient := dydb.New(mySession, driverConfig.(*aws.Config))
+		dydbClient := dydb.New(mySession, connectionConfig.(*aws.Config))
 		return dynamodb.InfoSchemaImpl{DynamoClient: dydbClient, SampleSize: schemaSampleSize}, nil
 	default:
-		return nil, fmt.Errorf("Driver %s not supported", driver)
+		return nil, fmt.Errorf("driver %s not supported", driver)
 	}
 }

@@ -55,6 +55,7 @@ type InfoSchemaImpl struct {
 func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
 }
+
 func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 	return *aws.String(tableName)
 }
@@ -77,6 +78,7 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 		input.ExclusiveStartTableName = result.LastEvaluatedTableName
 	}
 }
+
 func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
 	stats, count, err := scanSampleData(isi.DynamoClient, isi.SampleSize, table.Name)
 	if err != nil {
@@ -84,6 +86,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	}
 	return inferDataTypes(stats, count, primaryKeys)
 }
+
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
 	var lastEvaluatedKey map[string]*dynamodb.AttributeValue
 	for {
@@ -108,6 +111,7 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string)
 		lastEvaluatedKey = result.LastEvaluatedKey
 	}
 }
+
 func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error) {
 	input := &dynamodb.DescribeTableInput{
 		TableName: aws.String(table.Name),
@@ -118,6 +122,7 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 	}
 	return *result.Table.ItemCount, err
 }
+
 func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) (primaryKeys []string, constraints map[string][]string, err error) {
 	input := &dynamodb.DescribeTableInput{
 		TableName: aws.String(table.Name),
@@ -133,9 +138,11 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 	}
 	return primaryKeys, constraints, nil
 }
+
 func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
 	return foreignKeys, err
 }
+
 func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName) (indexes []schema.Index, err error) {
 	input := &dynamodb.DescribeTableInput{
 		TableName: aws.String(table.Name),
