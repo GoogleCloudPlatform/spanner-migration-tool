@@ -74,6 +74,9 @@ var (
 )
 
 // SchemaConv performs the schema conversion
+// TODO: Pass around cmd.SourceProfile instead of sqlConnectionStr and schemaSampleSize.
+// Doing that requires refactoring since that would introduce a circular dependency between
+// conversion.go and cmd/source_profile.go.
 // The sqlConnectionStr param provides the connection details to use the go SQL library.
 // It is empty in the following cases:
 //  - Driver is DynamoDB or a dump file mode.
@@ -81,12 +84,10 @@ var (
 // When using source-profile, the sqlConnectionStr is constructed from the input params.
 func SchemaConv(driver, sqlConnectionStr, targetDb string, ioHelper *IOStreams, schemaSampleSize int64) (*internal.Conv, error) {
 	switch driver {
-	case constants.POSTGRES, constants.MYSQL:
-		return schemaFromSQL(driver, sqlConnectionStr, targetDb)
+	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB:
+		return schemaFromDatabase(driver, sqlConnectionStr, targetDb, schemaSampleSize)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		return schemaFromDump(driver, targetDb, ioHelper)
-	case constants.DYNAMODB:
-		return schemaFromDynamoDB(schemaSampleSize)
 	default:
 		return nil, fmt.Errorf("schema conversion for driver %s not supported", driver)
 	}
@@ -97,8 +98,8 @@ func SchemaConv(driver, sqlConnectionStr, targetDb string, ioHelper *IOStreams, 
 // It is empty in the following cases:
 //  - Driver is DynamoDB or a dump file mode.
 //  - This function is called as part of the legacy global CLI flag mode. (This string is constructed from env variables later on)
-// When using source-profile, the sqlConnectionStr is constructed from the input params.
-func DataConv(driver, sqlConnectionStr string, ioHelper *IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*spanner.BatchWriter, error) {
+// When using source-profile, the sqlConnectionStr and schemaSampleSize are constructed from the input params.
+func DataConv(driver, sqlConnectionStr string, ioHelper *IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, schemaSampleSize int64) (*spanner.BatchWriter, error) {
 	config := spanner.BatchWriterConfig{
 		BytesLimit: 100 * 1000 * 1000,
 		WriteLimit: 40,
@@ -106,26 +107,36 @@ func DataConv(driver, sqlConnectionStr string, ioHelper *IOStreams, client *sp.C
 		Verbose:    internal.Verbose(),
 	}
 	switch driver {
-	case constants.POSTGRES, constants.MYSQL:
-		return dataFromSQL(driver, sqlConnectionStr, config, client, conv)
+	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB:
+		return dataFromDatabase(driver, sqlConnectionStr, config, client, conv, schemaSampleSize)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		if conv.SpSchema.CheckInterleaved() {
 			return nil, fmt.Errorf("harbourBridge does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql")
 		}
 		return dataFromDump(driver, config, ioHelper, client, conv, dataOnly)
-	case constants.DYNAMODB:
-		return dataFromDynamoDB(config, client, conv)
 	default:
 		return nil, fmt.Errorf("data conversion for driver %s not supported", driver)
 	}
 }
 
-func generateSQLConnectionStr(driver string) (string, error) {
+func connectionConfig(driver string, sqlConnectionStr string) (interface{}, error) {
 	switch driver {
 	case constants.POSTGRES:
-		return generatePGSQLConnectionStr()
+		// If empty, this is called as part of the legacy mode witih global CLI flags.
+		// When using source-profile mode is used, the sqlConnectionStr is already populated.
+		if sqlConnectionStr == "" {
+			return generatePGSQLConnectionStr()
+		}
+		return sqlConnectionStr, nil
 	case constants.MYSQL:
-		return generateMYSQLConnectionStr()
+		// If empty, this is called as part of the legacy mode witih global CLI flags.
+		// When using source-profile mode is used, the sqlConnectionStr is already populated.
+		if sqlConnectionStr == "" {
+			return generateMYSQLConnectionStr()
+		}
+		return sqlConnectionStr, nil
+	case constants.DYNAMODB:
+		return getDynamoDBClientConfig()
 	default:
 		return "", fmt.Errorf("driver %s not supported", driver)
 	}
@@ -182,55 +193,22 @@ func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 	return ""
 }
 
-// TODO: Pass around cmd.SourceProfile instead of sqlConnectionStr.
-// Doing that requires refactoring since that would introduce a circular dependency between
-// conversion.go and cmd/source_profile.go.
-func schemaFromSQL(driver, sqlConnectionStr, targetDb string) (*internal.Conv, error) {
-	// If empty, this is called as part of the legacy mode witih global CLI flags.
-	// When using source-profile mode is used, the sqlConnectionStr is already populated.
-	if sqlConnectionStr == "" {
-		var err error
-		sqlConnectionStr, err = generateSQLConnectionStr(driver)
-		if err != nil {
-			return nil, err
-		}
-	}
-	sourceDB, err := sql.Open(driver, sqlConnectionStr)
-	if err != nil {
-		return nil, err
-	}
+func schemaFromDatabase(driver, sqlConnectionStr, targetDb string, schemaSampleSize int64) (*internal.Conv, error) {
 	conv := internal.MakeConv()
 	conv.TargetDb = targetDb
-	conv.SrcDbName = getDbNameFromSQLConnectionStr(driver, sqlConnectionStr)
-	err = ProcessSchema(driver, conv, sourceDB)
+	infoSchema, err := GetInfoSchema(driver, sqlConnectionStr, schemaSampleSize)
 	if err != nil {
-		return nil, err
+		return conv, err
 	}
-	return conv, nil
+	return conv, common.ProcessSchema(conv, infoSchema)
 }
 
-func dataFromSQL(driver, sqlConnectionStr string, config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
-	// TODO: Refactor to avoid redundant calls to sqlConnectionStr and
-	// Open in schemaFromSQL and dataFromSQL. Also refactor to
-	// share code with dataFromPgDump. Use single transaction for
-	// reading schema and data from source db to get consistent
-	// dump.
-	if sqlConnectionStr == "" {
-		// If empty, this is called as part of the old command line workflow.
-		var err error
-		sqlConnectionStr, err = generateSQLConnectionStr(driver)
-		if err != nil {
-			return nil, err
-		}
-	}
-	sourceDB, err := sql.Open(driver, sqlConnectionStr)
+func dataFromDatabase(driver, sqlConnectionStr string, config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv, schemaSampleSize int64) (*spanner.BatchWriter, error) {
+	infoSchema, err := GetInfoSchema(driver, sqlConnectionStr, schemaSampleSize)
 	if err != nil {
 		return nil, err
 	}
-	err = SetRowStats(driver, conv, sourceDB)
-	if err != nil {
-		return nil, err
-	}
+	common.SetRowStats(conv, infoSchema)
 	totalRows := conv.Rows()
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 	rows := int64(0)
@@ -249,64 +227,18 @@ func dataFromSQL(driver, sqlConnectionStr string, config spanner.BatchWriterConf
 		func(table string, cols []string, vals []interface{}) {
 			writer.AddRow(table, cols, vals)
 		})
-	err = ProcessData(driver, conv, sourceDB)
-	if err != nil {
-		return nil, err
-	}
+	common.ProcessData(conv, infoSchema)
 	writer.Flush()
 	return writer, nil
 }
 
-func getDynamoDBClientConfig() *aws.Config {
+func getDynamoDBClientConfig() (*aws.Config, error) {
 	cfg := aws.Config{}
 	endpointOverride := os.Getenv("DYNAMODB_ENDPOINT_OVERRIDE")
 	if endpointOverride != "" {
 		cfg.Endpoint = aws.String(endpointOverride)
 	}
-	return &cfg
-}
-
-func schemaFromDynamoDB(sampleSize int64) (*internal.Conv, error) {
-	conv := internal.MakeConv()
-	mySession := session.Must(session.NewSession())
-	dydbClient := dydb.New(mySession, getDynamoDBClientConfig())
-	err := dynamodb.ProcessSchema(conv, dydbClient, []string{}, sampleSize)
-	if err != nil {
-		return nil, err
-	}
-	return conv, nil
-}
-
-func dataFromDynamoDB(config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
-	mySession := session.Must(session.NewSession())
-	dydbClient := dydb.New(mySession, getDynamoDBClientConfig())
-	dynamodb.SetRowStats(conv, dydbClient)
-	totalRows := conv.Rows()
-	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
-
-	rows := int64(0)
-	config.Write = func(m []*sp.Mutation) error {
-		_, err := client.Apply(context.Background(), m)
-		if err != nil {
-			return err
-		}
-		atomic.AddInt64(&rows, int64(len(m)))
-		p.MaybeReport(atomic.LoadInt64(&rows))
-		return nil
-	}
-	writer := spanner.NewBatchWriter(config)
-	conv.SetDataMode()
-	conv.SetDataSink(
-		func(table string, cols []string, vals []interface{}) {
-			writer.AddRow(table, cols, vals)
-		})
-
-	err := dynamodb.ProcessData(conv, dydbClient)
-	if err != nil {
-		return nil, err
-	}
-	writer.Flush()
-	return writer, nil
+	return &cfg, nil
 }
 
 // IOStreams is a struct that contains the file descriptor for dumpFile.
@@ -1158,41 +1090,30 @@ func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 	}
 }
 
-// ProcessSchema invokes processSchema function from a sql package based on driver selected.
-func ProcessSchema(driver string, conv *internal.Conv, db *sql.DB) error {
+func GetInfoSchema(driver, sqlConnectionStr string, schemaSampleSize int64) (common.InfoSchema, error) {
+	connectionConfig, err := connectionConfig(driver, sqlConnectionStr)
+	if err != nil {
+		return nil, err
+	}
 	switch driver {
 	case constants.MYSQL:
-		return common.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: conv.SrcDbName, Db: db})
+		db, err := sql.Open(driver, connectionConfig.(string))
+		dbName := getDbNameFromSQLConnectionStr(driver, connectionConfig.(string))
+		if err != nil {
+			return nil, err
+		}
+		return mysql.InfoSchemaImpl{DbName: dbName, Db: db}, nil
 	case constants.POSTGRES:
-		return common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: db})
+		db, err := sql.Open(driver, connectionConfig.(string))
+		if err != nil {
+			return nil, err
+		}
+		return postgres.InfoSchemaImpl{Db: db}, nil
+	case constants.DYNAMODB:
+		mySession := session.Must(session.NewSession())
+		dydbClient := dydb.New(mySession, connectionConfig.(*aws.Config))
+		return dynamodb.InfoSchemaImpl{DynamoClient: dydbClient, SampleSize: schemaSampleSize}, nil
 	default:
-		return fmt.Errorf("schema conversion for driver %s not supported", driver)
+		return nil, fmt.Errorf("driver %s not supported", driver)
 	}
-}
-
-// SetRowStats invokes SetRowStats function from a sql package based on driver selected.
-func SetRowStats(driver string, conv *internal.Conv, db *sql.DB) error {
-	switch driver {
-	case constants.MYSQL:
-		common.SetRowStats(conv, mysql.InfoSchemaImpl{DbName: conv.SrcDbName, Db: db})
-	case constants.POSTGRES:
-		common.SetRowStats(conv, postgres.InfoSchemaImpl{Db: db})
-	default:
-		return fmt.Errorf("could not set rows stats for '%s' driver", driver)
-	}
-	return nil
-}
-
-// ProcessData invokes ProcessData function from a sql package based on driver selected.
-func ProcessData(driver string, conv *internal.Conv, db *sql.DB) error {
-	switch driver {
-	//TODO - move this logic into a factory within the sources dir
-	case constants.MYSQL:
-		common.ProcessData(conv, mysql.InfoSchemaImpl{DbName: conv.SrcDbName, Db: db})
-	case constants.POSTGRES:
-		common.ProcessData(conv, postgres.InfoSchemaImpl{Db: db})
-	default:
-		return fmt.Errorf("data conversion for driver %s is not supported", driver)
-	}
-	return nil
 }

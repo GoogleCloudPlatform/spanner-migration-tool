@@ -81,7 +81,7 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 
 	// We pass an empty string to the sqlConnectionStr parameter as this is the legacy codepath,
 	// which reads the environment variables and constructs the string later on.
-	bw, err := conversion.DataConv(driver, "", ioHelper, client, conv, dataOnly)
+	bw, err := conversion.DataConv(driver, "", ioHelper, client, conv, dataOnly, schemaSampleSize)
 	if err != nil {
 		return fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 	}

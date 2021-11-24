@@ -23,9 +23,11 @@ import (
 	sp "cloud.google.com/go/spanner"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
 const (
@@ -45,47 +47,29 @@ const (
 	conflictThreshold = float64(0.05)
 )
 
-type dynamoClient interface {
-	ListTables(input *dynamodb.ListTablesInput) (*dynamodb.ListTablesOutput, error)
-	DescribeTable(input *dynamodb.DescribeTableInput) (*dynamodb.DescribeTableOutput, error)
-	Scan(input *dynamodb.ScanInput) (*dynamodb.ScanOutput, error)
+type InfoSchemaImpl struct {
+	DynamoClient dynamodbiface.DynamoDBAPI
+	SampleSize   int64
 }
 
-// ProcessSchema performs schema conversion for source tables in a DynamoDB
-// database. Since DynamoDB is a schemaless database, this process is imprecise.
-// We obtain schema information from two sources: from the table's metadata,
-// and from analyzing a sample of the table's rows.
-func ProcessSchema(conv *internal.Conv, client dynamoClient, tables []string, sampleSize int64) error {
-	if len(tables) == 0 {
-		var err error
-		tables, err = listTables(client)
-		if err != nil {
-			return err
-		}
-		if len(tables) == 0 {
-			return fmt.Errorf("no DynamoDB table exists under this account")
-		}
-	}
-	for _, t := range tables {
-		if err := processTable(conv, client, t, sampleSize); err != nil {
-			return err
-		}
-	}
-	common.SchemaToSpannerDDL(conv, ToDdlImpl{})
-	conv.AddPrimaryKeys()
-	return nil
+func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
+	return ToDdlImpl{}
 }
 
-func listTables(client dynamoClient) ([]string, error) {
-	var tables []string
+func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
+	return *aws.String(tableName)
+}
+
+func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
+	var tables []common.SchemaAndName
 	input := &dynamodb.ListTablesInput{}
 	for {
-		result, err := client.ListTables(input)
+		result, err := isi.DynamoClient.ListTables(input)
 		if err != nil {
 			return nil, err
 		}
 		for _, t := range result.TableNames {
-			tables = append(tables, *t)
+			tables = append(tables, common.SchemaAndName{Name: *t})
 		}
 
 		if result.LastEvaluatedTableName == nil {
@@ -95,40 +79,79 @@ func listTables(client dynamoClient) ([]string, error) {
 	}
 }
 
-func processTable(conv *internal.Conv, client dynamoClient, table string, sampleSize int64) error {
-	dySchema := schema.Table{Name: table}
-	err := analyzeMetadata(client, &dySchema)
+func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
+	stats, count, err := scanSampleData(isi.DynamoClient, isi.SampleSize, table.Name)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-	stats, count, err := scanSampleData(client, sampleSize, dySchema.Name)
-	if err != nil {
-		return err
-	}
-	inferDataTypes(stats, count, &dySchema)
-
-	// Sort column names in increasing order, because the server may return them
-	// in a random order.
-	sort.Strings(dySchema.ColNames)
-	conv.SrcSchema[table] = dySchema
-	return nil
+	return inferDataTypes(stats, count, primaryKeys)
 }
 
-func analyzeMetadata(client dynamoClient, s *schema.Table) error {
-	input := &dynamodb.DescribeTableInput{
-		TableName: aws.String(s.Name),
-	}
+func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
+	var lastEvaluatedKey map[string]*dynamodb.AttributeValue
+	for {
+		// Build the query input parameters.
+		params := &dynamodb.ScanInput{
+			TableName: aws.String(srcTable),
+		}
+		if lastEvaluatedKey != nil {
+			params.ExclusiveStartKey = lastEvaluatedKey
+		}
 
-	result, err := client.DescribeTable(input)
+		// Make the DynamoDB Query API call.
+		result, err := isi.DynamoClient.Scan(params)
+		if err != nil {
+			return nil, fmt.Errorf("failed to make Query API call for table %v: %v", srcTable, err)
+		}
+
+		if result.LastEvaluatedKey == nil {
+			return result.Items, nil
+		}
+		// If there are more rows, then continue.
+		lastEvaluatedKey = result.LastEvaluatedKey
+	}
+}
+
+func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error) {
+	input := &dynamodb.DescribeTableInput{
+		TableName: aws.String(table.Name),
+	}
+	result, err := isi.DynamoClient.DescribeTable(input)
 	if err != nil {
-		return fmt.Errorf("failed to make a DescribeTable API call for table %v: %v", s.Name, err)
+		return 0, err
+	}
+	return *result.Table.ItemCount, err
+}
+
+func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) (primaryKeys []string, constraints map[string][]string, err error) {
+	input := &dynamodb.DescribeTableInput{
+		TableName: aws.String(table.Name),
+	}
+	result, err := isi.DynamoClient.DescribeTable(input)
+	if err != nil {
+		return primaryKeys, constraints, fmt.Errorf("failed to make a DescribeTable API call for table %v: %v", table.Name, err)
 	}
 
 	// Primary keys.
 	for _, i := range result.Table.KeySchema {
-		s.PrimaryKeys = append(s.PrimaryKeys, schema.Key{Column: *i.AttributeName})
+		primaryKeys = append(primaryKeys, *i.AttributeName)
+	}
+	return primaryKeys, constraints, nil
+}
+
+func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
+	return foreignKeys, err
+}
+
+func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName) (indexes []schema.Index, err error) {
+	input := &dynamodb.DescribeTableInput{
+		TableName: aws.String(table.Name),
 	}
 
+	result, err := isi.DynamoClient.DescribeTable(input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make a DescribeTable API call for table %v: %v", table.Name, err)
+	}
 	// DynamoDB supports 2 types of indexes: Global Secondary Indexes (GSI) and Local Secondary Indexes (LSI).
 	// In GSI, dydb creates another global table for indexes that scales seperately.
 	// As for LSI, every partition in dydb maintains its own local index for that partition.
@@ -137,14 +160,31 @@ func analyzeMetadata(client dynamoClient, s *schema.Table) error {
 
 	// Convert secondary indexes from GlobalSecondaryIndexes.
 	for _, i := range result.Table.GlobalSecondaryIndexes {
-		s.Indexes = append(s.Indexes, getSchemaIndexStruct(*i.IndexName, i.KeySchema))
+		indexes = append(indexes, getSchemaIndexStruct(*i.IndexName, i.KeySchema))
 	}
 
 	// Convert secondary indexes from LocalSecondaryIndexes.
 	for _, i := range result.Table.LocalSecondaryIndexes {
-		s.Indexes = append(s.Indexes, getSchemaIndexStruct(*i.IndexName, i.KeySchema))
+		indexes = append(indexes, getSchemaIndexStruct(*i.IndexName, i.KeySchema))
 	}
+	return indexes, nil
+}
 
+// ProcessData performs data conversion for DynamoDB database. For each table,
+// we extract data using Scan requests, convert the data to Spanner data (based
+// on the source and Spanner schemas), and write it to Spanner. If we can't
+// get/process data for a table, we skip that table and process the remaining
+// tables.
+func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) error {
+	rows, err := isi.GetRowsFromTable(conv, srcTable)
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTable, err))
+		return err
+	}
+	// Iterate the items returned.
+	for _, attrsMap := range rows.([]map[string]*dynamodb.AttributeValue) {
+		ProcessDataRow(attrsMap, conv, srcTable, srcSchema, spTable, spCols, spSchema)
+	}
 	return nil
 }
 
@@ -156,7 +196,7 @@ func getSchemaIndexStruct(indexName string, keySchema []*dynamodb.KeySchemaEleme
 	return schema.Index{Name: indexName, Keys: keys}
 }
 
-func scanSampleData(client dynamoClient, sampleSize int64, table string) (map[string]map[string]int64, int64, error) {
+func scanSampleData(client dynamodbiface.DynamoDBAPI, sampleSize int64, table string) (map[string]map[string]int64, int64, error) {
 	// A map from column name to a count map of possible data types.
 	stats := make(map[string]map[string]int64)
 	var count int64
@@ -248,10 +288,9 @@ type statItem struct {
 	Count int64
 }
 
-func inferDataTypes(stats map[string]map[string]int64, rows int64, s *schema.Table) {
-	if s.ColDefs == nil {
-		s.ColDefs = make(map[string]schema.Column)
-	}
+func inferDataTypes(stats map[string]map[string]int64, rows int64, primaryKeys []string) (map[string]schema.Column, []string, error) {
+	colDefs := make(map[string]schema.Column)
+	var colNames []string
 
 	for col, countMap := range stats {
 		var statItems, candidates []statItem
@@ -273,8 +312,8 @@ func inferDataTypes(stats map[string]map[string]int64, rows int64, s *schema.Tab
 
 		// Check if the column is a part of a primary key.
 		isPKey := false
-		for _, pk := range s.PrimaryKeys {
-			if pk.Column == col {
+		for _, pk := range primaryKeys {
+			if pk == col {
 				isPKey = true
 				break
 			}
@@ -294,16 +333,20 @@ func inferDataTypes(stats map[string]map[string]int64, rows int64, s *schema.Tab
 			}
 		}
 
-		s.ColNames = append(s.ColNames, col)
+		colNames = append(colNames, col)
 		if len(candidates) == 1 {
-			s.ColDefs[col] = schema.Column{Name: col, Type: schema.Type{Name: candidates[0].Type}, NotNull: !nullable}
+			colDefs[col] = schema.Column{Name: col, Type: schema.Type{Name: candidates[0].Type}, NotNull: !nullable}
 		} else {
 			// If there is no any candidate or more than a single candidate,
 			// this column has a significant conflict on data types and then
 			// defaults to a String type.
-			s.ColDefs[col] = schema.Column{Name: col, Type: schema.Type{Name: typeString}, NotNull: !nullable}
+			colDefs[col] = schema.Column{Name: col, Type: schema.Type{Name: typeString}, NotNull: !nullable}
 		}
 	}
+	// Sort column names in increasing order, because the server may return them
+	// in a random order.
+	sort.Strings(colNames)
+	return colDefs, colNames, nil
 }
 
 // numericParsable determines whether its argument is a valid Spanner numeric
@@ -339,34 +382,4 @@ func numericParsable(n string) bool {
 	}
 
 	return true
-}
-
-// SetRowStats populates conv with the number of rows in each table. In
-// DynamoDB, we use describe_table api to get the number of total rows, but this
-// number is updated approximately every six hours. This means that our row
-// count could be out of date by up to six hours. One of the primary uses of
-// row count is for calculating progress during data conversion. As a result, if
-// there have been huge changes in the number of rows in a table over the last
-// six hours, the progress calculation could be inaccurate.
-func SetRowStats(conv *internal.Conv, client dynamoClient) {
-	tables, err := listTables(client)
-	if err != nil {
-		conv.Unexpected(fmt.Sprintf("Couldn't get list of table: %s", err))
-		return
-	}
-	if len(tables) == 0 {
-		conv.Unexpected("no DynamoDB table exists under this account")
-		return
-	}
-	for _, t := range tables {
-		input := &dynamodb.DescribeTableInput{
-			TableName: aws.String(t),
-		}
-		result, err := client.DescribeTable(input)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("failed to make a DescribeTable API call for table %v: %v", t, err))
-			return
-		}
-		conv.Stats.Rows[t] = *result.Table.ItemCount
-	}
 }
