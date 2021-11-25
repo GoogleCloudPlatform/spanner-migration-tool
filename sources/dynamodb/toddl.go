@@ -16,6 +16,7 @@
 package dynamodb
 
 import (
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -25,12 +26,21 @@ import (
 type ToDdlImpl struct {
 }
 
+// Functions below implement the common.ToDdl interface
 // toSpannerType maps a scalar source schema type (defined by id and
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
 func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
-	switch columnType.Name {
+	ty, issues := toSpannerTypeInternal(conv, columnType.Name)
+	if conv.TargetDb == constants.TargetExperimentalPostgres {
+		ty = overrideExperimentalType(ty)
+	}
+	return ty, issues
+}
+
+func toSpannerTypeInternal(conv *internal.Conv, id string) (ddl.Type, []internal.SchemaIssue) {
+	switch id {
 	case typeNumber:
 		return ddl.Type{Name: ddl.Numeric}, nil
 	case typeNumberString, typeString, typeList, typeMap:
@@ -48,4 +58,12 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) 
 	default:
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 	}
+}
+
+// Override the types to map to experimental postgres types.
+func overrideExperimentalType(originalType ddl.Type) ddl.Type {
+	if originalType.IsArray {
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+	}
+	return originalType
 }
