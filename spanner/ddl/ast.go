@@ -331,29 +331,29 @@ func NewSchema() Schema {
 
 // Tables are ordered in alphabetical order with one exception: interleaved
 // tables appear after the definition of their parent table.
-func OrderTable(s Schema) []string {
+func OrderTables(s Schema) []string {
 	var tableNames, sortedTableNames []string
 	for t := range s {
 		tableNames = append(tableNames, t)
 	}
 	sort.Strings(tableNames)
 	tableQueue := tableNames
-	printed := make(map[string]bool)
+	tableAdded := make(map[string]bool)
 	for len(tableQueue) > 0 {
 		tableName := tableQueue[0]
 		table := s[tableName]
 		tableQueue = tableQueue[1:]
 
-		// Print table t if either:
+		// Add table t if either:
 		// a) t is not interleaved in another table, or
-		// b) t is interleaved in another table and that table has already been printed.
-		if table.Parent == "" || printed[table.Parent] {
+		// b) t is interleaved in another table and that table has already been added to the list.
+		if table.Parent == "" || tableAdded[table.Parent] {
 			sortedTableNames = append(sortedTableNames, tableName)
-			printed[tableName] = true
+			tableAdded[tableName] = true
 		} else {
-			// We can't print table t now because its parent hasn't been printed.
+			// We can't add table t now because its parent hasn't been added.
 			// Add it at end of tables and we'll try again later.
-			// We might need multiple iterations to print chains of interleaved tables,
+			// We might need multiple iterations to add chains of interleaved tables,
 			// but we will always make progress because interleaved tables can't
 			// have cycles. In principle this could be O(n^2), but in practice chains
 			// of interleaved tables are small.
@@ -369,7 +369,7 @@ func OrderTable(s Schema) []string {
 // definition of their parent table.
 func (s Schema) GetDDL(c Config) []string {
 	var ddl []string
-	sortedTableNames := OrderTable(s)
+	sortedTableNames := OrderTables(s)
 
 	if c.Tables {
 		for _, tableName := range sortedTableNames {
@@ -377,7 +377,6 @@ func (s Schema) GetDDL(c Config) []string {
 			for _, index := range s[tableName].Indexes {
 				ddl = append(ddl, index.PrintCreateIndex(c))
 			}
-
 		}
 	}
 	// Append foreign key constraints to DDL.

@@ -174,6 +174,20 @@ func TestIntegration_MYSQL_Command(t *testing.T) {
 	checkResults(t, dbURI)
 }
 
+func TestIntegration_MySQLInterleaveTable_DataOnlyWithSessionFile(t *testing.T) {
+	onlyRunForEmulatorTest(t)
+	tmpdir := prepareIntegrationTest(t)
+	defer os.RemoveAll(tmpdir)
+
+	dbName := "test-interleave-table-data"
+	sessionFile := "../../test_data/session_test.json"
+
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	runDataOnlyForSessionFile(t, dbName, dbURI, sessionFile)
+	defer dropDatabase(t, dbURI)
+	checkResults(t, dbURI)
+}
+
 func runSchemaOnly(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string) {
 	args := fmt.Sprintf("-driver mysqldump -schema-only -dbname %s -prefix %s < %s", dbName, filePrefix, dumpFilePath)
 	err := common.RunCommand(args, projectID)
@@ -184,6 +198,14 @@ func runSchemaOnly(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath s
 
 func runDataOnly(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dumpFilePath string) {
 	args := fmt.Sprintf("-driver mysqldump -data-only -instance %s -dbname %s -prefix %s -session %s < %s", instanceID, dbName, filePrefix, sessionFile, dumpFilePath)
+	err := common.RunCommand(args, projectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func runDataOnlyForSessionFile(t *testing.T, dbName, dbURI, sessionFile string) {
+	args := fmt.Sprintf("-driver mysql -instance %s -dbname %s -session %s -data-only", instanceID, dbName, sessionFile)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
