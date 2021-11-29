@@ -80,7 +80,7 @@ func ProcessData(conv *internal.Conv, infoSchema InfoSchema, writer *spanner.Bat
 	orderTableNames := ddl.OrderTables(conv.SpSchema)
 
 	for _, spannerTable := range orderTableNames {
-		srcTable := conv.ToSource[spannerTable].Name
+		srcTable, _ := internal.GetSourceTable(conv, spannerTable)
 		srcSchema := conv.SrcSchema[srcTable]
 		spTable, err1 := internal.GetSpannerTable(conv, srcTable)
 		spCols, err2 := internal.GetSpannerCols(conv, srcTable, srcSchema.ColNames)
