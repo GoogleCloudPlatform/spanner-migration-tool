@@ -227,7 +227,7 @@ func dataFromDatabase(driver, sqlConnectionStr string, config spanner.BatchWrite
 		func(table string, cols []string, vals []interface{}) {
 			writer.AddRow(table, cols, vals)
 		})
-	common.ProcessData(conv, infoSchema)
+	common.ProcessData(conv, infoSchema, writer)
 	writer.Flush()
 	return writer, nil
 }
