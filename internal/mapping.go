@@ -59,7 +59,7 @@ func GetSourceTable(conv *Conv, spTable string) (string, error) {
 		return "", fmt.Errorf("bad parameter: table string is empty")
 	}
 
-	if srcTable, found := conv.ToSpanner[spTable]; found {
+	if srcTable, found := conv.ToSource[spTable]; found {
 		return srcTable.Name, nil
 	} else {
 		return "", fmt.Errorf("bad parameter: spanner table mapping not found ")
