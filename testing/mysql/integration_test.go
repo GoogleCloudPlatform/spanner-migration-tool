@@ -183,7 +183,7 @@ func TestIntegration_MySQLInterleaveTable_DataOnlyWithSessionFile(t *testing.T) 
 	sessionFile := "../../test_data/session_test.json"
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	runDataOnlyForSessionFile(t, dbName, dbURI, sessionFile)
+	runDataOnlySubcommandForSessionFile(t, dbName, dbURI, sessionFile)
 	defer dropDatabase(t, dbURI)
 	checkResults(t, dbURI)
 }
@@ -198,14 +198,6 @@ func runSchemaOnly(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath s
 
 func runDataOnly(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dumpFilePath string) {
 	args := fmt.Sprintf("-driver mysqldump -data-only -instance %s -dbname %s -prefix %s -session %s < %s", instanceID, dbName, filePrefix, sessionFile, dumpFilePath)
-	err := common.RunCommand(args, projectID)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func runDataOnlyForSessionFile(t *testing.T, dbName, dbURI, sessionFile string) {
-	args := fmt.Sprintf("-driver mysql -instance %s -dbname %s -session %s -data-only", instanceID, dbName, sessionFile)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -270,6 +262,14 @@ func runDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dum
 
 func runSchemaAndDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, dumpFilePath string) {
 	args := fmt.Sprintf("schema-and-data -source=mysql -prefix %s -target-profile='instance=%s,dbname=%s' < %s", filePrefix, instanceID, dbName, dumpFilePath)
+	err := common.RunCommand(args, projectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func runDataOnlySubcommandForSessionFile(t *testing.T, dbName, dbURI, sessionFile string) {
+	args := fmt.Sprintf("data -source=mysql -session %s -target-profile='instance=%s,dbname=%s'", sessionFile, instanceID, dbName)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
