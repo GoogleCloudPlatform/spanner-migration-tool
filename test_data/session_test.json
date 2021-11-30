@@ -301,6 +301,6 @@
         "Reparsed": 0
     },
     "TimezoneOffset": "+00:00",
-    "TargetDb": "",
+    "TargetDb": "spanner",
     "UniquePKey": {}
 }
