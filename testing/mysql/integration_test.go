@@ -269,7 +269,8 @@ func runSchemaAndDataSubcommand(t *testing.T, dbName, dbURI, filePrefix, dumpFil
 }
 
 func runDataOnlySubcommandForSessionFile(t *testing.T, dbName, dbURI, sessionFile string) {
-	args := fmt.Sprintf("data -source=mysql -session %s -target-profile='instance=%s,dbname=%s'", sessionFile, instanceID, dbName)
+	host, user, password := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), os.Getenv("MYSQLPWD")
+	args := fmt.Sprintf("data -source=mysql -session %s -source-profile='host=%s,user=%s,db_name=%s,password=%s' -target-profile='instance=%s,dbname=%s' ", sessionFile, host, user, dbName, password, instanceID, dbName)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
