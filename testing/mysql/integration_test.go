@@ -350,6 +350,7 @@ func checkBigInt(ctx context.Context, t *testing.T, client *spanner.Client) {
 	for {
 		row, err := iter.Next()
 		if err == iterator.Done {
+			print("\niterator done\n")
 			break
 		}
 		if err != nil {
