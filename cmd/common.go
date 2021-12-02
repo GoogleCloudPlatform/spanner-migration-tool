@@ -88,6 +88,9 @@ func getSQLConnectionStr(sourceProfile SourceProfile) string {
 		case SourceProfileConnectionTypePostgreSQL:
 			connParams := sourceProfile.conn.pg
 			return conversion.GetPGSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
+		case SourceProfileConnectionTypeSqlServer:
+			connParams := sourceProfile.conn.sqlserver
+			return conversion.GetSQLSERVERConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
 		case SourceProfileConnectionTypeDynamoDB:
 			// For DynamoDB, client provided by aws-sdk reads connection credentials from env variables only.
 			// Thus, there is no need to create sqlConnectionStr for the same. We instead set the env variables

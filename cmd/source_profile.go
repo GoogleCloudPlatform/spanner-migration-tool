@@ -46,6 +46,7 @@ const (
 	SourceProfileConnectionTypeMySQL
 	SourceProfileConnectionTypePostgreSQL
 	SourceProfileConnectionTypeDynamoDB
+	SourceProfileConnectionTypeSqlServer
 )
 
 type SourceProfileConnectionMySQL struct {
@@ -160,6 +161,45 @@ func NewSourceProfileConnectionPostgreSQL(params map[string]string) (SourceProfi
 	return pg, nil
 }
 
+type SourceProfileConnectionSqlServer struct {
+	host string
+	port string
+	user string
+	db   string
+	pwd  string
+}
+
+func NewSourceProfileConnectionSqlServer(params map[string]string) (SourceProfileConnectionSqlServer, error) {
+	ss := SourceProfileConnectionSqlServer{}
+	host, hostOk := params["host"]
+	user, userOk := params["user"]
+	db, dbOk := params["db_name"]
+	port, _ := params["port"]
+	pwd, _ := params["password"]
+
+	if hostOk && userOk && dbOk {
+		// All connection params provided through source-profile. Port and password handled later.
+		ss.host, ss.user, ss.db, ss.port, ss.pwd = host, user, db, port, pwd
+		// Throw error if the input entered is empty.
+		if ss.host == "" || ss.user == "" || ss.db == "" {
+			return ss, fmt.Errorf("found empty string for host/user/db_name. Please specify host, port, user and db_name in the source-profile")
+		}
+	} else {
+		// Partial params provided through source-profile. Ask user to provide all through the source-profile.
+		return ss, fmt.Errorf("please specify host, port, user and db_name in the source-profile")
+	}
+
+	if ss.port == "" {
+		// Set default port for postgresql, which rarely changes.
+		ss.port = "1433"
+	}
+	if ss.pwd == "" {
+		ss.pwd = conversion.GetPassword()
+	}
+
+	return ss, nil
+}
+
 type SourceProfileConnectionDynamoDB struct {
 	// These connection params are not used currently because the SDK reads directly from the env variables.
 	// These are still kept around as reference when we refactor passing
@@ -200,10 +240,11 @@ func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfile
 }
 
 type SourceProfileConnection struct {
-	ty    SourceProfileConnectionType
-	mysql SourceProfileConnectionMySQL
-	pg    SourceProfileConnectionPostgreSQL
-	dydb  SourceProfileConnectionDynamoDB
+	ty        SourceProfileConnectionType
+	mysql     SourceProfileConnectionMySQL
+	pg        SourceProfileConnectionPostgreSQL
+	dydb      SourceProfileConnectionDynamoDB
+	sqlserver SourceProfileConnectionSqlServer
 }
 
 func NewSourceProfileConnection(source string, params map[string]string) (SourceProfileConnection, error) {
@@ -230,6 +271,14 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 		{
 			conn.ty = SourceProfileConnectionTypeDynamoDB
 			conn.dydb, err = NewSourceProfileConnectionDynamoDB(params)
+			if err != nil {
+				return conn, err
+			}
+		}
+	case "sqlserver":
+		{
+			conn.ty = SourceProfileConnectionTypeSqlServer
+			conn.sqlserver, err = NewSourceProfileConnectionSqlServer(params)
 			if err != nil {
 				return conn, err
 			}
@@ -283,6 +332,8 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 				return constants.POSTGRES, nil
 			case "dynamodb":
 				return constants.DYNAMODB, nil
+			case "sqlserver":
+				return constants.SQLSERVER, nil
 			default:
 				return "", fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
 			}
@@ -339,7 +390,9 @@ func NewSourceProfile(s string, source string) (SourceProfile, error) {
 }
 
 var filePipedToStdin = func() bool {
-	stat, _ := os.Stdin.Stat()
-	// Data is being piped to stdin, if true. Else, stdin is from a terminal.
-	return (stat.Mode() & os.ModeCharDevice) == 0
+	// stat, _ := os.Stdin.Stat()
+	// // Data is being piped to stdin, if true. Else, stdin is from a terminal.
+	// return (stat.Mode() & os.ModeCharDevice) == 0
+
+	return false
 }

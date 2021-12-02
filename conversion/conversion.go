@@ -61,6 +61,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -81,7 +82,7 @@ var (
 // When using source-profile, the sqlConnectionStr is constructed from the input params.
 func SchemaConv(driver, sqlConnectionStr, targetDb string, ioHelper *IOStreams, schemaSampleSize int64) (*internal.Conv, error) {
 	switch driver {
-	case constants.POSTGRES, constants.MYSQL:
+	case constants.POSTGRES, constants.MYSQL, constants.SQLSERVER:
 		return schemaFromSQL(driver, sqlConnectionStr, targetDb)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		return schemaFromDump(driver, targetDb, ioHelper)
@@ -126,6 +127,8 @@ func generateSQLConnectionStr(driver string) (string, error) {
 		return generatePGSQLConnectionStr()
 	case constants.MYSQL:
 		return generateMYSQLConnectionStr()
+	case constants.SQLSERVER:
+		return generateSQLSERVERConnectionStr()
 	default:
 		return "", fmt.Errorf("driver %s not supported", driver)
 	}
@@ -169,6 +172,26 @@ func generateMYSQLConnectionStr() (string, error) {
 
 func GetMYSQLConnectionStr(server, port, user, password, dbname string) string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, server, port, dbname)
+}
+
+func generateSQLSERVERConnectionStr() (string, error) {
+	server := os.Getenv("SSHOST")
+	port := os.Getenv("SSPORT")
+	user := os.Getenv("SSUSER")
+	dbname := os.Getenv("SSDATABASE")
+	if server == "" || port == "" || user == "" || dbname == "" {
+		fmt.Printf("Please specify host, port, user and database using SSHOST, SSPORT, SSUSER and SSDATABASE environment variables\n")
+		return "", fmt.Errorf("could not connect to source database")
+	}
+	password := os.Getenv("SSPASSWORD")
+	if password == "" {
+		password = GetPassword()
+	}
+	return GetSQLSERVERConnectionStr(server, port, user, password, dbname), nil
+}
+
+func GetSQLSERVERConnectionStr(server, port, user, password, dbname string) string {
+	return fmt.Sprintf(`sqlserver://%s:%s@%s:%s?database=%s`, user, password, server, port, dbname)
 }
 
 func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
@@ -1165,6 +1188,8 @@ func ProcessSchema(driver string, conv *internal.Conv, db *sql.DB) error {
 		return common.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: conv.SrcDbName, Db: db})
 	case constants.POSTGRES:
 		return common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: db})
+	case constants.SQLSERVER:
+		return common.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: conv.SrcDbName, Db: db})
 	default:
 		return fmt.Errorf("schema conversion for driver %s not supported", driver)
 	}
