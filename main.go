@@ -98,6 +98,8 @@ func main() {
 	}
 	defer conversion.Close(lf)
 
+	fmt.Print("\nmain.go\n")
+
 	// TODO: Remove this check and always run HB in subcommands mode once
 	// global command line mode is deprecated. We can also enable support for
 	// top-level flags in subcommand then.
