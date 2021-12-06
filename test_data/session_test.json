@@ -101,7 +101,7 @@
     "SrcSchema": {
         "cart": {
             "Name": "cart",
-            "Schema": "shreya",
+            "Schema": "test_interleave_table_data",
             "ColNames": [
                 "user_id",
                 "product_id",
@@ -192,7 +192,7 @@
         },
         "user": {
             "Name": "user",
-            "Schema": "shreya",
+            "Schema": "test_interleave_table_data",
             "ColNames": [
                 "user_id",
                 "user_name"

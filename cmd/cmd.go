@@ -40,7 +40,6 @@ var (
 func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, schemaOnly, skipForeignKeys bool, schemaSampleSize int64, sessionJSON string, ioHelper *conversion.IOStreams, outputFilePrefix string, now time.Time) error {
 	var conv *internal.Conv
 	var err error
-	fmt.Print("\nmain.go\n")
 	if !dataOnly {
 		// We pass an empty string to the sqlConnectionStr parameter as this is the legacy codepath,
 		// which reads the environment variables and constructs the string later on.
