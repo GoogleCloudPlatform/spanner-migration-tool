@@ -1,7 +1,22 @@
+// Copyright 2020 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // INFOSCHEMA interface implementation for sql server.
 // took refrence from postgress
 // some method is not convert for sql server those method marked as
 // [ps**]
+
 package sqlserver
 
 import (
@@ -41,9 +56,6 @@ func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 //[ps*]
 // GetRowsFromTable returns a sql Rows object for a table.
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
-	// PostgreSQL schema and name can be arbitrary strings.
-	// Ideally we would pass schema/name as a query parameter,
-	// but PostgreSQL doesn't support this. So we quote it instead.
 	q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, conv.SrcSchema[srcTable].Schema, srcTable)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
@@ -146,9 +158,6 @@ func convertSQLRow(conv *internal.Conv, srcTable string, srcCols []string, srcSc
 //[ps*]
 // GetRowCount with number of rows in each table.
 func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error) {
-	// PostgreSQL schema and name can be arbitrary strings.
-	// Ideally we would pass schema/name as a query parameter,
-	// but PostgreSQL doesn't support this. So we quote it instead.
 	q := fmt.Sprintf(`SELECT COUNT(*) FROM "%s"."%s";`, table.Schema, table.Name)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
@@ -165,12 +174,14 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 
 // GetTables return list of tables in the selected database.
 func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
-	ignored := make(map[string]bool)
-	// Ignore all system tables: we just want to convert user tables.
-	for _, s := range []string{"information_schema", "postgres", "pg_catalog", "pg_temp_1", "pg_toast", "pg_toast_temp_1"} {
-		ignored[s] = true
-	}
-	q := "SELECT table_schema, table_name FROM information_schema.tables where table_type = 'BASE TABLE'"
+	q := `	
+		SELECT 
+			sc.name AS table_schema, 
+			tbls.name AS table_name
+		FROM sys.tables AS tbls
+		INNER JOIN sys.schemas AS sc on sc.schema_id = tbls.schema_id
+		WHERE tbls.type = 'U' AND tbls.is_tracked_by_cdc = 0
+	`
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get tables: %w", err)
@@ -181,20 +192,26 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	var tables []common.SchemaAndName
 	for rows.Next() {
 		rows.Scan(&tableSchema, &tableName)
-		if !ignored[tableSchema] {
-			tables = append(tables, common.SchemaAndName{Schema: tableSchema, Name: tableName})
-		}
+		tables = append(tables, common.SchemaAndName{Schema: tableSchema, Name: tableName})
 	}
 	return tables, nil
 }
 
 // GetColumns returns a list of Column objects and names
 func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
-	q := `SELECT column_name, data_type, is_nullable, column_default, 
-			character_maximum_length, numeric_precision, numeric_scale
-           FROM information_schema.COLUMNS 
-		   where table_schema = @p1 and table_name = @p2 
-		   ORDER BY ordinal_position;`
+	q := `
+		SELECT 
+			column_name, 
+			data_type, 
+			is_nullable, 
+			column_default, 
+			character_maximum_length, 
+			numeric_precision, 
+			numeric_scale
+		FROM information_schema.COLUMNS 
+		WHERE table_schema = @p1 and table_name = @p2 
+		ORDER BY ordinal_position;
+	`
 	cols, err := isi.Db.Query(q, table.Schema, table.Name)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
@@ -242,12 +259,15 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
 func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, map[string][]string, error) {
-	q := `SELECT k.COLUMN_NAME, t.CONSTRAINT_TYPE
-              FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
-                INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k
-                  ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA
-              WHERE k.TABLE_SCHEMA = @p1 AND k.TABLE_NAME = @p2 ORDER BY k.ordinal_position;`
-
+	q := `
+		SELECT 
+			k.COLUMN_NAME, 
+			t.CONSTRAINT_TYPE
+		FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t
+		INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k 
+			ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA
+		WHERE k.TABLE_SCHEMA = @p1 AND k.TABLE_NAME = @p2 ORDER BY k.ordinal_position;
+	`
 	rows, err := isi.Db.Query(q, table.Schema, table.Name)
 	if err != nil {
 		return nil, nil, err
@@ -278,7 +298,8 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 
 // GetForeignKeys returns a list of all the foreign key constraints.
 func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
-	q := `SELECT  
+	q := `
+		SELECT  
 			sch.name AS [schema_name],
 			tab2.name AS [referenced_table],
 			col1.name AS [column],
@@ -296,8 +317,8 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 		INNER JOIN sys.tables tab2
 			ON tab2.object_id = fkc.referenced_object_id
 		INNER JOIN sys.columns col2
-			ON col2.column_id = referenced_column_id AND col2.object_id = tab2.object_id and tab1.name =@p1`
-
+			ON col2.column_id = referenced_column_id AND col2.object_id = tab2.object_id and tab1.name =@p1
+	`
 	rows, err := isi.Db.Query(q, table.Name)
 	if err != nil {
 		return nil, err
@@ -343,24 +364,22 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 // for background.
 func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName) ([]schema.Index, error) {
 	q2 := `
-	SELECT
-     ix.name, 
-     COL_NAME(ix.object_id, ixc.column_id) as [Column Name],
-	 ix.is_unique,
-     ixc.is_descending_key FROM
-     sys.indexes ix INNER JOIN
-     sys.index_columns ixc 
-        ON  ix.object_id = ixc.object_id 
-        and ix.index_id = ixc.index_id
-	INNER JOIN
-     sys.tables tab 
-        ON ix.object_id = tab.object_id 
-	WHERE
-     ix.is_primary_key = 0          
-     AND ix.is_unique_constraint = 0 
-     AND tab.is_ms_shipped = 0   
-	 and tab.name=@p1
-	ORDER BY ix.name ;
+		SELECT
+			ix.name, 
+			COL_NAME(ix.object_id, ixc.column_id) as [Column Name],
+			ix.is_unique,
+			ixc.is_descending_key 
+		FROM sys.indexes ix 
+		INNER JOIN sys.index_columns ixc 
+			ON  ix.object_id = ixc.object_id AND ix.index_id = ixc.index_id
+		INNER JOIN sys.tables tab 
+			ON ix.object_id = tab.object_id 
+		WHERE
+			ix.is_primary_key = 0          
+			AND ix.is_unique_constraint = 0 
+			AND tab.is_ms_shipped = 0   
+			AND tab.name=@p1
+			ORDER BY ix.name ;
 	`
 	rows, err := isi.Db.Query(q2, table.Name)
 	if err != nil {
