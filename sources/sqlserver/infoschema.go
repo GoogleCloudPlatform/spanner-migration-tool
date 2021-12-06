@@ -201,7 +201,8 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	}
 	colDefs := make(map[string]schema.Column)
 	var colNames []string
-	var colName, dataType, isNullable string
+	var colName, dataType string
+	var isNullable bool
 	var colDefault sql.NullString
 	// elementDataType
 	var charMaxLen, numericPrecision, numericScale sql.NullInt64
@@ -227,7 +228,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		c := schema.Column{
 			Name:    colName,
 			Type:    toType(dataType, charMaxLen, numericPrecision, numericScale),
-			NotNull: common.ToNotNull(conv, isNullable),
+			NotNull: !isNullable,
 			Ignored: ignored,
 		}
 		colDefs[colName] = c
