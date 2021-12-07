@@ -26,6 +26,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -51,17 +52,6 @@ func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 		return tableName
 	}
 	return fmt.Sprintf("%s.%s", schema, tableName)
-}
-
-//[ps*]
-// GetRowsFromTable returns a sql Rows object for a table.
-func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
-	q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, conv.SrcSchema[srcTable].Schema, srcTable)
-	rows, err := isi.Db.Query(q)
-	if err != nil {
-		return nil, err
-	}
-	return rows, err
 }
 
 //[ps*]
@@ -114,6 +104,29 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 	return nil
 }
 
+// GetRowsFromTable returns a sql Rows object for a table.
+func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
+	q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, conv.SrcSchema[srcTable].Schema, srcTable)
+	rows, err := isi.Db.Query(q)
+	if err != nil {
+		return nil, err
+	}
+	return rows, err
+}
+
+//[ps*]
+// buildVals contructs interface{} value containers to scan row
+// results into.  Returns both the underlying containers (as a slice)
+// as well as an interface{} of pointers to containers to pass to
+// rows.Scan.
+func buildVals(n int) (v []interface{}, iv []interface{}) {
+	v = make([]interface{}, n)
+	for i := range v {
+		iv = append(iv, &v[i])
+	}
+	return v, iv
+}
+
 //[ps*]
 // ConvertSQLRow performs data conversion for a single row of data
 // returned from a 'SELECT *' query. ConvertSQLRow assumes that
@@ -155,10 +168,9 @@ func convertSQLRow(conv *internal.Conv, srcTable string, srcCols []string, srcSc
 	return cs, vs, nil
 }
 
-//[ps*]
 // GetRowCount with number of rows in each table.
 func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error) {
-	q := fmt.Sprintf(`SELECT COUNT(*) FROM "%s"."%s";`, table.Schema, table.Name)
+	q := fmt.Sprintf(`SELECT COUNT(1) FROM "%s"."%s";`, table.Schema, table.Name)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return 0, err
@@ -219,7 +231,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	colDefs := make(map[string]schema.Column)
 	var colNames []string
 	var colName, dataType string
-	var isNullable bool
+	var isNullable string
 	var colDefault sql.NullString
 	// elementDataType
 	var charMaxLen, numericPrecision, numericScale sql.NullInt64
@@ -245,7 +257,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		c := schema.Column{
 			Name:    colName,
 			Type:    toType(dataType, charMaxLen, numericPrecision, numericScale),
-			NotNull: !isNullable,
+			NotNull: strings.ToUpper(isNullable) == "NO",
 			Ignored: ignored,
 		}
 		colDefs[colName] = c
@@ -538,19 +550,6 @@ func cvtSQLScalar(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, 
 		}
 	}
 	return nil, fmt.Errorf("can't convert value of type %s to Spanner type %s", reflect.TypeOf(val), reflect.TypeOf(spCd.T))
-}
-
-//[ps*]
-// buildVals contructs interface{} value containers to scan row
-// results into.  Returns both the underlying containers (as a slice)
-// as well as an interface{} of pointers to containers to pass to
-// rows.Scan.
-func buildVals(n int) (v []interface{}, iv []interface{}) {
-	v = make([]interface{}, n)
-	for i := range v {
-		iv = append(iv, &v[i])
-	}
-	return v, iv
 }
 
 //[ps*]
