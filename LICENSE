@@ -202,7 +202,7 @@
 
 --------------------------------------------------------------------------------
 
-test_data/frontend/sakila-schema.sql and test_data/frontend/sakila.sql
+test_data/frontend/sakila-schema.sql and test_data/frontend/sakila.sql: 3-Clause BSD
 
 Copyright (c) 2006, 2019, Oracle and/or its affiliates.
 
