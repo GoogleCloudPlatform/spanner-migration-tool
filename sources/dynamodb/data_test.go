@@ -33,58 +33,37 @@ type spannerData struct {
 	vals  []interface{}
 }
 
-func TestProcessData(t *testing.T) {
+func TestProcessDataRow(t *testing.T) {
 	strA := "str-1"
-	strB := "str-2"
 	numStr1 := "10.1"
 	numStr2 := "12.34"
-	numStr3 := "89.0"
 	numVal1 := big.NewRat(101, 10)
-	numVal2 := big.NewRat(89, 1)
 
 	boolVal := true
-	scanOutputs := []dynamodb.ScanOutput{
+	items := []map[string]*dynamodb.AttributeValue{
 		{
-			Items: []map[string]*dynamodb.AttributeValue{
-				{
-					"a": {S: &strA},
-					"b": {N: &numStr1},
-					"c": {N: &numStr2},
-					"d": {BOOL: &boolVal},
-				},
-			},
-			LastEvaluatedKey: map[string]*dynamodb.AttributeValue{
-				"a": {S: &strA},
-			},
+			"a": {S: &strA},
+			"b": {N: &numStr1},
+			"c": {N: &numStr2},
+			"d": {BOOL: &boolVal},
 		},
-		{
-			Items: []map[string]*dynamodb.AttributeValue{
-				{
-					"a": {S: &strB},
-					"b": {N: &numStr3},
-				},
-			},
-		},
-	}
-
-	client := &mockDynamoClient{
-		scanOutputs: scanOutputs,
 	}
 
 	tableName := "testtable"
 	cols := []string{"a", "b", "c", "d"}
-	conv := buildConv(
-		ddl.CreateTable{
-			Name:     tableName,
-			ColNames: cols,
-			ColDefs: map[string]ddl.ColumnDef{
-				"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-				"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
-				"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-				"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
-			},
-			Pks: []ddl.IndexKey{{Col: "a"}},
+	spSchema := ddl.CreateTable{
+		Name:     tableName,
+		ColNames: cols,
+		ColDefs: map[string]ddl.ColumnDef{
+			"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
+			"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
 		},
+		Pks: []ddl.IndexKey{{Col: "a"}},
+	}
+	conv := buildConv(
+		spSchema,
 		schema.Table{
 			Name:     tableName,
 			ColNames: cols,
@@ -103,18 +82,15 @@ func TestProcessData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	ProcessData(conv, client)
+	for _, attrsMap := range items {
+		ProcessDataRow(attrsMap, conv, tableName, conv.SrcSchema[tableName], tableName, cols, spSchema)
+	}
 	assert.Equal(t,
 		[]spannerData{
 			{
 				table: tableName,
 				cols:  cols,
 				vals:  []interface{}{"str-1", *numVal1, "12.34", true},
-			},
-			{
-				table: tableName,
-				cols:  cols,
-				vals:  []interface{}{"str-2", *numVal2, nil, nil},
 			},
 		},
 		rows,
@@ -149,7 +125,34 @@ func TestCvtRowWithError(t *testing.T) {
 	assert.Equal(t, []string{attrs["a"].GoString()}, srcStrVals)
 }
 
-func TestCvtColValue(t *testing.T) {
+func TestConvArray(t *testing.T) {
+	str := "str-1"
+	stringSetVal := []*string{&str}
+	binarySetVal := [][]byte{[]byte("ABC")}
+	numStr := "1234.56789"
+	numVal := big.NewRat(123456789, 100000)
+
+	testcases := []struct {
+		name    string
+		srcType string                   // Source DB type.
+		spType  string                   // Spanner DB type.
+		in      *dynamodb.AttributeValue // Input value for conversion.
+		want    interface{}              // Expected result.
+	}{
+		{"binary set", typeBinarySet, ddl.Bytes, &dynamodb.AttributeValue{BS: binarySetVal}, binarySetVal},
+		{"string set", typeStringSet, ddl.String, &dynamodb.AttributeValue{SS: stringSetVal}, []string{str}},
+		{"number string set", typeNumberStringSet, ddl.String, &dynamodb.AttributeValue{NS: []*string{&numStr}}, []string{numStr}},
+		{"number set", typeNumberSet, ddl.Numeric, &dynamodb.AttributeValue{NS: []*string{&numStr}}, []big.Rat{*numVal}},
+	}
+
+	for _, tc := range testcases {
+		cvtVal, err := convArray(tc.in, tc.srcType, tc.spType)
+		assert.Nil(t, err, fmt.Sprintf("Failed to convert %v from %s to %s", tc.in, typeString, ddl.String))
+		assert.Equal(t, tc.want, cvtVal, tc.name)
+	}
+}
+
+func TestConvScalar(t *testing.T) {
 	str := "str-1"
 	numStr := "1234.56789"
 	boolVal := true
@@ -174,19 +177,19 @@ func TestCvtColValue(t *testing.T) {
 	}{
 		{"bool", typeBool, ddl.Bool, &dynamodb.AttributeValue{BOOL: &boolVal}, true},
 		{"binary", typeBinary, ddl.Bytes, &dynamodb.AttributeValue{B: binaryVal}, binaryVal},
-		{"binary set", typeBinarySet, ddl.Bytes, &dynamodb.AttributeValue{BS: binarySetVal}, binarySetVal},
+		{"binary set", typeBinarySet, ddl.String, &dynamodb.AttributeValue{BS: binarySetVal}, "[\"ABC\"]"},
 		{"map", typeMap, ddl.String, &dynamodb.AttributeValue{M: mapVal}, "{\"list\":[\"str-1\",\"1234.56789\"]}"},
 		{"list", typeList, ddl.String, &dynamodb.AttributeValue{L: listVal}, "[\"str-1\",\"1234.56789\"]"},
 		{"string", typeString, ddl.String, &dynamodb.AttributeValue{S: &str}, str},
-		{"string set", typeStringSet, ddl.String, &dynamodb.AttributeValue{SS: stringSetVal}, []string{str}},
+		{"string set", typeStringSet, ddl.String, &dynamodb.AttributeValue{SS: stringSetVal}, "[\"str-1\"]"},
 		{"number string", typeNumberString, ddl.String, &dynamodb.AttributeValue{N: &numStr}, numStr},
-		{"number string set", typeNumberStringSet, ddl.String, &dynamodb.AttributeValue{NS: []*string{&numStr}}, []string{numStr}},
+		{"number string set", typeNumberStringSet, ddl.String, &dynamodb.AttributeValue{NS: []*string{&numStr}}, "[\"1234.56789\"]"},
 		{"number", typeNumber, ddl.Numeric, &dynamodb.AttributeValue{N: &numStr}, *numVal},
-		{"number set", typeNumberSet, ddl.Numeric, &dynamodb.AttributeValue{NS: []*string{&numStr}}, []big.Rat{*numVal}},
+		{"number set", typeNumberSet, ddl.String, &dynamodb.AttributeValue{NS: []*string{&numStr}}, "[\"1234.56789\"]"},
 	}
 
 	for _, tc := range testcases {
-		cvtVal, err := cvtColValue(tc.in, tc.srcType, tc.spType)
+		cvtVal, err := convScalar(tc.in, tc.srcType, tc.spType)
 		assert.Nil(t, err, fmt.Sprintf("Failed to convert %v from %s to %s", tc.in, typeString, ddl.String))
 		assert.Equal(t, tc.want, cvtVal, tc.name)
 	}

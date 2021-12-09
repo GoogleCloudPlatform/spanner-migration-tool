@@ -98,9 +98,9 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 	}
 
 	sqlConnectionStr := getSQLConnectionStr(sourceProfile)
-
+	schemaSampleSize := getSchemaSampleSize(sourceProfile)
 	var conv *internal.Conv
-	conv, err = conversion.SchemaConv(driverName, sqlConnectionStr, targetDb, &ioHelper, getSchemaSampleSize(sourceProfile))
+	conv, err = conversion.SchemaConv(driverName, sqlConnectionStr, targetDb, &ioHelper, schemaSampleSize)
 	if err != nil {
 		panic(err)
 	}
@@ -134,7 +134,7 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 		return subcommands.ExitFailure
 	}
 
-	bw, err := conversion.DataConv(driverName, sqlConnectionStr, &ioHelper, client, conv, true)
+	bw, err := conversion.DataConv(driverName, sqlConnectionStr, &ioHelper, client, conv, true, schemaSampleSize)
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 		return subcommands.ExitFailure

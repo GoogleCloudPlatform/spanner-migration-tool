@@ -243,7 +243,7 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	var keys []string
 	for _, cn := range ct.ColNames {
 		s, c := ct.ColDefs[cn].PrintColumnDef(config)
-		s = "\t" + s + ",\n"
+		s = "\t" + s + ","
 		col = append(col, s)
 		colComment = append(colComment, c)
 	}
@@ -255,6 +255,7 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 		if config.Comments && len(colComment[i]) > 0 {
 			cols += strings.Repeat(" ", n-len(c)) + " -- " + colComment[i]
 		}
+		cols += "\n"
 	}
 
 	for _, p := range ct.Pks {
