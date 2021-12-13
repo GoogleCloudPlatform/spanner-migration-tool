@@ -11,50 +11,11 @@
             "mode": "auto",
             "program": "${fileDirname}",
             "args": [
-                "-driver=mysqldump", 
-                "-instance=e2e-spanner-testing", 
-                "-v=true", 
+                "-driver=mysqldump",
+                "-instance=e2e-spanner-testing",
+                "-v=true",
                 "-dump-file="
             ]
-        },
-        {
-            "name": "Schema conv",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceRoot}/main.go",
-            "args": [
-                    "schema",
-                    "-source=sqlserver",
-                    "-source-profile=host=34.135.106.226,port=1433,user=sa,db_name=AdventureWorksLT2019,password=P@ssw0rd.1"
-            ]
-        },
-        {
-            "name": "web",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceRoot}/main.go",
-            "args": [
-                "--web",
-            ]
-        },
-        {
-            "name": "cli_pg_direct_connect",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceRoot}/main.go",
-            "args": [
-                "schema",
-                "-source=postgres",
-                "-source-profile=host=localhost,port=5432,user=postgres,db_name=dvdrental,password=P@ssw0rd@123"
-            ]
-        },
+        }
     ]
 }
-
-
-// Sagar : sqlserver direct connection srcschema extrection 40%
-// anupam : sqlserver dump file conversion  srcschema extrection
-// Shelly : oracle direct connection  srcschema extrection
