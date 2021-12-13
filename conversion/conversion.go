@@ -58,6 +58,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/csv"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
@@ -404,6 +405,47 @@ func dataFromDump(driver string, config spanner.BatchWriterConfig, ioHelper *IOS
 	writer.Flush()
 	p.Done()
 
+	return writer, nil
+}
+
+func DataFromCSV(conv *internal.Conv, manifestFile string, client *sp.Client, targetDb string) (*spanner.BatchWriter, error) {
+	tables, err := csv.LoadManifest(manifestFile)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the number of rows in each csv file for generating stats.
+	csv.SetRowStats(conv, tables)
+	totalRows := conv.Rows()
+	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
+	rows := int64(0)
+	config := spanner.BatchWriterConfig{
+		BytesLimit: 100 * 1000 * 1000,
+		WriteLimit: 40,
+		RetryLimit: 1000,
+		Verbose:    internal.Verbose(),
+	}
+	config.Write = func(m []*sp.Mutation) error {
+		_, err := client.Apply(context.Background(), m)
+		if err != nil {
+			return err
+		}
+		atomic.AddInt64(&rows, int64(len(m)))
+		p.MaybeReport(atomic.LoadInt64(&rows))
+		return nil
+	}
+	writer := spanner.NewBatchWriter(config)
+	conv.SetDataMode()
+	conv.SetDataSink(
+		func(table string, cols []string, vals []interface{}) {
+			writer.AddRow(table, cols, vals)
+		})
+	err = csv.ProcessCSV(conv, tables)
+	if err != nil {
+		return nil, fmt.Errorf("can't process csv: %v", err)
+	}
+	writer.Flush()
+	p.Done()
 	return writer, nil
 }
 

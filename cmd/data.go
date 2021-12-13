@@ -8,6 +8,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/google/subcommands"
@@ -101,6 +102,29 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	}
 
 	conv := internal.MakeConv()
+
+	client, err := conversion.GetClient(ctx, dbURI)
+	if err != nil {
+		err = fmt.Errorf("can't create client for db %s: %v", dbURI, err)
+		return subcommands.ExitFailure
+	}
+	defer client.Close()
+
+	// If using CSV mode, follow different code path from here.
+	if driverName == constants.CSV {
+		// TODO: refactor this to go through DataConv(). Fix it when refactoring passing of source-profile throughout the code
+		// to avoid excess parameters in the DataConv and SchemaConv functions.
+		bw, err := conversion.DataFromCSV(conv, sourceProfile.csv.manifest, client, targetDb)
+		if err != nil {
+			fmt.Printf("can't finish data conversion for db %s: %v", dbURI, err)
+			return subcommands.ExitFailure
+		}
+		banner := conversion.GetBanner(now, dbURI)
+		conversion.Report(driverName, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
+		conversion.WriteBadData(bw, conv, banner, cmd.filePrefix+badDataFile, ioHelper.Out)
+
+		return subcommands.ExitSuccess
+	}
 	err = conversion.ReadSessionFile(conv, cmd.sessionJSON)
 	if err != nil {
 		return subcommands.ExitUsageError
@@ -116,12 +140,6 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		return subcommands.ExitFailure
 	}
 	defer adminClient.Close()
-	client, err := conversion.GetClient(ctx, dbURI)
-	if err != nil {
-		err = fmt.Errorf("can't create client for db %s: %v", dbURI, err)
-		return subcommands.ExitFailure
-	}
-	defer client.Close()
 
 	err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, conv, ioHelper.Out)
 	if err != nil {

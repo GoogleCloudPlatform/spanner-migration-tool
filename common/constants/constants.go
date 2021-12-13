@@ -20,6 +20,9 @@ const (
 	// This is an experimental driver; implementation in progress.
 	DYNAMODB string = "dynamodb"
 
+	// CSV is the driver name when loading data using csv.
+	CSV string = "csv"
+
 	// Target db for which schema is being generated.
 	TargetSpanner              string = "spanner"
 	TargetExperimentalPostgres string = "experimental_postgres"
