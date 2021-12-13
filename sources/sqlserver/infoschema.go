@@ -22,18 +22,13 @@ package sqlserver
 import (
 	"database/sql"
 	"fmt"
-	"math/bits"
-	"reflect"
 	"sort"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/golang-sql/civil"
 )
 
 type InfoSchemaImpl struct {
@@ -83,23 +78,18 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 	rows := rowsInterface.(*sql.Rows)
 	defer rows.Close()
 	srcCols, _ := rows.Columns()
-	v, iv := buildVals(len(srcCols))
+	v, scanArgs := buildVals(len(srcCols))
 	for rows.Next() {
-		err := rows.Scan(iv...)
+		// get RawBytes from data.
+		err := rows.Scan(scanArgs...)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
 			// Scan failed, so we don't have any data to add to bad rows.
 			conv.StatsAddBadRow(srcTable, conv.DataMode())
 			continue
 		}
-		cvtCols, cvtVals, err := convertSQLRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, v)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
-			conv.StatsAddBadRow(srcTable, conv.DataMode())
-			conv.CollectBadRow(srcTable, srcCols, valsToStrings(v))
-			continue
-		}
-		conv.WriteRow(srcTable, spTable, cvtCols, cvtVals)
+		values := valsToStrings(v)
+		ProcessDataRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, values)
 	}
 	return nil
 }
@@ -127,50 +117,9 @@ func buildVals(n int) (v []interface{}, iv []interface{}) {
 	return v, iv
 }
 
-//[ps*]
-// ConvertSQLRow performs data conversion for a single row of data
-// returned from a 'SELECT *' query. ConvertSQLRow assumes that
-// srcCols, spCols and srcVals all have the same length. Note that
-// ConvertSQLRow returns cols as well as converted values. This is
-// because cols can change when we add a column (synthetic primary
-// key) or because we drop columns (handling of NULL values).
-func convertSQLRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, srcVals []interface{}) ([]string, []interface{}, error) {
-	var vs []interface{}
-	var cs []string
-	for i := range srcCols {
-		srcCd, ok1 := srcSchema.ColDefs[srcCols[i]]
-		spCd, ok2 := spSchema.ColDefs[spCols[i]]
-		if !ok1 || !ok2 {
-			return nil, nil, fmt.Errorf("data conversion: can't find schema for column %s of table %s", srcCols[i], srcTable)
-		}
-		if srcVals[i] == nil {
-			continue // Skip NULL values (nil is used by database/sql to represent NULL values).
-		}
-		var spVal interface{}
-		var err error
-		if spCd.T.IsArray {
-			spVal, err = cvtSQLArray(conv, srcCd, spCd, srcVals[i])
-		} else {
-			spVal, err = cvtSQLScalar(conv, srcCd, spCd, srcVals[i])
-		}
-		if err != nil { // Skip entire row if we hit error.
-			return nil, nil, fmt.Errorf("can't convert sql data for column %s of table %s: %w", srcCols[i], srcTable, err)
-		}
-		vs = append(vs, spVal)
-		cs = append(cs, srcCols[i])
-	}
-	if aux, ok := conv.SyntheticPKeys[spTable]; ok {
-		cs = append(cs, aux.Col)
-		vs = append(vs, int64(bits.Reverse64(uint64(aux.Sequence))))
-		aux.Sequence++
-		conv.SyntheticPKeys[spTable] = aux
-	}
-	return cs, vs, nil
-}
-
 // GetRowCount with number of rows in each table.
 func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error) {
-	q := fmt.Sprintf(`SELECT COUNT(1) FROM "%s"."%s";`, table.Schema, table.Name)
+	q := fmt.Sprintf(`SELECT COUNT(*) FROM "%s"."%s";`, table.Schema, table.Name)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return 0, err
@@ -439,117 +388,6 @@ func toType(dataType string, charLen sql.NullInt64, numericPrecision, numericSca
 	default:
 		return schema.Type{Name: dataType}
 	}
-}
-
-//[ps*]
-func cvtSQLArray(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {
-	a, ok := val.([]byte)
-	if !ok {
-		return nil, fmt.Errorf("can't convert array values to []byte")
-	}
-	return convArray(spCd.T, srcCd.Type.Name, conv.Location, string(a))
-}
-
-//[ps*]
-// cvtSQLScalar converts a values returned from a SQL query to a
-// Spanner value.  In principle, we could just hand the values we get
-// from the driver over to Spanner and have the Spanner client handle
-// conversions and errors. However we handle the conversions
-// explicitly ourselves so that we can generate more targeted error
-// messages. Note that the caller is responsible for handling nil
-// values (used to represent NULL). We handle each of the remaining
-// cases of values returned by the database/sql library:
-//    bool
-//    []byte
-//    int64
-//    float64
-//    string
-//    time.Time
-func cvtSQLScalar(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {
-	switch spCd.T.Name {
-	case ddl.Bool:
-		switch v := val.(type) {
-		case bool:
-			return v, nil
-		case string:
-			return convBool(v)
-		}
-	case ddl.Bytes:
-		switch v := val.(type) {
-		case []byte:
-			return v, nil
-		}
-	case ddl.Date:
-		// The PostgreSQL driver uses time.Time to represent
-		// dates.  Note that the database/sql library doesn't
-		// document how dates are represented, so maybe this
-		// isn't a driver issue, but a generic database/sql
-		// issue.  We explicitly convert from time.Time to
-		// civil.Date (used by the Spanner client library).
-		switch v := val.(type) {
-		case string:
-			return convDate(v)
-		case time.Time:
-			return civil.DateOf(v), nil
-		}
-	case ddl.Int64:
-		switch v := val.(type) {
-		case []byte: // Parse as int64.
-			return convInt64(string(v))
-		case int64:
-			return v, nil
-		case float64: // Truncate.
-			return int64(v), nil
-		case string: // Parse as int64.
-			return convInt64(v)
-		}
-	case ddl.Float64:
-		switch v := val.(type) {
-		case []byte: // Note: PostgreSQL uses []byte for numeric.
-			return convFloat64(string(v))
-		case int64:
-			return float64(v), nil
-		case float64:
-			return v, nil
-		case string:
-			return convFloat64(v)
-		}
-	case ddl.Numeric:
-		switch v := val.(type) {
-		case []byte: // Note: PostgreSQL uses []byte for numeric.
-			return convNumeric(conv, string(v))
-		}
-	case ddl.String:
-		switch v := val.(type) {
-		case bool:
-			return strconv.FormatBool(v), nil
-		case []byte:
-			return string(v), nil
-		case int64:
-			return strconv.FormatInt(v, 10), nil
-		case float64:
-			return strconv.FormatFloat(v, 'g', -1, 64), nil
-		case string:
-			return v, nil
-		case time.Time:
-			return v.String(), nil
-		}
-	case ddl.Timestamp:
-		switch v := val.(type) {
-		case string:
-			return convTimestamp(srcCd.Type.Name, conv.Location, v)
-		case time.Time:
-			return v, nil
-		}
-	case ddl.JSON:
-		switch v := val.(type) {
-		case string:
-			return string(v), nil
-		case []uint8:
-			return string(v), nil
-		}
-	}
-	return nil, fmt.Errorf("can't convert value of type %s to Spanner type %s", reflect.TypeOf(val), reflect.TypeOf(spCd.T))
 }
 
 //[ps*]
