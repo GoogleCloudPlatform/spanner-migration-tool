@@ -17,6 +17,7 @@ const (
 	SourceProfileTypeFile
 	SourceProfileTypeConnection
 	SourceProfileTypeConfig
+	SourceProfileTypeCsv
 )
 
 type SourceProfileFile struct {
@@ -326,12 +327,21 @@ func NewSourceProfileConfig(path string) SourceProfileConfig {
 	return SourceProfileConfig{path: path}
 }
 
+type SourceProfileCsv struct {
+	Manifest string
+}
+
+func NewSourceProfileCsv(manifest string) SourceProfileCsv {
+	return SourceProfileCsv{Manifest: manifest}
+}
+
 type SourceProfile struct {
 	Driver string
 	Ty     SourceProfileType
 	File   SourceProfileFile
 	Conn   SourceProfileConnection
 	Config SourceProfileConfig
+	Csv    SourceProfileCsv
 }
 
 // ToLegacyDriver converts source-profile to equivalent legacy global flags
@@ -370,6 +380,14 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 		}
 	case SourceProfileTypeConfig:
 		return "", fmt.Errorf("specifying source-profile using config not implemented")
+	case SourceProfileTypeCsv:
+		{
+			if strings.ToLower(source) == constants.CSV {
+				return constants.CSV, nil
+			} else {
+				return "", fmt.Errorf("found manifest in the source profile but invalid -source flag received = %v, (did you mean csv?)", source)
+			}
+		}
 	default:
 		return "", fmt.Errorf("invalid source-profile, could not infer type")
 	}
@@ -399,6 +417,11 @@ func NewSourceProfile(s string, source string) (SourceProfile, error) {
 	params, err := parseProfile(s)
 	if err != nil {
 		return SourceProfile{}, fmt.Errorf("could not parse source-profile, error = %v", err)
+	}
+
+	if manifest, ok := params["manifest"]; ok {
+		profile := NewSourceProfileCsv(manifest)
+		return SourceProfile{Ty: SourceProfileTypeCsv, Csv: profile}, nil
 	}
 
 	if _, ok := params["file"]; ok || filePipedToStdin() {
