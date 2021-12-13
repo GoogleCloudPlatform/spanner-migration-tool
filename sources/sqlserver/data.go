@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// **************** TODO *************
-// this data file is for postgres database
-// put here so we do not get error in infoschema
-// ***************
 package sqlserver
 
 import (
