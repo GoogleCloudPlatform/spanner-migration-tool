@@ -107,7 +107,7 @@ func DataConv(driver, sqlConnectionStr string, ioHelper *IOStreams, client *sp.C
 		Verbose:    internal.Verbose(),
 	}
 	switch driver {
-	case constants.POSTGRES, constants.MYSQL:
+	case constants.POSTGRES, constants.MYSQL, constants.SQLSERVER:
 		return dataFromSQL(driver, sqlConnectionStr, config, client, conv)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		if conv.SpSchema.CheckInterleaved() {
@@ -1202,6 +1202,8 @@ func SetRowStats(driver string, conv *internal.Conv, db *sql.DB) error {
 		common.SetRowStats(conv, mysql.InfoSchemaImpl{DbName: conv.SrcDbName, Db: db})
 	case constants.POSTGRES:
 		common.SetRowStats(conv, postgres.InfoSchemaImpl{Db: db})
+	case constants.SQLSERVER:
+		common.SetRowStats(conv, sqlserver.InfoSchemaImpl{DbName: conv.SrcDbName, Db: db})
 	default:
 		return fmt.Errorf("could not set rows stats for '%s' driver", driver)
 	}
@@ -1216,6 +1218,8 @@ func ProcessData(driver string, conv *internal.Conv, db *sql.DB) error {
 		common.ProcessData(conv, mysql.InfoSchemaImpl{DbName: conv.SrcDbName, Db: db})
 	case constants.POSTGRES:
 		common.ProcessData(conv, postgres.InfoSchemaImpl{Db: db})
+	case constants.SQLSERVER:
+		common.ProcessData(conv, sqlserver.InfoSchemaImpl{DbName: conv.SrcDbName, Db: db})
 	default:
 		return fmt.Errorf("data conversion for driver %s is not supported", driver)
 	}
