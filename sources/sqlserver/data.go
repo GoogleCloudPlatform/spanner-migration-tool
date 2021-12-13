@@ -19,11 +19,9 @@
 package sqlserver
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"math/bits"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -32,6 +30,7 @@ import (
 	"cloud.google.com/go/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -39,14 +38,14 @@ import (
 // srcTable and srcCols are the source table and columns respectively,
 // and vals contains string data to be converted to appropriate types
 // to send to Spanner.  ProcessDataRow is only called in DataMode.
-func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols, vals []string) {
-	spTable, spCols, spVals, err := ConvertData(conv, srcTable, srcCols, vals)
+func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, vals []string) {
+	spTable, cvtCols, cvtVals, err := ConvertData(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, vals)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
 		conv.StatsAddBadRow(srcTable, conv.DataMode())
 		conv.CollectBadRow(srcTable, srcCols, vals)
 	} else {
-		conv.WriteRow(srcTable, spTable, spCols, spVals)
+		conv.WriteRow(srcTable, spTable, cvtCols, cvtVals)
 	}
 }
 
@@ -54,25 +53,7 @@ func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols, vals []string
 // based on the Spanner and source DB schemas. Note that since entries
 // in vals may be empty, we also return the list of columns (empty
 // cols are dropped).
-func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, vals []string) (string, []string, []interface{}, error) {
-	// Note: if there are many rows for the same srcTable/srcCols,
-	// then the following functionality will be (redundantly)
-	// repeated for every row converted. If this becomes a
-	// performance issue, we could consider moving this block of
-	// code to the callers of ConverData to avoid the redundancy.
-	spTable, err := internal.GetSpannerTable(conv, srcTable)
-	if err != nil {
-		return "", []string{}, []interface{}{}, fmt.Errorf("can't map source table %s", srcTable)
-	}
-	spCols, err := internal.GetSpannerCols(conv, srcTable, srcCols)
-	if err != nil {
-		return "", []string{}, []interface{}{}, fmt.Errorf("can't map source columns %v", srcCols)
-	}
-	spSchema, ok1 := conv.SpSchema[spTable]
-	srcSchema, ok2 := conv.SrcSchema[srcTable]
-	if !ok1 || !ok2 {
-		return "", []string{}, []interface{}{}, fmt.Errorf("can't find table %s in schema", spTable)
-	}
+func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, vals []string) (string, []string, []interface{}, error) {
 	var c []string
 	var v []interface{}
 	if len(spCols) != len(srcCols) || len(spCols) != len(vals) {
@@ -80,7 +61,11 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, vals []
 	}
 	for i, spCol := range spCols {
 		srcCol := srcCols[i]
-		if vals[i] == "\\N" { // PostgreSQL representation of empty column in COPY-FROM blocks.
+		// Skip columns with 'NULL' values. When processing data rows from mysqldump, these values
+		// are represented as nil (by pingcap/tidb/types/parser_driver's ValueExpr), which is
+		// converted to the string '<nil>'. When processing data rows obtained from the MySQL driver,
+		// 'NULL' values are represented as "NULL" (because we retrieve the values as strings).
+		if vals[i] == "<nil>" || vals[i] == "NULL" {
 			continue
 		}
 		spColDef, ok1 := spSchema.ColDefs[spCol]
@@ -91,9 +76,9 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, vals []
 		var x interface{}
 		var err error
 		if spColDef.T.IsArray {
-			x, err = convArray(spColDef.T, srcColDef.Type.Name, conv.Location, vals[i])
+			x, err = convArray(spColDef.T, srcColDef.Type.Name, vals[i])
 		} else {
-			x, err = convScalar(conv, spColDef.T, srcColDef.Type.Name, conv.Location, vals[i])
+			x, err = convScalar(conv, spColDef.T, srcColDef.Type.Name, conv.TimezoneOffset, vals[i])
 		}
 		if err != nil {
 			return "", []string{}, []interface{}{}, err
@@ -114,7 +99,7 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, vals []
 // appropriate Spanner value. It is the caller's responsibility to
 // detect and handle NULL values: convScalar will return error if a
 // NULL value is passed.
-func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, location *time.Location, val string) (interface{}, error) {
+func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, TimezoneOffset string, val string) (interface{}, error) {
 	// Whitespace within the val string is considered part of the data value.
 	// Note that many of the underlying conversions functions we use (like
 	// strconv.ParseFloat and strconv.ParseInt) return "invalid syntax"
@@ -136,7 +121,7 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, l
 	case ddl.String:
 		return val, nil
 	case ddl.Timestamp:
-		return convTimestamp(srcTypeName, location, val)
+		return convTimestamp(srcTypeName, TimezoneOffset, val)
 	case ddl.JSON:
 		return val, nil
 	default:
@@ -153,14 +138,9 @@ func convBool(val string) (bool, error) {
 }
 
 func convBytes(val string) ([]byte, error) {
-	if val[0:2] != `\x` {
-		return []byte{}, fmt.Errorf("can't convert to bytes: doesn't start with \\x prefix")
-	}
-	b, err := hex.DecodeString(val[2:])
-	if err != nil {
-		return b, fmt.Errorf("can't convert to bytes: %w", err)
-	}
-	return b, err
+	// convert a string to a byte slice.
+	b := []byte(val)
+	return b, nil
 }
 
 func convDate(val string) (civil.Date, error) {
@@ -201,42 +181,31 @@ func convNumeric(conv *internal.Conv, val string) (interface{}, error) {
 	}
 }
 
-// convTimestamp maps a source DB timestamp into a go Time (which
-// is translated to a Spanner timestamp by the go Spanner client library).
-// It handles both timestamptz and timestamp conversions.
-// Note that PostgreSQL supports a wide variety of different timestamp
-// formats (see https://www.postgresql.org/docs/9.1/datatype-datetime.html).
-// We don't attempt to support all of these timestamp formats. Our goal
-// is more modest: we just need to support the formats generated by
-// pg_dump.
-func convTimestamp(srcTypeName string, location *time.Location, val string) (t time.Time, err error) {
-	// pg_dump outputs timestamps as ISO 8601, except:
-	// a) it uses space instead of T
-	// b) timezones are abbreviated to just hour (minute is specified only if non-zero).
-	if srcTypeName == "timestamptz" || srcTypeName == "timestamp with time zone" {
-		// PostgreSQL abbreviates timezone to just hour where possible.
-		t, err = time.Parse("2006-01-02 15:04:05Z07", val)
-		if err != nil {
-			// Try using hour and min for timezone e.g. PGTZ set to 'Asia/Kolkata'.
-			t, err = time.Parse("2006-01-02 15:04:05Z07:00", val)
+// convTimestamp maps a source DB timestamp into a go Time Spanner timestamp
+// It handles both datetime and timestamp conversions.
+func convTimestamp(srcTypeName string, TimezoneOffset string, val string) (t time.Time, err error) {
+	// mysqldump outputs timestamps as ISO 8601, except
+	// it uses space instead of T.
+	if srcTypeName == "timestamp" {
+		// We consider timezone for timestamp datatype.
+		// If timezone is not specified in mysqldump, we consider UTC time.
+		if TimezoneOffset == "" {
+			TimezoneOffset = "+00:00"
 		}
-		if err != nil {
-			// Try parsing without timezone. Some pg_dump files
-			// generate timestamps without timezone for timestampz data
-			// e.g. the Pagila port of Sakila. We interpret these timestamps
-			// using the current time location (default is local time).
-			// Note: we might want to look for "SET TIME ZONE" in the pg_dump
-			// and interpret wrt that timezone.
-			t, err = time.ParseInLocation("2006-01-02 15:04:05", val, location)
-		}
+		// convert timestamp from format "2006-01-02 15:04:05" to
+		// "2006-01-02T15:04:05+00:00".
+		timeNew := strings.Split(val, " ")
+		timeJoined := strings.Join(timeNew, "T")
+		timeJoined = timeJoined + TimezoneOffset
+		t, err = time.Parse(time.RFC3339, timeJoined)
 	} else {
-		// timestamp without time zone: data should just consist of date and time.
+		// datetime: data should just consist of date and time.
 		// timestamp conversion should ignore timezone. We mimic this using Parse
 		// i.e. treat it as UTC, so it will be stored 'as-is' in Spanner.
 		t, err = time.Parse("2006-01-02 15:04:05", val)
 	}
 	if err != nil {
-		return t, fmt.Errorf("can't convert to timestamp (posgres type: %s)", srcTypeName)
+		return t, fmt.Errorf("can't convert to timestamp (mysql type: %s)", srcTypeName)
 	}
 	return t, err
 }
@@ -247,113 +216,23 @@ func convTimestamp(srcTypeName string, location *time.Location, val string) (t t
 // is NULL. However, convArray does handle the case where individual
 // array elements are NULL. In other words, convArray handles "{1,
 // NULL, 2}", but it does not handle "NULL" (it returns error).
-func convArray(spannerType ddl.Type, srcTypeName string, location *time.Location, v string) (interface{}, error) {
+func convArray(spannerType ddl.Type, srcTypeName string, v string) (interface{}, error) {
 	v = strings.TrimSpace(v)
 	// Handle empty array. Note that we use an empty NullString array
 	// for all Spanner array types since this will be converted to the
 	// appropriate type by the Spanner client.
-	if v == "{}" {
+	if v == "" {
 		return []spanner.NullString{}, nil
 	}
-	if v[0] != '{' || v[len(v)-1] != '}' {
-		return []interface{}{}, fmt.Errorf("unrecognized data format for array: expected {v1, v2, ...}")
-	}
-	a := strings.Split(v[1:len(v)-1], ",")
+
+	a := strings.Split(v, ",")
 
 	// The Spanner client for go does not accept []interface{} for arrays.
-	// Instead it only accepts slices of a specific type e.g. []int64, []string.
+	// Instead it only accepts slices of a specific type eg: []string
 	// Hence we have to do the following case analysis.
+	// NOTE: MySQL only supports SET of string which will be translated
+	// to spanner array<string>.
 	switch spannerType.Name {
-	case ddl.Bool:
-		var r []spanner.NullBool
-		for _, s := range a {
-			if s == "NULL" {
-				r = append(r, spanner.NullBool{Valid: false})
-				continue
-			}
-			s, err := processQuote(s)
-			if err != nil {
-				return []spanner.NullBool{}, err
-			}
-			b, err := convBool(s)
-			if err != nil {
-				return []spanner.NullBool{}, err
-			}
-			r = append(r, spanner.NullBool{Bool: b, Valid: true})
-		}
-		return r, nil
-	case ddl.Bytes:
-		var r [][]byte
-		for _, s := range a {
-			if s == "NULL" {
-				r = append(r, nil)
-				continue
-			}
-			s, err := processQuote(s)
-			if err != nil {
-				return [][]byte{}, err
-			}
-			b, err := convBytes(s)
-			if err != nil {
-				return [][]byte{}, err
-			}
-			r = append(r, b)
-		}
-		return r, nil
-	case ddl.Date:
-		var r []spanner.NullDate
-		for _, s := range a {
-			if s == "NULL" {
-				r = append(r, spanner.NullDate{Valid: false})
-				continue
-			}
-			s, err := processQuote(s)
-			if err != nil {
-				return []spanner.NullDate{}, err
-			}
-			date, err := convDate(s)
-			if err != nil {
-				return []spanner.NullDate{}, err
-			}
-			r = append(r, spanner.NullDate{Date: date, Valid: true})
-		}
-		return r, nil
-	case ddl.Float64:
-		var r []spanner.NullFloat64
-		for _, s := range a {
-			if s == "NULL" {
-				r = append(r, spanner.NullFloat64{Valid: false})
-				continue
-			}
-			s, err := processQuote(s)
-			if err != nil {
-				return []spanner.NullFloat64{}, err
-			}
-			f, err := convFloat64(s)
-			if err != nil {
-				return []spanner.NullFloat64{}, err
-			}
-			r = append(r, spanner.NullFloat64{Float64: f, Valid: true})
-		}
-		return r, nil
-	case ddl.Int64:
-		var r []spanner.NullInt64
-		for _, s := range a {
-			if s == "NULL" {
-				r = append(r, spanner.NullInt64{Valid: false})
-				continue
-			}
-			s, err := processQuote(s)
-			if err != nil {
-				return []spanner.NullInt64{}, err
-			}
-			i, err := convInt64(s)
-			if err != nil {
-				return r, err
-			}
-			r = append(r, spanner.NullInt64{Int64: i, Valid: true})
-		}
-		return r, nil
 	case ddl.String:
 		var r []spanner.NullString
 		for _, s := range a {
@@ -368,26 +247,8 @@ func convArray(spannerType ddl.Type, srcTypeName string, location *time.Location
 			r = append(r, spanner.NullString{StringVal: s, Valid: true})
 		}
 		return r, nil
-	case ddl.Timestamp:
-		var r []spanner.NullTime
-		for _, s := range a {
-			if s == "NULL" {
-				r = append(r, spanner.NullTime{Valid: false})
-				continue
-			}
-			s, err := processQuote(s)
-			if err != nil {
-				return []spanner.NullTime{}, err
-			}
-			t, err := convTimestamp(srcTypeName, location, s)
-			if err != nil {
-				return []spanner.NullTime{}, err
-			}
-			r = append(r, spanner.NullTime{Time: t, Valid: true})
-		}
-		return r, nil
 	}
-	return []interface{}{}, fmt.Errorf("array type conversion not implemented for type %v", reflect.TypeOf(spannerType))
+	return []interface{}{}, fmt.Errorf("array type conversion not implemented for type %v", spannerType.Name)
 }
 
 // processQuote returns the unquoted version of s.
