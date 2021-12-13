@@ -186,9 +186,9 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 
 // GetTables return list of tables in the selected database.
 func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
-	q := `	
-		SELECT 
-			sc.name AS table_schema, 
+	q := `
+	SELECT 
+		sc.name AS table_schema, 
 			tbls.name AS table_name
 		FROM sys.tables AS tbls
 		INNER JOIN sys.schemas AS sc on sc.schema_id = tbls.schema_id
@@ -399,8 +399,7 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 	}
 	defer rows.Close()
 	// TODO : remove sequence
-	var name, column string
-	var isUnique, collation bool
+	var name, column, isUnique, collation string
 	indexMap := make(map[string]schema.Index)
 	var indexNames []string
 	var indexes []schema.Index
@@ -412,10 +411,10 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 
 		if _, found := indexMap[name]; !found {
 			indexNames = append(indexNames, name)
-			indexMap[name] = schema.Index{Name: name, Unique: isUnique}
+			indexMap[name] = schema.Index{Name: name, Unique: (isUnique == "true")}
 		}
 		index := indexMap[name]
-		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: collation})
+		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation == "DESC")})
 		indexMap[name] = index
 	}
 	for _, k := range indexNames {
