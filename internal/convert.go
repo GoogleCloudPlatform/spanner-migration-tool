@@ -33,6 +33,7 @@ type Conv struct {
 	ToSource       map[string]NameAndCols              // Maps from Spanner table name to source-DB table name and column mapping.
 	UsedNames      map[string]bool                     // Map storing the names that are already assigned to tables, indices or foreign key contraints.
 	dataSink       func(table string, cols []string, values []interface{})
+	DataFlush      func()         `json:"-"`
 	Location       *time.Location // Timezone (for timestamp conversion).
 	sampleBadRows  rowSamples     // Rows that generated errors during conversion.
 	Stats          stats
@@ -148,6 +149,11 @@ func MakeConv() *Conv {
 // SetDataSink configures conv to use the specified data sink.
 func (conv *Conv) SetDataSink(ds func(table string, cols []string, values []interface{})) {
 	conv.dataSink = ds
+}
+
+// SetDataFlush configures conv to use the specified data flush.
+func (conv *Conv) SetDataFlush(ds func()) {
+	conv.DataFlush = ds
 }
 
 // Note on modes.

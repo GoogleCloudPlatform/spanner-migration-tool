@@ -26,7 +26,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
-	hbSpanner "github.com/cloudspannerecosystem/harbourbridge/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/stretchr/testify/assert"
 )
@@ -324,14 +323,8 @@ func TestProcessData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	config := hbSpanner.BatchWriterConfig{
-		BytesLimit: 100 * 1000 * 1000,
-		WriteLimit: 40,
-		RetryLimit: 1000,
-		Verbose:    internal.Verbose(),
-	}
-	writer := hbSpanner.NewBatchWriter(config)
-	common.ProcessData(conv, InfoSchemaImpl{db}, writer)
+	conv.SetDataFlush(nil)
+	common.ProcessData(conv, InfoSchemaImpl{db})
 
 	assert.Equal(t,
 		[]spannerData{
@@ -467,14 +460,8 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	config := hbSpanner.BatchWriterConfig{
-		BytesLimit: 100 * 1000 * 1000,
-		WriteLimit: 40,
-		RetryLimit: 1000,
-		Verbose:    internal.Verbose(),
-	}
-	writer := hbSpanner.NewBatchWriter(config)
-	common.ProcessData(conv, InfoSchemaImpl{db}, writer)
+	conv.SetDataFlush(nil)
+	common.ProcessData(conv, InfoSchemaImpl{db})
 	assert.Equal(t, []spannerData{
 		{table: "test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), int64(0)}},
 		{table: "test", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), int64(-9223372036854775808)}}},

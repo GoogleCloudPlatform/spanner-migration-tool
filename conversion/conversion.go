@@ -227,7 +227,11 @@ func dataFromDatabase(driver, sqlConnectionStr string, config spanner.BatchWrite
 		func(table string, cols []string, vals []interface{}) {
 			writer.AddRow(table, cols, vals)
 		})
-	common.ProcessData(conv, infoSchema, writer)
+	conv.SetDataFlush(
+		func() {
+			writer.Flush()
+		})
+	common.ProcessData(conv, infoSchema)
 	writer.Flush()
 	return writer, nil
 }
@@ -345,6 +349,7 @@ func schemaFromDump(driver string, targetDb string, ioHelper *IOStreams) (*inter
 	r := internal.NewReader(bufio.NewReader(f), p)
 	conv.SetSchemaMode() // Build schema and ignore data in dump.
 	conv.SetDataSink(nil)
+	conv.SetDataFlush(nil)
 	err = ProcessDump(driver, conv, r)
 	if err != nil {
 		fmt.Fprintf(ioHelper.Out, "Failed to parse the data file: %v", err)
@@ -393,6 +398,10 @@ func dataFromDump(driver string, config spanner.BatchWriterConfig, ioHelper *IOS
 	conv.SetDataSink(
 		func(table string, cols []string, vals []interface{}) {
 			writer.AddRow(table, cols, vals)
+		})
+	conv.SetDataFlush(
+		func() {
+			writer.Flush()
 		})
 	ProcessDump(driver, conv, r)
 	writer.Flush()

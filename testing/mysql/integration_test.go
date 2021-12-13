@@ -180,7 +180,7 @@ func TestIntegration_MySQLInterleaveTable_DataOnlyWithSessionFile(t *testing.T) 
 	defer os.RemoveAll(tmpdir)
 
 	dbName := "test_interleave_table_data"
-	sessionFile := "../../test_data/session_test.json"
+	sessionFile := "../../test_data/mysql_interleave_session_test.json"
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	runDataOnlySubcommandForSessionFile(t, dbName, dbURI, sessionFile)

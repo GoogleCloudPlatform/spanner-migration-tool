@@ -19,7 +19,6 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -74,7 +73,7 @@ func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema) error {
 // (based on the source and Spanner schemas), and write it to Spanner.
 // If we can't get/process data for a table, we skip that table and process
 // the remaining tables.
-func ProcessData(conv *internal.Conv, infoSchema InfoSchema, writer *spanner.BatchWriter) {
+func ProcessData(conv *internal.Conv, infoSchema InfoSchema) {
 	// Tables are ordered in alphabetical order with one exception: interleaved
 	// tables appear after the population of their parent table.
 	orderTableNames := ddl.OrderTables(conv.SpSchema)
@@ -93,8 +92,10 @@ func ProcessData(conv *internal.Conv, infoSchema InfoSchema, writer *spanner.Bat
 		}
 		err := infoSchema.ProcessData(conv, srcTable, srcSchema, spTable, spCols, spSchema)
 		if err != nil {
-			writer.Flush()
 			return
+		}
+		if conv.DataFlush != nil {
+			conv.DataFlush()
 		}
 	}
 }
