@@ -201,6 +201,9 @@ func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 		return strings.Split(dbParam, "=")[1]
 	case constants.MYSQL:
 		return strings.Split(sqlConnectionStr, ")/")[1]
+	case constants.SQLSERVER:
+		splts := strings.Split(sqlConnectionStr, "?database=")
+		return splts[len(splts)-1]
 	}
 	return ""
 }
