@@ -9,12 +9,14 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.4.1
 	github.com/aws/aws-sdk-go v1.34.5
 	github.com/denisenkom/go-mssqldb v0.11.0 // indirect
+	github.com/form3tech-oss/jwt-go v3.2.5+incompatible // indirect
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/golang-sql/civil v0.0.0-20190719163853-cb61b32ac6fe // indirect
 	github.com/google/go-cmp v0.5.6
 	github.com/google/subcommands v1.2.0
 	github.com/gorilla/handlers v1.5.0
 	github.com/gorilla/mux v1.7.3
+	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/lib/pq v1.9.0
 	github.com/pganalyze/pg_query_go/v2 v2.0.5
 	//github.com/pingcap/parser v3.0.12+incompatible
@@ -42,3 +44,7 @@ replace cloud.google.com/go => github.com/hengfengli/google-cloud-go v0.48.1-0.2
 replace cloud.google.com/go/spanner => github.com/hengfengli/google-cloud-go/spanner v1.1.1-0.20210903130221-989a19403c8c
 
 replace google.golang.org/genproto => github.com/hengfengli/go-genproto v0.0.0-20210914051132-d2ab1d87ef40
+
+// jwt-go, an indirect dependency imported through pingcap/tidb, is an unmaintained repo which has security issues.
+// Replacing it with the fork that tidb's latest master uses and has the security patch.
+replace github.com/dgrijalva/jwt-go => github.com/form3tech-oss/jwt-go v3.2.6-0.20210809144907-32ab6a8243d7+incompatible

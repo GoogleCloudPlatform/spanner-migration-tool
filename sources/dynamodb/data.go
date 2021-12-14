@@ -19,74 +19,20 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// ProcessData performs data conversion for DynamoDB database. For each table,
-// we extract data using Scan requests, convert the data to Spanner data (based
-// on the source and Spanner schemas), and write it to Spanner. If we can't
-// get/process data for a table, we skip that table and process the remaining
-// tables.
-func ProcessData(conv *internal.Conv, client dynamoClient) error {
-	for srcTable, srcSchema := range conv.SrcSchema {
-		spTable, err1 := internal.GetSpannerTable(conv, srcTable)
-		spCols, err2 := internal.GetSpannerCols(conv, srcTable, srcSchema.ColNames)
-		spSchema, ok := conv.SpSchema[spTable]
-		if err1 != nil || err2 != nil || !ok {
-			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
-			conv.Unexpected(fmt.Sprintf("Can't get cols and schemas for table %s: err1=%s, err2=%s, ok=%t",
-				srcTable, err1, err2, ok))
-			continue
-		}
-
-		err := scan(srcTable, client, func(m map[string]*dynamodb.AttributeValue) {
-			spVals, badCols, srcStrVals := cvtRow(m, srcSchema, spSchema, spCols)
-			if len(badCols) == 0 {
-				conv.WriteRow(srcTable, spTable, spCols, spVals)
-			} else {
-				conv.Unexpected(fmt.Sprintf("Data conversion error for table %s in column(s) %s\n", srcTable, badCols))
-				conv.StatsAddBadRow(srcTable, conv.DataMode())
-				conv.CollectBadRow(srcTable, srcSchema.ColNames, srcStrVals)
-			}
-		})
-		if err != nil {
-			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
-			conv.Unexpected(fmt.Sprintf("Can't scan the data for table %s: %s", srcTable, err))
-		}
-	}
-	return nil
-}
-
-func scan(table string, client dynamoClient, f func(map[string]*dynamodb.AttributeValue)) error {
-	var lastEvaluatedKey map[string]*dynamodb.AttributeValue
-	for {
-		// Build the query input parameters.
-		params := &dynamodb.ScanInput{
-			TableName: aws.String(table),
-		}
-		if lastEvaluatedKey != nil {
-			params.ExclusiveStartKey = lastEvaluatedKey
-		}
-
-		// Make the DynamoDB Query API call.
-		result, err := client.Scan(params)
-		if err != nil {
-			return fmt.Errorf("failed to make Query API call for table %v: %v", table, err)
-		}
-
-		// Iterate the items returned.
-		for _, attrsMap := range result.Items {
-			f(attrsMap)
-		}
-		if result.LastEvaluatedKey == nil {
-			return nil
-		}
-		// If there are more rows, then continue.
-		lastEvaluatedKey = result.LastEvaluatedKey
+func ProcessDataRow(m map[string]*dynamodb.AttributeValue, conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) {
+	spVals, badCols, srcStrVals := cvtRow(m, srcSchema, spSchema, spCols)
+	if len(badCols) == 0 {
+		conv.WriteRow(srcTable, spTable, spCols, spVals)
+	} else {
+		conv.Unexpected(fmt.Sprintf("Data conversion error for table %s in column(s) %s\n", srcTable, badCols))
+		conv.StatsAddBadRow(srcTable, conv.DataMode())
+		conv.CollectBadRow(srcTable, srcSchema.ColNames, srcStrVals)
 	}
 }
 
@@ -103,7 +49,14 @@ func cvtRow(attrsMap map[string]*dynamodb.AttributeValue, srcSchema schema.Table
 			srcStrVal = "null"
 		} else {
 			// Convert data to the target type.
-			spVal, err = cvtColValue(attrsMap[srcCol], srcSchema.ColDefs[srcCol].Type.Name, spSchema.ColDefs[spCols[i]].T.Name)
+			spCol := spCols[i]
+			spColDef := spSchema.ColDefs[spCol]
+			srcColDef := srcSchema.ColDefs[srcCol]
+			if spColDef.T.IsArray {
+				spVal, err = convArray(attrsMap[srcCol], srcColDef.Type.Name, spColDef.T.Name)
+			} else {
+				spVal, err = convScalar(attrsMap[srcCol], srcColDef.Type.Name, spColDef.T.Name)
+			}
 			if err != nil {
 				badCols = append(badCols, srcCol)
 			}
@@ -115,7 +68,46 @@ func cvtRow(attrsMap map[string]*dynamodb.AttributeValue, srcSchema schema.Table
 	return spVals, badCols, srcStrVals
 }
 
-func cvtColValue(attrVal *dynamodb.AttributeValue, srcType string, spType string) (interface{}, error) {
+func convArray(attrVal *dynamodb.AttributeValue, srcType string, spType string) (interface{}, error) {
+	switch spType {
+	case ddl.Bytes:
+		switch srcType {
+		case typeBinarySet:
+			return attrVal.BS, nil
+		}
+	case ddl.String:
+		switch srcType {
+		case typeStringSet:
+			var strArr []string
+			for _, s := range attrVal.SS {
+				strArr = append(strArr, *s)
+			}
+			return strArr, nil
+		case typeNumberStringSet:
+			var strArr []string
+			for _, s := range attrVal.NS {
+				strArr = append(strArr, *s)
+			}
+			return strArr, nil
+		}
+	case ddl.Numeric:
+		switch srcType {
+		case typeNumberSet:
+			var numArr []big.Rat
+			for _, s := range attrVal.NS {
+				val, ok := (&big.Rat{}).SetString(*s)
+				if !ok {
+					return nil, fmt.Errorf("failed to convert '%v' to an NUMERIC array", attrVal.NS)
+				}
+				numArr = append(numArr, *val)
+			}
+			return numArr, nil
+		}
+	}
+	return nil, fmt.Errorf("can't convert value of type %s to Spanner type %s", attrVal.GoString(), spType)
+}
+
+func convScalar(attrVal *dynamodb.AttributeValue, srcType string, spType string) (interface{}, error) {
 	switch spType {
 	case ddl.Bool:
 		switch srcType {
@@ -126,12 +118,14 @@ func cvtColValue(attrVal *dynamodb.AttributeValue, srcType string, spType string
 		switch srcType {
 		case typeBinary:
 			return attrVal.B, nil
-		case typeBinarySet:
-			return attrVal.BS, nil
 		}
 	case ddl.String:
 		switch srcType {
-		case typeMap, typeList:
+		case typeString:
+			return *attrVal.S, nil
+		case typeNumberString:
+			return *attrVal.N, nil
+		case typeMap, typeList, typeStringSet, typeNumberStringSet, typeNumberSet, typeBinarySet:
 			// For typeMap and typeList, attrVal is a very verbose data
 			// structure that contains null entries for unused type cases. We
 			// strip these out using stripNull. If it is important that the
@@ -149,22 +143,6 @@ func cvtColValue(attrVal *dynamodb.AttributeValue, srcType string, spType string
 				return nil, fmt.Errorf("failed to convert %v to a json string", attrVal.GoString())
 			}
 			return string(b), nil
-		case typeString:
-			return *attrVal.S, nil
-		case typeStringSet:
-			var strArr []string
-			for _, s := range attrVal.SS {
-				strArr = append(strArr, *s)
-			}
-			return strArr, nil
-		case typeNumberString:
-			return *attrVal.N, nil
-		case typeNumberStringSet:
-			var strArr []string
-			for _, s := range attrVal.NS {
-				strArr = append(strArr, *s)
-			}
-			return strArr, nil
 		}
 	case ddl.Numeric:
 		switch srcType {
@@ -175,16 +153,6 @@ func cvtColValue(attrVal *dynamodb.AttributeValue, srcType string, spType string
 				return nil, fmt.Errorf("failed to convert '%v' to an NUMERIC type", s)
 			}
 			return *val, nil
-		case typeNumberSet:
-			var numArr []big.Rat
-			for _, s := range attrVal.NS {
-				val, ok := (&big.Rat{}).SetString(*s)
-				if !ok {
-					return nil, fmt.Errorf("failed to convert '%v' to an NUMERIC array", attrVal.NS)
-				}
-				numArr = append(numArr, *val)
-			}
-			return numArr, nil
 		}
 	}
 	return nil, fmt.Errorf("can't convert value of type %s to Spanner type %s", attrVal.GoString(), spType)
