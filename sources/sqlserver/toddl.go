@@ -58,27 +58,25 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "bigserial":
 		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Serial}
-	case "binary", "varbinary":
-		if len(mods) > 0 {
-			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
+	case "binary", "varbinary", "image":
+		if len(mods) > 0 && mods[0] > 0 {
+			return ddl.Type{Name: ddl.Bytes, Len: mods[0]}, nil
 		}
 		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 	// spanner date is 4 bytes sql server 3 bytes
 	case "date":
 		return ddl.Type{Name: ddl.Date}, []internal.SchemaIssue{internal.Widened}
-	case "decimal":
-		return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
 	case "float4", "real":
 		return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
-	case "bigint", "money":
+	case "bigint":
 		return ddl.Type{Name: ddl.Int64}, nil
-	case "tinyint", "smallint", "int", "smallmoney":
+	case "tinyint", "smallint", "int":
 		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
-	case "numeric":
+	case "numeric", "money", "smallmoney", "decimal":
 		return ddl.Type{Name: ddl.Numeric}, nil
 	case "serial":
 		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Serial}
-	case "ntext", "text", "image":
+	case "ntext", "text":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		// TODO : need to check this mapping again
 	case "datetimeoffset", "datetime2", "datetime":
@@ -87,7 +85,7 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 		// Map timestamp without timezone to Spanner timestamp.
 		return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Timestamp}
 	case "varchar", "char", "nvarchar", "nchar":
-		if len(mods) > 0 {
+		if len(mods) > 0 && mods[0] > 0 {
 			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
 		}
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil

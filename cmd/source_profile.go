@@ -332,7 +332,7 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 				return constants.POSTGRES, nil
 			case "dynamodb":
 				return constants.DYNAMODB, nil
-			case "sqlserver":
+			case "sqlserver", "mssql":
 				return constants.SQLSERVER, nil
 			default:
 				return "", fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
