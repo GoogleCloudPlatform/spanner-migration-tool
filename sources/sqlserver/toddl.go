@@ -49,21 +49,16 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) 
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
 func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
-	// TODo :needs handle this type  =>  bit,uniqueidentifier,xml,spatial types
-	// TODO : float real handle Precision.
 	switch id {
 	case "bit":
 		return ddl.Type{Name: ddl.Bool}, nil
 	case "uniqueidentifier":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "bigserial":
-		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Serial}
 	case "binary", "varbinary", "image":
 		if len(mods) > 0 && mods[0] > 0 {
 			return ddl.Type{Name: ddl.Bytes, Len: mods[0]}, nil
 		}
 		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
-	// spanner date is 4 bytes sql server 3 bytes
 	case "date":
 		return ddl.Type{Name: ddl.Date}, []internal.SchemaIssue{internal.Widened}
 	case "float4", "real":
@@ -74,25 +69,18 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 	case "numeric", "money", "smallmoney", "decimal":
 		return ddl.Type{Name: ddl.Numeric}, nil
-	case "serial":
-		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Serial}
-	case "ntext", "text":
+	case "ntext", "text", "xml":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-		// TODO : need to check this mapping again
-	case "datetimeoffset", "datetime2", "datetime":
-		return ddl.Type{Name: ddl.Timestamp}, nil
-	case "smalldatetime", "time":
-		// Map timestamp without timezone to Spanner timestamp.
+	case "smalldatetime", "time", "datetimeoffset", "datetime2", "datetime":
 		return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Timestamp}
 	case "varchar", "char", "nvarchar", "nchar":
 		if len(mods) > 0 && mods[0] > 0 {
 			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
 		}
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "json", "jsonb":
-		return ddl.Type{Name: ddl.JSON}, nil
+	default:
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 	}
-	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 }
 
 // Override the types to map to experimental postgres types.

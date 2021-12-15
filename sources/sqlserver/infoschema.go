@@ -12,11 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// INFOSCHEMA interface implementation for sql server.
-// took refrence from postgress
-// some method is not convert for sql server those method marked as
-// [ps**]
-
 package sqlserver
 
 import (
@@ -49,7 +44,6 @@ func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 	return fmt.Sprintf("%s.%s", schema, tableName)
 }
 
-//[ps*]
 // ProcessDataRows performs data conversion for source database
 // 'db'. For each table, we extract data using a "SELECT *" query,
 // convert the data to Spanner data (based on the source and Spanner
@@ -60,12 +54,7 @@ func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 // returning data from rows.Scan. Scalar values can be returned using
 // the native value used by the underlying driver (by passing
 // *interface{} to rows.Scan), or they can be converted to specific go
-// types. Array values are always returned as []byte, a string
-// encoding of the array values. This string encoding is
-// database/driver specific. For example, for PostgreSQL, array values
-// are returned in the form "{v1,v2,..,vn}", where each v1,v2,...,vn
-// is a PostgreSQL encoding of the respective array value.
-//
+// types.
 // We choose to do all type conversions explicitly ourselves so that
 // we can generate more targeted error messages: hence we pass
 // *interface{} parameters to row.Scan.
@@ -104,7 +93,6 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string)
 	return rows, err
 }
 
-//[ps*]
 // buildVals contructs interface{} value containers to scan row
 // results into.  Returns both the underlying containers (as a slice)
 // as well as an interface{} of pointers to containers to pass to
@@ -259,28 +247,20 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 
 // GetForeignKeys returns a list of all the foreign key constraints.
 func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
-	q := `
-		SELECT  
-			sch.name AS [schema_name],
-			tab2.name AS [referenced_table],
-			col1.name AS [column],
-			col2.name AS [referenced_column],
-			obj.name AS FK_NAME
-		FROM sys.foreign_key_columns fkc
-		INNER JOIN sys.objects obj
-			ON obj.object_id = fkc.constraint_object_id
-		INNER JOIN sys.tables tab1
-			ON tab1.object_id = fkc.parent_object_id
-		INNER JOIN sys.columns col1
-			ON col1.column_id = parent_column_id AND col1.object_id = tab1.object_id
-		INNER JOIN sys.tables tab2
-			ON tab2.object_id = fkc.referenced_object_id
-		INNER JOIN sys.schemas sch
-			ON tab2.schema_id = sch.schema_id
-		INNER JOIN sys.columns col2
-			ON col2.column_id = referenced_column_id AND col2.object_id = tab2.object_id and tab1.name =@p1
-	`
-	rows, err := isi.Db.Query(q, table.Name)
+	q := fmt.Sprintf(`
+	SELECT 
+		OBJECT_SCHEMA_NAME (FK.referenced_object_id) AS [schema_name],
+		OBJECT_NAME (FK.referenced_object_id) AS [referenced_table],
+		COL_NAME(FKC.parent_object_id, FKC.parent_column_id) AS [column],  
+		COL_NAME(FKC.referenced_object_id, FKC.referenced_column_id) AS [referenced_column],  
+		FK.name AS [foreign_key_name]
+	FROM sys.foreign_keys AS FK  
+	INNER JOIN sys.foreign_key_columns AS FKC   
+    ON FK.object_id = FKC.constraint_object_id  
+	WHERE FK.parent_object_id = OBJECT_ID('%s.%s');
+	`, table.Schema, table.Name)
+
+	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err
 	}
@@ -326,23 +306,24 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName) ([]schema.Index, error) {
 	q2 := `
 		SELECT
-			ix.name, 
-			COL_NAME(ix.object_id, ixc.column_id) as [Column Name],
-			ix.is_unique,
-			ixc.is_descending_key 
-		FROM sys.indexes ix 
-		INNER JOIN sys.index_columns ixc 
-			ON  ix.object_id = ixc.object_id AND ix.index_id = ixc.index_id
-		INNER JOIN sys.tables tab 
-			ON ix.object_id = tab.object_id 
+			IX.name, 
+			COL_NAME(IX.object_id, IXC.column_id) as [Column Name],
+			IX.is_unique,
+			IXC.is_descending_key 
+		FROM sys.indexes IX 
+		INNER JOIN sys.index_columns IXC 
+			ON  IX.object_id = IXC.object_id AND IX.index_id = IXC.index_id
+		INNER JOIN sys.tables TAB 
+			ON IX.object_id = TAB.object_id 
 		WHERE
-			ix.is_primary_key = 0          
-			AND ix.is_unique_constraint = 0 
-			AND tab.is_ms_shipped = 0   
-			AND tab.name=@p1
-			ORDER BY ix.name ;
+			IX.is_primary_key = 0          
+			AND IX.is_unique_constraint = 0 
+			AND TAB.is_ms_shipped = 0   
+			AND TAB.name=@p1
+			AND TAB.schema_id = SCHEMA_ID(@p2)
+			ORDER BY IX.name ;
 	`
-	rows, err := isi.Db.Query(q2, table.Name)
+	rows, err := isi.Db.Query(q2, table.Name, table.Schema)
 	if err != nil {
 		return nil, err
 	}
@@ -374,10 +355,6 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 
 func toType(dataType string, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {
 	switch {
-	// case dataType == "ARRAY":
-	// 	return schema.Type{Name: elementDataType.String, ArrayBounds: []int64{-1}}
-	// 	// TODO: handle error cases.
-	// 	// TODO: handle case of multiple array bounds.
 	case charLen.Valid:
 		return schema.Type{Name: dataType, Mods: []int64{charLen.Int64}}
 	case dataType == "numeric" && numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0:
@@ -389,7 +366,6 @@ func toType(dataType string, charLen sql.NullInt64, numericPrecision, numericSca
 	}
 }
 
-//[ps*]
 func valsToStrings(vals []interface{}) []string {
 	toString := func(val interface{}) string {
 		if val == nil {
