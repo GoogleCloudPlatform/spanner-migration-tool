@@ -331,6 +331,8 @@ func NewSchema() Schema {
 
 // Tables are ordered in alphabetical order with one exception: interleaved
 // tables appear after the definition of their parent table.
+// TODO: Move this method to mapping.go and preserve the table names in sorted
+// order in conv so that we don't need to order the table names multiple times.
 func OrderTables(s Schema) []string {
 	var tableNames, sortedTableNames []string
 	for t := range s {
