@@ -53,15 +53,15 @@ func TestProcessSchema(t *testing.T) {
 				{"user_id", "PRIMARY KEY"},
 				{"ref", "FOREIGN KEY"}},
 		}, {
-			query: "SELECT (.+) FROM sys.foreign_key_columns (.+)",
-			args:  []driver.Value{"user"},
+			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
+			args:  []driver.Value{"public.user"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 			rows: [][]driver.Value{
 				{"public", "test", "ref", "id", "fk_test"},
 			},
 		}, {
 			query: "SELECT (.+) FROM sys.indexes (.+)",
-			args:  []driver.Value{"user"},
+			args:  []driver.Value{"user", "public"},
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
@@ -79,13 +79,13 @@ func TestProcessSchema(t *testing.T) {
 				{"id", "PRIMARY KEY"},
 			},
 		}, {
-			query: "SELECT (.+) FROM sys.foreign_key_columns (.+)",
-			args:  []driver.Value{"test"},
+			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
+			args:  []driver.Value{"public.test"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 			rows:  [][]driver.Value{{"public", "test_ref", "id", "ref_id", "fk_test4"}},
 		}, {
 			query: "SELECT (.+) FROM sys.indexes (.+)",
-			args:  []driver.Value{"test"},
+			args:  []driver.Value{"test", "public"},
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
@@ -105,15 +105,15 @@ func TestProcessSchema(t *testing.T) {
 				{"userid", "PRIMARY KEY"},
 			},
 		}, {
-			query: "SELECT (.+) FROM sys.foreign_key_columns (.+)",
-			args:  []driver.Value{"cart"},
+			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
+			args:  []driver.Value{"public.cart"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 			rows: [][]driver.Value{
 				{"public", "product", "productid", "product_id", "fk_test2"},
 				{"public", "user", "userid", "user_id", "fk_test3"}},
 		}, {
 			query: "SELECT (.+) FROM sys.indexes (.+)",
-			args:  []driver.Value{"cart"},
+			args:  []driver.Value{"cart", "public"},
 			cols:  []string{"index_name", "column_name", "is_unique", "order"},
 			rows: [][]driver.Value{{"index1", "userid", "false", "ASC"},
 				{"index2", "userid", "true", "ASC"},
@@ -139,12 +139,12 @@ func TestProcessSchema(t *testing.T) {
 				{"product_id", "PRIMARY KEY"},
 			},
 		}, {
-			query: "SELECT (.+) FROM sys.foreign_key_columns (.+)",
-			args:  []driver.Value{"product"},
+			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
+			args:  []driver.Value{"public.product"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 		}, {
 			query: "SELECT (.+) FROM sys.indexes (.+)",
-			args:  []driver.Value{"product"},
+			args:  []driver.Value{"product", "public"},
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
@@ -165,12 +165,12 @@ func TestProcessSchema(t *testing.T) {
 				{"ref_txt", "PRIMARY KEY"},
 			},
 		}, {
-			query: "SELECT (.+) FROM sys.foreign_key_columns (.+)",
-			args:  []driver.Value{"test_ref"},
+			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
+			args:  []driver.Value{"public.test_ref"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 		}, {
 			query: "SELECT (.+) FROM sys.indexes (.+)",
-			args:  []driver.Value{"test_ref"},
+			args:  []driver.Value{"test_ref", "public"},
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",

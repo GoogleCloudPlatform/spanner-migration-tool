@@ -247,7 +247,7 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 
 // GetForeignKeys returns a list of all the foreign key constraints.
 func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
-	q := fmt.Sprintf(`
+	q := `
 	SELECT 
 		OBJECT_SCHEMA_NAME (FK.referenced_object_id) AS [schema_name],
 		OBJECT_NAME (FK.referenced_object_id) AS [referenced_table],
@@ -257,10 +257,10 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 	FROM sys.foreign_keys AS FK  
 	INNER JOIN sys.foreign_key_columns AS FKC   
     ON FK.object_id = FKC.constraint_object_id  
-	WHERE FK.parent_object_id = OBJECT_ID('%s.%s');
-	`, table.Schema, table.Name)
+	WHERE FK.parent_object_id = OBJECT_ID(@p1);
+	`
 
-	rows, err := isi.Db.Query(q)
+	rows, err := isi.Db.Query(q, fmt.Sprintf("%s.%s", table.Schema, table.Name))
 	if err != nil {
 		return nil, err
 	}
@@ -300,9 +300,6 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 }
 
 // GetIndexes return a list of all indexes for the specified table.
-// Note: Extracting index definitions from PostgreSQL information schema tables is complex.
-// See https://stackoverflow.com/questions/6777456/list-all-index-names-column-names-and-its-table-name-of-a-postgresql-database/44460269#44460269
-// for background.
 func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName) ([]schema.Index, error) {
 	q2 := `
 		SELECT

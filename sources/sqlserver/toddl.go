@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package postgres handles schema and data migrations from Postgres.
+// Package sqlserver handles schema and data migrations from sqlserver.
 package sqlserver
 
 import (
@@ -60,8 +60,8 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 		}
 		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 	case "date":
-		return ddl.Type{Name: ddl.Date}, []internal.SchemaIssue{internal.Widened}
-	case "float4", "real":
+		return ddl.Type{Name: ddl.Date}, nil
+	case "float", "real":
 		return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
 	case "bigint":
 		return ddl.Type{Name: ddl.Int64}, nil
@@ -71,7 +71,7 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 		return ddl.Type{Name: ddl.Numeric}, nil
 	case "ntext", "text", "xml":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "smalldatetime", "time", "datetimeoffset", "datetime2", "datetime":
+	case "smalldatetime", "time", "datetimeoffset", "datetime2", "datetime", "timestamp":
 		return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Timestamp}
 	case "varchar", "char", "nvarchar", "nchar":
 		if len(mods) > 0 && mods[0] > 0 {
