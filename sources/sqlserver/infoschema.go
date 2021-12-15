@@ -125,11 +125,16 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	q := `
 	SELECT 
-		sc.name AS table_schema, 
-			tbls.name AS table_name
-		FROM sys.tables AS tbls
-		INNER JOIN sys.schemas AS sc on sc.schema_id = tbls.schema_id
-		WHERE tbls.type = 'U' AND tbls.is_tracked_by_cdc = 0
+		SCH.name AS table_schema, 
+		TBL.name AS table_name
+	FROM sys.tables AS TBL
+	INNER JOIN sys.schemas AS SCH 
+	ON SCH.schema_id = TBL.schema_id
+	WHERE 
+		TBL.type = 'U' 
+		AND TBL.is_tracked_by_cdc = 0 
+		AND TBL.is_ms_shipped = 0
+		AND TBL.name <> 'sysdiagrams'
 	`
 	rows, err := isi.Db.Query(q)
 	if err != nil {
