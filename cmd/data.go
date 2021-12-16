@@ -112,6 +112,10 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 
 	// If using CSV mode, follow different code path from here.
 	if driverName == constants.CSV {
+		if targetProfile.conn.sp.dbname == "" {
+			err = fmt.Errorf("dbname is mandatory in target-profile for csv source")
+			return subcommands.ExitFailure
+		}
 		// TODO: refactor this to go through DataConv(). Fix it when refactoring passing of source-profile throughout the code
 		// to avoid excess parameters in the DataConv and SchemaConv functions.
 		bw, err := conversion.DataFromCSV(conv, sourceProfile.csv.manifest, client, targetDb)
