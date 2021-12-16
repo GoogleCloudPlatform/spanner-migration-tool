@@ -227,6 +227,9 @@ func dataFromDatabase(driver, sqlConnectionStr string, config spanner.BatchWrite
 		func(table string, cols []string, vals []interface{}) {
 			writer.AddRow(table, cols, vals)
 		})
+	conv.DataFlush = func() {
+		writer.Flush()
+	}
 	common.ProcessData(conv, infoSchema)
 	writer.Flush()
 	return writer, nil
@@ -394,6 +397,9 @@ func dataFromDump(driver string, config spanner.BatchWriterConfig, ioHelper *IOS
 		func(table string, cols []string, vals []interface{}) {
 			writer.AddRow(table, cols, vals)
 		})
+	conv.DataFlush = func() {
+		writer.Flush()
+	}
 	ProcessDump(driver, conv, r)
 	writer.Flush()
 	p.Done()

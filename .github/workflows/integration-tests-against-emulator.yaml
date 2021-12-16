@@ -76,6 +76,7 @@ jobs:
       # init a MySQL database from the test_data
       - run: mysql --version
       - run: mysql -v -P 3306 --protocol=tcp -u root -proot test < test_data/mysqldump.test.out
+      - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_interleave_dump.test.out
 
       # create a spanner instance
       - uses: google-github-actions/setup-gcloud@master
