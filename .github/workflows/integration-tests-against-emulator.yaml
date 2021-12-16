@@ -74,10 +74,6 @@ jobs:
       - run: psql -f test_data/pg_dump.test.out
 
       # init a MySQL database from the test_data
-      - name: Install MySQL client required for loading .sql files
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mysql-client
       - run: mysql --version
       - run: mysql -v -P 3306 --protocol=tcp -u root -proot test < test_data/mysqldump.test.out
 
