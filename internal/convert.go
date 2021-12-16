@@ -151,11 +151,6 @@ func (conv *Conv) SetDataSink(ds func(table string, cols []string, values []inte
 	conv.dataSink = ds
 }
 
-// SetDataFlush configures conv to use the specified data flush.
-func (conv *Conv) SetDataFlush(ds func()) {
-	conv.DataFlush = ds
-}
-
 // Note on modes.
 // We process the dump output twice. In the first pass (schema mode) we
 // build the schema, and the second pass (data mode) we write data to

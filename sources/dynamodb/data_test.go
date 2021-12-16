@@ -82,7 +82,6 @@ func TestProcessDataRow(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	conv.SetDataFlush(nil)
 	for _, attrsMap := range items {
 		ProcessDataRow(attrsMap, conv, tableName, conv.SrcSchema[tableName], tableName, cols, spSchema)
 	}

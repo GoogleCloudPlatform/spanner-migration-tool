@@ -353,7 +353,6 @@ func TestProcessData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	conv.SetDataFlush(nil)
 	common.ProcessData(conv, InfoSchemaImpl{client, 10})
 	assert.Equal(t,
 		[]spannerData{

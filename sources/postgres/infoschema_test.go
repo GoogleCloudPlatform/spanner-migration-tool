@@ -323,7 +323,6 @@ func TestProcessData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	conv.SetDataFlush(nil)
 	common.ProcessData(conv, InfoSchemaImpl{db})
 
 	assert.Equal(t,
@@ -460,7 +459,6 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	conv.SetDataFlush(nil)
 	common.ProcessData(conv, InfoSchemaImpl{db})
 	assert.Equal(t, []spannerData{
 		{table: "test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), int64(0)}},
