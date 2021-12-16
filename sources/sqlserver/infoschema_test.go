@@ -36,7 +36,7 @@ type mockSpec struct {
 func TestProcessSchema(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: `SELECT (.+) WHERE tbls.type = 'U' AND tbls.is_tracked_by_cdc = 0`,
+			query: `SELECT (.+) WHERE TBL.type = 'U' AND TBL.is_tracked_by_cdc = 0 AND TBL.is_ms_shipped = 0 AND TBL.name <> 'sysdiagrams'`,
 			cols:  []string{"table_schema", "table_name"},
 			rows: [][]driver.Value{
 				{"public", "user"},
@@ -256,7 +256,7 @@ func TestProcessSchema(t *testing.T) {
 				"Geography":        ddl.ColumnDef{Name: "Geography", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Geometry":         ddl.ColumnDef{Name: "Geometry", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"HierarchyId":      ddl.ColumnDef{Name: "HierarchyId", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
-				"Image":            ddl.ColumnDef{Name: "Image", T: ddl.Type{Name: ddl.Bytes, Len: 2147483647}, NotNull: false},
+				"Image":            ddl.ColumnDef{Name: "Image", T: ddl.Type{Name: ddl.Bytes, Len: 9223372036854775807}, NotNull: false},
 				"Int":              ddl.ColumnDef{Name: "Int", T: ddl.Type{Name: ddl.Int64}, NotNull: false},
 				"Money":            ddl.ColumnDef{Name: "Money", T: ddl.Type{Name: ddl.Numeric}, NotNull: false},
 				"NChar":            ddl.ColumnDef{Name: "NChar", T: ddl.Type{Name: ddl.String, Len: 10}, NotNull: false},
