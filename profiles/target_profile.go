@@ -22,22 +22,22 @@ const (
 )
 
 type TargetProfileConnectionSpanner struct {
-	endpoint string // Same as SPANNER_API_ENDPOINT environment variable
-	project  string // Same as GCLOUD_PROJECT environment variable
-	instance string
-	dbname   string
-	dialect  string
+	Endpoint string // Same as SPANNER_API_ENDPOINT environment variable
+	Project  string // Same as GCLOUD_PROJECT environment variable
+	Instance string
+	Dbname   string
+	Dialect  string
 }
 
 type TargetProfileConnection struct {
-	ty TargetProfileConnectionType
-	sp TargetProfileConnectionSpanner
+	Ty TargetProfileConnectionType
+	Sp TargetProfileConnectionSpanner
 }
 
 type TargetProfile struct {
 	TargetDb string
-	ty       TargetProfileType
-	conn     TargetProfileConnection
+	Ty       TargetProfileType
+	Conn     TargetProfileConnection
 }
 
 // ToLegacyTargetDb converts source-profile to equivalent legacy global flag
@@ -45,15 +45,15 @@ type TargetProfile struct {
 // TODO: Deprecate this function and pass around TargetProfile across the
 // codebase wherever information about target connection is required.
 func (trg TargetProfile) ToLegacyTargetDb() string {
-	switch trg.ty {
+	switch trg.Ty {
 	case TargetProfileTypeConnection:
 		{
-			conn := trg.conn
-			switch conn.ty {
+			conn := trg.Conn
+			switch conn.Ty {
 			case TargetProfileConnectionTypeSpanner:
 				{
-					sp := conn.sp
-					if len(sp.dialect) > 0 && strings.ToLower(sp.dialect) == constants.DIALECT_POSTGRESQL {
+					sp := conn.Sp
+					if len(sp.Dialect) > 0 && strings.ToLower(sp.Dialect) == constants.DIALECT_POSTGRESQL {
 						return constants.TargetExperimentalPostgres
 					}
 					return constants.TargetSpanner
@@ -94,21 +94,21 @@ func NewTargetProfile(s string) (TargetProfile, error) {
 
 	sp := TargetProfileConnectionSpanner{}
 	if endpoint, ok := params["endpoint"]; ok {
-		sp.endpoint = endpoint
+		sp.Endpoint = endpoint
 	}
 	if project, ok := params["project"]; ok {
-		sp.project = project
+		sp.Project = project
 	}
 	if instance, ok := params["instance"]; ok {
-		sp.instance = instance
+		sp.Instance = instance
 	}
 	if dbname, ok := params["dbname"]; ok {
-		sp.dbname = dbname
+		sp.Dbname = dbname
 	}
 	if dialect, ok := params["dialect"]; ok {
-		sp.dialect = dialect
+		sp.Dialect = dialect
 	}
 
-	conn := TargetProfileConnection{ty: TargetProfileConnectionTypeSpanner, sp: sp}
-	return TargetProfile{ty: TargetProfileTypeConnection, conn: conn}, nil
+	conn := TargetProfileConnection{Ty: TargetProfileConnectionTypeSpanner, Sp: sp}
+	return TargetProfile{Ty: TargetProfileTypeConnection, Conn: conn}, nil
 }

@@ -49,7 +49,7 @@ func parseProfile(s string) (map[string]string, error) {
 
 func GetResourceIds(ctx context.Context, targetProfile TargetProfile, now time.Time, driverName string, out *os.File) (string, string, string, error) {
 	var err error
-	project := targetProfile.conn.sp.project
+	project := targetProfile.Conn.Sp.Project
 	if project == "" {
 		project, err = utils.GetProject()
 		if err != nil {
@@ -58,7 +58,7 @@ func GetResourceIds(ctx context.Context, targetProfile TargetProfile, now time.T
 	}
 	fmt.Println("Using Google Cloud project:", project)
 
-	instance := targetProfile.conn.sp.instance
+	instance := targetProfile.Conn.Sp.Instance
 	if instance == "" {
 		instance, err = utils.GetInstance(ctx, project, out)
 		if err != nil {
@@ -68,7 +68,7 @@ func GetResourceIds(ctx context.Context, targetProfile TargetProfile, now time.T
 	fmt.Println("Using Cloud Spanner instance:", instance)
 	utils.PrintPermissionsWarning(driverName, out)
 
-	dbName := targetProfile.conn.sp.dbname
+	dbName := targetProfile.Conn.Sp.Dbname
 	if dbName == "" {
 		dbName, err = utils.GetDatabaseName(driverName, now)
 		if err != nil {
