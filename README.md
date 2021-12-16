@@ -147,6 +147,7 @@ can be found here:
 - [PostgreSQL example usage](sources/postgres/README.md#example-postgresql-usage)
 - [MySQL example usage](sources/mysql/README.md#example-mysql-usage)
 - [DynamoDB example usage](sources/dynamodb/README.md#example-dynamodb-usage)
+- [CSV example usage](sources/csv/README.md#example-csv-usage)
 
 This command will use the cloud project specified by the `GCLOUD_PROJECT`
 environment variable, automatically determine the Cloud Spanner instance
@@ -310,7 +311,7 @@ This section describes the flags common across all the subcommands. For flags
 specific to a give subcommand run `harbourbridge help <subcommand>`.
 
 `-source` Required flag. Specifies the source database. Supported source
-databases are _'postgres'_, _'mysql'_ and _'dynamodb'_.
+databases are _'postgres'_, _'mysql'_, _'dynamodb'_ and _'csv'_(only in data mode).
 
 `-target` Optional flag. Specifies the target database. Defaults to _'spanner'_
 , which is the only supported target database today.
@@ -390,6 +391,7 @@ data conversion can be found here:
 - [PostgreSQL data conversion](sources/postgres/README.md#data-conversion)
 - [MySQL data conversion](sources/mysql/README.md#data-conversion)
 - [DynamoDB data conversion](sources/dynamodb/README.md#data-conversion)
+- [CSV data conversion](sources/csv/README.md#example-csv-usage)
 
 ## Troubleshooting Guide
 
