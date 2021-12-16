@@ -27,7 +27,7 @@ const (
 	ByteLimit   int64 = 10485760
 )
 
-// ToDdlImpl Postgres specific implementation for ToDdl.
+// ToDdlImpl sql server specific implementation for ToDdl.
 type ToDdlImpl struct {
 }
 

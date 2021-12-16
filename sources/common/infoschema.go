@@ -110,7 +110,6 @@ func SetRowStats(conv *internal.Conv, infoSchema InfoSchema) {
 }
 
 func processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) error {
-	// fmt.Fprintf(os.Stdout, fmt.Sprintf("processing... %s.%s \n", table.Name, table.Schema))
 	primaryKeys, constraints, err := infoSchema.GetConstraints(conv, table)
 	if err != nil {
 		return fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.Schema, table.Name, err)
