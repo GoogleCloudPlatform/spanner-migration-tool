@@ -270,7 +270,7 @@ func TestProcessSchema(t *testing.T) {
 				"SmallMoney":       ddl.ColumnDef{Name: "SmallMoney", T: ddl.Type{Name: ddl.Numeric}, NotNull: false},
 				"SQLVariant":       ddl.ColumnDef{Name: "SQLVariant", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Text":             ddl.ColumnDef{Name: "Text", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
-				"Time":             ddl.ColumnDef{Name: "Time", T: ddl.Type{Name: ddl.Timestamp}, NotNull: false},
+				"Time":             ddl.ColumnDef{Name: "Time", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"TimeStamp":        ddl.ColumnDef{Name: "TimeStamp", T: ddl.Type{Name: ddl.Timestamp}, NotNull: false},
 				"TinyInt":          ddl.ColumnDef{Name: "TinyInt", T: ddl.Type{Name: ddl.Int64}, NotNull: false},
 				"UniqueIdentifier": ddl.ColumnDef{Name: "UniqueIdentifier", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},

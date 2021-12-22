@@ -40,6 +40,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
@@ -56,6 +57,7 @@ import (
 // 8) Add an overview in summary report API
 var mysqlTypeMap = make(map[string][]typeIssue)
 var postgresTypeMap = make(map[string][]typeIssue)
+var sqlserverTypeMap = make(map[string][]typeIssue)
 
 // TODO:(searce) organize this file according to go style guidelines: generally
 // have public constants and public type definitions first, then public
@@ -92,6 +94,8 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 		dataSourceName = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", config.Host, config.Port, config.User, config.Password, config.Database)
 	case constants.MYSQL:
 		dataSourceName = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", config.User, config.Password, config.Host, config.Port, config.Database)
+	case constants.SQLSERVER:
+		dataSourceName = fmt.Sprintf(`sqlserver://%s:%s@%s:%s?database=%s`, config.User, config.Password, config.Host, config.Port, config.Database)
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", config.Driver), http.StatusBadRequest)
 		return
@@ -128,6 +132,8 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		err = common.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.dbName, Db: sessionState.sourceDB})
 	case constants.POSTGRES:
 		err = common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.sourceDB})
+	case constants.SQLSERVER:
+		err = common.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.dbName, Db: sessionState.sourceDB})
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.driver), http.StatusBadRequest)
 		return
@@ -243,6 +249,8 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 		typeMap = mysqlTypeMap
 	case constants.POSTGRES, constants.PGDUMP:
 		typeMap = postgresTypeMap
+	case constants.SQLSERVER:
+		typeMap = sqlserverTypeMap
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.driver), http.StatusBadRequest)
 		return
@@ -1030,6 +1038,8 @@ func getType(newType, table, colName string, srcTableName string) (ddl.CreateTab
 		ty, issues = toSpannerTypeMySQL(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	case constants.PGDUMP, constants.POSTGRES:
 		ty, issues = toSpannerTypePostgres(srcCol.Type.Name, newType, srcCol.Type.Mods)
+	case constants.SQLSERVER:
+		ty, issues = toSpannerTypeSQLserver(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	default:
 		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.driver)
 	}
@@ -1157,6 +1167,17 @@ func init() {
 		}
 		postgresTypeMap[srcType] = l
 	}
+
+	// Initialize sqlserverTypeMap.
+	for _, srcType := range []string{"int", "tinyint", "smallint", "bigint", "bit", "float", "real", "numeric", "decimal", "money", "smallmoney", "char", "nchar", "varchar", "nvarchar", "text", "ntext", "date", "datetime", "datetime2", "smalldatetime", "datetimeoffset", "time", "timestamp", "rowversion", "binary", "varbinary", "image", "xml", "geography", "geometry", "uniqueidentifier", "sql_variant", "hierarchyid"} {
+		var l []typeIssue
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
+			ty, issues := toSpannerTypeSQLserver(srcType, spType, []int64{})
+			l = addTypeToList(ty.Name, spType, issues, l)
+		}
+		sqlserverTypeMap[srcType] = l
+	}
+
 	sessionState.conv = internal.MakeConv()
 }
 

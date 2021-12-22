@@ -275,7 +275,7 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 				return conn, err
 			}
 		}
-	case "sqlserver":
+	case "sqlserver", "mssql":
 		{
 			conn.ty = SourceProfileConnectionTypeSqlServer
 			conn.sqlserver, err = NewSourceProfileConnectionSqlServer(params)
