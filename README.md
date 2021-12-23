@@ -310,8 +310,8 @@ This subcommand will generate a schema as well as perform data migration and rep
 This section describes the flags common across all the subcommands. For flags
 specific to a give subcommand run `harbourbridge help <subcommand>`.
 
-`-source` Required flag. Specifies the source database. Supported source
-databases are _'postgres'_, _'mysql'_, _'dynamodb'_ and _'csv'_(only in data mode).
+`-source` Required flag. Specifies the source source. Supported sources 
+are _'postgres'_, _'mysql'_, _'dynamodb'_ and _'csv'_(only in data mode).
 
 `-target` Optional flag. Specifies the target database. Defaults to _'spanner'_
 , which is the only supported target database today.
