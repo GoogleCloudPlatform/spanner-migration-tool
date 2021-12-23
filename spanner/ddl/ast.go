@@ -158,7 +158,11 @@ type Config struct {
 
 func (c Config) quote(s string) string {
 	if c.ProtectIds {
-		return "`" + s + "`"
+		if c.TargetDb == constants.TargetExperimentalPostgres {
+			return "\"" + s + "\""
+		} else {
+			return "`" + s + "`"
+		}
 	}
 	return s
 }
