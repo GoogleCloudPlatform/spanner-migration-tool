@@ -732,6 +732,12 @@ func getRows(conv *internal.Conv, vll []*pg_query.Node, n *pg_query.InsertStmt) 
 						// high priority (it isn't right now), then consider preserving int64
 						// here to avoid the int64 -> string -> int64 conversions.
 						values = append(values, strconv.FormatInt(int64(c.Integer.Ival), 10))
+					case *pg_query.Node_Float:
+						values = append(values, c.Float.Str)
+					case *pg_query.Node_Null:
+						values = append(values, "NULL")
+					// TODO: There are other Node types like Node_IntList, Node_List, Node_BitString etc that
+					// need to be explored.
 					default:
 						conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node for A_Const Val", printNodeType(n), printNodeType(c)))
 					}
