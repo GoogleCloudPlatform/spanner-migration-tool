@@ -5,13 +5,13 @@ and migration. We now support loading data from CSVs. This assumes a Spanner
 database with Schema already exists and HarbourBridge loads the data for you.
 
 
-To run HarbourBridge to migrate CSVs, it should be used only with the data 
-subcommand. It also requires a manifest file as an input which has Table names,
-Column names and Data types of your Spanner schema.
+To migrate CSVs via HarbourBridge, provide a manifest file and run it with 
+the data subcommand.
 
 ### Manifest File
 The manifest file should be a list of JSONs containing each table's
-information. Each item should contain the fields:
+information including Table names, Column names and Data types of 
+your Spanner schema.. Each item should contain the fields:
 - `"table_name"`: The name of the table, identical to the corresponding table 
 name in your Spanner schema.
 - `"file_patterns"`: A list of the CSV file paths that contain data for that
@@ -61,6 +61,8 @@ to what is there in your Spanner schema.
 double quotes.
 - The type_name should be identical to the types in spanner schema. Only 
 for `STRING` and `BYTES`, the length can be optionally omitted.
+Accepted values are STRING, STRING(10), BYTES, BYTES(1533) etc.
+Be careful of typos like STRINGS, BYTE, STRINGS(10).
 
 ### CSV File Format
 - Each column in a row should be separated by a `,`(comma).
@@ -109,6 +111,38 @@ It is recommended to create Foreign Keys only after data conversion
 has been completed.
 
 For interleaved tables, it may not be possible to change the schema later.
-The recommended workaround for this is to reorder the tables in the list
-inside the manifest file such that the parent tables are described before
-the child tables.
+The recommended workaround for this is list your table descriptions in the 
+manifest file such that the parent tables are described before the child 
+tables. This is because tables are imported in the same order as how they
+are listed in the manifest.
+
+For ex: If Table_P is a parent of Table_C, describe Table_P first in the list
+followed by Table_C and not vice-versa.
+```
+Correct Ordering:
+[
+    {
+      "table_name": "Table_P",
+      "file_patterns": [...],
+      "columns": [...]
+    },
+    {
+      "table_name": "Table_C",
+      "file_patterns": [...],
+      "columns": [...]
+    }
+]
+Incorrect Ordering because child table listed first hence gets imported first.
+[
+    {
+      "table_name": "Table_C",
+      "file_patterns": [...],
+      "columns": [...]
+    },
+    {
+      "table_name": "Table_P",
+      "file_patterns": [...],
+      "columns": [...]
+    }
+]
+```
