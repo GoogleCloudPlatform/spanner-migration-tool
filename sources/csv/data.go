@@ -45,7 +45,7 @@ type Table struct {
 
 // LoadManifest reads the manifest file and unmarshalls it into a list of Table struct.
 // It also performs certain checks on the manifest.
-func LoadManifest(manifestFile string) ([]Table, error) {
+func LoadManifest(conv *internal.Conv, manifestFile string) ([]Table, error) {
 	manifest, err := ioutil.ReadFile(manifestFile)
 	if err != nil {
 		return nil, fmt.Errorf("can't read manifest file due to: %v", err)
@@ -55,16 +55,16 @@ func LoadManifest(manifestFile string) ([]Table, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to unmarshall json due to: %v", err)
 	}
-	err = verifyManifest(tables)
+	err = VerifyManifest(conv, tables)
 	if err != nil {
 		return nil, fmt.Errorf("manifest is incomplete: %v", err)
 	}
 	return tables, nil
 }
 
-// verifyManifest performs certain prechecks on the structure of the manifest.
-// Checks on valid file paths and empty CSVs are handled as conv.Unexpected errors later during processing.
-func verifyManifest(tables []Table) error {
+// VerifyManifest performs certain prechecks on the structure of the manifest while populating the conv with
+// the ddl types. Also checks on valid file paths and empty CSVs are handled as conv.Unexpected errors later during processing.
+func VerifyManifest(conv *internal.Conv, tables []Table) error {
 	if len(tables) == 0 {
 		return fmt.Errorf("no tables found")
 	}
@@ -80,62 +80,16 @@ func verifyManifest(tables []Table) error {
 		if len(cols) == 0 {
 			return fmt.Errorf("`columns` field for table %s is empty", name)
 		}
-		for j, col := range cols {
-			if col.Column_name == "" || col.Type_name == "" {
-				return fmt.Errorf("please provide column_name and type_name in `columns` field at position %d (0-indexed)", j)
-			}
-		}
-	}
-	return nil
-}
-
-// SetRowStats calculates the number of rows per table.
-func SetRowStats(conv *internal.Conv, tables []Table) {
-	for _, table := range tables {
-		for _, filePath := range table.File_patterns {
-			count, err := getCSVRowCount(filePath)
-			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Couldn't get number of rows for table %s", table.Table_name))
-				continue
-			}
-			conv.Stats.Rows[table.Table_name] += count
-		}
-	}
-}
-
-// getCSVRowCount returns the number of data rows in the CSV file.
-func getCSVRowCount(filePath string) (int64, error) {
-	count := int64(0)
-	csvFile, err := os.Open(filePath)
-	if err != nil {
-		fmt.Printf("can't read csv file: %s due to: %v\n", filePath, err)
-	}
-	r := csvReader.NewReader(csvFile)
-	for {
-		_, err := r.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return 0, fmt.Errorf("can't read row from file: %s", filePath)
-		}
-		count++
-	}
-	// Exclude the first row, that is, column headers.
-	return count - 1, nil
-}
-
-// ProcessCSV writes data across the tables provided in the manifest file. Each table's data can be provided
-// across multiple CSV files hence, the manifest accepts a list of file paths in the input.
-func ProcessCSV(conv *internal.Conv, tables []Table) error {
-	for _, table := range tables {
 		// Populating just the table names in the conv for SrcSchema and SpSchema
 		// so the report for row stats is generated.
 		conv.SrcSchema[table.Table_name] = schema.Table{Name: table.Table_name}
 
 		// The map colDefs stores the mapping from column names to their final types.
 		colDefs := make(map[string]ddl.ColumnDef)
-		for _, col := range table.Columns {
+		for j, col := range cols {
+			if col.Column_name == "" || col.Type_name == "" {
+				return fmt.Errorf("please provide column_name and type_name in `columns` field at position %d (0-indexed)", j)
+			}
 			ty, err := ToSpannerType(col.Type_name)
 			if err != nil {
 				return fmt.Errorf("can't map to spanner type: %v. Please use the data types as in your spanner database", err)
@@ -143,13 +97,61 @@ func ProcessCSV(conv *internal.Conv, tables []Table) error {
 			colDefs[col.Column_name] = ddl.ColumnDef{Name: col.Column_name, T: ty}
 		}
 		conv.SpSchema[table.Table_name] = ddl.CreateTable{Name: table.Table_name, ColDefs: colDefs}
+	}
+	return nil
+}
 
+// SetRowStats calculates the number of rows per table.
+func SetRowStats(conv *internal.Conv, tables []Table, delimiter rune) {
+	for _, table := range tables {
+		for _, filePath := range table.File_patterns {
+			csvFile, err := os.Open(filePath)
+			if err != nil {
+				fmt.Printf("can't read csv file: %s due to: %v\n", filePath, err)
+			}
+			r := csvReader.NewReader(csvFile)
+			r.Comma = delimiter
+			count, err := getCSVRowCount(r)
+			if err != nil {
+				conv.Unexpected(fmt.Sprintf("Couldn't get number of rows for table %s", table.Table_name))
+				continue
+			}
+			if count == 0 {
+				conv.Unexpected(fmt.Sprintf("File %s is empty.", filePath))
+				continue
+			}
+			conv.Stats.Rows[table.Table_name] += count - 1
+		}
+	}
+}
+
+// getCSVRowCount returns the number of rows in the CSV file.
+func getCSVRowCount(r *csvReader.Reader) (int64, error) {
+	count := int64(0)
+	for {
+		_, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return 0, fmt.Errorf("can't read row")
+		}
+		count++
+	}
+	return count, nil
+}
+
+// ProcessCSV writes data across the tables provided in the manifest file. Each table's data can be provided
+// across multiple CSV files hence, the manifest accepts a list of file paths in the input.
+func ProcessCSV(conv *internal.Conv, tables []Table, nullStr string, delimiter rune) error {
+	for _, table := range tables {
 		for _, filePath := range table.File_patterns {
 			csvFile, err := os.Open(filePath)
 			if err != nil {
 				return fmt.Errorf(fmt.Sprintf("can't read csv file: %s due to: %v\n", filePath, err))
 			}
 			r := csvReader.NewReader(csvFile)
+			r.Comma = delimiter
 
 			// First row is expected to be the column headers.
 			srcCols, err := r.Read()
@@ -168,7 +170,7 @@ func ProcessCSV(conv *internal.Conv, tables []Table) error {
 				if err != nil {
 					return fmt.Errorf(fmt.Sprintf("can't read row  names due to: %v", err))
 				}
-				processDataRow(conv, table.Table_name, srcCols, values)
+				processDataRow(conv, nullStr, table.Table_name, srcCols, values)
 			}
 		}
 	}
@@ -176,30 +178,36 @@ func ProcessCSV(conv *internal.Conv, tables []Table) error {
 }
 
 // processDataRow converts a row into go data types as per the client libs.
-func processDataRow(conv *internal.Conv, tableName string, srcCols []string, values []string) {
-	cvtVals, err := convertData(conv, tableName, srcCols, values)
+func processDataRow(conv *internal.Conv, nullStr, tableName string, srcCols []string, values []string) {
+	// Pass nullStr from source-profile.
+	cvtCols, cvtVals, err := convertData(conv, nullStr, tableName, srcCols, values)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
 		conv.StatsAddBadRow(tableName, conv.DataMode())
 		conv.CollectBadRow(tableName, srcCols, values)
 	} else {
-		conv.WriteRow(tableName, tableName, srcCols, cvtVals)
+		conv.WriteRow(tableName, tableName, cvtCols, cvtVals)
 	}
 }
 
 // convertData currently only supports scalar data types.
-func convertData(conv *internal.Conv, tableName string, srcCols []string, values []string) ([]interface{}, error) {
+func convertData(conv *internal.Conv, nullStr, tableName string, srcCols []string, values []string) ([]string, []interface{}, error) {
 	var v []interface{}
+	var cvtCols []string
 	colDefs := conv.SpSchema[tableName].ColDefs
 	for i, val := range values {
+		if val == nullStr {
+			continue
+		}
 		colName := srcCols[i]
 		x, err := convScalar(colDefs[colName].T, val)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		v = append(v, x)
+		cvtCols = append(cvtCols, colName)
 	}
-	return v, nil
+	return cvtCols, v, nil
 }
 
 func convScalar(spannerType ddl.Type, val string) (interface{}, error) {
