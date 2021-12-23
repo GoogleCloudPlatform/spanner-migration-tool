@@ -282,14 +282,14 @@ func dataFromDump(driver string, config spanner.BatchWriterConfig, ioHelper *uti
 	return writer, nil
 }
 
-func DataFromCSV(conv *internal.Conv, manifestFile string, client *sp.Client, targetDb string) (*spanner.BatchWriter, error) {
-	tables, err := csv.LoadManifest(manifestFile)
+func DataFromCSV(conv *internal.Conv, manifestFile string, client *sp.Client, targetDb, nullStr string, delimiter rune) (*spanner.BatchWriter, error) {
+	tables, err := csv.LoadManifest(conv, manifestFile)
 	if err != nil {
 		return nil, err
 	}
 
 	// Find the number of rows in each csv file for generating stats.
-	csv.SetRowStats(conv, tables)
+	csv.SetRowStats(conv, tables, delimiter)
 	totalRows := conv.Rows()
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 	rows := int64(0)
@@ -314,7 +314,7 @@ func DataFromCSV(conv *internal.Conv, manifestFile string, client *sp.Client, ta
 		func(table string, cols []string, vals []interface{}) {
 			writer.AddRow(table, cols, vals)
 		})
-	err = csv.ProcessCSV(conv, tables)
+	err = csv.ProcessCSV(conv, tables, nullStr, delimiter)
 	if err != nil {
 		return nil, fmt.Errorf("can't process csv: %v", err)
 	}

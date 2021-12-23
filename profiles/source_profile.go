@@ -328,11 +328,23 @@ func NewSourceProfileConfig(path string) SourceProfileConfig {
 }
 
 type SourceProfileCsv struct {
-	Manifest string
+	Manifest  string
+	Delimiter string
+	NullStr   string
 }
 
-func NewSourceProfileCsv(manifest string) SourceProfileCsv {
-	return SourceProfileCsv{Manifest: manifest}
+func NewSourceProfileCsv(params map[string]string) SourceProfileCsv {
+	csvProfile := SourceProfileCsv{}
+	csvProfile.Manifest = params["manifest"]
+	csvProfile.Delimiter = ","
+	csvProfile.NullStr = ""
+	if delimiter, ok := params["delimiter"]; ok {
+		csvProfile.Delimiter = delimiter
+	}
+	if nullStr, ok := params["nullStr"]; ok {
+		csvProfile.NullStr = nullStr
+	}
+	return csvProfile
 }
 
 type SourceProfile struct {
@@ -419,8 +431,8 @@ func NewSourceProfile(s string, source string) (SourceProfile, error) {
 		return SourceProfile{}, fmt.Errorf("could not parse source-profile, error = %v", err)
 	}
 
-	if manifest, ok := params["manifest"]; ok {
-		profile := NewSourceProfileCsv(manifest)
+	if _, ok := params["manifest"]; ok {
+		profile := NewSourceProfileCsv(params)
 		return SourceProfile{Ty: SourceProfileTypeCsv, Csv: profile}, nil
 	}
 

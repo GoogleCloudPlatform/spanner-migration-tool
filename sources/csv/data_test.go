@@ -106,7 +106,7 @@ func TestSetRowStats(t *testing.T) {
 	conv := internal.MakeConv()
 	writeCSVs(t)
 	defer cleanupCSVs()
-	SetRowStats(conv, getManifestTables())
+	SetRowStats(conv, getManifestTables(), ',')
 	assert.Equal(t, map[string]int64{ALL_TYPES_TABLE: 1, SINGERS_TABLE: 2}, conv.Stats.Rows)
 }
 
@@ -121,8 +121,9 @@ func TestProcessDataRow(t *testing.T) {
 
 	writeCSVs(t)
 	defer cleanupCSVs()
-
-	err := ProcessCSV(conv, getManifestTables())
+	tables := getManifestTables()
+	VerifyManifest(conv, tables)
+	err := ProcessCSV(conv, tables, "", ',')
 	fmt.Println(err)
 	assert.Nil(t, err)
 	assert.Equal(t, []spannerData{
@@ -143,6 +144,7 @@ func TestConvertData(t *testing.T) {
 		in   string      // Input value for conversion.
 		ev   interface{} // Expected values.
 	}{
+		{"null", ddl.Type{Name: ddl.Bool}, "", nil},
 		{"bool", ddl.Type{Name: ddl.Bool}, "true", true},
 		{"bytes", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, string([]byte{137, 80}), []byte{0x89, 0x50}},
 		{"date", ddl.Type{Name: ddl.Date}, "2019-10-29", getDate("2019-10-29")},
@@ -160,7 +162,13 @@ func TestConvertData(t *testing.T) {
 			ddl.CreateTable{
 				Name:    tableName,
 				ColDefs: map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: tc.ty}}})
-		av, err := convertData(conv, tableName, []string{col}, []string{tc.in})
+		_, av, err := convertData(conv, "", tableName, []string{col}, []string{tc.in})
+		// NULL scenario.
+		if tc.ev == nil {
+			var empty []interface{}
+			assert.Equal(t, empty, av)
+			continue
+		}
 		assert.Nil(t, err, tc.name)
 		assert.Equal(t, []interface{}{tc.ev}, av, tc.name+": value mismatch")
 	}
@@ -193,7 +201,7 @@ func TestConvertData(t *testing.T) {
 	}
 	for _, tc := range errorTests {
 		conv := buildConv(spTable)
-		_, err := convertData(conv, tableName, cols, tc.vals)
+		_, _, err := convertData(conv, "", tableName, cols, tc.vals)
 		assert.NotNil(t, err, tc.name)
 	}
 }
