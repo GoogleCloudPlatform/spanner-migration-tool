@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	StringLimit int64 = 2621440
-	ByteLimit   int64 = 10485760
+	stringLimit int64 = 2621440
+	byteLimit   int64 = 10485760
 )
 
 // ToDdlImpl sql server specific implementation for ToDdl.
@@ -39,12 +39,6 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) 
 	ty, issues := toSpannerTypeInternal(conv, columnType.Name, columnType.Mods)
 	if conv.TargetDb == constants.TargetExperimentalPostgres {
 		ty = overrideExperimentalType(columnType, ty)
-	} else {
-		if len(columnType.ArrayBounds) > 1 {
-			ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-			issues = append(issues, internal.MultiDimensionalArray)
-		}
-		ty.IsArray = len(columnType.ArrayBounds) == 1
 	}
 	return ty, issues
 }
@@ -60,9 +54,6 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 	case "uniqueidentifier":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "binary", "varbinary", "image":
-		if len(mods) > 0 && mods[0] > 0 && mods[0] <= ByteLimit {
-			return ddl.Type{Name: ddl.Bytes, Len: mods[0]}, nil
-		}
 		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 	case "date":
 		return ddl.Type{Name: ddl.Date}, nil
@@ -76,15 +67,17 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 		return ddl.Type{Name: ddl.Numeric}, nil
 	case "ntext", "text", "xml":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "smalldatetime", "datetimeoffset", "datetime2", "datetime", "timestamp":
+	case "smalldatetime", "datetimeoffset", "datetime2", "datetime":
 		return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Timestamp}
 	case "time":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Time}
 	case "varchar", "char", "nvarchar", "nchar":
-		if len(mods) > 0 && mods[0] > 0 && mods[0] <= StringLimit {
+		if len(mods) > 0 && mods[0] > 0 && mods[0] <= stringLimit {
 			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
 		}
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+	case "timestamp":
+		return ddl.Type{Name: ddl.Int64}, nil
 	default:
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 	}
@@ -92,11 +85,7 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 
 // Override the types to map to experimental postgres types.
 func overrideExperimentalType(columnType schema.Type, originalType ddl.Type) ddl.Type {
-	if len(columnType.ArrayBounds) > 0 {
-		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-	} else if columnType.Name == "date" {
-		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-	} else if columnType.Name == "json" || columnType.Name == "jsonb" {
+	if columnType.Name == "date" {
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 	}
 	return originalType

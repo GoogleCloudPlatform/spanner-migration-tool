@@ -30,12 +30,14 @@ for SQLserver source. Password can be provided at the password prompt.
 
 ## Schema Conversion
 
-| MSSQL_Type             | Spanner_Type |
+| SQL_Server_Type        | Spanner_Type |
 | ---------------------- | ------------ |
 | INT                    | INT64        |
 | TINYINT                | INT64        |
 | SMALLINT               | INT64        |
 | BIGINT                 | INT64        |
+| TIMESTAMP              | INT64        |
+| ROWVERSION             | INT64        |
 | BIT                    | BOOL         |
 | FLOAT                  | FLOAT64      |
 | REAL                   | FLOAT64      |
@@ -54,9 +56,7 @@ for SQLserver source. Password can be provided at the password prompt.
 | DATETIME2              | TIMESTAMP    |
 | SMALLDATETIME          | TIMESTAMP    |
 | DATETIMEOFFSET         | TIMESTAMP    |
-| TIME                   | TIMESTAMP    |
-| TIMESTAMP              | TIMESTAMP    |
-| ROWVERSION             | TIMESTAMP    |
+| TIME                   | STRING       |
 | BINARY                 | BYTES        |
 | VARBINARY              | BYTES        |
 | IMAGE                  | BYTES        |
