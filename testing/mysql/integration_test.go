@@ -112,7 +112,7 @@ func TestIntegration_MYSQLDUMP_Command(t *testing.T) {
 	now := time.Now()
 	dbName, _ := conversion.GetDatabaseName(constants.MYSQLDUMP, now)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	dataFilepath := "../../test_data/mysqldump.test.out"
+	dataFilepath := "https://storage.cloud.google.com/shreya-test/mysqldump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
 	args := fmt.Sprintf("-driver %s -prefix %s -instance %s -dbname %s < %s", constants.MYSQLDUMP, filePrefix, instanceID, dbName, dataFilepath)

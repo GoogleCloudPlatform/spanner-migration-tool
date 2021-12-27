@@ -309,6 +309,7 @@ func downloadFromGCS(bucketName string, filePath string) (*os.File, error) {
 // Input stream defaults to stdin. Output stream is always set to stdout.
 func NewIOStreams(driver string, dumpFile string) IOStreams {
 	io := IOStreams{In: os.Stdin, Out: os.Stdout}
+	print("reaching")
 	u, err := url.Parse(dumpFile)
 	if err != nil {
 		fmt.Printf("parseFilePath: unable parse file path for dumpfile %s", dumpFile)
