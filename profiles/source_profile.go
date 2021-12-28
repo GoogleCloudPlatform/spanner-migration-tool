@@ -430,10 +430,13 @@ func NewSourceProfile(s string, source string) (SourceProfile, error) {
 	if err != nil {
 		return SourceProfile{}, fmt.Errorf("could not parse source-profile, error = %v", err)
 	}
-
-	if _, ok := params["manifest"]; ok {
-		profile := NewSourceProfileCsv(params)
-		return SourceProfile{Ty: SourceProfileTypeCsv, Csv: profile}, nil
+	if source == constants.CSV {
+		if _, ok := params["manifest"]; ok {
+			profile := NewSourceProfileCsv(params)
+			return SourceProfile{Ty: SourceProfileTypeCsv, Csv: profile}, nil
+		} else {
+			return SourceProfile{}, fmt.Errorf("csv source requires a manifest file, please specify manifest file in the source profile e.g., -source-profile=\"manifest=file_path\"")
+		}
 	}
 
 	if _, ok := params["file"]; ok || filePipedToStdin() {
