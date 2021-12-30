@@ -27,12 +27,16 @@ import (
 )
 
 const (
-	uuidType        string = "uniqueidentifier"
-	geographyType   string = "geography"
-	geometryType    string = "geometry"
-	timeType        string = "time"
-	hierarchyIdType string = "hierarchyid"
-	timestampType   string = "timestamp"
+	uuidType           string = "uniqueidentifier"
+	geographyType      string = "geography"
+	geometryType       string = "geometry"
+	timeType           string = "time"
+	hierarchyIdType    string = "hierarchyid"
+	timestampType      string = "timestamp"
+	dateTimeType       string = "datetime"
+	dateTime2Type      string = "datetime2"
+	dateTimeOffsetType string = "datetimeoffset"
+	smallDateTimeType  string = "smalldatetime"
 )
 
 type InfoSchemaImpl struct {
@@ -94,7 +98,11 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 
 // GetRowsFromTable returns a sql Rows object for a table.
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
-	q := getSelectQuery(srcTable, conv.SrcSchema[srcTable].ColNames, conv.SrcSchema[srcTable].ColDefs)
+	tbl := conv.SrcSchema[srcTable]
+	//To get only the table name by removing the schema name prefix
+	tblName := strings.Replace(srcTable, tbl.Schema+".", "", 1)
+
+	q := getSelectQuery(isi.DbName, tbl.Schema, tblName, tbl.ColNames, tbl.ColDefs)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err
@@ -102,7 +110,7 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string)
 	return rows, err
 }
 
-func getSelectQuery(srcTable string, colNames []string, colDefs map[string]schema.Column) string {
+func getSelectQuery(srcDb string, schemaName string, tableName string, colNames []string, colDefs map[string]schema.Column) string {
 	var selects = make([]string, len(colNames))
 
 	for i, cn := range colNames {
@@ -118,13 +126,15 @@ func getSelectQuery(srcTable string, colNames []string, colDefs map[string]schem
 			s = fmt.Sprintf("CAST([%s] AS VARCHAR(12)) AS %s", cn, cn)
 		case timestampType:
 			s = fmt.Sprintf("CAST([%s] AS BIGINT) AS %s", cn, cn)
+		case smallDateTimeType, dateTimeType, dateTime2Type, dateTimeOffsetType:
+			s = fmt.Sprintf("CONVERT(VARCHAR(33), [%s], 126) AS %s", cn, cn)
 		default:
 			s = fmt.Sprintf("[%s]", cn)
 		}
 		selects[i] = s
 	}
 
-	return fmt.Sprintf("SELECT %s FROM %s", strings.Join(selects, ", "), srcTable)
+	return fmt.Sprintf("SELECT %s FROM [%s].[%s].[%s]", strings.Join(selects, ", "), srcDb, schemaName, tableName)
 }
 
 // buildVals contructs interface{} value containers to scan row
@@ -141,7 +151,7 @@ func buildVals(n int) (v []interface{}, iv []interface{}) {
 
 // GetRowCount with number of rows in each table.
 func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error) {
-	q := fmt.Sprintf(`SELECT COUNT(1) FROM "%s"."%s";`, table.Schema, table.Name)
+	q := fmt.Sprintf(`SELECT COUNT(1) FROM [%s].[%s].[%s];`, isi.DbName, table.Schema, table.Name)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return 0, err

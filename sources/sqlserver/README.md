@@ -5,6 +5,8 @@ using data from an existing PostgreSQL,MySQL,SQL server database. This README pr
 details of the tool's SQLserver capabilities. For general HarbourBridge information
 see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbourbridge-spanner-evaluation-and-migration).
 
+Note that either _'sqlserver'_ or _'mssql'_ can be used as an identifier with the flag `-source` in the command line.
+
 ## Example SQLServer Usage
 
 HarbourBridge can be run directly on a sqlserver database (via go's database/sql package).

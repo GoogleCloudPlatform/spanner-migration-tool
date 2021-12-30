@@ -58,7 +58,7 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 	for i, spCol := range spCols {
 		srcCol := srcCols[i]
 		// Skip columns with 'NULL' values.
-		if vals[i] == "<nil>" || vals[i] == "NULL" {
+		if vals[i] == "NULL" {
 			continue
 		}
 		spColDef, ok1 := spSchema.ColDefs[spCol]
@@ -88,7 +88,7 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 // appropriate Spanner value. It is the caller's responsibility to
 // detect and handle NULL values: convScalar will return error if a
 // NULL value is passed.
-func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, TimezoneOffset string, val string) (interface{}, error) {
+func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, timezoneOffset string, val string) (interface{}, error) {
 	// Whitespace within the val string is considered part of the data value.
 	// Note that many of the underlying conversions functions we use (like
 	// strconv.ParseFloat and strconv.ParseInt) return "invalid syntax"
@@ -109,7 +109,7 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, T
 	case ddl.String:
 		return val, nil
 	case ddl.Timestamp:
-		return convTimestamp(srcTypeName, TimezoneOffset, val)
+		return convTimestamp(srcTypeName, val)
 	default:
 		return val, fmt.Errorf("data conversion not implemented for type %v", spannerType.Name)
 	}
@@ -168,28 +168,18 @@ func convNumeric(conv *internal.Conv, val string) (interface{}, error) {
 	}
 }
 
-// convTimestamp maps a source DB timestamp into a go Time Spanner timestamp
-// It handles both datetime and timestamp conversions.
-func convTimestamp(srcTypeName string, TimezoneOffset string, val string) (t time.Time, err error) {
-	if srcTypeName == "datetimeoffset" {
-		// val will be in the format "2021-12-15 07:39:52.9433333 +0000 +0000"
-		// the part after time can be ignored
-		if idx := strings.Index(val, "+"); idx != -1 {
-			val = val[:idx-1]
-		}
-		timeNew := strings.Split(val, " ")
-		timeJoined := strings.Join(timeNew, "T")
-		timeJoined = timeJoined + TimezoneOffset
-		t, err = time.Parse(time.RFC3339, timeJoined)
+// convTimestamp maps a source DB datetime types to Spanner timestamp
+func convTimestamp(srcTypeName string, val string) (t time.Time, err error) {
+	// the query returns the datetime in ISO8601
+	// e.g. 2021-12-15T07:39:52.943 			(datetime)
+	// e.g. 2021-12-15T07:39:52.9433333 		(datetime2)
+	// e.g. 2021-12-15T07:40:00 				(smalldatetime)
+	// e.g. 2021-12-08T03:00:52.9500000+01:00 	(datetimeoffset)
+
+	if srcTypeName == dateTimeOffsetType {
+		t, err = time.Parse(time.RFC3339, val)
 	} else {
-		// datetime: data should just consist of date and time.
-		// timestamp conversion should ignore timezone.
-		// val will be in this format "2021-12-15 07:39:52.943 +0000 UTC"
-		// the part after time can be ignored
-		if idx := strings.Index(val, "+"); idx != -1 {
-			val = val[:idx-1]
-		}
-		t, err = time.Parse("2006-01-02 15:04:05", val)
+		t, err = time.Parse("2006-01-02T15:04:05", val)
 	}
 	if err != nil {
 		return t, fmt.Errorf("can't convert to timestamp (mssql type: %s)", srcTypeName)

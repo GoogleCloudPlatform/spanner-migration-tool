@@ -193,6 +193,13 @@ func NewSourceProfileConnectionSqlServer(params map[string]string) (SourceProfil
 		// Set default port for sql server, which rarely changes.
 		ss.port = "1433"
 	}
+
+	// Try to get password from env.
+	if saPas := os.Getenv("SA_PASSWORD"); saPas != "" {
+		ss.pwd = saPas
+	}
+
+	// If source profile and env do not have password then get password via prompt.
 	if ss.pwd == "" {
 		ss.pwd = conversion.GetPassword()
 	}

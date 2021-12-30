@@ -85,7 +85,8 @@ func TestConvertData(t *testing.T) {
 		{"float64", ddl.Type{Name: ddl.Float64}, "", "42.6", float64(42.6)},
 		{"int64", ddl.Type{Name: ddl.Int64}, "", "42", int64(42)},
 		{"string", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, "", "eh", "eh"},
-		{"datetime", ddl.Type{Name: ddl.Timestamp}, "datetime", "2019-10-29 05:30:00", getTimeWithoutTimezone(t, "2019-10-29 05:30:00")},
+		{"datetime", ddl.Type{Name: ddl.Timestamp}, "datetime", "2019-10-29T05:30:00", getTimeWithoutTimezone(t, "2019-10-29T05:30:00")},
+		{"datetimeoffset", ddl.Type{Name: ddl.Timestamp}, "datetimeoffset", "2021-12-15T07:39:52.9433333+01:20", getTimeWithTimezone(t, "2021-12-15T07:39:52.9433333+01:20")},
 		{"decimal", ddl.Type{Name: ddl.Numeric}, "decimal", "234.90909090909", big.NewRat(23490909090909, 100000000000)},
 		{"numeric", ddl.Type{Name: ddl.Numeric}, "numeric", numStr, numVal},
 	}
@@ -132,7 +133,7 @@ func TestConvertMultiColData(t *testing.T) {
 		{
 			name:  "Null column",
 			cols:  []string{"a", "b", "c"},
-			vals:  []string{"6", "<nil>", "1"},
+			vals:  []string{"6", "NULL", "1"},
 			ecols: []string{"a", "c"},
 			evals: []interface{}{int64(6), true},
 		},
@@ -293,7 +294,13 @@ func getDate(s string) civil.Date {
 }
 
 func getTimeWithoutTimezone(t *testing.T, s string) time.Time {
-	x, err := time.Parse("2006-01-02 15:04:05", s)
+	x, err := time.Parse("2006-01-02T15:04:05", s)
+	assert.Nil(t, err, fmt.Sprintf("getTime can't parse %s:", s))
+	return x
+}
+
+func getTimeWithTimezone(t *testing.T, s string) time.Time {
+	x, err := time.Parse(time.RFC3339, s)
 	assert.Nil(t, err, fmt.Sprintf("getTime can't parse %s:", s))
 	return x
 }
