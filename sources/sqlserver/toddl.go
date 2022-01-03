@@ -22,10 +22,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-const (
-	stringLimit int64 = 2621440
-)
-
 // ToDdlImpl sql server specific implementation for ToDdl.
 type ToDdlImpl struct {
 }
@@ -71,13 +67,15 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 	case "time":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Time}
 	case "varchar", "char", "nvarchar", "nchar":
-		// Sets the length only if the source length falls within the allowed length range in Spanner.
-		if len(mods) > 0 && mods[0] > 0 && mods[0] <= stringLimit {
+		// Sets the source length only if it falls within the allowed length range in Spanner.
+		if len(mods) > 0 && mods[0] > 0 && mods[0] <= ddl.StringMaxLength {
 			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
-			// Raise issue when
-			// 1. mods[0] value greater than string limit
-			// 2. mods[0] value less than 0.(sql server return -1 when type length set to max)
-		} else if mods[0] > stringLimit || mods[0] < 0 {
+		}
+		// Raises warning and sets length to MAX when -
+		// Source length is greater than maximum allowed length
+		// -OR-
+		// Source length is "-1" which represents MAX in SQL Server
+		if len(mods) > 0 && (mods[0] > ddl.StringMaxLength || mods[0] < 0) {
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.StringOverflow}
 		}
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil

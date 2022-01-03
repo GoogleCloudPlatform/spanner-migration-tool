@@ -1,7 +1,7 @@
 # HarbourBridge: SQLServer-to-Spanner Evaluation and Migration
 
 HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation,
-using data from an existing PostgreSQL,MySQL,SQL server database. This README provides
+using data from an existing SQL Server database. This README provides
 details of the tool's SQLserver capabilities. For general HarbourBridge information
 see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbourbridge-spanner-evaluation-and-migration).
 

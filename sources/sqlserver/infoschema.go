@@ -37,6 +37,7 @@ const (
 	dateTime2Type      string = "datetime2"
 	dateTimeOffsetType string = "datetimeoffset"
 	smallDateTimeType  string = "smalldatetime"
+	dateType           string = "date"
 )
 
 type InfoSchemaImpl struct {
@@ -128,6 +129,8 @@ func getSelectQuery(srcDb string, schemaName string, tableName string, colNames 
 			s = fmt.Sprintf("CAST([%s] AS BIGINT) AS %s", cn, cn)
 		case smallDateTimeType, dateTimeType, dateTime2Type, dateTimeOffsetType:
 			s = fmt.Sprintf("CONVERT(VARCHAR(33), [%s], 126) AS %s", cn, cn)
+		case dateType:
+			s = fmt.Sprintf("CONVERT(VARCHAR(10), [%s], 23) AS %s", cn, cn)
 		default:
 			s = fmt.Sprintf("[%s]", cn)
 		}
