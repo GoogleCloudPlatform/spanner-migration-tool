@@ -22,6 +22,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
@@ -37,12 +38,12 @@ type session struct {
 }
 
 func createSession(w http.ResponseWriter, r *http.Request) {
-	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
+	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
 	now := time.Now()
 	dbName := sessionState.dbName
 	var err error
 	if dbName == "" {
-		dbName, err = conversion.GetDatabaseName(sessionState.driver, now)
+		dbName, err = utils.GetDatabaseName(sessionState.driver, now)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Can not create database name : %v", err), http.StatusInternalServerError)
 		}

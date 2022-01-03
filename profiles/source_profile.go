@@ -1,4 +1,4 @@
-package cmd
+package profiles
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 )
 
 type SourceProfileType int
@@ -20,21 +20,21 @@ const (
 )
 
 type SourceProfileFile struct {
-	path   string
-	format string
+	Path   string
+	Format string
 }
 
 func NewSourceProfileFile(params map[string]string) SourceProfileFile {
 	profile := SourceProfileFile{}
 	if !filePipedToStdin() {
-		profile.path = params["file"]
+		profile.Path = params["file"]
 	}
 	if format, ok := params["format"]; ok {
-		profile.format = format
+		profile.Format = format
 		// TODO: Add check that format takes values from ["dump", "csv", "avro", ... etc]
 	} else {
 		fmt.Printf("source-profile format defaulting to `dump`\n")
-		profile.format = "dump"
+		profile.Format = "dump"
 	}
 	return profile
 }
@@ -101,7 +101,7 @@ func NewSourceProfileConnectionMySQL(params map[string]string) (SourceProfileCon
 		mysql.port = "3306"
 	}
 	if mysql.pwd == "" {
-		mysql.pwd = conversion.GetPassword()
+		mysql.pwd = utils.GetPassword()
 	}
 
 	return mysql, nil
@@ -154,7 +154,7 @@ func NewSourceProfileConnectionPostgreSQL(params map[string]string) (SourceProfi
 		pg.port = "5432"
 	}
 	if pg.pwd == "" {
-		pg.pwd = conversion.GetPassword()
+		pg.pwd = utils.GetPassword()
 	}
 
 	return pg, nil
@@ -200,10 +200,10 @@ func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfile
 }
 
 type SourceProfileConnection struct {
-	ty    SourceProfileConnectionType
-	mysql SourceProfileConnectionMySQL
-	pg    SourceProfileConnectionPostgreSQL
-	dydb  SourceProfileConnectionDynamoDB
+	Ty    SourceProfileConnectionType
+	Mysql SourceProfileConnectionMySQL
+	Pg    SourceProfileConnectionPostgreSQL
+	Dydb  SourceProfileConnectionDynamoDB
 }
 
 func NewSourceProfileConnection(source string, params map[string]string) (SourceProfileConnection, error) {
@@ -212,24 +212,24 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 	switch strings.ToLower(source) {
 	case "mysql":
 		{
-			conn.ty = SourceProfileConnectionTypeMySQL
-			conn.mysql, err = NewSourceProfileConnectionMySQL(params)
+			conn.Ty = SourceProfileConnectionTypeMySQL
+			conn.Mysql, err = NewSourceProfileConnectionMySQL(params)
 			if err != nil {
 				return conn, err
 			}
 		}
 	case "postgresql", "postgres", "pg":
 		{
-			conn.ty = SourceProfileConnectionTypePostgreSQL
-			conn.pg, err = NewSourceProfileConnectionPostgreSQL(params)
+			conn.Ty = SourceProfileConnectionTypePostgreSQL
+			conn.Pg, err = NewSourceProfileConnectionPostgreSQL(params)
 			if err != nil {
 				return conn, err
 			}
 		}
 	case "dynamodb":
 		{
-			conn.ty = SourceProfileConnectionTypeDynamoDB
-			conn.dydb, err = NewSourceProfileConnectionDynamoDB(params)
+			conn.Ty = SourceProfileConnectionTypeDynamoDB
+			conn.Dydb, err = NewSourceProfileConnectionDynamoDB(params)
 			if err != nil {
 				return conn, err
 			}
@@ -249,10 +249,10 @@ func NewSourceProfileConfig(path string) SourceProfileConfig {
 }
 
 type SourceProfile struct {
-	ty     SourceProfileType
-	file   SourceProfileFile
-	conn   SourceProfileConnection
-	config SourceProfileConfig
+	Ty     SourceProfileType
+	File   SourceProfileFile
+	Conn   SourceProfileConnection
+	Config SourceProfileConfig
 }
 
 // ToLegacyDriver converts source-profile to equivalent legacy global flags
@@ -260,7 +260,7 @@ type SourceProfile struct {
 // same. TODO: Deprecate this function and pass around SourceProfile across the
 // codebase wherever information about source connection is required.
 func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
-	switch src.ty {
+	switch src.Ty {
 	case SourceProfileTypeFile:
 		{
 			switch strings.ToLower(source) {
@@ -322,19 +322,19 @@ func NewSourceProfile(s string, source string) (SourceProfile, error) {
 
 	if _, ok := params["file"]; ok || filePipedToStdin() {
 		profile := NewSourceProfileFile(params)
-		return SourceProfile{ty: SourceProfileTypeFile, file: profile}, nil
+		return SourceProfile{Ty: SourceProfileTypeFile, File: profile}, nil
 	} else if format, ok := params["format"]; ok {
 		// File is not passed in from stdin or specified using "file" flag.
-		return SourceProfile{ty: SourceProfileTypeFile}, fmt.Errorf("file not specified, but format set to %v", format)
+		return SourceProfile{Ty: SourceProfileTypeFile}, fmt.Errorf("file not specified, but format set to %v", format)
 	} else if file, ok := params["config"]; ok {
 		config := NewSourceProfileConfig(file)
-		return SourceProfile{ty: SourceProfileTypeConfig, config: config}, fmt.Errorf("source-profile type config not yet implemented")
+		return SourceProfile{Ty: SourceProfileTypeConfig, Config: config}, fmt.Errorf("source-profile type config not yet implemented")
 	} else {
 		// Assume connection profile type connection by default, since
 		// connection parameters could be specified as part of environment
 		// variables.
 		conn, err := NewSourceProfileConnection(source, params)
-		return SourceProfile{ty: SourceProfileTypeConnection, conn: conn}, err
+		return SourceProfile{Ty: SourceProfileTypeConnection, Conn: conn}, err
 	}
 }
 

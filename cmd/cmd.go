@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
@@ -37,7 +38,7 @@ var (
 // 2. Create database (if schemaOnly is set to false)
 // 3. Run data conversion (if schemaOnly is set to false)
 // 4. Generate report
-func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, schemaOnly, skipForeignKeys bool, schemaSampleSize int64, sessionJSON string, ioHelper *conversion.IOStreams, outputFilePrefix string, now time.Time) error {
+func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, schemaOnly, skipForeignKeys bool, schemaSampleSize int64, sessionJSON string, ioHelper *utils.IOStreams, outputFilePrefix string, now time.Time) error {
 	var conv *internal.Conv
 	var err error
 	if !dataOnly {
@@ -64,9 +65,9 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 			return err
 		}
 	}
-	adminClient, err := conversion.NewDatabaseAdminClient(ctx)
+	adminClient, err := utils.NewDatabaseAdminClient(ctx)
 	if err != nil {
-		return fmt.Errorf("can't create admin client: %w", conversion.AnalyzeError(err, dbURI))
+		return fmt.Errorf("can't create admin client: %w", utils.AnalyzeError(err, dbURI))
 	}
 	defer adminClient.Close()
 	err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, conv, ioHelper.Out)
@@ -74,7 +75,7 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 		return fmt.Errorf("can't create/update database: %v", err)
 	}
 
-	client, err := conversion.GetClient(ctx, dbURI)
+	client, err := utils.GetClient(ctx, dbURI)
 	if err != nil {
 		return fmt.Errorf("can't create client for db %s: %v", dbURI, err)
 	}
@@ -90,7 +91,7 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 			return fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
 		}
 	}
-	banner := conversion.GetBanner(now, dbURI)
+	banner := utils.GetBanner(now, dbURI)
 	conversion.Report(driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, outputFilePrefix+reportFile, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, outputFilePrefix+badDataFile, ioHelper.Out)
 	return nil

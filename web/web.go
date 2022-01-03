@@ -35,6 +35,7 @@ import (
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
@@ -167,7 +168,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("failed to open dump file %v : %v", dc.FilePath, err), http.StatusNotFound)
 		return
 	}
-	conv, err := conversion.SchemaConv(dc.Driver, "", constants.TargetSpanner, &conversion.IOStreams{In: f, Out: os.Stdout}, 0)
+	conv, err := conversion.SchemaConv(dc.Driver, "", constants.TargetSpanner, &utils.IOStreams{In: f, Out: os.Stdout}, 0)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
@@ -402,7 +403,7 @@ func getConversionRate(w http.ResponseWriter, r *http.Request) {
 
 // getSchemaFile generates schema file and returns file path.
 func getSchemaFile(w http.ResponseWriter, r *http.Request) {
-	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
+	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
 	var err error
 	now := time.Now()
 	filePrefix, err := getFilePrefix(now)
@@ -421,7 +422,7 @@ func getSchemaFile(w http.ResponseWriter, r *http.Request) {
 
 // getReportFile generates report file and returns file path.
 func getReportFile(w http.ResponseWriter, r *http.Request) {
-	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
+	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
 	var err error
 	now := time.Now()
 	filePrefix, err := getFilePrefix(now)
@@ -774,7 +775,7 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 // updateSessionFile updates the content of session file with
 // latest sessionState.conv while also dumping schemas and report.
 func updateSessionFile() error {
-	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
+	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
 	_, err := conversion.WriteConvGeneratedFiles(sessionState.conv, sessionState.dbName, sessionState.driver, ioHelper.BytesRead, ioHelper.Out)
 	if err != nil {
 		return fmt.Errorf("encountered error %w. Cannot write files", err)
@@ -1093,7 +1094,7 @@ func getFilePrefix(now time.Time) (string, error) {
 	dbName := sessionState.dbName
 	var err error
 	if dbName == "" {
-		dbName, err = conversion.GetDatabaseName(sessionState.driver, now)
+		dbName, err = utils.GetDatabaseName(sessionState.driver, now)
 		if err != nil {
 			return "", fmt.Errorf("Can not create database name : %v", err)
 		}
