@@ -317,7 +317,7 @@ func TestProcessSchema(t *testing.T) {
 	}
 	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	assert.Equal(t, len(conv.Issues["cart"]), 0)
-	assert.Equal(t, len(conv.Issues["test"]), 15)
+	assert.Equal(t, len(conv.Issues["test"]), 17)
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 
 }

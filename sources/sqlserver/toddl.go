@@ -24,7 +24,6 @@ import (
 
 const (
 	stringLimit int64 = 2621440
-	byteLimit   int64 = 10485760
 )
 
 // ToDdlImpl sql server specific implementation for ToDdl.
@@ -75,6 +74,11 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 		// Sets the length only if the source length falls within the allowed length range in Spanner.
 		if len(mods) > 0 && mods[0] > 0 && mods[0] <= stringLimit {
 			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
+			// Raise issue when
+			// 1. mods[0] value greater than string limit
+			// 2. mods[0] value less than 0.(sql server return -1 when type length set to max)
+		} else if mods[0] > stringLimit || mods[0] < 0 {
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.StringOverflow}
 		}
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "timestamp":

@@ -71,12 +71,12 @@ func toSpannerTypeSQLserver(srcType string, spType string, mods []int64) (ddl.Ty
 	case "varchar", "char", "nvarchar", "nchar", "uniqueidentifier":
 		switch spType {
 		case ddl.Bytes:
-			if len(mods) > 0 {
+			if len(mods) > 0 && mods[0] > 0 {
 				return ddl.Type{Name: ddl.Bytes, Len: mods[0]}, nil
 			}
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		default:
-			if len(mods) > 0 {
+			if len(mods) > 0 && mods[0] > 0 {
 				return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
 			}
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
@@ -103,12 +103,19 @@ func toSpannerTypeSQLserver(srcType string, spType string, mods []int64) (ddl.Ty
 		default:
 			return ddl.Type{Name: ddl.Date}, nil
 		}
-	case "datetime2", "datetime", "datetimeoffset", "timestamp", "smalldatetime", "rowversion":
+	case "datetime2", "datetime", "datetimeoffset", "smalldatetime", "rowversion":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Datetime}
+		}
+	case "timestamp":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Int64}, nil
 		}
 	case "time":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Time}

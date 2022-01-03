@@ -135,9 +135,8 @@ func connectionConfig(driver string, sqlConnectionStr string) (interface{}, erro
 		}
 		return sqlConnectionStr, nil
 	case constants.SQLSERVER:
-		if sqlConnectionStr == "" {
-			return generateSQLSERVERConnectionStr()
-		}
+		// we are not supporting legecy codepath for SQL server and getting value from source profile
+		// so sqlConnectionStr is already populated.
 		return sqlConnectionStr, nil
 	case constants.DYNAMODB:
 		return getDynamoDBClientConfig()
@@ -184,22 +183,6 @@ func generateMYSQLConnectionStr() (string, error) {
 
 func GetMYSQLConnectionStr(server, port, user, password, dbname string) string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, server, port, dbname)
-}
-
-func generateSQLSERVERConnectionStr() (string, error) {
-	server := os.Getenv("SSHOST")
-	port := os.Getenv("SSPORT")
-	user := os.Getenv("SSUSER")
-	dbname := os.Getenv("SSDATABASE")
-	if server == "" || port == "" || user == "" || dbname == "" {
-		fmt.Printf("Please specify host, port, user and database using SSHOST, SSPORT, SSUSER and SSDATABASE environment variables\n")
-		return "", fmt.Errorf("could not connect to source database")
-	}
-	password := os.Getenv("SSPASSWORD")
-	if password == "" {
-		password = GetPassword()
-	}
-	return GetSQLSERVERConnectionStr(server, port, user, password, dbname), nil
 }
 
 func GetSQLSERVERConnectionStr(server, port, user, password, dbname string) string {
