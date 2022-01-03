@@ -38,6 +38,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
@@ -168,7 +169,12 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("failed to open dump file %v : %v", dc.FilePath, err), http.StatusNotFound)
 		return
 	}
-	conv, err := conversion.SchemaConv(dc.Driver, "", constants.TargetSpanner, &utils.IOStreams{In: f, Out: os.Stdout}, 0)
+	// We don't support Dynamodb in web hence no need to pass schema sample size here.
+	sourceProfile, _ := profiles.NewSourceProfile("", dc.Driver)
+	sourceProfile.Driver = dc.Driver
+	targetProfile, _ := profiles.NewTargetProfile("")
+	targetProfile.TargetDb = constants.TargetSpanner
+	conv, err := conversion.SchemaConv(&sourceProfile, &targetProfile, &utils.IOStreams{In: f, Out: os.Stdout})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return

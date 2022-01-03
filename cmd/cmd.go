@@ -23,6 +23,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 )
 
 var (
@@ -41,10 +42,17 @@ var (
 func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, schemaOnly, skipForeignKeys bool, schemaSampleSize int64, sessionJSON string, ioHelper *utils.IOStreams, outputFilePrefix string, now time.Time) error {
 	var conv *internal.Conv
 	var err error
+	// Creating profiles from legacy flags. We only pass schema-sample-size here because thats the
+	// only flag passed through the arguments. Dumpfile params are contained within ioHelper
+	// and direct connect params will be fetched from the env variables.
+	sourceProfile, _ := profiles.NewSourceProfile(fmt.Sprintf("schema-sample-size=%d", schemaSampleSize), driver)
+	sourceProfile.Driver = driver
+	targetProfile, _ := profiles.NewTargetProfile("")
+	targetProfile.TargetDb = targetDb
 	if !dataOnly {
 		// We pass an empty string to the sqlConnectionStr parameter as this is the legacy codepath,
 		// which reads the environment variables and constructs the string later on.
-		conv, err = conversion.SchemaConv(driver, "", targetDb, ioHelper, schemaSampleSize)
+		conv, err = conversion.SchemaConv(&sourceProfile, &targetProfile, ioHelper)
 		if err != nil {
 			return err
 		}
@@ -82,7 +90,7 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 
 	// We pass an empty string to the sqlConnectionStr parameter as this is the legacy codepath,
 	// which reads the environment variables and constructs the string later on.
-	bw, err := conversion.DataConv(driver, "", ioHelper, client, conv, dataOnly, schemaSampleSize)
+	bw, err := conversion.DataConv(&sourceProfile, &targetProfile, ioHelper, client, conv, dataOnly)
 	if err != nil {
 		return fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 	}

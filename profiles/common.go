@@ -78,16 +78,16 @@ func GetResourceIds(ctx context.Context, targetProfile TargetProfile, now time.T
 	return project, instance, dbName, err
 }
 
-func GetSQLConnectionStr(sourceProfile SourceProfile) string {
+func GetSQLConnectionStr(sourceProfile *SourceProfile) string {
 	sqlConnectionStr := ""
 	if sourceProfile.Ty == SourceProfileTypeConnection {
 		switch sourceProfile.Conn.Ty {
 		case SourceProfileConnectionTypeMySQL:
 			connParams := sourceProfile.Conn.Mysql
-			return getMYSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
+			return getMYSQLConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
 		case SourceProfileConnectionTypePostgreSQL:
 			connParams := sourceProfile.Conn.Pg
-			return getPGSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
+			return getPGSQLConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
 		case SourceProfileConnectionTypeDynamoDB:
 			// For DynamoDB, client provided by aws-sdk reads connection credentials from env variables only.
 			// Thus, there is no need to create sqlConnectionStr for the same. We instead set the env variables
@@ -138,12 +138,12 @@ func getMYSQLConnectionStr(server, port, user, password, dbname string) string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, server, port, dbname)
 }
 
-func GetSchemaSampleSize(sourceProfile SourceProfile) int64 {
+func GetSchemaSampleSize(sourceProfile *SourceProfile) int64 {
 	schemaSampleSize := int64(100000)
 	if sourceProfile.Ty == SourceProfileTypeConnection {
 		if sourceProfile.Conn.Ty == SourceProfileConnectionTypeDynamoDB {
-			if sourceProfile.Conn.Dydb.schemaSampleSize != 0 {
-				schemaSampleSize = sourceProfile.Conn.Dydb.schemaSampleSize
+			if sourceProfile.Conn.Dydb.SchemaSampleSize != 0 {
+				schemaSampleSize = sourceProfile.Conn.Dydb.SchemaSampleSize
 			}
 		}
 	}

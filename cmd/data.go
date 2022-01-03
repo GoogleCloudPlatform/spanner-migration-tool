@@ -70,7 +70,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	if err != nil {
 		return subcommands.ExitUsageError
 	}
-	driverName, err := sourceProfile.ToLegacyDriver(cmd.source)
+	sourceProfile.Driver, err = sourceProfile.ToLegacyDriver(cmd.source)
 	if err != nil {
 		return subcommands.ExitUsageError
 	}
@@ -79,19 +79,19 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	if err != nil {
 		return subcommands.ExitUsageError
 	}
-	targetDb := targetProfile.ToLegacyTargetDb()
+	targetProfile.TargetDb = targetProfile.ToLegacyTargetDb()
 
 	dumpFilePath := ""
 	if sourceProfile.Ty == profiles.SourceProfileTypeFile && (sourceProfile.File.Format == "" || sourceProfile.File.Format == "dump") {
 		dumpFilePath = sourceProfile.File.Path
 	}
-	ioHelper := utils.NewIOStreams(driverName, dumpFilePath)
+	ioHelper := utils.NewIOStreams(sourceProfile.Driver, dumpFilePath)
 	if ioHelper.SeekableIn != nil {
 		defer ioHelper.In.Close()
 	}
 
 	now := time.Now()
-	project, instance, dbName, err := profiles.GetResourceIds(ctx, targetProfile, now, driverName, ioHelper.Out)
+	project, instance, dbName, err := profiles.GetResourceIds(ctx, targetProfile, now, sourceProfile.Driver, ioHelper.Out)
 	if err != nil {
 		return subcommands.ExitUsageError
 	}
@@ -107,8 +107,8 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	if err != nil {
 		return subcommands.ExitUsageError
 	}
-	if targetDb != "" && conv.TargetDb != targetDb {
-		err = fmt.Errorf("running data migration for Spanner dialect: %v, whereas schema mapping was done for dialect: %v", targetDb, conv.TargetDb)
+	if targetProfile.TargetDb != "" && conv.TargetDb != targetProfile.TargetDb {
+		err = fmt.Errorf("running data migration for Spanner dialect: %v, whereas schema mapping was done for dialect: %v", targetProfile.TargetDb, conv.TargetDb)
 		return subcommands.ExitUsageError
 	}
 
@@ -131,7 +131,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		return subcommands.ExitFailure
 	}
 
-	bw, err := conversion.DataConv(driverName, profiles.GetSQLConnectionStr(sourceProfile), &ioHelper, client, conv, true, profiles.GetSchemaSampleSize(sourceProfile))
+	bw, err := conversion.DataConv(&sourceProfile, &targetProfile, &ioHelper, client, conv, true)
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 		return subcommands.ExitFailure
@@ -143,7 +143,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		}
 	}
 	banner := utils.GetBanner(now, dbURI)
-	conversion.Report(driverName, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
+	conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, cmd.filePrefix+badDataFile, ioHelper.Out)
 	return subcommands.ExitSuccess
 }

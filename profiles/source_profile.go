@@ -49,11 +49,11 @@ const (
 )
 
 type SourceProfileConnectionMySQL struct {
-	host string // Same as MYSQLHOST environment variable
-	port string // Same as MYSQLPORT environment variable
-	user string // Same as MYSQLUSER environment variable
-	db   string // Same as MYSQLDATABASE environment variable
-	pwd  string // Same as MYSQLPWD environment variable
+	Host string // Same as MYSQLHOST environment variable
+	Port string // Same as MYSQLPORT environment variable
+	User string // Same as MYSQLUSER environment variable
+	Db   string // Same as MYSQLDATABASE environment variable
+	Pwd  string // Same as MYSQLPWD environment variable
 }
 
 func NewSourceProfileConnectionMySQL(params map[string]string) (SourceProfileConnectionMySQL, error) {
@@ -69,21 +69,21 @@ func NewSourceProfileConnectionMySQL(params map[string]string) (SourceProfileCon
 		// No connection params provided through source-profile. Fetching from env variables.
 		fmt.Printf("Connection parameters not specified in source-profile. Reading from " +
 			"environment variables MYSQLHOST, MYSQLUSER, MYSQLDATABASE, MYSQLPORT, MYSQLPWD...\n")
-		mysql.host = os.Getenv("MYSQLHOST")
-		mysql.user = os.Getenv("MYSQLUSER")
-		mysql.db = os.Getenv("MYSQLDATABASE")
-		mysql.port = os.Getenv("MYSQLPORT")
-		mysql.pwd = os.Getenv("MYSQLPWD")
+		mysql.Host = os.Getenv("MYSQLHOST")
+		mysql.User = os.Getenv("MYSQLUSER")
+		mysql.Db = os.Getenv("MYSQLDATABASE")
+		mysql.Port = os.Getenv("MYSQLPORT")
+		mysql.Pwd = os.Getenv("MYSQLPWD")
 		// Throw error if the input entered is empty.
-		if mysql.host == "" || mysql.user == "" || mysql.db == "" {
+		if mysql.Host == "" || mysql.User == "" || mysql.Db == "" {
 			return mysql, fmt.Errorf("found empty string for MYSQLHOST/MYSQLUSER/MYSQLDATABASE. Please specify these environment variables with correct values")
 		}
 	} else if hostOk && userOk && dbOk {
 		// If atleast host, username and dbname are provided through source-profile,
 		// go ahead and use source-profile. Port and password handled later even if they are empty.
-		mysql.host, mysql.user, mysql.db, mysql.port, mysql.pwd = host, user, db, port, pwd
+		mysql.Host, mysql.User, mysql.Db, mysql.Port, mysql.Pwd = host, user, db, port, pwd
 		// Throw error if the input entered is empty.
-		if mysql.host == "" || mysql.user == "" || mysql.db == "" {
+		if mysql.Host == "" || mysql.User == "" || mysql.Db == "" {
 			return mysql, fmt.Errorf("found empty string for host/user/db_name. Please specify host, port, user and db_name in the source-profile")
 		}
 	} else {
@@ -92,27 +92,27 @@ func NewSourceProfileConnectionMySQL(params map[string]string) (SourceProfileCon
 	}
 
 	// Throw same error if the input entered is empty.
-	if mysql.host == "" || mysql.user == "" || mysql.db == "" {
+	if mysql.Host == "" || mysql.User == "" || mysql.Db == "" {
 		return mysql, fmt.Errorf("found empty string for host/user/db. please specify host, port, user and db_name in the source-profile")
 	}
 
-	if mysql.port == "" {
+	if mysql.Port == "" {
 		// Set default port for mysql, which rarely changes.
-		mysql.port = "3306"
+		mysql.Port = "3306"
 	}
-	if mysql.pwd == "" {
-		mysql.pwd = utils.GetPassword()
+	if mysql.Pwd == "" {
+		mysql.Pwd = utils.GetPassword()
 	}
 
 	return mysql, nil
 }
 
 type SourceProfileConnectionPostgreSQL struct {
-	host string // Same as PGHOST environment variable
-	port string // Same as PGPORT environment variable
-	user string // Same as PGUSER environment variable
-	db   string // Same as PGDATABASE environment variable
-	pwd  string // Same as PGPASSWORD environment variable
+	Host string // Same as PGHOST environment variable
+	Port string // Same as PGPORT environment variable
+	User string // Same as PGUSER environment variable
+	Db   string // Same as PGDATABASE environment variable
+	Pwd  string // Same as PGPASSWORD environment variable
 }
 
 func NewSourceProfileConnectionPostgreSQL(params map[string]string) (SourceProfileConnectionPostgreSQL, error) {
@@ -128,20 +128,20 @@ func NewSourceProfileConnectionPostgreSQL(params map[string]string) (SourceProfi
 		// No connection params provided through source-profile. Fetching from env variables.
 		fmt.Printf("Connection parameters not specified in source-profile. Reading from " +
 			"environment variables PGHOST, PGUSER, PGDATABASE, PGPORT, PGPASSWORD...\n")
-		pg.host = os.Getenv("PGHOST")
-		pg.user = os.Getenv("PGUSER")
-		pg.db = os.Getenv("PGDATABASE")
-		pg.port = os.Getenv("PGPORT")
-		pg.pwd = os.Getenv("PGPASSWORD")
+		pg.Host = os.Getenv("PGHOST")
+		pg.User = os.Getenv("PGUSER")
+		pg.Db = os.Getenv("PGDATABASE")
+		pg.Port = os.Getenv("PGPORT")
+		pg.Pwd = os.Getenv("PGPASSWORD")
 		// Throw error if the input entered is empty.
-		if pg.host == "" || pg.user == "" || pg.db == "" {
+		if pg.Host == "" || pg.User == "" || pg.Db == "" {
 			return pg, fmt.Errorf("found empty string for PGHOST/PGUSER/PGDATABASE. Please specify these environment variables with correct values")
 		}
 	} else if hostOk && userOk && dbOk {
 		// All connection params provided through source-profile. Port and password handled later.
-		pg.host, pg.user, pg.db, pg.port, pg.pwd = host, user, db, port, pwd
+		pg.Host, pg.User, pg.Db, pg.Port, pg.Pwd = host, user, db, port, pwd
 		// Throw error if the input entered is empty.
-		if pg.host == "" || pg.user == "" || pg.db == "" {
+		if pg.Host == "" || pg.User == "" || pg.Db == "" {
 			return pg, fmt.Errorf("found empty string for host/user/db_name. Please specify host, port, user and db_name in the source-profile")
 		}
 	} else {
@@ -149,12 +149,12 @@ func NewSourceProfileConnectionPostgreSQL(params map[string]string) (SourceProfi
 		return pg, fmt.Errorf("please specify host, port, user and db_name in the source-profile")
 	}
 
-	if pg.port == "" {
+	if pg.Port == "" {
 		// Set default port for postgresql, which rarely changes.
-		pg.port = "5432"
+		pg.Port = "5432"
 	}
-	if pg.pwd == "" {
-		pg.pwd = utils.GetPassword()
+	if pg.Pwd == "" {
+		pg.Pwd = utils.GetPassword()
 	}
 
 	return pg, nil
@@ -164,11 +164,11 @@ type SourceProfileConnectionDynamoDB struct {
 	// These connection params are not used currently because the SDK reads directly from the env variables.
 	// These are still kept around as reference when we refactor passing
 	// SourceProfile instead of sqlConnectionStr around.
-	awsAccessKeyID     string // Same as AWS_ACCESS_KEY_ID environment variable
-	awsSecretAccessKey string // Same as AWS_SECRET_ACCESS_KEY environment variable
-	awsRegion          string // Same as AWS_REGION environment variable
-	dydbEndpoint       string // Same as DYNAMODB_ENDPOINT_OVERRIDE environment variable
-	schemaSampleSize   int64  // Number of rows to use for inferring schema (default 100,000)
+	AwsAccessKeyID     string // Same as AWS_ACCESS_KEY_ID environment variable
+	AwsSecretAccessKey string // Same as AWS_SECRET_ACCESS_KEY environment variable
+	AwsRegion          string // Same as AWS_REGION environment variable
+	DydbEndpoint       string // Same as DYNAMODB_ENDPOINT_OVERRIDE environment variable
+	SchemaSampleSize   int64  // Number of rows to use for inferring schema (default 100,000)
 }
 
 func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfileConnectionDynamoDB, error) {
@@ -178,23 +178,23 @@ func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfile
 		if err != nil {
 			return dydb, fmt.Errorf("could not parse schema-sample-size = %v as a valid int64", schemaSampleSize)
 		}
-		dydb.schemaSampleSize = int64(schemaSampleSizeInt)
+		dydb.SchemaSampleSize = int64(schemaSampleSizeInt)
 	}
 	// For DynamoDB, the preferred way to provide connection params is through env variables.
 	// Unlike postgres and mysql, there may not be deprecation of env variables, hence it
 	// is better to override env variables optionally via source profile params.
 	var ok bool
-	if dydb.awsAccessKeyID, ok = params["aws-access-key-id"]; ok {
-		os.Setenv("AWS_ACCESS_KEY_ID", dydb.awsAccessKeyID)
+	if dydb.AwsAccessKeyID, ok = params["aws-access-key-id"]; ok {
+		os.Setenv("AWS_ACCESS_KEY_ID", dydb.AwsAccessKeyID)
 	}
-	if dydb.awsSecretAccessKey, ok = params["aws-secret-access-key"]; ok {
-		os.Setenv("AWS_SECRET_ACCESS_KEY", dydb.awsAccessKeyID)
+	if dydb.AwsSecretAccessKey, ok = params["aws-secret-access-key"]; ok {
+		os.Setenv("AWS_SECRET_ACCESS_KEY", dydb.AwsSecretAccessKey)
 	}
-	if dydb.awsRegion, ok = params["aws-region"]; ok {
-		os.Setenv("AWS_REGION", dydb.awsAccessKeyID)
+	if dydb.AwsRegion, ok = params["aws-region"]; ok {
+		os.Setenv("AWS_REGION", dydb.AwsRegion)
 	}
-	if dydb.dydbEndpoint, ok = params["dydb-endpoint"]; ok {
-		os.Setenv("DYNAMODB_ENDPOINT_OVERRIDE", dydb.awsAccessKeyID)
+	if dydb.DydbEndpoint, ok = params["dydb-endpoint"]; ok {
+		os.Setenv("DYNAMODB_ENDPOINT_OVERRIDE", dydb.DydbEndpoint)
 	}
 	return dydb, nil
 }
@@ -249,6 +249,7 @@ func NewSourceProfileConfig(path string) SourceProfileConfig {
 }
 
 type SourceProfile struct {
+	Driver string
 	Ty     SourceProfileType
 	File   SourceProfileFile
 	Conn   SourceProfileConnection

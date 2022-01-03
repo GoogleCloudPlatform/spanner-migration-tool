@@ -68,7 +68,7 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 	if err != nil {
 		return subcommands.ExitUsageError
 	}
-	driverName, err := sourceProfile.ToLegacyDriver(cmd.source)
+	sourceProfile.Driver, err = sourceProfile.ToLegacyDriver(cmd.source)
 	if err != nil {
 		return subcommands.ExitUsageError
 	}
@@ -77,13 +77,13 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 	if err != nil {
 		return subcommands.ExitUsageError
 	}
-	targetDb := targetProfile.ToLegacyTargetDb()
+	targetProfile.TargetDb = targetProfile.ToLegacyTargetDb()
 
 	dumpFilePath := ""
 	if sourceProfile.Ty == profiles.SourceProfileTypeFile && (sourceProfile.File.Format == "" || sourceProfile.File.Format == "dump") {
 		dumpFilePath = sourceProfile.File.Path
 	}
-	ioHelper := utils.NewIOStreams(driverName, dumpFilePath)
+	ioHelper := utils.NewIOStreams(sourceProfile.Driver, dumpFilePath)
 	if ioHelper.SeekableIn != nil {
 		defer ioHelper.In.Close()
 	}
@@ -92,26 +92,24 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 
 	// If filePrefix not explicitly set, use dbName as prefix.
 	if cmd.filePrefix == "" {
-		dbName, err := utils.GetDatabaseName(driverName, now)
+		dbName, err := utils.GetDatabaseName(sourceProfile.Driver, now)
 		if err != nil {
 			panic(fmt.Errorf("can't generate database name for prefix: %v", err))
 		}
 		cmd.filePrefix = dbName + "."
 	}
 
-	sqlConnectionStr := profiles.GetSQLConnectionStr(sourceProfile)
-	schemaSampleSize := profiles.GetSchemaSampleSize(sourceProfile)
 	var conv *internal.Conv
-	conv, err = conversion.SchemaConv(driverName, sqlConnectionStr, targetDb, &ioHelper, schemaSampleSize)
+	conv, err = conversion.SchemaConv(&sourceProfile, &targetProfile, &ioHelper)
 	if err != nil {
 		panic(err)
 	}
 
 	conversion.WriteSchemaFile(conv, now, cmd.filePrefix+schemaFile, ioHelper.Out)
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
-	conversion.Report(driverName, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
+	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
 
-	project, instance, dbName, err := profiles.GetResourceIds(ctx, targetProfile, now, driverName, ioHelper.Out)
+	project, instance, dbName, err := profiles.GetResourceIds(ctx, targetProfile, now, sourceProfile.Driver, ioHelper.Out)
 	if err != nil {
 		return subcommands.ExitUsageError
 	}
@@ -136,7 +134,7 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 		return subcommands.ExitFailure
 	}
 
-	bw, err := conversion.DataConv(driverName, sqlConnectionStr, &ioHelper, client, conv, true, schemaSampleSize)
+	bw, err := conversion.DataConv(&sourceProfile, &targetProfile, &ioHelper, client, conv, true)
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 		return subcommands.ExitFailure
@@ -148,7 +146,7 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 		}
 	}
 	banner := utils.GetBanner(now, dbURI)
-	conversion.Report(driverName, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
+	conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, cmd.filePrefix+badDataFile, ioHelper.Out)
 	return subcommands.ExitSuccess
 }
