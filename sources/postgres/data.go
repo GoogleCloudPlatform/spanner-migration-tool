@@ -76,7 +76,10 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, vals []
 	}
 	for i, spCol := range spCols {
 		srcCol := srcCols[i]
-		if vals[i] == "\\N" { // PostgreSQL representation of empty column in COPY-FROM blocks.
+		// "\\N" is for PostgreSQL representation of empty column in COPY-FROM blocks.
+		// TODO: Consider using NullString to differentiate between an actual column having "NULL" as a string
+		// and NULL values.
+		if vals[i] == "\\N" || vals[i] == "NULL" {
 			continue
 		}
 		spColDef, ok1 := spSchema.ColDefs[spCol]

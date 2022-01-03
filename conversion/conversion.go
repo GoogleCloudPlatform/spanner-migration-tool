@@ -237,6 +237,9 @@ func dataFromDatabase(driver, sqlConnectionStr string, config spanner.BatchWrite
 		func(table string, cols []string, vals []interface{}) {
 			writer.AddRow(table, cols, vals)
 		})
+	conv.DataFlush = func() {
+		writer.Flush()
+	}
 	common.ProcessData(conv, infoSchema)
 	writer.Flush()
 	return writer, nil
@@ -404,6 +407,9 @@ func dataFromDump(driver string, config spanner.BatchWriterConfig, ioHelper *IOS
 		func(table string, cols []string, vals []interface{}) {
 			writer.AddRow(table, cols, vals)
 		})
+	conv.DataFlush = func() {
+		writer.Flush()
+	}
 	ProcessDump(driver, conv, r)
 	writer.Flush()
 	p.Done()
@@ -582,7 +588,7 @@ func UpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
 	// Foreign Keys are set to false since we create them post data migration.
-	schema := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: false, Tables: true, ForeignKeys: false, TargetDb: conv.TargetDb})
+	schema := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, TargetDb: conv.TargetDb})
 	req := &adminpb.UpdateDatabaseDdlRequest{
 		Database:   dbURI,
 		Statements: schema,
@@ -637,7 +643,7 @@ func UpdateDDLForeignKeys(ctx context.Context, adminClient *database.DatabaseAdm
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
-	fkStmts := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: false, ForeignKeys: true})
+	fkStmts := conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: false, ForeignKeys: true, TargetDb: conv.TargetDb})
 	if len(fkStmts) == 0 {
 		return nil
 	}
@@ -782,7 +788,7 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 	// and doesn't add backticks around table and column names. This file is
 	// intended for explanatory and documentation purposes, and is not strictly
 	// legal Cloud Spanner DDL (Cloud Spanner doesn't currently support comments).
-	spDDL := conv.SpSchema.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true})
+	spDDL := conv.SpSchema.GetDDL(ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true, TargetDb: conv.TargetDb})
 	if len(spDDL) == 0 {
 		spDDL = []string{"\n-- Schema is empty -- no tables found\n"}
 	}
@@ -809,7 +815,7 @@ func WriteSchemaFile(conv *internal.Conv, now time.Time, name string, out *os.Fi
 
 	// We change 'Comments' to false and 'ProtectIds' to true below to write out a
 	// schema file that is a legal Cloud Spanner DDL.
-	spDDL = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true})
+	spDDL = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: true, TargetDb: conv.TargetDb})
 	if len(spDDL) == 0 {
 		spDDL = []string{"\n-- Schema is empty -- no tables found\n"}
 	}
