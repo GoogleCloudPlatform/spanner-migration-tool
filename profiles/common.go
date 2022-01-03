@@ -1,4 +1,4 @@
-package cmd
+package profiles
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 )
 
 // Parses input string `s` as a map of key-value pairs. It's expected that the
@@ -47,11 +47,11 @@ func parseProfile(s string) (map[string]string, error) {
 	return params, nil
 }
 
-func getResourceIds(ctx context.Context, targetProfile TargetProfile, now time.Time, driverName string, out *os.File) (string, string, string, error) {
+func GetResourceIds(ctx context.Context, targetProfile TargetProfile, now time.Time, driverName string, out *os.File) (string, string, string, error) {
 	var err error
 	project := targetProfile.conn.sp.project
 	if project == "" {
-		project, err = conversion.GetProject()
+		project, err = utils.GetProject()
 		if err != nil {
 			return "", "", "", fmt.Errorf("can't get project: %v", err)
 		}
@@ -60,17 +60,17 @@ func getResourceIds(ctx context.Context, targetProfile TargetProfile, now time.T
 
 	instance := targetProfile.conn.sp.instance
 	if instance == "" {
-		instance, err = conversion.GetInstance(ctx, project, out)
+		instance, err = utils.GetInstance(ctx, project, out)
 		if err != nil {
 			return "", "", "", fmt.Errorf("can't get instance: %v", err)
 		}
 	}
 	fmt.Println("Using Cloud Spanner instance:", instance)
-	conversion.PrintPermissionsWarning(driverName, out)
+	utils.PrintPermissionsWarning(driverName, out)
 
 	dbName := targetProfile.conn.sp.dbname
 	if dbName == "" {
-		dbName, err = conversion.GetDatabaseName(driverName, now)
+		dbName, err = utils.GetDatabaseName(driverName, now)
 		if err != nil {
 			return "", "", "", fmt.Errorf("can't get database name: %v", err)
 		}
@@ -78,16 +78,16 @@ func getResourceIds(ctx context.Context, targetProfile TargetProfile, now time.T
 	return project, instance, dbName, err
 }
 
-func getSQLConnectionStr(sourceProfile SourceProfile) string {
+func GetSQLConnectionStr(sourceProfile SourceProfile) string {
 	sqlConnectionStr := ""
-	if sourceProfile.ty == SourceProfileTypeConnection {
-		switch sourceProfile.conn.ty {
+	if sourceProfile.Ty == SourceProfileTypeConnection {
+		switch sourceProfile.Conn.Ty {
 		case SourceProfileConnectionTypeMySQL:
-			connParams := sourceProfile.conn.mysql
-			return conversion.GetMYSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
+			connParams := sourceProfile.Conn.Mysql
+			return getMYSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
 		case SourceProfileConnectionTypePostgreSQL:
-			connParams := sourceProfile.conn.pg
-			return conversion.GetPGSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
+			connParams := sourceProfile.Conn.Pg
+			return getPGSQLConnectionStr(connParams.host, connParams.port, connParams.user, connParams.pwd, connParams.db)
 		case SourceProfileConnectionTypeDynamoDB:
 			// For DynamoDB, client provided by aws-sdk reads connection credentials from env variables only.
 			// Thus, there is no need to create sqlConnectionStr for the same. We instead set the env variables
@@ -98,12 +98,52 @@ func getSQLConnectionStr(sourceProfile SourceProfile) string {
 	return sqlConnectionStr
 }
 
-func getSchemaSampleSize(sourceProfile SourceProfile) int64 {
+func GeneratePGSQLConnectionStr() (string, error) {
+	server := os.Getenv("PGHOST")
+	port := os.Getenv("PGPORT")
+	user := os.Getenv("PGUSER")
+	dbname := os.Getenv("PGDATABASE")
+	if server == "" || port == "" || user == "" || dbname == "" {
+		fmt.Printf("Please specify host, port, user and database using PGHOST, PGPORT, PGUSER and PGDATABASE environment variables\n")
+		return "", fmt.Errorf("could not connect to source database")
+	}
+	password := os.Getenv("PGPASSWORD")
+	if password == "" {
+		password = utils.GetPassword()
+	}
+	return getPGSQLConnectionStr(server, port, user, password, dbname), nil
+}
+
+func getPGSQLConnectionStr(server, port, user, password, dbname string) string {
+	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", server, port, user, password, dbname)
+}
+
+func GenerateMYSQLConnectionStr() (string, error) {
+	server := os.Getenv("MYSQLHOST")
+	port := os.Getenv("MYSQLPORT")
+	user := os.Getenv("MYSQLUSER")
+	dbname := os.Getenv("MYSQLDATABASE")
+	if server == "" || port == "" || user == "" || dbname == "" {
+		fmt.Printf("Please specify host, port, user and database using MYSQLHOST, MYSQLPORT, MYSQLUSER and MYSQLDATABASE environment variables\n")
+		return "", fmt.Errorf("could not connect to source database")
+	}
+	password := os.Getenv("MYSQLPWD")
+	if password == "" {
+		password = utils.GetPassword()
+	}
+	return getMYSQLConnectionStr(server, port, user, password, dbname), nil
+}
+
+func getMYSQLConnectionStr(server, port, user, password, dbname string) string {
+	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, server, port, dbname)
+}
+
+func GetSchemaSampleSize(sourceProfile SourceProfile) int64 {
 	schemaSampleSize := int64(100000)
-	if sourceProfile.ty == SourceProfileTypeConnection {
-		if sourceProfile.conn.ty == SourceProfileConnectionTypeDynamoDB {
-			if sourceProfile.conn.dydb.schemaSampleSize != 0 {
-				schemaSampleSize = sourceProfile.conn.dydb.schemaSampleSize
+	if sourceProfile.Ty == SourceProfileTypeConnection {
+		if sourceProfile.Conn.Ty == SourceProfileConnectionTypeDynamoDB {
+			if sourceProfile.Conn.Dydb.schemaSampleSize != 0 {
+				schemaSampleSize = sourceProfile.Conn.Dydb.schemaSampleSize
 			}
 		}
 	}
