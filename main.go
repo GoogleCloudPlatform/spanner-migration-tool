@@ -30,7 +30,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/cmd"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/web"
 	"github.com/google/subcommands"
@@ -91,12 +91,12 @@ Sample usage:
 
 func main() {
 	ctx := context.Background()
-	lf, err := conversion.SetupLogFile()
+	lf, err := utils.SetupLogFile()
 	if err != nil {
 		fmt.Printf("\nCan't set up log file: %v\n", err)
 		panic(fmt.Errorf("can't set up log file"))
 	}
-	defer conversion.Close(lf)
+	defer utils.Close(lf)
 
 	// TODO: Remove this check and always run HB in subcommands mode once
 	// global command line mode is deprecated. We can also enable support for
@@ -149,11 +149,11 @@ func main() {
 	}
 	fmt.Printf("Using driver (source DB): %s target-db: %s\n", driverName, targetDb)
 
-	ioHelper := conversion.NewIOStreams(driverName, dumpFilePath)
+	ioHelper := utils.NewIOStreams(driverName, dumpFilePath)
 
 	var project, instance string
 	if !schemaOnly {
-		project, err = conversion.GetProject()
+		project, err = utils.GetProject()
 		if err != nil {
 			fmt.Printf("\nCan't get project: %v\n", err)
 			panic(fmt.Errorf("can't get project"))
@@ -162,20 +162,20 @@ func main() {
 
 		instance = instanceOverride
 		if instance == "" {
-			instance, err = conversion.GetInstance(ctx, project, ioHelper.Out)
+			instance, err = utils.GetInstance(ctx, project, ioHelper.Out)
 			if err != nil {
 				fmt.Printf("\nCan't get instance: %v\n", err)
 				panic(fmt.Errorf("can't get instance"))
 			}
 		}
 		fmt.Println("Using Cloud Spanner instance:", instance)
-		conversion.PrintPermissionsWarning(driverName, ioHelper.Out)
+		utils.PrintPermissionsWarning(driverName, ioHelper.Out)
 	}
 
 	now := time.Now()
 	dbName := dbNameOverride
 	if dbName == "" {
-		dbName, err = conversion.GetDatabaseName(driverName, now)
+		dbName, err = utils.GetDatabaseName(driverName, now)
 		if err != nil {
 			fmt.Printf("\nCan't get database name: %v\n", err)
 			panic(fmt.Errorf("can't get database name"))

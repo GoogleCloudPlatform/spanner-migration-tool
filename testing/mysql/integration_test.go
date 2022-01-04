@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
 
 	"cloud.google.com/go/spanner"
@@ -110,7 +110,7 @@ func TestIntegration_MYSQLDUMP_Command(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
-	dbName, _ := conversion.GetDatabaseName(constants.MYSQLDUMP, now)
+	dbName, _ := utils.GetDatabaseName(constants.MYSQLDUMP, now)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	dataFilepath := "../../test_data/mysqldump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName+".")
@@ -159,7 +159,7 @@ func TestIntegration_MYSQL_Command(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	now := time.Now()
-	dbName, _ := conversion.GetDatabaseName(constants.MYSQL, now)
+	dbName, _ := utils.GetDatabaseName(constants.MYSQL, now)
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
