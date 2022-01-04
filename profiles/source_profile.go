@@ -46,6 +46,7 @@ const (
 	SourceProfileConnectionTypeMySQL
 	SourceProfileConnectionTypePostgreSQL
 	SourceProfileConnectionTypeDynamoDB
+	SourceProfileConnectionTypeOracle
 )
 
 type SourceProfileConnectionMySQL struct {
@@ -199,11 +200,51 @@ func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfile
 	return dydb, nil
 }
 
+type SourceProfileConnectionOracle struct {
+	Host string
+	Port string
+	User string
+	Db   string
+	Pwd  string
+}
+
+func NewSourceProfileConnectionOracle(params map[string]string) (SourceProfileConnectionOracle, error) {
+	ss := SourceProfileConnectionOracle{}
+	host, hostOk := params["host"]
+	user, userOk := params["user"]
+	db, dbOk := params["db_name"]
+	port, _ := params["port"]
+	pwd, _ := params["password"]
+
+	if hostOk && userOk && dbOk {
+		// All connection params provided through source-profile. Port and password handled later.
+		ss.Host, ss.User, ss.Db, ss.Port, ss.Pwd = host, user, db, port, pwd
+		// Throw error if the input entered is empty.
+		if ss.Host == "" || ss.User == "" || ss.Db == "" {
+			return ss, fmt.Errorf("found empty string for host/user/db_name. Please specify host, port, user and db_name in the source-profile")
+		}
+	} else {
+		// Partial params provided through source-profile. Ask user to provide all through the source-profile.
+		return ss, fmt.Errorf("please specify host, port, user and db_name in the source-profile")
+	}
+
+	if ss.Port == "" {
+		// Set default port for oracle, which rarely changes.
+		ss.Port = "1521"
+	}
+	if ss.Pwd == "" {
+		ss.Pwd = utils.GetPassword()
+	}
+
+	return ss, nil
+}
+
 type SourceProfileConnection struct {
 	Ty    SourceProfileConnectionType
 	Mysql SourceProfileConnectionMySQL
 	Pg    SourceProfileConnectionPostgreSQL
 	Dydb  SourceProfileConnectionDynamoDB
+	Oracle    SourceProfileConnectionOracle
 }
 
 func NewSourceProfileConnection(source string, params map[string]string) (SourceProfileConnection, error) {
@@ -230,6 +271,14 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 		{
 			conn.Ty = SourceProfileConnectionTypeDynamoDB
 			conn.Dydb, err = NewSourceProfileConnectionDynamoDB(params)
+			if err != nil {
+				return conn, err
+			}
+		}
+	case "oracle":
+		{
+			conn.Ty = SourceProfileConnectionTypeOracle
+			conn.Oracle, err = NewSourceProfileConnectionOracle(params)
 			if err != nil {
 				return conn, err
 			}
@@ -284,6 +333,8 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 				return constants.POSTGRES, nil
 			case "dynamodb":
 				return constants.DYNAMODB, nil
+			case "oracle":
+				return constants.ORACLE, nil
 			default:
 				return "", fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
 			}

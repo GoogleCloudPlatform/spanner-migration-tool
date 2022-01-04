@@ -5,10 +5,12 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	go_ora "github.com/sijms/go-ora/v2"
 )
 
 // Parses input string `s` as a map of key-value pairs. It's expected that the
@@ -93,7 +95,10 @@ func GetSQLConnectionStr(sourceProfile SourceProfile) string {
 			// Thus, there is no need to create sqlConnectionStr for the same. We instead set the env variables
 			// programmatically if not set.
 			return ""
-		}
+		case SourceProfileConnectionTypeOracle:
+            connParams := sourceProfile.Conn.Oracle
+            return getORACLEConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
+        }
 	}
 	return sqlConnectionStr
 }
@@ -148,4 +153,9 @@ func GetSchemaSampleSize(sourceProfile SourceProfile) int64 {
 		}
 	}
 	return schemaSampleSize
+}
+
+func getORACLEConnectionStr(server, port, user, password, dbname string) string {
+    portNumber, _ := strconv.Atoi(port)
+    return go_ora.BuildUrl(server, portNumber, dbname, user, password, nil)
 }

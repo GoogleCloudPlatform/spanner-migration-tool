@@ -20,6 +20,10 @@ const (
 	// This is an experimental driver; implementation in progress.
 	DYNAMODB string = "dynamodb"
 
+	// ORACLE is the driver name for Oracle.
+	// This is an experimental driver; implementation in progress.
+	ORACLE string = "oracle"
+
 	// Target db for which schema is being generated.
 	TargetSpanner              string = "spanner"
 	TargetExperimentalPostgres string = "experimental_postgres"

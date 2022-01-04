@@ -51,6 +51,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -135,6 +136,11 @@ func connectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error)
 	// For Dynamodb, both legacy and new flows use env vars.
 	case constants.DYNAMODB:
 		return getDynamoDBClientConfig()
+	case constants.ORACLE:
+		if sqlConnectionStr == "" {
+			return generateORACLEConnectionStr()
+		}
+		return sqlConnectionStr, nil
 	default:
 		return "", fmt.Errorf("driver %s not supported", sourceProfile.Driver)
 	}
@@ -147,6 +153,10 @@ func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 		return strings.Split(dbParam, "=")[1]
 	case constants.MYSQL:
 		return strings.Split(sqlConnectionStr, ")/")[1]
+	case constants.ORACLE:
+		substr := sqlConnectionStr[9:]
+		dbName := strings.Split(substr, ":")[0]
+		return dbName
 	}
 	return ""
 }
@@ -728,6 +738,14 @@ func GetInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, err
 		mySession := session.Must(session.NewSession())
 		dydbClient := dydb.New(mySession, connectionConfig.(*aws.Config))
 		return dynamodb.InfoSchemaImpl{DynamoClient: dydbClient, SampleSize: profiles.GetSchemaSampleSize(sourceProfile)}, nil
+	
+	case constants.ORACLE:
+		db, err := sql.Open(driver, connectionConfig.(string))
+		dbName := getDbNameFromSQLConnectionStr(driver, connectionConfig.(string))
+		if err != nil {
+			return nil, err
+		}
+		return oracle.InfoSchemaImpl{DbName: dbName, Db: db}, nil
 	default:
 		return nil, fmt.Errorf("driver %s not supported", driver)
 	}
