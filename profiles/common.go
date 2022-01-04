@@ -78,7 +78,7 @@ func GetResourceIds(ctx context.Context, targetProfile TargetProfile, now time.T
 	return project, instance, dbName, err
 }
 
-func GetSQLConnectionStr(sourceProfile *SourceProfile) string {
+func GetSQLConnectionStr(sourceProfile SourceProfile) string {
 	sqlConnectionStr := ""
 	if sourceProfile.Ty == SourceProfileTypeConnection {
 		switch sourceProfile.Conn.Ty {
@@ -138,7 +138,7 @@ func getMYSQLConnectionStr(server, port, user, password, dbname string) string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, server, port, dbname)
 }
 
-func GetSchemaSampleSize(sourceProfile *SourceProfile) int64 {
+func GetSchemaSampleSize(sourceProfile SourceProfile) int64 {
 	schemaSampleSize := int64(100000)
 	if sourceProfile.Ty == SourceProfileTypeConnection {
 		if sourceProfile.Conn.Ty == SourceProfileConnectionTypeDynamoDB {

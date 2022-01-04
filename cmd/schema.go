@@ -97,7 +97,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	}
 
 	var conv *internal.Conv
-	conv, err = conversion.SchemaConv(&sourceProfile, &targetProfile, &ioHelper)
+	conv, err = conversion.SchemaConv(sourceProfile, targetProfile, &ioHelper)
 	if err != nil {
 		return subcommands.ExitFailure
 	}

@@ -52,7 +52,7 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 	if !dataOnly {
 		// We pass an empty string to the sqlConnectionStr parameter as this is the legacy codepath,
 		// which reads the environment variables and constructs the string later on.
-		conv, err = conversion.SchemaConv(&sourceProfile, &targetProfile, ioHelper)
+		conv, err = conversion.SchemaConv(sourceProfile, targetProfile, ioHelper)
 		if err != nil {
 			return err
 		}
@@ -90,7 +90,7 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 
 	// We pass an empty string to the sqlConnectionStr parameter as this is the legacy codepath,
 	// which reads the environment variables and constructs the string later on.
-	bw, err := conversion.DataConv(&sourceProfile, &targetProfile, ioHelper, client, conv, dataOnly)
+	bw, err := conversion.DataConv(sourceProfile, targetProfile, ioHelper, client, conv, dataOnly)
 	if err != nil {
 		return fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 	}

@@ -73,7 +73,7 @@ var (
 //  - Driver is DynamoDB or a dump file mode.
 //  - This function is called as part of the legacy global CLI flag mode. (This string is constructed from env variables later on)
 // When using source-profile, the sqlConnectionStr is constructed from the input params.
-func SchemaConv(sourceProfile *profiles.SourceProfile, targetProfile *profiles.TargetProfile, ioHelper *utils.IOStreams) (*internal.Conv, error) {
+func SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams) (*internal.Conv, error) {
 	switch sourceProfile.Driver {
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB:
 		return schemaFromDatabase(sourceProfile, targetProfile)
@@ -90,7 +90,7 @@ func SchemaConv(sourceProfile *profiles.SourceProfile, targetProfile *profiles.T
 //  - Driver is DynamoDB or a dump file mode.
 //  - This function is called as part of the legacy global CLI flag mode. (This string is constructed from env variables later on)
 // When using source-profile, the sqlConnectionStr and schemaSampleSize are constructed from the input params.
-func DataConv(sourceProfile *profiles.SourceProfile, targetProfile *profiles.TargetProfile, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*spanner.BatchWriter, error) {
+func DataConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*spanner.BatchWriter, error) {
 	config := spanner.BatchWriterConfig{
 		BytesLimit: 100 * 1000 * 1000,
 		WriteLimit: 40,
@@ -110,7 +110,7 @@ func DataConv(sourceProfile *profiles.SourceProfile, targetProfile *profiles.Tar
 	}
 }
 
-func connectionConfig(sourceProfile *profiles.SourceProfile) (interface{}, error) {
+func connectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error) {
 	switch sourceProfile.Driver {
 	// For PG and MYSQL, When called as part of the subcommand flow, host/user/db etc will
 	// never be empty as we error out right during source profile creation. If any of them
@@ -151,7 +151,7 @@ func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 	return ""
 }
 
-func schemaFromDatabase(sourceProfile *profiles.SourceProfile, targetProfile *profiles.TargetProfile) (*internal.Conv, error) {
+func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (*internal.Conv, error) {
 	conv := internal.MakeConv()
 	conv.TargetDb = targetProfile.TargetDb
 	infoSchema, err := GetInfoSchema(sourceProfile)
@@ -161,7 +161,7 @@ func schemaFromDatabase(sourceProfile *profiles.SourceProfile, targetProfile *pr
 	return conv, common.ProcessSchema(conv, infoSchema)
 }
 
-func dataFromDatabase(sourceProfile *profiles.SourceProfile, config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
+func dataFromDatabase(sourceProfile profiles.SourceProfile, config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
 	infoSchema, err := GetInfoSchema(sourceProfile)
 	if err != nil {
 		return nil, err
@@ -704,7 +704,7 @@ func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 	}
 }
 
-func GetInfoSchema(sourceProfile *profiles.SourceProfile) (common.InfoSchema, error) {
+func GetInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, error) {
 	connectionConfig, err := connectionConfig(sourceProfile)
 	if err != nil {
 		return nil, err

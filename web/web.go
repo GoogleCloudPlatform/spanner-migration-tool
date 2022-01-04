@@ -174,7 +174,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sourceProfile.Driver = dc.Driver
 	targetProfile, _ := profiles.NewTargetProfile("")
 	targetProfile.TargetDb = constants.TargetSpanner
-	conv, err := conversion.SchemaConv(&sourceProfile, &targetProfile, &utils.IOStreams{In: f, Out: os.Stdout})
+	conv, err := conversion.SchemaConv(sourceProfile, targetProfile, &utils.IOStreams{In: f, Out: os.Stdout})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
