@@ -66,7 +66,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	if err != nil {
 		return subcommands.ExitUsageError
 	}
-	driverName, err := sourceProfile.ToLegacyDriver(cmd.source)
+	sourceProfile.Driver, err = sourceProfile.ToLegacyDriver(cmd.source)
 	if err != nil {
 		return subcommands.ExitUsageError
 	}
@@ -75,20 +75,20 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	if err != nil {
 		return subcommands.ExitUsageError
 	}
-	targetDb := targetProfile.ToLegacyTargetDb()
+	targetProfile.TargetDb = targetProfile.ToLegacyTargetDb()
 
 	dumpFilePath := ""
 	if sourceProfile.Ty == profiles.SourceProfileTypeFile && (sourceProfile.File.Format == "" || sourceProfile.File.Format == "dump") {
 		dumpFilePath = sourceProfile.File.Path
 	}
-	ioHelper := utils.NewIOStreams(driverName, dumpFilePath)
+	ioHelper := utils.NewIOStreams(sourceProfile.Driver, dumpFilePath)
 	if ioHelper.SeekableIn != nil {
 		defer ioHelper.In.Close()
 	}
 
 	// If filePrefix not explicitly set, use generated dbName.
 	if cmd.filePrefix == "" {
-		dbName, err := utils.GetDatabaseName(driverName, time.Now())
+		dbName, err := utils.GetDatabaseName(sourceProfile.Driver, time.Now())
 		if err != nil {
 			err = fmt.Errorf("can't generate database name for prefix: %v", err)
 			return subcommands.ExitFailure
@@ -97,7 +97,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	}
 
 	var conv *internal.Conv
-	conv, err = conversion.SchemaConv(driverName, profiles.GetSQLConnectionStr(sourceProfile), targetDb, &ioHelper, profiles.GetSchemaSampleSize(sourceProfile))
+	conv, err = conversion.SchemaConv(sourceProfile, targetProfile, &ioHelper)
 	if err != nil {
 		return subcommands.ExitFailure
 	}
@@ -105,6 +105,6 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	now := time.Now()
 	conversion.WriteSchemaFile(conv, now, cmd.filePrefix+schemaFile, ioHelper.Out)
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
-	conversion.Report(driverName, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
+	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
 	return subcommands.ExitSuccess
 }

@@ -73,14 +73,14 @@ var (
 //  - Driver is DynamoDB or a dump file mode.
 //  - This function is called as part of the legacy global CLI flag mode. (This string is constructed from env variables later on)
 // When using source-profile, the sqlConnectionStr is constructed from the input params.
-func SchemaConv(driver, sqlConnectionStr, targetDb string, ioHelper *utils.IOStreams, schemaSampleSize int64) (*internal.Conv, error) {
-	switch driver {
+func SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams) (*internal.Conv, error) {
+	switch sourceProfile.Driver {
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB:
-		return schemaFromDatabase(driver, sqlConnectionStr, targetDb, schemaSampleSize)
+		return schemaFromDatabase(sourceProfile, targetProfile)
 	case constants.PGDUMP, constants.MYSQLDUMP:
-		return schemaFromDump(driver, targetDb, ioHelper)
+		return schemaFromDump(sourceProfile.Driver, targetProfile.TargetDb, ioHelper)
 	default:
-		return nil, fmt.Errorf("schema conversion for driver %s not supported", driver)
+		return nil, fmt.Errorf("schema conversion for driver %s not supported", sourceProfile.Driver)
 	}
 }
 
@@ -90,46 +90,53 @@ func SchemaConv(driver, sqlConnectionStr, targetDb string, ioHelper *utils.IOStr
 //  - Driver is DynamoDB or a dump file mode.
 //  - This function is called as part of the legacy global CLI flag mode. (This string is constructed from env variables later on)
 // When using source-profile, the sqlConnectionStr and schemaSampleSize are constructed from the input params.
-func DataConv(driver, sqlConnectionStr string, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, schemaSampleSize int64) (*spanner.BatchWriter, error) {
+func DataConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*spanner.BatchWriter, error) {
 	config := spanner.BatchWriterConfig{
 		BytesLimit: 100 * 1000 * 1000,
 		WriteLimit: 40,
 		RetryLimit: 1000,
 		Verbose:    internal.Verbose(),
 	}
-	switch driver {
+	switch sourceProfile.Driver {
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB:
-		return dataFromDatabase(driver, sqlConnectionStr, config, client, conv, schemaSampleSize)
+		return dataFromDatabase(sourceProfile, config, client, conv)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		if conv.SpSchema.CheckInterleaved() {
 			return nil, fmt.Errorf("harbourBridge does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql")
 		}
-		return dataFromDump(driver, config, ioHelper, client, conv, dataOnly)
+		return dataFromDump(sourceProfile.Driver, config, ioHelper, client, conv, dataOnly)
 	default:
-		return nil, fmt.Errorf("data conversion for driver %s not supported", driver)
+		return nil, fmt.Errorf("data conversion for driver %s not supported", sourceProfile.Driver)
 	}
 }
 
-func connectionConfig(driver string, sqlConnectionStr string) (interface{}, error) {
-	switch driver {
+func connectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error) {
+	switch sourceProfile.Driver {
+	// For PG and MYSQL, When called as part of the subcommand flow, host/user/db etc will
+	// never be empty as we error out right during source profile creation. If any of them
+	// are empty, that means this was called through the legacy cmd flow and we create the
+	// string using env vars.
 	case constants.POSTGRES:
-		// If empty, this is called as part of the legacy mode witih global CLI flags.
-		// When using source-profile mode is used, the sqlConnectionStr is already populated.
-		if sqlConnectionStr == "" {
+		pgConn := sourceProfile.Conn.Pg
+		if !(pgConn.Host != "" && pgConn.User != "" && pgConn.Db != "") {
 			return profiles.GeneratePGSQLConnectionStr()
+		} else {
+			return profiles.GetSQLConnectionStr(sourceProfile), nil
 		}
-		return sqlConnectionStr, nil
 	case constants.MYSQL:
 		// If empty, this is called as part of the legacy mode witih global CLI flags.
 		// When using source-profile mode is used, the sqlConnectionStr is already populated.
-		if sqlConnectionStr == "" {
+		mysqlConn := sourceProfile.Conn.Mysql
+		if !(mysqlConn.Host != "" && mysqlConn.User != "" && mysqlConn.Db != "") {
 			return profiles.GenerateMYSQLConnectionStr()
+		} else {
+			return profiles.GetSQLConnectionStr(sourceProfile), nil
 		}
-		return sqlConnectionStr, nil
+	// For Dynamodb, both legacy and new flows use env vars.
 	case constants.DYNAMODB:
 		return getDynamoDBClientConfig()
 	default:
-		return "", fmt.Errorf("driver %s not supported", driver)
+		return "", fmt.Errorf("driver %s not supported", sourceProfile.Driver)
 	}
 }
 
@@ -144,18 +151,18 @@ func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 	return ""
 }
 
-func schemaFromDatabase(driver, sqlConnectionStr, targetDb string, schemaSampleSize int64) (*internal.Conv, error) {
+func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (*internal.Conv, error) {
 	conv := internal.MakeConv()
-	conv.TargetDb = targetDb
-	infoSchema, err := GetInfoSchema(driver, sqlConnectionStr, schemaSampleSize)
+	conv.TargetDb = targetProfile.TargetDb
+	infoSchema, err := GetInfoSchema(sourceProfile)
 	if err != nil {
 		return conv, err
 	}
 	return conv, common.ProcessSchema(conv, infoSchema)
 }
 
-func dataFromDatabase(driver, sqlConnectionStr string, config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv, schemaSampleSize int64) (*spanner.BatchWriter, error) {
-	infoSchema, err := GetInfoSchema(driver, sqlConnectionStr, schemaSampleSize)
+func dataFromDatabase(sourceProfile profiles.SourceProfile, config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
+	infoSchema, err := GetInfoSchema(sourceProfile)
 	if err != nil {
 		return nil, err
 	}
@@ -697,11 +704,12 @@ func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 	}
 }
 
-func GetInfoSchema(driver, sqlConnectionStr string, schemaSampleSize int64) (common.InfoSchema, error) {
-	connectionConfig, err := connectionConfig(driver, sqlConnectionStr)
+func GetInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, error) {
+	connectionConfig, err := connectionConfig(sourceProfile)
 	if err != nil {
 		return nil, err
 	}
+	driver := sourceProfile.Driver
 	switch driver {
 	case constants.MYSQL:
 		db, err := sql.Open(driver, connectionConfig.(string))
@@ -719,7 +727,7 @@ func GetInfoSchema(driver, sqlConnectionStr string, schemaSampleSize int64) (com
 	case constants.DYNAMODB:
 		mySession := session.Must(session.NewSession())
 		dydbClient := dydb.New(mySession, connectionConfig.(*aws.Config))
-		return dynamodb.InfoSchemaImpl{DynamoClient: dydbClient, SampleSize: schemaSampleSize}, nil
+		return dynamodb.InfoSchemaImpl{DynamoClient: dydbClient, SampleSize: profiles.GetSchemaSampleSize(sourceProfile)}, nil
 	default:
 		return nil, fmt.Errorf("driver %s not supported", driver)
 	}
