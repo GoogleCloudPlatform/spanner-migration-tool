@@ -76,7 +76,7 @@ var (
 // When using source-profile, the sqlConnectionStr is constructed from the input params.
 func SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams) (*internal.Conv, error) {
 	switch sourceProfile.Driver {
-	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB:
+	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB,constants.ORACLE :
 		return schemaFromDatabase(sourceProfile, targetProfile)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		return schemaFromDump(sourceProfile.Driver, targetProfile.TargetDb, ioHelper)
@@ -137,10 +137,7 @@ func connectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error)
 	case constants.DYNAMODB:
 		return getDynamoDBClientConfig()
 	case constants.ORACLE:
-		if sqlConnectionStr == "" {
-			return generateORACLEConnectionStr()
-		}
-		return sqlConnectionStr, nil
+		return profiles.GetSQLConnectionStr(sourceProfile), nil	
 	default:
 		return "", fmt.Errorf("driver %s not supported", sourceProfile.Driver)
 	}
