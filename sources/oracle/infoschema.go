@@ -109,7 +109,7 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 
 // GetColumns returns a list of Column objects and names
 func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
-	q := fmt.Sprintf(`SELECT column_name, data_type, data_default, data_length, data_precision FROM USER_TAB_COLUMNS WHERE table_name = '%s';`, table.Name)
+	q := fmt.Sprintf(`SELECT column_name, data_type, nullable, data_default, data_length, data_precision, data_scale FROM USER_TAB_COLUMNS WHERE table_name = '%s'`, table.Name)
 	cols, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
@@ -157,7 +157,11 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
 func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, map[string][]string, error) {
-	q := fmt.Sprintf(`SELECT column_name, data_type, data_default, data_length, data_precision FROM USER_TAB_COLUMNS WHERE table_name = '%s'`, table.Name)
+	q := fmt.Sprintf(`SELECT k.constraint_name,
+       t.constraint_type
+	   FROM   ALL_CONSTRAINTS t
+       INNER JOIN ALL_CONS_COLUMNS k
+       ON ( k.constraint_name = t.constraint_name ) WHERE k.table_name = '%s'`, table.Name)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, nil, err
@@ -173,7 +177,7 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 			continue
 		}
 		if col == "" || constraint == "" {
-			conv.Unexpected(fmt.Sprintf("Got empty col or constraint"))
+			conv.Unexpected("Got empty col or constraint")
 			continue
 		}
 		switch constraint {
@@ -239,33 +243,34 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 
 // GetIndexes return a list of all indexes for the specified table.
 func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName) ([]schema.Index, error) {
-	q := `SELECT DISTINCT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,COLLATION,NON_UNIQUE
-		FROM INFORMATION_SCHEMA.STATISTICS 
-		WHERE TABLE_SCHEMA = ?
-			AND TABLE_NAME = ?
-			AND INDEX_NAME != 'PRIMARY' 
-		ORDER BY INDEX_NAME, SEQ_IN_INDEX;`
-	rows, err := isi.Db.Query(q, table.Schema, table.Name)
+	q := fmt.Sprintf(`SELECT AI.INDEX_NAME, AIC.COLUMN_NAME, AIC.COLUMN_POSITION, AI.UNIQUENESS
+				FROM ALL_INDEXES AI, ALL_IND_COLUMNS AIC
+				WHERE AI.INDEX_NAME  = AIC.INDEX_NAME
+					AND AI.TABLE_OWNER = AIC.TABLE_OWNER
+					AND AI.TABLE_OWNER = '%s'
+					AND AI.TABLE_NAME  = '%s'
+				ORDER BY AI.INDEX_NAME, AIC.COLUMN_POSITION`, table.Schema, table.Name)
+	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var name, column, sequence, nonUnique string
+	var name, column, sequence, Unique string
 	var collation sql.NullString
 	indexMap := make(map[string]schema.Index)
 	var indexNames []string
 	var indexes []schema.Index
 	for rows.Next() {
-		if err := rows.Scan(&name, &column, &sequence, &collation, &nonUnique); err != nil {
+		if err := rows.Scan(&name, &column, &sequence, &Unique); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
 		if _, found := indexMap[name]; !found {
 			indexNames = append(indexNames, name)
-			indexMap[name] = schema.Index{Name: name, Unique: (nonUnique == "0")}
+			indexMap[name] = schema.Index{Name: name, Unique: (Unique == "UNIQUE")}
 		}
 		index := indexMap[name]
-		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation.Valid && collation.String == "D")})
+		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation.Valid)})
 		indexMap[name] = index
 	}
 	for _, k := range indexNames {
