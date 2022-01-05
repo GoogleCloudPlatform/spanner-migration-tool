@@ -157,8 +157,8 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
 func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, map[string][]string, error) {
-	q := fmt.Sprintf(`SELECT column_name, data_type, data_default, data_length, data_precision FROM USER_TAB_COLUMNS WHERE table_name = '%s';`, table.Name)
-	rows, err := isi.Db.Query(q, table.Schema, table.Name)
+	q := fmt.Sprintf(`SELECT column_name, data_type, data_default, data_length, data_precision FROM USER_TAB_COLUMNS WHERE table_name = '%s'`, table.Name)
+	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -192,21 +192,15 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 // of HarbourBridge focuses on a specific database) and so we can't handle
 // them effectively.
 func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
-	q := `SELECT k.REFERENCED_TABLE_NAME,k.COLUMN_NAME,k.REFERENCED_COLUMN_NAME,k.CONSTRAINT_NAME
-		FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS t 
-		INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS k 
-			ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
-			AND t.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA 
-			AND t.TABLE_NAME = k.TABLE_NAME 
-			AND k.REFERENCED_TABLE_SCHEMA = k.TABLE_SCHEMA
-		WHERE k.TABLE_SCHEMA = ? 
-			AND k.TABLE_NAME = ? 
-			AND t.CONSTRAINT_TYPE = "FOREIGN KEY" 
-		ORDER BY
-			k.REFERENCED_TABLE_NAME,
-			k.COLUMN_NAME,
-			k.ORDINAL_POSITION;`
-	rows, err := isi.Db.Query(q, table.Schema, table.Name)
+	q := fmt.Sprintf(`SELECT B.TABLE_NAME AS REF_TABLE, A.COLUMN_NAME AS COL_NAME,
+				B.COLUMN_NAME AS REF_COL_NAME ,A.CONSTRAINT_NAME AS NAME
+		FROM ALL_CONS_COLUMNS A 
+		JOIN ALL_CONSTRAINTS C ON A.OWNER = C.OWNER 
+			AND A.CONSTRAINT_NAME = C.CONSTRAINT_NAME
+    	JOIN ALL_CONS_COLUMNS B ON B.OWNER = C.OWNER 
+			AND B.CONSTRAINT_NAME = C.R_CONSTRAINT_NAME
+    	WHERE A.TABLE_NAME='%s' AND A.OWNER='%s'`,table.Name,isi.DbName) 
+	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err
 	}
