@@ -22,7 +22,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -125,7 +124,7 @@ func TestIntegration_MYSQLDUMP_Command(t *testing.T) {
 	// Drop the database later.
 	defer dropDatabase(t, dbURI)
 
-	checkResults(t, dbURI)
+	checkResults(t, dbURI, true)
 }
 
 func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
@@ -150,7 +149,7 @@ func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
 	// Drop the database later.
 	defer dropDatabase(t, dbURI)
 
-	checkResults(t, dbURI)
+	checkResults(t, dbURI, true)
 }
 
 func TestIntegration_MYSQL_Command(t *testing.T) {
@@ -173,7 +172,7 @@ func TestIntegration_MYSQL_Command(t *testing.T) {
 	// Drop the database later.
 	defer dropDatabase(t, dbURI)
 
-	checkResults(t, dbURI)
+	checkResults(t, dbURI, true)
 }
 
 func TestIntegration_MySQLInterleaveTable_DataOnlyWithSessionFile(t *testing.T) {
@@ -187,7 +186,7 @@ func TestIntegration_MySQLInterleaveTable_DataOnlyWithSessionFile(t *testing.T) 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	runDataOnlySubcommandForSessionFile(t, dbName, dbURI, sessionFile)
 	defer dropDatabase(t, dbURI)
-	checkResults(t, dbURI)
+	checkResults(t, dbURI, false)
 }
 
 func runSchemaOnly(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string) {
@@ -243,7 +242,7 @@ func TestIntegration_MySQLDUMP_DataOnly(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	runDataOnly(t, dbName, dbURI, filePrefix, sessionFile, dumpFilePath)
 	defer dropDatabase(t, dbURI)
-	checkResults(t, dbURI)
+	checkResults(t, dbURI, true)
 }
 
 func runSchemaSubcommand(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string) {
@@ -316,7 +315,7 @@ func TestIntegration_MySQLDUMP_DataSubcommand(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	runDataSubcommand(t, dbName, dbURI, filePrefix, sessionFile, dumpFilePath)
 	defer dropDatabase(t, dbURI)
-	checkResults(t, dbURI)
+	checkResults(t, dbURI, true)
 }
 
 func TestIntegration_MySQLDUMP_SchemaAndDataSubcommand(t *testing.T) {
@@ -331,10 +330,10 @@ func TestIntegration_MySQLDUMP_SchemaAndDataSubcommand(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath)
 	defer dropDatabase(t, dbURI)
-	checkResults(t, dbURI)
+	checkResults(t, dbURI, true)
 }
 
-func checkResults(t *testing.T, dbURI string) {
+func checkResults(t *testing.T, dbURI string, json bool) {
 	// Make a query to check results.
 	client, err := spanner.NewClient(ctx, dbURI)
 	if err != nil {
@@ -343,7 +342,9 @@ func checkResults(t *testing.T, dbURI string) {
 	defer client.Close()
 
 	checkBigInt(ctx, t, client)
-	checkJson(ctx, t, client, dbURI)
+	if json {
+		checkJson(ctx, t, client)
+	}
 }
 
 func checkBigInt(ctx context.Context, t *testing.T, client *spanner.Client) {
@@ -367,16 +368,7 @@ func checkBigInt(ctx context.Context, t *testing.T, client *spanner.Client) {
 	}
 }
 
-func checkJson(ctx context.Context, t *testing.T, client *spanner.Client, dbURI string) {
-	resp, err := databaseAdmin.GetDatabaseDdl(ctx, &databasepb.GetDatabaseDdlRequest{Database: dbURI})
-	if err != nil {
-		t.Fatalf("Could not read DDL from database %s: %v", dbURI, err)
-	}
-	for _, stmt := range resp.Statements {
-		if strings.Contains(stmt, "CREATE TABLE customers") {
-			assert.True(t, strings.Contains(stmt, "customer_profile JSON"))
-		}
-	}
+func checkJson(ctx context.Context, t *testing.T, client *spanner.Client) {
 	stmt := spanner.Statement{
 		SQL: `SELECT COUNT(*) FROM customers`,
 	}
@@ -385,7 +377,7 @@ func checkJson(ctx context.Context, t *testing.T, client *spanner.Client, dbURI 
 	row, _ := iter.Next()
 	var rowCount int64 = 0
 	row.Columns(&rowCount)
-	assert.Equal(t, 2, rowCount)
+	assert.Equal(t, int64(2), rowCount)
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {
