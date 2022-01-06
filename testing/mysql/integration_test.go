@@ -16,18 +16,21 @@ package mysql_test
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
+	"github.com/stretchr/testify/assert"
 
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
@@ -123,7 +126,7 @@ func TestIntegration_MYSQLDUMP_Command(t *testing.T) {
 	// Drop the database later.
 	defer dropDatabase(t, dbURI)
 
-	checkResults(t, dbURI)
+	checkResults(t, dbURI, false)
 }
 
 func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
@@ -148,7 +151,7 @@ func TestIntegration_MYSQL_SchemaAndDataSubcommand(t *testing.T) {
 	// Drop the database later.
 	defer dropDatabase(t, dbURI)
 
-	checkResults(t, dbURI)
+	checkResults(t, dbURI, true)
 }
 
 func TestIntegration_MYSQL_Command(t *testing.T) {
@@ -171,7 +174,7 @@ func TestIntegration_MYSQL_Command(t *testing.T) {
 	// Drop the database later.
 	defer dropDatabase(t, dbURI)
 
-	checkResults(t, dbURI)
+	checkResults(t, dbURI, true)
 }
 
 func TestIntegration_MySQLInterleaveTable_DataOnlyWithSessionFile(t *testing.T) {
@@ -185,7 +188,7 @@ func TestIntegration_MySQLInterleaveTable_DataOnlyWithSessionFile(t *testing.T) 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	runDataOnlySubcommandForSessionFile(t, dbName, dbURI, sessionFile)
 	defer dropDatabase(t, dbURI)
-	checkResults(t, dbURI)
+	checkResults(t, dbURI, true)
 }
 
 func runSchemaOnly(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string) {
@@ -241,7 +244,7 @@ func TestIntegration_MySQLDUMP_DataOnly(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	runDataOnly(t, dbName, dbURI, filePrefix, sessionFile, dumpFilePath)
 	defer dropDatabase(t, dbURI)
-	checkResults(t, dbURI)
+	checkResults(t, dbURI, false)
 }
 
 func runSchemaSubcommand(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string) {
@@ -314,7 +317,7 @@ func TestIntegration_MySQLDUMP_DataSubcommand(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	runDataSubcommand(t, dbName, dbURI, filePrefix, sessionFile, dumpFilePath)
 	defer dropDatabase(t, dbURI)
-	checkResults(t, dbURI)
+	checkResults(t, dbURI, false)
 }
 
 func TestIntegration_MySQLDUMP_SchemaAndDataSubcommand(t *testing.T) {
@@ -329,10 +332,10 @@ func TestIntegration_MySQLDUMP_SchemaAndDataSubcommand(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	runSchemaAndDataSubcommand(t, dbName, dbURI, filePrefix, dumpFilePath)
 	defer dropDatabase(t, dbURI)
-	checkResults(t, dbURI)
+	checkResults(t, dbURI, false)
 }
 
-func checkResults(t *testing.T, dbURI string) {
+func checkResults(t *testing.T, dbURI string, skipJson bool) {
 	// Make a query to check results.
 	client, err := spanner.NewClient(ctx, dbURI)
 	if err != nil {
@@ -341,6 +344,9 @@ func checkResults(t *testing.T, dbURI string) {
 	defer client.Close()
 
 	checkBigInt(ctx, t, client)
+	if !skipJson {
+		checkJson(ctx, t, client, dbURI)
+	}
 }
 
 func checkBigInt(ctx context.Context, t *testing.T, client *spanner.Client) {
@@ -362,6 +368,36 @@ func checkBigInt(ctx context.Context, t *testing.T, client *spanner.Client) {
 	if got, want := quantity, int64(1); got != want {
 		t.Fatalf("quantities are not correct: got %v, want %v", got, want)
 	}
+}
+
+func checkJson(ctx context.Context, t *testing.T, client *spanner.Client, dbURI string) {
+	resp, err := databaseAdmin.GetDatabaseDdl(ctx, &databasepb.GetDatabaseDdlRequest{Database: dbURI})
+	if err != nil {
+		t.Fatalf("Could not read DDL from database %s: %v", dbURI, err)
+	}
+	for _, stmt := range resp.Statements {
+		if strings.Contains(stmt, "CREATE TABLE customers") {
+			assert.True(t, strings.Contains(stmt, "customer_profile JSON"))
+		}
+	}
+	got_profile := spanner.NullJSON{}
+	iter := client.Single().Read(ctx, "customers", spanner.Key{"tel-595"}, []string{"customer_profile"})
+	defer iter.Stop()
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := row.Columns(&got_profile); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want_profile := spanner.NullJSON{Valid: true}
+	json.Unmarshal([]byte("{\"first_name\": \"Ernie\", \"status\": \"Looking for treats\", \"location\" : \"Brooklyn\"}"), &want_profile.Value)
+	assert.Equal(t, got_profile, want_profile)
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {
