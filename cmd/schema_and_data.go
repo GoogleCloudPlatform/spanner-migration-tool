@@ -8,8 +8,10 @@ import (
 	"path"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/google/subcommands"
 )
 
@@ -62,26 +64,26 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 		}
 	}()
 
-	sourceProfile, err := NewSourceProfile(cmd.sourceProfile, cmd.source)
+	sourceProfile, err := profiles.NewSourceProfile(cmd.sourceProfile, cmd.source)
 	if err != nil {
 		return subcommands.ExitUsageError
 	}
-	driverName, err := sourceProfile.ToLegacyDriver(cmd.source)
+	sourceProfile.Driver, err = sourceProfile.ToLegacyDriver(cmd.source)
 	if err != nil {
 		return subcommands.ExitUsageError
 	}
 
-	targetProfile, err := NewTargetProfile(cmd.targetProfile)
+	targetProfile, err := profiles.NewTargetProfile(cmd.targetProfile)
 	if err != nil {
 		return subcommands.ExitUsageError
 	}
-	targetDb := targetProfile.ToLegacyTargetDb()
+	targetProfile.TargetDb = targetProfile.ToLegacyTargetDb()
 
 	dumpFilePath := ""
-	if sourceProfile.ty == SourceProfileTypeFile && (sourceProfile.file.format == "" || sourceProfile.file.format == "dump") {
-		dumpFilePath = sourceProfile.file.path
+	if sourceProfile.Ty == profiles.SourceProfileTypeFile && (sourceProfile.File.Format == "" || sourceProfile.File.Format == "dump") {
+		dumpFilePath = sourceProfile.File.Path
 	}
-	ioHelper := conversion.NewIOStreams(driverName, dumpFilePath)
+	ioHelper := utils.NewIOStreams(sourceProfile.Driver, dumpFilePath)
 	if ioHelper.SeekableIn != nil {
 		defer ioHelper.In.Close()
 	}
@@ -90,38 +92,36 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 
 	// If filePrefix not explicitly set, use dbName as prefix.
 	if cmd.filePrefix == "" {
-		dbName, err := conversion.GetDatabaseName(driverName, now)
+		dbName, err := utils.GetDatabaseName(sourceProfile.Driver, now)
 		if err != nil {
 			panic(fmt.Errorf("can't generate database name for prefix: %v", err))
 		}
 		cmd.filePrefix = dbName + "."
 	}
 
-	sqlConnectionStr := getSQLConnectionStr(sourceProfile)
-	schemaSampleSize := getSchemaSampleSize(sourceProfile)
 	var conv *internal.Conv
-	conv, err = conversion.SchemaConv(driverName, sqlConnectionStr, targetDb, &ioHelper, schemaSampleSize)
+	conv, err = conversion.SchemaConv(sourceProfile, targetProfile, &ioHelper)
 	if err != nil {
 		panic(err)
 	}
 
 	conversion.WriteSchemaFile(conv, now, cmd.filePrefix+schemaFile, ioHelper.Out)
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
-	conversion.Report(driverName, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
+	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
 
-	project, instance, dbName, err := getResourceIds(ctx, targetProfile, now, driverName, ioHelper.Out)
+	project, instance, dbName, err := profiles.GetResourceIds(ctx, targetProfile, now, sourceProfile.Driver, ioHelper.Out)
 	if err != nil {
 		return subcommands.ExitUsageError
 	}
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
 
-	adminClient, err := conversion.NewDatabaseAdminClient(ctx)
+	adminClient, err := utils.NewDatabaseAdminClient(ctx)
 	if err != nil {
-		err = fmt.Errorf("can't create admin client: %w", conversion.AnalyzeError(err, dbURI))
+		err = fmt.Errorf("can't create admin client: %w", utils.AnalyzeError(err, dbURI))
 		return subcommands.ExitFailure
 	}
 	defer adminClient.Close()
-	client, err := conversion.GetClient(ctx, dbURI)
+	client, err := utils.GetClient(ctx, dbURI)
 	if err != nil {
 		err = fmt.Errorf("can't create client for db %s: %v", dbURI, err)
 		return subcommands.ExitFailure
@@ -134,7 +134,7 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 		return subcommands.ExitFailure
 	}
 
-	bw, err := conversion.DataConv(driverName, sqlConnectionStr, &ioHelper, client, conv, true, schemaSampleSize)
+	bw, err := conversion.DataConv(sourceProfile, targetProfile, &ioHelper, client, conv, true)
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 		return subcommands.ExitFailure
@@ -145,8 +145,8 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 			return subcommands.ExitFailure
 		}
 	}
-	banner := conversion.GetBanner(now, dbURI)
-	conversion.Report(driverName, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
+	banner := utils.GetBanner(now, dbURI)
+	conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, cmd.filePrefix+badDataFile, ioHelper.Out)
 	return subcommands.ExitSuccess
 }

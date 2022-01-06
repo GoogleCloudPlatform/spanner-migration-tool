@@ -1,4 +1,4 @@
-package cmd
+package profiles
 
 import (
 	"fmt"
@@ -35,8 +35,9 @@ type TargetProfileConnection struct {
 }
 
 type TargetProfile struct {
-	ty   TargetProfileType
-	conn TargetProfileConnection
+	TargetDb string
+	ty       TargetProfileType
+	conn     TargetProfileConnection
 }
 
 // ToLegacyTargetDb converts source-profile to equivalent legacy global flag
