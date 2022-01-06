@@ -29,38 +29,12 @@ func (isi InfoSchemaImpl) GetTableName(dbName string, tableName string) string {
 
 // GetRowsFromTable returns a sql Rows object for a table.
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
-	q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, conv.SrcSchema[srcTable].Schema, srcTable)
-	rows, err := isi.Db.Query(q)
-	if err != nil {
-		return nil, err
-	}
-	return rows, err
+	panic("unimplemented")
 }
 
 // ProcessData performs data conversion for source database.
 func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) error {
-	rowsInterface, err := isi.GetRowsFromTable(conv, srcTable)
-	if err != nil {
-		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTable, err))
-		return err
-	}
-	rows := rowsInterface.(*sql.Rows)
-	defer rows.Close()
-	srcCols, _ := rows.Columns()
-	v, scanArgs := buildVals(len(srcCols))
-	for rows.Next() {
-		// get RawBytes from data.
-		err := rows.Scan(scanArgs...)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
-			// Scan failed, so we don't have any data to add to bad rows.
-			conv.StatsAddBadRow(srcTable, conv.DataMode())
-			continue
-		}
-		values := valsToStrings(v)
-		ProcessDataRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, values)
-	}
-	return nil
+	panic("unimplemented")
 }
 
 func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, values []string) {
@@ -69,21 +43,7 @@ func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols []string, srcS
 
 // GetRowCount with number of rows in each table.
 func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error) {
-	// Oracle schema and name can be arbitrary strings.
-	// Ideally we would pass schema/name as a query parameter,
-	// but Oracle doesn't support this. So we quote it instead.
-	q := fmt.Sprintf(`SELECT COUNT(*) FROM "%s"."%s";`, table.Schema, table.Name)
-	rows, err := isi.Db.Query(q)
-	if err != nil {
-		return 0, err
-	}
-	defer rows.Close()
-	var count int64
-	if rows.Next() {
-		err := rows.Scan(&count)
-		return count, err
-	}
-	return 0, nil //Check if 0 is ok to return
+	panic("unimplemented")
 }
 
 // GetTables return list of tables in the selected database.
@@ -119,7 +79,6 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	var colName, dataType string
 	var isNullable string
 	var colDefault sql.NullString
-	// elementDataType
 	var charMaxLen, numericPrecision, numericScale sql.NullInt64
 	for cols.Next() {
 		err := cols.Scan(&colName, &dataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale)
@@ -129,13 +88,14 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		}
 		ignored := schema.Ignored{}
 		for _, c := range constraints[colName] {
-			// c can be UNIQUE, PRIMARY KEY, FOREIGN KEY,
-			// or CHECK (based on msql, sql server, postgres docs).
-			// We've already filtered out PRIMARY KEY.
+		// Type of constraint definition in oracle C (check constraint on a table)
+		// P (primary key), U (unique key) ,R (referential integrity), V (with check option, on a view)
+		// O (with read only, on a view).
+		// We've already filtered out PRIMARY KEY.
 			switch c {
-			case "CHECK":
+			case "C":
 				ignored.Check = true
-			case "FOREIGN KEY", "PRIMARY KEY", "UNIQUE":
+			case "R", "P", "U":
 				// Nothing to do here -- these are handled elsewhere.
 			}
 		}
@@ -143,7 +103,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		c := schema.Column{
 			Name:    colName,
 			Type:    toType(dataType, charMaxLen, numericPrecision, numericScale),
-			NotNull: strings.ToUpper(isNullable) == "NO",
+			NotNull: strings.ToUpper(isNullable) == "N",
 			Ignored: ignored,
 		}
 		colDefs[colName] = c
@@ -157,7 +117,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
 func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, map[string][]string, error) {
-	q := fmt.Sprintf(`SELECT k.constraint_name,
+	q := fmt.Sprintf(`SELECT k.column_name,
        t.constraint_type
 	   FROM   ALL_CONSTRAINTS t
        INNER JOIN ALL_CONS_COLUMNS k
@@ -180,8 +140,9 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 			conv.Unexpected("Got empty col or constraint")
 			continue
 		}
+		// P (primary key) constraint in oracle
 		switch constraint {
-		case "PRIMARY KEY":
+		case "P":
 			primaryKeys = append(primaryKeys, col)
 		default:
 			m[col] = append(m[col], constraint)
@@ -280,7 +241,6 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 }
 
 //Function for mysql now. Have to change later.
-
 func toType(dataType string, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {
 	switch {
 	case charLen.Valid:
@@ -294,31 +254,3 @@ func toType(dataType string, charLen sql.NullInt64, numericPrecision, numericSca
 	}
 }
 
-// buildVals constructs []sql.RawBytes value containers to scan row
-// results into.  Returns both the underlying containers (as a slice)
-// as well as an interface{} of pointers to containers to pass to
-// rows.Scan.
-func buildVals(n int) (v []sql.RawBytes, iv []interface{}) {
-	v = make([]sql.RawBytes, n)
-	// rows.Scan wants '[]interface{}' as an argument, so we must copy the
-	// references into such a slice.
-	iv = make([]interface{}, len(v))
-	for i := range v {
-		iv[i] = &v[i]
-	}
-	return v, iv
-}
-
-func valsToStrings(vals []sql.RawBytes) []string {
-	toString := func(val sql.RawBytes) string {
-		if val == nil {
-			return "NULL"
-		}
-		return string(val)
-	}
-	var s []string
-	for _, v := range vals {
-		s = append(s, toString(v))
-	}
-	return s
-}
