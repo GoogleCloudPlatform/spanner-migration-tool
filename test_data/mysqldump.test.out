@@ -98,7 +98,7 @@ DROP TABLE IF EXISTS `customers`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `customers` (
   `c_id` varchar(20) NOT NULL,
-  `customer_profile` JSON DEFAULT NULL,
+  `customer_profile` json DEFAULT NULL,
   PRIMARY KEY (`c_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
