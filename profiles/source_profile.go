@@ -302,6 +302,7 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 				return conn, err
 			}
 		}
+
 	case "sqlserver", "mssql":
 		{
 			conn.Ty = SourceProfileConnectionTypeSqlServer
@@ -310,6 +311,7 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 				return conn, err
 			}
 		}
+
 	default:
 		return conn, fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
 	}
