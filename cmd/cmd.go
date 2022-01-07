@@ -18,6 +18,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
@@ -40,6 +41,12 @@ var (
 // 3. Run data conversion (if schemaOnly is set to false)
 // 4. Generate report
 func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, schemaOnly, skipForeignKeys bool, schemaSampleSize int64, sessionJSON string, ioHelper *utils.IOStreams, outputFilePrefix string, now time.Time) error {
+
+	// Legacy mode is only supported for MySQL, PostgreSQL and DynamoDB
+	if driver != "" && utils.IsValidDriver(driver) && !utils.IsLegacyModeSupportedDriver(driver) {
+		return fmt.Errorf("legacy mode is not supported for drivers other than %s", strings.Join(utils.GetLegacyModeSupportedDrivers(), ", "))
+	}
+
 	var conv *internal.Conv
 	var err error
 	// Creating profiles from legacy flags. We only pass schema-sample-size here because thats the
