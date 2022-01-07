@@ -204,38 +204,57 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 
 // GetIndexes return a list of all indexes for the specified table.
 func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName) ([]schema.Index, error) {
-	q := fmt.Sprintf(`SELECT AI.INDEX_NAME, AIC.COLUMN_NAME, AIC.COLUMN_POSITION, AI.UNIQUENESS
-				FROM ALL_INDEXES AI, ALL_IND_COLUMNS AIC
-				WHERE AI.INDEX_NAME  = AIC.INDEX_NAME
-					AND AI.TABLE_OWNER = AIC.TABLE_OWNER
-					AND AI.TABLE_OWNER = '%s'
-					AND AI.TABLE_NAME  = '%s'
-				ORDER BY AI.INDEX_NAME, AIC.COLUMN_POSITION`, table.Schema, table.Name)
+	q := fmt.Sprintf(`SELECT IC.INDEX_NAME,IC.COLUMN_NAME,IC.COLUMN_POSITION, 
+					IC.DESCEND,I.UNIQUENESS, IE.COLUMN_EXPRESSION, I.INDEX_TYPE 
+                FROM  ALL_IND_COLUMNS IC 
+				LEFT JOIN ALL_IND_EXPRESSIONS IE 
+               		ON IC.INDEX_NAME = IE.INDEX_NAME AND IC.COLUMN_POSITION=IE.COLUMN_POSITION
+                LEFT JOIN ALL_INDEXES I 
+			   		ON IC.INDEX_NAME = I.INDEX_NAME
+                 WHERE IC.INDEX_OWNER='%s' AND IC.TABLE_NAME  = '%s'
+            	 ORDER BY IC.INDEX_NAME, IC.COLUMN_POSITION`, table.Schema, table.Name)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var name, column, sequence, Unique string
-	var collation sql.NullString
+	var name, column, sequence, Unique,indexType string
+	var collation,colexpression sql.NullString
 	indexMap := make(map[string]schema.Index)
 	var indexNames []string
+	ignoredIndex := make(map[string]bool) 
 	var indexes []schema.Index
 	for rows.Next() {
-		if err := rows.Scan(&name, &column, &sequence, &Unique); err != nil {
+		if err := rows.Scan(&name, &column, &sequence,&collation,&Unique,&colexpression,&indexType); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
+		// ingnore all index except normal 
+		// UPPER("EMAIL") check for the function call with "(",")"	
+		if indexType != "NORMAL" && strings.Contains(colexpression.String,"(" ) && strings.Contains(colexpression.String,")"){
+			ignoredIndex[name] = true
+		}
+
+		//INDEX1_LAST	SYS_NC00009$	1	DESC	NONUNIQUE	"LAST_NAME"	FUNCTION-BASED NORMAL
+		// DESC column make index functional index but as special case we included that 
+		// and update column name with column expression
+		if colexpression.Valid && !strings.Contains(colexpression.String,"(" ) && !strings.Contains(colexpression.String,")"){
+			column = colexpression.String[1:len(colexpression.String)-1]
+		}
+
 		if _, found := indexMap[name]; !found {
 			indexNames = append(indexNames, name)
 			indexMap[name] = schema.Index{Name: name, Unique: (Unique == "UNIQUE")}
 		}
 		index := indexMap[name]
-		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation.Valid)})
+		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation.Valid && collation.String=="DESC")})
 		indexMap[name] = index
 	}
 	for _, k := range indexNames {
+		// only add noraml index
+		if _,found := ignoredIndex[k]; !found{
 		indexes = append(indexes, indexMap[k])
+		}
 	}
 	return indexes, nil
 }
