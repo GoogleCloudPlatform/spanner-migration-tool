@@ -356,6 +356,12 @@ type SourceProfile struct {
 	Csv    SourceProfileCsv
 }
 
+// UseTargetSchema returns true if the driver expects an existing schema
+// to use in the target database.
+func (src SourceProfile) UseTargetSchema() bool {
+	return (src.Driver == constants.CSV)
+}
+
 // ToLegacyDriver converts source-profile to equivalent legacy global flags
 // e.g., -driver, -dump-file etc since the rest of the codebase still uses the
 // same. TODO: Deprecate this function and pass around SourceProfile across the
@@ -430,7 +436,7 @@ func NewSourceProfile(s string, source string) (SourceProfile, error) {
 	if err != nil {
 		return SourceProfile{}, fmt.Errorf("could not parse source-profile, error = %v", err)
 	}
-	if source == constants.CSV {
+	if strings.ToLower(source) == constants.CSV {
 		if _, ok := params["manifest"]; ok {
 			profile := NewSourceProfileCsv(params)
 			return SourceProfile{Ty: SourceProfileTypeCsv, Csv: profile}, nil

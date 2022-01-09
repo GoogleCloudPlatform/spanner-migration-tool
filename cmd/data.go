@@ -59,47 +59,6 @@ func (cmd *DataCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
 }
 
-// TODO: refactor this to go through DataConv(). Fix it when refactoring passing of source-profile throughout the code
-// to avoid excess parameters in the DataConv and SchemaConv functions.
-func executeCSVLoader(ctx context.Context, conv *internal.Conv, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, filePrefix string) subcommands.ExitStatus {
-	if targetProfile.Conn.Sp.Dbname == "" {
-		fmt.Printf("dbname is mandatory in target-profile for csv source")
-		return subcommands.ExitFailure
-	}
-	ioHelper := utils.NewIOStreams(constants.CSV, "")
-	if ioHelper.SeekableIn != nil {
-		defer ioHelper.In.Close()
-	}
-	now := time.Now()
-	project, instance, dbName, err := profiles.GetResourceIds(ctx, targetProfile, now, constants.CSV, ioHelper.Out)
-	if err != nil {
-		return subcommands.ExitUsageError
-	}
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
-	client, err := utils.GetClient(ctx, dbURI)
-	if err != nil {
-		fmt.Printf("can't create client for db %s: %v", dbURI, err)
-		return subcommands.ExitFailure
-	}
-	defer client.Close()
-
-	delimiter := sourceProfile.Csv.Delimiter
-	if len(delimiter) != 1 {
-		fmt.Printf("delimiter should only be a single character long, found '%s'", delimiter)
-		return subcommands.ExitFailure
-	}
-	bw, err := conversion.DataFromCSV(conv, sourceProfile.Csv.Manifest, client, targetProfile.TargetDb, sourceProfile.Csv.NullStr, rune(delimiter[0]))
-	if err != nil {
-		fmt.Printf("can't finish data conversion for db %s: %v", dbURI, err)
-		return subcommands.ExitFailure
-	}
-	banner := utils.GetBanner(now, dbURI)
-	conversion.Report(constants.CSV, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, filePrefix+reportFile, ioHelper.Out)
-	conversion.WriteBadData(bw, conv, banner, filePrefix+badDataFile, ioHelper.Out)
-
-	return subcommands.ExitSuccess
-}
-
 func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	var err error
 	defer func() {
@@ -123,11 +82,6 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		return subcommands.ExitUsageError
 	}
 	targetProfile.TargetDb = targetProfile.ToLegacyTargetDb()
-
-	// If using CSV mode, follow different code path from here.
-	if sourceProfile.Driver == constants.CSV {
-		return executeCSVLoader(ctx, conv, sourceProfile, targetProfile, cmd.filePrefix)
-	}
 
 	dumpFilePath := ""
 	if sourceProfile.Ty == profiles.SourceProfileTypeFile && (sourceProfile.File.Format == "" || sourceProfile.File.Format == "dump") {
@@ -157,13 +111,16 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	}
 	defer client.Close()
 
-	err = conversion.ReadSessionFile(conv, cmd.sessionJSON)
-	if err != nil {
-		return subcommands.ExitUsageError
-	}
-	if targetProfile.TargetDb != "" && conv.TargetDb != targetProfile.TargetDb {
-		err = fmt.Errorf("running data migration for Spanner dialect: %v, whereas schema mapping was done for dialect: %v", targetProfile.TargetDb, conv.TargetDb)
-		return subcommands.ExitUsageError
+	// For csv mode, skip loading a session file.
+	if sourceProfile.Driver != constants.CSV {
+		err = conversion.ReadSessionFile(conv, cmd.sessionJSON)
+		if err != nil {
+			return subcommands.ExitUsageError
+		}
+		if targetProfile.TargetDb != "" && conv.TargetDb != targetProfile.TargetDb {
+			err = fmt.Errorf("running data migration for Spanner dialect: %v, whereas schema mapping was done for dialect: %v", targetProfile.TargetDb, conv.TargetDb)
+			return subcommands.ExitUsageError
+		}
 	}
 
 	adminClient, err := utils.NewDatabaseAdminClient(ctx)
@@ -173,10 +130,12 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	}
 	defer adminClient.Close()
 
-	err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, conv, ioHelper.Out)
-	if err != nil {
-		err = fmt.Errorf("can't create/update database: %v", err)
-		return subcommands.ExitFailure
+	if !sourceProfile.UseTargetSchema() {
+		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, conv, ioHelper.Out)
+		if err != nil {
+			err = fmt.Errorf("can't create/update database: %v", err)
+			return subcommands.ExitFailure
+		}
 	}
 
 	bw, err := conversion.DataConv(sourceProfile, targetProfile, &ioHelper, client, conv, true)

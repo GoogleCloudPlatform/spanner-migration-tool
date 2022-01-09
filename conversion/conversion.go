@@ -107,6 +107,8 @@ func DataConv(sourceProfile profiles.SourceProfile, targetProfile profiles.Targe
 			return nil, fmt.Errorf("harbourBridge does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql")
 		}
 		return dataFromDump(sourceProfile.Driver, config, ioHelper, client, conv, dataOnly)
+	case constants.CSV:
+		return dataFromCSV(sourceProfile, targetProfile, config, conv, client)
 	default:
 		return nil, fmt.Errorf("data conversion for driver %s not supported", sourceProfile.Driver)
 	}
@@ -282,8 +284,16 @@ func dataFromDump(driver string, config spanner.BatchWriterConfig, ioHelper *uti
 	return writer, nil
 }
 
-func DataFromCSV(conv *internal.Conv, manifestFile string, client *sp.Client, targetDb, nullStr string, delimiter rune) (*spanner.BatchWriter, error) {
-	tables, err := csv.LoadManifest(conv, manifestFile)
+func dataFromCSV(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config spanner.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*spanner.BatchWriter, error) {
+	if targetProfile.Conn.Sp.Dbname == "" {
+		return nil, fmt.Errorf("dbname is mandatory in target-profile for csv source")
+	}
+	delimiterStr := sourceProfile.Csv.Delimiter
+	if len(delimiterStr) != 1 {
+		return nil, fmt.Errorf("delimiter should only be a single character long, found '%s'", delimiterStr)
+	}
+	delimiter := rune(delimiterStr[0])
+	tables, err := csv.LoadManifest(conv, sourceProfile.Csv.Manifest)
 	if err != nil {
 		return nil, err
 	}
@@ -293,12 +303,6 @@ func DataFromCSV(conv *internal.Conv, manifestFile string, client *sp.Client, ta
 	totalRows := conv.Rows()
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 	rows := int64(0)
-	config := spanner.BatchWriterConfig{
-		BytesLimit: 100 * 1000 * 1000,
-		WriteLimit: 40,
-		RetryLimit: 1000,
-		Verbose:    internal.Verbose(),
-	}
 	config.Write = func(m []*sp.Mutation) error {
 		_, err := client.Apply(context.Background(), m)
 		if err != nil {
@@ -314,7 +318,7 @@ func DataFromCSV(conv *internal.Conv, manifestFile string, client *sp.Client, ta
 		func(table string, cols []string, vals []interface{}) {
 			writer.AddRow(table, cols, vals)
 		})
-	err = csv.ProcessCSV(conv, tables, nullStr, delimiter)
+	err = csv.ProcessCSV(conv, tables, sourceProfile.Csv.NullStr, delimiter)
 	if err != nil {
 		return nil, fmt.Errorf("can't process csv: %v", err)
 	}
