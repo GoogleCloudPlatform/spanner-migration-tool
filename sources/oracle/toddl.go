@@ -40,52 +40,52 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) 
 
 func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
 	switch id {
-	case "number":
+	case "NUMBER":
 		if len(mods) == 1 && mods[0] >= 1 && mods[0] < 19 {
 			return ddl.Type{Name: ddl.Int64}, nil
 		} else {
 			return ddl.Type{Name: ddl.Numeric}, nil
 		}
-	case "bfile", "blob":
+	case "BFILE", "BLOB":
 		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
-	case "char", "charater":
+	case "CHAR", "CHARATER":
 		return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
-	case "clob":
+	case "CLOB":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "date", "datetime", "timestampwithtimezone":
+	case "DATE", "DATETIME", "TIMESTAMPWITHTIMEZONE", "TIMESTAMP":
 		return ddl.Type{Name: ddl.Timestamp}, nil
-	case "decimal", "dec", "smallint":
+	case "DECIMAL", "DEC", "SMALLINT":
 		return ddl.Type{Name: ddl.Numeric}, nil
-	case "double", "float", "real":
+	case "BINARY_DOUBLE", "BINARY_FLOAT", "DOUBLE", "FLOAT", "REAL":
 		return ddl.Type{Name: ddl.Float64}, nil
-	case "integer", "int":
+	case "INTEGER", "INT":
 		return ddl.Type{Name: ddl.Int64}, nil
-	case "interval year to month", "interval day to second":
+	case "INTERVAL YEAR", "INTERVAL DAY":
 		if len(mods) > 0 {
 			return ddl.Type{Name: ddl.String, Len: 30}, nil
 		}
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "long":
+	case "LONG":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "longraw":
+	case "RAW", "LONGRAW":
 		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
-	case "nchar", "ncharvarying", "nvarchar2", "varchar", "varchar2":
+	case "NCHAR", "NCHARVARYING", "NVARCHAR2", "VARCHAR", "VARCHAR2":
 		if len(mods) > 0 {
 			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
 		}
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "nclob":
+	case "NCLOB":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "numeric":
+	case "NUMERIC":
 		return ddl.Type{Name: ddl.Numeric}, nil
-	case "rowid":
+	case "ROWID":
 		return ddl.Type{Name: ddl.String, Len: 10}, nil
-	case "urowid":
+	case "UROWID":
 		if len(mods) > 0 {
 			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
 		}
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "xmltype":
+	case "XMLTYPE":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	default:
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
@@ -94,7 +94,7 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 
 // Override the types to map to experimental postgres types.
 func overrideExperimentalType(columnType schema.Type, originalType ddl.Type) ddl.Type {
-	if columnType.Name == "date" {
+	if columnType.Name == "DATE" {
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 	}
 	return originalType

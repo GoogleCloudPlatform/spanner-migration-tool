@@ -88,10 +88,10 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		}
 		ignored := schema.Ignored{}
 		for _, c := range constraints[colName] {
-		// Type of constraint definition in oracle C (check constraint on a table)
-		// P (primary key), U (unique key) ,R (referential integrity), V (with check option, on a view)
-		// O (with read only, on a view).
-		// We've already filtered out PRIMARY KEY.
+			// Type of constraint definition in oracle C (check constraint on a table)
+			// P (primary key), U (unique key) ,R (referential integrity), V (with check option, on a view)
+			// O (with read only, on a view).
+			// We've already filtered out PRIMARY KEY.
 			switch c {
 			case "C":
 				ignored.Check = true
@@ -117,11 +117,10 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
 func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, map[string][]string, error) {
-	q := fmt.Sprintf(`SELECT k.column_name,
-       t.constraint_type
-	   FROM   ALL_CONSTRAINTS t
+	q := fmt.Sprintf(`SELECT k.column_name,t.constraint_type
+	   FROM ALL_CONSTRAINTS t
        INNER JOIN ALL_CONS_COLUMNS k
-       ON ( k.constraint_name = t.constraint_name ) WHERE k.table_name = '%s'`, table.Name)
+       ON (k.constraint_name = t.constraint_name) WHERE k.table_name = '%s'`, table.Name)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, nil, err
@@ -164,7 +163,7 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 			AND A.CONSTRAINT_NAME = C.CONSTRAINT_NAME
     	JOIN ALL_CONS_COLUMNS B ON B.OWNER = C.OWNER 
 			AND B.CONSTRAINT_NAME = C.R_CONSTRAINT_NAME
-    	WHERE A.TABLE_NAME='%s' AND A.OWNER='%s'`,table.Name,isi.DbName) 
+    	WHERE A.TABLE_NAME='%s' AND A.OWNER='%s'`, table.Name, isi.DbName)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err
@@ -218,28 +217,28 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 		return nil, err
 	}
 	defer rows.Close()
-	var name, column, sequence, Unique,indexType string
-	var collation,colexpression sql.NullString
+	var name, column, sequence, Unique, indexType string
+	var collation, colexpression sql.NullString
 	indexMap := make(map[string]schema.Index)
 	var indexNames []string
-	ignoredIndex := make(map[string]bool) 
+	ignoredIndex := make(map[string]bool)
 	var indexes []schema.Index
 	for rows.Next() {
-		if err := rows.Scan(&name, &column, &sequence,&collation,&Unique,&colexpression,&indexType); err != nil {
+		if err := rows.Scan(&name, &column, &sequence, &collation, &Unique, &colexpression, &indexType); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
-		// ingnore all index except normal 
-		// UPPER("EMAIL") check for the function call with "(",")"	
-		if indexType != "NORMAL" && strings.Contains(colexpression.String,"(" ) && strings.Contains(colexpression.String,")"){
+		// ingnore all index except normal
+		// UPPER("EMAIL") check for the function call with "(",")"
+		if indexType != "NORMAL" && strings.Contains(colexpression.String, "(") && strings.Contains(colexpression.String, ")") {
 			ignoredIndex[name] = true
 		}
 
 		//INDEX1_LAST	SYS_NC00009$	1	DESC	NONUNIQUE	"LAST_NAME"	FUNCTION-BASED NORMAL
-		// DESC column make index functional index but as special case we included that 
+		// DESC column make index functional index but as special case we included that
 		// and update column name with column expression
-		if colexpression.Valid && !strings.Contains(colexpression.String,"(" ) && !strings.Contains(colexpression.String,")"){
-			column = colexpression.String[1:len(colexpression.String)-1]
+		if colexpression.Valid && !strings.Contains(colexpression.String, "(") && !strings.Contains(colexpression.String, ")") {
+			column = colexpression.String[1 : len(colexpression.String)-1]
 		}
 
 		if _, found := indexMap[name]; !found {
@@ -247,13 +246,13 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			indexMap[name] = schema.Index{Name: name, Unique: (Unique == "UNIQUE")}
 		}
 		index := indexMap[name]
-		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation.Valid && collation.String=="DESC")})
+		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation.Valid && collation.String == "DESC")})
 		indexMap[name] = index
 	}
 	for _, k := range indexNames {
 		// only add noraml index
-		if _,found := ignoredIndex[k]; !found{
-		indexes = append(indexes, indexMap[k])
+		if _, found := ignoredIndex[k]; !found {
+			indexes = append(indexes, indexMap[k])
 		}
 	}
 	return indexes, nil
@@ -272,4 +271,3 @@ func toType(dataType string, charLen sql.NullInt64, numericPrecision, numericSca
 		return schema.Type{Name: dataType}
 	}
 }
-
