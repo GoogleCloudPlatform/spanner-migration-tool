@@ -267,6 +267,8 @@ func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
 			t.Fatal(err)
 			break
 		}
+		// We don't create big.Rat fields in the SpannerRecord structs
+		// because cmp.Equal cannot compare big.Rat fields automatically.
 		var AttrInt, AttrFloat big.Rat
 		var AttrNumberSet []big.Rat
 		if err := row.Columns(&gotRecord.AttrString, &AttrInt, &AttrFloat, &gotRecord.AttrBool, &gotRecord.AttrBytes, &AttrNumberSet, &gotRecord.AttrByteSet, &gotRecord.AttrStringSet, &gotRecord.AttrList, &gotRecord.AttrMap); err != nil {
