@@ -399,13 +399,7 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 	case SourceProfileTypeConfig:
 		return "", fmt.Errorf("specifying source-profile using config not implemented")
 	case SourceProfileTypeCsv:
-		{
-			if strings.ToLower(source) == constants.CSV {
-				return constants.CSV, nil
-			} else {
-				return "", fmt.Errorf("found manifest in the source profile but invalid -source flag received = %v, (did you mean csv?)", source)
-			}
-		}
+		return constants.CSV, nil
 	default:
 		return "", fmt.Errorf("invalid source-profile, could not infer type")
 	}

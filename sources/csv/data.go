@@ -117,7 +117,7 @@ func SetRowStats(conv *internal.Conv, tables []Table, delimiter rune) {
 				continue
 			}
 			if count == 0 {
-				conv.Unexpected(fmt.Sprintf("File %s is empty.", filePath))
+				conv.Unexpected(fmt.Sprintf("error processing table %s: file %s is empty.", table.Table_name, filePath))
 				continue
 			}
 			conv.Stats.Rows[table.Table_name] += count - 1
@@ -156,7 +156,7 @@ func ProcessCSV(conv *internal.Conv, tables []Table, nullStr string, delimiter r
 			// First row is expected to be the column headers.
 			srcCols, err := r.Read()
 			if err == io.EOF {
-				conv.Unexpected(fmt.Sprintf("File %s is empty.", filePath))
+				conv.Unexpected(fmt.Sprintf("error processing table %s: file %s is empty.", table.Table_name, filePath))
 				continue
 			}
 			if err != nil {

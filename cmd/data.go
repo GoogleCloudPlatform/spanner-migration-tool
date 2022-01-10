@@ -8,7 +8,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -111,8 +110,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	}
 	defer client.Close()
 
-	// For csv mode, skip loading a session file.
-	if sourceProfile.Driver != constants.CSV {
+	if !sourceProfile.UseTargetSchema() {
 		err = conversion.ReadSessionFile(conv, cmd.sessionJSON)
 		if err != nil {
 			return subcommands.ExitUsageError
