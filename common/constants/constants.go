@@ -26,6 +26,10 @@ const (
 	// CSV is the driver name when loading data using csv.
 	CSV string = "csv"
 
+	// ORACLE is the driver name for Oracle.
+	// This is an experimental driver; implementation in progress.
+	ORACLE string = "oracle"
+
 	// Target db for which schema is being generated.
 	TargetSpanner              string = "spanner"
 	TargetExperimentalPostgres string = "experimental_postgres"
