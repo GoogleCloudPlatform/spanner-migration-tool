@@ -377,3 +377,41 @@ func SumMapValues(m map[string]int64) int64 {
 func GetBanner(now time.Time, db string) string {
 	return fmt.Sprintf("Generated at %s for db %s\n\n", now.Format("2006-01-02 15:04:05"), db)
 }
+
+func IsValidDriver(driver string) bool {
+	d := strings.ToLower(driver)
+	for _, vd := range GetValidDrivers() {
+		if d == vd {
+			return true
+		}
+	}
+	return false
+}
+
+func GetValidDrivers() []string {
+	//First 5 drivers support legacy mode. Rest dont.
+	return []string{
+		constants.POSTGRES,
+		constants.PGDUMP,
+		constants.MYSQL,
+		constants.MYSQLDUMP,
+		constants.DYNAMODB,
+
+		constants.SQLSERVER,
+	}
+}
+
+func IsLegacyModeSupportedDriver(driver string) bool {
+	d := strings.ToLower(driver)
+	lds := GetLegacyModeSupportedDrivers()
+	for _, ld := range lds {
+		if d == ld {
+			return true
+		}
+	}
+	return false
+}
+
+func GetLegacyModeSupportedDrivers() []string {
+	return GetValidDrivers()[:5]
+}

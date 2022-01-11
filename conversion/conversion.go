@@ -52,6 +52,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -75,7 +76,7 @@ var (
 // When using source-profile, the sqlConnectionStr is constructed from the input params.
 func SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams) (*internal.Conv, error) {
 	switch sourceProfile.Driver {
-	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB:
+	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER:
 		return schemaFromDatabase(sourceProfile, targetProfile)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		return schemaFromDump(sourceProfile.Driver, targetProfile.TargetDb, ioHelper)
@@ -98,7 +99,7 @@ func DataConv(sourceProfile profiles.SourceProfile, targetProfile profiles.Targe
 		Verbose:    internal.Verbose(),
 	}
 	switch sourceProfile.Driver {
-	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB:
+	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER:
 		return dataFromDatabase(sourceProfile, config, client, conv)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		if conv.SpSchema.CheckInterleaved() {
@@ -135,6 +136,8 @@ func connectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error)
 	// For Dynamodb, both legacy and new flows use env vars.
 	case constants.DYNAMODB:
 		return getDynamoDBClientConfig()
+	case constants.SQLSERVER:
+		return profiles.GetSQLConnectionStr(sourceProfile), nil
 	default:
 		return "", fmt.Errorf("driver %s not supported", sourceProfile.Driver)
 	}
@@ -147,6 +150,9 @@ func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 		return strings.Split(dbParam, "=")[1]
 	case constants.MYSQL:
 		return strings.Split(sqlConnectionStr, ")/")[1]
+	case constants.SQLSERVER:
+		splts := strings.Split(sqlConnectionStr, "?database=")
+		return splts[len(splts)-1]
 	}
 	return ""
 }
@@ -728,6 +734,13 @@ func GetInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, err
 		mySession := session.Must(session.NewSession())
 		dydbClient := dydb.New(mySession, connectionConfig.(*aws.Config))
 		return dynamodb.InfoSchemaImpl{DynamoClient: dydbClient, SampleSize: profiles.GetSchemaSampleSize(sourceProfile)}, nil
+	case constants.SQLSERVER:
+		db, err := sql.Open(driver, connectionConfig.(string))
+		dbName := getDbNameFromSQLConnectionStr(driver, connectionConfig.(string))
+		if err != nil {
+			return nil, err
+		}
+		return sqlserver.InfoSchemaImpl{DbName: dbName, Db: db}, nil
 	default:
 		return nil, fmt.Errorf("driver %s not supported", driver)
 	}

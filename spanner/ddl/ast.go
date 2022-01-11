@@ -52,6 +52,8 @@ const (
 	JSON string = "JSON"
 	// MaxLength is a sentinel for Type's Len field, representing the MAX value.
 	MaxLength = math.MaxInt64
+	// StringMaxLength represents maximum allowed STRING length.
+	StringMaxLength = 2621440
 
 	// Types specific to Spanner with postgresql dialect, when they differ from
 	// Spanner with google_standard_sql.

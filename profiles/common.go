@@ -93,6 +93,9 @@ func GetSQLConnectionStr(sourceProfile SourceProfile) string {
 			// Thus, there is no need to create sqlConnectionStr for the same. We instead set the env variables
 			// programmatically if not set.
 			return ""
+		case SourceProfileConnectionTypeSqlServer:
+			connParams := sourceProfile.Conn.SqlServer
+			return getSQLSERVERConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
 		}
 	}
 	return sqlConnectionStr
@@ -136,6 +139,10 @@ func GenerateMYSQLConnectionStr() (string, error) {
 
 func getMYSQLConnectionStr(server, port, user, password, dbname string) string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, server, port, dbname)
+}
+
+func getSQLSERVERConnectionStr(server, port, user, password, dbname string) string {
+	return fmt.Sprintf(`sqlserver://%s:%s@%s:%s?database=%s`, user, password, server, port, dbname)
 }
 
 func GetSchemaSampleSize(sourceProfile SourceProfile) int64 {

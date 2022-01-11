@@ -5,9 +5,9 @@ class EditGlobalDataTypeForm extends HTMLElement {
     connectedCallback() {
         this.render();
         document.getElementById("data-type-button")?.addEventListener("click", async () => {
-                await Actions.setGlobalDataType();
-                await Actions.ddlSummaryAndConversionApiCall();
-            });
+            await Actions.setGlobalDataType();
+            await Actions.ddlSummaryAndConversionApiCall();
+        });
     }
 
     render() {
@@ -21,21 +21,23 @@ class EditGlobalDataTypeForm extends HTMLElement {
                         <th>Source</th>
                         <th>Spanner</th>
                     </tr>
-                    ${dataTypeListKeyArray.map((dataType, index) => {return `
+                    ${dataTypeListKeyArray.map((dataType, index) => {
+            return `
                     <tr class='global-data-type-row' id="data-type-row${index + 1}">
                         <td class='src-td' id="data-type-key${index + 1}">${dataType}</td>
                         <td id="data-type-val${index + 1}">
                             <div class="label-container">
                                 <i id="warning${index + 1}" 
-                                class="large material-icons warning ${globalDataTypeList[dataType][0].Brief? "show":"hidden"}" 
+                                class="large material-icons warning ${globalDataTypeList[dataType] ? globalDataTypeList[dataType][0].Brief ? "show" : "hidden" : "hidden"}"
                                  data-toggle="tooltip" data-placement="bottom" 
-                                title="${globalDataTypeList[dataType][0].Brief}">warning</i>
+                                title="${globalDataTypeList[dataType] ? globalDataTypeList[dataType][0].Brief : ""}">warning</i>
                         
                                 <select class='form-control table-select' 
                                 id="data-type-option${index + 1}">
-                                    ${globalDataTypeList[dataType].map((option, idx) => {return `
+                                    ${globalDataTypeList[dataType]?.map((option, idx) => {
+                return `
                                         <option class='data-type-option' value="${option.T}">${option.T}</option>`;
-                                    }).join("")}
+            }).join("")}
                                 </select>
                             </div>
                         </td>
@@ -44,10 +46,10 @@ class EditGlobalDataTypeForm extends HTMLElement {
             </table>
         </div>`;
         tooltipHandler();
-        
+
         for (let i = 0; i < dataTypeListKeyArray.length; i++) {
             document.getElementById(`data-type-option${i + 1}`).addEventListener("change", () => {
-                    Actions.dataTypeUpdate(`data-type-option${i + 1}`, globalDataTypeList);
+                Actions.dataTypeUpdate(`data-type-option${i + 1}`, globalDataTypeList);
             });
         }
     }
@@ -57,4 +59,4 @@ class EditGlobalDataTypeForm extends HTMLElement {
     }
 }
 
-window.customElements.define("hb-edit-global-datatype-form",EditGlobalDataTypeForm);
+window.customElements.define("hb-edit-global-datatype-form", EditGlobalDataTypeForm);

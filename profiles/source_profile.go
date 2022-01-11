@@ -46,6 +46,7 @@ const (
 	SourceProfileConnectionTypeMySQL
 	SourceProfileConnectionTypePostgreSQL
 	SourceProfileConnectionTypeDynamoDB
+	SourceProfileConnectionTypeSqlServer
 )
 
 type SourceProfileConnectionMySQL struct {
@@ -160,6 +161,72 @@ func NewSourceProfileConnectionPostgreSQL(params map[string]string) (SourceProfi
 	return pg, nil
 }
 
+type SourceProfileConnectionSqlServer struct {
+	Host string
+	Port string
+	User string
+	Db   string
+	Pwd  string
+}
+
+func NewSourceProfileConnectionSqlServer(params map[string]string) (SourceProfileConnectionSqlServer, error) {
+	ss := SourceProfileConnectionSqlServer{}
+	host, hostOk := params["host"]
+	user, userOk := params["user"]
+	db, dbOk := params["db_name"]
+	port, portOk := params["port"]
+	pwd, pwdOk := params["password"]
+
+	// We don't allow users to mix and match params from source-profile and environment variables.
+	// We either try to get all params from the source-profile and if none are set, we read from the env variables.
+	if !(hostOk || userOk || dbOk || portOk || pwdOk) {
+		// No connection params provided through source-profile. Fetching from env variables.
+		fmt.Printf("Connection parameters not specified in source-profile. Reading from " +
+			"environment variables MSSQL_IP_ADDRESS, MSSQL_USER, MSSQL_DATABASE, MSSQL_TCP_PORT, MSSQL_SA_PASSWORD...\n")
+		ss.Host = os.Getenv("MSSQL_IP_ADDRESS") //For default SQL Server instances.
+		ss.Port = os.Getenv("MSSQL_TCP_PORT")
+		ss.Pwd = os.Getenv("MSSQL_SA_PASSWORD")
+
+		ss.Db = os.Getenv("MSSQL_DATABASE")  //Non standard env variable. Defined for HarbourBridge.
+		ss.User = os.Getenv("MSSQL_SA_USER") //Non standard env variable. Defined for HarbourBridge.
+		if ss.User == "" {
+			fmt.Printf("MSSQL_SA_USER environment variable is not set. Default admin user 'SA' will be used for further processing.\n")
+			ss.User = "SA"
+		}
+		// Throw error if the input entered is empty.
+		if ss.Host == "" || ss.Db == "" {
+			return ss, fmt.Errorf("found empty string for MSSQL_IP_ADDRESS/MSSQL_DATABASE. Please specify these environment variables with correct values")
+		}
+	} else if hostOk && userOk && dbOk {
+		// All connection params provided through source-profile. Port and password handled later.
+		ss.Host, ss.User, ss.Db, ss.Port, ss.Pwd = host, user, db, port, pwd
+		// Throw error if the input entered is empty.
+		if ss.Host == "" || ss.User == "" || ss.Db == "" {
+			return ss, fmt.Errorf("found empty string for host/user/db_name. Please specify host, port, user and db_name in the source-profile")
+		}
+	} else {
+		// Partial params provided through source-profile. Ask user to provide all through the source-profile.
+		return ss, fmt.Errorf("please specify host, port, user and db_name in the source-profile")
+	}
+
+	if ss.Port == "" {
+		// Set default port for sql server, which rarely changes.
+		ss.Port = "1433"
+	}
+
+	// Try to get admin password from env
+	if saPas := os.Getenv("MSSQL_SA_PASSWORD"); saPas != "" {
+		ss.Pwd = saPas
+	}
+
+	// If source profile and env do not have password then get password via prompt.
+	if ss.Pwd == "" {
+		ss.Pwd = utils.GetPassword()
+	}
+
+	return ss, nil
+}
+
 type SourceProfileConnectionDynamoDB struct {
 	// These connection params are not used currently because the SDK reads directly from the env variables.
 	// These are still kept around as reference when we refactor passing
@@ -200,10 +267,11 @@ func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfile
 }
 
 type SourceProfileConnection struct {
-	Ty    SourceProfileConnectionType
-	Mysql SourceProfileConnectionMySQL
-	Pg    SourceProfileConnectionPostgreSQL
-	Dydb  SourceProfileConnectionDynamoDB
+	Ty        SourceProfileConnectionType
+	Mysql     SourceProfileConnectionMySQL
+	Pg        SourceProfileConnectionPostgreSQL
+	Dydb      SourceProfileConnectionDynamoDB
+	SqlServer SourceProfileConnectionSqlServer
 }
 
 func NewSourceProfileConnection(source string, params map[string]string) (SourceProfileConnection, error) {
@@ -234,6 +302,16 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 				return conn, err
 			}
 		}
+
+	case "sqlserver", "mssql":
+		{
+			conn.Ty = SourceProfileConnectionTypeSqlServer
+			conn.SqlServer, err = NewSourceProfileConnectionSqlServer(params)
+			if err != nil {
+				return conn, err
+			}
+		}
+
 	default:
 		return conn, fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
 	}
@@ -284,6 +362,8 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 				return constants.POSTGRES, nil
 			case "dynamodb":
 				return constants.DYNAMODB, nil
+			case "sqlserver", "mssql":
+				return constants.SQLSERVER, nil
 			default:
 				return "", fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
 			}

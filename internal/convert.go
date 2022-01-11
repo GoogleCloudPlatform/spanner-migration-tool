@@ -79,6 +79,7 @@ const (
 	Datetime
 	Widened
 	Time
+	StringOverflow
 )
 
 // NameAndCols contains the name of a table and its columns.
