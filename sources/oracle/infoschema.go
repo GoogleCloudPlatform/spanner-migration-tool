@@ -46,12 +46,7 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 	panic("unimplemented")
 }
 
-// GetTables return list of tables in the selected database.
-// Note that sql.DB already effectively has the dbName
-// embedded within it (dbName is part of the DSN passed to sql.Open),
-// but unfortunately there is no way to extract it from sql.DB.
 func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
-	// In MySQL, schema is the same as database name.
 	q := fmt.Sprintf("SELECT table_name from all_tables where owner = '%s'", isi.DbName)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
@@ -151,10 +146,6 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 }
 
 // GetForeignKeys return list all the foreign keys constraints.
-// MySQL supports cross-database foreign key constraints. We ignore
-// them because HarbourBridge works database at a time (a specific run
-// of HarbourBridge focuses on a specific database) and so we can't handle
-// them effectively.
 func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
 	q := fmt.Sprintf(`SELECT B.TABLE_NAME AS REF_TABLE, A.COLUMN_NAME AS COL_NAME,
 				B.COLUMN_NAME AS REF_COL_NAME ,A.CONSTRAINT_NAME AS NAME
@@ -202,6 +193,9 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 }
 
 // GetIndexes return a list of all indexes for the specified table.
+// Oracle db support several types of index: 1. Normal indexes. (By default, Oracle Database creates B-tree indexes.)
+// 2.Bitmap indexes 3.Partitioned indexes 4. Function-based indexes 5.Domain indexes,
+// we are only considering normal index as of now.
 func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName) ([]schema.Index, error) {
 	q := fmt.Sprintf(`SELECT IC.INDEX_NAME,IC.COLUMN_NAME,IC.COLUMN_POSITION, 
 					IC.DESCEND,I.UNIQUENESS, IE.COLUMN_EXPRESSION, I.INDEX_TYPE 
@@ -258,14 +252,13 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 	return indexes, nil
 }
 
-//Function for mysql now. Have to change later.
 func toType(dataType string, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {
 	switch {
 	case charLen.Valid:
 		return schema.Type{Name: dataType, Mods: []int64{charLen.Int64}}
-	case dataType == "numeric" && numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0:
+	case dataType == "NUMBER" && numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0:
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
-	case dataType == "numeric" && numericPrecision.Valid:
+	case dataType == "NUMBER" && numericPrecision.Valid:
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
 	default:
 		return schema.Type{Name: dataType}

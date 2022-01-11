@@ -22,7 +22,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// ToDdlImpl sql server specific implementation for ToDdl.
+// ToDdlImpl oracle specific implementation for ToDdl.
 type ToDdlImpl struct {
 }
 
@@ -41,6 +41,7 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) 
 func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
 	switch id {
 	case "NUMBER":
+		// If no scale is avalible then map it to int64, and numeric elsewhere.
 		if len(mods) == 1 && mods[0] >= 1 && mods[0] < 19 {
 			return ddl.Type{Name: ddl.Int64}, nil
 		} else {
