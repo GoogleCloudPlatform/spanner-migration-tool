@@ -76,8 +76,6 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "NCLOB":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "NUMERIC":
-		return ddl.Type{Name: ddl.Numeric}, nil
 	case "ROWID":
 		return ddl.Type{Name: ddl.String, Len: 10}, nil
 	case "UROWID":
