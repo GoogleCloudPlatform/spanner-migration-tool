@@ -1,0 +1,19 @@
+[
+    {
+      "table_name": "all_data_types",
+      "file_patterns": [
+        "../../test_data/all_data_types.csv"
+      ],
+      "columns": [
+        {"column_name": "a", "type_name": "BOOL"},
+        {"column_name": "b", "type_name": "BYTES"},
+        {"column_name": "c", "type_name": "DATE"},
+        {"column_name": "d", "type_name": "FLOAT64"},
+        {"column_name": "e", "type_name": "INT64"},
+        {"column_name": "f", "type_name": "NUMERIC"},
+        {"column_name": "g", "type_name": "STRING"},
+        {"column_name": "h", "type_name": "TIMESTAMP"},
+        {"column_name": "i", "type_name": "JSON"}
+      ]
+    }
+]

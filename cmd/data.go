@@ -65,6 +65,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 			fmt.Printf("FATAL error: %v\n", err)
 		}
 	}()
+	conv := internal.MakeConv()
 
 	sourceProfile, err := profiles.NewSourceProfile(cmd.sourceProfile, cmd.source)
 	if err != nil {
@@ -102,14 +103,22 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		cmd.filePrefix = dbName + "."
 	}
 
-	conv := internal.MakeConv()
-	err = conversion.ReadSessionFile(conv, cmd.sessionJSON)
+	client, err := utils.GetClient(ctx, dbURI)
 	if err != nil {
-		return subcommands.ExitUsageError
+		err = fmt.Errorf("can't create client for db %s: %v", dbURI, err)
+		return subcommands.ExitFailure
 	}
-	if targetProfile.TargetDb != "" && conv.TargetDb != targetProfile.TargetDb {
-		err = fmt.Errorf("running data migration for Spanner dialect: %v, whereas schema mapping was done for dialect: %v", targetProfile.TargetDb, conv.TargetDb)
-		return subcommands.ExitUsageError
+	defer client.Close()
+
+	if !sourceProfile.UseTargetSchema() {
+		err = conversion.ReadSessionFile(conv, cmd.sessionJSON)
+		if err != nil {
+			return subcommands.ExitUsageError
+		}
+		if targetProfile.TargetDb != "" && conv.TargetDb != targetProfile.TargetDb {
+			err = fmt.Errorf("running data migration for Spanner dialect: %v, whereas schema mapping was done for dialect: %v", targetProfile.TargetDb, conv.TargetDb)
+			return subcommands.ExitUsageError
+		}
 	}
 
 	adminClient, err := utils.NewDatabaseAdminClient(ctx)
@@ -118,17 +127,13 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		return subcommands.ExitFailure
 	}
 	defer adminClient.Close()
-	client, err := utils.GetClient(ctx, dbURI)
-	if err != nil {
-		err = fmt.Errorf("can't create client for db %s: %v", dbURI, err)
-		return subcommands.ExitFailure
-	}
-	defer client.Close()
 
-	err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, conv, ioHelper.Out)
-	if err != nil {
-		err = fmt.Errorf("can't create/update database: %v", err)
-		return subcommands.ExitFailure
+	if !sourceProfile.UseTargetSchema() {
+		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, conv, ioHelper.Out)
+		if err != nil {
+			err = fmt.Errorf("can't create/update database: %v", err)
+			return subcommands.ExitFailure
+		}
 	}
 
 	bw, err := conversion.DataConv(sourceProfile, targetProfile, &ioHelper, client, conv, true)

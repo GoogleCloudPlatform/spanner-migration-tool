@@ -17,6 +17,7 @@ const (
 	SourceProfileTypeFile
 	SourceProfileTypeConnection
 	SourceProfileTypeConfig
+	SourceProfileTypeCsv
 )
 
 type SourceProfileFile struct {
@@ -326,12 +327,39 @@ func NewSourceProfileConfig(path string) SourceProfileConfig {
 	return SourceProfileConfig{path: path}
 }
 
+type SourceProfileCsv struct {
+	Manifest  string
+	Delimiter string
+	NullStr   string
+}
+
+func NewSourceProfileCsv(params map[string]string) SourceProfileCsv {
+	csvProfile := SourceProfileCsv{}
+	csvProfile.Manifest = params["manifest"]
+	csvProfile.Delimiter = ","
+	csvProfile.NullStr = ""
+	if delimiter, ok := params["delimiter"]; ok {
+		csvProfile.Delimiter = delimiter
+	}
+	if nullStr, ok := params["nullStr"]; ok {
+		csvProfile.NullStr = nullStr
+	}
+	return csvProfile
+}
+
 type SourceProfile struct {
 	Driver string
 	Ty     SourceProfileType
 	File   SourceProfileFile
 	Conn   SourceProfileConnection
 	Config SourceProfileConfig
+	Csv    SourceProfileCsv
+}
+
+// UseTargetSchema returns true if the driver expects an existing schema
+// to use in the target database.
+func (src SourceProfile) UseTargetSchema() bool {
+	return (src.Driver == constants.CSV)
 }
 
 // ToLegacyDriver converts source-profile to equivalent legacy global flags
@@ -370,6 +398,8 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 		}
 	case SourceProfileTypeConfig:
 		return "", fmt.Errorf("specifying source-profile using config not implemented")
+	case SourceProfileTypeCsv:
+		return constants.CSV, nil
 	default:
 		return "", fmt.Errorf("invalid source-profile, could not infer type")
 	}
@@ -399,6 +429,14 @@ func NewSourceProfile(s string, source string) (SourceProfile, error) {
 	params, err := parseProfile(s)
 	if err != nil {
 		return SourceProfile{}, fmt.Errorf("could not parse source-profile, error = %v", err)
+	}
+	if strings.ToLower(source) == constants.CSV {
+		if _, ok := params["manifest"]; ok {
+			profile := NewSourceProfileCsv(params)
+			return SourceProfile{Ty: SourceProfileTypeCsv, Csv: profile}, nil
+		} else {
+			return SourceProfile{}, fmt.Errorf("csv source requires a manifest file, please specify manifest file in the source profile e.g., -source-profile=\"manifest=file_path\"")
+		}
 	}
 
 	if _, ok := params["file"]; ok || filePipedToStdin() {

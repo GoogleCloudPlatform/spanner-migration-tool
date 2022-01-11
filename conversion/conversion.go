@@ -49,6 +49,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/csv"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
@@ -106,6 +107,8 @@ func DataConv(sourceProfile profiles.SourceProfile, targetProfile profiles.Targe
 			return nil, fmt.Errorf("harbourBridge does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql")
 		}
 		return dataFromDump(sourceProfile.Driver, config, ioHelper, client, conv, dataOnly)
+	case constants.CSV:
+		return dataFromCSV(sourceProfile, targetProfile, config, conv, client)
 	default:
 		return nil, fmt.Errorf("data conversion for driver %s not supported", sourceProfile.Driver)
 	}
@@ -278,6 +281,49 @@ func dataFromDump(driver string, config spanner.BatchWriterConfig, ioHelper *uti
 	writer.Flush()
 	p.Done()
 
+	return writer, nil
+}
+
+func dataFromCSV(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config spanner.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*spanner.BatchWriter, error) {
+	if targetProfile.Conn.Sp.Dbname == "" {
+		return nil, fmt.Errorf("dbname is mandatory in target-profile for csv source")
+	}
+	delimiterStr := sourceProfile.Csv.Delimiter
+	if len(delimiterStr) != 1 {
+		return nil, fmt.Errorf("delimiter should only be a single character long, found '%s'", delimiterStr)
+	}
+	delimiter := rune(delimiterStr[0])
+	tables, err := csv.LoadManifest(conv, sourceProfile.Csv.Manifest)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the number of rows in each csv file for generating stats.
+	csv.SetRowStats(conv, tables, delimiter)
+	totalRows := conv.Rows()
+	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
+	rows := int64(0)
+	config.Write = func(m []*sp.Mutation) error {
+		_, err := client.Apply(context.Background(), m)
+		if err != nil {
+			return err
+		}
+		atomic.AddInt64(&rows, int64(len(m)))
+		p.MaybeReport(atomic.LoadInt64(&rows))
+		return nil
+	}
+	writer := spanner.NewBatchWriter(config)
+	conv.SetDataMode()
+	conv.SetDataSink(
+		func(table string, cols []string, vals []interface{}) {
+			writer.AddRow(table, cols, vals)
+		})
+	err = csv.ProcessCSV(conv, tables, sourceProfile.Csv.NullStr, delimiter)
+	if err != nil {
+		return nil, fmt.Errorf("can't process csv: %v", err)
+	}
+	writer.Flush()
+	p.Done()
 	return writer, nil
 }
 
