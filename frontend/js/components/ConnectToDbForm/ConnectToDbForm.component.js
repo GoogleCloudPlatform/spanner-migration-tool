@@ -8,10 +8,10 @@ class ConnectToDbForm extends HTMLElement {
         let response;
         if (document.getElementById("connectToDbModal")) {
             document.getElementById("connectToDbModal")
-            .querySelector("i")
-            .addEventListener("click", () => {
-                Forms.resetConnectToDbModal();
-            });
+                .querySelector("i")
+                .addEventListener("click", () => {
+                    Forms.resetConnectToDbModal();
+                });
         }
         document.getElementById("db-type").addEventListener("change", () => {
             Forms.toggleDbType();
@@ -54,6 +54,7 @@ class ConnectToDbForm extends HTMLElement {
                     <option value="" class="template"></option>
                     <option value="mysql">MySQL</option>
                     <option value="postgres">Postgres</option>
+                    <option value="sqlserver">SQL Server</option>
                 </select>
             </div>
             <div id="sql-fields" class="template">

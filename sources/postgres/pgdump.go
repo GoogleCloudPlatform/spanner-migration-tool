@@ -724,6 +724,9 @@ func getRows(conv *internal.Conv, vll []*pg_query.Node, n *pg_query.InsertStmt) 
 				switch val := v.GetNode().(type) {
 				case *pg_query.Node_AConst:
 					switch c := val.AConst.Val.GetNode().(type) {
+					// Most data is dumped enclosed in quotes ('') lke 'abc', '12:30:45' etc which is classified
+					// as type Node_String_ by the parser. Some data might not be quoted like (NULL, 14.67) and
+					// the type assigned to them is Node_Null and Node_Float respectively.
 					case *pg_query.Node_String_:
 						values = append(values, trimString(c.String_))
 					case *pg_query.Node_Integer:
@@ -732,6 +735,12 @@ func getRows(conv *internal.Conv, vll []*pg_query.Node, n *pg_query.InsertStmt) 
 						// high priority (it isn't right now), then consider preserving int64
 						// here to avoid the int64 -> string -> int64 conversions.
 						values = append(values, strconv.FormatInt(int64(c.Integer.Ival), 10))
+					case *pg_query.Node_Float:
+						values = append(values, c.Float.Str)
+					case *pg_query.Node_Null:
+						values = append(values, "NULL")
+					// TODO: There might be other Node types like Node_IntList, Node_List, Node_BitString etc that
+					// need to be checked if they are handled or not.
 					default:
 						conv.Unexpected(fmt.Sprintf("Processing %v statement: found %s node for A_Const Val", printNodeType(n), printNodeType(c)))
 					}

@@ -52,6 +52,20 @@ func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
 	return spTable, nil
 }
 
+// GetSourceTable maps a spanner table name into a legal source DB table
+// name.
+func GetSourceTable(conv *Conv, spTable string) (string, error) {
+	if spTable == "" {
+		return "", fmt.Errorf("bad parameter: table string is empty")
+	}
+
+	if srcTable, found := conv.ToSource[spTable]; found {
+		return srcTable.Name, nil
+	} else {
+		return "", fmt.Errorf("bad parameter: spanner table mapping not found ")
+	}
+}
+
 // GetSpannerCol maps a source DB table/column into a legal Spanner column
 // name. If mustExist is true, we return error if the column is new.
 // Note that source DB column names can be essentially any string, but

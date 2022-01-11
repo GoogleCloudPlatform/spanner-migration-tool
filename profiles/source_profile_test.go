@@ -1,4 +1,4 @@
-package cmd
+package profiles
 
 import (
 	"testing"
@@ -17,31 +17,31 @@ func TestNewSourceProfileFile(t *testing.T) {
 			name:         "no params, file piped",
 			params:       map[string]string{},
 			pipedToStdin: true,
-			want:         SourceProfileFile{format: "dump"},
+			want:         SourceProfileFile{Format: "dump"},
 		},
 		{
 			name:         "format param, file piped",
-			params:       map[string]string{"format": "dump"},
+			params:       map[string]string{"Format": "dump"},
 			pipedToStdin: true,
-			want:         SourceProfileFile{format: "dump"},
+			want:         SourceProfileFile{Format: "dump"},
 		},
 		{
 			name:         "format and path param, file piped -- piped file takes precedence",
 			params:       map[string]string{"format": "dump", "file": "file1.mysqldump"},
 			pipedToStdin: true,
-			want:         SourceProfileFile{format: "dump"},
+			want:         SourceProfileFile{Format: "dump"},
 		},
 		{
 			name:         "format and path param, no file piped",
 			params:       map[string]string{"format": "dump", "file": "file1.mysqldump"},
 			pipedToStdin: false,
-			want:         SourceProfileFile{format: "dump", path: "file1.mysqldump"},
+			want:         SourceProfileFile{Format: "dump", Path: "file1.mysqldump"},
 		},
 		{
 			name:         "only path param, no file piped -- default dump format",
 			params:       map[string]string{"file": "file1.mysqldump"},
 			pipedToStdin: false,
-			want:         SourceProfileFile{format: "dump", path: "file1.mysqldump"},
+			want:         SourceProfileFile{Format: "dump", Path: "file1.mysqldump"},
 		},
 	}
 

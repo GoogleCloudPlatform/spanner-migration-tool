@@ -33,6 +33,7 @@ type Conv struct {
 	ToSource       map[string]NameAndCols              // Maps from Spanner table name to source-DB table name and column mapping.
 	UsedNames      map[string]bool                     // Map storing the names that are already assigned to tables, indices or foreign key contraints.
 	dataSink       func(table string, cols []string, values []interface{})
+	DataFlush      func()         `json:"-"` // Data flush is used to flush out remaining writes and wait for them to complete.
 	Location       *time.Location // Timezone (for timestamp conversion).
 	sampleBadRows  rowSamples     // Rows that generated errors during conversion.
 	Stats          stats
@@ -78,6 +79,7 @@ const (
 	Datetime
 	Widened
 	Time
+	StringOverflow
 )
 
 // NameAndCols contains the name of a table and its columns.

@@ -35,11 +35,14 @@ import (
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
@@ -56,6 +59,7 @@ import (
 // 8) Add an overview in summary report API
 var mysqlTypeMap = make(map[string][]typeIssue)
 var postgresTypeMap = make(map[string][]typeIssue)
+var sqlserverTypeMap = make(map[string][]typeIssue)
 
 // TODO:(searce) organize this file according to go style guidelines: generally
 // have public constants and public type definitions first, then public
@@ -92,6 +96,8 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 		dataSourceName = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", config.Host, config.Port, config.User, config.Password, config.Database)
 	case constants.MYSQL:
 		dataSourceName = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", config.User, config.Password, config.Host, config.Port, config.Database)
+	case constants.SQLSERVER:
+		dataSourceName = fmt.Sprintf(`sqlserver://%s:%s@%s:%s?database=%s`, config.User, config.Password, config.Host, config.Port, config.Database)
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", config.Driver), http.StatusBadRequest)
 		return
@@ -128,6 +134,8 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		err = common.ProcessSchema(conv, mysql.InfoSchemaImpl{DbName: sessionState.dbName, Db: sessionState.sourceDB})
 	case constants.POSTGRES:
 		err = common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.sourceDB})
+	case constants.SQLSERVER:
+		err = common.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.dbName, Db: sessionState.sourceDB})
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.driver), http.StatusBadRequest)
 		return
@@ -167,7 +175,12 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("failed to open dump file %v : %v", dc.FilePath, err), http.StatusNotFound)
 		return
 	}
-	conv, err := conversion.SchemaConv(dc.Driver, "", constants.TargetSpanner, &conversion.IOStreams{In: f, Out: os.Stdout}, 0)
+	// We don't support Dynamodb in web hence no need to pass schema sample size here.
+	sourceProfile, _ := profiles.NewSourceProfile("", dc.Driver)
+	sourceProfile.Driver = dc.Driver
+	targetProfile, _ := profiles.NewTargetProfile("")
+	targetProfile.TargetDb = constants.TargetSpanner
+	conv, err := conversion.SchemaConv(sourceProfile, targetProfile, &utils.IOStreams{In: f, Out: os.Stdout})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
@@ -243,6 +256,8 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 		typeMap = mysqlTypeMap
 	case constants.POSTGRES, constants.PGDUMP:
 		typeMap = postgresTypeMap
+	case constants.SQLSERVER:
+		typeMap = sqlserverTypeMap
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.driver), http.StatusBadRequest)
 		return
@@ -402,7 +417,7 @@ func getConversionRate(w http.ResponseWriter, r *http.Request) {
 
 // getSchemaFile generates schema file and returns file path.
 func getSchemaFile(w http.ResponseWriter, r *http.Request) {
-	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
+	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
 	var err error
 	now := time.Now()
 	filePrefix, err := getFilePrefix(now)
@@ -421,7 +436,7 @@ func getSchemaFile(w http.ResponseWriter, r *http.Request) {
 
 // getReportFile generates report file and returns file path.
 func getReportFile(w http.ResponseWriter, r *http.Request) {
-	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
+	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
 	var err error
 	now := time.Now()
 	filePrefix, err := getFilePrefix(now)
@@ -774,7 +789,7 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 // updateSessionFile updates the content of session file with
 // latest sessionState.conv while also dumping schemas and report.
 func updateSessionFile() error {
-	ioHelper := &conversion.IOStreams{In: os.Stdin, Out: os.Stdout}
+	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
 	_, err := conversion.WriteConvGeneratedFiles(sessionState.conv, sessionState.dbName, sessionState.driver, ioHelper.BytesRead, ioHelper.Out)
 	if err != nil {
 		return fmt.Errorf("encountered error %w. Cannot write files", err)
@@ -1030,6 +1045,8 @@ func getType(newType, table, colName string, srcTableName string) (ddl.CreateTab
 		ty, issues = toSpannerTypeMySQL(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	case constants.PGDUMP, constants.POSTGRES:
 		ty, issues = toSpannerTypePostgres(srcCol.Type.Name, newType, srcCol.Type.Mods)
+	case constants.SQLSERVER:
+		ty, issues = toSpannerTypeSQLserver(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	default:
 		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.driver)
 	}
@@ -1093,7 +1110,7 @@ func getFilePrefix(now time.Time) (string, error) {
 	dbName := sessionState.dbName
 	var err error
 	if dbName == "" {
-		dbName, err = conversion.GetDatabaseName(sessionState.driver, now)
+		dbName, err = utils.GetDatabaseName(sessionState.driver, now)
 		if err != nil {
 			return "", fmt.Errorf("Can not create database name : %v", err)
 		}
@@ -1157,6 +1174,17 @@ func init() {
 		}
 		postgresTypeMap[srcType] = l
 	}
+
+	// Initialize sqlserverTypeMap.
+	for _, srcType := range []string{"int", "tinyint", "smallint", "bigint", "bit", "float", "real", "numeric", "decimal", "money", "smallmoney", "char", "nchar", "varchar", "nvarchar", "text", "ntext", "date", "datetime", "datetime2", "smalldatetime", "datetimeoffset", "time", "timestamp", "rowversion", "binary", "varbinary", "image", "xml", "geography", "geometry", "uniqueidentifier", "sql_variant", "hierarchyid"} {
+		var l []typeIssue
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
+			ty, issues := toSpannerTypeSQLserver(srcType, spType, []int64{})
+			l = addTypeToList(ty.Name, spType, issues, l)
+		}
+		sqlserverTypeMap[srcType] = l
+	}
+
 	sessionState.conv = internal.MakeConv()
 }
 

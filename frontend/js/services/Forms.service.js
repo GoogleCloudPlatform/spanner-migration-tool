@@ -38,6 +38,12 @@ const Forms = (() => {
         document.getElementById("sql-fields").style.display = "block";
         sourceTableFlag = "Postgres";
         Actions.setSourceDbName(sourceTableFlag);
+      } else if (val.value === "sqlserver") {
+        jQuery(".form-error").html("");
+        jQuery(".db-input").val("");
+        document.getElementById("sql-fields").style.display = "block";
+        sourceTableFlag = "SQL Server";
+        Actions.setSourceDbName(sourceTableFlag);
       }
       else if (val.value === "dynamodb") {
         document.getElementById("sql-fields").style.display = "none";

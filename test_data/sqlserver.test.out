@@ -1,0 +1,108 @@
+CREATE DATABASE SqlServer_IntTest;
+Go
+USE [SqlServer_IntTest]
+GO
+/****** Object:  Table [dbo].[AllTypes]    Script Date: 12/29/2021 8:56:38 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[AllTypes](
+	[Id] [int] IDENTITY(1,1) NOT NULL,
+	[BigInt] [bigint] NULL,
+	[Binary] [binary](50) NULL,
+	[Bit] [bit] NULL,
+	[Char] [char](10) NULL,
+	[Date] [date] NULL,
+	[DateTime] [datetime] NULL,
+	[DateTime2] [datetime2](7) NULL,
+	[DateTimeOffset] [datetimeoffset](7) NULL,
+	[Decimal] [decimal](18, 9) NULL,
+	[Float] [float] NULL,
+	[Geography] [geography] NULL,
+	[Geometry] [geometry] NULL,
+	[HierarchyId] [hierarchyid] NULL,
+	[Image] [image] NULL,
+	[Int] [int] NULL,
+	[Money] [money] NULL,
+	[NChar] [nchar](10) NULL,
+	[NText] [ntext] NULL,
+	[Numeric] [numeric](18, 17) NULL,
+	[NVarChar] [nvarchar](50) NULL,
+	[NVarCharMax] [nvarchar](max) NULL,
+	[Real] [real] NULL,
+	[SmallDateTime] [smalldatetime] NULL,
+	[SmallInt] [smallint] NULL,
+	[SmallMoney] [smallmoney] NULL,
+	[SQLVariant] [sql_variant] NULL,
+	[Text] [text] NULL,
+	[Time] [time](7) NULL,
+	[TimeStamp] [timestamp] NULL,
+	[TinyInt] [tinyint] NULL,
+	[UniqueIdentifier] [uniqueidentifier] NULL,
+	[VarBinary] [varbinary](50) NULL,
+	[VarBinaryMax] [varbinary](max) NULL,
+	[VarChar] [varchar](50) NULL,
+	[VarCharMax] [varchar](max) NULL,
+	[Xml] [xml] NULL,
+ CONSTRAINT [PK_AllTypes] PRIMARY KEY CLUSTERED 
+(
+	[Id] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[go.get]    Script Date: 12/29/2021 8:56:38 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[go.get](
+	[Name] [nchar](10) NULL
+) ON [PRIMARY]
+GO
+/****** Object:  Table [dbo].[RowVersionType]    Script Date: 12/29/2021 8:56:38 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[RowVersionType](
+	[Id] [int] NOT NULL,
+	[RowVersionCol] [timestamp] NOT NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[Id] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+SET IDENTITY_INSERT [dbo].[AllTypes] ON 
+GO
+INSERT [dbo].[AllTypes] ([Id], [BigInt], [Binary], [Bit], [Char], [Date], [DateTime], [DateTime2], [DateTimeOffset], [Decimal], [Float], [Geography], [Geometry], [HierarchyId], [Image], [Int], [Money], [NChar], [NText], [Numeric], [NVarChar], [NVarCharMax], [Real], [SmallDateTime], [SmallInt], [SmallMoney], [SQLVariant], [Text], [Time], [TinyInt], [UniqueIdentifier], [VarBinary], [VarBinaryMax], [VarChar], [VarCharMax], [Xml]) VALUES (1, -9223372036854775808, 0x42696E6172792064617461000000000000000000000000000000000000000000000000000000000000000000000000000000, 0, N'ABC       ', CAST(N'2021-12-15' AS Date), CAST(N'2021-12-15T07:39:52.943' AS DateTime), CAST(N'2021-12-15T07:39:52.9433333' AS DateTime2), CAST(N'2021-12-15T07:39:52.9433333+01:20' AS DateTimeOffset), CAST(123456789.123456789 AS Decimal(18, 9)), 1.2, 0xE6100000010C1E1B81785DD34740E5D022DBF9965EC0, 0xE61000000114D7A3703D0A975EC08716D9CEF7D34740CBA145B6F3955EC08716D9CEF7D34740, N'/2/', 0x5465787420617320696D616765, 42, 922337203685477.5807, N'A         ', N'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.', CAST(1.12345678912345679 AS Numeric(18, 17)), N'ABC', N'ABCD', 5.5, CAST(N'2021-12-15T07:40:00' AS SmallDateTime), 32767, 214748.3647, CAST(1.200000000000000001234 AS numeric(22,21)), N'Lorem ipsum dolor sit amet', CAST(N'07:39:52.9500000' AS Time), 255, N'5d434705-4f3e-461e-ae36-0f96834a70ba', 0x56617242696E617279283530292064617461, 0x56617242696E617279286D6178292064617461, N'ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE AB', N'ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE', N'<note><to>Tove</to><from>Jani</from><heading>Reminder</heading><body>Don''t forget me this weekend!</body></note>')
+GO
+INSERT [dbo].[AllTypes] ([Id], [BigInt], [Binary], [Bit], [Char], [Date], [DateTime], [DateTime2], [DateTimeOffset], [Decimal], [Float], [Geography], [Geometry], [HierarchyId], [Image], [Int], [Money], [NChar], [NText], [Numeric], [NVarChar], [NVarCharMax], [Real], [SmallDateTime], [SmallInt], [SmallMoney], [SQLVariant], [Text], [Time], [TinyInt], [UniqueIdentifier], [VarBinary], [VarBinaryMax], [VarChar], [VarCharMax], [Xml]) VALUES (2, 9223372036854775807, 0x42696E6172792064617461000000000000000000000000000000000000000000000000000000000000000000000000000000, 1, N'ABC       ', CAST(N'2021-12-15' AS Date), CAST(N'2021-12-15T07:39:52.960' AS DateTime), NULL, CAST(N'2021-12-08T03:00:52.9500000+00:00' AS DateTimeOffset), CAST(123456789.123456789 AS Decimal(18, 9)), 1.2, 0xE6100000010C1E1B81785DD34740E5D022DBF9965EC0, NULL, N'/2/', NULL, 42, 922337203685477.5807, N'A         ', N'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.', CAST(1.12345678912345679 AS Numeric(18, 17)), N'ABC', N'ABCD', 5.5, CAST(N'2021-12-15T07:40:00' AS SmallDateTime), 32767, 214748.3647, CAST(1.200000000000000001234 AS numeric(22,21)), N'Lorem ipsum dolor sit amet', NULL, 255, N'0f7df523-faba-4efa-bfa9-8c39cc7fa6a6', NULL, 0x56617242696E617279286D6178292064617461, N'ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE AB', N'ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE ABCDE', NULL)
+GO
+SET IDENTITY_INSERT [dbo].[AllTypes] OFF
+GO
+INSERT [dbo].[go.get] ([Name]) VALUES (N'A         ')
+GO
+INSERT [dbo].[go.get] ([Name]) VALUES (N'B         ')
+GO
+INSERT [dbo].[go.get] ([Name]) VALUES (N'C         ')
+GO
+INSERT [dbo].[go.get] ([Name]) VALUES (N'D         ')
+GO
+INSERT [dbo].[go.get] ([Name]) VALUES (N'E         ')
+GO
+INSERT [dbo].[go.get] ([Name]) VALUES (N'F         ')
+GO
+INSERT [dbo].[go.get] ([Name]) VALUES (N'G         ')
+GO
+INSERT [dbo].[RowVersionType] ([Id]) VALUES (5)
+GO
+INSERT [dbo].[RowVersionType] ([Id]) VALUES (6)
+GO
+INSERT [dbo].[RowVersionType] ([Id]) VALUES (7)
+GO
+USE [master]
+GO
+ALTER DATABASE [SqlServer_IntTest] SET  READ_WRITE 
+GO

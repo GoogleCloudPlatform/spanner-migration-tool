@@ -11,9 +11,9 @@
             "mode": "auto",
             "program": "${fileDirname}",
             "args": [
-                "-driver=mysqldump", 
-                "-instance=e2e-spanner-testing", 
-                "-v=true", 
+                "-driver=mysqldump",
+                "-instance=e2e-spanner-testing",
+                "-v=true",
                 "-dump-file="
             ]
         }

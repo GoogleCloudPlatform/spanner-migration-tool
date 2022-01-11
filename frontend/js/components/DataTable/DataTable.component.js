@@ -184,9 +184,9 @@ class DataTable extends HTMLElement {
         let maxPossiblePageNumber =  Math.ceil(tableColumnsArrayLength / columnPerPage);
         let tableColumnsArrayCurrent = [];
         let z = 0;
-        for(let i= pageNumber*columnPerPage ;i < Math.min(tableColumnsArrayLength, pageNumber*columnPerPage+15) ; i++ )
-        {
-            tableColumnsArrayCurrent[z]=tableColumnsArray[i];
+        for (let i = pageNumber * columnPerPage; i < Math.min(tableColumnsArrayLength, pageNumber * columnPerPage + 15); i++) {
+            if (tableColumnsArray[i] != 'synth_id')
+                tableColumnsArrayCurrent[z] = tableColumnsArray[i];
             z++;
         }
 
@@ -253,9 +253,9 @@ class DataTable extends HTMLElement {
                                     </div>
                                 </span>`: `<div></div>`}
                                 <span class="column left">
-                                    ${(currentColumnSrc != srcTable.PrimaryKeys[0].Column || srcTable.PrimaryKeys === null) ?
-                        `<img class="hidden ml-3" src="./Icons/Icons/ic_vpn_key_24px.svg" />` :
-                        `<img class="ml-3" src="./Icons/Icons/ic_vpn_key_24px.svg" />`}
+                                    ${(srcTable.PrimaryKeys !== null && currentColumnSrc === srcTable.PrimaryKeys[0].Column) ?
+                        `<img class="ml-3" src="./Icons/Icons/ic_vpn_key_24px.svg" />` :
+                        `<img class="hidden ml-3" src="./Icons/Icons/ic_vpn_key_24px.svg" />`}
                                 </span>
                                 <span class="column right src-column"
                                     id="src-column-name-${tableIndex}${index}${index}">${currentColumnSrc}</span>

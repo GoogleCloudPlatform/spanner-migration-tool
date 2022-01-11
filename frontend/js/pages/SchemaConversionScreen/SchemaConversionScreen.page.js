@@ -16,81 +16,81 @@ import "../../services/Fetch.service.js";
 
 class SchemaConversionScreen extends HTMLElement {
 
-    get testing() {
-        return this.getAttribute("testing");
+  get testing() {
+    return this.getAttribute("testing");
+  }
+
+  connectedCallback() {
+    this.stateObserver = setInterval(this.observeState, 150);
+    Actions.showSpinner()
+    this.render();
+  }
+
+  disconnectedCallback() {
+    clearInterval(this.stateObserver);
+  }
+
+  sendDatatoReportTab(tableNameArray, currentTabContent) {
+    for (let i = 0; i < tableNameArray.length; i++) {
+      let filterdata = {
+        SpSchema: currentTabContent.SpSchema[tableNameArray[i]],
+        SrcSchema: currentTabContent.SrcSchema[currentTabContent.ToSource[tableNameArray[i]].Name],
+        ToSource: currentTabContent.ToSource[tableNameArray[i]],
+        ToSpanner: currentTabContent.ToSpanner[currentTabContent.ToSource[tableNameArray[i]].Name],
+        summary: Store.getinstance().tableData["summaryTabContent"][tableNameArray[i]],
+        currentPageNumber: Actions.getCurrentPageNumber(i)
+      };
+      let component = document.querySelector(`#reportTab${i}`);
+      component.data = filterdata;
+    }
+  }
+
+  set Data(data) {
+    this.data = data;
+    this.render();
+  }
+
+  getChangingValue(currentTab) {
+    currentTab = currentTab.substring(0, currentTab.length - 3);
+    let currentArray = Actions.carouselStatus(currentTab);
+    let flag = "Expand All";
+    for (let i = 0; i < currentArray.length; i++) {
+      if (currentArray[i] == true) {
+        flag = "Collapse All";
+      }
+    }
+    return flag;
+  }
+
+  observeState = () => {
+    let updatedData = Store.getinstance();
+    if (JSON.stringify(updatedData) !== JSON.stringify(this.data)) {
+      this.data = JSON.parse(JSON.stringify(updatedData));
+      this.render();
+    }
+  };
+
+  render() {
+    if (!this.data) {
+      return;
+    }
+    const { currentTab, tableData, tableBorderData, searchInputValue } = this.data;
+    let currentTabContent = tableData[`${currentTab}Content`];
+    if (Object.keys(currentTabContent).length == 0) {
+      Actions.hideSpinner();
+      return;
+    }
+    const changingText = this.getChangingValue(currentTab);
+    let tableNameArray;
+    if (currentTab === "reportTab") {
+      tableNameArray = Object.keys(currentTabContent.SpSchema)
+        .filter((title) => title.indexOf(searchInputValue[currentTab]) > -1);
+    } else {
+      tableNameArray = Object.keys(currentTabContent)
+        .filter((title) => title.indexOf(searchInputValue[currentTab]) > -1);
     }
 
-    connectedCallback() {
-        this.stateObserver = setInterval(this.observeState, 150);
-        Actions.showSpinner()
-        this.render();
-    }
-
-    disconnectedCallback() {
-        clearInterval(this.stateObserver);
-    }
-
-    sendDatatoReportTab(tableNameArray, currentTabContent) {
-        for (let i = 0; i < tableNameArray.length; i++) {
-            let filterdata = {
-                SpSchema: currentTabContent.SpSchema[tableNameArray[i]],
-                SrcSchema: currentTabContent.SrcSchema[tableNameArray[i]],
-                ToSource: currentTabContent.ToSource[tableNameArray[i]],
-                ToSpanner: currentTabContent.ToSpanner[tableNameArray[i]],
-                summary: Store.getinstance().tableData["summaryTabContent"][tableNameArray[i]],
-                currentPageNumber: Actions.getCurrentPageNumber(i)
-            };
-            let component = document.querySelector(`#reportTab${i}`);
-            component.data = filterdata;
-        }
-    }
-
-    set Data(data) {
-        this.data = data;
-        this.render();
-    }
-
-    getChangingValue(currentTab) {
-        currentTab = currentTab.substring(0, currentTab.length - 3);
-        let currentArray = Actions.carouselStatus(currentTab);
-        let flag = "Expand All";
-        for (let i = 0; i < currentArray.length; i++) {
-            if (currentArray[i] == true) {
-                flag = "Collapse All";
-            }
-        }
-        return flag;
-    }
-
-    observeState = () => {
-        let updatedData = Store.getinstance();
-        if (JSON.stringify(updatedData) !== JSON.stringify(this.data)) {
-            this.data = JSON.parse(JSON.stringify(updatedData));
-            this.render();
-        }
-    };
-
-    render() {
-        if (!this.data) {
-            return;
-        }
-        const { currentTab, tableData, tableBorderData, searchInputValue } = this.data;
-        let currentTabContent = tableData[`${currentTab}Content`];
-        if (Object.keys(currentTabContent).length == 0) {
-            Actions.hideSpinner();
-            return;
-        }
-        const changingText = this.getChangingValue(currentTab);
-        let tableNameArray;
-        if (currentTab === "reportTab") {
-            tableNameArray = Object.keys(currentTabContent.SpSchema)
-                .filter((title) => title.indexOf(searchInputValue[currentTab]) > -1);
-        } else {
-            tableNameArray = Object.keys(currentTabContent)
-                .filter((title) => title.indexOf(searchInputValue[currentTab]) > -1);
-        }
-
-        this.innerHTML = `
+    this.innerHTML = `
     <div class="summary-main-content" id='schema-screen-content'>
       <div id="snackbar"></div>
       <div>
@@ -110,61 +110,59 @@ class SchemaConversionScreen extends HTMLElement {
         <div class="tab-content">
           ${currentTab === 'reportTab' ? `<div id="report" class="tab-pane fade show active">
             <div class="accordion md-accordion" id="accordion" role="tablist" aria-multiselectable="true">
-            ${tableNameArray.length > 0 ? `<hb-site-button buttonid="reportExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>`:''}
-            ${tableNameArray.length > 0 ? `<hb-site-button buttonid="editButton" classname="expand right-align" buttonaction="editGlobalDataType" text="Edit Global Data Type"></hb-site-button>` :''}
+            ${tableNameArray.length > 0 ? `<hb-site-button buttonid="reportExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>` : ''}
+            ${tableNameArray.length > 0 ? `<hb-site-button buttonid="editButton" classname="expand right-align" buttonaction="editGlobalDataType" text="Edit Global Data Type"></hb-site-button>` : ''}
               <div id='reportDiv'>
                 ${tableNameArray.map((tableName, index) => {
-                    return `
+      return `
                     <hb-table-carousel tableTitle="${tableName}" id="${currentTab}${index}" tabId="report" 
                     tableIndex="${index}" borderData = "${tableBorderData[tableName]}"></hb-table-carousel>`;
-                  })
-                  .join("")}                    
+    })
+          .join("")}                    
                 </div>
             </div>
-            ${tableNameArray.length <=0 ? '<h5 class="no-text" >No Match Found</h5>':''}
+            ${tableNameArray.length <= 0 ? '<h5 class="no-text" >No Match Found</h5>' : ''}
           </div>`
-              : `<div></div>`
-          }
+        : `<div></div>`
+      }
 
-          ${
-            currentTab === "ddlTab"
-              ? `<div id="ddl" class="tab-pane fade show active">
+          ${currentTab === "ddlTab"
+        ? `<div id="ddl" class="tab-pane fade show active">
             <div class="panel-group" id="ddl-accordion">
-            ${tableNameArray.length > 0 ? `<hb-site-button buttonid="ddlExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>`:''}
-            ${tableNameArray.length > 0 ?`<hb-site-button buttonid="download-ddl" classname="expand right-align" buttonaction="downloadDdl" text="Download DDL Statements"></hb-site-button>`:''}
+            ${tableNameArray.length > 0 ? `<hb-site-button buttonid="ddlExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>` : ''}
+            ${tableNameArray.length > 0 ? `<hb-site-button buttonid="download-ddl" classname="expand right-align" buttonaction="downloadDdl" text="Download DDL Statements"></hb-site-button>` : ''}
               <div id='ddlDiv'>
                 ${tableNameArray.map((tableName, index) => {
-                    return `
+          return `
                     <hb-table-carousel tableTitle="${tableName}" stringData="${currentTabContent[tableName]}" tabId="ddl" id="${currentTab}${index}" tableIndex=${index} borderData = "${tableBorderData[tableName]}">
                     </hb-table-carousel>`;
-                  })
-                  .join("")} 
+        })
+          .join("")} 
                 </div>
             </div>
-           ${tableNameArray.length <=0 ? '<h5 class="no-text" >No Match Found</h5>':''}
+           ${tableNameArray.length <= 0 ? '<h5 class="no-text" >No Match Found</h5>' : ''}
           </div>`
-              : `<div></div>`
-          }
+        : `<div></div>`
+      }
 
-          ${
-            currentTab === "summaryTab"
-              ? `<div id="summary" class="tab-pane fade show active">
+          ${currentTab === "summaryTab"
+        ? `<div id="summary" class="tab-pane fade show active">
             <div class="panel-group" id="summary-accordion">
-            ${tableNameArray.length > 0 ?`<hb-site-button buttonid="summaryExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>`:''}
-            ${tableNameArray.length > 0 ?`<hb-site-button buttonid="download-report" classname="expand right-align" buttonaction="downloadReport" text="Download Summary Report"></hb-site-button>`:''}
+            ${tableNameArray.length > 0 ? `<hb-site-button buttonid="summaryExpandButton" classname="expand" buttonaction="expandAll" text="${changingText}"></hb-site-button>` : ''}
+            ${tableNameArray.length > 0 ? `<hb-site-button buttonid="download-report" classname="expand right-align" buttonaction="downloadReport" text="Download Summary Report"></hb-site-button>` : ''}
               <div id='summaryDiv'>
                 ${tableNameArray.map((tableName, index) => {
-                    return `
+          return `
                     <hb-table-carousel  tableTitle="${tableName}" stringData="${currentTabContent[tableName]}" id="${currentTab}${index}" tabId="summary" 
                     tableIndex=${index} borderData = "${tableBorderData[tableName]}"></hb-table-carousel>`;
-                  })
-                  .join("")} 
+        })
+          .join("")} 
               </div>
             </div>
-            ${tableNameArray.length <=0 ? '<h5 class="no-text">No Match Found</h5>':''}
+            ${tableNameArray.length <= 0 ? '<h5 class="no-text">No Match Found</h5>' : ''}
           </div>`
-              : `<div></div>`
-          }
+        : `<div></div>`
+      }
 
           </div>
       </div>
@@ -181,10 +179,10 @@ class SchemaConversionScreen extends HTMLElement {
     initSchemaScreenTasks();
     if (currentTab === "reportTab" && !this.testing) {
       this.sendDatatoReportTab(tableNameArray
-        .filter((title)=>title.indexOf(searchInputValue[currentTab]) > -1), currentTabContent);
-       if(!this.testing){ 
-          window.scrollTo(0,Actions.getPageYOffset());
-       }
+        .filter((title) => title.indexOf(searchInputValue[currentTab]) > -1), currentTabContent);
+      if (!this.testing) {
+        window.scrollTo(0, Actions.getPageYOffset());
+      }
     }
     Actions.hideSpinner();
   }

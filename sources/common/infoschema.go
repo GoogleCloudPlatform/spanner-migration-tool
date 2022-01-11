@@ -74,7 +74,13 @@ func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema) error {
 // If we can't get/process data for a table, we skip that table and process
 // the remaining tables.
 func ProcessData(conv *internal.Conv, infoSchema InfoSchema) {
-	for srcTable, srcSchema := range conv.SrcSchema {
+	// Tables are ordered in alphabetical order with one exception: interleaved
+	// tables appear after the population of their parent table.
+	orderTableNames := ddl.OrderTables(conv.SpSchema)
+
+	for _, spannerTable := range orderTableNames {
+		srcTable, _ := internal.GetSourceTable(conv, spannerTable)
+		srcSchema := conv.SrcSchema[srcTable]
 		spTable, err1 := internal.GetSpannerTable(conv, srcTable)
 		spCols, err2 := internal.GetSpannerCols(conv, srcTable, srcSchema.ColNames)
 		spSchema, ok := conv.SpSchema[spTable]
@@ -87,6 +93,9 @@ func ProcessData(conv *internal.Conv, infoSchema InfoSchema) {
 		err := infoSchema.ProcessData(conv, srcTable, srcSchema, spTable, spCols, spSchema)
 		if err != nil {
 			return
+		}
+		if conv.DataFlush != nil {
+			conv.DataFlush()
 		}
 	}
 }

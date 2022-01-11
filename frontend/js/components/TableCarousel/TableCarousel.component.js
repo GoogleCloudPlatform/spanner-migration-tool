@@ -25,17 +25,17 @@ class TableCarousel extends HTMLElement {
   }
 
   get stringData() {
-     return this.getAttribute("stringData");
+    return this.getAttribute("stringData");
   }
 
-  set data(value){
+  set data(value) {
     this._data = value;
     this.render();
     this.addEventListenertoCarausal();
-    if(Actions.carouselStatus(this.tabId)[this.tableIndex]){
-      document.querySelector(`hb-data-table[tableName=${this.tableTitle}`).data =this._data; 
+    if (Actions.carouselStatus(this.tabId)[this.tableIndex]) {
+      document.querySelector(`hb-data-table[tableName="${this.tableTitle}"`).data = this._data;
     }
-   
+
   }
 
   get borderData() {
@@ -45,7 +45,7 @@ class TableCarousel extends HTMLElement {
   addEventListenertoCarausal() {
     document.getElementById(`id-${this.tabId}-${this.tableIndex}`).addEventListener('click',()=>{
       Actions.showSpinner()
-      if(Actions.carouselStatus(this.tabId)[this.tableIndex])
+      if(Actions.carouselStatus(this.tabId)[this.tableIndex]) 
       {
         Actions.closeCarousel(this.tabId , this.tableIndex)
       }
@@ -60,11 +60,11 @@ class TableCarousel extends HTMLElement {
     {
       this.render();
       this.addEventListenertoCarausal();
-    } 
+    }
   }
 
   render() {
-    let {tableTitle, tabId, tableIndex, data, borderData, stringData} = this;
+    let { tableTitle, tabId, tableIndex, data, borderData, stringData } = this;
     let color = borderData;
     let panelColor = panelBorderClass(color);
     let cardColor = mdcCardBorder(color);
@@ -72,17 +72,17 @@ class TableCarousel extends HTMLElement {
     let editButtonVisibleClass = carouselStatus ? 'show-content' : 'hide-content';
     let tableMode = Actions.getTableMode(tableIndex);
 
- 
+
     this.innerHTML = `
     <section class="${tabId}-section" id="${tableIndex}">
       <div class="card">
-        <div role="tab" class="card-header ${tabId}-card-header ${carouselStatus ? 'no-border-bottom  rem-border-bottom':''}  ${panelColor}">
+        <div role="tab" class="card-header ${tabId}-card-header ${carouselStatus ? 'no-border-bottom  rem-border-bottom' : ''}  ${panelColor}">
           <h5 class="mb-0">
             <a data-toggle="collapse" id="id-${tabId}-${tableIndex}">
               Table: <span>${tableTitle}</span>
-              <i class="rotate-icon fas fa-angle-${carouselStatus?'up':'down'} "></i>
+              <i class="rotate-icon fas fa-angle-${carouselStatus ? 'up' : 'down'} "></i>
             </a>
-            ${ tabId ==="report" ? `
+            ${tabId === "report" ? `
                 <span class="spanner-text right-align ${editButtonVisibleClass}">Spanner</span>
                 <span class="spanner-icon right-align ${editButtonVisibleClass}">
                   <i class="large material-icons round-icon-size">circle</i>
@@ -92,33 +92,32 @@ class TableCarousel extends HTMLElement {
                   <i class="large material-icons round-icon-size">circle</i>
                 </span>
                 <button class="edit-button ${editButtonVisibleClass}" id="editSpanner${tableIndex}">
-                  ${tableMode?"Save Changes" : " Edit Spanner Schema"}
+                  ${tableMode ? "Save Changes" : " Edit Spanner Schema"}
                 </button>
-                ${tableMode==false && carouselStatus ? `
+                ${tableMode == false && carouselStatus ? `
                   <span id="edit-instruction${tableIndex}" class="right-align edit-instruction blink ">
                   Schema locked for editing. Unlock to change =>
-                </span> `:`<div></div>`}`
-                :
-                ` <div></div> `
-             }
+                </span> `: `<div></div>`}`
+        :
+        ` <div></div> `
+      }
           </h5>
         </div>
-         ${
-           carouselStatus ? `<div class="collapse ${tabId}-collapse show bs collapse show-carausel" id="${tabId}-${tableTitle}">
+         ${carouselStatus ? `<div class="collapse ${tabId}-collapse show bs collapse show-carausel" id="${tabId}-${tableTitle}">
            <div class="mdc-card mdc-card-content table-card-border ${cardColor}">
-             ${ tabId == "report" ? `
-             <hb-data-table tableName="${tableTitle}" tableIndex="${tableIndex}" ></hb-data-table>` 
-             :
-             `<hb-list-table tabName="${tabId}" tableName="${tableTitle}" dta="${stringData}"></hb-list-table>`
-            }
+             ${tabId == "report" ? `
+             <hb-data-table tableName="${tableTitle}" tableIndex="${tableIndex}" ></hb-data-table>`
+          :
+          `<hb-list-table tabName="${tabId}" tableName="${tableTitle}" dta="${stringData}"></hb-list-table>`
+        }
            </div>
-         </div>`:`<div></div>`
-         }
+         </div>`: `<div></div>`
+      }
         
 
       </div>
     </section> `;
-   
+
   }
 
   constructor() {
