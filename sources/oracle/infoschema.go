@@ -73,9 +73,9 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 						data_length, 
 						data_precision, 
 						data_scale 
-					FROM user_tab_columns 
-					WHERE table_name = '%s'
-					`, table.Name)
+					FROM all_tab_columns 
+					WHERE owner = '%s' AND table_name = '%s'
+					`, table.Schema, table.Name)
 	cols, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
@@ -130,8 +130,8 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 	   				FROM all_constraints t
        				INNER JOIN all_cons_columns k
        				ON (k.constraint_name = t.constraint_name) 
-					WHERE k.table_name = '%s'
-					`, table.Name)
+					WHERE t.owner = '%s' AND k.table_name = '%s'
+					`, table.Schema, table.Name)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, nil, err
