@@ -76,7 +76,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			},
 		},
 		{
-			query: "SELECT (.+) FROM user_tab_columns (.+)",
+			query: "SELECT (.+) FROM all_tab_columns (.+)",
 			args:  []driver.Value{},
 			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale"},
 			rows: [][]driver.Value{
@@ -106,7 +106,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			rows:  [][]driver.Value{},
 		},
 		{
-			query: "SELECT (.+) FROM user_tab_columns (.+)",
+			query: "SELECT (.+) FROM all_tab_columns (.+)",
 			args:  []driver.Value{},
 			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale"},
 			rows: [][]driver.Value{
