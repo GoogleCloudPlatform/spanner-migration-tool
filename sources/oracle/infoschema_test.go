@@ -36,7 +36,7 @@ type mockSpec struct {
 func TestProcessSchemaMYSQL(t *testing.T) {
 	ms := []mockSpec{
 		{
-			query: "SELECT table_name from all_tables (.+)",
+			query: "SELECT table_name FROM all_tables (.+)",
 			args:  []driver.Value{},
 			cols:  []string{"table_name"},
 			rows: [][]driver.Value{
@@ -46,7 +46,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 		},
 		// USER table
 		{
-			query: `SELECT (.+) FROM ALL_CONSTRAINTS (.+)`,
+			query: `SELECT (.+) FROM all_constraints (.+)`,
 			args:  []driver.Value{},
 			cols:  []string{"column_name", "contraint_type"},
 			rows: [][]driver.Value{
@@ -55,7 +55,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			},
 		},
 		{
-			query: `SELECT (.+) ALL_CONS_COLUMNS A JOIN ALL_CONSTRAINTS C ON (.+) JOIN ALL_CONS_COLUMNS B (.+)`,
+			query: `SELECT (.+) all_cons_columns A JOIN all_constraints C ON (.+) JOIN all_cons_columns B (.+)`,
 			args:  []driver.Value{},
 			cols:  []string{"ref_table", "column_name", "ref_column_name", "name"},
 			rows: [][]driver.Value{
@@ -63,7 +63,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			},
 		},
 		{
-			query: `SELECT (.+) LEFT JOIN ALL_IND_EXPRESSIONS IE (.+) LEFT JOIN ALL_INDEXES I (.+)`,
+			query: `SELECT (.+) LEFT JOIN all_ind_expressions IE (.+) LEFT JOIN all_indexes I (.+)`,
 			args:  []driver.Value{},
 			cols:  []string{"name", "column_name", "column_position", "descend", "uniqueness", "column_expression", "index_type"},
 			rows: [][]driver.Value{
@@ -76,7 +76,7 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			},
 		},
 		{
-			query: "SELECT column_name, data_type, nullable, data_default, data_length, data_precision, data_scale FROM USER_TAB_COLUMNS (.+)",
+			query: "SELECT (.+) FROM user_tab_columns (.+)",
 			args:  []driver.Value{},
 			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale"},
 			rows: [][]driver.Value{
@@ -87,26 +87,26 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 
 		// test table
 		{
-			query: `SELECT (.+) FROM ALL_CONSTRAINTS (.+)`,
+			query: `SELECT (.+) FROM all_constraints (.+)`,
 			args:  []driver.Value{},
 			cols:  []string{"column_name", "contraint_type"},
 			rows: [][]driver.Value{
 				{"ID", "P"}},
 		},
 		{
-			query: `SELECT (.+) ALL_CONS_COLUMNS A JOIN ALL_CONSTRAINTS C ON (.+) JOIN ALL_CONS_COLUMNS B (.+)`,
+			query: `SELECT (.+) all_cons_columns A JOIN all_constraints C ON (.+) JOIN all_cons_columns B (.+)`,
 			args:  []driver.Value{},
 			cols:  []string{"ref_table", "column_name", "ref_column_name", "name"},
 			rows:  [][]driver.Value{},
 		},
 		{
-			query: `SELECT (.+) LEFT JOIN ALL_IND_EXPRESSIONS IE (.+) LEFT JOIN ALL_INDEXES I (.+)`,
+			query: `SELECT (.+) LEFT JOIN all_ind_expressions IE (.+) LEFT JOIN all_indexes I (.+)`,
 			args:  []driver.Value{},
 			cols:  []string{"name", "column_name", "column_position", "descend", "uniqueness", "column_expression", "index_type"},
 			rows:  [][]driver.Value{},
 		},
 		{
-			query: "SELECT column_name, data_type, nullable, data_default, data_length, data_precision, data_scale FROM USER_TAB_COLUMNS (.+)",
+			query: "SELECT (.+) FROM user_tab_columns (.+)",
 			args:  []driver.Value{},
 			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale"},
 			rows: [][]driver.Value{

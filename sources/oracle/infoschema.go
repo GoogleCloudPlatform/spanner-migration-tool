@@ -29,25 +29,25 @@ func (isi InfoSchemaImpl) GetTableName(dbName string, tableName string) string {
 
 // GetRowsFromTable returns a sql Rows object for a table.
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
-	panic("unimplemented")
+	panic("Not Implemented")
 }
 
 // ProcessData performs data conversion for source database.
 func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) error {
-	panic("unimplemented")
+	panic("Not Implemented")
 }
 
 func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, values []string) {
-	panic("unimplemented")
+	panic("Not Implemented")
 }
 
 // GetRowCount with number of rows in each table.
 func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error) {
-	panic("unimplemented")
+	panic("Not Implemented")
 }
 
 func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
-	q := fmt.Sprintf("SELECT table_name from all_tables where owner = '%s'", isi.DbName)
+	q := fmt.Sprintf("SELECT table_name FROM all_tables WHERE owner = '%s'", isi.DbName)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get tables: %w", err)
@@ -64,7 +64,18 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 
 // GetColumns returns a list of Column objects and names
 func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
-	q := fmt.Sprintf(`SELECT column_name, data_type, nullable, data_default, data_length, data_precision, data_scale FROM USER_TAB_COLUMNS WHERE table_name = '%s'`, table.Name)
+	q := fmt.Sprintf(`
+					SELECT 
+						column_name, 
+						data_type, 
+						nullable, 
+						data_default, 
+						data_length, 
+						data_precision, 
+						data_scale 
+					FROM user_tab_columns 
+					WHERE table_name = '%s'
+					`, table.Name)
 	cols, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
@@ -112,10 +123,15 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 // columns in primary key constraints.
 // Note that foreign key constraints are handled in getForeignKeys.
 func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.SchemaAndName) ([]string, map[string][]string, error) {
-	q := fmt.Sprintf(`SELECT k.column_name,t.constraint_type
-	   FROM ALL_CONSTRAINTS t
-       INNER JOIN ALL_CONS_COLUMNS k
-       ON (k.constraint_name = t.constraint_name) WHERE k.table_name = '%s'`, table.Name)
+	q := fmt.Sprintf(`
+					SELECT 
+						k.column_name,
+						t.constraint_type
+	   				FROM all_constraints t
+       				INNER JOIN all_cons_columns k
+       				ON (k.constraint_name = t.constraint_name) 
+					WHERE k.table_name = '%s'
+					`, table.Name)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, nil, err
@@ -147,14 +163,17 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 
 // GetForeignKeys return list all the foreign keys constraints.
 func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
-	q := fmt.Sprintf(`SELECT B.TABLE_NAME AS REF_TABLE, A.COLUMN_NAME AS COL_NAME,
-				B.COLUMN_NAME AS REF_COL_NAME ,A.CONSTRAINT_NAME AS NAME
-		FROM ALL_CONS_COLUMNS A 
-		JOIN ALL_CONSTRAINTS C ON A.OWNER = C.OWNER 
-			AND A.CONSTRAINT_NAME = C.CONSTRAINT_NAME
-    	JOIN ALL_CONS_COLUMNS B ON B.OWNER = C.OWNER 
-			AND B.CONSTRAINT_NAME = C.R_CONSTRAINT_NAME
-    	WHERE A.TABLE_NAME='%s' AND A.OWNER='%s'`, table.Name, isi.DbName)
+	q := fmt.Sprintf(`
+						SELECT 
+							B.table_name AS ref_table, 
+							A.column_name AS col_name,
+							B.column_name AS ref_col_name,
+							A.constraint_name AS name
+						FROM all_cons_columns A 
+						JOIN all_constraints C ON A.owner = C.owner AND A.constraint_name = C.constraint_name
+						JOIN all_cons_columns B ON B.owner = C.owner AND B.constraint_name = C.r_constraint_name
+						WHERE A.table_name='%s' AND A.owner='%s'
+					`, table.Name, isi.DbName)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err
@@ -197,15 +216,21 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 // 2.Bitmap indexes 3.Partitioned indexes 4. Function-based indexes 5.Domain indexes,
 // we are only considering normal index as of now.
 func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName) ([]schema.Index, error) {
-	q := fmt.Sprintf(`SELECT IC.INDEX_NAME,IC.COLUMN_NAME,IC.COLUMN_POSITION, 
-					IC.DESCEND,I.UNIQUENESS, IE.COLUMN_EXPRESSION, I.INDEX_TYPE 
-                FROM  ALL_IND_COLUMNS IC 
-				LEFT JOIN ALL_IND_EXPRESSIONS IE 
-               		ON IC.INDEX_NAME = IE.INDEX_NAME AND IC.COLUMN_POSITION=IE.COLUMN_POSITION
-                LEFT JOIN ALL_INDEXES I 
-			   		ON IC.INDEX_NAME = I.INDEX_NAME
-                 WHERE IC.INDEX_OWNER='%s' AND IC.TABLE_NAME  = '%s'
-            	 ORDER BY IC.INDEX_NAME, IC.COLUMN_POSITION`, table.Schema, table.Name)
+	q := fmt.Sprintf(`
+					SELECT 
+						IC.index_name,
+						IC.column_name,
+						IC.column_position, 
+						IC.descend,
+						I.uniqueness, 
+						IE.column_expression, 
+						I.index_type 
+                	FROM  all_ind_columns IC 
+					LEFT JOIN all_ind_expressions IE ON IC.index_name = IE.index_name AND IC.column_position=IE.column_position
+                	LEFT JOIN all_indexes I ON IC.index_name = I.index_name
+                	WHERE IC.index_owner='%s' AND IC.table_name='%s'
+            		ORDER BY IC.index_name, IC.column_position
+				`, table.Schema, table.Name)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err

@@ -160,6 +160,7 @@ func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 		splts := strings.Split(sqlConnectionStr, "?database=")
 		return splts[len(splts)-1]
 	case constants.ORACLE:
+		// connection string formate : "oracle://user:password@104.108.154.85:1521/XE"
 		substr := sqlConnectionStr[9:]
 		dbName := strings.Split(substr, ":")[0]
 		return dbName
