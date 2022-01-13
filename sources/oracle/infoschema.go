@@ -212,8 +212,12 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 }
 
 // GetIndexes return a list of all indexes for the specified table.
-// Oracle db support several types of index: 1. Normal indexes. (By default, Oracle Database creates B-tree indexes.)
-// 2.Bitmap indexes 3.Partitioned indexes 4. Function-based indexes 5.Domain indexes,
+// Oracle db support several types of index:
+// 1. Normal indexes. (By default, Oracle Database creates B-tree indexes.)
+// 2.Bitmap indexes
+// 3.Partitioned indexes
+// 4. Function-based indexes
+// 5.Domain indexes,
 // we are only considering normal index as of now.
 func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName) ([]schema.Index, error) {
 	q := fmt.Sprintf(`
