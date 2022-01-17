@@ -34,26 +34,10 @@ func getManifestTables() []Table {
 		{
 			Table_name:    ALL_TYPES_TABLE,
 			File_patterns: []string{ALL_TYPES_CSV},
-			Columns: []Column{
-				{Column_name: "bool_col", Type_name: "BOOL"},
-				{Column_name: "byte_col", Type_name: "BYTES"},
-				{Column_name: "date_col", Type_name: "DATE"},
-				{Column_name: "float_col", Type_name: "FLOAT64"},
-				{Column_name: "int_col", Type_name: "INT64"},
-				{Column_name: "numeric_col", Type_name: "NUMERIC"},
-				{Column_name: "string_col", Type_name: "STRING"},
-				{Column_name: "timestamp_col", Type_name: "TIMESTAMP"},
-				{Column_name: "json_col", Type_name: "JSON"},
-			},
 		},
 		{
 			Table_name:    SINGERS_TABLE,
 			File_patterns: []string{SINGERS_1_CSV, SINGERS_2_CSV},
-			Columns: []Column{
-				{Column_name: "SingerId", Type_name: "INT64"},
-				{Column_name: "FirstName", Type_name: "STRING"},
-				{Column_name: "LastName", Type_name: "STRING"},
-			},
 		},
 	}
 }
@@ -103,34 +87,32 @@ func cleanupCSVs() {
 }
 
 func TestSetRowStats(t *testing.T) {
-	conv := internal.MakeConv()
+	conv := buildConv(getCreateTable())
 	writeCSVs(t)
 	defer cleanupCSVs()
 	SetRowStats(conv, getManifestTables(), ',')
 	assert.Equal(t, map[string]int64{ALL_TYPES_TABLE: 1, SINGERS_TABLE: 2}, conv.Stats.Rows)
 }
 
-func TestProcessDataRow(t *testing.T) {
-	conv := internal.MakeConv()
+func TestProcessCSV(t *testing.T) {
+	writeCSVs(t)
+	defer cleanupCSVs()
+	tables := getManifestTables()
+
+	conv := buildConv(getCreateTable())
 	var rows []spannerData
 	conv.SetDataMode()
 	conv.SetDataSink(
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-
-	writeCSVs(t)
-	defer cleanupCSVs()
-	tables := getManifestTables()
-	VerifyManifest(conv, tables)
 	err := ProcessCSV(conv, tables, "", ',')
-	fmt.Println(err)
 	assert.Nil(t, err)
 	assert.Equal(t, []spannerData{
 		{
 			table: ALL_TYPES_TABLE,
 			cols:  []string{"bool_col", "byte_col", "date_col", "float_col", "int_col", "numeric_col", "string_col", "timestamp_col", "json_col"},
-			vals:  []interface{}{true, []uint8{0x74, 0x65, 0x73, 0x74}, getDate("2019-10-29"), 15.13, int64(100), big.NewRat(3994, 100), "Helloworld", getTime(t, "2019-10-29T05:30:00Z"), "{\"key1\": \"value1\", \"key2\": \"value2\"}"},
+			vals:  []interface{}{true, []uint8{0x74, 0x65, 0x73, 0x74}, getDate("2019-10-29"), 15.13, int64(100), *big.NewRat(3994, 100), "Helloworld", getTime(t, "2019-10-29T05:30:00Z"), "{\"key1\": \"value1\", \"key2\": \"value2\"}"},
 		},
 		{table: SINGERS_TABLE, cols: []string{"SingerId", "FirstName", "LastName"}, vals: []interface{}{int64(1), "fn1", "ln1"}},
 		{table: SINGERS_TABLE, cols: []string{"SingerId", "FirstName", "LastName"}, vals: []interface{}{int64(2), "fn2", "ln2"}},
@@ -150,7 +132,7 @@ func TestConvertData(t *testing.T) {
 		{"date", ddl.Type{Name: ddl.Date}, "2019-10-29", getDate("2019-10-29")},
 		{"float64", ddl.Type{Name: ddl.Float64}, "42.6", float64(42.6)},
 		{"int64", ddl.Type{Name: ddl.Int64}, "42", int64(42)},
-		{"numeric", ddl.Type{Name: ddl.Numeric}, "42.6", big.NewRat(426, 10)},
+		{"numeric", ddl.Type{Name: ddl.Numeric}, "42.6", *big.NewRat(426, 10)},
 		{"string", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, "eh", "eh"},
 		{"timestamp", ddl.Type{Name: ddl.Timestamp}, "2019-10-29 05:30:00", getTime(t, "2019-10-29T05:30:00Z")},
 		{"json", ddl.Type{Name: ddl.JSON}, "{\"key1\": \"value1\"}", "{\"key1\": \"value1\"}"},
@@ -158,10 +140,9 @@ func TestConvertData(t *testing.T) {
 	tableName := "testtable"
 	for _, tc := range singleColTests {
 		col := "a"
-		conv := buildConv(
-			ddl.CreateTable{
-				Name:    tableName,
-				ColDefs: map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: tc.ty}}})
+		conv := buildConv([]ddl.CreateTable{{
+			Name:    tableName,
+			ColDefs: map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: tc.ty}}}})
 		_, av, err := convertData(conv, "", tableName, []string{col}, []string{tc.in})
 		// NULL scenario.
 		if tc.ev == nil {
@@ -200,15 +181,46 @@ func TestConvertData(t *testing.T) {
 		},
 	}
 	for _, tc := range errorTests {
-		conv := buildConv(spTable)
+		conv := buildConv([]ddl.CreateTable{spTable})
 		_, _, err := convertData(conv, "", tableName, cols, tc.vals)
 		assert.NotNil(t, err, tc.name)
 	}
 }
 
-func buildConv(spTable ddl.CreateTable) *internal.Conv {
+func getCreateTable() []ddl.CreateTable {
+	return []ddl.CreateTable{
+		{
+			Name:     ALL_TYPES_TABLE,
+			ColNames: []string{"bool_col", "byte_col", "date_col", "float_col", "int_col", "numeric_col", "string_col", "timestamp_col", "json_col"},
+			ColDefs: map[string]ddl.ColumnDef{
+				"bool_col":      {Name: "bool_col", T: ddl.Type{Name: ddl.Bool}},
+				"byte_col":      {Name: "byte_col", T: ddl.Type{Name: ddl.Bytes}},
+				"date_col":      {Name: "date_col", T: ddl.Type{Name: ddl.Date}},
+				"float_col":     {Name: "float_col", T: ddl.Type{Name: ddl.Float64}},
+				"int_col":       {Name: "int_col", T: ddl.Type{Name: ddl.Int64}},
+				"numeric_col":   {Name: "numeric_col", T: ddl.Type{Name: ddl.Numeric}},
+				"string_col":    {Name: "string_col", T: ddl.Type{Name: ddl.String}},
+				"timestamp_col": {Name: "timestamp_col", T: ddl.Type{Name: ddl.Timestamp}},
+				"json_col":      {Name: "json_col", T: ddl.Type{Name: ddl.JSON}},
+			},
+		},
+		{
+			Name:     SINGERS_TABLE,
+			ColNames: []string{"SingerId", "FirstName", "LastName"},
+			ColDefs: map[string]ddl.ColumnDef{
+				"SingerId":  {Name: "SingerId", T: ddl.Type{Name: ddl.Int64}},
+				"FirstName": {Name: "FirstName", T: ddl.Type{Name: ddl.String}},
+				"LastName":  {Name: "LastName", T: ddl.Type{Name: ddl.String}},
+			},
+		},
+	}
+}
+
+func buildConv(spTables []ddl.CreateTable) *internal.Conv {
 	conv := internal.MakeConv()
-	conv.SpSchema[spTable.Name] = spTable
+	for _, spTable := range spTables {
+		conv.SpSchema[spTable.Name] = spTable
+	}
 	return conv
 }
 

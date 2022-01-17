@@ -33,4 +33,7 @@ const (
 	// Supported dialects for Cloud Spanner database.
 	DIALECT_POSTGRESQL string = "postgresql"
 	DIALECT_GOOGLESQL  string = "google_standard_sql"
+
+	// Temp directory name to write data which we cleanup at the end.
+	HB_TMP_DIR string = "harbourbridge_tmp_data"
 )

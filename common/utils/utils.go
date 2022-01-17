@@ -13,6 +13,8 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"reflect"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -22,6 +24,9 @@ import (
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	"cloud.google.com/go/storage"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/spanner"
 	"golang.org/x/crypto/ssh/terminal"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
@@ -51,7 +56,7 @@ func NewIOStreams(driver string, dumpFile string) IOStreams {
 		if u.Scheme == "gs" {
 			bucketName := u.Host
 			filePath := u.Path[1:] // removes "/" from beginning of path
-			f, err = downloadFromGCS(bucketName, filePath)
+			f, err = DownloadFromGCS(bucketName, filePath, "harbourbridge.gcs.data")
 		} else {
 			f, err = os.Open(dumpFile)
 		}
@@ -64,8 +69,8 @@ func NewIOStreams(driver string, dumpFile string) IOStreams {
 	return io
 }
 
-// downloadFromGCS returns the dump file that is downloaded from GCS
-func downloadFromGCS(bucketName string, filePath string) (*os.File, error) {
+// DownloadFromGCS returns the dump file that is downloaded from GCS.
+func DownloadFromGCS(bucketName, filePath, tmpFile string) (*os.File, error) {
 	ctx := context.Background()
 
 	client, err := storage.NewClient(ctx)
@@ -85,22 +90,23 @@ func downloadFromGCS(bucketName string, filePath string) (*os.File, error) {
 	defer rc.Close()
 	r := bufio.NewReader(rc)
 
-	tmpfile, err := ioutil.TempFile("", "harbourbridge.gcs.data")
+	tmpDir := os.TempDir() + constants.HB_TMP_DIR
+	os.MkdirAll(tmpDir, os.ModePerm)
+	tmpfile, err := os.Create(tmpDir + "/" + tmpFile)
 	if err != nil {
 		fmt.Printf("saveFile: unable to open temporary file to save dump file from GCS bucket %v", err)
 		log.Fatal(err)
 		return nil, err
 	}
-	syscall.Unlink(tmpfile.Name()) // File will be deleted when this process exits.
 
-	fmt.Printf("\nDownloading dump file from GCS bucket %s, path %s\n", bucketName, filePath)
+	fmt.Printf("\nDownloading file from GCS bucket %s, path %s\n", bucketName, filePath)
 	buffer := make([]byte, 1024)
 	for {
 		// read a chunk
 		n, err := r.Read(buffer[:cap(buffer)])
 
 		if err != nil && err != io.EOF {
-			fmt.Printf("readFile: unable to read entire dump file from bucket %s, file %s: %v", bucketName, filePath, err)
+			fmt.Printf("readFile: unable to read entire file from bucket %s, file %s: %v", bucketName, filePath, err)
 			log.Fatal(err)
 			return nil, err
 		}
@@ -289,6 +295,15 @@ func ContainsAny(s string, l []string) bool {
 	return false
 }
 
+// CheckEqualSets checks if the set of values in a and b are equal.
+func CheckEqualSets(a, b []string) bool {
+	tmp_a := append(make([]string, len(a)), a...)
+	tmp_b := append(make([]string, len(b)), b...)
+	sort.Strings(tmp_a)
+	sort.Strings(tmp_b)
+	return reflect.DeepEqual(tmp_a, tmp_b)
+}
+
 func GetFileSize(f *os.File) (int64, error) {
 	info, err := f.Stat()
 	if err != nil {
@@ -414,4 +429,24 @@ func IsLegacyModeSupportedDriver(driver string) bool {
 
 func GetLegacyModeSupportedDrivers() []string {
 	return GetValidDrivers()[:5]
+}
+
+// ReadSpannerSchema fills conv by querying Spanner infoschema treating Spanner as both the source and dest.
+func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Client) error {
+	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, TargetDb: conv.TargetDb}
+	err := common.ProcessSchema(conv, infoSchema)
+	if err != nil {
+		return fmt.Errorf("error trying to read and convert spanner schema: %v", err)
+	}
+	parentTables, err := infoSchema.GetInterleaveTables()
+	if err != nil {
+		return fmt.Errorf("error trying to fetch interleave table info from schema: %v", err)
+	}
+	// Assign parents if any.
+	for table, parent := range parentTables {
+		spTable := conv.SpSchema[table]
+		spTable.Parent = parent
+		conv.SpSchema[table] = spTable
+	}
+	return nil
 }
