@@ -101,7 +101,7 @@ func DataConv(sourceProfile profiles.SourceProfile, targetProfile profiles.Targe
 		Verbose:    internal.Verbose(),
 	}
 	switch sourceProfile.Driver {
-	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER:
+	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE:
 		return dataFromDatabase(sourceProfile, config, client, conv)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		if conv.SpSchema.CheckInterleaved() {

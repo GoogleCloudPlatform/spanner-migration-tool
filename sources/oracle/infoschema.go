@@ -29,21 +29,57 @@ func (isi InfoSchemaImpl) GetTableName(dbName string, tableName string) string {
 
 // GetRowsFromTable returns a sql Rows object for a table.
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
-	panic("Not Implemented")
+	srcSchema := conv.SrcSchema[srcTable]
+	srcCols := srcSchema.ColNames
+	if len(srcCols) == 0 {
+		conv.Unexpected(fmt.Sprintf("Couldn't get source columns for table %s ", srcTable))
+		return nil, nil
+	}
+	q := "SELECT * FROM :1 WHERE owner=:2"
+	rows, err := isi.Db.Query(q, srcTable, conv.SrcSchema[srcTable].Schema)
+	return rows, err
 }
 
 // ProcessData performs data conversion for source database.
 func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) error {
-	panic("Not Implemented")
-}
-
-func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, values []string) {
-	panic("Not Implemented")
+	rowsInterface, err := isi.GetRowsFromTable(conv, srcTable)
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTable, err))
+		return err
+	}
+	rows := rowsInterface.(*sql.Rows)
+	defer rows.Close()
+	srcCols, _ := rows.Columns()
+	v, scanArgs := buildVals(len(srcCols))
+	for rows.Next() {
+		// get RawBytes from data.
+		err := rows.Scan(scanArgs...)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
+			// Scan failed, so we don't have any data to add to bad rows.
+			conv.StatsAddBadRow(srcTable, conv.DataMode())
+			continue
+		}
+		values := valsToStrings(v)
+		ProcessDataRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, values)
+	}
+	return nil
 }
 
 // GetRowCount with number of rows in each table.
 func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error) {
-	panic("Not Implemented")
+	q := "SELECT count(*) FROM :1"
+	rows, err := isi.Db.Query(q, table.Name)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	var count int64
+	if rows.Next() {
+		err := rows.Scan(&count)
+		return count, err
+	}
+	return 0, nil
 }
 
 func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
@@ -292,4 +328,33 @@ func toType(dataType string, charLen sql.NullInt64, numericPrecision, numericSca
 	default:
 		return schema.Type{Name: dataType}
 	}
+}
+
+// buildVals constructs []sql.RawBytes value containers to scan row
+// results into.  Returns both the underlying containers (as a slice)
+// as well as an interface{} of pointers to containers to pass to
+// rows.Scan.
+func buildVals(n int) (v []sql.RawBytes, iv []interface{}) {
+	v = make([]sql.RawBytes, n)
+	// rows.Scan wants '[]interface{}' as an argument, so we must copy the
+	// references into such a slice.
+	iv = make([]interface{}, len(v))
+	for i := range v {
+		iv[i] = &v[i]
+	}
+	return v, iv
+}
+
+func valsToStrings(vals []sql.RawBytes) []string {
+	toString := func(val sql.RawBytes) string {
+		if val == nil {
+			return "NULL"
+		}
+		return string(val)
+	}
+	var s []string
+	for _, v := range vals {
+		s = append(s, toString(v))
+	}
+	return s
 }
