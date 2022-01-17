@@ -35,8 +35,8 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string)
 		conv.Unexpected(fmt.Sprintf("Couldn't get source columns for table %s ", srcTable))
 		return nil, nil
 	}
-	q := "SELECT * FROM :1 WHERE owner=:2"
-	rows, err := isi.Db.Query(q, srcTable, conv.SrcSchema[srcTable].Schema)
+	q := fmt.Sprintf("SELECT * FROM %s", srcTable)
+	rows, err := isi.Db.Query(q)
 	return rows, err
 }
 
@@ -68,8 +68,8 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 
 // GetRowCount with number of rows in each table.
 func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error) {
-	q := "SELECT count(*) FROM :1"
-	rows, err := isi.Db.Query(q, table.Name)
+	q := fmt.Sprintf("SELECT count(*) FROM %s", table.Name)
+	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return 0, err
 	}
