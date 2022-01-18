@@ -135,7 +135,8 @@ func convBytes(val string) ([]byte, error) {
 }
 
 func convDate(val string) (civil.Date, error) {
-	d, err := civil.ParseDate(val)
+	date := strings.Split(val, "T")[0]
+	d, err := civil.ParseDate(date)
 	if err != nil {
 		return d, fmt.Errorf("can't convert to date: %w", err)
 	}
@@ -175,9 +176,13 @@ func convNumeric(conv *internal.Conv, val string) (interface{}, error) {
 // convTimestamp maps a source DB timestamp into a go Time Spanner timestamp
 // It handles both datetime and timestamp conversions.
 func convTimestamp(srcTypeName string, TimezoneOffset string, val string) (t time.Time, err error) {
-	// mysqldump outputs timestamps as ISO 8601, except
-	// it uses space instead of T.
-	if srcTypeName == "timestamp" {
+
+	if srcTypeName == "DATETIME" {
+		// datetime: data should just consist of date and time.
+		// timestamp conversion should ignore timezone. We mimic this using Parse
+		// i.e. treat it as UTC, so it will be stored 'as-is' in Spanner.
+		t, err = time.Parse("2006-01-02 15:04:05", val)
+	} else {
 		// We consider timezone for timestamp datatype.
 		// If timezone is not specified in mysqldump, we consider UTC time.
 		if TimezoneOffset == "" {
@@ -189,11 +194,6 @@ func convTimestamp(srcTypeName string, TimezoneOffset string, val string) (t tim
 		timeJoined := strings.Join(timeNew, "T")
 		timeJoined = timeJoined + TimezoneOffset
 		t, err = time.Parse(time.RFC3339, timeJoined)
-	} else {
-		// datetime: data should just consist of date and time.
-		// timestamp conversion should ignore timezone. We mimic this using Parse
-		// i.e. treat it as UTC, so it will be stored 'as-is' in Spanner.
-		t, err = time.Parse("2006-01-02 15:04:05", val)
 	}
 	if err != nil {
 		return t, fmt.Errorf("can't convert to timestamp (mysql type: %s)", srcTypeName)

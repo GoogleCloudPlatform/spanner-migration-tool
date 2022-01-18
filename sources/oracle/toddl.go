@@ -16,6 +16,7 @@
 package oracle
 
 import (
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -31,6 +32,9 @@ type ToDdlImpl struct {
 // conversion issues encountered.
 func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	ty, issues := toSpannerTypeInternal(conv, columnType.Name, columnType.Mods)
+	if conv.TargetDb == constants.TargetExperimentalPostgres {
+		ty = overrideExperimentalType(columnType, ty)
+	}
 	return ty, issues
 }
 
@@ -49,8 +53,10 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 		return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
 	case "CLOB":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "DATE", "DATETIME", "TIMESTAMPWITHTIMEZONE", "TIMESTAMP":
+	case "DATETIME", "TIMESTAMPWITHTIMEZONE", "TIMESTAMP":
 		return ddl.Type{Name: ddl.Timestamp}, nil
+	case "DATE":
+		return ddl.Type{Name: ddl.Date}, nil
 	case "DECIMAL", "DEC", "SMALLINT":
 		return ddl.Type{Name: ddl.Numeric}, nil
 	case "BINARY_DOUBLE", "BINARY_FLOAT", "DOUBLE", "FLOAT", "REAL":
@@ -85,4 +91,12 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 	default:
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 	}
+}
+
+// Override the types to map to experimental postgres types.
+func overrideExperimentalType(columnType schema.Type, originalType ddl.Type) ddl.Type {
+	if columnType.Name == "DATE" {
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+	}
+	return originalType
 }
