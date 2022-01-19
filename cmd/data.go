@@ -60,6 +60,8 @@ func (cmd *DataCmd) SetFlags(f *flag.FlagSet) {
 }
 
 func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+	// Cleanup hb tmp data directory in case residuals remain from prev runs.
+	os.RemoveAll(os.TempDir() + constants.HB_TMP_DIR)
 	var err error
 	defer func() {
 		if err != nil {

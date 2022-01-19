@@ -73,23 +73,14 @@ func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 }
 
 // GetTables return list of tables in the selected database.
-// TODO: All of the queries to get tables and table data should be in
-// a single transaction to ensure we obtain a consistent snapshot of
-// schema information and table data (pg_dump does something
-// similar).
 func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 	q := `SELECT table_schema, table_name FROM information_schema.tables 
-	WHERE table_type = 'BASE TABLE' AND table_schema = @tableSchema`
-	stmt := spanner.Statement{SQL: q}
+	WHERE table_type = 'BASE TABLE' AND table_schema = ''`
 	if isi.TargetDb == constants.TargetExperimentalPostgres {
-		stmt.Params = map[string]interface{}{
-			"tableSchema": "public",
-		}
-	} else {
-		stmt.Params = map[string]interface{}{
-			"tableSchema": "",
-		}
+		q = `SELECT table_schema, table_name FROM information_schema.tables 
+	WHERE table_type = 'BASE TABLE' AND table_schema = 'public'`
 	}
+	stmt := spanner.Statement{SQL: q}
 	iter := isi.Client.Single().Query(isi.Ctx, stmt)
 	defer iter.Stop()
 
@@ -116,13 +107,18 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
 	q := `SELECT column_name, spanner_type, is_nullable 
 			FROM information_schema.columns
-			WHERE table_schema = @tableSchema AND table_name = @tableName
+			WHERE table_schema = '' AND table_name = @p1
 			ORDER BY ordinal_position;`
+	if isi.TargetDb == constants.TargetExperimentalPostgres {
+		q = `SELECT column_name, spanner_type, is_nullable 
+			FROM information_schema.columns
+			WHERE table_schema = 'public' AND table_name = $1
+			ORDER BY ordinal_position;`
+	}
 	stmt := spanner.Statement{
 		SQL: q,
 		Params: map[string]interface{}{
-			"tableSchema": table.Schema,
-			"tableName":   table.Name,
+			"p1": table.Name,
 		},
 	}
 	iter := isi.Client.Single().Query(isi.Ctx, stmt)
@@ -141,13 +137,10 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		}
 		err = row.Columns(&colName, &spannerType, &isNullable)
 		if err != nil {
-			return nil, nil, fmt.Errorf("cannot read row for table %s: %s", table.Name, err)
+			return nil, nil, fmt.Errorf("cannot read row for table %s while reading columns: %s", table.Name, err)
 		}
 		ignored := schema.Ignored{}
 		for _, c := range constraints[colName] {
-			// c can be UNIQUE, PRIMARY KEY, FOREIGN KEY,
-			// or CHECK (based on msql, sql server, postgres docs).
-			// We've already filtered out PRIMARY KEY.
 			switch c {
 			case "CHECK":
 				ignored.Check = true
@@ -175,12 +168,18 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
               FROM information_schema.table_constraints AS t
                 INNER JOIN information_schema.KEY_COLUMN_USAGE AS k
                   ON t.constraint_name = k.constraint_name AND t.constraint_schema = k.constraint_schema
-              WHERE k.table_schema = @tableSchema AND k.table_name = @tableName ORDER BY k.ordinal_position;`
+              WHERE k.table_schema = '' AND k.table_name = @p1 ORDER BY k.ordinal_position;`
+	if isi.TargetDb == constants.TargetExperimentalPostgres {
+		q = `SELECT k.column_name, t.constraint_type
+		FROM information_schema.table_constraints AS t
+		  INNER JOIN information_schema.KEY_COLUMN_USAGE AS k
+			ON t.constraint_name = k.constraint_name AND t.constraint_schema = k.constraint_schema
+		WHERE k.table_schema = 'public' AND k.table_name = $1 ORDER BY k.ordinal_position;`
+	}
 	stmt := spanner.Statement{
 		SQL: q,
 		Params: map[string]interface{}{
-			"tableSchema": table.Schema,
-			"tableName":   table.Name,
+			"p1": table.Name,
 		},
 	}
 	iter := isi.Client.Single().Query(isi.Ctx, stmt)
@@ -195,7 +194,7 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 			break
 		}
 		if err != nil {
-			return nil, nil, fmt.Errorf("couldn't get row: %w", err)
+			return nil, nil, fmt.Errorf("couldn't get row while reading constraints: %w", err)
 		}
 		err = row.Columns(&col, &constraint)
 		if err != nil {
@@ -221,13 +220,20 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 			FROM information_schema.key_column_usage AS k 
 			JOIN information_schema.constraint_column_usage AS c ON k.constraint_name = c.constraint_name
 			JOIN information_schema.table_constraints AS t ON k.constraint_name = t.constraint_name 
-			WHERE t.constraint_type='FOREIGN KEY' AND t.table_schema = @tableSchema AND t.table_name = @tableName
+			WHERE t.constraint_type='FOREIGN KEY' AND t.table_schema = '' AND t.table_name = @p1
 			ORDER BY k.constraint_name, k.ordinal_position;`
+	if isi.TargetDb == constants.TargetExperimentalPostgres {
+		q = `SELECT  k.constraint_name, k.column_name, t.table_name, c.column_name 
+				FROM information_schema.key_column_usage AS k 
+				JOIN information_schema.constraint_column_usage AS c ON k.constraint_name = c.constraint_name
+				JOIN information_schema.table_constraints AS t ON k.constraint_name = t.constraint_name 
+				WHERE t.constraint_type='FOREIGN KEY' AND t.table_schema = 'public' AND t.table_name = $1
+				ORDER BY k.constraint_name, k.ordinal_position;`
+	}
 	stmt := spanner.Statement{
 		SQL: q,
 		Params: map[string]interface{}{
-			"tableSchema": table.Schema,
-			"tableName":   table.Name,
+			"p1": table.Name,
 		},
 	}
 	iter := isi.Client.Single().Query(isi.Ctx, stmt)
@@ -242,7 +248,7 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("couldn't get row: %w", err)
+			return nil, fmt.Errorf("couldn't get row while fetching foreign keys: %w", err)
 		}
 		err = row.Columns(&fKeyName, &col, &refTable, &refCol)
 		if err != nil {
@@ -286,17 +292,12 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 
 func (isi InfoSchemaImpl) GetInterleaveTables() (map[string]string, error) {
 	q := `SELECT table_name, parent_table_name FROM information_schema.tables 
-	WHERE interleave_type = 'IN PARENT' AND table_type = 'BASE TABLE' AND table_schema = @tableSchema`
-	stmt := spanner.Statement{SQL: q}
+	WHERE interleave_type = 'IN PARENT' AND table_type = 'BASE TABLE' AND table_schema = ''`
 	if isi.TargetDb == constants.TargetExperimentalPostgres {
-		stmt.Params = map[string]interface{}{
-			"tableSchema": "public",
-		}
-	} else {
-		stmt.Params = map[string]interface{}{
-			"tableSchema": "",
-		}
+		q = `SELECT table_name, parent_table_name FROM information_schema.tables 
+		WHERE interleave_type = 'IN PARENT' AND table_type = 'BASE TABLE' AND table_schema = 'public'`
 	}
+	stmt := spanner.Statement{SQL: q}
 	iter := isi.Client.Single().Query(isi.Ctx, stmt)
 	defer iter.Stop()
 
@@ -308,7 +309,7 @@ func (isi InfoSchemaImpl) GetInterleaveTables() (map[string]string, error) {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("couldn't get tables: %w", err)
+			return nil, fmt.Errorf("couldn't read row while fetching interleaved tables: %w", err)
 		}
 		err = row.Columns(&tableName, &parentTable)
 		if err != nil {
@@ -327,12 +328,15 @@ func toType(dataType string) schema.Type {
 		schemaType.ArrayBounds = []int64{-1}
 		return schemaType
 	case strings.Contains(dataType, "("):
-		typeLenStr := dataType[strings.Index(dataType, "("):(len(dataType) - 1)]
+		idx := strings.Index(dataType, "(")
+		typeLenStr := dataType[(idx + 1):(len(dataType) - 1)]
+		var typeLen int64
 		if typeLenStr == "MAX" {
-			return schema.Type{Name: dataType, Mods: []int64{ddl.MaxLength}}
+			typeLen = ddl.MaxLength
+		} else {
+			typeLen, _ = strconv.ParseInt(typeLenStr, 10, 64)
 		}
-		typeLen, _ := strconv.ParseInt(typeLenStr, 10, 64)
-		return schema.Type{Name: dataType, Mods: []int64{typeLen}}
+		return schema.Type{Name: dataType[:idx], Mods: []int64{typeLen}}
 	default:
 		return schema.Type{Name: dataType}
 	}

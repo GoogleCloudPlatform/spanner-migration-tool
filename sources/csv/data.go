@@ -21,7 +21,6 @@ import (
 	"io"
 	"io/ioutil"
 	"math/big"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -36,25 +35,14 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-type Column struct {
-	Column_name string `json:"column_name"`
-	Type_name   string `json:"type_name"`
-}
-
-// Harbourbridge accepts a manifest file in the form of a json which unmarshalls into the Table struct.
-type Table struct {
-	Table_name    string   `json:"table_name"`
-	File_patterns []string `json:"file_patterns"`
-}
-
 // GetCSVFiles finds the appropriate files paths and downloads gcs files in any.
-func GetCSVFiles(conv *internal.Conv, sourceProfile profiles.SourceProfile) (tables []Table, err error) {
+func GetCSVFiles(conv *internal.Conv, sourceProfile profiles.SourceProfile) (tables []utils.ManifestTable, err error) {
 	// If manifest file not provided, we assume the csvs exist in the same directory
 	// in table_name.csv format.
 	if sourceProfile.Csv.Manifest == "" {
 		fmt.Println("Manifest file not provided, checking for files named `[table_name].csv` in current working directory...")
 		for t := range conv.SpSchema {
-			tables = append(tables, Table{Table_name: t, File_patterns: []string{fmt.Sprintf("%s.csv", t)}})
+			tables = append(tables, utils.ManifestTable{Table_name: t, File_patterns: []string{fmt.Sprintf("%s.csv", t)}})
 		}
 	} else {
 		fmt.Println("Manifest file provided, reading csv file paths...")
@@ -66,7 +54,7 @@ func GetCSVFiles(conv *internal.Conv, sourceProfile profiles.SourceProfile) (tab
 	}
 
 	// Download gcs files if any.
-	tables, err = preloadGCSFiles(tables)
+	tables, err = utils.PreloadGCSFiles(tables)
 	if err != nil {
 		return nil, fmt.Errorf("gcs file download error: %v", err)
 	}
@@ -75,12 +63,12 @@ func GetCSVFiles(conv *internal.Conv, sourceProfile profiles.SourceProfile) (tab
 
 // loadManifest reads the manifest file and unmarshalls it into a list of Table struct.
 // It also performs certain checks on the manifest.
-func loadManifest(conv *internal.Conv, manifestFile string) ([]Table, error) {
+func loadManifest(conv *internal.Conv, manifestFile string) ([]utils.ManifestTable, error) {
 	manifest, err := ioutil.ReadFile(manifestFile)
 	if err != nil {
 		return nil, fmt.Errorf("can't read manifest file due to: %v", err)
 	}
-	tables := []Table{}
+	tables := []utils.ManifestTable{}
 	err = json.Unmarshal(manifest, &tables)
 	if err != nil {
 		return nil, fmt.Errorf("unable to unmarshall json due to: %v", err)
@@ -94,7 +82,7 @@ func loadManifest(conv *internal.Conv, manifestFile string) ([]Table, error) {
 
 // VerifyManifest performs certain prechecks on the structure of the manifest while populating the conv with
 // the ddl types. Also checks on valid file paths and empty CSVs are handled as conv.Unexpected errors later during processing.
-func VerifyManifest(conv *internal.Conv, tables []Table) error {
+func VerifyManifest(conv *internal.Conv, tables []utils.ManifestTable) error {
 	if len(tables) == 0 {
 		return fmt.Errorf("no tables found")
 	}
@@ -130,33 +118,8 @@ func VerifyManifest(conv *internal.Conv, tables []Table) error {
 	return nil
 }
 
-func preloadGCSFiles(tables []Table) ([]Table, error) {
-	for i, table := range tables {
-		for j, filePath := range table.File_patterns {
-			u, err := url.Parse(filePath)
-			if err != nil {
-				return nil, fmt.Errorf("unable parse file path %s for table %s", filePath, table.Table_name)
-			}
-			if u.Scheme == "gs" {
-				bucketName := u.Host
-				filePath := u.Path[1:] // removes "/" from beginning of path
-				tmpFile := strings.ReplaceAll(filePath, "/", ".")
-				// Files get downloaded to tmp dir.
-				fileLoc := os.TempDir() + constants.HB_TMP_DIR + "/" + tmpFile
-				_, err = utils.DownloadFromGCS(bucketName, filePath, tmpFile)
-				if err != nil {
-					return nil, fmt.Errorf("cannot download gcs file: %s for table %s", filePath, table.Table_name)
-				}
-				tables[i].File_patterns[j] = fileLoc
-				fmt.Printf("Downloaded file: %s\n", fileLoc)
-			}
-		}
-	}
-	return tables, nil
-}
-
 // SetRowStats calculates the number of rows per table.
-func SetRowStats(conv *internal.Conv, tables []Table, delimiter rune) {
+func SetRowStats(conv *internal.Conv, tables []utils.ManifestTable, delimiter rune) {
 	for _, table := range tables {
 		for _, filePath := range table.File_patterns {
 			csvFile, err := os.Open(filePath)
@@ -208,15 +171,15 @@ func getCSVDataRowCount(r *csvReader.Reader, colNames []string) (int64, error) {
 
 // ProcessCSV writes data across the tables provided in the manifest file. Each table's data can be provided
 // across multiple CSV files hence, the manifest accepts a list of file paths in the input.
-func ProcessCSV(conv *internal.Conv, tables []Table, nullStr string, delimiter rune) error {
+func ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, nullStr string, delimiter rune) error {
 	orderedTableNames := ddl.OrderTables(conv.SpSchema)
 	nameToFiles := map[string][]string{}
 	for _, table := range tables {
 		nameToFiles[table.Table_name] = table.File_patterns
 	}
-	orderedTables := []Table{}
+	orderedTables := []utils.ManifestTable{}
 	for _, name := range orderedTableNames {
-		orderedTables = append(orderedTables, Table{name, nameToFiles[name]})
+		orderedTables = append(orderedTables, utils.ManifestTable{name, nameToFiles[name]})
 	}
 
 	for _, table := range orderedTables {
@@ -403,11 +366,11 @@ func convArray(spannerType ddl.Type, val string) (interface{}, error) {
 			}
 			s, err := processQuote(s)
 			if err != nil {
-				return []spanner.NullFloat64{}, err
+				return []spanner.NullNumeric{}, err
 			}
 			n, err := convNumeric(s)
 			if err != nil {
-				return []spanner.NullFloat64{}, err
+				return []spanner.NullNumeric{}, err
 			}
 			r = append(r, spanner.NullNumeric{Numeric: n, Valid: true})
 		}
