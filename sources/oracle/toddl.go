@@ -16,9 +16,17 @@
 package oracle
 
 import (
+	"regexp"
+
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+)
+
+var (
+	timestampReg = regexp.MustCompile(`TIMESTAMP`)
+	intervalReg  = regexp.MustCompile(`INTERVAL`)
 )
 
 // ToDdlImpl oracle specific implementation for ToDdl.
@@ -31,10 +39,28 @@ type ToDdlImpl struct {
 // conversion issues encountered.
 func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	ty, issues := toSpannerTypeInternal(conv, columnType.Name, columnType.Mods)
+	if conv.TargetDb == constants.TargetExperimentalPostgres {
+		ty = overrideExperimentalType(columnType, ty)
+	}
 	return ty, issues
 }
 
 func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
+	// Oracle returns some datatype with the precision,
+	// So will get TIMESTAMP as TIMESTAMP(6),TIMESTAMP(6) WITH TIME ZONE,TIMESTAMP(6) WITH LOCAL TIME ZONE.
+	// To match this case timestampReg Regex defined.
+	if timestampReg.MatchString(id) {
+		return ddl.Type{Name: ddl.Timestamp}, nil
+	}
+
+	// Matching cases like INTERVAL YEAR(2) TO MONTH, INTERVAL DAY(2) TO SECOND(6),etc.
+	if intervalReg.MatchString(id) {
+		if len(mods) > 0 {
+			return ddl.Type{Name: ddl.String, Len: 30}, nil
+		}
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+	}
+
 	switch id {
 	case "NUMBER":
 		// If no scale is avalible then map it to int64, and numeric elsewhere.
@@ -49,24 +75,15 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 		return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
 	case "CLOB":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "DATE", "DATETIME", "TIMESTAMPWITHTIMEZONE", "TIMESTAMP":
-		return ddl.Type{Name: ddl.Timestamp}, nil
-	case "DECIMAL", "DEC", "SMALLINT":
-		return ddl.Type{Name: ddl.Numeric}, nil
-	case "BINARY_DOUBLE", "BINARY_FLOAT", "DOUBLE", "FLOAT", "REAL":
+	case "DATE":
+		return ddl.Type{Name: ddl.Date}, nil
+	case "BINARY_DOUBLE", "BINARY_FLOAT", "FLOAT":
 		return ddl.Type{Name: ddl.Float64}, nil
-	case "INTEGER", "INT":
-		return ddl.Type{Name: ddl.Int64}, nil
-	case "INTERVAL YEAR", "INTERVAL DAY":
-		if len(mods) > 0 {
-			return ddl.Type{Name: ddl.String, Len: 30}, nil
-		}
-		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "LONG":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "RAW", "LONGRAW":
+	case "RAW", "LONG RAW":
 		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
-	case "NCHAR", "NCHARVARYING", "NVARCHAR2", "VARCHAR", "VARCHAR2":
+	case "NCHAR", "NVARCHAR2", "VARCHAR", "VARCHAR2":
 		if len(mods) > 0 {
 			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
 		}
@@ -85,4 +102,12 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 	default:
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 	}
+}
+
+// Override the types to map to experimental postgres types.
+func overrideExperimentalType(columnType schema.Type, originalType ddl.Type) ddl.Type {
+	if columnType.Name == "DATE" {
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+	}
+	return originalType
 }

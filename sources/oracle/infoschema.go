@@ -283,12 +283,13 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 
 func toType(dataType string, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {
 	switch {
-	case charLen.Valid:
-		return schema.Type{Name: dataType, Mods: []int64{charLen.Int64}}
 	case dataType == "NUMBER" && numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0:
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
 	case dataType == "NUMBER" && numericPrecision.Valid:
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
+	// Oracle get column query return data length for the Number type.
+	case dataType != "NUMBER" && charLen.Valid:
+		return schema.Type{Name: dataType, Mods: []int64{charLen.Int64}}
 	default:
 		return schema.Type{Name: dataType}
 	}
