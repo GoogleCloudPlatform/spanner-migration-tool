@@ -46,11 +46,14 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) 
 }
 
 func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
-
+	// Oracle returns some datatype with the precision,
+	// So will get TIMESTAMP as TIMESTAMP(6),TIMESTAMP(6) WITH TIME ZONE,TIMESTAMP(6) WITH LOCAL TIME ZONE.
+	// To match this case timestampReg Regex defined.
 	if timestampReg.MatchString(id) {
 		return ddl.Type{Name: ddl.Timestamp}, nil
 	}
 
+	// Matching cases like INTERVAL YEAR(2) TO MONTH, INTERVAL DAY(2) TO SECOND(6),etc.
 	if intervalReg.MatchString(id) {
 		if len(mods) > 0 {
 			return ddl.Type{Name: ddl.String, Len: 30}, nil
