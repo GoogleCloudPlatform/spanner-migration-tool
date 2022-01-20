@@ -801,7 +801,7 @@ func GetInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, err
 		if err != nil {
 			return nil, err
 		}
-		return oracle.InfoSchemaImpl{DbName: dbName, Db: db}, nil
+		return oracle.InfoSchemaImpl{DbName: strings.ToUpper(dbName), Db: db}, nil
 	default:
 		return nil, fmt.Errorf("driver %s not supported", driver)
 	}
