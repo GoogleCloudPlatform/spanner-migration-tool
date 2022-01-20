@@ -152,7 +152,7 @@ func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Clie
 	var numericVal big.Rat
 	var stringVal string
 	var timeVal string
-	iter := client.Single().Read(ctx, "AllTypes", spanner.Key{1}, []string{"DATE_T", "FLOAT_T", "INT_T", "NUMERIC_T", "VARCHAR_T", "TIMESTAMP"})
+	iter := client.Single().Read(ctx, "AllTypes", spanner.Key{1}, []string{"DATE_T", "FLOAT_T", "INTEGER_T", "NUMERIC_T", "VARCHAR_T", "TIMESTAMP"})
 	defer iter.Stop()
 	for {
 		row, err := iter.Next()
@@ -167,23 +167,23 @@ func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Clie
 		}
 	}
 
-	if got, want := date.String(), "2021-12-15"; got != want {
+	if got, want := date.String(), "2022-01-18"; got != want {
 		t.Fatalf("Date are not correct: got %v, want %v", got, want)
 	}
-	if got, want := floatVal, 1.2; got != want {
+	if got, want := floatVal, 1234.56789; got != want {
 		t.Fatalf("float are not correct: got %v, want %v", got, want)
 	}
-	if got, want := intVal, int64(-9223372036854775808); got != want {
-		t.Fatalf("Bigint are not correct: got %v, want %v", got, want)
+	if got, want := intVal, int64(42); got != want {
+		t.Fatalf("int are not correct: got %v, want %v", got, want)
 	}
-	if got, want := numericVal.FloatString(9), "1.123456789"; got != want {
+	if got, want := numericVal.FloatString(9), "42.000000000"; got != want {
 		t.Fatalf("Numeric are not correct: got %v, want %v", got, want)
 	}
-	if got, want := stringVal, "Lorem ipsum dolor sit amet"; got != want {
-		t.Fatalf("Text are not correct: got %v, want %v", got, want)
+	if got, want := stringVal, "some varchar data"; got != want {
+		t.Fatalf("varchar are not correct: got %v, want %v", got, want)
 	}
-	if got, want := timeVal, "07:39:52.950"; got != want {
-		t.Fatalf("Time are not correct: got %v, want %v", got, want)
+	if got, want := timeVal, "2022-01-19T09:34:06.47Z"; got != want {
+		t.Fatalf("Timestamp are not correct: got %v, want %v", got, want)
 	}
 
 }
