@@ -152,7 +152,7 @@ func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Clie
 	var numericVal big.Rat
 	var stringVal string
 	var timeVal string
-	iter := client.Single().Read(ctx, "AllTypes", spanner.Key{1}, []string{"DATE_T", "FLOAT_T", "INTEGER_T", "NUMERIC_T", "VARCHAR_T", "TIMESTAMP_T"})
+	iter := client.Single().Read(ctx, "ALLTYPES", spanner.Key{1}, []string{"DATE_T", "FLOAT_T", "INTEGER_T", "NUMERIC_T", "VARCHAR_T", "TIMESTAMP_T"})
 	defer iter.Stop()
 	for {
 		row, err := iter.Next()
