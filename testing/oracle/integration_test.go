@@ -104,29 +104,29 @@ func prepareIntegrationTest(t *testing.T) string {
 	return tmpdir
 }
 
-func TestIntegration_SQLserver_SchemaSubcommand(t *testing.T) {
+func TestIntegration_ORACLE_SchemaSubcommand(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 	filePrefix := filepath.Join(tmpdir, "Oracle_IntTest.")
 
-	args := fmt.Sprintf("schema -prefix %s -source=oracle -source-profile='host=localhost,user=STI,db_name=XE,password=test1'", filePrefix)
+	args := fmt.Sprintf("schema -prefix %s -source=%s -source-profile='host=localhost,user=STI,db_name=xe,password=test1'", constants.ORACLE, filePrefix)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
-func TestIntegration_SQLserver_SchemaAndDataSubcommand(t *testing.T) {
+func TestIntegration_ORACLE_SchemaAndDataSubcommand(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
 	dbName := "schema-and-data"
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	filePrefix := filepath.Join(tmpdir, "SqlServer_IntTest.")
+	filePrefix := filepath.Join(tmpdir, "Oracle_IntTest.")
 
-	args := fmt.Sprintf("schema-and-data -prefix %s -source=%s  -source-profile='host=localhost,user=STI,db_name=' -target-profile='instance=%s,dbname=%s'", filePrefix, constants.ORACLE, instanceID, dbName)
+	args := fmt.Sprintf("schema-and-data -prefix %s -source=%s  -source-profile='host=localhost,user=STI,db_name=xe,password=test1' -target-profile='instance=%s,dbname=%s'", filePrefix, constants.ORACLE, instanceID, dbName)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -152,7 +152,7 @@ func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Clie
 	var numericVal big.Rat
 	var stringVal string
 	var timeVal string
-	iter := client.Single().Read(ctx, "AllTypes", spanner.Key{1}, []string{"DATE_T", "FLOAT_T", "INTEGER_T", "NUMERIC_T", "VARCHAR_T", "TIMESTAMP"})
+	iter := client.Single().Read(ctx, "ALLTYPES", spanner.Key{1}, []string{"DATE_T", "FLOAT_T", "INTEGER_T", "NUMERIC_T", "VARCHAR_T", "TIMESTAMP"})
 	defer iter.Stop()
 	for {
 		row, err := iter.Next()
