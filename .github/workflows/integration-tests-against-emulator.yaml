@@ -2,6 +2,7 @@ on:
   push:
     branches:
       - master
+      - oracle-data-conv
   pull_request:
 name: integration-tests-against-emulator
 jobs:
@@ -74,6 +75,10 @@ jobs:
         options:
           --health-cmd "/opt/mssql-tools/bin/sqlcmd -U sa -P $SA_PASSWORD -Q 'select 1' -b -o /dev/null"
           --health-interval 10s --health-timeout 5s --health-retries 3
+      oracle:
+        image: oracleinanutshell/oracle-xe-11g
+        ports: 
+          - 1521:1521
 
     steps:
       - uses: actions/checkout@v2
@@ -104,6 +109,18 @@ jobs:
       - run: sqlcmd -?
       - run: sqlcmd -U sa -P ${MSSQL_SA_PASSWORD} -i test_data/sqlserver.test.out
 
+      # sqlplus set up init oracle db.
+      - name: Install sqlplus required for loading .sql files
+        run: |
+          sudo apt install alien libaio1
+          curl -O https://download.oracle.com/otn_software/linux/instantclient/215000/oracle-instantclient-basic-21.5.0.0.0-1.x86_64.rpm          
+          curl -O https://download.oracle.com/otn_software/linux/instantclient/215000/oracle-instantclient-sqlplus-21.5.0.0.0-1.x86_64.rpm
+          sudo alien -i oracle-instantclient-basic-21.5.0.0.0-1.x86_64.rpm
+          sudo alien -i oracle-instantclient-sqlplus-21.5.0.0.0-1.x86_64.rpm
+          sudo sh -c 'echo /usr/lib/oracle/21.5/client64/lib/ > /etc/ld.so.conf.d/oracle.conf'
+          sudo ldconfig
+      - run: sqlplus SYS/oracle@127.0.0.1:1521/xe as sysdba @test_data/oracle.test.out
+     
       # create a spanner instance
       - uses: google-github-actions/setup-gcloud@master
         with:
