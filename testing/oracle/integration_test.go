@@ -111,7 +111,7 @@ func TestIntegration_ORACLE_SchemaSubcommand(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 	filePrefix := filepath.Join(tmpdir, "Oracle_IntTest.")
 
-	args := fmt.Sprintf("schema -prefix %s -source=%s -source-profile='host=localhost,user=STI,db_name=xe,password=test1'", constants.ORACLE, filePrefix)
+	args := fmt.Sprintf("schema -prefix %s -source=%s -source-profile='host=localhost,user=STI,db_name=xe,password=test1,port=1521'", constants.ORACLE, filePrefix)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -126,7 +126,7 @@ func TestIntegration_ORACLE_SchemaAndDataSubcommand(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, "Oracle_IntTest.")
 
-	args := fmt.Sprintf("schema-and-data -prefix %s -source=%s  -source-profile='host=localhost,user=STI,db_name=xe,password=test1' -target-profile='instance=%s,dbname=%s'", filePrefix, constants.ORACLE, instanceID, dbName)
+	args := fmt.Sprintf("schema-and-data -prefix %s -source=%s  -source-profile='host=localhost,user=STI,db_name=xe,password=test1,port=1521' -target-profile='instance=%s,dbname=%s'", filePrefix, constants.ORACLE, instanceID, dbName)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -152,7 +152,7 @@ func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Clie
 	var numericVal big.Rat
 	var stringVal string
 	var timeVal string
-	iter := client.Single().Read(ctx, "ALLTYPES", spanner.Key{1}, []string{"DATE_T", "FLOAT_T", "INTEGER_T", "NUMERIC_T", "VARCHAR_T", "TIMESTAMP"})
+	iter := client.Single().Read(ctx, "ALLTYPES", spanner.Key{1}, []string{"DATE_T", "FLOAT_T", "INTEGER_T", "NUMERIC_T", "VARCHAR_T", "TIMESTAMP_T"})
 	defer iter.Stop()
 	for {
 		row, err := iter.Next()
