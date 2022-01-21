@@ -152,7 +152,7 @@ func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Clie
 	var numericVal big.Rat
 	var stringVal string
 	var timeVal string
-	iter := client.Single().Read(ctx, "ALLTYPES", spanner.Key{1}, []string{"DATE_T", "FLOAT_T", "INTEGER_T", "NUMERIC_T", "VARCHAR_T", "TIMESTAMP_T"})
+	iter := client.Single().Read(ctx, "ALLTYPES", spanner.Key{3}, []string{"DATE_T", "FLOAT_T", "INTEGER_T", "NUMERIC_T", "VARCHAR_T", "TIMESTAMP_T"})
 	defer iter.Stop()
 	for {
 		row, err := iter.Next()
@@ -167,9 +167,9 @@ func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Clie
 		}
 	}
 	fmt.Fprintf(os.Stdout, "%v,%v,%v,%v,%v,%v", date, floatVal, intVal, numericVal, stringVal, timeVal)
-	// if got, want := date.String(), "2022-01-18"; got != want {
-	// 	t.Fatalf("Date are not correct: got %v, want %v", got, want)
-	// }
+	if got, want := date.String(), "2022-01-18"; got != want {
+		t.Fatalf("Date are not correct: got %v, want %v", got, want)
+	}
 	if got, want := floatVal, 1234.56789; got != want {
 		t.Fatalf("float are not correct: got %v, want %v", got, want)
 	}
