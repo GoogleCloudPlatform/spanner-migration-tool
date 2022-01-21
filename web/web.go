@@ -128,6 +128,8 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	conv := internal.MakeConv()
+	// Setting target db to spanner by default.
+	conv.TargetDb = constants.TargetSpanner
 	var err error
 	switch sessionState.driver {
 	case constants.MYSQL:
@@ -804,6 +806,7 @@ func rollback(err error) error {
 		return fmt.Errorf("encountered error %w. rollback failed because we don't have a session file", err)
 	}
 	sessionState.conv = internal.MakeConv()
+	sessionState.conv.TargetDb = constants.TargetSpanner
 	err2 := conversion.ReadSessionFile(sessionState.conv, sessionState.sessionFile)
 	if err2 != nil {
 		return fmt.Errorf("encountered error %w. rollback failed: %v", err, err2)
