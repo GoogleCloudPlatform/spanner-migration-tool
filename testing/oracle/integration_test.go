@@ -182,7 +182,7 @@ func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Clie
 	if got, want := stringVal, "some varchar data"; got != want {
 		t.Fatalf("varchar are not correct: got %v, want %v", got, want)
 	}
-	if got, want := timeVal.String(), "2022-01-19T09:34:06.47Z"; got != want {
+	if got, want := timeVal.String(), "2022-01-19T11:27:18.262Z"; got != want {
 		t.Fatalf("Timestamp are not correct: got %v, want %v", got, want)
 	}
 }
