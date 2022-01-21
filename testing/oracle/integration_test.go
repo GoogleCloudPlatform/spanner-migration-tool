@@ -111,7 +111,7 @@ func TestIntegration_ORACLE_SchemaSubcommand(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 	filePrefix := filepath.Join(tmpdir, "Oracle_IntTest.")
 
-	args := fmt.Sprintf("schema -prefix %s -source=%s -source-profile='host=localhost,user=STI,db_name=xe,password=test1,port=1521'", constants.ORACLE, filePrefix)
+	args := fmt.Sprintf("schema -prefix %s -source=%s -source-profile='host=localhost,user=STI,db_name=xe,password=test1,port=1521'", filePrefix, constants.ORACLE)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
