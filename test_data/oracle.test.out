@@ -1,9 +1,8 @@
 create user sti identified by test1;
 grant all privileges to sti;
 connect sti/test1@127.0.0.1:1521/xe;
-
-  CREATE TABLE "STI"."ALLTYPES"(	
-  "ID" NUMBER(*,0) GENERATED ALWAYS AS IDENTITY MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 1 CACHE 20 NOORDER  NOCYCLE  NOKEEP  NOSCALE  NOT NULL ENABLE, 
+CREATE TABLE "STI"."ALLTYPES"(
+	"ID" NUMBER,
 	"BFILE_T" BFILE, 
 	"BINARY_DOUBLE_T" BINARY_DOUBLE, 
 	"BINARY_FLOAT_T" BINARY_FLOAT, 
@@ -37,10 +36,10 @@ connect sti/test1@127.0.0.1:1521/xe;
 	 PRIMARY KEY ("ID"));
 
 
-Insert into STI.ALLTYPES (BFILE_T,BINARY_DOUBLE_T,BINARY_FLOAT_T,CHAR_T,DATE_T,DECIMAL_T,DOUBLE_PRECISION_T,FLOAT_T,INTEGER_T,INTERVAL_DAY_T,
+Insert into STI.ALLTYPES (ID,BFILE_T,BINARY_DOUBLE_T,BINARY_FLOAT_T,CHAR_T,DATE_T,DECIMAL_T,DOUBLE_PRECISION_T,FLOAT_T,INTEGER_T,INTERVAL_DAY_T,
 INTERVAL_YEAR_T,LONG_T,NCHAR_T,NUMBER_T,NUMERIC_T,NVARCHAR2_T,RAW_T,REAL_T,
 ROWID_T,SMALLINT_T,TIMESTAMP_T,UROWID_T,VARCHAR_T,VARCHAR2_T,TIMESTAMP_W_Z,
-TIMESTAMP_W_L_Z) values ( BFILENAME ('IMG', 'path-to-image-file.jpg'),
+TIMESTAMP_W_L_Z) values (3,BFILENAME ('IMG', 'path-to-image-file.jpg'),
 '1234.56','1234.56','C',to_date('18-JAN-22','DD-MON-RR'),
 12345.12345,1.2345,1234.56789,42,'+01 02:34:56.000000','+04-02',
 'In publishing and graphic design, Lorem ipsum is a placeholder text commonly used to demonstrate the visual form of a document or a typeface without relying on meaningful content. Lorem ipsum may be used as a placeholder before the final copy is available',
@@ -48,3 +47,5 @@ TIMESTAMP_W_L_Z) values ( BFILENAME ('IMG', 'path-to-image-file.jpg'),
 'DD-MON-RR HH.MI.SSXFF AM'),null,'some varchar data','some varcahr2 data',
 to_timestamp_tz('15-FEB-21 01.22.11.871000000 PM +02:00','DD-MON-RR HH.MI.SSXFF AM TZR'),
 to_timestamp('15-FEB-22 11.22.11.871000000 AM','DD-MON-RR HH.MI.SSXFF AM'));
+
+select TIMESTAMP_T from STI.ALLTYPES;
