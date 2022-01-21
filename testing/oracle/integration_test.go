@@ -151,7 +151,7 @@ func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Clie
 	var intVal int64
 	var numericVal big.Rat
 	var stringVal string
-	var timeVal string
+	var timeVal spanner.NullTime
 	iter := client.Single().Read(ctx, "ALLTYPES", spanner.Key{3}, []string{"DATE_T", "FLOAT_T", "INTEGER_T", "NUMERIC_T", "VARCHAR_T", "TIMESTAMP_T"})
 	defer iter.Stop()
 	for {
@@ -182,7 +182,7 @@ func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Clie
 	if got, want := stringVal, "some varchar data"; got != want {
 		t.Fatalf("varchar are not correct: got %v, want %v", got, want)
 	}
-	if got, want := timeVal, "2022-01-19T09:34:06.47Z"; got != want {
+	if got, want := timeVal.String(), "2022-01-19T09:34:06.47Z"; got != want {
 		t.Fatalf("Timestamp are not correct: got %v, want %v", got, want)
 	}
 }
