@@ -41,11 +41,13 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
+	go_ora "github.com/sijms/go-ora/v2"
 )
 
 // TODO:(searce):
@@ -60,6 +62,7 @@ import (
 var mysqlTypeMap = make(map[string][]typeIssue)
 var postgresTypeMap = make(map[string][]typeIssue)
 var sqlserverTypeMap = make(map[string][]typeIssue)
+var oracleTypeMap = make(map[string][]typeIssue)
 
 // TODO:(searce) organize this file according to go style guidelines: generally
 // have public constants and public type definitions first, then public
@@ -98,6 +101,9 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 		dataSourceName = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", config.User, config.Password, config.Host, config.Port, config.Database)
 	case constants.SQLSERVER:
 		dataSourceName = fmt.Sprintf(`sqlserver://%s:%s@%s:%s?database=%s`, config.User, config.Password, config.Host, config.Port, config.Database)
+	case constants.ORACLE:
+		portNumber, _ := strconv.Atoi(config.Port)
+		dataSourceName = go_ora.BuildUrl(config.Host, portNumber, config.Database, config.User, config.Password, nil)
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", config.Driver), http.StatusBadRequest)
 		return
@@ -138,6 +144,8 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		err = common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.sourceDB})
 	case constants.SQLSERVER:
 		err = common.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.dbName, Db: sessionState.sourceDB})
+	case constants.ORACLE:
+		err = common.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: sessionState.dbName, Db: sessionState.sourceDB})
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.driver), http.StatusBadRequest)
 		return
@@ -260,6 +268,8 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 		typeMap = postgresTypeMap
 	case constants.SQLSERVER:
 		typeMap = sqlserverTypeMap
+	case constants.ORACLE:
+		typeMap = oracleTypeMap
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.driver), http.StatusBadRequest)
 		return

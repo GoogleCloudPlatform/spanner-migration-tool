@@ -49,6 +49,12 @@ const Forms = (() => {
         document.getElementById("sql-fields").style.display = "none";
         sourceTableFlag = "dynamoDB";
         Actions.setSourceDbName(sourceTableFlag);
+      } else if (val.value === "oracle") {
+        jQuery(".form-error").html("");
+        jQuery(".db-input").val("");
+        document.getElementById("sql-fields").style.display = "block";
+        sourceTableFlag = "Oracle";
+        Actions.setSourceDbName(sourceTableFlag);
       }
     },
 
