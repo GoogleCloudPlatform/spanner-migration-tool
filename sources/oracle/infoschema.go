@@ -48,6 +48,8 @@ func getSelectQuery(srcDb string, schemaName string, tableName string, colNames 
 		switch colDefs[cn].Type.Name {
 		case "XMLTYPE":
 			s = fmt.Sprintf(`CAST(XMLTYPE.getStringVal("%s") AS VARCHAR2(4000)) AS "%s"`, cn, cn)
+		case "SDO_GEOMETRY":
+			s = fmt.Sprintf(`SDO_UTIL.TO_WKTGEOMETRY("%s") AS "%s"`, cn, cn)
 		default:
 			s = fmt.Sprintf(`"%s"`, cn)
 		}
