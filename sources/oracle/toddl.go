@@ -38,51 +38,91 @@ type ToDdlImpl struct {
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
 func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
-	ty, issues := toSpannerTypeInternal(conv, columnType.Name, columnType.Mods)
+	// passing empty spType to execute default case.will get other spType from web pkg
+	ty, issues := ToSpannerTypeInternal(conv, "", columnType.Name, columnType.Mods)
 	if conv.TargetDb == constants.TargetExperimentalPostgres {
 		ty = overrideExperimentalType(columnType, ty)
 	}
 	return ty, issues
 }
 
-func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
+func ToSpannerTypeInternal(conv *internal.Conv, spType string, srcType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
 	// Oracle returns some datatype with the precision,
 	// So will get TIMESTAMP as TIMESTAMP(6),TIMESTAMP(6) WITH TIME ZONE,TIMESTAMP(6) WITH LOCAL TIME ZONE.
 	// To match this case timestampReg Regex defined.
-	if timestampReg.MatchString(id) {
-		return ddl.Type{Name: ddl.Timestamp}, nil
+	if timestampReg.MatchString(srcType) {
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.Timestamp}, nil
+		}
 	}
 
 	// Matching cases like INTERVAL YEAR(2) TO MONTH, INTERVAL DAY(2) TO SECOND(6),etc.
-	if intervalReg.MatchString(id) {
-		if len(mods) > 0 {
-			return ddl.Type{Name: ddl.String, Len: 30}, nil
+	if intervalReg.MatchString(srcType) {
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		default:
+			if len(mods) > 0 {
+				return ddl.Type{Name: ddl.String, Len: 30}, nil
+			}
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		}
-		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	}
 
-	switch id {
+	switch srcType {
 	case "NUMBER":
-		// If no scale is avalible then map it to int64, and numeric elsewhere.
-		if len(mods) == 1 && mods[0] >= 1 && mods[0] < 19 {
-			return ddl.Type{Name: ddl.Int64}, nil
-		} else {
-			return ddl.Type{Name: ddl.Numeric}, nil
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		default:
+			// If no scale is avalible then map it to int64, and numeric elsewhere.
+			if len(mods) == 1 && mods[0] >= 1 && mods[0] < 19 {
+				return ddl.Type{Name: ddl.Int64}, nil
+			} else {
+				return ddl.Type{Name: ddl.Numeric}, nil
+			}
 		}
+
 	case "BFILE", "BLOB":
-		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		}
 	case "CHAR":
-		return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
+		if len(mods) > 0 {
+			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
+		}
+		return ddl.Type{Name: ddl.String}, nil
 	case "CLOB":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "DATE":
-		return ddl.Type{Name: ddl.Date}, nil
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.Date}, nil
+		}
 	case "BINARY_DOUBLE", "BINARY_FLOAT", "FLOAT":
-		return ddl.Type{Name: ddl.Float64}, nil
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.Float64}, nil
+		}
 	case "LONG":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "RAW", "LONG RAW":
-		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		}
 	case "NCHAR", "NVARCHAR2", "VARCHAR", "VARCHAR2":
 		if len(mods) > 0 {
 			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil

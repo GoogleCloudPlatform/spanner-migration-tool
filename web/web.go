@@ -121,6 +121,10 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionState.sourceDB = sourceDB
 	sessionState.dbName = config.Database
+	// schema and user is same in oralce.
+	if config.Driver == constants.ORACLE {
+		sessionState.dbName = config.User
+	}
 	sessionState.driver = config.Driver
 	sessionState.sessionFile = ""
 	w.WriteHeader(http.StatusOK)
@@ -1060,6 +1064,8 @@ func getType(newType, table, colName string, srcTableName string) (ddl.CreateTab
 		ty, issues = toSpannerTypePostgres(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	case constants.SQLSERVER:
 		ty, issues = toSpannerTypeSQLserver(srcCol.Type.Name, newType, srcCol.Type.Mods)
+	case constants.ORACLE:
+		ty, issues = oracle.ToSpannerTypeInternal(sessionState.conv, newType, srcCol.Type.Name, srcCol.Type.Mods)
 	default:
 		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.driver)
 	}
@@ -1196,6 +1202,17 @@ func init() {
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		sqlserverTypeMap[srcType] = l
+	}
+
+	// Initialize oracleTypeMap.
+
+	for _, srcType := range []string{"NUMBER", "BFILE", "BLOB", "CHAR", "CLOB", "DATE", "BINARY_DOUBLE", "BINARY_FLOAT", "FLOAT", "LONG", "RAW", "LONG RAW", "NCHAR", "NVARCHAR2", "VARCHAR", "VARCHAR2", "NCLOB", "ROWID", "UROWID", "XMLTYPE"} {
+		var l []typeIssue
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
+			ty, issues := oracle.ToSpannerTypeInternal(sessionState.conv, spType, srcType, []int64{})
+			l = addTypeToList(ty.Name, spType, issues, l)
+		}
+		oracleTypeMap[srcType] = l
 	}
 
 	sessionState.conv = internal.MakeConv()
