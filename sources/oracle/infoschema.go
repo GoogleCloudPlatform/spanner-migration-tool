@@ -29,15 +29,32 @@ func (isi InfoSchemaImpl) GetTableName(dbName string, tableName string) string {
 
 // GetRowsFromTable returns a sql Rows object for a table.
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
-	srcSchema := conv.SrcSchema[srcTable]
-	srcCols := srcSchema.ColNames
+	tbl := conv.SrcSchema[srcTable]
+	srcCols := tbl.ColNames
 	if len(srcCols) == 0 {
 		conv.Unexpected(fmt.Sprintf("Couldn't get source columns for table %s ", srcTable))
 		return nil, nil
 	}
-	q := fmt.Sprintf("SELECT * FROM %s", srcTable)
+	q := getSelectQuery(isi.DbName, tbl.Schema, tbl.Name, tbl.ColNames, tbl.ColDefs)
 	rows, err := isi.Db.Query(q)
 	return rows, err
+}
+
+func getSelectQuery(srcDb string, schemaName string, tableName string, colNames []string, colDefs map[string]schema.Column) string {
+	var selects = make([]string, len(colNames))
+
+	for i, cn := range colNames {
+		var s string
+		switch colDefs[cn].Type.Name {
+		case "XMLTYPE":
+			s = fmt.Sprintf(`CAST(XMLTYPE.getStringVal("%s") AS VARCHAR2(4000)) AS "%s"`, cn, cn)
+		default:
+			s = fmt.Sprintf(`"%s"`, cn)
+		}
+		selects[i] = s
+	}
+
+	return fmt.Sprintf(`SELECT %s FROM "%s"."%s"`, strings.Join(selects, ", "), schemaName, tableName)
 }
 
 // ProcessData performs data conversion for source database.
