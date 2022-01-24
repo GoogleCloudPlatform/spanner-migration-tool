@@ -2,7 +2,6 @@ on:
   push:
     branches:
       - master
-      - oracle-data-conv
   pull_request:
 name: integration-tests-against-emulator
 jobs:
