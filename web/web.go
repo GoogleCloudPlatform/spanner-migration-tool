@@ -287,15 +287,12 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 			}
 			// Timestamp and interval types do not have exact key in typemap.
 			// Typemap for  TIMESTAMP(6), TIMESTAMP(6) WITH LOCAL TIMEZONE,TIMESTAMP(6) WITH TIMEZONE is stored into TIMESTAMP key.
-			// Same goes with interval types.
+			// Same goes with interval types like INTERVAL YEAR(2) TO MONTH, INTERVAL DAY(2) TO SECOND(6) etc.
 			// If exact key not found then check with regex.
 			if _, ok := typeMap[colDef.Type.Name]; !ok {
-				//
 				if oracle.TimestampReg.MatchString(colDef.Type.Name) {
 					filteredTypeMap[colDef.Type.Name] = typeMap["TIMESTAMP"]
-				}
-
-				if oracle.IntervalReg.MatchString(colDef.Type.Name) {
+				} else if oracle.IntervalReg.MatchString(colDef.Type.Name) {
 					filteredTypeMap[colDef.Type.Name] = typeMap["INTERVAL"]
 				}
 				continue
