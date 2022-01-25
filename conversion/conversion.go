@@ -52,6 +52,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/csv"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/dynamodb"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner"
@@ -77,7 +78,7 @@ var (
 // When using source-profile, the sqlConnectionStr is constructed from the input params.
 func SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams) (*internal.Conv, error) {
 	switch sourceProfile.Driver {
-	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER:
+	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE:
 		return schemaFromDatabase(sourceProfile, targetProfile)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		return schemaFromDump(sourceProfile.Driver, targetProfile.TargetDb, ioHelper)
@@ -141,6 +142,8 @@ func connectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error)
 		return getDynamoDBClientConfig()
 	case constants.SQLSERVER:
 		return profiles.GetSQLConnectionStr(sourceProfile), nil
+	case constants.ORACLE:
+		return profiles.GetSQLConnectionStr(sourceProfile), nil
 	default:
 		return "", fmt.Errorf("driver %s not supported", sourceProfile.Driver)
 	}
@@ -156,6 +159,11 @@ func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 	case constants.SQLSERVER:
 		splts := strings.Split(sqlConnectionStr, "?database=")
 		return splts[len(splts)-1]
+	case constants.ORACLE:
+		// connection string formate : "oracle://user:password@104.108.154.85:1521/XE"
+		substr := sqlConnectionStr[9:]
+		dbName := strings.Split(substr, ":")[0]
+		return dbName
 	}
 	return ""
 }
@@ -787,6 +795,13 @@ func GetInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, err
 			return nil, err
 		}
 		return sqlserver.InfoSchemaImpl{DbName: dbName, Db: db}, nil
+	case constants.ORACLE:
+		db, err := sql.Open(driver, connectionConfig.(string))
+		dbName := getDbNameFromSQLConnectionStr(driver, connectionConfig.(string))
+		if err != nil {
+			return nil, err
+		}
+		return oracle.InfoSchemaImpl{DbName: strings.ToUpper(dbName), Db: db}, nil
 	default:
 		return nil, fmt.Errorf("driver %s not supported", driver)
 	}
