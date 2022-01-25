@@ -285,6 +285,21 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 			if _, ok := filteredTypeMap[colDef.Type.Name]; ok {
 				continue
 			}
+			// Timestamp and interval types do not have exact key in typemap.
+			// Typemap for  TIMESTAMP(6), TIMESTAMP(6) WITH LOCAL TIMEZONE,TIMESTAMP(6) WITH TIMEZONE is stored into TIMESTAMP key.
+			// Same goes with interval types.
+			// If exact key not found then check with regex.
+			if _, ok := typeMap[colDef.Type.Name]; !ok {
+				//
+				if oracle.TimestampReg.MatchString(colDef.Type.Name) {
+					filteredTypeMap[colDef.Type.Name] = typeMap["TIMESTAMP"]
+				}
+
+				if oracle.IntervalReg.MatchString(colDef.Type.Name) {
+					filteredTypeMap[colDef.Type.Name] = typeMap["INTERVAL"]
+				}
+				continue
+			}
 			filteredTypeMap[colDef.Type.Name] = typeMap[colDef.Type.Name]
 		}
 	}
@@ -1205,8 +1220,7 @@ func init() {
 	}
 
 	// Initialize oracleTypeMap.
-
-	for _, srcType := range []string{"NUMBER", "BFILE", "BLOB", "CHAR", "CLOB", "DATE", "BINARY_DOUBLE", "BINARY_FLOAT", "FLOAT", "LONG", "RAW", "LONG RAW", "NCHAR", "NVARCHAR2", "VARCHAR", "VARCHAR2", "NCLOB", "ROWID", "UROWID", "XMLTYPE"} {
+	for _, srcType := range []string{"NUMBER", "BFILE", "BLOB", "CHAR", "CLOB", "DATE", "BINARY_DOUBLE", "BINARY_FLOAT", "FLOAT", "LONG", "RAW", "LONG RAW", "NCHAR", "NVARCHAR2", "VARCHAR", "VARCHAR2", "NCLOB", "ROWID", "UROWID", "XMLTYPE", "TIMESTAMP", "INTERVAL", "SDO_GEOMETRY"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
 			ty, issues := oracle.ToSpannerTypeInternal(sessionState.conv, spType, srcType, []int64{})

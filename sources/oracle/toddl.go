@@ -25,8 +25,8 @@ import (
 )
 
 var (
-	timestampReg = regexp.MustCompile(`TIMESTAMP`)
-	intervalReg  = regexp.MustCompile(`INTERVAL`)
+	TimestampReg = regexp.MustCompile(`TIMESTAMP`)
+	IntervalReg  = regexp.MustCompile(`INTERVAL`)
 )
 
 // ToDdlImpl oracle specific implementation for ToDdl.
@@ -50,7 +50,7 @@ func ToSpannerTypeInternal(conv *internal.Conv, spType string, srcType string, m
 	// Oracle returns some datatype with the precision,
 	// So will get TIMESTAMP as TIMESTAMP(6),TIMESTAMP(6) WITH TIME ZONE,TIMESTAMP(6) WITH LOCAL TIME ZONE.
 	// To match this case timestampReg Regex defined.
-	if timestampReg.MatchString(srcType) {
+	if TimestampReg.MatchString(srcType) {
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
@@ -60,7 +60,7 @@ func ToSpannerTypeInternal(conv *internal.Conv, spType string, srcType string, m
 	}
 
 	// Matching cases like INTERVAL YEAR(2) TO MONTH, INTERVAL DAY(2) TO SECOND(6),etc.
-	if intervalReg.MatchString(srcType) {
+	if IntervalReg.MatchString(srcType) {
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
