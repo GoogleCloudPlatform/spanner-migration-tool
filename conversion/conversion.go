@@ -306,7 +306,10 @@ func dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targ
 	}
 
 	// Find the number of rows in each csv file for generating stats.
-	csv.SetRowStats(conv, tables, delimiter)
+	err = csv.SetRowStats(conv, tables, delimiter)
+	if err != nil {
+		return nil, err
+	}
 	totalRows := conv.Rows()
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 	rows := int64(0)

@@ -119,19 +119,18 @@ func VerifyManifest(conv *internal.Conv, tables []utils.ManifestTable) error {
 }
 
 // SetRowStats calculates the number of rows per table.
-func SetRowStats(conv *internal.Conv, tables []utils.ManifestTable, delimiter rune) {
+func SetRowStats(conv *internal.Conv, tables []utils.ManifestTable, delimiter rune) error {
 	for _, table := range tables {
 		for _, filePath := range table.File_patterns {
 			csvFile, err := os.Open(filePath)
 			if err != nil {
-				fmt.Printf("can't read csv file: %s due to: %v\n", filePath, err)
+				return fmt.Errorf("can't read csv file: %s due to: %v", filePath, err)
 			}
 			r := csvReader.NewReader(csvFile)
 			r.Comma = delimiter
 			count, err := getCSVDataRowCount(r, conv.SpSchema[table.Table_name].ColNames)
 			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Couldn't get number of rows for table %s", table.Table_name))
-				continue
+				return fmt.Errorf("error reading file %s for table %s: %v", filePath, table.Table_name, err)
 			}
 			if count == 0 {
 				conv.Unexpected(fmt.Sprintf("error processing table %s: file %s is empty.", table.Table_name, filePath))
@@ -140,6 +139,7 @@ func SetRowStats(conv *internal.Conv, tables []utils.ManifestTable, delimiter ru
 			conv.Stats.Rows[table.Table_name] += count
 		}
 	}
+	return nil
 }
 
 // getCSVDataRowCount returns the number of data rows in the CSV file. This excludes the headers if present.
@@ -151,6 +151,9 @@ func getCSVDataRowCount(r *csvReader.Reader, colNames []string) (int64, error) {
 	}
 	if err != nil {
 		return count, fmt.Errorf("can't read csv headers for col names due to: %v", err)
+	}
+	if len(srcCols) != len(colNames) {
+		return 0, fmt.Errorf("found %d columns in csv, expected %d as per Spanner schema", len(srcCols), len(colNames))
 	}
 	// If the row read was not a header, increase count.
 	if !utils.CheckEqualSets(srcCols, colNames) {
