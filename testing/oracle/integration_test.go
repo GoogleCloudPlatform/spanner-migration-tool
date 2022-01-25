@@ -26,10 +26,13 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
+	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
 
 	"google.golang.org/api/iterator"
 	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
@@ -42,6 +45,15 @@ var (
 	ctx           context.Context
 	databaseAdmin *database.DatabaseAdminClient
 )
+
+type SpannerRecord struct {
+	Date_t      spanner.NullDate
+	Float_t     float64
+	Int_t       int64
+	Numeric_t   string
+	String_t    string
+	Timestamp_t string
+}
 
 func TestMain(m *testing.M) {
 	cleanup := initIntegrationTests()
@@ -146,6 +158,14 @@ func checkResults(t *testing.T, dbURI string) {
 }
 
 func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Client) {
+	wantRecord := SpannerRecord{
+		Date_t:      spanner.NullDate{Valid: true, Date: civil.Date{Day: 18, Year: 2022, Month: 01}},
+		Float_t:     float64(1234.56789),
+		Int_t:       int64(42),
+		Numeric_t:   "42.000000000",
+		String_t:    "some varchar data",
+		Timestamp_t: "2022-01-19T11:27:18.262Z",
+	}
 	var date spanner.NullDate
 	var floatVal float64
 	var intVal int64
@@ -165,25 +185,17 @@ func checkCommonDataType(ctx context.Context, t *testing.T, client *spanner.Clie
 		if err := row.Columns(&date, &floatVal, &intVal, &numericVal, &stringVal, &timeVal); err != nil {
 			t.Fatal(err)
 		}
-	}
-	fmt.Fprintf(os.Stdout, "%v,%v,%v,%v,%v,%v", date, floatVal, intVal, numericVal, stringVal, timeVal)
-	if got, want := date.String(), "2022-01-18"; got != want {
-		t.Fatalf("Date are not correct: got %v, want %v", got, want)
-	}
-	if got, want := floatVal, 1234.56789; got != want {
-		t.Fatalf("float are not correct: got %v, want %v", got, want)
-	}
-	if got, want := intVal, int64(42); got != want {
-		t.Fatalf("int are not correct: got %v, want %v", got, want)
-	}
-	if got, want := numericVal.FloatString(9), "42.000000000"; got != want {
-		t.Fatalf("Numeric are not correct: got %v, want %v", got, want)
-	}
-	if got, want := stringVal, "some varchar data"; got != want {
-		t.Fatalf("varchar are not correct: got %v, want %v", got, want)
-	}
-	if got, want := timeVal.String(), "2022-01-19T11:27:18.262Z"; got != want {
-		t.Fatalf("Timestamp are not correct: got %v, want %v", got, want)
+
+		fmt.Fprintf(os.Stdout, "%v,%v,%v,%v,%v,%v", date, floatVal, intVal, numericVal, stringVal, timeVal)
+		gotRecord := SpannerRecord{
+			Date_t:      date,
+			Float_t:     floatVal,
+			Int_t:       intVal,
+			Numeric_t:   numericVal.FloatString(9),
+			String_t:    stringVal,
+			Timestamp_t: timeVal.String(),
+		}
+		assert.True(t, cmp.Equal(wantRecord, gotRecord))
 	}
 }
 
