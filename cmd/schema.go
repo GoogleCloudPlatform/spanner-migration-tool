@@ -8,6 +8,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -55,6 +56,8 @@ func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
 }
 
 func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+	// Cleanup hb tmp data directory in case residuals remain from prev runs.
+	os.RemoveAll(os.TempDir() + constants.HB_TMP_DIR)
 	var err error
 	defer func() {
 		if err != nil {
@@ -106,5 +109,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	conversion.WriteSchemaFile(conv, now, cmd.filePrefix+schemaFile, ioHelper.Out)
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
 	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
+	// Cleanup hb tmp data directory.
+	os.RemoveAll(os.TempDir() + constants.HB_TMP_DIR)
 	return subcommands.ExitSuccess
 }

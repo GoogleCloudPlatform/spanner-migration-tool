@@ -15,7 +15,7 @@
 // Package spanner provides high-level abstractions for working with
 // Cloud Spanner that are not available from the core Cloud Spanner
 // libraries.
-package spanner
+package writer
 
 import (
 	"fmt"
