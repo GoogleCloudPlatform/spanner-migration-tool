@@ -33,7 +33,7 @@ type mockSpec struct {
 	rows  [][]driver.Value // Set of rows returned.
 }
 
-func TestProcessSchemaMYSQL(t *testing.T) {
+func TestProcessSchemaOracle(t *testing.T) {
 	ms := []mockSpec{
 		{
 			query: "SELECT table_name FROM all_tables (.+)",
@@ -42,16 +42,16 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			rows: [][]driver.Value{
 				{"USER"},
 				{"TEST"},
-			},
+				{"TEST2"}},
 		},
 		// USER table
 		{
 			query: `SELECT (.+) FROM all_constraints (.+)`,
 			args:  []driver.Value{},
-			cols:  []string{"column_name", "contraint_type"},
+			cols:  []string{"column_name", "contraint_type", "condition"},
 			rows: [][]driver.Value{
-				{"USER_ID", "P"},
-				{"REF", "F"},
+				{"USER_ID", "P", "USER ID IS NOT NULL"},
+				{"REF", "F", ""},
 			},
 		},
 		{
@@ -89,9 +89,9 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 		{
 			query: `SELECT (.+) FROM all_constraints (.+)`,
 			args:  []driver.Value{},
-			cols:  []string{"column_name", "contraint_type"},
+			cols:  []string{"column_name", "contraint_type", "condition"},
 			rows: [][]driver.Value{
-				{"ID", "P"}},
+				{"ID", "P", "ID IS NOT NULL"}},
 		},
 		{
 			query: `SELECT (.+) all_cons_columns A JOIN all_constraints C ON (.+) JOIN all_cons_columns B (.+)`,
@@ -111,6 +111,37 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale"},
 			rows: [][]driver.Value{
 				{"ID", "NUMBER", "N", nil, nil, nil, nil}},
+		},
+
+		// test2 table [json column test]
+		{
+			query: `SELECT (.+) FROM all_constraints (.+)`,
+			args:  []driver.Value{},
+			cols:  []string{"column_name", "contraint_type", "condition"},
+			rows: [][]driver.Value{
+				{"ID", "P", "ID IS NOT NULL"},
+				{"JSON", "C", "JSON IS JSON"}},
+		},
+		{
+			query: `SELECT (.+) all_cons_columns A JOIN all_constraints C ON (.+) JOIN all_cons_columns B (.+)`,
+			args:  []driver.Value{},
+			cols:  []string{"ref_table", "column_name", "ref_column_name", "name"},
+			rows:  [][]driver.Value{},
+		},
+		{
+			query: `SELECT (.+) LEFT JOIN all_ind_expressions IE (.+) LEFT JOIN all_indexes I (.+)`,
+			args:  []driver.Value{},
+			cols:  []string{"name", "column_name", "column_position", "descend", "uniqueness", "column_expression", "index_type"},
+			rows:  [][]driver.Value{},
+		},
+		{
+			query: "SELECT (.+) FROM all_tab_columns (.+)",
+			args:  []driver.Value{},
+			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale"},
+			rows: [][]driver.Value{
+				{"ID", "NUMBER", "N", nil, nil, nil, nil},
+				{"JSON", "VARCHAR2", "N", nil, nil, nil, nil},
+				{"REALJSON", "JSON", "N", nil, nil, nil, nil}},
 		},
 	}
 	db := mkMockDB(t, ms)
@@ -143,10 +174,20 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 				"ID": {Name: "ID", T: ddl.Type{Name: ddl.Numeric}, NotNull: true}},
 			Pks: []ddl.IndexKey{{Col: "ID"}},
 		},
+		"TEST2": {
+			Name:     "TEST2",
+			ColNames: []string{"ID", "JSON", "REALJSON"},
+			ColDefs: map[string]ddl.ColumnDef{
+				"ID":       {Name: "ID", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
+				"JSON":     {Name: "JSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
+				"REALJSON": {Name: "REALJSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true}},
+			Pks: []ddl.IndexKey{{Col: "ID"}},
+		},
 	}
 	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	assert.Equal(t, len(conv.Issues["USER"]), 0)
 	assert.Equal(t, len(conv.Issues["TEST"]), 0)
+	assert.Equal(t, len(conv.Issues["TEST2"]), 0)
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 

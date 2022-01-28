@@ -70,6 +70,8 @@ func TestConvertData(t *testing.T) {
 		{"string", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, "VARCHAR2", "eh", "eh"},
 		{"number", ddl.Type{Name: ddl.Numeric}, "NUMBER", numStr, numVal},
 		{"timestamp", ddl.Type{Name: ddl.Timestamp}, "TIMESTAMP(6)", "2022-01-19T09:34:06.47Z", getTime("2022-01-19T09:34:06.47Z")},
+		{"json", ddl.Type{Name: ddl.JSON}, "VARCHAR2", "{\"abc\": 123}}", "{\"abc\": 123}}"},
+		{"bool", ddl.Type{Name: ddl.Bool}, "CHAR(1)", "T", true},
 	}
 	tableName := "testtable"
 	for _, tc := range singleColTests {

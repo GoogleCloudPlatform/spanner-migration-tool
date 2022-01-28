@@ -156,6 +156,14 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			switch c {
 			case "C":
 				ignored.Check = true
+			// Oracle 21c introduces a JSON datatype, before that we used to store json as VARCHAR2, CLOB, and BLOB.
+			// If column has check constraints IS JSON(check for J in constraints array as per GetConstraints function) then update src datatype to JSON
+			// so toSpannerTypeInternal function map this datatype to spanner JSON.
+			case "J":
+				dataType = "JSON"
+				charMaxLen.Valid = false
+				numericPrecision.Valid = false
+				numericScale.Valid = false
 			case "R", "P", "U":
 				// Nothing to do here -- these are handled elsewhere.
 			}
@@ -181,7 +189,8 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 	q := fmt.Sprintf(`
 					SELECT 
 						k.column_name,
-						t.constraint_type
+						t.constraint_type,
+						t.search_condition
 	   				FROM all_constraints t
        				INNER JOIN all_cons_columns k
        				ON (k.constraint_name = t.constraint_name) 
@@ -194,9 +203,10 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 	defer rows.Close()
 	var primaryKeys []string
 	var col, constraint string
+	var condition sql.NullString
 	m := make(map[string][]string)
 	for rows.Next() {
-		err := rows.Scan(&col, &constraint)
+		err := rows.Scan(&col, &constraint, &condition)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
@@ -209,6 +219,13 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 		switch constraint {
 		case "P":
 			primaryKeys = append(primaryKeys, col)
+		case "C":
+			// If column has IS JSON check constraints then add extra string "J" in constraints array.
+			// condition value example `column_name IS JSON`,null etc.
+			if condition.Valid && strings.Contains(condition.String, "IS JSON") {
+				m[col] = append(m[col], "J")
+			}
+			m[col] = append(m[col], constraint)
 		default:
 			m[col] = append(m[col], constraint)
 		}
