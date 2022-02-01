@@ -106,7 +106,7 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, T
 	case ddl.String:
 		return val, nil
 	case ddl.Timestamp:
-		return convTimestamp(srcTypeName, TimezoneOffset, val)
+		return convTimestamp(srcTypeName, val)
 	case ddl.JSON:
 		return val, nil
 	default:
@@ -174,22 +174,15 @@ func convNumeric(conv *internal.Conv, val string) (interface{}, error) {
 }
 
 // convTimestamp maps a source DB timestamp into a go Time Spanner timestamp
-// It handles both datetime and timestamp conversions.
-func convTimestamp(srcTypeName string, TimezoneOffset string, val string) (t time.Time, err error) {
-	// We consider timezone for timestamp datatype.
-	// If timezone is not specified in mysqldump, we consider UTC time.
-	if TimezoneOffset == "" {
-		TimezoneOffset = "+00:00"
-	}
-	// convert timestamp from format "2006-01-02 15:04:05" to
-	// "2006-01-02T15:04:05+00:00".
+func convTimestamp(srcTypeName string, val string) (t time.Time, err error) {
+	// we are getting all timestamp value in UTC from the oracle.
+	// e.g. 2022-02-01T08:14:36.254Z 			(timestamp)
+	// e.g. 2022-02-01T12:14:36.254Z 		    (timestamp with timezone)
+	// e.g. 2022-02-01T06:14:36.254Z 			(timestamp with local timezone)
+
 	t, err = time.Parse(time.RFC3339, val)
-	// Avalible format
-	//"2022-01-19T09:34:06.47Z"
-	//"2021-02-18T07:22:11.871+66:00"
-	//"2022-02-15T11:22:11.871Z"
 	if err != nil {
-		return t, fmt.Errorf("can't convert to timestamp (mysql type: %s)", srcTypeName)
+		return t, fmt.Errorf("can't convert to timestamp (type: %s)", srcTypeName)
 	}
 	return t, err
 }

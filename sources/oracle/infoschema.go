@@ -45,13 +45,17 @@ func getSelectQuery(srcDb string, schemaName string, tableName string, colNames 
 
 	for i, cn := range colNames {
 		var s string
-		switch colDefs[cn].Type.Name {
-		case "XMLTYPE":
-			s = fmt.Sprintf(`CAST(XMLTYPE.getStringVal("%s") AS VARCHAR2(4000)) AS "%s"`, cn, cn)
-		case "SDO_GEOMETRY":
-			s = fmt.Sprintf(`SDO_UTIL.TO_WKTGEOMETRY("%s") AS "%s"`, cn, cn)
-		default:
-			s = fmt.Sprintf(`"%s"`, cn)
+		if TimestampReg.MatchString(colDefs[cn].Type.Name) {
+			s = fmt.Sprintf(`SYS_EXTRACT_UTC("%s") AS "%s"`, cn, cn)
+		} else {
+			switch colDefs[cn].Type.Name {
+			case "XMLTYPE":
+				s = fmt.Sprintf(`CAST(XMLTYPE.getStringVal("%s") AS VARCHAR2(4000)) AS "%s"`, cn, cn)
+			case "SDO_GEOMETRY":
+				s = fmt.Sprintf(`SDO_UTIL.TO_WKTGEOMETRY("%s") AS "%s"`, cn, cn)
+			default:
+				s = fmt.Sprintf(`"%s"`, cn)
+			}
 		}
 		selects[i] = s
 	}
@@ -87,7 +91,7 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 
 // GetRowCount with number of rows in each table.
 func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error) {
-	q := fmt.Sprintf("SELECT count(*) FROM %s", table.Name)
+	q := fmt.Sprintf(`SELECT count(*) FROM "%s"`, table.Name)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return 0, err
