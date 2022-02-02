@@ -53,6 +53,9 @@ func getSelectQuery(srcDb string, schemaName string, tableName string, colNames 
 				s = fmt.Sprintf(`CAST(XMLTYPE.getStringVal("%s") AS VARCHAR2(4000)) AS "%s"`, cn, cn)
 			case "SDO_GEOMETRY":
 				s = fmt.Sprintf(`SDO_UTIL.TO_WKTGEOMETRY("%s") AS "%s"`, cn, cn)
+			case "ARRAY":
+				s = fmt.Sprintf(`(SELECT JSON_ARRAYAGG(COLUMN_VALUE RETURNING VARCHAR2(4000)) 
+				FROM TABLE ("%s"."%s")) AS "%s"`, tableName, cn, cn)
 			default:
 				s = fmt.Sprintf(`"%s"`, cn)
 			}
@@ -131,9 +134,11 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 						data_default, 
 						data_length, 
 						data_precision, 
-						data_scale 
-					FROM all_tab_columns 
-					WHERE owner = '%s' AND table_name = '%s'
+						data_scale,
+						at.typecode
+					FROM all_tab_columns atc
+                    LEFT JOIN all_types at ON atc.data_type=at.type_name AND atc.owner = at.owner
+					WHERE atc.owner = '%s' AND atc.table_name = '%s'
 					`, table.Schema, table.Name)
 	cols, err := isi.Db.Query(q)
 	if err != nil {
@@ -143,10 +148,10 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	var colNames []string
 	var colName, dataType string
 	var isNullable string
-	var colDefault sql.NullString
+	var colDefault, typecode sql.NullString
 	var charMaxLen, numericPrecision, numericScale sql.NullInt64
 	for cols.Next() {
-		err := cols.Scan(&colName, &dataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale)
+		err := cols.Scan(&colName, &dataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &typecode)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
@@ -166,12 +171,13 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 			case "J":
 				dataType = "JSON"
 				charMaxLen.Valid = false
-				numericPrecision.Valid = false
-				numericScale.Valid = false
-			case "R", "P", "U":
-				// Nothing to do here -- these are handled elsewhere.
 			}
 		}
+		if typecode.Valid && typecode.String == "COLLECTION" {
+			dataType = "ARRAY"
+			charMaxLen.Valid = false
+		}
+
 		ignored.Default = colDefault.Valid
 		c := schema.Column{
 			Name:    colName,

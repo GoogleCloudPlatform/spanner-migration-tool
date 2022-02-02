@@ -15,6 +15,7 @@
 package oracle
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"math/bits"
@@ -65,7 +66,11 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 		}
 		var x interface{}
 		var err error
-		x, err = convScalar(conv, spColDef.T, srcColDef.Type.Name, conv.TimezoneOffset, vals[i])
+		if spColDef.T.IsArray {
+			x, err = convArray(spColDef.T, srcColDef.Type.Name, vals[i])
+		} else {
+			x, err = convScalar(conv, spColDef.T, srcColDef.Type.Name, conv.TimezoneOffset, vals[i])
+		}
 		if err != nil {
 			return "", []string{}, []interface{}{}, err
 		}
@@ -185,4 +190,39 @@ func convTimestamp(srcTypeName string, val string) (t time.Time, err error) {
 		return t, fmt.Errorf("can't convert to timestamp (type: %s)", srcTypeName)
 	}
 	return t, err
+}
+
+func convArray(spannerType ddl.Type, srcTypeName string, v string) (interface{}, error) {
+	v = strings.TrimSpace(v)
+	// Handle empty array. Note that we use an empty NullString array
+	// for all Spanner array types since this will be converted to the
+	// appropriate type by the Spanner client.
+	if v == "" {
+		return []spanner.NullString{}, nil
+	}
+	var a []interface{}
+	err := json.Unmarshal([]byte(v), &a)
+	if err != nil {
+		return []spanner.NullString{}, err
+	}
+
+	// The Spanner client for go does not accept []interface{} for arrays.
+	// Instead it only accepts slices of a specific type eg: []string
+	// Hence we have to do the following case analysis.
+	switch spannerType.Name {
+	case ddl.String:
+		var r []spanner.NullString
+		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, spanner.NullString{Valid: false})
+				continue
+			}
+			if err != nil {
+				return []spanner.NullString{}, err
+			}
+			r = append(r, spanner.NullString{StringVal: fmt.Sprint(s), Valid: true})
+		}
+		return r, nil
+	}
+	return []interface{}{}, fmt.Errorf("array type conversion not implemented for type %v", spannerType.Name)
 }

@@ -78,11 +78,11 @@ func TestProcessSchemaOracle(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM all_tab_columns (.+)",
 			args:  []driver.Value{},
-			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale"},
+			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale", "typecode"},
 			rows: [][]driver.Value{
-				{"USER_ID", "VARCHAR2", "N", nil, nil, nil, nil},
-				{"NAME", "VARCHAR2", "N", nil, nil, nil, nil},
-				{"REF", "NUMBER", "Y", nil, nil, nil, nil}},
+				{"USER_ID", "VARCHAR2", "N", nil, nil, nil, nil, nil},
+				{"NAME", "VARCHAR2", "N", nil, nil, nil, nil, nil},
+				{"REF", "NUMBER", "Y", nil, nil, nil, nil, nil}},
 		},
 
 		// test table
@@ -108,9 +108,9 @@ func TestProcessSchemaOracle(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM all_tab_columns (.+)",
 			args:  []driver.Value{},
-			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale"},
+			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale", "typecode"},
 			rows: [][]driver.Value{
-				{"ID", "NUMBER", "N", nil, nil, nil, nil}},
+				{"ID", "NUMBER", "N", nil, nil, nil, nil, nil}},
 		},
 
 		// test2 table [json column test]
@@ -137,11 +137,12 @@ func TestProcessSchemaOracle(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM all_tab_columns (.+)",
 			args:  []driver.Value{},
-			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale"},
+			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale", "typecode"},
 			rows: [][]driver.Value{
-				{"ID", "NUMBER", "N", nil, nil, nil, nil},
-				{"JSON", "VARCHAR2", "N", nil, nil, nil, nil},
-				{"REALJSON", "JSON", "N", nil, nil, nil, nil}},
+				{"ID", "NUMBER", "N", nil, nil, nil, nil, nil},
+				{"JSON", "VARCHAR2", "N", nil, nil, nil, nil, nil},
+				{"REALJSON", "JSON", "N", nil, nil, nil, nil, nil},
+				{"ARRAY_TYPE", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION"}},
 		},
 	}
 	db := mkMockDB(t, ms)
@@ -176,11 +177,12 @@ func TestProcessSchemaOracle(t *testing.T) {
 		},
 		"TEST2": {
 			Name:     "TEST2",
-			ColNames: []string{"ID", "JSON", "REALJSON"},
+			ColNames: []string{"ID", "JSON", "REALJSON", "ARRAY_TYPE"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"ID":       {Name: "ID", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
-				"JSON":     {Name: "JSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
-				"REALJSON": {Name: "REALJSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true}},
+				"ID":         {Name: "ID", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
+				"JSON":       {Name: "JSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
+				"REALJSON":   {Name: "REALJSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
+				"ARRAY_TYPE": {Name: "ARRAY_TYPE", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}, NotNull: true}},
 			Pks: []ddl.IndexKey{{Col: "ID"}},
 		},
 	}

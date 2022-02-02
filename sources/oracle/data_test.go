@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -70,8 +71,9 @@ func TestConvertData(t *testing.T) {
 		{"string", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, "VARCHAR2", "eh", "eh"},
 		{"number", ddl.Type{Name: ddl.Numeric}, "NUMBER", numStr, numVal},
 		{"timestamp", ddl.Type{Name: ddl.Timestamp}, "TIMESTAMP(6)", "2022-01-19T09:34:06.47Z", getTime("2022-01-19T09:34:06.47Z")},
-		{"json", ddl.Type{Name: ddl.JSON}, "VARCHAR2", "{\"abc\": 123}}", "{\"abc\": 123}}"},
+		{"json", ddl.Type{Name: ddl.JSON}, "VARCHAR2", "{\"abc\": 123}", "{\"abc\": 123}"},
 		{"bool", ddl.Type{Name: ddl.Bool}, "CHAR(1)", "T", true},
+		{"array", ddl.Type{Name: ddl.String, IsArray: true}, "", "[\"CA\",\"CDSC\",\"DSCCS\"]", []spanner.NullString{{StringVal: "CA", Valid: true}, {StringVal: "CDSC", Valid: true}, {StringVal: "DSCCS", Valid: true}}},
 	}
 	tableName := "testtable"
 	for _, tc := range singleColTests {
