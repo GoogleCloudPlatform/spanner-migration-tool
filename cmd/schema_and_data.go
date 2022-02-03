@@ -112,10 +112,14 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
 	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
 
-	project, instance, dbName, err := profiles.GetResourceIds(ctx, targetProfile, now, sourceProfile.Driver, ioHelper.Out)
+	project, instance, dbName, err := targetProfile.GetResourceIds(ctx, now, sourceProfile.Driver, ioHelper.Out)
 	if err != nil {
 		return subcommands.ExitUsageError
 	}
+	fmt.Println("Using Google Cloud project:", project)
+	fmt.Println("Using Cloud Spanner instance:", instance)
+	utils.PrintPermissionsWarning(sourceProfile.Driver, ioHelper.Out)
+
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
 
 	adminClient, err := utils.NewDatabaseAdminClient(ctx)

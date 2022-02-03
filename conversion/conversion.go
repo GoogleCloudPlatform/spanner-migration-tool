@@ -297,13 +297,23 @@ func dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targ
 		return nil, fmt.Errorf("dbname is mandatory in target-profile for csv source")
 	}
 	conv.TargetDb = targetProfile.ToLegacyTargetDb()
+	dialect, err := targetProfile.FetchTargetDialect(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("could not fetch dialect: %v", err)
+	}
+
+	if utils.DialectToTarget(dialect) != conv.TargetDb {
+		return nil, fmt.Errorf("dialect specified in target profile does not match spanner dialect")
+	}
+
 	delimiterStr := sourceProfile.Csv.Delimiter
 	if len(delimiterStr) != 1 {
 		return nil, fmt.Errorf("delimiter should only be a single character long, found '%s'", delimiterStr)
 	}
+
 	delimiter := rune(delimiterStr[0])
 
-	err := utils.ReadSpannerSchema(ctx, conv, client)
+	err = utils.ReadSpannerSchema(ctx, conv, client)
 	if err != nil {
 		return nil, fmt.Errorf("error trying to read and convert spanner schema: %v", err)
 	}

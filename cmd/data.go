@@ -95,10 +95,14 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	}
 
 	now := time.Now()
-	project, instance, dbName, err := profiles.GetResourceIds(ctx, targetProfile, now, sourceProfile.Driver, ioHelper.Out)
+	project, instance, dbName, err := targetProfile.GetResourceIds(ctx, now, sourceProfile.Driver, ioHelper.Out)
 	if err != nil {
 		return subcommands.ExitUsageError
 	}
+	fmt.Println("Using Google Cloud project:", project)
+	fmt.Println("Using Cloud Spanner instance:", instance)
+	utils.PrintPermissionsWarning(sourceProfile.Driver, ioHelper.Out)
+
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
 
 	// If filePrefix not explicitly set, use dbName as prefix.

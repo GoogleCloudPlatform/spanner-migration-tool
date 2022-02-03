@@ -485,3 +485,10 @@ func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Clie
 	}
 	return nil
 }
+
+func DialectToTarget(dialect string) string {
+	if strings.ToLower(dialect) == constants.DIALECT_POSTGRESQL {
+		return constants.TargetExperimentalPostgres
+	}
+	return constants.TargetSpanner
+}
