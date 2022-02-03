@@ -2,9 +2,13 @@ package profiles
 
 import (
 	"fmt"
-	"strings"
+	"os"
+	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	"golang.org/x/net/context"
+	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
 type TargetProfileType int
@@ -53,10 +57,7 @@ func (trg TargetProfile) ToLegacyTargetDb() string {
 			case TargetProfileConnectionTypeSpanner:
 				{
 					sp := conn.Sp
-					if len(sp.Dialect) > 0 && strings.ToLower(sp.Dialect) == constants.DIALECT_POSTGRESQL {
-						return constants.TargetExperimentalPostgres
-					}
-					return constants.TargetSpanner
+					return utils.DialectToTarget(sp.Dialect)
 				}
 			default:
 				return constants.TargetSpanner
@@ -65,6 +66,52 @@ func (trg TargetProfile) ToLegacyTargetDb() string {
 	default:
 		return constants.TargetSpanner
 	}
+}
+
+// This expects that GetResourceIds has already been called once and the project, instance and dbname
+// fields in target profile are populated.
+func (trg TargetProfile) FetchTargetDialect(ctx context.Context) (string, error) {
+	// TODO: consider moving all clients to target profile instead of passing them around the codebase.
+	// Ideally we should use the client we create at the beginning, but we can fix that with the refactoring.
+	adminClient, _ := utils.NewDatabaseAdminClient(ctx)
+	// The parameters are irrelevant because the results are already cached when called the first time.
+	project, instance, dbName, _ := trg.GetResourceIds(ctx, time.Now(), "", nil)
+	result, err := adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)})
+	if err != nil {
+		return "", fmt.Errorf("cannot connect to target: %v", err)
+	}
+	return result.DatabaseDialect.String(), nil
+}
+
+func (targetProfile *TargetProfile) GetResourceIds(ctx context.Context, now time.Time, driverName string, out *os.File) (string, string, string, error) {
+	var err error
+	project := targetProfile.Conn.Sp.Project
+	if project == "" {
+		project, err = utils.GetProject()
+		if err != nil {
+			return "", "", "", fmt.Errorf("can't get project: %v", err)
+		}
+		targetProfile.Conn.Sp.Project = project
+	}
+
+	instance := targetProfile.Conn.Sp.Instance
+	if instance == "" {
+		instance, err = utils.GetInstance(ctx, project, out)
+		if err != nil {
+			return "", "", "", fmt.Errorf("can't get instance: %v", err)
+		}
+		targetProfile.Conn.Sp.Instance = instance
+	}
+
+	dbName := targetProfile.Conn.Sp.Dbname
+	if dbName == "" {
+		dbName, err = utils.GetDatabaseName(driverName, now)
+		if err != nil {
+			return "", "", "", fmt.Errorf("can't get database name: %v", err)
+		}
+		targetProfile.Conn.Sp.Dbname = dbName
+	}
+	return project, instance, dbName, err
 }
 
 // Target profile is passed as a list of key value pairs on the command line.
