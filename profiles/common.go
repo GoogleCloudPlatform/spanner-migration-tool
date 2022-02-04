@@ -1,13 +1,11 @@
 package profiles
 
 import (
-	"context"
 	"encoding/csv"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	go_ora "github.com/sijms/go-ora/v2"
@@ -47,37 +45,6 @@ func parseProfile(s string) (map[string]string, error) {
 		params[s[0]] = s[1]
 	}
 	return params, nil
-}
-
-func GetResourceIds(ctx context.Context, targetProfile TargetProfile, now time.Time, driverName string, out *os.File) (string, string, string, error) {
-	var err error
-	project := targetProfile.Conn.Sp.Project
-	if project == "" {
-		project, err = utils.GetProject()
-		if err != nil {
-			return "", "", "", fmt.Errorf("can't get project: %v", err)
-		}
-	}
-	fmt.Println("Using Google Cloud project:", project)
-
-	instance := targetProfile.Conn.Sp.Instance
-	if instance == "" {
-		instance, err = utils.GetInstance(ctx, project, out)
-		if err != nil {
-			return "", "", "", fmt.Errorf("can't get instance: %v", err)
-		}
-	}
-	fmt.Println("Using Cloud Spanner instance:", instance)
-	utils.PrintPermissionsWarning(driverName, out)
-
-	dbName := targetProfile.Conn.Sp.Dbname
-	if dbName == "" {
-		dbName, err = utils.GetDatabaseName(driverName, now)
-		if err != nil {
-			return "", "", "", fmt.Errorf("can't get database name: %v", err)
-		}
-	}
-	return project, instance, dbName, err
 }
 
 func GetSQLConnectionStr(sourceProfile SourceProfile) string {

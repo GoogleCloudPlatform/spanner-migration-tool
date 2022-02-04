@@ -23,34 +23,52 @@ import (
 	"math/big"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/civil"
+	"cloud.google.com/go/spanner"
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-type Column struct {
-	Column_name string `json:"column_name"`
-	Type_name   string `json:"type_name"`
+// GetCSVFiles finds the appropriate files paths and downloads gcs files in any.
+func GetCSVFiles(conv *internal.Conv, sourceProfile profiles.SourceProfile) (tables []utils.ManifestTable, err error) {
+	// If manifest file not provided, we assume the csvs exist in the same directory
+	// in table_name.csv format.
+	if sourceProfile.Csv.Manifest == "" {
+		fmt.Println("Manifest file not provided, checking for files named `[table_name].csv` in current working directory...")
+		for t := range conv.SpSchema {
+			tables = append(tables, utils.ManifestTable{Table_name: t, File_patterns: []string{fmt.Sprintf("%s.csv", t)}})
+		}
+	} else {
+		fmt.Println("Manifest file provided, reading csv file paths...")
+		// Read paths provided in manifest.
+		tables, err = loadManifest(conv, sourceProfile.Csv.Manifest)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Download gcs files if any.
+	tables, err = utils.PreloadGCSFiles(tables)
+	if err != nil {
+		return nil, fmt.Errorf("gcs file download error: %v", err)
+	}
+	return tables, nil
 }
 
-// Harbourbridge accepts a manifest file in the form of a json which unmarshalls into the Table struct.
-type Table struct {
-	Table_name    string   `json:"table_name"`
-	File_patterns []string `json:"file_patterns"`
-	Columns       []Column `json:"columns"`
-}
-
-// LoadManifest reads the manifest file and unmarshalls it into a list of Table struct.
+// loadManifest reads the manifest file and unmarshalls it into a list of Table struct.
 // It also performs certain checks on the manifest.
-func LoadManifest(conv *internal.Conv, manifestFile string) ([]Table, error) {
+func loadManifest(conv *internal.Conv, manifestFile string) ([]utils.ManifestTable, error) {
 	manifest, err := ioutil.ReadFile(manifestFile)
 	if err != nil {
 		return nil, fmt.Errorf("can't read manifest file due to: %v", err)
 	}
-	tables := []Table{}
+	tables := []utils.ManifestTable{}
 	err = json.Unmarshal(manifest, &tables)
 	if err != nil {
 		return nil, fmt.Errorf("unable to unmarshall json due to: %v", err)
@@ -64,70 +82,83 @@ func LoadManifest(conv *internal.Conv, manifestFile string) ([]Table, error) {
 
 // VerifyManifest performs certain prechecks on the structure of the manifest while populating the conv with
 // the ddl types. Also checks on valid file paths and empty CSVs are handled as conv.Unexpected errors later during processing.
-func VerifyManifest(conv *internal.Conv, tables []Table) error {
+func VerifyManifest(conv *internal.Conv, tables []utils.ManifestTable) error {
 	if len(tables) == 0 {
 		return fmt.Errorf("no tables found")
+	}
+	missing := []string{}
+	for name := range conv.SrcSchema {
+		found := false
+		for _, table := range tables {
+			if name == table.Table_name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) > 0 {
+		fmt.Printf("WARNING: did not find manifest entries for tables [ %s ], ignoring and proceeding...\n", strings.Join(missing, ", "))
+		conv.Unexpected(fmt.Sprintf("did not find manifest entries for tables [ %s ]", strings.Join(missing, ", ")))
 	}
 	for i, table := range tables {
 		name := table.Table_name
 		if name == "" {
 			return fmt.Errorf("table number %d (0-indexed) does not have a name", i)
 		}
+		if _, ok := conv.SrcSchema[name]; !ok {
+			return fmt.Errorf("table %s provided in manifest does not exist in spanner", name)
+		}
 		if len(table.File_patterns) == 0 {
 			return fmt.Errorf("no file path provided for table %s", name)
 		}
-		cols := table.Columns
-		if len(cols) == 0 {
-			return fmt.Errorf("`columns` field for table %s is empty", name)
-		}
-		// Populating just the table names in the conv for SrcSchema and SpSchema
-		// so the report for row stats is generated.
-		conv.SrcSchema[table.Table_name] = schema.Table{Name: table.Table_name}
-
-		// The map colDefs stores the mapping from column names to their final types.
-		colDefs := make(map[string]ddl.ColumnDef)
-		for j, col := range cols {
-			if col.Column_name == "" || col.Type_name == "" {
-				return fmt.Errorf("please provide column_name and type_name in `columns` field at position %d (0-indexed)", j)
-			}
-			ty, err := ToSpannerType(col.Type_name)
-			if err != nil {
-				return fmt.Errorf("can't map to spanner type: %v. Please use the data types as in your spanner database", err)
-			}
-			colDefs[col.Column_name] = ddl.ColumnDef{Name: col.Column_name, T: ty}
-		}
-		conv.SpSchema[table.Table_name] = ddl.CreateTable{Name: table.Table_name, ColDefs: colDefs}
 	}
 	return nil
 }
 
 // SetRowStats calculates the number of rows per table.
-func SetRowStats(conv *internal.Conv, tables []Table, delimiter rune) {
+func SetRowStats(conv *internal.Conv, tables []utils.ManifestTable, delimiter rune) error {
 	for _, table := range tables {
 		for _, filePath := range table.File_patterns {
 			csvFile, err := os.Open(filePath)
 			if err != nil {
-				fmt.Printf("can't read csv file: %s due to: %v\n", filePath, err)
+				return fmt.Errorf("can't read csv file: %s due to: %v", filePath, err)
 			}
 			r := csvReader.NewReader(csvFile)
 			r.Comma = delimiter
-			count, err := getCSVRowCount(r)
+			count, err := getCSVDataRowCount(r, conv.SpSchema[table.Table_name].ColNames)
 			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Couldn't get number of rows for table %s", table.Table_name))
-				continue
+				return fmt.Errorf("error reading file %s for table %s: %v", filePath, table.Table_name, err)
 			}
 			if count == 0 {
 				conv.Unexpected(fmt.Sprintf("error processing table %s: file %s is empty.", table.Table_name, filePath))
 				continue
 			}
-			conv.Stats.Rows[table.Table_name] += count - 1
+			conv.Stats.Rows[table.Table_name] += count
 		}
 	}
+	return nil
 }
 
-// getCSVRowCount returns the number of rows in the CSV file.
-func getCSVRowCount(r *csvReader.Reader) (int64, error) {
+// getCSVDataRowCount returns the number of data rows in the CSV file. This excludes the headers if present.
+func getCSVDataRowCount(r *csvReader.Reader, colNames []string) (int64, error) {
 	count := int64(0)
+	srcCols, err := r.Read()
+	if err == io.EOF {
+		return count, nil
+	}
+	if err != nil {
+		return count, fmt.Errorf("can't read csv headers for col names due to: %v", err)
+	}
+	if len(srcCols) != len(colNames) {
+		return 0, fmt.Errorf("found %d columns in csv, expected %d as per Spanner schema", len(srcCols), len(colNames))
+	}
+	// If the row read was not a header, increase count.
+	if !utils.CheckEqualSets(srcCols, colNames) {
+		count += 1
+	}
 	for {
 		_, err := r.Read()
 		if err == io.EOF {
@@ -143,8 +174,18 @@ func getCSVRowCount(r *csvReader.Reader) (int64, error) {
 
 // ProcessCSV writes data across the tables provided in the manifest file. Each table's data can be provided
 // across multiple CSV files hence, the manifest accepts a list of file paths in the input.
-func ProcessCSV(conv *internal.Conv, tables []Table, nullStr string, delimiter rune) error {
+func ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, nullStr string, delimiter rune) error {
+	orderedTableNames := ddl.OrderTables(conv.SpSchema)
+	nameToFiles := map[string][]string{}
 	for _, table := range tables {
+		nameToFiles[table.Table_name] = table.File_patterns
+	}
+	orderedTables := []utils.ManifestTable{}
+	for _, name := range orderedTableNames {
+		orderedTables = append(orderedTables, utils.ManifestTable{name, nameToFiles[name]})
+	}
+
+	for _, table := range orderedTables {
 		for _, filePath := range table.File_patterns {
 			csvFile, err := os.Open(filePath)
 			if err != nil {
@@ -153,25 +194,37 @@ func ProcessCSV(conv *internal.Conv, tables []Table, nullStr string, delimiter r
 			r := csvReader.NewReader(csvFile)
 			r.Comma = delimiter
 
-			// First row is expected to be the column headers.
+			// Default column order is same as in Spanner schema.
+			colNames := conv.SpSchema[table.Table_name].ColNames
 			srcCols, err := r.Read()
 			if err == io.EOF {
 				conv.Unexpected(fmt.Sprintf("error processing table %s: file %s is empty.", table.Table_name, filePath))
 				continue
 			}
 			if err != nil {
-				return fmt.Errorf("can't read csv headers for col names due to: %v", err)
+				return fmt.Errorf("can't read row for %s due to: %v", filePath, err)
 			}
+			// If first row is some permutation of Spanner schema columns, we assume the first row is headers.
+			if utils.CheckEqualSets(srcCols, colNames) {
+				colNames = srcCols
+			} else {
+				// Write the first row since it was not a column header.
+				processDataRow(conv, nullStr, table.Table_name, colNames, srcCols)
+			}
+
 			for {
 				values, err := r.Read()
 				if err == io.EOF {
 					break
 				}
 				if err != nil {
-					return fmt.Errorf(fmt.Sprintf("can't read row  names due to: %v", err))
+					return fmt.Errorf("can't read row for %s due to: %v", filePath, err)
 				}
-				processDataRow(conv, nullStr, table.Table_name, srcCols, values)
+				processDataRow(conv, nullStr, table.Table_name, colNames, values)
 			}
+		}
+		if conv.DataFlush != nil {
+			conv.DataFlush()
 		}
 	}
 	return nil
@@ -200,7 +253,14 @@ func convertData(conv *internal.Conv, nullStr, tableName string, srcCols []strin
 			continue
 		}
 		colName := srcCols[i]
-		x, err := convScalar(colDefs[colName].T, val)
+		spColDef := colDefs[colName]
+		var x interface{}
+		var err error
+		if spColDef.T.IsArray {
+			x, err = convArray(spColDef.T, val)
+		} else {
+			x, err = convScalar(conv, spColDef.T, val)
+		}
 		if err != nil {
 			return nil, nil, err
 		}
@@ -210,7 +270,169 @@ func convertData(conv *internal.Conv, nullStr, tableName string, srcCols []strin
 	return cvtCols, v, nil
 }
 
-func convScalar(spannerType ddl.Type, val string) (interface{}, error) {
+func convArray(spannerType ddl.Type, val string) (interface{}, error) {
+	val = strings.TrimSpace(val)
+	// Handle empty array. Note that we use an empty NullString array
+	// for all Spanner array types since this will be converted to the
+	// appropriate type by the Spanner client.
+	if val == "{}" || val == "[]" {
+		return []spanner.NullString{}, nil
+	}
+	braces := val[:1] + val[len(val)-1:]
+	if braces != "{}" && braces != "[]" {
+		return []interface{}{}, fmt.Errorf("unrecognized data format for array: expected {v1, v2, ...} or [v1, v2, ...]")
+	}
+	a := strings.Split(val[1:len(val)-1], ",")
+
+	// The Spanner client for go does not accept []interface{} for arrays.
+	// Instead it only accepts slices of a specific type e.g. []int64, []string.
+	// Hence we have to do the following case analysis.
+	switch spannerType.Name {
+	case ddl.Bool:
+		var r []spanner.NullBool
+		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, spanner.NullBool{Valid: false})
+				continue
+			}
+			s, err := processQuote(s)
+			if err != nil {
+				return []spanner.NullBool{}, err
+			}
+			b, err := convBool(s)
+			if err != nil {
+				return []spanner.NullBool{}, err
+			}
+			r = append(r, spanner.NullBool{Bool: b, Valid: true})
+		}
+		return r, nil
+	case ddl.Bytes:
+		var r [][]byte
+		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, nil)
+				continue
+			}
+			s, err := processQuote(s)
+			if err != nil {
+				return [][]byte{}, err
+			}
+			b, err := convBytes(s)
+			if err != nil {
+				return [][]byte{}, err
+			}
+			r = append(r, b)
+		}
+		return r, nil
+	case ddl.Date:
+		var r []spanner.NullDate
+		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, spanner.NullDate{Valid: false})
+				continue
+			}
+			s, err := processQuote(s)
+			if err != nil {
+				return []spanner.NullDate{}, err
+			}
+			date, err := convDate(s)
+			if err != nil {
+				return []spanner.NullDate{}, err
+			}
+			r = append(r, spanner.NullDate{Date: date, Valid: true})
+		}
+		return r, nil
+	case ddl.Float64:
+		var r []spanner.NullFloat64
+		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, spanner.NullFloat64{Valid: false})
+				continue
+			}
+			s, err := processQuote(s)
+			if err != nil {
+				return []spanner.NullFloat64{}, err
+			}
+			f, err := convFloat64(s)
+			if err != nil {
+				return []spanner.NullFloat64{}, err
+			}
+			r = append(r, spanner.NullFloat64{Float64: f, Valid: true})
+		}
+		return r, nil
+	case ddl.Numeric:
+		var r []spanner.NullNumeric
+		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, spanner.NullNumeric{Valid: false})
+				continue
+			}
+			s, err := processQuote(s)
+			if err != nil {
+				return []spanner.NullNumeric{}, err
+			}
+			n, err := convNumeric(s)
+			if err != nil {
+				return []spanner.NullNumeric{}, err
+			}
+			r = append(r, spanner.NullNumeric{Numeric: n, Valid: true})
+		}
+		return r, nil
+	case ddl.Int64:
+		var r []spanner.NullInt64
+		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, spanner.NullInt64{Valid: false})
+				continue
+			}
+			s, err := processQuote(s)
+			if err != nil {
+				return []spanner.NullInt64{}, err
+			}
+			i, err := convInt64(s)
+			if err != nil {
+				return r, err
+			}
+			r = append(r, spanner.NullInt64{Int64: i, Valid: true})
+		}
+		return r, nil
+	case ddl.String:
+		var r []spanner.NullString
+		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, spanner.NullString{Valid: false})
+				continue
+			}
+			s, err := processQuote(s)
+			if err != nil {
+				return []spanner.NullString{}, err
+			}
+			r = append(r, spanner.NullString{StringVal: s, Valid: true})
+		}
+		return r, nil
+	case ddl.Timestamp:
+		var r []spanner.NullTime
+		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, spanner.NullTime{Valid: false})
+				continue
+			}
+			s, err := processQuote(s)
+			if err != nil {
+				return []spanner.NullTime{}, err
+			}
+			t, err := convTimestamp(s)
+			if err != nil {
+				return []spanner.NullTime{}, err
+			}
+			r = append(r, spanner.NullTime{Time: t, Valid: true})
+		}
+		return r, nil
+	}
+	return []interface{}{}, fmt.Errorf("array type conversion not implemented for type []%v", spannerType.Name)
+}
+
+func convScalar(conv *internal.Conv, spannerType ddl.Type, val string) (interface{}, error) {
 	switch spannerType.Name {
 	case ddl.Bool:
 		return convBool(val)
@@ -223,6 +445,9 @@ func convScalar(spannerType ddl.Type, val string) (interface{}, error) {
 	case ddl.Int64:
 		return convInt64(val)
 	case ddl.Numeric:
+		if conv.TargetDb == constants.TargetExperimentalPostgres {
+			return spanner.PGNumeric{Numeric: val, Valid: true}, nil
+		}
 		return convNumeric(val)
 	case ddl.String:
 		return val, nil
@@ -275,12 +500,12 @@ func convInt64(val string) (int64, error) {
 
 // convNumeric maps a source database string value (representing a numeric)
 // into a string representing a valid Spanner numeric.
-func convNumeric(val string) (interface{}, error) {
+func convNumeric(val string) (big.Rat, error) {
 	r := new(big.Rat)
 	if _, ok := r.SetString(val); !ok {
-		return "", fmt.Errorf("can't convert %q to big.Rat", val)
+		return big.Rat{}, fmt.Errorf("can't convert %q to big.Rat", val)
 	}
-	return r, nil
+	return *r, nil
 }
 
 func convTimestamp(val string) (t time.Time, err error) {
@@ -289,4 +514,11 @@ func convTimestamp(val string) (t time.Time, err error) {
 		return t, fmt.Errorf("can't convert to timestamp: %s", val)
 	}
 	return t, err
+}
+
+func processQuote(s string) (string, error) {
+	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+		return strconv.Unquote(s)
+	}
+	return s, nil
 }

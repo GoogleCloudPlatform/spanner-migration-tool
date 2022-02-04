@@ -8,6 +8,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -54,11 +55,13 @@ func (cmd *DataCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.sessionJSON, "session", "", "Specifies the file we restore session state from")
 	f.StringVar(&cmd.target, "target", "Spanner", "Specifies the target DB, defaults to Spanner (accepted values: `Spanner`)")
 	f.StringVar(&cmd.targetProfile, "target-profile", "", "Flag for specifying connection profile for target database e.g., \"dialect=postgresql\"")
-	flag.BoolVar(&cmd.skipForeignKeys, "skip-foreign-keys", false, "Skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
+	f.BoolVar(&cmd.skipForeignKeys, "skip-foreign-keys", false, "Skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
 }
 
 func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+	// Cleanup hb tmp data directory in case residuals remain from prev runs.
+	os.RemoveAll(os.TempDir() + constants.HB_TMP_DIR)
 	var err error
 	defer func() {
 		if err != nil {
@@ -92,10 +95,14 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	}
 
 	now := time.Now()
-	project, instance, dbName, err := profiles.GetResourceIds(ctx, targetProfile, now, sourceProfile.Driver, ioHelper.Out)
+	project, instance, dbName, err := targetProfile.GetResourceIds(ctx, now, sourceProfile.Driver, ioHelper.Out)
 	if err != nil {
 		return subcommands.ExitUsageError
 	}
+	fmt.Println("Using Google Cloud project:", project)
+	fmt.Println("Using Cloud Spanner instance:", instance)
+	utils.PrintPermissionsWarning(sourceProfile.Driver, ioHelper.Out)
+
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
 
 	// If filePrefix not explicitly set, use dbName as prefix.
@@ -136,7 +143,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		}
 	}
 
-	bw, err := conversion.DataConv(sourceProfile, targetProfile, &ioHelper, client, conv, true)
+	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, client, conv, true)
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 		return subcommands.ExitFailure
@@ -150,5 +157,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	banner := utils.GetBanner(now, dbURI)
 	conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, cmd.filePrefix+badDataFile, ioHelper.Out)
+	// Cleanup hb tmp data directory.
+	os.RemoveAll(os.TempDir() + constants.HB_TMP_DIR)
 	return subcommands.ExitSuccess
 }

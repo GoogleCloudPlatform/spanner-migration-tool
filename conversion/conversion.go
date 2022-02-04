@@ -55,8 +55,8 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/writer"
 )
 
 var (
@@ -93,8 +93,8 @@ func SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.Tar
 //  - Driver is DynamoDB or a dump file mode.
 //  - This function is called as part of the legacy global CLI flag mode. (This string is constructed from env variables later on)
 // When using source-profile, the sqlConnectionStr and schemaSampleSize are constructed from the input params.
-func DataConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*spanner.BatchWriter, error) {
-	config := spanner.BatchWriterConfig{
+func DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*writer.BatchWriter, error) {
+	config := writer.BatchWriterConfig{
 		BytesLimit: 100 * 1000 * 1000,
 		WriteLimit: 40,
 		RetryLimit: 1000,
@@ -109,7 +109,7 @@ func DataConv(sourceProfile profiles.SourceProfile, targetProfile profiles.Targe
 		}
 		return dataFromDump(sourceProfile.Driver, config, ioHelper, client, conv, dataOnly)
 	case constants.CSV:
-		return dataFromCSV(sourceProfile, targetProfile, config, conv, client)
+		return dataFromCSV(ctx, sourceProfile, targetProfile, config, conv, client)
 	default:
 		return nil, fmt.Errorf("data conversion for driver %s not supported", sourceProfile.Driver)
 	}
@@ -178,7 +178,7 @@ func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile prof
 	return conv, common.ProcessSchema(conv, infoSchema)
 }
 
-func dataFromDatabase(sourceProfile profiles.SourceProfile, config spanner.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*spanner.BatchWriter, error) {
+func dataFromDatabase(sourceProfile profiles.SourceProfile, config writer.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*writer.BatchWriter, error) {
 	infoSchema, err := GetInfoSchema(sourceProfile)
 	if err != nil {
 		return nil, err
@@ -196,18 +196,18 @@ func dataFromDatabase(sourceProfile profiles.SourceProfile, config spanner.Batch
 		p.MaybeReport(atomic.LoadInt64(&rows))
 		return nil
 	}
-	writer := spanner.NewBatchWriter(config)
+	batchWriter := writer.NewBatchWriter(config)
 	conv.SetDataMode()
 	conv.SetDataSink(
 		func(table string, cols []string, vals []interface{}) {
-			writer.AddRow(table, cols, vals)
+			batchWriter.AddRow(table, cols, vals)
 		})
 	conv.DataFlush = func() {
-		writer.Flush()
+		batchWriter.Flush()
 	}
 	common.ProcessData(conv, infoSchema)
-	writer.Flush()
-	return writer, nil
+	batchWriter.Flush()
+	return batchWriter, nil
 }
 
 func getDynamoDBClientConfig() (*aws.Config, error) {
@@ -242,7 +242,7 @@ func schemaFromDump(driver string, targetDb string, ioHelper *utils.IOStreams) (
 	return conv, nil
 }
 
-func dataFromDump(driver string, config spanner.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*spanner.BatchWriter, error) {
+func dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*writer.BatchWriter, error) {
 	// TODO: refactor of the way we handle getSeekable
 	// to avoid the code duplication here
 	if !dataOnly {
@@ -276,38 +276,58 @@ func dataFromDump(driver string, config spanner.BatchWriterConfig, ioHelper *uti
 		p.MaybeReport(atomic.LoadInt64(&rows))
 		return nil
 	}
-	writer := spanner.NewBatchWriter(config)
+	batchWriter := writer.NewBatchWriter(config)
 	conv.SetDataMode() // Process data in dump; schema is unchanged.
 	conv.SetDataSink(
 		func(table string, cols []string, vals []interface{}) {
-			writer.AddRow(table, cols, vals)
+			batchWriter.AddRow(table, cols, vals)
 		})
 	conv.DataFlush = func() {
-		writer.Flush()
+		batchWriter.Flush()
 	}
 	ProcessDump(driver, conv, r)
-	writer.Flush()
+	batchWriter.Flush()
 	p.Done()
 
-	return writer, nil
+	return batchWriter, nil
 }
 
-func dataFromCSV(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config spanner.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*spanner.BatchWriter, error) {
+func dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
 	if targetProfile.Conn.Sp.Dbname == "" {
 		return nil, fmt.Errorf("dbname is mandatory in target-profile for csv source")
 	}
+	conv.TargetDb = targetProfile.ToLegacyTargetDb()
+	dialect, err := targetProfile.FetchTargetDialect(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("could not fetch dialect: %v", err)
+	}
+
+	if utils.DialectToTarget(dialect) != conv.TargetDb {
+		return nil, fmt.Errorf("dialect specified in target profile does not match spanner dialect")
+	}
+
 	delimiterStr := sourceProfile.Csv.Delimiter
 	if len(delimiterStr) != 1 {
 		return nil, fmt.Errorf("delimiter should only be a single character long, found '%s'", delimiterStr)
 	}
+
 	delimiter := rune(delimiterStr[0])
-	tables, err := csv.LoadManifest(conv, sourceProfile.Csv.Manifest)
+
+	err = utils.ReadSpannerSchema(ctx, conv, client)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error trying to read and convert spanner schema: %v", err)
+	}
+
+	tables, err := csv.GetCSVFiles(conv, sourceProfile)
+	if err != nil {
+		return nil, fmt.Errorf("error finding csv files: %v", err)
 	}
 
 	// Find the number of rows in each csv file for generating stats.
-	csv.SetRowStats(conv, tables, delimiter)
+	err = csv.SetRowStats(conv, tables, delimiter)
+	if err != nil {
+		return nil, err
+	}
 	totalRows := conv.Rows()
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 	rows := int64(0)
@@ -320,19 +340,22 @@ func dataFromCSV(sourceProfile profiles.SourceProfile, targetProfile profiles.Ta
 		p.MaybeReport(atomic.LoadInt64(&rows))
 		return nil
 	}
-	writer := spanner.NewBatchWriter(config)
+	batchWriter := writer.NewBatchWriter(config)
 	conv.SetDataMode()
 	conv.SetDataSink(
 		func(table string, cols []string, vals []interface{}) {
-			writer.AddRow(table, cols, vals)
+			batchWriter.AddRow(table, cols, vals)
 		})
+	conv.DataFlush = func() {
+		batchWriter.Flush()
+	}
 	err = csv.ProcessCSV(conv, tables, sourceProfile.Csv.NullStr, delimiter)
 	if err != nil {
 		return nil, fmt.Errorf("can't process csv: %v", err)
 	}
-	writer.Flush()
+	batchWriter.Flush()
 	p.Done()
-	return writer, nil
+	return batchWriter, nil
 }
 
 // Report generates a report of schema and data conversion.
@@ -705,7 +728,7 @@ func ReadSessionFile(conv *internal.Conv, sessionJSON string) error {
 
 // WriteBadData prints summary stats about bad rows and writes detailed info
 // to file 'name'.
-func WriteBadData(bw *spanner.BatchWriter, conv *internal.Conv, banner, name string, out *os.File) {
+func WriteBadData(bw *writer.BatchWriter, conv *internal.Conv, banner, name string, out *os.File) {
 	badConversions := conv.BadRows()
 	badWrites := utils.SumMapValues(bw.DroppedRowsByTable())
 	if badConversions == 0 && badWrites == 0 {
