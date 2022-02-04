@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/golang-sql/civil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -52,7 +52,6 @@ func TestProcessDataRow(t *testing.T) {
 }
 
 func TestConvertData(t *testing.T) {
-
 	numStr := "33753785954695469456.33333333982343435"
 	numVal := new(big.Rat)
 	numVal.SetString(numStr)
@@ -73,7 +72,11 @@ func TestConvertData(t *testing.T) {
 		{"timestamp", ddl.Type{Name: ddl.Timestamp}, "TIMESTAMP(6)", "2022-01-19T09:34:06.47Z", getTime("2022-01-19T09:34:06.47Z")},
 		{"json", ddl.Type{Name: ddl.JSON}, "VARCHAR2", "{\"abc\": 123}", "{\"abc\": 123}"},
 		{"bool", ddl.Type{Name: ddl.Bool}, "CHAR(1)", "T", true},
-		{"array", ddl.Type{Name: ddl.String, IsArray: true}, "", "[\"CA\",\"CDSC\",\"DSCCS\"]", []spanner.NullString{{StringVal: "CA", Valid: true}, {StringVal: "CDSC", Valid: true}, {StringVal: "DSCCS", Valid: true}}},
+		{"arrayStr", ddl.Type{Name: ddl.String, IsArray: true}, "", "[\"CA\",\"CDSC\",\"DSCCS\"]", []spanner.NullString{{StringVal: "CA", Valid: true}, {StringVal: "CDSC", Valid: true}, {StringVal: "DSCCS", Valid: true}}},
+		{"arrayInt", ddl.Type{Name: ddl.Int64, IsArray: true}, "", "[1,2,3]", []spanner.NullInt64{{Int64: 1, Valid: true}, {Int64: 2, Valid: true}, {Int64: 3, Valid: true}}},
+		{"arrayFloat", ddl.Type{Name: ddl.Float64, IsArray: true}, "", "[1.5,0.00002,357657]", []spanner.NullFloat64{{Float64: 1.5, Valid: true}, {Float64: 0.00002, Valid: true}, {Float64: 357657, Valid: true}}},
+		{"arrayFloat", ddl.Type{Name: ddl.Date, IsArray: true}, "", "[\"2022-04-12\", \"2022-11-12\", \"2022-09-12\"]", getDateArray()},
+		{"object", ddl.Type{Name: ddl.JSON}, "OBJECT", "<PERSON_TYP><IDNO>1</IDNO><NAME>test</NAME><PHONE>123456</PHONE></PERSON_TYP>", "{\"PERSON_TYP\": {\"IDNO\": \"1\", \"NAME\": \"test\", \"PHONE\": \"123456\"}}\n"},
 	}
 	tableName := "testtable"
 	for _, tc := range singleColTests {
@@ -275,4 +278,14 @@ func getTime(val string) time.Time {
 func getDate(s string) civil.Date {
 	d, _ := civil.ParseDate(s)
 	return d
+}
+
+func getDateArray() []spanner.NullDate {
+	ds := []string{"2022-04-12", "2022-11-12", "2022-09-12"}
+	var dates []spanner.NullDate
+	for _, d := range ds {
+		date, _ := civil.ParseDate(d)
+		dates = append(dates, spanner.NullDate{Date: date, Valid: true})
+	}
+	return dates
 }

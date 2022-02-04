@@ -23,12 +23,13 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner"
+	xj "github.com/basgys/goxml2json"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/golang-sql/civil"
 )
 
 func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, vals []string) {
@@ -113,6 +114,9 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, T
 	case ddl.Timestamp:
 		return convTimestamp(srcTypeName, val)
 	case ddl.JSON:
+		if srcTypeName == "OBJECT" {
+			return convJson(val)
+		}
 		return val, nil
 	default:
 		return val, fmt.Errorf("data conversion not implemented for type %v", spannerType.Name)
@@ -200,29 +204,112 @@ func convArray(spannerType ddl.Type, srcTypeName string, v string) (interface{},
 	if v == "" {
 		return []spanner.NullString{}, nil
 	}
-	var a []interface{}
-	err := json.Unmarshal([]byte(v), &a)
-	if err != nil {
-		return []spanner.NullString{}, err
-	}
 
 	// The Spanner client for go does not accept []interface{} for arrays.
 	// Instead it only accepts slices of a specific type eg: []string
 	// Hence we have to do the following case analysis.
 	switch spannerType.Name {
 	case ddl.String:
+		var a []string
 		var r []spanner.NullString
+		err := json.Unmarshal([]byte(v), &a)
+		if err != nil {
+			return []spanner.NullString{}, err
+		}
+
 		for _, s := range a {
 			if s == "NULL" {
 				r = append(r, spanner.NullString{Valid: false})
 				continue
 			}
-			if err != nil {
-				return []spanner.NullString{}, err
+			r = append(r, spanner.NullString{StringVal: s, Valid: true})
+		}
+		return r, nil
+	case ddl.Numeric:
+		var a []interface{}
+		var r []spanner.NullNumeric
+		err := json.Unmarshal([]byte(v), &a)
+		if err != nil {
+			return []spanner.NullNumeric{}, err
+		}
+		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, spanner.NullNumeric{Valid: false})
+				continue
 			}
-			r = append(r, spanner.NullString{StringVal: fmt.Sprint(s), Valid: true})
+			val := new(big.Rat)
+			if _, ok := val.SetString(fmt.Sprint(s)); !ok {
+				return []spanner.NullNumeric{}, fmt.Errorf("can't convert %q to big.Rat", s)
+			}
+			r = append(r, spanner.NullNumeric{Numeric: *val, Valid: true})
+		}
+		return r, nil
+	case ddl.Int64:
+		var a []interface{}
+		var r []spanner.NullInt64
+		err := json.Unmarshal([]byte(v), &a)
+		if err != nil {
+			return []spanner.NullInt64{}, err
+		}
+		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, spanner.NullInt64{Valid: false})
+				continue
+			}
+			val, err := convInt64(fmt.Sprint(s))
+			if err != nil {
+				return []spanner.NullInt64{}, err
+			}
+			r = append(r, spanner.NullInt64{Int64: val, Valid: true})
+		}
+		return r, nil
+	case ddl.Float64:
+		var a []interface{}
+		var r []spanner.NullFloat64
+		err := json.Unmarshal([]byte(v), &a)
+		if err != nil {
+			return []spanner.NullFloat64{}, err
+		}
+		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, spanner.NullFloat64{Valid: false})
+				continue
+			}
+			val, err := convFloat64(fmt.Sprint(s))
+			if err != nil {
+				return []spanner.NullFloat64{}, err
+			}
+			r = append(r, spanner.NullFloat64{Float64: val, Valid: true})
+		}
+		return r, nil
+	case ddl.Date:
+		var a []interface{}
+		err := json.Unmarshal([]byte(v), &a)
+		if err != nil {
+			return []spanner.NullDate{}, err
+		}
+		var r []spanner.NullDate
+		for _, s := range a {
+			if s == "NULL" {
+				r = append(r, spanner.NullDate{Valid: false})
+				continue
+			}
+			val, err := convDate(fmt.Sprint(s))
+			if err != nil {
+				return []spanner.NullDate{}, err
+			}
+			r = append(r, spanner.NullDate{Date: val, Valid: true})
 		}
 		return r, nil
 	}
 	return []interface{}{}, fmt.Errorf("array type conversion not implemented for type %v", spannerType.Name)
+}
+
+func convJson(v string) (ans string, err error) {
+	xml := strings.NewReader(v)
+	j, err := xj.Convert(xml)
+	if err != nil {
+		return "", fmt.Errorf("not able to convert object to JSON: %v ", v)
+	}
+	return j.String(), nil
 }

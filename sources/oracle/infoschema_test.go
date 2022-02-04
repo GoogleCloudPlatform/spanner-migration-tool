@@ -78,11 +78,11 @@ func TestProcessSchemaOracle(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM all_tab_columns (.+)",
 			args:  []driver.Value{},
-			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale", "typecode"},
+			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale", "typecode", "element_type", "element_length", "element_precision", "element_scale"},
 			rows: [][]driver.Value{
-				{"USER_ID", "VARCHAR2", "N", nil, nil, nil, nil, nil},
-				{"NAME", "VARCHAR2", "N", nil, nil, nil, nil, nil},
-				{"REF", "NUMBER", "Y", nil, nil, nil, nil, nil}},
+				{"USER_ID", "VARCHAR2", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
+				{"NAME", "VARCHAR2", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
+				{"REF", "NUMBER", "Y", nil, nil, nil, nil, nil, nil, nil, nil, nil}},
 		},
 
 		// test table
@@ -108,9 +108,9 @@ func TestProcessSchemaOracle(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM all_tab_columns (.+)",
 			args:  []driver.Value{},
-			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale", "typecode"},
+			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale", "typecode", "element_type", "element_length", "element_precision", "element_scale"},
 			rows: [][]driver.Value{
-				{"ID", "NUMBER", "N", nil, nil, nil, nil, nil}},
+				{"ID", "NUMBER", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil}},
 		},
 
 		// test2 table [json column test]
@@ -137,13 +137,17 @@ func TestProcessSchemaOracle(t *testing.T) {
 		{
 			query: "SELECT (.+) FROM all_tab_columns (.+)",
 			args:  []driver.Value{},
-			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale", "typecode"},
+			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale", "typecode", "element_type", "element_length", "element_precision", "element_scale"},
 			rows: [][]driver.Value{
-				{"ID", "NUMBER", "N", nil, nil, nil, nil, nil},
-				{"JSON", "VARCHAR2", "N", nil, nil, nil, nil, nil},
-				{"REALJSON", "JSON", "N", nil, nil, nil, nil, nil},
-				{"ARRAY_TYPE", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION"}},
-		},
+				{"ID", "NUMBER", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
+				{"JSON", "VARCHAR2", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
+				{"REALJSON", "JSON", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
+				{"ARRAY_NUM", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "NUMBER", nil, 10, 5},
+				{"ARRAY_FLOAT", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "FLOAT", nil, nil, nil},
+				{"ARRAY_STRING", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "VARCHAR2", 15, nil, nil},
+				{"ARRAY_DATE", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "DATE", nil, nil, nil},
+				{"ARRAY_INT", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "NUMBER", nil, 10, 0},
+				{"OBJECT", "CONTACTS", "N", nil, nil, nil, nil, "OBJECT", nil, nil, nil, nil}}},
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
@@ -177,12 +181,18 @@ func TestProcessSchemaOracle(t *testing.T) {
 		},
 		"TEST2": {
 			Name:     "TEST2",
-			ColNames: []string{"ID", "JSON", "REALJSON", "ARRAY_TYPE"},
+			ColNames: []string{"ID", "JSON", "REALJSON", "ARRAY_NUM", "ARRAY_FLOAT", "ARRAY_STRING", "ARRAY_DATE", "ARRAY_INT", "OBJECT"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"ID":         {Name: "ID", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
-				"JSON":       {Name: "JSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
-				"REALJSON":   {Name: "REALJSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
-				"ARRAY_TYPE": {Name: "ARRAY_TYPE", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}, NotNull: true}},
+				"ID":           {Name: "ID", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
+				"JSON":         {Name: "JSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
+				"REALJSON":     {Name: "REALJSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
+				"ARRAY_NUM":    {Name: "ARRAY_NUM", T: ddl.Type{Name: ddl.Numeric, IsArray: true}, NotNull: true},
+				"ARRAY_FLOAT":  {Name: "ARRAY_FLOAT", T: ddl.Type{Name: ddl.Float64, IsArray: true}, NotNull: true},
+				"ARRAY_STRING": {Name: "ARRAY_STRING", T: ddl.Type{Name: ddl.String, Len: int64(15), IsArray: true}, NotNull: true},
+				"ARRAY_DATE":   {Name: "ARRAY_DATE", T: ddl.Type{Name: ddl.Date, IsArray: true}, NotNull: true},
+				"ARRAY_INT":    {Name: "ARRAY_INT", T: ddl.Type{Name: ddl.Int64, IsArray: true}, NotNull: true},
+				"OBJECT":       {Name: "OBJECT", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
+			},
 			Pks: []ddl.IndexKey{{Col: "ID"}},
 		},
 	}

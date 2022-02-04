@@ -41,6 +41,12 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) 
 	ty, issues := toSpannerTypeInternal(conv, columnType.Name, columnType.Mods)
 	if conv.TargetDb == constants.TargetExperimentalPostgres {
 		ty = overrideExperimentalType(columnType, ty)
+	} else {
+		if len(columnType.ArrayBounds) > 1 {
+			ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+			issues = append(issues, internal.MultiDimensionalArray)
+		}
+		ty.IsArray = len(columnType.ArrayBounds) == 1
 	}
 	return ty, issues
 }
@@ -99,7 +105,7 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "XMLTYPE":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
-	case "JSON":
+	case "JSON", "OBJECT":
 		return ddl.Type{Name: ddl.JSON}, nil
 	case "ARRAY":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}, nil

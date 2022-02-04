@@ -47,15 +47,24 @@ func getSelectQuery(srcDb string, schemaName string, tableName string, colNames 
 		var s string
 		if TimestampReg.MatchString(colDefs[cn].Type.Name) {
 			s = fmt.Sprintf(`SYS_EXTRACT_UTC("%s") AS "%s"`, cn, cn)
+		} else if len(colDefs[cn].Type.ArrayBounds) == 1 {
+			s = fmt.Sprintf(`(SELECT JSON_ARRAYAGG(COLUMN_VALUE RETURNING VARCHAR2(4000)) 
+				FROM TABLE ("%s"."%s")) AS "%s"`, tableName, cn, cn)
 		} else {
 			switch colDefs[cn].Type.Name {
 			case "XMLTYPE":
 				s = fmt.Sprintf(`CAST(XMLTYPE.getStringVal("%s") AS VARCHAR2(4000)) AS "%s"`, cn, cn)
 			case "SDO_GEOMETRY":
 				s = fmt.Sprintf(`SDO_UTIL.TO_WKTGEOMETRY("%s") AS "%s"`, cn, cn)
-			case "ARRAY":
-				s = fmt.Sprintf(`(SELECT JSON_ARRAYAGG(COLUMN_VALUE RETURNING VARCHAR2(4000)) 
-				FROM TABLE ("%s"."%s")) AS "%s"`, tableName, cn, cn)
+			case "OBJECT":
+				s = fmt.Sprintf(`
+				(
+					CASE WHEN "%s" IS NULL THEN ''
+					ELSE
+						XMLTYPE("%s").getStringVal() 
+					END
+				) AS "%s"
+				`, cn, cn, cn)
 			default:
 				s = fmt.Sprintf(`"%s"`, cn)
 			}
@@ -127,7 +136,7 @@ func (isi InfoSchemaImpl) GetTables() ([]common.SchemaAndName, error) {
 // GetColumns returns a list of Column objects and names
 func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAndName, constraints map[string][]string, primaryKeys []string) (map[string]schema.Column, []string, error) {
 	q := fmt.Sprintf(`
-					SELECT 
+						SELECT 
 						column_name, 
 						data_type, 
 						nullable, 
@@ -135,9 +144,14 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 						data_length, 
 						data_precision, 
 						data_scale,
-						at.typecode
+						at.typecode,
+						act.elem_type_name,
+						act.length,
+						act.precision,
+						act.scale
 					FROM all_tab_columns atc
-                    LEFT JOIN all_types at ON atc.data_type=at.type_name AND atc.owner = at.owner
+					LEFT JOIN all_types at ON atc.data_type=at.type_name AND atc.owner = at.owner
+					LEFT JOIN all_coll_types act ON atc.data_type=act.type_name AND atc.owner = at.owner
 					WHERE atc.owner = '%s' AND atc.table_name = '%s'
 					`, table.Schema, table.Name)
 	cols, err := isi.Db.Query(q)
@@ -148,10 +162,10 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	var colNames []string
 	var colName, dataType string
 	var isNullable string
-	var colDefault, typecode sql.NullString
-	var charMaxLen, numericPrecision, numericScale sql.NullInt64
+	var colDefault, typecode, elementDataType sql.NullString
+	var charMaxLen, numericPrecision, numericScale, elementCharMaxLen, elementNumericPrecision, elementNumericScale sql.NullInt64
 	for cols.Next() {
-		err := cols.Scan(&colName, &dataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &typecode)
+		err := cols.Scan(&colName, &dataType, &isNullable, &colDefault, &charMaxLen, &numericPrecision, &numericScale, &typecode, &elementDataType, &elementCharMaxLen, &elementNumericPrecision, &elementNumericScale)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
@@ -173,15 +187,15 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 				charMaxLen.Valid = false
 			}
 		}
-		if typecode.Valid && typecode.String == "COLLECTION" {
-			dataType = "ARRAY"
+		if typecode.Valid && typecode.String == "OBJECT" {
+			dataType = "OBJECT"
 			charMaxLen.Valid = false
 		}
 
 		ignored.Default = colDefault.Valid
 		c := schema.Column{
 			Name:    colName,
-			Type:    toType(dataType, charMaxLen, numericPrecision, numericScale),
+			Type:    toType(dataType, typecode, elementDataType, charMaxLen, numericPrecision, numericScale, elementCharMaxLen, elementNumericPrecision, elementNumericScale),
 			NotNull: strings.ToUpper(isNullable) == "N",
 			Ignored: ignored,
 		}
@@ -363,18 +377,33 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 	return indexes, nil
 }
 
-func toType(dataType string, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {
+func toType(dataType string, typecode, elementDataType sql.NullString, charLen sql.NullInt64, numericPrecision, numericScale, elementCharMaxLen, elementNumericPrecision, elementNumericScale sql.NullInt64) schema.Type {
+	switch {
+	case typecode.Valid && typecode.String == "COLLECTION":
+		return modifyType(elementDataType.String, elementCharMaxLen, elementNumericPrecision, elementNumericScale, true)
+	default:
+		return modifyType(dataType, charLen, numericPrecision, numericScale, false)
+	}
+}
+
+func modifyType(dataType string, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64, isArray bool) schema.Type {
+	var t schema.Type
 	switch {
 	case dataType == "NUMBER" && numericPrecision.Valid && numericScale.Valid && numericScale.Int64 != 0:
-		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
+		t = schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
 	case dataType == "NUMBER" && numericPrecision.Valid:
-		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
+		t = schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
 	// Oracle get column query return data length for the Number type.
 	case dataType != "NUMBER" && charLen.Valid:
-		return schema.Type{Name: dataType, Mods: []int64{charLen.Int64}}
+		t = schema.Type{Name: dataType, Mods: []int64{charLen.Int64}}
 	default:
-		return schema.Type{Name: dataType}
+		t = schema.Type{Name: dataType}
 	}
+	if isArray {
+		t.ArrayBounds = []int64{-1}
+		return t
+	}
+	return t
 }
 
 // buildVals constructs []sql.RawBytes value containers to scan row
