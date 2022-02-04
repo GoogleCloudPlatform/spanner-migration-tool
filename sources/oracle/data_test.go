@@ -1,6 +1,7 @@
 package oracle
 
 import (
+	"fmt"
 	"math/big"
 	"math/bits"
 	"testing"
@@ -55,6 +56,7 @@ func TestConvertData(t *testing.T) {
 	numStr := "33753785954695469456.33333333982343435"
 	numVal := new(big.Rat)
 	numVal.SetString(numStr)
+	outputJson := "{\"PERSON_TYP\": {\"IDNO\": \"1\", \"NAME\": \"test\", \"PHONE\": \"123456\"}}\n"
 
 	singleColTests := []struct {
 		name  string
@@ -76,7 +78,7 @@ func TestConvertData(t *testing.T) {
 		{"arrayInt", ddl.Type{Name: ddl.Int64, IsArray: true}, "", "[1,2,3]", []spanner.NullInt64{{Int64: 1, Valid: true}, {Int64: 2, Valid: true}, {Int64: 3, Valid: true}}},
 		{"arrayFloat", ddl.Type{Name: ddl.Float64, IsArray: true}, "", "[1.5,0.00002,357657]", []spanner.NullFloat64{{Float64: 1.5, Valid: true}, {Float64: 0.00002, Valid: true}, {Float64: 357657, Valid: true}}},
 		{"arrayFloat", ddl.Type{Name: ddl.Date, IsArray: true}, "", "[\"2022-04-12\", \"2022-11-12\", \"2022-09-12\"]", getDateArray()},
-		{"object", ddl.Type{Name: ddl.JSON}, "OBJECT", "<PERSON_TYP><IDNO>1</IDNO><NAME>test</NAME><PHONE>123456</PHONE></PERSON_TYP>", "{\"PERSON_TYP\": {\"IDNO\": \"1\", \"NAME\": \"test\", \"PHONE\": \"123456\"}}\n"},
+		{"object", ddl.Type{Name: ddl.JSON}, "OBJECT", "<PERSON_TYP><IDNO>1</IDNO><NAME>test</NAME><PHONE>123456</PHONE></PERSON_TYP>", outputJson},
 	}
 	tableName := "testtable"
 	for _, tc := range singleColTests {
@@ -91,7 +93,14 @@ func TestConvertData(t *testing.T) {
 		conv.TimezoneOffset = "+05:30"
 		t.Run(tc.in, func(t *testing.T) {
 			at, ac, av, err := ConvertData(conv, tableName, []string{col}, conv.SrcSchema[tableName], tableName, []string{col}, conv.SpSchema[tableName], []string{tc.in})
-			checkResults(t, at, ac, av, err, tableName, []string{col}, []interface{}{tc.e}, tc.name)
+			if tc.srcTy == "OBJECT" {
+				assert.Nil(t, err, tc.name)
+				assert.Equal(t, at, tableName, tc.name+": table mismatch")
+				assert.Equal(t, ac, []string{col}, tc.name+": column mismatch")
+				assert.Equal(t, len(fmt.Sprint(av[0])), len(outputJson), tc.name+": value mismatch")
+			} else {
+				checkResults(t, at, ac, av, err, tableName, []string{col}, []interface{}{tc.e}, tc.name)
+			}
 		})
 	}
 }
