@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2022 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -107,8 +107,6 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "JSON", "OBJECT":
 		return ddl.Type{Name: ddl.JSON}, nil
-	case "ARRAY":
-		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}, nil
 	default:
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 	}
