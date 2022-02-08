@@ -33,7 +33,7 @@ import (
 )
 
 func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, vals []string) {
-	spTable, cvtCols, cvtVals, err := ConvertData(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, vals)
+	spTable, cvtCols, cvtVals, err := convertData(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, vals)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
 		conv.StatsAddBadRow(srcTable, conv.DataMode())
@@ -47,7 +47,7 @@ func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols []string, srcS
 // based on the Spanner and source DB schemas. Note that since entries
 // in vals may be empty, we also return the list of columns (empty
 // cols are dropped).
-func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, vals []string) (string, []string, []interface{}, error) {
+func convertData(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, vals []string) (string, []string, []interface{}, error) {
 	var c []string
 	var v []interface{}
 	if len(spCols) != len(srcCols) || len(spCols) != len(vals) {
@@ -115,7 +115,7 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, T
 		return convTimestamp(srcTypeName, val)
 	case ddl.JSON:
 		if srcTypeName == "OBJECT" {
-			return convJson(val)
+			return convertXmlToJson(val)
 		}
 		return val, nil
 	default:
@@ -305,7 +305,7 @@ func convArray(spannerType ddl.Type, srcTypeName string, v string) (interface{},
 	return []interface{}{}, fmt.Errorf("array type conversion not implemented for type %v", spannerType.Name)
 }
 
-func convJson(v string) (ans string, err error) {
+func convertXmlToJson(v string) (ans string, err error) {
 	xml := strings.NewReader(v)
 	j, err := xj.Convert(xml)
 	if err != nil {
