@@ -59,7 +59,7 @@ func getSelectQuery(srcDb string, schemaName string, tableName string, colNames 
 
 	for i, cn := range colNames {
 		var s string
-		if TimestampReg.MatchString(colDefs[cn].Type.Name) {
+		if timestampReg.MatchString(colDefs[cn].Type.Name) {
 			s = fmt.Sprintf(`SYS_EXTRACT_UTC("%s") AS "%s"`, cn, cn)
 		} else if len(colDefs[cn].Type.ArrayBounds) == 1 {
 			s = fmt.Sprintf(`(SELECT JSON_ARRAYAGG(COLUMN_VALUE RETURNING VARCHAR2(4000)) 
