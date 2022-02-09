@@ -8,7 +8,8 @@ require (
 	cloud.google.com/go/storage v1.17.0
 	github.com/DATA-DOG/go-sqlmock v1.4.1
 	github.com/aws/aws-sdk-go v1.34.5
-	github.com/denisenkom/go-mssqldb v0.11.0
+	github.com/basgys/goxml2json v1.1.0 // indirect
+	github.com/denisenkom/go-mssqldb v0.11.0 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.5+incompatible // indirect
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/google/go-cmp v0.5.6
