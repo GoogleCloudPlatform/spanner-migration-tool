@@ -18,9 +18,11 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -41,7 +43,8 @@ var (
 // 3. Run data conversion (if schemaOnly is set to false)
 // 4. Generate report
 func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, schemaOnly, skipForeignKeys bool, schemaSampleSize int64, sessionJSON string, ioHelper *utils.IOStreams, outputFilePrefix string, now time.Time) error {
-
+	// Cleanup hb tmp data directory in case residuals remain from prev runs.
+	os.RemoveAll(os.TempDir() + constants.HB_TMP_DIR)
 	// Legacy mode is only supported for MySQL, PostgreSQL and DynamoDB
 	if driver != "" && utils.IsValidDriver(driver) && !utils.IsLegacyModeSupportedDriver(driver) {
 		return fmt.Errorf("legacy mode is not supported for drivers other than %s", strings.Join(utils.GetLegacyModeSupportedDrivers(), ", "))
@@ -97,7 +100,7 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 
 	// We pass an empty string to the sqlConnectionStr parameter as this is the legacy codepath,
 	// which reads the environment variables and constructs the string later on.
-	bw, err := conversion.DataConv(sourceProfile, targetProfile, ioHelper, client, conv, dataOnly)
+	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, dataOnly)
 	if err != nil {
 		return fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 	}
@@ -109,5 +112,7 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 	banner := utils.GetBanner(now, dbURI)
 	conversion.Report(driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, outputFilePrefix+reportFile, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, outputFilePrefix+badDataFile, ioHelper.Out)
+	// Cleanup hb tmp data directory.
+	os.RemoveAll(os.TempDir() + constants.HB_TMP_DIR)
 	return nil
 }
