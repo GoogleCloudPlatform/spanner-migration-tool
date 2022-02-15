@@ -27,7 +27,7 @@ if type mysql >/dev/null 2>&1; then
             yes | gcloud spanner instances delete test-instance
         done
     done
-    go run ./performance/drop_database/drop_database.go
+    go run ./performance/cleanup_resource/cleanup_resource.go
     #benchmark for multiple table database
     for insertRecordCount in 250000 250000 1000000
     do
@@ -47,7 +47,7 @@ if type mysql >/dev/null 2>&1; then
             yes | gcloud spanner instances delete test-instance
         done
     done
-    go run ./performance/drop_database/drop_database.go
+    go run ./performance/cleanup_resource/cleanup_resource.go
 else
     echo "MySQL not present. Please install it from: https://dev.mysql.com/doc/mysql-shell/8.0/en/mysql-shell-install.html"
 fi
