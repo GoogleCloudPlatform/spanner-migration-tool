@@ -58,7 +58,7 @@ func (cmd *DataCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.targetProfile, "target-profile", "", "Flag for specifying connection profile for target database e.g., \"dialect=postgresql\"")
 	f.BoolVar(&cmd.skipForeignKeys, "skip-foreign-keys", false, "Skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
-	f.Int64Var(&cmd.writeLimit, "write-limit", 40, "Write limit for writes to spanner")
+	f.Int64Var(&cmd.writeLimit, "write-limit", defaultWritersLimit, "Write limit for writes to spanner")
 }
 
 func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {

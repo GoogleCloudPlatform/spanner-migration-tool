@@ -36,7 +36,7 @@ var (
 	sessionFile = "session.json"
 )
 
-const defaultWriteLimit = 40
+const defaultWritersLimit = 40
 
 // CommandLine provides the core processing for HarbourBridge when run as a command-line tool.
 // It performs the following steps:
@@ -102,7 +102,7 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 
 	// We pass an empty string to the sqlConnectionStr parameter as this is the legacy codepath,
 	// which reads the environment variables and constructs the string later on.
-	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, dataOnly, defaultWriteLimit)
+	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, dataOnly, defaultWritersLimit)
 	if err != nil {
 		return fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 	}

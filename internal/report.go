@@ -560,15 +560,16 @@ func writeHeading(w *bufio.Writer, s string) {
 }
 
 func conversionDuration(conv *Conv, w *bufio.Writer) string {
+	res := ""
 	if conv.DataConversionDuration.Microseconds() != 0 || conv.SchemaConversionDuration.Microseconds() != 0 {
 		writeHeading(w, "Time duration of Conversion")
-		if conv.DataConversionDuration.Microseconds() != 0 && conv.SchemaConversionDuration.Microseconds() != 0 {
-			return fmt.Sprintf("Schema conversion duration : %s \nData conversion duration : %s \n\n", conv.SchemaConversionDuration, conv.DataConversionDuration)
-		} else if conv.DataConversionDuration.Microseconds() != 0 {
-			return fmt.Sprintf("Data conversion duration : %s \n\n", conv.DataConversionDuration)
-		} else if conv.SchemaConversionDuration.Microseconds() != 0 {
-			return fmt.Sprintf("Schema conversion duration : %s \n\n", conv.SchemaConversionDuration)
+		if conv.SchemaConversionDuration.Microseconds() != 0 {
+			res += fmt.Sprintf("Schema conversion duration : %s \n", conv.SchemaConversionDuration)
 		}
+		if conv.DataConversionDuration.Microseconds() != 0 {
+			res += fmt.Sprintf("Data conversion duration : %s \n", conv.DataConversionDuration)
+		}
+		res += "\n"
 	}
-	return ""
+	return res
 }
