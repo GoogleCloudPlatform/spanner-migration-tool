@@ -39,7 +39,7 @@ type ToDdlImpl struct {
 // conversion issues encountered.
 func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	// passing empty spType to execute default case.will get other spType from web pkg
-	ty, issues := ToSpannerTypeInternal(conv, "", columnType.Name, columnType.Mods)
+	ty, issues := toSpannerTypeInternal(conv, "", columnType.Name, columnType.Mods)
 	if conv.TargetDb == constants.TargetExperimentalPostgres {
 		ty = overrideExperimentalType(columnType, ty)
 	} else {
@@ -52,7 +52,11 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) 
 	return ty, issues
 }
 
-func ToSpannerTypeInternal(conv *internal.Conv, spType string, srcType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
+func ToSpannerTypeWeb(conv *internal.Conv, spType string, srcType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
+	return toSpannerTypeInternal(conv, spType, srcType, mods)
+}
+
+func toSpannerTypeInternal(conv *internal.Conv, spType string, srcType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
 	// Oracle returns some datatype with the precision,
 	// So will get TIMESTAMP as TIMESTAMP(6),TIMESTAMP(6) WITH TIME ZONE,TIMESTAMP(6) WITH LOCAL TIME ZONE.
 	// To match this case timestampReg Regex defined.

@@ -340,8 +340,11 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 						IE.column_expression, 
 						I.index_type 
                 	FROM  all_ind_columns IC 
-					LEFT JOIN all_ind_expressions IE ON IC.index_name = IE.index_name AND IC.column_position=IE.column_position
+					LEFT JOIN all_ind_expressions IE ON IC.index_name = IE.index_name 
+						AND IC.column_position=IE.column_position
+						AND IC.index_owner = IE.index_owner
                 	LEFT JOIN all_indexes I ON IC.index_name = I.index_name
+						 AND I.table_owner = IC.index_owner
                 	WHERE IC.index_owner='%s' AND IC.table_name='%s'
             		ORDER BY IC.index_name, IC.column_position
 				`, table.Schema, table.Name)
