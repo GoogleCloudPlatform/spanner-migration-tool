@@ -20,7 +20,7 @@ if type mysql >/dev/null 2>&1; then
             echo "Spanner instance created with $nodes nodes"
             for writeLimit in 20 40 60 80 100
             do
-                echo "Iteration $threads"
+                echo "Write limit: $writeLimit"
                 #update source profile password before running the benchmark
                 go run main.go schema-and-data -source=mysql -source-profile='host=localhost,user=root,db_name=testdb,password=' -target-profile='instance=new-test-instance,dbname=testdb' -write-limit $writeLimit
             done
@@ -40,7 +40,7 @@ if type mysql >/dev/null 2>&1; then
             gcloud config set spanner/instance new-test-instance
             for threads in 20 40 60 80 100
             do
-                echo "Iteration $threads"
+                echo "Write limit: $writeLimit"
                 #update source profile password before running the benchmark
                 go run main.go schema-and-data -source=mysql -source-profile='host=localhost,user=root,db_name=testdb,password=' -target-profile='instance=new-test-instance,dbname=testdb' -write-limit $writeLimit
             done
