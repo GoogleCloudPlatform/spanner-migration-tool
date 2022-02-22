@@ -506,7 +506,11 @@ func CreateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 		req.ExtraStatements = conv.SpSchema.GetDDL(ddl.Config{Comments: false, ProtectIds: true, Tables: true, ForeignKeys: false, TargetDb: conv.TargetDb})
 	}
 
-	op, err := adminClient.CreateDatabase(ctx, req)
+	ctx1 := context.WithValue(ctx, "test-key", "test-value")
+	print("create database statment\n")
+	fmt.Println(ctx1.Value("test-key"))
+	fmt.Println(ctx.Value("test-key"))
+	op, err := adminClient.CreateDatabase(ctx1, req)
 	if err != nil {
 		return fmt.Errorf("can't build CreateDatabaseRequest: %w", utils.AnalyzeError(err, dbURI))
 	}
