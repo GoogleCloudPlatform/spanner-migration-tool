@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+option go_package = "/migration";
+
+message MigrationData {
+
+  // GUID with prefix ‘HB’ to identify that the request was made via HarbourBridge.
+  optional string migration_request_id = 1;
+  
+  enum Source {
+    SOURCE_UNSPECIFIED = 0;
+    MYSQL = 1;
+    POSTGRESQL = 2;
+    DYNAMODB = 3;
+    SQL_SERVER = 4;
+    ORACLE = 5;
+  }
+  // Source for the migration. 
+  optional Source source = 2;
+  
+  enum SourceConnectionMechanism {
+    SOURCE_CONNECTION_MECHANISM_UNSPECIFIED = 0;
+    DIRECT_CONNECTION = 1;
+    DB_DUMP = 2;
+  }
+  // Mechanism used to fetch source data.
+  optional SourceConnectionMechanism source_connection_mechanism = 3;
+  
+  enum MigrationType {
+    MIGRATION_TYPE_UNSPECIFIED = 0;
+    SCHEMA_ONLY = 1;
+    DATA_ONLY = 2;
+    SCHEMA_AND_DATA = 3;
+  }
+  // type of migration
+  optional MigrationType migration_type = 4;
+
+  enum TargetDialect {
+    TARGET_DIALECT_UNSPECIFIED = 0;
+    GOOGLE_STANDARD_SQL = 1;
+    POSTGRES = 2;
+  }
+  // type of target dialect
+  optional TargetDialect target_dialect = 5;
+
+  message SchemaPatterns {
+    // number of tables in the database being migrated
+    optional int32 num_tables = 1;
+    optional int32 max_interleave_depth = 2;
+    // number of interleaves in the database being migrated
+    optional int32 num_interleaves = 3;
+    // number of indexes in the database being migrated
+    optional int32 num_indexes = 4;
+    // number of primary key constraints in the database being migrated
+    optional int32 num_primary_key = 5;
+    // number of default constraints in the database being migrated
+    optional int32 num_default_constraint = 6;
+    // number of foreign key in the database being migrated
+    optional int32 num_foreign_key = 7;
+    // number of columns in the database
+    optional int32 num_columns = 8;
+    // number of warnings occurred for the columns that didn’t map cleanly
+    optional int32 num_warnings = 9;
+    // indicates whether the source db schema had missing primary key
+    optional bool missing_primary_key = 10;
+  }
+  optional SchemaPatterns schema_patterns = 6;
+
+  // size of each mutation - it will be populated from the writes_bytes we receive in the request
+  optional int64 mutation_size = 7;
+  }
