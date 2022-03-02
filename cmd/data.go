@@ -13,6 +13,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/google/subcommands"
 )
 
@@ -136,6 +137,11 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		return subcommands.ExitFailure
 	}
 	defer adminClient.Close()
+
+	// Populating migration dara in conv.
+	utils.PopulateMigrationData(conv, sourceProfile.Driver, targetProfile.TargetDb)
+	conv.MigrationData.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
+	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
 
 	if !sourceProfile.UseTargetSchema() {
 		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, conv, ioHelper.Out)

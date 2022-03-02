@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -37,11 +38,12 @@ type Conv struct {
 	Location                 *time.Location // Timezone (for timestamp conversion).
 	sampleBadRows            rowSamples     // Rows that generated errors during conversion.
 	Stats                    stats
-	TimezoneOffset           string              // Timezone offset for timestamp conversion.
-	TargetDb                 string              // The target database to which HarbourBridge is writing.
-	UniquePKey               map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
-	SchemaConversionDuration time.Duration       `json:"-"` // Duration of schema conversion.
-	DataConversionDuration   time.Duration       `json:"-"` // Duration of data conversion.
+	TimezoneOffset           string                  // Timezone offset for timestamp conversion.
+	TargetDb                 string                  // The target database to which HarbourBridge is writing.
+	UniquePKey               map[string][]string     // Maps Spanner table name to unique column name being used as primary key (if needed).
+	SchemaConversionDuration time.Duration           `json:"-"` // Duration of schema conversion.
+	DataConversionDuration   time.Duration           `json:"-"` // Duration of data conversion.
+	MigrationData            migration.MigrationData `json:"-"` // Migration related metadata to be sent to spanner.
 }
 
 type mode int

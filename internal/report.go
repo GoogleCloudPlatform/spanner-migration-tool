@@ -396,6 +396,7 @@ func GenerateSummary(conv *Conv, r []tableReport, badWrites map[string]int64) st
 		warnings += t.Warnings * weight
 		if t.SyntheticPKey != "" {
 			missingPKey = true
+			conv.MigrationData.SchemaPatterns.MissingPrimaryKey = &missingPKey
 		}
 	}
 	// Don't use tableReport for rows/badRows stats because tableReport
@@ -408,6 +409,10 @@ func GenerateSummary(conv *Conv, r []tableReport, badWrites map[string]int64) st
 	for _, n := range badWrites {
 		badRows += n
 	}
+	numColumns := int32(int(cols))
+	numWarnings := int32(int(warnings))
+	conv.MigrationData.SchemaPatterns.NumColumns = &numColumns
+	conv.MigrationData.SchemaPatterns.NumWarnings = &numWarnings
 	return rateConversion(rows, badRows, cols, warnings, missingPKey, true, conv.SchemaMode())
 }
 

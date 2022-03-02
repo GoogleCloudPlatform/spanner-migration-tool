@@ -43,11 +43,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+	"google.golang.org/grpc/metadata"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/csv"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/dynamodb"
@@ -66,6 +68,8 @@ var (
 	// If facing a quota limit error, consider reducing this value.
 	MaxWorkers = 20
 )
+
+const migrationMetadataKey = "cloud-spanner-migration-metadata"
 
 // SchemaConv performs the schema conversion
 // TODO: Pass around cmd.SourceProfile instead of sqlConnectionStr and schemaSampleSize.
@@ -188,7 +192,11 @@ func dataFromDatabase(sourceProfile profiles.SourceProfile, config writer.BatchW
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 	rows := int64(0)
 	config.Write = func(m []*sp.Mutation) error {
-		_, err := client.Apply(context.Background(), m)
+		migrationData := migration.MigrationData{
+			MigrationRequestId: conv.MigrationData.MigrationRequestId,
+		}
+		migrationMetadataValue := migrationData.String()
+		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), migrationMetadataKey, migrationMetadataValue), m)
 		if err != nil {
 			return err
 		}
@@ -268,7 +276,11 @@ func dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *util
 	r := internal.NewReader(bufio.NewReader(ioHelper.SeekableIn), nil)
 	rows := int64(0)
 	config.Write = func(m []*sp.Mutation) error {
-		_, err := client.Apply(context.Background(), m)
+		migrationData := migration.MigrationData{
+			MigrationRequestId: conv.MigrationData.MigrationRequestId,
+		}
+		migrationMetadataValue := migrationData.String()
+		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), migrationMetadataKey, migrationMetadataValue), m)
 		if err != nil {
 			return err
 		}
@@ -332,7 +344,11 @@ func dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targ
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 	rows := int64(0)
 	config.Write = func(m []*sp.Mutation) error {
-		_, err := client.Apply(context.Background(), m)
+		migrationData := migration.MigrationData{
+			MigrationRequestId: conv.MigrationData.MigrationRequestId,
+		}
+		migrationMetadataValue := migrationData.String()
+		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), migrationMetadataKey, migrationMetadataValue), m)
 		if err != nil {
 			return err
 		}
@@ -466,6 +482,9 @@ func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseA
 	if err != nil {
 		return err
 	}
+	// Adding migration metadata to the outgoing context.
+	migrationMetadataValue := conv.MigrationData.String()
+	ctx = metadata.AppendToOutgoingContext(ctx, migrationMetadataKey, migrationMetadataValue)
 	if dbExists {
 		err := UpdateDatabase(ctx, adminClient, dbURI, conv, out)
 		if err != nil {

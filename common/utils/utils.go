@@ -5,11 +5,12 @@ package utils
 import (
 	"bufio"
 	"context"
-	"crypto/rand"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
+	"math"
+	"math/rand"
 	"net/url"
 	"os"
 	"os/exec"
@@ -25,6 +26,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/spanner"
 	"golang.org/x/crypto/ssh/terminal"
@@ -491,4 +493,103 @@ func DialectToTarget(dialect string) string {
 		return constants.TargetExperimentalPostgres
 	}
 	return constants.TargetSpanner
+}
+
+const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+
+func randomString(n int) string {
+	var sb strings.Builder
+	k := len(alphabet)
+
+	for i := 0; i < n; i++ {
+		c := alphabet[rand.Intn(k)]
+		sb.WriteByte(c)
+	}
+
+	return sb.String()
+}
+
+func PopulateMigrationData(conv *internal.Conv, driver, targetDb string) {
+
+	migrationRequestId := "HB" + randomString(14)
+
+	numTables := int32(len(conv.SrcSchema))
+	migrationData := migration.MigrationData{
+		MigrationRequestId: &migrationRequestId,
+		SchemaPatterns: &migration.MigrationData_SchemaPatterns{
+			NumTables: &numTables,
+		},
+	}
+	switch driver {
+	case constants.PGDUMP:
+		migrationData.SourceConnectionMechanism = migration.MigrationData_DB_DUMP.Enum()
+		migrationData.Source = migration.MigrationData_POSTGRESQL.Enum()
+	case constants.MYSQLDUMP:
+		migrationData.SourceConnectionMechanism = migration.MigrationData_DB_DUMP.Enum()
+		migrationData.Source = migration.MigrationData_MYSQL.Enum()
+	case constants.POSTGRES:
+		migrationData.SourceConnectionMechanism = migration.MigrationData_DIRECT_CONNECTION.Enum()
+		migrationData.Source = migration.MigrationData_POSTGRESQL.Enum()
+	case constants.MYSQL:
+		migrationData.SourceConnectionMechanism = migration.MigrationData_DIRECT_CONNECTION.Enum()
+		migrationData.Source = migration.MigrationData_MYSQL.Enum()
+	case constants.DYNAMODB:
+		migrationData.SourceConnectionMechanism = migration.MigrationData_DIRECT_CONNECTION.Enum()
+		migrationData.Source = migration.MigrationData_DYNAMODB.Enum()
+	case constants.ORACLE:
+		migrationData.SourceConnectionMechanism = migration.MigrationData_DIRECT_CONNECTION.Enum()
+		migrationData.Source = migration.MigrationData_ORACLE.Enum()
+	case constants.SQLSERVER:
+		migrationData.SourceConnectionMechanism = migration.MigrationData_DIRECT_CONNECTION.Enum()
+		migrationData.Source = migration.MigrationData_SQL_SERVER.Enum()
+	case constants.CSV:
+		migrationData.SourceConnectionMechanism = migration.MigrationData_FILE.Enum()
+		migrationData.Source = migration.MigrationData_CSV.Enum()
+	}
+
+	switch targetDb {
+	case constants.TargetSpanner:
+		migrationData.TargetDialect = migration.MigrationData_GOOGLE_STANDARD_SQL.Enum()
+	case constants.TargetExperimentalPostgres:
+		migrationData.TargetDialect = migration.MigrationData_POSTGRES.Enum()
+	}
+
+	var numForeignKey, numIndexes, numPrimaryKey, numInterleaves, maxInterleaveDepth int32 = 0, 0, 0, 0, 0
+	missingPrimaryKey := false
+
+	for _, table := range conv.SrcSchema {
+		if len(table.ForeignKeys) != 0 {
+			numForeignKey++
+		}
+		if len(table.PrimaryKeys) != 0 {
+			numPrimaryKey++
+		}
+		numIndexes += int32(len(table.Indexes))
+	}
+
+	for _, table := range conv.SpSchema {
+		if table.Parent != "" {
+			numInterleaves++
+		}
+	}
+
+	for _, table := range conv.SpSchema {
+		if table.Parent != "" {
+			depth := 1
+			parentTableName := table.Parent
+			for conv.SpSchema[parentTableName].Parent != "" {
+				depth++
+				parentTableName = conv.SpSchema[parentTableName].Parent
+			}
+			maxInterleaveDepth = int32(math.Max(float64(maxInterleaveDepth), float64(depth)))
+		}
+	}
+
+	migrationData.SchemaPatterns.NumForeignKey = &numForeignKey
+	migrationData.SchemaPatterns.NumPrimaryKey = &numPrimaryKey
+	migrationData.SchemaPatterns.NumIndexes = &numIndexes
+	migrationData.SchemaPatterns.NumInterleaves = &numInterleaves
+	migrationData.SchemaPatterns.MissingPrimaryKey = &missingPrimaryKey
+	migrationData.SchemaPatterns.MaxInterleaveDepth = &maxInterleaveDepth
+	conv.MigrationData = migrationData
 }

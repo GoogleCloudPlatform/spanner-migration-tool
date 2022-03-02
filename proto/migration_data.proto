@@ -4,7 +4,8 @@ option go_package = "/migration";
 
 message MigrationData {
 
-  // GUID with prefix ‘HB’ to identify that the request was made via HarbourBridge.
+  // A system generated id with prefix ‘HB’ to identify that the request was
+  // made via HarbourBridge.
   optional string migration_request_id = 1;
   
   enum Source {
@@ -14,6 +15,7 @@ message MigrationData {
     DYNAMODB = 3;
     SQL_SERVER = 4;
     ORACLE = 5;
+    CSV = 6;
   }
   // Source for the migration. 
   optional Source source = 2;
@@ -22,6 +24,7 @@ message MigrationData {
     SOURCE_CONNECTION_MECHANISM_UNSPECIFIED = 0;
     DIRECT_CONNECTION = 1;
     DB_DUMP = 2;
+    FILE = 3;
   }
   // Mechanism used to fetch source data.
   optional SourceConnectionMechanism source_connection_mechanism = 3;
@@ -32,7 +35,7 @@ message MigrationData {
     DATA_ONLY = 2;
     SCHEMA_AND_DATA = 3;
   }
-  // type of migration
+  // Type of migration.
   optional MigrationType migration_type = 4;
 
   enum TargetDialect {
@@ -40,32 +43,30 @@ message MigrationData {
     GOOGLE_STANDARD_SQL = 1;
     POSTGRES = 2;
   }
-  // type of target dialect
+  // Type of target dialect.
   optional TargetDialect target_dialect = 5;
 
   message SchemaPatterns {
-    // number of tables in the database being migrated
+    // Number of tables in the database being migrated.
     optional int32 num_tables = 1;
     optional int32 max_interleave_depth = 2;
-    // number of interleaves in the database being migrated
+    // Number of interleaves in the database being migrated.
     optional int32 num_interleaves = 3;
-    // number of indexes in the database being migrated
+    // Number of indexes in the database being migrated.
     optional int32 num_indexes = 4;
-    // number of primary key constraints in the database being migrated
+    // Number of primary key constraints in the database being migrated.
     optional int32 num_primary_key = 5;
-    // number of default constraints in the database being migrated
-    optional int32 num_default_constraint = 6;
-    // number of foreign key in the database being migrated
-    optional int32 num_foreign_key = 7;
-    // number of columns in the database
-    optional int32 num_columns = 8;
-    // number of warnings occurred for the columns that didn’t map cleanly
-    optional int32 num_warnings = 9;
-    // indicates whether the source db schema had missing primary key
-    optional bool missing_primary_key = 10;
+    // Number of foreign key in the database being migrated.
+    optional int32 num_foreign_key = 6;
+    // Number of columns in the database.
+    optional int32 num_columns = 7;
+    // Number of warnings occurred for the columns that didn’t map cleanly.
+    optional int32 num_warnings = 8;
+    // Indicates whether the source db schema had missing primary key.
+    optional bool missing_primary_key = 9;
   }
   optional SchemaPatterns schema_patterns = 6;
 
-  // size of each mutation - it will be populated from the writes_bytes we receive in the request
-  optional int64 mutation_size = 7;
+  // Size of each commit in bytes.
+  optional int64 write_bytes = 7;
   }

@@ -13,6 +13,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/google/subcommands"
 )
 
@@ -109,6 +110,10 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 	if err != nil {
 		panic(err)
 	}
+
+	// Populating migration dara in conv.
+	utils.PopulateMigrationData(conv, sourceProfile.Driver, targetProfile.TargetDb)
+	conv.MigrationData.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
 
 	conversion.WriteSchemaFile(conv, schemaConversionStartTime, cmd.filePrefix+schemaFile, ioHelper.Out)
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
