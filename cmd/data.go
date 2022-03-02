@@ -138,7 +138,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	}
 	defer adminClient.Close()
 
-	// Populating migration dara in conv.
+	// Populating migration data in conv.
 	utils.PopulateMigrationData(conv, sourceProfile.Driver, targetProfile.TargetDb)
 	conv.MigrationData.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
 	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
