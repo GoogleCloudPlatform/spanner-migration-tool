@@ -111,7 +111,7 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 		panic(err)
 	}
 
-	// Populating migration dara in conv.
+	// Populating migration data in conv.
 	utils.PopulateMigrationData(conv, sourceProfile.Driver, targetProfile.TargetDb)
 	conv.MigrationData.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
 
