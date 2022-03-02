@@ -27,6 +27,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 )
 
 var (
@@ -85,6 +86,16 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 			return err
 		}
 	}
+
+	// Populating migration data in conv.
+	utils.PopulateMigrationData(conv, driver, targetDb)
+	if dataOnly {
+		conv.MigrationData.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
+	} else {
+		conv.MigrationData.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
+	}
+	conversion.Report(driver, nil, ioHelper.BytesRead, "", conv, outputFilePrefix+reportFile, ioHelper.Out)
+
 	adminClient, err := utils.NewDatabaseAdminClient(ctx)
 	if err != nil {
 		return fmt.Errorf("can't create admin client: %w", utils.AnalyzeError(err, dbURI))
