@@ -45,6 +45,7 @@ require (
 	google.golang.org/grpc/examples v0.0.0-20220303195317-63af97474cac // indirect
 	google.golang.org/grpc/naming v0.0.0-00010101000000-000000000000 // indirect
 	honnef.co/go/tools v0.2.1 // indirect
+	google.golang.org/protobuf v1.27.1 // indirect
 )
 
 // cloud.google.com/go will upgrade grpc to v1.44.0
