@@ -39,7 +39,7 @@ if type mysql >/dev/null 2>&1; then
             gcloud spanner instances create new-test-instance --config=regional-us-central1 \
             --description="New test Instance" --nodes=$nodes
             gcloud config set spanner/instance new-test-instance
-            for threads in 20 40 60 80 100
+            for writeLimit in 20 40 60 80 100
             do
                 echo "Write limit: $writeLimit"
                 #update source profile password before running the benchmark

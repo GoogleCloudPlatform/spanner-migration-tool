@@ -21,7 +21,9 @@ var (
 	multipleTableDb bool
 )
 
-// Populates both single table database and mul
+// Populates both single table database and multiple table database based on the flag
+// multiple-table-db and the number of records to be inserted to the database is passed
+// via record-count. Schema for the database to be created is static.
 func main() {
 	flag.IntVar(&recordCount, "record-count", 10000, "record-count: Number of rows to add")
 	flag.BoolVar(&multipleTableDb, "multiple-table-db", false, "multiple-table-db: it is set to true for populating multiple table database")
