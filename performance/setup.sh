@@ -7,6 +7,7 @@ if type mysql >/dev/null 2>&1; then
     #update MySQL password before running the benchmark
     export MYSQLPWD=
     gcloud auth application-default login
+    echo "Authentication successful. Next step: record insertion."
     #benchmark for single table database
     for insertRecordCount in 250000 250000 1000000
     do

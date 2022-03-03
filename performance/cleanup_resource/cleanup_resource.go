@@ -14,6 +14,7 @@ const (
 	dbName = "testdb"
 )
 
+// Performs the cleanup - drops the MYSQL database and deletes the csv file created for loading data into MYSQL database
 func main() {
 	host, user, password, port := os.Getenv("MYSQLHOST"), os.Getenv("MYSQLUSER"), os.Getenv("MYSQLPWD"), os.Getenv("MYSQLPORT")
 	connString := performance.GetMYSQLConnectionStr(host, port, user, password, "")
