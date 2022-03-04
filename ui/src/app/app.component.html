@@ -1,6 +1,6 @@
 <app-header></app-header>
 <div class="progress-bar-wrapper">
-    <mat-progress-bar mode="determinate" value="40"></mat-progress-bar>
+    <mat-progress-bar *ngIf="showProgress" mode="indeterminate" value="40"></mat-progress-bar>
 </div>
 <div class="padding-20">
     <router-outlet></router-outlet>

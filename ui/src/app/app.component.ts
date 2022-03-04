@@ -7,4 +7,11 @@ import { Component } from '@angular/core';
 })
 export class AppComponent {
   title = 'ui';
+  showProgress = false;
+  ngOnInit() {
+    setInterval(
+      () => { this.showProgress = !this.showProgress; }
+      , 5000);
+  }
 }
+
