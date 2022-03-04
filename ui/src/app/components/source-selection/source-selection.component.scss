@@ -1,5 +1,9 @@
 .prerequisites{
     width: 600px;
+    .mat-card-title{
+        font-size: 13pt;
+        font-weight: normal;
+    }
     p {
         color : #5c5c5c;
         .bullet {
@@ -16,6 +20,8 @@
         }
         span {
             margin-left: 40px;
+            font-weight: lighter;
+            font-size: 13px;
         }
     }
     hr {
