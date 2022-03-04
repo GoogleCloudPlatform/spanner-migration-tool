@@ -3,8 +3,9 @@ import { MatGridListModule } from '@angular/material/grid-list'
 import { MatToolbarModule } from '@angular/material/toolbar'
 import { MatButtonModule } from '@angular/material/button'
 import { MatIconModule } from '@angular/material/icon'
+import {MatCardModule} from '@angular/material/card';
 
-const materialModules = [MatGridListModule, MatToolbarModule, MatButtonModule, MatIconModule]
+const materialModules = [MatGridListModule, MatToolbarModule, MatButtonModule, MatIconModule, MatCardModule]
 @NgModule({
   declarations: [],
   imports: materialModules,
