@@ -38,13 +38,14 @@ class ListTable extends HTMLElement {
 
   render() {
     let { tabName, data } = this;
-    let RenderingObj = data;
+    let ddlStr = data;
+    ddlStr = ddlStr.replaceAll("<","&lt;").replaceAll(">","&gt;")
     if (tabName === "ddl") {
-      RenderingObj = this.FormattedObj(RenderingObj);
+      ddlStr = this.FormattedObj(ddlStr);
     } 
     this.innerHTML = `
         <div class='mdc-card ${tabName}-content'>
-        ${tabName == "ddl" ?`<pre><code>` : `<div>`}${RenderingObj?.split("\n").
+        ${tabName == "ddl" ?`<pre><code>` : `<div>`}${ddlStr?.split("\n").
         join(`<span class='sql-c'></span>`)}${tabName == "ddl" ?`</code> </pre>`:`</div>`}</div>`;
   }
 

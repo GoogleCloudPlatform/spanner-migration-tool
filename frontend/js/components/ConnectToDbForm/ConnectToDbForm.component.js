@@ -55,6 +55,7 @@ class ConnectToDbForm extends HTMLElement {
                     <option value="mysql">MySQL</option>
                     <option value="postgres">Postgres</option>
                     <option value="sqlserver">SQL Server</option>
+                    <option value="oracle">Oracle</option>
                 </select>
             </div>
             <div id="sql-fields" class="template">

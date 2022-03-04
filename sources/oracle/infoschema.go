@@ -59,7 +59,7 @@ func getSelectQuery(srcDb string, schemaName string, tableName string, colNames 
 
 	for i, cn := range colNames {
 		var s string
-		if timestampReg.MatchString(colDefs[cn].Type.Name) {
+		if TimestampReg.MatchString(colDefs[cn].Type.Name) {
 			s = fmt.Sprintf(`SYS_EXTRACT_UTC("%s") AS "%s"`, cn, cn)
 		} else if len(colDefs[cn].Type.ArrayBounds) == 1 {
 			s = fmt.Sprintf(`(SELECT JSON_ARRAYAGG(COLUMN_VALUE RETURNING VARCHAR2(4000)) 
@@ -340,8 +340,11 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 						IE.column_expression, 
 						I.index_type 
                 	FROM  all_ind_columns IC 
-					LEFT JOIN all_ind_expressions IE ON IC.index_name = IE.index_name AND IC.column_position=IE.column_position
+					LEFT JOIN all_ind_expressions IE ON IC.index_name = IE.index_name 
+						AND IC.column_position=IE.column_position
+						AND IC.index_owner = IE.index_owner
                 	LEFT JOIN all_indexes I ON IC.index_name = I.index_name
+						 AND I.table_owner = IC.index_owner
                 	WHERE IC.index_owner='%s' AND IC.table_name='%s'
             		ORDER BY IC.index_name, IC.column_position
 				`, table.Schema, table.Name)
