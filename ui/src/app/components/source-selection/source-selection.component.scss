@@ -1,0 +1,25 @@
+.prerequisites{
+    width: 600px;
+}
+    .prerequisites p {
+        color : #5c5c5c;
+    }
+    .prerequisites hr {
+        border-color : #ffffff;
+        margin-bottom: 20px;
+    }
+    .prerequisites p span {
+        margin-left: 40px;
+    }
+    .prerequisites p .bullet {
+        position: absolute;
+        display: inline-block;
+        background-color: #e5e5e5;
+        padding: 0px 5px 10px 5px;
+        margin: 0;
+        border-radius: 10px;
+        font-size: 9px;
+        height: 9px;
+        width: 9px;
+        text-align: center;
+    }

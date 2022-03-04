@@ -1,9 +1,10 @@
-
-  .example-spacer {
-    flex: 1 1 auto;
+  .padding-20{
+    padding: 20px;
   }
 
-  .menu-item{
-    color:white !important;
-    margin: 0 10px;
+  .progress-bar-wrapper{
+    // 4px is progress bar height
+    // To keep the page judder free
+    height: 4px;
+    background-color: red; 
   }
