@@ -1,15 +1,12 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit } from '@angular/core'
 
 @Component({
   selector: 'app-load-session',
   templateUrl: './load-session.component.html',
-  styleUrls: ['./load-session.component.scss']
+  styleUrls: ['./load-session.component.scss'],
 })
 export class LoadSessionComponent implements OnInit {
+  constructor() {}
 
-  constructor() { }
-
-  ngOnInit(): void {
-  }
-
+  ngOnInit(): void {}
 }

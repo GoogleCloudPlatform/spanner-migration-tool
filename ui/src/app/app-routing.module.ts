@@ -1,22 +1,18 @@
-import { NgModule } from '@angular/core';
-import { RouterModule, Routes } from '@angular/router';
-import { AppComponent } from './app.component';
-import { DirectConnectionComponent } from './components/direct-connection/direct-connection.component';
-import { HomeComponent } from './components/home/home.component';
-import { InstructionComponent } from './components/instruction/instruction.component';
-import { LoadDumpComponent } from './components/load-dump/load-dump.component';
-import { LoadSessionComponent } from './components/load-session/load-session.component';
-import { SourceSelectionComponent } from './components/source-selection/source-selection.component';
-import { WorkspaceComponent } from './components/workspace/workspace.component';
+import { NgModule } from '@angular/core'
+import { RouterModule, Routes } from '@angular/router'
+import { DirectConnectionComponent } from './components/direct-connection/direct-connection.component'
+import { HomeComponent } from './components/home/home.component'
+import { InstructionComponent } from './components/instruction/instruction.component'
+import { LoadDumpComponent } from './components/load-dump/load-dump.component'
+import { LoadSessionComponent } from './components/load-session/load-session.component'
+import { SourceSelectionComponent } from './components/source-selection/source-selection.component'
+import { SummaryComponent } from './components/summary/summary.component'
+import { WorkspaceComponent } from './components/workspace/workspace.component'
 
 const routes: Routes = [
   {
     path: '',
-    component: HomeComponent
-  },
-  {
-    path: 'home',
-    component: HomeComponent
+    component: HomeComponent,
   },
   {
     path: 'source',
@@ -24,32 +20,30 @@ const routes: Routes = [
     children: [
       {
         path: 'direct-connection',
-        component: DirectConnectionComponent
+        component: DirectConnectionComponent,
       },
       {
         path: 'load-dump-file',
-        component: DirectConnectionComponent
+        component: LoadDumpComponent,
       },
       {
         path: 'load-session-file',
-        component: DirectConnectionComponent
-      }
-    ]
+        component: LoadSessionComponent,
+      },
+    ],
   },
   {
     path: 'workspace',
     component: WorkspaceComponent,
-    children: [],
   },
   {
     path: 'instruction',
     component: InstructionComponent,
-    children: [],
   },
-];
+]
 
 @NgModule({
   imports: [RouterModule.forRoot(routes)],
-  exports: [RouterModule]
+  exports: [RouterModule],
 })
-export class AppRoutingModule { }
+export class AppRoutingModule {}

@@ -1,20 +1,20 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { ToolbarComponent } from './toolbar.component';
+import { ObjectExplorerComponent } from './object-explorer.component';
 
-describe('ToolbarComponent', () => {
-  let component: ToolbarComponent;
-  let fixture: ComponentFixture<ToolbarComponent>;
+describe('ObjectExplorerComponent', () => {
+  let component: ObjectExplorerComponent;
+  let fixture: ComponentFixture<ObjectExplorerComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ ToolbarComponent ]
+      declarations: [ ObjectExplorerComponent ]
     })
     .compileComponents();
   });
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(ToolbarComponent);
+    fixture = TestBed.createComponent(ObjectExplorerComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

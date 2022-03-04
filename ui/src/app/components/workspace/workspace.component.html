@@ -1,15 +1,14 @@
-<mat-grid-list cols="12" rowHeight="1:5">
-    <mat-grid-tile colspan="2">
-        <div style="display:inline-block;position:relative"><img
-                src="https://doodleipsum.com/200/flat?i=0ca4af8cbb660d47f4f18a56fe91ab5b"
-                alt="Planning by Cezar Berje" />
-            <p style="position:absolute;bottom:.5rem;right:.5rem;font-family:sans-serif;color:black">Illustration by <a
-                    href="https://blush.design/artists/wj9nqtHhtguz65S6Gkuf/cezar-berje">Cezar Berje</a></p>
-        </div>
-    </mat-grid-tile>
-    <mat-grid-tile colspan="8">
-    </mat-grid-tile>
-    <mat-grid-tile colspan="2">
-        <p>workspace works!</p>
-    </mat-grid-tile>
+<mat-grid-list cols="12" rowHeight="1:10">
+  <mat-grid-tile colspan="2">
+    <app-object-explorer></app-object-explorer>
+  </mat-grid-tile>
+  <mat-grid-tile colspan="8">
+    <div>
+      <h1>workspace works!</h1>
+      <app-object-detail> </app-object-detail>
+    </div>
+  </mat-grid-tile>
+  <mat-grid-tile colspan="2">
+    <app-summary></app-summary>
+  </mat-grid-tile>
 </mat-grid-list>
