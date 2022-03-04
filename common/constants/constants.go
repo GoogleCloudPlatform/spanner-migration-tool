@@ -26,6 +26,10 @@ const (
 	// CSV is the driver name when loading data using csv.
 	CSV string = "csv"
 
+	// ORACLE is the driver name for Oracle.
+	// This is an experimental driver; implementation in progress.
+	ORACLE string = "oracle"
+
 	// Target db for which schema is being generated.
 	TargetSpanner              string = "spanner"
 	TargetExperimentalPostgres string = "experimental_postgres"
@@ -33,4 +37,7 @@ const (
 	// Supported dialects for Cloud Spanner database.
 	DIALECT_POSTGRESQL string = "postgresql"
 	DIALECT_GOOGLESQL  string = "google_standard_sql"
+
+	// Temp directory name to write data which we cleanup at the end.
+	HB_TMP_DIR string = "harbourbridge_tmp_data"
 )

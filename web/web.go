@@ -128,6 +128,8 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	conv := internal.MakeConv()
+	// Setting target db to spanner by default.
+	conv.TargetDb = constants.TargetSpanner
 	var err error
 	switch sessionState.driver {
 	case constants.MYSQL:
@@ -804,6 +806,7 @@ func rollback(err error) error {
 		return fmt.Errorf("encountered error %w. rollback failed because we don't have a session file", err)
 	}
 	sessionState.conv = internal.MakeConv()
+	sessionState.conv.TargetDb = constants.TargetSpanner
 	err2 := conversion.ReadSessionFile(sessionState.conv, sessionState.sessionFile)
 	if err2 != nil {
 		return fmt.Errorf("encountered error %w. rollback failed: %v", err, err2)
@@ -1154,7 +1157,7 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 }
 func init() {
 	// Initialize mysqlTypeMap.
-	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year"} {
+	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
 			ty, issues := toSpannerTypeMySQL(srcType, spType, []int64{})

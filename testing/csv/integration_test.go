@@ -48,7 +48,7 @@ var (
 )
 
 const (
-	ALL_TYPES_CSV string = "../../test_data/all_data_types.csv"
+	ALL_TYPES_CSV string = "all_data_types.csv"
 )
 
 type SpannerRecord struct {
@@ -61,6 +61,8 @@ type SpannerRecord struct {
 	AttrString    string
 	AttrTimestamp time.Time
 	AttrJson      spanner.NullJSON
+	AttrStringArr []spanner.NullString
+	AttrInt64Arr  []spanner.NullInt64
 }
 
 func TestMain(m *testing.M) {
@@ -137,6 +139,8 @@ func createSpannerSchema(t *testing.T, project, instance, dbName string) {
 		"g STRING(50)," +
 		"h TIMESTAMP," +
 		"i JSON," +
+		"j ARRAY<STRING(100)>," +
+		"k ARRAY<INT64>," +
 		") PRIMARY KEY(e)",
 	}
 	op, err := databaseAdmin.CreateDatabase(ctx, req)
@@ -157,12 +161,11 @@ func TestIntegration_CSV_Command(t *testing.T) {
 
 	dbName := "csv-test"
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
-	manifest := "../../test_data/csv_manifest.json"
 
 	writeCSVs(t)
 	defer cleanupCSVs()
 	createSpannerSchema(t, projectID, instanceID, dbName)
-	args := fmt.Sprintf("data -source=csv -source-profile='manifest=%s' -target-profile='instance=%s,dbname=%s'", manifest, instanceID, dbName)
+	args := fmt.Sprintf("data -source=csv -target-profile='instance=%s,dbname=%s'", instanceID, dbName)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -181,8 +184,8 @@ func writeCSVs(t *testing.T) {
 		{
 			ALL_TYPES_CSV,
 			[]string{
-				"a,b,c,d,e,f,g,h,i\n",
-				"true,test,2019-10-29,15.13,100,39.94,Helloworld,2019-10-29 05:30:00,\"{\"\"key1\"\": \"\"value1\"\", \"\"key2\"\": \"\"value2\"\"}\"",
+				"a,b,c,d,e,f,g,h,i,j,k\n",
+				"true,test,2019-10-29,15.13,100,39.94,Helloworld,2019-10-29 05:30:00,\"{\"\"key1\"\": \"\"value1\"\", \"\"key2\"\": \"\"value2\"\"}\",\"{ab,cd}\",\"[1,2]\"",
 			},
 		},
 	}
@@ -225,11 +228,13 @@ func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
 		AttrString:    "Helloworld",
 		AttrTimestamp: getTime(t, "2019-10-29T05:30:00Z"),
 		AttrJson:      spanner.NullJSON{Valid: true},
+		AttrStringArr: []spanner.NullString{{StringVal: "ab", Valid: true}, {StringVal: "cd", Valid: true}},
+		AttrInt64Arr:  []spanner.NullInt64{{Int64: int64(1), Valid: true}, {Int64: int64(2), Valid: true}},
 	}
 	json.Unmarshal([]byte("{\"key1\": \"value1\", \"key2\": \"value2\"}"), &wantRecord.AttrJson.Value)
 
 	gotRecord := SpannerRecord{}
-	stmt := spanner.Statement{SQL: `SELECT a, b, c, d, e, f, g, h, i FROM all_data_types`}
+	stmt := spanner.Statement{SQL: `SELECT a, b, c, d, e, f, g, h, i, j, k FROM all_data_types`}
 	iter := client.Single().Query(ctx, stmt)
 	defer iter.Stop()
 	for {
@@ -245,7 +250,7 @@ func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
 		// We don't create big.Rat fields in the SpannerRecord structs
 		// because cmp.Equal cannot compare big.Rat fields automatically.
 		var AttrNumeric big.Rat
-		if err := row.Columns(&gotRecord.AttrBool, &gotRecord.AttrBytes, &gotRecord.AttrDate, &gotRecord.AttrFloat, &gotRecord.AttrInt, &AttrNumeric, &gotRecord.AttrString, &gotRecord.AttrTimestamp, &gotRecord.AttrJson); err != nil {
+		if err := row.Columns(&gotRecord.AttrBool, &gotRecord.AttrBytes, &gotRecord.AttrDate, &gotRecord.AttrFloat, &gotRecord.AttrInt, &AttrNumeric, &gotRecord.AttrString, &gotRecord.AttrTimestamp, &gotRecord.AttrJson, &gotRecord.AttrStringArr, &gotRecord.AttrInt64Arr); err != nil {
 			log.Println("Error reading into variables: ", err)
 			t.Fatal(err)
 			break

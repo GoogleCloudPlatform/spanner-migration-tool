@@ -1,14 +1,14 @@
 package profiles
 
 import (
-	"context"
 	"encoding/csv"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
-	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	go_ora "github.com/sijms/go-ora/v2"
 )
 
 // Parses input string `s` as a map of key-value pairs. It's expected that the
@@ -47,37 +47,6 @@ func parseProfile(s string) (map[string]string, error) {
 	return params, nil
 }
 
-func GetResourceIds(ctx context.Context, targetProfile TargetProfile, now time.Time, driverName string, out *os.File) (string, string, string, error) {
-	var err error
-	project := targetProfile.Conn.Sp.Project
-	if project == "" {
-		project, err = utils.GetProject()
-		if err != nil {
-			return "", "", "", fmt.Errorf("can't get project: %v", err)
-		}
-	}
-	fmt.Println("Using Google Cloud project:", project)
-
-	instance := targetProfile.Conn.Sp.Instance
-	if instance == "" {
-		instance, err = utils.GetInstance(ctx, project, out)
-		if err != nil {
-			return "", "", "", fmt.Errorf("can't get instance: %v", err)
-		}
-	}
-	fmt.Println("Using Cloud Spanner instance:", instance)
-	utils.PrintPermissionsWarning(driverName, out)
-
-	dbName := targetProfile.Conn.Sp.Dbname
-	if dbName == "" {
-		dbName, err = utils.GetDatabaseName(driverName, now)
-		if err != nil {
-			return "", "", "", fmt.Errorf("can't get database name: %v", err)
-		}
-	}
-	return project, instance, dbName, err
-}
-
 func GetSQLConnectionStr(sourceProfile SourceProfile) string {
 	sqlConnectionStr := ""
 	if sourceProfile.Ty == SourceProfileTypeConnection {
@@ -96,6 +65,9 @@ func GetSQLConnectionStr(sourceProfile SourceProfile) string {
 		case SourceProfileConnectionTypeSqlServer:
 			connParams := sourceProfile.Conn.SqlServer
 			return getSQLSERVERConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
+		case SourceProfileConnectionTypeOracle:
+			connParams := sourceProfile.Conn.Oracle
+			return getORACLEConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
 		}
 	}
 	return sqlConnectionStr
@@ -155,4 +127,9 @@ func GetSchemaSampleSize(sourceProfile SourceProfile) int64 {
 		}
 	}
 	return schemaSampleSize
+}
+
+func getORACLEConnectionStr(server, port, user, password, dbname string) string {
+	portNumber, _ := strconv.Atoi(port)
+	return go_ora.BuildUrl(server, portNumber, dbname, user, password, nil)
 }
