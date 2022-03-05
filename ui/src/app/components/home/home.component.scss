@@ -1,0 +1,29 @@
+.container{
+    padding: 7px;
+    .summary{
+        width:500px;
+        font-weight: lighter;
+    }
+    hr {
+        border-color : #ffffff;
+        margin-bottom: 20px;
+    }
+    .btn-source-select{
+        margin: 20px 0;
+        padding-bottom: 5px;
+        .split-button-left {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        } 
+        .split-button-right {
+            width: 30px !important;
+            min-width: unset !important;
+            padding: 0 2px;
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+            border-left: 1px solid #fafafa;
+        }
+    }
+}
+    
+   

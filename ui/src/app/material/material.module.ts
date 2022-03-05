@@ -10,6 +10,7 @@ import {MatFormFieldModule} from '@angular/material/form-field';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input'
 import { MatSelectModule } from '@angular/material/select'
+import {MatMenuModule} from '@angular/material/menu';
 
 const materialModules = [
   MatGridListModule,
@@ -22,7 +23,8 @@ const materialModules = [
   MatFormFieldModule,
   MatInputModule,
   MatSelectModule,
-  ReactiveFormsModule
+  ReactiveFormsModule,
+  MatMenuModule
 ]
 
 @NgModule({
