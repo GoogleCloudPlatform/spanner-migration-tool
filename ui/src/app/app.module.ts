@@ -20,7 +20,8 @@ import { ObjectExplorerComponent } from './components/object-explorer/object-exp
 import { ObjectDetailComponent } from './components/object-detail/object-detail.component'
 import { SummaryComponent } from './components/summary/summary.component'
 
-import { ReportComponent } from './components/report/report.component'
+import { ReportComponent } from './components/report/report.component';
+import { SessionListingComponent } from './components/session-listing/session-listing.component'
 
 @NgModule({
   declarations: [
@@ -37,6 +38,7 @@ import { ReportComponent } from './components/report/report.component'
     ObjectExplorerComponent,
     ObjectDetailComponent,
     HeaderComponent,
+    SessionListingComponent,
   ],
   imports: [BrowserModule, AppRoutingModule, BrowserAnimationsModule, MaterialModule],
   providers: [],
