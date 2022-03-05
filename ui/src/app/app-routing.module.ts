@@ -20,15 +20,20 @@ const routes: Routes = [
     component: SourceSelectionComponent,
     children: [
       {
+        path: '',
+        redirectTo : "/direct-connection",
+        pathMatch: 'full' 
+      },
+      {
         path: 'direct-connection',
         component: DirectConnectionComponent,
       },
       {
-        path: 'load-dump-file',
+        path: 'load-dump',
         component: LoadDumpComponent,
       },
       {
-        path: 'load-session-file',
+        path: 'load-session',
         component: LoadSessionComponent,
       },
     ],
@@ -40,6 +45,11 @@ const routes: Routes = [
   {
     path: 'instruction',
     component: InstructionComponent,
+  },
+  {
+    path: '**',
+    redirectTo : "/",
+    pathMatch: 'full' 
   },
 ]
 

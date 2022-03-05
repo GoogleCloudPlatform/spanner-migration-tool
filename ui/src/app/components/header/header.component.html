@@ -5,14 +5,9 @@
   <span class="pointer" [routerLink]="'/'"> HarbourBridge</span>
   <span class="menu-spacer"></span>
   <div>
-    <a mat-button [routerLink]="'/source'"> Source Selection </a>
     <a mat-button [routerLink]="'/workspace'"> Workspace </a>
-    <a mat-button [routerLink]="'/instruction'"> Instruction </a>
-    <button
-      mat-icon-button
-      class="example-icon favorite-icon"
-      aria-label="Example icon-button with heart icon"
-    >
+    <button mat-icon-button class="example-icon favorite-icon" aria-label="Example icon-button with heart icon"
+      [routerLink]="'/instruction'">
       <mat-icon>help</mat-icon>
     </button>
   </div>

@@ -6,17 +6,17 @@
         Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
     </div>
     <div class="btn-source-select">
-        <button mat-raised-button color="primary" class="split-button-left">
+        <button mat-raised-button color="primary" class="split-button-left" [routerLink]="'/source/direct-connection'">
             Connect to database
         </button>
         <button mat-raised-button color="primary" class="split-button-right" [matMenuTriggerFor]="menu">
             <mat-icon aria-hidden="false" aria-label="Example home icon">expand_more</mat-icon>
         </button>
         <mat-menu #menu="matMenu" xPosition="before">
-            <button mat-menu-item>
+            <button mat-menu-item [routerLink]="'/source/load-dump'">
                 Load database dump
             </button>
-            <button mat-menu-item>
+            <button mat-menu-item [routerLink]="'/source/load-session'">
                 Load session file
             </button>
         </mat-menu>
