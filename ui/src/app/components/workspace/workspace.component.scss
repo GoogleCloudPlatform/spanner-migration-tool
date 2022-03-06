@@ -1,3 +1,21 @@
-mat-grid-tile {
-  background: rgb(221, 233, 236);
+.columns {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  width: 100%;
+  border-top: 1px solid #d3d3d3;
+  border-bottom: 1px solid #d3d3d3;
+}
+.column-left {
+  flex: 20%;
+  // background-color: rgb(216, 240, 160);
+}
+.column-middle {
+  flex: 54%;
+  border-left: 1px solid #d3d3d3;
+  border-right: 1px solid #d3d3d3;
+  // background-color: rgb(160, 235, 240);
+}
+.column-right {
+  flex: 25%;
 }

@@ -1,5 +1,4 @@
 import { NgModule } from '@angular/core'
-import { MatGridListModule } from '@angular/material/grid-list'
 import { MatToolbarModule } from '@angular/material/toolbar'
 import { MatButtonModule } from '@angular/material/button'
 import { MatIconModule } from '@angular/material/icon'
@@ -12,9 +11,10 @@ import { MatInputModule } from '@angular/material/input'
 import { MatSelectModule } from '@angular/material/select'
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTableModule } from '@angular/material/table';
+import {MatExpansionModule} from '@angular/material/expansion';
+import {MatChipsModule} from '@angular/material/chips';
 
 const materialModules = [
-  MatGridListModule,
   MatToolbarModule,
   MatButtonModule,
   MatIconModule,
@@ -26,7 +26,9 @@ const materialModules = [
   MatSelectModule,
   ReactiveFormsModule,
   MatMenuModule,
-  MatTableModule
+  MatTableModule,
+  MatExpansionModule,
+  MatChipsModule
 ]
 
 @NgModule({

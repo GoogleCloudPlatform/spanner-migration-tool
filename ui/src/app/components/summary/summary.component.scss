@@ -1,0 +1,54 @@
+.container {
+  padding: 10px;
+  min-height: 600px;
+}
+
+.error{
+  font-size: 20px;
+  color: #eb0000;
+}
+
+.warning{
+  font-size: 20px;
+  color: #ff9800;
+}
+
+.mat-expansion-panel-header{
+  padding: 20px;
+}
+
+
+.filter-wrapper {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  width: 100%;
+
+  .left {
+    display: block;
+    flex: 15%;
+    .filter-icon {
+      height: 20px;
+      margin-top: 15px;
+    }
+    .filter-text {
+      height: 20px;
+      margin-top: 15px;
+    }
+  }
+  .right {
+    flex: 82%;
+    .mat-form-field{
+      width: 100%;
+    }
+  }
+}
+
+::ng-deep .mat-form-field-underline {
+  display: none;
+}
+
+.mat-chip{
+  min-height: 24px;
+  font-weight: lighter;
+}

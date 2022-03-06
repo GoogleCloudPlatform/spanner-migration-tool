@@ -1,14 +1,11 @@
-<mat-grid-list cols="12" rowHeight="1:5">
-  <mat-grid-tile colspan="2">
+<div class="columns">
+  <div class="column-left">
     <app-object-explorer></app-object-explorer>
-  </mat-grid-tile>
-  <mat-grid-tile colspan="8">
-    <div>
-      <h1>workspace works!</h1>
-      <app-object-detail> </app-object-detail>
-    </div>
-  </mat-grid-tile>
-  <mat-grid-tile colspan="2">
-    <app-summary></app-summary>
-  </mat-grid-tile>
-</mat-grid-list>
+  </div>
+  <div class="column-middle">
+    <app-object-detail> </app-object-detail>
+ </div>
+ <div class="column-right">
+  <app-summary></app-summary> 
+ </div>
+</div>
