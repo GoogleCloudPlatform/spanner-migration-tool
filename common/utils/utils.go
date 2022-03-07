@@ -29,6 +29,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/spanner"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/ssh/terminal"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
@@ -495,25 +496,11 @@ func DialectToTarget(dialect string) string {
 	return constants.TargetSpanner
 }
 
-const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
-
-func randomString(n int) string {
-	var sb strings.Builder
-	k := len(alphabet)
-
-	for i := 0; i < n; i++ {
-		c := alphabet[rand.Intn(k)]
-		sb.WriteByte(c)
-	}
-
-	return sb.String()
-}
-
 // PopulateMigrationData populates migration data like source schema details,
 // request id, target dialect, connection mechanism etc in conv object
 func PopulateMigrationData(conv *internal.Conv, driver, targetDb string) {
 
-	migrationRequestId := "HB" + randomString(14)
+	migrationRequestId := "HB-" + uuid.New().String()
 
 	migrationData := migration.MigrationData{
 		MigrationRequestId: &migrationRequestId,
@@ -535,39 +522,34 @@ func PopulateMigrationData(conv *internal.Conv, driver, targetDb string) {
 func populateMigrationDataSchemaPatterns(conv *internal.Conv, migrationData *migration.MigrationData) {
 
 	numTables := int32(len(conv.SrcSchema))
-	var numForeignKey, numIndexes, numPrimaryKey, numInterleaves, maxInterleaveDepth int32 = 0, 0, 0, 0, 0
-	missingPrimaryKey := false
+	var numForeignKey, numIndexes, numMissingPrimaryKey, numInterleaves, maxInterleaveDepth int32 = 0, 0, 0, 0, 0
 
 	for _, table := range conv.SrcSchema {
-		if len(table.ForeignKeys) != 0 {
-			numForeignKey++
-		}
-		if len(table.PrimaryKeys) != 0 {
-			numPrimaryKey++
+		numForeignKey += int32(len(table.ForeignKeys))
+		if len(table.PrimaryKeys) == 0 {
+			numMissingPrimaryKey++
 		}
 		numIndexes += int32(len(table.Indexes))
 	}
 
 	for _, table := range conv.SpSchema {
-		if table.Parent != "" {
+		depth := 0
+		parentTableName := table.Name
+		for conv.SpSchema[parentTableName].Parent != "" {
 			numInterleaves++
-			depth := 1
-			parentTableName := table.Parent
-			for conv.SpSchema[parentTableName].Parent != "" {
-				depth++
-				parentTableName = conv.SpSchema[parentTableName].Parent
-			}
-			maxInterleaveDepth = int32(math.Max(float64(maxInterleaveDepth), float64(depth)))
+			depth++
+			parentTableName = conv.SpSchema[parentTableName].Parent
 		}
+		maxInterleaveDepth = int32(math.Max(float64(maxInterleaveDepth), float64(depth)))
 	}
 
 	migrationData.SchemaPatterns = &migration.MigrationData_SchemaPatterns{
-		NumTables:          &numTables,
-		NumForeignKey:      &numForeignKey,
-		NumInterleaves:     &numInterleaves,
-		MissingPrimaryKey:  &missingPrimaryKey,
-		MaxInterleaveDepth: &maxInterleaveDepth,
-		NumIndexes:         &numIndexes,
+		NumTables:            &numTables,
+		NumForeignKey:        &numForeignKey,
+		NumInterleaves:       &numInterleaves,
+		MaxInterleaveDepth:   &maxInterleaveDepth,
+		NumIndexes:           &numIndexes,
+		NumMissingPrimaryKey: &numMissingPrimaryKey,
 	}
 }
 

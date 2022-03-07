@@ -26,6 +26,7 @@ import (
 	"bufio"
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -44,6 +45,7 @@ import (
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
@@ -195,7 +197,8 @@ func dataFromDatabase(sourceProfile profiles.SourceProfile, config writer.BatchW
 		migrationData := migration.MigrationData{
 			MigrationRequestId: conv.MigrationData.MigrationRequestId,
 		}
-		migrationMetadataValue := migrationData.String()
+		serializedMigrationData, _ := proto.Marshal(&migrationData)
+		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
 		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), migrationMetadataKey, migrationMetadataValue), m)
 		if err != nil {
 			return err
@@ -279,7 +282,8 @@ func dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *util
 		migrationData := migration.MigrationData{
 			MigrationRequestId: conv.MigrationData.MigrationRequestId,
 		}
-		migrationMetadataValue := migrationData.String()
+		serializedMigrationData, _ := proto.Marshal(&migrationData)
+		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
 		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), migrationMetadataKey, migrationMetadataValue), m)
 		if err != nil {
 			return err
@@ -347,7 +351,8 @@ func dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targ
 		migrationData := migration.MigrationData{
 			MigrationRequestId: conv.MigrationData.MigrationRequestId,
 		}
-		migrationMetadataValue := migrationData.String()
+		serializedMigrationData, _ := proto.Marshal(&migrationData)
+		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
 		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), migrationMetadataKey, migrationMetadataValue), m)
 		if err != nil {
 			return err
@@ -483,7 +488,8 @@ func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseA
 		return err
 	}
 	// Adding migration metadata to the outgoing context.
-	migrationMetadataValue := conv.MigrationData.String()
+	serializedMigrationData, _ := proto.Marshal(&conv.MigrationData)
+	migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
 	ctx = metadata.AppendToOutgoingContext(ctx, migrationMetadataKey, migrationMetadataValue)
 	if dbExists {
 		err := UpdateDatabase(ctx, adminClient, dbURI, conv, out)

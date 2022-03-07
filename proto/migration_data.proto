@@ -54,19 +54,15 @@ message MigrationData {
     optional int32 num_interleaves = 3;
     // Number of indexes in the database being migrated.
     optional int32 num_indexes = 4;
-    // Number of primary key constraints in the database being migrated.
-    optional int32 num_primary_key = 5;
+    // number of tables with missing primary key in the database being migrated
+    optional int32 num_missing_primary_key = 5;
     // Number of foreign key in the database being migrated.
     optional int32 num_foreign_key = 6;
     // Number of columns in the database.
     optional int32 num_columns = 7;
     // Number of warnings occurred for the columns that didn’t map cleanly.
     optional int32 num_warnings = 8;
-    // Indicates whether the source db schema had missing primary key.
-    optional bool missing_primary_key = 9;
   }
   optional SchemaPatterns schema_patterns = 6;
-
-  // Size of each commit in bytes.
-  optional int64 write_bytes = 7;
+  
   }

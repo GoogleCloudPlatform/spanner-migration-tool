@@ -396,9 +396,6 @@ func GenerateSummary(conv *Conv, r []tableReport, badWrites map[string]int64) st
 		warnings += t.Warnings * weight
 		if t.SyntheticPKey != "" {
 			missingPKey = true
-			if conv.MigrationData.GetSchemaPatterns().GetMissingPrimaryKey() {
-				conv.MigrationData.SchemaPatterns.MissingPrimaryKey = &missingPKey
-			}
 		}
 	}
 	// Don't use tableReport for rows/badRows stats because tableReport
