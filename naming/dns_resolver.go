@@ -16,6 +16,10 @@
  *
  */
 
+// DO NOT EDIT This is a copy of the contents from
+// the `google.golang.org/grpc/naming` package as of [commit 06bc4d0c03eec227240ec67d0767b1f83e80d1d5](https://github.com/grpc/grpc-go/tree/06bc4d0c03eec227240ec67d0767b1f83e80d1d5/naming).
+// Refer naming/README.md for more info.
+
 package naming
 
 import (
