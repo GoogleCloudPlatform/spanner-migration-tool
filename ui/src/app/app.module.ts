@@ -21,7 +21,10 @@ import { ObjectDetailComponent } from './components/object-detail/object-detail.
 import { SummaryComponent } from './components/summary/summary.component'
 
 import { ReportComponent } from './components/report/report.component';
-import { SessionListingComponent } from './components/session-listing/session-listing.component'
+import { SessionListingComponent } from './components/session-listing/session-listing.component';
+import { ProgressBarComponent } from './components/progress-bar/progress-bar.component';
+import { SnackbarComponent } from './components/snackbar/snackbar.component';
+import { LoaderComponent } from './components/loader/loader.component'
 
 @NgModule({
   declarations: [
@@ -39,6 +42,9 @@ import { SessionListingComponent } from './components/session-listing/session-li
     ObjectDetailComponent,
     HeaderComponent,
     SessionListingComponent,
+    ProgressBarComponent,
+    SnackbarComponent,
+    LoaderComponent,
   ],
   imports: [BrowserModule, AppRoutingModule, BrowserAnimationsModule, MaterialModule],
   providers: [],
