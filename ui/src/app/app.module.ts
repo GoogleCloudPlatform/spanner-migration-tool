@@ -20,10 +20,9 @@ import { ObjectExplorerComponent } from './components/object-explorer/object-exp
 import { ObjectDetailComponent } from './components/object-detail/object-detail.component'
 import { SummaryComponent } from './components/summary/summary.component'
 
-import { ReportComponent } from './components/report/report.component';
-import { SessionListingComponent } from './components/session-listing/session-listing.component';
+import { ReportComponent } from './components/report/report.component'
+import { SessionListingComponent } from './components/session-listing/session-listing.component'
 // import { ProgressBarComponent } from './components/progress-bar/progress-bar.component';
-import { SnackbarComponent } from './components/snackbar/snackbar.component';
 import { LoaderComponent } from './components/loader/loader.component'
 
 @NgModule({
@@ -43,7 +42,6 @@ import { LoaderComponent } from './components/loader/loader.component'
     HeaderComponent,
     SessionListingComponent,
     // ProgressBarComponent,
-    SnackbarComponent,
     LoaderComponent,
   ],
   imports: [BrowserModule, AppRoutingModule, BrowserAnimationsModule, MaterialModule],
