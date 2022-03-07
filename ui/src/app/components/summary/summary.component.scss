@@ -39,6 +39,7 @@ h3{
   flex-direction: row;
   flex-wrap: wrap;
   width: 100%;
+  min-height: 70px;
   
   .left {
     display: block;
@@ -47,6 +48,7 @@ h3{
     flex: 15%;
     .filter-icon {
      position: absolute;
+     font-size: 20px;
     }
     .filter-text {
       position: absolute;
@@ -57,6 +59,7 @@ h3{
     flex: 82%;
     .mat-form-field{
       width: 100%;
+      min-height: 24px;
     }
   }
 }
