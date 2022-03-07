@@ -1,3 +1,27 @@
 .container {
-    padding:10px;
+  padding: 10px;
+}
+
+.filter-wrapper {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-end;
+  .left {
+    width: 30%;
+    display: flex;
+    padding-top: 18px;
+    .material-icons {
+      margin-right: 10px;
+    }
+  }
+  .right {
+    width: 70%;
+
+    input {
+      width: 100%;
+      border: none;
+      outline: none;
+    }
+  }
 }

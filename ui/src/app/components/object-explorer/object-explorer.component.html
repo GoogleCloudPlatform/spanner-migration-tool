@@ -1,3 +1,18 @@
-<div class="container">
-    <p>object-explorer works!</p>
-</div>
+<mat-tab-group>
+  <mat-tab label="Oracle(7)">
+    <div class="filter-wrapper">
+      <div class="left">
+        <span class="material-icons filter-icon">filter_list</span>
+        <span class="filter-text">Filter</span>
+      </div>
+      <div class="right">
+        <input
+          [(ngModel)]="searchText"
+          (ngModelChange)="filterTable($event)"
+          placeholder="Filter By name"
+        />
+      </div>
+    </div>
+    <app-tree-view [data]="treeData"></app-tree-view>
+  </mat-tab>
+</mat-tab-group>

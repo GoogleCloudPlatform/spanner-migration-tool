@@ -1,4 +1,6 @@
-import { Component, OnInit } from '@angular/core'
+import { Component, Input, OnInit } from '@angular/core'
+import { DataService } from 'src/app/services/data/data.service'
+import IConv from '../../model/Conv'
 
 @Component({
   selector: 'app-workspace',
@@ -6,7 +8,9 @@ import { Component, OnInit } from '@angular/core'
   styleUrls: ['./workspace.component.scss'],
 })
 export class WorkspaceComponent implements OnInit {
-  constructor() {}
+  constructor(private data: DataService) {}
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.data.getSchemaConversionData()
+  }
 }

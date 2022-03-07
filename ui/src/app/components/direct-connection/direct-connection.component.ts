@@ -1,5 +1,8 @@
 import { Component, OnInit } from '@angular/core'
 import { FormControl, FormGroup } from '@angular/forms'
+import { Router } from '@angular/router'
+import IDbConfig from 'src/app/model/DbConfig'
+import { FetchService } from 'src/app/services/fetch/fetch.service'
 
 @Component({
   selector: 'app-direct-connection',
@@ -7,7 +10,6 @@ import { FormControl, FormGroup } from '@angular/forms'
   styleUrls: ['./direct-connection.component.scss'],
 })
 export class DirectConnectionComponent implements OnInit {
-
   connectForm = new FormGroup({
     dbEngine: new FormControl('sqlserver'),
     hostName: new FormControl('104.198.154.85'),
@@ -17,26 +19,24 @@ export class DirectConnectionComponent implements OnInit {
     dbName: new FormControl('BikeStores'),
   })
 
-  constructor() {}
+  constructor(private router: Router, private fetch: FetchService) {}
 
   ngOnInit(): void {}
 
   connectToDb() {
-    // const { dbEngine, hostName, port, userName, password, dbName } = this.connectForm.value
-    // this._loader.startLoader()
-    // window.scrollTo(0, 0)
-    // this._fetch.connectTodb(dbEngine, hostName, port, userName, password, dbName).subscribe({
-    //   next: (res) => {
-    //     if (res.status == 200) {
-    //       localStorage.setItem(
-    //         'connectionConfig',
-    //         JSON.stringify({ dbEngine, hostName, port, userName, password, dbName })
-    //       )
-    //     }
-    //     this.router.navigate(['/workspace'])
-    //   },
-    //   error: (e) => console.log(e),
-    //   complete: () => this._loader.stopLoader(),
-    // })
+    const { dbEngine, hostName, port, userName, password, dbName } = this.connectForm.value
+    const config: IDbConfig = { dbEngine, hostName, port, userName, password, dbName }
+    this.fetch.connectTodb(config).subscribe({
+      next: (res) => {
+        if (res.status == 200) {
+          localStorage.setItem(
+            'connectionConfig',
+            JSON.stringify({ dbEngine, hostName, port, userName, password, dbName })
+          )
+        }
+        this.router.navigate(['/workspace'])
+      },
+      error: (e) => console.log(e),
+    })
   }
 }
