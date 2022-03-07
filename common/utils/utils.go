@@ -509,17 +509,71 @@ func randomString(n int) string {
 	return sb.String()
 }
 
+// PopulateMigrationData populates migration data like source schema details,
+// request id, target dialect, connection mechanism etc in conv object
 func PopulateMigrationData(conv *internal.Conv, driver, targetDb string) {
 
 	migrationRequestId := "HB" + randomString(14)
 
-	numTables := int32(len(conv.SrcSchema))
 	migrationData := migration.MigrationData{
 		MigrationRequestId: &migrationRequestId,
-		SchemaPatterns: &migration.MigrationData_SchemaPatterns{
-			NumTables: &numTables,
-		},
 	}
+	populateMigrationDataSourceDetails(driver, &migrationData)
+	populateMigrationDataSchemaPatterns(conv, &migrationData)
+
+	switch targetDb {
+	case constants.TargetSpanner:
+		migrationData.TargetDialect = migration.MigrationData_GOOGLE_STANDARD_SQL.Enum()
+	case constants.TargetExperimentalPostgres:
+		migrationData.TargetDialect = migration.MigrationData_POSTGRES.Enum()
+	}
+	conv.MigrationData = migrationData
+}
+
+// populateMigrationDataSchemaPatterns populates schema petterns like number of tables, foreign key, primary key,
+// indexes, interleaves, max interleave depth and if source schema is missing primary key in migrationData object
+func populateMigrationDataSchemaPatterns(conv *internal.Conv, migrationData *migration.MigrationData) {
+
+	numTables := int32(len(conv.SrcSchema))
+	var numForeignKey, numIndexes, numPrimaryKey, numInterleaves, maxInterleaveDepth int32 = 0, 0, 0, 0, 0
+	missingPrimaryKey := false
+
+	for _, table := range conv.SrcSchema {
+		if len(table.ForeignKeys) != 0 {
+			numForeignKey++
+		}
+		if len(table.PrimaryKeys) != 0 {
+			numPrimaryKey++
+		}
+		numIndexes += int32(len(table.Indexes))
+	}
+
+	for _, table := range conv.SpSchema {
+		if table.Parent != "" {
+			numInterleaves++
+			depth := 1
+			parentTableName := table.Parent
+			for conv.SpSchema[parentTableName].Parent != "" {
+				depth++
+				parentTableName = conv.SpSchema[parentTableName].Parent
+			}
+			maxInterleaveDepth = int32(math.Max(float64(maxInterleaveDepth), float64(depth)))
+		}
+	}
+
+	migrationData.SchemaPatterns = &migration.MigrationData_SchemaPatterns{
+		NumTables:          &numTables,
+		NumForeignKey:      &numForeignKey,
+		NumInterleaves:     &numInterleaves,
+		MissingPrimaryKey:  &missingPrimaryKey,
+		MaxInterleaveDepth: &maxInterleaveDepth,
+		NumIndexes:         &numIndexes,
+	}
+}
+
+// populateMigrationDataSourceDetails populates source database type and
+// source connection mechanism in migrationData object
+func populateMigrationDataSourceDetails(driver string, migrationData *migration.MigrationData) {
 	switch driver {
 	case constants.PGDUMP:
 		migrationData.SourceConnectionMechanism = migration.MigrationData_DB_DUMP.Enum()
@@ -546,50 +600,4 @@ func PopulateMigrationData(conv *internal.Conv, driver, targetDb string) {
 		migrationData.SourceConnectionMechanism = migration.MigrationData_FILE.Enum()
 		migrationData.Source = migration.MigrationData_CSV.Enum()
 	}
-
-	switch targetDb {
-	case constants.TargetSpanner:
-		migrationData.TargetDialect = migration.MigrationData_GOOGLE_STANDARD_SQL.Enum()
-	case constants.TargetExperimentalPostgres:
-		migrationData.TargetDialect = migration.MigrationData_POSTGRES.Enum()
-	}
-
-	var numForeignKey, numIndexes, numPrimaryKey, numInterleaves, maxInterleaveDepth int32 = 0, 0, 0, 0, 0
-	missingPrimaryKey := false
-
-	for _, table := range conv.SrcSchema {
-		if len(table.ForeignKeys) != 0 {
-			numForeignKey++
-		}
-		if len(table.PrimaryKeys) != 0 {
-			numPrimaryKey++
-		}
-		numIndexes += int32(len(table.Indexes))
-	}
-
-	for _, table := range conv.SpSchema {
-		if table.Parent != "" {
-			numInterleaves++
-		}
-	}
-
-	for _, table := range conv.SpSchema {
-		if table.Parent != "" {
-			depth := 1
-			parentTableName := table.Parent
-			for conv.SpSchema[parentTableName].Parent != "" {
-				depth++
-				parentTableName = conv.SpSchema[parentTableName].Parent
-			}
-			maxInterleaveDepth = int32(math.Max(float64(maxInterleaveDepth), float64(depth)))
-		}
-	}
-
-	migrationData.SchemaPatterns.NumForeignKey = &numForeignKey
-	migrationData.SchemaPatterns.NumPrimaryKey = &numPrimaryKey
-	migrationData.SchemaPatterns.NumIndexes = &numIndexes
-	migrationData.SchemaPatterns.NumInterleaves = &numInterleaves
-	migrationData.SchemaPatterns.MissingPrimaryKey = &missingPrimaryKey
-	migrationData.SchemaPatterns.MaxInterleaveDepth = &maxInterleaveDepth
-	conv.MigrationData = migrationData
 }
