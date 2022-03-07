@@ -15,6 +15,7 @@ import { MatExpansionModule } from '@angular/material/expansion'
 import { MatChipsModule } from '@angular/material/chips'
 import { MatTreeModule } from '@angular/material/tree'
 import { MatTabsModule } from '@angular/material/tabs'
+import { MatSnackBarModule } from '@angular/material/snack-bar'
 
 const materialModules = [
   MatToolbarModule,
@@ -34,6 +35,7 @@ const materialModules = [
   MatTableModule,
   MatTreeModule,
   MatTabsModule,
+  MatSnackBarModule,
 ]
 
 @NgModule({

@@ -19,9 +19,10 @@ import { WorkspaceComponent } from './components/workspace/workspace.component'
 import { ObjectExplorerComponent } from './components/object-explorer/object-explorer.component'
 import { ObjectDetailComponent } from './components/object-detail/object-detail.component'
 import { SummaryComponent } from './components/summary/summary.component'
+
 import { ReportComponent } from './components/report/report.component'
 import { SessionListingComponent } from './components/session-listing/session-listing.component'
-import { SnackbarComponent } from './components/snackbar/snackbar.component'
+// import { ProgressBarComponent } from './components/progress-bar/progress-bar.component';
 import { LoaderComponent } from './components/loader/loader.component'
 import { TreeViewComponent } from './components/tree-view/tree-view.component'
 
@@ -41,7 +42,7 @@ import { TreeViewComponent } from './components/tree-view/tree-view.component'
     ObjectDetailComponent,
     HeaderComponent,
     SessionListingComponent,
-    SnackbarComponent,
+    // ProgressBarComponent,
     LoaderComponent,
     TreeViewComponent,
   ],
