@@ -22,7 +22,7 @@ import { SummaryComponent } from './components/summary/summary.component'
 
 import { ReportComponent } from './components/report/report.component';
 import { SessionListingComponent } from './components/session-listing/session-listing.component';
-import { ProgressBarComponent } from './components/progress-bar/progress-bar.component';
+// import { ProgressBarComponent } from './components/progress-bar/progress-bar.component';
 import { SnackbarComponent } from './components/snackbar/snackbar.component';
 import { LoaderComponent } from './components/loader/loader.component'
 
@@ -42,7 +42,7 @@ import { LoaderComponent } from './components/loader/loader.component'
     ObjectDetailComponent,
     HeaderComponent,
     SessionListingComponent,
-    ProgressBarComponent,
+    // ProgressBarComponent,
     SnackbarComponent,
     LoaderComponent,
   ],
