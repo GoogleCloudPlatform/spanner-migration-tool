@@ -7,7 +7,6 @@ import { FormControl, FormGroup } from '@angular/forms'
   styleUrls: ['./load-session.component.scss'],
 })
 export class LoadSessionComponent implements OnInit {
-  
   constructor() {}
 
   connectForm = new FormGroup({
@@ -16,4 +15,8 @@ export class LoadSessionComponent implements OnInit {
   })
 
   ngOnInit(): void {}
+
+  convertFromSessionFile() {
+    console.log(this.connectForm.value)
+  }
 }

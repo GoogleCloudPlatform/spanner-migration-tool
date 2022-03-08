@@ -1,4 +1,36 @@
-.container {
-    padding:10px;
-    
+.title_container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 20px;
+  .title {
+    display: flex;
+    align-items: center;
+
+    .icon {
+      margin-right: 20px;
+    }
+  }
+}
+
+.border_bottom {
+  border: none;
+  border-bottom: 1px solid lightgray;
+  outline: none;
+}
+.centered {
+  display: flex;
+  align-items: center;
+}
+
+.w-100 {
+  width: 100px;
+}
+
+th {
+  min-width: 180px;
+  margin-right: 50px;
+}
+p {
+  margin: 0;
 }

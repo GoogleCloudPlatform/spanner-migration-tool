@@ -1,16 +1,17 @@
 <div class="container">
   <h2>Configure schema</h2>
   <div class="summary">
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore
-    magna aliqua.
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
+    labore et dolore magna aliqua.
   </div>
 </div>
 <div class="columns">
   <div class="column-left">
-    <app-object-explorer></app-object-explorer>
+    <app-object-explorer (selectTable)="changeCurrentTable($event)"></app-object-explorer>
   </div>
   <div class="column-middle">
-    <app-object-detail> </app-object-detail>
+    <app-object-detail [tableName]="currentTable" [rowData]="rowData" [typeMap]="typeMap">
+    </app-object-detail>
   </div>
   <div class="column-right">
     <app-summary></app-summary>

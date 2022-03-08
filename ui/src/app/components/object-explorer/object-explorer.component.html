@@ -1,3 +1,40 @@
-<div class="container">
-    <p>object-explorer works!</p>
-</div>
+<mat-tab-group>
+  <mat-tab label="Oracle(7)">
+    <div class="filter-wrapper">
+      <div class="left">
+        <span class="material-icons filter-icon">filter_list</span>
+        <span class="filter-text">Filter</span>
+      </div>
+      <div class="right">
+        <input
+          [(ngModel)]="searchText"
+          (ngModelChange)="filterTable($event)"
+          placeholder="Filter By name"
+        />
+      </div>
+    </div>
+    <mat-tree class="example-tree" [dataSource]="dataSource" [treeControl]="treeControl">
+      <mat-tree-node class="sidebar_link" *matTreeNodeDef="let node" matTreeNodeToggle>
+        <mat-icon *ngIf="node.helth === 'BLUE'" class="icon danger"> error </mat-icon>
+        <mat-icon *ngIf="node.helth === 'YELLOW'" class="icon warning"> warning </mat-icon>
+        <mat-icon *ngIf="node.helth === 'GREEN'" class="icon success"> check_circle </mat-icon>
+        <mat-icon *ngIf="node.helth === 'ORANGE'" class="icon orange"> check_circle </mat-icon>
+        <span (click)="tableSelected($event)"> {{ node.name }}</span>
+      </mat-tree-node>
+
+      <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild">
+        <div class="mat-tree-node">
+          <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'Toggle ' + node.name">
+            <mat-icon class="mat-icon-rtl-mirror">
+              {{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}
+            </mat-icon>
+          </button>
+          {{ node.name }}
+        </div>
+        <div [class.example-tree-invisible]="!treeControl.isExpanded(node)" role="group">
+          <ng-container matTreeNodeOutlet></ng-container>
+        </div>
+      </mat-nested-tree-node>
+    </mat-tree>
+  </mat-tab>
+</mat-tab-group>
