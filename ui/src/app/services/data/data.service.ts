@@ -3,12 +3,13 @@ import { FetchService } from '../fetch/fetch.service'
 import IConv from '../../model/Conv'
 import { BehaviorSubject } from 'rxjs'
 import { filter, tap } from 'rxjs/operators'
+import initialData from '../../../data'
 
 @Injectable({
   providedIn: 'root',
 })
 export class DataService {
-  private convSubject = new BehaviorSubject<IConv>({} as IConv)
+  private convSubject = new BehaviorSubject(initialData)
   constructor(private fetch: FetchService) {}
 
   conv = this.convSubject.asObservable().pipe(
@@ -18,7 +19,7 @@ export class DataService {
   )
 
   getSchemaConversionData() {
-    this.fetch.getSchemaConversion().subscribe((res: IConv) => {
+    this.fetch.getSchemaConversionFromDirectConnect().subscribe((res: any) => {
       console.log(res)
       this.convSubject.next(res)
     })

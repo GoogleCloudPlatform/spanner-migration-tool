@@ -13,4 +13,8 @@ export class LoadDumpComponent implements OnInit {
     filePath: new FormControl(' '),
   })
   ngOnInit(): void {}
+
+  convertFromDump() {
+    console.log(this.connectForm.value)
+  }
 }

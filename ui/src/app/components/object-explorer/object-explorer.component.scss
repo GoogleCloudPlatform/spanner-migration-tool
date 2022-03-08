@@ -25,3 +25,53 @@
     }
   }
 }
+
+.sidebar_link {
+  cursor: pointer;
+  font-size: small;
+  .mat-icon {
+    font-size: medium;
+  }
+}
+.mat-tree-node {
+  min-height: 29px;
+  border-bottom: 1px solid lightgray;
+}
+.example-tree-invisible {
+  display: none;
+}
+
+.example-tree ul,
+.example-tree li {
+  margin-top: 0;
+  margin-bottom: 0;
+  list-style-type: none;
+}
+
+.example-tree .mat-nested-tree-node div[role='group'] {
+  padding-left: 10px;
+}
+
+.example-tree div[role='group'] > .mat-tree-node {
+  padding-left: 0px;
+}
+
+.icon {
+  margin-right: 20px;
+}
+
+.danger {
+  color: #da4236;
+}
+
+.warning {
+  color: #f3b300;
+}
+
+.success {
+  color: #00c752;
+}
+
+.orange {
+  color: rgb(248, 116, 68);
+}

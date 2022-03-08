@@ -5,11 +5,11 @@ import { MaterialModule } from './material/material.module'
 import { AppRoutingModule } from './app-routing.module'
 import { HttpClientModule } from '@angular/common/http'
 import { FormsModule } from '@angular/forms'
+import { TreetableModule } from 'ng-material-treetable'
 
 import { AppComponent } from './app.component'
 import { HeaderComponent } from './components/header/header.component'
 import { HomeComponent } from './components/home/home.component'
-
 import { InstructionComponent } from './components/instruction/instruction.component'
 import { SourceSelectionComponent } from './components/source-selection/source-selection.component'
 import { DirectConnectionComponent } from './components/direct-connection/direct-connection.component'
@@ -19,12 +19,9 @@ import { WorkspaceComponent } from './components/workspace/workspace.component'
 import { ObjectExplorerComponent } from './components/object-explorer/object-explorer.component'
 import { ObjectDetailComponent } from './components/object-detail/object-detail.component'
 import { SummaryComponent } from './components/summary/summary.component'
-
 import { ReportComponent } from './components/report/report.component'
 import { SessionListingComponent } from './components/session-listing/session-listing.component'
-// import { ProgressBarComponent } from './components/progress-bar/progress-bar.component';
 import { LoaderComponent } from './components/loader/loader.component'
-import { TreeViewComponent } from './components/tree-view/tree-view.component'
 
 @NgModule({
   declarations: [
@@ -42,9 +39,7 @@ import { TreeViewComponent } from './components/tree-view/tree-view.component'
     ObjectDetailComponent,
     HeaderComponent,
     SessionListingComponent,
-    // ProgressBarComponent,
     LoaderComponent,
-    TreeViewComponent,
   ],
   imports: [
     BrowserModule,
@@ -53,6 +48,7 @@ import { TreeViewComponent } from './components/tree-view/tree-view.component'
     MaterialModule,
     HttpClientModule,
     FormsModule,
+    TreetableModule,
   ],
   providers: [],
   bootstrap: [AppComponent],

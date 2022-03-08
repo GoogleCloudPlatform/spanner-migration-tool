@@ -2,6 +2,7 @@ import { HttpClient, HttpResponse } from '@angular/common/http'
 import { Injectable } from '@angular/core'
 import IDbConfig from 'src/app/model/DbConfig'
 import IConv from '../../model/Conv'
+import IDumpConfig from '../../model/DumpConfig'
 
 @Injectable({
   providedIn: 'root',
@@ -26,7 +27,11 @@ export class FetchService {
     )
   }
 
-  getSchemaConversion() {
+  getSchemaConversionFromDirectConnect() {
     return this.http.get<IConv>(`${this.url}/convert/infoschema`)
+  }
+
+  getSchemaConversionFromDump(payload: IDumpConfig) {
+    return this.http.post<HttpResponse<null>>(`${this.url}/convert/dump`, payload)
   }
 }
