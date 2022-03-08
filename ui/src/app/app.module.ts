@@ -5,7 +5,6 @@ import { MaterialModule } from './material/material.module'
 import { AppRoutingModule } from './app-routing.module'
 import { HttpClientModule } from '@angular/common/http'
 import { FormsModule } from '@angular/forms'
-import { TreetableModule } from 'ng-material-treetable'
 
 import { AppComponent } from './app.component'
 import { HeaderComponent } from './components/header/header.component'
@@ -48,7 +47,6 @@ import { LoaderComponent } from './components/loader/loader.component'
     MaterialModule,
     HttpClientModule,
     FormsModule,
-    TreetableModule,
   ],
   providers: [],
   bootstrap: [AppComponent],
