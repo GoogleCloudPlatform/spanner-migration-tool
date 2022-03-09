@@ -1,0 +1,18 @@
+<div mat-dialog-content>
+  <p class="info-text">
+    <mat-icon
+      [ngClass]="{
+        icon: true,
+        error: data.type === 'error',
+        warning: data.type === 'warning',
+        success: data.type === 'success'
+      }"
+    >
+      {{ getIconFromMessageType() }}
+    </mat-icon>
+    {{ data.message }}
+  </p>
+</div>
+<div mat-dialog-actions>
+  <button mat-raised-button color="primary" mat-dialog-close>OK</button>
+</div>

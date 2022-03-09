@@ -3,6 +3,7 @@ import { FormControl, FormGroup } from '@angular/forms'
 import { Router } from '@angular/router'
 import IDbConfig from 'src/app/model/DbConfig'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
+import { DataService } from 'src/app/services/data/data.service'
 
 @Component({
   selector: 'app-direct-connection',
@@ -19,7 +20,7 @@ export class DirectConnectionComponent implements OnInit {
     dbName: new FormControl('BikeStores'),
   })
 
-  constructor(private router: Router, private fetch: FetchService) {}
+  constructor(private router: Router, private fetch: FetchService, private data: DataService) {}
 
   ngOnInit(): void {}
 
@@ -34,6 +35,7 @@ export class DirectConnectionComponent implements OnInit {
             JSON.stringify({ dbEngine, hostName, port, userName, password, dbName })
           )
         }
+        this.data.getSchemaConversionData()
         this.router.navigate(['/workspace'])
       },
       error: (e) => console.log(e),

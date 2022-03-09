@@ -16,6 +16,7 @@ import { MatChipsModule } from '@angular/material/chips'
 import { MatTreeModule } from '@angular/material/tree'
 import { MatTabsModule } from '@angular/material/tabs'
 import { MatSnackBarModule } from '@angular/material/snack-bar'
+import { MatDialogModule } from '@angular/material/dialog'
 
 const materialModules = [
   MatToolbarModule,
@@ -36,6 +37,7 @@ const materialModules = [
   MatTreeModule,
   MatTabsModule,
   MatSnackBarModule,
+  MatDialogModule,
 ]
 
 @NgModule({

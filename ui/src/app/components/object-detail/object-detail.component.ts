@@ -1,6 +1,9 @@
 import { Component, Input, OnInit, SimpleChanges } from '@angular/core'
 import { FormArray, FormControl, FormGroup } from '@angular/forms'
-
+import IUpdateTable from './../../model/updateTable'
+import { DataService } from 'src/app/services/data/data.service'
+import { MatDialog } from '@angular/material/dialog'
+import { InfodialogComponent } from '../infodialog/infodialog.component'
 interface IColMap {
   srcColName: string
   srcDataType: string
@@ -13,7 +16,7 @@ interface IColMap {
   styleUrls: ['./object-detail.component.scss'],
 })
 export class ObjectDetailComponent implements OnInit {
-  constructor() {}
+  constructor(private data: DataService, private dialog: MatDialog) {}
 
   ngOnInit(): void {}
 
@@ -28,7 +31,7 @@ export class ObjectDetailComponent implements OnInit {
   ngOnChanges(changes: SimpleChanges): void {
     this.tableName = changes['tableName']?.currentValue || this.tableName
     this.rowData = changes['rowData']?.currentValue || this.rowData
-
+    this.isEditMode = false
     this.rowArray = new FormArray([])
     this.rowData.forEach((row) => {
       this.rowArray.push(
@@ -45,7 +48,31 @@ export class ObjectDetailComponent implements OnInit {
 
   toggleEdit() {
     if (this.isEditMode) {
-      this.isEditMode = false
+      let updateData: IUpdateTable = { UpdateCols: {} }
+      this.rowArray.value.forEach((col: IColMap, i: number) => {
+        let oldRow = this.rowData[i]
+        updateData.UpdateCols[this.rowData[i].spColName] = {
+          Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
+          NotNull: true ? 'ADDED' : 'REMOVED',
+          PK: '',
+          Removed: false,
+          ToType: oldRow.spDataType !== col.spDataType ? col.spDataType : '',
+        }
+      })
+      this.data.updateTable(this.tableName, updateData).subscribe({
+        next: (res: string) => {
+          console.log(res)
+          if (res == '') {
+            this.isEditMode = false
+          } else {
+            this.dialog.open(InfodialogComponent, {
+              data: { message: res, type: 'error' },
+              maxWidth: '500px',
+            })
+          }
+        },
+        // complete: () => this._loader.stopLoader(),
+      })
     } else {
       this.isEditMode = true
     }
