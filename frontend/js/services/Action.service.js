@@ -87,6 +87,7 @@ const Actions = (() => {
                 if (dbType === "mysql") sourceTableFlag = "MySQL";
                 else if (dbType === "postgres") sourceTableFlag = "Postgres";
                 else if (dbType === 'sqlserver') sourceTableFlag = "SQL Server";
+                else if (dbType === 'oracle') sourceTableFlag = "Oracle";
                 Store.setSourceDbName(sourceTableFlag)
                 jQuery("#connectToDbModal").modal("hide");
                 jQuery("#connectModalSuccess").modal();

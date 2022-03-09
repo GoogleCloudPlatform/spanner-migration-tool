@@ -41,11 +41,13 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
+	go_ora "github.com/sijms/go-ora/v2"
 )
 
 // TODO:(searce):
@@ -60,6 +62,7 @@ import (
 var mysqlTypeMap = make(map[string][]typeIssue)
 var postgresTypeMap = make(map[string][]typeIssue)
 var sqlserverTypeMap = make(map[string][]typeIssue)
+var oracleTypeMap = make(map[string][]typeIssue)
 
 // TODO:(searce) organize this file according to go style guidelines: generally
 // have public constants and public type definitions first, then public
@@ -98,6 +101,9 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 		dataSourceName = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", config.User, config.Password, config.Host, config.Port, config.Database)
 	case constants.SQLSERVER:
 		dataSourceName = fmt.Sprintf(`sqlserver://%s:%s@%s:%s?database=%s`, config.User, config.Password, config.Host, config.Port, config.Database)
+	case constants.ORACLE:
+		portNumber, _ := strconv.Atoi(config.Port)
+		dataSourceName = go_ora.BuildUrl(config.Host, portNumber, config.Database, config.User, config.Password, nil)
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", config.Driver), http.StatusBadRequest)
 		return
@@ -115,6 +121,10 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionState.sourceDB = sourceDB
 	sessionState.dbName = config.Database
+	// schema and user is same in oralce.
+	if config.Driver == constants.ORACLE {
+		sessionState.dbName = config.User
+	}
 	sessionState.driver = config.Driver
 	sessionState.sessionFile = ""
 	w.WriteHeader(http.StatusOK)
@@ -138,6 +148,8 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		err = common.ProcessSchema(conv, postgres.InfoSchemaImpl{Db: sessionState.sourceDB})
 	case constants.SQLSERVER:
 		err = common.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.dbName, Db: sessionState.sourceDB})
+	case constants.ORACLE:
+		err = common.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: sessionState.dbName, Db: sessionState.sourceDB})
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.driver), http.StatusBadRequest)
 		return
@@ -260,6 +272,8 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 		typeMap = postgresTypeMap
 	case constants.SQLSERVER:
 		typeMap = sqlserverTypeMap
+	case constants.ORACLE:
+		typeMap = oracleTypeMap
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.driver), http.StatusBadRequest)
 		return
@@ -269,6 +283,18 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	for _, srcTable := range sessionState.conv.SrcSchema {
 		for _, colDef := range srcTable.ColDefs {
 			if _, ok := filteredTypeMap[colDef.Type.Name]; ok {
+				continue
+			}
+			// Timestamp and interval types do not have exact key in typemap.
+			// Typemap for  TIMESTAMP(6), TIMESTAMP(6) WITH LOCAL TIMEZONE,TIMESTAMP(6) WITH TIMEZONE is stored into TIMESTAMP key.
+			// Same goes with interval types like INTERVAL YEAR(2) TO MONTH, INTERVAL DAY(2) TO SECOND(6) etc.
+			// If exact key not found then check with regex.
+			if _, ok := typeMap[colDef.Type.Name]; !ok {
+				if oracle.TimestampReg.MatchString(colDef.Type.Name) {
+					filteredTypeMap[colDef.Type.Name] = typeMap["TIMESTAMP"]
+				} else if oracle.IntervalReg.MatchString(colDef.Type.Name) {
+					filteredTypeMap[colDef.Type.Name] = typeMap["INTERVAL"]
+				}
 				continue
 			}
 			filteredTypeMap[colDef.Type.Name] = typeMap[colDef.Type.Name]
@@ -1050,6 +1076,8 @@ func getType(newType, table, colName string, srcTableName string) (ddl.CreateTab
 		ty, issues = toSpannerTypePostgres(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	case constants.SQLSERVER:
 		ty, issues = toSpannerTypeSQLserver(srcCol.Type.Name, newType, srcCol.Type.Mods)
+	case constants.ORACLE:
+		ty, issues = oracle.ToSpannerTypeWeb(sessionState.conv, newType, srcCol.Type.Name, srcCol.Type.Mods)
 	default:
 		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.driver)
 	}
@@ -1186,6 +1214,16 @@ func init() {
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		sqlserverTypeMap[srcType] = l
+	}
+
+	// Initialize oracleTypeMap.
+	for _, srcType := range []string{"NUMBER", "BFILE", "BLOB", "CHAR", "CLOB", "DATE", "BINARY_DOUBLE", "BINARY_FLOAT", "FLOAT", "LONG", "RAW", "LONG RAW", "NCHAR", "NVARCHAR2", "VARCHAR", "VARCHAR2", "NCLOB", "ROWID", "UROWID", "XMLTYPE", "TIMESTAMP", "INTERVAL", "SDO_GEOMETRY"} {
+		var l []typeIssue
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
+			ty, issues := oracle.ToSpannerTypeWeb(sessionState.conv, spType, srcType, []int64{})
+			l = addTypeToList(ty.Name, spType, issues, l)
+		}
+		oracleTypeMap[srcType] = l
 	}
 
 	sessionState.conv = internal.MakeConv()

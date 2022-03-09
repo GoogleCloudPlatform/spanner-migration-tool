@@ -34,6 +34,7 @@ func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites ma
 	w.WriteString(summary)
 	ignored := IgnoredStatements(conv)
 	w.WriteString("\n")
+	w.WriteString(conversionDuration(conv, w))
 	if len(ignored) > 0 {
 		justifyLines(w, fmt.Sprintf("Note that the following source DB statements "+
 			"were detected but ignored: %s.",
@@ -556,4 +557,19 @@ func writeHeading(w *bufio.Writer, s string) {
 		"----------------------------\n",
 		s, "\n",
 		"----------------------------\n"}, ""))
+}
+
+func conversionDuration(conv *Conv, w *bufio.Writer) string {
+	res := ""
+	if conv.DataConversionDuration.Microseconds() != 0 || conv.SchemaConversionDuration.Microseconds() != 0 {
+		writeHeading(w, "Time duration of Conversion")
+		if conv.SchemaConversionDuration.Microseconds() != 0 {
+			res += fmt.Sprintf("Schema conversion duration : %s \n", conv.SchemaConversionDuration)
+		}
+		if conv.DataConversionDuration.Microseconds() != 0 {
+			res += fmt.Sprintf("Data conversion duration : %s \n", conv.DataConversionDuration)
+		}
+		res += "\n"
+	}
+	return res
 }

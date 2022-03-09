@@ -99,14 +99,16 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		cmd.filePrefix = dbName + "."
 	}
 
+	schemaConversionStartTime := time.Now()
 	var conv *internal.Conv
 	conv, err = conversion.SchemaConv(sourceProfile, targetProfile, &ioHelper)
 	if err != nil {
 		return subcommands.ExitFailure
 	}
 
-	now := time.Now()
-	conversion.WriteSchemaFile(conv, now, cmd.filePrefix+schemaFile, ioHelper.Out)
+	schemaCoversionEndTime := time.Now()
+	conv.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
+	conversion.WriteSchemaFile(conv, schemaCoversionEndTime, cmd.filePrefix+schemaFile, ioHelper.Out)
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
 	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
 	// Cleanup hb tmp data directory.
