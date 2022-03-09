@@ -29,8 +29,7 @@ harbourbridge schema -source=oracle -source-profile="host=<>,port=<>,user=<>,db_
 
 In Oracle, USER is the account name, SCHEMA is the set of objects owned by that user. Oracle creates the SCHEMA object as part of the CREATE USER statement and the SCHEMA has the same name as the USER. 
 
-db_name will be name of the Oracle service being used.
-
+db_name will be the SID of the Database used. The Oracle System ID (SID) is used to uniquely identify a particular database on a system.
 
 ## Schema Conversion
 
