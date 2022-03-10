@@ -40,7 +40,7 @@ export class ConversionService {
         return { name: name, helth: conversionRates[name] }
       }),
     }
-    return [parentNode]
+    return [{ name: 'Database Name', children: [parentNode] }]
   }
 
   getColMap(tableName: string, data: IConv): IColMap[] {
