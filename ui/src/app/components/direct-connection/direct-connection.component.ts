@@ -4,6 +4,7 @@ import { Router } from '@angular/router'
 import IDbConfig from 'src/app/model/DbConfig'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { DataService } from 'src/app/services/data/data.service'
+import { LoaderService } from '../../services/loader/loader.service'
 
 @Component({
   selector: 'app-direct-connection',
@@ -20,11 +21,19 @@ export class DirectConnectionComponent implements OnInit {
     dbName: new FormControl('BikeStores'),
   })
 
-  constructor(private router: Router, private fetch: FetchService, private data: DataService) {}
+  constructor(
+    private router: Router,
+    private fetch: FetchService,
+    private data: DataService,
+    private loader: LoaderService
+  ) {}
 
   ngOnInit(): void {}
 
   connectToDb() {
+    window.scroll(0, 0)
+    this.data.resetStore()
+    this.loader.startLoader()
     const { dbEngine, hostName, port, userName, password, dbName } = this.connectForm.value
     const config: IDbConfig = { dbEngine, hostName, port, userName, password, dbName }
     this.fetch.connectTodb(config).subscribe({
@@ -35,8 +44,12 @@ export class DirectConnectionComponent implements OnInit {
             JSON.stringify({ dbEngine, hostName, port, userName, password, dbName })
           )
         }
-        this.data.getSchemaConversionData()
-        this.router.navigate(['/workspace'])
+        this.data.getSchemaConversionFromDb()
+        this.data.conv.subscribe((res) => {
+          console.log(res)
+          this.router.navigate(['/workspace'])
+          this.loader.stopLoader()
+        })
       },
       error: (e) => console.log(e),
     })

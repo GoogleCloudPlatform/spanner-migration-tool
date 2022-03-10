@@ -44,7 +44,7 @@ export class ConversionService {
   }
 
   getColMap(tableName: string, data: IConv): IColMap[] {
-    console.log('colmap', data)
+    console.log('colmap', data, `sasa${tableName}`)
     let srcTableName = data.ToSource[tableName].Name
     return data.SrcSchema[srcTableName].ColNames.map((name: string, i: number) => {
       let spColName = data.SpSchema[tableName].ColNames[i]

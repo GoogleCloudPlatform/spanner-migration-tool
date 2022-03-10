@@ -43,7 +43,7 @@ export class ObjectExplorerComponent implements OnInit {
   }
 
   tableSelected(e: any) {
-    let tname = e.target.textContent.trim()
-    this.selectTable.emit(tname)
+    console.log(e.textContent)
+    this.selectTable.emit(e.textContent.trim())
   }
 }

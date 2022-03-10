@@ -4,13 +4,16 @@ import IConv from '../../model/Conv'
 import { BehaviorSubject, forkJoin, Observable, of } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
 import IUpdateTable from 'src/app/model/updateTable'
+import IDumpConfig from 'src/app/model/DumpConfig'
+import ISessionConfig from '../../model/SessionConfig'
 
 @Injectable({
   providedIn: 'root',
 })
 export class DataService {
-  private convSubject = new BehaviorSubject<IConv>({} as IConv)
   constructor(private fetch: FetchService) {}
+
+  private convSubject = new BehaviorSubject<IConv>({} as IConv)
   private conversionRateSub = new BehaviorSubject({})
   private typeMapSub = new BehaviorSubject({})
   private summarySub = new BehaviorSubject({})
@@ -22,26 +25,48 @@ export class DataService {
   typeMap = this.typeMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   summary = this.summarySub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
 
-  getSchemaConversionData() {
-    this.fetch.getSchemaConversionFromDirectConnect().subscribe((e: IConv) => {
-      this.convSubject.next(e)
-      forkJoin({
-        rates: this.fetch.getConversionRate(),
-        typeMap: this.fetch.getTypeMap(),
-        summary: this.fetch.getSummary(),
-      })
-        .pipe(
-          catchError((err: any) => {
-            console.log(err)
-            return of(err)
-          })
-        )
-        .subscribe(({ rates, typeMap, summary }: any) => {
-          this.conversionRateSub.next(rates)
-          this.typeMapSub.next(typeMap)
-          this.summarySub.next(summary)
-        })
+  resetStore() {
+    this.convSubject.next({} as IConv)
+    this.conversionRateSub.next({} as IConv)
+    this.typeMapSub.next({} as IConv)
+    this.summarySub.next({} as IConv)
+  }
+
+  getSchemaConversionFromDb() {
+    this.fetch.getSchemaConversionFromDirectConnect().subscribe((res: IConv) => {
+      this.convSubject.next(res)
     })
+  }
+
+  getSchemaConversionFromDump(payload: IDumpConfig) {
+    this.fetch.getSchemaConversionFromDump(payload).subscribe((res: IConv) => {
+      this.convSubject.next(res)
+    })
+  }
+
+  getSchemaConversionFromSession(payload: ISessionConfig) {
+    this.fetch.getSchemaConversionFromSessionFile(payload).subscribe((res: IConv) => {
+      this.convSubject.next(res)
+    })
+  }
+
+  getRateTypemapAndSummary() {
+    forkJoin({
+      rates: this.fetch.getConversionRate(),
+      typeMap: this.fetch.getTypeMap(),
+      summary: this.fetch.getSummary(),
+    })
+      .pipe(
+        catchError((err: any) => {
+          console.log(err)
+          return of(err)
+        })
+      )
+      .subscribe(({ rates, typeMap, summary }: any) => {
+        this.conversionRateSub.next(rates)
+        this.typeMapSub.next(typeMap)
+        this.summarySub.next(summary)
+      })
   }
 
   updateTable(tableName: string, data: IUpdateTable): Observable<string> {

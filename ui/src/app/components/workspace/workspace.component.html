@@ -1,9 +1,4 @@
-<ng-template #loader>
-  <div class="progress-bar-wrapper">
-    <mat-progress-bar mode="indeterminate" value="40"></mat-progress-bar>
-  </div>
-</ng-template>
-<div *ngIf="tableNames.length && rowData.length; else loader">
+<div *ngIf="tableNames.length && rowData.length">
   <div class="container">
     <h2>Configure schema</h2>
     <div class="summary">

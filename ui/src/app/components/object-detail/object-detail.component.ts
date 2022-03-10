@@ -4,6 +4,7 @@ import IUpdateTable from './../../model/updateTable'
 import { DataService } from 'src/app/services/data/data.service'
 import { MatDialog } from '@angular/material/dialog'
 import { InfodialogComponent } from '../infodialog/infodialog.component'
+import { LoaderService } from '../../services/loader/loader.service'
 interface IColMap {
   srcColName: string
   srcDataType: string
@@ -16,7 +17,11 @@ interface IColMap {
   styleUrls: ['./object-detail.component.scss'],
 })
 export class ObjectDetailComponent implements OnInit {
-  constructor(private data: DataService, private dialog: MatDialog) {}
+  constructor(
+    private data: DataService,
+    private dialog: MatDialog,
+    private loader: LoaderService
+  ) {}
 
   ngOnInit(): void {}
 
@@ -59,6 +64,7 @@ export class ObjectDetailComponent implements OnInit {
           ToType: oldRow.spDataType !== col.spDataType ? col.spDataType : '',
         }
       })
+      this.loader.startLoader()
       this.data.updateTable(this.tableName, updateData).subscribe({
         next: (res: string) => {
           console.log(res)
@@ -71,7 +77,7 @@ export class ObjectDetailComponent implements OnInit {
             })
           }
         },
-        // complete: () => this._loader.stopLoader(),
+        complete: () => this.loader.stopLoader(),
       })
     } else {
       this.isEditMode = true

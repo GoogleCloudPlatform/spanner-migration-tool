@@ -4,6 +4,7 @@ import IDbConfig from 'src/app/model/DbConfig'
 import IUpdateTable from 'src/app/model/updateTable'
 import IConv from '../../model/Conv'
 import IDumpConfig from '../../model/DumpConfig'
+import ISessionConfig from '../../model/SessionConfig'
 
 @Injectable({
   providedIn: 'root',
@@ -36,7 +37,11 @@ export class FetchService {
   }
 
   getSchemaConversionFromDump(payload: IDumpConfig) {
-    return this.http.post<HttpResponse<null>>(`${this.url}/convert/dump`, payload)
+    return this.http.post<IConv>(`${this.url}/convert/dump`, payload)
+  }
+
+  getSchemaConversionFromSessionFile(payload: ISessionConfig) {
+    return this.http.post<IConv>(`${this.url}/session/resume`, payload)
   }
 
   getSummary() {
