@@ -13,8 +13,10 @@ export class ObjectExplorerComponent implements OnInit {
   treeControl = new NestedTreeControl<ISchemaObjectNode>((p) => p.children)
   dataSource = new MatTreeNestedDataSource<ISchemaObjectNode>()
   searchText: string = ''
+  isLeftColumnCollapse: boolean = false
 
   @Output() selectTable = new EventEmitter<string>()
+  @Output() leftCollaspe: EventEmitter<any> = new EventEmitter()
   constructor(private conversion: ConversionService) {}
   @Input() tableNames!: string[]
   @Input() conversionRates!: Record<string, string>
@@ -45,5 +47,10 @@ export class ObjectExplorerComponent implements OnInit {
   tableSelected(e: any) {
     console.log(e.textContent)
     this.selectTable.emit(e.textContent.trim())
+  }
+
+  leftColumnToggle() {
+    this.isLeftColumnCollapse = !this.isLeftColumnCollapse
+    this.leftCollaspe.emit()
   }
 }

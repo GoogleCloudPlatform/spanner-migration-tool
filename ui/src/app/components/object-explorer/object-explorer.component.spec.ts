@@ -6,7 +6,7 @@ import { ConversionService } from '../../services/conversion/conversion.service'
 import { MatTableModule } from '@angular/material/table'
 import { FormsModule } from '@angular/forms'
 
-fdescribe('ObjectExplorerComponent', () => {
+describe('ObjectExplorerComponent', () => {
   let component: ObjectExplorerComponent
   let fixture: ComponentFixture<ObjectExplorerComponent>
 

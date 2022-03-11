@@ -26,6 +26,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   typemapObj!: Subscription
   convObj!: Subscription
   converObj!: Subscription
+  isLeftColumnCollapse: boolean = false
 
   constructor(private data: DataService, private conversion: ConversionService) {
     this.currentTable = ''
@@ -64,5 +65,8 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   changeCurrentTable(table: string) {
     this.currentTable = table
     this.rowData = this.conversion.getColMap(this.currentTable, this.conv)
+  }
+  leftColumnToggle() {
+    this.isLeftColumnCollapse = !this.isLeftColumnCollapse
   }
 }

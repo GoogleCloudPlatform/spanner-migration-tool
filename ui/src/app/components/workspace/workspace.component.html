@@ -7,14 +7,16 @@
     </div>
   </div>
   <div class="columns">
-    <div class="column-left">
+    <div class="column-left" [ngClass]="[ isLeftColumnCollapse ? 'left-column-collapse' : 'left-column-expand']">
       <app-object-explorer
         [tableNames]="tableNames"
         [conversionRates]="conversionRates"
         (selectTable)="changeCurrentTable($event)"
+        (leftCollaspe)="leftColumnToggle()"
+        id="column-left-content"
       ></app-object-explorer>
     </div>
-    <div class="column-middle">
+    <div class="column-middle" [ngClass]="[ isLeftColumnCollapse ? 'middle-column-expand' : 'middle-column-collapse']">
       <app-object-detail
         [tableName]="currentTable"
         *ngIf="rowData.length"

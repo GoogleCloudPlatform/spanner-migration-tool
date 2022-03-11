@@ -1,5 +1,6 @@
 .container {
   padding: 10px;
+  position: relative;
 }
 
 .filter-wrapper {
@@ -74,4 +75,20 @@
 
 .orange {
   color: rgb(248, 116, 68);
+}
+
+.display {
+  display: block;
+}
+.hidden {
+  display: none;
+}
+
+#left-column-toggle-button {
+  z-index: 100;
+  position: absolute;
+  right: 5px;
+  top: 15px;
+  border: none;
+  background-color: inherit;
 }

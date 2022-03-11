@@ -1,4 +1,5 @@
-<mat-tab-group>
+<div class="container">
+<mat-tab-group [ngClass]="[ isLeftColumnCollapse ? 'hidden' : 'display']">
   <mat-tab label="Oracle(7)">
     <div class="filter-wrapper">
       <div class="left">
@@ -44,3 +45,8 @@
     </mat-tree>
   </mat-tab>
 </mat-tab-group>
+<button id="left-column-toggle-button" (click)="leftColumnToggle()">
+    <mat-icon [ngClass]="[ isLeftColumnCollapse ? 'hidden' : 'display']">first_page</mat-icon>
+    <mat-icon [ngClass]="[ isLeftColumnCollapse ? 'display' : 'hidden']">last_page</mat-icon>
+</button>
+</div>
