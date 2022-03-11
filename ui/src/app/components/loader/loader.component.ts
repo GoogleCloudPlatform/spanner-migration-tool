@@ -7,7 +7,7 @@ import { LoaderService } from 'src/app/services/loader/loader.service'
   styleUrls: ['./loader.component.scss'],
 })
 export class LoaderComponent implements OnInit {
-  showProgress = false
+  showProgress: boolean = true;
   constructor(private loaderService: LoaderService) {}
 
   ngOnInit(): void {

@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core'
+import { LoaderService } from 'src/app/services/loader/loader.service'
 
 @Component({
   selector: 'app-home',
@@ -7,6 +8,11 @@ import { Component, OnInit } from '@angular/core'
 })
 export class HomeComponent implements OnInit {
   constructor() {}
+  showProgress = false;
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    var loader = new LoaderService()
+    loader.startLoader();
+    loader.isLoading.subscribe( data => this.showProgress = data)
+  }
 }
