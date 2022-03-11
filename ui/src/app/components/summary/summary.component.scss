@@ -1,27 +1,40 @@
 .container {
   padding: 10px 0;
   min-height: 600px;
+  position: relative;
 }
-h3{
+h3 {
   margin-bottom: 0;
   padding-left: 15px;
 }
 
-.error{
+#right-column-toggle-button {
+  border: none;
+  background-color: inherit;
+  position: absolute;
+  top: 10px;
+  right: 5px;
+  z-index: 100;
+}
+#right-column-toggle-button:hover {
+  cursor: pointer;
+}
+
+.error {
   font-size: 20px;
   color: #eb0000;
 }
 
-.warning{
+.warning {
   font-size: 20px;
   color: #ff9800;
 }
 
-.mat-expansion-panel-header{
-  padding: 15px;  
+.mat-expansion-panel-header {
+  padding: 15px;
 }
 
-.mat-expansion-panel-header-description{
+.mat-expansion-panel-header-description {
   padding-left: 20px;
 }
 
@@ -29,7 +42,7 @@ h3{
   flex: 4 1 auto;
 }
 
-.mat-toolbar{
+.mat-toolbar {
   height: 30px;
   font-size: 13px;
   padding-right: 60%;
@@ -42,15 +55,15 @@ h3{
   width: 100%;
   min-height: 70px;
   padding: 0 15px;
-  
+
   .left {
     display: block;
     position: relative;
-    padding-top:18px;
+    padding-top: 18px;
     flex: 20%;
     .filter-icon {
-     position: absolute;
-     font-size: 20px;
+      position: absolute;
+      font-size: 20px;
     }
     .filter-text {
       position: absolute;
@@ -59,7 +72,7 @@ h3{
   }
   .right {
     flex: 70%;
-    .mat-form-field{
+    .mat-form-field {
       width: 100%;
       min-height: 24px;
     }
@@ -70,7 +83,7 @@ h3{
   display: none;
 }
 
-.mat-chip{
+.mat-chip {
   min-height: 24px;
   font-weight: lighter;
 }
@@ -81,4 +94,11 @@ h3{
 
 .mat-expansion-panel-header:hover {
   background-color: transparent !important;
+}
+
+.display {
+  display: block;
+}
+.hidden {
+  display: none;
 }

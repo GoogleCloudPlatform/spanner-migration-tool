@@ -27,6 +27,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   convObj!: Subscription
   converObj!: Subscription
   isLeftColumnCollapse: boolean = false
+  isRightColumnCollapse: boolean = true
 
   constructor(private data: DataService, private conversion: ConversionService) {
     this.currentTable = ''
@@ -68,5 +69,9 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
   leftColumnToggle() {
     this.isLeftColumnCollapse = !this.isLeftColumnCollapse
+  }
+
+  rightColumnToggle() {
+    this.isRightColumnCollapse = !this.isRightColumnCollapse
   }
 }

@@ -13,10 +13,12 @@
         [conversionRates]="conversionRates"
         (selectTable)="changeCurrentTable($event)"
         (leftCollaspe)="leftColumnToggle()"
-        id="column-left-content"
       ></app-object-explorer>
     </div>
-    <div class="column-middle" [ngClass]="[ isLeftColumnCollapse ? 'middle-column-expand' : 'middle-column-collapse']">
+    <div class="column-middle" [ngClass]="{'middle-column-expand':isLeftColumnCollapse,
+                                           'middle-column-collapse':!isLeftColumnCollapse,
+                                           'display':isRightColumnCollapse,
+                                           'hidden':!isRightColumnCollapse}">
       <app-object-detail
         [tableName]="currentTable"
         *ngIf="rowData.length"
@@ -25,8 +27,10 @@
       >
       </app-object-detail>
     </div>
-    <div class="column-right">
-      <app-summary></app-summary>
+    <div class="column-right" [ngClass]="{'right-column-half-expand':!isRightColumnCollapse && !isLeftColumnCollapse,
+                                          'right-column-full-expand':!isRightColumnCollapse && isLeftColumnCollapse,
+                                          'right-column-collapse':isRightColumnCollapse}">
+      <app-summary (rightCollapse)="rightColumnToggle()"></app-summary>
     </div>
   </div>
 </div>
