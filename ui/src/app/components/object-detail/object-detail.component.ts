@@ -27,6 +27,7 @@ export class ObjectDetailComponent implements OnInit {
 
   @Input() tableName: string = ''
   @Input() typeMap: any = {}
+  @Input() ddlStmts: any = {}
   @Input() rowData: IColMap[] = []
   displayedColumns = ['srcColName', 'srcDataType', 'spColName', 'spDataType']
   dataSource: any = []

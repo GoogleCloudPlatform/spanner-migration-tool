@@ -26,8 +26,10 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   typemapObj!: Subscription
   convObj!: Subscription
   converObj!: Subscription
+  ddlObj!: Subscription
   isLeftColumnCollapse: boolean = false
   isRightColumnCollapse: boolean = true
+  ddlStmts: any
 
   constructor(private data: DataService, private conversion: ConversionService) {
     this.currentTable = ''
@@ -40,6 +42,10 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
 
     this.typemapObj = this.data.typeMap.subscribe((types) => {
       this.typeMap = types
+    })
+
+    this.ddlObj = this.data.ddl.subscribe((res) => {
+      this.ddlStmts = res
     })
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
@@ -61,6 +67,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.typemapObj.unsubscribe()
     this.convObj.unsubscribe()
     this.converObj.unsubscribe()
+    this.ddlObj.unsubscribe()
   }
 
   changeCurrentTable(table: string) {

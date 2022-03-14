@@ -48,6 +48,10 @@ export class FetchService {
     return this.http.get(`${this.url}/summary`)
   }
 
+  getDdl() {
+    return this.http.get(`${this.url}/ddl`)
+  }
+
   getTypeMap() {
     return this.http.get(`${this.url}/typemap`)
   }
