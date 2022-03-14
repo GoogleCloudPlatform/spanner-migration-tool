@@ -3,7 +3,7 @@
 [![cloudspannerecosystem](https://circleci.com/gh/cloudspannerecosystem/harbourbridge.svg?style=svg)](https://circleci.com/gh/cloudspannerecosystem/harbourbridge)
 
 HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation and
-migration, using data from an existing PostgreSQL, MySQL or DynamoDB database.
+migration, using data from an existing PostgreSQL, MySQL, SQL Server, Oracle or DynamoDB database.
 The tool ingests schema and data from either a pg_dump/mysqldump file or directly
 from the source database, and supports both schema and data migration. For schema
 migration, HarbourBridge automatically builds a Spanner schema from the schema
@@ -17,8 +17,8 @@ For more details on schema customization and use of the schema assistant, see
 capabilities of HarbourBridge.
 
 HarbourBridge is designed to simplify Spanner evaluation and migration, and in
-particular for migrating moderate-size PostgreSQL/MySQL/DynamoDB datasets to Spanner
-(up to about 100GB). Many features of PostgreSQL/MySQL, especially those that don't
+particular for migrating moderate-size datasets to Spanner
+(up to about 100GB). Certain features of relational databases, especially those that don't
 map directly to Spanner features, are ignored, e.g. stored functions and
 procedures, and sequences. Types such as integers, floats, char/text, bools,
 timestamps, and (some) array types, map fairly directly to Spanner, but many

@@ -115,6 +115,7 @@ The HarbourBridge tool maps PostgreSQL types to Spanner types as follows:
 | `TIMESTAMPTZ`      | `TIMESTAMP`            |                                           |
 | `VARCHAR`          | `STRING(MAX)`          |                                           |
 | `VARCHAR(N)`       | `STRING(N)`            | c                                         |
+| `JSON`, `JSONB`    | `JSON`                 |                                           |
 | `ARRAY(`pgtype`)`  | `ARRAY(`spannertype`)` | if scalar type pgtype maps to spannertype |
 
 All other types map to `STRING(MAX)`. Some of the mappings in this table

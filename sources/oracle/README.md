@@ -5,6 +5,8 @@ using data from an existing Oracle database. This README provides
 details of the tool's Oracle capabilities. For general HarbourBridge information
 see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbourbridge-spanner-evaluation-and-migration).
 
+We currently do not support dump file mode for Oracle. The only way to use HarbourBridge with OracleDB is connecting directly.
+
 Note that _'oracle'_ can be used as an identifier with the flag `-source` in the command line.
 
 ## Example Oracle Usage

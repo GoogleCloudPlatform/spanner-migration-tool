@@ -107,7 +107,7 @@ The HarbourBridge tool maps MySQL types to Spanner types as follows:
 | `ENUM`                                            | `STRING(MAX)`   |                                 |
 | `FLOAT`                                           | `FLOAT64`       | s                               |
 | `INTEGER`, `MEDIUMINT`,<br/>`TINYINT`, `SMALLINT` | `INT64`         | s                               |
-| `JSON`                                            | `STRING(MAX)`   |                                 |
+| `JSON`                                            | `JSON`          |                                 |
 | `SET`                                             | `ARRAY<STRING>` | SET only supports string values |
 | `TEXT`, `MEDIUMTEXT`,<br/>`TINYTEXT`, `LONGTEXT`  | `STRING(MAX)`   |                                 |
 | `TIMESTAMP`                                       | `TIMESTAMP`     |                                 |

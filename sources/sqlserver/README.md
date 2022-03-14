@@ -5,6 +5,8 @@ using data from an existing SQL Server database. This README provides
 details of the tool's SQLserver capabilities. For general HarbourBridge information
 see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbourbridge-spanner-evaluation-and-migration).
 
+We currently do not support dump file mode for SQL Server. The only way to use HarbourBridge with SQL Server is connecting directly.
+
 Note that either _'sqlserver'_ or _'mssql'_ can be used as an identifier with the flag `-source` in the command line.
 
 ## Example SQLServer Usage
