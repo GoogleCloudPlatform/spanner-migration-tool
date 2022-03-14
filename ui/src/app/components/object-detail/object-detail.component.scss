@@ -12,6 +12,20 @@
     }
   }
 }
+.column-tab-container {
+  position: relative;
+  .edit-button {
+    position: absolute;
+    right: 5px;
+    top: 10px;
+    border: none;
+    background-color: inherit;
+    .edit-icon {
+      color: black;
+      font-size: 1.1rem;
+    }
+  }
+}
 
 .border_bottom {
   border: none;
