@@ -30,7 +30,18 @@
     <div class="column-right" [ngClass]="{'right-column-half-expand':!isRightColumnCollapse && !isLeftColumnCollapse,
                                           'right-column-full-expand':!isRightColumnCollapse && isLeftColumnCollapse,
                                           'right-column-collapse':isRightColumnCollapse}">
-      <app-summary (rightCollapse)="rightColumnToggle()"></app-summary>
+      <mat-tab-group mat-dialog-close="">
+        <mat-tab label="ISSUES & SUGGESTIONS(3)">
+          <app-summary></app-summary>
+        </mat-tab>
+        <mat-tab label="RULES(7)">
+          <app-rule></app-rule>
+        </mat-tab>
+      </mat-tab-group>
+      <button id="right-column-toggle-button" (click)="rightColumnToggle()">
+        <mat-icon [ngClass]="[ isRightColumnCollapse ? 'display' : 'hidden']">first_page</mat-icon>
+        <mat-icon [ngClass]="[ isRightColumnCollapse ? 'hidden' : 'display']">last_page</mat-icon>
+      </button>
     </div>
   </div>
 </div>

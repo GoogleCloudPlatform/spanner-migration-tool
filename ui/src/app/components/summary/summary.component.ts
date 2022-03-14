@@ -1,4 +1,4 @@
-import { Component, OnInit, Output, EventEmitter } from '@angular/core'
+import { Component, OnInit } from '@angular/core'
 import { COMMA, ENTER } from '@angular/cdk/keycodes'
 import { MatChipInputEvent } from '@angular/material/chips'
 
@@ -8,9 +8,6 @@ import { MatChipInputEvent } from '@angular/material/chips'
   styleUrls: ['./summary.component.scss'],
 })
 export class SummaryComponent implements OnInit {
-  @Output() rightCollapse: EventEmitter<any> = new EventEmitter()
-  isRightColumnCollapse: boolean = true
-
   constructor() {}
   ngOnInit(): void {}
 
@@ -36,11 +33,6 @@ export class SummaryComponent implements OnInit {
     if (index >= 0) {
       this.tables.splice(index, 1)
     }
-  }
-
-  rightColumnToggle() {
-    this.isRightColumnCollapse = !this.isRightColumnCollapse
-    this.rightCollapse.emit()
   }
 }
 
