@@ -6,12 +6,39 @@ import { catchError, filter, map, tap } from 'rxjs/operators'
 import IUpdateTable from 'src/app/model/updateTable'
 import IDumpConfig from 'src/app/model/DumpConfig'
 import ISessionConfig from '../../model/SessionConfig'
+import { InputType } from 'src/app/app.constants'
+import { LoaderService } from 'src/app/services/loader/loader.service'
 
 @Injectable({
   providedIn: 'root',
 })
 export class DataService {
-  constructor(private fetch: FetchService) {}
+  constructor(private fetch: FetchService, private loader: LoaderService) {
+    let inputType = localStorage.getItem('inputType') as string
+    let config: unknown = localStorage.getItem('connectionConfig')
+    console.log(inputType, config)
+
+    switch (inputType) {
+      case InputType.DirectConnect:
+        this.getSchemaConversionFromDb()
+        break
+
+      case InputType.DumpFile:
+        if (config !== null) {
+          this.getSchemaConversionFromDump(config as IDumpConfig)
+        }
+        break
+
+      case InputType.SessionFile:
+        if (config !== null) {
+          this.getSchemaConversionFromSession(config as ISessionConfig)
+        }
+        break
+
+      default:
+        console.log('not able to find input type')
+    }
+  }
 
   private convSubject = new BehaviorSubject<IConv>({} as IConv)
   private conversionRateSub = new BehaviorSubject({})

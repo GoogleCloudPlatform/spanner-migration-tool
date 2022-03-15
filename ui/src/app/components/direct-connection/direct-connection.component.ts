@@ -1,10 +1,11 @@
 import { Component, OnInit } from '@angular/core'
-import { FormControl, FormGroup } from '@angular/forms'
+import { FormControl, FormGroup, Validators } from '@angular/forms'
 import { Router } from '@angular/router'
 import IDbConfig from 'src/app/model/DbConfig'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { DataService } from 'src/app/services/data/data.service'
 import { LoaderService } from '../../services/loader/loader.service'
+import { InputType, StorageKeys } from 'src/app/app.constants'
 
 @Component({
   selector: 'app-direct-connection',
@@ -13,12 +14,12 @@ import { LoaderService } from '../../services/loader/loader.service'
 })
 export class DirectConnectionComponent implements OnInit {
   connectForm = new FormGroup({
-    dbEngine: new FormControl('sqlserver'),
-    hostName: new FormControl('104.198.154.85'),
-    port: new FormControl('1433'),
-    userName: new FormControl('sa'),
-    password: new FormControl('P@ssw0rd.1'),
-    dbName: new FormControl('BikeStores'),
+    dbEngine: new FormControl('sqlserver', [Validators.required]),
+    hostName: new FormControl('104.198.154.85', [Validators.required]),
+    port: new FormControl('1433', [Validators.required]),
+    userName: new FormControl('sa', [Validators.required]),
+    password: new FormControl('P@ssw0rd.1', [Validators.required]),
+    dbName: new FormControl('BikeStores', [Validators.required]),
   })
 
   constructor(
@@ -40,9 +41,10 @@ export class DirectConnectionComponent implements OnInit {
       next: (res) => {
         if (res.status == 200) {
           localStorage.setItem(
-            'connectionConfig',
+            StorageKeys.Config,
             JSON.stringify({ dbEngine, hostName, port, userName, password, dbName })
           )
+          localStorage.setItem(StorageKeys.Type, InputType.DirectConnect)
         }
         this.data.getSchemaConversionFromDb()
         this.data.conv.subscribe((res) => {

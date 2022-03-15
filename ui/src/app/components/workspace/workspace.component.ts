@@ -52,13 +52,13 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
       this.conv = data
       this.currentTable =
         this.currentTable === '' ? Object.keys(data.SpSchema)[0] : this.currentTable
-      console.log(this.currentTable)
-      this.rowData = this.conversion.getColMap(this.currentTable, data)
-    })
 
-    this.converObj = this.data.conversionRate.subscribe((rates: any) => {
-      this.tableNames = Object.keys(this.conv.SpSchema)
-      this.conversionRates = rates
+      this.rowData = this.conversion.getColMap(this.currentTable, data)
+
+      this.converObj = this.data.conversionRate.subscribe((rates: any) => {
+        this.tableNames = Object.keys(this.conv.SpSchema)
+        this.conversionRates = rates
+      })
     })
   }
 
@@ -74,6 +74,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.currentTable = table
     this.rowData = this.conversion.getColMap(this.currentTable, this.conv)
   }
+
   leftColumnToggle() {
     this.isLeftColumnCollapse = !this.isLeftColumnCollapse
   }

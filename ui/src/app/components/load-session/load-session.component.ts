@@ -4,6 +4,7 @@ import IDumpConfig from 'src/app/model/DumpConfig'
 import { DataService } from 'src/app/services/data/data.service'
 import ISessionConfig from '../../model/SessionConfig'
 import { Router } from '@angular/router'
+import { InputType, StorageKeys } from 'src/app/app.constants'
 
 @Component({
   selector: 'app-load-session',
@@ -30,6 +31,8 @@ export class LoadSessionComponent implements OnInit {
     this.data.getSchemaConversionFromSession(payload)
     this.data.conv.subscribe((res) => {
       console.log(res)
+      localStorage.setItem(StorageKeys.Config, JSON.stringify(payload))
+      localStorage.setItem(StorageKeys.Type, InputType.SessionFile)
       this.router.navigate(['/workspace'])
     })
   }

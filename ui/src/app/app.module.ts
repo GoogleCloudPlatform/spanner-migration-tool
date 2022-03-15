@@ -3,7 +3,7 @@ import { BrowserModule } from '@angular/platform-browser'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { MaterialModule } from './material/material.module'
 import { AppRoutingModule } from './app-routing.module'
-import { HttpClientModule } from '@angular/common/http'
+import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http'
 import { FormsModule } from '@angular/forms'
 
 import { AppComponent } from './app.component'
@@ -23,6 +23,7 @@ import { SessionListingComponent } from './components/session-listing/session-li
 import { LoaderComponent } from './components/loader/loader.component'
 import { InfodialogComponent } from './components/infodialog/infodialog.component'
 import { RuleComponent } from './components/rule/rule.component'
+import { InterceptorService } from './services/interceptor/interceptor.service'
 
 @NgModule({
   declarations: [
@@ -52,7 +53,13 @@ import { RuleComponent } from './components/rule/rule.component'
     HttpClientModule,
     FormsModule,
   ],
-  providers: [],
+  providers: [
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: InterceptorService,
+      multi: true,
+    },
+  ],
   bootstrap: [AppComponent],
 })
 export class AppModule {}

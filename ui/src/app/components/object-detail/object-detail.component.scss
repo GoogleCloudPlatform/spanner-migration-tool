@@ -13,16 +13,17 @@
   }
 }
 .column-tab-container {
-  position: relative;
-  .edit-button {
-    position: absolute;
-    right: 5px;
-    top: 10px;
-    border: none;
-    background-color: inherit;
-    .edit-icon {
-      color: black;
-      font-size: 1.1rem;
+  .spanner_edit-button {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    button {
+      background-color: inherit;
+      border: none;
+      .edit-icon {
+        color: black;
+        font-size: 1.1rem;
+      }
     }
   }
 }

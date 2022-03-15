@@ -6,16 +6,20 @@
   <mat-tab-group>
     <mat-tab label="COLUMNS">
       <div class="column-tab-container">
-        <button mat-stroked-button class="edit-button" color="primary" (click)="toggleEdit()">
-          <mat-icon class="edit-icon">edit</mat-icon>
-          {{ isEditMode ? 'Save' : 'Edit' }}
-        </button>
         <table mat-table [dataSource]="dataSource">
           <ng-container matColumnDef="srcDatabase">
             <th mat-header-cell *matHeaderCellDef colspan="2">ORACLE</th>
           </ng-container>
           <ng-container matColumnDef="spDatabase">
-            <th mat-header-cell *matHeaderCellDef colspan="2">SPANNER</th>
+            <th mat-header-cell *matHeaderCellDef colspan="2">
+              <div class="spanner_edit-button">
+                <span>SPANNER</span>
+                <button mat-stroked-button color="primary" (click)="toggleEdit()">
+                  <mat-icon class="edit-icon">edit</mat-icon>
+                  {{ isEditMode ? 'Save' : 'Edit' }}
+                </button>
+              </div>
+            </th>
           </ng-container>
 
           <ng-container matColumnDef="srcColName">
