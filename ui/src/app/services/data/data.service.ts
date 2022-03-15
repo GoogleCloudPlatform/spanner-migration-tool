@@ -17,6 +17,7 @@ export class DataService {
   private conversionRateSub = new BehaviorSubject({})
   private typeMapSub = new BehaviorSubject({})
   private summarySub = new BehaviorSubject({})
+  private ddlSub = new BehaviorSubject({})
 
   conv = this.convSubject.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   conversionRate = this.conversionRateSub
@@ -24,12 +25,14 @@ export class DataService {
     .pipe(filter((res) => Object.keys(res).length !== 0))
   typeMap = this.typeMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   summary = this.summarySub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
+  ddl = this.ddlSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
 
   resetStore() {
     this.convSubject.next({} as IConv)
-    this.conversionRateSub.next({} as IConv)
-    this.typeMapSub.next({} as IConv)
-    this.summarySub.next({} as IConv)
+    this.conversionRateSub.next({})
+    this.typeMapSub.next({})
+    this.summarySub.next({})
+    this.ddlSub.next({})
   }
 
   getSchemaConversionFromDb() {
@@ -55,6 +58,7 @@ export class DataService {
       rates: this.fetch.getConversionRate(),
       typeMap: this.fetch.getTypeMap(),
       summary: this.fetch.getSummary(),
+      ddl: this.fetch.getDdl(),
     })
       .pipe(
         catchError((err: any) => {
@@ -62,10 +66,11 @@ export class DataService {
           return of(err)
         })
       )
-      .subscribe(({ rates, typeMap, summary }: any) => {
+      .subscribe(({ rates, typeMap, summary, ddl }: any) => {
         this.conversionRateSub.next(rates)
         this.typeMapSub.next(typeMap)
         this.summarySub.next(summary)
+        this.ddlSub.next(ddl)
       })
   }
 

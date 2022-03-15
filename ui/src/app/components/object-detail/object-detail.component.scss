@@ -3,30 +3,38 @@
   justify-content: space-between;
   align-items: center;
   padding: 5px 20px;
+  padding-top: 10px;
   .title {
     display: flex;
     align-items: center;
-
+    margin-bottom: 0;
     .icon {
       margin-right: 20px;
     }
   }
 }
-.column-tab-container {
-  position: relative;
-  .edit-button {
-    position: absolute;
-    right: 5px;
-    top: 10px;
-    border: none;
-    background-color: inherit;
-    .edit-icon {
-      color: black;
-      font-size: 1.1rem;
-    }
+.sp-tab-cell {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  span {
+    font-size: 12px;
+    font-weight: 500;
+  }
+}
+.edit-button {
+  border: none;
+  background-color: inherit;
+  margin-right: 10px;
+  .edit-icon {
+    color: black;
+    font-size: 1.1rem;
   }
 }
 
+.ddl_container {
+  padding: 30px;
+}
 .border_bottom {
   border: none;
   border-bottom: 1px solid lightgray;
