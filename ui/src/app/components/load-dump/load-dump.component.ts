@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core'
-import { FormControl, FormGroup } from '@angular/forms'
+import { FormControl, FormGroup, Validators } from '@angular/forms'
 import IDumpConfig from 'src/app/model/DumpConfig'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { DataService } from 'src/app/services/data/data.service'
@@ -14,8 +14,8 @@ import { InputType, StorageKeys } from 'src/app/app.constants'
 export class LoadDumpComponent implements OnInit {
   constructor(private data: DataService, private router: Router) {}
   connectForm = new FormGroup({
-    dbEngine: new FormControl('mysqldump'),
-    filePath: new FormControl('test_data/frontend/sakila.sql'),
+    dbEngine: new FormControl('mysqldump', [Validators.required]),
+    filePath: new FormControl('test_data/frontend/sakila.sql', [Validators.required]),
   })
   ngOnInit(): void {}
 

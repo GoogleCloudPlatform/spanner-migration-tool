@@ -1,9 +1,7 @@
-import { Component, Input, OnDestroy, OnInit } from '@angular/core'
+import { Component, OnDestroy, OnInit } from '@angular/core'
 import { DataService } from 'src/app/services/data/data.service'
 import { ConversionService } from '../../services/conversion/conversion.service'
 import IConv from '../../model/Conv'
-import { concatMap } from 'rxjs/operators'
-import ISchemaObjectNode from '../../model/SchemaObjectNode'
 import { Subscription } from 'rxjs/internal/Subscription'
 interface IColMap {
   srcColName: string
@@ -36,8 +34,6 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    console.log('ng on init again !! ')
-
     this.data.getRateTypemapAndSummary()
 
     this.typemapObj = this.data.typeMap.subscribe((types) => {
@@ -66,7 +62,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     console.log('workspace Destroy !! ')
     this.typemapObj.unsubscribe()
     this.convObj.unsubscribe()
-    this.converObj.unsubscribe()
+    // this.converObj.unsubscribe()
     this.ddlObj.unsubscribe()
   }
 
