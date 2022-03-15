@@ -34,7 +34,6 @@ export class DirectConnectionComponent implements OnInit {
   connectToDb() {
     window.scroll(0, 0)
     this.data.resetStore()
-    this.loader.startLoader()
     const { dbEngine, hostName, port, userName, password, dbName } = this.connectForm.value
     const config: IDbConfig = { dbEngine, hostName, port, userName, password, dbName }
     this.fetch.connectTodb(config).subscribe({
@@ -50,7 +49,6 @@ export class DirectConnectionComponent implements OnInit {
         this.data.conv.subscribe((res) => {
           console.log(res)
           this.router.navigate(['/workspace'])
-          this.loader.stopLoader()
         })
       },
       error: (e) => console.log(e),

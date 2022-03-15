@@ -24,6 +24,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   typemapObj!: Subscription
   convObj!: Subscription
   converObj!: Subscription
+  ddlsumconvObj!: Subscription
   ddlObj!: Subscription
   isLeftColumnCollapse: boolean = false
   isRightColumnCollapse: boolean = true
@@ -34,7 +35,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.data.getRateTypemapAndSummary()
+    this.ddlsumconvObj = this.data.getRateTypemapAndSummary()
 
     this.typemapObj = this.data.typeMap.subscribe((types) => {
       this.typeMap = types
@@ -64,6 +65,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.convObj.unsubscribe()
     // this.converObj.unsubscribe()
     this.ddlObj.unsubscribe()
+    this.ddlsumconvObj.unsubscribe()
   }
 
   changeCurrentTable(table: string) {

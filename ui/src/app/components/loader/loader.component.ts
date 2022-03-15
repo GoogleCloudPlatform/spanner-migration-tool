@@ -12,8 +12,6 @@ export class LoaderComponent implements OnInit {
 
   ngOnInit(): void {
     this.loaderService.isLoading.subscribe((data) => {
-      console.log('got new daya -------', data)
-
       this.showProgress = data
     })
   }

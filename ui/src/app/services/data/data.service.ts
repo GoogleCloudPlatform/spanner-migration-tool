@@ -6,7 +6,7 @@ import { catchError, filter, map, tap } from 'rxjs/operators'
 import IUpdateTable from 'src/app/model/updateTable'
 import IDumpConfig from 'src/app/model/DumpConfig'
 import ISessionConfig from '../../model/SessionConfig'
-import { InputType } from 'src/app/app.constants'
+import { InputType, StorageKeys } from 'src/app/app.constants'
 import { LoaderService } from 'src/app/services/loader/loader.service'
 
 @Injectable({
@@ -14,8 +14,8 @@ import { LoaderService } from 'src/app/services/loader/loader.service'
 })
 export class DataService {
   constructor(private fetch: FetchService, private loader: LoaderService) {
-    let inputType = localStorage.getItem('inputType') as string
-    let config: unknown = localStorage.getItem('connectionConfig')
+    let inputType = localStorage.getItem(StorageKeys.Type) as string
+    let config: unknown = localStorage.getItem(StorageKeys.Config)
     console.log(inputType, config)
 
     switch (inputType) {
@@ -81,7 +81,7 @@ export class DataService {
   }
 
   getRateTypemapAndSummary() {
-    forkJoin({
+    return forkJoin({
       rates: this.fetch.getConversionRate(),
       typeMap: this.fetch.getTypeMap(),
       summary: this.fetch.getSummary(),
@@ -94,6 +94,8 @@ export class DataService {
         })
       )
       .subscribe(({ rates, typeMap, summary, ddl }: any) => {
+        console.log('new data from.... conv', rates, typeMap, summary, ddl)
+
         this.conversionRateSub.next(rates)
         this.typeMapSub.next(typeMap)
         this.summarySub.next(summary)

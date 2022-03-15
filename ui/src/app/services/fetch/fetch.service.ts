@@ -1,5 +1,6 @@
 import { HttpClient, HttpResponse } from '@angular/common/http'
 import { Injectable } from '@angular/core'
+import { first, tap } from 'rxjs'
 import IDbConfig from 'src/app/model/DbConfig'
 import IUpdateTable from 'src/app/model/updateTable'
 import IConv from '../../model/Conv'
@@ -32,9 +33,6 @@ export class FetchService {
   getSchemaConversionFromDirectConnect() {
     return this.http.get<IConv>(`${this.url}/convert/infoschema`)
   }
-  getConversionRate() {
-    return this.http.get<Record<string, string>>(`${this.url}/conversion`)
-  }
 
   getSchemaConversionFromDump(payload: IDumpConfig) {
     return this.http.post<IConv>(`${this.url}/convert/dump`, payload)
@@ -44,16 +42,20 @@ export class FetchService {
     return this.http.post<IConv>(`${this.url}/session/resume`, payload)
   }
 
+  getConversionRate() {
+    return this.http.get<Record<string, string>>(`${this.url}/conversion`).pipe(tap(console.log))
+  }
+
   getSummary() {
-    return this.http.get(`${this.url}/summary`)
+    return this.http.get(`${this.url}/summary`).pipe(tap(console.log))
   }
 
   getDdl() {
-    return this.http.get(`${this.url}/ddl`)
+    return this.http.get(`${this.url}/ddl`).pipe(tap(console.log))
   }
 
   getTypeMap() {
-    return this.http.get(`${this.url}/typemap`)
+    return this.http.get(`${this.url}/typemap`).pipe(tap(console.log))
   }
 
   updateTable(tableName: string, data: IUpdateTable): any {
