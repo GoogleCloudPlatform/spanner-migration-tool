@@ -1,19 +1,36 @@
-<div class="container">
-  <h2>Configure schema</h2>
-  <div class="summary">
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
-    labore et dolore magna aliqua.
+<div *ngIf="tableNames.length && rowData.length">
+  <div class="container">
+    <h2>Configure schema</h2>
+    <div class="summary">
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
+      labore et dolore magna aliqua.
+    </div>
   </div>
-</div>
-<div class="columns">
-  <div class="column-left">
-    <app-object-explorer (selectTable)="changeCurrentTable($event)"></app-object-explorer>
-  </div>
-  <div class="column-middle">
-    <app-object-detail [tableName]="currentTable" [rowData]="rowData" [typeMap]="typeMap">
-    </app-object-detail>
-  </div>
-  <div class="column-right">
-    <app-summary></app-summary>
+  <div class="columns">
+    <div class="column-left" [ngClass]="[ isLeftColumnCollapse ? 'left-column-collapse' : 'left-column-expand']">
+      <app-object-explorer
+        [tableNames]="tableNames"
+        [conversionRates]="conversionRates"
+        (selectTable)="changeCurrentTable($event)"
+        (leftCollaspe)="leftColumnToggle()"
+      ></app-object-explorer>
+    </div>
+    <div class="column-middle" [ngClass]="{'middle-column-expand':isLeftColumnCollapse,
+                                           'middle-column-collapse':!isLeftColumnCollapse,
+                                           'display':isRightColumnCollapse,
+                                           'hidden':!isRightColumnCollapse}">
+      <app-object-detail
+        [tableName]="currentTable"
+        *ngIf="rowData.length"
+        [rowData]="rowData"
+        [typeMap]="typeMap"
+      >
+      </app-object-detail>
+    </div>
+    <div class="column-right" [ngClass]="{'right-column-half-expand':!isRightColumnCollapse && !isLeftColumnCollapse,
+                                          'right-column-full-expand':!isRightColumnCollapse && isLeftColumnCollapse,
+                                          'right-column-collapse':isRightColumnCollapse}">
+      <app-summary (rightCollapse)="rightColumnToggle()"></app-summary>
+    </div>
   </div>
 </div>

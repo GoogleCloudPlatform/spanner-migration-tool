@@ -1,5 +1,9 @@
 <div class="container">
   <h3>Issues & Recommendations</h3>
+  <button id="right-column-toggle-button" (click)="rightColumnToggle()">
+    <mat-icon [ngClass]="[ isRightColumnCollapse ? 'display' : 'hidden']">first_page</mat-icon>
+    <mat-icon [ngClass]="[ isRightColumnCollapse ? 'hidden' : 'display']">last_page</mat-icon>
+  </button>
   <div class="filter-wrapper">
     <div class="left">
       <span class="material-icons filter-icon">filter_list</span>

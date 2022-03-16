@@ -1,4 +1,5 @@
-<mat-tab-group>
+<div class="container">
+<mat-tab-group [ngClass]="[ isLeftColumnCollapse ? 'hidden' : 'display']">
   <mat-tab label="Oracle(7)">
     <div class="filter-wrapper">
       <div class="left">
@@ -14,12 +15,18 @@
       </div>
     </div>
     <mat-tree class="example-tree" [dataSource]="dataSource" [treeControl]="treeControl">
-      <mat-tree-node class="sidebar_link" *matTreeNodeDef="let node" matTreeNodeToggle>
+      <mat-tree-node
+        (click)="tableSelected(name)"
+        class="sidebar_link"
+        *matTreeNodeDef="let node"
+        matTreeNodeToggle
+        [id]="node.name"
+      >
         <mat-icon *ngIf="node.helth === 'BLUE'" class="icon danger"> error </mat-icon>
         <mat-icon *ngIf="node.helth === 'YELLOW'" class="icon warning"> warning </mat-icon>
         <mat-icon *ngIf="node.helth === 'GREEN'" class="icon success"> check_circle </mat-icon>
         <mat-icon *ngIf="node.helth === 'ORANGE'" class="icon orange"> check_circle </mat-icon>
-        <span (click)="tableSelected($event)"> {{ node.name }}</span>
+        <span #name> {{ node.name }}</span>
       </mat-tree-node>
 
       <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild">
@@ -38,3 +45,8 @@
     </mat-tree>
   </mat-tab>
 </mat-tab-group>
+<button id="left-column-toggle-button" (click)="leftColumnToggle()">
+    <mat-icon [ngClass]="[ isLeftColumnCollapse ? 'hidden' : 'display']">first_page</mat-icon>
+    <mat-icon [ngClass]="[ isLeftColumnCollapse ? 'display' : 'hidden']">last_page</mat-icon>
+</button>
+</div>
