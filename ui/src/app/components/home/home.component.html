@@ -1,32 +1,30 @@
 <div class="container">
-    <h3>Get started with HarbourBridge</h3>
-    <div class="summary">
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore
-        magna aliqua.
-        Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-    </div>
-    <div class="btn-source-select">
-        <button mat-raised-button color="primary" class="split-button-left" [routerLink]="'/source/direct-connection'">
-            Connect to database
-        </button>
-        <button mat-raised-button color="primary" class="split-button-right" [matMenuTriggerFor]="menu">
-            <mat-icon aria-hidden="false" aria-label="Example home icon">expand_more</mat-icon>
-        </button>
-        <mat-menu #menu="matMenu" xPosition="before">
-            <button mat-menu-item [routerLink]="'/source/load-dump'">
-                Load database dump
-            </button>
-            <button mat-menu-item [routerLink]="'/source/load-session'">
-                Load session file
-            </button>
-        </mat-menu>
-    </div>
-    <hr />
+  <h3>Get started with HarbourBridge</h3>
+  <div class="summary">
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
+    labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco
+    laboris nisi ut aliquip ex ea commodo consequat.
+  </div>
+  <div class="btn-source-select">
+    <button
+      mat-raised-button
+      color="primary"
+      class="split-button-left"
+      [routerLink]="'/source/direct-connection'"
+    >
+      Connect to database
+    </button>
+    <button mat-raised-button color="primary" class="split-button-right" [matMenuTriggerFor]="menu">
+      <mat-icon aria-hidden="false" aria-label="Example home icon">expand_more</mat-icon>
+    </button>
+    <mat-menu #menu="matMenu" xPosition="before">
+      <button mat-menu-item [routerLink]="'/source/load-dump'">Load database dump</button>
+      <button mat-menu-item [routerLink]="'/source/load-session'">Load session file</button>
+    </mat-menu>
+  </div>
+  <div class="sessions-wrapper" *ngIf="sessions.length">
     <h3 class="conv-history">Conversion history</h3>
-    <div class="summary">
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-    </div>
-    <div class="sessions-wrapper">
-        <app-session-listing></app-session-listing>
-    </div>
+    <div class="summary">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</div>
+    <app-session-listing [sessions]="sessions"></app-session-listing>
+  </div>
 </div>
