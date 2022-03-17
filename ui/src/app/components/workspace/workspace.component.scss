@@ -15,6 +15,7 @@
 }
 .column-right {
   width: 25%;
+  position: relative;
 }
 
 .container {
@@ -52,9 +53,35 @@
   width: 96%;
 }
 
+#right-column-toggle-button {
+  border: none;
+  background-color: inherit;
+  position: absolute;
+  top: 10px;
+  right: 1px;
+  z-index: 100;
+}
+#right-column-toggle-button:hover {
+  cursor: pointer;
+}
+
 .display {
   display: block;
 }
 .hidden {
   display: none;
+}
+
+::ng-deep .column-right .mat-tab-label .mat-tab-label-content {
+  font-size: 0.8rem;
+}
+
+::ng-deep .column-right .mat-tab-label {
+  min-width: 25px !important;
+  padding: 10px;
+}
+
+::ng-deep .column-right .mat-tab-label.mat-tab-label-active {
+  min-width: 25px !important;
+  padding: 7px;
 }

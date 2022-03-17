@@ -27,6 +27,7 @@ export class ObjectDetailComponent implements OnInit {
 
   @Input() tableName: string = ''
   @Input() typeMap: any = {}
+  @Input() ddlStmts: any = {}
   @Input() rowData: IColMap[] = []
   displayedColumns = ['srcColName', 'srcDataType', 'spColName', 'spDataType']
   dataSource: any = []
@@ -64,7 +65,6 @@ export class ObjectDetailComponent implements OnInit {
           ToType: oldRow.spDataType !== col.spDataType ? col.spDataType : '',
         }
       })
-      this.loader.startLoader()
       this.data.updateTable(this.tableName, updateData).subscribe({
         next: (res: string) => {
           console.log(res)
@@ -77,7 +77,6 @@ export class ObjectDetailComponent implements OnInit {
             })
           }
         },
-        complete: () => this.loader.stopLoader(),
       })
     } else {
       this.isEditMode = true

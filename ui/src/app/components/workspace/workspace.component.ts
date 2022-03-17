@@ -1,9 +1,7 @@
-import { Component, Input, OnDestroy, OnInit } from '@angular/core'
+import { Component, OnDestroy, OnInit } from '@angular/core'
 import { DataService } from 'src/app/services/data/data.service'
 import { ConversionService } from '../../services/conversion/conversion.service'
 import IConv from '../../model/Conv'
-import { concatMap } from 'rxjs/operators'
-import ISchemaObjectNode from '../../model/SchemaObjectNode'
 import { Subscription } from 'rxjs/internal/Subscription'
 interface IColMap {
   srcColName: string
@@ -26,33 +24,38 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   typemapObj!: Subscription
   convObj!: Subscription
   converObj!: Subscription
+  ddlsumconvObj!: Subscription
+  ddlObj!: Subscription
   isLeftColumnCollapse: boolean = false
   isRightColumnCollapse: boolean = true
+  ddlStmts: any
 
   constructor(private data: DataService, private conversion: ConversionService) {
     this.currentTable = ''
   }
 
   ngOnInit(): void {
-    console.log('ng on init again !! ')
-
-    this.data.getRateTypemapAndSummary()
+    this.ddlsumconvObj = this.data.getRateTypemapAndSummary()
 
     this.typemapObj = this.data.typeMap.subscribe((types) => {
       this.typeMap = types
+    })
+
+    this.ddlObj = this.data.ddl.subscribe((res) => {
+      this.ddlStmts = res
     })
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
       this.conv = data
       this.currentTable =
         this.currentTable === '' ? Object.keys(data.SpSchema)[0] : this.currentTable
-      console.log(this.currentTable)
-      this.rowData = this.conversion.getColMap(this.currentTable, data)
-    })
 
-    this.converObj = this.data.conversionRate.subscribe((rates: any) => {
-      this.tableNames = Object.keys(this.conv.SpSchema)
-      this.conversionRates = rates
+      this.rowData = this.conversion.getColMap(this.currentTable, data)
+
+      this.converObj = this.data.conversionRate.subscribe((rates: any) => {
+        this.tableNames = Object.keys(this.conv.SpSchema)
+        this.conversionRates = rates
+      })
     })
   }
 
@@ -60,13 +63,16 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     console.log('workspace Destroy !! ')
     this.typemapObj.unsubscribe()
     this.convObj.unsubscribe()
-    this.converObj.unsubscribe()
+    // this.converObj.unsubscribe()
+    this.ddlObj.unsubscribe()
+    this.ddlsumconvObj.unsubscribe()
   }
 
   changeCurrentTable(table: string) {
     this.currentTable = table
     this.rowData = this.conversion.getColMap(this.currentTable, this.conv)
   }
+
   leftColumnToggle() {
     this.isLeftColumnCollapse = !this.isLeftColumnCollapse
   }

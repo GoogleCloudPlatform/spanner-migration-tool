@@ -7,7 +7,10 @@
     </div>
   </div>
   <div class="columns">
-    <div class="column-left" [ngClass]="[ isLeftColumnCollapse ? 'left-column-collapse' : 'left-column-expand']">
+    <div
+      class="column-left"
+      [ngClass]="[isLeftColumnCollapse ? 'left-column-collapse' : 'left-column-expand']"
+    >
       <app-object-explorer
         [tableNames]="tableNames"
         [conversionRates]="conversionRates"
@@ -15,22 +18,44 @@
         (leftCollaspe)="leftColumnToggle()"
       ></app-object-explorer>
     </div>
-    <div class="column-middle" [ngClass]="{'middle-column-expand':isLeftColumnCollapse,
-                                           'middle-column-collapse':!isLeftColumnCollapse,
-                                           'display':isRightColumnCollapse,
-                                           'hidden':!isRightColumnCollapse}">
+    <div
+      class="column-middle"
+      [ngClass]="{
+        'middle-column-expand': isLeftColumnCollapse,
+        'middle-column-collapse': !isLeftColumnCollapse,
+        display: isRightColumnCollapse,
+        hidden: !isRightColumnCollapse
+      }"
+    >
       <app-object-detail
         [tableName]="currentTable"
         *ngIf="rowData.length"
         [rowData]="rowData"
         [typeMap]="typeMap"
+        [ddlStmts]="ddlStmts"
       >
       </app-object-detail>
     </div>
-    <div class="column-right" [ngClass]="{'right-column-half-expand':!isRightColumnCollapse && !isLeftColumnCollapse,
-                                          'right-column-full-expand':!isRightColumnCollapse && isLeftColumnCollapse,
-                                          'right-column-collapse':isRightColumnCollapse}">
-      <app-summary (rightCollapse)="rightColumnToggle()"></app-summary>
+    <div
+      class="column-right"
+      [ngClass]="{
+        'right-column-half-expand': !isRightColumnCollapse && !isLeftColumnCollapse,
+        'right-column-full-expand': !isRightColumnCollapse && isLeftColumnCollapse,
+        'right-column-collapse': isRightColumnCollapse
+      }"
+    >
+      <mat-tab-group mat-dialog-close="">
+        <mat-tab label="ISSUES & SUGGESTIONS(3)">
+          <app-summary></app-summary>
+        </mat-tab>
+        <mat-tab label="RULES(7)">
+          <app-rule></app-rule>
+        </mat-tab>
+      </mat-tab-group>
+      <button id="right-column-toggle-button" (click)="rightColumnToggle()">
+        <mat-icon [ngClass]="[isRightColumnCollapse ? 'display' : 'hidden']">first_page</mat-icon>
+        <mat-icon [ngClass]="[isRightColumnCollapse ? 'hidden' : 'display']">last_page</mat-icon>
+      </button>
     </div>
   </div>
 </div>

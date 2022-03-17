@@ -18,7 +18,6 @@ export class ConversionService {
     data: IConv,
     conversionRate: Record<string, string>
   ): ISchemaObjectNode[] {
-    console.log(data, conversionRate)
     let parentNode: ISchemaObjectNode = {
       name: 'Tables',
       children: Object.keys(data.SpSchema).map((name: string) => {
@@ -44,7 +43,6 @@ export class ConversionService {
   }
 
   getColMap(tableName: string, data: IConv): IColMap[] {
-    console.log('colmap', data, `sasa${tableName}`)
     let srcTableName = data.ToSource[tableName].Name
     return data.SrcSchema[srcTableName].ColNames.map((name: string, i: number) => {
       let spColName = data.SpSchema[tableName].ColNames[i]

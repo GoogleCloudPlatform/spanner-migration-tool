@@ -6,17 +6,45 @@ import { catchError, filter, map, tap } from 'rxjs/operators'
 import IUpdateTable from 'src/app/model/updateTable'
 import IDumpConfig from 'src/app/model/DumpConfig'
 import ISessionConfig from '../../model/SessionConfig'
+import { InputType, StorageKeys } from 'src/app/app.constants'
+import { LoaderService } from 'src/app/services/loader/loader.service'
 
 @Injectable({
   providedIn: 'root',
 })
 export class DataService {
-  constructor(private fetch: FetchService) {}
+  constructor(private fetch: FetchService, private loader: LoaderService) {
+    let inputType = localStorage.getItem(StorageKeys.Type) as string
+    let config: unknown = localStorage.getItem(StorageKeys.Config)
+    console.log(inputType, config)
+
+    switch (inputType) {
+      case InputType.DirectConnect:
+        this.getSchemaConversionFromDb()
+        break
+
+      case InputType.DumpFile:
+        if (config !== null) {
+          this.getSchemaConversionFromDump(config as IDumpConfig)
+        }
+        break
+
+      case InputType.SessionFile:
+        if (config !== null) {
+          this.getSchemaConversionFromSession(config as ISessionConfig)
+        }
+        break
+
+      default:
+        console.log('not able to find input type')
+    }
+  }
 
   private convSubject = new BehaviorSubject<IConv>({} as IConv)
   private conversionRateSub = new BehaviorSubject({})
   private typeMapSub = new BehaviorSubject({})
   private summarySub = new BehaviorSubject({})
+  private ddlSub = new BehaviorSubject({})
 
   conv = this.convSubject.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   conversionRate = this.conversionRateSub
@@ -24,12 +52,14 @@ export class DataService {
     .pipe(filter((res) => Object.keys(res).length !== 0))
   typeMap = this.typeMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   summary = this.summarySub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
+  ddl = this.ddlSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
 
   resetStore() {
     this.convSubject.next({} as IConv)
-    this.conversionRateSub.next({} as IConv)
-    this.typeMapSub.next({} as IConv)
-    this.summarySub.next({} as IConv)
+    this.conversionRateSub.next({})
+    this.typeMapSub.next({})
+    this.summarySub.next({})
+    this.ddlSub.next({})
   }
 
   getSchemaConversionFromDb() {
@@ -51,10 +81,11 @@ export class DataService {
   }
 
   getRateTypemapAndSummary() {
-    forkJoin({
+    return forkJoin({
       rates: this.fetch.getConversionRate(),
       typeMap: this.fetch.getTypeMap(),
       summary: this.fetch.getSummary(),
+      ddl: this.fetch.getDdl(),
     })
       .pipe(
         catchError((err: any) => {
@@ -62,10 +93,13 @@ export class DataService {
           return of(err)
         })
       )
-      .subscribe(({ rates, typeMap, summary }: any) => {
+      .subscribe(({ rates, typeMap, summary, ddl }: any) => {
+        console.log('new data from.... conv', rates, typeMap, summary, ddl)
+
         this.conversionRateSub.next(rates)
         this.typeMapSub.next(typeMap)
         this.summarySub.next(summary)
+        this.ddlSub.next(ddl)
       })
   }
 
