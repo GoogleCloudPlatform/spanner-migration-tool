@@ -20,7 +20,7 @@ import { ObjectDetailComponent } from './components/object-detail/object-detail.
 import { SummaryComponent } from './components/summary/summary.component'
 import { ReportComponent } from './components/report/report.component'
 import { SessionListingComponent } from './components/session-listing/session-listing.component'
-import { LoaderComponent } from './components/loader/loader.component';
+import { LoaderComponent } from './components/loader/loader.component'
 import { InfodialogComponent } from './components/infodialog/infodialog.component'
 
 @NgModule({

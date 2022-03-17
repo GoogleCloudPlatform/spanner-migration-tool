@@ -1,46 +1,34 @@
-.progress-bar-wrapper{
-    // 4px is progress bar height
-    // To keep the page judder free
-    background-color: #cbd0e9; 
-    height: 2px;
-
-    .mat-progress-bar{
-      height: 2px;
+.container {
+  padding: 7px;
+  .summary {
+    width: 500px;
+    font-weight: lighter;
+  }
+  h3 {
+    margin: 0 0 5px 0;
+  }
+  hr {
+    border-color: #ffffff;
+    margin-bottom: 20px;
+  }
+  .btn-source-select {
+    margin: 20px 0;
+    padding-bottom: 5px;
+    .split-button-left {
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+    .split-button-right {
+      width: 30px !important;
+      min-width: unset !important;
+      padding: 0 2px;
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+      border-left: 1px solid #fafafa;
     }
   }
-.container{
-    padding: 7px;
-    .summary{
-        width:500px;
-        font-weight: lighter;
-    }
-    h3{
-        margin: 0 0 5px 0;
-    }
-    hr {
-        border-color : #ffffff;
-        margin-bottom: 20px;
-    }
-    .btn-source-select{
-        margin: 20px 0;
-        padding-bottom: 5px;
-        .split-button-left {
-            border-top-right-radius: 0;
-            border-bottom-right-radius: 0;
-        } 
-        .split-button-right {
-            width: 30px !important;
-            min-width: unset !important;
-            padding: 0 2px;
-            border-top-left-radius: 0;
-            border-bottom-left-radius: 0;
-            border-left: 1px solid #fafafa;
-        }
-    }
 
-    .sessions-wrapper{
-        margin-top:20px;
-    }
+  .sessions-wrapper {
+    margin-top: 20px;
+  }
 }
-    
-   

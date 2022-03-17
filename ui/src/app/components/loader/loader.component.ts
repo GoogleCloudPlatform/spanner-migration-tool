@@ -5,9 +5,10 @@ import { LoaderService } from 'src/app/services/loader/loader.service'
   selector: 'app-loader',
   templateUrl: './loader.component.html',
   styleUrls: ['./loader.component.scss'],
+  providers: [LoaderService],
 })
 export class LoaderComponent implements OnInit {
-  showProgress: boolean = true;
+  showProgress: boolean = true
   constructor(private loaderService: LoaderService) {}
 
   ngOnInit(): void {

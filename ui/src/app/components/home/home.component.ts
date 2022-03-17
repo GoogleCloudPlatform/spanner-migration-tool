@@ -8,11 +8,7 @@ import { LoaderService } from 'src/app/services/loader/loader.service'
 })
 export class HomeComponent implements OnInit {
   constructor() {}
-  showProgress = false;
 
   ngOnInit(): void {
-    var loader = new LoaderService()
-    loader.startLoader();
-    loader.isLoading.subscribe( data => this.showProgress = data)
   }
 }
