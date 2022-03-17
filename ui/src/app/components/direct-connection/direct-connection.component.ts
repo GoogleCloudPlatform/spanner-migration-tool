@@ -6,6 +6,7 @@ import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { DataService } from 'src/app/services/data/data.service'
 import { LoaderService } from '../../services/loader/loader.service'
 import { InputType, StorageKeys } from 'src/app/app.constants'
+import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 
 @Component({
   selector: 'app-direct-connection',
@@ -26,7 +27,8 @@ export class DirectConnectionComponent implements OnInit {
     private router: Router,
     private fetch: FetchService,
     private data: DataService,
-    private loader: LoaderService
+    private loader: LoaderService,
+    private snackbarService: SnackbarService
   ) {}
 
   ngOnInit(): void {}
@@ -51,7 +53,10 @@ export class DirectConnectionComponent implements OnInit {
           this.router.navigate(['/workspace'])
         })
       },
-      error: (e) => console.log(e),
+      error: (e) => {
+        console.log(e)
+        this.snackbarService.openSnackBar('Unable to connect to database', 'Dismiss')
+      },
     })
   }
 }
