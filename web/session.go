@@ -158,14 +158,18 @@ func saveSession(w http.ResponseWriter, r *http.Request) {
 	defer spannerClient.Close()
 
 	sessionMetadataService := NewSessionService(spannerClient)
-	t := time.Now()
-	conv, err := json.Marshal(sessionState.conv)
+	scm := SchemaConversionWithMetadata{
+		SessionMetadata: sm,
+		Conv:            *sessionState.conv,
+	}
+	conv, err := json.Marshal(scm)
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Conv object error : %v", err), http.StatusInternalServerError)
 		return
 	}
 
+	t := time.Now()
 	scs := SchemaConversionSession{
 		VersionId:              uuid.New().String(),
 		PreviousVersionId:      []string{},
