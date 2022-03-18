@@ -186,7 +186,7 @@ func saveSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(scs)
+	json.NewEncoder(w).Encode("Save successful, VersionId : " + scs.VersionId)
 }
 
 func getSpannerUri() string {
