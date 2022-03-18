@@ -1,8 +1,9 @@
 export default interface ISession {
-  versionid: string
-  databasename: string
-  databasetype: string
-  sessionname: string
-  editorname: string
-  action: string
+  VersionId: string
+  SessionName: string
+  EditorName: string
+  DatabaseType: string
+  DatabaseName: string
+  Notes: string[]
+  CreatedOn: string[]
 }

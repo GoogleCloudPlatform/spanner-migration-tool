@@ -64,6 +64,6 @@ export class FetchService {
   }
 
   getSessions() {
-    return this.http.get<ISession[]>(`${this.url}/session/getsessions`)
+    return this.http.get<ISession[]>(`${this.url}/GetSessions`)
   }
 }

@@ -8,16 +8,18 @@ import ISession from '../../model/Session'
 })
 export class SessionListingComponent implements OnInit {
   @Input() sessions: ISession[] = []
-  displayedColumns = [
-    'sessionname',
-    // 'versionid',
-    'databasetype',
-    'databasename',
-    'editorname',
-    'action',
-  ]
-  dataSource = this.sessions
 
+  displayedColumns = [
+    'SessionName',
+    'EditorName',
+    'DatabaseType',
+    'DatabaseName',
+    'Notes',
+    'CreatedOn',
+    'Action'
+  ]
+
+  dataSource = this.sessions
   constructor() {}
 
   ngOnInit(): void {}

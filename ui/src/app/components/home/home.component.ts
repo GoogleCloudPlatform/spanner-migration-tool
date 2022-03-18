@@ -16,7 +16,7 @@ export class HomeComponent implements OnInit {
     this.data.sessions.subscribe((sessions: ISession[]) => {
       console.log(sessions)
       this.sessions = sessions.map((obj) => {
-        obj['action'] = ''
+        //obj['action'] = ''
         return obj
       })
     })
