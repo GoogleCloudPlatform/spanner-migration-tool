@@ -11,8 +11,6 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-var _ Service = (*service)(nil)
-
 type SchemaConversionSession struct {
 	VersionId              string
 	PreviousVersionId      []string
@@ -36,7 +34,7 @@ type SessionMetadata struct {
 	Tags         []string
 }
 
-type Service interface {
+type SessionService interface {
 	GetSessions(ctx context.Context) ([]SchemaConversionSession, error)
 	GetSession(ctx context.Context, versionId string) (internal.Conv, error)
 	SaveSession(ctx context.Context, scs SchemaConversionSession) error
@@ -46,7 +44,9 @@ type service struct {
 	spannerClient *spanner.Client
 }
 
-func NewService(spannerClient *spanner.Client) Service {
+var _ SessionService = (*service)(nil)
+
+func NewSessionService(spannerClient *spanner.Client) SessionService {
 	return &service{spannerClient: spannerClient}
 }
 
@@ -56,16 +56,16 @@ func (svc *service) GetSessions(ctx context.Context) ([]SchemaConversionSession,
 
 	query := spanner.Statement{
 		SQL: `SELECT 
-					VersionId,
-					SessionName,
-					EditorName,
-					DatabaseType,
-					DatabaseName,
-					Notes,
-					Tags,
-					SchemaChanges,
-					CreatedOn
-				FROM SchemaConversionSession`,
+				VersionId,
+				SessionName,
+				EditorName,
+				DatabaseType,
+				DatabaseName,
+				Notes,
+				Tags,
+				SchemaChanges,
+				CreatedOn
+			FROM SchemaConversionSession`,
 	}
 	iter := txn.Query(ctx, query)
 	result := []SchemaConversionSession{}
