@@ -89,7 +89,28 @@ func resumeSession(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(sessionState.conv)
 }
 
-func getSessions(w http.ResponseWriter, r *http.Request) {
+func resumeSessionNew(w http.ResponseWriter, r *http.Request) {
+	// This function should resume either Remote or Local resume
+	// ToDo: Check if user has access to spanner
+
+	vars := mux.Vars(r)
+	vid, ok := vars["versionId"]
+	if !ok {
+		http.Error(w, "VersionId not supplied", http.StatusBadRequest)
+		return
+	}
+
+	convm, err := resumeRemoteSession(vid)
+	if err != nil {
+		http.Error(w, "Data access error", http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+}
+
+func getConvSessionsMetadata(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 
 	spannerClient, err := spanner.NewClient(ctx, getSpannerUri())
@@ -99,8 +120,8 @@ func getSessions(w http.ResponseWriter, r *http.Request) {
 	}
 	defer spannerClient.Close()
 
-	sessionMetadataService := NewSessionService(spannerClient)
-	result, err := sessionMetadataService.GetSessions(ctx)
+	ssvc := NewSessionService(spannerClient)
+	result, err := ssvc.GetSessionsMetadata(ctx)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Spanner Transaction error : %v", err), http.StatusInternalServerError)
 		return
@@ -109,7 +130,7 @@ func getSessions(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result)
 }
 
-func getSession(w http.ResponseWriter, r *http.Request) {
+func getConvSession(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	vid, ok := vars["versionId"]
 	if !ok {
@@ -117,23 +138,14 @@ func getSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := context.Background()
-	spannerClient, err := spanner.NewClient(ctx, getSpannerUri())
+	conv, err := getConvWithMetadata(vid)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Spanner Client error : %v", err), http.StatusInternalServerError)
-		return
-	}
-	defer spannerClient.Close()
-
-	sessionMetadataService := NewSessionService(spannerClient)
-	result, err := sessionMetadataService.GetSession(ctx, vid)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Spanner Transaction error : %v", err), http.StatusInternalServerError)
+		http.Error(w, "Data access error", http.StatusBadRequest)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(result)
+	json.NewEncoder(w).Encode(conv)
 }
 
 func saveSession(w http.ResponseWriter, r *http.Request) {
@@ -142,6 +154,7 @@ func saveSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
+
 	var sm SessionMetadata
 	err = json.Unmarshal(reqBody, &sm)
 	if err != nil {
@@ -157,40 +170,58 @@ func saveSession(w http.ResponseWriter, r *http.Request) {
 	}
 	defer spannerClient.Close()
 
-	sessionMetadataService := NewSessionService(spannerClient)
-	scm := SchemaConversionWithMetadata{
-		SessionMetadata: sm,
-		Conv:            *sessionState.conv,
-	}
-	conv, err := json.Marshal(scm)
-
+	ssvc := NewSessionService(spannerClient)
+	conv, err := json.Marshal(sessionState.conv)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Conv object error : %v", err), http.StatusInternalServerError)
 		return
 	}
 
+	// TODO: To compute few metadata fields if empty
 	t := time.Now()
 	scs := SchemaConversionSession{
 		VersionId:              uuid.New().String(),
 		PreviousVersionId:      []string{},
-		SessionName:            sm.SessionName + "_" + t.Format("20060102150405"), //ToDo
-		EditorName:             sm.EditorName,
-		DatabaseType:           sm.DatabaseType,
-		DatabaseName:           sm.DatabaseName,
-		Notes:                  sm.Notes,
-		Tags:                   sm.Tags,
 		SchemaChanges:          "N/A",
 		SchemaConversionObject: string(conv),
 		CreatedOn:              t,
+		SessionMetadata:        sm,
 	}
 
-	err = sessionMetadataService.SaveSession(ctx, scs)
+	err = ssvc.SaveSession(ctx, scs)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Spanner Transaction error : %v", err), http.StatusInternalServerError)
 		return
 	}
+
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode("Save successful, VersionId : " + scs.VersionId)
+}
+
+func getConvWithMetadata(versionId string) (ConvWithMetadata, error) {
+	var convm ConvWithMetadata
+	ctx := context.Background()
+	spannerClient, err := spanner.NewClient(ctx, getSpannerUri())
+	if err != nil {
+		return convm, err
+	}
+	defer spannerClient.Close()
+
+	ssvc := NewSessionService(spannerClient)
+	convm, err = ssvc.GetConvWithMetadata(ctx, versionId)
+	if err != nil {
+		return convm, err
+	}
+	return convm, nil
+}
+
+func resumeRemoteSession(vid string) (ConvWithMetadata, error) {
+	convm, err := getConvWithMetadata(vid)
+	if err != nil {
+		return convm, err
+	}
+	sessionState.conv = &convm.Conv
+	return convm, nil
 }
 
 func getSpannerUri() string {
