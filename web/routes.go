@@ -50,10 +50,10 @@ func getRoutes() *mux.Router {
 	// Session Management
 	router.HandleFunc("/session", createSession).Methods("GET")
 	router.HandleFunc("/session/resume", resumeSession).Methods("POST")
-	router.HandleFunc("/GetSessions", getConvSessionsMetadata).Methods("GET")   // New service
-	router.HandleFunc("/GetSession/{versionId}", getConvSession).Methods("GET") // New service
-	router.HandleFunc("/ResumeSession", resumeSessionNew).Methods("GET")        // New service
-	router.HandleFunc("/SaveSession", saveSession).Methods("POST")              // New service
+	router.HandleFunc("/GetSessions", getConvSessionsMetadata).Methods("GET")        // New service
+	router.HandleFunc("/GetSession/{versionId}", getConvSession).Methods("GET")      // New service
+	router.HandleFunc("/ResumeSession/{versionId}", resumeSessionNew).Methods("GET") // New service
+	router.HandleFunc("/SaveSession", saveSession).Methods("POST")                   // New service
 
 	router.PathPrefix("/").Handler(http.FileServer(staticFileDirectory))
 	return router
