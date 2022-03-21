@@ -5,78 +5,121 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 )
 
 type Config struct {
-	ProjectID  string `json:"ProjectID"`
-	InstanceID string `json:"InstanceID"`
+	GCPProjectID      string `json:"GCPProjectID"`
+	SpannerInstanceID string `json:"SpannerInstanceID"`
 }
 
-func getConfigFromJson() Config {
+// getConfig returns configurations.
+func getConfig(w http.ResponseWriter, r *http.Request) {
 
-	content, err := ioutil.ReadFile("./config.json")
+	content, err := getConfigForSpanner()
 
 	if err != nil {
-		log.Fatal("Error when opening file: ", err)
+		http.Error(w, "Data access error", http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+
+	json.NewEncoder(w).Encode(content)
+}
+
+// setSpannerConfig sets Spanner Config.
+func setSpannerConfig(w http.ResponseWriter, r *http.Request) {
+
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
 	}
 
 	var c Config
-
-	err = json.Unmarshal(content, &c)
-
+	err = json.Unmarshal(reqBody, &c)
 	if err != nil {
-		log.Fatal("Error during Unmarshal(): ", err)
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
 	}
 
-	return c
+	err = setSpannerConfigFile(c)
+	if err != nil {
+		http.Error(w, "Data access error", http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(c)
 }
 
-func setconfigInJson(c Config) {
+//getConfigForSpanner reads configuration from configuration file.
+func getConfigForSpanner() (Config, error) {
 
-	f, err := os.OpenFile("./web/config.json", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+	var c Config
 
+	content, err := ioutil.ReadFile("./web/config.json")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		return c, err
 	}
 
+	err = json.Unmarshal(content, &c)
+	if err != nil {
+		return c, err
+	}
+	return c, nil
+}
+
+//setSpannerConfigFile saves spanner configuration in configuration file.
+func setSpannerConfigFile(c Config) error {
+
+	f, err := os.OpenFile("./web/config.json", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+	if err != nil {
+		return err
+	}
 	defer f.Close()
 
-	file, _ := json.MarshalIndent(c, "", " ")
+	file, err := json.MarshalIndent(c, "", " ")
+	if err != nil {
+		return err
+	}
 
-	f.Write(file)
-
+	_, err = f.Write(file)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 //getConfigFromEnv gets configuration from environment variables
-// and save it in config.json file.
+// when harbourbridge is loading first time.
+// and save it in /web/config.json file.
 func getConfigFromEnv() {
 
 	var c Config
-	c.InstanceID = os.Getenv("InstanceID")
-	c.ProjectID = os.Getenv("ProjectID")
+	c.GCPProjectID = os.Getenv("GCPProjectID")
+	c.SpannerInstanceID = os.Getenv("SpannerInstanceID ")
 
-	fmt.Println("InstanceID from environment : ", c.InstanceID)
-	fmt.Println("ProjectID from environment : ", c.ProjectID)
+	if c.GCPProjectID == "" || c.SpannerInstanceID == "" {
+
+		log.Println("warning : please set GCPProjectID and SpannerInstanceID as environment variables")
+	}
 
 	f, err := os.OpenFile("./web/config.json", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
-
 	defer f.Close()
 
-	file, _ := json.MarshalIndent(c, "", " ")
+	file, err := json.MarshalIndent(c, "", " ")
+	if err != nil {
+		fmt.Println(err)
+	}
+	_, err = f.Write(file)
 
-	f.Write(file)
-
+	if err != nil {
+		fmt.Println(err)
+	}
 }
-
-/*
-using gcloud
-$gcloud config get project
-$gcloud config set project
-$gcloud config set spanner/instance appdev-ps1
-gcloud config get spanner/instance
-*/
