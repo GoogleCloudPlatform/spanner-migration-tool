@@ -86,6 +86,12 @@ export class DataService {
       this.convSubject.next(res)
     })
   }
+  getSchemaConversionFromResumeSession(versionId: string) {
+    this.fetch.resumeSession(versionId).subscribe((res: IConv) => {
+      console.log(res)
+      this.convSubject.next(res)
+    })
+  }
 
   getRateTypemapAndSummary() {
     return forkJoin({

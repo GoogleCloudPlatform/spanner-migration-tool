@@ -9,16 +9,7 @@ import { DataService } from 'src/app/services/data/data.service'
   styleUrls: ['./home.component.scss'],
 })
 export class HomeComponent implements OnInit {
-  sessions: ISession[] = []
-  constructor(private data: DataService) {}
+  constructor() {}
 
-  ngOnInit(): void {
-    this.data.sessions.subscribe((sessions: ISession[]) => {
-      console.log(sessions)
-      this.sessions = sessions.map((obj) => {
-        //obj['action'] = ''
-        return obj
-      })
-    })
-  }
+  ngOnInit(): void {}
 }

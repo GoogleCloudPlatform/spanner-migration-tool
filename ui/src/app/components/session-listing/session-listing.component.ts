@@ -1,3 +1,4 @@
+import { DataSource } from '@angular/cdk/collections'
 import { Component, Input, OnInit, SimpleChanges } from '@angular/core'
 import { Router } from '@angular/router'
 import { InputType, StorageKeys } from 'src/app/app.constants'
@@ -11,8 +12,6 @@ import ISession from '../../model/Session'
   styleUrls: ['./session-listing.component.scss'],
 })
 export class SessionListingComponent implements OnInit {
-  @Input() sessions: ISession[] = []
-
   displayedColumns = [
     'SessionName',
     'EditorName',
@@ -23,15 +22,13 @@ export class SessionListingComponent implements OnInit {
     'Action',
   ]
 
-  dataSource = this.sessions
+  dataSource: any = []
   constructor(private fetch: FetchService, private data: DataService, private router: Router) {}
 
-  ngOnInit(): void {}
-
-  ngOnChanges(changes: SimpleChanges): void {
-    let newSessions = changes?.['sessions'].currentValue
-    this.dataSource = newSessions
-    console.log(this.dataSource)
+  ngOnInit(): void {
+    this.data.sessions.subscribe((sessions: ISession[]) => {
+      this.dataSource = sessions
+    })
   }
 
   downloadSessionFile(versionId: string) {
@@ -51,7 +48,7 @@ export class SessionListingComponent implements OnInit {
     //   driver: dbEngine,
     //   filePath: filePath,
     // }
-    // this.data.getSchemaConversionFromSession(payload)
+    this.data.getSchemaConversionFromResumeSession(versionId)
     this.data.conv.subscribe((res) => {
       console.log(res)
       // localStorage.setItem(StorageKeys.Config, JSON.stringify(payload))

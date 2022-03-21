@@ -1,0 +1,60 @@
+<div mat-dialog-content>
+  <h1 *ngIf="isLoading">Loading...</h1>
+  <h1 *ngIf="!isLoading && !errMessage">{{ errMessage }}</h1>
+  <form [formGroup]="saveSessionFrom" class="save-session-form">
+    <h3>Save Session</h3>
+
+    <mat-form-field class="full-width" appearance="outline">
+      <mat-label>Session Name</mat-label>
+      <input matInput placeholder="mysession" type="text" formControlName="SessionName" />
+    </mat-form-field>
+    <br />
+    <mat-form-field class="full-width" appearance="outline">
+      <mat-label>Editor Name</mat-label>
+      <input matInput placeholder="editor name" type="text" formControlName="EditorName" />
+    </mat-form-field>
+    <br />
+    <mat-form-field class="full-width" appearance="outline">
+      <mat-label>Database Type</mat-label>
+      <mat-select matSelect name="dbEngine" formControlName="DatabaseType" appearance="outline">
+        <mat-option value="mysql">MYSQL</mat-option>
+        <mat-option value="sqlserver">SQL Server</mat-option>
+        <mat-option value="oracle">ORACLE</mat-option>
+      </mat-select>
+    </mat-form-field>
+    <br />
+    <mat-form-field class="full-width" appearance="outline">
+      <mat-label>Database Name</mat-label>
+      <input matInput placeholder="Bikestore" type="text" formControlName="DatabaseName" />
+    </mat-form-field>
+    <br />
+    <mat-form-field class="full-width" appearance="outline">
+      <mat-label>Notes</mat-label>
+      <input matInput placeholder="added new index" type="text" formControlName="Notes" />
+    </mat-form-field>
+    <br />
+    <mat-form-field class="full-width" appearance="outline">
+      <mat-label>Tags</mat-label>
+      <input
+        matInput
+        placeholder="index, columns"
+        name="dbname"
+        type="text"
+        formControlName="Tags"
+      />
+    </mat-form-field>
+    <br />
+  </form>
+</div>
+<div mat-dialog-actions>
+  <button mat-raised-button color="primary" mat-dialog-close>Close</button>
+  <button
+    mat-raised-button
+    (click)="saveSession()"
+    type="submit"
+    color="primary"
+    [disabled]="!saveSessionFrom.valid"
+  >
+    Save
+  </button>
+</div>

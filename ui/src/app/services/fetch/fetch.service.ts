@@ -2,7 +2,7 @@ import { HttpClient, HttpResponse } from '@angular/common/http'
 import { Injectable } from '@angular/core'
 import { first, tap } from 'rxjs'
 import IDbConfig from 'src/app/model/DbConfig'
-import ISession from 'src/app/model/Session'
+import ISession, { ISaveSessionPayload } from 'src/app/model/Session'
 import IUpdateTable from 'src/app/model/updateTable'
 import IConv from '../../model/Conv'
 import IDumpConfig from '../../model/DumpConfig'
@@ -67,9 +67,17 @@ export class FetchService {
     return this.http.get<ISession[]>(`${this.url}/GetSessions`)
   }
 
-  getConvForAsession(versionId:string){
-    return this.http.get(`${this.url}/GetSession/{versionId}`, {
+  getConvForAsession(versionId: string) {
+    return this.http.get(`${this.url}/GetSession/${versionId}`, {
       responseType: 'blob',
     })
+  }
+
+  resumeSession(versionId: string) {
+    return this.http.get<IConv>(`${this.url}/ResumeSession/${versionId}`)
+  }
+
+  saveSession(session: ISaveSessionPayload) {
+    return this.http.post(`${this.url}/SaveSession`, session)
   }
 }

@@ -3,6 +3,8 @@ import { DataService } from 'src/app/services/data/data.service'
 import { ConversionService } from '../../services/conversion/conversion.service'
 import IConv from '../../model/Conv'
 import { Subscription } from 'rxjs/internal/Subscription'
+import { MatDialog } from '@angular/material/dialog'
+import { SaveSessionFormComponent } from '../save-session-form/save-session-form.component'
 interface IColMap {
   srcColName: string
   srcDataType: string
@@ -30,7 +32,11 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   isRightColumnCollapse: boolean = true
   ddlStmts: any
 
-  constructor(private data: DataService, private conversion: ConversionService) {
+  constructor(
+    private data: DataService,
+    private conversion: ConversionService,
+    private dialog: MatDialog
+  ) {
     this.currentTable = ''
   }
 
@@ -79,5 +85,9 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
 
   rightColumnToggle() {
     this.isRightColumnCollapse = !this.isRightColumnCollapse
+  }
+
+  openSaveSessionModal() {
+    this.dialog.open(SaveSessionFormComponent, { minWidth: '500px' })
   }
 }

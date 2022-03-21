@@ -22,10 +22,5 @@
       <button mat-menu-item [routerLink]="'/source/load-session'">Load session file</button>
     </mat-menu>
   </div>
-  <div class="sessions-wrapper" *ngIf="sessions.length">
-    <h3 class="conv-history">Conversion history</h3>
-    <div class="summary">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</div>
-    <br/>
-    <app-session-listing [sessions]="sessions"></app-session-listing>
-  </div>
+  <app-session-listing></app-session-listing>
 </div>
