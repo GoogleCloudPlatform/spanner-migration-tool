@@ -149,7 +149,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	case constants.SQLSERVER:
 		err = common.ProcessSchema(conv, sqlserver.InfoSchemaImpl{DbName: sessionState.dbName, Db: sessionState.sourceDB})
 	case constants.ORACLE:
-		err = common.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: sessionState.dbName, Db: sessionState.sourceDB})
+		err = common.ProcessSchema(conv, oracle.InfoSchemaImpl{DbName: strings.ToUpper(sessionState.dbName), Db: sessionState.sourceDB})
 	default:
 		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.driver), http.StatusBadRequest)
 		return
