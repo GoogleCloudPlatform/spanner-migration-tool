@@ -424,10 +424,10 @@ for troubleshooting direct access to DynamoDB.
 See [SqlServer example usage](sources/sqlserver/README.md#example-sqlserver-usage)
 for troubleshooting direct access to SqlServer.
 
-#### 1.5 Direct access to DynamoDB
+#### 1.5 Direct access to Oracle
 
 See [Oracle example usage](sources/oracle/README.md#example-oracle-usage)
-for troubleshooting direct access to DynamoDB.
+for troubleshooting direct access to Oracle.
 
 
 ### 2. Generating dump files
