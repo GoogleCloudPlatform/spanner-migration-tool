@@ -227,3 +227,34 @@ func resumeRemoteSession(vid string) (ConvWithMetadata, error) {
 func getSpannerUri() string {
 	return "projects/searce-academy/instances/appdev-ps1/databases/harbourbridge_metadata"
 }
+
+func getConfig(w http.ResponseWriter, r *http.Request) {
+
+	content := getConfigFromJson()
+
+	w.WriteHeader(http.StatusOK)
+
+	json.NewEncoder(w).Encode(content)
+}
+
+func setSpannerConfig(w http.ResponseWriter, r *http.Request) {
+
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	var c Config
+
+	err = json.Unmarshal(reqBody, &c)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+
+	setconfigInJson(c)
+
+	w.WriteHeader(http.StatusOK)
+
+}
