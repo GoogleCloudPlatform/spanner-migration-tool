@@ -16,7 +16,7 @@ export class SaveSessionFormComponent implements OnInit {
     this.saveSessionFrom = new FormGroup({
       SessionName: new FormControl(''),
       EditorName: new FormControl(''),
-      DatabaseType: new FormControl(''),
+      DatabaseType: new FormControl('mysql'),
       DatabaseName: new FormControl(''),
       Notes: new FormControl(''),
       Tags: new FormControl(''),
@@ -26,17 +26,16 @@ export class SaveSessionFormComponent implements OnInit {
   saveSession() {
     this.isLoading = true
     let formValue = this.saveSessionFrom.value
-
-    console.log(formValue)
-
     let payload: ISaveSessionPayload = {
       SessionName: formValue.SessionName,
       EditorName: formValue.EditorName,
       DatabaseType: formValue.DatabaseType,
       DatabaseName: formValue.DatabaseName,
-      Notes: formValue.Notes.split('/n'),
-      Tags: formValue.Tags.split('/n'),
+      Notes: formValue.Notes.split('\n'),
+      Tags: formValue.Tags.split(','),
     }
+
+    console.log(payload)
     this.fetch.saveSession(payload).subscribe({
       next: (data: any) => {
         console.log(data)

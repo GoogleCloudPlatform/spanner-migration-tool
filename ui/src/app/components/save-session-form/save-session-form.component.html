@@ -13,15 +13,7 @@
       <mat-label>Editor Name</mat-label>
       <input matInput placeholder="editor name" type="text" formControlName="EditorName" />
     </mat-form-field>
-    <br />
-    <mat-form-field class="full-width" appearance="outline">
-      <mat-label>Database Type</mat-label>
-      <mat-select matSelect name="dbEngine" formControlName="DatabaseType" appearance="outline">
-        <mat-option value="mysql">MYSQL</mat-option>
-        <mat-option value="sqlserver">SQL Server</mat-option>
-        <mat-option value="oracle">ORACLE</mat-option>
-      </mat-select>
-    </mat-form-field>
+
     <br />
     <mat-form-field class="full-width" appearance="outline">
       <mat-label>Database Name</mat-label>
@@ -30,7 +22,13 @@
     <br />
     <mat-form-field class="full-width" appearance="outline">
       <mat-label>Notes</mat-label>
-      <input matInput placeholder="added new index" type="text" formControlName="Notes" />
+      <textarea
+        rows="2"
+        matInput
+        placeholder="added new index"
+        type="text"
+        formControlName="Notes"
+      ></textarea>
     </mat-form-field>
     <br />
     <mat-form-field class="full-width" appearance="outline">

@@ -10,12 +10,12 @@
       <div class="column-tab-container">
         <table mat-table [dataSource]="dataSource">
           <ng-container matColumnDef="srcDatabase">
-            <th mat-header-cell *matHeaderCellDef colspan="2">ORACLE</th>
+            <th mat-header-cell class="db_name" *matHeaderCellDef colspan="2">oracle</th>
           </ng-container>
           <ng-container matColumnDef="spDatabase">
-            <th mat-header-cell *matHeaderCellDef colspan="2">
+            <th mat-header-cell *matHeaderCellDef class="db_name" colspan="2">
               <div class="spanner_edit-button">
-                <span>SPANNER</span>
+                <span>Spanner</span>
                 <button mat-stroked-button color="primary" (click)="toggleEdit()">
                   <mat-icon class="edit-icon">edit</mat-icon>
                   {{ isEditMode ? 'Save' : 'Edit' }}
@@ -25,32 +25,37 @@
           </ng-container>
 
           <ng-container matColumnDef="srcColName">
-            <th mat-header-cell *matHeaderCellDef>COLUMN NAME</th>
+            <th class="table_header" mat-header-cell *matHeaderCellDef>Name</th>
             <td mat-cell *matCellDef="let element">
               {{ element.get('srcColName').value }}
             </td>
           </ng-container>
 
           <ng-container matColumnDef="srcDataType">
-            <th mat-header-cell *matHeaderCellDef>DATATYPE</th>
+            <th mat-header-cell class="table_header" *matHeaderCellDef>Type</th>
             <td mat-cell *matCellDef="let element">
               {{ element.get('srcDataType').value }}
             </td>
           </ng-container>
 
           <ng-container matColumnDef="spColName">
-            <th mat-header-cell *matHeaderCellDef>COLUMN NAME</th>
+            <th mat-header-cell class="table_header" *matHeaderCellDef>Name</th>
             <td mat-cell *matCellDef="let element">
-              <mat-form-field appearance="legacy" *ngIf="isEditMode">
-                <input matInput type="text" [formControl]="element.get('spColName')" />
-              </mat-form-field>
+              <div *ngIf="isEditMode">
+                <input
+                  matInput
+                  class="name_input"
+                  type="text"
+                  [formControl]="element.get('spColName')"
+                />
+              </div>
 
               <p *ngIf="!isEditMode">{{ element.get('spColName').value }}</p>
             </td>
           </ng-container>
 
           <ng-container matColumnDef="spDataType">
-            <th mat-header-cell *matHeaderCellDef>DATATYPE</th>
+            <th mat-header-cell class="table_header" *matHeaderCellDef>Type</th>
             <td mat-cell *matCellDef="let element">
               <mat-form-field appearance="legacy" *ngIf="isEditMode" class="w-100">
                 <mat-select

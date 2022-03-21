@@ -90,4 +90,10 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   openSaveSessionModal() {
     this.dialog.open(SaveSessionFormComponent, { minWidth: '500px' })
   }
+  downloadSession() {
+    var a = document.createElement('a')
+    a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(this.conv))
+    a.download = 'session.json'
+    a.click()
+  }
 }
