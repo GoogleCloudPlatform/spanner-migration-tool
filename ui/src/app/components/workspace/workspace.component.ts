@@ -5,12 +5,8 @@ import IConv from '../../model/Conv'
 import { Subscription } from 'rxjs/internal/Subscription'
 import { MatDialog } from '@angular/material/dialog'
 import { SaveSessionFormComponent } from '../save-session-form/save-session-form.component'
-interface IColMap {
-  srcColName: string
-  srcDataType: string
-  spColName: string
-  spDataType: string
-}
+import IColumnTabData from '../../model/ColumnTabData'
+
 @Component({
   selector: 'app-workspace',
   templateUrl: './workspace.component.html',
@@ -19,7 +15,7 @@ interface IColMap {
 export class WorkspaceComponent implements OnInit, OnDestroy {
   conv!: IConv
   currentTable: string
-  rowData: IColMap[] = []
+  rowData: IColumnTabData[] = []
   typeMap: Record<string, Record<string, string>> | boolean = false
   tableNames: string[] = []
   conversionRates: Record<string, string> = {}
@@ -52,6 +48,8 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     })
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
+      console.log(data)
+
       this.conv = data
       this.currentTable =
         this.currentTable === '' ? Object.keys(data.SpSchema)[0] : this.currentTable

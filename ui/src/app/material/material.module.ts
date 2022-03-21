@@ -18,6 +18,7 @@ import { MatTabsModule } from '@angular/material/tabs'
 import { MatSnackBarModule } from '@angular/material/snack-bar'
 import { MatDialogModule } from '@angular/material/dialog'
 import { MatTooltipModule } from '@angular/material/tooltip'
+import { MatCheckboxModule } from '@angular/material/checkbox'
 
 const materialModules = [
   MatToolbarModule,
@@ -40,6 +41,7 @@ const materialModules = [
   MatSnackBarModule,
   MatDialogModule,
   MatTooltipModule,
+  MatCheckboxModule,
 ]
 
 @NgModule({

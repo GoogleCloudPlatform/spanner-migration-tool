@@ -30,7 +30,7 @@ export interface Table {
   Schema: string
   ColNames: string[]
   ColDefs: Record<string, IColumn>
-  PrimaryKeys: IIndexKey[]
+  PrimaryKeys: ISrcIndexKey[]
   ForeignKeys: ISpannerForeignKey[]
   Indexes: Index[]
 }
@@ -99,6 +99,11 @@ export interface IForeignKey {
 
 export interface IIndexKey {
   Col: string
+  Desc: boolean
+}
+
+export interface ISrcIndexKey {
+  Column: string
   Desc: boolean
 }
 

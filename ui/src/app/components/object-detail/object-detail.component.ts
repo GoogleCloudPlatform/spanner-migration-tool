@@ -5,12 +5,8 @@ import { DataService } from 'src/app/services/data/data.service'
 import { MatDialog } from '@angular/material/dialog'
 import { InfodialogComponent } from '../infodialog/infodialog.component'
 import { LoaderService } from '../../services/loader/loader.service'
-interface IColMap {
-  srcColName: string
-  srcDataType: string
-  spColName: string
-  spDataType: string
-}
+import IColumnTabData from '../../model/ColumnTabData'
+
 @Component({
   selector: 'app-object-detail',
   templateUrl: './object-detail.component.html',
@@ -28,8 +24,20 @@ export class ObjectDetailComponent implements OnInit {
   @Input() tableName: string = ''
   @Input() typeMap: any = {}
   @Input() ddlStmts: any = {}
-  @Input() rowData: IColMap[] = []
-  displayedColumns = ['srcColName', 'srcDataType', 'spColName', 'spDataType']
+  @Input() rowData: IColumnTabData[] = []
+
+  displayedColumns = [
+    'srcOrder',
+    'srcColName',
+    'srcDataType',
+    'srcIsPk',
+    'srcIsNotNull',
+    'spOrder',
+    'spColName',
+    'spDataType',
+    'spIsPk',
+    'spIsNotNull',
+  ]
   dataSource: any = []
   isEditMode: boolean = false
   rowArray: FormArray = new FormArray([])
@@ -42,10 +50,16 @@ export class ObjectDetailComponent implements OnInit {
     this.rowData.forEach((row) => {
       this.rowArray.push(
         new FormGroup({
+          srcOrder: new FormControl(row.srcOrder),
           srcColName: new FormControl(row.srcColName),
           srcDataType: new FormControl(row.srcDataType),
+          srcIsPk: new FormControl(row.srcIsPk),
+          srcIsNotNull: new FormControl(row.srcIsNotNull),
+          spOrder: new FormControl(row.spOrder),
           spColName: new FormControl(row.spColName),
           spDataType: new FormControl(row.spDataType),
+          spIsPk: new FormControl(row.spIsPk),
+          spIsNotNull: new FormControl(row.spIsNotNull),
         })
       )
     })
@@ -55,11 +69,11 @@ export class ObjectDetailComponent implements OnInit {
   toggleEdit() {
     if (this.isEditMode) {
       let updateData: IUpdateTable = { UpdateCols: {} }
-      this.rowArray.value.forEach((col: IColMap, i: number) => {
+      this.rowArray.value.forEach((col: IColumnTabData, i: number) => {
         let oldRow = this.rowData[i]
         updateData.UpdateCols[this.rowData[i].spColName] = {
           Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
-          NotNull: true ? 'ADDED' : 'REMOVED',
+          NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
           PK: '',
           Removed: false,
           ToType: oldRow.spDataType !== col.spDataType ? col.spDataType : '',
