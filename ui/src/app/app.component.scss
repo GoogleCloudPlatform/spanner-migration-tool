@@ -1,14 +1,14 @@
-  .padding-20{
-    padding: 20px;
-  }
+.padding-20 {
+  padding: 10px 20px;
+}
 
-  .progress-bar-wrapper{
-    // 4px is progress bar height
-    // To keep the page judder free
-    background-color: #cbd0e9; 
+.progress-bar-wrapper {
+  // 4px is progress bar height
+  // To keep the page judder free
+  background-color: #cbd0e9;
+  height: 2px;
+
+  .mat-progress-bar {
     height: 2px;
-
-    .mat-progress-bar{
-      height: 2px;
-    }
   }
+}

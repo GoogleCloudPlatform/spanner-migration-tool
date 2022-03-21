@@ -1,11 +1,21 @@
 <div *ngIf="tableNames.length && rowData.length">
+  <div class="header">
+    <div class="breadcrumb">
+      <a class="breadcrumb_source" mat-button [routerLink]="'/'">Select Source</a>
+      <span>></span>
+      <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'">Configure Schema</a>
+    </div>
+    <div class="header_action">
+      <button mat-button (click)="openSaveSessionModal()">SAVE SESSION</button>
+      <button mat-button>DOWNLOAD SESSION</button>
+    </div>
+  </div>
   <div class="container">
     <h2>Configure schema</h2>
     <div class="summary">
       Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
       labore et dolore magna aliqua.
     </div>
-    <button mat-raised-button (click)="openSaveSessionModal()">Save Session</button>
   </div>
   <div class="columns">
     <div

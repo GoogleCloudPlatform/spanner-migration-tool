@@ -2,14 +2,15 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 5px 20px;
-  padding-top: 10px;
+  padding: 10px 20px;
+  border-bottom: 1px solid #cccccc;
   .title {
     display: flex;
     align-items: center;
     margin-bottom: 0;
     .icon {
       margin-right: 20px;
+      color: #757575;
     }
   }
 }

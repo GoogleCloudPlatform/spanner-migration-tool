@@ -1,3 +1,34 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #cccccc;
+  padding-bottom: 10px;
+  .header_action {
+    button {
+      border: none;
+      background-color: inherit;
+      color: #1967d2;
+      font-size: 0.8rem;
+    }
+  }
+  .breadcrumb {
+    .breadcrumb_source {
+      padding-left: 8px;
+      color: rgba(0, 0, 0, 0.56);
+      font-weight: 400;
+      font-size: 14px;
+    }
+    .breadcrumb_workspace {
+      font-weight: 400;
+      font-size: 14px;
+    }
+    span {
+      font-size: 1.1rem;
+      color: #746a6a;
+    }
+  }
+}
 .columns {
   display: flex;
   flex-direction: row;
@@ -14,7 +45,7 @@
   border-right: 1px solid #d3d3d3;
 }
 .column-right {
-  width: 25%;
+  width: 26%;
   position: relative;
 }
 
@@ -44,13 +75,13 @@
 }
 
 .right-column-half-expand {
-  width: 79%;
+  width: 80%;
 }
 .right-column-collapse {
-  width: 25%;
+  width: 26%;
 }
 .right-column-full-expand {
-  width: 96%;
+  width: 97%;
 }
 
 #right-column-toggle-button {
