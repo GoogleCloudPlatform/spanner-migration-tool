@@ -66,4 +66,10 @@ export class FetchService {
   getSessions() {
     return this.http.get<ISession[]>(`${this.url}/GetSessions`)
   }
+
+  getConvForAsession(versionId:string){
+    return this.http.get(`${this.url}/GetSession/{versionId}`, {
+      responseType: 'blob',
+    })
+  }
 }
