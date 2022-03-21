@@ -1,3 +1,33 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #cccccc;
+  padding-bottom: 5px;
+  .header_action {
+    button {
+      border: none;
+      background-color: inherit;
+      color: #1967d2;
+      font-size: 0.8rem;
+    }
+  }
+  .breadcrumb {
+    .breadcrumb_source {
+      padding-left: 8px;
+      color: rgba(0, 0, 0, 0.56);
+      font-weight: 400;
+      font-size: 14px;
+    }
+    .mat-button:hover {
+      background-color: inherit;
+    }
+    span {
+      font-size: 1.1rem;
+      color: #746a6a;
+    }
+  }
+}
 .columns {
   display: flex;
   flex-direction: row;
