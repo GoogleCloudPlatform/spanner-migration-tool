@@ -22,6 +22,7 @@ func getConfig(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		http.Error(w, "Data access error", http.StatusBadRequest)
+		log.Println(err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -34,6 +35,7 @@ func setSpannerConfig(w http.ResponseWriter, r *http.Request) {
 
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
+		log.Println(err)
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -41,12 +43,14 @@ func setSpannerConfig(w http.ResponseWriter, r *http.Request) {
 	var c Config
 	err = json.Unmarshal(reqBody, &c)
 	if err != nil {
+		log.Println(err)
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
 
 	err = setSpannerConfigFile(c)
 	if err != nil {
+		log.Println(err)
 		http.Error(w, "Data access error", http.StatusBadRequest)
 		return
 	}
@@ -61,12 +65,13 @@ func getConfigForSpanner() (Config, error) {
 
 	content, err := ioutil.ReadFile("./web/config.json")
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return c, err
 	}
 
 	err = json.Unmarshal(content, &c)
 	if err != nil {
+		log.Println(err)
 		return c, err
 	}
 	return c, nil
@@ -77,17 +82,20 @@ func setSpannerConfigFile(c Config) error {
 
 	f, err := os.OpenFile("./web/config.json", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 	defer f.Close()
 
 	file, err := json.MarshalIndent(c, "", " ")
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 
 	_, err = f.Write(file)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 	return nil
@@ -110,17 +118,17 @@ func getConfigFromEnv() {
 	f, err := os.OpenFile("./web/config.json", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	defer f.Close()
 
 	file, err := json.MarshalIndent(c, "", " ")
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	_, err = f.Write(file)
 
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
