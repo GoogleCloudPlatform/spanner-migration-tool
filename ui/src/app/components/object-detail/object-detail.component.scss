@@ -1,3 +1,17 @@
+.no-table-selected {
+  height: 100%;
+}
+
+.select-table-message {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  .image {
+    margin: 20px;
+  }
+}
+
 .title_container {
   display: flex;
   justify-content: space-between;
@@ -13,6 +27,7 @@
     }
   }
 }
+
 .column-tab-container {
   .spanner_edit-button {
     display: flex;

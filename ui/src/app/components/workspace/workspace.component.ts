@@ -47,9 +47,6 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
       this.conv = data
-      this.currentTable =
-        this.currentTable === '' ? Object.keys(data.SpSchema)[0] : this.currentTable
-
       this.rowData = this.conversion.getColMap(this.currentTable, data)
 
       this.converObj = this.data.conversionRate.subscribe((rates: any) => {

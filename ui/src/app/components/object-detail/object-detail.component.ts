@@ -32,11 +32,13 @@ export class ObjectDetailComponent implements OnInit {
   displayedColumns = ['srcColName', 'srcDataType', 'spColName', 'spDataType']
   dataSource: any = []
   isEditMode: boolean = false
+  isTableSelected: boolean = false;
   rowArray: FormArray = new FormArray([])
 
   ngOnChanges(changes: SimpleChanges): void {
     this.tableName = changes['tableName']?.currentValue || this.tableName
     this.rowData = changes['rowData']?.currentValue || this.rowData
+    this.isTableSelected = this.tableName === '' ? false : true
     this.isEditMode = false
     this.rowArray = new FormArray([])
     this.rowData.forEach((row) => {

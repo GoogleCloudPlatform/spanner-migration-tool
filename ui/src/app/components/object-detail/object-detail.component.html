@@ -1,4 +1,31 @@
-<div class="table">
+<div class="no-table-selected" *ngIf="!isTableSelected">
+  <div class="title_container">
+    <h3 class="title">OBJECT VIEWER</h3>
+  </div>
+  <mat-divider></mat-divider>
+  <div class="select-table-message">
+    <div class="image">
+      <svg
+        width="40"
+        height="40"
+        viewBox="0 0 19 18"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          fill-rule="evenodd"
+          clip-rule="evenodd"
+          d="M2.90723 0C1.80266 0 0.907227 0.89543 0.907227 2V16C0.907227 17.1046 1.80266 18 2.90723 18H16.9072C18.0118 18 18.9072 17.1046 18.9072 16V2C18.9072 0.895431 18.0118 0 16.9072 0H2.90723ZM5.90723 3H3.90723V5H5.90723V3ZM6.90723 3H8.90723V5H6.90723V3ZM5.90723 8H3.90723V10H5.90723V8ZM6.90723 8H8.90723V10H6.90723V8ZM5.90723 13H3.90723V15H5.90723V13ZM6.90723 13H8.90723V15H6.90723V13ZM15.9072 3H9.90723V5H15.9072V3ZM9.90723 8H15.9072V10H9.90723V8ZM15.9072 13H9.90723V15H15.9072V13Z"
+          fill="#3367D6"
+        />
+      </svg>
+    </div>
+    <div class="inner-text">
+      To view and modify an object details, click on the object name on the Oracle panel
+    </div>
+  </div>
+</div>
+<div class="table" *ngIf="isTableSelected">
   <div class="title_container">
     <h3 class="title"><mat-icon class="icon">table_chart</mat-icon>{{ ' ' + tableName }}</h3>
   </div>
