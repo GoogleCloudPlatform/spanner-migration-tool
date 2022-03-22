@@ -26,8 +26,8 @@ export class ObjectExplorerComponent implements OnInit {
   ngOnInit(): void {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    this.tableNames = changes?.['tableNames'].currentValue || this.tableNames
-    this.conversionRates = changes?.['conversionRates'].currentValue || this.conversionRates
+    this.tableNames = changes?.['tableNames']?.currentValue || this.tableNames
+    this.conversionRates = changes?.['conversionRates']?.currentValue || this.conversionRates
     this.dataSource.data = this.conversion.createTreeNode(this.tableNames, this.conversionRates)
     this.treeControl.dataNodes = this.dataSource.data
     this.treeControl.expandAll()

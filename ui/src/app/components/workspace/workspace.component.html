@@ -1,4 +1,15 @@
 <div>
+  <div class="header">
+    <div class="breadcrumb">
+      <a class="breadcrumb_source" mat-button [routerLink]="'/'">Select Source</a>
+      <span>></span>
+      <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'">Configure Schema</a>
+    </div>
+    <div class="header_action">
+      <button mat-button (click)="openSaveSessionModal()">SAVE SESSION</button>
+      <button mat-button (click)="downloadSession()">DOWNLOAD SESSION</button>
+    </div>
+  </div>
   <div class="container">
     <h2>Configure schema</h2>
     <div class="summary">

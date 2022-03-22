@@ -8,11 +8,28 @@ import IDumpConfig from 'src/app/model/DumpConfig'
 import ISessionConfig from '../../model/SessionConfig'
 import { InputType, StorageKeys } from 'src/app/app.constants'
 import { LoaderService } from 'src/app/services/loader/loader.service'
+import ISession from 'src/app/model/Session'
 
 @Injectable({
   providedIn: 'root',
 })
 export class DataService {
+  private convSubject = new BehaviorSubject<IConv>({} as IConv)
+  private conversionRateSub = new BehaviorSubject({})
+  private typeMapSub = new BehaviorSubject({})
+  private summarySub = new BehaviorSubject({})
+  private ddlSub = new BehaviorSubject({})
+  private sessionsSub = new BehaviorSubject({} as ISession[])
+
+  conv = this.convSubject.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
+  conversionRate = this.conversionRateSub
+    .asObservable()
+    .pipe(filter((res) => Object.keys(res).length !== 0))
+  typeMap = this.typeMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
+  summary = this.summarySub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
+  ddl = this.ddlSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
+  sessions = this.sessionsSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
+
   constructor(private fetch: FetchService, private loader: LoaderService) {
     let inputType = localStorage.getItem(StorageKeys.Type) as string
     let config: unknown = localStorage.getItem(StorageKeys.Config)
@@ -38,21 +55,11 @@ export class DataService {
       default:
         console.log('not able to find input type')
     }
+
+    this.fetch.getSessions().subscribe((sessions: ISession[]) => {
+      this.sessionsSub.next(sessions)
+    })
   }
-
-  private convSubject = new BehaviorSubject<IConv>({} as IConv)
-  private conversionRateSub = new BehaviorSubject({})
-  private typeMapSub = new BehaviorSubject({})
-  private summarySub = new BehaviorSubject({})
-  private ddlSub = new BehaviorSubject({})
-
-  conv = this.convSubject.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
-  conversionRate = this.conversionRateSub
-    .asObservable()
-    .pipe(filter((res) => Object.keys(res).length !== 0))
-  typeMap = this.typeMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
-  summary = this.summarySub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
-  ddl = this.ddlSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
 
   resetStore() {
     this.convSubject.next({} as IConv)
@@ -76,6 +83,12 @@ export class DataService {
 
   getSchemaConversionFromSession(payload: ISessionConfig) {
     this.fetch.getSchemaConversionFromSessionFile(payload).subscribe((res: IConv) => {
+      this.convSubject.next(res)
+    })
+  }
+  getSchemaConversionFromResumeSession(versionId: string) {
+    this.fetch.resumeSession(versionId).subscribe((res: IConv) => {
+      console.log(res)
       this.convSubject.next(res)
     })
   }

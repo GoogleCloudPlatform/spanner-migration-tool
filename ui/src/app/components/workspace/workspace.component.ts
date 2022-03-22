@@ -3,12 +3,10 @@ import { DataService } from 'src/app/services/data/data.service'
 import { ConversionService } from '../../services/conversion/conversion.service'
 import IConv from '../../model/Conv'
 import { Subscription } from 'rxjs/internal/Subscription'
-interface IColMap {
-  srcColName: string
-  srcDataType: string
-  spColName: string
-  spDataType: string
-}
+import { MatDialog } from '@angular/material/dialog'
+import { SaveSessionFormComponent } from '../save-session-form/save-session-form.component'
+import IColumnTabData from '../../model/ColumnTabData'
+
 @Component({
   selector: 'app-workspace',
   templateUrl: './workspace.component.html',
@@ -17,7 +15,7 @@ interface IColMap {
 export class WorkspaceComponent implements OnInit, OnDestroy {
   conv!: IConv
   currentTable: string
-  rowData: IColMap[] = []
+  rowData: IColumnTabData[] = []
   typeMap: Record<string, Record<string, string>> | boolean = false
   tableNames: string[] = []
   conversionRates: Record<string, string> = {}
@@ -30,7 +28,11 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   isRightColumnCollapse: boolean = true
   ddlStmts: any
 
-  constructor(private data: DataService, private conversion: ConversionService) {
+  constructor(
+    private data: DataService,
+    private conversion: ConversionService,
+    private dialog: MatDialog
+  ) {
     this.currentTable = ''
   }
 
@@ -46,6 +48,8 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     })
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
+      console.log(data)
+
       this.conv = data
       this.rowData = this.conversion.getColMap(this.currentTable, data)
 
@@ -76,5 +80,15 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
 
   rightColumnToggle() {
     this.isRightColumnCollapse = !this.isRightColumnCollapse
+  }
+
+  openSaveSessionModal() {
+    this.dialog.open(SaveSessionFormComponent, { minWidth: '500px' })
+  }
+  downloadSession() {
+    var a = document.createElement('a')
+    a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(this.conv))
+    a.download = 'session.json'
+    a.click()
   }
 }

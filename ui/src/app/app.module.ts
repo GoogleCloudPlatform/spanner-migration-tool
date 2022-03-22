@@ -23,7 +23,8 @@ import { SessionListingComponent } from './components/session-listing/session-li
 import { LoaderComponent } from './components/loader/loader.component'
 import { InfodialogComponent } from './components/infodialog/infodialog.component'
 import { RuleComponent } from './components/rule/rule.component'
-import { InterceptorService } from './services/interceptor/interceptor.service'
+import { InterceptorService } from './services/interceptor/interceptor.service';
+import { SaveSessionFormComponent } from './components/save-session-form/save-session-form.component'
 
 @NgModule({
   declarations: [
@@ -44,6 +45,7 @@ import { InterceptorService } from './services/interceptor/interceptor.service'
     LoaderComponent,
     InfodialogComponent,
     RuleComponent,
+    SaveSessionFormComponent,
   ],
   imports: [
     BrowserModule,

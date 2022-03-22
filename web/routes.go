@@ -27,8 +27,6 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/convert/infoschema", convertSchemaSQL).Methods("GET")
 	router.HandleFunc("/convert/dump", convertSchemaDump).Methods("POST")
 	router.HandleFunc("/ddl", getDDL).Methods("GET")
-	router.HandleFunc("/session", createSession).Methods("GET")
-	router.HandleFunc("/session/resume", resumeSession).Methods("POST")
 	router.HandleFunc("/summary", getSummary).Methods("GET")
 	router.HandleFunc("/overview", getOverview).Methods("GET")
 	router.HandleFunc("/conversion", getConversionRate).Methods("GET")
@@ -48,6 +46,14 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/rename/fks", renameForeignKeys).Methods("POST")
 	router.HandleFunc("/rename/indexes", renameIndexes).Methods("POST")
 	router.HandleFunc("/add/indexes", addIndexes).Methods("POST")
+
+	// Session Management
+	router.HandleFunc("/session", createSession).Methods("GET")
+	router.HandleFunc("/session/resume", resumeSession).Methods("POST")
+	router.HandleFunc("/GetSessions", getConvSessionsMetadata).Methods("GET")        // New service
+	router.HandleFunc("/GetSession/{versionId}", getConvSession).Methods("GET")      // New service
+	router.HandleFunc("/ResumeSession/{versionId}", resumeSessionNew).Methods("GET") // New service
+	router.HandleFunc("/SaveSession", saveSession).Methods("POST")                   // New service
 
 	router.PathPrefix("/").Handler(http.FileServer(staticFileDirectory))
 	return router

@@ -14,6 +14,7 @@ require (
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/google/go-cmp v0.5.6
 	github.com/google/subcommands v1.2.0
+	github.com/google/uuid v1.1.1 // indirect
 	github.com/gorilla/handlers v1.5.0
 	github.com/gorilla/mux v1.7.3
 	github.com/gorilla/websocket v1.4.1 // indirect

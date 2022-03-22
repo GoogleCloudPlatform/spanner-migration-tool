@@ -1,6 +1,5 @@
 import { Component, OnInit } from '@angular/core'
 import { FormControl, FormGroup, Validators } from '@angular/forms'
-import IDumpConfig from 'src/app/model/DumpConfig'
 import { DataService } from 'src/app/services/data/data.service'
 import ISessionConfig from '../../model/SessionConfig'
 import { Router } from '@angular/router'

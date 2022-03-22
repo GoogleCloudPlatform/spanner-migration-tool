@@ -1,40 +1,59 @@
-import { Component, OnInit } from '@angular/core';
+import { DataSource } from '@angular/cdk/collections'
+import { Component, Input, OnInit, SimpleChanges } from '@angular/core'
+import { Router } from '@angular/router'
+import { InputType, StorageKeys } from 'src/app/app.constants'
+import { DataService } from 'src/app/services/data/data.service'
+import { FetchService } from 'src/app/services/fetch/fetch.service'
+import ISession from '../../model/Session'
 
 @Component({
   selector: 'app-session-listing',
   templateUrl: './session-listing.component.html',
-  styleUrls: ['./session-listing.component.scss']
+  styleUrls: ['./session-listing.component.scss'],
 })
 export class SessionListingComponent implements OnInit {
+  displayedColumns = [
+    'SessionName',
+    'EditorName',
+    'DatabaseType',
+    'DatabaseName',
+    'Notes',
+    'CreatedOn',
+    'Action',
+  ]
 
-  // Temporary data - to be removed.
-  displayedColumns = ['sessionName', 'lastUpdateDate', 'status', 'action'];
-  dataSource = ELEMENT_DATA;
-  
-  constructor() { }
+  dataSource: any = []
+  constructor(private fetch: FetchService, private data: DataService, private router: Router) {}
 
   ngOnInit(): void {
+    this.data.sessions.subscribe((sessions: ISession[]) => {
+      this.dataSource = sessions
+    })
   }
 
-}
+  downloadSessionFile(versionId: string) {
+    this.fetch.getConvForAsession(versionId).subscribe((data: any) => {
+      console.log(data)
+      var a = document.createElement('a')
+      a.href = URL.createObjectURL(data)
+      a.download = versionId + '.session.json'
+      a.click()
+    })
+  }
 
-export interface Session {
-  Id: string
-  SessionName: string;
-  LastUpdateDate: string;
-  Status: string;
+  ResumeFromSessionFile(versionId: string) {
+    this.data.resetStore()
+    // const { dbEngine, filePath } = this.connectForm.value
+    // const payload: ISessionConfig = {
+    //   driver: dbEngine,
+    //   filePath: filePath,
+    // }
+    this.data.getSchemaConversionFromResumeSession(versionId)
+    this.data.conv.subscribe((res) => {
+      console.log(res)
+      // localStorage.setItem(StorageKeys.Config, JSON.stringify(payload))
+      // localStorage.setItem(StorageKeys.Type, InputType.SessionFile)
+      this.router.navigate(['/workspace'])
+    })
+  }
 }
-
-const ELEMENT_DATA: Session[] = [
-  {Id:'', SessionName: 'PG-Northwind-001', LastUpdateDate: '04/03/2022', Status: 'In progress'},
-  {Id:'', SessionName: 'MYSQL-Northwind-001', LastUpdateDate: '04/02/2022', Status: 'Complete'},
-  {Id:'', SessionName: 'PG-Northwind-001', LastUpdateDate: '22/02/2022', Status: 'In progress'},
-  {Id:'', SessionName: 'MSSQL-Northwind-001', LastUpdateDate: '14/03/2022', Status: 'In progress'},
-  {Id:'', SessionName: 'MYSQLDUMP-Northwind-001', LastUpdateDate: '21/03/2022', Status: 'Complete'},
-  {Id:'', SessionName: 'ORCLE-Northwind-001', LastUpdateDate: '05/03/2022', Status: 'In progress'},
-  {Id:'', SessionName: 'PG-Northwind-001', LastUpdateDate: '04/03/2022', Status: 'In progress'},
-  {Id:'', SessionName: 'PGDUMP-Northwind-001', LastUpdateDate: '01/01/2022', Status: 'Aborted'},
-  {Id:'', SessionName: 'MYSQLDUMP-Northwind-001', LastUpdateDate: '01/002/2022', Status: 'In progress'},
-  {Id:'', SessionName: 'ORCL-Northwind-001', LastUpdateDate: '08/03/2022', Status: 'In progress'},
-  {Id:'', SessionName: 'MSSQL-Northwind-001', LastUpdateDate: '18/02/2022', Status: 'In progress'},
-];
