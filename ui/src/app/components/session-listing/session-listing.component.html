@@ -26,13 +26,15 @@
 
       <ng-container matColumnDef="Notes">
         <th mat-header-cell *matHeaderCellDef>Notes</th>
-        <td
-          mat-cell
-          *matCellDef="let element"
-          [matTooltip]="element.Notes.join()"
-          matTooltipPosition="above"
-        >
-          {{ element.Notes.join().substring(0, 10) + '...' }}
+        <td mat-cell *matCellDef="let element; let i = index">
+          <button class="notes-toggle-button" (click)="notesToggle[i] = !notesToggle[i]">
+            ...
+          </button>
+          {{
+            notesToggle[i]
+              ? element.Notes.join(', ')
+              : element.Notes.join(', ').substring(0, 20) + '...'
+          }}
         </td>
       </ng-container>
 

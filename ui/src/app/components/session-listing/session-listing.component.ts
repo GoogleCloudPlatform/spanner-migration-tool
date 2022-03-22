@@ -21,6 +21,7 @@ export class SessionListingComponent implements OnInit {
     'CreatedOn',
     'Action',
   ]
+  notesToggle: boolean[] = []
 
   dataSource: any = []
   constructor(private fetch: FetchService, private data: DataService, private router: Router) {}

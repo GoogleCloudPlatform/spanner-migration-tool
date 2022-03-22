@@ -14,3 +14,19 @@ table {
 .sessions-wrapper {
   margin-top: 20px;
 }
+.mat-column-Notes {
+  max-width: 200px;
+  padding-right: 10px;
+}
+.notes-toggle-button {
+  float: right;
+  margin-right: 32px;
+  background-color: #f5f5f5;
+  border: none;
+  border-radius: 2px;
+  padding: 0 5px 5px 5px;
+  &:hover {
+    background-color: rgb(235, 231, 231);
+    cursor: pointer;
+  }
+}
