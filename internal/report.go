@@ -124,7 +124,7 @@ func buildTableReport(conv *Conv, srcTable string, badWrites map[string]int64) t
 		tr.Body = []tableReportBody{{Heading: "Internal error: " + m}}
 		return tr
 	}
-	issues, cols, warnings := analyzeCols(conv, srcTable, spTable)
+	issues, cols, warnings := AnalyzeCols(conv, srcTable, spTable)
 	tr.Cols = cols
 	tr.Warnings = warnings
 	if pk, ok := conv.SyntheticPKeys[spTable]; ok {
@@ -286,9 +286,9 @@ const (
 	note
 )
 
-// analyzeCols returns information about the quality of schema mappings
+// AnalyzeCols returns information about the quality of schema mappings
 // for table 'srcTable'. It assumes 'srcTable' is in the conv.SrcSchema map.
-func analyzeCols(conv *Conv, srcTable, spTable string) (map[string][]SchemaIssue, int64, int64) {
+func AnalyzeCols(conv *Conv, srcTable, spTable string) (map[string][]SchemaIssue, int64, int64) {
 	srcSchema := conv.SrcSchema[srcTable]
 	m := make(map[string][]SchemaIssue)
 	warnings := int64(0)
@@ -407,12 +407,6 @@ func GenerateSummary(conv *Conv, r []tableReport, badWrites map[string]int64) st
 	// Add in bad rows while writing to Spanner.
 	for _, n := range badWrites {
 		badRows += n
-	}
-	numColumns := int32(int(cols))
-	numWarnings := int32(int(warnings))
-	if conv.MigrationData.GetSchemaPatterns() != nil {
-		conv.MigrationData.SchemaPatterns.NumColumns = &numColumns
-		conv.MigrationData.SchemaPatterns.NumWarnings = &numWarnings
 	}
 	return rateConversion(rows, badRows, cols, warnings, missingPKey, true, conv.SchemaMode())
 }

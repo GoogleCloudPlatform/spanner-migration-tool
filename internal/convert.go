@@ -38,12 +38,13 @@ type Conv struct {
 	Location                 *time.Location // Timezone (for timestamp conversion).
 	sampleBadRows            rowSamples     // Rows that generated errors during conversion.
 	Stats                    stats
-	TimezoneOffset           string                  // Timezone offset for timestamp conversion.
-	TargetDb                 string                  // The target database to which HarbourBridge is writing.
-	UniquePKey               map[string][]string     // Maps Spanner table name to unique column name being used as primary key (if needed).
-	SchemaConversionDuration time.Duration           `json:"-"` // Duration of schema conversion.
-	DataConversionDuration   time.Duration           `json:"-"` // Duration of data conversion.
-	MigrationData            migration.MigrationData `json:"-"` // Migration related metadata to be sent to spanner.
+	TimezoneOffset           string                                 // Timezone offset for timestamp conversion.
+	TargetDb                 string                                 // The target database to which HarbourBridge is writing.
+	UniquePKey               map[string][]string                    // Maps Spanner table name to unique column name being used as primary key (if needed).
+	SchemaConversionDuration time.Duration                          `json:"-"` // Duration of schema conversion.
+	DataConversionDuration   time.Duration                          `json:"-"` // Duration of data conversion.
+	MigrationRequestId       string                                 `json:"-"` // Unique request id generated per migration
+	MigrationType            *migration.MigrationData_MigrationType `json:"-"` // Type of migration: Schema migration, data migration or schema and data migration
 }
 
 type mode int

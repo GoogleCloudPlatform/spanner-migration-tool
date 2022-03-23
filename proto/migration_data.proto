@@ -41,7 +41,7 @@ message MigrationData {
   enum TargetDialect {
     TARGET_DIALECT_UNSPECIFIED = 0;
     GOOGLE_STANDARD_SQL = 1;
-    POSTGRES = 2;
+    POSTGRESQL_STANDARD_SQL = 2;
   }
   // Type of target dialect.
   optional TargetDialect target_dialect = 5;

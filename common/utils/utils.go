@@ -9,7 +9,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"math"
 	"math/rand"
 	"net/url"
 	"os"
@@ -26,10 +25,8 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/spanner"
-	"github.com/google/uuid"
 	"golang.org/x/crypto/ssh/terminal"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
@@ -494,92 +491,4 @@ func DialectToTarget(dialect string) string {
 		return constants.TargetExperimentalPostgres
 	}
 	return constants.TargetSpanner
-}
-
-// PopulateMigrationData populates migration data like source schema details,
-// request id, target dialect, connection mechanism etc in conv object
-func PopulateMigrationData(conv *internal.Conv, driver, targetDb string) {
-
-	migrationRequestId := "HB-" + uuid.New().String()
-
-	migrationData := migration.MigrationData{
-		MigrationRequestId: &migrationRequestId,
-	}
-	populateMigrationDataSourceDetails(driver, &migrationData)
-	populateMigrationDataSchemaPatterns(conv, &migrationData)
-
-	switch targetDb {
-	case constants.TargetSpanner:
-		migrationData.TargetDialect = migration.MigrationData_GOOGLE_STANDARD_SQL.Enum()
-	case constants.TargetExperimentalPostgres:
-		migrationData.TargetDialect = migration.MigrationData_POSTGRES.Enum()
-	}
-	conv.MigrationData = migrationData
-}
-
-// populateMigrationDataSchemaPatterns populates schema petterns like number of tables, foreign key, primary key,
-// indexes, interleaves, max interleave depth and if source schema is missing primary key in migrationData object
-func populateMigrationDataSchemaPatterns(conv *internal.Conv, migrationData *migration.MigrationData) {
-
-	numTables := int32(len(conv.SrcSchema))
-	var numForeignKey, numIndexes, numMissingPrimaryKey, numInterleaves, maxInterleaveDepth int32 = 0, 0, 0, 0, 0
-
-	for _, table := range conv.SrcSchema {
-		numForeignKey += int32(len(table.ForeignKeys))
-		if len(table.PrimaryKeys) == 0 {
-			numMissingPrimaryKey++
-		}
-		numIndexes += int32(len(table.Indexes))
-	}
-
-	for _, table := range conv.SpSchema {
-		depth := 0
-		parentTableName := table.Name
-		for conv.SpSchema[parentTableName].Parent != "" {
-			numInterleaves++
-			depth++
-			parentTableName = conv.SpSchema[parentTableName].Parent
-		}
-		maxInterleaveDepth = int32(math.Max(float64(maxInterleaveDepth), float64(depth)))
-	}
-
-	migrationData.SchemaPatterns = &migration.MigrationData_SchemaPatterns{
-		NumTables:            &numTables,
-		NumForeignKey:        &numForeignKey,
-		NumInterleaves:       &numInterleaves,
-		MaxInterleaveDepth:   &maxInterleaveDepth,
-		NumIndexes:           &numIndexes,
-		NumMissingPrimaryKey: &numMissingPrimaryKey,
-	}
-}
-
-// populateMigrationDataSourceDetails populates source database type and
-// source connection mechanism in migrationData object
-func populateMigrationDataSourceDetails(driver string, migrationData *migration.MigrationData) {
-	switch driver {
-	case constants.PGDUMP:
-		migrationData.SourceConnectionMechanism = migration.MigrationData_DB_DUMP.Enum()
-		migrationData.Source = migration.MigrationData_POSTGRESQL.Enum()
-	case constants.MYSQLDUMP:
-		migrationData.SourceConnectionMechanism = migration.MigrationData_DB_DUMP.Enum()
-		migrationData.Source = migration.MigrationData_MYSQL.Enum()
-	case constants.POSTGRES:
-		migrationData.SourceConnectionMechanism = migration.MigrationData_DIRECT_CONNECTION.Enum()
-		migrationData.Source = migration.MigrationData_POSTGRESQL.Enum()
-	case constants.MYSQL:
-		migrationData.SourceConnectionMechanism = migration.MigrationData_DIRECT_CONNECTION.Enum()
-		migrationData.Source = migration.MigrationData_MYSQL.Enum()
-	case constants.DYNAMODB:
-		migrationData.SourceConnectionMechanism = migration.MigrationData_DIRECT_CONNECTION.Enum()
-		migrationData.Source = migration.MigrationData_DYNAMODB.Enum()
-	case constants.ORACLE:
-		migrationData.SourceConnectionMechanism = migration.MigrationData_DIRECT_CONNECTION.Enum()
-		migrationData.Source = migration.MigrationData_ORACLE.Enum()
-	case constants.SQLSERVER:
-		migrationData.SourceConnectionMechanism = migration.MigrationData_DIRECT_CONNECTION.Enum()
-		migrationData.Source = migration.MigrationData_SQL_SERVER.Enum()
-	case constants.CSV:
-		migrationData.SourceConnectionMechanism = migration.MigrationData_FILE.Enum()
-		migrationData.Source = migration.MigrationData_CSV.Enum()
-	}
 }
