@@ -56,9 +56,7 @@ export class DataService {
         console.log('not able to find input type')
     }
 
-    this.fetch.getSessions().subscribe((sessions: ISession[]) => {
-      this.sessionsSub.next(sessions)
-    })
+    this.getAllSessions()
   }
 
   resetStore() {
@@ -72,6 +70,12 @@ export class DataService {
   getSchemaConversionFromDb() {
     this.fetch.getSchemaConversionFromDirectConnect().subscribe((res: IConv) => {
       this.convSubject.next(res)
+    })
+  }
+
+  getAllSessions() {
+    this.fetch.getSessions().subscribe((sessions: ISession[]) => {
+      this.sessionsSub.next(sessions)
     })
   }
 

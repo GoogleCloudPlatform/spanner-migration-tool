@@ -1,6 +1,4 @@
 <div mat-dialog-content>
-  <h1 *ngIf="isLoading">Loading...</h1>
-  <h1 *ngIf="!isLoading && !errMessage">{{ errMessage }}</h1>
   <form [formGroup]="saveSessionFrom" class="save-session-form">
     <h3>Save Session</h3>
 

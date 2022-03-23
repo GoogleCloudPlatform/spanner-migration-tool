@@ -2,6 +2,8 @@ import { Component, OnInit } from '@angular/core'
 import { FormControl, FormGroup } from '@angular/forms'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { ISaveSessionPayload } from 'src/app/model/Session'
+import { DataService } from 'src/app/services/data/data.service'
+import { SnackbarService } from '../../services/snackbar/snackbar.service'
 
 @Component({
   selector: 'app-save-session-form',
@@ -9,10 +11,13 @@ import { ISaveSessionPayload } from 'src/app/model/Session'
   styleUrls: ['./save-session-form.component.scss'],
 })
 export class SaveSessionFormComponent implements OnInit {
-  isLoading: boolean = false
   errMessage: string = ''
   saveSessionFrom: FormGroup
-  constructor(private fetch: FetchService) {
+  constructor(
+    private fetch: FetchService,
+    private data: DataService,
+    private snack: SnackbarService
+  ) {
     this.saveSessionFrom = new FormGroup({
       SessionName: new FormControl(''),
       EditorName: new FormControl(''),
@@ -24,7 +29,6 @@ export class SaveSessionFormComponent implements OnInit {
   }
 
   saveSession() {
-    this.isLoading = true
     let formValue = this.saveSessionFrom.value
     let payload: ISaveSessionPayload = {
       SessionName: formValue.SessionName,
@@ -37,15 +41,13 @@ export class SaveSessionFormComponent implements OnInit {
 
     console.log(payload)
     this.fetch.saveSession(payload).subscribe({
-      next: (data: any) => {
-        console.log(data)
+      next: (res: any) => {
+        this.data.getAllSessions()
+        this.snack.openSnackBar('Session save successfully', 'close', 5000)
       },
       error: (err: any) => {
         console.log(err)
-        this.errMessage = err.message
-      },
-      complete: () => {
-        this.isLoading = false
+        this.snack.openSnackBar(err.message, 'close', 5000)
       },
     })
   }
