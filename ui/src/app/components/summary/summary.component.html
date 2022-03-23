@@ -1,110 +1,51 @@
 <div class="container">
-  <div class="filter-wrapper">
-    <div class="left">
-      <span class="material-icons filter-icon">filter_list</span>
-      <span class="filter-text">Filter</span>
-    </div>
-    <div class="right">
-      <mat-form-field>
-        <mat-chip-list #chipList aria-label="Fruit selection">
-          <mat-chip color="primary" selected *ngFor="let table of tables" (removed)="remove(table)">
-            Object name : {{ table.name }}
-            <button matChipRemove>
-              <mat-icon>cancel</mat-icon>
-            </button>
-          </mat-chip>
-          <input
-            [matChipInputFor]="chipList"
-            [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
-            [matChipInputAddOnBlur]="addOnBlur"
-            (matChipInputTokenEnd)="add($event)"
-          />
-        </mat-chip-list>
-      </mat-form-field>
+  <div class="filter">
+    <div class="columns">
+      <div class="left">
+        <span class="material-icons filter-icon">filter_list</span>
+        <span class="filter-text">Filter</span>
+      </div>
+      <div class="right">
+        <mat-form-field>
+          <mat-chip-list #chipList aria-label="Fruit selection">
+            <mat-chip color="primary" selected *ngFor="let fs of filterStrings" (removed)="remove(fs)">
+              {{ fs }}
+              <button matChipRemove>
+                <mat-icon>cancel</mat-icon>
+              </button>
+            </mat-chip>
+            <input [matChipInputFor]="chipList" [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
+              [matChipInputAddOnBlur]="addOnBlur" (matChipInputTokenEnd)="add($event)" />
+          </mat-chip-list>
+        </mat-form-field>
+      </div>
     </div>
   </div>
-  <mat-toolbar color="secondry">
-    <span> Status</span>
-    <span class="menu-spacer"></span>
-    <span> Summary</span>
-  </mat-toolbar>
-  <div class="summary-content">
-    <mat-accordion>
-      <mat-expansion-panel>
-        <mat-expansion-panel-header>
-          <mat-panel-title>
-            <span class="material-icons error">error</span>
-          </mat-panel-title>
-          <mat-panel-description>
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit
-          </mat-panel-description>
-        </mat-expansion-panel-header>
-        <p>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
-          ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation
-          ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in
-          reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur
-          sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id
-          est laborum.
-        </p>
-      </mat-expansion-panel>
 
-      <mat-expansion-panel>
-        <mat-expansion-panel-header>
-          <mat-panel-title>
-            <span class="material-icons warning">warning</span>
-          </mat-panel-title>
-          <mat-panel-description>
-            Excepteur sint occaecat cupidatat non proident, sunt in culpa.
-          </mat-panel-description>
-        </mat-expansion-panel-header>
-        <p>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
-          ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation
-          ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in
-          reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur
-          sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id
-          est laborum.
-        </p>
-      </mat-expansion-panel>
+  <div class="header">
+    <div class="columns">
+      <div class="left"><span> Status </span></div>
+      <div class="right"><span> Summary </span></div>
+    </div>
+  </div>
 
-      <mat-expansion-panel>
-        <mat-expansion-panel-header>
-          <mat-panel-title>
-            <span class="material-icons warning">warning</span>
-          </mat-panel-title>
-          <mat-panel-description>
-            Sunt in culpa qui officia deserunt mollit anim id est laborum.
-          </mat-panel-description>
-        </mat-expansion-panel-header>
-        <p>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
-          ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation
-          ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in
-          reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur
-          sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id
-          est laborum.
-        </p>
-      </mat-expansion-panel>
-
-      <mat-expansion-panel>
-        <mat-expansion-panel-header>
-          <mat-panel-title>
-            <span class="material-icons error">error</span>
-          </mat-panel-title>
-          <mat-panel-description>
-            Duis aute irure dolor in reprehenderit in voluptate velit.
-          </mat-panel-description>
-        </mat-expansion-panel-header>
-        <p>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
-          ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation
-          ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in
-          reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur
-          sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id
-          est laborum.
-        </p>
-      </mat-expansion-panel>
-    </mat-accordion>
+  <div class="content">
+    <section class="summary-item" *ngFor="let item of summaryItems">
+      <div class="columns">
+        <div class="left"><span class="material-icons summary-type error">error</span></div>
+        <div class="middle">{{item.content}}</div>
+        <div class="right">
+          <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
+          <mat-menu #menu="matMenu">
+            <button mat-menu-item *ngIf="!item.isRead">
+              <span>Mark as read</span>
+            </button>
+            <button mat-menu-item mat-menu-item *ngIf="item.isRead">
+              <span>Mar as unread</span>
+            </button>
+          </mat-menu>
+        </div>
+      </div>
+    </section>
   </div>
 </div>
