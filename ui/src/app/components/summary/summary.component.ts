@@ -9,33 +9,54 @@ import { MatChipInputEvent } from '@angular/material/chips'
 })
 export class SummaryComponent implements OnInit {
   constructor() {}
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.initiateSummaryCollection()
+  }
 
   addOnBlur = true
   readonly separatorKeysCodes = [ENTER, COMMA] as const
-  tables: Table[] = [{ name: 'Order' }]
+  filterStrings : string[] = ["Read", "Unread"]
+  summaryItems : SummaryItem[] =[]
 
   add(event: MatChipInputEvent): void {
     const value = (event.value || '').trim()
-
-    // Add our fruit
     if (value) {
-      this.tables.push({ name: value })
+      this.filterStrings.push(value)
     }
-
-    // Clear the input value
     event.chipInput!.clear()
   }
 
-  remove(fruit: Table): void {
-    const index = this.tables.indexOf(fruit)
-
+  remove(filterString: string): void {
+    const index = this.filterStrings.indexOf(filterString)
     if (index >= 0) {
-      this.tables.splice(index, 1)
+      this.filterStrings.splice(index, 1)
     }
+  }
+
+  initiateSummaryCollection(){
+    this.summaryItems.push({
+      type: 'issue',
+      content:
+        'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+      isRead: false,
+    })
+    this.summaryItems.push({
+      type: 'warning',
+      content:
+        'Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
+      isRead: false,
+    })
+    this.summaryItems.push({
+      type: 'suggestion',
+      content:
+        'Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.',
+      isRead: true,
+    })
   }
 }
 
-export interface Table {
-  name: string
+export interface SummaryItem {
+  type: string
+  content: string
+  isRead: boolean
 }

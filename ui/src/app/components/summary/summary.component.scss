@@ -1,5 +1,4 @@
 .container {
-  padding: 10px 0;
   min-height: 600px;
   position: relative;
 }
@@ -8,85 +7,112 @@ h3 {
   padding-left: 15px;
 }
 
-.error {
-  font-size: 20px;
-  color: #eb0000;
-}
-
-.warning {
-  font-size: 20px;
-  color: #ff9800;
-}
-
-.mat-expansion-panel-header {
-  padding: 15px;
-}
-
-.mat-expansion-panel-header-description {
-  padding-left: 20px;
-}
-
-.menu-spacer {
-  flex: 4 1 auto;
-}
-
-.mat-toolbar {
-  height: 30px;
-  font-size: 13px;
-  padding-right: 60%;
-}
-
-.filter-wrapper {
+.filter {
   display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  width: 100%;
-  min-height: 70px;
+  flex: 1;
+  min-height: 65px;
   padding: 0 15px;
 
-  .left {
-    display: block;
-    position: relative;
-    padding-top: 18px;
-    flex: 20%;
-    .filter-icon {
-      position: absolute;
-      font-size: 20px;
+  .columns{
+    display: flex;
+    flex:1;
+
+    .left {
+      order: 1;
+      position: relative;
+      padding-top: 20px;
+      width: 100px;
+      .filter-icon {
+        position: absolute;
+        font-size: 20px;
+      }
+      .filter-text {
+        position: absolute;
+        margin-left: 30px;
+      }
     }
-    .filter-text {
-      position: absolute;
-      margin-left: 30px;
-    }
-  }
-  .right {
-    flex: 70%;
-    .mat-form-field {
+    .right {
+      order: 2;
       width: 100%;
-      min-height: 24px;
+      .mat-form-field {
+        width: 100%;
+        min-height: 22px;
+      }
+      .mat-chip-input{
+        width: 60px;
+        height: 24px;
+        flex:0;
+      }
+    }
+  }
+  
+  ::ng-deep .mat-form-field-underline {
+    display: none;
+  }
+  
+  .mat-chip {
+    min-height: 24px;
+    font-weight: lighter;
+  }
+}
+
+.header {
+  display: flex;
+  flex: 1;
+  padding: 5px 0;
+  background-color: #f5f5f5;
+  text-align: center;
+
+  .columns{
+    display: flex;
+    flex:1;
+    .left{
+      width: 60px;
+      order: 1;
+    }
+    .right{
+      flex: 1;
+      order: 2;
     }
   }
 }
 
-::ng-deep .mat-form-field-underline {
-  display: none;
-}
+.summary-item {
+  display: flex;
+  flex: 1;
+  padding: 10px 0;
+  border-bottom: 1px solid #ccc;
 
-.mat-chip {
-  min-height: 24px;
-  font-weight: lighter;
-}
-
-.mat-expansion-panel:not([class*='mat-elevation-z']) {
-  box-shadow: none;
-}
-
-.mat-expansion-panel-header:hover {
-  background-color: transparent !important;
-}
-
-.display {
-  display: block;
-}
-.hidden {
-  display: none;
+  .columns{
+    display: flex;
+    flex:1;
+    .left{
+      width: 60px;
+      order: 1;
+      text-align: center;
+      padding-top: 5px;
+    }
+    .middle{
+      flex: 1;
+      order: 2;
+    }
+    .right{ 
+      width: 30px;
+      order: 3;
+      cursor: pointer; 
+    }
+    .error {
+      color: #eb0000;
+      font-size: 18px;
+    }
+    .warning {
+      color: #ff9800;
+      font-size: 18px;
+    }
+    .suggestion {
+      color: #f1ed00;
+      font-size: 18px;
+    }
+  }
+  
 }
