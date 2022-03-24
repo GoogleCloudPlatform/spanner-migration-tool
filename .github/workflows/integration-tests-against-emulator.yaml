@@ -121,7 +121,7 @@ jobs:
       - run: sqlplus SYS/oracle@127.0.0.1:1521/xe as sysdba @test_data/oracle.test.out
      
       # create a spanner instance
-      - uses: google-github-actions/setup-gcloud@master
+      - uses: google-github-actions/setup-gcloud@v0
         with:
           version: '290.0.1'
       - run: gcloud info
