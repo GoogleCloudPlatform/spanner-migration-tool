@@ -9,6 +9,7 @@ import ISessionConfig from '../../model/SessionConfig'
 import { InputType, StorageKeys } from 'src/app/app.constants'
 import { LoaderService } from 'src/app/services/loader/loader.service'
 import ISession from 'src/app/model/Session'
+import ISpannerConfig from '../../model/SpannerConfig'
 
 @Injectable({
   providedIn: 'root',
@@ -20,6 +21,7 @@ export class DataService {
   private summarySub = new BehaviorSubject({})
   private ddlSub = new BehaviorSubject({})
   private sessionsSub = new BehaviorSubject({} as ISession[])
+  private configSub = new BehaviorSubject({} as ISpannerConfig)
 
   conv = this.convSubject.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   conversionRate = this.conversionRateSub
@@ -29,6 +31,7 @@ export class DataService {
   summary = this.summarySub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   ddl = this.ddlSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   sessions = this.sessionsSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
+  config = this.configSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
 
   constructor(private fetch: FetchService, private loader: LoaderService) {
     let inputType = localStorage.getItem(StorageKeys.Type) as string
@@ -55,7 +58,7 @@ export class DataService {
       default:
         console.log('not able to find input type')
     }
-
+    this.getConfig()
     this.getAllSessions()
   }
 
@@ -136,5 +139,11 @@ export class DataService {
         }
       })
     )
+  }
+
+  getConfig() {
+    this.fetch.getSpannerConfig().subscribe((res: ISpannerConfig) => {
+      this.configSub.next(res)
+    })
   }
 }

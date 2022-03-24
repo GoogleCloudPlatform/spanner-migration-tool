@@ -4,6 +4,7 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ISpannerConfig from '../../model/SpannerConfig'
+import { DataService } from 'src/app/services/data/data.service'
 
 @Component({
   selector: 'app-update-spanner-config-form',
@@ -16,6 +17,7 @@ export class UpdateSpannerConfigFormComponent implements OnInit {
   constructor(
     private fetch: FetchService,
     private snack: SnackbarService,
+    private dataService: DataService,
     @Inject(MAT_DIALOG_DATA) public data: ISpannerConfig,
     private dialogRef: MatDialogRef<UpdateSpannerConfigFormComponent>
   ) {
@@ -35,9 +37,9 @@ export class UpdateSpannerConfigFormComponent implements OnInit {
     console.log(payload)
     this.fetch.setSpannerConfig(payload).subscribe({
       next: (res: ISpannerConfig) => {
-        console.log(res)
         this.snack.openSnackBar('Spanner Config updated successfully', 'close', 5000)
         this.dialogRef.close({ ...res })
+        this.dataService.getAllSessions()
       },
       error: (err: any) => {
         console.log(err)

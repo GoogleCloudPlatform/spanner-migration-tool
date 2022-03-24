@@ -6,11 +6,18 @@
   <span class="menu-spacer"></span>
   <div class="right_container">
     <div class="spanner_config">
+      <span *ngIf="shouldShowWarning(); else warning">
+        <span class="pid"><b>Project Id: </b>{{ spannerConfig.GCPProjectID }}</span>
+        <span class="iid"><b>Spanner Instance Id: </b>{{ spannerConfig.SpannerInstanceID }}</span>
+      </span>
+      <ng-template #warning>
+        <mat-icon class="icon warning"> warning </mat-icon>
+        <span #name>Spanner database is not configured, click on edit button to configure </span>
+      </ng-template>
+
       <button mat-icon-button (click)="openEditForm()">
         <mat-icon>edit</mat-icon>
       </button>
-      <span class="pid"><b>Project Id: </b>{{ spannerConfig.GCPProjectID }}</span>
-      <span class="iid"><b>Spanner Instance Id: </b>{{ spannerConfig.SpannerInstanceID }}</span>
     </div>
     <button
       mat-icon-button

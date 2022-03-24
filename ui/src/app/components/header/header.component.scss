@@ -10,12 +10,18 @@
   justify-content: space-between;
   align-items: center;
   .spanner_config {
+    display: flex;
+    align-items: center;
     border: 1px solid lightgrey;
     border-radius: 5px;
     padding: 0px 10px;
     button {
-      border-right: 1px solid lightblue;
+      border-left: 1px solid lightgrey;
       border-radius: 2px;
+    }
+
+    .warning {
+      color: #f3b300;
     }
     span {
       font-size: 14px;
