@@ -55,6 +55,8 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/ResumeSession/{versionId}", resumeSessionNew).Methods("GET") // New service
 	router.HandleFunc("/SaveSession", saveSession).Methods("POST")                   // New service
 
+	router.HandleFunc("/getConfig", getConfig).Methods("GET")                // New service
+	router.HandleFunc("/setSpannerConfig", setSpannerConfig).Methods("POST") //New service
 	router.PathPrefix("/").Handler(http.FileServer(staticFileDirectory))
 	return router
 }
