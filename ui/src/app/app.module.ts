@@ -24,7 +24,8 @@ import { LoaderComponent } from './components/loader/loader.component'
 import { InfodialogComponent } from './components/infodialog/infodialog.component'
 import { RuleComponent } from './components/rule/rule.component'
 import { InterceptorService } from './services/interceptor/interceptor.service';
-import { SaveSessionFormComponent } from './components/save-session-form/save-session-form.component'
+import { SaveSessionFormComponent } from './components/save-session-form/save-session-form.component';
+import { UpdateSpannerConfigFormComponent } from './components/update-spanner-config-form/update-spanner-config-form.component'
 
 @NgModule({
   declarations: [
@@ -46,6 +47,7 @@ import { SaveSessionFormComponent } from './components/save-session-form/save-se
     InfodialogComponent,
     RuleComponent,
     SaveSessionFormComponent,
+    UpdateSpannerConfigFormComponent,
   ],
   imports: [
     BrowserModule,

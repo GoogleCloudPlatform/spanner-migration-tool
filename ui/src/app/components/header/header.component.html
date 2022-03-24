@@ -4,10 +4,20 @@
   </button>
   <span class="pointer" [routerLink]="'/'"> HarbourBridge</span>
   <span class="menu-spacer"></span>
-  <div>
-    <a mat-button [routerLink]="'/workspace'"> Workspace </a>
-    <button mat-icon-button class="example-icon favorite-icon" aria-label="Example icon-button with heart icon"
-      [routerLink]="'/instruction'">
+  <div class="right_container">
+    <div class="spanner_config">
+      <button mat-icon-button (click)="openEditForm()">
+        <mat-icon>edit</mat-icon>
+      </button>
+      <span class="pid"><b>Project Id: </b>{{ spannerConfig.GCPProjectID }}</span>
+      <span class="iid"><b>Spanner Instance Id: </b>{{ spannerConfig.SpannerInstanceID }}</span>
+    </div>
+    <button
+      mat-icon-button
+      class="example-icon favorite-icon"
+      aria-label="Example icon-button with heart icon"
+      [routerLink]="'/instruction'"
+    >
       <mat-icon>help</mat-icon>
     </button>
   </div>

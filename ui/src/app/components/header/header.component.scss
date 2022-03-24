@@ -2,6 +2,28 @@
   flex: 1 1 auto;
 }
 
-.pointer{
+.pointer {
   cursor: pointer;
+}
+.right_container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  .spanner_config {
+    border: 1px solid lightgrey;
+    border-radius: 5px;
+    padding: 0px 10px;
+    button {
+      border-right: 1px solid lightblue;
+      border-radius: 2px;
+    }
+    span {
+      font-size: 14px;
+      font-weight: 300;
+      padding: 0px 10px;
+    }
+    .pid {
+      margin-right: 10px;
+    }
+  }
 }

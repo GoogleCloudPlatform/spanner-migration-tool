@@ -7,6 +7,7 @@ import IUpdateTable from 'src/app/model/updateTable'
 import IConv from '../../model/Conv'
 import IDumpConfig from '../../model/DumpConfig'
 import ISessionConfig from '../../model/SessionConfig'
+import ISpannerConfig from '../../model/SpannerConfig'
 
 @Injectable({
   providedIn: 'root',
@@ -79,5 +80,13 @@ export class FetchService {
 
   saveSession(session: ISaveSessionPayload) {
     return this.http.post(`${this.url}/SaveSession`, session)
+  }
+
+  getSpannerConfig() {
+    return this.http.get<ISpannerConfig>(`${this.url}/getConfig`)
+  }
+
+  setSpannerConfig(payload: ISpannerConfig) {
+    return this.http.post<ISpannerConfig>(`${this.url}/setSpannerConfig`, payload)
   }
 }
