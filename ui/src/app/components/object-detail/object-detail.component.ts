@@ -6,6 +6,7 @@ import { MatDialog } from '@angular/material/dialog'
 import { InfodialogComponent } from '../infodialog/infodialog.component'
 import { LoaderService } from '../../services/loader/loader.service'
 import IColumnTabData from '../../model/ColumnTabData'
+import { StorageKeys } from 'src/app/app.constants'
 
 @Component({
   selector: 'app-object-detail',
@@ -40,8 +41,9 @@ export class ObjectDetailComponent implements OnInit {
   ]
   dataSource: any = []
   isEditMode: boolean = false
-  isTableSelected: boolean = false;
+  isTableSelected: boolean = false
   rowArray: FormArray = new FormArray([])
+  srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
 
   ngOnChanges(changes: SimpleChanges): void {
     this.tableName = changes['tableName']?.currentValue || this.tableName

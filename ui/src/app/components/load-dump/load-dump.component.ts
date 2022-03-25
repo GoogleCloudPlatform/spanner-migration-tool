@@ -5,6 +5,7 @@ import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { DataService } from 'src/app/services/data/data.service'
 import { Router } from '@angular/router'
 import { InputType, StorageKeys } from 'src/app/app.constants'
+import { extractSourceDbName } from 'src/app/utils/utils'
 
 @Component({
   selector: 'app-load-dump',
@@ -30,6 +31,7 @@ export class LoadDumpComponent implements OnInit {
     this.data.conv.subscribe((res) => {
       localStorage.setItem(StorageKeys.Config, JSON.stringify(payload))
       localStorage.setItem(StorageKeys.Type, InputType.DumpFile)
+      localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine))
       console.log(res)
       this.router.navigate(['/workspace'])
     })

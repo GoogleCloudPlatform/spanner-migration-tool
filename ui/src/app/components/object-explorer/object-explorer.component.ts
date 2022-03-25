@@ -3,6 +3,7 @@ import ISchemaObjectNode from 'src/app/model/SchemaObjectNode'
 import { NestedTreeControl } from '@angular/cdk/tree'
 import { MatTreeNestedDataSource } from '@angular/material/tree'
 import { ConversionService } from '../../services/conversion/conversion.service'
+import { StorageKeys } from 'src/app/app.constants'
 
 @Component({
   selector: 'app-object-explorer',
@@ -14,6 +15,7 @@ export class ObjectExplorerComponent implements OnInit {
   dataSource = new MatTreeNestedDataSource<ISchemaObjectNode>()
   searchText: string = ''
   isLeftColumnCollapse: boolean = false
+  srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
 
   @Output() selectTable = new EventEmitter<string>()
   @Output() leftCollaspe: EventEmitter<any> = new EventEmitter()

@@ -7,6 +7,7 @@ import { DataService } from 'src/app/services/data/data.service'
 import { LoaderService } from '../../services/loader/loader.service'
 import { InputType, StorageKeys } from 'src/app/app.constants'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
+import { extractSourceDbName } from 'src/app/utils/utils'
 
 @Component({
   selector: 'app-direct-connection',
@@ -46,6 +47,7 @@ export class DirectConnectionComponent implements OnInit {
             JSON.stringify({ dbEngine, hostName, port, userName, password, dbName })
           )
           localStorage.setItem(StorageKeys.Type, InputType.DirectConnect)
+          localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine))
         }
         this.data.getSchemaConversionFromDb()
         this.data.conv.subscribe((res) => {

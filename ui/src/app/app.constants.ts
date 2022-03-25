@@ -7,4 +7,12 @@ export enum InputType {
 export enum StorageKeys {
   Type = 'inputType',
   Config = 'config',
+  SourceDbName = 'sourceDbName',
+}
+
+export enum SourceDbNames {
+  MySQL = 'MySQL',
+  Postgres = 'Postgres',
+  SQLServer = 'SQL Server',
+  Oracle = 'Oracle',
 }
