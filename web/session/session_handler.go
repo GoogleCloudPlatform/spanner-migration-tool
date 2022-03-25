@@ -27,7 +27,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	sessionstate "github.com/cloudspannerecosystem/harbourbridge/web/session-state"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
@@ -45,7 +44,7 @@ type sessionParams struct {
 func CreateSession(w http.ResponseWriter, r *http.Request) {
 	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
 	now := time.Now()
-	sessionState := sessionstate.GetSessionState()
+	sessionState := GetSessionState()
 
 	dbName := sessionState.DbName
 	var err error
@@ -67,8 +66,8 @@ func CreateSession(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(session)
 }
 
-func ResumeSession(w http.ResponseWriter, r *http.Request) {
-	sessionState := sessionstate.GetSessionState()
+func ResumeLocalSession(w http.ResponseWriter, r *http.Request) {
+	sessionState := GetSessionState()
 
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -94,7 +93,7 @@ func ResumeSession(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(sessionState.Conv)
 }
 
-func ResumeSessionNew(w http.ResponseWriter, r *http.Request) {
+func ResumeRemoteSession(w http.ResponseWriter, r *http.Request) {
 	// This function should resume either Remote or Local resume
 	// ToDo: Check if user has access to spanner
 
@@ -175,7 +174,7 @@ func SaveSession(w http.ResponseWriter, r *http.Request) {
 	}
 	defer spannerClient.Close()
 
-	sessionState := sessionstate.GetSessionState()
+	sessionState := GetSessionState()
 	ssvc := NewSessionService(spannerClient)
 	conv, err := json.Marshal(sessionState.Conv)
 	if err != nil {
@@ -227,7 +226,7 @@ func resumeRemoteSession(vid string) (ConvWithMetadata, error) {
 		return convm, err
 	}
 
-	sessionState := sessionstate.GetSessionState()
+	sessionState := GetSessionState()
 	sessionState.Conv = &convm.Conv
 	return convm, nil
 }

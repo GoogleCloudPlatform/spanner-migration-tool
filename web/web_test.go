@@ -27,7 +27,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	sessionstate "github.com/cloudspannerecosystem/harbourbridge/web/session-state"
+	"github.com/cloudspannerecosystem/harbourbridge/web/session"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -47,7 +47,7 @@ func TestGetTypeMapNoDriver(t *testing.T) {
 }
 
 func TestGetTypeMapPostgres(t *testing.T) {
-	sessionState := sessionstate.GetSessionState()
+	sessionState := session.GetSessionState()
 	sessionState.Driver = constants.POSTGRES
 	sessionState.Conv = internal.MakeConv()
 	buildConvPostgres(sessionState.Conv)
@@ -627,7 +627,7 @@ func TestUpdateTableSchema(t *testing.T) {
 		},
 	}
 	for _, tc := range tc {
-		sessionState := sessionstate.GetSessionState()
+		sessionState := session.GetSessionState()
 		sessionState.Driver = constants.MYSQL
 		sessionState.Conv = tc.conv
 		payload := tc.payload
@@ -774,7 +774,7 @@ func TestSetTypeMapGlobalLevelPostgres(t *testing.T) {
 	}
 	for _, tc := range tc {
 
-		sessionState := sessionstate.GetSessionState()
+		sessionState := session.GetSessionState()
 
 		sessionState.Driver = constants.POSTGRES
 		sessionState.Conv = internal.MakeConv()
@@ -804,7 +804,7 @@ func TestSetTypeMapGlobalLevelPostgres(t *testing.T) {
 }
 
 func TestGetConversionPostgres(t *testing.T) {
-	sessionState := sessionstate.GetSessionState()
+	sessionState := session.GetSessionState()
 
 	sessionState.Driver = constants.POSTGRES
 	sessionState.Conv = internal.MakeConv()
@@ -828,7 +828,7 @@ func TestGetConversionPostgres(t *testing.T) {
 }
 
 func TestGetTypeMapMySQL(t *testing.T) {
-	sessionState := sessionstate.GetSessionState()
+	sessionState := session.GetSessionState()
 
 	sessionState.Driver = constants.MYSQL
 	sessionState.Conv = internal.MakeConv()
@@ -1014,7 +1014,7 @@ func TestSetTypeMapGlobalLevelMySQL(t *testing.T) {
 		},
 	}
 	for _, tc := range tc {
-		sessionState := sessionstate.GetSessionState()
+		sessionState := session.GetSessionState()
 
 		sessionState.Driver = constants.MYSQL
 		sessionState.Conv = internal.MakeConv()
@@ -1043,7 +1043,7 @@ func TestSetTypeMapGlobalLevelMySQL(t *testing.T) {
 }
 
 func TestGetConversionMySQL(t *testing.T) {
-	sessionState := sessionstate.GetSessionState()
+	sessionState := session.GetSessionState()
 
 	sessionState.Driver = constants.MYSQL
 	sessionState.Conv = internal.MakeConv()
@@ -1315,7 +1315,7 @@ func TestSetParentTable(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		sessionState := sessionstate.GetSessionState()
+		sessionState := session.GetSessionState()
 
 		sessionState.Driver = constants.MYSQL
 		sessionState.Conv = tc.ct
@@ -1413,7 +1413,7 @@ func TestDropForeignKey(t *testing.T) {
 		},
 	}
 	for _, tc := range tc {
-		sessionState := sessionstate.GetSessionState()
+		sessionState := session.GetSessionState()
 
 		sessionState.Driver = constants.MYSQL
 		sessionState.Conv = tc.conv
@@ -1639,7 +1639,7 @@ func TestRenameIndexes(t *testing.T) {
 	}
 
 	for _, tc := range tc {
-		sessionState := sessionstate.GetSessionState()
+		sessionState := session.GetSessionState()
 
 		sessionState.Driver = constants.MYSQL
 		sessionState.Conv = tc.conv
@@ -1907,7 +1907,7 @@ func TestRenameForeignKeys(t *testing.T) {
 		},
 	}
 	for _, tc := range tc {
-		sessionState := sessionstate.GetSessionState()
+		sessionState := session.GetSessionState()
 
 		sessionState.Driver = constants.MYSQL
 		sessionState.Conv = tc.conv
@@ -2138,7 +2138,7 @@ func TestAddIndexes(t *testing.T) {
 	}
 
 	for _, tc := range tc {
-		sessionState := sessionstate.GetSessionState()
+		sessionState := session.GetSessionState()
 
 		sessionState.Driver = constants.MYSQL
 		sessionState.Conv = tc.conv
@@ -2223,7 +2223,7 @@ func TestDropSecondaryIndex(t *testing.T) {
 		},
 	}
 	for _, tc := range tc {
-		sessionState := sessionstate.GetSessionState()
+		sessionState := session.GetSessionState()
 
 		sessionState.Driver = constants.MYSQL
 		sessionState.Conv = tc.conv

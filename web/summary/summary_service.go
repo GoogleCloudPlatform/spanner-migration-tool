@@ -1,18 +1,16 @@
 package summary
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	sessionstate "github.com/cloudspannerecosystem/harbourbridge/web/session-state"
+	"github.com/cloudspannerecosystem/harbourbridge/web/session"
 )
 
 // getSummary returns table wise summary of conversion.
-func GetSummary(w http.ResponseWriter, r *http.Request) {
-	sessionState := sessionstate.GetSessionState()
+func getSummary() map[string]string {
+	sessionState := session.GetSessionState()
 	reports := internal.AnalyzeTables(sessionState.Conv, nil)
 
 	summary := make(map[string]string)
@@ -26,6 +24,5 @@ func GetSummary(w http.ResponseWriter, r *http.Request) {
 		}
 		summary[t.SrcTable] = body.String()
 	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(summary)
+	return summary
 }
