@@ -6,11 +6,12 @@ import { LoaderComponent } from './loader.component'
 describe('LoaderComponent', () => {
   let component: LoaderComponent
   let fixture: ComponentFixture<LoaderComponent>
-  var loader = new LoaderService()
+  let loader: LoaderService
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       declarations: [LoaderComponent],
+      providers: [LoaderService],
     }).compileComponents()
   })
 
@@ -18,6 +19,7 @@ describe('LoaderComponent', () => {
     fixture = TestBed.createComponent(LoaderComponent)
     component = fixture.componentInstance
     fixture.detectChanges()
+    loader = TestBed.inject(LoaderService)
   })
 
   it('should create', () => {
@@ -25,9 +27,10 @@ describe('LoaderComponent', () => {
   })
 
   it('Check show progress', () => {
-    loader.startLoader
+    expect(component.showProgress).toEqual(false)
+    loader.startLoader()
     expect(component.showProgress).toEqual(true)
-    loader.stopLoader
+    loader.stopLoader()
     expect(component.showProgress).toEqual(false)
   })
 })

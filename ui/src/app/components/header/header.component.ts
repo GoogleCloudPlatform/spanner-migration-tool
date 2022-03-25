@@ -17,7 +17,6 @@ export class HeaderComponent implements OnInit {
 
   ngOnInit(): void {
     this.data.config.subscribe((res: ISpannerConfig) => {
-      console.log(res)
       this.spannerConfig = res
     })
   }

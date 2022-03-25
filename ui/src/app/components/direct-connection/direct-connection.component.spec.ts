@@ -11,6 +11,8 @@ import { MatOptionModule } from '@angular/material/core'
 import { MatFormFieldModule } from '@angular/material/form-field'
 import { MatInputModule } from '@angular/material/input'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
+import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
+import { MatSnackBarModule } from '@angular/material/snack-bar'
 
 const appRoutes: Routes = [{ path: 'workspace', component: WorkspaceComponent }]
 
@@ -31,7 +33,9 @@ describe('DirectConnectionComponent', () => {
         MatFormFieldModule,
         MatInputModule,
         BrowserAnimationsModule,
+        MatSnackBarModule,
       ],
+      providers: [SnackbarService],
     }).compileComponents()
   })
 
