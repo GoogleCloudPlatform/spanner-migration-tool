@@ -39,7 +39,7 @@ export class UpdateSpannerConfigFormComponent implements OnInit {
       next: (res: ISpannerConfig) => {
         this.snack.openSnackBar('Spanner Config updated successfully', 'close', 5000)
         this.dialogRef.close({ ...res })
-        this.dataService.getAllSessions()
+        this.dataService.updateConfig(res)
       },
       error: (err: any) => {
         console.log(err)

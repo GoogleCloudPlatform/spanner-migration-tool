@@ -1,8 +1,8 @@
-<div class="sessions-wrapper" *ngIf="dataSource.length > 0">
+<div class="sessions-wrapper">
   <h3 class="conv-history">Conversion history</h3>
   <div class="summary">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</div>
   <br />
-  <div class="example-container mat-elevation-z3">
+  <div class="example-container mat-elevation-z3" *ngIf="dataSource.length > 0">
     <table mat-table [dataSource]="dataSource">
       <ng-container matColumnDef="SessionName">
         <th mat-header-cell *matHeaderCellDef>Session Name</th>
@@ -60,5 +60,19 @@
       <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
       <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
     </table>
+  </div>
+
+  <div class="mat-elevation-z3 warning-container" *ngIf="dataSource.length === 0">
+    <svg width="49" height="48" viewBox="0 0 49 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0.907227" width="48" height="48" rx="4" fill="#E6ECFA" />
+      <path
+        fill-rule="evenodd"
+        clip-rule="evenodd"
+        d="M17.9072 15C16.8027 15 15.9072 15.8954 15.9072 17V31C15.9072 32.1046 16.8027 33 17.9072 33H31.9072C33.0118 33 33.9072 32.1046 33.9072 31V17C33.9072 15.8954 33.0118 15 31.9072 15H17.9072ZM20.9072 18H18.9072V20H20.9072V18ZM21.9072 18H23.9072V20H21.9072V18ZM20.9072 23H18.9072V25H20.9072V23ZM21.9072 23H23.9072V25H21.9072V23ZM20.9072 28H18.9072V30H20.9072V28ZM21.9072 28H23.9072V30H21.9072V28ZM30.9072 18H24.9072V20H30.9072V18ZM24.9072 23H30.9072V25H24.9072V23ZM30.9072 28H24.9072V30H30.9072V28Z"
+        fill="#3367D6"
+      />
+    </svg>
+
+    <span>Your Spanner database is not configured, will not able to load session history </span>
   </div>
 </div>

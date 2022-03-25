@@ -13,6 +13,18 @@ table {
 
 .sessions-wrapper {
   margin-top: 20px;
+
+  .warning-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 57vh;
+
+    svg {
+      margin-bottom: 10px;
+    }
+  }
 }
 .mat-column-Notes {
   max-width: 200px;
