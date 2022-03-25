@@ -2,8 +2,26 @@ package session
 
 import "context"
 
-type SessionService interface {
-	GetSessionsMetadata(ctx context.Context) ([]SchemaConversionSession, error)
-	GetConvWithMetadata(ctx context.Context, versionId string) (ConvWithMetadata, error)
-	SaveSession(ctx context.Context, scs SchemaConversionSession) error
+type SessionService struct {
+	store   SessionStore
+	context context.Context
+}
+
+func NewSessionService(ctx context.Context, store SessionStore) *SessionService {
+	ss := new(SessionService)
+	ss.store = store
+	ss.context = ctx
+	return ss
+}
+
+func (ss *SessionService) CreateSession(scs SchemaConversionSession) error {
+	return ss.store.CreateSession(ss.context, scs)
+}
+
+func (ss *SessionService) GetSessionsMetadata() ([]SchemaConversionSession, error) {
+	return ss.store.GetSessionsMetadata(ss.context)
+}
+
+func (ss *SessionService) GetConvWithMetadata(versionId string) (ConvWithMetadata, error) {
+	return ss.store.GetConvWithMetadata(ss.context, versionId)
 }

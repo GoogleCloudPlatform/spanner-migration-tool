@@ -124,8 +124,9 @@ func GetConvSessionsMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 	defer spannerClient.Close()
 
-	ssvc := NewSessionService(spannerClient)
-	result, err := ssvc.GetSessionsMetadata(ctx)
+	svc := NewSessionService(ctx, NewSessionStore(spannerClient))
+
+	result, err := svc.GetSessionsMetadata()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Spanner Transaction error : %v", err), http.StatusInternalServerError)
 		return
@@ -175,7 +176,7 @@ func SaveSession(w http.ResponseWriter, r *http.Request) {
 	defer spannerClient.Close()
 
 	sessionState := GetSessionState()
-	ssvc := NewSessionService(spannerClient)
+	ssvc := NewSessionService(ctx, NewSessionStore(spannerClient))
 	conv, err := json.Marshal(sessionState.Conv)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Conv object error : %v", err), http.StatusInternalServerError)
@@ -193,7 +194,7 @@ func SaveSession(w http.ResponseWriter, r *http.Request) {
 		SessionMetadata:        sm,
 	}
 
-	err = ssvc.SaveSession(ctx, scs)
+	err = ssvc.CreateSession(scs)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Spanner Transaction error : %v", err), http.StatusInternalServerError)
 		return
@@ -212,8 +213,8 @@ func getConvWithMetadata(versionId string) (ConvWithMetadata, error) {
 	}
 	defer spannerClient.Close()
 
-	ssvc := NewSessionService(spannerClient)
-	convm, err = ssvc.GetConvWithMetadata(ctx, versionId)
+	ssvc := NewSessionService(ctx, NewSessionStore(spannerClient))
+	convm, err = ssvc.GetConvWithMetadata(versionId)
 	if err != nil {
 		return convm, err
 	}

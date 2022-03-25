@@ -24,17 +24,17 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-type service struct {
+type store struct {
 	spannerClient *spanner.Client
 }
 
-var _ SessionService = (*service)(nil)
+var _ SessionStore = (*store)(nil)
 
-func NewSessionService(spannerClient *spanner.Client) SessionService {
-	return &service{spannerClient: spannerClient}
+func NewSessionStore(spannerClient *spanner.Client) SessionStore {
+	return &store{spannerClient: spannerClient}
 }
 
-func (svc *service) GetSessionsMetadata(ctx context.Context) ([]SchemaConversionSession, error) {
+func (svc *store) GetSessionsMetadata(ctx context.Context) ([]SchemaConversionSession, error) {
 	txn := svc.spannerClient.ReadOnlyTransaction()
 	defer txn.Close()
 
@@ -70,7 +70,7 @@ func (svc *service) GetSessionsMetadata(ctx context.Context) ([]SchemaConversion
 	return result, nil
 }
 
-func (svc *service) GetConvWithMetadata(ctx context.Context, versionId string) (ConvWithMetadata, error) {
+func (svc *store) GetConvWithMetadata(ctx context.Context, versionId string) (ConvWithMetadata, error) {
 	txn := svc.spannerClient.ReadOnlyTransaction()
 	defer txn.Close()
 
@@ -122,7 +122,7 @@ func (svc *service) GetConvWithMetadata(ctx context.Context, versionId string) (
 	return convm, nil
 }
 
-func (svc *service) SaveSession(ctx context.Context, scs SchemaConversionSession) error {
+func (svc *store) CreateSession(ctx context.Context, scs SchemaConversionSession) error {
 	_, err := svc.spannerClient.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 		mutation, err := spanner.InsertStruct("SchemaConversionSession", scs)
 		if err != nil {
