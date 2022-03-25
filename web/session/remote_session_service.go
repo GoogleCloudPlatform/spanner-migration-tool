@@ -1,45 +1,28 @@
-package web
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package session
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"cloud.google.com/go/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"google.golang.org/api/iterator"
 )
-
-// TODO: Move the types to a common location
-type SchemaConversionSession struct {
-	SessionMetadata
-	VersionId              string
-	PreviousVersionId      []string
-	SchemaChanges          string
-	SchemaConversionObject string
-	CreatedOn              time.Time
-}
-
-type SessionMetadata struct {
-	SessionName  string
-	EditorName   string
-	DatabaseType string
-	DatabaseName string
-	Notes        []string
-	Tags         []string
-}
-
-type ConvWithMetadata struct {
-	SessionMetadata
-	internal.Conv
-}
-
-type SessionService interface {
-	GetSessionsMetadata(ctx context.Context) ([]SchemaConversionSession, error)
-	GetConvWithMetadata(ctx context.Context, versionId string) (ConvWithMetadata, error)
-	SaveSession(ctx context.Context, scs SchemaConversionSession) error
-}
 
 type service struct {
 	spannerClient *spanner.Client

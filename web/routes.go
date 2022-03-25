@@ -17,6 +17,7 @@ package web
 import (
 	"net/http"
 
+	"github.com/cloudspannerecosystem/harbourbridge/web/session"
 	"github.com/gorilla/mux"
 )
 
@@ -48,12 +49,12 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/add/indexes", addIndexes).Methods("POST")
 
 	// Session Management
-	router.HandleFunc("/session", createSession).Methods("GET")
-	router.HandleFunc("/session/resume", resumeSession).Methods("POST")
-	router.HandleFunc("/GetSessions", getConvSessionsMetadata).Methods("GET")        // New service
-	router.HandleFunc("/GetSession/{versionId}", getConvSession).Methods("GET")      // New service
-	router.HandleFunc("/ResumeSession/{versionId}", resumeSessionNew).Methods("GET") // New service
-	router.HandleFunc("/SaveSession", saveSession).Methods("POST")                   // New service
+	router.HandleFunc("/session", session.CreateSession).Methods("GET")
+	router.HandleFunc("/session/resume", session.ResumeSession).Methods("POST")
+	router.HandleFunc("/GetSessions", session.GetConvSessionsMetadata).Methods("GET")        // New service
+	router.HandleFunc("/GetSession/{versionId}", session.GetConvSession).Methods("GET")      // New service
+	router.HandleFunc("/ResumeSession/{versionId}", session.ResumeSessionNew).Methods("GET") // New service
+	router.HandleFunc("/SaveSession", session.SaveSession).Methods("POST")                   // New service
 
 	router.HandleFunc("/getConfig", getConfig).Methods("GET")                // New service
 	router.HandleFunc("/setSpannerConfig", setSpannerConfig).Methods("POST") //New service
