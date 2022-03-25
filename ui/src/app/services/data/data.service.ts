@@ -59,7 +59,6 @@ export class DataService {
         console.log('not able to find input type')
     }
     this.getConfig()
-    this.getAllSessions()
   }
 
   resetStore() {
@@ -145,5 +144,8 @@ export class DataService {
     this.fetch.getSpannerConfig().subscribe((res: ISpannerConfig) => {
       this.configSub.next(res)
     })
+  }
+  updateConfig(config: ISpannerConfig) {
+    this.configSub.next(config)
   }
 }

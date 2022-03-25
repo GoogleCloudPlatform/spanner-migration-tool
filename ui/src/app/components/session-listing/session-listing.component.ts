@@ -5,6 +5,7 @@ import { InputType, StorageKeys } from 'src/app/app.constants'
 import { DataService } from 'src/app/services/data/data.service'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import ISession from '../../model/Session'
+import ISpannerConfig from '../../model/SpannerConfig'
 
 @Component({
   selector: 'app-session-listing',
@@ -27,8 +28,18 @@ export class SessionListingComponent implements OnInit {
   constructor(private fetch: FetchService, private data: DataService, private router: Router) {}
 
   ngOnInit(): void {
-    this.data.sessions.subscribe((sessions: ISession[]) => {
-      this.dataSource = sessions
+    this.data.config.subscribe((config: ISpannerConfig) => {
+      console.log('new config', config)
+
+      if (config.GCPProjectID !== '' && config.SpannerInstanceID !== '') {
+        this.data.getAllSessions()
+        this.data.sessions.subscribe((sessions: ISession[]) => {
+          this.dataSource = sessions
+        })
+      } else {
+        console.log('we are not fetching new sessions')
+        this.dataSource = []
+      }
     })
   }
 
