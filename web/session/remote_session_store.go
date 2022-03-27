@@ -1,57 +1,40 @@
-package web
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package session
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"cloud.google.com/go/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"google.golang.org/api/iterator"
 )
 
-// TODO: Move the types to a common location
-type SchemaConversionSession struct {
-	SessionMetadata
-	VersionId              string
-	PreviousVersionId      []string
-	SchemaChanges          string
-	SchemaConversionObject string
-	CreatedOn              time.Time
-}
-
-type SessionMetadata struct {
-	SessionName  string
-	EditorName   string
-	DatabaseType string
-	DatabaseName string
-	Notes        []string
-	Tags         []string
-}
-
-type ConvWithMetadata struct {
-	SessionMetadata
-	internal.Conv
-}
-
-type SessionService interface {
-	GetSessionsMetadata(ctx context.Context) ([]SchemaConversionSession, error)
-	GetConvWithMetadata(ctx context.Context, versionId string) (ConvWithMetadata, error)
-	SaveSession(ctx context.Context, scs SchemaConversionSession) error
-}
-
-type service struct {
+type store struct {
 	spannerClient *spanner.Client
 }
 
-var _ SessionService = (*service)(nil)
+var _ SessionStore = (*store)(nil)
 
-func NewSessionService(spannerClient *spanner.Client) SessionService {
-	return &service{spannerClient: spannerClient}
+func NewSessionStore(spannerClient *spanner.Client) SessionStore {
+	return &store{spannerClient: spannerClient}
 }
 
-func (svc *service) GetSessionsMetadata(ctx context.Context) ([]SchemaConversionSession, error) {
+func (svc *store) GetSessionsMetadata(ctx context.Context) ([]SchemaConversionSession, error) {
 	txn := svc.spannerClient.ReadOnlyTransaction()
 	defer txn.Close()
 
@@ -87,7 +70,7 @@ func (svc *service) GetSessionsMetadata(ctx context.Context) ([]SchemaConversion
 	return result, nil
 }
 
-func (svc *service) GetConvWithMetadata(ctx context.Context, versionId string) (ConvWithMetadata, error) {
+func (svc *store) GetConvWithMetadata(ctx context.Context, versionId string) (ConvWithMetadata, error) {
 	txn := svc.spannerClient.ReadOnlyTransaction()
 	defer txn.Close()
 
@@ -139,7 +122,7 @@ func (svc *service) GetConvWithMetadata(ctx context.Context, versionId string) (
 	return convm, nil
 }
 
-func (svc *service) SaveSession(ctx context.Context, scs SchemaConversionSession) error {
+func (svc *store) CreateSession(ctx context.Context, scs SchemaConversionSession) error {
 	_, err := svc.spannerClient.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 		mutation, err := spanner.InsertStruct("SchemaConversionSession", scs)
 		if err != nil {

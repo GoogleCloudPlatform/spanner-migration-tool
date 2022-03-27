@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2022 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package web
+package session
 
 import (
 	"context"
@@ -34,62 +34,66 @@ import (
 // session contains the metadata for a session file.
 // A session file is a snapshot of an ongoing HarbourBridge conversion session,
 // and consists of an internal.Conv struct in JSON format.
-type session struct {
+type sessionParams struct {
 	Driver    string `json:"driver"`
 	FilePath  string `json:"filePath"`
 	DBName    string `json:"dbName"`
 	CreatedAt string `json:"createdAt"`
 }
 
-func createSession(w http.ResponseWriter, r *http.Request) {
+func CreateSession(w http.ResponseWriter, r *http.Request) {
 	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
 	now := time.Now()
-	dbName := sessionState.dbName
+	sessionState := GetSessionState()
+
+	dbName := sessionState.DbName
 	var err error
 	if dbName == "" {
-		dbName, err = utils.GetDatabaseName(sessionState.driver, now)
+		dbName, err = utils.GetDatabaseName(sessionState.Driver, now)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Can not create database name : %v", err), http.StatusInternalServerError)
 		}
 	}
-	dirPath, err := conversion.WriteConvGeneratedFiles(sessionState.conv, dbName, sessionState.driver, ioHelper.BytesRead, ioHelper.Out)
+	dirPath, err := conversion.WriteConvGeneratedFiles(sessionState.Conv, dbName, sessionState.Driver, ioHelper.BytesRead, ioHelper.Out)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Cannot write files : %v", err), http.StatusInternalServerError)
 	}
 	filePath := dirPath + dbName + ".session.json"
-	session := session{Driver: sessionState.driver, FilePath: filePath, DBName: dbName, CreatedAt: now.Format(time.RFC1123)}
-	sessionState.dbName = dbName
-	sessionState.sessionFile = filePath
+	session := sessionParams{Driver: sessionState.Driver, FilePath: filePath, DBName: dbName, CreatedAt: now.Format(time.RFC1123)}
+	sessionState.DbName = dbName
+	sessionState.SessionFile = filePath
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(session)
 }
 
-func resumeSession(w http.ResponseWriter, r *http.Request) {
+func ResumeLocalSession(w http.ResponseWriter, r *http.Request) {
+	sessionState := GetSessionState()
+
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 		return
 	}
-	var s session
+	var s sessionParams
 	err = json.Unmarshal(reqBody, &s)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	sessionState.conv = internal.MakeConv()
-	err = conversion.ReadSessionFile(sessionState.conv, s.FilePath)
+	sessionState.Conv = internal.MakeConv()
+	err = conversion.ReadSessionFile(sessionState.Conv, s.FilePath)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to open the session file: %v", err), http.StatusNotFound)
 		return
 	}
-	sessionState.driver = s.Driver
-	sessionState.dbName = s.DBName
-	sessionState.sessionFile = s.FilePath
+	sessionState.Driver = s.Driver
+	sessionState.DbName = s.DBName
+	sessionState.SessionFile = s.FilePath
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sessionState.conv)
+	json.NewEncoder(w).Encode(sessionState.Conv)
 }
 
-func resumeSessionNew(w http.ResponseWriter, r *http.Request) {
+func ResumeRemoteSession(w http.ResponseWriter, r *http.Request) {
 	// This function should resume either Remote or Local resume
 	// ToDo: Check if user has access to spanner
 
@@ -110,7 +114,7 @@ func resumeSessionNew(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
-func getConvSessionsMetadata(w http.ResponseWriter, r *http.Request) {
+func GetConvSessionsMetadata(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 
 	spannerClient, err := spanner.NewClient(ctx, getSpannerUri())
@@ -120,8 +124,9 @@ func getConvSessionsMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 	defer spannerClient.Close()
 
-	ssvc := NewSessionService(spannerClient)
-	result, err := ssvc.GetSessionsMetadata(ctx)
+	svc := NewSessionService(ctx, NewSessionStore(spannerClient))
+
+	result, err := svc.GetSessionsMetadata()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Spanner Transaction error : %v", err), http.StatusInternalServerError)
 		return
@@ -130,7 +135,7 @@ func getConvSessionsMetadata(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result)
 }
 
-func getConvSession(w http.ResponseWriter, r *http.Request) {
+func GetConvSession(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	vid, ok := vars["versionId"]
 	if !ok {
@@ -148,7 +153,7 @@ func getConvSession(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(conv)
 }
 
-func saveSession(w http.ResponseWriter, r *http.Request) {
+func SaveSession(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
@@ -170,8 +175,9 @@ func saveSession(w http.ResponseWriter, r *http.Request) {
 	}
 	defer spannerClient.Close()
 
-	ssvc := NewSessionService(spannerClient)
-	conv, err := json.Marshal(sessionState.conv)
+	sessionState := GetSessionState()
+	ssvc := NewSessionService(ctx, NewSessionStore(spannerClient))
+	conv, err := json.Marshal(sessionState.Conv)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Conv object error : %v", err), http.StatusInternalServerError)
 		return
@@ -188,7 +194,7 @@ func saveSession(w http.ResponseWriter, r *http.Request) {
 		SessionMetadata:        sm,
 	}
 
-	err = ssvc.SaveSession(ctx, scs)
+	err = ssvc.CreateSession(scs)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Spanner Transaction error : %v", err), http.StatusInternalServerError)
 		return
@@ -207,8 +213,8 @@ func getConvWithMetadata(versionId string) (ConvWithMetadata, error) {
 	}
 	defer spannerClient.Close()
 
-	ssvc := NewSessionService(spannerClient)
-	convm, err = ssvc.GetConvWithMetadata(ctx, versionId)
+	ssvc := NewSessionService(ctx, NewSessionStore(spannerClient))
+	convm, err = ssvc.GetConvWithMetadata(versionId)
 	if err != nil {
 		return convm, err
 	}
@@ -220,7 +226,9 @@ func resumeRemoteSession(vid string) (ConvWithMetadata, error) {
 	if err != nil {
 		return convm, err
 	}
-	sessionState.conv = &convm.Conv
+
+	sessionState := GetSessionState()
+	sessionState.Conv = &convm.Conv
 	return convm, nil
 }
 

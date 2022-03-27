@@ -21,7 +21,11 @@
       </svg>
     </div>
     <div class="inner-text">
-      To view and modify an object details, click on the object name on the Oracle panel
+      {{
+        'To view and modify an object details, click on the object name on the' +
+          srcDbName +
+          'panel'
+      }}
     </div>
   </div>
 </div>
@@ -37,7 +41,7 @@
       <div class="column-tab-container">
         <table mat-table [dataSource]="dataSource">
           <ng-container matColumnDef="srcDatabase">
-            <th mat-header-cell class="db_name" *matHeaderCellDef colspan="5">oracle</th>
+            <th mat-header-cell class="db_name" *matHeaderCellDef colspan="5">{{ srcDbName }}</th>
           </ng-container>
           <ng-container matColumnDef="spDatabase">
             <th mat-header-cell *matHeaderCellDef class="db_name" colspan="5">
