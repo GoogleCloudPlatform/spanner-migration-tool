@@ -49,12 +49,10 @@ export class DirectConnectionComponent implements OnInit {
         }
         this.data.getSchemaConversionFromDb()
         this.data.conv.subscribe((res) => {
-          console.log(res)
           this.router.navigate(['/workspace'])
         })
       },
       error: (e) => {
-        console.log(e)
         this.snackbarService.openSnackBar('Unable to connect to database', 'Dismiss')
       },
     })

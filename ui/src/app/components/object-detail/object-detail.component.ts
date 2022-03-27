@@ -6,6 +6,7 @@ import { MatDialog } from '@angular/material/dialog'
 import { InfodialogComponent } from '../infodialog/infodialog.component'
 import { LoaderService } from '../../services/loader/loader.service'
 import IColumnTabData from '../../model/ColumnTabData'
+import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 
 @Component({
   selector: 'app-object-detail',
@@ -16,7 +17,7 @@ export class ObjectDetailComponent implements OnInit {
   constructor(
     private data: DataService,
     private dialog: MatDialog,
-    private loader: LoaderService
+    private snackbar: SnackbarService
   ) {}
 
   ngOnInit(): void {}
@@ -40,12 +41,13 @@ export class ObjectDetailComponent implements OnInit {
   ]
   dataSource: any = []
   isEditMode: boolean = false
-  isTableSelected: boolean = false;
+  isTableSelected: boolean = false
   rowArray: FormArray = new FormArray([])
 
   ngOnChanges(changes: SimpleChanges): void {
     this.tableName = changes['tableName']?.currentValue || this.tableName
     this.rowData = changes['rowData']?.currentValue || this.rowData
+
     this.isTableSelected = this.tableName === '' ? false : true
     this.isEditMode = false
     this.rowArray = new FormArray([])
@@ -83,7 +85,6 @@ export class ObjectDetailComponent implements OnInit {
       })
       this.data.updateTable(this.tableName, updateData).subscribe({
         next: (res: string) => {
-          console.log(res)
           if (res == '') {
             this.isEditMode = false
           } else {
@@ -97,5 +98,31 @@ export class ObjectDetailComponent implements OnInit {
     } else {
       this.isEditMode = true
     }
+  }
+
+  dropColumn(element: any) {
+    let colName = element.get('spColName').value
+    let updateData: IUpdateTable = { UpdateCols: {} }
+    this.rowArray.value.forEach((col: IColumnTabData, i: number) => {
+      updateData.UpdateCols[this.rowData[i].spColName] = {
+        Rename: '',
+        NotNull: '',
+        PK: '',
+        Removed: col.spColName === colName ? true : false,
+        ToType: '',
+      }
+    })
+    this.data.updateTable(this.tableName, updateData).subscribe({
+      next: (res: string) => {
+        if (res == '') {
+          this.snackbar.openSnackBar(`${colName} column dropped successfully`, 'close', 4000)
+        } else {
+          this.dialog.open(InfodialogComponent, {
+            data: { message: res, type: 'error' },
+            maxWidth: '500px',
+          })
+        }
+      },
+    })
   }
 }

@@ -29,8 +29,6 @@ export class SessionListingComponent implements OnInit {
 
   ngOnInit(): void {
     this.data.config.subscribe((config: ISpannerConfig) => {
-      console.log('new config', config)
-
       if (config.GCPProjectID !== '' && config.SpannerInstanceID !== '') {
         this.data.getAllSessions()
         this.data.sessions.subscribe((sessions: ISession[]) => {
@@ -45,7 +43,6 @@ export class SessionListingComponent implements OnInit {
 
   downloadSessionFile(versionId: string) {
     this.fetch.getConvForAsession(versionId).subscribe((data: any) => {
-      console.log(data)
       var a = document.createElement('a')
       a.href = URL.createObjectURL(data)
       a.download = versionId + '.session.json'
@@ -62,7 +59,6 @@ export class SessionListingComponent implements OnInit {
     // }
     this.data.getSchemaConversionFromResumeSession(versionId)
     this.data.conv.subscribe((res) => {
-      console.log(res)
       // localStorage.setItem(StorageKeys.Config, JSON.stringify(payload))
       // localStorage.setItem(StorageKeys.Type, InputType.SessionFile)
       this.router.navigate(['/workspace'])

@@ -31,7 +31,6 @@ export class LoadSessionComponent implements OnInit {
     }
     this.data.getSchemaConversionFromSession(payload)
     this.data.conv.subscribe((res) => {
-      console.log(res)
       localStorage.setItem(StorageKeys.Config, JSON.stringify(payload))
       localStorage.setItem(StorageKeys.Type, InputType.SessionFile)
       this.router.navigate(['/workspace'])

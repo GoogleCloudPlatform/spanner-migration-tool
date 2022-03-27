@@ -39,14 +39,12 @@ export class SaveSessionFormComponent implements OnInit {
       Tags: formValue.Tags.split(','),
     }
 
-    console.log(payload)
     this.fetch.saveSession(payload).subscribe({
       next: (res: any) => {
         this.data.getAllSessions()
         this.snack.openSnackBar('Session save successfully', 'close', 5000)
       },
       error: (err: any) => {
-        console.log(err)
         this.snack.openSnackBar(err.message, 'close', 5000)
       },
     })

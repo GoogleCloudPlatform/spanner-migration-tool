@@ -36,7 +36,6 @@ export class DataService {
   constructor(private fetch: FetchService, private loader: LoaderService) {
     let inputType = localStorage.getItem(StorageKeys.Type) as string
     let config: unknown = localStorage.getItem(StorageKeys.Config)
-    console.log(inputType, config)
 
     switch (inputType) {
       case InputType.DirectConnect:
@@ -94,7 +93,6 @@ export class DataService {
   }
   getSchemaConversionFromResumeSession(versionId: string) {
     this.fetch.resumeSession(versionId).subscribe((res: IConv) => {
-      console.log(res)
       this.convSubject.next(res)
     })
   }
@@ -113,8 +111,6 @@ export class DataService {
         })
       )
       .subscribe(({ rates, typeMap, summary, ddl }: any) => {
-        console.log('new data from.... conv', rates, typeMap, summary, ddl)
-
         this.conversionRateSub.next(rates)
         this.typeMapSub.next(typeMap)
         this.summarySub.next(summary)
@@ -132,7 +128,6 @@ export class DataService {
         if (data.error) {
           return data.error
         } else {
-          console.log('data part --- ', data)
           this.convSubject.next(data)
           return ''
         }

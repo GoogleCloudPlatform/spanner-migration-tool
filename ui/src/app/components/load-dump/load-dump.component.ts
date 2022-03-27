@@ -30,7 +30,6 @@ export class LoadDumpComponent implements OnInit {
     this.data.conv.subscribe((res) => {
       localStorage.setItem(StorageKeys.Config, JSON.stringify(payload))
       localStorage.setItem(StorageKeys.Type, InputType.DumpFile)
-      console.log(res)
       this.router.navigate(['/workspace'])
     })
   }
