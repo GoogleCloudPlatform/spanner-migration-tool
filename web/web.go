@@ -1199,7 +1199,8 @@ type SessionState struct {
 //var sessionState SessionState
 
 // Type
-// and issue.
+// and
+//issue.
 type typeIssue struct {
 	T     string
 	Brief string
