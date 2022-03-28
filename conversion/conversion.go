@@ -52,7 +52,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
-	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/csv"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/dynamodb"
@@ -315,10 +314,8 @@ func dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targ
 func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, client *sp.Client, progress *internal.Progress) *writer.BatchWriter {
 	rows := int64(0)
 	config.Write = func(m []*sp.Mutation) error {
-		migrationData := migration.MigrationData{
-			MigrationRequestId: &conv.MigrationRequestId,
-		}
-		serializedMigrationData, _ := proto.Marshal(&migrationData)
+		migrationData := metrics.GetMigrationData(conv, "", "", constants.DataConv)
+		serializedMigrationData, _ := proto.Marshal(migrationData)
 		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
 		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), migrationMetadataKey, migrationMetadataValue), m)
 		if err != nil {
@@ -449,7 +446,7 @@ func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseA
 		return err
 	}
 	// Adding migration metadata to the outgoing context.
-	migrationData := metrics.GetMigrationData(conv, driver, targetDb)
+	migrationData := metrics.GetMigrationData(conv, driver, targetDb, constants.SchemaConv)
 	serializedMigrationData, _ := proto.Marshal(migrationData)
 	migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
 	ctx = metadata.AppendToOutgoingContext(ctx, migrationMetadataKey, migrationMetadataValue)

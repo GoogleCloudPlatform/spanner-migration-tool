@@ -11,12 +11,15 @@ import (
 // GetMigrationData returns migration data comprising source schema details,
 // request id, target dialect, connection mechanism etc based on
 // the conv object, source driver and target db
-func GetMigrationData(conv *internal.Conv, driver, targetDb string) *migration.MigrationData {
+func GetMigrationData(conv *internal.Conv, driver, targetDb, typeOfConv string) *migration.MigrationData {
 
 	migrationData := migration.MigrationData{
 		MigrationRequestId: &conv.MigrationRequestId,
-		MigrationType:      conv.MigrationType,
 	}
+	if typeOfConv == constants.DataConv {
+		return &migrationData
+	}
+	migrationData.MigrationType = conv.MigrationType
 	migrationData.SourceConnectionMechanism, migrationData.Source = getMigrationDataSourceDetails(driver, &migrationData)
 	migrationData.SchemaPatterns = getMigrationDataSchemaPatterns(conv, &migrationData)
 
@@ -51,11 +54,11 @@ func getMigrationDataSchemaPatterns(conv *internal.Conv, migrationData *migratio
 		numForeignKey += int32(len(table.Fks))
 		numIndexes += int32(len(table.Indexes))
 		depth := 0
-		parentTableName := table.Name
-		for conv.SpSchema[parentTableName].Parent != "" {
+		tableName := table.Name
+		for conv.SpSchema[tableName].Parent != "" {
 			numInterleaves++
 			depth++
-			parentTableName = conv.SpSchema[parentTableName].Parent
+			tableName = conv.SpSchema[tableName].Parent
 		}
 		maxInterleaveDepth = int32(math.Max(float64(maxInterleaveDepth), float64(depth)))
 	}
@@ -91,6 +94,7 @@ func getMigrationDataSourceDetails(driver string, migrationData *migration.Migra
 		return migration.MigrationData_DIRECT_CONNECTION.Enum(), migration.MigrationData_SQL_SERVER.Enum()
 	case constants.CSV:
 		return migration.MigrationData_FILE.Enum(), migration.MigrationData_CSV.Enum()
+	default:
+		return migration.MigrationData_SOURCE_CONNECTION_MECHANISM_UNSPECIFIED.Enum(), migration.MigrationData_SOURCE_UNSPECIFIED.Enum()
 	}
-	return migration.MigrationData_SOURCE_CONNECTION_MECHANISM_UNSPECIFIED.Enum(), migration.MigrationData_SOURCE_UNSPECIFIED.Enum()
 }
