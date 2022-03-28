@@ -1,6 +1,6 @@
 <div class="container">
 <mat-tab-group [ngClass]="[ isLeftColumnCollapse ? 'hidden' : 'display']">
-  <mat-tab label="Oracle(7)">
+  <mat-tab [label]="srcDbName">
     <div class="filter-wrapper">
       <div class="left">
         <span class="material-icons filter-icon">filter_list</span>
