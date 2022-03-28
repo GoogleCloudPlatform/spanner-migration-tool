@@ -1198,9 +1198,7 @@ type SessionState struct {
 // all requests see the same session state.
 //var sessionState SessionState
 
-// Type
-// and
-//issue.
+// Type and issue.
 type typeIssue struct {
 	T     string
 	Brief string
