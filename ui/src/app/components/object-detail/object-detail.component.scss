@@ -101,6 +101,16 @@
   .mat-column-srcDatabase {
     border-right: 1px solid #cdcccd;
   }
+
+  .notnull_action_container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    .actions {
+      border-left: 1px solid #cdcccd;
+      cursor: pointer;
+    }
+  }
 }
 
 .ddl_container {

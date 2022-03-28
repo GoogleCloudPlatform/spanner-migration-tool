@@ -47,7 +47,6 @@ export class ObjectExplorerComponent implements OnInit {
   }
 
   tableSelected(e: any) {
-    console.log(e.textContent)
     this.selectTable.emit(e.textContent.trim())
   }
 

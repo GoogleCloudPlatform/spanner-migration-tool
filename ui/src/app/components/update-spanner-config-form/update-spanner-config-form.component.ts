@@ -34,7 +34,6 @@ export class UpdateSpannerConfigFormComponent implements OnInit {
       SpannerInstanceID: formValue.SpannerInstanceID,
     }
 
-    console.log(payload)
     this.fetch.setSpannerConfig(payload).subscribe({
       next: (res: ISpannerConfig) => {
         this.snack.openSnackBar('Spanner Config updated successfully', 'close', 5000)
@@ -42,7 +41,6 @@ export class UpdateSpannerConfigFormComponent implements OnInit {
         this.dataService.updateConfig(res)
       },
       error: (err: any) => {
-        console.log(err)
         this.snack.openSnackBar(err.message, 'close', 5000)
       },
     })

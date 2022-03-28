@@ -48,7 +48,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     })
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
-      console.log(data)
+      console.log('got the data.....', data)
 
       this.conv = data
       this.rowData = this.conversion.getColMap(this.currentTable, data)
@@ -61,7 +61,6 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    console.log('workspace Destroy !! ')
     this.typemapObj.unsubscribe()
     this.convObj.unsubscribe()
     // this.converObj.unsubscribe()

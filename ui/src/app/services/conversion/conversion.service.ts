@@ -16,8 +16,6 @@ export class ConversionService {
     let parentNode: ISchemaObjectNode = {
       name: 'Tables',
       children: Object.keys(data.SpSchema).map((name: string) => {
-        console.log(name)
-
         return { name: name, helth: conversionRate[name] }
       }),
     }
@@ -38,7 +36,7 @@ export class ConversionService {
   }
 
   getColMap(tableName: string, data: IConv): IColumnTabData[] {
-    if (tableName === ""){
+    if (tableName === '') {
       return [
         {
           spOrder: 0,
@@ -55,8 +53,12 @@ export class ConversionService {
       ]
     }
     let srcTableName = data.ToSource[tableName].Name
+    console.log('got the data.....2 in conversion', data, srcTableName, tableName)
+
     return data.SrcSchema[srcTableName].ColNames.map((name: string, i: number) => {
       let spColName = data.SpSchema[tableName].ColNames[i]
+      let srcPks = data.SrcSchema[srcTableName].PrimaryKeys
+
       return {
         spOrder: i + 1,
         srcOrder: i + 1,
@@ -64,8 +66,8 @@ export class ConversionService {
         spDataType: data.SpSchema[tableName].ColDefs[spColName].T.Name,
         srcColName: name,
         srcDataType: data.SrcSchema[srcTableName].ColDefs[name].Type.Name,
-        spIsPk: data.SpSchema[tableName].Pks.map((p) => p.Col).indexOf(spColName) != -1,
-        srcIsPk: data.SrcSchema[srcTableName].PrimaryKeys.map((p) => p.Column).indexOf(name) != -1,
+        spIsPk: data.SpSchema[tableName].Pks.map((p) => p.Col).indexOf(spColName) !== -1,
+        srcIsPk: srcPks ? srcPks.map((p) => p.Column).indexOf(name) !== -1 : false,
         spIsNotNull: data.SpSchema[tableName].ColDefs[spColName].NotNull,
         srcIsNotNull: data.SrcSchema[srcTableName].ColDefs[name].NotNull,
       }

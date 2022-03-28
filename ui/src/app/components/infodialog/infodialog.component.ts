@@ -12,9 +12,7 @@ interface IDialogProps {
 export class InfodialogComponent implements OnInit {
   constructor(@Inject(MAT_DIALOG_DATA) public data: IDialogProps) {}
 
-  ngOnInit(): void {
-    console.log(this.data)
-  }
+  ngOnInit(): void {}
 
   getIconFromMessageType() {
     switch (this.data.type) {
