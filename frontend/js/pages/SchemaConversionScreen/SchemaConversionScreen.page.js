@@ -37,7 +37,7 @@ class SchemaConversionScreen extends HTMLElement {
         SrcSchema: currentTabContent.SrcSchema[currentTabContent.ToSource[tableNameArray[i]].Name],
         ToSource: currentTabContent.ToSource[tableNameArray[i]],
         ToSpanner: currentTabContent.ToSpanner[currentTabContent.ToSource[tableNameArray[i]].Name],
-        summary: Store.getinstance().tableData["summaryTabContent"][tableNameArray[i]],
+        summary: Store.getinstance().tableData["summaryTabContent"][currentTabContent.ToSource[tableNameArray[i]].Name],
         currentPageNumber: Actions.getCurrentPageNumber(i)
       };
       let component = document.querySelector(`#reportTab${i}`);
