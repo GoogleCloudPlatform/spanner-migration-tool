@@ -72,7 +72,7 @@ export const MAIN_PAGE_ICONS = [{
 ];
 
 export const MAIN_PAGE_STATIC_CONTENT = {
-    HEADING_TEXT: "Welcome To HarborBridge",
+    HEADING_TEXT: "Welcome To HarbourBridge",
     SUB_HEADING_TEXT: "Connect or import your database",
     CONNECTION_SUCCESS_CONTENT: "Please click on convert button to proceed with schema conversion",
     CONNECTION_FAILURE_CONTENT: "Please check database configuration details and try again !!",
