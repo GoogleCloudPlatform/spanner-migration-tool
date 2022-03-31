@@ -28,6 +28,8 @@ func GetMigrationData(conv *internal.Conv, driver, targetDb, typeOfConv string) 
 		migrationData.TargetDialect = migration.MigrationData_GOOGLE_STANDARD_SQL.Enum()
 	case constants.TargetExperimentalPostgres:
 		migrationData.TargetDialect = migration.MigrationData_POSTGRESQL_STANDARD_SQL.Enum()
+	default:
+		migrationData.TargetDialect = migration.MigrationData_TARGET_DIALECT_UNSPECIFIED.Enum()
 	}
 	return &migrationData
 }
