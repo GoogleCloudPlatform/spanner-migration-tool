@@ -1,0 +1,51 @@
+<div class="container">
+  <div class="filter">
+    <div class="columns">
+      <div class="left">
+        <span class="material-icons filter-icon">filter_list</span>
+        <span class="filter-text">Filter</span>
+      </div>
+      <div class="right">
+        <mat-form-field>
+          <mat-chip-list #chipList aria-label="Fruit selection">
+            <mat-chip color="primary" selected *ngFor="let fs of filterStrings" (removed)="remove(fs)">
+              {{ fs }}
+              <button matChipRemove>
+                <mat-icon>cancel</mat-icon>
+              </button>
+            </mat-chip>
+            <input [matChipInputFor]="chipList" [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
+              [matChipInputAddOnBlur]="addOnBlur" (matChipInputTokenEnd)="add($event)" />
+          </mat-chip-list>
+        </mat-form-field>
+      </div>
+    </div>
+  </div>
+
+  <div class="header">
+    <div class="columns">
+      <div class="left"><span> Status </span></div>
+      <div class="right"><span> Summary </span></div>
+    </div>
+  </div>
+
+  <div class="content">
+    <section class="summary-item" *ngFor="let item of summaryItems">
+      <div class="columns">
+        <div class="left"><span class="material-icons summary-type error">error</span></div>
+        <div class="middle">{{item.content}}</div>
+        <div class="right">
+          <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
+          <mat-menu #menu="matMenu">
+            <button mat-menu-item *ngIf="!item.isRead">
+              <span>Mark as read</span>
+            </button>
+            <button mat-menu-item mat-menu-item *ngIf="item.isRead">
+              <span>Mar as unread</span>
+            </button>
+          </mat-menu>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>

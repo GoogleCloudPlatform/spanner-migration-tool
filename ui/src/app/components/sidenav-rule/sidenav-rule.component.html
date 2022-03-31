@@ -1,0 +1,89 @@
+<div class="sidenav-container">
+  <div class="sidenav-header">
+    <span class="header-title">Add rule</span>
+    <button class="close-button" mat-icon-button color="primary" (click)="closeSidenav()">
+      <mat-icon class="close-icon">close</mat-icon>
+    </button>
+  </div>
+  <div class="form-container">
+    <form [formGroup]="ruleForm" (ngSubmit)="formSubmit()">
+      <h3>Rule info</h3>
+      <mat-form-field appearance="outline">
+        <mat-label>Rule name</mat-label>
+        <input matInput class="input-field" formControlName="ruleName" />
+        <mat-hint>Max. 60 characters, and starts with a letter.</mat-hint>
+      </mat-form-field>
+
+      <h3>Rule definition</h3>
+      <mat-form-field appearance="outline">
+        <mat-label>Rule type</mat-label>
+        <mat-select
+          #ruleType
+          matSelect
+          class="input-field"
+          formControlName="ruleType"
+          required="true"
+        >
+          <mat-option value="globalDataType">Change global data type</mat-option>
+          <mat-option value="localDataType">Change one table data type</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <div
+        *ngIf="ruleType.value === 'globalDataType'"
+        class="change-global-type"
+        formGroupName="ruleContent"
+      >
+        <mat-form-field appearance="outline">
+          <mat-label>For object type</mat-label>
+          <mat-select matSelect class="input-field" formControlName="objectType" required="true">
+            <mat-option value="column">Column</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <h3>When</h3>
+        <mat-form-field appearance="outline">
+          <mat-label>Table is</mat-label>
+          <mat-select matSelect class="input-field" formControlName="table" required="true">
+            <mat-option value="allTable">All table</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>and column is</mat-label>
+          <mat-select matSelect class="input-field" formControlName="column" required="true">
+            <mat-option value="allColumn">All column</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <h3>Convert from</h3>
+        <mat-form-field appearance="outline">
+          <mat-label>Source data type</mat-label>
+          <mat-select
+            matSelect
+            #sourceField
+            class="input-field"
+            formControlName="sourceType"
+            required="true"
+            (selectionChange)="updateDestinationType(sourceField.value)"
+          >
+            <mat-option *ngFor="let type of sourceType" [value]="type">{{ type }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <h3>Convert to</h3>
+        <mat-form-field appearance="outline" *ngIf="sourceField.selected">
+          <mat-label>Destination data type</mat-label>
+          <mat-select
+            matSelect
+            class="input-field"
+            formControlName="destinationType"
+            required="true"
+          >
+            <mat-option *ngFor="let type of destinationType" [value]="type">{{ type }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+      <br />
+      <button mat-raised-button type="submit" color="primary" [disabled]="!ruleForm.valid">
+        ADD RULE
+      </button>
+      <button mat-button (click)="closeSidenav()">Cancel</button>
+    </form>
+  </div>
+</div>

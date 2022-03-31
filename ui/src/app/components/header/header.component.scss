@@ -1,0 +1,39 @@
+.menu-spacer {
+  flex: 1 1 auto;
+}
+
+.pointer {
+  cursor: pointer;
+}
+.right_container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  .spanner_config {
+    display: flex;
+    align-items: center;
+    // border: 1px solid lightgrey;
+    border-radius: 5px;
+    padding: 0px 10px;
+    button {
+      // border-left: 1px solid lightgrey;
+      border-radius: 2px;
+    }
+
+    .warning {
+      color: #f3b300;
+    }
+
+    .success {
+      color: green;
+    }
+    span {
+      font-size: 14px;
+      font-weight: 300;
+      padding: 0px 10px;
+    }
+    .pid {
+      margin-right: 10px;
+    }
+  }
+}

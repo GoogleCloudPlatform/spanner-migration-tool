@@ -1,0 +1,222 @@
+<div class="no-table-selected" *ngIf="!isTableSelected">
+  <div class="title_container">
+    <h3 class="title">OBJECT VIEWER</h3>
+  </div>
+  <mat-divider></mat-divider>
+  <div class="select-table-message">
+    <div class="image">
+      <svg
+        width="40"
+        height="40"
+        viewBox="0 0 19 18"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          fill-rule="evenodd"
+          clip-rule="evenodd"
+          d="M2.90723 0C1.80266 0 0.907227 0.89543 0.907227 2V16C0.907227 17.1046 1.80266 18 2.90723 18H16.9072C18.0118 18 18.9072 17.1046 18.9072 16V2C18.9072 0.895431 18.0118 0 16.9072 0H2.90723ZM5.90723 3H3.90723V5H5.90723V3ZM6.90723 3H8.90723V5H6.90723V3ZM5.90723 8H3.90723V10H5.90723V8ZM6.90723 8H8.90723V10H6.90723V8ZM5.90723 13H3.90723V15H5.90723V13ZM6.90723 13H8.90723V15H6.90723V13ZM15.9072 3H9.90723V5H15.9072V3ZM9.90723 8H15.9072V10H9.90723V8ZM15.9072 13H9.90723V15H15.9072V13Z"
+          fill="#3367D6"
+        />
+      </svg>
+    </div>
+    <div class="inner-text">
+      {{
+        'To view and modify an object details, click on the object name on the' +
+          srcDbName +
+          'panel'
+      }}
+    </div>
+  </div>
+</div>
+<div class="table" *ngIf="isTableSelected">
+  <div class="title_container">
+    <h3 class="title">
+      <mat-icon class="icon material-icons-outlined">table_chart</mat-icon>{{ ' ' + tableName }}
+    </h3>
+  </div>
+
+  <mat-tab-group>
+    <mat-tab label="COLUMNS">
+      <div class="column-tab-container">
+        <table mat-table [dataSource]="dataSource">
+          <ng-container matColumnDef="srcDatabase">
+            <th mat-header-cell class="db_name" *matHeaderCellDef colspan="5">{{ srcDbName }}</th>
+          </ng-container>
+          <ng-container matColumnDef="spDatabase">
+            <th mat-header-cell *matHeaderCellDef class="db_name" colspan="5">
+              <div class="spanner_edit-button">
+                <span>Spanner</span>
+                <button mat-stroked-button color="primary" (click)="toggleEdit()">
+                  <mat-icon class="edit-icon">edit</mat-icon>
+                  {{ isEditMode ? 'Save' : 'Edit' }}
+                </button>
+              </div>
+            </th>
+          </ng-container>
+
+          <ng-container matColumnDef="srcOrder">
+            <th class="table_header" mat-header-cell *matHeaderCellDef>Order</th>
+            <td mat-cell *matCellDef="let element">
+              {{ element.get('srcOrder').value }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="srcColName">
+            <th class="table_header" mat-header-cell *matHeaderCellDef>Name</th>
+            <td mat-cell *matCellDef="let element">
+              {{ element.get('srcColName').value }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="srcDataType">
+            <th mat-header-cell class="table_header" *matHeaderCellDef>Type</th>
+            <td mat-cell *matCellDef="let element">
+              {{ element.get('srcDataType').value }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="srcIsPk">
+            <th class="table_header" mat-header-cell *matHeaderCellDef>Pk</th>
+            <td mat-cell *matCellDef="let element">
+              <div *ngIf="element.get('srcIsPk').value">
+                <svg
+                  width="14"
+                  height="8"
+                  viewBox="0 0 14 8"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    clip-rule="evenodd"
+                    d="M4 8C5.86384 8 7.42994 6.72523 7.87398 5H10V7H13V5H14V3H7.87398C7.42994 1.27477 5.86384 0 4 0C1.79086 0 0 1.79086 0 4C0 6.20914 1.79086 8 4 8ZM6 4C6 5.10457 5.10457 6 4 6C2.89543 6 2 5.10457 2 4C2 2.89543 2.89543 2 4 2C5.10457 2 6 2.89543 6 4Z"
+                    fill="black"
+                  />
+                </svg>
+              </div>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="srcIsNotNull">
+            <th mat-header-cell class="table_header" *matHeaderCellDef>Nullable</th>
+            <td mat-cell *matCellDef="let element">
+              {{ element.get('srcIsNotNull').value ? 'Not Null' : '' }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="spOrder">
+            <th class="table_header" mat-header-cell *matHeaderCellDef>Order</th>
+            <td mat-cell *matCellDef="let element">
+              {{ element.get('spOrder').value }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="spColName">
+            <th mat-header-cell class="table_header" *matHeaderCellDef>Name</th>
+            <td mat-cell *matCellDef="let element">
+              <div *ngIf="isEditMode">
+                <input
+                  matInput
+                  class="name_input"
+                  type="text"
+                  [formControl]="element.get('spColName')"
+                />
+              </div>
+
+              <p *ngIf="!isEditMode">{{ element.get('spColName').value }}</p>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="spDataType">
+            <th mat-header-cell class="table_header" *matHeaderCellDef>Type</th>
+            <td mat-cell *matCellDef="let element">
+              <mat-form-field appearance="legacy" *ngIf="isEditMode" class="w-100">
+                <mat-select
+                  *ngIf="isEditMode"
+                  [formControl]="element.get('spDataType')"
+                  selected="element.get('spDataType').value"
+                >
+                  <mat-option
+                    *ngFor="let t of typeMap[element.get('srcDataType').value]"
+                    [value]="t.T"
+                  >
+                    {{ t.T }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+              <p *ngIf="!isEditMode">{{ element.get('spDataType').value }}</p>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="spIsPk">
+            <th class="table_header" mat-header-cell *matHeaderCellDef>Pk</th>
+            <td mat-cell *matCellDef="let element">
+              <div *ngIf="element.get('spIsPk').value">
+                <svg
+                  width="14"
+                  height="8"
+                  viewBox="0 0 14 8"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    clip-rule="evenodd"
+                    d="M4 8C5.86384 8 7.42994 6.72523 7.87398 5H10V7H13V5H14V3H7.87398C7.42994 1.27477 5.86384 0 4 0C1.79086 0 0 1.79086 0 4C0 6.20914 1.79086 8 4 8ZM6 4C6 5.10457 5.10457 6 4 6C2.89543 6 2 5.10457 2 4C2 2.89543 2.89543 2 4 2C5.10457 2 6 2.89543 6 4Z"
+                    fill="black"
+                  />
+                </svg>
+              </div>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="spIsNotNull">
+            <th mat-header-cell class="table_header" *matHeaderCellDef>Nullable</th>
+
+            <td mat-cell *matCellDef="let element">
+              <div class="notnull_action_container">
+                <div class="notNullContent">
+                  <div *ngIf="isEditMode">
+                    <mat-checkbox
+                      color="primary"
+                      [formControl]="element.get('spIsNotNull')"
+                    ></mat-checkbox>
+                  </div>
+                  <p *ngIf="!isEditMode">
+                    {{ element.get('spIsNotNull').value ? 'Not Null' : '' }}
+                  </p>
+                </div>
+
+                <div class="actions">
+                  <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
+                  <mat-menu #menu="matMenu">
+                    <button
+                      [disabled]="element.get('spOrder').value === ''"
+                      mat-menu-item
+                      (click)="dropColumn(element)"
+                    >
+                      <span>Drop Column</span>
+                    </button>
+                  </mat-menu>
+                </div>
+              </div>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="['srcDatabase', 'spDatabase']"></tr>
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+        </table>
+      </div>
+    </mat-tab>
+    <mat-tab label="CONSTRAINTS"></mat-tab>
+    <mat-tab label="SQL">
+      <div class="ddl_container">
+        <pre>
+          <code>{{ddlStmts[tableName]}}</code>
+        </pre>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</div>

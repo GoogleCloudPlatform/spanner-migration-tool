@@ -1,0 +1,61 @@
+.rule-container {
+  position: relative;
+  min-height: 600px;
+  .rule-header {
+    padding-top: 6px;
+    padding-bottom: 6px;
+    padding-left: 10px;
+    .add-button {
+      color: #3367d6;
+      margin-left: 15px;
+    }
+  }
+  .empty-rule-message {
+    position: absolute;
+    top: 50%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    .setting-icon {
+      margin-bottom: 15px;
+      color: #3367d6;
+    }
+  }
+  .table-container {
+    table {
+      width: 100%;
+    }
+
+    .table-header {
+      font-size: 13px;
+      font-style: normal;
+      font-weight: 500;
+      line-height: 12px;
+      color: black;
+    }
+    .mat-header-row {
+      height: 35px;
+      background-color: #f5f5f5;
+    }
+
+    .mat-column-ruleName,
+    .mat-column-ruleType,
+    .mat-column-objectType,
+    .mat-column-associatedObject,
+    .mat-column-enabled {
+      min-width: 100px;
+    }
+    .mat-column-order {
+      padding-left: 10px;
+      min-width: 40px;
+      max-width: 70px;
+    }
+    .mat-column-rowOption {
+      padding-right: 10px;
+      min-width: 30px;
+      max-width: 50px;
+    }
+  }
+}

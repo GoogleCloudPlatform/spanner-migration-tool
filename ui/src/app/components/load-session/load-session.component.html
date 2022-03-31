@@ -1,0 +1,40 @@
+<div class="container">
+  <mat-card class="form-container">
+    <form [formGroup]="connectForm" (ngSubmit)="convertFromSessionFile()">
+      <h3>Load from session</h3>
+      <h5>Lorem ipsum dolor sit amet, consectetur adipiscing elit</h5>
+
+      <mat-form-field class="full-width" appearance="outline">
+        <mat-label>Database Engine</mat-label>
+        <mat-select matSelect name="dbEngine" formControlName="dbEngine" appearance="outline">
+          <mat-option value="mysql">MySQL</mat-option>
+          <mat-option value="postgres">PostgreSQL</mat-option>
+          <mat-option value="sqlserver">SqlServer</mat-option>
+          <mat-option value="oracle">Oracle</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <h3>Session File</h3>
+      <h5>
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
+        labore et dolore magna aliqua.
+      </h5>
+
+      <mat-form-field class="full-width" appearance="outline">
+        <mat-label>File path</mat-label>
+        <input
+          matInput
+          placeholder="File path"
+          name="filePath"
+          type="text"
+          formControlName="filePath"
+        />
+      </mat-form-field>
+      <br />
+      <button mat-raised-button type="submit" color="primary" [disabled]="!connectForm.valid">
+        Convert
+      </button>
+      <button mat-raised-button [routerLink]="'/'">Cancel</button>
+    </form>
+  </mat-card>
+</div>
