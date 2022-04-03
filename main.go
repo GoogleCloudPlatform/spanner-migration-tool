@@ -100,6 +100,14 @@ func main() {
 	}
 	defer utils.Close(lf)
 
+	endpoint := os.Getenv("SPANNER_API_ENDPOINT")
+	if endpoint != "" && endpoint != "staging-wrenchworks.sandbox.googleapis.com:443" {
+		fmt.Printf("\nWarning: Endpoint specified may be incorrect: \n" +
+			"For connecting to prod set SPANNER_API_ENDPOINT as blank \n" +
+			"For connecting to emulator set SPANNER_EMULATOR_HOST=localhost:9010 \n" +
+			"For connecting to staging set SPANNER_API_ENDPOINT=staging-wrenchworks.sandbox.googleapis.com:443\n\n")
+	}
+
 	// TODO: Remove this check and always run HB in subcommands mode once
 	// global command line mode is deprecated. We can also enable support for
 	// top-level flags in subcommand then.
