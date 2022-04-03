@@ -101,7 +101,8 @@ func main() {
 	defer utils.Close(lf)
 
 	endpoint := os.Getenv("SPANNER_API_ENDPOINT")
-	if endpoint != "" && endpoint != "staging-wrenchworks.sandbox.googleapis.com:443" {
+	emulator_host := os.Getenv("SPANNER_EMULATOR_HOST")
+	if !((endpoint == "" && (emulator_host == "" || emulator_host == "localhost:9010")) || endpoint == "staging-wrenchworks.sandbox.googleapis.com:443") {
 		fmt.Printf("\nWarning: Endpoint specified may be incorrect: \n" +
 			"For connecting to prod set SPANNER_API_ENDPOINT as blank \n" +
 			"For connecting to emulator set SPANNER_EMULATOR_HOST=localhost:9010 \n" +
