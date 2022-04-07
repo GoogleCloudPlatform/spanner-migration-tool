@@ -40,4 +40,10 @@ const (
 
 	// Temp directory name to write data which we cleanup at the end.
 	HB_TMP_DIR string = "harbourbridge_tmp_data"
+
+	// SPANNER_EMULATOR_HOST is the host address for the emulator when it is running.
+	SPANNER_EMULATOR_HOST string = "localhost:9010"
+
+	// STAGING_SPANNER_API_ENDPOINT is the spanner api endpoint for staging environment.
+	STAGING_SPANNER_API_ENDPOINT string = "staging-wrenchworks.sandbox.googleapis.com:443"
 )

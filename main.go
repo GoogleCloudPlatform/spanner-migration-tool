@@ -101,12 +101,12 @@ func main() {
 	defer utils.Close(lf)
 
 	endpoint := os.Getenv("SPANNER_API_ENDPOINT")
-	emulator_host := os.Getenv("SPANNER_EMULATOR_HOST")
-	if !((endpoint == "" && (emulator_host == "" || emulator_host == "localhost:9010")) || (endpoint == "staging-wrenchworks.sandbox.googleapis.com:443" && emulator_host == "")) {
+	emulatorHost := os.Getenv("SPANNER_EMULATOR_HOST")
+	if !((endpoint == "" && (emulatorHost == "" || emulatorHost == constants.SPANNER_EMULATOR_HOST)) || (endpoint == constants.STAGING_SPANNER_API_ENDPOINT && emulatorHost == "")) {
 		fmt.Printf("\nWarning: Endpoint specified may be incorrect: \n" +
 			"For connecting to prod set SPANNER_API_ENDPOINT as blank \n" +
-			"For connecting to emulator set SPANNER_EMULATOR_HOST=localhost:9010 \n" +
-			"For connecting to staging set SPANNER_API_ENDPOINT=staging-wrenchworks.sandbox.googleapis.com:443\n\n")
+			"For connecting to emulator set SPANNER_EMULATOR_HOST=" + constants.SPANNER_EMULATOR_HOST + "\n" +
+			"For connecting to staging set SPANNER_API_ENDPOINT=" + constants.STAGING_SPANNER_API_ENDPOINT + "\n\n")
 	}
 
 	// TODO: Remove this check and always run HB in subcommands mode once
