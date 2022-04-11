@@ -375,6 +375,7 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var t updateTable
+
 	table := r.FormValue("table")
 	err = json.Unmarshal(reqBody, &t)
 	if err != nil {
