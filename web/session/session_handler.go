@@ -67,6 +67,16 @@ func InitiateSession(w http.ResponseWriter, r *http.Request) {
 	filePath := dirPath + sessionName
 	sessionState.SessionFile = filePath
 
+	scs := SchemaConversionSession{
+		VersionId: uuid.New().String(),
+		CreatedOn: now,
+		SessionMetadata: SessionMetadata{
+			SessionName:  sessionName,
+			DatabaseType: sessionState.Driver,
+			DatabaseName: sessionState.DbName,
+		},
+	}
+
 	var ssvc *SessionService
 	if isValidRemoteStore() {
 		ctx := context.Background()
@@ -76,20 +86,14 @@ func InitiateSession(w http.ResponseWriter, r *http.Request) {
 		}
 		defer spannerClient.Close()
 		ssvc = NewSessionService(ctx, NewRemoteSessionStore(spannerClient))
+
+		conv, _ := json.Marshal(sessionState.Conv)
+		scs.SchemaConversionObject = string(conv)
+		scs.Notes = []string{"init"}
 	} else {
 		ssvc = NewSessionService(context.Background(), NewLocalSessionStore())
 	}
 
-	scs := SchemaConversionSession{
-		VersionId: uuid.New().String(),
-		CreatedOn: now,
-		FilePath:  filePath,
-		SessionMetadata: SessionMetadata{
-			SessionName:  sessionName,
-			DatabaseType: sessionState.Driver,
-			DatabaseName: sessionState.DbName,
-		},
-	}
 	ssvc.SaveSession(scs)
 
 	w.WriteHeader(http.StatusOK)
@@ -159,7 +163,6 @@ func ResumeSession(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv = &convm.Conv
 	sessionState.Driver = convm.DatabaseType
 	sessionState.DbName = convm.DatabaseName
-	//sessionState.SessionFile = "" //TODO
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)

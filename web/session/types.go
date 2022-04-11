@@ -14,7 +14,6 @@ type SchemaConversionSession struct {
 	SchemaChanges          string
 	SchemaConversionObject string
 	CreatedOn              time.Time
-	FilePath               string
 }
 
 type SessionMetadata struct {

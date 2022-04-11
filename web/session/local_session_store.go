@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/cloudspannerecosystem/harbourbridge/web/shared"
 )
 
 type localStore struct {
@@ -65,7 +66,7 @@ func (svc *localStore) GetConvWithMetadata(ctx context.Context, versionId string
 		DatabaseName: match.DatabaseName,
 	}
 
-	err := conversion.ReadSessionFile(&convm.Conv, match.FilePath)
+	err := conversion.ReadSessionFile(&convm.Conv, shared.GetSessionFilePath(match.DatabaseName))
 	if err != nil {
 		return convm, fmt.Errorf("Failed to open the session file : %v", err)
 	}

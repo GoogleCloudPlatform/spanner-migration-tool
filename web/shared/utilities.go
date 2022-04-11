@@ -9,7 +9,7 @@ import (
 
 func GetSessionFilePath(dbName string) string {
 	dirPath := "harbour_bridge_output"
-	return fmt.Sprintf("%s/%s.session.json", dirPath, dbName)
+	return fmt.Sprintf("%s/%s/%s.session.json", dirPath, dbName, dbName)
 }
 
 func GetMetadataDbUri() string {
