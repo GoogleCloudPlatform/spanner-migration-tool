@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2022 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package web
+package session
 
 import (
 	"context"
@@ -42,7 +42,7 @@ type sessionParams struct {
 	CreatedAt string `json:"createdAt"`
 }
 
-func createSession(w http.ResponseWriter, r *http.Request) {
+func CreateSession(w http.ResponseWriter, r *http.Request) {
 	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
 	now := time.Now()
 	sessionState := sessionstate.GetSessionState()
@@ -67,7 +67,7 @@ func createSession(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(session)
 }
 
-func resumeSession(w http.ResponseWriter, r *http.Request) {
+func ResumeSession(w http.ResponseWriter, r *http.Request) {
 	sessionState := sessionstate.GetSessionState()
 
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -94,7 +94,7 @@ func resumeSession(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(sessionState.Conv)
 }
 
-func resumeSessionNew(w http.ResponseWriter, r *http.Request) {
+func ResumeSessionNew(w http.ResponseWriter, r *http.Request) {
 	// This function should resume either Remote or Local resume
 	// ToDo: Check if user has access to spanner
 
@@ -115,7 +115,7 @@ func resumeSessionNew(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
-func getConvSessionsMetadata(w http.ResponseWriter, r *http.Request) {
+func GetConvSessionsMetadata(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 
 	spannerClient, err := spanner.NewClient(ctx, getSpannerUri())
@@ -135,7 +135,7 @@ func getConvSessionsMetadata(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result)
 }
 
-func getConvSession(w http.ResponseWriter, r *http.Request) {
+func GetConvSession(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	vid, ok := vars["versionId"]
 	if !ok {
@@ -153,7 +153,7 @@ func getConvSession(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(conv)
 }
 
-func saveSession(w http.ResponseWriter, r *http.Request) {
+func SaveSession(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
