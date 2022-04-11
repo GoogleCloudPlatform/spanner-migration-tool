@@ -28,7 +28,6 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/convert/infoschema", convertSchemaSQL).Methods("GET")
 	router.HandleFunc("/convert/dump", convertSchemaDump).Methods("POST")
 	router.HandleFunc("/ddl", getDDL).Methods("GET")
-	router.HandleFunc("/summary", getSummary).Methods("GET")
 	router.HandleFunc("/overview", getOverview).Methods("GET")
 	router.HandleFunc("/conversion", getConversionRate).Methods("GET")
 	router.HandleFunc("/typemap", getTypeMap).Methods("GET")
@@ -50,14 +49,19 @@ func getRoutes() *mux.Router {
 
 	// Session Management
 	router.HandleFunc("/session", session.CreateSession).Methods("GET")
-	router.HandleFunc("/session/resume", session.ResumeSession).Methods("POST")
-	router.HandleFunc("/GetSessions", session.GetConvSessionsMetadata).Methods("GET")        // New service
-	router.HandleFunc("/GetSession/{versionId}", session.GetConvSession).Methods("GET")      // New service
-	router.HandleFunc("/ResumeSession/{versionId}", session.ResumeSessionNew).Methods("GET") // New service
-	router.HandleFunc("/SaveSession", session.SaveSession).Methods("POST")                   // New service
+	router.HandleFunc("/SaveSession", session.SaveSession).Methods("POST")
+	router.HandleFunc("/GetSessions", session.GetConvSessionsMetadata).Methods("GET")
+	router.HandleFunc("/GetSession/{versionId}", session.GetConvSession).Methods("GET")
+	router.HandleFunc("/ResumeSession/{versionId}", session.ResumeRemoteSession).Methods("GET")
+	router.HandleFunc("/session/resume", session.ResumeLocalSession).Methods("POST")
 
-	router.HandleFunc("/getConfig", getConfig).Methods("GET")                // New service
-	router.HandleFunc("/setSpannerConfig", setSpannerConfig).Methods("POST") //New service
+	// Summary
+	router.HandleFunc("/summary", getSummary).Methods("GET")
+
+	// Application Configuration
+	router.HandleFunc("/getConfig", getConfig).Methods("GET")
+	router.HandleFunc("/setSpannerConfig", setSpannerConfig).Methods("POST")
 	router.PathPrefix("/").Handler(http.FileServer(staticFileDirectory))
+
 	return router
 }

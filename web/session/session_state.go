@@ -1,4 +1,4 @@
-package sessionstate
+package session
 
 import (
 	"database/sql"
