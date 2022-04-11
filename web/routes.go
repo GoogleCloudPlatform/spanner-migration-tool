@@ -19,6 +19,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/web/config"
 	"github.com/cloudspannerecosystem/harbourbridge/web/session"
+	"github.com/cloudspannerecosystem/harbourbridge/web/summary"
 	"github.com/gorilla/mux"
 )
 
@@ -58,7 +59,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/ResumeSession/{versionId}", session.ResumeSession).Methods("POST")
 
 	// Summary
-	router.HandleFunc("/summary", getSummary).Methods("GET")
+	router.HandleFunc("/summary", summary.GetSummary).Methods("GET")
 
 	// Application Configuration
 	router.HandleFunc("/GetConfig", config.GetConfig).Methods("GET")
