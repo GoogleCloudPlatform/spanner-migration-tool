@@ -9,6 +9,7 @@ import (
 	"os"
 )
 
+//Config represents Spanner Configiuration for Spanner Session Management.
 type Config struct {
 	GCPProjectID      string `json:"GCPProjectID"`
 	SpannerInstanceID string `json:"SpannerInstanceID"`
