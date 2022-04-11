@@ -15,6 +15,8 @@ func getSummary() map[string]ConversionSummary {
 		cs := ConversionSummary{
 			SrcTable: t.SrcTable,
 			SpTable:  t.SpTable,
+			Notes:    []string{},
+			Warnings: []string{},
 		}
 		for _, x := range t.Body {
 			switch x.Heading {
@@ -29,7 +31,7 @@ func getSummary() map[string]ConversionSummary {
 					cs.WarningsCount = len(x.Lines)
 				}
 			}
-			summary[t.SrcTable] = cs
+			summary[t.SpTable] = cs
 		}
 	}
 	return summary
