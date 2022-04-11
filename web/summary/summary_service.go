@@ -12,7 +12,10 @@ func getSummary() map[string]ConversionSummary {
 
 	summary := make(map[string]ConversionSummary)
 	for _, t := range reports {
-		cs := ConversionSummary{}
+		cs := ConversionSummary{
+			SrcTable: t.SrcTable,
+			SpTable:  t.SpTable,
+		}
 		for _, x := range t.Body {
 			switch x.Heading {
 			case "Note", "Notes":
