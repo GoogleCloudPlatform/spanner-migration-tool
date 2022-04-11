@@ -4,3 +4,8 @@ web/harbour_bridge_output/
 harbour_bridge_output/
 *__debug_bin*
 *.code-workspace
+
+# UI Client related
+ui/.angular/
+ui/dist/
+ui/node_modules
