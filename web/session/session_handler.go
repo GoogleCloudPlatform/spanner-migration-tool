@@ -80,6 +80,22 @@ func InitiateSession(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(scs)
 }
 
+func GetSessions(w http.ResponseWriter, r *http.Request) {
+	var sessions []SchemaConversionSession
+	var err error
+	if isValidRemoteStore() {
+		sessions, err = getRemoteSessions()
+	} else {
+		sessions, err = getLocalSessions()
+	}
+	if err != nil {
+		http.Error(w, fmt.Sprintf("%v", err), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(sessions)
+}
+
 func ResumeLocalSession(w http.ResponseWriter, r *http.Request) {
 	sessionState := GetSessionState()
 
@@ -218,9 +234,46 @@ func SaveSession(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode("Save successful, VersionId : " + scs.VersionId)
 }
 
-func IsValidRemoteSessionStore(w http.ResponseWriter, r *http.Request) {
+func IsValidRemoteStore(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(isValidSpannerConfig())
+	json.NewEncoder(w).Encode(isValidRemoteStore())
+}
+
+//Helpers
+
+func isValidRemoteStore() bool {
+	// ctx := context.Background()
+	// client, err := spanner.NewClient(ctx, getSpannerUri())
+	// defer client.Close()
+	// return err == nil
+
+	//TODO
+	return true
+}
+
+func getRemoteSessions() ([]SchemaConversionSession, error) {
+	ctx := context.Background()
+	spannerClient, err := spanner.NewClient(ctx, getSpannerUri())
+	if err != nil {
+		return nil, fmt.Errorf("Spanner Client error : %v", err)
+	}
+	defer spannerClient.Close()
+
+	svc := NewSessionService(ctx, NewRemoteSessionStore(spannerClient))
+	result, err := svc.GetSessionsMetadata()
+	if err != nil {
+		return nil, fmt.Errorf("Spanner Transaction error : %v", err)
+	}
+	return result, nil
+}
+
+func getLocalSessions() ([]SchemaConversionSession, error) {
+	svc := NewSessionService(context.Background(), NewLocalSessionStore())
+	result, err := svc.GetSessionsMetadata()
+	if err != nil {
+		return nil, fmt.Errorf("Local session store error : %v", err)
+	}
+	return result, nil
 }
 
 func getConvWithMetadata(versionId string) (ConvWithMetadata, error) {
@@ -253,12 +306,4 @@ func resumeRemoteSession(vid string) (ConvWithMetadata, error) {
 
 func getSpannerUri() string {
 	return "projects/searce-academy/instances/appdev-ps12/databases/harbourbridge_metadata"
-}
-
-func isValidSpannerConfig() bool {
-	ctx := context.Background()
-	client, err := spanner.NewClient(ctx, getSpannerUri())
-	defer client.Close()
-
-	return err == nil
 }

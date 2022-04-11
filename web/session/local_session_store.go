@@ -24,8 +24,17 @@ type localStore struct {
 
 var _ SessionStore = (*localStore)(nil)
 
-func NewLocalSessionStore() SessionStore {
-	return &localStore{}
+var store *localStore
+
+func NewLocalSessionStore() *localStore {
+	if store == nil {
+		// once.Do(
+		// 	func() {
+		// 		store = &localStore{}
+		// 	})
+		store = &localStore{}
+	}
+	return store
 }
 
 func (svc *localStore) GetSessionsMetadata(ctx context.Context) ([]SchemaConversionSession, error) {
