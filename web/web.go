@@ -46,6 +46,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/web/session"
+	"github.com/cloudspannerecosystem/harbourbridge/web/shared"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
 	go_ora "github.com/sijms/go-ora/v2"
@@ -1247,8 +1248,11 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 	return l
 }
 func init() {
-	//
-	getConfigFromEnv()
+
+	config, err := shared.GetConfigForSpanner()
+	if err != nil || config.GCPProjectID == "" || config.SpannerInstanceID == "" {
+		shared.GetConfigFromEnv()
+	}
 
 	// Initialize mysqlTypeMap.
 	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {

@@ -1,4 +1,4 @@
-package web
+package shared
 
 import (
 	"encoding/json"
@@ -16,9 +16,9 @@ type Config struct {
 }
 
 // getConfig returns configurations.
-func getConfig(w http.ResponseWriter, r *http.Request) {
+func GetConfig(w http.ResponseWriter, r *http.Request) {
 
-	content, err := getConfigForSpanner()
+	content, err := GetConfigForSpanner()
 
 	if err != nil {
 		http.Error(w, "Data access error", http.StatusBadRequest)
@@ -31,7 +31,7 @@ func getConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 // setSpannerConfig sets Spanner Config.
-func setSpannerConfig(w http.ResponseWriter, r *http.Request) {
+func SetSpannerConfig(w http.ResponseWriter, r *http.Request) {
 
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -59,7 +59,7 @@ func setSpannerConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 //getConfigForSpanner reads configuration from configuration file.
-func getConfigForSpanner() (Config, error) {
+func GetConfigForSpanner() (Config, error) {
 
 	var c Config
 
@@ -101,10 +101,10 @@ func setSpannerConfigFile(c Config) error {
 	return nil
 }
 
-//getConfigFromEnv gets configuration from environment variables
+// getConfigFromEnv gets configuration from environment variables
 // when harbourbridge is loading first time.
 // and save it in /web/config.json file.
-func getConfigFromEnv() {
+func GetConfigFromEnv() {
 
 	var c Config
 	c.GCPProjectID = os.Getenv("GCPProjectID")

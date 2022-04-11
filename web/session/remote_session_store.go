@@ -54,20 +54,21 @@ func (svc *spannerStore) GetSessionsMetadata(ctx context.Context) ([]SchemaConve
 	iter := txn.Query(ctx, query)
 	result := []SchemaConversionSession{}
 
+	var err error
 	for {
-		row, err := iter.Next()
-		if err == iterator.Done {
+		row, e := iter.Next()
+		if e == iterator.Done {
 			break
 		}
-		if err != nil {
-			//handle
+		if e != nil {
+			err = e
 			break
 		}
 		var scs SchemaConversionSession
 		row.ToStruct(&scs)
 		result = append(result, scs)
 	}
-	return result, nil
+	return result, err
 }
 
 func (svc *spannerStore) GetConvWithMetadata(ctx context.Context, versionId string) (ConvWithMetadata, error) {

@@ -26,6 +26,7 @@ import (
 	"cloud.google.com/go/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/cloudspannerecosystem/harbourbridge/web/shared"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
@@ -68,15 +69,15 @@ func InitiateSession(w http.ResponseWriter, r *http.Request) {
 
 	var ssvc *SessionService
 	if isValidRemoteStore() {
-		ssvc = NewSessionService(context.Background(), NewLocalSessionStore())
-	} else {
 		ctx := context.Background()
-		spannerClient, err := spanner.NewClient(ctx, getSpannerUri())
+		spannerClient, err := spanner.NewClient(ctx, shared.GetMetadataDbUri())
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Spanner Client error : %v", err), http.StatusInternalServerError)
 		}
 		defer spannerClient.Close()
 		ssvc = NewSessionService(ctx, NewRemoteSessionStore(spannerClient))
+	} else {
+		ssvc = NewSessionService(context.Background(), NewLocalSessionStore())
 	}
 
 	scs := SchemaConversionSession{
@@ -164,7 +165,7 @@ func ResumeSession(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
-func SaveSessionToRemote(w http.ResponseWriter, r *http.Request) {
+func SaveRemoteSession(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
@@ -179,7 +180,7 @@ func SaveSessionToRemote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := context.Background()
-	spannerClient, err := spanner.NewClient(ctx, getSpannerUri())
+	spannerClient, err := spanner.NewClient(ctx, shared.GetMetadataDbUri())
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Spanner Client error : %v", err), http.StatusInternalServerError)
 		return
@@ -218,18 +219,13 @@ func SaveSessionToRemote(w http.ResponseWriter, r *http.Request) {
 //Helpers
 
 func isValidRemoteStore() bool {
-	// ctx := context.Background()
-	// client, err := spanner.NewClient(ctx, getSpannerUri())
-	// defer client.Close()
-	// return err == nil
-
-	//TODO
-	return false
+	//Avoid this every time
+	return shared.PingMetadataDb()
 }
 
 func getRemoteSessions() ([]SchemaConversionSession, error) {
 	ctx := context.Background()
-	spannerClient, err := spanner.NewClient(ctx, getSpannerUri())
+	spannerClient, err := spanner.NewClient(ctx, shared.GetMetadataDbUri())
 	if err != nil {
 		return nil, fmt.Errorf("Spanner Client error : %v", err)
 	}
@@ -255,7 +251,7 @@ func getLocalSessions() ([]SchemaConversionSession, error) {
 func getRemoteConv(versionId string) (ConvWithMetadata, error) {
 	var convm ConvWithMetadata
 	ctx := context.Background()
-	spannerClient, err := spanner.NewClient(ctx, getSpannerUri())
+	spannerClient, err := spanner.NewClient(ctx, shared.GetMetadataDbUri())
 	if err != nil {
 		return convm, err
 	}
@@ -276,8 +272,4 @@ func getLocalConv(versionId string) (ConvWithMetadata, error) {
 		return result, fmt.Errorf("Local session store error : %v", err)
 	}
 	return result, nil
-}
-
-func getSpannerUri() string {
-	return "projects/searce-academy/instances/appdev-ps12/databases/harbourbridge_metadata"
 }

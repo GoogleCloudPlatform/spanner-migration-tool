@@ -18,6 +18,7 @@ import (
 	"net/http"
 
 	"github.com/cloudspannerecosystem/harbourbridge/web/session"
+	"github.com/cloudspannerecosystem/harbourbridge/web/shared"
 	"github.com/gorilla/mux"
 )
 
@@ -52,15 +53,16 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/InitiateSession", session.InitiateSession).Methods("POST")
 	router.HandleFunc("/GetSessions", session.GetSessions).Methods("GET")
 	router.HandleFunc("/GetSession/{versionId}", session.GetConv).Methods("GET")
-	router.HandleFunc("/SaveSession", session.SaveSessionToRemote).Methods("POST")
+	router.HandleFunc("/SaveRemoteSession", session.SaveRemoteSession).Methods("POST")
 	router.HandleFunc("/ResumeSession/{versionId}", session.ResumeSession).Methods("POST")
 
 	// Summary
 	router.HandleFunc("/summary", getSummary).Methods("GET")
 
 	// Application Configuration
-	router.HandleFunc("/getConfig", getConfig).Methods("GET")
-	router.HandleFunc("/setSpannerConfig", setSpannerConfig).Methods("POST")
+	router.HandleFunc("/GetConfig", shared.GetConfig).Methods("GET")
+	router.HandleFunc("/SetSpannerConfig", shared.SetSpannerConfig).Methods("POST")
+
 	router.PathPrefix("/").Handler(http.FileServer(staticFileDirectory))
 
 	return router
