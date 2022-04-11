@@ -78,6 +78,15 @@ func (svc *localStore) SaveSession(ctx context.Context, scs SchemaConversionSess
 	return nil
 }
 
+func (svc *localStore) IsSessionNameUnique(ctx context.Context, scs SchemaConversionSession) (bool, error) {
+	for _, s := range svc.sessions {
+		if s.SessionName == scs.SessionName && s.DatabaseType == scs.DatabaseType && s.DatabaseName == scs.DatabaseName {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
 func getSessionFilePath(dbName string) string {
 	dirPath := "harbour_bridge_output"
 	return fmt.Sprintf("%s/%s/%s.session.json", dirPath, dbName, dbName)

@@ -137,3 +137,28 @@ func (svc *spannerStore) SaveSession(ctx context.Context, scs SchemaConversionSe
 	})
 	return err
 }
+
+func (svc *spannerStore) IsSessionNameUnique(ctx context.Context, scs SchemaConversionSession) (bool, error) {
+	txn := svc.spannerClient.ReadOnlyTransaction()
+	defer txn.Close()
+
+	query := spanner.Statement{
+		SQL: fmt.Sprintf(`SELECT 
+								SessionName,
+								DatabaseType,
+								DatabaseName,
+							FROM SchemaConversionSession 
+							WHERE 
+								SessionName = '%s'
+								AND DatabaseType = '%s'
+								AND DatabaseName = '%s'`,
+			scs.SessionName, scs.DatabaseType, scs.DatabaseName),
+	}
+
+	iter := txn.Query(ctx, query)
+	_, err := iter.Next()
+	if err == iterator.Done {
+		return true, nil
+	}
+	return false, err
+}

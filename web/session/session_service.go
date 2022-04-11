@@ -1,10 +1,18 @@
 package session
 
-import "context"
+import (
+	"context"
+)
 
 type SessionService struct {
 	store   SessionStore
 	context context.Context
+}
+
+type SessionNameError struct{}
+
+func (e *SessionNameError) Error() string {
+	return "session name already exists"
 }
 
 func NewSessionService(ctx context.Context, store SessionStore) *SessionService {
@@ -15,6 +23,15 @@ func NewSessionService(ctx context.Context, store SessionStore) *SessionService 
 }
 
 func (ss *SessionService) SaveSession(scs SchemaConversionSession) error {
+	unique, err := ss.store.IsSessionNameUnique(ss.context, scs)
+	if err != nil {
+		return err
+	}
+
+	if !unique {
+		return &SessionNameError{}
+	}
+
 	return ss.store.SaveSession(ss.context, scs)
 }
 
