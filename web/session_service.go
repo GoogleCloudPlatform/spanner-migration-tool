@@ -11,15 +11,11 @@ import (
 	"google.golang.org/api/iterator"
 )
 
+// TODO: Move the types to a common location
 type SchemaConversionSession struct {
+	SessionMetadata
 	VersionId              string
 	PreviousVersionId      []string
-	SessionName            string
-	EditorName             string
-	DatabaseType           string
-	DatabaseName           string
-	Notes                  []string
-	Tags                   []string
 	SchemaChanges          string
 	SchemaConversionObject string
 	CreatedOn              time.Time
@@ -34,14 +30,14 @@ type SessionMetadata struct {
 	Tags         []string
 }
 
-type SchemaConversionWithMetadata struct {
+type ConvWithMetadata struct {
 	SessionMetadata
 	internal.Conv
 }
 
 type SessionService interface {
-	GetSessions(ctx context.Context) ([]SchemaConversionSession, error)
-	GetSession(ctx context.Context, versionId string) (SchemaConversionWithMetadata, error)
+	GetSessionsMetadata(ctx context.Context) ([]SchemaConversionSession, error)
+	GetConvWithMetadata(ctx context.Context, versionId string) (ConvWithMetadata, error)
 	SaveSession(ctx context.Context, scs SchemaConversionSession) error
 }
 
@@ -55,7 +51,7 @@ func NewSessionService(spannerClient *spanner.Client) SessionService {
 	return &service{spannerClient: spannerClient}
 }
 
-func (svc *service) GetSessions(ctx context.Context) ([]SchemaConversionSession, error) {
+func (svc *service) GetSessionsMetadata(ctx context.Context) ([]SchemaConversionSession, error) {
 	txn := svc.spannerClient.ReadOnlyTransaction()
 	defer txn.Close()
 
@@ -91,29 +87,55 @@ func (svc *service) GetSessions(ctx context.Context) ([]SchemaConversionSession,
 	return result, nil
 }
 
-func (svc *service) GetSession(ctx context.Context, versionId string) (SchemaConversionWithMetadata, error) {
+func (svc *service) GetConvWithMetadata(ctx context.Context, versionId string) (ConvWithMetadata, error) {
 	txn := svc.spannerClient.ReadOnlyTransaction()
 	defer txn.Close()
 
 	query := spanner.Statement{
-		SQL: fmt.Sprintf(`SELECT TO_JSON_STRING(SchemaConversionObject) FROM SchemaConversionSession WHERE VersionId = '%s'`, versionId),
+		SQL: fmt.Sprintf(`SELECT 
+								SessionName,
+								EditorName,
+								DatabaseType,
+								DatabaseName,
+								Notes,
+								Tags,
+								VersionId,
+								PreviousVersionId,
+								SchemaChanges,
+								TO_JSON_STRING(SchemaConversionObject) AS SchemaConversionObject,
+								CreatedOn
+							FROM SchemaConversionSession 
+							WHERE VersionId = '%s'`, versionId),
 	}
 
 	iter := txn.Query(ctx, query)
-	var convm SchemaConversionWithMetadata
+	var convm ConvWithMetadata
+	var scs SchemaConversionSession
 	err := iter.Do(func(row *spanner.Row) error {
-		var d string
-		if e := row.Columns(&d); e != nil {
-			return e
-		}
-		if e := json.Unmarshal([]byte(d), &convm); e != nil {
-			return e
+		if err := row.ToStruct(&scs); err != nil {
+			return err
 		}
 		return nil
 	})
 	if err != nil {
 		return convm, err
 	}
+
+	var conv internal.Conv
+	if err := json.Unmarshal([]byte(scs.SchemaConversionObject), &conv); err != nil {
+		return convm, err
+	}
+
+	convm.Conv = conv
+	convm.SessionMetadata = SessionMetadata{
+		SessionName:  scs.SessionName,
+		EditorName:   scs.EditorName,
+		DatabaseType: scs.DatabaseType,
+		DatabaseName: scs.DatabaseName,
+		Notes:        scs.Notes,
+		Tags:         scs.Tags,
+	}
+
 	return convm, nil
 }
 
