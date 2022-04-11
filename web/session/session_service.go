@@ -14,8 +14,8 @@ func NewSessionService(ctx context.Context, store SessionStore) *SessionService 
 	return ss
 }
 
-func (ss *SessionService) CreateSession(scs SchemaConversionSession) error {
-	return ss.store.CreateSession(ss.context, scs)
+func (ss *SessionService) SaveSession(scs SchemaConversionSession) error {
+	return ss.store.SaveSession(ss.context, scs)
 }
 
 func (ss *SessionService) GetSessionsMetadata() ([]SchemaConversionSession, error) {

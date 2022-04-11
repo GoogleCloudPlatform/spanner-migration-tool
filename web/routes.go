@@ -48,12 +48,13 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/add/indexes", addIndexes).Methods("POST")
 
 	// Session Management
-	router.HandleFunc("/session", session.CreateSession).Methods("GET")
+	router.HandleFunc("/InitiateSession", session.InitiateSession).Methods("POST")
 	router.HandleFunc("/SaveSession", session.SaveSession).Methods("POST")
 	router.HandleFunc("/GetSessions", session.GetConvSessionsMetadata).Methods("GET")
 	router.HandleFunc("/GetSession/{versionId}", session.GetConvSession).Methods("GET")
 	router.HandleFunc("/ResumeSession/{versionId}", session.ResumeRemoteSession).Methods("GET")
 	router.HandleFunc("/session/resume", session.ResumeLocalSession).Methods("POST")
+	router.HandleFunc("/IsValidRemoteSessionStore", session.IsValidRemoteSessionStore).Methods("GET")
 
 	// Summary
 	router.HandleFunc("/summary", getSummary).Methods("GET")

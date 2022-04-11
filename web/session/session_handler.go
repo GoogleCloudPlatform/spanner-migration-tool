@@ -41,29 +41,43 @@ type sessionParams struct {
 	CreatedAt string `json:"createdAt"`
 }
 
-func CreateSession(w http.ResponseWriter, r *http.Request) {
+func InitiateSession(w http.ResponseWriter, r *http.Request) {
 	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
 	now := time.Now()
 	sessionState := GetSessionState()
 
-	dbName := sessionState.DbName
 	var err error
-	if dbName == "" {
-		dbName, err = utils.GetDatabaseName(sessionState.Driver, now)
+	if sessionState.DbName == "" {
+		sessionState.DbName, err = utils.GetDatabaseName(sessionState.Driver, now)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Can not create database name : %v", err), http.StatusInternalServerError)
 		}
 	}
-	dirPath, err := conversion.WriteConvGeneratedFiles(sessionState.Conv, dbName, sessionState.Driver, ioHelper.BytesRead, ioHelper.Out)
+	dirPath, err := conversion.WriteConvGeneratedFiles(sessionState.Conv, sessionState.DbName, sessionState.Driver, ioHelper.BytesRead, ioHelper.Out)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Cannot write files : %v", err), http.StatusInternalServerError)
 	}
-	filePath := dirPath + dbName + ".session.json"
-	session := sessionParams{Driver: sessionState.Driver, FilePath: filePath, DBName: dbName, CreatedAt: now.Format(time.RFC1123)}
-	sessionState.DbName = dbName
+
+	sessionName := sessionState.DbName + ".session.json"
+	filePath := dirPath + sessionName
 	sessionState.SessionFile = filePath
+
+	scs := SchemaConversionSession{
+		VersionId: uuid.New().String(),
+		CreatedOn: now,
+		FilePath:  filePath,
+		SessionMetadata: SessionMetadata{
+			SessionName:  sessionName,
+			DatabaseType: sessionState.Driver,
+			DatabaseName: sessionState.DbName,
+		},
+	}
+
+	ssvc := NewSessionService(nil, NewLocalSessionStore())
+	ssvc.SaveSession(scs)
+
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(session)
+	json.NewEncoder(w).Encode(scs)
 }
 
 func ResumeLocalSession(w http.ResponseWriter, r *http.Request) {
@@ -124,7 +138,7 @@ func GetConvSessionsMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 	defer spannerClient.Close()
 
-	svc := NewSessionService(ctx, NewSessionStore(spannerClient))
+	svc := NewSessionService(ctx, NewRemoteSessionStore(spannerClient))
 
 	result, err := svc.GetSessionsMetadata()
 	if err != nil {
@@ -176,7 +190,7 @@ func SaveSession(w http.ResponseWriter, r *http.Request) {
 	defer spannerClient.Close()
 
 	sessionState := GetSessionState()
-	ssvc := NewSessionService(ctx, NewSessionStore(spannerClient))
+	ssvc := NewSessionService(ctx, NewRemoteSessionStore(spannerClient))
 	conv, err := json.Marshal(sessionState.Conv)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Conv object error : %v", err), http.StatusInternalServerError)
@@ -194,7 +208,7 @@ func SaveSession(w http.ResponseWriter, r *http.Request) {
 		SessionMetadata:        sm,
 	}
 
-	err = ssvc.CreateSession(scs)
+	err = ssvc.SaveSession(scs)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Spanner Transaction error : %v", err), http.StatusInternalServerError)
 		return
@@ -202,6 +216,11 @@ func SaveSession(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode("Save successful, VersionId : " + scs.VersionId)
+}
+
+func IsValidRemoteSessionStore(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(isValidSpannerConfig())
 }
 
 func getConvWithMetadata(versionId string) (ConvWithMetadata, error) {
@@ -213,7 +232,7 @@ func getConvWithMetadata(versionId string) (ConvWithMetadata, error) {
 	}
 	defer spannerClient.Close()
 
-	ssvc := NewSessionService(ctx, NewSessionStore(spannerClient))
+	ssvc := NewSessionService(ctx, NewRemoteSessionStore(spannerClient))
 	convm, err = ssvc.GetConvWithMetadata(versionId)
 	if err != nil {
 		return convm, err
@@ -233,5 +252,13 @@ func resumeRemoteSession(vid string) (ConvWithMetadata, error) {
 }
 
 func getSpannerUri() string {
-	return "projects/searce-academy/instances/appdev-ps1/databases/harbourbridge_metadata"
+	return "projects/searce-academy/instances/appdev-ps12/databases/harbourbridge_metadata"
+}
+
+func isValidSpannerConfig() bool {
+	ctx := context.Background()
+	client, err := spanner.NewClient(ctx, getSpannerUri())
+	defer client.Close()
+
+	return err == nil
 }
