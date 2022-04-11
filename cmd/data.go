@@ -27,7 +27,9 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/google/subcommands"
+	"github.com/google/uuid"
 )
 
 // DataCmd struct with flags.
@@ -151,8 +153,12 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	}
 	defer adminClient.Close()
 
+	// Populate migration request id and migration type in conv object
+	conv.MigrationRequestId = "HB-" + uuid.New().String()
+	conv.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
+
 	if !sourceProfile.UseTargetSchema() {
-		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, conv, ioHelper.Out)
+		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
 		if err != nil {
 			err = fmt.Errorf("can't create/update database: %v", err)
 			return subcommands.ExitFailure

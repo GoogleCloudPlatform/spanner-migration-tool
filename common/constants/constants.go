@@ -54,4 +54,8 @@ const (
 
 	// Temp directory name to write data which we cleanup at the end.
 	HB_TMP_DIR string = "harbourbridge_tmp_data"
+
+	// Information on what conversion is happening (schema conv or data conv)
+	SchemaConv string = "schema_conv"
+	DataConv   string = "data_conv"
 )

@@ -26,6 +26,7 @@ import (
 	"bufio"
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -43,8 +44,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/cloudspannerecosystem/harbourbridge/common/metrics"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
@@ -66,6 +70,8 @@ var (
 	// If facing a quota limit error, consider reducing this value.
 	MaxWorkers = 20
 )
+
+const migrationMetadataKey = "cloud-spanner-migration-metadata"
 
 // SchemaConv performs the schema conversion
 // TODO: Pass around cmd.SourceProfile instead of sqlConnectionStr and schemaSampleSize.
@@ -186,25 +192,7 @@ func dataFromDatabase(sourceProfile profiles.SourceProfile, config writer.BatchW
 	common.SetRowStats(conv, infoSchema)
 	totalRows := conv.Rows()
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
-	rows := int64(0)
-	config.Write = func(m []*sp.Mutation) error {
-		_, err := client.Apply(context.Background(), m)
-		if err != nil {
-			return err
-		}
-		atomic.AddInt64(&rows, int64(len(m)))
-		p.MaybeReport(atomic.LoadInt64(&rows))
-		return nil
-	}
-	batchWriter := writer.NewBatchWriter(config)
-	conv.SetDataMode()
-	conv.SetDataSink(
-		func(table string, cols []string, vals []interface{}) {
-			batchWriter.AddRow(table, cols, vals)
-		})
-	conv.DataFlush = func() {
-		batchWriter.Flush()
-	}
+	batchWriter := populateDataConv(conv, config, client, p)
 	common.ProcessData(conv, infoSchema)
 	batchWriter.Flush()
 	return batchWriter, nil
@@ -266,25 +254,7 @@ func dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *util
 
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 	r := internal.NewReader(bufio.NewReader(ioHelper.SeekableIn), nil)
-	rows := int64(0)
-	config.Write = func(m []*sp.Mutation) error {
-		_, err := client.Apply(context.Background(), m)
-		if err != nil {
-			return err
-		}
-		atomic.AddInt64(&rows, int64(len(m)))
-		p.MaybeReport(atomic.LoadInt64(&rows))
-		return nil
-	}
-	batchWriter := writer.NewBatchWriter(config)
-	conv.SetDataMode() // Process data in dump; schema is unchanged.
-	conv.SetDataSink(
-		func(table string, cols []string, vals []interface{}) {
-			batchWriter.AddRow(table, cols, vals)
-		})
-	conv.DataFlush = func() {
-		batchWriter.Flush()
-	}
+	batchWriter := populateDataConv(conv, config, client, p)
 	ProcessDump(driver, conv, r)
 	batchWriter.Flush()
 	p.Done()
@@ -328,16 +298,31 @@ func dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targ
 	if err != nil {
 		return nil, err
 	}
+
 	totalRows := conv.Rows()
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
+	batchWriter := populateDataConv(conv, config, client, p)
+	err = csv.ProcessCSV(conv, tables, sourceProfile.Csv.NullStr, delimiter)
+	if err != nil {
+		return nil, fmt.Errorf("can't process csv: %v", err)
+	}
+	batchWriter.Flush()
+	p.Done()
+	return batchWriter, nil
+}
+
+func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, client *sp.Client, progress *internal.Progress) *writer.BatchWriter {
 	rows := int64(0)
 	config.Write = func(m []*sp.Mutation) error {
-		_, err := client.Apply(context.Background(), m)
+		migrationData := metrics.GetMigrationData(conv, "", "", constants.DataConv)
+		serializedMigrationData, _ := proto.Marshal(migrationData)
+		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
+		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), migrationMetadataKey, migrationMetadataValue), m)
 		if err != nil {
 			return err
 		}
 		atomic.AddInt64(&rows, int64(len(m)))
-		p.MaybeReport(atomic.LoadInt64(&rows))
+		progress.MaybeReport(atomic.LoadInt64(&rows))
 		return nil
 	}
 	batchWriter := writer.NewBatchWriter(config)
@@ -349,13 +334,7 @@ func dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targ
 	conv.DataFlush = func() {
 		batchWriter.Flush()
 	}
-	err = csv.ProcessCSV(conv, tables, sourceProfile.Csv.NullStr, delimiter)
-	if err != nil {
-		return nil, fmt.Errorf("can't process csv: %v", err)
-	}
-	batchWriter.Flush()
-	p.Done()
-	return batchWriter, nil
+	return batchWriter
 }
 
 // Report generates a report of schema and data conversion.
@@ -461,11 +440,16 @@ func ValidateDDL(ctx context.Context, adminClient *database.DatabaseAdminClient,
 }
 
 // CreatesOrUpdatesDatabase updates an existing Spanner database or creates a new one if one does not exist.
-func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File) error {
+func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI, driver, targetDb string, conv *internal.Conv, out *os.File) error {
 	dbExists, err := VerifyDb(ctx, adminClient, dbURI)
 	if err != nil {
 		return err
 	}
+	// Adding migration metadata to the outgoing context.
+	migrationData := metrics.GetMigrationData(conv, driver, targetDb, constants.SchemaConv)
+	serializedMigrationData, _ := proto.Marshal(migrationData)
+	migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
+	ctx = metadata.AppendToOutgoingContext(ctx, migrationMetadataKey, migrationMetadataValue)
 	if dbExists {
 		err := UpdateDatabase(ctx, adminClient, dbURI, conv, out)
 		if err != nil {
