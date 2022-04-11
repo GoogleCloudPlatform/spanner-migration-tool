@@ -41,9 +41,9 @@ type sessionParams struct {
 	CreatedAt string `json:"createdAt"`
 }
 
-func IsValidRemoteStore(w http.ResponseWriter, r *http.Request) {
+func IsOfflineSession(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(isValidRemoteStore())
+	json.NewEncoder(w).Encode(GetSessionState().IsOffline)
 }
 
 func InitiateSession(w http.ResponseWriter, r *http.Request) {
@@ -78,9 +78,11 @@ func InitiateSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var ssvc *SessionService
-	if isValidRemoteStore() {
+	if GetSessionState().IsOffline {
+		ssvc = NewSessionService(context.Background(), NewLocalSessionStore())
+	} else {
 		ctx := context.Background()
-		spannerClient, err := spanner.NewClient(ctx, shared.GetMetadataDbUri())
+		spannerClient, err := spanner.NewClient(ctx, getMetadataDbUri())
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Spanner Client error : %v", err), http.StatusInternalServerError)
 		}
@@ -90,8 +92,6 @@ func InitiateSession(w http.ResponseWriter, r *http.Request) {
 		conv, _ := json.Marshal(sessionState.Conv)
 		scs.SchemaConversionObject = string(conv)
 		scs.Notes = []string{"init"}
-	} else {
-		ssvc = NewSessionService(context.Background(), NewLocalSessionStore())
 	}
 
 	ssvc.SaveSession(scs)
@@ -103,10 +103,10 @@ func InitiateSession(w http.ResponseWriter, r *http.Request) {
 func GetSessions(w http.ResponseWriter, r *http.Request) {
 	var sessions []SchemaConversionSession
 	var err error
-	if isValidRemoteStore() {
-		sessions, err = getRemoteSessions()
-	} else {
+	if GetSessionState().IsOffline {
 		sessions, err = getLocalSessions()
+	} else {
+		sessions, err = getRemoteSessions()
 	}
 	if err != nil {
 		http.Error(w, fmt.Sprintf("%v", err), http.StatusInternalServerError)
@@ -126,10 +126,10 @@ func GetConv(w http.ResponseWriter, r *http.Request) {
 
 	var convm ConvWithMetadata
 	var err error
-	if isValidRemoteStore() {
-		convm, err = getRemoteConv(vid)
-	} else {
+	if GetSessionState().IsOffline {
 		convm, err = getLocalConv(vid)
+	} else {
+		convm, err = getRemoteConv(vid)
 	}
 	if err != nil {
 		http.Error(w, fmt.Sprintf("%v", err), http.StatusInternalServerError)
@@ -149,10 +149,10 @@ func ResumeSession(w http.ResponseWriter, r *http.Request) {
 
 	var convm ConvWithMetadata
 	var err error
-	if isValidRemoteStore() {
-		convm, err = getRemoteConv(vid)
-	} else {
+	if GetSessionState().IsOffline {
 		convm, err = getLocalConv(vid)
+	} else {
+		convm, err = getRemoteConv(vid)
 	}
 	if err != nil {
 		http.Error(w, fmt.Sprintf("%v", err), http.StatusInternalServerError)
@@ -183,7 +183,7 @@ func SaveRemoteSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := context.Background()
-	spannerClient, err := spanner.NewClient(ctx, shared.GetMetadataDbUri())
+	spannerClient, err := spanner.NewClient(ctx, getMetadataDbUri())
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Spanner Client error : %v", err), http.StatusInternalServerError)
 		return
@@ -203,7 +203,6 @@ func SaveRemoteSession(w http.ResponseWriter, r *http.Request) {
 	scs := SchemaConversionSession{
 		VersionId:              uuid.New().String(),
 		PreviousVersionId:      []string{},
-		SchemaChanges:          "N/A",
 		SchemaConversionObject: string(conv),
 		CreatedOn:              t,
 		SessionMetadata:        sm,
@@ -221,14 +220,9 @@ func SaveRemoteSession(w http.ResponseWriter, r *http.Request) {
 
 //Helpers
 
-func isValidRemoteStore() bool {
-	//Avoid this every time
-	return shared.PingMetadataDb()
-}
-
 func getRemoteSessions() ([]SchemaConversionSession, error) {
 	ctx := context.Background()
-	spannerClient, err := spanner.NewClient(ctx, shared.GetMetadataDbUri())
+	spannerClient, err := spanner.NewClient(ctx, getMetadataDbUri())
 	if err != nil {
 		return nil, fmt.Errorf("Spanner Client error : %v", err)
 	}
@@ -254,7 +248,7 @@ func getLocalSessions() ([]SchemaConversionSession, error) {
 func getRemoteConv(versionId string) (ConvWithMetadata, error) {
 	var convm ConvWithMetadata
 	ctx := context.Background()
-	spannerClient, err := spanner.NewClient(ctx, shared.GetMetadataDbUri())
+	spannerClient, err := spanner.NewClient(ctx, getMetadataDbUri())
 	if err != nil {
 		return convm, err
 	}
@@ -275,4 +269,12 @@ func getLocalConv(versionId string) (ConvWithMetadata, error) {
 		return result, fmt.Errorf("Local session store error : %v", err)
 	}
 	return result, nil
+}
+
+func getMetadataDbUri() string {
+	sessionState := GetSessionState()
+	if sessionState.GCPProjectID == "" || sessionState.SpannerInstanceID == "" {
+		return ""
+	}
+	return shared.GetSpannerUri(sessionState.GCPProjectID, sessionState.SpannerInstanceID)
 }

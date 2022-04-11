@@ -45,6 +45,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/web/config"
 	"github.com/cloudspannerecosystem/harbourbridge/web/session"
 	"github.com/cloudspannerecosystem/harbourbridge/web/shared"
 	_ "github.com/go-sql-driver/mysql"
@@ -1249,9 +1250,20 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 }
 func init() {
 
-	config, err := shared.GetConfigForSpanner()
-	if err != nil || config.GCPProjectID == "" || config.SpannerInstanceID == "" {
-		shared.GetConfigFromEnv()
+	c, err := config.GetConfigForSpanner()
+	if err != nil || c.GCPProjectID == "" || c.SpannerInstanceID == "" {
+		config.GetConfigFromEnv()
+	} else {
+		sessionState := session.GetSessionState()
+		if shared.PingMetadataDb(shared.GetSpannerUri(c.GCPProjectID, c.SpannerInstanceID)) {
+			sessionState.IsOffline = false
+			sessionState.GCPProjectID = c.GCPProjectID
+			sessionState.SpannerInstanceID = c.SpannerInstanceID
+		} else {
+			sessionState.IsOffline = true
+			sessionState.GCPProjectID = ""
+			sessionState.SpannerInstanceID = ""
+		}
 	}
 
 	// Initialize mysqlTypeMap.

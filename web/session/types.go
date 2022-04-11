@@ -32,9 +32,12 @@ type ConvWithMetadata struct {
 
 // SessionState stores information for the current migration session.
 type SessionState struct {
-	SourceDB    *sql.DB        // Connection to source database in case of direct connection
-	DbName      string         // Name of source database
-	Driver      string         // Name of HarbourBridge driver in use
-	Conv        *internal.Conv // Current conversion state
-	SessionFile string         // Path to session file
+	SourceDB          *sql.DB        // Connection to source database in case of direct connection
+	DbName            string         // Name of source database
+	Driver            string         // Name of HarbourBridge driver in use
+	Conv              *internal.Conv // Current conversion state
+	SessionFile       string         // Path to session file
+	IsOffline         bool           // True if the connection to remote metadata database is invalid
+	GCPProjectID      string
+	SpannerInstanceID string
 }

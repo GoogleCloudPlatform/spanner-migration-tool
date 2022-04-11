@@ -7,27 +7,25 @@ import (
 	"cloud.google.com/go/spanner"
 )
 
-func GetSessionFilePath(dbName string) string {
-	dirPath := "harbour_bridge_output"
-	return fmt.Sprintf("%s/%s/%s.session.json", dirPath, dbName, dbName)
+// func GetMetadataDbUri() string {
+// 	config, err := config.GetConfigForSpanner()
+// 	if err != nil || config.GCPProjectID == "" || config.SpannerInstanceID == "" {
+// 		return ""
+// 	}
+// 	return GetSpannerUri(config.GCPProjectID, config.SpannerInstanceID)
+// }
+
+func GetSpannerUri(projectId string, instanceId string) string {
+	return fmt.Sprintf("projects/%s/instances/%s/databases/harbourbridge_metadata", projectId, instanceId)
 }
 
-func GetMetadataDbUri() string {
-	config, err := GetConfigForSpanner()
-	if err != nil || config.GCPProjectID == "" || config.SpannerInstanceID == "" {
-		return ""
-	}
-	return fmt.Sprintf("projects/%s/instances/%s/databases/harbourbridge_metadata", config.GCPProjectID, config.SpannerInstanceID)
-}
-
-func PingMetadataDb() bool {
-	spUri := GetMetadataDbUri()
-	if spUri == "" {
+func PingMetadataDb(uri string) bool {
+	if uri == "" {
 		return false
 	}
 
 	ctx := context.Background()
-	spClient, err := spanner.NewClient(ctx, spUri)
+	spClient, err := spanner.NewClient(ctx, uri)
 	defer spClient.Close()
 	if err != nil {
 		return false

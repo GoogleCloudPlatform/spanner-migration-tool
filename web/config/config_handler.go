@@ -1,4 +1,4 @@
-package shared
+package config
 
 import (
 	"encoding/json"
@@ -7,6 +7,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/cloudspannerecosystem/harbourbridge/web/session"
+	"github.com/cloudspannerecosystem/harbourbridge/web/shared"
 )
 
 //Config represents Spanner Configiuration for Spanner Session Management.
@@ -17,22 +20,18 @@ type Config struct {
 
 // getConfig returns configurations.
 func GetConfig(w http.ResponseWriter, r *http.Request) {
-
 	content, err := GetConfigForSpanner()
-
 	if err != nil {
 		http.Error(w, "Data access error", http.StatusBadRequest)
 		log.Println(err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-
 	json.NewEncoder(w).Encode(content)
 }
 
 // setSpannerConfig sets Spanner Config.
 func SetSpannerConfig(w http.ResponseWriter, r *http.Request) {
-
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Println(err)
@@ -60,9 +59,7 @@ func SetSpannerConfig(w http.ResponseWriter, r *http.Request) {
 
 //getConfigForSpanner reads configuration from configuration file.
 func GetConfigForSpanner() (Config, error) {
-
 	var c Config
-
 	content, err := ioutil.ReadFile("./web/config.json")
 	if err != nil {
 		log.Println(err)
@@ -79,6 +76,7 @@ func GetConfigForSpanner() (Config, error) {
 
 //setSpannerConfigFile saves spanner configuration in configuration file.
 func setSpannerConfigFile(c Config) error {
+	sessionState := session.GetSessionState()
 
 	f, err := os.OpenFile("./web/config.json", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
@@ -98,6 +96,18 @@ func setSpannerConfigFile(c Config) error {
 		log.Println(err)
 		return err
 	}
+
+	isValid := shared.PingMetadataDb(shared.GetSpannerUri(c.GCPProjectID, c.SpannerInstanceID))
+	if !isValid {
+		sessionState.IsOffline = true
+		sessionState.GCPProjectID = ""
+		sessionState.SpannerInstanceID = ""
+	} else {
+		sessionState.GCPProjectID = c.GCPProjectID
+		sessionState.SpannerInstanceID = c.SpannerInstanceID
+		sessionState.IsOffline = false
+	}
+
 	return nil
 }
 
@@ -105,18 +115,15 @@ func setSpannerConfigFile(c Config) error {
 // when harbourbridge is loading first time.
 // and save it in /web/config.json file.
 func GetConfigFromEnv() {
-
 	var c Config
 	c.GCPProjectID = os.Getenv("GCPProjectID")
 	c.SpannerInstanceID = os.Getenv("SpannerInstanceID ")
 
 	if c.GCPProjectID == "" || c.SpannerInstanceID == "" {
-
 		log.Println("warning : please set GCPProjectID and SpannerInstanceID as environment variables")
 	}
 
 	f, err := os.OpenFile("./web/config.json", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
-
 	if err != nil {
 		log.Println(err)
 	}
