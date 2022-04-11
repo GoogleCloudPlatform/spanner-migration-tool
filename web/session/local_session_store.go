@@ -16,6 +16,9 @@ package session
 
 import (
 	"context"
+	"fmt"
+
+	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 )
 
 type localStore struct {
@@ -43,17 +46,30 @@ func (svc *localStore) GetSessionsMetadata(ctx context.Context) ([]SchemaConvers
 
 func (svc *localStore) GetConvWithMetadata(ctx context.Context, versionId string) (ConvWithMetadata, error) {
 	var convm ConvWithMetadata
+	var match *SchemaConversionSession
 	for _, s := range svc.sessions {
 		if s.VersionId == versionId {
-			convm.SessionMetadata = SessionMetadata{
-				SessionName:  s.SessionName,
-				EditorName:   s.EditorName,
-				DatabaseType: s.DatabaseType,
-				DatabaseName: s.DatabaseName,
-			}
+			match = &s
 			break
 		}
 	}
+
+	if match == nil {
+		return convm, fmt.Errorf("No session found in local")
+	}
+
+	convm.SessionMetadata = SessionMetadata{
+		SessionName:  match.SessionName,
+		EditorName:   match.EditorName,
+		DatabaseType: match.DatabaseType,
+		DatabaseName: match.DatabaseName,
+	}
+
+	err := conversion.ReadSessionFile(&convm.Conv, match.FilePath)
+	if err != nil {
+		return convm, fmt.Errorf("Failed to open the session file : %v", err)
+	}
+
 	return convm, nil
 }
 

@@ -26,7 +26,6 @@ import (
 	"cloud.google.com/go/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
@@ -39,6 +38,11 @@ type sessionParams struct {
 	FilePath  string `json:"filePath"`
 	DBName    string `json:"dbName"`
 	CreatedAt string `json:"createdAt"`
+}
+
+func IsValidRemoteStore(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(isValidRemoteStore())
 }
 
 func InitiateSession(w http.ResponseWriter, r *http.Request) {
@@ -96,37 +100,7 @@ func GetSessions(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(sessions)
 }
 
-func ResumeLocalSession(w http.ResponseWriter, r *http.Request) {
-	sessionState := GetSessionState()
-
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-		return
-	}
-	var s sessionParams
-	err = json.Unmarshal(reqBody, &s)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
-		return
-	}
-	sessionState.Conv = internal.MakeConv()
-	err = conversion.ReadSessionFile(sessionState.Conv, s.FilePath)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to open the session file: %v", err), http.StatusNotFound)
-		return
-	}
-	sessionState.Driver = s.Driver
-	sessionState.DbName = s.DBName
-	sessionState.SessionFile = s.FilePath
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sessionState.Conv)
-}
-
-func ResumeRemoteSession(w http.ResponseWriter, r *http.Request) {
-	// This function should resume either Remote or Local resume
-	// ToDo: Check if user has access to spanner
-
+func GetConv(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	vid, ok := vars["versionId"]
 	if !ok {
@@ -134,56 +108,52 @@ func ResumeRemoteSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	convm, err := resumeRemoteSession(vid)
+	var convm ConvWithMetadata
+	var err error
+	if isValidRemoteStore() {
+		convm, err = getRemoteConv(vid)
+	} else {
+		convm, err = getLocalConv(vid)
+	}
 	if err != nil {
-		http.Error(w, "Data access error", http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("%v", err), http.StatusInternalServerError)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+}
+
+func ResumeSession(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	vid, ok := vars["versionId"]
+	if !ok {
+		http.Error(w, "VersionId not supplied", http.StatusBadRequest)
+		return
+	}
+
+	var convm ConvWithMetadata
+	var err error
+	if isValidRemoteStore() {
+		convm, err = getRemoteConv(vid)
+	} else {
+		convm, err = getLocalConv(vid)
+	}
+	if err != nil {
+		http.Error(w, fmt.Sprintf("%v", err), http.StatusInternalServerError)
+		return
+	}
+
+	sessionState := GetSessionState()
+	sessionState.Conv = &convm.Conv
+	sessionState.Driver = convm.DatabaseType
+	sessionState.DbName = convm.DatabaseName
+	//sessionState.SessionFile = "" //TODO
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 }
 
-func GetConvSessionsMetadata(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
-
-	spannerClient, err := spanner.NewClient(ctx, getSpannerUri())
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Spanner Client error : %v", err), http.StatusInternalServerError)
-		return
-	}
-	defer spannerClient.Close()
-
-	svc := NewSessionService(ctx, NewRemoteSessionStore(spannerClient))
-
-	result, err := svc.GetSessionsMetadata()
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Spanner Transaction error : %v", err), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(result)
-}
-
-func GetConvSession(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	vid, ok := vars["versionId"]
-	if !ok {
-		http.Error(w, "VersionId not supplied", http.StatusBadRequest)
-		return
-	}
-
-	conv, err := getConvWithMetadata(vid)
-	if err != nil {
-		http.Error(w, "Data access error", http.StatusBadRequest)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(conv)
-}
-
-func SaveSession(w http.ResponseWriter, r *http.Request) {
+func SaveSessionToRemote(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
@@ -234,11 +204,6 @@ func SaveSession(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode("Save successful, VersionId : " + scs.VersionId)
 }
 
-func IsValidRemoteStore(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(isValidRemoteStore())
-}
-
 //Helpers
 
 func isValidRemoteStore() bool {
@@ -248,7 +213,7 @@ func isValidRemoteStore() bool {
 	// return err == nil
 
 	//TODO
-	return true
+	return false
 }
 
 func getRemoteSessions() ([]SchemaConversionSession, error) {
@@ -276,7 +241,7 @@ func getLocalSessions() ([]SchemaConversionSession, error) {
 	return result, nil
 }
 
-func getConvWithMetadata(versionId string) (ConvWithMetadata, error) {
+func getRemoteConv(versionId string) (ConvWithMetadata, error) {
 	var convm ConvWithMetadata
 	ctx := context.Background()
 	spannerClient, err := spanner.NewClient(ctx, getSpannerUri())
@@ -293,15 +258,13 @@ func getConvWithMetadata(versionId string) (ConvWithMetadata, error) {
 	return convm, nil
 }
 
-func resumeRemoteSession(vid string) (ConvWithMetadata, error) {
-	convm, err := getConvWithMetadata(vid)
+func getLocalConv(versionId string) (ConvWithMetadata, error) {
+	svc := NewSessionService(context.Background(), NewLocalSessionStore())
+	result, err := svc.GetConvWithMetadata(versionId)
 	if err != nil {
-		return convm, err
+		return result, fmt.Errorf("Local session store error : %v", err)
 	}
-
-	sessionState := GetSessionState()
-	sessionState.Conv = &convm.Conv
-	return convm, nil
+	return result, nil
 }
 
 func getSpannerUri() string {
