@@ -66,6 +66,19 @@ func InitiateSession(w http.ResponseWriter, r *http.Request) {
 	filePath := dirPath + sessionName
 	sessionState.SessionFile = filePath
 
+	var ssvc *SessionService
+	if isValidRemoteStore() {
+		ssvc = NewSessionService(context.Background(), NewLocalSessionStore())
+	} else {
+		ctx := context.Background()
+		spannerClient, err := spanner.NewClient(ctx, getSpannerUri())
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Spanner Client error : %v", err), http.StatusInternalServerError)
+		}
+		defer spannerClient.Close()
+		ssvc = NewSessionService(ctx, NewRemoteSessionStore(spannerClient))
+	}
+
 	scs := SchemaConversionSession{
 		VersionId: uuid.New().String(),
 		CreatedOn: now,
@@ -76,8 +89,6 @@ func InitiateSession(w http.ResponseWriter, r *http.Request) {
 			DatabaseName: sessionState.DbName,
 		},
 	}
-
-	ssvc := NewSessionService(nil, NewLocalSessionStore())
 	ssvc.SaveSession(scs)
 
 	w.WriteHeader(http.StatusOK)
