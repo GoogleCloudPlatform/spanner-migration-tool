@@ -34,9 +34,14 @@ type SessionMetadata struct {
 	Tags         []string
 }
 
+type SchemaConversionWithMetadata struct {
+	SessionMetadata
+	internal.Conv
+}
+
 type SessionService interface {
 	GetSessions(ctx context.Context) ([]SchemaConversionSession, error)
-	GetSession(ctx context.Context, versionId string) (internal.Conv, error)
+	GetSession(ctx context.Context, versionId string) (SchemaConversionWithMetadata, error)
 	SaveSession(ctx context.Context, scs SchemaConversionSession) error
 }
 
@@ -86,7 +91,7 @@ func (svc *service) GetSessions(ctx context.Context) ([]SchemaConversionSession,
 	return result, nil
 }
 
-func (svc *service) GetSession(ctx context.Context, versionId string) (internal.Conv, error) {
+func (svc *service) GetSession(ctx context.Context, versionId string) (SchemaConversionWithMetadata, error) {
 	txn := svc.spannerClient.ReadOnlyTransaction()
 	defer txn.Close()
 
@@ -95,21 +100,21 @@ func (svc *service) GetSession(ctx context.Context, versionId string) (internal.
 	}
 
 	iter := txn.Query(ctx, query)
-	var conv internal.Conv
+	var convm SchemaConversionWithMetadata
 	err := iter.Do(func(row *spanner.Row) error {
 		var d string
 		if e := row.Columns(&d); e != nil {
 			return e
 		}
-		if e := json.Unmarshal([]byte(d), &conv); e != nil {
+		if e := json.Unmarshal([]byte(d), &convm); e != nil {
 			return e
 		}
 		return nil
 	})
 	if err != nil {
-		return conv, err
+		return convm, err
 	}
-	return conv, nil
+	return convm, nil
 }
 
 func (svc *service) SaveSession(ctx context.Context, scs SchemaConversionSession) error {
