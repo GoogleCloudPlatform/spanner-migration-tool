@@ -26,6 +26,7 @@ import (
 	"cloud.google.com/go/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/web/shared"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -216,6 +217,33 @@ func SaveRemoteSession(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode("Save successful, VersionId : " + scs.VersionId)
+}
+
+func LoadSession(w http.ResponseWriter, r *http.Request) {
+	sessionState := GetSessionState()
+
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var s sessionParams
+	err = json.Unmarshal(reqBody, &s)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+	sessionState.Conv = internal.MakeConv()
+	err = conversion.ReadSessionFile(sessionState.Conv, s.FilePath)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to open the session file: %v", err), http.StatusNotFound)
+		return
+	}
+	sessionState.Driver = s.Driver
+	sessionState.DbName = s.DBName
+	sessionState.SessionFile = s.FilePath
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(sessionState.Conv)
 }
 
 //Helpers
