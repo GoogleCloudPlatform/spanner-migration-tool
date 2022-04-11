@@ -99,7 +99,7 @@ func getSessions(w http.ResponseWriter, r *http.Request) {
 	}
 	defer spannerClient.Close()
 
-	sessionMetadataService := NewService(spannerClient)
+	sessionMetadataService := NewSessionService(spannerClient)
 	result, err := sessionMetadataService.GetSessions(ctx)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Spanner Transaction error : %v", err), http.StatusInternalServerError)
@@ -125,7 +125,7 @@ func getSession(w http.ResponseWriter, r *http.Request) {
 	}
 	defer spannerClient.Close()
 
-	sessionMetadataService := NewService(spannerClient)
+	sessionMetadataService := NewSessionService(spannerClient)
 	result, err := sessionMetadataService.GetSession(ctx, vid)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Spanner Transaction error : %v", err), http.StatusInternalServerError)
@@ -157,7 +157,7 @@ func saveSession(w http.ResponseWriter, r *http.Request) {
 	}
 	defer spannerClient.Close()
 
-	sessionMetadataService := NewService(spannerClient)
+	sessionMetadataService := NewSessionService(spannerClient)
 	t := time.Now()
 	conv, err := json.Marshal(sessionState.conv)
 
@@ -175,7 +175,7 @@ func saveSession(w http.ResponseWriter, r *http.Request) {
 		DatabaseName:           sm.DatabaseName,
 		Notes:                  sm.Notes,
 		Tags:                   sm.Tags,
-		SchemaChanges:          "{}",
+		SchemaChanges:          "N/A",
 		SchemaConversionObject: string(conv),
 		CreatedOn:              t,
 	}
@@ -186,7 +186,7 @@ func saveSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(nil)
+	json.NewEncoder(w).Encode(scs)
 }
 
 func getSpannerUri() string {
