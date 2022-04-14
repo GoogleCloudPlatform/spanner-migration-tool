@@ -166,7 +166,6 @@ func processStatement(conv *internal.Conv, stmt ast.StmtNode) bool {
 	default:
 		conv.SkipStatement(NodeType(stmt))
 	}
-
 	return false
 }
 
