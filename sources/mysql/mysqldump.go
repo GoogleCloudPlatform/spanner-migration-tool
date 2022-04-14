@@ -94,6 +94,10 @@ func processMySQLDump(conv *internal.Conv, r *internal.Reader) error {
 // files containing tens or hundreds of GB of data.
 func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []ast.StmtNode, error) {
 	var l [][]byte
+
+	// Regex for ignoring strings of the form /*!50717 SELECT COUNT(*) INTO @rocksdb_has_p_s_session_variables FROM INFORMATION_SCHEMA.TABLES */;
+	// These system generated SQL statements are currently not supported by parser and return error.
+	regexExp := regexp.MustCompile(`^(\/\*[!0-9\s]*SELECT[^\n]*INTO[\s]+@[^\n]*\*\/;\n)$`)
 	for {
 		b := r.ReadLine()
 		l = append(l, b)
@@ -110,6 +114,10 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []ast.S
 				n += copy(s[n:], l[i])
 			}
 			chunk := string(s)
+			matchStatus := regexExp.Match([]byte(chunk))
+			if matchStatus {
+				return s, nil, nil
+			}
 			tree, _, err := parser.New().Parse(chunk, "", "")
 			if err == nil {
 				return s, tree, nil
@@ -158,6 +166,7 @@ func processStatement(conv *internal.Conv, stmt ast.StmtNode) bool {
 	default:
 		conv.SkipStatement(NodeType(stmt))
 	}
+
 	return false
 }
 
