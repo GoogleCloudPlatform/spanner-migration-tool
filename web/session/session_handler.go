@@ -79,6 +79,9 @@ func InitiateSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var ssvc *SessionService
+	conv, _ := json.Marshal(sessionState.Conv)
+	scs.SchemaConversionObject = string(conv)
+
 	if GetSessionState().IsOffline {
 		ssvc = NewSessionService(context.Background(), NewLocalSessionStore())
 	} else {
@@ -90,8 +93,6 @@ func InitiateSession(w http.ResponseWriter, r *http.Request) {
 		defer spannerClient.Close()
 		ssvc = NewSessionService(ctx, NewRemoteSessionStore(spannerClient))
 
-		conv, _ := json.Marshal(sessionState.Conv)
-		scs.SchemaConversionObject = string(conv)
 		scs.Notes = []string{"init"}
 	}
 

@@ -16,9 +16,8 @@ package session
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-
-	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 )
 
 type localStore struct {
@@ -65,9 +64,10 @@ func (st *localStore) GetConvWithMetadata(ctx context.Context, versionId string)
 		DatabaseName: match.DatabaseName,
 	}
 
-	err := conversion.ReadSessionFile(&convm.Conv, getSessionFilePath(match.DatabaseName))
+	err := json.Unmarshal([]byte(match.SchemaConversionObject), &convm.Conv)
+
 	if err != nil {
-		return convm, fmt.Errorf("Failed to open the session file : %v", err)
+		return convm, fmt.Errorf("Error during JSON unmarshalling : %v", err)
 	}
 
 	return convm, nil
