@@ -1230,19 +1230,28 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 }
 func init() {
 
-	c, err := config.GetConfigForSpanner()
+	// TODO : Refactoring
+	c, err := config.GetSpannerConfig()
+	//Try load from env
 	if err != nil || c.GCPProjectID == "" || c.SpannerInstanceID == "" {
-		config.GetConfigFromEnv()
+		config.LoadConfigFromEnv()
+	}
+
+	// Check again
+	// TODO : Refactor
+	c, err = config.GetSpannerConfig()
+	sessionState := session.GetSessionState()
+
+	sessionState.GCPProjectID = c.GCPProjectID
+	sessionState.SpannerInstanceID = c.SpannerInstanceID
+
+	if err != nil || c.GCPProjectID == "" || c.SpannerInstanceID == "" {
+		sessionState.IsOffline = true
 	} else {
-		sessionState := session.GetSessionState()
 		if shared.PingMetadataDb(shared.GetSpannerUri(c.GCPProjectID, c.SpannerInstanceID)) {
 			sessionState.IsOffline = false
-			sessionState.GCPProjectID = c.GCPProjectID
-			sessionState.SpannerInstanceID = c.SpannerInstanceID
 		} else {
 			sessionState.IsOffline = true
-			sessionState.GCPProjectID = ""
-			sessionState.SpannerInstanceID = ""
 		}
 	}
 
@@ -1277,7 +1286,6 @@ func init() {
 		}
 		sqlserverTypeMap[srcType] = l
 	}
-	sessionState := session.GetSessionState()
 
 	// Initialize oracleTypeMap.
 	for _, srcType := range []string{"NUMBER", "BFILE", "BLOB", "CHAR", "CLOB", "DATE", "BINARY_DOUBLE", "BINARY_FLOAT", "FLOAT", "LONG", "RAW", "LONG RAW", "NCHAR", "NVARCHAR2", "VARCHAR", "VARCHAR2", "NCLOB", "ROWID", "UROWID", "XMLTYPE", "TIMESTAMP", "INTERVAL", "SDO_GEOMETRY"} {
