@@ -34,8 +34,8 @@ func NewRemoteSessionStore(spannerClient *spanner.Client) SessionStore {
 	return &spannerStore{spannerClient: spannerClient}
 }
 
-func (svc *spannerStore) GetSessionsMetadata(ctx context.Context) ([]SchemaConversionSession, error) {
-	txn := svc.spannerClient.ReadOnlyTransaction()
+func (st *spannerStore) GetSessionsMetadata(ctx context.Context) ([]SchemaConversionSession, error) {
+	txn := st.spannerClient.ReadOnlyTransaction()
 	defer txn.Close()
 
 	query := spanner.Statement{
@@ -71,8 +71,8 @@ func (svc *spannerStore) GetSessionsMetadata(ctx context.Context) ([]SchemaConve
 	return result, err
 }
 
-func (svc *spannerStore) GetConvWithMetadata(ctx context.Context, versionId string) (ConvWithMetadata, error) {
-	txn := svc.spannerClient.ReadOnlyTransaction()
+func (st *spannerStore) GetConvWithMetadata(ctx context.Context, versionId string) (ConvWithMetadata, error) {
+	txn := st.spannerClient.ReadOnlyTransaction()
 	defer txn.Close()
 
 	query := spanner.Statement{
@@ -123,8 +123,8 @@ func (svc *spannerStore) GetConvWithMetadata(ctx context.Context, versionId stri
 	return convm, nil
 }
 
-func (svc *spannerStore) SaveSession(ctx context.Context, scs SchemaConversionSession) error {
-	_, err := svc.spannerClient.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+func (st *spannerStore) SaveSession(ctx context.Context, scs SchemaConversionSession) error {
+	_, err := st.spannerClient.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 		mutation, err := spanner.InsertStruct("SchemaConversionSession", scs)
 		if err != nil {
 			return err
@@ -138,8 +138,8 @@ func (svc *spannerStore) SaveSession(ctx context.Context, scs SchemaConversionSe
 	return err
 }
 
-func (svc *spannerStore) IsSessionNameUnique(ctx context.Context, scs SchemaConversionSession) (bool, error) {
-	txn := svc.spannerClient.ReadOnlyTransaction()
+func (st *spannerStore) IsSessionNameUnique(ctx context.Context, scs SchemaConversionSession) (bool, error) {
+	txn := st.spannerClient.ReadOnlyTransaction()
 	defer txn.Close()
 
 	query := spanner.Statement{

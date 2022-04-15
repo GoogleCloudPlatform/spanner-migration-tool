@@ -40,14 +40,14 @@ func NewLocalSessionStore() *localStore {
 	return store
 }
 
-func (svc *localStore) GetSessionsMetadata(ctx context.Context) ([]SchemaConversionSession, error) {
-	return svc.sessions, nil
+func (st *localStore) GetSessionsMetadata(ctx context.Context) ([]SchemaConversionSession, error) {
+	return st.sessions, nil
 }
 
-func (svc *localStore) GetConvWithMetadata(ctx context.Context, versionId string) (ConvWithMetadata, error) {
+func (st *localStore) GetConvWithMetadata(ctx context.Context, versionId string) (ConvWithMetadata, error) {
 	var convm ConvWithMetadata
 	var match *SchemaConversionSession
-	for _, s := range svc.sessions {
+	for _, s := range st.sessions {
 		if s.VersionId == versionId {
 			match = &s
 			break
@@ -73,13 +73,13 @@ func (svc *localStore) GetConvWithMetadata(ctx context.Context, versionId string
 	return convm, nil
 }
 
-func (svc *localStore) SaveSession(ctx context.Context, scs SchemaConversionSession) error {
-	svc.sessions = append(svc.sessions, scs)
+func (st *localStore) SaveSession(ctx context.Context, scs SchemaConversionSession) error {
+	st.sessions = append(st.sessions, scs)
 	return nil
 }
 
-func (svc *localStore) IsSessionNameUnique(ctx context.Context, scs SchemaConversionSession) (bool, error) {
-	for _, s := range svc.sessions {
+func (st *localStore) IsSessionNameUnique(ctx context.Context, scs SchemaConversionSession) (bool, error) {
+	for _, s := range st.sessions {
 		if s.SessionName == scs.SessionName && s.DatabaseType == scs.DatabaseType && s.DatabaseName == scs.DatabaseName {
 			return false, nil
 		}
