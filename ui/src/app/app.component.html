@@ -1,0 +1,13 @@
+<mat-sidenav-container class="sidenav-container" (backdropClick)="closeSidenav()">
+  <mat-sidenav #sidenav position="end" mode="over" [opened]="showSidenav" class="sidenav-bar">
+    <app-sidenav-rule></app-sidenav-rule>
+  </mat-sidenav>
+
+  <mat-sidenav-content class="sidenav-content">
+    <app-header></app-header>
+    <app-loader></app-loader>
+    <div class="padding-20">
+      <router-outlet></router-outlet>
+    </div>
+  </mat-sidenav-content>
+</mat-sidenav-container>

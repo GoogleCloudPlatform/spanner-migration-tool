@@ -1,0 +1,50 @@
+<div [formGroup]="addGlobalDataTypeForm">
+  <mat-form-field appearance="outline">
+    <mat-label>For object type</mat-label>
+    <mat-select matSelect class="input-field" formControlName="objectType" required="true">
+      <mat-option value="column">Column</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <h3>When</h3>
+  <mat-form-field appearance="outline">
+    <mat-label>Table is</mat-label>
+    <mat-select matSelect class="input-field" formControlName="table" required="true">
+      <mat-option value="allTable">All table</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline">
+    <mat-label>and column is</mat-label>
+    <mat-select matSelect class="input-field" formControlName="column" required="true">
+      <mat-option value="allColumn">All column</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <h3>Convert from</h3>
+  <mat-form-field appearance="outline">
+    <mat-label>Source data type</mat-label>
+    <mat-select
+      matSelect
+      #sourceField
+      class="input-field"
+      formControlName="sourceType"
+      required="true"
+      (selectionChange)="updateDestinationType(sourceField.value)"
+    >
+      <mat-option *ngFor="let type of sourceType" [value]="type">{{ type }}</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <h3>Convert to</h3>
+  <mat-form-field appearance="outline" *ngIf="sourceField.selected">
+    <mat-label>Destination data type</mat-label>
+    <mat-select matSelect class="input-field" formControlName="destinationType" required="true">
+      <mat-option *ngFor="let type of destinationType" [value]="type">{{ type }}</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <button
+    mat-raised-button
+    (click)="formSubmit()"
+    color="primary"
+    [disabled]="!addGlobalDataTypeForm.valid"
+  >
+    ADD RULE
+  </button>
+</div>

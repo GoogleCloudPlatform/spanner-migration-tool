@@ -27,6 +27,8 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
+	"github.com/google/uuid"
 )
 
 var (
@@ -85,12 +87,21 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 			return err
 		}
 	}
+
+	// Populate migration request id and migration type in conv object
+	conv.MigrationRequestId = "HB-" + uuid.New().String()
+	if dataOnly {
+		conv.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
+	} else {
+		conv.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
+	}
+
 	adminClient, err := utils.NewDatabaseAdminClient(ctx)
 	if err != nil {
 		return fmt.Errorf("can't create admin client: %w", utils.AnalyzeError(err, dbURI))
 	}
 	defer adminClient.Close()
-	err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, conv, ioHelper.Out)
+	err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, driver, targetDb, conv, ioHelper.Out)
 	if err != nil {
 		return fmt.Errorf("can't create/update database: %v", err)
 	}

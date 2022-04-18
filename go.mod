@@ -24,6 +24,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/go-cmp v0.5.7
 	github.com/google/subcommands v1.2.0
+	github.com/google/uuid v1.1.2
 	github.com/gorilla/handlers v1.5.0
 	github.com/gorilla/mux v1.7.3
 	github.com/gorilla/websocket v1.4.1 // indirect
@@ -39,12 +40,13 @@ require (
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
 	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b // indirect
 	golang.org/x/sys v0.0.0-20220227234510-4e6760a101f9 // indirect
-	golang.org/x/tools v0.1.7 // indirect
 	google.golang.org/api v0.70.0
 	google.golang.org/genproto v0.0.0-20220304144024-325a89244dc8
+	google.golang.org/grpc v1.44.0
 	google.golang.org/grpc/examples v0.0.0-20220303195317-63af97474cac // indirect
 	google.golang.org/grpc/naming v0.0.0-00010101000000-000000000000 // indirect
-	honnef.co/go/tools v0.2.1 // indirect
+	google.golang.org/protobuf v1.27.1
+	honnef.co/go/tools v0.3.0 // indirect
 )
 
 // cloud.google.com/go will upgrade grpc to v1.44.0

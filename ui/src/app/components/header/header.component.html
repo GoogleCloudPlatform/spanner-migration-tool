@@ -1,0 +1,54 @@
+<mat-toolbar color="secondry" class="header-container">
+  <!-- <button mat-icon-button class="example-icon" aria-label="Example icon-button with menu icon">
+    <mat-icon aria-hidden="false" aria-label="Example home icon" [routerLink]="'/'">home</mat-icon>
+  </button> -->
+  <span class="pointer" [routerLink]="'/'"> HarbourBridge</span>
+  <span class="menu-spacer"></span>
+  <div class="right_container">
+    <div class="spanner_config">
+      <mat-icon
+        *ngIf="isOfflineStatus && !showWarning()"
+        class="icon warning"
+        matTooltip="spanner configuration is not valid or has not been set.you are working in offline mode."
+      >
+        circle
+      </mat-icon>
+
+      <mat-icon
+        *ngIf="!isOfflineStatus && !showWarning()"
+        class="icon success"
+        matTooltip="you are connected to spanner"
+      >
+        circle
+      </mat-icon>
+
+      <mat-icon
+        *ngIf="showWarning()"
+        class="icon warning"
+        matTooltip="spanner configuration has not been set."
+      >
+        warning
+      </mat-icon>
+      <div *ngIf="showWarning()">
+        <span #name>Spanner database is not configured, click on edit button to configure </span>
+      </div>
+
+      <div *ngIf="!showWarning()">
+        <span class="pid"><b>Project Id: </b>{{ spannerConfig.GCPProjectID }}</span>
+        <span class="iid"><b>Spanner Instance Id: </b>{{ spannerConfig.SpannerInstanceID }}</span>
+      </div>
+
+      <button mat-icon-button (click)="openEditForm()">
+        <mat-icon>edit</mat-icon>
+      </button>
+    </div>
+    <button
+      mat-icon-button
+      class="example-icon favorite-icon"
+      aria-label="Example icon-button with heart icon"
+      [routerLink]="'/instruction'"
+    >
+      <mat-icon>help</mat-icon>
+    </button>
+  </div>
+</mat-toolbar>

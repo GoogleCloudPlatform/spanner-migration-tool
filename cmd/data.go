@@ -1,3 +1,17 @@
+// Copyright 2020 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cmd
 
 import (
@@ -13,7 +27,9 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/google/subcommands"
+	"github.com/google/uuid"
 )
 
 // DataCmd struct with flags.
@@ -137,8 +153,12 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	}
 	defer adminClient.Close()
 
+	// Populate migration request id and migration type in conv object
+	conv.MigrationRequestId = "HB-" + uuid.New().String()
+	conv.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
+
 	if !sourceProfile.UseTargetSchema() {
-		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, conv, ioHelper.Out)
+		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
 		if err != nil {
 			err = fmt.Errorf("can't create/update database: %v", err)
 			return subcommands.ExitFailure

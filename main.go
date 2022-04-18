@@ -91,6 +91,7 @@ Sample usage:
 `, os.Args[0], os.Args[0])
 }
 
+//main func
 func main() {
 	ctx := context.Background()
 	lf, err := utils.SetupLogFile()
