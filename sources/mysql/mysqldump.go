@@ -97,6 +97,7 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []ast.S
 
 	// Regex for ignoring strings of the form /*!50717 SELECT COUNT(*) INTO @rocksdb_has_p_s_session_variables FROM INFORMATION_SCHEMA.TABLES */;
 	// These system generated SQL statements are currently not supported by parser and return error.
+	// Pingcap Issue : https://github.com/pingcap/parser/issues/1370
 	regexExp := regexp.MustCompile(`^(\/\*[!0-9\s]*SELECT[^\n]*INTO[\s]+@[^\n]*\*\/;\n)$`)
 	for {
 		b := r.ReadLine()
@@ -116,6 +117,7 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []ast.S
 			chunk := string(s)
 			matchStatus := regexExp.Match([]byte(chunk))
 			if matchStatus {
+				fmt.Printf("\nParsing skipped for: %s\n", chunk)
 				return s, nil, nil
 			}
 			tree, _, err := parser.New().Parse(chunk, "", "")
