@@ -72,6 +72,8 @@ func getMigrationDataSchemaPatterns(conv *internal.Conv, migrationData *migratio
 		MaxInterleaveDepth:   &maxInterleaveDepth,
 		NumIndexes:           &numIndexes,
 		NumMissingPrimaryKey: &numMissingPrimaryKey,
+		NumColumns:           &numColumns,
+		NumWarnings:          &numWarnings,
 	}
 }
 
