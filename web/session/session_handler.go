@@ -202,6 +202,7 @@ func SaveRemoteSession(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: To compute few metadata fields if empty
 	t := time.Now()
+	sm.DatabaseType = sessionState.Driver
 	scs := SchemaConversionSession{
 		VersionId:              uuid.New().String(),
 		PreviousVersionId:      []string{},
