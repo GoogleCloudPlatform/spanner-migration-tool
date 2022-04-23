@@ -171,6 +171,20 @@ HarbourBridge also [generates several files](#files-generated-by-harbourbridge)
 when it runs: a schema file, a report file (with detailed analysis of the
 conversion), a session file and a bad data file (if any data was dropped).
 
+### Setting up the emulator
+
+To run migrations against a local instance without having to connect to Cloud
+spanner each time follow the following steps:
+
+- **Start the emulator:**
+    ```sh
+    gcloud emulators spanner start
+    ```
+- **Set the SPANNER_EMULATOR_HOST:**
+    ```sh
+    export SPANNER_EMULATOR_HOST=localhost:9010
+    ```
+
 ### Sample Dump Files
 
 If you don't have ready access to a PostgreSQL or MySQL database, some example
