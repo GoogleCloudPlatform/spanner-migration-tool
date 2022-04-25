@@ -1,0 +1,34 @@
+.sidenav-container {
+  width: 100%;
+  .sidenav-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 48px;
+    box-shadow: 0px 1px 0px rgba(0, 0, 0, 0.12);
+    margin-bottom: 1px;
+    .header-title {
+      margin-left: 16px;
+      font-size: 1rem;
+      letter-spacing: 0.05px;
+    }
+    .close-button {
+      margin-right: 10px;
+      background-color: inherit;
+    }
+  }
+  .form-container {
+    padding: 15px 25px;
+    h3 {
+      margin-bottom: 0;
+    }
+    mat-form-field {
+      width: 100%;
+      padding-top: 0px;
+      padding-bottom: 0;
+    }
+    ::ng-deep .mat-form-field-wrapper {
+      padding-bottom: 14px;
+    }
+  }
+}

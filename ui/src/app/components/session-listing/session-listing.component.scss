@@ -1,0 +1,45 @@
+.example-container {
+  height: 500px;
+  overflow: auto;
+
+  th {
+    font-size: 13px;
+  }
+}
+
+table {
+  width: 100%;
+}
+
+.sessions-wrapper {
+  margin-top: 20px;
+
+  .warning-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 57vh;
+    text-align: center;
+
+    svg {
+      margin-bottom: 10px;
+    }
+  }
+}
+.mat-column-Notes {
+  max-width: 200px;
+  padding-right: 10px;
+}
+.notes-toggle-button {
+  float: right;
+  margin-right: 32px;
+  background-color: #f5f5f5;
+  border: none;
+  border-radius: 2px;
+  padding: 0 5px 5px 5px;
+  &:hover {
+    background-color: rgb(235, 231, 231);
+    cursor: pointer;
+  }
+}
