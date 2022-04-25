@@ -10,9 +10,11 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/shared"
 )
 
+var configFilePath string = "./webv2/config.json"
+
 func GetSpannerConfig() (Config, error) {
 	var c Config
-	content, err := ioutil.ReadFile("./webv2/config.json")
+	content, err := ioutil.ReadFile(configFilePath)
 	if err != nil {
 		log.Println(err)
 		return c, err
@@ -36,7 +38,7 @@ func LoadConfigFromEnv() {
 		log.Println("warning : please set GCPProjectID and SpannerInstanceID as environment variables")
 	}
 
-	f, err := os.OpenFile("./web/config.json", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+	f, err := os.OpenFile(configFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		log.Println(err)
 	}
@@ -56,7 +58,7 @@ func LoadConfigFromEnv() {
 // Saves spanner configuration in configuration file.
 func saveSpannerConfigFile(c Config) error {
 
-	f, err := os.OpenFile("./web/config.json", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+	f, err := os.OpenFile(configFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		log.Println(err)
 		return err
