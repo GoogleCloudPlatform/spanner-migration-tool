@@ -1,0 +1,59 @@
+.rule-container {
+  height: calc(100vh - 271px);
+  position: relative;
+  overflow-y: auto;
+  .rule-header {
+    padding-top: 6px;
+    padding-bottom: 6px;
+    padding-left: 10px;
+    .add-button {
+      color: #3367d6;
+      margin-left: 15px;
+    }
+  }
+  .empty-rule-message {
+    position: absolute;
+    top: 50%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    .setting-icon {
+      margin-bottom: 15px;
+      color: #3367d6;
+    }
+  }
+  .table-container {
+    table {
+      width: 100%;
+    }
+
+    .table-header {
+      font-size: 13px;
+      font-style: normal;
+      font-weight: 500;
+      line-height: 12px;
+      color: black;
+    }
+    .mat-header-row {
+      height: 35px;
+      background-color: #f5f5f5;
+    }
+
+    .mat-column-name,
+    .mat-column-type,
+    .mat-column-objectType,
+    .mat-column-enabled {
+      min-width: 80px;
+    }
+    .mat-column-associatedObject {
+      min-width: 120px;
+    }
+    .mat-column-order {
+      padding-left: 10px;
+      max-width: 70px;
+      min-width: 40px;
+    }
+  }
+}

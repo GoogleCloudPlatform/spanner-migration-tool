@@ -1,0 +1,48 @@
+<div class="rule-container">
+  <div class="rule-header">
+    <span>Rules</span>
+    <button mat-button class="add-button" (click)="openSidenav()">
+      <mat-icon class="add-icon">add</mat-icon>
+      <span class="add-rule-text">ADD</span>
+    </button>
+  </div>
+  <div class="table-container">
+    <table mat-table [dataSource]="dataSource">
+      <ng-container matColumnDef="order">
+        <th mat-header-cell *matHeaderCellDef class="table-header">Order</th>
+        <td mat-cell *matCellDef="let element; let i = index">{{ i + 1 }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef class="table-header">Rule name</th>
+        <td mat-cell *matCellDef="let element">{{ element.name }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="type">
+        <th mat-header-cell *matHeaderCellDef class="table-header">Rule type</th>
+        <td mat-cell *matCellDef="let element">{{ element.type }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="objectType">
+        <th mat-header-cell *matHeaderCellDef class="table-header">Object type</th>
+        <td mat-cell *matCellDef="let element">{{ element.objectType }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="associatedObject">
+        <th mat-header-cell *matHeaderCellDef class="table-header">Associated objects</th>
+        <td mat-cell *matCellDef="let element">{{ element.associatedObject }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="enabled">
+        <th mat-header-cell *matHeaderCellDef class="table-header">Enabled</th>
+        <td mat-cell *matCellDef="let element">{{ element.enabled }}</td>
+      </ng-container>
+      <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+    </table>
+  </div>
+  <div *ngIf="dataSource.length === 0" class="empty-rule-message">
+    <mat-icon class="setting-icon">settings</mat-icon>
+    <span class="empty-message-content">No rules added yet. Add one by clicking "Add rule".</span>
+  </div>
+</div>

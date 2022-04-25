@@ -1,0 +1,25 @@
+<mat-sidenav-container class="sidenav-container" (backdropClick)="closeSidenav()">
+  <mat-sidenav
+    #sidenav
+    position="end"
+    mode="over"
+    [opened]="showSidenav"
+    [ngClass]="{
+      'width-40pc': sidenavComponent === 'rule',
+      'width-60pc': sidenavComponent === 'assessment'
+    }"
+  >
+    <app-sidenav-rule *ngIf="sidenavComponent === 'rule'"></app-sidenav-rule>
+    <app-sidenav-view-assessment
+      *ngIf="sidenavComponent === 'assessment'"
+    ></app-sidenav-view-assessment>
+  </mat-sidenav>
+
+  <mat-sidenav-content class="sidenav-content">
+    <app-header></app-header>
+    <app-loader></app-loader>
+    <div class="padding-20">
+      <router-outlet></router-outlet>
+    </div>
+  </mat-sidenav-content>
+</mat-sidenav-container>
