@@ -17,6 +17,9 @@ package webv2
 import (
 	"net/http"
 
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/summary"
 	"github.com/gorilla/mux"
 )
 
@@ -26,10 +29,8 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/connect", databaseConnection).Methods("POST")
 	router.HandleFunc("/convert/infoschema", convertSchemaSQL).Methods("GET")
 	router.HandleFunc("/convert/dump", convertSchemaDump).Methods("POST")
+	router.HandleFunc("/convert/session", session.LoadSession).Methods("POST")
 	router.HandleFunc("/ddl", getDDL).Methods("GET")
-	router.HandleFunc("/session", createSession).Methods("GET")
-	router.HandleFunc("/session/resume", resumeSession).Methods("POST")
-	router.HandleFunc("/summary", getSummary).Methods("GET")
 	router.HandleFunc("/overview", getOverview).Methods("GET")
 	router.HandleFunc("/conversion", getConversionRate).Methods("GET")
 	router.HandleFunc("/typemap", getTypeMap).Methods("GET")
@@ -49,6 +50,22 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/rename/indexes", renameIndexes).Methods("POST")
 	router.HandleFunc("/add/indexes", addIndexes).Methods("POST")
 
+	// Session Management
+	router.HandleFunc("/IsOffline", session.IsOfflineSession).Methods("GET")
+	router.HandleFunc("/InitiateSession", session.InitiateSession).Methods("POST")
+	router.HandleFunc("/GetSessions", session.GetSessions).Methods("GET")
+	router.HandleFunc("/GetSession/{versionId}", session.GetConv).Methods("GET")
+	router.HandleFunc("/SaveRemoteSession", session.SaveRemoteSession).Methods("POST")
+	router.HandleFunc("/ResumeSession/{versionId}", session.ResumeSession).Methods("POST")
+
+	// Summary
+	router.HandleFunc("/summary", summary.GetSummary).Methods("GET")
+
+	// Application Configuration
+	router.HandleFunc("/GetConfig", config.GetConfig).Methods("GET")
+	router.HandleFunc("/SetSpannerConfig", config.SetSpannerConfig).Methods("POST")
+
 	router.PathPrefix("/").Handler(http.FileServer(staticFileDirectory))
+
 	return router
 }
