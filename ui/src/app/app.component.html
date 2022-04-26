@@ -6,13 +6,14 @@
     [opened]="showSidenav"
     [ngClass]="{
       'width-40pc': sidenavComponent === 'rule',
-      'width-60pc': sidenavComponent === 'assessment'
+      'width-60pc': sidenavComponent === 'assessment' || sidenavComponent === 'instruction'
     }"
   >
     <app-sidenav-rule *ngIf="sidenavComponent === 'rule'"></app-sidenav-rule>
     <app-sidenav-view-assessment
       *ngIf="sidenavComponent === 'assessment'"
     ></app-sidenav-view-assessment>
+    <app-instruction *ngIf="sidenavComponent === 'instruction'"></app-instruction>
   </mat-sidenav>
 
   <mat-sidenav-content class="sidenav-content">

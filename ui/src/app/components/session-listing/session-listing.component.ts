@@ -5,6 +5,7 @@ import { FetchService } from 'src/app/services/fetch/fetch.service'
 import ISession from '../../model/Session'
 import ISpannerConfig from '../../model/SpannerConfig'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
+import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 
 @Component({
   selector: 'app-session-listing',
@@ -28,7 +29,8 @@ export class SessionListingComponent implements OnInit {
     private fetch: FetchService,
     private data: DataService,
     private router: Router,
-    private snackbar: SnackbarService
+    private snackbar: SnackbarService,
+    private clickEvent: ClickEventService
   ) {}
 
   ngOnInit(): void {
@@ -71,5 +73,8 @@ export class SessionListingComponent implements OnInit {
       // localStorage.setItem(StorageKeys.Type, InputType.SessionFile)
       this.router.navigate(['/workspace'])
     })
+  }
+  openSpannerConfigDialog() {
+    this.clickEvent.openSpannerConfig()
   }
 }

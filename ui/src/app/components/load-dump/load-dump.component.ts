@@ -21,7 +21,7 @@ export class LoadDumpComponent implements OnInit {
   ) {}
   connectForm = new FormGroup({
     dbEngine: new FormControl('mysqldump', [Validators.required]),
-    filePath: new FormControl('test_data/frontend/phpMyAdminDump1.sql', [Validators.required]),
+    filePath: new FormControl('', [Validators.required]),
   })
   ngOnInit(): void {}
 
