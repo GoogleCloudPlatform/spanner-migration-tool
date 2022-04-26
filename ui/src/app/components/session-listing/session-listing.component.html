@@ -75,7 +75,14 @@
         fill="#3367D6"
       />
     </svg>
-
+    <button
+      class="spanner-config-button"
+      mat-button
+      color="primary"
+      (click)="openSpannerConfigDialog()"
+    >
+      Configure Spanner Details
+    </button>
     <span
       >Do not have any previous session to display. <u> OR </u> <br />
       Invalid Spanner configuration, only local sessions will be displayed.
