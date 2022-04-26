@@ -5,7 +5,10 @@
   <span class="pointer" [routerLink]="'/'"> HarbourBridge</span>
   <span class="menu-spacer"></span>
   <div class="right_container">
-    <div class="spanner_config" [ngClass]="!showWarning() && !isOfflineStatus ? 'success-border' : 'warning-border'">
+    <div
+      class="spanner_config"
+      [ngClass]="!showWarning() && !isOfflineStatus ? 'success-border' : 'warning-border'"
+    >
       <mat-icon
         *ngIf="isOfflineStatus && !showWarning()"
         class="icon warning"
@@ -44,7 +47,7 @@
       mat-icon-button
       class="example-icon favorite-icon"
       aria-label="Example icon-button with heart icon"
-      [routerLink]="'/instruction'"
+      (click)="openInstructionSidenav()"
     >
       <mat-icon>help</mat-icon>
     </button>

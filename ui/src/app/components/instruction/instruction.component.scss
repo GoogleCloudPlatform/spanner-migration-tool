@@ -1,6 +1,10 @@
 .instructions-div {
-  padding: 40px;
-  padding-top: 0;
+  padding: 20px;
+  padding-top: 5px;
+  .instruction-header-div{
+    display: flex;
+    justify-content: flex-end;
+  }
 }
 
 .instructions-icon {
