@@ -21,7 +21,7 @@ export class LoadSessionComponent implements OnInit {
 
   connectForm = new FormGroup({
     dbEngine: new FormControl('sqlserver', [Validators.required]),
-    filePath: new FormControl('harbour_bridge_output/BikeStores/BikeStores.session.json', [
+    filePath: new FormControl('', [
       Validators.required,
     ]),
   })

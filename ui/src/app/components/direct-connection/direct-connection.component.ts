@@ -16,12 +16,12 @@ import { extractSourceDbName } from 'src/app/utils/utils'
 })
 export class DirectConnectionComponent implements OnInit {
   connectForm = new FormGroup({
-    dbEngine: new FormControl('sqlserver', [Validators.required]),
-    hostName: new FormControl('104.198.154.85', [Validators.required]),
-    port: new FormControl('1433', [Validators.required]),
-    userName: new FormControl('sa', [Validators.required]),
-    password: new FormControl('P@ssw0rd.1', [Validators.required]),
-    dbName: new FormControl('BikeStores', [Validators.required]),
+    dbEngine: new FormControl('', [Validators.required]),
+    hostName: new FormControl('', [Validators.required]),
+    port: new FormControl('', [Validators.required]),
+    userName: new FormControl('', [Validators.required]),
+    password: new FormControl('', [Validators.required]),
+    dbName: new FormControl('', [Validators.required]),
   })
 
   constructor(
