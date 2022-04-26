@@ -9,3 +9,6 @@ harbour_bridge_output/
 ui/.angular
 ui/dist
 ui/node_modules
+
+# webv2 config
+webv2/config.json
