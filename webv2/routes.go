@@ -15,8 +15,6 @@
 package webv2
 
 import (
-	"net/http"
-
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/summary"
@@ -25,7 +23,6 @@ import (
 
 func getRoutes() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
-	staticFileDirectory := http.Dir("./frontend/")
 	router.HandleFunc("/connect", databaseConnection).Methods("POST")
 	router.HandleFunc("/convert/infoschema", convertSchemaSQL).Methods("GET")
 	router.HandleFunc("/convert/dump", convertSchemaDump).Methods("POST")
@@ -64,8 +61,6 @@ func getRoutes() *mux.Router {
 	// Application Configuration
 	router.HandleFunc("/GetConfig", config.GetConfig).Methods("GET")
 	router.HandleFunc("/SetSpannerConfig", config.SetSpannerConfig).Methods("POST")
-
-	router.PathPrefix("/").Handler(http.FileServer(staticFileDirectory))
 
 	return router
 }
