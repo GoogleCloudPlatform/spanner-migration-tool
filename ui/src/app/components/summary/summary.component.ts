@@ -18,6 +18,7 @@ export class SummaryComponent implements OnInit {
   summary: Map<string, ISummary> = new Map<string, ISummary>()
   filteredSummaryRows: SummaryRow[] = []
   readonly separatorKeysCodes = [] as const
+  summaryCount: number = 0
 
   filterInput = new FormControl()
   options: string[] = ['read', 'unread', 'warning', 'suggestion', 'note']
@@ -35,6 +36,7 @@ export class SummaryComponent implements OnInit {
           let s = summary.get(this.currentObject.name)
           if (s) {
             this.initiateSummaryCollection(s)
+            this.summaryCount = s.NotesCount + s.WarningsCount
           }
         }
       },
@@ -50,6 +52,7 @@ export class SummaryComponent implements OnInit {
       let s = this.summary.get(this.currentObject.name)
       if (s) {
         this.initiateSummaryCollection(s)
+        this.summaryCount = s.NotesCount + s.WarningsCount
       }
     }
   }
@@ -118,7 +121,7 @@ export class SummaryComponent implements OnInit {
     this.applyFilters()
   }
 
-  registerAutoCompleteChange(){
+  registerAutoCompleteChange() {
     this.obsFilteredOptions = this.filterInput.valueChanges.pipe(
       startWith(''),
       map((value) => this.autoCompleteOnChangeFilter(value))
