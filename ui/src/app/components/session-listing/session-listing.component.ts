@@ -57,20 +57,8 @@ export class SessionListingComponent implements OnInit {
 
   ResumeFromSessionFile(versionId: string) {
     this.data.resetStore()
-    // const { dbEngine, filePath } = this.connectForm.value
-    // const payload: ISessionConfig = {
-    //   driver: dbEngine,
-    //   filePath: filePath,
-    // }
     this.data.getSchemaConversionFromResumeSession(versionId)
-    // .subscribe((res: string) => {
-    //   if (res !== '') {
-    //     this.snackbar.openSnackBar('Failed to resume session', 'Dismiss')
-    //   }
-    // })
     this.data.conv.subscribe((res) => {
-      // localStorage.setItem(StorageKeys.Config, JSON.stringify(payload))
-      // localStorage.setItem(StorageKeys.Type, InputType.SessionFile)
       this.router.navigate(['/workspace'])
     })
   }

@@ -58,9 +58,7 @@ export class ObjectExplorerComponent implements OnInit {
 
   constructor(private conversion: ConversionService, private sidenav: SidenavService) {}
 
-  ngOnInit(): void {
-    // this.treeControl.dataNodes = this.dataSource.data.map((d) => this.transformer(d, 1))
-  }
+  ngOnInit(): void {}
 
   ngOnChanges(changes: SimpleChanges): void {
     let newSpannerTree = changes?.['spannerTree']?.currentValue

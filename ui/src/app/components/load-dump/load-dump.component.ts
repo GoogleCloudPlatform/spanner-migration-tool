@@ -33,16 +33,10 @@ export class LoadDumpComponent implements OnInit {
       Path: filePath,
     }
     this.data.getSchemaConversionFromDump(payload)
-    // .subscribe((res: string) => {
-    //   if (res !== '') {
-    //     this.snackbar.openSnackBar('Failed to load dump file', 'Dismiss')
-    //   }
-    // })
     this.data.conv.subscribe((res) => {
       localStorage.setItem(StorageKeys.Config, JSON.stringify(payload))
       localStorage.setItem(StorageKeys.Type, InputType.DumpFile)
       localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine))
-      console.log(res)
       this.router.navigate(['/workspace'])
     })
   }

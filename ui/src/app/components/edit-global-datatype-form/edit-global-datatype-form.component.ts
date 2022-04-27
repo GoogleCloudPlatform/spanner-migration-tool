@@ -50,15 +50,7 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
     const source = ruleValue.sourceType
     const payload: Record<string, string> = {}
     payload[source] = ruleValue.destinationType
-    // const nextData: IRuleContent = {
-    //   name: 'varchar to bytes',
-    //   type: 'Global-data-type',
-    //   objectType: ruleValue.objectType,
-    //   associatedObject: 'All tables',
-    //   enabled: true,
-    // }
     this.data.updateGlobalType(payload)
-    // this.data.addRule(nextData)
     this.closeSidenav()
   }
 

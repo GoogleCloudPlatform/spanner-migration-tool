@@ -46,7 +46,6 @@ export class HeaderComponent implements OnInit {
       data: this.spannerConfig,
     })
     openDialog.afterClosed().subscribe((data: ISpannerConfig) => {
-      console.log(data)
       if (data) {
         this.spannerConfig = data
       }
