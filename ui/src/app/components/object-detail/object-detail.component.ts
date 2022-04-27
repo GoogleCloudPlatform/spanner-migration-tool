@@ -243,8 +243,6 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropFk(element: any) {
-    console.log(element)
-    console.log(element.get('spName').value)
     let ind: number = this.getRemovedFkIndex(element)
     this.data.dropFk(this.currentObject!.name, ind).subscribe({
       next: (res: string) => {
@@ -280,7 +278,6 @@ export class ObjectDetailComponent implements OnInit {
       .dropIndex(this.currentObject!.parent, this.currentObject!.pos)
       .pipe(take(1))
       .subscribe((res: string) => {
-        console.log(res)
         if (res === '') {
           this.isObjectSelected = false
           this.updateSidebar.emit(true)
@@ -290,7 +287,5 @@ export class ObjectDetailComponent implements OnInit {
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
     this.currentTabIndex = tabChangeEvent.index
-    // console.log('tabChangeEvent => ', tabChangeEvent)
-    // console.log('index => ', tabChangeEvent.index)
   }
 }

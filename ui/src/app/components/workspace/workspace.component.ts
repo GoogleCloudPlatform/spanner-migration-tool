@@ -82,10 +82,8 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    console.log('workspace Destroy !! ')
     this.typemapObj.unsubscribe()
     this.convObj.unsubscribe()
-    // this.converObj.unsubscribe()
     this.ddlObj.unsubscribe()
     this.ddlsumconvObj.unsubscribe()
   }
@@ -115,7 +113,6 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     } else {
       this.currentObject = object
       this.indexData = this.conversion.getIndexMapping(object.parent, this.conv, object.name)
-      console.log(this.indexData)
     }
   }
 

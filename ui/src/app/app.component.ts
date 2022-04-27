@@ -11,10 +11,6 @@ export class AppComponent {
   showSidenav: boolean = false
   sidenavComponent: string = ''
   constructor(private sidenavService: SidenavService) {}
-  // @HostListener('window:beforeunload', ['$event']) unloadNotification($event: Event) {
-  //   $event.preventDefault()
-  //   $event.returnValue = true
-  // }
   ngOnInit(): void {
     this.sidenavService.isSidenav.subscribe((data) => {
       this.showSidenav = data
