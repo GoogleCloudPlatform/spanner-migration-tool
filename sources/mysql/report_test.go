@@ -96,7 +96,7 @@ Analysis of statements in mysqldump output, broken down by statement type.
   --------------------------------------
        5      0      0      0  CreateTableStmt
 See https://github.com/pingcap/parser for definitions of statement types
-(pingcap/parser is the library we use for parsing mysqldump output).
+(pingcap/tidb/parser is the library we use for parsing mysqldump output).
 
 ----------------------------
 Table bad_schema
@@ -153,7 +153,7 @@ Unexpected Conditions
 ----------------------------
 For debugging only. This section provides details of unexpected conditions
 encountered as we processed the mysqldump data. In particular, the AST node
-representation used by the pingcap/parser library used for parsing
+representation used by the pingcap/tidb/parser library used for parsing
 mysqldump output is highly permissive: almost any construct can appear at
 any node in the AST tree. The list details all unexpected nodes and
 conditions.
