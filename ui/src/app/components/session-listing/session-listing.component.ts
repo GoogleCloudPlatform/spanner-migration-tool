@@ -19,7 +19,7 @@ export class SessionListingComponent implements OnInit {
     'DatabaseType',
     'DatabaseName',
     'Notes',
-    'CreatedOn',
+    'CreateTimestamp',
     'Action',
   ]
   notesToggle: boolean[] = []

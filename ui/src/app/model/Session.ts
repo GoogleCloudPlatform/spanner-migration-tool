@@ -5,7 +5,7 @@ export default interface ISession {
   DatabaseType: string
   DatabaseName: string
   Notes: string[]
-  CreatedOn: string[]
+  CreateTimestamp: string[]
 }
 
 export interface ISaveSessionPayload {
