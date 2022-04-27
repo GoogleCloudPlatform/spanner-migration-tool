@@ -22,7 +22,7 @@ func getTestData() []session.SchemaConversionSession {
 	return []session.SchemaConversionSession{
 		{
 			VersionId:              "v1",
-			CreatedOn:              time.Now(),
+			CreateTimestamp:        time.Now(),
 			SchemaConversionObject: string(convStr),
 			SessionMetadata: session.SessionMetadata{
 				SessionName:  "session-1",
@@ -34,7 +34,7 @@ func getTestData() []session.SchemaConversionSession {
 		},
 		{
 			VersionId:              "v2",
-			CreatedOn:              time.Now(),
+			CreateTimestamp:        time.Now(),
 			SchemaConversionObject: "",
 			SessionMetadata: session.SessionMetadata{
 				SessionName:  "session-2",
@@ -46,7 +46,7 @@ func getTestData() []session.SchemaConversionSession {
 		},
 		{
 			VersionId:              "v3",
-			CreatedOn:              time.Now(),
+			CreateTimestamp:        time.Now(),
 			SchemaConversionObject: "",
 			SessionMetadata: session.SessionMetadata{
 				SessionName:  "session-3",
@@ -131,7 +131,7 @@ func TestGetConvWithMetadata(t *testing.T) {
 func TestSaveSession(t *testing.T) {
 	s1 := session.SchemaConversionSession{
 		VersionId:              "v1",
-		CreatedOn:              time.Now(),
+		CreateTimestamp:        time.Now(),
 		SchemaConversionObject: "",
 		SessionMetadata: session.SessionMetadata{
 			SessionName:  "session-1",
@@ -144,7 +144,7 @@ func TestSaveSession(t *testing.T) {
 
 	s2 := session.SchemaConversionSession{
 		VersionId:              "v1",
-		CreatedOn:              time.Now(),
+		CreateTimestamp:        time.Now(),
 		SchemaConversionObject: "",
 		SessionMetadata: session.SessionMetadata{
 			SessionName:  "session-1",
