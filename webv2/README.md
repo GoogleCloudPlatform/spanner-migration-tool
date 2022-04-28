@@ -23,7 +23,7 @@ using mysql or postgres dump or direct connection.
 To start HarbourBridge web server, run:
 
 ```sh
-harbourbridge --web
+harbourbridge --webv2
 ```
 
 The tool will be available on port 8080

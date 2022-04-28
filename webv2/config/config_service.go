@@ -35,7 +35,7 @@ func LoadConfigFromEnv() {
 	c.SpannerInstanceID = os.Getenv("SpannerInstanceID")
 
 	if c.GCPProjectID == "" || c.SpannerInstanceID == "" {
-		log.Println("warning : please set GCPProjectID and SpannerInstanceID as environment variables")
+		log.Println("warning : please set the environment variables - GCPProjectID and SpannerInstanceID")
 	}
 
 	f, err := os.OpenFile(configFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)

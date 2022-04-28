@@ -30,10 +30,6 @@ var store *localStore
 
 func NewLocalSessionStore() *localStore {
 	if store == nil {
-		// once.Do(
-		// 	func() {
-		// 		store = &localStore{}
-		// 	})
 		store = &localStore{}
 	}
 	return store
