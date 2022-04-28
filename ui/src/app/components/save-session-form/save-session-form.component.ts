@@ -40,7 +40,7 @@ export class SaveSessionFormComponent implements OnInit {
     this.fetch.saveSession(payload).subscribe({
       next: (res: any) => {
         this.data.getAllSessions()
-        this.snack.openSnackBar('Session save successfully', 'close', 5000)
+        this.snack.openSnackBar('Session saved successfully', 'close', 5000)
         this.dialogRef.close()
       },
       error: (err: any) => {

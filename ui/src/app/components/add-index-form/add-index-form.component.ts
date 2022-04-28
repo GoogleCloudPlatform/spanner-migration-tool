@@ -34,7 +34,7 @@ export class AddIndexFormComponent implements OnInit {
     return this.addIndexForm.controls['ColsArray'] as FormArray
   }
 
-  selectedTableChage(tableName: string) {
+  selectedTableChange(tableName: string) {
     this.currentColumns = this.conv.SpSchema[tableName].ColNames
   }
   addNewColumnForm() {
