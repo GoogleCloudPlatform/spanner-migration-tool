@@ -15,6 +15,7 @@ interface IConvSourceType {
   styleUrls: ['./edit-global-datatype-form.component.scss'],
 })
 export class EditGlobalDatatypeFormComponent implements OnInit {
+  @Input() ruleNameValid: boolean = false
   addGlobalDataTypeForm: FormGroup
   conversionType: Record<string, IConvSourceType[]> = {}
   sourceType: string[] = []

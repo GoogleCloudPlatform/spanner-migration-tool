@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core'
+import { Component, Input, OnInit } from '@angular/core'
 import { FormArray, FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms'
 import IConv, { ICreateIndex } from 'src/app/model/Conv'
 import { DataService } from 'src/app/services/data/data.service'
@@ -9,6 +9,7 @@ import { DataService } from 'src/app/services/data/data.service'
   styleUrls: ['./add-index-form.component.scss'],
 })
 export class AddIndexFormComponent implements OnInit {
+  @Input() ruleNameValid: boolean = false
   addIndexForm: FormGroup
   tableNames: string[] = []
   currentColumns: string[] = []
@@ -16,7 +17,7 @@ export class AddIndexFormComponent implements OnInit {
   constructor(private fb: FormBuilder, private data: DataService) {
     this.addIndexForm = this.fb.group({
       tableName: ['', Validators.required],
-      indexName: ['', Validators.required],
+      indexName: ['', [Validators.required, Validators.pattern('^[a-zA-Z].{0,49}$')]],
       ColsArray: this.fb.array([]),
     })
   }

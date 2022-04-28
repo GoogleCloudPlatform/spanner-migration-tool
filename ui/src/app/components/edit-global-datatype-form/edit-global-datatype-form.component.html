@@ -43,7 +43,7 @@
     mat-raised-button
     (click)="formSubmit()"
     color="primary"
-    [disabled]="!addGlobalDataTypeForm.valid"
+    [disabled]="!(addGlobalDataTypeForm.valid && ruleNameValid)"
   >
     ADD RULE
   </button>

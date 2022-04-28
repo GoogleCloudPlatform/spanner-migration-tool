@@ -55,7 +55,7 @@
       mat-raised-button
       type="submit"
       color="primary"
-      [disabled]="!addIndexForm.valid"
+      [disabled]="!(addIndexForm.valid && ruleNameValid)"
       (click)="AddIndex()"
     >
       ADD RULE

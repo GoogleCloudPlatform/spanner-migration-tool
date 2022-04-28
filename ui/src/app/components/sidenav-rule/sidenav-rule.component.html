@@ -33,10 +33,12 @@
       <br />
     </form>
     <div *ngIf="ruleType.value === 'globalDataType'" class="change-global-type">
-      <app-edit-global-datatype-form></app-edit-global-datatype-form>
+      <app-edit-global-datatype-form
+        [ruleNameValid]="ruleForm.valid"
+      ></app-edit-global-datatype-form>
     </div>
     <div class="change-global-type" *ngIf="ruleType.value === 'AddIndex'">
-      <app-add-index-form></app-add-index-form>
+      <app-add-index-form [ruleNameValid]="ruleForm.valid"></app-add-index-form>
     </div>
   </div>
 </div>
