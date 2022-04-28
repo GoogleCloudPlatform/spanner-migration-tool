@@ -21,9 +21,7 @@ export class LoadSessionComponent implements OnInit {
 
   connectForm = new FormGroup({
     dbEngine: new FormControl('sqlserver', [Validators.required]),
-    filePath: new FormControl('', [
-      Validators.required,
-    ]),
+    filePath: new FormControl('', [Validators.required]),
   })
 
   ngOnInit(): void {}
@@ -35,13 +33,7 @@ export class LoadSessionComponent implements OnInit {
       driver: dbEngine,
       filePath: filePath,
     }
-    // this.data.initiateSession()
     this.data.getSchemaConversionFromSession(payload)
-    // .subscribe((res: string) => {
-    //   if (res !== '') {
-    //     this.snackbar.openSnackBar('Failed to load session file', 'Dismiss')
-    //   }
-    // })
     this.data.conv.subscribe((res) => {
       localStorage.setItem(StorageKeys.Config, JSON.stringify(payload))
       localStorage.setItem(StorageKeys.Type, InputType.SessionFile)

@@ -48,7 +48,7 @@ func (st *spannerStore) GetSessionsMetadata(ctx context.Context) ([]SchemaConver
 				Notes,
 				Tags,
 				SchemaChanges,
-				CreatedOn
+				CreateTimestamp
 			FROM SchemaConversionSession`,
 	}
 	iter := txn.Query(ctx, query)
@@ -87,7 +87,7 @@ func (st *spannerStore) GetConvWithMetadata(ctx context.Context, versionId strin
 								PreviousVersionId,
 								SchemaChanges,
 								TO_JSON_STRING(SchemaConversionObject) AS SchemaConversionObject,
-								CreatedOn
+								CreateTimestamp
 							FROM SchemaConversionSession 
 							WHERE VersionId = '%s'`, versionId),
 	}

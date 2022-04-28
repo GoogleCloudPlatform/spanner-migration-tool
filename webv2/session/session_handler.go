@@ -69,8 +69,8 @@ func InitiateSession(w http.ResponseWriter, r *http.Request) {
 	sessionState.SessionFile = filePath
 
 	scs := SchemaConversionSession{
-		VersionId: uuid.New().String(),
-		CreatedOn: now,
+		VersionId:       uuid.New().String(),
+		CreateTimestamp: now,
 		SessionMetadata: SessionMetadata{
 			SessionName:  sessionName,
 			DatabaseType: sessionState.Driver,
@@ -207,7 +207,7 @@ func SaveRemoteSession(w http.ResponseWriter, r *http.Request) {
 		VersionId:              uuid.New().String(),
 		PreviousVersionId:      []string{},
 		SchemaConversionObject: string(conv),
-		CreatedOn:              t,
+		CreateTimestamp:        t,
 		SessionMetadata:        sm,
 	}
 

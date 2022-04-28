@@ -13,7 +13,7 @@ type SchemaConversionSession struct {
 	PreviousVersionId      []string
 	SchemaChanges          string
 	SchemaConversionObject string
-	CreatedOn              time.Time
+	CreateTimestamp        time.Time
 }
 
 type SessionMetadata struct {

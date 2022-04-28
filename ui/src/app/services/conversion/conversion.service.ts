@@ -134,7 +134,6 @@ export class ConversionService {
   }
   getColumnMapping(tableName: string, data: IConv): IColumnTabData[] {
     let srcTableName = data.ToSource[tableName].Name
-    // console.log('got the data.....2 in conversion', data, srcTableName, tableName)
 
     return data.SrcSchema[srcTableName].ColNames.map((name: string, i: number) => {
       let spColName = data.ToSpanner[srcTableName].Cols[name]
@@ -208,8 +207,6 @@ export class ConversionService {
         spOrder: i + 1,
       }
     })
-    console.log(res)
-
     return res
   }
 }

@@ -84,7 +84,7 @@ func createDatabase(ctx context.Context, uri string) error {
 				Tags ARRAY<STRING(20)>,
 				SchemaChanges STRING(MAX),
 				SchemaConversionObject JSON NOT NULL,
-				CreatedOn TIMESTAMP NOT NULL,
+				CreateTimestamp TIMESTAMP NOT NULL,
 			  ) PRIMARY KEY(VersionId)`,
 		},
 	})

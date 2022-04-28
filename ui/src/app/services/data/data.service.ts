@@ -161,19 +161,6 @@ export class DataService {
         this.snackbar.openSnackBar('Not able to resume session.', 'Close', 5000)
       },
     })
-    // return this.fetch.resumeSession(versionId).pipe(
-    //   catchError((e: any) => {
-    //     return of({ error: e.error })
-    //   }),
-    //   map((data: any) => {
-    //     if (data.error) {
-    //       return data.error
-    //     } else {
-    //       this.convSubject.next(data)
-    //       return ''
-    //     }
-    //   })
-    // )
   }
 
   getRateTypemapAndSummary() {
@@ -185,7 +172,6 @@ export class DataService {
     })
       .pipe(
         catchError((err: any) => {
-          console.log(err)
           return of(err)
         })
       )
@@ -292,7 +278,6 @@ export class DataService {
         this.snackbar.openSnackBar('Global datatype updated successfully', 'Close', 3000)
       },
       error: (err: any) => {
-        console.log(err)
         this.snackbar.openSnackBar('Unable to add rule', 'Close', 5000)
       },
     })
@@ -315,8 +300,6 @@ export class DataService {
         this.snackbar.openSnackBar('added new Index.', 'Close', 5000)
       },
       error: (err: any) => {
-        console.log(err)
-
         this.snackbar.openSnackBar(err.error, 'Close', 5000)
       },
     })
