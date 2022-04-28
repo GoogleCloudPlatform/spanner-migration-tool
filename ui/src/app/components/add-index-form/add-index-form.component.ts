@@ -1,7 +1,8 @@
-import { Component, Input, OnInit } from '@angular/core'
+import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core'
 import { FormArray, FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms'
 import IConv, { ICreateIndex } from 'src/app/model/Conv'
 import { DataService } from 'src/app/services/data/data.service'
+import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 
 @Component({
   selector: 'app-add-index-form',
@@ -10,11 +11,16 @@ import { DataService } from 'src/app/services/data/data.service'
 })
 export class AddIndexFormComponent implements OnInit {
   @Input() ruleNameValid: boolean = false
+  @Output() resetRuleType: EventEmitter<any> = new EventEmitter<any>()
   addIndexForm: FormGroup
   tableNames: string[] = []
   currentColumns: string[] = []
   conv: IConv = {} as IConv
-  constructor(private fb: FormBuilder, private data: DataService) {
+  constructor(
+    private fb: FormBuilder,
+    private data: DataService,
+    private snackbar: SidenavService
+  ) {
     this.addIndexForm = this.fb.group({
       tableName: ['', Validators.required],
       indexName: ['', [Validators.required, Validators.pattern('^[a-zA-Z].{0,49}$')]],
@@ -62,5 +68,7 @@ export class AddIndexFormComponent implements OnInit {
       }),
     })
     this.data.addIndex(idxData.tableName, payload)
+    this.resetRuleType.emit('')
+    this.snackbar.closeSidenav()
   }
 }

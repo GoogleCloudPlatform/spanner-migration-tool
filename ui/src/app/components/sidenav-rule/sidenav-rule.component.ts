@@ -13,7 +13,7 @@ export class SidenavRuleComponent implements OnInit {
 
   ruleForm: FormGroup = new FormGroup({
     ruleName: new FormControl('', [Validators.required, Validators.pattern('^[a-zA-Z].{0,49}$')]),
-    ruleType: new FormControl('AddIndex', [Validators.required]),
+    ruleType: new FormControl('', [Validators.required]),
   })
 
   ngOnInit(): void {}
@@ -22,5 +22,10 @@ export class SidenavRuleComponent implements OnInit {
   }
   get ruleType() {
     return this.ruleForm.get('ruleType')?.value
+  }
+  resetRuleType() {
+    this.ruleForm.controls['ruleType'].setValue('')
+    this.ruleForm.controls['ruleName'].setValue('')
+    this.ruleForm.markAsUntouched()
   }
 }
