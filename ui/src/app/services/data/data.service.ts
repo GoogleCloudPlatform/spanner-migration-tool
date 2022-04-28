@@ -248,6 +248,26 @@ export class DataService {
     )
   }
 
+  updateIndexNames(
+    tableName: string,
+    updatedIndexNames: Record<string, string>
+  ): Observable<string> {
+    return this.fetch.updateIndex(tableName, updatedIndexNames).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data: any) => {
+        if (data.error) {
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          return ''
+        }
+      })
+    )
+  }
+
   getConfig() {
     this.fetch.getSpannerConfig().subscribe((res: ISpannerConfig) => {
       this.configSub.next(res)

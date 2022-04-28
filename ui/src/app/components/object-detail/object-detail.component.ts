@@ -59,11 +59,12 @@ export class ObjectDetailComponent implements OnInit {
     'spReferColumns',
   ]
 
-  indexDisplayedColumns = ['srcColName', 'srcOrder', 'spColName', 'spOrder']
+  indexDisplayedColumns = ['srcIndexColName', 'srcIndexOrder', 'spIndexColName', 'spIndexOrder']
   dataSource: any = []
   fkDataSource: any = []
   isEditMode: boolean = false
   isFkEditMode: boolean = false
+  isIndexEditMode: boolean = false
   isObjectSelected: boolean = false
   rowArray: FormArray = new FormArray([])
   fkArray: FormArray = new FormArray([])
@@ -275,6 +276,35 @@ export class ObjectDetailComponent implements OnInit {
     })
     return ind
   }
+
+  toggleIndexEdit() {
+    if (this.isIndexEditMode) {
+      let updatedIndexNames: Record<string, string> = {}
+
+      this.rowArray.value.forEach((Index: IIndexData, i: number) => {
+        let oldIndex = this.indexData[i]
+        if (oldIndex.spColName !== Index.spColName) {
+          updatedIndexNames[oldIndex.spColName] = Index.spColName
+        }
+      })
+
+      this.data.updateIndexNames(this.currentObject!.name, updatedIndexNames).subscribe({
+        next: (res: string) => {
+          if (res == '') {
+            this.isIndexEditMode = false
+          } else {
+            this.dialog.open(InfodialogComponent, {
+              data: { message: res, type: 'error' },
+              maxWidth: '500px',
+            })
+          }
+        },
+      })
+    } else {
+      this.isIndexEditMode = true
+    }
+  }
+
   dropIndex() {
     this.data
       .dropIndex(this.currentObject!.parent, this.currentObject!.pos)
