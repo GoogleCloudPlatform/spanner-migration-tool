@@ -27,15 +27,16 @@
       <ng-container matColumnDef="Notes">
         <th mat-header-cell *matHeaderCellDef>Notes</th>
         <td mat-cell *matCellDef="let element; let i = index">
-          <div *ngIf="element.Notes">
-            <button class="notes-toggle-button" (click)="notesToggle[i] = !notesToggle[i]">
+          <div *ngIf="element.Notes" class="notes-wrapper">
+            <button *ngIf="element.Notes.length > 1 || element.Notes[0].length > 20" class="notes-toggle-button"
+              (click)="notesToggle[i] = !notesToggle[i]">
               ...
             </button>
             <div *ngIf="notesToggle[i]; else short">
               <p *ngFor="let note of element.Notes">{{ note }}</p>
             </div>
             <ng-template #short>
-              <p>{{ element.Notes?.[0].substring(0,10)+ '...' }}</p>
+              <p>{{ element.Notes?.[0].substring(0,20)}}</p>
             </ng-template>
           </div>
         </td>
@@ -68,23 +69,14 @@
   <div class="mat-elevation-z3 warning-container" *ngIf="dataSource.length === 0">
     <svg width="49" height="48" viewBox="0 0 49 48" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect x="0.907227" width="48" height="48" rx="4" fill="#E6ECFA" />
-      <path
-        fill-rule="evenodd"
-        clip-rule="evenodd"
+      <path fill-rule="evenodd" clip-rule="evenodd"
         d="M17.9072 15C16.8027 15 15.9072 15.8954 15.9072 17V31C15.9072 32.1046 16.8027 33 17.9072 33H31.9072C33.0118 33 33.9072 32.1046 33.9072 31V17C33.9072 15.8954 33.0118 15 31.9072 15H17.9072ZM20.9072 18H18.9072V20H20.9072V18ZM21.9072 18H23.9072V20H21.9072V18ZM20.9072 23H18.9072V25H20.9072V23ZM21.9072 23H23.9072V25H21.9072V23ZM20.9072 28H18.9072V30H20.9072V28ZM21.9072 28H23.9072V30H21.9072V28ZM30.9072 18H24.9072V20H30.9072V18ZM24.9072 23H30.9072V25H24.9072V23ZM30.9072 28H24.9072V30H30.9072V28Z"
-        fill="#3367D6"
-      />
+        fill="#3367D6" />
     </svg>
-    <button
-      class="spanner-config-button"
-      mat-button
-      color="primary"
-      (click)="openSpannerConfigDialog()"
-    >
+    <button class="spanner-config-button" mat-button color="primary" (click)="openSpannerConfigDialog()">
       Configure Spanner Details
     </button>
-    <span
-      >Do not have any previous session to display. <u> OR </u> <br />
+    <span>Do not have any previous session to display. <u> OR </u> <br />
       Invalid Spanner configuration, only local sessions will be displayed.
     </span>
   </div>
