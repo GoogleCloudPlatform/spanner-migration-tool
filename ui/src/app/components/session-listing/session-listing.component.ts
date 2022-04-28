@@ -3,7 +3,6 @@ import { Router } from '@angular/router'
 import { DataService } from 'src/app/services/data/data.service'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import ISession from '../../model/Session'
-import ISpannerConfig from '../../model/SpannerConfig'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 
