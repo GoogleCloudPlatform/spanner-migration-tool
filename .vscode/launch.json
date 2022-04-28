@@ -16,6 +16,26 @@
                 "-v=true",
                 "-dump-file="
             ]
+        },
+        {
+            "name": "webv1",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceRoot}/main.go",
+            "args": [
+                "-web",
+            ]
+        },
+        {
+            "name": "webv2",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceRoot}/main.go",
+            "args": [
+                "-webv2",
+            ]
         }
     ]
 }
