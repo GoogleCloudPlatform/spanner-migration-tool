@@ -10,6 +10,10 @@ export default interface IConv {
   TimezoneOffset: string
   Stats: IStats
   UniquePKey: Record<string, string[]>
+  SessionName: string
+  DatabaseType: string
+  DatabaseName: string
+  EditorName: string
 }
 
 export interface IStats {

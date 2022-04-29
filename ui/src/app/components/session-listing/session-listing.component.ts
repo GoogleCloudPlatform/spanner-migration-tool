@@ -5,6 +5,7 @@ import { FetchService } from 'src/app/services/fetch/fetch.service'
 import ISession from '../../model/Session'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
+import IConv from 'src/app/model/Conv'
 
 @Component({
   selector: 'app-session-listing',
@@ -45,11 +46,17 @@ export class SessionListingComponent implements OnInit {
     })
   }
 
-  downloadSessionFile(versionId: string) {
+  downloadSessionFile(
+    versionId: string,
+    sessionName: string,
+    databaseType: string,
+    databaseName: string
+  ) {
     this.fetch.getConvForAsession(versionId).subscribe((data: any) => {
       var a = document.createElement('a')
       a.href = URL.createObjectURL(data)
       a.download = versionId + '.session.json'
+      a.download = `${sessionName}_${databaseType}_${databaseName}.json`
       a.click()
     })
   }
@@ -57,7 +64,7 @@ export class SessionListingComponent implements OnInit {
   ResumeFromSessionFile(versionId: string) {
     this.data.resetStore()
     this.data.getSchemaConversionFromResumeSession(versionId)
-    this.data.conv.subscribe((res) => {
+    this.data.conv.subscribe((res: IConv) => {
       this.router.navigate(['/workspace'])
     })
   }
