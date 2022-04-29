@@ -44,7 +44,7 @@ export class SaveSessionFormComponent implements OnInit {
         this.dialogRef.close()
       },
       error: (err: any) => {
-        this.snack.openSnackBar(err.message, 'close', 5000)
+        this.snack.openSnackBar(err.error, 'close', 5000)
       },
     })
   }
