@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, SimpleChanges } from '@angular/core'
+import { Component, Input, OnInit, Output, SimpleChanges, EventEmitter } from '@angular/core'
 import { COMMA, ENTER, T } from '@angular/cdk/keycodes'
 import { MatChipInputEvent } from '@angular/material/chips'
 import { DataService } from 'src/app/services/data/data.service'
@@ -14,6 +14,7 @@ import { FormControl } from '@angular/forms'
   styleUrls: ['./summary.component.scss'],
 })
 export class SummaryComponent implements OnInit {
+  @Output() changeIssuesLabel: EventEmitter<number> = new EventEmitter<number>()
   summaryRows: SummaryRow[] = []
   summary: Map<string, ISummary> = new Map<string, ISummary>()
   filteredSummaryRows: SummaryRow[] = []
@@ -37,6 +38,7 @@ export class SummaryComponent implements OnInit {
           if (s) {
             this.initiateSummaryCollection(s)
             this.summaryCount = s.NotesCount + s.WarningsCount
+            this.changeIssuesLabel.emit(s.NotesCount + s.WarningsCount)
           }
         }
       },
@@ -53,6 +55,7 @@ export class SummaryComponent implements OnInit {
       if (s) {
         this.initiateSummaryCollection(s)
         this.summaryCount = s.NotesCount + s.WarningsCount
+        this.changeIssuesLabel.emit(s.NotesCount + s.WarningsCount)
       }
     }
   }
