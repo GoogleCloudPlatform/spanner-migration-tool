@@ -47,6 +47,7 @@ export class ObjectDetailComponent implements OnInit {
     'spDataType',
     'spIsPk',
     'spIsNotNull',
+    'dropButton',
   ]
   displayedFkColumns = [
     'srcName',
@@ -57,6 +58,7 @@ export class ObjectDetailComponent implements OnInit {
     'spColumns',
     'spReferTable',
     'spReferColumns',
+    'dropButton',
   ]
 
   indexDisplayedColumns = ['srcIndexColName', 'srcIndexOrder', 'spIndexColName', 'spIndexOrder']

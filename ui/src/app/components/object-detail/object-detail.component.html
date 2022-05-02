@@ -169,7 +169,6 @@
                   [formControl]="element.get('spColName')"
                 />
               </div>
-
               <p *ngIf="!isEditMode">{{ element.get('spColName').value }}</p>
             </td>
           </ng-container>
@@ -234,33 +233,35 @@
 
           <ng-container matColumnDef="spIsNotNull">
             <th mat-header-cell class="table_header" *matHeaderCellDef>Nullable</th>
-
             <td mat-cell *matCellDef="let element">
-              <div class="notnull_action_container">
-                <div class="notNullContent">
-                  <div *ngIf="isEditMode && element.get('spOrder').value !== ''">
-                    <mat-checkbox
-                      color="primary"
-                      [formControl]="element.get('spIsNotNull')"
-                    ></mat-checkbox>
-                  </div>
-                  <p *ngIf="!isEditMode">
-                    {{ element.get('spIsNotNull').value ? 'Not Null' : '' }}
-                  </p>
+              <div class="notNullContent">
+                <div *ngIf="isEditMode && element.get('spOrder').value !== ''">
+                  <mat-checkbox
+                    color="primary"
+                    [formControl]="element.get('spIsNotNull')"
+                  ></mat-checkbox>
                 </div>
+                <p *ngIf="!isEditMode">
+                  {{ element.get('spIsNotNull').value ? 'Not Null' : '' }}
+                </p>
+              </div>
+            </td>
+          </ng-container>
 
-                <div class="actions" *ngIf="currentObject!.isSpannerNode">
-                  <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
-                  <mat-menu #menu="matMenu">
-                    <button
-                      [disabled]="element.get('spOrder').value === ''"
-                      mat-menu-item
-                      (click)="dropColumn(element)"
-                    >
-                      <span>Drop Column</span>
-                    </button>
-                  </mat-menu>
-                </div>
+          <ng-container matColumnDef="dropButton" stickyEnd>
+            <th mat-header-cell class="table_header" *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let element">
+              <div class="actions" *ngIf="currentObject!.isSpannerNode">
+                <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
+                <mat-menu #menu="matMenu">
+                  <button
+                    [disabled]="element.get('spOrder').value === ''"
+                    mat-menu-item
+                    (click)="dropColumn(element)"
+                  >
+                    <span>Drop Column</span>
+                  </button>
+                </mat-menu>
               </div>
             </td>
           </ng-container>
@@ -355,23 +356,26 @@
           <ng-container matColumnDef="spReferColumns">
             <th class="table_header" mat-header-cell *matHeaderCellDef>Refer Columns</th>
             <td mat-cell *matCellDef="let element">
-              <div class="sprefcol-actions-container">
-                <div class="sprefcol-content">
-                  {{ element.get('spReferColumns').value }}
-                </div>
+              <div class="sprefcol-content">
+                {{ element.get('spReferColumns').value }}
+              </div>
+            </td>
+          </ng-container>
 
-                <div class="actions">
-                  <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
-                  <mat-menu #menu="matMenu">
-                    <button
-                      [disabled]="element.get('spName').value === ''"
-                      mat-menu-item
-                      (click)="dropFk(element)"
-                    >
-                      <span>Drop Fk</span>
-                    </button>
-                  </mat-menu>
-                </div>
+          <ng-container matColumnDef="dropButton" stickyEnd>
+            <th mat-header-cell class="table_header" *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let element">
+              <div class="actions">
+                <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
+                <mat-menu #menu="matMenu">
+                  <button
+                    [disabled]="element.get('spName').value === ''"
+                    mat-menu-item
+                    (click)="dropFk(element)"
+                  >
+                    <span>Drop Fk</span>
+                  </button>
+                </mat-menu>
               </div>
             </td>
           </ng-container>

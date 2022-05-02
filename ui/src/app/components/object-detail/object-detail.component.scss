@@ -140,17 +140,10 @@
   .mat-column-srcIndexOrder {
     border-right: 1px solid #cdcccd;
   }
-
-  .notnull_action_container,
-  .sprefcol-actions-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    .actions {
-      border-left: 1px solid #cdcccd;
-      cursor: pointer;
-    }
+  .mat-column-dropButton {
+    border-left: 1px solid #cdcccd;
   }
+
   .sp-datatype-data-cells {
     display: flex;
     flex-direction: row;
