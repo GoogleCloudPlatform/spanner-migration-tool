@@ -1,6 +1,6 @@
 <div class="container">
   <mat-tab-group [ngClass]="[isLeftColumnCollapse ? 'hidden' : 'display']" selectedIndex="1">
-    <mat-tab [label]="srcDbName">
+    <mat-tab [label]="srcDbName.toUpperCase()">
       <div class="filter-wrapper">
         <div class="left">
           <span class="material-icons filter-icon">filter_list</span>
