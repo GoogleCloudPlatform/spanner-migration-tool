@@ -4,7 +4,6 @@ import IConv, { ICreateIndex, IIndexKey, Index, ISpannerForeignKey } from '../..
 import IColumnTabData, { IIndexData } from '../../model/EditTable'
 import IFkTabData from 'src/app/model/FkTabData'
 import { ObjectExplorerNodeType } from 'src/app/app.constants'
-import { map } from 'rxjs/operators'
 
 @Injectable({
   providedIn: 'root',

@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
-import { FormControl, FormControlName, FormGroup, Validators } from '@angular/forms'
+import { FormControl, FormGroup, Validators } from '@angular/forms'
 import { DataService } from 'src/app/services/data/data.service'
 
 @Component({
