@@ -180,7 +180,7 @@ export class ObjectDetailComponent implements OnInit {
       next: (res: string) => {
         if (res == '') {
           this.data.getDdl()
-          this.snackbar.openSnackBar(`${colName} column dropped successfully`, 'close', 4000)
+          this.snackbar.openSnackBar(`${colName} column dropped successfully`, 'Close', 4000)
         } else {
           this.dialog.open(InfodialogComponent, {
             data: { message: res, type: 'error' },
