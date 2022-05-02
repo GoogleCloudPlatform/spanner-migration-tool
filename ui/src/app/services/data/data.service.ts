@@ -114,19 +114,6 @@ export class DataService {
         this.snackbar.openSnackBar('Not able to load dump file.', 'Close')
       },
     })
-    // return this.fetch.getSchemaConversionFromDump(payload).pipe(
-    //   catchError((e: any) => {
-    //     return of({ error: e.error })
-    //   }),
-    //   map((data: any) => {
-    //     if (data.error) {
-    //       return data.error
-    //     } else {
-    //       this.convSubject.next(data)
-    //       return ''
-    //     }
-    //   })
-    // )
   }
 
   getSchemaConversionFromSession(payload: ISessionConfig) {
@@ -138,19 +125,6 @@ export class DataService {
         this.snackbar.openSnackBar('Not able to load session file.', 'Close')
       },
     })
-    // return this.fetch.getSchemaConversionFromSessionFile(payload).pipe(
-    //   catchError((e: any) => {
-    //     return of({ error: e.error })
-    //   }),
-    //   map((data: any) => {
-    //     if (data.error) {
-    //       return data.error
-    //     } else {
-    //       this.convSubject.next(data)
-    //       return ''
-    //     }
-    //   })
-    // )
   }
   getSchemaConversionFromResumeSession(versionId: string) {
     this.fetch.resumeSession(versionId).subscribe({

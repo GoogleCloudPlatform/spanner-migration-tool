@@ -1,11 +1,9 @@
-import { Component, Input, OnInit, SimpleChanges } from '@angular/core'
-import { COMMA, ENTER, T } from '@angular/cdk/keycodes'
-import { MatChipInputEvent } from '@angular/material/chips'
+import { Component, Input, OnInit, Output, SimpleChanges, EventEmitter } from '@angular/core'
 import { DataService } from 'src/app/services/data/data.service'
 import ISummary from 'src/app/model/Summary'
 import { FlatNode } from 'src/app/model/SchemaObjectNode'
 import { Observable, of } from 'rxjs'
-import { map, startWith, debounceTime } from 'rxjs/operators'
+import { map, startWith } from 'rxjs/operators'
 import { FormControl } from '@angular/forms'
 
 @Component({
@@ -14,6 +12,7 @@ import { FormControl } from '@angular/forms'
   styleUrls: ['./summary.component.scss'],
 })
 export class SummaryComponent implements OnInit {
+  @Output() changeIssuesLabel: EventEmitter<number> = new EventEmitter<number>()
   summaryRows: SummaryRow[] = []
   summary: Map<string, ISummary> = new Map<string, ISummary>()
   filteredSummaryRows: SummaryRow[] = []
@@ -37,6 +36,7 @@ export class SummaryComponent implements OnInit {
           if (s) {
             this.initiateSummaryCollection(s)
             this.summaryCount = s.NotesCount + s.WarningsCount
+            this.changeIssuesLabel.emit(s.NotesCount + s.WarningsCount)
           }
         }
       },
@@ -53,6 +53,7 @@ export class SummaryComponent implements OnInit {
       if (s) {
         this.initiateSummaryCollection(s)
         this.summaryCount = s.NotesCount + s.WarningsCount
+        this.changeIssuesLabel.emit(s.NotesCount + s.WarningsCount)
       }
     }
   }

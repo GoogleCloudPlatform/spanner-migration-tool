@@ -59,11 +59,12 @@ export class ObjectDetailComponent implements OnInit {
     'spReferColumns',
   ]
 
-  indexDisplayedColumns = ['srcColName', 'srcOrder', 'spColName', 'spOrder']
+  indexDisplayedColumns = ['srcIndexColName', 'srcIndexOrder', 'spIndexColName', 'spIndexOrder']
   dataSource: any = []
   fkDataSource: any = []
   isEditMode: boolean = false
   isFkEditMode: boolean = false
+  isIndexEditMode: boolean = false
   isObjectSelected: boolean = false
   rowArray: FormArray = new FormArray([])
   fkArray: FormArray = new FormArray([])
@@ -77,7 +78,7 @@ export class ObjectDetailComponent implements OnInit {
     this.currentObject = changes['currentObject']?.currentValue || this.currentObject
     this.tableData = changes['tableData']?.currentValue || this.tableData
     this.indexData = changes['indexData']?.currentValue || this.indexData
-
+    this.currentTabIndex = this.currentObject?.type === ObjectExplorerNodeType.Table ? 0 : -1
     this.isObjectSelected = this.currentObject ? true : false
     this.isEditMode = false
     this.isFkEditMode = false
@@ -179,7 +180,7 @@ export class ObjectDetailComponent implements OnInit {
       next: (res: string) => {
         if (res == '') {
           this.data.getDdl()
-          this.snackbar.openSnackBar(`${colName} column dropped successfully`, 'close', 4000)
+          this.snackbar.openSnackBar(`${colName} column dropped successfully`, 'Close', 4000)
         } else {
           this.dialog.open(InfodialogComponent, {
             data: { message: res, type: 'error' },
@@ -273,6 +274,15 @@ export class ObjectDetailComponent implements OnInit {
     })
     return ind
   }
+
+  toggleIndexEdit() {
+    if (this.isIndexEditMode) {
+      this.isIndexEditMode = false
+    } else {
+      this.isIndexEditMode = true
+    }
+  }
+
   dropIndex() {
     this.data
       .dropIndex(this.currentObject!.parent, this.currentObject!.pos)
@@ -283,6 +293,7 @@ export class ObjectDetailComponent implements OnInit {
           this.updateSidebar.emit(true)
         }
       })
+    this.currentObject = null
   }
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {

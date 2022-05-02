@@ -23,6 +23,9 @@
     svg {
       margin-right: 10px;
     }
+    .actions {
+      margin-left: 15px;
+    }
   }
   .mat-row,
   .mat-header-row {
@@ -105,4 +108,8 @@
 }
 #left-column-toggle-button:hover {
   cursor: pointer;
+}
+
+.mat-column-status{
+  width: 80px;
 }
