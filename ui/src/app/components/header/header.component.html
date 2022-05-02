@@ -38,12 +38,13 @@
         <span class="iid"><b>Spanner Instance Id: </b>{{ spannerConfig.SpannerInstanceID }}</span>
       </div>
 
-      <mat-icon (click)="openEditForm()" class="pointer">edit</mat-icon>
+      <mat-icon (click)="openEditForm()" class="pointer" matTooltip="Edit Settings">edit</mat-icon>
     </div>
     <button
       mat-icon-button
       class="example-icon favorite-icon"
       (click)="openInstructionSidenav()"
+      matTooltip="Instruction"
     >
       <mat-icon>help</mat-icon>
     </button>
