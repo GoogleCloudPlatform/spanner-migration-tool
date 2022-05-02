@@ -4,7 +4,7 @@
     <mat-select
       matSelect
       class="input-field"
-      (selectionChange)="selectedTableChage($event.value)"
+      (selectionChange)="selectedTableChange($event.value)"
       formControlName="tableName"
       required="true"
     >
@@ -55,7 +55,7 @@
       mat-raised-button
       type="submit"
       color="primary"
-      [disabled]="!addIndexForm.valid"
+      [disabled]="!(addIndexForm.valid && ruleNameValid && ColsArray.controls.length > 0)"
       (click)="AddIndex()"
     >
       ADD RULE

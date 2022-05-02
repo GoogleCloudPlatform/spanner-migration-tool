@@ -1,10 +1,9 @@
-# HarbourBridge: Schema Assistant (alpha release)
+# HarbourBridge: Schema Assistant
 
 HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation and
 migration. This README provides details of the HarbourBridge schema assistant,
 which supports schema customization. For general HarbourBridge information see
-this [README](https:githubcomcloudspannerecosystemharbourbridge). Note that the
-schema assistant is currently in alpha release.
+this [README](https://github.com/cloudspannerecosystem/harbourbridge).
 
 ### Starting web server for HarbourBridge
 
@@ -23,18 +22,31 @@ using mysql or postgres dump or direct connection.
 To start HarbourBridge web server, run:
 
 ```sh
-harbourbridge --web
+harbourbridge --webv2
 ```
 
-The tool will be available on port 8080
+To launch the client you need to perform these steps.
 
-You can go to `<base-url>/` to visit the UI of the tool.
+_In the future release these steps will be automated and application can be be launched using the command above._
 
-    eg: localhost:8080/
+- Make sure that you have the stable version of `node` installed.
+- Open another terminal instance and go to the directory `ui`.
+- Install the dependencies using the command below. This step needs to be performed only once.
 
-For more details on how to use the UI, you can visit: `<base-url>/#/instructions`.
+  ```sh
+  npm install
+  ```
 
-    eg: localhost:8080/#/instructions
+- Run the command below to launch the client.
+  ```sh
+  npm start
+  ```
+
+The tool will be available on port 4200 and you can go to `<base-url>/` to visit the UI of the tool.
+
+    eg: localhost:4200/
+
+For more details on how to use the UI, click on the `help` button on the top right corner of the page.
 
 <ins>**Note:**</ins>
 

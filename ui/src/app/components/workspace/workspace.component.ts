@@ -35,6 +35,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   isOfflineStatus: boolean = false
   spannerTree: ISchemaObjectNode[] = []
   srcTree: ISchemaObjectNode[] = []
+  issuesAndSuggestionsLabel: string = 'ISSUES AND SUGGESTIONS'
   constructor(
     private data: DataService,
     private conversion: ConversionService,
@@ -116,6 +117,12 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     }
   }
 
+  updateIssuesLabel(count: number) {
+    setTimeout(() => {
+      this.issuesAndSuggestionsLabel = `ISSUES AND SUGGESTIONS (${count})`
+    })
+  }
+
   leftColumnToggle() {
     this.isLeftColumnCollapse = !this.isLeftColumnCollapse
   }
@@ -135,7 +142,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     var a = document.createElement('a')
     let resJson = JSON.stringify(this.conv).replace(/9223372036854776000/g, '9223372036854775807')
     a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
-    a.download = 'session.json'
+    a.download = `${this.conv.SessionName}_${this.conv.DatabaseType}_${this.conv.DatabaseName}.json`
     a.click()
   }
 

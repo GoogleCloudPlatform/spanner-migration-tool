@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-//Config represents Spanner Configiuration for Spanner Session Management.
+//Config represents Spanner Configuration for Spanner Session Management.
 type Config struct {
 	GCPProjectID      string `json:"GCPProjectID"`
 	SpannerInstanceID string `json:"SpannerInstanceID"`
