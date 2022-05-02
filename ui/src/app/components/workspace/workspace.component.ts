@@ -35,6 +35,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   isOfflineStatus: boolean = false
   spannerTree: ISchemaObjectNode[] = []
   srcTree: ISchemaObjectNode[] = []
+  issuesAndSuggestionsLabel: string = 'ISSUES AND SUGGESTIONS'
   constructor(
     private data: DataService,
     private conversion: ConversionService,
@@ -114,6 +115,12 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
       this.currentObject = object
       this.indexData = this.conversion.getIndexMapping(object.parent, this.conv, object.name)
     }
+  }
+
+  updateIssuesLabel(count: number) {
+    setTimeout(() => {
+      this.issuesAndSuggestionsLabel = `ISSUES AND SUGGESTIONS (${count})`
+    })
   }
 
   leftColumnToggle() {
