@@ -5,7 +5,6 @@ import { DataService } from 'src/app/services/data/data.service'
 import { Router } from '@angular/router'
 import { InputType, StorageKeys } from 'src/app/app.constants'
 import { extractSourceDbName } from 'src/app/utils/utils'
-import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 
 @Component({
   selector: 'app-load-dump',
@@ -13,11 +12,7 @@ import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
   styleUrls: ['./load-dump.component.scss'],
 })
 export class LoadDumpComponent implements OnInit {
-  constructor(
-    private data: DataService,
-    private router: Router,
-    private snackbar: SnackbarService
-  ) {}
+  constructor(private data: DataService, private router: Router) {}
   connectForm = new FormGroup({
     dbEngine: new FormControl('mysqldump', [Validators.required]),
     filePath: new FormControl('', [Validators.required]),
