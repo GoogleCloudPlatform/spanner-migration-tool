@@ -78,7 +78,7 @@ export class ObjectDetailComponent implements OnInit {
     this.currentObject = changes['currentObject']?.currentValue || this.currentObject
     this.tableData = changes['tableData']?.currentValue || this.tableData
     this.indexData = changes['indexData']?.currentValue || this.indexData
-
+    this.currentTabIndex = this.currentObject?.type === ObjectExplorerNodeType.Table ? 0 : -1
     this.isObjectSelected = this.currentObject ? true : false
     this.isEditMode = false
     this.isFkEditMode = false
@@ -277,27 +277,7 @@ export class ObjectDetailComponent implements OnInit {
 
   toggleIndexEdit() {
     if (this.isIndexEditMode) {
-      let updatedIndexNames: Record<string, string> = {}
-
-      this.rowArray.value.forEach((Index: IIndexData, i: number) => {
-        let oldIndex = this.indexData[i]
-        if (oldIndex.spColName !== Index.spColName) {
-          updatedIndexNames[oldIndex.spColName] = Index.spColName
-        }
-      })
-
-      this.data.updateIndexNames(this.currentObject!.name, updatedIndexNames).subscribe({
-        next: (res: string) => {
-          if (res == '') {
-            this.isIndexEditMode = false
-          } else {
-            this.dialog.open(InfodialogComponent, {
-              data: { message: res, type: 'error' },
-              maxWidth: '500px',
-            })
-          }
-        },
-      })
+      this.isIndexEditMode = false
     } else {
       this.isIndexEditMode = true
     }
@@ -313,6 +293,7 @@ export class ObjectDetailComponent implements OnInit {
           this.updateSidebar.emit(true)
         }
       })
+    this.currentObject = null
   }
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {

@@ -73,13 +73,6 @@ export class FetchService {
     return this.http.get<HttpResponse<IConv>>(`${this.url}/drop/fk?table=${tableName}&pos=${pos}`)
   }
 
-  updateIndex(tableName: string, payload: Record<string, string>): any {
-    return this.http.post<HttpResponse<IConv>>(
-      `${this.url}/rename/indexes?table=${tableName}`,
-      payload
-    )
-  }
-
   getSessions() {
     return this.http.get<ISession[]>(`${this.url}/GetSessions`)
   }
