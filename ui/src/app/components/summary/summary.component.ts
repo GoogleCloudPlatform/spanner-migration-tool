@@ -1,11 +1,9 @@
 import { Component, Input, OnInit, Output, SimpleChanges, EventEmitter } from '@angular/core'
-import { COMMA, ENTER, T } from '@angular/cdk/keycodes'
-import { MatChipInputEvent } from '@angular/material/chips'
 import { DataService } from 'src/app/services/data/data.service'
 import ISummary from 'src/app/model/Summary'
 import { FlatNode } from 'src/app/model/SchemaObjectNode'
 import { Observable, of } from 'rxjs'
-import { map, startWith, debounceTime } from 'rxjs/operators'
+import { map, startWith } from 'rxjs/operators'
 import { FormControl } from '@angular/forms'
 
 @Component({

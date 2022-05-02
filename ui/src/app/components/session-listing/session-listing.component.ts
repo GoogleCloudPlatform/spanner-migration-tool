@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, SimpleChanges } from '@angular/core'
+import { Component, OnInit } from '@angular/core'
 import { Router } from '@angular/router'
 import { DataService } from 'src/app/services/data/data.service'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
@@ -55,7 +55,6 @@ export class SessionListingComponent implements OnInit {
     this.fetch.getConvForAsession(versionId).subscribe((data: any) => {
       var a = document.createElement('a')
       a.href = URL.createObjectURL(data)
-      a.download = versionId + '.session.json'
       a.download = `${sessionName}_${databaseType}_${databaseName}.json`
       a.click()
     })
