@@ -164,7 +164,15 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
 	}
+
+	fmt.Println("convertSchemaSQL getting called")
+
+	//IntegrateUniqueId to handle  cascading effect in UI
+
+	IntegrateUniqueId(conv)
 	sessionState.Conv = conv
+	PrintIntegrateUniqueId(conv)
+
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(conv)
 }
@@ -200,6 +208,9 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sourceProfile.Driver = dc.Driver
 	targetProfile, _ := profiles.NewTargetProfile("")
 	targetProfile.TargetDb = constants.TargetSpanner
+
+	fmt.Println("This api getting callled")
+
 	conv, err := conversion.SchemaConv(sourceProfile, targetProfile, &utils.IOStreams{In: f, Out: os.Stdout})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
@@ -207,7 +218,11 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
+
+	IntegrateUniqueId(conv)
 	sessionState.Conv = conv
+	PrintIntegrateUniqueId(conv)
+
 	sessionState.Driver = dc.Driver
 	sessionState.DbName = ""
 	sessionState.SessionFile = ""
