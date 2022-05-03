@@ -401,6 +401,11 @@ func UpdatePrimaryKeyV2(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	//todo
+	//i) empty collection of columns
+	//ii) invalid table id not in table
+	// iii) invalid column id for
+
 	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(pKeyResponse)
