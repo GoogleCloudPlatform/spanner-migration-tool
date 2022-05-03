@@ -194,8 +194,6 @@ export class ConversionService {
   }
 
   getIndexMapping(tableName: string, data: IConv, indexName: string): IIndexData[] {
-    console.log(data, 'index mapping')
-
     let srcTableName = data.ToSource[tableName].Name
     let spIndex = data.SpSchema[tableName].Indexes.filter((idx) => idx.Name === indexName)[0]
     let srcIndexs = data.SrcSchema[srcTableName].Indexes?.filter((idx) => idx.Name === indexName)
