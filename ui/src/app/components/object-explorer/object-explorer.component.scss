@@ -19,6 +19,7 @@
   .sidebar_link {
     cursor: pointer;
     display: flex;
+    justify-content: space-between;
     align-items: center;
     width: 100%;
     height: 40px;
@@ -33,6 +34,7 @@
       }
     }
   }
+  
   .mat-row,
   .mat-header-row {
     height: 29px;
@@ -118,4 +120,8 @@
 
 .mat-column-status {
   width: 80px;
+}
+.sidebar_link_index {
+  display: flex !important;
+  justify-content: space-between !important;
 }
