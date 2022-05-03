@@ -21,7 +21,7 @@ type PrimaryKeyResponse struct {
 	TableId      int      `json:"TableId"`
 	Columns      []Column `json:"Columns"`
 	PrimaryKeyId int      `json:"PrimaryKeyId"`
-	Synth        string   `json:"Synth"`
+	Synth        bool     `json:"Synth"`
 }
 
 type Column struct {
@@ -319,6 +319,7 @@ func UpdatePrimaryKeyV2(w http.ResponseWriter, r *http.Request) {
 
 				pkey := ddl.IndexKey{}
 				pkey.Col = getcolumnname(spannertable, pkeyrequest.Columns[i].ColumnId)
+
 				pkey.Desc = pkeyrequest.Columns[i].Desc
 
 				pkey.Order = pkeyrequest.Columns[i].Order
@@ -358,6 +359,22 @@ func UpdatePrimaryKeyV2(w http.ResponseWriter, r *http.Request) {
 	pKeyResponse := PrimaryKeyResponse{}
 	pKeyResponse.TableId = pkeyrequest.TableId
 	pKeyResponse.PrimaryKeyId = pkeyrequest.PrimaryKeyId
+
+	fmt.Println("SyntheticPKeys :", sessionState.Conv.SyntheticPKeys)
+
+	var issyntheticpkey bool
+
+	for i := 0; i < len(spannertable.ColNames); i++ {
+
+		if spannertable.ColNames[i] == "synth_id" {
+			issyntheticpkey = true
+		}
+
+	}
+
+	fmt.Println("issyntheticpkey :", issyntheticpkey)
+
+	pKeyResponse.Synth = issyntheticpkey
 
 	for _, indexkey := range spannertable.Pks {
 
