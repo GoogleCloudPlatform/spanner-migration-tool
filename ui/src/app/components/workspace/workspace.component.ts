@@ -57,7 +57,9 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     })
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
+      const indexAdded = this.isIndexAdded(data)
       this.conv = data
+      if (indexAdded) this.reRenderObjectExplorerSpanner()
       if (this.currentObject && this.currentObject.type === ObjectExplorerNodeType.Table) {
         this.fkData = this.currentObject
           ? this.conversion.getFkMapping(this.currentObject.name, data)
@@ -152,5 +154,20 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
 
   searchSrcTable(text: string) {
     this.srcTree = this.conversion.createTreeNodeForSource(this.conv, this.conversionRates, text)
+  }
+  isIndexAdded(data: IConv) {
+    if (this.conv) {
+      let prevIndexCount = 0
+      let curIndexCount = 0
+      Object.entries(this.conv.SpSchema).forEach((item) => {
+        prevIndexCount += item[1].Indexes ? item[1].Indexes.length : 0
+      })
+      Object.entries(data.SpSchema).forEach((item) => {
+        curIndexCount += item[1].Indexes ? item[1].Indexes.length : 0
+      })
+      if (prevIndexCount < curIndexCount) return true
+      else return false
+    }
+    return false
   }
 }
