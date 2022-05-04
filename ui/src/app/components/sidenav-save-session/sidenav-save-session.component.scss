@@ -1,0 +1,26 @@
+.container{
+    .header{
+        padding:5px 20px;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgb(208, 204, 204);
+        .header-title{
+            margin:0;
+        }
+    }
+    .form-container{
+        padding:15px 25px;
+        .mat-form-field {
+            width: 100%;
+            padding-top: 0px;
+            padding-bottom: 0;
+        }
+    }
+    .save-button-container{
+        padding:15px;
+        display: flex;
+        justify-content: end;
+    }
+}
