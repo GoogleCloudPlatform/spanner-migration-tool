@@ -19,6 +19,7 @@
   .sidebar_link {
     cursor: pointer;
     display: flex;
+    justify-content: space-between;
     align-items: center;
     width: 100%;
     height: 40px;
@@ -33,6 +34,7 @@
       }
     }
   }
+  
   .mat-row,
   .mat-header-row {
     height: 29px;

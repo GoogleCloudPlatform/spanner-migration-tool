@@ -196,12 +196,12 @@ export class ConversionService {
   getIndexMapping(tableName: string, data: IConv, indexName: string): IIndexData[] {
     let srcTableName = data.ToSource[tableName].Name
     let spIndex = data.SpSchema[tableName].Indexes.filter((idx) => idx.Name === indexName)[0]
-    let srcIndexs = data.SrcSchema[srcTableName].Indexes.filter((idx) => idx.Name === indexName)
+    let srcIndexs = data.SrcSchema[srcTableName].Indexes?.filter((idx) => idx.Name === indexName)
 
     let res: IIndexData[] = spIndex.Keys.map((idx: IIndexKey, i: number) => {
       return {
-        srcColName: srcIndexs.length > 0 ? srcIndexs[0].Keys[i].Column : '',
-        srcOrder: srcIndexs.length > 0 ? i + 1 : '',
+        srcColName: srcIndexs && srcIndexs.length > 0 ? srcIndexs[0].Keys[i].Column : '',
+        srcOrder: srcIndexs && srcIndexs.length > 0 ? i + 1 : '',
         spColName: idx.Col,
         spOrder: i + 1,
       }
