@@ -56,10 +56,6 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/ResumeSession/{versionId}", session.ResumeSession).Methods("POST")
 
 	//primarykey
-	//router.HandleFunc("/api/addprimarykey", AddPrimaryKey).Methods("POST")
-	//router.HandleFunc("/api/removeprimarykey", RemovePrimaryKey).Methods("POST")
-	router.HandleFunc("/api/updateprimaryKeyv1", UpdatePrimaryKeyV1).Methods("POST")
-
 	router.HandleFunc("/api/updateprimaryKeyv2", UpdatePrimaryKeyV2).Methods("POST")
 
 	// Summary
