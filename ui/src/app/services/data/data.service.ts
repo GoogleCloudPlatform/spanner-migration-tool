@@ -66,7 +66,7 @@ export class DataService {
         break
 
       default:
-        console.log('not able to find input type')
+        console.log('Unable to find input type')
     }
     this.getConfig()
     this.updateIsOffline()
@@ -100,7 +100,7 @@ export class DataService {
         this.sessionsSub.next(sessions)
       },
       error: (err: any) => {
-        this.snackbar.openSnackBar('Not able to fetch Session..', 'Close', 5000)
+        this.snackbar.openSnackBar('Unable to fetch sessions.', 'Close', 5000)
       },
     })
   }
@@ -111,7 +111,7 @@ export class DataService {
         this.convSubject.next(res)
       },
       error: (err: any) => {
-        this.snackbar.openSnackBar('Not able to load dump file.', 'Close')
+        this.snackbar.openSnackBar('Unable to load dump file.', 'Close')
       },
     })
   }
@@ -122,7 +122,7 @@ export class DataService {
         this.convSubject.next(res)
       },
       error: (err: any) => {
-        this.snackbar.openSnackBar('Not able to load session file.', 'Close')
+        this.snackbar.openSnackBar('Unable to load session file.', 'Close')
       },
     })
   }
@@ -132,7 +132,7 @@ export class DataService {
         this.convSubject.next(res)
       },
       error: (err: any) => {
-        this.snackbar.openSnackBar('Not able to resume session.', 'Close', 5000)
+        this.snackbar.openSnackBar('Unable to resume session.', 'Close', 5000)
       },
     })
   }
