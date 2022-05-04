@@ -12,7 +12,6 @@ export function extractSourceDbName(srcDbName: string) {
   }
   if (srcDbName === 'sqlserver') {
     return SourceDbNames.SQLServer
-  } else {
-    return srcDbName
   }
+  return srcDbName
 }

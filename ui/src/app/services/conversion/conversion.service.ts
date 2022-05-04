@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import ISchemaObjectNode from 'src/app/model/SchemaObjectNode'
-import IConv, { ICreateIndex, IIndexKey, Index, ISpannerForeignKey } from '../../model/Conv'
+import IConv, { ICreateIndex, IIndexKey, IIndex, ISpannerForeignKey } from '../../model/Conv'
 import IColumnTabData, { IIndexData } from '../../model/EditTable'
 import IFkTabData from 'src/app/model/FkTabData'
 import { ObjectExplorerNodeType } from 'src/app/app.constants'
@@ -104,7 +104,7 @@ export class ConversionService {
               pos: -1,
               isSpannerNode: false,
               children: srcTable.Indexes
-                ? srcTable.Indexes.map((index: Index, i: number) => {
+                ? srcTable.Indexes.map((index: IIndex, i: number) => {
                     return {
                       name: index.Name,
                       type: ObjectExplorerNodeType.Index,
