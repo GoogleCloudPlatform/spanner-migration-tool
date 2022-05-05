@@ -111,7 +111,6 @@ func getSpannerTable(sessionState *session.SessionState, pkeyrequest PrimaryKeyR
 			found = true
 		}
 	}
-
 	return spannertable, found
 }
 
@@ -124,7 +123,6 @@ func getColumnName(spannertable ddl.CreateTable, columnid int) string {
 			columnname = col.Name
 		}
 	}
-
 	return columnname
 }
 
@@ -137,7 +135,6 @@ func getColumnId(spannertable ddl.CreateTable, columnname string) int {
 			id = col.Id
 		}
 	}
-
 	return id
 }
 
@@ -164,6 +161,7 @@ func difference(listone, listtwo []int) []int {
 	return diff
 }
 
+//updateprimaryKey updates primary key desc and order for primaryKey.
 func updateprimaryKey(pkeyrequest PrimaryKeyRequest, spannertable ddl.CreateTable) {
 
 	for i := 0; i < len(pkeyrequest.Columns); i++ {
@@ -182,6 +180,7 @@ func updateprimaryKey(pkeyrequest PrimaryKeyRequest, spannertable ddl.CreateTabl
 	}
 }
 
+//addPrimaryKey insert primary key into list of IndexKey
 func addPrimaryKey(add []int, pkeyrequest PrimaryKeyRequest, spannertable ddl.CreateTable) []ddl.IndexKey {
 
 	pklist := []ddl.IndexKey{}
@@ -204,6 +203,7 @@ func addPrimaryKey(add []int, pkeyrequest PrimaryKeyRequest, spannertable ddl.Cr
 	return pklist
 }
 
+//removePrimaryKey removed primary key from list of IndexKey
 func removePrimaryKey(remove []int, spannertable ddl.CreateTable) []ddl.IndexKey {
 
 	pklist := []ddl.IndexKey{}
@@ -223,6 +223,7 @@ func removePrimaryKey(remove []int, spannertable ddl.CreateTable) []ddl.IndexKey
 	return pklist
 }
 
+//prepareResponse prepare response for primary key api
 func prepareResponse(pkeyrequest PrimaryKeyRequest, spannertable ddl.CreateTable) PrimaryKeyResponse {
 
 	var pKeyResponse PrimaryKeyResponse
@@ -257,6 +258,7 @@ func prepareResponse(pkeyrequest PrimaryKeyRequest, spannertable ddl.CreateTable
 	return pKeyResponse
 }
 
+//preparenewpklist prepare first list for difference
 func preparenewpklist(pkeyrequest PrimaryKeyRequest) []int {
 
 	newlist := []int{}
@@ -267,7 +269,7 @@ func preparenewpklist(pkeyrequest PrimaryKeyRequest) []int {
 	return newlist
 }
 
-//listtwo
+//prepareoldpklist prepare second list for difference
 func prepareoldpklist(spannertable ddl.CreateTable) []int {
 
 	oldlist := []int{}
@@ -289,22 +291,29 @@ func preparecolumnlist(spannertable ddl.CreateTable) []int {
 	return oldlist
 }
 
+/*
+insertOrRemovePrimarykey performs insert or remove primary key operation based on
+difference of two pkeyrequest and spannertable.Pks.
+*/
 func insertOrRemovePrimarykey(pkeyrequest PrimaryKeyRequest, spannertable ddl.CreateTable) ddl.CreateTable {
 
 	listone := preparenewpklist(pkeyrequest)
 	listtwo := prepareoldpklist(spannertable)
 
+	//primary key Id only presnt in pkeyrequest
+	// hence new primary key add primary key into  spannertable.Pk list
 	insert := difference(listone, listtwo)
 	pklist := addPrimaryKey(insert, pkeyrequest, spannertable)
 
 	spannertable.Pks = append(spannertable.Pks, pklist...)
 
+	//primary key Id only presnt in spannertable.Pks
+	// hence remove primary key from  spannertable.Pks
 	remove := difference(listtwo, listone)
 
 	if len(remove) > 0 {
 		rklist := removePrimaryKey(remove, spannertable)
 		spannertable.Pks = rklist
-
 	}
 
 	listone = []int{}
