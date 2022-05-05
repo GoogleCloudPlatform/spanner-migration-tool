@@ -12,6 +12,7 @@ import FlatNode from 'src/app/model/SchemaObjectNode'
 import { take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
 import IConv from 'src/app/model/Conv'
+import { DropIndexDialogComponent } from '../drop-index-dialog/drop-index-dialog.component'
 
 @Component({
   selector: 'app-object-detail',
@@ -298,16 +299,26 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropIndex() {
-    this.data
-      .dropIndex(this.currentObject!.parent, this.currentObject!.pos)
-      .pipe(take(1))
-      .subscribe((res: string) => {
-        if (res === '') {
-          this.isObjectSelected = false
-          this.updateSidebar.emit(true)
-        }
-      })
-    this.currentObject = null
+    let openDialog = this.dialog.open(DropIndexDialogComponent, {
+      width: '35vw',
+      minWidth: '450px',
+      maxWidth: '600px',
+      data: this.currentObject?.name,
+    })
+    openDialog.afterClosed().subscribe((res: string) => {
+      if (res) {
+        this.data
+          .dropIndex(this.currentObject!.parent, this.currentObject!.pos)
+          .pipe(take(1))
+          .subscribe((res: string) => {
+            if (res === '') {
+              this.isObjectSelected = false
+              this.updateSidebar.emit(true)
+            }
+          })
+        this.currentObject = null
+      }
+    })
   }
 
   selectedColumnChange(tableName: string) {}
