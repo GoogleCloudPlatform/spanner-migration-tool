@@ -44,7 +44,7 @@ export class UpdateSpannerConfigFormComponent implements OnInit {
         this.dataService.getAllSessions()
       },
       error: (err: any) => {
-        this.snack.openSnackBar(err.message, 'Close', 5000)
+        this.snack.openSnackBar(err.message, 'Close')
       },
     })
   }

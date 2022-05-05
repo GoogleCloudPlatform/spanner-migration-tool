@@ -47,7 +47,7 @@ export class SidenavSaveSessionComponent implements OnInit {
         this.snack.openSnackBar('Session saved successfully', 'Close', 5000)
       },
       error: (err: any) => {
-        this.snack.openSnackBar(err.error, 'Close', 5000)
+        this.snack.openSnackBar(err.error, 'Close')
       },
     })
     this.saveSessionForm.reset()
