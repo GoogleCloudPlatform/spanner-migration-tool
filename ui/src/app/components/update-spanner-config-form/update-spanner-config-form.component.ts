@@ -1,5 +1,5 @@
 import { Component, Inject, OnInit } from '@angular/core'
-import { FormControl, FormGroup } from '@angular/forms'
+import { FormControl, FormGroup, Validators } from '@angular/forms'
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
@@ -22,8 +22,8 @@ export class UpdateSpannerConfigFormComponent implements OnInit {
     private dialogRef: MatDialogRef<UpdateSpannerConfigFormComponent>
   ) {
     this.updateConfigFrom = new FormGroup({
-      GCPProjectID: new FormControl(data.GCPProjectID),
-      SpannerInstanceID: new FormControl(data.SpannerInstanceID),
+      GCPProjectID: new FormControl(data.GCPProjectID, [Validators.required]),
+      SpannerInstanceID: new FormControl(data.SpannerInstanceID, [Validators.required]),
     })
     dialogRef.disableClose = true
   }
@@ -44,7 +44,7 @@ export class UpdateSpannerConfigFormComponent implements OnInit {
         this.dataService.getAllSessions()
       },
       error: (err: any) => {
-        this.snack.openSnackBar(err.message, 'Close')
+        this.snack.openSnackBar(err.message, 'Close', 5000)
       },
     })
   }
