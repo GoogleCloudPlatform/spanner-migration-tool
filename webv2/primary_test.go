@@ -17,7 +17,6 @@ import (
 func TestUpdatePrimaryKey(t *testing.T) {
 
 	sessionState := session.GetSessionState()
-
 	sessionState.Driver = constants.MYSQL
 
 	c := &internal.Conv{
@@ -78,16 +77,13 @@ func TestUpdatePrimaryKey(t *testing.T) {
 	}
 
 	assert.Equal(t, expected.TableId, res.TableId)
-
 	assert.Equal(t, expected.Columns, res.Columns)
-
 	assert.Equal(t, expected, res)
 }
 
 func TestAddPrimaryKey(t *testing.T) {
 
 	sessionState := session.GetSessionState()
-
 	sessionState.Driver = constants.MYSQL
 
 	c := &internal.Conv{
@@ -148,9 +144,7 @@ func TestAddPrimaryKey(t *testing.T) {
 	}
 
 	assert.Equal(t, expected.TableId, res.TableId)
-
 	assert.Equal(t, expected.Columns, res.Columns)
-
 	assert.Equal(t, expected, res)
 }
 
@@ -218,9 +212,7 @@ func TestRemovePrimaryKey(t *testing.T) {
 	}
 
 	assert.Equal(t, expected.TableId, res.TableId)
-
 	assert.Equal(t, expected.Columns, res.Columns)
-
 	assert.Equal(t, expected, res)
 }
 
