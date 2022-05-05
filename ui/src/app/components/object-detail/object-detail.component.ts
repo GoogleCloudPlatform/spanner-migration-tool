@@ -182,7 +182,7 @@ export class ObjectDetailComponent implements OnInit {
       next: (res: string) => {
         if (res == '') {
           this.data.getDdl()
-          this.snackbar.openSnackBar(`${colName} column dropped successfully`, 'Close', 4000)
+          this.snackbar.openSnackBar(`${colName} column dropped successfully`, 'Close', 5000)
         } else {
           this.dialog.open(InfodialogComponent, {
             data: { message: res, type: 'error' },
@@ -253,8 +253,8 @@ export class ObjectDetailComponent implements OnInit {
           this.data.getDdl()
           this.snackbar.openSnackBar(
             `${element.get('spName')} Foreign key dropped successfully`,
-            'close',
-            4000
+            'Close',
+            5000
           )
         } else {
           this.dialog.open(InfodialogComponent, {

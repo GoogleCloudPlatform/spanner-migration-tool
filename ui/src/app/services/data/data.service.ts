@@ -100,7 +100,7 @@ export class DataService {
         this.sessionsSub.next(sessions)
       },
       error: (err: any) => {
-        this.snackbar.openSnackBar('Unable to fetch sessions.', 'Close', 5000)
+        this.snackbar.openSnackBar('Unable to fetch sessions.', 'Close')
       },
     })
   }
@@ -132,7 +132,7 @@ export class DataService {
         this.convSubject.next(res)
       },
       error: (err: any) => {
-        this.snackbar.openSnackBar('Unable to resume session.', 'Close', 5000)
+        this.snackbar.openSnackBar('Unable to resume session.', 'Close')
       },
     })
   }
@@ -229,10 +229,10 @@ export class DataService {
     this.fetch.updateGlobalType(types).subscribe({
       next: (data: any) => {
         this.convSubject.next(data)
-        this.snackbar.openSnackBar('Global datatype updated successfully', 'Close', 3000)
+        this.snackbar.openSnackBar('Global datatype updated successfully', 'Close', 5000)
       },
       error: (err: any) => {
-        this.snackbar.openSnackBar('Unable to add rule', 'Close', 5000)
+        this.snackbar.openSnackBar('Unable to add rule', 'Close')
       },
     })
   }
@@ -254,7 +254,7 @@ export class DataService {
         this.snackbar.openSnackBar('added new Index.', 'Close', 5000)
       },
       error: (err: any) => {
-        this.snackbar.openSnackBar(err.error, 'Close', 5000)
+        this.snackbar.openSnackBar(err.error, 'Close')
       },
     })
   }
@@ -267,7 +267,7 @@ export class DataService {
       tap(console.log),
       map((data) => {
         if (data.error) {
-          this.snackbar.openSnackBar(data.error, 'Close', 5000)
+          this.snackbar.openSnackBar(data.error, 'Close')
           return data.error
         } else {
           this.convSubject.next(data)

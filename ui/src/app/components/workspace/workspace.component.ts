@@ -5,7 +5,6 @@ import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import IConv from '../../model/Conv'
 import { Subscription } from 'rxjs/internal/Subscription'
 import { MatDialog } from '@angular/material/dialog'
-import { SaveSessionFormComponent } from '../save-session-form/save-session-form.component'
 import IFkTabData from 'src/app/model/FkTabData'
 import IColumnTabData, { IIndexData } from '../../model/EditTable'
 import ISchemaObjectNode, { FlatNode } from 'src/app/model/SchemaObjectNode'
@@ -137,8 +136,9 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.sidenav.openSidenav()
     this.sidenav.setSidenavComponent('assessment')
   }
-  openSaveSessionModal() {
-    this.dialog.open(SaveSessionFormComponent, { minWidth: '500px' })
+  openSaveSessionSidenav() {
+    this.sidenav.openSidenav()
+    this.sidenav.setSidenavComponent('saveSession')
   }
   downloadSession() {
     var a = document.createElement('a')

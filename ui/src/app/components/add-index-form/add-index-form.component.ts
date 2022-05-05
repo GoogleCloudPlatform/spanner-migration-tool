@@ -53,7 +53,7 @@ export class AddIndexFormComponent implements OnInit {
     this.ColsArray.push(newForm)
   }
 
-  AddIndex() {
+  addIndex() {
     let idxData = this.addIndexForm.value
     let payload: ICreateIndex[] = []
     payload.push({
