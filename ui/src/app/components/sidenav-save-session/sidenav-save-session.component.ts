@@ -44,7 +44,7 @@ export class SidenavSaveSessionComponent implements OnInit {
     this.fetch.saveSession(payload).subscribe({
       next: (res: any) => {
         this.data.getAllSessions()
-        this.snack.openSnackBar('Session saved successfully', 'Close', 5000)
+        this.snack.openSnackBar('Session saved successfully', 'Close', 5)
       },
       error: (err: any) => {
         this.snack.openSnackBar(err.error, 'Close')
