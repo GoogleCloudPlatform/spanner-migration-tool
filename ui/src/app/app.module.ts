@@ -29,7 +29,8 @@ import { SidenavRuleComponent } from './components/sidenav-rule/sidenav-rule.com
 import { AddIndexFormComponent } from './components/add-index-form/add-index-form.component'
 import { EditGlobalDatatypeFormComponent } from './components/edit-global-datatype-form/edit-global-datatype-form.component'
 import { SidenavViewAssessmentComponent } from './components/sidenav-view-assessment/sidenav-view-assessment.component'
-import { SidenavSaveSessionComponent } from './components/sidenav-save-session/sidenav-save-session.component'
+import { SidenavSaveSessionComponent } from './components/sidenav-save-session/sidenav-save-session.component';
+import { DropIndexDialogComponent } from './components/drop-index-dialog/drop-index-dialog.component'
 
 @NgModule({
   declarations: [
@@ -56,6 +57,7 @@ import { SidenavSaveSessionComponent } from './components/sidenav-save-session/s
     EditGlobalDatatypeFormComponent,
     SidenavViewAssessmentComponent,
     SidenavSaveSessionComponent,
+    DropIndexDialogComponent,
   ],
   imports: [
     BrowserModule,
