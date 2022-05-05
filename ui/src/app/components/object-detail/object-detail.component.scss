@@ -44,6 +44,17 @@
   }
 }
 
+.add-index-column {
+  margin-left: 50%;
+  padding: 10px;
+  .index-column-list {
+    width: 40%;
+  }
+  .add-column-button {
+    width: 40%;
+  }
+}
+
 :host ::ng-deep .mat-tab-body-wrapper {
   height: 100%;
 }

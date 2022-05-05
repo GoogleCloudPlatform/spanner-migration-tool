@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, OnInit, Output, SimpleChanges } from '@angular/core'
-import { FormArray, FormControl, FormGroup } from '@angular/forms'
+import { FormArray, FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms'
 import IUpdateTable from './../../model/updateTable'
 import { DataService } from 'src/app/services/data/data.service'
 import { MatDialog } from '@angular/material/dialog'
@@ -11,6 +11,7 @@ import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import FlatNode from 'src/app/model/SchemaObjectNode'
 import { take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
+import IConv from 'src/app/model/Conv'
 
 @Component({
   selector: 'app-object-detail',
@@ -24,10 +25,6 @@ export class ObjectDetailComponent implements OnInit {
     private snackbar: SnackbarService
   ) {}
 
-  ObjectExplorerNodeType = ObjectExplorerNodeType
-
-  ngOnInit(): void {}
-
   @Input() currentObject: FlatNode | null = null
   @Input() typeMap: any = {}
   @Input() ddlStmts: any = {}
@@ -35,6 +32,16 @@ export class ObjectDetailComponent implements OnInit {
   @Input() tableData: IColumnTabData[] = []
   @Input() indexData: IIndexData[] = []
   @Output() updateSidebar = new EventEmitter<boolean>()
+  ObjectExplorerNodeType = ObjectExplorerNodeType
+  conv: IConv = {} as IConv
+
+  ngOnInit(): void {
+    this.data.conv.subscribe({
+      next: (res: IConv) => {
+        this.conv = res
+      },
+    })
+  }
 
   displayedColumns = [
     'srcOrder',
@@ -74,6 +81,10 @@ export class ObjectDetailComponent implements OnInit {
   isSpTableSuggesstionDisplay: boolean[] = []
   spTableSuggestion: string[] = []
   currentTabIndex: number = 0
+  columnNames: string[] = []
+  addColumnForm = new FormGroup({
+    columnName: new FormControl('', [Validators.required]),
+  })
 
   ngOnChanges(changes: SimpleChanges): void {
     this.fkData = changes['fkData']?.currentValue || this.fkData
@@ -102,7 +113,8 @@ export class ObjectDetailComponent implements OnInit {
           })
         )
       })
-    } else {
+    } else if (this.currentObject) {
+      this.columnNames = this.conv.SpSchema[this.currentObject?.parent].ColNames
       this.indexData.forEach((row: IIndexData) => {
         this.rowArray.push(
           new FormGroup({
@@ -296,6 +308,12 @@ export class ObjectDetailComponent implements OnInit {
         }
       })
     this.currentObject = null
+  }
+
+  selectedColumnChange(tableName: string) {}
+
+  addNewColumn() {
+    alert('Add column implementation is in progress.')
   }
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
