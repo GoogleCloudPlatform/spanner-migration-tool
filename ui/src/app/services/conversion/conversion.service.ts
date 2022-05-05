@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import ISchemaObjectNode from 'src/app/model/SchemaObjectNode'
-import IConv, { ICreateIndex, IIndexKey, Index, ISpannerForeignKey } from '../../model/Conv'
+import IConv, { ICreateIndex, IIndexKey, IIndex, ISpannerForeignKey } from '../../model/Conv'
 import IColumnTabData, { IIndexData } from '../../model/EditTable'
 import IFkTabData from 'src/app/model/FkTabData'
 import { ObjectExplorerNodeType } from 'src/app/app.constants'
@@ -104,7 +104,7 @@ export class ConversionService {
               pos: -1,
               isSpannerNode: false,
               children: srcTable.Indexes
-                ? srcTable.Indexes.map((index: Index, i: number) => {
+                ? srcTable.Indexes.map((index: IIndex, i: number) => {
                     return {
                       name: index.Name,
                       type: ObjectExplorerNodeType.Index,
@@ -196,12 +196,12 @@ export class ConversionService {
   getIndexMapping(tableName: string, data: IConv, indexName: string): IIndexData[] {
     let srcTableName = data.ToSource[tableName].Name
     let spIndex = data.SpSchema[tableName].Indexes.filter((idx) => idx.Name === indexName)[0]
-    let srcIndexs = data.SrcSchema[srcTableName].Indexes.filter((idx) => idx.Name === indexName)
+    let srcIndexs = data.SrcSchema[srcTableName].Indexes?.filter((idx) => idx.Name === indexName)
 
     let res: IIndexData[] = spIndex.Keys.map((idx: IIndexKey, i: number) => {
       return {
-        srcColName: srcIndexs.length > 0 ? srcIndexs[0].Keys[i].Column : '',
-        srcOrder: srcIndexs.length > 0 ? i + 1 : '',
+        srcColName: srcIndexs && srcIndexs.length > 0 ? srcIndexs[0].Keys[i].Column : '',
+        srcOrder: srcIndexs && srcIndexs.length > 0 ? i + 1 : '',
         spColName: idx.Col,
         spOrder: i + 1,
       }

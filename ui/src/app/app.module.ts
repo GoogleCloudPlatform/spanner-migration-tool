@@ -24,12 +24,12 @@ import { LoaderComponent } from './components/loader/loader.component'
 import { InfodialogComponent } from './components/infodialog/infodialog.component'
 import { RuleComponent } from './components/rule/rule.component'
 import { InterceptorService } from './services/interceptor/interceptor.service'
-import { SaveSessionFormComponent } from './components/save-session-form/save-session-form.component'
 import { UpdateSpannerConfigFormComponent } from './components/update-spanner-config-form/update-spanner-config-form.component'
 import { SidenavRuleComponent } from './components/sidenav-rule/sidenav-rule.component'
 import { AddIndexFormComponent } from './components/add-index-form/add-index-form.component'
 import { EditGlobalDatatypeFormComponent } from './components/edit-global-datatype-form/edit-global-datatype-form.component'
 import { SidenavViewAssessmentComponent } from './components/sidenav-view-assessment/sidenav-view-assessment.component'
+import { SidenavSaveSessionComponent } from './components/sidenav-save-session/sidenav-save-session.component'
 
 @NgModule({
   declarations: [
@@ -50,12 +50,12 @@ import { SidenavViewAssessmentComponent } from './components/sidenav-view-assess
     LoaderComponent,
     InfodialogComponent,
     RuleComponent,
-    SaveSessionFormComponent,
     UpdateSpannerConfigFormComponent,
     SidenavRuleComponent,
     AddIndexFormComponent,
     EditGlobalDatatypeFormComponent,
     SidenavViewAssessmentComponent,
+    SidenavSaveSessionComponent,
   ],
   imports: [
     BrowserModule,

@@ -1,27 +1,27 @@
 <div mat-dialog-content>
   <form [formGroup]="updateConfigFrom" class="save-session-form">
-    <h3>Update Spanner Config</h3>
+    <h2>Connect to Spanner</h2>
 
     <mat-form-field class="full-width" appearance="outline">
-      <mat-label>Project Id</mat-label>
+      <mat-label>Project ID</mat-label>
       <input matInput placeholder="project id" type="text" formControlName="GCPProjectID" />
     </mat-form-field>
     <br />
     <mat-form-field class="full-width" appearance="outline">
-      <mat-label>Spanner Instance Id</mat-label>
+      <mat-label>Instance ID</mat-label>
       <input matInput placeholder="instance id" type="text" formControlName="SpannerInstanceID" />
     </mat-form-field>
   </form>
 </div>
-<div mat-dialog-actions>
+<div mat-dialog-actions class="buttons-container">
+  <button mat-button color="primary" mat-dialog-close>Cancel</button>
   <button
-    mat-raised-button
+    mat-button
     (click)="updateSpannerConfig()"
     type="submit"
     color="primary"
     [disabled]="!updateConfigFrom.valid"
   >
-    Save
+    Connect
   </button>
-  <button mat-raised-button color="primary" mat-dialog-close>Close</button>
 </div>

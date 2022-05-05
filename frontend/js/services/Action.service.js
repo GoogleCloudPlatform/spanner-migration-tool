@@ -335,7 +335,7 @@ const Actions = (() => {
                 let result = await res.json();
                 Store.setGlobalDataTypeList(result)
             } else {
-                showSnackbar('Not able to fetch global datatype list !')
+                showSnackbar('Unable to fetch global datatype list !')
             }
         },
 
