@@ -12,7 +12,7 @@ import (
 )
 
 /*
-	PrimaryKeyRequest represents  Primary keys API Payload
+PrimaryKeyRequest represents  Primary keys API Payload
 */
 type PrimaryKeyRequest struct {
 	TableId      int      `json:"TableId"`
@@ -21,8 +21,8 @@ type PrimaryKeyRequest struct {
 }
 
 /*
-	PrimaryKeyResponse represents  Primary keys API response
-	Synth is true is for table Primary Key Id is not present and it is generated
+PrimaryKeyResponse represents  Primary keys API response
+Synth is true is for table Primary Key Id is not present and it is generated
 */
 type PrimaryKeyResponse struct {
 	TableId      int      `json:"TableId"`
@@ -39,7 +39,7 @@ type Column struct {
 }
 
 /*
-	primaryKey updates Primary keys in Spanner Table.
+primaryKey updates Primary keys in Spanner Table.
 */
 func primaryKey(w http.ResponseWriter, r *http.Request) {
 
@@ -142,9 +142,8 @@ func getColumnId(spannertable ddl.CreateTable, columnname string) int {
 }
 
 /*
-	difference gives list of element that are only present in first list
+difference gives list of element that are only present in first list
 */
-
 func difference(listone, listtwo []int) []int {
 
 	hashmap := make(map[int]int, len(listtwo))
