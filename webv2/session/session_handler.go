@@ -240,7 +240,7 @@ func LoadSession(w http.ResponseWriter, r *http.Request) {
 	conv := internal.MakeConv()
 	err = conversion.ReadSessionFile(conv, s.FilePath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to open the session file: %v", err), http.StatusNotFound)
+		http.Error(w, fmt.Sprintf("Error loading session : %v", err), http.StatusNotFound)
 		return
 	}
 

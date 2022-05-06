@@ -111,7 +111,7 @@ export class DataService {
         this.convSubject.next(res)
       },
       error: (err: any) => {
-        this.snackbar.openSnackBar('Unable to load dump file.', 'Close')
+        this.snackbar.openSnackBar(err.error, 'Close')
       },
     })
   }
@@ -122,7 +122,7 @@ export class DataService {
         this.convSubject.next(res)
       },
       error: (err: any) => {
-        this.snackbar.openSnackBar('Unable to load session file.', 'Close')
+        this.snackbar.openSnackBar(err.error, 'Close')
       },
     })
   }
@@ -132,7 +132,7 @@ export class DataService {
         this.convSubject.next(res)
       },
       error: (err: any) => {
-        this.snackbar.openSnackBar('Unable to resume session.', 'Close')
+        this.snackbar.openSnackBar(err.error, 'Close')
       },
     })
   }
