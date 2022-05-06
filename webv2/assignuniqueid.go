@@ -4,9 +4,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
 
-/*
-	AssignUniqueId to handle  cascading effect in UI
-*/
+//AssignUniqueId to handle  cascading effect in UI
 func AssignUniqueId(conv *internal.Conv) {
 
 	tableuniqueid := 1
