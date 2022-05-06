@@ -84,7 +84,7 @@ func primaryKey(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	updateprimaryKey(pkeyrequest, spannertable)
+	updatePrimaryKey(pkeyrequest, spannertable)
 	spannertable = insertOrRemovePrimarykey(pkeyrequest, spannertable)
 	pKeyResponse := prepareResponse(pkeyrequest, spannertable)
 
@@ -162,7 +162,7 @@ func difference(listone, listtwo []int) []int {
 }
 
 //updateprimaryKey updates primary key desc and order for primaryKey.
-func updateprimaryKey(pkeyrequest PrimaryKeyRequest, spannertable ddl.CreateTable) {
+func updatePrimaryKey(pkeyrequest PrimaryKeyRequest, spannertable ddl.CreateTable) {
 
 	for i := 0; i < len(pkeyrequest.Columns); i++ {
 
