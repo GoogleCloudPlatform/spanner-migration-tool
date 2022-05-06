@@ -223,6 +223,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
 
+	//PrintAssignUniqueId uncommit for debug
 	PrintAssignUniqueId(conv)
 
 	sessionState.Driver = dc.Driver
