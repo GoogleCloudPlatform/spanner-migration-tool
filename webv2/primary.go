@@ -114,16 +114,16 @@ func getSpannerTable(sessionState *session.SessionState, pkeyrequest PrimaryKeyR
 	return spannertable, found
 }
 
-func getColumnName(spannertable ddl.CreateTable, columnid int) string {
+func getColumnName(spannertable ddl.CreateTable, columnId int) string {
 
-	var columnname string
+	var columnName string
 
 	for _, col := range spannertable.ColDefs {
-		if col.Id == columnid {
-			columnname = col.Name
+		if col.Id == columnId {
+			columnName = col.Name
 		}
 	}
-	return columnname
+	return columnName
 }
 
 func getColumnId(spannertable ddl.CreateTable, columnname string) int {
@@ -231,29 +231,29 @@ func prepareResponse(pkeyrequest PrimaryKeyRequest, spannertable ddl.CreateTable
 	pKeyResponse.TableId = pkeyrequest.TableId
 	pKeyResponse.PrimaryKeyId = pkeyrequest.PrimaryKeyId
 
-	var issyntheticpkey bool
+	var isSynthPrimaryKey bool
 
 	//todo check with team
 	for i := 0; i < len(spannertable.ColNames); i++ {
 
 		if spannertable.ColNames[i] == "synth_id" {
-			issyntheticpkey = true
+			isSynthPrimaryKey = true
 		}
 	}
 
-	pKeyResponse.Synth = issyntheticpkey
+	pKeyResponse.Synth = isSynthPrimaryKey
 
 	for _, indexkey := range spannertable.Pks {
 
-		responsecolumn := Column{}
+		responseColumn := Column{}
 
 		id := getColumnId(spannertable, indexkey.Col)
-		responsecolumn.ColumnId = id
-		responsecolumn.ColName = indexkey.Col
-		responsecolumn.Desc = indexkey.Desc
-		responsecolumn.Order = indexkey.Order
+		responseColumn.ColumnId = id
+		responseColumn.ColName = indexkey.Col
+		responseColumn.Desc = indexkey.Desc
+		responseColumn.Order = indexkey.Order
 
-		pKeyResponse.Columns = append(pKeyResponse.Columns, responsecolumn)
+		pKeyResponse.Columns = append(pKeyResponse.Columns, responseColumn)
 	}
 	return pKeyResponse
 }

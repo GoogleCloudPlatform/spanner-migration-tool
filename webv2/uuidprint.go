@@ -7,9 +7,9 @@ import (
 )
 
 /*
-	PrintIntegrateUniqueId prints id to console
+	PrintAssignUniqueId prints id to console
 */
-func PrintIntegrateUniqueId(conv *internal.Conv) {
+func PrintAssignUniqueId(conv *internal.Conv) {
 
 	fmt.Println("len of sourcetable :", len(conv.SrcSchema))
 

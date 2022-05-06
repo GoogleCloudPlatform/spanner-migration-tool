@@ -5,9 +5,9 @@ import (
 )
 
 /*
-	IntegrateUniqueId to handle  cascading effect in UI
+	AssignUniqueId to handle  cascading effect in UI
 */
-func IntegrateUniqueId(conv *internal.Conv) {
+func AssignUniqueId(conv *internal.Conv) {
 
 	tableuniqueid := 1
 
