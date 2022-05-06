@@ -202,7 +202,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	}
 	f, err := os.Open(dc.FilePath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to open dump file %v : %v", dc.FilePath, err), http.StatusNotFound)
+		http.Error(w, fmt.Sprintf("Failed to open dump file : %v", err), http.StatusNotFound)
 		return
 	}
 	// We don't support Dynamodb in web hence no need to pass schema sample size here.
