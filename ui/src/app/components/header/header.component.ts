@@ -42,6 +42,8 @@ export class HeaderComponent implements OnInit {
 
   openEditForm() {
     let openDialog = this.dialog.open(UpdateSpannerConfigFormComponent, {
+      width: '30vw',
+      minWidth: '400px',
       maxWidth: '500px',
       data: this.spannerConfig,
     })

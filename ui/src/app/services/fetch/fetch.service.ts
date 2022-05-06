@@ -1,7 +1,6 @@
 import { PortalHostDirective } from '@angular/cdk/portal'
 import { HttpClient, HttpResponse } from '@angular/common/http'
 import { Injectable } from '@angular/core'
-import { first, tap } from 'rxjs'
 import IDbConfig from 'src/app/model/DbConfig'
 import ISession, { ISaveSessionPayload } from 'src/app/model/Session'
 import IUpdateTable from 'src/app/model/updateTable'

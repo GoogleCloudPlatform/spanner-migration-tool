@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, OnInit, Output, SimpleChanges } from '@angular/core'
-import { FormArray, FormControl, FormGroup } from '@angular/forms'
+import { FormArray, FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms'
 import IUpdateTable from './../../model/updateTable'
 import { DataService } from 'src/app/services/data/data.service'
 import { MatDialog } from '@angular/material/dialog'
@@ -11,6 +11,8 @@ import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import FlatNode from 'src/app/model/SchemaObjectNode'
 import { take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
+import IConv from 'src/app/model/Conv'
+import { DropIndexDialogComponent } from '../drop-index-dialog/drop-index-dialog.component'
 
 @Component({
   selector: 'app-object-detail',
@@ -24,10 +26,6 @@ export class ObjectDetailComponent implements OnInit {
     private snackbar: SnackbarService
   ) {}
 
-  ObjectExplorerNodeType = ObjectExplorerNodeType
-
-  ngOnInit(): void {}
-
   @Input() currentObject: FlatNode | null = null
   @Input() typeMap: any = {}
   @Input() ddlStmts: any = {}
@@ -35,6 +33,16 @@ export class ObjectDetailComponent implements OnInit {
   @Input() tableData: IColumnTabData[] = []
   @Input() indexData: IIndexData[] = []
   @Output() updateSidebar = new EventEmitter<boolean>()
+  ObjectExplorerNodeType = ObjectExplorerNodeType
+  conv: IConv = {} as IConv
+
+  ngOnInit(): void {
+    this.data.conv.subscribe({
+      next: (res: IConv) => {
+        this.conv = res
+      },
+    })
+  }
 
   displayedColumns = [
     'srcOrder',
@@ -47,6 +55,7 @@ export class ObjectDetailComponent implements OnInit {
     'spDataType',
     'spIsPk',
     'spIsNotNull',
+    'dropButton',
   ]
   displayedFkColumns = [
     'srcName',
@@ -57,13 +66,15 @@ export class ObjectDetailComponent implements OnInit {
     'spColumns',
     'spReferTable',
     'spReferColumns',
+    'dropButton',
   ]
 
-  indexDisplayedColumns = ['srcColName', 'srcOrder', 'spColName', 'spOrder']
+  indexDisplayedColumns = ['srcIndexColName', 'srcIndexOrder', 'spIndexColName', 'spIndexOrder']
   dataSource: any = []
   fkDataSource: any = []
   isEditMode: boolean = false
   isFkEditMode: boolean = false
+  isIndexEditMode: boolean = false
   isObjectSelected: boolean = false
   rowArray: FormArray = new FormArray([])
   fkArray: FormArray = new FormArray([])
@@ -71,13 +82,17 @@ export class ObjectDetailComponent implements OnInit {
   isSpTableSuggesstionDisplay: boolean[] = []
   spTableSuggestion: string[] = []
   currentTabIndex: number = 0
+  columnNames: string[] = []
+  addColumnForm = new FormGroup({
+    columnName: new FormControl('', [Validators.required]),
+  })
 
   ngOnChanges(changes: SimpleChanges): void {
     this.fkData = changes['fkData']?.currentValue || this.fkData
     this.currentObject = changes['currentObject']?.currentValue || this.currentObject
     this.tableData = changes['tableData']?.currentValue || this.tableData
     this.indexData = changes['indexData']?.currentValue || this.indexData
-
+    this.currentTabIndex = this.currentObject?.type === ObjectExplorerNodeType.Table ? 0 : -1
     this.isObjectSelected = this.currentObject ? true : false
     this.isEditMode = false
     this.isFkEditMode = false
@@ -99,7 +114,8 @@ export class ObjectDetailComponent implements OnInit {
           })
         )
       })
-    } else {
+    } else if (this.currentObject) {
+      this.columnNames = this.conv.SpSchema[this.currentObject?.parent].ColNames
       this.indexData.forEach((row: IIndexData) => {
         this.rowArray.push(
           new FormGroup({
@@ -179,7 +195,7 @@ export class ObjectDetailComponent implements OnInit {
       next: (res: string) => {
         if (res == '') {
           this.data.getDdl()
-          this.snackbar.openSnackBar(`${colName} column dropped successfully`, 'close', 4000)
+          this.snackbar.openSnackBar(`${colName} column dropped successfully`, 'Close', 5)
         } else {
           this.dialog.open(InfodialogComponent, {
             data: { message: res, type: 'error' },
@@ -250,8 +266,8 @@ export class ObjectDetailComponent implements OnInit {
           this.data.getDdl()
           this.snackbar.openSnackBar(
             `${element.get('spName')} Foreign key dropped successfully`,
-            'close',
-            4000
+            'Close',
+            5
           )
         } else {
           this.dialog.open(InfodialogComponent, {
@@ -273,16 +289,42 @@ export class ObjectDetailComponent implements OnInit {
     })
     return ind
   }
+
+  toggleIndexEdit() {
+    if (this.isIndexEditMode) {
+      this.isIndexEditMode = false
+    } else {
+      this.isIndexEditMode = true
+    }
+  }
+
   dropIndex() {
-    this.data
-      .dropIndex(this.currentObject!.parent, this.currentObject!.pos)
-      .pipe(take(1))
-      .subscribe((res: string) => {
-        if (res === '') {
-          this.isObjectSelected = false
-          this.updateSidebar.emit(true)
-        }
-      })
+    let openDialog = this.dialog.open(DropIndexDialogComponent, {
+      width: '35vw',
+      minWidth: '450px',
+      maxWidth: '600px',
+      data: this.currentObject?.name,
+    })
+    openDialog.afterClosed().subscribe((res: string) => {
+      if (res) {
+        this.data
+          .dropIndex(this.currentObject!.parent, this.currentObject!.pos)
+          .pipe(take(1))
+          .subscribe((res: string) => {
+            if (res === '') {
+              this.isObjectSelected = false
+              this.updateSidebar.emit(true)
+            }
+          })
+        this.currentObject = null
+      }
+    })
+  }
+
+  selectedColumnChange(tableName: string) {}
+
+  addNewColumn() {
+    alert('Add column implementation is in progress.')
   }
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {

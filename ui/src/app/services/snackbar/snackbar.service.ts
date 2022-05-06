@@ -7,8 +7,8 @@ import { MatSnackBar } from '@angular/material/snack-bar'
 export class SnackbarService {
   constructor(private snackBar: MatSnackBar) {}
 
-  openSnackBar(message: string, action: string, duration?: number) {
-    if (duration === null) this.snackBar.open(message, action)
-    else this.snackBar.open(message, action, { duration: duration })
+  openSnackBar(message: string, action: string, durationInSeconds?: number) {
+    if (!durationInSeconds) durationInSeconds = 10
+    this.snackBar.open(message, action, { duration: durationInSeconds * 1000 })
   }
 }

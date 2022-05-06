@@ -165,12 +165,11 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//IntegrateUniqueId to handle  cascading effect in UI
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(conv)
+	json.NewEncoder(w).Encode(convm)
 }
 
 // dumpConfig contains the parameters needed to run the tool using dump approach. It is
@@ -196,7 +195,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	}
 	f, err := os.Open(dc.FilePath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to open dump file %v : %v", dc.FilePath, err), http.StatusNotFound)
+		http.Error(w, fmt.Sprintf("Failed to open dump file : %v", err), http.StatusNotFound)
 		return
 	}
 	// We don't support Dynamodb in web hence no need to pass schema sample size here.
@@ -214,7 +213,6 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
-
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
 
@@ -223,7 +221,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sessionState.SessionFile = ""
 	sessionState.SourceDB = nil
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(conv)
+	json.NewEncoder(w).Encode(convm)
 }
 
 // getDDL returns the Spanner DDL for each table in alphabetical order.

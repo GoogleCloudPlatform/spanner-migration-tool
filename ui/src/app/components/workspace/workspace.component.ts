@@ -5,7 +5,6 @@ import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import IConv from '../../model/Conv'
 import { Subscription } from 'rxjs/internal/Subscription'
 import { MatDialog } from '@angular/material/dialog'
-import { SaveSessionFormComponent } from '../save-session-form/save-session-form.component'
 import IFkTabData from 'src/app/model/FkTabData'
 import IColumnTabData, { IIndexData } from '../../model/EditTable'
 import ISchemaObjectNode, { FlatNode } from 'src/app/model/SchemaObjectNode'
@@ -35,6 +34,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   isOfflineStatus: boolean = false
   spannerTree: ISchemaObjectNode[] = []
   srcTree: ISchemaObjectNode[] = []
+  issuesAndSuggestionsLabel: string = 'ISSUES AND SUGGESTIONS'
   constructor(
     private data: DataService,
     private conversion: ConversionService,
@@ -56,7 +56,9 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     })
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
+      const indexAdded = this.isIndexAdded(data)
       this.conv = data
+      if (indexAdded) this.reRenderObjectExplorerSpanner()
       if (this.currentObject && this.currentObject.type === ObjectExplorerNodeType.Table) {
         this.fkData = this.currentObject
           ? this.conversion.getFkMapping(this.currentObject.name, data)
@@ -116,6 +118,12 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     }
   }
 
+  updateIssuesLabel(count: number) {
+    setTimeout(() => {
+      this.issuesAndSuggestionsLabel = `ISSUES AND SUGGESTIONS (${count})`
+    })
+  }
+
   leftColumnToggle() {
     this.isLeftColumnCollapse = !this.isLeftColumnCollapse
   }
@@ -128,14 +136,15 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.sidenav.openSidenav()
     this.sidenav.setSidenavComponent('assessment')
   }
-  openSaveSessionModal() {
-    this.dialog.open(SaveSessionFormComponent, { minWidth: '500px' })
+  openSaveSessionSidenav() {
+    this.sidenav.openSidenav()
+    this.sidenav.setSidenavComponent('saveSession')
   }
   downloadSession() {
     var a = document.createElement('a')
     let resJson = JSON.stringify(this.conv).replace(/9223372036854776000/g, '9223372036854775807')
     a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
-    a.download = 'session.json'
+    a.download = `${this.conv.SessionName}_${this.conv.DatabaseType}_${this.conv.DatabaseName}.json`
     a.click()
   }
 
@@ -145,5 +154,20 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
 
   searchSrcTable(text: string) {
     this.srcTree = this.conversion.createTreeNodeForSource(this.conv, this.conversionRates, text)
+  }
+  isIndexAdded(data: IConv) {
+    if (this.conv) {
+      let prevIndexCount = 0
+      let curIndexCount = 0
+      Object.entries(this.conv.SpSchema).forEach((item) => {
+        prevIndexCount += item[1].Indexes ? item[1].Indexes.length : 0
+      })
+      Object.entries(data.SpSchema).forEach((item) => {
+        curIndexCount += item[1].Indexes ? item[1].Indexes.length : 0
+      })
+      if (prevIndexCount < curIndexCount) return true
+      else return false
+    }
+    return false
   }
 }

@@ -11,8 +11,6 @@
       <mat-option *ngFor="let table of tableNames" [value]="table">{{ table }}</mat-option>
     </mat-select>
   </mat-form-field>
-  <h3>When</h3>
-
   <mat-form-field appearance="outline">
     <mat-label>Index Name</mat-label>
     <input matInput class="input-field" formControlName="indexName" />
@@ -56,7 +54,7 @@
       type="submit"
       color="primary"
       [disabled]="!(addIndexForm.valid && ruleNameValid && ColsArray.controls.length > 0)"
-      (click)="AddIndex()"
+      (click)="addIndex()"
     >
       ADD RULE
     </button>

@@ -7,7 +7,7 @@
     </div>
     <div class="header_action">
       <button mat-button (click)="openAssessment()">VIEW ASSESSMENT</button>
-      <button mat-button (click)="openSaveSessionModal()" *ngIf="!isOfflineStatus">
+      <button mat-button (click)="openSaveSessionSidenav()" *ngIf="!isOfflineStatus">
         SAVE SESSION
       </button>
       <button mat-button (click)="downloadSession()">DOWNLOAD SESSION</button>
@@ -63,10 +63,13 @@
       }"
     >
       <mat-tab-group mat-dialog-close="">
-        <mat-tab label="ISSUES & SUGGESTIONS(3)">
-          <app-summary [currentObject]="currentObject"></app-summary>
+        <mat-tab [label]="issuesAndSuggestionsLabel">
+          <app-summary
+            [currentObject]="currentObject"
+            (changeIssuesLabel)="updateIssuesLabel($event)"
+          ></app-summary>
         </mat-tab>
-        <mat-tab label="RULES(7)">
+        <mat-tab label="RULES(0)">
           <app-rule></app-rule>
         </mat-tab>
       </mat-tab-group>

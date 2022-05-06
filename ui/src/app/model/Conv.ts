@@ -2,7 +2,7 @@ export default interface IConv {
   mode: number
   SpSchema: Record<string, ICreateTable>
   SyntheticPKeys: Record<string, ISyntheticPKey>
-  SrcSchema: Record<string, Table>
+  SrcSchema: Record<string, ITable>
   Issues: Record<string, number>[]
   ToSpanner: Record<string, NameAndCols>
   ToSource: Record<string, NameAndCols>
@@ -10,6 +10,10 @@ export default interface IConv {
   TimezoneOffset: string
   Stats: IStats
   UniquePKey: Record<string, string[]>
+  SessionName: string
+  DatabaseType: string
+  DatabaseName: string
+  EditorName: string
 }
 
 export interface IStats {
@@ -24,20 +28,21 @@ export interface NameAndCols {
   Name: string
   Cols: Record<string, string>
 }
+
 // Spanner schema
-export interface Table {
+export interface ITable {
   Name: string
   Schema: string
   ColNames: string[]
   ColDefs: Record<string, IColumn>
   PrimaryKeys: ISrcIndexKey[]
   ForeignKeys: ISpannerForeignKey[]
-  Indexes: Index[]
+  Indexes: IIndex[]
 }
 
 export interface IColumn {
   Name: string
-  Type: ISpennerType
+  Type: ISpannerType
   NotNull: boolean
   Ignored: IIgnored
 }
@@ -51,13 +56,13 @@ export interface IIgnored {
   AutoIncrement: boolean
 }
 
-export interface ISpennerType {
+export interface ISpannerType {
   Name: string
   Mods: number[]
   ArrayBounds: number[]
 }
 
-export interface Index {
+export interface IIndex {
   Name: string
   Unique: boolean
   Keys: ISrcIndexKey[]
@@ -71,8 +76,8 @@ export interface ISpannerForeignKey {
   OnDelete: string
   OnUpdate: string
 }
-// source schema
 
+// source schema
 export interface ICreateTable {
   Name: string
   ColNames: string[]

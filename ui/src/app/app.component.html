@@ -5,11 +5,12 @@
     mode="over"
     [opened]="showSidenav"
     [ngClass]="{
-      'width-40pc': sidenavComponent === 'rule',
+      'width-40pc': sidenavComponent === 'rule' || sidenavComponent === 'saveSession',
       'width-60pc': sidenavComponent === 'assessment' || sidenavComponent === 'instruction'
     }"
   >
     <app-sidenav-rule *ngIf="sidenavComponent === 'rule'"></app-sidenav-rule>
+    <app-sidenav-save-session *ngIf="sidenavComponent == 'saveSession'"></app-sidenav-save-session>
     <app-sidenav-view-assessment
       *ngIf="sidenavComponent === 'assessment'"
     ></app-sidenav-view-assessment>

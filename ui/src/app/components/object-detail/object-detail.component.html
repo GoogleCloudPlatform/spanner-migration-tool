@@ -22,9 +22,7 @@
     </div>
     <div class="inner-text">
       {{
-        'To view and modify an object details, click on the object name on the' +
-          srcDbName +
-          'panel'
+        'To view and modify an object details, click on the object name on the Spanner draft panel.'
       }}
     </div>
   </div>
@@ -171,7 +169,6 @@
                   [formControl]="element.get('spColName')"
                 />
               </div>
-
               <p *ngIf="!isEditMode">{{ element.get('spColName').value }}</p>
             </td>
           </ng-container>
@@ -236,33 +233,35 @@
 
           <ng-container matColumnDef="spIsNotNull">
             <th mat-header-cell class="table_header" *matHeaderCellDef>Nullable</th>
-
             <td mat-cell *matCellDef="let element">
-              <div class="notnull_action_container">
-                <div class="notNullContent">
-                  <div *ngIf="isEditMode && element.get('spOrder').value !== ''">
-                    <mat-checkbox
-                      color="primary"
-                      [formControl]="element.get('spIsNotNull')"
-                    ></mat-checkbox>
-                  </div>
-                  <p *ngIf="!isEditMode">
-                    {{ element.get('spIsNotNull').value ? 'Not Null' : '' }}
-                  </p>
+              <div class="notNullContent">
+                <div *ngIf="isEditMode && element.get('spOrder').value !== ''">
+                  <mat-checkbox
+                    color="primary"
+                    [formControl]="element.get('spIsNotNull')"
+                  ></mat-checkbox>
                 </div>
+                <p *ngIf="!isEditMode">
+                  {{ element.get('spIsNotNull').value ? 'Not Null' : '' }}
+                </p>
+              </div>
+            </td>
+          </ng-container>
 
-                <div class="actions" *ngIf="currentObject!.isSpannerNode">
-                  <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
-                  <mat-menu #menu="matMenu">
-                    <button
-                      [disabled]="element.get('spOrder').value === ''"
-                      mat-menu-item
-                      (click)="dropColumn(element)"
-                    >
-                      <span>Drop Column</span>
-                    </button>
-                  </mat-menu>
-                </div>
+          <ng-container matColumnDef="dropButton">
+            <th mat-header-cell class="table_header" *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let element">
+              <div class="actions" *ngIf="currentObject!.isSpannerNode">
+                <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
+                <mat-menu #menu="matMenu" xPosition="before">
+                  <button
+                    [disabled]="element.get('spOrder').value === ''"
+                    mat-menu-item
+                    (click)="dropColumn(element)"
+                  >
+                    <span>Drop Column</span>
+                  </button>
+                </mat-menu>
               </div>
             </td>
           </ng-container>
@@ -284,12 +283,12 @@
 
           <ng-container matColumnDef="spDatabase">
             <th mat-header-cell *matHeaderCellDef class="db_name" colspan="5">
-              <div class="spanner_fk-edit-button">
+              <div class="spanner_edit-button">
                 <span>Spanner</span>
                 <div *ngIf="!isFkEditMode">
                   <button mat-stroked-button color="primary" (click)="toggleFkEdit()">
                     <mat-icon class="edit-icon">edit</mat-icon>
-                    Edit
+                    EDIT
                   </button>
                 </div>
               </div>
@@ -357,23 +356,26 @@
           <ng-container matColumnDef="spReferColumns">
             <th class="table_header" mat-header-cell *matHeaderCellDef>Refer Columns</th>
             <td mat-cell *matCellDef="let element">
-              <div class="sprefcol-actions-container">
-                <div class="sprefcol-content">
-                  {{ element.get('spReferColumns').value }}
-                </div>
+              <div class="sprefcol-content">
+                {{ element.get('spReferColumns').value }}
+              </div>
+            </td>
+          </ng-container>
 
-                <div class="actions">
-                  <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
-                  <mat-menu #menu="matMenu">
-                    <button
-                      [disabled]="element.get('spName').value === ''"
-                      mat-menu-item
-                      (click)="dropFk(element)"
-                    >
-                      <span>Drop Fk</span>
-                    </button>
-                  </mat-menu>
-                </div>
+          <ng-container matColumnDef="dropButton" stickyEnd>
+            <th mat-header-cell class="table_header" *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let element">
+              <div class="actions">
+                <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
+                <mat-menu #menu="matMenu" xPosition="before">
+                  <button
+                    [disabled]="element.get('spName').value === ''"
+                    mat-menu-item
+                    (click)="dropFk(element)"
+                  >
+                    <span>Drop Fk</span>
+                  </button>
+                </mat-menu>
               </div>
             </td>
           </ng-container>
@@ -403,40 +405,81 @@
         <th mat-header-cell *matHeaderCellDef class="db_name" colspan="2">
           <div class="spanner_edit-button">
             <span>Spanner</span>
+
+            <div *ngIf="!isIndexEditMode">
+              <button mat-stroked-button color="primary" (click)="toggleIndexEdit()">
+                <mat-icon class="edit-icon">edit</mat-icon>
+                EDIT
+              </button>
+            </div>
           </div>
         </th>
       </ng-container>
-      <ng-container matColumnDef="srcOrder">
+      <ng-container matColumnDef="srcIndexOrder">
         <th class="table_header" mat-header-cell *matHeaderCellDef>Sort Order</th>
         <td mat-cell *matCellDef="let element">
           {{ element.get('srcOrder').value }}
         </td>
       </ng-container>
 
-      <ng-container matColumnDef="srcColName">
+      <ng-container matColumnDef="srcIndexColName">
         <th class="table_header" mat-header-cell *matHeaderCellDef>Column</th>
         <td mat-cell *matCellDef="let element">
           {{ element.get('srcColName').value }}
         </td>
       </ng-container>
 
-      <ng-container matColumnDef="spOrder">
+      <ng-container matColumnDef="spIndexOrder">
         <th class="table_header" mat-header-cell *matHeaderCellDef>Sort Order</th>
         <td mat-cell *matCellDef="let element">
-          {{ element.get('spOrder').value }}
+          <div *ngIf="isIndexEditMode && element.get('spOrder').value !== ''">
+            <input
+              matInput
+              class="order_input"
+              type="text"
+              [formControl]="element.get('spOrder')"
+              readonly
+            />
+          </div>
+          <p *ngIf="!isIndexEditMode">{{ element.get('spOrder').value }}</p>
         </td>
       </ng-container>
 
-      <ng-container matColumnDef="spColName">
+      <ng-container matColumnDef="spIndexColName">
         <th mat-header-cell class="table_header" *matHeaderCellDef>Column</th>
         <td mat-cell *matCellDef="let element">
-          {{ element.get('spColName').value }}
+          <p>{{ element.get('spColName').value }}</p>
         </td>
-        <tr mat-header-row *matHeaderRowDef="['srcDatabase', 'spDatabase']"></tr>
-        <tr mat-header-row *matHeaderRowDef="indexDisplayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: indexDisplayedColumns"></tr>
       </ng-container>
+      <tr mat-header-row *matHeaderRowDef="['srcDatabase', 'spDatabase']"></tr>
+      <tr mat-header-row *matHeaderRowDef="indexDisplayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: indexDisplayedColumns"></tr>
     </table>
+    <div [formGroup]="addColumnForm" *ngIf="isIndexEditMode" class="add-index-column">
+      <mat-form-field appearance="outline" class="index-column-list">
+        <mat-label>Column Name</mat-label>
+        <mat-select
+          matSelect
+          class="input-field"
+          (selectionChange)="selectedColumnChange($event.value)"
+          formControlName="columnName"
+          required="true"
+        >
+          <mat-option *ngFor="let column of columnNames" [value]="column">{{ column }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <button
+        mat-button
+        color="primary"
+        class="add-column-btn"
+        type="button"
+        (click)="addNewColumn()"
+      >
+        <mat-icon>add</mat-icon>
+        ADD COLUMN
+      </button>
+    </div>
   </div>
 
   <div class="save-edits">
@@ -444,8 +487,11 @@
     <div class="save-button" *ngIf="isEditMode && currentTabIndex === 0">
       <button mat-raised-button color="primary" (click)="toggleEdit()">SAVE & CONVERT</button>
     </div>
-    <div class="fk-save-button" *ngIf="isFkEditMode && currentTabIndex === 2">
+    <div class="save-button" *ngIf="isFkEditMode && currentTabIndex === 2">
       <button mat-raised-button color="primary" (click)="toggleFkEdit()">SAVE & CONVERT</button>
+    </div>
+    <div class="save-button" *ngIf="isIndexEditMode && currentTabIndex === -1">
+      <button mat-raised-button color="primary" (click)="toggleIndexEdit()">SAVE & CONVERT</button>
     </div>
   </div>
 </div>
