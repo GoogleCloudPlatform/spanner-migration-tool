@@ -35,9 +35,9 @@ export class SidenavSaveSessionComponent implements OnInit {
   saveSession() {
     let formValue = this.saveSessionForm.value
     let payload: ISaveSessionPayload = {
-      SessionName: formValue.SessionName,
-      EditorName: formValue.EditorName,
-      DatabaseName: formValue.DatabaseName,
+      SessionName: formValue.SessionName.trim(),
+      EditorName: formValue.EditorName.trim(),
+      DatabaseName: formValue.DatabaseName.trim(),
       Notes: formValue.Notes.split('\n'),
     }
 

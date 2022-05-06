@@ -164,9 +164,19 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
 	}
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: session.SessionMetadata{
+			SessionName:  "NewSession",
+			DatabaseType: sessionState.Driver,
+			DatabaseName: sessionState.DbName,
+		},
+		Conv: *conv,
+	}
+
 	sessionState.Conv = conv
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(conv)
+	json.NewEncoder(w).Encode(convm)
 }
 
 // dumpConfig contains the parameters needed to run the tool using dump approach. It is
@@ -206,6 +216,15 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	convm := session.ConvWithMetadata{
+		SessionMetadata: session.SessionMetadata{
+			SessionName:  "NewSession",
+			DatabaseType: dc.Driver,
+			DatabaseName: filepath.Base(dc.FilePath),
+		},
+		Conv: *conv,
+	}
+
 	sessionState := session.GetSessionState()
 	sessionState.Conv = conv
 	sessionState.Driver = dc.Driver
@@ -213,7 +232,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sessionState.SessionFile = ""
 	sessionState.SourceDB = nil
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(conv)
+	json.NewEncoder(w).Encode(convm)
 }
 
 // getDDL returns the Spanner DDL for each table in alphabetical order.
