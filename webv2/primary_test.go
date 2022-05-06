@@ -7,7 +7,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
@@ -17,20 +16,19 @@ import (
 func TestUpdatePrimaryKey(t *testing.T) {
 
 	sessionState := session.GetSessionState()
-	sessionState.Driver = constants.MYSQL
 
 	c := &internal.Conv{
 
 		SpSchema: map[string]ddl.CreateTable{
-			"film_actor": ddl.CreateTable{
+			"film_actor": {
 				Name:     "film_actor",
 				ColNames: []string{"film_id", "actor_id", "last_update"},
 				ColDefs: map[string]ddl.ColumnDef{
-					"film_id":     ddl.ColumnDef{Name: "film_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 1},
-					"actor_id":    ddl.ColumnDef{Name: "actor_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 2},
-					"last_update": ddl.ColumnDef{Name: "last_update", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 3},
+					"film_id":     {Name: "film_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 1},
+					"actor_id":    {Name: "actor_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 2},
+					"last_update": {Name: "last_update", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 3},
 				},
-				Pks:          []ddl.IndexKey{ddl.IndexKey{Col: "film_id", Order: 0, Desc: false}},
+				Pks:          []ddl.IndexKey{{Col: "film_id", Order: 0, Desc: false}},
 				Id:           1,
 				PrimaryKeyId: 1,
 			}},
@@ -41,7 +39,7 @@ func TestUpdatePrimaryKey(t *testing.T) {
 	input := PrimaryKeyRequest{
 		TableId:      1,
 		PrimaryKeyId: 1,
-		Columns:      []Column{Column{ColumnId: 1, Desc: true, Order: 1}},
+		Columns:      []Column{{ColumnId: 1, Desc: true, Order: 1}},
 	}
 
 	inputBytes, err := json.Marshal(input)
@@ -62,17 +60,11 @@ func TestUpdatePrimaryKey(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	var res PrimaryKeyResponse
-
 	json.Unmarshal(rr.Body.Bytes(), &res)
-
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
-	}
 
 	expected := PrimaryKeyResponse{
 		TableId:      1,
-		Columns:      []Column{Column{ColumnId: 1, ColName: "film_id", Desc: true, Order: 1}},
+		Columns:      []Column{{ColumnId: 1, ColName: "film_id", Desc: true, Order: 1}},
 		PrimaryKeyId: 1,
 	}
 
@@ -84,20 +76,19 @@ func TestUpdatePrimaryKey(t *testing.T) {
 func TestAddPrimaryKey(t *testing.T) {
 
 	sessionState := session.GetSessionState()
-	sessionState.Driver = constants.MYSQL
 
 	c := &internal.Conv{
 
 		SpSchema: map[string]ddl.CreateTable{
-			"film_actor": ddl.CreateTable{
+			"film_actor": {
 				Name:     "film_actor",
 				ColNames: []string{"film_id", "actor_id", "last_update"},
 				ColDefs: map[string]ddl.ColumnDef{
-					"film_id":     ddl.ColumnDef{Name: "film_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 1},
-					"actor_id":    ddl.ColumnDef{Name: "actor_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 2},
-					"last_update": ddl.ColumnDef{Name: "last_update", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 3},
+					"film_id":     {Name: "film_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 1},
+					"actor_id":    {Name: "actor_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 2},
+					"last_update": {Name: "last_update", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 3},
 				},
-				Pks:          []ddl.IndexKey{ddl.IndexKey{Col: "film_id", Order: 1, Desc: true}},
+				Pks:          []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}},
 				Id:           1,
 				PrimaryKeyId: 1,
 			}},
@@ -108,7 +99,7 @@ func TestAddPrimaryKey(t *testing.T) {
 	input := PrimaryKeyRequest{
 		TableId:      1,
 		PrimaryKeyId: 1,
-		Columns:      []Column{Column{ColumnId: 1, Desc: true, Order: 1}, Column{ColumnId: 2, Desc: false, Order: 2}},
+		Columns:      []Column{{ColumnId: 1, Desc: true, Order: 1}, {ColumnId: 2, Desc: false, Order: 2}},
 	}
 
 	inputBytes, err := json.Marshal(input)
@@ -129,7 +120,6 @@ func TestAddPrimaryKey(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	var res PrimaryKeyResponse
-
 	json.Unmarshal(rr.Body.Bytes(), &res)
 
 	if status := rr.Code; status != http.StatusOK {
@@ -139,7 +129,7 @@ func TestAddPrimaryKey(t *testing.T) {
 
 	expected := PrimaryKeyResponse{
 		TableId:      1,
-		Columns:      []Column{Column{ColumnId: 1, ColName: "film_id", Desc: true, Order: 1}, Column{ColumnId: 2, ColName: "actor_id", Desc: false, Order: 2}},
+		Columns:      []Column{{ColumnId: 1, ColName: "film_id", Desc: true, Order: 1}, {ColumnId: 2, ColName: "actor_id", Desc: false, Order: 2}},
 		PrimaryKeyId: 1,
 	}
 
@@ -152,20 +142,18 @@ func TestRemovePrimaryKey(t *testing.T) {
 
 	sessionState := session.GetSessionState()
 
-	sessionState.Driver = constants.MYSQL
-
 	c := &internal.Conv{
 
 		SpSchema: map[string]ddl.CreateTable{
-			"film_actor": ddl.CreateTable{
+			"film_actor": {
 				Name:     "film_actor",
 				ColNames: []string{"film_id", "actor_id", "last_update"},
 				ColDefs: map[string]ddl.ColumnDef{
-					"film_id":     ddl.ColumnDef{Name: "film_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 1},
-					"actor_id":    ddl.ColumnDef{Name: "actor_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 2},
-					"last_update": ddl.ColumnDef{Name: "last_update", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 3},
+					"film_id":     {Name: "film_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 1},
+					"actor_id":    {Name: "actor_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 2},
+					"last_update": {Name: "last_update", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 3},
 				},
-				Pks:          []ddl.IndexKey{ddl.IndexKey{Col: "film_id", Order: 1, Desc: true}, ddl.IndexKey{Col: "actor_id", Order: 2, Desc: true}, ddl.IndexKey{Col: "last_update", Order: 3, Desc: true}},
+				Pks:          []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}, {Col: "actor_id", Order: 2, Desc: true}, {Col: "last_update", Order: 3, Desc: true}},
 				Id:           1,
 				PrimaryKeyId: 1,
 			}},
@@ -176,7 +164,7 @@ func TestRemovePrimaryKey(t *testing.T) {
 	input := PrimaryKeyRequest{
 		TableId:      1,
 		PrimaryKeyId: 1,
-		Columns:      []Column{Column{ColumnId: 1, Desc: true, Order: 1}, Column{ColumnId: 2, Desc: true, Order: 2}},
+		Columns:      []Column{{ColumnId: 1, Desc: true, Order: 1}, {ColumnId: 2, Desc: true, Order: 2}},
 	}
 
 	inputBytes, err := json.Marshal(input)
@@ -197,7 +185,6 @@ func TestRemovePrimaryKey(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	var res PrimaryKeyResponse
-
 	json.Unmarshal(rr.Body.Bytes(), &res)
 
 	if status := rr.Code; status != http.StatusOK {
@@ -207,7 +194,7 @@ func TestRemovePrimaryKey(t *testing.T) {
 
 	expected := PrimaryKeyResponse{
 		TableId:      1,
-		Columns:      []Column{Column{ColumnId: 1, ColName: "film_id", Desc: true, Order: 1}, Column{ColumnId: 2, ColName: "actor_id", Desc: true, Order: 2}},
+		Columns:      []Column{{ColumnId: 1, ColName: "film_id", Desc: true, Order: 1}, {ColumnId: 2, ColName: "actor_id", Desc: true, Order: 2}},
 		PrimaryKeyId: 1,
 	}
 
@@ -220,20 +207,18 @@ func TestPrimarykey(t *testing.T) {
 
 	sessionState := session.GetSessionState()
 
-	sessionState.Driver = constants.MYSQL
-
 	c := &internal.Conv{
 
 		SpSchema: map[string]ddl.CreateTable{
-			"film_actor": ddl.CreateTable{
+			"film_actor": {
 				Name:     "film_actor",
 				ColNames: []string{"film_id", "actor_id", "last_update"},
 				ColDefs: map[string]ddl.ColumnDef{
-					"film_id":     ddl.ColumnDef{Name: "film_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 1},
-					"actor_id":    ddl.ColumnDef{Name: "actor_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 2},
-					"last_update": ddl.ColumnDef{Name: "last_update", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 3},
+					"film_id":     {Name: "film_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 1},
+					"actor_id":    {Name: "actor_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 2},
+					"last_update": {Name: "last_update", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 3},
 				},
-				Pks:          []ddl.IndexKey{ddl.IndexKey{Col: "film_id", Order: 1, Desc: true}, ddl.IndexKey{Col: "actor_id", Order: 2, Desc: true}},
+				Pks:          []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}, {Col: "actor_id", Order: 2, Desc: true}},
 				Id:           1,
 				PrimaryKeyId: 1,
 			}},
@@ -253,7 +238,7 @@ func TestPrimarykey(t *testing.T) {
 			input: PrimaryKeyRequest{
 				TableId:      99,
 				PrimaryKeyId: 99,
-				Columns:      []Column{Column{ColumnId: 1, ColName: "film_id", Desc: true, Order: 1}, Column{ColumnId: 2, ColName: "actor_id", Desc: true, Order: 2}},
+				Columns:      []Column{{ColumnId: 1, ColName: "film_id", Desc: true, Order: 1}, {ColumnId: 2, ColName: "actor_id", Desc: true, Order: 2}},
 			},
 			statusCode: http.StatusNotFound,
 		},
@@ -287,7 +272,6 @@ func TestPrimarykey(t *testing.T) {
 		handler.ServeHTTP(rr, req)
 
 		json.Unmarshal(rr.Body.Bytes(), &tt.res)
-
 		assert.Equal(t, tt.statusCode, rr.Code)
 	}
 }
