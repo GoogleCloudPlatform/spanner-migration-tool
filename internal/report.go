@@ -465,7 +465,7 @@ func writeStmtStats(driverName string, conv *Conv, w *bufio.Writer) {
 		w.WriteString("\n")
 	} else if driverName == constants.MYSQLDUMP {
 		w.WriteString("See https://github.com/pingcap/parser for definitions of statement types\n")
-		w.WriteString("(pingcap/parser is the library we use for parsing mysqldump output).\n")
+		w.WriteString("(pingcap/tidb/parser is the library we use for parsing mysqldump output).\n")
 		w.WriteString("\n")
 	}
 }
@@ -486,7 +486,7 @@ func writeUnexpectedConditions(driverName string, conv *Conv, w *bufio.Writer) {
 	case constants.MYSQLDUMP:
 		w.WriteString("For debugging only. This section provides details of unexpected conditions\n")
 		w.WriteString("encountered as we processed the mysqldump data. In particular, the AST node\n")
-		w.WriteString("representation used by the pingcap/parser library used for parsing\n")
+		w.WriteString("representation used by the pingcap/tidb/parser library used for parsing\n")
 		w.WriteString("mysqldump output is highly permissive: almost any construct can appear at\n")
 		w.WriteString("any node in the AST tree. The list details all unexpected nodes and\n")
 		w.WriteString("conditions.\n")
