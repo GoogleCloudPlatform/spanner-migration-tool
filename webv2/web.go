@@ -165,14 +165,9 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("convertSchemaSQL getting called")
-
 	//IntegrateUniqueId to handle  cascading effect in UI
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
-
-	//PrintAssignUniqueId uncommit for debug
-	PrintAssignUniqueId(conv)
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(conv)
@@ -222,9 +217,6 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
-
-	//PrintAssignUniqueId uncommit for debug
-	PrintAssignUniqueId(conv)
 
 	sessionState.Driver = dc.Driver
 	sessionState.DbName = ""
