@@ -1,0 +1,21 @@
+.alert-container{
+    padding:0.5rem 0.5rem;
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+    background-color: rgb(248, 244, 244);
+    mat-icon{
+        color:#F3B300;
+        margin-right:20px;
+    }
+}
+.form-container{
+    .mat-form-field{
+        width: 100%;
+    }
+}
+.buttons-container{
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+}
