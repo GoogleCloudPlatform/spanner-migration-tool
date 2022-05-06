@@ -10,7 +10,7 @@ jobs:
       - image: circleci/golang:1.16
 
     working_directory: /go/src/github.com/cloudspannerecosystem/harbourbridge
-
+    resource_class: large
     steps:
       - checkout
 
