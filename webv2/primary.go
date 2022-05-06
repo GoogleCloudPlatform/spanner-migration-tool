@@ -247,8 +247,8 @@ func prepareResponse(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) 
 	return pKeyResponse
 }
 
-//RequestColumnIds return list of column Id from PrimaryKeyRequest
-func GetColumnIdListOfPrimaryKeyRequest(pkRequest PrimaryKeyRequest) []int {
+//getColumnIdListOfPrimaryKeyRequest return list of column Id from PrimaryKeyRequest
+func getColumnIdListOfPrimaryKeyRequest(pkRequest PrimaryKeyRequest) []int {
 
 	cidlist := []int{}
 
@@ -258,8 +258,8 @@ func GetColumnIdListOfPrimaryKeyRequest(pkRequest PrimaryKeyRequest) []int {
 	return cidlist
 }
 
-//prepareoldpklist prepare second list for difference
-func GetColumnIdListOfSpannerTablePrimaryKey(spannerTable ddl.CreateTable) []int {
+//getColumnIdListOfSpannerTablePrimaryKey return list of column Id from spannerTable PrimaryKey
+func getColumnIdListOfSpannerTablePrimaryKey(spannerTable ddl.CreateTable) []int {
 
 	cidlist := []int{}
 
@@ -270,7 +270,8 @@ func GetColumnIdListOfSpannerTablePrimaryKey(spannerTable ddl.CreateTable) []int
 	return cidlist
 }
 
-func GetColumnIdListOfSpannerTable(spannerTable ddl.CreateTable) []int {
+//getColumnIdListOfSpannerTable return list of column Id from spannerTable ColDefs
+func getColumnIdListOfSpannerTable(spannerTable ddl.CreateTable) []int {
 
 	cidlist := []int{}
 
@@ -286,23 +287,23 @@ difference of two pkRequest and spannerTable.Pks.
 */
 func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) ddl.CreateTable {
 
-	listone := GetColumnIdListOfPrimaryKeyRequest(pkRequest)
-	listtwo := GetColumnIdListOfSpannerTablePrimaryKey(spannerTable)
+	listone := getColumnIdListOfPrimaryKeyRequest(pkRequest)
+	listtwo := getColumnIdListOfSpannerTablePrimaryKey(spannerTable)
 
 	//primary key Id only presnt in pkeyrequest
 	// hence new primary key add primary key into  spannerTable.Pk list
-	insert := difference(listone, listtwo)
-	pklist := addPrimaryKey(insert, pkRequest, spannerTable)
+	leftjoin := difference(listone, listtwo)
+	insert := addPrimaryKey(leftjoin, pkRequest, spannerTable)
 
-	spannerTable.Pks = append(spannerTable.Pks, pklist...)
+	spannerTable.Pks = append(spannerTable.Pks, insert...)
 
 	//primary key Id only presnt in spannertable.Pks
 	// hence remove primary key from  spannertable.Pks
-	remove := difference(listtwo, listone)
+	rightjoin := difference(listtwo, listone)
 
-	if len(remove) > 0 {
-		rklist := removePrimaryKey(remove, spannerTable)
-		spannerTable.Pks = rklist
+	if len(rightjoin) > 0 {
+		nlist := removePrimaryKey(rightjoin, spannerTable)
+		spannerTable.Pks = nlist
 	}
 
 	listone = []int{}
@@ -315,8 +316,8 @@ func isValidColumnIds(pkRequest PrimaryKeyRequest, spannertable ddl.CreateTable)
 
 	var validColumnId bool
 
-	listone := GetColumnIdListOfPrimaryKeyRequest(pkRequest)
-	listtwo := GetColumnIdListOfSpannerTable(spannertable)
+	listone := getColumnIdListOfPrimaryKeyRequest(pkRequest)
+	listtwo := getColumnIdListOfSpannerTable(spannertable)
 
 	leftjoin := difference(listone, listtwo)
 
