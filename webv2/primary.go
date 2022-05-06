@@ -11,17 +11,14 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
-/*
-PrimaryKeyRequest represents  Primary keys API Payload
-*/
+// PrimaryKeyRequest represents  Primary keys API Payload
 type PrimaryKeyRequest struct {
 	TableId      int      `json:"TableId"`
 	Columns      []Column `json:"Columns"`
 	PrimaryKeyId int      `json:"PrimaryKeyId"`
 }
 
-/*
-PrimaryKeyResponse represents  Primary keys API response
+/*PrimaryKeyResponse represents  Primary keys API response
 Synth is true is for table Primary Key Id is not present and it is generated
 */
 type PrimaryKeyResponse struct {
@@ -38,9 +35,7 @@ type Column struct {
 	Order    int    `json:"Order"`
 }
 
-/*
-primaryKey updates Primary keys in Spanner Table.
-*/
+//primaryKey updates Primary keys in Spanner Table.
 func primaryKey(w http.ResponseWriter, r *http.Request) {
 
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -49,10 +44,10 @@ func primaryKey(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 	}
+
 	pkeyrequest := PrimaryKeyRequest{}
 
 	err = json.Unmarshal(reqBody, &pkeyrequest)
-
 	if err != nil {
 		log.Println(err)
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
@@ -60,8 +55,7 @@ func primaryKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
-
-	spannertable, found := getSpannerTable(sessionState, pkeyrequest)
+	spannerTable, found := getSpannerTable(sessionState, pkeyrequest)
 
 	if !found {
 		log.Println(err)
@@ -77,23 +71,20 @@ func primaryKey(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	if !isColumnIdValid(pkeyrequest, spannertable) {
+	if !isColumnIdValid(pkeyrequest, spannerTable) {
 		log.Println(err)
 		http.Error(w, fmt.Sprintf("colummId not found error : %v", err), http.StatusBadRequest)
 		return
 
 	}
 
-	updatePrimaryKey(pkeyrequest, spannertable)
-	spannertable = insertOrRemovePrimarykey(pkeyrequest, spannertable)
-	pKeyResponse := prepareResponse(pkeyrequest, spannertable)
+	updatePrimaryKey(pkeyrequest, spannerTable)
+	spannerTable = insertOrRemovePrimarykey(pkeyrequest, spannerTable)
+	pKeyResponse := prepareResponse(pkeyrequest, spannerTable)
 
 	for _, table := range sessionState.Conv.SpSchema {
-
 		if pkeyrequest.TableId == table.Id {
-
-			sessionState.Conv.SpSchema[table.Name] = spannertable
-
+			sessionState.Conv.SpSchema[table.Name] = spannerTable
 		}
 	}
 
@@ -102,23 +93,23 @@ func primaryKey(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(pKeyResponse)
 }
 
-func getSpannerTable(sessionState *session.SessionState, pkeyrequest PrimaryKeyRequest) (spannertable ddl.CreateTable, found bool) {
+func getSpannerTable(sessionState *session.SessionState, pkeyrequest PrimaryKeyRequest) (spannerTable ddl.CreateTable, found bool) {
 
 	for _, table := range sessionState.Conv.SpSchema {
 
 		if pkeyrequest.TableId == table.Id {
-			spannertable = table
+			spannerTable = table
 			found = true
 		}
 	}
-	return spannertable, found
+	return spannerTable, found
 }
 
-func getColumnName(spannertable ddl.CreateTable, columnId int) string {
+func getColumnName(spannerTable ddl.CreateTable, columnId int) string {
 
 	var columnName string
 
-	for _, col := range spannertable.ColDefs {
+	for _, col := range spannerTable.ColDefs {
 		if col.Id == columnId {
 			columnName = col.Name
 		}
@@ -126,12 +117,12 @@ func getColumnName(spannertable ddl.CreateTable, columnId int) string {
 	return columnName
 }
 
-func getColumnId(spannertable ddl.CreateTable, columnname string) int {
+func getColumnId(spannerTable ddl.CreateTable, columnName string) int {
 
 	var id int
 
-	for _, col := range spannertable.ColDefs {
-		if col.Name == columnname {
+	for _, col := range spannerTable.ColDefs {
+		if col.Name == columnName {
 			id = col.Id
 		}
 	}
@@ -162,18 +153,18 @@ func difference(listone, listtwo []int) []int {
 }
 
 //updateprimaryKey updates primary key desc and order for primaryKey.
-func updatePrimaryKey(pkeyrequest PrimaryKeyRequest, spannertable ddl.CreateTable) {
+func updatePrimaryKey(pkeyrequest PrimaryKeyRequest, spannerTable ddl.CreateTable) {
 
 	for i := 0; i < len(pkeyrequest.Columns); i++ {
 
-		for j := 0; j < len(spannertable.Pks); j++ {
+		for j := 0; j < len(spannerTable.Pks); j++ {
 
-			id := getColumnId(spannertable, spannertable.Pks[j].Col)
+			id := getColumnId(spannerTable, spannerTable.Pks[j].Col)
 
 			if pkeyrequest.Columns[i].ColumnId == id {
 
-				spannertable.Pks[j].Desc = pkeyrequest.Columns[i].Desc
-				spannertable.Pks[j].Order = pkeyrequest.Columns[i].Order
+				spannerTable.Pks[j].Desc = pkeyrequest.Columns[i].Desc
+				spannerTable.Pks[j].Order = pkeyrequest.Columns[i].Order
 			}
 
 		}
@@ -181,7 +172,7 @@ func updatePrimaryKey(pkeyrequest PrimaryKeyRequest, spannertable ddl.CreateTabl
 }
 
 //addPrimaryKey insert primary key into list of IndexKey
-func addPrimaryKey(add []int, pkeyrequest PrimaryKeyRequest, spannertable ddl.CreateTable) []ddl.IndexKey {
+func addPrimaryKey(add []int, pkeyrequest PrimaryKeyRequest, spannerTable ddl.CreateTable) []ddl.IndexKey {
 
 	pklist := []ddl.IndexKey{}
 
@@ -192,7 +183,7 @@ func addPrimaryKey(add []int, pkeyrequest PrimaryKeyRequest, spannertable ddl.Cr
 			if val == pkeyrequest.Columns[i].ColumnId {
 
 				pkey := ddl.IndexKey{}
-				pkey.Col = getColumnName(spannertable, pkeyrequest.Columns[i].ColumnId)
+				pkey.Col = getColumnName(spannerTable, pkeyrequest.Columns[i].ColumnId)
 				pkey.Desc = pkeyrequest.Columns[i].Desc
 				pkey.Order = pkeyrequest.Columns[i].Order
 
@@ -204,19 +195,19 @@ func addPrimaryKey(add []int, pkeyrequest PrimaryKeyRequest, spannertable ddl.Cr
 }
 
 //removePrimaryKey removed primary key from list of IndexKey
-func removePrimaryKey(remove []int, spannertable ddl.CreateTable) []ddl.IndexKey {
+func removePrimaryKey(remove []int, spannerTable ddl.CreateTable) []ddl.IndexKey {
 
 	pklist := []ddl.IndexKey{}
 
 	for _, val := range remove {
 
-		colname := getColumnName(spannertable, val)
+		colname := getColumnName(spannerTable, val)
 
-		for i := 0; i < len(spannertable.Pks); i++ {
+		for i := 0; i < len(spannerTable.Pks); i++ {
 
-			if spannertable.Pks[i].Col == colname {
+			if spannerTable.Pks[i].Col == colname {
 
-				pklist = append(spannertable.Pks[:i], spannertable.Pks[i+1:]...)
+				pklist = append(spannerTable.Pks[:i], spannerTable.Pks[i+1:]...)
 			}
 		}
 	}
@@ -224,7 +215,7 @@ func removePrimaryKey(remove []int, spannertable ddl.CreateTable) []ddl.IndexKey
 }
 
 //prepareResponse prepare response for primary key api
-func prepareResponse(pkeyrequest PrimaryKeyRequest, spannertable ddl.CreateTable) PrimaryKeyResponse {
+func prepareResponse(pkeyrequest PrimaryKeyRequest, spannerTable ddl.CreateTable) PrimaryKeyResponse {
 
 	var pKeyResponse PrimaryKeyResponse
 
@@ -234,20 +225,20 @@ func prepareResponse(pkeyrequest PrimaryKeyRequest, spannertable ddl.CreateTable
 	var isSynthPrimaryKey bool
 
 	//todo check with team
-	for i := 0; i < len(spannertable.ColNames); i++ {
+	for i := 0; i < len(spannerTable.ColNames); i++ {
 
-		if spannertable.ColNames[i] == "synth_id" {
+		if spannerTable.ColNames[i] == "synth_id" {
 			isSynthPrimaryKey = true
 		}
 	}
 
 	pKeyResponse.Synth = isSynthPrimaryKey
 
-	for _, indexkey := range spannertable.Pks {
+	for _, indexkey := range spannerTable.Pks {
 
 		responseColumn := Column{}
 
-		id := getColumnId(spannertable, indexkey.Col)
+		id := getColumnId(spannerTable, indexkey.Col)
 		responseColumn.ColumnId = id
 		responseColumn.ColName = indexkey.Col
 		responseColumn.Desc = indexkey.Desc
@@ -270,22 +261,22 @@ func preparenewpklist(pkeyrequest PrimaryKeyRequest) []int {
 }
 
 //prepareoldpklist prepare second list for difference
-func prepareoldpklist(spannertable ddl.CreateTable) []int {
+func prepareoldpklist(spannerTable ddl.CreateTable) []int {
 
 	oldlist := []int{}
 
-	for i := 0; i < len(spannertable.Pks); i++ {
-		cid := getColumnId(spannertable, spannertable.Pks[i].Col)
+	for i := 0; i < len(spannerTable.Pks); i++ {
+		cid := getColumnId(spannerTable, spannerTable.Pks[i].Col)
 		oldlist = append(oldlist, cid)
 	}
 	return oldlist
 }
 
-func preparecolumnlist(spannertable ddl.CreateTable) []int {
+func preparecolumnlist(spannerTable ddl.CreateTable) []int {
 
 	oldlist := []int{}
 
-	for _, column := range spannertable.ColDefs {
+	for _, column := range spannerTable.ColDefs {
 		oldlist = append(oldlist, column.Id)
 	}
 	return oldlist
@@ -293,33 +284,33 @@ func preparecolumnlist(spannertable ddl.CreateTable) []int {
 
 /*
 insertOrRemovePrimarykey performs insert or remove primary key operation based on
-difference of two pkeyrequest and spannertable.Pks.
+difference of two pkeyrequest and spannerTable.Pks.
 */
-func insertOrRemovePrimarykey(pkeyrequest PrimaryKeyRequest, spannertable ddl.CreateTable) ddl.CreateTable {
+func insertOrRemovePrimarykey(pkeyrequest PrimaryKeyRequest, spannerTable ddl.CreateTable) ddl.CreateTable {
 
 	listone := preparenewpklist(pkeyrequest)
-	listtwo := prepareoldpklist(spannertable)
+	listtwo := prepareoldpklist(spannerTable)
 
 	//primary key Id only presnt in pkeyrequest
-	// hence new primary key add primary key into  spannertable.Pk list
+	// hence new primary key add primary key into  spannerTable.Pk list
 	insert := difference(listone, listtwo)
-	pklist := addPrimaryKey(insert, pkeyrequest, spannertable)
+	pklist := addPrimaryKey(insert, pkeyrequest, spannerTable)
 
-	spannertable.Pks = append(spannertable.Pks, pklist...)
+	spannerTable.Pks = append(spannerTable.Pks, pklist...)
 
 	//primary key Id only presnt in spannertable.Pks
 	// hence remove primary key from  spannertable.Pks
 	remove := difference(listtwo, listone)
 
 	if len(remove) > 0 {
-		rklist := removePrimaryKey(remove, spannertable)
-		spannertable.Pks = rklist
+		rklist := removePrimaryKey(remove, spannerTable)
+		spannerTable.Pks = rklist
 	}
 
 	listone = []int{}
 	listtwo = []int{}
 
-	return spannertable
+	return spannerTable
 }
 
 func isColumnIdValid(pkeyrequest PrimaryKeyRequest, spannertable ddl.CreateTable) bool {
