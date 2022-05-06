@@ -207,7 +207,7 @@ func TestRemovePrimaryKey(t *testing.T) {
 
 	expected := PrimaryKeyResponse{
 		TableId:      1,
-		Columns:      []Column{{ColumnId: 1, ColName: "film_id", Desc: true, Order: 1}, Column{ColumnId: 2, ColName: "actor_id", Desc: true, Order: 2}},
+		Columns:      []Column{Column{ColumnId: 1, ColName: "film_id", Desc: true, Order: 1}, Column{ColumnId: 2, ColName: "actor_id", Desc: true, Order: 2}},
 		PrimaryKeyId: 1,
 	}
 
