@@ -108,7 +108,6 @@ func getSpannerTable(sessionState *session.SessionState, pkRequest PrimaryKeyReq
 func getColumnName(spannerTable ddl.CreateTable, columnId int) string {
 
 	var columnName string
-
 	for _, col := range spannerTable.ColDefs {
 		if col.Id == columnId {
 			columnName = col.Name
@@ -120,7 +119,6 @@ func getColumnName(spannerTable ddl.CreateTable, columnId int) string {
 func getColumnId(spannerTable ddl.CreateTable, columnName string) int {
 
 	var id int
-
 	for _, col := range spannerTable.ColDefs {
 		if col.Name == columnName {
 			id = col.Id
@@ -184,7 +182,6 @@ func addPrimaryKey(add []int, pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 				pkey.Col = getColumnName(spannerTable, pkRequest.Columns[i].ColumnId)
 				pkey.Desc = pkRequest.Columns[i].Desc
 				pkey.Order = pkRequest.Columns[i].Order
-
 				list = append(list, pkey)
 			}
 		}
@@ -224,7 +221,6 @@ func prepareResponse(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) 
 
 	//todo check with team
 	for i := 0; i < len(spannerTable.ColNames); i++ {
-
 		if spannerTable.ColNames[i] == "synth_id" {
 			isSynthPrimaryKey = true
 		}
@@ -235,13 +231,11 @@ func prepareResponse(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) 
 	for _, indexkey := range spannerTable.Pks {
 
 		responseColumn := Column{}
-
 		id := getColumnId(spannerTable, indexkey.Col)
 		responseColumn.ColumnId = id
 		responseColumn.ColName = indexkey.Col
 		responseColumn.Desc = indexkey.Desc
 		responseColumn.Order = indexkey.Order
-
 		pKeyResponse.Columns = append(pKeyResponse.Columns, responseColumn)
 	}
 	return pKeyResponse
@@ -260,7 +254,6 @@ func getColumnIdListOfPrimaryKeyRequest(pkRequest PrimaryKeyRequest) []int {
 
 //getColumnIdListOfSpannerTablePrimaryKey return list of column Id from spannerTable PrimaryKey
 func getColumnIdListOfSpannerTablePrimaryKey(spannerTable ddl.CreateTable) []int {
-
 	cidlist := []int{}
 
 	for i := 0; i < len(spannerTable.Pks); i++ {
@@ -272,7 +265,6 @@ func getColumnIdListOfSpannerTablePrimaryKey(spannerTable ddl.CreateTable) []int
 
 //getColumnIdListOfSpannerTable return list of column Id from spannerTable ColDefs
 func getColumnIdListOfSpannerTable(spannerTable ddl.CreateTable) []int {
-
 	cidlist := []int{}
 
 	for _, column := range spannerTable.ColDefs {
@@ -308,7 +300,6 @@ func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 
 	listone = []int{}
 	listtwo = []int{}
-
 	return spannerTable
 }
 
@@ -318,13 +309,11 @@ func isValidColumnIds(pkRequest PrimaryKeyRequest, spannertable ddl.CreateTable)
 
 	listone := getColumnIdListOfPrimaryKeyRequest(pkRequest)
 	listtwo := getColumnIdListOfSpannerTable(spannertable)
-
 	leftjoin := difference(listone, listtwo)
 
 	if len(leftjoin) > 0 {
 		validColumnId = false
 		return validColumnId
 	}
-
 	return true
 }
