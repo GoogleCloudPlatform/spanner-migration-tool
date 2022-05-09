@@ -232,7 +232,9 @@
           </ng-container>
 
           <ng-container matColumnDef="spIsNotNull">
-            <th mat-header-cell class="table_header" *matHeaderCellDef>Nullable</th>
+            <th mat-header-cell class="table_header" *matHeaderCellDef>
+              <span *ngIf="isEditMode">Not Null</span><span *ngIf="!isEditMode">Nullable</span>
+            </th>
             <td mat-cell *matCellDef="let element">
               <div class="notNullContent">
                 <div *ngIf="isEditMode && element.get('spOrder').value !== ''">
@@ -285,7 +287,7 @@
             <th mat-header-cell *matHeaderCellDef class="db_name" colspan="5">
               <div class="spanner_edit-button">
                 <span>Spanner</span>
-                <div *ngIf="!isFkEditMode">
+                <div *ngIf="!isFkEditMode && fkDataSource.length > 0">
                   <button mat-stroked-button color="primary" (click)="toggleFkEdit()">
                     <mat-icon class="edit-icon">edit</mat-icon>
                     EDIT
