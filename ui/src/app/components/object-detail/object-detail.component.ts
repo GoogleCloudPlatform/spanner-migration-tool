@@ -264,8 +264,10 @@ export class ObjectDetailComponent implements OnInit {
       next: (res: string) => {
         if (res == '') {
           this.data.getDdl()
+          console.log(element, 'element')
+
           this.snackbar.openSnackBar(
-            `${element.get('spName')} Foreign key dropped successfully`,
+            `${element.get('spName').value} Foreign key dropped successfully`,
             'Close',
             5
           )
