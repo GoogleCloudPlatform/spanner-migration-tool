@@ -1,5 +1,4 @@
 export default interface IConv {
-  mode: number
   SpSchema: Record<string, ICreateTable>
   SyntheticPKeys: Record<string, ISyntheticPKey>
   SrcSchema: Record<string, ITable>
@@ -128,8 +127,4 @@ export interface IType {
 export interface ISyntheticPKey {
   Col: string
   Sequence: Number
-}
-export interface IGlobalType {
-  source: string
-  destination: string
 }
