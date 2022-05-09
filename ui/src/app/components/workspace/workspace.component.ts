@@ -142,6 +142,9 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
   downloadSession() {
     var a = document.createElement('a')
+    // JS automatically converts the input (64bit INT) to '9223372036854776000' during conversion as this is the max value in JS.
+    // However the max value received from server is '9223372036854775807'
+    // Therefore an explicit replacement is necessary in the JSON content in the file.
     let resJson = JSON.stringify(this.conv).replace(/9223372036854776000/g, '9223372036854775807')
     a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
     a.download = `${this.conv.SessionName}_${this.conv.DatabaseType}_${this.conv.DatabaseName}.json`
