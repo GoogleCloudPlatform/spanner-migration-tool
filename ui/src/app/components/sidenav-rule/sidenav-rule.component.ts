@@ -12,7 +12,7 @@ export class SidenavRuleComponent implements OnInit {
   constructor(private sidenavService: SidenavService, private data: DataService) {}
 
   ruleForm: FormGroup = new FormGroup({
-    ruleName: new FormControl('', [Validators.required, Validators.pattern('^[a-zA-Z].{0,49}$')]),
+    ruleName: new FormControl('', [Validators.required, Validators.pattern('^[a-zA-Z].{0,59}$')]),
     ruleType: new FormControl('', [Validators.required]),
   })
 
