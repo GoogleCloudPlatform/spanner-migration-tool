@@ -60,7 +60,7 @@ export class ConversionService {
     }
     return [
       {
-        name: 'Database Name',
+        name: conv.DatabaseName,
         children: [parentNode],
         type: ObjectExplorerNodeType.DbName,
         parent: '',
@@ -122,7 +122,7 @@ export class ConversionService {
 
     return [
       {
-        name: 'Database Name',
+        name: conv.DatabaseName,
         children: [parentNode],
         type: ObjectExplorerNodeType.DbName,
         parent: '',
