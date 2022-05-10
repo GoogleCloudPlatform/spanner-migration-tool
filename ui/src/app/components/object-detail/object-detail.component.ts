@@ -254,6 +254,7 @@ export class ObjectDetailComponent implements OnInit {
         },
       })
     } else {
+      this.currentTabIndex = 2
       this.isFkEditMode = true
     }
   }
