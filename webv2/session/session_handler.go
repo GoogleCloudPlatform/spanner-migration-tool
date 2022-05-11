@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -240,7 +241,12 @@ func LoadSession(w http.ResponseWriter, r *http.Request) {
 	conv := internal.MakeConv()
 	err = conversion.ReadSessionFile(conv, s.FilePath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Error loading session : %v", err), http.StatusNotFound)
+		switch err.(type) {
+		case *fs.PathError:
+			http.Error(w, fmt.Sprintf("Failed to open session file : %v, no such file or directory", s.FilePath), http.StatusNotFound)
+		default:
+			http.Error(w, fmt.Sprintf("Failed to parse session file : %v", err), http.StatusBadRequest)
+		}
 		return
 	}
 

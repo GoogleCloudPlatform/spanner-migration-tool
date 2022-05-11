@@ -2,7 +2,6 @@
   <mat-card class="form-container">
     <form [formGroup]="connectForm" (ngSubmit)="connectToDb()">
       <h3>Connect to a Database</h3>
-      <h5>Lorem ipsum dolor sit amet, consectetur adipiscing elit</h5>
 
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Database Engine</mat-label>
@@ -14,10 +13,6 @@
       </mat-form-field>
 
       <h3>Connection Detail</h3>
-      <h5>
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
-        labore et dolore magna aliqua.
-      </h5>
 
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Hostname</mat-label>
@@ -42,18 +37,12 @@
 
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Password</mat-label>
-        <input
-          matInput
-          placeholder="root"
-          name="password"
-          type="password"
-          formControlName="password"
-        />
+        <input matInput name="password" type="password" formControlName="password" />
       </mat-form-field>
       <br />
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Database Name</mat-label>
-        <input matInput placeholder="root" name="dbname" type="text" formControlName="dbName" />
+        <input matInput name="dbname" type="text" formControlName="dbName" />
       </mat-form-field>
       <br />
       <button mat-raised-button type="submit" color="primary" [disabled]="!connectForm.valid">

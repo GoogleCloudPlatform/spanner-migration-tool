@@ -128,3 +128,12 @@ export interface ISyntheticPKey {
   Col: string
   Sequence: Number
 }
+export interface ITableInterleaveStatus {
+  Possible: boolean
+  Parent: string
+  Comment: string
+}
+
+export interface IInterleaveStatus {
+  TableInterleaveStatus: ITableInterleaveStatus
+}

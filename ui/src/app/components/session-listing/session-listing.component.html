@@ -28,8 +28,11 @@
         <th mat-header-cell *matHeaderCellDef>Notes</th>
         <td mat-cell *matCellDef="let element; let i = index">
           <div *ngIf="element.Notes" class="notes-wrapper">
-            <button *ngIf="element.Notes.length > 1 || element.Notes[0].length > 20" class="notes-toggle-button"
-              (click)="notesToggle[i] = !notesToggle[i]">
+            <button
+              *ngIf="element.Notes.length > 1 || element.Notes[0].length > 20"
+              class="notes-toggle-button"
+              (click)="notesToggle[i] = !notesToggle[i]"
+            >
               ...
             </button>
             <div *ngIf="notesToggle[i]; else short">
@@ -44,7 +47,7 @@
 
       <ng-container matColumnDef="CreateTimestamp">
         <th mat-header-cell *matHeaderCellDef>Created At</th>
-        <td mat-cell *matCellDef="let element">{{ element.CreateTimestamp }}</td>
+        <td mat-cell *matCellDef="let element">{{ convertDateTime(element.CreateTimestamp) }}</td>
       </ng-container>
 
       <!-- Actions-->
@@ -55,7 +58,18 @@
             Resume
           </button>
 
-          <button mat-button color="primary" (click)="downloadSessionFile(element.VersionId, element.SessionName, element.DatabaseType, element.DatabaseName)">
+          <button
+            mat-button
+            color="primary"
+            (click)="
+              downloadSessionFile(
+                element.VersionId,
+                element.SessionName,
+                element.DatabaseType,
+                element.DatabaseName
+              )
+            "
+          >
             Download
           </button>
         </td>
