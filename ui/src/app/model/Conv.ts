@@ -135,5 +135,5 @@ export interface ITableInterleaveStatus {
 }
 
 export interface IInterleaveStatus {
-  tableInterleaveStatus: ITableInterleaveStatus
+  TableInterleaveStatus: ITableInterleaveStatus
 }
