@@ -1222,11 +1222,6 @@ type SessionState struct {
 	sessionFile string         // Path to session file
 }
 
-// sessionState maintains the current state of the session, and is used to
-// track state from one request to the next. Session state is global:
-// all requests see the same session state.
-//var sessionState SessionState
-
 // Type and issue.
 type typeIssue struct {
 	T     string
