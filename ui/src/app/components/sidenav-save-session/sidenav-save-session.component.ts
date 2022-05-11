@@ -22,12 +22,12 @@ export class SidenavSaveSessionComponent implements OnInit {
   saveSessionForm: FormGroup = new FormGroup({
     SessionName: new FormControl('', [
       Validators.required,
-      Validators.pattern('^[a-zA-Z].{0,49}$'),
+      Validators.pattern('^[a-zA-Z].{0,59}$'),
     ]),
-    EditorName: new FormControl('', [Validators.required, Validators.pattern('^[a-zA-Z].{0,49}$')]),
+    EditorName: new FormControl('', [Validators.required, Validators.pattern('^[a-zA-Z].{0,59}$')]),
     DatabaseName: new FormControl('', [
       Validators.required,
-      Validators.pattern('^[a-zA-Z].{0,49}$'),
+      Validators.pattern('^[a-zA-Z].{0,59}$'),
     ]),
     Notes: new FormControl('', [Validators.required]),
   })
@@ -35,16 +35,16 @@ export class SidenavSaveSessionComponent implements OnInit {
   saveSession() {
     let formValue = this.saveSessionForm.value
     let payload: ISaveSessionPayload = {
-      SessionName: formValue.SessionName,
-      EditorName: formValue.EditorName,
-      DatabaseName: formValue.DatabaseName,
+      SessionName: formValue.SessionName.trim(),
+      EditorName: formValue.EditorName.trim(),
+      DatabaseName: formValue.DatabaseName.trim(),
       Notes: formValue.Notes.split('\n'),
     }
 
     this.fetch.saveSession(payload).subscribe({
       next: (res: any) => {
         this.data.getAllSessions()
-        this.snack.openSnackBar('Session saved successfully', 'Close', 5000)
+        this.snack.openSnackBar('Session saved successfully', 'Close', 5)
       },
       error: (err: any) => {
         this.snack.openSnackBar(err.error, 'Close')

@@ -12,6 +12,7 @@ import FlatNode from 'src/app/model/SchemaObjectNode'
 import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
 import IConv from 'src/app/model/Conv'
+import { DropIndexDialogComponent } from '../drop-index-dialog/drop-index-dialog.component'
 
 @Component({
   selector: 'app-object-detail',
@@ -203,7 +204,7 @@ export class ObjectDetailComponent implements OnInit {
       next: (res: string) => {
         if (res == '') {
           this.data.getDdl()
-          this.snackbar.openSnackBar(`${colName} column dropped successfully`, 'Close', 5000)
+          this.snackbar.openSnackBar(`${colName} column dropped successfully`, 'Close', 5)
         } else {
           this.dialog.open(InfodialogComponent, {
             data: { message: res, type: 'error' },
@@ -262,6 +263,7 @@ export class ObjectDetailComponent implements OnInit {
         },
       })
     } else {
+      this.currentTabIndex = 2
       this.isFkEditMode = true
     }
   }
@@ -272,10 +274,12 @@ export class ObjectDetailComponent implements OnInit {
       next: (res: string) => {
         if (res == '') {
           this.data.getDdl()
+          console.log(element, 'element')
+
           this.snackbar.openSnackBar(
-            `${element.get('spName')} Foreign key dropped successfully`,
+            `${element.get('spName').value} Foreign key dropped successfully`,
             'Close',
-            5000
+            5
           )
         } else {
           this.dialog.open(InfodialogComponent, {
@@ -332,16 +336,26 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropIndex() {
-    this.data
-      .dropIndex(this.currentObject!.parent, this.currentObject!.pos)
-      .pipe(take(1))
-      .subscribe((res: string) => {
-        if (res === '') {
-          this.isObjectSelected = false
-          this.updateSidebar.emit(true)
-        }
-      })
-    this.currentObject = null
+    let openDialog = this.dialog.open(DropIndexDialogComponent, {
+      width: '35vw',
+      minWidth: '450px',
+      maxWidth: '600px',
+      data: this.currentObject?.name,
+    })
+    openDialog.afterClosed().subscribe((res: string) => {
+      if (res) {
+        this.data
+          .dropIndex(this.currentObject!.parent, this.currentObject!.pos)
+          .pipe(take(1))
+          .subscribe((res: string) => {
+            if (res === '') {
+              this.isObjectSelected = false
+              this.updateSidebar.emit(true)
+            }
+          })
+        this.currentObject = null
+      }
+    })
   }
 
   selectedColumnChange(tableName: string) {}

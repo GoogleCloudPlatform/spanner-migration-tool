@@ -21,6 +21,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/spanner"
@@ -235,17 +237,27 @@ func LoadSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	sessionState.Conv = internal.MakeConv()
-	err = conversion.ReadSessionFile(sessionState.Conv, s.FilePath)
+	conv := internal.MakeConv()
+	err = conversion.ReadSessionFile(conv, s.FilePath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to open the session file: %v", err), http.StatusNotFound)
+		http.Error(w, fmt.Sprintf("Error loading session : %v", err), http.StatusNotFound)
 		return
 	}
+
+	convm := ConvWithMetadata{
+		SessionMetadata: SessionMetadata{
+			SessionName:  "NewSession",
+			DatabaseType: s.Driver,
+			DatabaseName: strings.TrimRight(filepath.Base(s.FilePath), filepath.Ext(s.FilePath)),
+		},
+		Conv: *conv,
+	}
+
+	sessionState.Conv = conv
 	sessionState.Driver = s.Driver
-	sessionState.DbName = s.DBName
 	sessionState.SessionFile = s.FilePath
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sessionState.Conv)
+	json.NewEncoder(w).Encode(convm)
 }
 
 //Helpers

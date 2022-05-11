@@ -55,7 +55,7 @@ export class DirectConnectionComponent implements OnInit {
         })
       },
       error: (e) => {
-        this.snackbarService.openSnackBar('Unable to connect to database', 'Close')
+        this.snackbarService.openSnackBar(e.error, 'Close')
       },
     })
   }

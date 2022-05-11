@@ -37,14 +37,14 @@ export class UpdateSpannerConfigFormComponent implements OnInit {
 
     this.fetch.setSpannerConfig(payload).subscribe({
       next: (res: ISpannerConfig) => {
-        this.snack.openSnackBar('Spanner Config updated successfully', 'Close', 5000)
+        this.snack.openSnackBar('Spanner Config updated successfully', 'Close', 5)
         this.dialogRef.close({ ...res })
         this.dataService.updateIsOffline()
         this.dataService.updateConfig(res)
         this.dataService.getAllSessions()
       },
       error: (err: any) => {
-        this.snack.openSnackBar(err.message, 'Close', 5000)
+        this.snack.openSnackBar(err.message, 'Close')
       },
     })
   }

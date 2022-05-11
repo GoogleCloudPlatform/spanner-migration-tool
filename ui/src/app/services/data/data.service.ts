@@ -114,7 +114,7 @@ export class DataService {
         this.convSubject.next(res)
       },
       error: (err: any) => {
-        this.snackbar.openSnackBar('Unable to load dump file.', 'Close')
+        this.snackbar.openSnackBar(err.error, 'Close')
       },
     })
   }
@@ -125,7 +125,7 @@ export class DataService {
         this.convSubject.next(res)
       },
       error: (err: any) => {
-        this.snackbar.openSnackBar('Unable to load session file.', 'Close')
+        this.snackbar.openSnackBar(err.error, 'Close')
       },
     })
   }
@@ -135,7 +135,7 @@ export class DataService {
         this.convSubject.next(res)
       },
       error: (err: any) => {
-        this.snackbar.openSnackBar('Unable to resume session.', 'Close')
+        this.snackbar.openSnackBar(err.error, 'Close')
       },
     })
   }
@@ -232,7 +232,7 @@ export class DataService {
     this.fetch.updateGlobalType(types).subscribe({
       next: (data: any) => {
         this.convSubject.next(data)
-        this.snackbar.openSnackBar('Global datatype updated successfully', 'Close', 5000)
+        this.snackbar.openSnackBar('Global datatype updated successfully', 'Close', 5)
       },
       error: (err: any) => {
         this.snackbar.openSnackBar('Unable to add rule', 'Close')
@@ -254,7 +254,7 @@ export class DataService {
     this.fetch.addIndex(tableName, payload).subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
-        this.snackbar.openSnackBar('added new Index.', 'Close', 5000)
+        this.snackbar.openSnackBar('added new Index.', 'Close', 5)
       },
       error: (err: any) => {
         this.snackbar.openSnackBar(err.error, 'Close')
@@ -274,7 +274,7 @@ export class DataService {
           return data.error
         } else {
           this.convSubject.next(data)
-          this.snackbar.openSnackBar('Dropped index successfully', 'Close', 5000)
+          this.snackbar.openSnackBar('Dropped index successfully', 'Close', 5)
           return ''
         }
       })
