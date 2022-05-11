@@ -29,7 +29,6 @@ export class SessionListingComponent implements OnInit {
     private fetch: FetchService,
     private data: DataService,
     private router: Router,
-    private snackbar: SnackbarService,
     private clickEvent: ClickEventService
   ) {}
 
@@ -60,7 +59,7 @@ export class SessionListingComponent implements OnInit {
     })
   }
 
-  ResumeFromSessionFile(versionId: string) {
+  resumeFromSessionFile(versionId: string) {
     this.data.resetStore()
     this.data.getSchemaConversionFromResumeSession(versionId)
     this.data.conv.subscribe((res: IConv) => {
