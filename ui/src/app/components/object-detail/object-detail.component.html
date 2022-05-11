@@ -70,6 +70,12 @@
         <span>DROP INDEX</span>
       </button>
     </h3>
+    <div class="interleaved-title" *ngIf="interleaveParentName">
+      Interleaved:
+      <div class="interleave-parent-name">
+        {{ interleaveParentName }}
+      </div>
+    </div>
   </div>
 
   <mat-tab-group
@@ -293,7 +299,7 @@
             <th mat-header-cell *matHeaderCellDef class="db_name" colspan="5">
               <div class="spanner_edit-button">
                 <span>Spanner</span>
-                <div *ngIf="!isFkEditMode && fkDataSource.length > 0">
+                <div *ngIf="!isFkEditMode && fkDataSource.length > 0 && !interleaveParentName">
                   <button mat-stroked-button color="primary" (click)="toggleFkEdit()">
                     <mat-icon class="edit-icon">edit</mat-icon>
                     EDIT
@@ -381,7 +387,18 @@
                     mat-menu-item
                     (click)="dropFk(element)"
                   >
-                    <span>Drop Fk</span>
+                    <span>Drop Foreign Key</span>
+                  </button>
+                  <button
+                    *ngIf="
+                      interleaveStatus.tableInterleaveStatus &&
+                      interleaveStatus.tableInterleaveStatus.Possible
+                    "
+                    [disabled]="element.get('spName').value === ''"
+                    mat-menu-item
+                    (click)="setInterleave()"
+                  >
+                    <span>Convert to interleave</span>
                   </button>
                 </mat-menu>
               </div>

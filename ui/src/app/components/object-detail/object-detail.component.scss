@@ -16,13 +16,16 @@
 .title_container {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: left;
   padding: 10px 20px;
   border-bottom: 1px solid #cccccc;
   .title {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     margin-bottom: 0;
+    margin-left: 0px;
     .icon {
       margin-right: 20px;
       color: #757575;
@@ -33,6 +36,13 @@
       height: 28px;
       display: inline-flex;
       align-items: center;
+    }
+  }
+  .interleaved-title {
+    display: flex;
+    .interleave-parent-name {
+      margin-left: 4px;
+      text-decoration: underline;
     }
   }
 }
