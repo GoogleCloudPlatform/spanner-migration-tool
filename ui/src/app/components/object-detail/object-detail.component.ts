@@ -9,7 +9,7 @@ import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import IFkTabData from 'src/app/model/FkTabData'
 import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import FlatNode from 'src/app/model/SchemaObjectNode'
-import { take } from 'rxjs'
+import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
 import IConv from 'src/app/model/Conv'
 
@@ -34,6 +34,9 @@ export class ObjectDetailComponent implements OnInit {
   @Output() updateSidebar = new EventEmitter<boolean>()
   ObjectExplorerNodeType = ObjectExplorerNodeType
   conv: IConv = {} as IConv
+  interleaveObj!: Subscription
+  interleaveStatus: any
+  interleaveParentName: string | null = null
 
   ngOnInit(): void {
     this.data.conv.subscribe({
@@ -96,7 +99,13 @@ export class ObjectDetailComponent implements OnInit {
     this.isEditMode = false
     this.isFkEditMode = false
     this.rowArray = new FormArray([])
+    this.interleaveParentName = this.getParentFromDdl()
+
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
+      this.checkIsInterleave()
+      this.interleaveObj = this.data.tableInterleaveStatus.subscribe((res) => {
+        this.interleaveStatus = res
+      })
       this.tableData.forEach((row) => {
         this.rowArray.push(
           new FormGroup({
@@ -287,6 +296,31 @@ export class ObjectDetailComponent implements OnInit {
       }
     })
     return ind
+  }
+
+  checkIsInterleave() {
+    if (this.currentObject) {
+      this.data.getInterleaveConversionForATable(this.currentObject!.name)
+    }
+  }
+
+  setInterleave() {
+    this.data.setInterleave(this.currentObject!.name)
+  }
+
+  getParentFromDdl() {
+    let substr: string = 'INTERLEAVE IN PARENT'
+    let ddl: string = ''
+    if (
+      this.currentObject?.type === ObjectExplorerNodeType.Table &&
+      this.ddlStmts[this.currentObject.name].includes(substr)
+    ) {
+      ddl = this.ddlStmts[this.currentObject.name].substring(
+        this.ddlStmts[this.currentObject.name].indexOf(substr) + 20
+      )
+      return ddl.split(' ')[1]
+    }
+    return null
   }
 
   toggleIndexEdit() {

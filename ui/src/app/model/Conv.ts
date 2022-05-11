@@ -133,3 +133,12 @@ export interface IGlobalType {
   source: string
   destination: string
 }
+export interface ITableInterleaveStatus {
+  Possible: boolean
+  Parent: string
+  Comment: string
+}
+
+export interface IInterleaveStatus {
+  tableInterleaveStatus: ITableInterleaveStatus
+}
