@@ -18,9 +18,9 @@ export class DirectConnectionComponent implements OnInit {
   connectForm = new FormGroup({
     dbEngine: new FormControl('', [Validators.required]),
     hostName: new FormControl('', [Validators.required]),
-    port: new FormControl('', [Validators.required]),
+    port: new FormControl('', [Validators.required, Validators.pattern('^[0-9]+$')]),
     userName: new FormControl('', [Validators.required]),
-    password: new FormControl('', [Validators.required]),
+    password: new FormControl(''),
     dbName: new FormControl('', [Validators.required]),
   })
 
