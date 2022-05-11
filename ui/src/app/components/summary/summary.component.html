@@ -68,7 +68,7 @@
               <button mat-menu-item *ngIf="!item.isRead" (click)="toggleRead(item)">
                 <span>Mark as read</span>
               </button>
-              <button mat-menu-item mat-menu-item *ngIf="item.isRead" (click)="toggleRead(item)">
+              <button mat-menu-item *ngIf="item.isRead" (click)="toggleRead(item)">
                 <span>Mark as unread</span>
               </button>
             </mat-menu>

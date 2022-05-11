@@ -50,9 +50,9 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
 
   //To dynamically change destination select option
   updateDestinationType(key: string): void {
-    const desTypeDetial = this.conversionType[key]
+    const desTypeDetail = this.conversionType[key]
     const desType: string[] = []
-    desTypeDetial.forEach((item: IConvSourceType) => {
+    desTypeDetail.forEach((item: IConvSourceType) => {
       desType.push(item.T)
     })
     this.destinationType = desType

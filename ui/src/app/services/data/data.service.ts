@@ -254,7 +254,7 @@ export class DataService {
     this.fetch.addIndex(tableName, payload).subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
-        this.snackbar.openSnackBar('added new Index.', 'Close', 5)
+        this.snackbar.openSnackBar('Added new index.', 'Close', 5)
       },
       error: (err: any) => {
         this.snackbar.openSnackBar(err.error, 'Close')
@@ -274,7 +274,7 @@ export class DataService {
           return data.error
         } else {
           this.convSubject.next(data)
-          this.snackbar.openSnackBar('Dropped index successfully', 'Close', 5)
+          this.snackbar.openSnackBar('Index dropped successfully', 'Close', 5)
           return ''
         }
       })

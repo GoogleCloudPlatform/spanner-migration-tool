@@ -70,4 +70,13 @@ export class SessionListingComponent implements OnInit {
   openSpannerConfigDialog() {
     this.clickEvent.openSpannerConfig()
   }
+
+  convertDateTime(val: string) {
+    console.log(val)
+    let datetime = new Date(val)
+    val = datetime.toString()
+    val = val.substring(val.indexOf(' ') + 1)
+    val = val.substring(0, val.indexOf('('))
+    return val
+  }
 }
