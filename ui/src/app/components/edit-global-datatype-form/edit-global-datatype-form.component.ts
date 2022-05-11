@@ -48,7 +48,7 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
     this.sidenav.closeSidenav()
   }
 
-  //To dynamically change destination select option
+  // To dynamically change destination datatype.
   updateDestinationType(key: string): void {
     const desTypeDetail = this.conversionType[key]
     const desType: string[] = []
