@@ -24,12 +24,12 @@ export class SidenavSaveSessionComponent implements OnInit {
       Validators.required,
       Validators.pattern('^[a-zA-Z].{0,59}$'),
     ]),
-    EditorName: new FormControl('', [Validators.required, Validators.pattern('^[a-zA-Z].{0,59}$')]),
+    EditorName: new FormControl('', [Validators.pattern('^[a-zA-Z].{0,59}$')]),
     DatabaseName: new FormControl('', [
       Validators.required,
       Validators.pattern('^[a-zA-Z].{0,59}$'),
     ]),
-    Notes: new FormControl('', [Validators.required]),
+    Notes: new FormControl(''),
   })
 
   saveSession() {

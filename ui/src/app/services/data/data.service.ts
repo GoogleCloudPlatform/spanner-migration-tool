@@ -92,7 +92,6 @@ export class DataService {
   getSchemaConversionFromDb() {
     this.fetch.getSchemaConversionFromDirectConnect().subscribe((res: IConv) => {
       this.convSubject.next(res)
-      // this.initiateSession()
     })
   }
 
@@ -129,6 +128,7 @@ export class DataService {
       },
     })
   }
+
   getSchemaConversionFromResumeSession(versionId: string) {
     this.fetch.resumeSession(versionId).subscribe({
       next: (res: IConv) => {

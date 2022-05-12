@@ -1,6 +1,6 @@
 import { Component, Input, OnInit, Output, SimpleChanges, EventEmitter } from '@angular/core'
 import { DataService } from 'src/app/services/data/data.service'
-import ISummary from 'src/app/model/Summary'
+import ISummary, { ISummaryRow } from 'src/app/model/Summary'
 import { FlatNode } from 'src/app/model/SchemaObjectNode'
 import { Observable, of } from 'rxjs'
 import { map, startWith } from 'rxjs/operators'
@@ -13,9 +13,9 @@ import { FormControl } from '@angular/forms'
 })
 export class SummaryComponent implements OnInit {
   @Output() changeIssuesLabel: EventEmitter<number> = new EventEmitter<number>()
-  summaryRows: SummaryRow[] = []
+  summaryRows: ISummaryRow[] = []
   summary: Map<string, ISummary> = new Map<string, ISummary>()
-  filteredSummaryRows: SummaryRow[] = []
+  filteredSummaryRows: ISummaryRow[] = []
   readonly separatorKeysCodes = [] as const
   summaryCount: number = 0
 
@@ -77,21 +77,21 @@ export class SummaryComponent implements OnInit {
   }
 
   applyFilters() {
-    let typeFilters: Array<(data: SummaryRow) => Boolean> = []
-    let readFilters: Array<(data: SummaryRow) => Boolean> = []
+    let typeFilters: Array<(data: ISummaryRow) => Boolean> = []
+    let readFilters: Array<(data: ISummaryRow) => Boolean> = []
 
     if (this.searchFilters.includes('read')) {
-      readFilters.push((s: SummaryRow) => s.isRead)
+      readFilters.push((s: ISummaryRow) => s.isRead)
     }
     if (this.searchFilters.includes('unread')) {
-      readFilters.push((s: SummaryRow) => !s.isRead)
+      readFilters.push((s: ISummaryRow) => !s.isRead)
     }
 
     if (this.searchFilters.includes('warning')) {
-      typeFilters.push((s: SummaryRow) => s.type == 'warning')
+      typeFilters.push((s: ISummaryRow) => s.type == 'warning')
     }
     if (this.searchFilters.includes('note')) {
-      typeFilters.push((s: SummaryRow) => s.type == 'note')
+      typeFilters.push((s: ISummaryRow) => s.type == 'note')
     }
 
     this.filteredSummaryRows = this.summaryRows.filter(
@@ -117,7 +117,7 @@ export class SummaryComponent implements OnInit {
     this.applyFilters()
   }
 
-  toggleRead(item: SummaryRow) {
+  toggleRead(item: ISummaryRow) {
     item.isRead = !item.isRead
     this.applyFilters()
   }
@@ -132,10 +132,4 @@ export class SummaryComponent implements OnInit {
   autoCompleteOnChangeFilter(value: string): string[] {
     return this.options.filter((option) => option.toLowerCase().includes(value))
   }
-}
-
-export interface SummaryRow {
-  type: string
-  content: string
-  isRead: boolean
 }

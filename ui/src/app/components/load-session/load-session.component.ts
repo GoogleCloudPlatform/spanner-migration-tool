@@ -19,6 +19,13 @@ export class LoadSessionComponent implements OnInit {
     filePath: new FormControl('', [Validators.required]),
   })
 
+  dbEngineList = [
+    { value: 'mysql', displayName: 'MY SQL' },
+    { value: 'sqlserver', displayName: 'SQL Server' },
+    { value: 'oracle', displayName: 'ORACLE' },
+    { value: 'postgres', displayName: 'PostgreSQL' },
+  ]
+
   ngOnInit(): void {}
 
   convertFromSessionFile() {
