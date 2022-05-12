@@ -131,9 +131,9 @@ export class ConversionService {
       },
     ]
   }
+
   getColumnMapping(tableName: string, data: IConv): IColumnTabData[] {
     let srcTableName = data.ToSource[tableName].Name
-
     return data.SrcSchema[srcTableName].ColNames.map((name: string, i: number) => {
       let spColName = data.ToSpanner[srcTableName].Cols[name]
       let srcPks = data.SrcSchema[srcTableName].PrimaryKeys

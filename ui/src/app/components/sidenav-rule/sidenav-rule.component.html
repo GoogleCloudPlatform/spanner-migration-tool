@@ -25,19 +25,19 @@
           required="true"
         >
           <mat-option value="globalDataType">Change global data type</mat-option>
-          <mat-option value="AddIndex">Add Index</mat-option>
+          <mat-option value="addIndex">Add Index</mat-option>
         </mat-select>
       </mat-form-field>
 
       <br />
     </form>
-    <div *ngIf="ruleType.value === 'globalDataType'" class="change-global-type">
+    <div *ngIf="ruleType.value === 'globalDataType'">
       <app-edit-global-datatype-form
         [ruleNameValid]="ruleForm.valid"
         (resetRuleType)="resetRuleType()"
       ></app-edit-global-datatype-form>
     </div>
-    <div class="change-global-type" *ngIf="ruleType.value === 'AddIndex'">
+    <div *ngIf="ruleType.value === 'addIndex'">
       <app-add-index-form
         [ruleNameValid]="ruleForm.valid"
         (resetRuleType)="resetRuleType()"

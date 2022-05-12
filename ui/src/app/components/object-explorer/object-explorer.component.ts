@@ -104,7 +104,8 @@ export class ObjectExplorerComponent implements OnInit {
     return new RegExp('^indexes').test(name)
   }
 
-  openSidenav(): void {
+  openAddIndexForm(): void {
+    this.sidenav.setSidenavRuleType('addIndex')
     this.sidenav.openSidenav()
     this.sidenav.setSidenavComponent('rule')
   }

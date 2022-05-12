@@ -20,7 +20,7 @@ export class LoadSessionComponent implements OnInit {
   })
 
   dbEngineList = [
-    { value: 'mysql', displayName: 'MY SQL' },
+    { value: 'mysql', displayName: 'MYSQL' },
     { value: 'sqlserver', displayName: 'SQL Server' },
     { value: 'oracle', displayName: 'ORACLE' },
     { value: 'postgres', displayName: 'PostgreSQL' },

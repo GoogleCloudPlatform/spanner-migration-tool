@@ -18,7 +18,7 @@ export class LoadDumpComponent implements OnInit {
     filePath: new FormControl('', [Validators.required]),
   })
   dbEngineList = [
-    { value: 'mysql', displayName: 'MY SQL' },
+    { value: 'mysqldump', displayName: 'MYSQL' },
     { value: 'postgres', displayName: 'PostgreSQL' },
   ]
 
