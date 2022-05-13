@@ -24,6 +24,13 @@ export class DirectConnectionComponent implements OnInit {
     dbName: new FormControl('', [Validators.required]),
   })
 
+  dbEngineList = [
+    { value: 'mysql', displayName: 'MYSQL' },
+    { value: 'sqlserver', displayName: 'SQL Server' },
+    { value: 'oracle', displayName: 'ORACLE' },
+    { value: 'postgres', displayName: 'PostgreSQL' },
+  ]
+
   constructor(
     private router: Router,
     private fetch: FetchService,

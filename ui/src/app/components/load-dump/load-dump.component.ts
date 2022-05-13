@@ -17,6 +17,11 @@ export class LoadDumpComponent implements OnInit {
     dbEngine: new FormControl('mysqldump', [Validators.required]),
     filePath: new FormControl('', [Validators.required]),
   })
+  dbEngineList = [
+    { value: 'mysqldump', displayName: 'MYSQL' },
+    { value: 'postgres', displayName: 'PostgreSQL' },
+  ]
+
   ngOnInit(): void {}
 
   convertFromDump() {

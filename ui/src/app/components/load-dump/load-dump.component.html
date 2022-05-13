@@ -6,8 +6,9 @@
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Database Engine</mat-label>
         <mat-select matSelect name="dbEngine" formControlName="dbEngine" appearance="outline">
-          <mat-option value="mysqldump">MySQL</mat-option>
-          <mat-option value="pg_dump">PostgreSQL</mat-option>
+          <mat-option *ngFor="let element of dbEngineList" [value]="element.value">
+            {{ element.displayName }}
+          </mat-option>
         </mat-select>
       </mat-form-field>
 
