@@ -11,8 +11,10 @@ import (
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
+const metadataDbName string = "harbourbridge_metadata"
+
 func GetMetadataDbName() string {
-	return "harbourbridge_metadata"
+	return metadataDbName
 }
 
 func GetSpannerUri(projectId string, instanceId string) string {
