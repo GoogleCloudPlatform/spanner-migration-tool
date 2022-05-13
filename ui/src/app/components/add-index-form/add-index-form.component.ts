@@ -63,7 +63,7 @@ export class AddIndexFormComponent implements OnInit {
       Keys: idxData.ColsArray.map((col: any) => {
         return {
           Col: col.columnName,
-          Desc: Boolean(col.sort),
+          Desc: col.sort === 'true',
         }
       }),
     })
