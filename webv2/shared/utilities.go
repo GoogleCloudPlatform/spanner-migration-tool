@@ -61,17 +61,21 @@ func PingMetadataDb(projectId string, instanceId string) bool {
 
 func createDatabase(ctx context.Context, uri string) error {
 
+	// Spanner uri will be in this format 'projects/project-id/instances/spanner-instance-id/databases/db-name'
 	matches := regexp.MustCompile("^(.*)/databases/(.*)$").FindStringSubmatch(uri)
+	spInstance := matches[1]
+	dbName := matches[2]
+
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
 	if err != nil {
 		return err
 	}
 	defer adminClient.Close()
-	fmt.Printf("Creating database to store session metadata...")
+	fmt.Println("Creating database to store session metadata...")
 
 	op, err := adminClient.CreateDatabase(ctx, &adminpb.CreateDatabaseRequest{
-		Parent:          matches[1],
-		CreateStatement: "CREATE DATABASE `" + matches[2] + "`",
+		Parent:          spInstance,
+		CreateStatement: "CREATE DATABASE `" + dbName + "`",
 		ExtraStatements: []string{
 			`CREATE TABLE SchemaConversionSession (
 				VersionId STRING(36) NOT NULL,
