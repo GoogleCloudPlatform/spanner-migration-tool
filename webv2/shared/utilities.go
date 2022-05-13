@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"strings"
 
-	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
@@ -21,41 +20,28 @@ func GetSpannerUri(projectId string, instanceId string) string {
 	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, GetMetadataDbName())
 }
 
-func PingMetadataDb(projectId string, instanceId string) bool {
+func CheckOrCreateMetadataDb(projectId string, instanceId string) bool {
 	uri := GetSpannerUri(projectId, instanceId)
 	if uri == "" {
+		fmt.Println("Invalid spanner uri")
 		return false
 	}
 
 	ctx := context.Background()
-	spClient, err := spanner.NewClient(ctx, uri)
-	defer spClient.Close()
+	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	defer adminClient.Close()
+
+	dbExists, err := conversion.CheckExistingDb(ctx, adminClient, uri)
 	if err != nil {
+		fmt.Println(err)
 		return false
 	}
-
-	txn := spClient.ReadOnlyTransaction()
-	defer txn.Close()
-
-	query := spanner.Statement{
-		SQL: "SELECT 1",
-	}
-	iter := txn.Query(ctx, query)
-	_, err = iter.Next()
-
-	if err == nil {
+	if dbExists {
 		return true
 	}
-
-	fmt.Println(err)
-	errMsg := fmt.Sprint(err)
-	//ToDo : Check error type instead of message
-	if !strings.Contains(errMsg, "Database not found") {
-		return false
-	}
-
 	err = createDatabase(ctx, uri)
 	if err != nil {
+		fmt.Println(err)
 		return false
 	}
 	return true

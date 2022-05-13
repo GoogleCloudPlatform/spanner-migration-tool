@@ -1262,7 +1262,7 @@ func init() {
 	if err != nil || c.GCPProjectID == "" || c.SpannerInstanceID == "" {
 		sessionState.IsOffline = true
 	} else {
-		if shared.PingMetadataDb(c.GCPProjectID, c.SpannerInstanceID) {
+		if shared.CheckOrCreateMetadataDb(c.GCPProjectID, c.SpannerInstanceID) {
 			sessionState.IsOffline = false
 		} else {
 			sessionState.IsOffline = true

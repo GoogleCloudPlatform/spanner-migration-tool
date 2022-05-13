@@ -91,7 +91,7 @@ func saveSpannerConfigFile(c Config) error {
 	}
 
 	sessionState := session.GetSessionState()
-	isValid := shared.PingMetadataDb(c.GCPProjectID, c.SpannerInstanceID)
+	isValid := shared.CheckOrCreateMetadataDb(c.GCPProjectID, c.SpannerInstanceID)
 	if !isValid {
 		sessionState.IsOffline = true
 		sessionState.GCPProjectID = ""
