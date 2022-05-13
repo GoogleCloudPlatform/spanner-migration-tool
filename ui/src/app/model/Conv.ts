@@ -16,7 +16,7 @@ export default interface IConv {
 }
 
 export interface IStats {
-  Rows: Record<string, number> // Count of rows encountered during processing (a + b + c + d), broken down by source table.
+  Rows: Record<string, number>
   GoodRows: Record<string, number>
   BadRows: Record<string, number>
   Unexpected: Record<string, number> // Count of unexpected conditions, broken down by condition description.
