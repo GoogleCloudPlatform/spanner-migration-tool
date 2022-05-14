@@ -39,6 +39,8 @@ func CheckOrCreateMetadataDb(projectId string, instanceId string) bool {
 	if dbExists {
 		return true
 	}
+
+	fmt.Println("No existing database found to store session metadata.")
 	err = createDatabase(ctx, uri)
 	if err != nil {
 		fmt.Println(err)
@@ -59,7 +61,7 @@ func createDatabase(ctx context.Context, uri string) error {
 		return err
 	}
 	defer adminClient.Close()
-	fmt.Println("Creating database to store session metadata...")
+	fmt.Println("Creating new database...")
 
 	op, err := adminClient.CreateDatabase(ctx, &adminpb.CreateDatabaseRequest{
 		Parent:          spInstance,

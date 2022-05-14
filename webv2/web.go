@@ -47,7 +47,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/shared"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
 	go_ora "github.com/sijms/go-ora/v2"
@@ -1242,32 +1241,9 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 	}
 	return l
 }
+
 func init() {
-
-	// TODO : Refactoring
-	c, err := config.GetSpannerConfig()
-	//Try load from env
-	if err != nil || c.GCPProjectID == "" || c.SpannerInstanceID == "" {
-		config.LoadConfigFromEnv()
-	}
-
-	// Check again
-	// TODO : Refactor
-	c, err = config.GetSpannerConfig()
 	sessionState := session.GetSessionState()
-
-	sessionState.GCPProjectID = c.GCPProjectID
-	sessionState.SpannerInstanceID = c.SpannerInstanceID
-
-	if err != nil || c.GCPProjectID == "" || c.SpannerInstanceID == "" {
-		sessionState.IsOffline = true
-	} else {
-		if shared.CheckOrCreateMetadataDb(c.GCPProjectID, c.SpannerInstanceID) {
-			sessionState.IsOffline = false
-		} else {
-			sessionState.IsOffline = true
-		}
-	}
 
 	// Initialize mysqlTypeMap.
 	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
@@ -1312,6 +1288,8 @@ func init() {
 	}
 
 	sessionState.Conv = internal.MakeConv()
+	config := config.TryInitializeSpannerConfig()
+	session.SetSessionStorageConnectionState(config.GCPProjectID, config.SpannerInstanceID)
 }
 
 // App connects to the web app v2.

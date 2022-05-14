@@ -2,6 +2,8 @@ package session
 
 import (
 	"context"
+
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/shared"
 )
 
 type SessionService struct {
@@ -41,4 +43,19 @@ func (ss *SessionService) GetSessionsMetadata() ([]SchemaConversionSession, erro
 
 func (ss *SessionService) GetConvWithMetadata(versionId string) (ConvWithMetadata, error) {
 	return ss.store.GetConvWithMetadata(ss.context, versionId)
+}
+
+func SetSessionStorageConnectionState(projectId string, spInstanceId string) {
+	sessionState := GetSessionState()
+	sessionState.GCPProjectID = projectId
+	sessionState.SpannerInstanceID = spInstanceId
+	if projectId == "" || spInstanceId == "" {
+		sessionState.IsOffline = true
+	} else {
+		if shared.CheckOrCreateMetadataDb(projectId, spInstanceId) {
+			sessionState.IsOffline = false
+		} else {
+			sessionState.IsOffline = true
+		}
+	}
 }
