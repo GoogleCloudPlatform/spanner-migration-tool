@@ -30,7 +30,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/shared"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/common"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
@@ -324,5 +324,5 @@ func getMetadataDbUri() string {
 	if sessionState.GCPProjectID == "" || sessionState.SpannerInstanceID == "" {
 		return ""
 	}
-	return shared.GetSpannerUri(sessionState.GCPProjectID, sessionState.SpannerInstanceID)
+	return common.GetSpannerUri(sessionState.GCPProjectID, sessionState.SpannerInstanceID)
 }
