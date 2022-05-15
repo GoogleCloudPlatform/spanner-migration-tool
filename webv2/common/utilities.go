@@ -1,59 +1,49 @@
-package shared
+package common
 
 import (
 	"context"
 	"fmt"
 	"regexp"
-	"strings"
 
-	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
+const metadataDbName string = "harbourbridge_metadata"
+
 func GetMetadataDbName() string {
-	return "harbourbridge_metadata"
+	return metadataDbName
 }
 
 func GetSpannerUri(projectId string, instanceId string) string {
 	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, GetMetadataDbName())
 }
 
-func PingMetadataDb(projectId string, instanceId string) bool {
+func CheckOrCreateMetadataDb(projectId string, instanceId string) bool {
 	uri := GetSpannerUri(projectId, instanceId)
 	if uri == "" {
+		fmt.Println("Invalid spanner uri")
 		return false
 	}
 
 	ctx := context.Background()
-	spClient, err := spanner.NewClient(ctx, uri)
-	defer spClient.Close()
+	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	defer adminClient.Close()
+
+	dbExists, err := conversion.CheckExistingDb(ctx, adminClient, uri)
 	if err != nil {
+		fmt.Println(err)
 		return false
 	}
-
-	txn := spClient.ReadOnlyTransaction()
-	defer txn.Close()
-
-	query := spanner.Statement{
-		SQL: "SELECT 1",
-	}
-	iter := txn.Query(ctx, query)
-	_, err = iter.Next()
-
-	if err == nil {
+	if dbExists {
 		return true
 	}
 
-	fmt.Println(err)
-	errMsg := fmt.Sprint(err)
-	//ToDo : Check error type instead of message
-	if !strings.Contains(errMsg, "Database not found") {
-		return false
-	}
-
+	fmt.Println("No existing database found to store session metadata.")
 	err = createDatabase(ctx, uri)
 	if err != nil {
+		fmt.Println(err)
 		return false
 	}
 	return true
@@ -61,17 +51,21 @@ func PingMetadataDb(projectId string, instanceId string) bool {
 
 func createDatabase(ctx context.Context, uri string) error {
 
+	// Spanner uri will be in this format 'projects/project-id/instances/spanner-instance-id/databases/db-name'
 	matches := regexp.MustCompile("^(.*)/databases/(.*)$").FindStringSubmatch(uri)
+	spInstance := matches[1]
+	dbName := matches[2]
+
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
 	if err != nil {
 		return err
 	}
 	defer adminClient.Close()
-	fmt.Printf("Creating database to store session metadata...")
+	fmt.Println("Creating new database...")
 
 	op, err := adminClient.CreateDatabase(ctx, &adminpb.CreateDatabaseRequest{
-		Parent:          matches[1],
-		CreateStatement: "CREATE DATABASE `" + matches[2] + "`",
+		Parent:          spInstance,
+		CreateStatement: "CREATE DATABASE `" + dbName + "`",
 		ExtraStatements: []string{
 			`CREATE TABLE SchemaConversionSession (
 				VersionId STRING(36) NOT NULL,

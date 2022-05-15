@@ -20,6 +20,8 @@ import (
 	"fmt"
 )
 
+const hbOutputDirPath string = "harbour_bridge_output"
+
 type localStore struct {
 	sessions []SchemaConversionSession
 }
@@ -84,6 +86,5 @@ func (st *localStore) IsSessionNameUnique(ctx context.Context, scs SchemaConvers
 }
 
 func getSessionFilePath(dbName string) string {
-	dirPath := "harbour_bridge_output"
-	return fmt.Sprintf("%s/%s/%s.session.json", dirPath, dbName, dbName)
+	return fmt.Sprintf("%s/%s/%s.session.json", hbOutputDirPath, dbName, dbName)
 }

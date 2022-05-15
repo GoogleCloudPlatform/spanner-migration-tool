@@ -20,6 +20,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
 // Config represents Spanner Configuration for Spanner Session Management.
@@ -55,7 +57,9 @@ func SetSpannerConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = saveSpannerConfigFile(c)
+	SaveSpannerConfig(c)
+	session.SetSessionStorageConnectionState(c.GCPProjectID, c.SpannerInstanceID)
+
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "Data access error", http.StatusBadRequest)
