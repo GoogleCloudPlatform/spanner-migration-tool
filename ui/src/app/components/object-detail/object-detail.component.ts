@@ -97,8 +97,6 @@ export class ObjectDetailComponent implements OnInit {
     this.indexData = changes['indexData']?.currentValue || this.indexData
     this.currentTabIndex = this.currentObject?.type === ObjectExplorerNodeType.Table ? 0 : -1
     this.isObjectSelected = this.currentObject ? true : false
-    this.isEditMode = false
-    this.isFkEditMode = false
     this.rowArray = new FormArray([])
     this.interleaveParentName = this.getParentFromDdl()
 
@@ -274,8 +272,6 @@ export class ObjectDetailComponent implements OnInit {
       next: (res: string) => {
         if (res == '') {
           this.data.getDdl()
-          console.log(element, 'element')
-
           this.snackbar.openSnackBar(
             `${element.get('spName').value} Foreign key dropped successfully`,
             'Close',
