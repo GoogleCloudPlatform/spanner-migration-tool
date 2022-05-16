@@ -30,7 +30,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/shared"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/common"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
@@ -250,18 +250,21 @@ func LoadSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	convm := ConvWithMetadata{
-		SessionMetadata: SessionMetadata{
-			SessionName:  "NewSession",
-			DatabaseType: s.Driver,
-			DatabaseName: strings.TrimRight(filepath.Base(s.FilePath), filepath.Ext(s.FilePath)),
-		},
-		Conv: *conv,
+	sessionMetadata := SessionMetadata{
+		SessionName:  "NewSession",
+		DatabaseType: s.Driver,
+		DatabaseName: strings.TrimRight(filepath.Base(s.FilePath), filepath.Ext(s.FilePath)),
 	}
 
 	sessionState.Conv = conv
+	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = s.Driver
 	sessionState.SessionFile = s.FilePath
+
+	convm := ConvWithMetadata{
+		SessionMetadata: sessionMetadata,
+		Conv:            *conv,
+	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 }
@@ -324,5 +327,5 @@ func getMetadataDbUri() string {
 	if sessionState.GCPProjectID == "" || sessionState.SpannerInstanceID == "" {
 		return ""
 	}
-	return shared.GetSpannerUri(sessionState.GCPProjectID, sessionState.SpannerInstanceID)
+	return common.GetSpannerUri(sessionState.GCPProjectID, sessionState.SpannerInstanceID)
 }

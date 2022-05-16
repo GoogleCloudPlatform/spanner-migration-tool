@@ -97,8 +97,6 @@ export class ObjectDetailComponent implements OnInit {
     this.indexData = changes['indexData']?.currentValue || this.indexData
     this.currentTabIndex = this.currentObject?.type === ObjectExplorerNodeType.Table ? 0 : -1
     this.isObjectSelected = this.currentObject ? true : false
-    this.isEditMode = false
-    this.isFkEditMode = false
     this.rowArray = new FormArray([])
     this.interleaveParentName = this.getParentFromDdl()
 
@@ -300,6 +298,9 @@ export class ObjectDetailComponent implements OnInit {
       }
     })
     return ind
+  }
+  convertToFk() {
+    alert('Feature comming soon!')
   }
 
   checkIsInterleave() {
