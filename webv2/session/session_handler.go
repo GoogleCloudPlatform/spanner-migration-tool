@@ -250,18 +250,21 @@ func LoadSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	convm := ConvWithMetadata{
-		SessionMetadata: SessionMetadata{
-			SessionName:  "NewSession",
-			DatabaseType: s.Driver,
-			DatabaseName: strings.TrimRight(filepath.Base(s.FilePath), filepath.Ext(s.FilePath)),
-		},
-		Conv: *conv,
+	sessionMetadata := SessionMetadata{
+		SessionName:  "NewSession",
+		DatabaseType: s.Driver,
+		DatabaseName: strings.TrimRight(filepath.Base(s.FilePath), filepath.Ext(s.FilePath)),
 	}
 
 	sessionState.Conv = conv
+	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = s.Driver
 	sessionState.SessionFile = s.FilePath
+
+	convm := ConvWithMetadata{
+		SessionMetadata: sessionMetadata,
+		Conv:            *conv,
+	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 }

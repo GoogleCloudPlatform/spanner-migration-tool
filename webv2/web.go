@@ -164,16 +164,18 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	convm := session.ConvWithMetadata{
-		SessionMetadata: session.SessionMetadata{
-			SessionName:  "NewSession",
-			DatabaseType: sessionState.Driver,
-			DatabaseName: sessionState.DbName,
-		},
-		Conv: *conv,
+	sessionMetadata := session.SessionMetadata{
+		SessionName:  "NewSession",
+		DatabaseType: sessionState.Driver,
+		DatabaseName: sessionState.DbName,
 	}
 
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionMetadata,
+		Conv:            *conv,
+	}
 	sessionState.Conv = conv
+	sessionState.SessionMetadata = sessionMetadata
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 }
@@ -215,21 +217,24 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	convm := session.ConvWithMetadata{
-		SessionMetadata: session.SessionMetadata{
-			SessionName:  "NewSession",
-			DatabaseType: dc.Driver,
-			DatabaseName: filepath.Base(dc.FilePath),
-		},
-		Conv: *conv,
+	sessionMetadata := session.SessionMetadata{
+		SessionName:  "NewSession",
+		DatabaseType: dc.Driver,
+		DatabaseName: filepath.Base(dc.FilePath),
 	}
 
 	sessionState := session.GetSessionState()
 	sessionState.Conv = conv
+	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = dc.Driver
 	sessionState.DbName = ""
 	sessionState.SessionFile = ""
 	sessionState.SourceDB = nil
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionMetadata,
+		Conv:            *conv,
+	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 }
@@ -445,8 +450,12 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	updateSessionFile()
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sessionState.Conv)
+	json.NewEncoder(w).Encode(convm)
 }
 
 // getConversionRate returns table wise color coded conversion rate.
@@ -600,8 +609,13 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	sp.Fks = removeFk(sp.Fks, position)
 	sessionState.Conv.SpSchema[table] = sp
 	updateSessionFile()
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sessionState.Conv)
+	json.NewEncoder(w).Encode(convm)
 }
 
 // renameForeignKeys checks the new names for spanner name validity, ensures the new names are already not used by existing tables
@@ -663,8 +677,13 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.Conv.SpSchema[table] = sp
 	updateSessionFile()
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sessionState.Conv)
+	json.NewEncoder(w).Encode(convm)
 }
 
 // renameIndexes checks the new names for spanner name validity, ensures the new names are already not used by existing tables
@@ -721,8 +740,12 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.Conv.SpSchema[table] = sp
 	updateSessionFile()
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sessionState.Conv)
+	json.NewEncoder(w).Encode(convm)
 }
 
 // addIndexes checks the new names for spanner name validity, ensures the new names are already not used by existing tables
@@ -769,8 +792,13 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.Conv.SpSchema[table] = sp
 	updateSessionFile()
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sessionState.Conv)
+	json.NewEncoder(w).Encode(convm)
 }
 
 func checkSpannerNamesValidity(input []string) (bool, []string) {
@@ -843,8 +871,13 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	sp.Indexes = removeSecondaryIndex(sp.Indexes, position)
 	sessionState.Conv.SpSchema[table] = sp
 	updateSessionFile()
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sessionState.Conv)
+	json.NewEncoder(w).Encode(convm)
 }
 
 // updateSessionFile updates the content of session file with
