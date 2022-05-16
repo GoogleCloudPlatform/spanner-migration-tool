@@ -99,7 +99,6 @@ export class ObjectDetailComponent implements OnInit {
     this.isObjectSelected = this.currentObject ? true : false
     this.rowArray = new FormArray([])
     this.interleaveParentName = this.getParentFromDdl()
-    console.log(this.interleaveStatus, 'interleave')
 
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
       this.checkIsInterleave()
