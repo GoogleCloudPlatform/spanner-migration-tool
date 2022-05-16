@@ -299,7 +299,7 @@ export class ObjectDetailComponent implements OnInit {
     return ind
   }
   convertToFk() {
-    alert('Conversion to Foreign key in backlog!!')
+    alert('Feature comming soon!')
   }
 
   checkIsInterleave() {
