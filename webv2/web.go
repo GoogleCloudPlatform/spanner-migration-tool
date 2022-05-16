@@ -359,8 +359,12 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	updateSessionFile()
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sessionState.Conv)
+	json.NewEncoder(w).Encode(convm)
 }
 
 // Actions to be performed on a column.
