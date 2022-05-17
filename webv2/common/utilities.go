@@ -61,7 +61,7 @@ func createDatabase(ctx context.Context, uri string) error {
 		return err
 	}
 	defer adminClient.Close()
-	fmt.Println("Creating new database...")
+	fmt.Println("Creating database to store session metadata...")
 
 	op, err := adminClient.CreateDatabase(ctx, &adminpb.CreateDatabaseRequest{
 		Parent:          spInstance,
