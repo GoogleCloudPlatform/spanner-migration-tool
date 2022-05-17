@@ -148,8 +148,8 @@ can be found here:
 - [MySQL example usage](sources/mysql/README.md#example-mysql-usage)
 - [DynamoDB example usage](sources/dynamodb/README.md#example-dynamodb-usage)
 - [CSV example usage](sources/csv/README.md#example-csv-usage)
-- [SqlServer example usage](sources/sqlserver/README.md#example-sqlserver-usage)
-- [Oracle example usage](sources/oracle/README.md#example-oracle-usage)
+- [SQL Server example usage](sources/sqlserver/README.md#example-sqlserver-usage)
+- [Oracle DB example usage](sources/oracle/README.md#example-oracle-usage)
 
 This command will use the cloud project specified by the `GCLOUD_PROJECT`
 environment variable, automatically determine the Cloud Spanner instance
@@ -395,8 +395,8 @@ Details on HarbourBridge schema conversion can be found here:
 - [PostgreSQL schema conversion](sources/postgres/README.md#schema-conversion)
 - [MySQL schema conversion](sources/mysql/README.md#schema-conversion)
 - [DynamoDB schema conversion](sources/dynamodb/README.md#schema-conversion)
-- [SqlServer schema conversion](sources/sqlserver/README.md#schema-conversion)
-- [Oracle schema conversion](sources/oracle/README.md#schema-conversion)
+- [SQL Server schema conversion](sources/sqlserver/README.md#schema-conversion)
+- [Oracle DB schema conversion](sources/oracle/README.md#schema-conversion)
 
 ## Data Conversion
 
@@ -410,6 +410,7 @@ data conversion can be found here:
 - [MySQL data conversion](sources/mysql/README.md#data-conversion)
 - [DynamoDB data conversion](sources/dynamodb/README.md#data-conversion)
 - [CSV data conversion](sources/csv/README.md#example-csv-usage)
+- [SQL Server data conversion](sources/sqlserver/README.md#data-conversion)
 
 ## Troubleshooting Guide
 
@@ -433,14 +434,14 @@ See [Directly connecting to a MySQL database](sources/mysql/README.md#directly-c
 
 See [DynamoDB example usage](sources/dynamodb/README.md#example-dynamodb-usage)
 for troubleshooting direct access to DynamoDB.
-#### 1.4 Direct access to SqlServer
+#### 1.4 Direct access to SQL Server
 
-See [SqlServer example usage](sources/sqlserver/README.md#example-sqlserver-usage)
-for troubleshooting direct access to SqlServer.
+See [SQL Server example usage](sources/sqlserver/README.md#example-sqlserver-usage)
+for troubleshooting direct access to SQL Server.
 
-#### 1.5 Direct access to Oracle
+#### 1.5 Direct access to Oracle DB
 
-See [Oracle example usage](sources/oracle/README.md#example-oracle-usage)
+See [Oracle DB example usage](sources/oracle/README.md#example-oracle-usage)
 for troubleshooting direct access to Oracle.
 
 

@@ -9,7 +9,7 @@ We currently do not support dump file mode for Oracle. The only way to use Harbo
 
 Note that _'oracle'_ can be used as an identifier with the flag `-source` in the command line.
 
-## Example Oracle Usage
+## Example Oracle DB Usage
 
 HarbourBridge can be run directly on a Oracle database (via go's database/sql package).
 
@@ -29,7 +29,7 @@ For example to perform schema conversion, run
 harbourbridge schema -source=oracle -source-profile="host=<>,port=<>,user=<>,db_name=<>,password=<>"
 ```
 
-In Oracle, USER is the account name, SCHEMA is the set of objects owned by that user. Oracle creates the SCHEMA object as part of the CREATE USER statement and the SCHEMA has the same name as the USER. 
+In Oracle DB, USER is the account name, SCHEMA is the set of objects owned by that user. Oracle creates the SCHEMA object as part of the CREATE USER statement and the SCHEMA has the same name as the USER. 
 
 db_name will be the SID of the Database used. The Oracle System ID (SID) is used to uniquely identify a particular database on a system.
 
@@ -42,26 +42,26 @@ db_name will be the SID of the Database used. The Oracle System ID (SID) is used
 | BINARY_FLOAT           | FLOAT64      |
 | BINARY_DOUBLE          | FLOAT64      |
 | NUMBER (* , >0)        | NUMERIC      |
-| CHAR                   | STRING       |
-| NCHAR                  | STRING       |
-| VARCHAR                | STRING       |
-| VARCHAR2               | STRING       |
-| NVARCHAR2              | STRING       |
-| CLOB                   | STRING       |
-| NCLOB                  | STRING       |
-| LONG                   | STRING       |
-| ROWID                  | STRING       |
-| UROWID                 | STRING       |
+| CHAR                   | STRING(1)    |
+| NCHAR                  | STRING(N)    |
+| VARCHAR                | STRING(MAX)  |
+| VARCHAR2               | STRING(MAX)  |
+| NVARCHAR2              | STRING(MAX)  |
+| CLOB                   | STRING(MAX)  |
+| NCLOB                  | STRING(MAX)  |
+| LONG                   | STRING(MAX)  |
+| ROWID                  | STRING(MAX)  |
+| UROWID                 | STRING(MAX)  |
 | DATE                   | DATE         |
 | TIMESTAMP              | TIMESTAMP    |
 | BLOB                   | BYTES        |
 | BFILE                  | BYTES        |
 | RAW                    | BYTES        |
 | LONG RAW               | BYTES        |
-| XMLTYPE                | STRING       |
-| INTERVAL YEAR          | STRING       |
-| INTERVAL DAY           | STRING       |
-| GEOMETRY               | STRING       |
+| XMLTYPE                | STRING(MAX)  |
+| INTERVAL YEAR          | STRING(MAX)  |
+| INTERVAL DAY           | STRING(MAX)  |
+| GEOMETRY               | STRING(MAX)  |
 | JSON                   | JSON         |
 
 
