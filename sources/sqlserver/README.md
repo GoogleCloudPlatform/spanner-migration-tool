@@ -2,16 +2,16 @@
 
 HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation,
 using data from an existing SQL Server database. This README provides
-details of the tool's SQLserver capabilities. For general HarbourBridge information
+details of the tool's SQL server capabilities. For general HarbourBridge information
 see this [README](https://github.com/cloudspannerecosystem/harbourbridge#harbourbridge-spanner-evaluation-and-migration).
 
 We currently do not support dump file mode for SQL Server. The only way to use HarbourBridge with SQL Server is connecting directly.
 
 Note that either _'sqlserver'_ or _'mssql'_ can be used as an identifier with the flag `-source` in the command line.
 
-## Example SQLServer Usage
+## Example SQL Server Usage
 
-HarbourBridge can be run directly on a sqlserver database (via go's database/sql package).
+HarbourBridge can be run directly on a SQL server database (via go's database/sql package).
 
 The following examples assume a `harbourbridge` alias has been setup as described
 in the [Installing HarbourBridge](https://github.com/cloudspannerecosystem/harbourbridge#installing-harbourbridge) section of the main README.
@@ -30,7 +30,7 @@ harbourbridge schema -source=sqlserver -source-profile="host=<>,port=<>,user=<>,
 ```
 
 Parameters `port` and `password` are optional. Port (`port`) defaults to `1433`
-for SQLserver source. Password can be provided at the password prompt.
+for SQL server source. Password can be provided at the password prompt.
 
 ## Schema Conversion
 
@@ -49,27 +49,27 @@ for SQLserver source. Password can be provided at the password prompt.
 | DECIMAL                | NUMERIC      |
 | MONEY                  | NUMERIC      |
 | SMALLMONEY             | NUMERIC      |
-| CHAR                   | STRING       |
-| NCHAR                  | STRING       |
-| VARCHAR                | STRING       |
-| NVARCHAR               | STRING       |
-| TEXT                   | STRING       |
-| NTEXT                  | STRING       |
+| CHAR                   | STRING(1)    |
+| NCHAR                  | STRING(N)    |
+| VARCHAR                | STRING(MAX)  |
+| NVARCHAR               | STRING(MAX)  |
+| TEXT                   | STRING(MAX)  |
+| NTEXT                  | STRING(MAX)  |
 | DATE                   | DATE         |
 | DATETIME               | TIMESTAMP    |
 | DATETIME2              | TIMESTAMP    |
 | SMALLDATETIME          | TIMESTAMP    |
 | DATETIMEOFFSET         | TIMESTAMP    |
-| TIME                   | STRING       |
+| TIME                   | STRING(MAX)  |
 | BINARY                 | BYTES        |
 | VARBINARY              | BYTES        |
 | IMAGE                  | BYTES        |
-| XML                    | STRING       |
-| UNIQUEIDENTIFIER       | STRING       |
-| SQL_VARIANT            | STRING       |
-| HIERARCHYID            | STRING       |
-| Spatial Geography Type | STRING       |
-| Spatial Geometry Types | STRING       |
+| XML                    | STRING(MAX)  |
+| UNIQUEIDENTIFIER       | STRING(MAX)  |
+| SQL_VARIANT            | STRING(MAX)  |
+| HIERARCHYID            | STRING(MAX)  |
+| Spatial Geography Type | STRING(MAX)  |
+| Spatial Geometry Types | STRING(MAX)  |
 
 ### `Spatial datatypes`
 
@@ -149,8 +149,8 @@ Internally, we use Go's string type, which supports UTF-8.
 There are some subtle differences in how timestamps are
 handled in SQL Server and Spanner.
 
-During data conversion, SQL Server `SMALLDATETIME`, `DATETIME2`, `DATETIME` values 
-in ISO 8601 format without offsets which is coherent with Spanner. Hence, they are
-directly stored in Spanner. For `DATETIMEOFFSET`, the value contains an offset.
+During data conversion, SQL Server stores `SMALLDATETIME`, `DATETIME2`, `DATETIME` values 
+in ISO 8601 format without offsets which is consistent with the way Spanner stores it. 
+Hence, they are directly stored in Spanner. For `DATETIMEOFFSET`, the value contains an offset.
 During conversion, the timezone offset is taken into account and the 
 corresponding UTC time is saved.
