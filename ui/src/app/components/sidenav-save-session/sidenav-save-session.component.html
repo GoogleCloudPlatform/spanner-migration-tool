@@ -8,23 +8,34 @@
   <div class="form-container">
     <h3>Session Details</h3>
     <form [formGroup]="saveSessionForm" class="save-session-form">
-      <mat-form-field appearance="outline">
+      <mat-form-field
+        hintLabel="Max. 60 characters, and starts with a letter."
+        appearance="outline"
+      >
         <mat-label>Session Name</mat-label>
         <input matInput placeholder="mysession" type="text" formControlName="SessionName" />
-        <mat-hint>Max. 60 characters, and starts with a letter.</mat-hint>
+        <mat-hint align="end">{{ saveSessionForm.value.SessionName?.length || 0 }}/60</mat-hint>
       </mat-form-field>
       <br />
-      <mat-form-field class="full-width" appearance="outline">
+      <mat-form-field
+        hintLabel="Max. 60 characters, and starts with a letter."
+        class="full-width"
+        appearance="outline"
+      >
         <mat-label>Editor Name</mat-label>
         <input matInput placeholder="editor name" type="text" formControlName="EditorName" />
-        <mat-hint>Max. 60 characters, and starts with a letter.</mat-hint>
+        <mat-hint align="end">{{ saveSessionForm.value.EditorName?.length || 0 }}/60</mat-hint>
       </mat-form-field>
 
       <br />
-      <mat-form-field class="full-width" appearance="outline">
+      <mat-form-field
+        hintLabel="Max. 60 characters, and starts with a letter."
+        class="full-width"
+        appearance="outline"
+      >
         <mat-label>Database Name</mat-label>
         <input matInput type="text" formControlName="DatabaseName" />
-        <mat-hint>Max. 60 characters, and starts with a letter.</mat-hint>
+        <mat-hint align="end">{{ saveSessionForm.value.DatabaseName?.length || 0 }}/60</mat-hint>
       </mat-form-field>
       <br />
       <mat-form-field class="full-width" appearance="outline">
