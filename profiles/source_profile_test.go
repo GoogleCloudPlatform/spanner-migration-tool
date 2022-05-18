@@ -77,12 +77,12 @@ func TestNewSourceProfileConnectionSQL(t *testing.T) {
 	}{
 		{
 			name:          "mandatory params provided",
-			params:        map[string]string{"host": "a", "user": "b", "db_name": "c", "password": "e"},
+			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "password": "e"},
 			errorExpected: false,
 		},
 		{
 			name:          "partial mandatory params provided",
-			params:        map[string]string{"user": "b", "db_name": "c"},
+			params:        map[string]string{"user": "b", "dbName": "c"},
 			errorExpected: true,
 		},
 		{
@@ -97,17 +97,17 @@ func TestNewSourceProfileConnectionSQL(t *testing.T) {
 		},
 		{
 			name:          "all params provided",
-			params:        map[string]string{"host": "a", "user": "b", "db_name": "c", "port": "d", "password": "e"},
+			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "port": "d", "password": "e"},
 			errorExpected: false,
 		},
 		{
 			name:          "empty mandatory param",
-			params:        map[string]string{"host": "", "user": "b", "db_name": "c"},
+			params:        map[string]string{"host": "", "user": "b", "dbName": "c"},
 			errorExpected: true,
 		},
 		{
 			name:          "empty port",
-			params:        map[string]string{"host": "a", "user": "b", "db_name": "c", "password": "e"},
+			params:        map[string]string{"host": "a", "user": "b", "dbName": "c", "password": "e"},
 			errorExpected: false,
 		},
 	}

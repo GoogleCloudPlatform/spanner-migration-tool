@@ -82,7 +82,7 @@ func (trg TargetProfile) ToLegacyTargetDb() string {
 	}
 }
 
-// This expects that GetResourceIds has already been called once and the project, instance and dbname
+// This expects that GetResourceIds has already been called once and the project, instance and dbName
 // fields in target profile are populated.
 func (trg TargetProfile) FetchTargetDialect(ctx context.Context) (string, error) {
 	// TODO: consider moving all clients to target profile instead of passing them around the codebase.
@@ -141,11 +141,11 @@ func (targetProfile *TargetProfile) GetResourceIds(ctx context.Context, now time
 // correspond to regular Cloud Spanner database and PG Cloud Spanner database
 // respectively.
 //
-// If dbname is not specified, then HarbourBridge will autogenerate the same
+// If dbName is not specified, then HarbourBridge will autogenerate the same
 // and create a database with the same name.
 //
-// Example: -target-profile="instance=my-instance1,dbname=my-new-db1"
-// Example: -target-profile="instance=my-instance1,dbname=my-new-db1,dialect=PostgreSQL"
+// Example: -target-profile="instance=my-instance1,dbName=my-new-db1"
+// Example: -target-profile="instance=my-instance1,dbName=my-new-db1,dialect=PostgreSQL"
 //
 func NewTargetProfile(s string) (TargetProfile, error) {
 	params, err := parseProfile(s)
@@ -163,8 +163,8 @@ func NewTargetProfile(s string) (TargetProfile, error) {
 	if instance, ok := params["instance"]; ok {
 		sp.Instance = instance
 	}
-	if dbname, ok := params["dbname"]; ok {
-		sp.Dbname = dbname
+	if dbName, ok := params["dbName"]; ok {
+		sp.Dbname = dbName
 	}
 	if dialect, ok := params["dialect"]; ok {
 		sp.Dialect = dialect

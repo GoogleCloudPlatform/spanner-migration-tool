@@ -111,7 +111,7 @@ func TestIntegration_SQLserver_SchemaSubcommand(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 	filePrefix := filepath.Join(tmpdir, "SqlServer_IntTest.")
 
-	args := fmt.Sprintf("schema -prefix %s -source=sqlserver -source-profile='host=localhost,user=sa,db_name=SqlServer_IntTest'", filePrefix)
+	args := fmt.Sprintf("schema -prefix %s -source=sqlserver -source-profile='host=localhost,user=sa,dbName=SqlServer_IntTest'", filePrefix)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -126,7 +126,7 @@ func TestIntegration_SQLserver_SchemaAndDataSubcommand(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, "SqlServer_IntTest.")
 
-	args := fmt.Sprintf("schema-and-data -prefix %s -source=%s  -source-profile='host=localhost,user=sa,db_name=SqlServer_IntTest' -target-profile='instance=%s,dbname=%s'", filePrefix, constants.SQLSERVER, instanceID, dbName)
+	args := fmt.Sprintf("schema-and-data -prefix %s -source=%s  -source-profile='host=localhost,user=sa,dbName=SqlServer_IntTest' -target-profile='instance=%s,dbName=%s'", filePrefix, constants.SQLSERVER, instanceID, dbName)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
