@@ -165,7 +165,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	}
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
-	sessionState.SessionMetadata = sessionMetadata
+
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(conv)
 }
@@ -210,18 +210,10 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sessionState := session.GetSessionState()
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
-	sessionState.SessionMetadata = sessionMetadata
-	sessionState.Driver = dc.Driver
-	sessionState.DbName = ""
-	sessionState.SessionFile = ""
-	sessionState.SourceDB = nil
 
-	convm := session.ConvWithMetadata{
-		SessionMetadata: sessionMetadata,
-		Conv:            *conv,
-	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(conv)
 }
