@@ -1,0 +1,46 @@
+.instructions-div {
+  padding: 20px;
+  padding-top: 5px;
+  .instruction-header-div{
+    display: flex;
+    justify-content: flex-end;
+  }
+}
+
+.instructions-icon {
+  height: 200px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.textCenter {
+  text-align: center;
+}
+
+.instructions-main-heading {
+  font-size: 1.25rem;
+  color: #4285f4;
+  font-weight: bold;
+}
+
+.instructions-sub-heading {
+  font-size: 1rem;
+  color: #4285f4;
+  font-weight: bold;
+}
+
+.instructions-command {
+  background-color: #8080806b;
+  border-radius: 5px;
+  padding: 0px 5px;
+}
+
+.instructions-img-width {
+  width: 800px;
+}
+
+.instructionsLink {
+  color: #4285f4;
+  text-decoration: underline;
+}

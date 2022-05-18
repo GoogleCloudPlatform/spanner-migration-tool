@@ -1,0 +1,34 @@
+<div class="container">
+  <mat-card class="form-container">
+    <form [formGroup]="connectForm" (ngSubmit)="convertFromDump()">
+      <h3>Load from database dump</h3>
+
+      <mat-form-field class="full-width" appearance="outline">
+        <mat-label>Database Engine</mat-label>
+        <mat-select matSelect name="dbEngine" formControlName="dbEngine" appearance="outline">
+          <mat-option *ngFor="let element of dbEngineList" [value]="element.value">
+            {{ element.displayName }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <h3>Dump File</h3>
+
+      <mat-form-field class="full-width" appearance="outline">
+        <mat-label>File path</mat-label>
+        <input
+          matInput
+          placeholder="File path"
+          name="filePath"
+          type="text"
+          formControlName="filePath"
+        />
+      </mat-form-field>
+      <br />
+      <button mat-raised-button type="submit" color="primary" [disabled]="!connectForm.valid">
+        Convert
+      </button>
+      <button mat-raised-button [routerLink]="'/'">Cancel</button>
+    </form>
+  </mat-card>
+</div>

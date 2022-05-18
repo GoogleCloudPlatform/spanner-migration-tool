@@ -1,0 +1,120 @@
+<div class="container">
+  <div *ngIf="currentObject">
+    <div class="filter">
+      <div class="columns">
+        <div class="left">
+          <span class="material-icons filter-icon">filter_list</span>
+          <span class="filter-text">Filter</span>
+        </div>
+        <div class="right">
+          <mat-form-field>
+            <mat-chip-list #chipList>
+              <mat-chip
+                class="primary"
+                *ngFor="let fs of searchFilters"
+                (removed)="removeFilter(fs)"
+              >
+                {{ fs }}
+                <button matChipRemove>
+                  <mat-icon>cancel</mat-icon>
+                </button>
+              </mat-chip>
+
+              <input
+                [formControl]="filterInput"
+                [matChipInputFor]="chipList"
+                [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
+                [matChipInputAddOnBlur]="false"
+                [matAutocomplete]="auto"
+              />
+
+              <mat-autocomplete #auto="matAutocomplete">
+                <mat-option
+                  (onSelectionChange)="addFilter(option)"
+                  *ngFor="let option of obsFilteredOptions | async"
+                  [value]="option"
+                >
+                  {{ option }}
+                </mat-option>
+              </mat-autocomplete>
+            </mat-chip-list>
+          </mat-form-field>
+        </div>
+      </div>
+    </div>
+
+    <div class="header">
+      <div class="columns">
+        <div class="left"><span> Status </span></div>
+        <div class="right"><span> Summary </span></div>
+      </div>
+    </div>
+
+    <div class="content" *ngIf="summaryCount !== 0">
+      <section class="summary-row" *ngFor="let item of filteredSummaryRows">
+        <div class="columns">
+          <div class="left">
+            <span *ngIf="item.type == 'warning'" class="material-icons summary-type error"
+              >error</span
+            >
+            <span *ngIf="item.type == 'note'" class="material-icons summary-type warning"
+              >warning</span
+            >
+          </div>
+          <div class="middle">{{ item.content }}</div>
+          <div class="right">
+            <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
+            <mat-menu #menu="matMenu" xPosition="before">
+              <button mat-menu-item *ngIf="!item.isRead" (click)="toggleRead(item)">
+                <span>Mark as read</span>
+              </button>
+              <button mat-menu-item *ngIf="item.isRead" (click)="toggleRead(item)">
+                <span>Mark as unread</span>
+              </button>
+            </mat-menu>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div class="no-issue-container" *ngIf="summaryCount === 0">
+      <div class="no-issue-icon-container">
+        <svg
+          width="36"
+          height="36"
+          viewBox="0 0 24 20"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M16.8332 0.69873C16.0051 7.45842 16.2492 9.44782 10.4672 10.2012C16.1511 11.1242 16.2329 13.2059 16.8332 19.7037C17.6237 13.1681 17.4697 11.2106 23.1986 10.2012C17.4247 9.45963 17.6194 7.4505 16.8332 0.69873ZM4.23739 0.872955C3.79064 4.52078 3.92238 5.59467 0.802246 6.00069C3.86944 6.49885 3.91349 7.62218 4.23739 11.1284C4.66397 7.60153 4.581 6.54497 7.67271 6.00069C4.55696 5.60052 4.66178 4.51623 4.23739 0.872955ZM7.36426 11.1105C7.05096 13.6683 7.14331 14.4212 4.95554 14.7061C7.10612 15.0553 7.13705 15.8431 7.36426 18.3017C7.66333 15.8288 7.60521 15.088 9.77298 14.7061C7.58818 14.4255 7.66177 13.6653 7.36426 11.1105Z"
+            fill="#3367D6"
+          />
+        </svg>
+      </div>
+      <div class="no-issue-message">
+        Woohoo! No issues or suggestions<br />found for {{ currentObject.name }}.
+      </div>
+    </div>
+  </div>
+  <div class="no-object-container" *ngIf="!currentObject">
+    <div class="no-object-icon-container">
+      <svg
+        width="36"
+        height="36"
+        viewBox="0 0 19 18"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          fill-rule="evenodd"
+          clip-rule="evenodd"
+          d="M0.5 8.25V0H8.75V8.25H0.5ZM10.25 0H18.5V8.25H10.25V0ZM13.6636 6.28736L11.4739 4.09761L12.4645 3.10703L13.6636 4.30286L16.1989 1.76758L17.1895 2.7615L13.6636 6.28736ZM0.5 9.75V18H8.75V9.75H0.5ZM10.25 18V9.75H18.5V18H10.25Z"
+          fill="#3367D6"
+        />
+      </svg>
+    </div>
+    <div class="no-object-message">
+      Click on a converted object name on the Spanner tree panel to view its conversion issues.
+    </div>
+  </div>
+</div>

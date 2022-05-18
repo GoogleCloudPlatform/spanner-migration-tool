@@ -4,3 +4,11 @@ web/harbour_bridge_output/
 harbour_bridge_output/
 *__debug_bin*
 *.code-workspace
+
+# angular ui development
+ui/.angular
+ui/dist
+ui/node_modules
+
+# webv2 config
+webv2/config.json

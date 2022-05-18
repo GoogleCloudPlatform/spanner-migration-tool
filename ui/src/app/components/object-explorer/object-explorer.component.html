@@ -1,0 +1,272 @@
+<div class="container">
+  <mat-tab-group [ngClass]="[isLeftColumnCollapse ? 'hidden' : 'display']" selectedIndex="1">
+    <mat-tab [label]="srcDbName.toUpperCase()">
+      <div class="filter-wrapper">
+        <div class="left">
+          <span class="material-icons filter-icon">filter_list</span>
+          <span class="filter-text">Filter</span>
+        </div>
+        <div class="right">
+          <input
+            [(ngModel)]="searchText"
+            (ngModelChange)="filterSrcTable($event)"
+            placeholder="Filter by name"
+          />
+        </div>
+      </div>
+      <div class="explorer-table">
+        <table mat-table [dataSource]="srcDataSource">
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <td mat-cell *matCellDef="let data">
+              <mat-icon *ngIf="data.status === 'BLUE'" class="icon danger"> error </mat-icon>
+              <mat-icon *ngIf="data.status === 'YELLOW'" class="icon warning"> warning </mat-icon>
+              <mat-icon *ngIf="data.status === 'GREEN'" class="icon success">
+                check_circle
+              </mat-icon>
+              <mat-icon *ngIf="data.status === 'ORANGE'" class="icon orange">
+                check_circle
+              </mat-icon>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>
+              <span style="text-align: center"> Object Name </span>
+            </th>
+            <td mat-cell *matCellDef="let data" class="sidebar_link">
+              <button
+                mat-icon-button
+                [style.visibility]="!data.expandable ? 'hidden' : ''"
+                [style.marginLeft.px]="data.level * 10"
+                (click)="srcTreeControl.toggle(data)"
+              >
+                <svg
+                  *ngIf="srcTreeControl.isExpanded(data); else collaps"
+                  width="12"
+                  height="6"
+                  viewBox="0 0 12 6"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    clip-rule="evenodd"
+                    d="M12 0L0 0L6 6L12 0Z"
+                    fill="black"
+                    fill-opacity="0.54"
+                  />
+                </svg>
+                <ng-template #collaps>
+                  <svg
+                    width="6"
+                    height="12"
+                    viewBox="0 0 6 12"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      clip-rule="evenodd"
+                      d="M-5.24537e-07 2.62268e-07L0 12L6 6L-5.24537e-07 2.62268e-07Z"
+                      fill="black"
+                      fill-opacity="0.54"
+                    />
+                  </svg>
+                </ng-template>
+              </button>
+              <span (click)="objectSelected(data)" class="sidebar_link">
+                <span>
+                  <svg
+                    *ngIf="isTableNode(data.type)"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 18 18"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M0 0V18H18V0H0ZM16 2V6H2V2H16ZM7.33 11V8H10.66V11H7.33ZM10.67 13V16H7.34V13H10.67ZM5.33 11H2V8H5.33V11ZM12.67 8H16V11H12.67V8ZM2 13H5.33V16H2V13ZM12.67 16V13H16V16H12.67Z"
+                      fill="black"
+                      fill-opacity="0.54"
+                    />
+                  </svg>
+
+                  <svg
+                    *ngIf="isIndexNode(data.type)"
+                    width="12"
+                    height="14"
+                    viewBox="0 0 12 14"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      clip-rule="evenodd"
+                      d="M11.005 14C11.555 14 12 13.554 12 13.002V5L10 3V12H2V14H11.005ZM0 0.996C0 0.446 0.438 0 1.003 0H7L9 2.004V10.004C9 10.554 8.554 11 8.002 11H0.998C0.867035 11.0003 0.737304 10.9747 0.616233 10.9248C0.495162 10.8748 0.385128 10.8015 0.292428 10.709C0.199729 10.6165 0.126186 10.5066 0.0760069 10.3856C0.0258282 10.2646 -2.64036e-07 10.135 0 10.004V0.996ZM6 1L5 5.5H2L6 1ZM3 10L4 5.5H7L3 10Z"
+                      fill="black"
+                      fill-opacity="0.54"
+                    />
+                  </svg>
+
+                  <span>{{ data.name }}</span>
+                </span>
+                <span class="actions" *ngIf="isIndexNode(data.type) && data.isSpannerNode">
+                  <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
+                  <mat-menu #menu="matMenu">
+                    <button mat-menu-item (click)="openAddIndexForm()">
+                      <span>Add Index</span>
+                    </button>
+                  </mat-menu>
+                </span>
+              </span>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr
+            mat-row
+            *matRowDef="let row; columns: displayedColumns"
+            [ngClass]="{ 'selected-row': shouldHighlight(row) }"
+          ></tr>
+        </table>
+      </div>
+    </mat-tab>
+    <mat-tab label="SPANNER DRAFT">
+      <div class="filter-wrapper">
+        <div class="left">
+          <span class="material-icons filter-icon">filter_list</span>
+          <span class="filter-text">Filter</span>
+        </div>
+        <div class="right">
+          <input
+            [(ngModel)]="searchText"
+            (ngModelChange)="filterSpannerTable($event)"
+            placeholder="Filter by name"
+          />
+        </div>
+      </div>
+
+      <div class="explorer-table">
+        <table mat-table [dataSource]="dataSource">
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <td mat-cell *matCellDef="let data">
+              <mat-icon *ngIf="data.status === 'BLUE'" class="icon danger"> error </mat-icon>
+              <mat-icon *ngIf="data.status === 'YELLOW'" class="icon warning"> warning </mat-icon>
+              <mat-icon *ngIf="data.status === 'GREEN'" class="icon success">
+                check_circle
+              </mat-icon>
+              <mat-icon *ngIf="data.status === 'ORANGE'" class="icon orange">
+                check_circle
+              </mat-icon>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>
+              <span style="text-align: center"> Object Name </span>
+            </th>
+            <td mat-cell *matCellDef="let data" class="sidebar_link">
+              <button
+                mat-icon-button
+                [style.visibility]="!data.expandable ? 'hidden' : ''"
+                [style.marginLeft.px]="data.level * 10"
+                (click)="treeControl.toggle(data)"
+              >
+                <svg
+                  *ngIf="treeControl.isExpanded(data); else collaps"
+                  width="12"
+                  height="6"
+                  viewBox="0 0 12 6"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    clip-rule="evenodd"
+                    d="M12 0L0 0L6 6L12 0Z"
+                    fill="black"
+                    fill-opacity="0.54"
+                  />
+                </svg>
+                <ng-template #collaps>
+                  <svg
+                    width="6"
+                    height="12"
+                    viewBox="0 0 6 12"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      clip-rule="evenodd"
+                      d="M-5.24537e-07 2.62268e-07L0 12L6 6L-5.24537e-07 2.62268e-07Z"
+                      fill="black"
+                      fill-opacity="0.54"
+                    />
+                  </svg>
+                </ng-template>
+              </button>
+              <span (click)="objectSelected(data)" class="sidebar_link">
+                <span>
+                  <svg
+                    *ngIf="isTableNode(data.type)"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 18 18"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M0 0V18H18V0H0ZM16 2V6H2V2H16ZM7.33 11V8H10.66V11H7.33ZM10.67 13V16H7.34V13H10.67ZM5.33 11H2V8H5.33V11ZM12.67 8H16V11H12.67V8ZM2 13H5.33V16H2V13ZM12.67 16V13H16V16H12.67Z"
+                      fill="black"
+                      fill-opacity="0.54"
+                    />
+                  </svg>
+
+                  <svg
+                    *ngIf="isIndexNode(data.type)"
+                    width="12"
+                    height="14"
+                    viewBox="0 0 12 14"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      clip-rule="evenodd"
+                      d="M11.005 14C11.555 14 12 13.554 12 13.002V5L10 3V12H2V14H11.005ZM0 0.996C0 0.446 0.438 0 1.003 0H7L9 2.004V10.004C9 10.554 8.554 11 8.002 11H0.998C0.867035 11.0003 0.737304 10.9747 0.616233 10.9248C0.495162 10.8748 0.385128 10.8015 0.292428 10.709C0.199729 10.6165 0.126186 10.5066 0.0760069 10.3856C0.0258282 10.2646 -2.64036e-07 10.135 0 10.004V0.996ZM6 1L5 5.5H2L6 1ZM3 10L4 5.5H7L3 10Z"
+                      fill="black"
+                      fill-opacity="0.54"
+                    />
+                  </svg>
+
+                  <span class="object-name">{{ data.name }}</span>
+                </span>
+                <span class="actions" *ngIf="isIndexNode(data.type)">
+                  <mat-icon class="add-index-icon" [matMenuTriggerFor]="menu">more_vert</mat-icon>
+                  <mat-menu #menu="matMenu" xPosition="before">
+                    <button mat-menu-item (click)="openAddIndexForm()">
+                      <span>Add Index</span>
+                    </button>
+                  </mat-menu>
+                </span>
+              </span>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+
+          <tr
+            mat-row
+            *matRowDef="let row; columns: displayedColumns"
+            [ngClass]="{ 'selected-row': shouldHighlight(row) }"
+          ></tr>
+        </table>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+  <button id="left-column-toggle-button" (click)="leftColumnToggle()">
+    <mat-icon [ngClass]="[isLeftColumnCollapse ? 'hidden' : 'display']">first_page</mat-icon>
+    <mat-icon [ngClass]="[isLeftColumnCollapse ? 'display' : 'hidden']">last_page</mat-icon>
+  </button>
+</div>

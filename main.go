@@ -35,6 +35,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/web"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2"
 	"github.com/google/subcommands"
 )
 
@@ -50,6 +51,7 @@ var (
 	skipForeignKeys  bool
 	sessionJSON      string
 	webapi           bool
+	webapiv2         bool
 	dumpFilePath     string
 	targetDb         = constants.TargetSpanner
 )
@@ -67,6 +69,7 @@ func setupGlobalFlags() {
 	flag.BoolVar(&skipForeignKeys, "skip-foreign-keys", false, "skip-foreign-keys: if true, skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
 	flag.StringVar(&sessionJSON, "session", "", "session: specifies the file we restore session state from (used in data-only to provide schema and data mapping)")
 	flag.BoolVar(&webapi, "web", false, "web: run the web interface (experimental)")
+	flag.BoolVar(&webapiv2, "webv2", false, "web: run the web interface (experimental)")
 	flag.StringVar(&dumpFilePath, "dump-file", "", "dump-file: location of dump file to process")
 	flag.StringVar(&targetDb, "target-db", constants.TargetSpanner, "target-db: Specifies the target DB. Defaults to spanner")
 }
@@ -124,6 +127,12 @@ func main() {
 	// Note: the web interface does not use any commandline flags.
 	if webapi {
 		web.App()
+		return
+	}
+
+	// Note: the web interface does not use any commandline flags.
+	if webapiv2 {
+		webv2.App()
 		return
 	}
 

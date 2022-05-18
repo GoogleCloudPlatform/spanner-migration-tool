@@ -1,0 +1,130 @@
+.header {
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #cccccc;
+  padding-bottom: 10px;
+  .header_action {
+    button {
+      border: none;
+      background-color: inherit;
+      color: #1967d2;
+      font-size: 0.8rem;
+    }
+  }
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    .breadcrumb_source {
+      padding-left: 0;
+      color: rgba(0, 0, 0, 0.56);
+      font-weight: 400;
+      font-size: 14px;
+    }
+    .breadcrumb_workspace {
+      font-weight: 400;
+      font-size: 14px;
+    }
+    span {
+      font-size: 1.2rem;
+      color: rgb(143, 143, 143);
+    }
+  }
+}
+
+app-object-detail {
+  height: 100%;
+}
+
+.columns {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  border-top: 1px solid #d3d3d3;
+  border-bottom: 1px solid #d3d3d3;
+  height: calc(100vh - 222px);
+}
+
+.container {
+  padding: 7px 20px;
+  margin-bottom: 20px;
+  .summary {
+    font-weight: lighter;
+  }
+  h2 {
+    margin: 0 0 5px 0;
+  }
+}
+.column-left {
+  overflow: auto;
+}
+
+.column-middle {
+  width: 48%;
+  border-left: 1px solid #d3d3d3;
+  border-right: 1px solid #d3d3d3;
+  overflow: auto;
+}
+.column-right {
+  width: 26%;
+  position: relative;
+  overflow: auto;
+}
+
+.left-column-collapse {
+  width: 3%;
+}
+.left-column-expand {
+  width: 26%;
+}
+
+.middle-column-collapse {
+  width: 48%;
+}
+.middle-column-expand {
+  width: 71%;
+}
+
+.right-column-half-expand {
+  width: 80%;
+}
+.right-column-collapse {
+  width: 26%;
+}
+.right-column-full-expand {
+  width: 97%;
+}
+
+#right-column-toggle-button {
+  border: none;
+  background-color: inherit;
+  position: absolute;
+  top: 10px;
+  right: 8px;
+  z-index: 100;
+}
+#right-column-toggle-button:hover {
+  cursor: pointer;
+}
+
+.display {
+  display: block;
+}
+.hidden {
+  display: none;
+}
+
+::ng-deep .column-right .mat-tab-label .mat-tab-label-content {
+  font-size: 0.8rem;
+}
+
+::ng-deep .column-right .mat-tab-label {
+  min-width: 25px !important;
+  padding: 10px;
+}
+
+::ng-deep .column-right .mat-tab-label.mat-tab-label-active {
+  min-width: 25px !important;
+  padding: 7px;
+}

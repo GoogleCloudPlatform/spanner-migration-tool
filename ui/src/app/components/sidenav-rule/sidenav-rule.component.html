@@ -1,0 +1,50 @@
+<div class="sidenav-container">
+  <div class="sidenav-header">
+    <span class="header-title">Add rule</span>
+    <button class="close-button" mat-icon-button color="primary" (click)="closeSidenav()">
+      <mat-icon class="close-icon">close</mat-icon>
+    </button>
+  </div>
+  <div class="form-container">
+    <form [formGroup]="ruleForm">
+      <h3>Rule info</h3>
+      <mat-form-field
+        hintLabel="Max. 60 characters, and starts with a letter."
+        appearance="outline"
+      >
+        <mat-label>Rule name</mat-label>
+        <input matInput class="input-field" formControlName="ruleName" />
+        <mat-hint align="end">{{ ruleForm.value.ruleName?.length || 0 }}/60</mat-hint>
+      </mat-form-field>
+
+      <h3>Rule definition</h3>
+      <mat-form-field appearance="outline">
+        <mat-label>Rule type</mat-label>
+        <mat-select
+          #ruleType
+          matSelect
+          class="input-field"
+          formControlName="ruleType"
+          required="true"
+        >
+          <mat-option value="globalDataType">Change global data type</mat-option>
+          <mat-option value="addIndex">Add Index</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <br />
+    </form>
+    <div *ngIf="ruleType.value === 'globalDataType'">
+      <app-edit-global-datatype-form
+        [ruleNameValid]="ruleForm.valid"
+        (resetRuleType)="resetRuleType()"
+      ></app-edit-global-datatype-form>
+    </div>
+    <div *ngIf="ruleType.value === 'addIndex'">
+      <app-add-index-form
+        [ruleNameValid]="ruleForm.valid"
+        (resetRuleType)="resetRuleType()"
+      ></app-add-index-form>
+    </div>
+  </div>
+</div>

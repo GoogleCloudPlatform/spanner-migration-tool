@@ -1,0 +1,30 @@
+<div mat-dialog-content>
+  <h2>Delete Index ({{ data }})?</h2>
+  <div class="alert-container">
+    <mat-icon>warning</mat-icon>
+    <span>This operation cannot be undone</span>
+  </div>
+  <div class="form-container">
+    <form>
+      <span class="form-custom-label">
+        Confirm deletion by typing the following below: <b>{{ data }}</b>
+      </span>
+      <mat-form-field appearance="outline">
+        <mat-label>Index Name</mat-label>
+        <input matInput type="text" [formControl]="confirmationInput" />
+      </mat-form-field>
+    </form>
+  </div>
+</div>
+<div mat-dialog-actions class="buttons-container">
+  <button mat-button color="primary" mat-dialog-close>Cancel</button>
+  <button
+    mat-button
+    (click)="deleteIndex()"
+    type="submit"
+    color="primary"
+    [disabled]="!confirmationInput.valid"
+  >
+    Confirm
+  </button>
+</div>

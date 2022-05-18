@@ -1,0 +1,82 @@
+<div>
+  <div class="header">
+    <div class="breadcrumb">
+      <a class="breadcrumb_source" mat-button [routerLink]="'/'">Select Source</a>
+      <span>></span>
+      <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'">Configure Schema</a>
+    </div>
+    <div class="header_action">
+      <button mat-button (click)="openAssessment()">VIEW ASSESSMENT</button>
+      <button mat-button (click)="openSaveSessionSidenav()" *ngIf="!isOfflineStatus">
+        SAVE SESSION
+      </button>
+      <button mat-button (click)="downloadSession()">DOWNLOAD SESSION</button>
+    </div>
+  </div>
+  <div class="container">
+    <h2>Configure schema</h2>
+    <div class="summary">
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
+      labore et dolore magna aliqua.
+    </div>
+  </div>
+  <div class="columns">
+    <div
+      class="column-left"
+      [ngClass]="[isLeftColumnCollapse ? 'left-column-collapse' : 'left-column-expand']"
+    >
+      <app-object-explorer
+        (selectObject)="changeCurrentObject($event)"
+        (searchSpannerTable)="searchSpannerTable($event)"
+        (searchSrcTable)="searchSrcTable($event)"
+        (leftCollaspe)="leftColumnToggle()"
+        [spannerTree]="spannerTree"
+        [srcTree]="srcTree"
+      ></app-object-explorer>
+    </div>
+    <div
+      class="column-middle"
+      [ngClass]="{
+        'middle-column-expand': isLeftColumnCollapse,
+        'middle-column-collapse': !isLeftColumnCollapse,
+        display: isRightColumnCollapse,
+        hidden: !isRightColumnCollapse
+      }"
+    >
+      <app-object-detail
+        [currentObject]="currentObject"
+        (updateSidebar)="reRenderSidebar()"
+        [tableData]="tableData"
+        [indexData]="indexData"
+        [typeMap]="typeMap"
+        [ddlStmts]="ddlStmts"
+        [fkData]="fkData"
+      >
+      </app-object-detail>
+    </div>
+    <div
+      class="column-right"
+      [ngClass]="{
+        'right-column-half-expand': !isRightColumnCollapse && !isLeftColumnCollapse,
+        'right-column-full-expand': !isRightColumnCollapse && isLeftColumnCollapse,
+        'right-column-collapse': isRightColumnCollapse
+      }"
+    >
+      <mat-tab-group mat-dialog-close="">
+        <mat-tab [label]="issuesAndSuggestionsLabel">
+          <app-summary
+            [currentObject]="currentObject"
+            (changeIssuesLabel)="updateIssuesLabel($event)"
+          ></app-summary>
+        </mat-tab>
+        <mat-tab label="RULES(0)">
+          <app-rule></app-rule>
+        </mat-tab>
+      </mat-tab-group>
+      <button id="right-column-toggle-button" (click)="rightColumnToggle()">
+        <mat-icon [ngClass]="[isRightColumnCollapse ? 'display' : 'hidden']">first_page</mat-icon>
+        <mat-icon [ngClass]="[isRightColumnCollapse ? 'hidden' : 'display']">last_page</mat-icon>
+      </button>
+    </div>
+  </div>
+</div>

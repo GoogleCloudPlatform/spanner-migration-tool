@@ -1,0 +1,26 @@
+.success {
+  color: #00c752;
+}
+.info-text {
+  padding-top:1rem;
+  padding-bottom:1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.action-container{
+  display: flex;
+  justify-content: flex-end;
+}
+
+.icon {
+  margin-right: 20px;
+}
+
+.error {
+  color: #da4236;
+}
+
+.warning {
+  color: #f3b300;
+}

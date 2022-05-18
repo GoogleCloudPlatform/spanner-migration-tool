@@ -1,0 +1,66 @@
+<div class="container">
+  <div class="header">
+    <span class="mat-h3 header-title">Save Session</span>
+    <button class="close-button" mat-icon-button color="primary" (click)="closeSidenav()">
+      <mat-icon class="close-icon">close</mat-icon>
+    </button>
+  </div>
+  <div class="form-container">
+    <h3>Session Details</h3>
+    <form [formGroup]="saveSessionForm" class="save-session-form">
+      <mat-form-field
+        hintLabel="Max. 60 characters, and starts with a letter."
+        appearance="outline"
+      >
+        <mat-label>Session Name</mat-label>
+        <input matInput placeholder="mysession" type="text" formControlName="SessionName" />
+        <mat-hint align="end">{{ saveSessionForm.value.SessionName?.length || 0 }}/60</mat-hint>
+      </mat-form-field>
+      <br />
+      <mat-form-field
+        hintLabel="Max. 60 characters, and starts with a letter."
+        class="full-width"
+        appearance="outline"
+      >
+        <mat-label>Editor Name</mat-label>
+        <input matInput placeholder="editor name" type="text" formControlName="EditorName" />
+        <mat-hint align="end">{{ saveSessionForm.value.EditorName?.length || 0 }}/60</mat-hint>
+      </mat-form-field>
+
+      <br />
+      <mat-form-field
+        hintLabel="Max. 60 characters, and starts with a letter."
+        class="full-width"
+        appearance="outline"
+      >
+        <mat-label>Database Name</mat-label>
+        <input matInput type="text" formControlName="DatabaseName" />
+        <mat-hint align="end">{{ saveSessionForm.value.DatabaseName?.length || 0 }}/60</mat-hint>
+      </mat-form-field>
+      <br />
+      <mat-form-field class="full-width" appearance="outline">
+        <mat-label>Notes</mat-label>
+        <textarea
+          rows="7"
+          matInput
+          placeholder="added new index"
+          type="text"
+          formControlName="Notes"
+        ></textarea>
+      </mat-form-field>
+      <br />
+    </form>
+  </div>
+
+  <div class="save-button-container">
+    <button
+      mat-raised-button
+      (click)="saveSession()"
+      type="submit"
+      color="primary"
+      [disabled]="!saveSessionForm.valid"
+    >
+      Save Session
+    </button>
+  </div>
+</div>
