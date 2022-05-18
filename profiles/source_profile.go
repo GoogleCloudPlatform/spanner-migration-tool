@@ -32,6 +32,7 @@ const (
 	SourceProfileTypeConnection
 	SourceProfileTypeConfig
 	SourceProfileTypeCsv
+	SourceProfileTypeStreaming
 )
 
 type SourceProfileFile struct {
@@ -409,13 +410,91 @@ func NewSourceProfileCsv(params map[string]string) SourceProfileCsv {
 	return csvProfile
 }
 
+type SourceProfileStreamingMySQL struct {
+	Conn            SourceProfileConnectionMySQL
+	StreamingConfig string
+}
+
+func NewSourceProfileStreamingMySQL(params map[string]string) (SourceProfileStreamingMySQL, error) {
+	profile := SourceProfileStreamingMySQL{}
+	if profile.StreamingConfig = params["streamingCfg"]; profile.StreamingConfig == "" {
+		return profile, fmt.Errorf("specify a non-empty streaming config file path")
+	}
+	conn := SourceProfileConnectionMySQL{}
+
+	host, hostOk := params["host"]
+	user, userOk := params["user"]
+	db, dbOk := params["dbName"]
+	port := params["port"]
+	pwd := params["password"]
+
+	if hostOk && userOk && dbOk {
+		// If atleast host, username and dbName are provided through source-profile,
+		// go ahead and use source-profile. Port and password handled later even if they are empty.
+		conn.Host, conn.User, conn.Db, conn.Port, conn.Pwd = host, user, db, port, pwd
+		// Throw error if the input entered is empty.
+		if conn.Host == "" || conn.User == "" || conn.Db == "" {
+			return profile, fmt.Errorf("found empty string for host/user/dbName. Please specify host, port, user and dbName in the source-profile")
+		}
+	} else {
+		// Partial params provided through source-profile. Ask user to provide all through the source-profile.
+		return profile, fmt.Errorf("please specify host, port, user and dbName in the source-profile")
+	}
+
+	// Throw same error if the input entered is empty.
+	if conn.Host == "" || conn.User == "" || conn.Db == "" {
+		return profile, fmt.Errorf("found empty string for host/user/db. please specify host, port, user and dbName in the source-profile")
+	}
+
+	if conn.Port == "" {
+		// Set default port for mysql, which rarely changes.
+		conn.Port = "3306"
+	}
+	if conn.Pwd == "" {
+		conn.Pwd = utils.GetPassword()
+	}
+	profile.Conn = conn
+	return profile, nil
+}
+
+type SourceProfileStreamingType int
+
+const (
+	SourceProfileStreamingTypeUnset = iota
+	SourceProfileStreamingTypeMySQL
+)
+
+type SourceProfileStreaming struct {
+	Ty    SourceProfileStreamingType
+	MySQL SourceProfileStreamingMySQL
+}
+
 type SourceProfile struct {
-	Driver string
-	Ty     SourceProfileType
-	File   SourceProfileFile
-	Conn   SourceProfileConnection
-	Config SourceProfileConfig
-	Csv    SourceProfileCsv
+	Driver    string
+	Ty        SourceProfileType
+	File      SourceProfileFile
+	Conn      SourceProfileConnection
+	Config    SourceProfileConfig
+	Csv       SourceProfileCsv
+	Streaming SourceProfileStreaming
+}
+
+func NewSourceProfileStreaming(source string, params map[string]string) (SourceProfileStreaming, error) {
+	srcProfile := SourceProfileStreaming{}
+	var err error
+	switch strings.ToLower(source) {
+	case "mysql":
+		{
+			srcProfile.Ty = SourceProfileStreamingTypeMySQL
+			srcProfile.MySQL, err = NewSourceProfileStreamingMySQL(params)
+			if err != nil {
+				return srcProfile, err
+			}
+		}
+	default:
+		return srcProfile, fmt.Errorf("streaming migration is only supported for MySQL source, source received: %v", source)
+	}
+	return srcProfile, nil
 }
 
 // UseTargetSchema returns true if the driver expects an existing schema
@@ -443,7 +522,8 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 				return "", fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
 			}
 		}
-	case SourceProfileTypeConnection:
+	// No need to handle unsupported streaming source specified as it is already covered during source profile creation.
+	case SourceProfileTypeConnection, SourceProfileTypeStreaming:
 		{
 			switch strings.ToLower(source) {
 			case "mysql":
@@ -507,6 +587,9 @@ func NewSourceProfile(s string, source string) (SourceProfile, error) {
 	} else if file, ok := params["config"]; ok {
 		config := NewSourceProfileConfig(file)
 		return SourceProfile{Ty: SourceProfileTypeConfig, Config: config}, fmt.Errorf("source-profile type config not yet implemented")
+	} else if _, ok := params["streamingCfg"]; ok {
+		profile, err := NewSourceProfileStreaming(source, params)
+		return SourceProfile{Ty: SourceProfileTypeStreaming, Streaming: profile}, err
 	} else {
 		// Assume connection profile type connection by default, since
 		// connection parameters could be specified as part of environment

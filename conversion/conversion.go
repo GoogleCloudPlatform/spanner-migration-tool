@@ -138,6 +138,9 @@ func connectionConfig(sourceProfile profiles.SourceProfile) (interface{}, error)
 		// If empty, this is called as part of the legacy mode witih global CLI flags.
 		// When using source-profile mode is used, the sqlConnectionStr is already populated.
 		mysqlConn := sourceProfile.Conn.Mysql
+		if sourceProfile.Ty == profiles.SourceProfileTypeStreaming {
+			mysqlConn = sourceProfile.Streaming.MySQL.Conn
+		}
 		if !(mysqlConn.Host != "" && mysqlConn.User != "" && mysqlConn.Db != "") {
 			return profiles.GenerateMYSQLConnectionStr()
 		} else {

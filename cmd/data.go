@@ -165,21 +165,31 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		}
 	}
 
-	dataCoversionStartTime := time.Now()
-	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, client, conv, true, cmd.writeLimit)
+	streamingCfg, err := startDatastream(ctx, sourceProfile, targetProfile)
 	if err != nil {
-		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
+		err = fmt.Errorf("error starting datastream: %v", err)
 		return subcommands.ExitFailure
 	}
+
+	bw, err := performSnapshotMigration(ctx, sourceProfile, targetProfile, ioHelper, client, conv, cmd.writeLimit, dbURI)
+	if err != nil {
+		err = fmt.Errorf("can't do snapshot migration: %v", err)
+		return subcommands.ExitFailure
+	}
+
+	err = startDataflow(ctx, sourceProfile, targetProfile, streamingCfg)
+	if err != nil {
+		err = fmt.Errorf("error starting dataflow: %v", err)
+		return subcommands.ExitFailure
+	}
+
 	if !cmd.skipForeignKeys {
 		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
 			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
 			return subcommands.ExitFailure
 		}
 	}
-	dataCoversionEndTime := time.Now()
-	dataCoversionDuration := dataCoversionEndTime.Sub(dataCoversionStartTime)
-	conv.DataConversionDuration = dataCoversionDuration
+
 	banner := utils.GetBanner(now, dbURI)
 	conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, cmd.filePrefix+badDataFile, ioHelper.Out)
