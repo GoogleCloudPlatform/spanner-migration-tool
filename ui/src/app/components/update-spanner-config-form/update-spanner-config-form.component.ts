@@ -3,7 +3,7 @@ import { FormControl, FormGroup, Validators } from '@angular/forms'
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
-import ISpannerConfig from '../../model/SpannerConfig'
+import ISpannerConfig from '../../model/spanner-config'
 import { DataService } from 'src/app/services/data/data.service'
 
 @Component({

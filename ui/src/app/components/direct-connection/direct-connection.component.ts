@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core'
 import { FormControl, FormGroup, Validators } from '@angular/forms'
 import { Router } from '@angular/router'
-import IDbConfig from 'src/app/model/DbConfig'
+import IDbConfig from 'src/app/model/db-config'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { DataService } from 'src/app/services/data/data.service'
 import { LoaderService } from '../../services/loader/loader.service'

@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core'
 import { FormControl, FormGroup, Validators } from '@angular/forms'
-import IDumpConfig from 'src/app/model/DumpConfig'
+import IDumpConfig from 'src/app/model/dump-config'
 import { DataService } from 'src/app/services/data/data.service'
 import { Router } from '@angular/router'
 import { InputType, StorageKeys } from 'src/app/app.constants'

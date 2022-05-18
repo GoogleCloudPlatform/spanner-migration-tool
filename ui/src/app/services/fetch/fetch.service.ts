@@ -1,12 +1,12 @@
 import { HttpClient, HttpResponse } from '@angular/common/http'
 import { Injectable } from '@angular/core'
-import IDbConfig from 'src/app/model/DbConfig'
-import ISession, { ISaveSessionPayload } from '../../model/Session'
-import IUpdateTable from '../../model/UpdateTable'
-import IConv, { ICreateIndex, IInterleaveStatus } from '../../model/Conv'
-import IDumpConfig from '../../model/DumpConfig'
-import ISessionConfig from '../../model/SessionConfig'
-import ISpannerConfig from '../../model/SpannerConfig'
+import IDbConfig from 'src/app/model/db-config'
+import ISession, { ISaveSessionPayload } from '../../model/session'
+import IUpdateTable from '../../model/update-table'
+import IConv, { ICreateIndex, IInterleaveStatus } from '../../model/conv'
+import IDumpConfig from '../../model/dump-config'
+import ISessionConfig from '../../model/session-config'
+import ISpannerConfig from '../../model/spanner-config'
 
 @Injectable({
   providedIn: 'root',

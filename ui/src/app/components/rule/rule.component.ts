@@ -1,7 +1,7 @@
 import { Component, OnInit, SimpleChanges } from '@angular/core'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { DataService } from 'src/app/services/data/data.service'
-import IRuleContent from 'src/app/model/Rule'
+import IRuleContent from 'src/app/model/rule'
 
 @Component({
   selector: 'app-rule',

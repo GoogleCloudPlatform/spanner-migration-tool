@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core'
-import ISchemaObjectNode from 'src/app/model/SchemaObjectNode'
-import IConv, { ICreateIndex, IIndexKey, IIndex, ISpannerForeignKey } from '../../model/Conv'
-import IColumnTabData, { IIndexData } from '../../model/EditTable'
-import IFkTabData from 'src/app/model/FkTabData'
+import ISchemaObjectNode from 'src/app/model/schema-object-node'
+import IConv, { ICreateIndex, IIndexKey, IIndex, ISpannerForeignKey } from '../../model/conv'
+import IColumnTabData, { IIndexData } from '../../model/edit-table'
+import IFkTabData from 'src/app/model/fk-tab-data'
 import { ObjectExplorerNodeType } from 'src/app/app.constants'
 
 @Injectable({

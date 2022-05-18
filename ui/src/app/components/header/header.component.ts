@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core'
-import ISpannerConfig from '../../model/SpannerConfig'
+import ISpannerConfig from '../../model/spanner-config'
 import { MatDialog } from '@angular/material/dialog'
 import { UpdateSpannerConfigFormComponent } from '../update-spanner-config-form/update-spanner-config-form.component'
 import { DataService } from 'src/app/services/data/data.service'
