@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core'
 import { FormControl, FormGroup, Validators } from '@angular/forms'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
-import { ISaveSessionPayload } from 'src/app/model/Session'
+import { ISaveSessionPayload } from 'src/app/model/session'
 import { DataService } from 'src/app/services/data/data.service'
 import { SnackbarService } from '../../services/snackbar/snackbar.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'

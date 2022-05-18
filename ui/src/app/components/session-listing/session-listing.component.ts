@@ -2,10 +2,10 @@ import { Component, OnInit } from '@angular/core'
 import { Router } from '@angular/router'
 import { DataService } from 'src/app/services/data/data.service'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
-import ISession from '../../model/Session'
+import ISession from '../../model/session'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
-import IConv from 'src/app/model/Conv'
+import IConv from 'src/app/model/conv'
 
 @Component({
   selector: 'app-session-listing',
