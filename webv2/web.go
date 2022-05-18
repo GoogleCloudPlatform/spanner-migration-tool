@@ -163,21 +163,11 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
 	}
-
-	sessionMetadata := session.SessionMetadata{
-		SessionName:  "NewSession",
-		DatabaseType: sessionState.Driver,
-		DatabaseName: sessionState.DbName,
-	}
-
-	convm := session.ConvWithMetadata{
-		SessionMetadata: sessionMetadata,
-		Conv:            *conv,
-	}
+	AssignUniqueId(conv)
 	sessionState.Conv = conv
-	sessionState.SessionMetadata = sessionMetadata
+
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(convm)
+	json.NewEncoder(w).Encode(conv)
 }
 
 // dumpConfig contains the parameters needed to run the tool using dump approach. It is
@@ -211,32 +201,21 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sourceProfile.Driver = dc.Driver
 	targetProfile, _ := profiles.NewTargetProfile("")
 	targetProfile.TargetDb = constants.TargetSpanner
+
+	fmt.Println("This api getting callled")
+
 	conv, err := conversion.SchemaConv(sourceProfile, targetProfile, &utils.IOStreams{In: f, Out: os.Stdout})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Schema Conversion Error : %v", err), http.StatusNotFound)
 		return
 	}
 
-	sessionMetadata := session.SessionMetadata{
-		SessionName:  "NewSession",
-		DatabaseType: dc.Driver,
-		DatabaseName: filepath.Base(dc.FilePath),
-	}
-
 	sessionState := session.GetSessionState()
+	AssignUniqueId(conv)
 	sessionState.Conv = conv
-	sessionState.SessionMetadata = sessionMetadata
-	sessionState.Driver = dc.Driver
-	sessionState.DbName = ""
-	sessionState.SessionFile = ""
-	sessionState.SourceDB = nil
 
-	convm := session.ConvWithMetadata{
-		SessionMetadata: sessionMetadata,
-		Conv:            *conv,
-	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(convm)
+	json.NewEncoder(w).Encode(conv)
 }
 
 // getDDL returns the Spanner DDL for each table in alphabetical order.
@@ -345,7 +324,7 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 	// etc). In particular, note that we can't just blindly redo schema conversion (using an appropriate
 	// version of 'toDDL' with the new typeMap).
 	for t, spSchema := range sessionState.Conv.SpSchema {
-		for col, _ := range spSchema.ColDefs {
+		for col := range spSchema.ColDefs {
 			srcTable := sessionState.Conv.ToSource[t].Name
 			srcCol := sessionState.Conv.ToSource[t].Cols[col]
 			srcColDef := sessionState.Conv.SrcSchema[srcTable].ColDefs[srcCol]
@@ -1045,7 +1024,7 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 func isUniqueName(name string) bool {
 	sessionState := session.GetSessionState()
 
-	for table, _ := range sessionState.Conv.SpSchema {
+	for table := range sessionState.Conv.SpSchema {
 		if table == name {
 			return false
 		}

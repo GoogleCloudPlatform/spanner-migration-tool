@@ -127,6 +127,8 @@ func TestPrintCreateTable(t *testing.T) {
 		nil,
 		"",
 		"",
+		0,
+		0,
 	}
 	t2 := CreateTable{
 		"mytable",
@@ -137,6 +139,8 @@ func TestPrintCreateTable(t *testing.T) {
 		nil,
 		"parent",
 		"",
+		0,
+		0,
 	}
 	tests := []struct {
 		name       string
@@ -195,6 +199,8 @@ func TestPrintCreateTablePG(t *testing.T) {
 		nil,
 		"",
 		"",
+		0,
+		0,
 	}
 	t2 := CreateTable{
 		"mytable",
@@ -205,6 +211,8 @@ func TestPrintCreateTablePG(t *testing.T) {
 		nil,
 		"parent",
 		"",
+		0,
+		0,
 	}
 	tests := []struct {
 		name       string

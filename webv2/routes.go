@@ -55,6 +55,9 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/SaveRemoteSession", session.SaveRemoteSession).Methods("POST")
 	router.HandleFunc("/ResumeSession/{versionId}", session.ResumeSession).Methods("POST")
 
+	//primarykey
+	router.HandleFunc("/primaryKey", primaryKey).Methods("POST")
+
 	// Summary
 	router.HandleFunc("/summary", summary.GetSummary).Methods("GET")
 
