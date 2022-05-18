@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core'
 import { FormArray, FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms'
-import IConv, { ICreateIndex } from 'src/app/model/Conv'
+import IConv, { ICreateIndex } from 'src/app/model/conv'
 import { DataService } from 'src/app/services/data/data.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 
@@ -23,7 +23,7 @@ export class AddIndexFormComponent implements OnInit {
   ) {
     this.addIndexForm = this.fb.group({
       tableName: ['', Validators.required],
-      indexName: ['', [Validators.required, Validators.pattern('^[a-zA-Z].{0,49}$')]],
+      indexName: ['', [Validators.required, Validators.pattern('^[a-zA-Z].{0,59}$')]],
       ColsArray: this.fb.array([]),
     })
   }
@@ -63,7 +63,7 @@ export class AddIndexFormComponent implements OnInit {
       Keys: idxData.ColsArray.map((col: any) => {
         return {
           Col: col.columnName,
-          Desc: Boolean(col.sort),
+          Desc: col.sort === 'true',
         }
       }),
     })

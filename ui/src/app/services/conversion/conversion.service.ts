@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core'
-import ISchemaObjectNode from 'src/app/model/SchemaObjectNode'
-import IConv, { ICreateIndex, IIndexKey, IIndex, ISpannerForeignKey } from '../../model/Conv'
-import IColumnTabData, { IIndexData } from '../../model/EditTable'
-import IFkTabData from 'src/app/model/FkTabData'
+import ISchemaObjectNode from 'src/app/model/schema-object-node'
+import IConv, { ICreateIndex, IIndexKey, IIndex, ISpannerForeignKey } from '../../model/conv'
+import IColumnTabData, { IIndexData } from '../../model/edit-table'
+import IFkTabData from 'src/app/model/fk-tab-data'
 import { ObjectExplorerNodeType } from 'src/app/app.constants'
 
 @Injectable({
@@ -60,7 +60,7 @@ export class ConversionService {
     }
     return [
       {
-        name: 'Database Name',
+        name: conv.DatabaseName,
         children: [parentNode],
         type: ObjectExplorerNodeType.DbName,
         parent: '',
@@ -122,7 +122,7 @@ export class ConversionService {
 
     return [
       {
-        name: 'Database Name',
+        name: conv.DatabaseName,
         children: [parentNode],
         type: ObjectExplorerNodeType.DbName,
         parent: '',
@@ -131,9 +131,9 @@ export class ConversionService {
       },
     ]
   }
+
   getColumnMapping(tableName: string, data: IConv): IColumnTabData[] {
     let srcTableName = data.ToSource[tableName].Name
-
     return data.SrcSchema[srcTableName].ColNames.map((name: string, i: number) => {
       let spColName = data.ToSpanner[srcTableName].Cols[name]
       let srcPks = data.SrcSchema[srcTableName].PrimaryKeys

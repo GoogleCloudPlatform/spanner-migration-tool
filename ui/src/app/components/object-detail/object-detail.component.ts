@@ -1,17 +1,17 @@
 import { Component, EventEmitter, Input, OnInit, Output, SimpleChanges } from '@angular/core'
 import { FormArray, FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms'
-import IUpdateTable from './../../model/updateTable'
+import IUpdateTable from '../../model/update-table'
 import { DataService } from 'src/app/services/data/data.service'
 import { MatDialog } from '@angular/material/dialog'
 import { InfodialogComponent } from '../infodialog/infodialog.component'
-import IColumnTabData, { IIndexData } from '../../model/EditTable'
+import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
-import IFkTabData from 'src/app/model/FkTabData'
+import IFkTabData from 'src/app/model/fk-tab-data'
 import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
-import FlatNode from 'src/app/model/SchemaObjectNode'
-import { take } from 'rxjs'
+import FlatNode from 'src/app/model/schema-object-node'
+import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
-import IConv from 'src/app/model/Conv'
+import IConv from 'src/app/model/conv'
 import { DropIndexDialogComponent } from '../drop-index-dialog/drop-index-dialog.component'
 
 @Component({
@@ -35,6 +35,9 @@ export class ObjectDetailComponent implements OnInit {
   @Output() updateSidebar = new EventEmitter<boolean>()
   ObjectExplorerNodeType = ObjectExplorerNodeType
   conv: IConv = {} as IConv
+  interleaveObj!: Subscription
+  interleaveStatus: any
+  interleaveParentName: string | null = null
 
   ngOnInit(): void {
     this.data.conv.subscribe({
@@ -94,10 +97,14 @@ export class ObjectDetailComponent implements OnInit {
     this.indexData = changes['indexData']?.currentValue || this.indexData
     this.currentTabIndex = this.currentObject?.type === ObjectExplorerNodeType.Table ? 0 : -1
     this.isObjectSelected = this.currentObject ? true : false
-    this.isEditMode = false
-    this.isFkEditMode = false
     this.rowArray = new FormArray([])
+    this.interleaveParentName = this.getParentFromDdl()
+
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
+      this.checkIsInterleave()
+      this.interleaveObj = this.data.tableInterleaveStatus.subscribe((res) => {
+        this.interleaveStatus = res
+      })
       this.tableData.forEach((row) => {
         this.rowArray.push(
           new FormGroup({
@@ -254,6 +261,7 @@ export class ObjectDetailComponent implements OnInit {
         },
       })
     } else {
+      this.currentTabIndex = 2
       this.isFkEditMode = true
     }
   }
@@ -265,7 +273,7 @@ export class ObjectDetailComponent implements OnInit {
         if (res == '') {
           this.data.getDdl()
           this.snackbar.openSnackBar(
-            `${element.get('spName')} Foreign key dropped successfully`,
+            `${element.get('spName').value} Foreign key dropped successfully`,
             'Close',
             5
           )
@@ -288,6 +296,34 @@ export class ObjectDetailComponent implements OnInit {
       }
     })
     return ind
+  }
+  convertToFk() {
+    alert('Feature comming soon!')
+  }
+
+  checkIsInterleave() {
+    if (this.currentObject) {
+      this.data.getInterleaveConversionForATable(this.currentObject!.name)
+    }
+  }
+
+  setInterleave() {
+    this.data.setInterleave(this.currentObject!.name)
+  }
+
+  getParentFromDdl() {
+    let substr: string = 'INTERLEAVE IN PARENT'
+    let ddl: string = ''
+    if (
+      this.currentObject?.type === ObjectExplorerNodeType.Table &&
+      this.ddlStmts[this.currentObject.name].includes(substr)
+    ) {
+      ddl = this.ddlStmts[this.currentObject.name].substring(
+        this.ddlStmts[this.currentObject.name].indexOf(substr) + 20
+      )
+      return ddl.split(' ')[1]
+    }
+    return null
   }
 
   toggleIndexEdit() {

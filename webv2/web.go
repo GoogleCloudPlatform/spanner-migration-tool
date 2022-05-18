@@ -47,7 +47,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/shared"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
 	go_ora "github.com/sijms/go-ora/v2"
@@ -113,13 +112,13 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	}
 	sourceDB, err := sql.Open(config.Driver, dataSourceName)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("SQL connection error : %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Database connection error, check connection properties."), http.StatusInternalServerError)
 		return
 	}
 	// Open doesn't open a connection. Validate database connection.
 	err = sourceDB.Ping()
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Connection Error: %v. Check Configuration again.", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Database connection error, check connection properties."), http.StatusInternalServerError)
 		return
 	}
 
@@ -166,6 +165,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	}
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
+	sessionState.SessionMetadata = sessionMetadata
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(conv)
 }
@@ -193,7 +193,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	}
 	f, err := os.Open(dc.FilePath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to open dump file : %v", err), http.StatusNotFound)
+		http.Error(w, fmt.Sprintf("Failed to open dump file : %v, no such file or directory", dc.FilePath), http.StatusNotFound)
 		return
 	}
 	// We don't support Dynamodb in web hence no need to pass schema sample size here.
@@ -210,14 +210,18 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionState := session.GetSessionState()
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
-
+	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = dc.Driver
 	sessionState.DbName = ""
 	sessionState.SessionFile = ""
 	sessionState.SourceDB = nil
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionMetadata,
+		Conv:            *conv,
+	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(conv)
 }
@@ -342,8 +346,12 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	updateSessionFile()
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sessionState.Conv)
+	json.NewEncoder(w).Encode(convm)
 }
 
 // Actions to be performed on a column.
@@ -433,8 +441,12 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	updateSessionFile()
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sessionState.Conv)
+	json.NewEncoder(w).Encode(convm)
 }
 
 // getConversionRate returns table wise color coded conversion rate.
@@ -588,8 +600,13 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	sp.Fks = removeFk(sp.Fks, position)
 	sessionState.Conv.SpSchema[table] = sp
 	updateSessionFile()
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sessionState.Conv)
+	json.NewEncoder(w).Encode(convm)
 }
 
 // renameForeignKeys checks the new names for spanner name validity, ensures the new names are already not used by existing tables
@@ -651,8 +668,13 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.Conv.SpSchema[table] = sp
 	updateSessionFile()
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sessionState.Conv)
+	json.NewEncoder(w).Encode(convm)
 }
 
 // renameIndexes checks the new names for spanner name validity, ensures the new names are already not used by existing tables
@@ -709,8 +731,12 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.Conv.SpSchema[table] = sp
 	updateSessionFile()
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sessionState.Conv)
+	json.NewEncoder(w).Encode(convm)
 }
 
 // addIndexes checks the new names for spanner name validity, ensures the new names are already not used by existing tables
@@ -757,8 +783,13 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.Conv.SpSchema[table] = sp
 	updateSessionFile()
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sessionState.Conv)
+	json.NewEncoder(w).Encode(convm)
 }
 
 func checkSpannerNamesValidity(input []string) (bool, []string) {
@@ -831,8 +862,13 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	sp.Indexes = removeSecondaryIndex(sp.Indexes, position)
 	sessionState.Conv.SpSchema[table] = sp
 	updateSessionFile()
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sessionState.Conv)
+	json.NewEncoder(w).Encode(convm)
 }
 
 // updateSessionFile updates the content of session file with
@@ -1209,11 +1245,6 @@ type SessionState struct {
 	sessionFile string         // Path to session file
 }
 
-// sessionState maintains the current state of the session, and is used to
-// track state from one request to the next. Session state is global:
-// all requests see the same session state.
-//var sessionState SessionState
-
 // Type and issue.
 type typeIssue struct {
 	T     string
@@ -1234,32 +1265,9 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 	}
 	return l
 }
+
 func init() {
-
-	// TODO : Refactoring
-	c, err := config.GetSpannerConfig()
-	//Try load from env
-	if err != nil || c.GCPProjectID == "" || c.SpannerInstanceID == "" {
-		config.LoadConfigFromEnv()
-	}
-
-	// Check again
-	// TODO : Refactor
-	c, err = config.GetSpannerConfig()
 	sessionState := session.GetSessionState()
-
-	sessionState.GCPProjectID = c.GCPProjectID
-	sessionState.SpannerInstanceID = c.SpannerInstanceID
-
-	if err != nil || c.GCPProjectID == "" || c.SpannerInstanceID == "" {
-		sessionState.IsOffline = true
-	} else {
-		if shared.PingMetadataDb(c.GCPProjectID, c.SpannerInstanceID) {
-			sessionState.IsOffline = false
-		} else {
-			sessionState.IsOffline = true
-		}
-	}
 
 	// Initialize mysqlTypeMap.
 	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
@@ -1304,6 +1312,8 @@ func init() {
 	}
 
 	sessionState.Conv = internal.MakeConv()
+	config := config.TryInitializeSpannerConfig()
+	session.SetSessionStorageConnectionState(config.GCPProjectID, config.SpannerInstanceID)
 }
 
 // App connects to the web app v2.

@@ -1,3 +1,17 @@
+// Copyright 2022 Google LLC
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//      http://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package config
 
 import (
@@ -5,9 +19,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/shared"
 )
 
 var configFilePath string = "./webv2/config.json"
@@ -28,23 +39,14 @@ func GetSpannerConfig() (Config, error) {
 	return c, nil
 }
 
-//  Gets configuration from environment variables and saves it in config file.
-func LoadConfigFromEnv() {
-	var c Config
-	c.GCPProjectID = os.Getenv("GCPProjectID")
-	c.SpannerInstanceID = os.Getenv("SpannerInstanceID")
-
-	if c.GCPProjectID == "" || c.SpannerInstanceID == "" {
-		log.Println("warning : please set the environment variables - GCPProjectID and SpannerInstanceID")
-	}
-
+func SaveSpannerConfig(config Config) {
 	f, err := os.OpenFile(configFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		log.Println(err)
 	}
 	defer f.Close()
 
-	file, err := json.MarshalIndent(c, "", " ")
+	file, err := json.MarshalIndent(config, "", " ")
 	if err != nil {
 		log.Println(err)
 	}
@@ -55,39 +57,21 @@ func LoadConfigFromEnv() {
 	}
 }
 
-// Saves spanner configuration in configuration file.
-func saveSpannerConfigFile(c Config) error {
+func TryInitializeSpannerConfig() Config {
+	c, err := GetSpannerConfig()
+	//Try load spanner config from environment variables and save to config
+	if err != nil || c.GCPProjectID == "" || c.SpannerInstanceID == "" {
+		projectId := os.Getenv("GCPProjectID")
+		spInstanceId := os.Getenv("SpannerInstanceID")
 
-	f, err := os.OpenFile(configFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
-	if err != nil {
-		log.Println(err)
-		return err
+		if projectId == "" || spInstanceId == "" {
+			log.Println("Session Store Warning : Environment variables not found")
+			log.Println("To store the sessions please set the environment variables 'GCPProjectID' and 'SpannerInstanceID' or set these through HarbourBridge web client")
+		} else {
+			c.GCPProjectID = projectId
+			c.SpannerInstanceID = spInstanceId
+			SaveSpannerConfig(c)
+		}
 	}
-	defer f.Close()
-
-	file, err := json.MarshalIndent(c, "", " ")
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-
-	_, err = f.Write(file)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-
-	sessionState := session.GetSessionState()
-	isValid := shared.PingMetadataDb(c.GCPProjectID, c.SpannerInstanceID)
-	if !isValid {
-		sessionState.IsOffline = true
-		sessionState.GCPProjectID = ""
-		sessionState.SpannerInstanceID = ""
-	} else {
-		sessionState.GCPProjectID = c.GCPProjectID
-		sessionState.SpannerInstanceID = c.SpannerInstanceID
-		sessionState.IsOffline = false
-	}
-
-	return nil
+	return c
 }

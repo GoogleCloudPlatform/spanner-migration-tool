@@ -2,21 +2,17 @@
   <mat-card class="form-container">
     <form [formGroup]="connectForm" (ngSubmit)="convertFromDump()">
       <h3>Load from database dump</h3>
-      <h5>Lorem ipsum dolor sit amet, consectetur adipiscing elit</h5>
 
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Database Engine</mat-label>
         <mat-select matSelect name="dbEngine" formControlName="dbEngine" appearance="outline">
-          <mat-option value="mysqldump">MySQL</mat-option>
-          <mat-option value="pg_dump">PostgreSQL</mat-option>
+          <mat-option *ngFor="let element of dbEngineList" [value]="element.value">
+            {{ element.displayName }}
+          </mat-option>
         </mat-select>
       </mat-form-field>
 
       <h3>Dump File</h3>
-      <h5>
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
-        labore et dolore magna aliqua.
-      </h5>
 
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>File path</mat-label>

@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core'
 import { FormControl, FormGroup, Validators } from '@angular/forms'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
-import { ISaveSessionPayload } from 'src/app/model/Session'
+import { ISaveSessionPayload } from 'src/app/model/session'
 import { DataService } from 'src/app/services/data/data.service'
 import { SnackbarService } from '../../services/snackbar/snackbar.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
@@ -22,14 +22,14 @@ export class SidenavSaveSessionComponent implements OnInit {
   saveSessionForm: FormGroup = new FormGroup({
     SessionName: new FormControl('', [
       Validators.required,
-      Validators.pattern('^[a-zA-Z].{0,49}$'),
+      Validators.pattern('^[a-zA-Z].{0,59}$'),
     ]),
-    EditorName: new FormControl('', [Validators.required, Validators.pattern('^[a-zA-Z].{0,49}$')]),
+    EditorName: new FormControl('', [Validators.pattern('^[a-zA-Z].{0,59}$')]),
     DatabaseName: new FormControl('', [
       Validators.required,
-      Validators.pattern('^[a-zA-Z].{0,49}$'),
+      Validators.pattern('^[a-zA-Z].{0,59}$'),
     ]),
-    Notes: new FormControl('', [Validators.required]),
+    Notes: new FormControl(''),
   })
 
   saveSession() {

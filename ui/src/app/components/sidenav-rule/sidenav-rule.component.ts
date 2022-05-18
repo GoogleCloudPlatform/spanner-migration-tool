@@ -9,16 +9,22 @@ import { DataService } from 'src/app/services/data/data.service'
   styleUrls: ['./sidenav-rule.component.scss'],
 })
 export class SidenavRuleComponent implements OnInit {
-  constructor(private sidenavService: SidenavService, private data: DataService) {}
+  constructor(private sidenav: SidenavService, private data: DataService) {}
 
   ruleForm: FormGroup = new FormGroup({
-    ruleName: new FormControl('', [Validators.required, Validators.pattern('^[a-zA-Z].{0,49}$')]),
+    ruleName: new FormControl('', [Validators.required, Validators.pattern('^[a-zA-Z].{0,59}$')]),
     ruleType: new FormControl('', [Validators.required]),
   })
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.sidenav.sidenavRuleType.subscribe((res) => {
+      if (res === 'addIndex') {
+        this.ruleForm.controls['ruleType'].setValue('addIndex')
+      }
+    })
+  }
   closeSidenav(): void {
-    this.sidenavService.closeSidenav()
+    this.sidenav.closeSidenav()
   }
   get ruleType() {
     return this.ruleForm.get('ruleType')?.value

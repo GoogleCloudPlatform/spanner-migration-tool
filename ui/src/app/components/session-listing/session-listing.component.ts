@@ -2,10 +2,10 @@ import { Component, OnInit } from '@angular/core'
 import { Router } from '@angular/router'
 import { DataService } from 'src/app/services/data/data.service'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
-import ISession from '../../model/Session'
+import ISession from '../../model/session'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
-import IConv from 'src/app/model/Conv'
+import IConv from 'src/app/model/conv'
 
 @Component({
   selector: 'app-session-listing',
@@ -29,7 +29,6 @@ export class SessionListingComponent implements OnInit {
     private fetch: FetchService,
     private data: DataService,
     private router: Router,
-    private snackbar: SnackbarService,
     private clickEvent: ClickEventService
   ) {}
 
@@ -60,7 +59,7 @@ export class SessionListingComponent implements OnInit {
     })
   }
 
-  ResumeFromSessionFile(versionId: string) {
+  resumeFromSessionFile(versionId: string) {
     this.data.resetStore()
     this.data.getSchemaConversionFromResumeSession(versionId)
     this.data.conv.subscribe((res: IConv) => {
@@ -69,5 +68,14 @@ export class SessionListingComponent implements OnInit {
   }
   openSpannerConfigDialog() {
     this.clickEvent.openSpannerConfig()
+  }
+
+  convertDateTime(val: string) {
+    console.log(val)
+    let datetime = new Date(val)
+    val = datetime.toString()
+    val = val.substring(val.indexOf(' ') + 1)
+    val = val.substring(0, val.indexOf('('))
+    return val
   }
 }

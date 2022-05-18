@@ -3,7 +3,7 @@ import { FormControl, FormGroup, Validators } from '@angular/forms'
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
-import ISpannerConfig from '../../model/SpannerConfig'
+import ISpannerConfig from '../../model/spanner-config'
 import { DataService } from 'src/app/services/data/data.service'
 
 @Component({
@@ -13,7 +13,7 @@ import { DataService } from 'src/app/services/data/data.service'
 })
 export class UpdateSpannerConfigFormComponent implements OnInit {
   errMessage: string = ''
-  updateConfigFrom: FormGroup
+  updateConfigForm: FormGroup
   constructor(
     private fetch: FetchService,
     private snack: SnackbarService,
@@ -21,7 +21,7 @@ export class UpdateSpannerConfigFormComponent implements OnInit {
     @Inject(MAT_DIALOG_DATA) public data: ISpannerConfig,
     private dialogRef: MatDialogRef<UpdateSpannerConfigFormComponent>
   ) {
-    this.updateConfigFrom = new FormGroup({
+    this.updateConfigForm = new FormGroup({
       GCPProjectID: new FormControl(data.GCPProjectID, [Validators.required]),
       SpannerInstanceID: new FormControl(data.SpannerInstanceID, [Validators.required]),
     })
@@ -29,7 +29,7 @@ export class UpdateSpannerConfigFormComponent implements OnInit {
   }
 
   updateSpannerConfig() {
-    let formValue = this.updateConfigFrom.value
+    let formValue = this.updateConfigForm.value
     let payload: ISpannerConfig = {
       GCPProjectID: formValue.GCPProjectID,
       SpannerInstanceID: formValue.SpannerInstanceID,

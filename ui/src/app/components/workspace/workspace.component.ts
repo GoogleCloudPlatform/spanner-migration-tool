@@ -2,12 +2,12 @@ import { Component, OnDestroy, OnInit } from '@angular/core'
 import { DataService } from 'src/app/services/data/data.service'
 import { ConversionService } from '../../services/conversion/conversion.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
-import IConv from '../../model/Conv'
+import IConv from '../../model/conv'
 import { Subscription } from 'rxjs/internal/Subscription'
 import { MatDialog } from '@angular/material/dialog'
-import IFkTabData from 'src/app/model/FkTabData'
-import IColumnTabData, { IIndexData } from '../../model/EditTable'
-import ISchemaObjectNode, { FlatNode } from 'src/app/model/SchemaObjectNode'
+import IFkTabData from 'src/app/model/fk-tab-data'
+import IColumnTabData, { IIndexData } from '../../model/edit-table'
+import ISchemaObjectNode, { FlatNode } from 'src/app/model/schema-object-node'
 import { ObjectExplorerNodeType } from 'src/app/app.constants'
 
 @Component({
@@ -142,6 +142,9 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
   downloadSession() {
     var a = document.createElement('a')
+    // JS automatically converts the input (64bit INT) to '9223372036854776000' during conversion as this is the max value in JS.
+    // However the max value received from server is '9223372036854775807'
+    // Therefore an explicit replacement is necessary in the JSON content in the file.
     let resJson = JSON.stringify(this.conv).replace(/9223372036854776000/g, '9223372036854775807')
     a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(resJson)
     a.download = `${this.conv.SessionName}_${this.conv.DatabaseType}_${this.conv.DatabaseName}.json`

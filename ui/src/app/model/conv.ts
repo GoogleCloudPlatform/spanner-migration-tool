@@ -1,5 +1,4 @@
 export default interface IConv {
-  mode: number
   SpSchema: Record<string, ICreateTable>
   SyntheticPKeys: Record<string, ISyntheticPKey>
   SrcSchema: Record<string, ITable>
@@ -17,7 +16,7 @@ export default interface IConv {
 }
 
 export interface IStats {
-  Rows: Record<string, number> // Count of rows encountered during processing (a + b + c + d), broken down by source table.
+  Rows: Record<string, number>
   GoodRows: Record<string, number>
   BadRows: Record<string, number>
   Unexpected: Record<string, number> // Count of unexpected conditions, broken down by condition description.
@@ -129,7 +128,12 @@ export interface ISyntheticPKey {
   Col: string
   Sequence: Number
 }
-export interface IGlobalType {
-  source: string
-  destination: string
+export interface ITableInterleaveStatus {
+  Possible: boolean
+  Parent: string
+  Comment: string
+}
+
+export interface IInterleaveStatus {
+  TableInterleaveStatus: ITableInterleaveStatus
 }

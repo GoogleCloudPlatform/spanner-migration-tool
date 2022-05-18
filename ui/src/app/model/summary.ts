@@ -6,3 +6,8 @@ export default interface ISummary {
   WarningsCount: number
   NotesCount: number
 }
+export interface ISummaryRow {
+  type: string
+  content: string
+  isRead: boolean
+}

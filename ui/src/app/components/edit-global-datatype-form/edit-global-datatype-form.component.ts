@@ -1,5 +1,5 @@
 import { Component, Input, OnInit, Output, EventEmitter } from '@angular/core'
-import { FormArray, FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms'
+import { FormBuilder, FormGroup, Validators } from '@angular/forms'
 import { DataService } from 'src/app/services/data/data.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 
@@ -48,11 +48,11 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
     this.sidenav.closeSidenav()
   }
 
-  //To dynamically change destination select option
+  // To dynamically change destination datatype.
   updateDestinationType(key: string): void {
-    const desTypeDetial = this.conversionType[key]
+    const desTypeDetail = this.conversionType[key]
     const desType: string[] = []
-    desTypeDetial.forEach((item: IConvSourceType) => {
+    desTypeDetail.forEach((item: IConvSourceType) => {
       desType.push(item.T)
     })
     this.destinationType = desType

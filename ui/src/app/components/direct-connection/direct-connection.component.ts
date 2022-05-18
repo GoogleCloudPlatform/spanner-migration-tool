@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core'
 import { FormControl, FormGroup, Validators } from '@angular/forms'
 import { Router } from '@angular/router'
-import IDbConfig from 'src/app/model/DbConfig'
+import IDbConfig from 'src/app/model/db-config'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { DataService } from 'src/app/services/data/data.service'
 import { LoaderService } from '../../services/loader/loader.service'
@@ -18,11 +18,18 @@ export class DirectConnectionComponent implements OnInit {
   connectForm = new FormGroup({
     dbEngine: new FormControl('', [Validators.required]),
     hostName: new FormControl('', [Validators.required]),
-    port: new FormControl('', [Validators.required]),
+    port: new FormControl('', [Validators.required, Validators.pattern('^[0-9]+$')]),
     userName: new FormControl('', [Validators.required]),
-    password: new FormControl('', [Validators.required]),
+    password: new FormControl(''),
     dbName: new FormControl('', [Validators.required]),
   })
+
+  dbEngineList = [
+    { value: 'mysql', displayName: 'MYSQL' },
+    { value: 'sqlserver', displayName: 'SQL Server' },
+    { value: 'oracle', displayName: 'ORACLE' },
+    { value: 'postgres', displayName: 'PostgreSQL' },
+  ]
 
   constructor(
     private router: Router,
@@ -55,7 +62,7 @@ export class DirectConnectionComponent implements OnInit {
         })
       },
       error: (e) => {
-        this.snackbarService.openSnackBar('Unable to connect to database', 'Close')
+        this.snackbarService.openSnackBar(e.error, 'Close')
       },
     })
   }

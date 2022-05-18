@@ -42,31 +42,6 @@ xdescribe('ObjectExplorerComponent', () => {
     expect(component).toBeTruthy()
   })
 
-  // it('should create true tree node data ', () => {
-  //   expect(component.tableNames.length).toEqual(2)
-  //   expect(component.dataSource.data.length).toEqual(1)
-  //   expect(component.dataSource.data).toEqual([
-  //     {
-  //       name: 'Database Name',
-  //       children: [
-  //         {
-  //           name: 'Tables',
-  //           children: [
-  //             {
-  //               name: 'tab1',
-  //               status: 'GREEN',
-  //             },
-  //             {
-  //               name: 'pqr',
-  //               status: 'ORANGE',
-  //             },
-  //           ],
-  //         },
-  //       ],
-  //     },
-  //   ])
-  // })
-
   it('should  render mat tree  correctly', () => {
     expect(fixture.nativeElement.querySelector('.example-tree')).not.toBeNull()
   })

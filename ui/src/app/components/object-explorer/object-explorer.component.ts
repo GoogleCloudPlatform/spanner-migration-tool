@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, OnInit, Output, SimpleChanges } from '@angular/core'
-import ISchemaObjectNode, { FlatNode } from 'src/app/model/SchemaObjectNode'
+import ISchemaObjectNode, { FlatNode } from 'src/app/model/schema-object-node'
 import { FlatTreeControl } from '@angular/cdk/tree'
 import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree'
 import { ConversionService } from '../../services/conversion/conversion.service'
@@ -104,7 +104,8 @@ export class ObjectExplorerComponent implements OnInit {
     return new RegExp('^indexes').test(name)
   }
 
-  openSidenav(): void {
+  openAddIndexForm(): void {
+    this.sidenav.setSidenavRuleType('addIndex')
     this.sidenav.openSidenav()
     this.sidenav.setSidenavComponent('rule')
   }

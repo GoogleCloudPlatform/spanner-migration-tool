@@ -70,6 +70,12 @@
         <span>DROP INDEX</span>
       </button>
     </h3>
+    <div class="interleaved-title" *ngIf="interleaveParentName">
+      Interleaved:
+      <div class="interleave-parent-name">
+        {{ interleaveParentName }}
+      </div>
+    </div>
   </div>
 
   <mat-tab-group
@@ -188,10 +194,13 @@
                   >error</span
                 >
 
-                <mat-form-field appearance="legacy" *ngIf="isEditMode" class="w-100">
+                <mat-form-field
+                  appearance="legacy"
+                  class="w-100"
+                  *ngIf="isEditMode && element.get('spOrder').value !== ''"
+                >
                   <mat-select
                     #matSelectspDataType
-                    *ngIf="isEditMode && element.get('spOrder').value !== ''"
                     [formControl]="element.get('spDataType')"
                     selected="element.get('spDataType').value"
                     (selectionChange)="spTableEditSuggestionHandler(i, matSelectspDataType.value)"
@@ -232,7 +241,9 @@
           </ng-container>
 
           <ng-container matColumnDef="spIsNotNull">
-            <th mat-header-cell class="table_header" *matHeaderCellDef>Nullable</th>
+            <th mat-header-cell class="table_header" *matHeaderCellDef>
+              <span *ngIf="isEditMode">Not Null</span><span *ngIf="!isEditMode">Nullable</span>
+            </th>
             <td mat-cell *matCellDef="let element">
               <div class="notNullContent">
                 <div *ngIf="isEditMode && element.get('spOrder').value !== ''">
@@ -250,15 +261,22 @@
 
           <ng-container matColumnDef="dropButton">
             <th mat-header-cell class="table_header" *matHeaderCellDef></th>
-            <td mat-cell *matCellDef="let element">
-              <div class="actions" *ngIf="currentObject!.isSpannerNode">
+            <td
+              mat-cell
+              *matCellDef="let element"
+              [ngClass]="{ 'drop-button-left-border': isEditMode }"
+            >
+              <div
+                class="actions"
+                *ngIf="
+                  isEditMode &&
+                  currentObject!.isSpannerNode &&
+                  !(element.get('spOrder').value === '')
+                "
+              >
                 <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
                 <mat-menu #menu="matMenu" xPosition="before">
-                  <button
-                    [disabled]="element.get('spOrder').value === ''"
-                    mat-menu-item
-                    (click)="dropColumn(element)"
-                  >
+                  <button mat-menu-item (click)="dropColumn(element)">
                     <span>Drop Column</span>
                   </button>
                 </mat-menu>
@@ -285,7 +303,7 @@
             <th mat-header-cell *matHeaderCellDef class="db_name" colspan="5">
               <div class="spanner_edit-button">
                 <span>Spanner</span>
-                <div *ngIf="!isFkEditMode">
+                <div *ngIf="!isFkEditMode && fkDataSource.length > 0 && !interleaveParentName">
                   <button mat-stroked-button color="primary" (click)="toggleFkEdit()">
                     <mat-icon class="edit-icon">edit</mat-icon>
                     EDIT
@@ -326,7 +344,7 @@
           <ng-container matColumnDef="spName">
             <th mat-header-cell class="table_header" *matHeaderCellDef>Name</th>
             <td mat-cell *matCellDef="let element">
-              <div *ngIf="isFkEditMode">
+              <div *ngIf="isFkEditMode && !(element.get('spReferTable').value === '')">
                 <input
                   matInput
                   class="name_input"
@@ -364,16 +382,53 @@
 
           <ng-container matColumnDef="dropButton" stickyEnd>
             <th mat-header-cell class="table_header" *matHeaderCellDef></th>
-            <td mat-cell *matCellDef="let element">
-              <div class="actions">
+            <td
+              mat-cell
+              *matCellDef="let element"
+              [ngClass]="{ 'drop-button-left-border': isFkEditMode }"
+            >
+              <div
+                class="actions"
+                *ngIf="
+                  isFkEditMode &&
+                  currentObject!.isSpannerNode &&
+                  !(element.get('spReferTable').value === '')
+                "
+              >
                 <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
                 <mat-menu #menu="matMenu" xPosition="before">
                   <button
+                    *ngIf="
+                      interleaveStatus.tableInterleaveStatus &&
+                      interleaveStatus.tableInterleaveStatus.Possible
+                    "
                     [disabled]="element.get('spName').value === ''"
                     mat-menu-item
                     (click)="dropFk(element)"
                   >
-                    <span>Drop Fk</span>
+                    <span>Drop Foreign Key</span>
+                  </button>
+                  <button
+                    *ngIf="
+                      interleaveStatus.tableInterleaveStatus &&
+                      interleaveStatus.tableInterleaveStatus.Possible
+                    "
+                    [disabled]="element.get('spName').value === ''"
+                    mat-menu-item
+                    (click)="setInterleave()"
+                  >
+                    <span>Convert to interleave</span>
+                  </button>
+                  <button
+                    *ngIf="
+                      interleaveStatus.tableInterleaveStatus &&
+                      !interleaveStatus.tableInterleaveStatus.Possible
+                    "
+                    [disabled]="element.get('spName').value === ''"
+                    mat-menu-item
+                    (click)="convertToFk()"
+                  >
+                    <span>Convert to Foreign Key</span>
                   </button>
                 </mat-menu>
               </div>

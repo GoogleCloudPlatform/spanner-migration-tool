@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core'
 import { FormControl, FormGroup, Validators } from '@angular/forms'
-import IDumpConfig from 'src/app/model/DumpConfig'
+import IDumpConfig from 'src/app/model/dump-config'
 import { DataService } from 'src/app/services/data/data.service'
 import { Router } from '@angular/router'
 import { InputType, StorageKeys } from 'src/app/app.constants'
@@ -17,6 +17,11 @@ export class LoadDumpComponent implements OnInit {
     dbEngine: new FormControl('mysqldump', [Validators.required]),
     filePath: new FormControl('', [Validators.required]),
   })
+  dbEngineList = [
+    { value: 'mysqldump', displayName: 'MYSQL' },
+    { value: 'postgres', displayName: 'PostgreSQL' },
+  ]
+
   ngOnInit(): void {}
 
   convertFromDump() {

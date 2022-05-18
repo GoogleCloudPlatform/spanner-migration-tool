@@ -1,17 +1,17 @@
 import { Injectable } from '@angular/core'
 import { FetchService } from '../fetch/fetch.service'
-import IConv, { ICreateIndex } from '../../model/Conv'
-import IRuleContent from 'src/app/model/Rule'
+import IConv, { ICreateIndex, IInterleaveStatus } from '../../model/conv'
+import IRuleContent from 'src/app/model/rule'
 import { BehaviorSubject, forkJoin, Observable, of } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
-import IUpdateTable from 'src/app/model/updateTable'
-import IDumpConfig from 'src/app/model/DumpConfig'
-import ISessionConfig from '../../model/SessionConfig'
+import IUpdateTable from 'src/app/model/update-table'
+import IDumpConfig from 'src/app/model/dump-config'
+import ISessionConfig from '../../model/session-config'
 import { InputType, StorageKeys } from 'src/app/app.constants'
-import ISession from 'src/app/model/Session'
-import ISpannerConfig from '../../model/SpannerConfig'
+import ISession from 'src/app/model/session'
+import ISpannerConfig from '../../model/spanner-config'
 import { SnackbarService } from '../snackbar/snackbar.service'
-import ISummary from 'src/app/model/Summary'
+import ISummary from 'src/app/model/summary'
 
 @Injectable({
   providedIn: 'root',
@@ -22,6 +22,7 @@ export class DataService {
   private typeMapSub = new BehaviorSubject({})
   private summarySub = new BehaviorSubject(new Map<string, ISummary>())
   private ddlSub = new BehaviorSubject({})
+  private tableInterleaveStatusSub = new BehaviorSubject({} as IInterleaveStatus)
   private sessionsSub = new BehaviorSubject({} as ISession[])
   private configSub = new BehaviorSubject({} as ISpannerConfig)
   // currentSessionSub not using any where
@@ -37,6 +38,7 @@ export class DataService {
   typeMap = this.typeMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   summary = this.summarySub.asObservable().pipe(filter((res) => res.size > 0))
   ddl = this.ddlSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
+  tableInterleaveStatus = this.tableInterleaveStatusSub.asObservable()
   sessions = this.sessionsSub.asObservable()
   config = this.configSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   isOffline = this.isOfflineSub.asObservable()
@@ -78,6 +80,7 @@ export class DataService {
     this.typeMapSub.next({})
     this.summarySub.next(new Map<string, ISummary>())
     this.ddlSub.next({})
+    this.tableInterleaveStatusSub.next({} as IInterleaveStatus)
   }
 
   getDdl() {
@@ -89,7 +92,6 @@ export class DataService {
   getSchemaConversionFromDb() {
     this.fetch.getSchemaConversionFromDirectConnect().subscribe((res: IConv) => {
       this.convSubject.next(res)
-      // this.initiateSession()
     })
   }
 
@@ -126,6 +128,7 @@ export class DataService {
       },
     })
   }
+
   getSchemaConversionFromResumeSession(versionId: string) {
     this.fetch.resumeSession(versionId).subscribe({
       next: (res: IConv) => {
@@ -251,7 +254,7 @@ export class DataService {
     this.fetch.addIndex(tableName, payload).subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
-        this.snackbar.openSnackBar('added new Index.', 'Close', 5)
+        this.snackbar.openSnackBar('Added new index.', 'Close', 5)
       },
       error: (err: any) => {
         this.snackbar.openSnackBar(err.error, 'Close')
@@ -271,10 +274,22 @@ export class DataService {
           return data.error
         } else {
           this.convSubject.next(data)
-          this.snackbar.openSnackBar('Dropped index successfully', 'Close', 5)
+          this.snackbar.openSnackBar('Index dropped successfully', 'Close', 5)
           return ''
         }
       })
     )
+  }
+
+  getInterleaveConversionForATable(tableName: string) {
+    this.fetch.getInterleaveStatus(tableName).subscribe((res: IInterleaveStatus) => {
+      this.tableInterleaveStatusSub.next(res)
+    })
+  }
+
+  setInterleave(tableName: string) {
+    this.fetch.setInterleave(tableName).subscribe((res: any) => {
+      this.getDdl()
+    })
   }
 }

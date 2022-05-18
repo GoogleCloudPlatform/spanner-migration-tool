@@ -2,7 +2,7 @@ import { HttpClientModule } from '@angular/common/http'
 import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { MatDialogModule } from '@angular/material/dialog'
 import { By } from '@angular/platform-browser'
-import IColumnTabData from 'src/app/model/EditTable'
+import IColumnTabData from 'src/app/model/edit-table'
 import { ObjectDetailComponent } from './object-detail.component'
 import { MatTableModule } from '@angular/material/table'
 import { MatTabsModule } from '@angular/material/tabs'
@@ -62,17 +62,18 @@ fdescribe('ObjectDetailComponent', () => {
         srcIsNotNull: false,
       },
     ]
-    component.fkData = [{
-      spName: 'abc',
-      srcName: 'abc',
-      spColumns: ['abc_id'],
-      srcColumns: ['abc_id'],
-      spReferTable: 'def',
-      srcReferTable: 'def',
-      spReferColumns: ['def_if'],
-      srcReferColumns: ['def_if'],
-
-    }]
+    component.fkData = [
+      {
+        spName: 'abc',
+        srcName: 'abc',
+        spColumns: ['abc_id'],
+        srcColumns: ['abc_id'],
+        spReferTable: 'def',
+        srcReferTable: 'def',
+        spReferColumns: ['def_if'],
+        srcReferColumns: ['def_if'],
+      },
+    ]
     component.ddlStmts = 'some ddl statment'
     component.typeMap = { int: [{ T: 'Number' }, { T: 'string' }] }
     component.isObjectSelected = true

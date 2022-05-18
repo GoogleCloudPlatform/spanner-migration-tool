@@ -1,13 +1,12 @@
-import { PortalHostDirective } from '@angular/cdk/portal'
 import { HttpClient, HttpResponse } from '@angular/common/http'
 import { Injectable } from '@angular/core'
-import IDbConfig from 'src/app/model/DbConfig'
-import ISession, { ISaveSessionPayload } from 'src/app/model/Session'
-import IUpdateTable from 'src/app/model/updateTable'
-import IConv, { ICreateIndex, IGlobalType } from '../../model/Conv'
-import IDumpConfig from '../../model/DumpConfig'
-import ISessionConfig from '../../model/SessionConfig'
-import ISpannerConfig from '../../model/SpannerConfig'
+import IDbConfig from 'src/app/model/db-config'
+import ISession, { ISaveSessionPayload } from '../../model/session'
+import IUpdateTable from '../../model/update-table'
+import IConv, { ICreateIndex, IInterleaveStatus } from '../../model/conv'
+import IDumpConfig from '../../model/dump-config'
+import ISessionConfig from '../../model/session-config'
+import ISpannerConfig from '../../model/spanner-config'
 
 @Injectable({
   providedIn: 'root',
@@ -116,5 +115,13 @@ export class FetchService {
 
   dropIndex(tableName: string, idx: number) {
     return this.http.get<IConv>(`${this.url}/drop/secondaryindex?table=${tableName}&pos=${idx}`)
+  }
+
+  getInterleaveStatus(tableName: string) {
+    return this.http.get<IInterleaveStatus>(`${this.url}/setparent?table=${tableName}`)
+  }
+
+  setInterleave(tableName: string) {
+    return this.http.get(`${this.url}/setparent?table=${tableName}&update=true`)
   }
 }

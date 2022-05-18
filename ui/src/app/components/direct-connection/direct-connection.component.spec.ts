@@ -110,12 +110,12 @@ describe('DirectConnectionComponent', () => {
     expect(component.connectForm.invalid).toBeTruthy()
 
     component.connectForm.patchValue({
-      hostName: '123.345.678.56',
-      dbEngine: 'mysql',
+      hostName: 'localhost',
+      dbEngine: 'mssql',
       port: '1433',
       userName: 'sa',
-      password: 'sadasdas',
-      dbName: 'some_db',
+      password: 'password',
+      dbName: 'database',
     })
     expect(component.connectForm.valid).toBeTruthy()
     fixture.detectChanges()

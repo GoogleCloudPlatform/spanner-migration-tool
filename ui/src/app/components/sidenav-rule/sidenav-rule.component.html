@@ -8,10 +8,13 @@
   <div class="form-container">
     <form [formGroup]="ruleForm">
       <h3>Rule info</h3>
-      <mat-form-field appearance="outline">
+      <mat-form-field
+        hintLabel="Max. 60 characters, and starts with a letter."
+        appearance="outline"
+      >
         <mat-label>Rule name</mat-label>
         <input matInput class="input-field" formControlName="ruleName" />
-        <mat-hint>Max. 60 characters, and starts with a letter.</mat-hint>
+        <mat-hint align="end">{{ ruleForm.value.ruleName?.length || 0 }}/60</mat-hint>
       </mat-form-field>
 
       <h3>Rule definition</h3>
@@ -25,19 +28,19 @@
           required="true"
         >
           <mat-option value="globalDataType">Change global data type</mat-option>
-          <mat-option value="AddIndex">Add Index</mat-option>
+          <mat-option value="addIndex">Add Index</mat-option>
         </mat-select>
       </mat-form-field>
 
       <br />
     </form>
-    <div *ngIf="ruleType.value === 'globalDataType'" class="change-global-type">
+    <div *ngIf="ruleType.value === 'globalDataType'">
       <app-edit-global-datatype-form
         [ruleNameValid]="ruleForm.valid"
         (resetRuleType)="resetRuleType()"
       ></app-edit-global-datatype-form>
     </div>
-    <div class="change-global-type" *ngIf="ruleType.value === 'AddIndex'">
+    <div *ngIf="ruleType.value === 'addIndex'">
       <app-add-index-form
         [ruleNameValid]="ruleForm.valid"
         (resetRuleType)="resetRuleType()"
