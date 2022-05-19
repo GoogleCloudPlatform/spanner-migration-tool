@@ -97,14 +97,14 @@ func toSpannerTypeInternal(conv *internal.Conv, spType string, srcType string, m
 			// If only precision is available.
 			if modsLen == 1 {
 				if mods[0] > 29 {
-					return ddl.Type{Name: ddl.String, Len: 40}, nil
+					return ddl.Type{Name: ddl.String, Len: 50}, nil
 				}
 				return ddl.Type{Name: ddl.Int64}, nil
 			}
 
 			// If both precision and scale are avalible.
 			if mods[0] > 29 || mods[1] > 9 {
-				return ddl.Type{Name: ddl.String, Len: 40}, nil
+				return ddl.Type{Name: ddl.String, Len: 50}, nil
 			}
 
 			return ddl.Type{Name: ddl.Numeric}, nil

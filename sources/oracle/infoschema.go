@@ -66,6 +66,8 @@ func getSelectQuery(srcDb string, schemaName string, tableName string, colNames 
 				FROM TABLE ("%s"."%s")) AS "%s"`, tableName, cn, cn)
 		} else {
 			switch colDefs[cn].Type.Name {
+			case "NUMBER":
+				s = fmt.Sprintf(`TO_CHAR("%s") AS "%s"`, cn, cn)
 			case "XMLTYPE":
 				s = fmt.Sprintf(`CAST(XMLTYPE.getStringVal("%s") AS VARCHAR2(4000)) AS "%s"`, cn, cn)
 			case "SDO_GEOMETRY":
