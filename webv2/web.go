@@ -164,6 +164,9 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	AssignUniqueId(conv)
+	sessionState.Conv = conv
+
 	sessionMetadata := session.SessionMetadata{
 		SessionName:  "NewSession",
 		DatabaseType: sessionState.Driver,
@@ -224,6 +227,10 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
+
+	AssignUniqueId(conv)
+	sessionState.Conv = conv
+
 	sessionState.Conv = conv
 	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = dc.Driver

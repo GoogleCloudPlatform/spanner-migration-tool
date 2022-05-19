@@ -33,13 +33,15 @@ import (
 
 // Table represents a database table.
 type Table struct {
-	Name        string
-	Schema      string
-	ColNames    []string          // List of column names (for predictable iteration order e.g. printing).
-	ColDefs     map[string]Column // Details of columns.
-	PrimaryKeys []Key
-	ForeignKeys []ForeignKey
-	Indexes     []Index
+	Name         string
+	Schema       string
+	ColNames     []string          // List of column names (for predictable iteration order e.g. printing).
+	ColDefs      map[string]Column // Details of columns.
+	PrimaryKeys  []Key
+	ForeignKeys  []ForeignKey
+	Indexes      []Index
+	Id           int
+	PrimaryKeyId int
 }
 
 // Column represents a database column.
@@ -49,6 +51,7 @@ type Column struct {
 	Type    Type
 	NotNull bool
 	Ignored Ignored
+	Id      int
 }
 
 // ForeignKey represents a foreign key.
