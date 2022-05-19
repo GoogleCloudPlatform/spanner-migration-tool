@@ -88,12 +88,26 @@ func toSpannerTypeInternal(conv *internal.Conv, spType string, srcType string, m
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
-			// If no scale is avalible then map it to int64, and numeric elsewhere.
-			if len(mods) == 1 && mods[0] >= 1 && mods[0] < 19 {
-				return ddl.Type{Name: ddl.Int64}, nil
-			} else {
+			modsLen := len(mods)
+
+			if modsLen == 0 {
 				return ddl.Type{Name: ddl.Numeric}, nil
 			}
+
+			// If only precision is available.
+			if modsLen == 1 {
+				if mods[0] > 29 {
+					return ddl.Type{Name: ddl.String, Len: 40}, nil
+				}
+				return ddl.Type{Name: ddl.Int64}, nil
+			}
+
+			// If both precision and scale are avalible.
+			if mods[0] > 29 || mods[1] > 9 {
+				return ddl.Type{Name: ddl.String, Len: 40}, nil
+			}
+
+			return ddl.Type{Name: ddl.Numeric}, nil
 		}
 
 	case "BFILE", "BLOB":
