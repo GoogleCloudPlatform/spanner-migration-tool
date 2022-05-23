@@ -12,6 +12,7 @@ import ISession from 'src/app/model/session'
 import ISpannerConfig from '../../model/spanner-config'
 import { SnackbarService } from '../snackbar/snackbar.service'
 import ISummary from 'src/app/model/summary'
+import { ClickEventService } from '../click-event/click-event.service'
 
 @Injectable({
   providedIn: 'root',
@@ -46,7 +47,11 @@ export class DataService {
     .asObservable()
     .pipe(filter((res) => Object.keys(res).length !== 0))
 
-  constructor(private fetch: FetchService, private snackbar: SnackbarService) {
+  constructor(
+    private fetch: FetchService,
+    private snackbar: SnackbarService,
+    private clickEvent: ClickEventService
+  ) {
     let inputType = localStorage.getItem(StorageKeys.Type) as string
     let config: unknown = localStorage.getItem(StorageKeys.Config)
 
@@ -113,6 +118,7 @@ export class DataService {
         this.convSubject.next(res)
       },
       error: (err: any) => {
+        this.clickEvent.closeDatabaseLoader()
         this.snackbar.openSnackBar(err.error, 'Close')
       },
     })
@@ -125,6 +131,7 @@ export class DataService {
       },
       error: (err: any) => {
         this.snackbar.openSnackBar(err.error, 'Close')
+        this.clickEvent.closeDatabaseLoader()
       },
     })
   }

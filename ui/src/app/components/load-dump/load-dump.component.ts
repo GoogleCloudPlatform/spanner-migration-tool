@@ -5,6 +5,7 @@ import { DataService } from 'src/app/services/data/data.service'
 import { Router } from '@angular/router'
 import { InputType, StorageKeys } from 'src/app/app.constants'
 import { extractSourceDbName } from 'src/app/utils/utils'
+import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 
 @Component({
   selector: 'app-load-dump',
@@ -12,7 +13,11 @@ import { extractSourceDbName } from 'src/app/utils/utils'
   styleUrls: ['./load-dump.component.scss'],
 })
 export class LoadDumpComponent implements OnInit {
-  constructor(private data: DataService, private router: Router) {}
+  constructor(
+    private data: DataService,
+    private router: Router,
+    private clickEvent: ClickEventService
+  ) {}
   connectForm = new FormGroup({
     dbEngine: new FormControl('mysqldump', [Validators.required]),
     filePath: new FormControl('', [Validators.required]),
@@ -25,6 +30,7 @@ export class LoadDumpComponent implements OnInit {
   ngOnInit(): void {}
 
   convertFromDump() {
+    this.clickEvent.openDatabaseLoader('dump', '')
     this.data.resetStore()
     const { dbEngine, filePath } = this.connectForm.value
     const payload: IDumpConfig = {
@@ -36,6 +42,7 @@ export class LoadDumpComponent implements OnInit {
       localStorage.setItem(StorageKeys.Config, JSON.stringify(payload))
       localStorage.setItem(StorageKeys.Type, InputType.DumpFile)
       localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine))
+      this.clickEvent.closeDatabaseLoader()
       this.router.navigate(['/workspace'])
     })
   }

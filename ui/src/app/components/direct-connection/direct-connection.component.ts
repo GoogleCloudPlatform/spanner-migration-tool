@@ -8,6 +8,7 @@ import { LoaderService } from '../../services/loader/loader.service'
 import { InputType, StorageKeys } from 'src/app/app.constants'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import { extractSourceDbName } from 'src/app/utils/utils'
+import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 
 @Component({
   selector: 'app-direct-connection',
@@ -36,12 +37,14 @@ export class DirectConnectionComponent implements OnInit {
     private fetch: FetchService,
     private data: DataService,
     private loader: LoaderService,
-    private snackbarService: SnackbarService
+    private snackbarService: SnackbarService,
+    private clickEvent: ClickEventService
   ) {}
 
   ngOnInit(): void {}
 
   connectToDb() {
+    this.clickEvent.openDatabaseLoader('direct', this.connectForm.value.dbName)
     window.scroll(0, 0)
     this.data.resetStore()
     const { dbEngine, hostName, port, userName, password, dbName } = this.connectForm.value
@@ -58,11 +61,13 @@ export class DirectConnectionComponent implements OnInit {
         }
         this.data.getSchemaConversionFromDb()
         this.data.conv.subscribe((res) => {
+          this.clickEvent.closeDatabaseLoader()
           this.router.navigate(['/workspace'])
         })
       },
       error: (e) => {
         this.snackbarService.openSnackBar(e.error, 'Close')
+        this.clickEvent.closeDatabaseLoader()
       },
     })
   }
