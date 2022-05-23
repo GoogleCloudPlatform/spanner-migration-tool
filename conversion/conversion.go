@@ -264,7 +264,7 @@ func dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *util
 
 func dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
 	if targetProfile.Conn.Sp.Dbname == "" {
-		return nil, fmt.Errorf("dbname is mandatory in target-profile for csv source")
+		return nil, fmt.Errorf("dbName is mandatory in target-profile for csv source")
 	}
 	conv.TargetDb = targetProfile.ToLegacyTargetDb()
 	dialect, err := targetProfile.FetchTargetDialect(ctx)

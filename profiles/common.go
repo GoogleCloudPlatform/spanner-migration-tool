@@ -91,8 +91,8 @@ func GeneratePGSQLConnectionStr() (string, error) {
 	server := os.Getenv("PGHOST")
 	port := os.Getenv("PGPORT")
 	user := os.Getenv("PGUSER")
-	dbname := os.Getenv("PGDATABASE")
-	if server == "" || port == "" || user == "" || dbname == "" {
+	dbName := os.Getenv("PGDATABASE")
+	if server == "" || port == "" || user == "" || dbName == "" {
 		fmt.Printf("Please specify host, port, user and database using PGHOST, PGPORT, PGUSER and PGDATABASE environment variables\n")
 		return "", fmt.Errorf("could not connect to source database")
 	}
@@ -100,19 +100,19 @@ func GeneratePGSQLConnectionStr() (string, error) {
 	if password == "" {
 		password = utils.GetPassword()
 	}
-	return getPGSQLConnectionStr(server, port, user, password, dbname), nil
+	return getPGSQLConnectionStr(server, port, user, password, dbName), nil
 }
 
-func getPGSQLConnectionStr(server, port, user, password, dbname string) string {
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", server, port, user, password, dbname)
+func getPGSQLConnectionStr(server, port, user, password, dbName string) string {
+	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", server, port, user, password, dbName)
 }
 
 func GenerateMYSQLConnectionStr() (string, error) {
 	server := os.Getenv("MYSQLHOST")
 	port := os.Getenv("MYSQLPORT")
 	user := os.Getenv("MYSQLUSER")
-	dbname := os.Getenv("MYSQLDATABASE")
-	if server == "" || port == "" || user == "" || dbname == "" {
+	dbName := os.Getenv("MYSQLDATABASE")
+	if server == "" || port == "" || user == "" || dbName == "" {
 		fmt.Printf("Please specify host, port, user and database using MYSQLHOST, MYSQLPORT, MYSQLUSER and MYSQLDATABASE environment variables\n")
 		return "", fmt.Errorf("could not connect to source database")
 	}
@@ -120,15 +120,15 @@ func GenerateMYSQLConnectionStr() (string, error) {
 	if password == "" {
 		password = utils.GetPassword()
 	}
-	return getMYSQLConnectionStr(server, port, user, password, dbname), nil
+	return getMYSQLConnectionStr(server, port, user, password, dbName), nil
 }
 
-func getMYSQLConnectionStr(server, port, user, password, dbname string) string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, server, port, dbname)
+func getMYSQLConnectionStr(server, port, user, password, dbName string) string {
+	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, server, port, dbName)
 }
 
-func getSQLSERVERConnectionStr(server, port, user, password, dbname string) string {
-	return fmt.Sprintf(`sqlserver://%s:%s@%s:%s?database=%s`, user, password, server, port, dbname)
+func getSQLSERVERConnectionStr(server, port, user, password, dbName string) string {
+	return fmt.Sprintf(`sqlserver://%s:%s@%s:%s?database=%s`, user, password, server, port, dbName)
 }
 
 func GetSchemaSampleSize(sourceProfile SourceProfile) int64 {
@@ -143,7 +143,7 @@ func GetSchemaSampleSize(sourceProfile SourceProfile) int64 {
 	return schemaSampleSize
 }
 
-func getORACLEConnectionStr(server, port, user, password, dbname string) string {
+func getORACLEConnectionStr(server, port, user, password, dbName string) string {
 	portNumber, _ := strconv.Atoi(port)
-	return go_ora.BuildUrl(server, portNumber, dbname, user, password, nil)
+	return go_ora.BuildUrl(server, portNumber, dbName, user, password, nil)
 }

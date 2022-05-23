@@ -77,7 +77,7 @@ func NewSourceProfileConnectionMySQL(params map[string]string) (SourceProfileCon
 	mysql := SourceProfileConnectionMySQL{}
 	host, hostOk := params["host"]
 	user, userOk := params["user"]
-	db, dbOk := params["db_name"]
+	db, dbOk := params["dbName"]
 	port, portOk := params["port"]
 	pwd, pwdOk := params["password"]
 	// We don't users to mix and match params from source-profile and environment variables.
@@ -96,21 +96,21 @@ func NewSourceProfileConnectionMySQL(params map[string]string) (SourceProfileCon
 			return mysql, fmt.Errorf("found empty string for MYSQLHOST/MYSQLUSER/MYSQLDATABASE. Please specify these environment variables with correct values")
 		}
 	} else if hostOk && userOk && dbOk {
-		// If atleast host, username and dbname are provided through source-profile,
+		// If atleast host, username and dbName are provided through source-profile,
 		// go ahead and use source-profile. Port and password handled later even if they are empty.
 		mysql.Host, mysql.User, mysql.Db, mysql.Port, mysql.Pwd = host, user, db, port, pwd
 		// Throw error if the input entered is empty.
 		if mysql.Host == "" || mysql.User == "" || mysql.Db == "" {
-			return mysql, fmt.Errorf("found empty string for host/user/db_name. Please specify host, port, user and db_name in the source-profile")
+			return mysql, fmt.Errorf("found empty string for host/user/dbName. Please specify host, port, user and dbName in the source-profile")
 		}
 	} else {
 		// Partial params provided through source-profile. Ask user to provide all through the source-profile.
-		return mysql, fmt.Errorf("please specify host, port, user and db_name in the source-profile")
+		return mysql, fmt.Errorf("please specify host, port, user and dbName in the source-profile")
 	}
 
 	// Throw same error if the input entered is empty.
 	if mysql.Host == "" || mysql.User == "" || mysql.Db == "" {
-		return mysql, fmt.Errorf("found empty string for host/user/db. please specify host, port, user and db_name in the source-profile")
+		return mysql, fmt.Errorf("found empty string for host/user/db. please specify host, port, user and dbName in the source-profile")
 	}
 
 	if mysql.Port == "" {
@@ -136,7 +136,7 @@ func NewSourceProfileConnectionPostgreSQL(params map[string]string) (SourceProfi
 	pg := SourceProfileConnectionPostgreSQL{}
 	host, hostOk := params["host"]
 	user, userOk := params["user"]
-	db, dbOk := params["db_name"]
+	db, dbOk := params["dbName"]
 	port, portOk := params["port"]
 	pwd, pwdOk := params["password"]
 	// We don't users to mix and match params from source-profile and environment variables.
@@ -159,11 +159,11 @@ func NewSourceProfileConnectionPostgreSQL(params map[string]string) (SourceProfi
 		pg.Host, pg.User, pg.Db, pg.Port, pg.Pwd = host, user, db, port, pwd
 		// Throw error if the input entered is empty.
 		if pg.Host == "" || pg.User == "" || pg.Db == "" {
-			return pg, fmt.Errorf("found empty string for host/user/db_name. Please specify host, port, user and db_name in the source-profile")
+			return pg, fmt.Errorf("found empty string for host/user/dbName. Please specify host, port, user and dbName in the source-profile")
 		}
 	} else {
 		// Partial params provided through source-profile. Ask user to provide all through the source-profile.
-		return pg, fmt.Errorf("please specify host, port, user and db_name in the source-profile")
+		return pg, fmt.Errorf("please specify host, port, user and dbName in the source-profile")
 	}
 
 	if pg.Port == "" {
@@ -189,7 +189,7 @@ func NewSourceProfileConnectionSqlServer(params map[string]string) (SourceProfil
 	ss := SourceProfileConnectionSqlServer{}
 	host, hostOk := params["host"]
 	user, userOk := params["user"]
-	db, dbOk := params["db_name"]
+	db, dbOk := params["dbName"]
 	port, portOk := params["port"]
 	pwd, pwdOk := params["password"]
 
@@ -218,11 +218,11 @@ func NewSourceProfileConnectionSqlServer(params map[string]string) (SourceProfil
 		ss.Host, ss.User, ss.Db, ss.Port, ss.Pwd = host, user, db, port, pwd
 		// Throw error if the input entered is empty.
 		if ss.Host == "" || ss.User == "" || ss.Db == "" {
-			return ss, fmt.Errorf("found empty string for host/user/db_name. Please specify host, port, user and db_name in the source-profile")
+			return ss, fmt.Errorf("found empty string for host/user/dbName. Please specify host, port, user and dbName in the source-profile")
 		}
 	} else {
 		// Partial params provided through source-profile. Ask user to provide all through the source-profile.
-		return ss, fmt.Errorf("please specify host, port, user and db_name in the source-profile")
+		return ss, fmt.Errorf("please specify host, port, user and dbName in the source-profile")
 	}
 
 	if ss.Port == "" {
@@ -294,7 +294,7 @@ func NewSourceProfileConnectionOracle(params map[string]string) (SourceProfileCo
 	ss := SourceProfileConnectionOracle{}
 	host, hostOk := params["host"]
 	user, userOk := params["user"]
-	db, dbOk := params["db_name"]
+	db, dbOk := params["dbName"]
 	port, _ := params["port"]
 	pwd, _ := params["password"]
 
@@ -303,11 +303,11 @@ func NewSourceProfileConnectionOracle(params map[string]string) (SourceProfileCo
 		ss.Host, ss.User, ss.Db, ss.Port, ss.Pwd = host, user, db, port, pwd
 		// Throw error if the input entered is empty.
 		if ss.Host == "" || ss.User == "" || ss.Db == "" {
-			return ss, fmt.Errorf("found empty string for host/user/db_name. Please specify host, port, user and db_name in the source-profile")
+			return ss, fmt.Errorf("found empty string for host/user/dbName. Please specify host, port, user and dbName in the source-profile")
 		}
 	} else {
 		// Partial params provided through source-profile. Ask user to provide all through the source-profile.
-		return ss, fmt.Errorf("please specify host, port, user and db_name in the source-profile")
+		return ss, fmt.Errorf("please specify host, port, user and dbName in the source-profile")
 	}
 
 	if ss.Port == "" {

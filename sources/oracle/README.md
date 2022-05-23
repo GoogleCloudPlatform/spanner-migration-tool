@@ -20,18 +20,18 @@ in the [Installing HarbourBridge](https://github.com/cloudspannerecosystem/harbo
 
 In this case, HarbourBridge connects directly to the Oracle database to
 retrieve table schema and data. Set the `-source=oracle` and corresponding
-source profile connection parameters `host`, `port`, `user`, `db_name` and
+source profile connection parameters `host`, `port`, `user`, `dbName` and
 `password`.
 
 For example to perform schema conversion, run
 
 ```sh
-harbourbridge schema -source=oracle -source-profile="host=<>,port=<>,user=<>,db_name=<>,password=<>"
+harbourbridge schema -source=oracle -source-profile="host=<>,port=<>,user=<>,dbName=<>,password=<>"
 ```
 
 In Oracle DB, USER is the account name, SCHEMA is the set of objects owned by that user. Oracle creates the SCHEMA object as part of the CREATE USER statement and the SCHEMA has the same name as the USER. 
 
-db_name will be the SID of the Database used. The Oracle System ID (SID) is used to uniquely identify a particular database on a system.
+dbName will be the SID of the Database used. The Oracle System ID (SID) is used to uniquely identify a particular database on a system.
 
 ## Schema Conversion
 
