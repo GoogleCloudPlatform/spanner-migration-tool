@@ -94,11 +94,13 @@ func toSpannerTypeInternal(conv *internal.Conv, spType string, srcType string, m
 			} else if modsLen == 1 { // Only precision is available.
 				if mods[0] > 29 {
 					// Max precision in Oracle is 38. String representation of the number should not have more than 50 characters
+					// https://docs.oracle.com/cd/B19306_01/server.102/b14237/limits001.htm#i287903
 					return ddl.Type{Name: ddl.String, Len: 50}, nil
 				}
 				return ddl.Type{Name: ddl.Int64}, nil
 			} else if mods[0] > 29 || mods[1] > 9 { // When both precision and scale are available and within limit
 				// Max precision in Oracle is 38. String representation of the number should not have more than 50 characters
+				// https://docs.oracle.com/cd/B19306_01/server.102/b14237/limits001.htm#i287903
 				return ddl.Type{Name: ddl.String, Len: 50}, nil
 			}
 
