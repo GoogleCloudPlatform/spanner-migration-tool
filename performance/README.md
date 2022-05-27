@@ -43,8 +43,8 @@ Run migration for the test database created.
 We can specify the maximum number of writer threads in write-limit flag.
 Enter the password for connecting to MYSQL db and run the below command.
     ```sh
-    go run main.go schema-and-data -source=mysql -source-profile='host=localhost,user=root,db_name=testdb,password='
-     -target-profile='instance=new-test-instance,dbname=testdb' -write-limit 40
+    go run main.go schema-and-data -source=mysql -source-profile='host=localhost,user=root,dbName=testdb,password='
+     -target-profile='instance=new-test-instance,dbName=testdb' -write-limit 40
     ```
 - **Cleanup:**
 Once the migration is complete, the last step is cleanup. It involves deleting the spanner instance and droping the MYSQL database.

@@ -165,7 +165,7 @@ func TestIntegration_CSV_Command(t *testing.T) {
 	writeCSVs(t)
 	defer cleanupCSVs()
 	createSpannerSchema(t, projectID, instanceID, dbName)
-	args := fmt.Sprintf("data -source=csv -target-profile='instance=%s,dbname=%s'", instanceID, dbName)
+	args := fmt.Sprintf("data -source=csv -target-profile='instance=%s,dbName=%s'", instanceID, dbName)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)

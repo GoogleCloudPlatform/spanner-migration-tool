@@ -374,9 +374,9 @@ such as `csv`, `avro` etc.
 HarbourBridge accepts the following options for --target-profile,
 specified as "key1=value1,key2=value,..." pairs:
 
-`dbname` Specifies the name of the Spanner database to create. This must be a
-new database. If dbname is not specified, HarbourBridge creates a new unique
-dbname.
+`dbName` Specifies the name of the Spanner database to create. This must be a
+new database. If dbName is not specified, HarbourBridge creates a new unique
+dbName.
 
 `instance` Specifies the Spanner instance to use. The new database will be
 created in this instance. If not specified, the tool automatically determines an

@@ -37,7 +37,7 @@ if type mysql >/dev/null 2>&1; then
             do
                 echo "Write limit: $writeLimit"
                 #update source profile password before running the benchmark
-                go run main.go schema-and-data -source=mysql -source-profile='host=localhost,user=root,db_name=testdb,password=' -target-profile='instance=new-test-instance,dbname=testdb' -write-limit $writeLimit
+                go run main.go schema-and-data -source=mysql -source-profile='host=localhost,user=root,dbName=testdb,password=' -target-profile='instance=new-test-instance,dbName=testdb' -write-limit $writeLimit
             done
             yes | gcloud spanner instances delete test-instance
         done
@@ -57,7 +57,7 @@ if type mysql >/dev/null 2>&1; then
             do
                 echo "Write limit: $writeLimit"
                 #update source profile password before running the benchmark
-                go run main.go schema-and-data -source=mysql -source-profile='host=localhost,user=root,db_name=testdb,password=' -target-profile='instance=new-test-instance,dbname=testdb' -write-limit $writeLimit
+                go run main.go schema-and-data -source=mysql -source-profile='host=localhost,user=root,dbName=testdb,password=' -target-profile='instance=new-test-instance,dbName=testdb' -write-limit $writeLimit
             done
             yes | gcloud spanner instances delete test-instance
         done
