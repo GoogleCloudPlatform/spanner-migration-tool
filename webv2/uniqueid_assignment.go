@@ -1,10 +1,32 @@
+// Copyright 2020 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package ddl provides a go representation of Spanner DDL
+// as well as helpers for building and manipulating Spanner DDL.
+// We only implement enough DDL types to meet the needs of HarbourBridge.
+//
+// Definitions are from
+// https://cloud.google.com/spanner/docs/data-definition-language.
+
 package webv2
 
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
 
-// AssignUniqueId to handle  cascading effect in UI
+// AssignUniqueId to handle  cascading effect in UI.
+
 func AssignUniqueId(conv *internal.Conv) {
 
 	tableuniqueid := 1

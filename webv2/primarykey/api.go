@@ -1,0 +1,127 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package web defines web APIs to be used with harbourbridge frontend.
+// Apart from schema conversion, this package involves API to update
+// converted schema.
+
+package primarykey
+
+import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
+
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	util "github.com/cloudspannerecosystem/harbourbridge/webv2/utils"
+	"github.com/google/uuid"
+)
+
+// PrimaryKeyRequest represents  Primary keys API Payload
+type PrimaryKeyRequest struct {
+	TableId      int      `json:"TableId"`
+	Columns      []Column `json:"Columns"`
+	PrimaryKeyId int      `json:"PrimaryKeyId"`
+}
+
+// PrimaryKeyResponse represents  Primary keys API response.
+// Synth is true is for table Primary Key Id is not present and it is generated.
+
+type PrimaryKeyResponse struct {
+	TableId      int      `json:"TableId"`
+	Columns      []Column `json:"Columns"`
+	PrimaryKeyId int      `json:"PrimaryKeyId"`
+	Synth        bool     `json:"Synth"`
+}
+
+type Column struct {
+	ColumnId int    `json:"ColumnId"`
+	ColName  string `json:"ColName"`
+	Desc     bool   `json:"Desc"`
+	Order    int    `json:"Order"`
+}
+
+// primaryKey updates Primary keys in Spanner Table.
+func PrimaryKey(w http.ResponseWriter, r *http.Request) {
+
+	id := uuid.New()
+
+	log.Println("request started", "traceid", id.String(), "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
+
+	reqBody, err := ioutil.ReadAll(r.Body)
+
+	if err != nil {
+		log.Println("request's body Read Error")
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	}
+
+	pkRequest := PrimaryKeyRequest{}
+
+	err = json.Unmarshal(reqBody, &pkRequest)
+	if err != nil {
+		log.Println("request's Body parse error")
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+
+	sessionState := session.GetSessionState()
+	spannerTable, found := getSpannerTable(sessionState, pkRequest)
+
+	if !found {
+		log.Println("tableId not found")
+		http.Error(w, fmt.Sprintf("tableId not found : %v", err), http.StatusNotFound)
+		return
+
+	}
+
+	if len(pkRequest.Columns) == 0 {
+		log.Println("empty columm error")
+		http.Error(w, fmt.Sprintf("empty columm error : %v", err), http.StatusBadRequest)
+		return
+
+	}
+
+	if !isValidColumnIds(pkRequest, spannerTable) {
+		log.Println("colummId not found error")
+		http.Error(w, fmt.Sprintf("colummId not found error : %v", err), http.StatusBadRequest)
+		return
+
+	}
+
+	spannerTable = updatePrimaryKey(pkRequest, spannerTable)
+	pKeyResponse := prepareResponse(pkRequest, spannerTable)
+
+	//update spannerTable into sessionState.Conv.SpSchema.
+	for _, table := range sessionState.Conv.SpSchema {
+		if pkRequest.TableId == table.Id {
+			sessionState.Conv.SpSchema[table.Name] = spannerTable
+		}
+	}
+
+	util.UpdateSessionFile()
+
+	/*
+		convm := session.ConvWithMetadata{
+			SessionMetadata: sessionState.SessionMetadata,
+			Conv:            *sessionState.Conv,
+		}
+	*/
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(pKeyResponse)
+
+	log.Println("request completed", "traceid", id.String(), "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
+}

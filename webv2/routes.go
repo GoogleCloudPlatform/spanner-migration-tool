@@ -16,8 +16,10 @@ package webv2
 
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/summary"
+
 	"github.com/gorilla/mux"
 )
 
@@ -56,7 +58,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/ResumeSession/{versionId}", session.ResumeSession).Methods("POST")
 
 	// primarykey
-	router.HandleFunc("/primaryKey", primaryKey).Methods("POST")
+	router.HandleFunc("/primaryKey", primarykey.PrimaryKey).Methods("POST")
 
 	// Summary
 	router.HandleFunc("/summary", summary.GetSummary).Methods("GET")
