@@ -1,0 +1,11 @@
+.container{
+    height:calc(100vh - 80px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    .loader-gif {
+        width: 10rem;
+        height: 10rem;
+    }
+}

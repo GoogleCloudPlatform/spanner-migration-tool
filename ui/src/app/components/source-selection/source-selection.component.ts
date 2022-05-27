@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core'
+import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 
 @Component({
   selector: 'app-source-selection',
@@ -6,7 +7,20 @@ import { Component, OnInit } from '@angular/core'
   styleUrls: ['./source-selection.component.scss'],
 })
 export class SourceSelectionComponent implements OnInit {
-  constructor() {}
+  isDatabaseLoading: boolean = false
+  loaderType: string = ''
+  databaseName: string = ''
+  constructor(private clickevent: ClickEventService) {}
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.clickevent.databaseLoader.subscribe((response) => {
+      this.loaderType = response.type
+      this.databaseName = response.databaseName
+      if (this.loaderType !== '') {
+        this.isDatabaseLoading = true
+      } else {
+        this.isDatabaseLoading = false
+      }
+    })
+  }
 }

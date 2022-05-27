@@ -30,7 +30,8 @@ import { AddIndexFormComponent } from './components/add-index-form/add-index-for
 import { EditGlobalDatatypeFormComponent } from './components/edit-global-datatype-form/edit-global-datatype-form.component'
 import { SidenavViewAssessmentComponent } from './components/sidenav-view-assessment/sidenav-view-assessment.component'
 import { SidenavSaveSessionComponent } from './components/sidenav-save-session/sidenav-save-session.component'
-import { DropIndexDialogComponent } from './components/drop-index-dialog/drop-index-dialog.component'
+import { DropIndexDialogComponent } from './components/drop-index-dialog/drop-index-dialog.component';
+import { DatabaseLoaderComponent } from './components/database-loader/database-loader.component'
 
 @NgModule({
   declarations: [
@@ -58,6 +59,7 @@ import { DropIndexDialogComponent } from './components/drop-index-dialog/drop-in
     SidenavViewAssessmentComponent,
     SidenavSaveSessionComponent,
     DropIndexDialogComponent,
+    DatabaseLoaderComponent,
   ],
   imports: [
     BrowserModule,
