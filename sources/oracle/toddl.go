@@ -158,9 +158,7 @@ func toSpannerTypeInternal(conv *internal.Conv, spType string, srcType string, m
 
 // Override the types to map to experimental postgres types.
 func overrideExperimentalType(columnType schema.Type, originalType ddl.Type) ddl.Type {
-	if columnType.Name == "DATE" {
-		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-	} else if columnType.Name == "JSON" {
+	if columnType.Name == "JSON" {
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 	}
 	return originalType
