@@ -9,6 +9,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/twinj/uuid"
 )
 
 // PrimaryKeyRequest represents  Primary keys API Payload
@@ -18,9 +19,9 @@ type PrimaryKeyRequest struct {
 	PrimaryKeyId int      `json:"PrimaryKeyId"`
 }
 
-/*PrimaryKeyResponse represents  Primary keys API response
-Synth is true is for table Primary Key Id is not present and it is generated
-*/
+// PrimaryKeyResponse represents  Primary keys API response
+// Synth is true is for table Primary Key Id is not present and it is generated
+
 type PrimaryKeyResponse struct {
 	TableId      int      `json:"TableId"`
 	Columns      []Column `json:"Columns"`
@@ -35,8 +36,12 @@ type Column struct {
 	Order    int    `json:"Order"`
 }
 
-//primaryKey updates Primary keys in Spanner Table.
+// primaryKey updates Primary keys in Spanner Table.
 func primaryKey(w http.ResponseWriter, r *http.Request) {
+
+	id := uuid.New()
+
+	log.Println("request started", "traceid", id.String(), "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
 
 	reqBody, err := ioutil.ReadAll(r.Body)
 
@@ -87,6 +92,8 @@ func primaryKey(w http.ResponseWriter, r *http.Request) {
 			sessionState.Conv.SpSchema[table.Name] = spannerTable
 		}
 	}
+
+	log.Println("request completed", "traceid", id.String(), "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
 
 	updateSessionFile()
 	w.WriteHeader(http.StatusOK)
@@ -148,7 +155,7 @@ func difference(listone, listtwo []int) []int {
 	return diff
 }
 
-//updateprimaryKey updates primary key desc and order for primaryKey.
+// updateprimaryKey updates primary key desc and order for primaryKey.
 func updatePrimaryKey(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) {
 
 	for i := 0; i < len(pkRequest.Columns); i++ {
@@ -167,7 +174,7 @@ func updatePrimaryKey(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable)
 	}
 }
 
-//addPrimaryKey insert primary key into list of IndexKey
+// addPrimaryKey insert primary key into list of IndexKey
 func addPrimaryKey(add []int, pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) []ddl.IndexKey {
 
 	list := []ddl.IndexKey{}
@@ -189,7 +196,7 @@ func addPrimaryKey(add []int, pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 	return list
 }
 
-//removePrimaryKey removed primary key from list of IndexKey
+// removePrimaryKey removed primary key from list of IndexKey
 func removePrimaryKey(remove []int, spannerTable ddl.CreateTable) []ddl.IndexKey {
 
 	list := []ddl.IndexKey{}
@@ -209,7 +216,7 @@ func removePrimaryKey(remove []int, spannerTable ddl.CreateTable) []ddl.IndexKey
 	return list
 }
 
-//prepareResponse prepare response for primary key api
+// prepareResponse prepare response for primary key api
 func prepareResponse(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) PrimaryKeyResponse {
 
 	var pKeyResponse PrimaryKeyResponse
@@ -241,8 +248,8 @@ func prepareResponse(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) 
 	return pKeyResponse
 }
 
-//getColumnIdListOfPrimaryKeyRequest return list of column Id from PrimaryKeyRequest
-func getColumnIdListOfPrimaryKeyRequest(pkRequest PrimaryKeyRequest) []int {
+// getColumnIdListFromPrimaryKeyRequest return list of column Id from PrimaryKeyRequest
+func getColumnIdListFromPrimaryKeyRequest(pkRequest PrimaryKeyRequest) []int {
 
 	cidlist := []int{}
 
@@ -252,7 +259,7 @@ func getColumnIdListOfPrimaryKeyRequest(pkRequest PrimaryKeyRequest) []int {
 	return cidlist
 }
 
-//getColumnIdListOfSpannerTablePrimaryKey return list of column Id from spannerTable PrimaryKey
+// getColumnIdListOfSpannerTablePrimaryKey return list of column Id from spannerTable PrimaryKey
 func getColumnIdListOfSpannerTablePrimaryKey(spannerTable ddl.CreateTable) []int {
 	cidlist := []int{}
 
@@ -263,7 +270,7 @@ func getColumnIdListOfSpannerTablePrimaryKey(spannerTable ddl.CreateTable) []int
 	return cidlist
 }
 
-//getColumnIdListOfSpannerTable return list of column Id from spannerTable ColDefs
+// getColumnIdListOfSpannerTable return list of column Id from spannerTable ColDefs
 func getColumnIdListOfSpannerTable(spannerTable ddl.CreateTable) []int {
 	cidlist := []int{}
 
@@ -273,13 +280,11 @@ func getColumnIdListOfSpannerTable(spannerTable ddl.CreateTable) []int {
 	return cidlist
 }
 
-/*
-insertOrRemovePrimarykey performs insert or remove primary key operation based on
-difference of two pkRequest and spannerTable.Pks.
-*/
+// insertOrRemovePrimarykey performs insert or remove primary key operation based on
+// difference of two pkRequest and spannerTable.Pks.
 func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) ddl.CreateTable {
 
-	listone := getColumnIdListOfPrimaryKeyRequest(pkRequest)
+	listone := getColumnIdListFromPrimaryKeyRequest(pkRequest)
 	listtwo := getColumnIdListOfSpannerTablePrimaryKey(spannerTable)
 
 	//primary key Id only presnt in pkeyrequest
@@ -307,7 +312,7 @@ func isValidColumnIds(pkRequest PrimaryKeyRequest, spannertable ddl.CreateTable)
 
 	var validColumnId bool
 
-	listone := getColumnIdListOfPrimaryKeyRequest(pkRequest)
+	listone := getColumnIdListFromPrimaryKeyRequest(pkRequest)
 	listtwo := getColumnIdListOfSpannerTable(spannertable)
 	leftjoin := difference(listone, listtwo)
 
