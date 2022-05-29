@@ -34,7 +34,7 @@
       }
     }
   }
-  
+
   .mat-row,
   .mat-header-row {
     height: 29px;
@@ -109,7 +109,7 @@
 #left-column-toggle-button {
   z-index: 100;
   position: absolute;
-  right: 5px;
+  right: 4px;
   top: 10px;
   border: none;
   background-color: inherit;
@@ -120,4 +120,13 @@
 
 .mat-column-status {
   width: 80px;
+}
+::ng-deep .column-left .mat-tab-label-container {
+  margin-right: 40px;
+}
+::ng-deep .column-left .mat-tab-header-pagination-controls-enabled .mat-tab-label-container {
+  margin-right: 0;
+}
+::ng-deep .column-left .mat-tab-header-pagination-after {
+  margin-right: 40px;
 }
