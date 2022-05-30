@@ -215,6 +215,10 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					l = append(l, fmt.Sprintf("Some columns have source DB type 'datetime' which is mapped to Spanner type timestamp e.g. column '%s'. %s", srcCol, IssueDB[i].Brief))
 				case Widened:
 					l = append(l, fmt.Sprintf("%s e.g. for column '%s', source DB type %s is mapped to Spanner type %s", IssueDB[i].Brief, srcCol, srcType, spType))
+				case Hotspot_Timestamp:
+					l = append(l, fmt.Sprintf(" %s for Tablename  : %s for ColName : %s", IssueDB[i].Brief, spSchema.Name, srcCol))
+				case Hotspot_AutoIncrement:
+					l = append(l, fmt.Sprintf(" %s for Tablename  : %s for ColName : %s", IssueDB[i].Brief, spSchema.Name, srcCol))
 				default:
 					l = append(l, fmt.Sprintf("Column '%s': type %s is mapped to %s. %s", srcCol, srcType, spType, IssueDB[i].Brief))
 				}
@@ -277,6 +281,8 @@ var IssueDB = map[SchemaIssue]struct {
 	Time:                  {Brief: "Spanner does not support time/year types", severity: note, batch: true},
 	Widened:               {Brief: "Some columns will consume more storage in Spanner", severity: note, batch: true},
 	StringOverflow:        {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
+	Hotspot_Timestamp:     {Brief: "Timestamp Hotspot Occured", severity: warning},
+	Hotspot_AutoIncrement: {Brief: "Autoincrement Hotspot Occured", severity: warning},
 }
 
 type severity int

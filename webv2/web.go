@@ -46,10 +46,11 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
+	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	util "github.com/cloudspannerecosystem/harbourbridge/webv2/utils"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
+
 	go_ora "github.com/sijms/go-ora/v2"
 )
 
@@ -168,6 +169,8 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
 
+	Printconv(conv)
+
 	sessionMetadata := session.SessionMetadata{
 		SessionName:  "NewSession",
 		DatabaseType: sessionState.Driver,
@@ -231,6 +234,8 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
+
+	Printconv(conv)
 
 	sessionState.Conv = conv
 	sessionState.SessionMetadata = sessionMetadata
@@ -366,7 +371,7 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	util.UpdateSessionFile()
+	helpers.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -462,7 +467,7 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 			updateNotNull(v.NotNull, table, colName)
 		}
 	}
-	util.UpdateSessionFile()
+	helpers.UpdateSessionFile()
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
 		Conv:            *sessionState.Conv,
@@ -547,7 +552,7 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Table name is empty"), http.StatusBadRequest)
 	}
 	tableInterleaveStatus := parentTableHelper(table, update)
-	util.UpdateSessionFile()
+	helpers.UpdateSessionFile()
 	w.WriteHeader(http.StatusOK)
 
 	if update {
@@ -621,7 +626,7 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	}
 	sp.Fks = removeFk(sp.Fks, position)
 	sessionState.Conv.SpSchema[table] = sp
-	util.UpdateSessionFile()
+	helpers.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -689,7 +694,7 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 	sp.Fks = newFKs
 
 	sessionState.Conv.SpSchema[table] = sp
-	util.UpdateSessionFile()
+	helpers.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -752,7 +757,7 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 	sp.Indexes = newIndexes
 
 	sessionState.Conv.SpSchema[table] = sp
-	util.UpdateSessionFile()
+	helpers.UpdateSessionFile()
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
 		Conv:            *sessionState.Conv,
@@ -804,7 +809,7 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	sp.Indexes = append(sp.Indexes, newIndexes...)
 
 	sessionState.Conv.SpSchema[table] = sp
-	util.UpdateSessionFile()
+	helpers.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -883,7 +888,7 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	sp.Indexes = removeSecondaryIndex(sp.Indexes, position)
 	sessionState.Conv.SpSchema[table] = sp
-	util.UpdateSessionFile()
+	helpers.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,

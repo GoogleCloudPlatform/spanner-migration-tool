@@ -56,6 +56,8 @@ func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 	leftjoin := difference(cidRequestList, cidSpannerTableList)
 	insert := addPrimaryKey(leftjoin, pkRequest, spannerTable)
 
+	isHotSpot(insert, spannerTable)
+
 	spannerTable.Pks = append(spannerTable.Pks, insert...)
 
 	//primary key Id only presnt in spannertable.Pks
@@ -72,7 +74,7 @@ func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 	return spannerTable
 }
 
-// addPrimaryKey insert primary key into list of IndexKey
+// addPrimaryKey insert primary key into list of IndexKey.
 func addPrimaryKey(add []int, pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) []ddl.IndexKey {
 
 	list := []ddl.IndexKey{}
@@ -94,7 +96,7 @@ func addPrimaryKey(add []int, pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 	return list
 }
 
-// removePrimaryKey removed primary key from list of IndexKey
+// removePrimaryKey removed primary key from list of IndexKey.
 func removePrimaryKey(remove []int, spannerTable ddl.CreateTable) []ddl.IndexKey {
 
 	list := []ddl.IndexKey{}

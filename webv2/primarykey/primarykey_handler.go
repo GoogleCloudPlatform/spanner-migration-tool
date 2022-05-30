@@ -25,12 +25,14 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	util "github.com/cloudspannerecosystem/harbourbridge/webv2/utils"
+
 	"github.com/google/uuid"
 )
 
-// PrimaryKeyRequest represents  Primary keys API Payload
+// PrimaryKeyRequest represents  Primary keys API Payload.
 type PrimaryKeyRequest struct {
 	TableId      int      `json:"TableId"`
 	Columns      []Column `json:"Columns"`
@@ -39,7 +41,6 @@ type PrimaryKeyRequest struct {
 
 // PrimaryKeyResponse represents  Primary keys API response.
 // Synth is true is for table Primary Key Id is not present and it is generated.
-
 type PrimaryKeyResponse struct {
 	TableId      int      `json:"TableId"`
 	Columns      []Column `json:"Columns"`
@@ -47,6 +48,7 @@ type PrimaryKeyResponse struct {
 	Synth        bool     `json:"Synth"`
 }
 
+// Column represents  SpannerTables Column.
 type Column struct {
 	ColumnId int    `json:"ColumnId"`
 	ColName  string `json:"ColName"`
@@ -102,7 +104,7 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	spannerTable = updatePrimaryKey(pkRequest, spannerTable)
-	pKeyResponse := prepareResponse(pkRequest, spannerTable)
+	//pKeyResponse := prepareResponse(pkRequest, spannerTable)
 
 	//update spannerTable into sessionState.Conv.SpSchema.
 	for _, table := range sessionState.Conv.SpSchema {
@@ -111,17 +113,47 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	util.UpdateSessionFile()
+	helpers.UpdateSessionFile()
 
-	/*
-		convm := session.ConvWithMetadata{
-			SessionMetadata: sessionState.SessionMetadata,
-			Conv:            *sessionState.Conv,
-		}
-	*/
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(pKeyResponse)
+	json.NewEncoder(w).Encode(convm)
 
 	log.Println("request completed", "traceid", id.String(), "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
+}
+
+//prepareResponse prepare response for primary key api
+func prepareResponse(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) PrimaryKeyResponse {
+
+	var pKeyResponse PrimaryKeyResponse
+
+	pKeyResponse.TableId = pkRequest.TableId
+	pKeyResponse.PrimaryKeyId = pkRequest.PrimaryKeyId
+
+	var isSynthPrimaryKey bool
+
+	//todo check with team
+	for i := 0; i < len(spannerTable.ColNames); i++ {
+		if spannerTable.ColNames[i] == "synth_id" {
+			isSynthPrimaryKey = true
+		}
+	}
+
+	pKeyResponse.Synth = isSynthPrimaryKey
+
+	for _, indexkey := range spannerTable.Pks {
+
+		responseColumn := Column{}
+		id := getColumnId(spannerTable, indexkey.Col)
+		responseColumn.ColumnId = id
+		responseColumn.ColName = indexkey.Col
+		responseColumn.Desc = indexkey.Desc
+		responseColumn.Order = indexkey.Order
+		pKeyResponse.Columns = append(pKeyResponse.Columns, responseColumn)
+	}
+	return pKeyResponse
 }

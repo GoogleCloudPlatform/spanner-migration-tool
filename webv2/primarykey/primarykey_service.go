@@ -23,6 +23,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
+// getColumnId return ColumnId for given columnName.
 func getColumnId(spannerTable ddl.CreateTable, columnName string) int {
 
 	var id int
@@ -34,6 +35,7 @@ func getColumnId(spannerTable ddl.CreateTable, columnName string) int {
 	return id
 }
 
+// getSpannerTable return spannerTable for given TableId.
 func getSpannerTable(sessionState *session.SessionState, pkRequest PrimaryKeyRequest) (spannerTable ddl.CreateTable, found bool) {
 
 	for _, table := range sessionState.Conv.SpSchema {
@@ -46,6 +48,7 @@ func getSpannerTable(sessionState *session.SessionState, pkRequest PrimaryKeyReq
 	return spannerTable, found
 }
 
+// getColumnName return columnName for given columnId.
 func getColumnName(spannerTable ddl.CreateTable, columnId int) string {
 
 	var columnName string
@@ -89,6 +92,7 @@ func getColumnIdListOfSpannerTable(spannerTable ddl.CreateTable) []int {
 	return cidlist
 }
 
+// isValidColumnIds checks columnId is already present in schema.
 func isValidColumnIds(pkRequest PrimaryKeyRequest, spannertable ddl.CreateTable) bool {
 
 	cidRequestList := getColumnIdListFromPrimaryKeyRequest(pkRequest)
@@ -99,4 +103,25 @@ func isValidColumnIds(pkRequest PrimaryKeyRequest, spannertable ddl.CreateTable)
 		return false
 	}
 	return true
+}
+
+// difference gives list of element that are only present in first list.
+func difference(listone, listtwo []int) []int {
+
+	hashmap := make(map[int]int, len(listtwo))
+
+	for _, val := range listtwo {
+		hashmap[val]++
+	}
+
+	var diff []int
+
+	for _, val := range listone {
+
+		_, found := hashmap[val]
+		if !found {
+			diff = append(diff, val)
+		}
+	}
+	return diff
 }

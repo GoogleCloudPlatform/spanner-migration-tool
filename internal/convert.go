@@ -85,6 +85,8 @@ const (
 	Widened
 	Time
 	StringOverflow
+	Hotspot_Timestamp
+	Hotspot_AutoIncrement
 )
 
 // NameAndCols contains the name of a table and its columns.
