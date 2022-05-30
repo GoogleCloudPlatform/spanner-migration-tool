@@ -169,8 +169,6 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
 
-	Printconv(conv)
-
 	sessionMetadata := session.SessionMetadata{
 		SessionName:  "NewSession",
 		DatabaseType: sessionState.Driver,
@@ -234,8 +232,6 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
-
-	Printconv(conv)
 
 	sessionState.Conv = conv
 	sessionState.SessionMetadata = sessionMetadata
@@ -1046,7 +1042,7 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 func isUniqueName(name string) bool {
 	sessionState := session.GetSessionState()
 
-	for table, _ := range sessionState.Conv.SpSchema {
+	for table := range sessionState.Conv.SpSchema {
 		if table == name {
 			return false
 		}
