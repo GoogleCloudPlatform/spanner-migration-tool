@@ -59,6 +59,7 @@ export class SummaryComponent implements OnInit {
   }
 
   initiateSummaryCollection(summary: ISummary) {
+    this.summaryRows = []
     summary.Warnings.forEach((v) => {
       this.summaryRows.push({
         type: 'warning',
@@ -73,7 +74,7 @@ export class SummaryComponent implements OnInit {
         isRead: false,
       })
     })
-    this.filteredSummaryRows = this.summaryRows
+    this.applyFilters()
   }
 
   applyFilters() {

@@ -166,6 +166,13 @@ export class DataService {
         this.ddlSub.next(ddl)
       })
   }
+  getSummary() {
+    return this.fetch.getSummary().subscribe({
+      next: (summary: any) => {
+        this.summarySub.next(new Map<string, ISummary>(Object.entries(summary)))
+      },
+    })
+  }
 
   updateTable(tableName: string, data: IUpdateTable): Observable<string> {
     return this.fetch.updateTable(tableName, data).pipe(
@@ -240,6 +247,7 @@ export class DataService {
       next: (data: any) => {
         this.convSubject.next(data)
         this.snackbar.openSnackBar('Global datatype updated successfully', 'Close', 5)
+        this.getSummary()
       },
       error: (err: any) => {
         this.snackbar.openSnackBar('Unable to add rule', 'Close')
