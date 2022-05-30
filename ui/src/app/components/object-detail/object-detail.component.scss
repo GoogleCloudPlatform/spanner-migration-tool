@@ -57,7 +57,17 @@
 .add-index-column {
   margin-left: 50%;
   padding: 10px;
-  .index-column-list {
+  .column-list {
+    width: 40%;
+  }
+  .add-column-button {
+    width: 40%;
+  }
+}
+.add-pk-column {
+  margin-left: 50%;
+  padding: 10px;
+  .column-list {
     width: 40%;
   }
   .add-column-button {
@@ -65,12 +75,13 @@
   }
 }
 
-:host ::ng-deep .mat-tab-body-wrapper {
+.add :host ::ng-deep .mat-tab-body-wrapper {
   height: 100%;
 }
 
 .column-tab-container,
-.fk-tab-container {
+.fk-tab-container,
+.pk-tab-container {
   height: 84%;
   table {
     width: 100%;
@@ -148,11 +159,14 @@
   .mat-column-spColName,
   .mat-column-srcDataType,
   .mat-column-spDataType,
-  .mat-column-srcIsNotNull,
-  .mat-column-spIsNotNull,
   .mat-column-spIndexColName,
   .mat-column-srcIndexColName {
     min-width: 100px;
+  }
+
+  .mat-column-srcIsNotNull,
+  .mat-column-spIsNotNull {
+    min-width: 70px;
   }
 
   .mat-column-srcIsNotNull,
