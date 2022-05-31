@@ -27,7 +27,6 @@ import (
 )
 
 // AssignUniqueId to handle  cascading effect in UI.
-
 func AssignUniqueId(conv *internal.Conv) {
 
 	tableuniqueid := 1
@@ -46,18 +45,16 @@ func AssignUniqueId(conv *internal.Conv) {
 
 				tableuniqueid = tableuniqueid + 1
 
-				columnuniqueid := 1
-
 				for sourcecolumnname, sourcecolumn := range sourcetable.ColDefs {
 
 					for spannercolumnname, spannercolumn := range spannertable.ColDefs {
 
 						if sourcecolumn.Name == spannercolumn.Name {
 
-							sourcecolumn.Id = columnuniqueid
-							spannercolumn.Id = columnuniqueid
+							index := getColumnIndex(spannertable, spannercolumn.Name)
 
-							columnuniqueid = columnuniqueid + 1
+							sourcecolumn.Id = index
+							spannercolumn.Id = index
 
 							conv.SrcSchema[sourcetablename].ColDefs[sourcecolumnname] = sourcecolumn
 							conv.SpSchema[spannertablename].ColDefs[spannercolumnname] = spannercolumn
@@ -77,6 +74,7 @@ func AssignUniqueId(conv *internal.Conv) {
 
 }
 
+// UpdateIndexKeyOrder Update Primary Key Order as ColumnId
 func UpdateIndexKeyOrder(spannertable ddl.CreateTable) {
 
 	for i := 0; i < len(spannertable.Pks); i++ {
@@ -86,4 +84,15 @@ func UpdateIndexKeyOrder(spannertable ddl.CreateTable) {
 			}
 		}
 	}
+}
+
+// getColumnIndex return Columnn Index as Inserted Order.
+func getColumnIndex(spannertable ddl.CreateTable, columnName string) int {
+
+	for i := 0; i < len(spannertable.ColNames); i++ {
+		if spannertable.ColNames[i] == columnName {
+			return i + 1
+		}
+	}
+	return 0
 }
