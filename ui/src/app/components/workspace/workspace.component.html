@@ -27,8 +27,8 @@
     >
       <app-object-explorer
         (selectObject)="changeCurrentObject($event)"
-        (searchSpannerTable)="searchSpannerTable($event)"
-        (searchSrcTable)="searchSrcTable($event)"
+        (updateSpannerTable)="updateSpannerTable($event)"
+        (updateSrcTable)="updateSrcTable($event)"
         (leftCollaspe)="leftColumnToggle()"
         [spannerTree]="spannerTree"
         [srcTree]="srcTree"

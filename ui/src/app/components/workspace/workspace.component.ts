@@ -9,6 +9,7 @@ import IFkTabData from 'src/app/model/fk-tab-data'
 import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import ISchemaObjectNode, { FlatNode } from 'src/app/model/schema-object-node'
 import { ObjectExplorerNodeType } from 'src/app/app.constants'
+import { IUpdateTableArgument } from 'src/app/model/update-table'
 
 @Component({
   selector: 'app-workspace',
@@ -151,13 +152,24 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     a.click()
   }
 
-  searchSpannerTable(text: string) {
-    this.spannerTree = this.conversion.createTreeNode(this.conv, this.conversionRates, text)
+  updateSpannerTable(data: IUpdateTableArgument) {
+    this.spannerTree = this.conversion.createTreeNode(
+      this.conv,
+      this.conversionRates,
+      data.text,
+      data.order
+    )
   }
 
-  searchSrcTable(text: string) {
-    this.srcTree = this.conversion.createTreeNodeForSource(this.conv, this.conversionRates, text)
+  updateSrcTable(data: IUpdateTableArgument) {
+    this.srcTree = this.conversion.createTreeNodeForSource(
+      this.conv,
+      this.conversionRates,
+      data.text,
+      data.order
+    )
   }
+
   isIndexAdded(data: IConv) {
     if (this.conv) {
       let prevIndexCount = 0

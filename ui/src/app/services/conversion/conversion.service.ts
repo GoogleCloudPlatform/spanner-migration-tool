@@ -14,7 +14,8 @@ export class ConversionService {
   createTreeNode(
     conv: IConv,
     conversionRates: Record<string, string>,
-    searchText: string = ''
+    searchText: string = '',
+    sortOrder: string = ''
   ): ISchemaObjectNode[] {
     let spannerTableNames = Object.keys(conv.SpSchema).filter((name: string) =>
       name.toLocaleLowerCase().includes(searchText.toLocaleLowerCase())
@@ -58,6 +59,12 @@ export class ConversionService {
         }
       }),
     }
+    if (sortOrder === 'asc') {
+      parentNode.children?.sort((a, b) => (a.name > b.name ? 1 : b.name > a.name ? -1 : 0))
+    } else if (sortOrder === 'desc') {
+      parentNode.children?.sort((a, b) => (b.name > a.name ? 1 : a.name > b.name ? -1 : 0))
+    }
+
     return [
       {
         name: conv.DatabaseName,
@@ -73,7 +80,8 @@ export class ConversionService {
   createTreeNodeForSource(
     conv: IConv,
     conversionRates: Record<string, string>,
-    searchText: string = ''
+    searchText: string = '',
+    sortOrder: string = ''
   ): ISchemaObjectNode[] {
     let srcTableNames = Object.keys(conv.SrcSchema).filter((name: string) =>
       name.toLocaleLowerCase().includes(searchText.toLocaleLowerCase())
@@ -118,6 +126,11 @@ export class ConversionService {
           ],
         }
       }),
+    }
+    if (sortOrder === 'asc') {
+      parentNode.children?.sort((a, b) => (a.name > b.name ? 1 : b.name > a.name ? -1 : 0))
+    } else if (sortOrder === 'desc') {
+      parentNode.children?.sort((a, b) => (b.name > a.name ? 1 : a.name > b.name ? -1 : 0))
     }
 
     return [

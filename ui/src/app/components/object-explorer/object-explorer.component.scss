@@ -3,6 +3,34 @@
   .filter-wrapper {
     padding: 0 10px;
   }
+  .mat-header-cell-name {
+    cursor: pointer;
+  }
+  .mat-header-cell-name div {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+  }
+  .mat-header-cell-name .spanner-unsorted-icon {
+    visibility: hidden;
+  }
+  .mat-header-cell-name:hover .spanner-unsorted-icon {
+    visibility: visible;
+    opacity: 0.7;
+  }
+  .mat-header-cell-name .src-unsorted-icon {
+    visibility: hidden;
+  }
+  .mat-header-cell-name:hover .src-unsorted-icon {
+    visibility: visible;
+    opacity: 0.7;
+  }
+  .sort-icon {
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
 }
 
 .selected-row {
