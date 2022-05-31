@@ -14,7 +14,6 @@ import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
 import IConv, { IPrimaryKey } from 'src/app/model/conv'
 import { DropIndexDialogComponent } from '../drop-index-dialog/drop-index-dialog.component'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
-import { ChangeDetectorRef } from '@angular/core'
 
 @Component({
   selector: 'app-object-detail',
@@ -26,8 +25,7 @@ export class ObjectDetailComponent implements OnInit {
     private data: DataService,
     private dialog: MatDialog,
     private snackbar: SnackbarService,
-    private conversion: ConversionService,
-    private cd: ChangeDetectorRef
+    private conversion: ConversionService
   ) {}
 
   @Input() currentObject: FlatNode | null = null
@@ -100,7 +98,6 @@ export class ObjectDetailComponent implements OnInit {
   isIndexEditMode: boolean = false
   isObjectSelected: boolean = false
   rowArray: FormArray = new FormArray([])
-
   pkArray: FormArray = new FormArray([])
   fkArray: FormArray = new FormArray([])
   srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
@@ -339,7 +336,11 @@ export class ObjectDetailComponent implements OnInit {
     this.tableData[index].spIsPk = true
     this.pkData = []
     this.pkData = this.conversion.getPkMapping(this.tableData)
-    console.log(this.pkData)
+    this.pkArray.value.forEach((pk: IColumnTabData, i: number) => {
+      if (this.pkData[i].spOrder !== pk.spOrder && pk.spOrder) {
+        this.pkData[i].spOrder = pk.spOrder
+      }
+    })
     this.setAddPkColumnList()
     this.setPkRows()
   }
@@ -352,7 +353,6 @@ export class ObjectDetailComponent implements OnInit {
         currentPkColumns.push(row.spColName)
       }
     })
-
     for (let i = 0; i < this.tableData.length; i++) {
       if (!currentPkColumns.includes(this.tableData[i].spColName))
         this.pkColumnNames.push(this.tableData[i].spColName)
@@ -360,16 +360,29 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setPkOrder() {
-    this.pkData.forEach((pk: IColumnTabData, i: number) => {
-      this.pkData[i].spOrder = this.conv.SpSchema[this.currentObject!.name].Pks[i].Order
-    })
-    console.log(this.pkData)
-    console.log(this.tableData)
+    if (
+      this.currentObject &&
+      this.conv.SpSchema[this.currentObject!.name].Pks.length == this.pkData.length
+    ) {
+      this.pkData.forEach((pk: IColumnTabData, i: number) => {
+        if (this.pkData[i].spColName === this.conv.SpSchema[this.currentObject!.name].Pks[i].Col) {
+          this.pkData[i].spOrder = this.conv.SpSchema[this.currentObject!.name].Pks[i].Order
+        } else {
+          let index = this.conv.SpSchema[this.currentObject!.name].Pks.map(
+            (item) => item.Col
+          ).indexOf(pk.spColName)
+          pk.spOrder = this.conv.SpSchema[this.currentObject!.name].Pks[index].Order
+        }
+      })
+    } else {
+      this.pkData.forEach((pk: IColumnTabData, i: number) => {
+        let index = this.conv.SpSchema[this.currentObject!.name].Pks.map(
+          (item) => item.Col
+        ).indexOf(pk.spColName)
+        pk.spOrder = this.conv.SpSchema[this.currentObject!.name].Pks[index].Order
+      })
+    }
   }
-
-  // Desc: this.conv.SpSchema[this.currentObject!.name].Pks.find(
-  //         ({ Col }) => Col === row.spColName
-  //       )!.Desc,
 
   getPkRequestObj() {
     let tableId: number = this.conv.SpSchema[this.currentObject!.name].Id
@@ -379,7 +392,14 @@ export class ObjectDetailComponent implements OnInit {
       if (row.spIsPk)
         Columns.push({
           ColumnId: this.conv.SpSchema[this.currentObject!.name].ColDefs[row.spColName].Id,
-          Desc: false,
+          Desc:
+            typeof this.conv.SpSchema[this.currentObject!.name].Pks.find(
+              ({ Col }) => Col === row.spColName
+            ) !== 'undefined'
+              ? this.conv.SpSchema[this.currentObject!.name].Pks.find(
+                  ({ Col }) => Col === row.spColName
+                )!.Desc
+              : false,
           Order: parseInt(row.spOrder as string),
         })
     })
@@ -392,14 +412,17 @@ export class ObjectDetailComponent implements OnInit {
     this.currentTabIndex = 1
     if (this.isPkEditMode) {
       this.getPkRequestObj()
-      console.log(this.pkData)
-      console.log(this.pkArray.value)
+      if (this.pkObj.Columns.length == 0) {
+        this.dialog.open(InfodialogComponent, {
+          data: { message: 'Add columns to the primary key for saving', type: 'error' },
+          maxWidth: '500px',
+        })
+      }
       this.pkArray.value.forEach((pk: IColumnTabData, i: number) => {
         if (this.pkData[i].spOrder !== pk.spOrder) {
           this.pkData[i].spOrder = pk.spOrder
         }
       })
-      console.log(this.pkObj)
       this.data.updatePk(this.pkObj).subscribe({
         next: (res: string) => {
           if (res == '') {
@@ -423,7 +446,11 @@ export class ObjectDetailComponent implements OnInit {
     this.tableData[index].spIsPk = false
     this.pkData = []
     this.pkData = this.conversion.getPkMapping(this.tableData)
-    console.log(this.pkData)
+    this.pkArray.value.forEach((pk: IColumnTabData, i: number) => {
+      if (typeof this.pkData[i] !== 'undefined' && this.pkData[i].spOrder !== pk.spOrder) {
+        this.pkData[i].spOrder = pk.spOrder
+      }
+    })
     this.setAddPkColumnList()
     this.setPkRows()
   }

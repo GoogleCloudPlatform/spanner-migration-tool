@@ -368,7 +368,7 @@
           <ng-container matColumnDef="spOrder">
             <th class="table_header" mat-header-cell *matHeaderCellDef>Order</th>
             <td mat-cell *matCellDef="let element">
-              <div *ngIf="isPkEditMode && element.get('spOrder').value !== ''">
+              <div *ngIf="isPkEditMode && element.get('spColName').value !== ''">
                 <input
                   matInput
                   class="order_input"
