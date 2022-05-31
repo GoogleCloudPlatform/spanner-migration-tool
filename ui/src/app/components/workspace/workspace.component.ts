@@ -36,6 +36,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   spannerTree: ISchemaObjectNode[] = []
   srcTree: ISchemaObjectNode[] = []
   issuesAndSuggestionsLabel: string = 'ISSUES AND SUGGESTIONS'
+  objectExplorerInitiallyRender: boolean = false
   constructor(
     private data: DataService,
     private conversion: ConversionService,
@@ -59,7 +60,12 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.convObj = this.data.conv.subscribe((data: IConv) => {
       const indexAdded = this.isIndexAdded(data)
       this.conv = data
-      if (indexAdded) this.reRenderObjectExplorerSpanner()
+      if (indexAdded && this.conversionRates) this.reRenderObjectExplorerSpanner()
+      if (!this.objectExplorerInitiallyRender && this.conversionRates) {
+        this.reRenderObjectExplorerSpanner()
+        this.reRenderObjectExplorerSrc()
+        this.objectExplorerInitiallyRender = true
+      }
       if (this.currentObject && this.currentObject.type === ObjectExplorerNodeType.Table) {
         this.fkData = this.currentObject
           ? this.conversion.getFkMapping(this.currentObject.name, data)
@@ -73,8 +79,13 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
 
     this.converObj = this.data.conversionRate.subscribe((rates: any) => {
       this.conversionRates = rates
-      this.reRenderObjectExplorerSpanner()
-      this.reRenderObjectExplorerSrc()
+      if (this.conv) {
+        this.reRenderObjectExplorerSpanner()
+        this.reRenderObjectExplorerSrc()
+        this.objectExplorerInitiallyRender = true
+      } else {
+        this.objectExplorerInitiallyRender = false
+      }
     })
 
     this.data.isOffline.subscribe({
