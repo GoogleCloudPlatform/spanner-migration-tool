@@ -40,7 +40,7 @@ export class ConversionService {
               name: `Indexes (${spannerTable.Indexes ? spannerTable.Indexes.length : 0})`,
               status: '',
               type: ObjectExplorerNodeType.Indexes,
-              parent: '',
+              parent: name,
               pos: -1,
               isSpannerNode: true,
               children: spannerTable.Indexes
@@ -108,7 +108,7 @@ export class ConversionService {
               name: `Indexes (${srcTable.Indexes?.length || '0'})`,
               status: '',
               type: ObjectExplorerNodeType.Indexes,
-              parent: '',
+              parent: name,
               pos: -1,
               isSpannerNode: false,
               children: srcTable.Indexes
