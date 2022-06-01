@@ -45,6 +45,7 @@ export class ObjectDetailComponent implements OnInit {
     this.data.conv.subscribe({
       next: (res: IConv) => {
         this.conv = res
+        this.data.getSummary()
       },
     })
   }
@@ -435,6 +436,7 @@ export class ObjectDetailComponent implements OnInit {
           }
         },
       })
+
       this.isPkEditMode = false
     } else {
       this.isPkEditMode = true
