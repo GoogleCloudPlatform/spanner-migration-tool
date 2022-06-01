@@ -45,7 +45,6 @@ export class ObjectDetailComponent implements OnInit {
     this.data.conv.subscribe({
       next: (res: IConv) => {
         this.conv = res
-        this.data.getSummary()
       },
     })
   }
@@ -189,6 +188,8 @@ export class ObjectDetailComponent implements OnInit {
       )
     })
     this.fkDataSource = this.fkArray.controls
+
+    this.data.getSummary()
   }
 
   toggleEdit() {
