@@ -160,6 +160,14 @@ export class DataService {
       })
   }
 
+  getSummary() {
+    return this.fetch.getSummary().subscribe({
+      next: (summary: any) => {
+        this.summarySub.next(new Map<string, ISummary>(Object.entries(summary)))
+      },
+    })
+  }
+
   updateTable(tableName: string, data: IUpdateTable): Observable<string> {
     return this.fetch.updateTable(tableName, data).pipe(
       catchError((e: any) => {
