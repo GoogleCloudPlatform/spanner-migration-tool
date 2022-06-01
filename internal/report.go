@@ -219,6 +219,12 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					l = append(l, fmt.Sprintf(" %s for Tablename  : %s for ColName : %s", IssueDB[i].Brief, spSchema.Name, srcCol))
 				case Hotspot_AutoIncrement:
 					l = append(l, fmt.Sprintf(" %s for Tablename  : %s for ColName : %s", IssueDB[i].Brief, spSchema.Name, srcCol))
+				case Interleaved_NotINOrder:
+					l = append(l, fmt.Sprintf(" %s for Tablename  : %s for ColName : %s", IssueDB[i].Brief, spSchema.Name, srcCol))
+
+				case Interleaved_Order:
+					l = append(l, fmt.Sprintf(" %s for Tablename  : %s for ColName : %s", IssueDB[i].Brief, spSchema.Name, srcCol))
+
 				default:
 					l = append(l, fmt.Sprintf("Column '%s': type %s is mapped to %s. %s", srcCol, srcType, spType, IssueDB[i].Brief))
 				}
@@ -266,23 +272,25 @@ var IssueDB = map[SchemaIssue]struct {
 	severity severity
 	batch    bool // Whether multiple instances of this issue are combined.
 }{
-	DefaultValue:          {Brief: "Some columns have default values which Spanner does not support", severity: warning, batch: true},
-	ForeignKey:            {Brief: "Spanner does not support foreign keys", severity: warning},
-	MultiDimensionalArray: {Brief: "Spanner doesn't support multi-dimensional arrays", severity: warning},
-	NoGoodType:            {Brief: "No appropriate Spanner type", severity: warning},
-	Numeric:               {Brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", severity: warning},
-	NumericThatFits:       {Brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", severity: note},
-	Decimal:               {Brief: "Spanner does not support decimal. This type mapping could lose precision and is not recommended for production use", severity: warning},
-	DecimalThatFits:       {Brief: "Spanner does not support decimal, but this type mapping preserves the decimal's specified precision", severity: note},
-	Serial:                {Brief: "Spanner does not support autoincrementing types", severity: warning},
-	AutoIncrement:         {Brief: "Spanner does not support auto_increment attribute", severity: warning},
-	Timestamp:             {Brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: note, batch: true},
-	Datetime:              {Brief: "Spanner timestamp is closer to MySQL timestamp", severity: note, batch: true},
-	Time:                  {Brief: "Spanner does not support time/year types", severity: note, batch: true},
-	Widened:               {Brief: "Some columns will consume more storage in Spanner", severity: note, batch: true},
-	StringOverflow:        {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
-	Hotspot_Timestamp:     {Brief: "Timestamp Hotspot Occured", severity: warning},
-	Hotspot_AutoIncrement: {Brief: "Autoincrement Hotspot Occured", severity: warning},
+	DefaultValue:           {Brief: "Some columns have default values which Spanner does not support", severity: warning, batch: true},
+	ForeignKey:             {Brief: "Spanner does not support foreign keys", severity: warning},
+	MultiDimensionalArray:  {Brief: "Spanner doesn't support multi-dimensional arrays", severity: warning},
+	NoGoodType:             {Brief: "No appropriate Spanner type", severity: warning},
+	Numeric:                {Brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", severity: warning},
+	NumericThatFits:        {Brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", severity: note},
+	Decimal:                {Brief: "Spanner does not support decimal. This type mapping could lose precision and is not recommended for production use", severity: warning},
+	DecimalThatFits:        {Brief: "Spanner does not support decimal, but this type mapping preserves the decimal's specified precision", severity: note},
+	Serial:                 {Brief: "Spanner does not support autoincrementing types", severity: warning},
+	AutoIncrement:          {Brief: "Spanner does not support auto_increment attribute", severity: warning},
+	Timestamp:              {Brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: note, batch: true},
+	Datetime:               {Brief: "Spanner timestamp is closer to MySQL timestamp", severity: note, batch: true},
+	Time:                   {Brief: "Spanner does not support time/year types", severity: note, batch: true},
+	Widened:                {Brief: "Some columns will consume more storage in Spanner", severity: note, batch: true},
+	StringOverflow:         {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
+	Hotspot_Timestamp:      {Brief: "Timestamp Hotspot Occured", severity: warning},
+	Hotspot_AutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: warning},
+	Interleaved_NotINOrder: {Brief: "Table Can Be Interleaved if Primary Key Order is changed", severity: warning},
+	Interleaved_Order:      {Brief: "Can Convert to Interleaved", severity: warning},
 }
 
 type severity int

@@ -233,6 +233,8 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
 
+	Printconv(conv)
+
 	sessionState.Conv = conv
 	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = dc.Driver
@@ -591,11 +593,58 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				break
 			}
 		}
+
 		if tableInterleaveStatus.Parent == "" {
 			tableInterleaveStatus.Possible = false
 			tableInterleaveStatus.Comment = "No valid prefix"
 		}
 	}
+
+	parentpks := sessionState.Conv.SpSchema[tableInterleaveStatus.Parent].Pks
+
+	fmt.Println("parentpks :", parentpks)
+
+	tablepks := sessionState.Conv.SpSchema[table].Pks
+
+	if parentpks[0].Order == tablepks[0].Order {
+		fmt.Println(" table currently can be interleaved because order of primary key")
+
+		sessionState := session.GetSessionState()
+		schemaissue := sessionState.Conv.Issues[table][tablepks[0].Col]
+
+		schemaissue = append(schemaissue, internal.Interleaved_Order)
+		sessionState.Conv.Issues[table][tablepks[0].Col] = schemaissue
+
+		tableInterleaveStatus.Possible = true
+	}
+
+	if parentpks[0].Order != tablepks[0].Order {
+
+		fmt.Println(" table currently can not be interleaved because order of primary key")
+
+		fmt.Println(table, "can be interleaved with ", tableInterleaveStatus.Parent, "if order of", tablepks[0].Col, "changed")
+		tableInterleaveStatus.Comment = fmt.Sprintln(table, "can be interleaved with ", tableInterleaveStatus.Parent, "if order of", tablepks[0].Col, "changed")
+		tableInterleaveStatus.Possible = false
+
+		sessionState := session.GetSessionState()
+		schemaissue := sessionState.Conv.Issues[table][tablepks[0].Col]
+
+		schemaissue = append(schemaissue, internal.Interleaved_NotINOrder)
+		sessionState.Conv.Issues[table][tablepks[0].Col] = schemaissue
+
+	}
+
+	fmt.Println("tablepks :", tablepks)
+
+	if tableInterleaveStatus.Possible == true {
+		fmt.Println(table, "can be interleaved with ", tableInterleaveStatus.Parent)
+	} else {
+		fmt.Println(table, "can not be interleaved with ", tableInterleaveStatus.Parent)
+	}
+
+	//1 if columns are in order and both column are in composite keys
+	//2 both column is in primary key but order is different.
+	//3
 	return tableInterleaveStatus
 }
 
