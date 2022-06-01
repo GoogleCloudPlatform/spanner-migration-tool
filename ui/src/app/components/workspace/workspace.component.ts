@@ -9,6 +9,7 @@ import IFkTabData from 'src/app/model/fk-tab-data'
 import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import ISchemaObjectNode, { FlatNode } from 'src/app/model/schema-object-node'
 import { ObjectExplorerNodeType } from 'src/app/app.constants'
+import { IUpdateTableArgument } from 'src/app/model/update-table'
 
 @Component({
   selector: 'app-workspace',
@@ -35,6 +36,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   spannerTree: ISchemaObjectNode[] = []
   srcTree: ISchemaObjectNode[] = []
   issuesAndSuggestionsLabel: string = 'ISSUES AND SUGGESTIONS'
+  objectExplorerInitiallyRender: boolean = false
   constructor(
     private data: DataService,
     private conversion: ConversionService,
@@ -58,7 +60,12 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.convObj = this.data.conv.subscribe((data: IConv) => {
       const indexAdded = this.isIndexAdded(data)
       this.conv = data
-      if (indexAdded) this.reRenderObjectExplorerSpanner()
+      if (indexAdded && this.conversionRates) this.reRenderObjectExplorerSpanner()
+      if (!this.objectExplorerInitiallyRender && this.conversionRates) {
+        this.reRenderObjectExplorerSpanner()
+        this.reRenderObjectExplorerSrc()
+        this.objectExplorerInitiallyRender = true
+      }
       if (this.currentObject && this.currentObject.type === ObjectExplorerNodeType.Table) {
         this.fkData = this.currentObject
           ? this.conversion.getFkMapping(this.currentObject.name, data)
@@ -72,8 +79,13 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
 
     this.converObj = this.data.conversionRate.subscribe((rates: any) => {
       this.conversionRates = rates
-      this.reRenderObjectExplorerSpanner()
-      this.reRenderObjectExplorerSrc()
+      if (this.conv) {
+        this.reRenderObjectExplorerSpanner()
+        this.reRenderObjectExplorerSrc()
+        this.objectExplorerInitiallyRender = true
+      } else {
+        this.objectExplorerInitiallyRender = false
+      }
     })
 
     this.data.isOffline.subscribe({
@@ -151,13 +163,24 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     a.click()
   }
 
-  searchSpannerTable(text: string) {
-    this.spannerTree = this.conversion.createTreeNode(this.conv, this.conversionRates, text)
+  updateSpannerTable(data: IUpdateTableArgument) {
+    this.spannerTree = this.conversion.createTreeNode(
+      this.conv,
+      this.conversionRates,
+      data.text,
+      data.order
+    )
   }
 
-  searchSrcTable(text: string) {
-    this.srcTree = this.conversion.createTreeNodeForSource(this.conv, this.conversionRates, text)
+  updateSrcTable(data: IUpdateTableArgument) {
+    this.srcTree = this.conversion.createTreeNodeForSource(
+      this.conv,
+      this.conversionRates,
+      data.text,
+      data.order
+    )
   }
+
   isIndexAdded(data: IConv) {
     if (this.conv) {
       let prevIndexCount = 0

@@ -8,8 +8,8 @@
         </div>
         <div class="right">
           <input
-            [(ngModel)]="searchText"
-            (ngModelChange)="filterSrcTable($event)"
+            [(ngModel)]="srcSearchText"
+            (ngModelChange)="filterSrcTable()"
             placeholder="Filter by name"
           />
         </div>
@@ -30,8 +30,24 @@
             </td>
           </ng-container>
           <ng-container matColumnDef="name">
-            <th mat-header-cell *matHeaderCellDef>
-              <span style="text-align: center"> Object Name </span>
+            <th
+              mat-header-cell
+              *matHeaderCellDef
+              (click)="srcTableSort()"
+              class="mat-header-cell-name"
+            >
+              <div>
+                <span> Object Name </span>
+                <mat-icon class="src-unsorted-icon sort-icon" *ngIf="this.srcSortOrder === ''"
+                  >arrow_upward</mat-icon
+                >
+                <mat-icon *ngIf="this.srcSortOrder === 'asc'" class="sort-icon"
+                  >arrow_upward</mat-icon
+                >
+                <mat-icon *ngIf="this.srcSortOrder === 'desc'" class="sort-icon"
+                  >arrow_downward</mat-icon
+                >
+              </div>
             </th>
             <td mat-cell *matCellDef="let data" class="sidebar_link">
               <button
@@ -139,8 +155,8 @@
         </div>
         <div class="right">
           <input
-            [(ngModel)]="searchText"
-            (ngModelChange)="filterSpannerTable($event)"
+            [(ngModel)]="spannerSearchText"
+            (ngModelChange)="filterSpannerTable()"
             placeholder="Filter by name"
           />
         </div>
@@ -162,8 +178,26 @@
             </td>
           </ng-container>
           <ng-container matColumnDef="name">
-            <th mat-header-cell *matHeaderCellDef>
-              <span style="text-align: center"> Object Name </span>
+            <th
+              mat-header-cell
+              *matHeaderCellDef
+              (click)="spannerTableSort()"
+              class="mat-header-cell-name"
+            >
+              <div>
+                <span> Object Name </span>
+                <mat-icon
+                  class="spanner-unsorted-icon sort-icon"
+                  *ngIf="this.spannerSortOrder === ''"
+                  >arrow_upward</mat-icon
+                >
+                <mat-icon *ngIf="this.spannerSortOrder === 'asc'" class="sort-icon"
+                  >arrow_upward</mat-icon
+                >
+                <mat-icon *ngIf="this.spannerSortOrder === 'desc'" class="sort-icon"
+                  >arrow_downward</mat-icon
+                >
+              </div>
             </th>
             <td mat-cell *matCellDef="let data" class="sidebar_link">
               <button

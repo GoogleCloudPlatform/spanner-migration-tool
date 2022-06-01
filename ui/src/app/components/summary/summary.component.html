@@ -30,7 +30,7 @@
 
               <mat-autocomplete #auto="matAutocomplete">
                 <mat-option
-                  (onSelectionChange)="addFilter(option)"
+                  (click)="addFilter(option)"
                   *ngFor="let option of obsFilteredOptions | async"
                   [value]="option"
                 >

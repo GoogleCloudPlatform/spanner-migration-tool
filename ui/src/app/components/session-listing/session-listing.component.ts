@@ -25,6 +25,19 @@ export class SessionListingComponent implements OnInit {
   notesToggle: boolean[] = []
 
   dataSource: any = []
+  filteredDataSource: any = []
+  filterColumnsValue: any = {
+    sessionName: '',
+    editorName: '',
+    databaseType: '',
+    databaseName: '',
+  }
+  displayFilter: any = {
+    sessionName: false,
+    editorName: false,
+    databaseType: false,
+    databaseName: false,
+  }
   constructor(
     private fetch: FetchService,
     private data: DataService,
@@ -37,12 +50,42 @@ export class SessionListingComponent implements OnInit {
     this.data.sessions.subscribe({
       next: (sessions: ISession[]) => {
         if (sessions != null) {
+          this.filteredDataSource = sessions
           this.dataSource = sessions
         } else {
+          this.filteredDataSource = []
           this.dataSource = []
         }
       },
     })
+  }
+  toggleFilterDisplay(key: string) {
+    this.displayFilter[key] = !this.displayFilter[key]
+  }
+  updateFilterValue(event: Event, key: string) {
+    event.stopPropagation()
+    const filterValue = (event.target as HTMLInputElement).value
+    this.filterColumnsValue[key] = filterValue
+    this.applyFilter()
+  }
+  applyFilter() {
+    this.filteredDataSource = this.dataSource
+      .filter((data: any) => {
+        if (data.SessionName.includes(this.filterColumnsValue.sessionName)) return true
+        else return false
+      })
+      .filter((data: any) => {
+        if (data.EditorName.includes(this.filterColumnsValue.editorName)) return true
+        else return false
+      })
+      .filter((data: any) => {
+        if (data.DatabaseType.includes(this.filterColumnsValue.databaseType)) return true
+        else return false
+      })
+      .filter((data: any) => {
+        if (data.DatabaseName.includes(this.filterColumnsValue.databaseName)) return true
+        else return false
+      })
   }
 
   downloadSessionFile(
@@ -71,7 +114,6 @@ export class SessionListingComponent implements OnInit {
   }
 
   convertDateTime(val: string) {
-    console.log(val)
     let datetime = new Date(val)
     val = datetime.toString()
     val = val.substring(val.indexOf(' ') + 1)
