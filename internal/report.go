@@ -218,12 +218,36 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 				case Hotspot_Timestamp:
 					l = append(l, fmt.Sprintf(" %s for Tablename  : %s for ColName : %s", IssueDB[i].Brief, spSchema.Name, srcCol))
 				case Hotspot_AutoIncrement:
-					l = append(l, fmt.Sprintf(" %s for Tablename  : %s for ColName : %s", IssueDB[i].Brief, spSchema.Name, srcCol))
+
+					str := fmt.Sprintf(" %s for Tablename  : %s for ColName : %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+
+					if !contains(l, str) {
+						fmt.Println(str)
+						l = append(l, str)
+					}
+
 				case Interleaved_NotINOrder:
-					l = append(l, fmt.Sprintf(" %s for Tablename  : %s for ColName : %s", IssueDB[i].Brief, spSchema.Name, srcCol))
+					str := fmt.Sprintf(" %s for Tablename  : %s for ColName : %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+					if !contains(l, str) {
+						//fmt.Println(str)
+						l = append(l, str)
+					}
 
 				case Interleaved_Order:
-					l = append(l, fmt.Sprintf(" %s for Tablename  : %s for ColName : %s", IssueDB[i].Brief, spSchema.Name, srcCol))
+					str := fmt.Sprintf(" %s for Tablename  : %s for ColName : %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+
+					if !contains(l, str) {
+						//fmt.Println(str)
+						l = append(l, str)
+					}
+
+				case Interleaved_ADDCOLUMN:
+					str := fmt.Sprintf(" %s for Tablename  : %s for ColName : %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+
+					if !contains(l, str) {
+						//fmt.Println(str)
+						l = append(l, str)
+					}
 
 				default:
 					l = append(l, fmt.Sprintf("Column '%s': type %s is mapped to %s. %s", srcCol, srcType, spType, IssueDB[i].Brief))
@@ -240,6 +264,15 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 		body = append(body, tableReportBody{Heading: heading, Lines: l})
 	}
 	return body
+}
+
+func contains(l []string, str string) bool {
+	for _, s := range l {
+		if s == str {
+			return true
+		}
+	}
+	return false
 }
 
 func fillRowStats(conv *Conv, srcTable string, badWrites map[string]int64, tr *tableReport) {
@@ -291,6 +324,7 @@ var IssueDB = map[SchemaIssue]struct {
 	Hotspot_AutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: warning},
 	Interleaved_NotINOrder: {Brief: "Table Can Be Interleaved if Primary Key Order is changed", severity: warning},
 	Interleaved_Order:      {Brief: "Can Convert to Interleaved", severity: warning},
+	Interleaved_ADDCOLUMN:  {Brief: "ADD COLUMN as primary key to make it as interleaved", severity: warning},
 }
 
 type severity int

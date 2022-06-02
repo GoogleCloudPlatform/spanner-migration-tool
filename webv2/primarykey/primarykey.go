@@ -19,7 +19,11 @@
 package primarykey
 
 import (
+	"fmt"
+
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
 // updateprimaryKey updates primary key desc and order for primaryKey.
@@ -109,9 +113,60 @@ func removePrimaryKey(remove []int, spannerTable ddl.CreateTable) []ddl.IndexKey
 
 			if spannerTable.Pks[i].Col == colname {
 
+				sessionState := session.GetSessionState()
+				schemaissue := sessionState.Conv.Issues[spannerTable.Name][spannerTable.Pks[i].Col]
+
+				if contains(schemaissue, internal.Hotspot_AutoIncrement) {
+
+					schemaissue = Remove(schemaissue, internal.Hotspot_AutoIncrement)
+				}
+
+				if contains(schemaissue, internal.Hotspot_Timestamp) {
+
+					schemaissue = Remove(schemaissue, internal.Hotspot_Timestamp)
+				}
+
+				if contains(schemaissue, internal.Interleaved_Order) {
+
+					schemaissue = Remove(schemaissue, internal.Interleaved_Order)
+				}
+
+				if contains(schemaissue, internal.Interleaved_NotINOrder) {
+
+					schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
+				}
+
+				fmt.Println("all suggestion removed before deleting PrimaryKey")
+
+				sessionState.Conv.Issues[spannerTable.Name][spannerTable.Pks[i].Col] = schemaissue
+
 				list = append(spannerTable.Pks[:i], spannerTable.Pks[i+1:]...)
+
+				fmt.Println("primary key removed removePrimaryKey")
 			}
 		}
 	}
 	return list
+}
+
+func Remove(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) []internal.SchemaIssue {
+
+	for i := 0; i < len(schemaissue); i++ {
+		if schemaissue[i] == issue {
+			fmt.Println("I am removing", schemaissue[i])
+			return append(schemaissue[:i], schemaissue[i+1:]...)
+		}
+	}
+
+	return schemaissue
+}
+
+func contains(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) bool {
+
+	for _, s := range schemaissue {
+		if s == issue {
+			return true
+		}
+	}
+	return false
 }

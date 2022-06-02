@@ -90,6 +90,7 @@ const (
 	Hotspot_AutoIncrement
 	Interleaved_NotINOrder
 	Interleaved_Order
+	Interleaved_ADDCOLUMN
 )
 
 // NameAndCols contains the name of a table and its columns.
