@@ -182,6 +182,14 @@
   }
 }
 
+.interleave-tab-container {
+  height: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
 .save-button {
   width: 100%;
   button {
