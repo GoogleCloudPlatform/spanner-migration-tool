@@ -43,6 +43,7 @@ func hotspotTimestamp(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 					columnname := insert[i].Col
 					sessionState := session.GetSessionState()
 					schemaissue := sessionState.Conv.Issues[spannerTable.Name][columnname]
+
 					schemaissue = append(schemaissue, internal.Hotspot_Timestamp)
 					sessionState.Conv.Issues[spannerTable.Name][columnname] = schemaissue
 				}
@@ -84,4 +85,35 @@ func suggesthotspotAutoincrement(spannerTable ddl.CreateTable, spannerColumnId i
 
 		}
 	}
+}
+
+func cleanup(schemaissue []internal.SchemaIssue) []internal.SchemaIssue {
+
+	if contains(schemaissue, internal.Hotspot_AutoIncrement) {
+
+		schemaissue = Remove(schemaissue, internal.Hotspot_AutoIncrement)
+	}
+
+	if contains(schemaissue, internal.Hotspot_Timestamp) {
+
+		schemaissue = Remove(schemaissue, internal.Hotspot_Timestamp)
+	}
+
+	if contains(schemaissue, internal.Interleaved_Order) {
+
+		schemaissue = Remove(schemaissue, internal.Interleaved_Order)
+	}
+
+	if contains(schemaissue, internal.Interleaved_NotINOrder) {
+
+		schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
+	}
+
+	if contains(schemaissue, internal.Interleaved_ADDCOLUMN) {
+
+		schemaissue = Remove(schemaissue, internal.Interleaved_ADDCOLUMN)
+	}
+
+	return schemaissue
+
 }

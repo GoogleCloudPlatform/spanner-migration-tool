@@ -93,6 +93,15 @@ func addPrimaryKey(add []int, pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 				pkey.Col = getColumnName(spannerTable, pkRequest.Columns[i].ColumnId)
 				pkey.Desc = pkRequest.Columns[i].Desc
 				pkey.Order = pkRequest.Columns[i].Order
+
+				sessionState := session.GetSessionState()
+				schemaissue := sessionState.Conv.Issues[spannerTable.Name][pkey.Col]
+
+				schemaissue = schemaissue[:0]
+				schemaissue = nil
+
+				sessionState.Conv.Issues[spannerTable.Name][pkey.Col] = schemaissue
+
 				list = append(list, pkey)
 			}
 		}
@@ -136,7 +145,14 @@ func removePrimaryKey(remove []int, spannerTable ddl.CreateTable) []ddl.IndexKey
 					schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
 				}
 
+				if contains(schemaissue, internal.Interleaved_ADDCOLUMN) {
+
+					schemaissue = Remove(schemaissue, internal.Interleaved_ADDCOLUMN)
+				}
+
 				fmt.Println("all suggestion removed before deleting PrimaryKey")
+
+				fmt.Println("schemaissue :", schemaissue)
 
 				sessionState.Conv.Issues[spannerTable.Name][spannerTable.Pks[i].Col] = schemaissue
 
