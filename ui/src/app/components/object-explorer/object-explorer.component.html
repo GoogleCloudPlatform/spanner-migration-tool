@@ -129,7 +129,7 @@
                 <span class="actions" *ngIf="isIndexNode(data.type) && data.isSpannerNode">
                   <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
                   <mat-menu #menu="matMenu">
-                    <button mat-menu-item (click)="openAddIndexForm()">
+                    <button mat-menu-item>
                       <span>Add Index</span>
                     </button>
                   </mat-menu>
@@ -279,7 +279,7 @@
                 <span class="actions" *ngIf="isIndexNode(data.type)">
                   <mat-icon class="add-index-icon" [matMenuTriggerFor]="menu">more_vert</mat-icon>
                   <mat-menu #menu="matMenu" xPosition="before">
-                    <button mat-menu-item (click)="openAddIndexForm()">
+                    <button mat-menu-item (click)="openAddIndexForm(data.parent)">
                       <span>Add Index</span>
                     </button>
                   </mat-menu>

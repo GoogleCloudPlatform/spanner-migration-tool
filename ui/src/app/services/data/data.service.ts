@@ -71,6 +71,11 @@ export class DataService {
           this.getSchemaConversionFromSession(config as ISessionConfig)
         }
         break
+      case InputType.ResumeSession:
+        if (config !== null) {
+          this.getSchemaConversionFromResumeSession(config as string)
+        }
+        break
 
       default:
         console.log('Unable to find input type')

@@ -3,9 +3,9 @@ import { Router } from '@angular/router'
 import { DataService } from 'src/app/services/data/data.service'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import ISession from '../../model/session'
-import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 import IConv from 'src/app/model/conv'
+import { InputType, StorageKeys } from 'src/app/app.constants'
 
 @Component({
   selector: 'app-session-listing',
@@ -106,6 +106,8 @@ export class SessionListingComponent implements OnInit {
     this.data.resetStore()
     this.data.getSchemaConversionFromResumeSession(versionId)
     this.data.conv.subscribe((res: IConv) => {
+      localStorage.setItem(StorageKeys.Config, versionId)
+      localStorage.setItem(StorageKeys.Type, InputType.ResumeSession)
       this.router.navigate(['/workspace'])
     })
   }

@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core'
-import { FormArray, FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms'
+import { FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms'
 import IConv, { ICreateIndex } from 'src/app/model/conv'
 import { DataService } from 'src/app/services/data/data.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
@@ -16,11 +16,7 @@ export class AddIndexFormComponent implements OnInit {
   tableNames: string[] = []
   currentColumns: string[] = []
   conv: IConv = {} as IConv
-  constructor(
-    private fb: FormBuilder,
-    private data: DataService,
-    private snackbar: SidenavService
-  ) {
+  constructor(private fb: FormBuilder, private data: DataService, private sidenav: SidenavService) {
     this.addIndexForm = this.fb.group({
       tableName: ['', Validators.required],
       indexName: ['', [Validators.required, Validators.pattern('^[a-zA-Z].{0,59}$')]],
@@ -33,6 +29,12 @@ export class AddIndexFormComponent implements OnInit {
       next: (res: IConv) => {
         this.conv = res
         this.tableNames = Object.keys(res.SpSchema)
+      },
+    })
+    this.sidenav.sidenavAddIndexTable.subscribe({
+      next: (res: string) => {
+        this.addIndexForm.controls['tableName'].setValue(res)
+        if (res !== '') this.selectedTableChange(res)
       },
     })
   }
@@ -69,6 +71,7 @@ export class AddIndexFormComponent implements OnInit {
     })
     this.data.addIndex(idxData.tableName, payload)
     this.resetRuleType.emit('')
-    this.snackbar.closeSidenav()
+    this.sidenav.setSidenavAddIndexTable('')
+    this.sidenav.closeSidenav()
   }
 }

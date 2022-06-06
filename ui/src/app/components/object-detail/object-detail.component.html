@@ -442,6 +442,42 @@
       </div>
     </mat-tab>
 
+    <mat-tab
+      label="INTERLEAVE"
+      *ngIf="
+        (interleaveStatus.tableInterleaveStatus &&
+          interleaveStatus.tableInterleaveStatus.Possible) ||
+        this.interleaveParentName !== null
+      "
+    >
+      <div class="interleave-tab-container">
+        <button
+          *ngIf="
+            interleaveStatus.tableInterleaveStatus &&
+            interleaveStatus.tableInterleaveStatus.Possible &&
+            this.interleaveParentName === null
+          "
+          mat-raised-button
+          color="primary"
+          (click)="setInterleave()"
+        >
+          Convert to Interleave
+        </button>
+        <button
+          *ngIf="
+            (interleaveStatus.tableInterleaveStatus &&
+              !interleaveStatus.tableInterleaveStatus.Possible) ||
+            this.interleaveParentName !== null
+          "
+          mat-raised-button
+          color="primary"
+          (click)="convertToFk()"
+        >
+          Convert Back to Foreign Key
+        </button>
+      </div>
+    </mat-tab>
+
     <mat-tab label="SQL">
       <div class="ddl_container">
         <pre>
