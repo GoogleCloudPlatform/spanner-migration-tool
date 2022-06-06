@@ -17,6 +17,7 @@ package mysql
 import (
 	"testing"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
@@ -31,7 +32,7 @@ func TestToSpannerType(t *testing.T) {
 	name := "test"
 	srcSchema := schema.Table{
 		Name:     name,
-		ColNames: []string{"a", "b", "c", "d", "e", "f", "g"},
+		ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"},
 		ColDefs: map[string]schema.Column{
 			"a": schema.Column{Name: "a", Type: schema.Type{Name: "int"}},
 			"b": schema.Column{Name: "b", Type: schema.Type{Name: "float"}},
@@ -40,6 +41,9 @@ func TestToSpannerType(t *testing.T) {
 			"e": schema.Column{Name: "e", Type: schema.Type{Name: "numeric"}},
 			"f": schema.Column{Name: "f", Type: schema.Type{Name: "timestamp"}},
 			"g": schema.Column{Name: "g", Type: schema.Type{Name: "json"}},
+			"h": schema.Column{Name: "h", Type: schema.Type{Name: "date"}},
+			"i": schema.Column{Name: "i", Type: schema.Type{Name: "timestamp"}},
+			"j": schema.Column{Name: "j", Type: schema.Type{Name: "bit"}},
 		},
 		PrimaryKeys: []schema.Key{schema.Key{Column: "a"}},
 		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"dref"}},
@@ -72,7 +76,7 @@ func TestToSpannerType(t *testing.T) {
 	dropComments(&actual) // Don't test comment.
 	expected := ddl.CreateTable{
 		Name:     name,
-		ColNames: []string{"a", "b", "c", "d", "e", "f", "g"},
+		ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
 			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
@@ -81,6 +85,87 @@ func TestToSpannerType(t *testing.T) {
 			"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
 			"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
 			"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.JSON}},
+			"h": ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.Date}},
+			"i": ddl.ColumnDef{Name: "i", T: ddl.Type{Name: ddl.Timestamp}},
+			"j": ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+		},
+		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
+		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"dref"}},
+			ddl.Foreignkey{Name: "fk_test2", Columns: []string{"a"}, ReferTable: "ref_table2", ReferColumns: []string{"aref"}}},
+		Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", Table: name, Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "d", Desc: true}}}},
+	}
+	assert.Equal(t, expected, actual)
+	expectedIssues := map[string][]internal.SchemaIssue{
+		"a": []internal.SchemaIssue{internal.Widened},
+		"b": []internal.SchemaIssue{internal.Widened},
+	}
+	assert.Equal(t, expectedIssues, conv.Issues[name])
+}
+
+// This is just a very basic smoke-test for toExperimentalSpannerType.
+func TestToExperimentalSpannerType(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SetSchemaMode()
+	conv.TargetDb = constants.TargetExperimentalPostgres
+	name := "test"
+	srcSchema := schema.Table{
+		Name:     name,
+		ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"},
+		ColDefs: map[string]schema.Column{
+			"a": schema.Column{Name: "a", Type: schema.Type{Name: "int"}},
+			"b": schema.Column{Name: "b", Type: schema.Type{Name: "float"}},
+			"c": schema.Column{Name: "c", Type: schema.Type{Name: "tinyint", Mods: []int64{1}}},
+			"d": schema.Column{Name: "d", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+			"e": schema.Column{Name: "e", Type: schema.Type{Name: "numeric"}},
+			"f": schema.Column{Name: "f", Type: schema.Type{Name: "timestamp"}},
+			"g": schema.Column{Name: "g", Type: schema.Type{Name: "json"}},
+			"h": schema.Column{Name: "h", Type: schema.Type{Name: "date"}},
+			"i": schema.Column{Name: "i", Type: schema.Type{Name: "timestamp"}},
+			"j": schema.Column{Name: "j", Type: schema.Type{Name: "bit"}},
+		},
+		PrimaryKeys: []schema.Key{schema.Key{Column: "a"}},
+		ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"dref"}},
+			schema.ForeignKey{Name: "fk_test2", Columns: []string{"a"}, ReferTable: "ref_table2", ReferColumns: []string{"aRef"}}},
+		Indexes: []schema.Index{schema.Index{Name: "index1", Unique: true, Keys: []schema.Key{schema.Key{Column: "a", Desc: false}, schema.Key{Column: "d", Desc: true}}}},
+	}
+	conv.SrcSchema[name] = srcSchema
+	conv.SpSchema["ref_table"] = ddl.CreateTable{
+		Name:     "ref_table",
+		ColNames: []string{"dref", "b", "c"},
+		ColDefs: map[string]ddl.ColumnDef{
+			"dref": ddl.ColumnDef{Name: "dref", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
+			"b":    ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
+			"c":    ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
+		},
+		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "dref"}},
+	}
+	conv.SpSchema["ref_table2"] = ddl.CreateTable{
+		Name:     "ref_table2",
+		ColNames: []string{"aref", "b", "c"},
+		ColDefs: map[string]ddl.ColumnDef{
+			"aref": ddl.ColumnDef{Name: "aref", T: ddl.Type{Name: ddl.Int64}},
+			"b":    ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
+			"c":    ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
+		},
+		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "aref"}},
+	}
+	assert.Nil(t, common.SchemaToSpannerDDL(conv, ToDdlImpl{}))
+	actual := conv.SpSchema[name]
+	dropComments(&actual) // Don't test comment.
+	expected := ddl.CreateTable{
+		Name:     name,
+		ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"},
+		ColDefs: map[string]ddl.ColumnDef{
+			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
+			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
+			"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
+			"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
+			"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
+			"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"h": ddl.ColumnDef{Name: "h", T: ddl.Type{Name: ddl.Date}},
+			"i": ddl.ColumnDef{Name: "i", T: ddl.Type{Name: ddl.Timestamp}},
+			"j": ddl.ColumnDef{Name: "j", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
 		},
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
 		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"dref"}},
