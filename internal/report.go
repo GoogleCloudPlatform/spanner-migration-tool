@@ -216,25 +216,31 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 				case Widened:
 					l = append(l, fmt.Sprintf("%s e.g. for column '%s', source DB type %s is mapped to Spanner type %s", IssueDB[i].Brief, srcCol, srcType, spType))
 				case Hotspot_Timestamp:
-					l = append(l, fmt.Sprintf(" %s for Tablename  : %s for ColName : %s", IssueDB[i].Brief, spSchema.Name, srcCol))
+					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+					if !contains(l, str) {
+						//log.Println(str)
+						l = append(l, str)
+					}
+
 				case Hotspot_AutoIncrement:
 
-					str := fmt.Sprintf(" %s for Tablename  : %s for ColName : %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, srcCol)
 
 					if !contains(l, str) {
-						fmt.Println(str)
+						//log.Println(str)
 						l = append(l, str)
 					}
 
 				case Interleaved_NotINOrder:
-					str := fmt.Sprintf(" %s for Tablename  : %s for ColName : %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+					str := fmt.Sprintf(" Table %s  %s and Column %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+
 					if !contains(l, str) {
-						//fmt.Println(str)
+						//log.Println(str)
 						l = append(l, str)
 					}
 
 				case Interleaved_Order:
-					str := fmt.Sprintf(" %s for Tablename  : %s for ColName : %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+					str := fmt.Sprintf("Table %s %s go to Interleave Table Tab", spSchema.Name, IssueDB[i].Brief)
 
 					if !contains(l, str) {
 						//fmt.Println(str)
@@ -242,7 +248,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					}
 
 				case Interleaved_ADDCOLUMN:
-					str := fmt.Sprintf(" %s for Tablename  : %s for ColName : %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+					str := fmt.Sprintf(" %s add %s as a primary key in table %s", IssueDB[i].Brief, srcCol, spSchema.Name)
 
 					if !contains(l, str) {
 						//fmt.Println(str)
@@ -322,9 +328,9 @@ var IssueDB = map[SchemaIssue]struct {
 	StringOverflow:         {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
 	Hotspot_Timestamp:      {Brief: "Timestamp Hotspot Occured", severity: warning},
 	Hotspot_AutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: warning},
-	Interleaved_NotINOrder: {Brief: "Table Can Be Interleaved if Primary Key Order is changed", severity: warning},
-	Interleaved_Order:      {Brief: "Can Convert to Interleaved", severity: warning},
-	Interleaved_ADDCOLUMN:  {Brief: "ADD COLUMN as primary key to make it as interleaved", severity: warning},
+	Interleaved_NotINOrder: {Brief: "Can be conveted as Interleaved Table if Primary Key Order  parameter changed for Table", severity: warning},
+	Interleaved_Order:      {Brief: "Can be conveted as Interleaved Table", severity: warning},
+	Interleaved_ADDCOLUMN:  {Brief: "Candidate for Interleaved Table", severity: warning},
 }
 
 type severity int
