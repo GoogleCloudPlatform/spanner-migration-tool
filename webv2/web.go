@@ -51,6 +51,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
 
+	primarykey "github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
+
 	go_ora "github.com/sijms/go-ora/v2"
 )
 
@@ -236,6 +238,9 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	Printconv(conv)
 
 	sessionState.Conv = conv
+
+	primarykey.Detecthotspot()
+
 	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = dc.Driver
 	sessionState.DbName = ""
