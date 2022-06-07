@@ -103,6 +103,13 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 
 	}
 
+	if isValidColumnOrder(pkRequest) {
+		log.Println("two primary key column can  not have same order")
+		http.Error(w, fmt.Sprintf("two primary key column can  not have same order : %v", err), http.StatusBadRequest)
+		return
+
+	}
+
 	spannerTable = updatePrimaryKey(pkRequest, spannerTable)
 
 	pKeyResponse := prepareResponse(pkRequest, spannerTable)

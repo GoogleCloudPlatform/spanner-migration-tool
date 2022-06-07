@@ -193,16 +193,13 @@ func contains(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) bo
 	return false
 }
 
-func Detecthotspot() {
+func Suggesthotspot() {
 
 	sessionState := session.GetSessionState()
 
-	for spannertablename, spannerTable := range sessionState.Conv.SpSchema {
-
-		fmt.Println("spannertablename", spannertablename)
+	for _, spannerTable := range sessionState.Conv.SpSchema {
 
 		isHotSpot(spannerTable.Pks, spannerTable)
-
 	}
 
 }

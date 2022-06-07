@@ -105,6 +105,68 @@ func isValidColumnIds(pkRequest PrimaryKeyRequest, spannertable ddl.CreateTable)
 	return true
 }
 
+/*
+// isValidColumnOrder make sure two primary key column can not have same order.
+func isValidColumnOrder(pkRequest PrimaryKeyRequest) bool {
+
+	var flag bool
+
+	for i := 0; i < len(pkRequest.Columns); i++ {
+
+		for j := 0; j < len(pkRequest.Columns); j++ {
+
+			if pkRequest.Columns[i].Order == pkRequest.Columns[j].Order {
+
+				flag = true
+
+				fmt.Println("flag is true for ")
+				fmt.Println("pkRequest.Columns[i].Order :", pkRequest.Columns[i].Order)
+
+				fmt.Println("pkRequest.Columns[j].Order :", pkRequest.Columns[j].Order)
+
+			}
+		}
+	}
+
+	fmt.Println("value of flag :", flag)
+	return flag
+
+
+
+
+
+}
+
+*/
+
+// isValidColumnOrder make sure two primary key column can not have same order.
+func isValidColumnOrder(pkRequest PrimaryKeyRequest) bool {
+
+	list := []int{}
+
+	for i := 0; i < len(pkRequest.Columns); i++ {
+		list = append(list, pkRequest.Columns[i].Order)
+	}
+
+	if duplicateInArray(list) == -1 {
+		return false
+	}
+
+	return true
+}
+
+func duplicateInArray(element []int) int {
+	visited := make(map[int]bool, 0)
+	for i := 0; i < len(element); i++ {
+		if visited[element[i]] == true {
+			return element[i]
+		} else {
+			visited[element[i]] = true
+		}
+	}
+	return -1
+}
+
 // difference gives list of element that are only present in first list.
 func difference(listone, listtwo []int) []int {
 
