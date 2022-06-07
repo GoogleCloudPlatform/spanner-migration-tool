@@ -190,6 +190,7 @@ export class DataService {
           return data.error
         } else {
           this.convSubject.next(data)
+          this.getDdl()
           return ''
         }
       })
@@ -253,6 +254,7 @@ export class DataService {
         this.convSubject.next(data)
         this.snackbar.openSnackBar('Global datatype updated successfully', 'Close', 5)
         this.getSummary()
+        this.getDdl()
       },
       error: (err: any) => {
         this.snackbar.openSnackBar('Unable to add rule', 'Close')
