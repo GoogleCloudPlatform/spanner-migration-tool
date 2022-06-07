@@ -104,7 +104,8 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	spannerTable = updatePrimaryKey(pkRequest, spannerTable)
-	//pKeyResponse := prepareResponse(pkRequest, spannerTable)
+
+	pKeyResponse := prepareResponse(pkRequest, spannerTable)
 
 	//update spannerTable into sessionState.Conv.SpSchema.
 	for _, table := range sessionState.Conv.SpSchema {
@@ -119,6 +120,8 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 		SessionMetadata: sessionState.SessionMetadata,
 		Conv:            *sessionState.Conv,
 	}
+
+	log.Println(pKeyResponse)
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
