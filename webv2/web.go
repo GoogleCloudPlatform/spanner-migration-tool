@@ -171,6 +171,8 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
 
+	primarykey.Suggesthotspot()
+
 	sessionMetadata := session.SessionMetadata{
 		SessionName:  "NewSession",
 		DatabaseType: sessionState.Driver,
@@ -239,7 +241,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.Conv = conv
 
-	primarykey.Detecthotspot()
+	primarykey.Suggesthotspot()
 
 	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = dc.Driver
@@ -653,7 +655,9 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 			fmt.Println("childPks[0].Col", childPks[0].Col)
 			schemaissue := sessionState.Conv.Issues[table][childPks[0].Col]
 
-			schemaissue = unique(schemaissue)
+			fmt.Println("before schemaissue :", schemaissue)
+
+			//schemaissue = unique(schemaissue)
 
 			schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
 
@@ -663,7 +667,7 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 
 			schemaissue = append(schemaissue, internal.Interleaved_Order)
 
-			fmt.Println("schemaissue", schemaissue)
+			fmt.Println("after schemaissue", schemaissue)
 
 			sessionState.Conv.Issues[table][childPks[0].Col] = schemaissue
 
@@ -690,7 +694,7 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 
 			fmt.Println("childPks[0].Col", childPks[0].Col)
 
-			schemaissue = unique(schemaissue)
+			//schemaissue = unique(schemaissue)
 
 			schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
 
@@ -763,7 +767,8 @@ func Remove(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) []in
 	for i := 0; i < len(schemaissue); i++ {
 		if schemaissue[i] == issue {
 			fmt.Println("I am removing", schemaissue[i])
-			return append(schemaissue[:i], schemaissue[i+1:]...)
+			//return append(schemaissue[:i], schemaissue[i+1:]...)
+			schemaissue = append(schemaissue[:i], schemaissue[i+1:]...)
 		}
 	}
 	return schemaissue
@@ -1262,7 +1267,9 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 				fmt.Println("pk.Col", pk.Col)
 				schemaissue := sessionState.Conv.Issues[table][pk.Col]
 
-				schemaissue = unique(schemaissue)
+				fmt.Println("schemaissue before:", schemaissue)
+
+				//schemaissue = unique(schemaissue)
 
 				schemaissue = Remove(schemaissue, internal.Interleaved_Order)
 				schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
@@ -1277,7 +1284,7 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 
 				schemaissue = append(schemaissue, internal.Interleaved_ADDCOLUMN)
 
-				fmt.Println("schemaissue", schemaissue)
+				fmt.Println("schemaissue after", schemaissue)
 
 				sessionState.Conv.Issues[table][pk.Col] = schemaissue
 

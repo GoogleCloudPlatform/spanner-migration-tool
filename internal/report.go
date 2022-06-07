@@ -328,8 +328,8 @@ var IssueDB = map[SchemaIssue]struct {
 	StringOverflow:         {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
 	Hotspot_Timestamp:      {Brief: "Timestamp Hotspot Occured", severity: warning},
 	Hotspot_AutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: warning},
-	Interleaved_NotINOrder: {Brief: "Can be converted as Interleaved Table if Primary Key Order  parameter changed for Table", severity: warning},
-	Interleaved_Order:      {Brief: "Can be converted as Interleaved Table", severity: warning},
+	Interleaved_NotINOrder: {Brief: "can be converted as Interleaved Table if Primary Key Order  parameter changed for Table", severity: warning},
+	Interleaved_Order:      {Brief: "can be converted as Interleaved Table", severity: warning},
 	Interleaved_ADDCOLUMN:  {Brief: "Candidate for Interleaved Table", severity: warning},
 }
 
