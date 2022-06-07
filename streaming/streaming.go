@@ -26,6 +26,7 @@ import (
 	dataflowpb "google.golang.org/genproto/googleapis/dataflow/v1beta3"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 )
@@ -125,9 +126,42 @@ func ReadStreamingConfig(file, dbName string) (StreamingCfg, error) {
 	return streamingCfg, nil
 }
 
+func getMysqlSourceStreamConfig(dbName string) *datastreampb.SourceConfig_MysqlSourceConfig {
+	mydb := &datastreampb.MysqlDatabase{
+		DatabaseName: dbName,
+	}
+	mysqlSrcCfg := &datastreampb.MysqlSourceConfig{
+		Allowlist: &datastreampb.MysqlRdbms{MysqlDatabases: []*datastreampb.MysqlDatabase{mydb}},
+	}
+	return &datastreampb.SourceConfig_MysqlSourceConfig{MysqlSourceConfig: mysqlSrcCfg}
+}
+
+func getOracleSourceStreamConfig(dbName string) *datastreampb.SourceConfig_OracleSourceConfig {
+	oracledb := &datastreampb.OracleSchema{
+		SchemaName: dbName,
+	}
+	oracleSrcCfg := &datastreampb.OracleSourceConfig{
+		Allowlist: &datastreampb.OracleRdbms{OracleSchemas: []*datastreampb.OracleSchema{oracledb}},
+	}
+	return &datastreampb.SourceConfig_OracleSourceConfig{OracleSourceConfig: oracleSrcCfg}
+}
+
+func getSourceStreamConfig(srcCfg *datastreampb.SourceConfig, sourceProfile profiles.SourceProfile) error {
+	switch sourceProfile.Driver {
+	case constants.MYSQL:
+		srcCfg.SourceStreamConfig = getMysqlSourceStreamConfig(sourceProfile.Conn.Mysql.Db)
+		return nil
+	case constants.ORACLE:
+		srcCfg.SourceStreamConfig = getOracleSourceStreamConfig(sourceProfile.Conn.Oracle.Db)
+		return nil
+	default:
+		return fmt.Errorf("only MySQL and Oracle are supported as source streams")
+	}
+}
+
 // LaunchStream populates the parameters from the streaming config and triggers a stream on Cloud Datastream.
-func LaunchStream(ctx context.Context, dbName, projectID string, datastreamCfg DatastreamCfg) error {
-	fmt.Println("Launching stream...")
+func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, projectID string, datastreamCfg DatastreamCfg) error {
+	fmt.Println("Launching stream ", fmt.Sprintf("projects/%s/locations/%s", projectID, datastreamCfg.StreamLocation))
 	dsClient, err := datastream.NewClient(ctx)
 	if err != nil {
 		return fmt.Errorf("datastream client can not be created: %v", err)
@@ -135,20 +169,15 @@ func LaunchStream(ctx context.Context, dbName, projectID string, datastreamCfg D
 	defer dsClient.Close()
 	fmt.Println("Created client...")
 
-	mydb := &datastreampb.MysqlDatabase{
-		DatabaseName: dbName,
-	}
-	mysqlSrcCfg := &datastreampb.MysqlSourceConfig{
-		Allowlist: &datastreampb.MysqlRdbms{MysqlDatabases: []*datastreampb.MysqlDatabase{mydb}},
-	}
 	gcsDstCfg := &datastreampb.GcsDestinationConfig{
 		Path:       datastreamCfg.DestinationConnectionConfig.Prefix,
 		FileFormat: &datastreampb.GcsDestinationConfig_AvroFileFormat{},
 	}
 	srcCfg := &datastreampb.SourceConfig{
 		SourceConnectionProfileName: fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectID, datastreamCfg.SourceConnectionConfig.Location, datastreamCfg.SourceConnectionConfig.Name),
-		SourceStreamConfig:          &datastreampb.SourceConfig_MysqlSourceConfig{MysqlSourceConfig: mysqlSrcCfg},
 	}
+	getSourceStreamConfig(srcCfg, sourceProfile)
+
 	dstCfg := &datastreampb.DestinationConfig{
 		DestinationConnectionProfileName: fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectID, datastreamCfg.DestinationConnectionConfig.Location, datastreamCfg.DestinationConnectionConfig.Name),
 		DestinationStreamConfig:          &datastreampb.DestinationConfig_GcsDestinationConfig{GcsDestinationConfig: gcsDstCfg},
@@ -179,7 +208,7 @@ func LaunchStream(ctx context.Context, dbName, projectID string, datastreamCfg D
 		fmt.Printf("createStreamRequest: %+v\n", createStreamRequest)
 		return fmt.Errorf("datastream create operation failed: %v", err)
 	}
-	fmt.Println("Successfully created stream")
+	fmt.Println("Successfully created stream ", datastreamCfg.StreamId)
 
 	streamInfo.Name = fmt.Sprintf("projects/%s/locations/%s/streams/%s", projectID, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
 	updateStreamRequest := &datastreampb.UpdateStreamRequest{
@@ -201,8 +230,8 @@ func LaunchStream(ctx context.Context, dbName, projectID string, datastreamCfg D
 
 // LaunchDataflowJob populates the parameters from the streaming config and triggers a Dataflow job.
 func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, datastreamCfg DatastreamCfg, dataflowCfg DataflowCfg) error {
-	fmt.Println("Launching dataflow job...")
 	project, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil)
+	fmt.Println("Launching dataflow job ", dataflowCfg.JobName, " in ", project, "-", dataflowCfg.Location)
 
 	c, err := dataflow.NewFlexTemplatesClient(ctx)
 	if err != nil {
@@ -225,12 +254,14 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		return fmt.Errorf("could not get connection profiles: %v", err)
 	}
 	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
+	inputFilePattern := "gs://" + gcsProfile.BucketName + gcsProfile.RootPath + datastreamCfg.DestinationConnectionConfig.Prefix
+	fmt.Println("Reading files from datastream destination ", inputFilePattern)
 
 	launchParameter := &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner"},
 		Parameters: map[string]string{
-			"inputFilePattern": "gs://" + gcsProfile.BucketName + gcsProfile.RootPath + datastreamCfg.DestinationConnectionConfig.Prefix,
+			"inputFilePattern": inputFilePattern,
 			"streamName":       fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
 			"instanceId":       instance,
 			"databaseId":       dbName,

@@ -32,7 +32,6 @@ const (
 	SourceProfileTypeConnection
 	SourceProfileTypeConfig
 	SourceProfileTypeCsv
-	SourceProfileTypeStreaming
 )
 
 type SourceProfileFile struct {
@@ -67,20 +66,29 @@ const (
 )
 
 type SourceProfileConnectionMySQL struct {
-	Host string // Same as MYSQLHOST environment variable
-	Port string // Same as MYSQLPORT environment variable
-	User string // Same as MYSQLUSER environment variable
-	Db   string // Same as MYSQLDATABASE environment variable
-	Pwd  string // Same as MYSQLPWD environment variable
+	Host            string // Same as MYSQLHOST environment variable
+	Port            string // Same as MYSQLPORT environment variable
+	User            string // Same as MYSQLUSER environment variable
+	Db              string // Same as MYSQLDATABASE environment variable
+	Pwd             string // Same as MYSQLPWD environment variable
+	StreamingConfig string
 }
 
 func NewSourceProfileConnectionMySQL(params map[string]string) (SourceProfileConnectionMySQL, error) {
 	mysql := SourceProfileConnectionMySQL{}
+
 	host, hostOk := params["host"]
 	user, userOk := params["user"]
 	db, dbOk := params["db_name"]
 	port, portOk := params["port"]
 	pwd, pwdOk := params["password"]
+
+	streamingConfig, cfgOk := params["streamingCfg"]
+	if cfgOk && streamingConfig == "" {
+		return mysql, fmt.Errorf("specify a non-empty streaming config file path")
+	}
+	mysql.StreamingConfig = streamingConfig
+
 	// We don't users to mix and match params from source-profile and environment variables.
 	// We either try to get all params from the source-profile and if none are set, we read from the env variables.
 	if !(hostOk || userOk || dbOk || portOk || pwdOk) {
@@ -284,11 +292,12 @@ func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfile
 }
 
 type SourceProfileConnectionOracle struct {
-	Host string
-	Port string
-	User string
-	Db   string
-	Pwd  string
+	Host            string
+	Port            string
+	User            string
+	Db              string
+	Pwd             string
+	StreamingConfig string
 }
 
 func NewSourceProfileConnectionOracle(params map[string]string) (SourceProfileConnectionOracle, error) {
@@ -298,6 +307,12 @@ func NewSourceProfileConnectionOracle(params map[string]string) (SourceProfileCo
 	db, dbOk := params["db_name"]
 	port, _ := params["port"]
 	pwd, _ := params["password"]
+
+	streamingConfig, cfgOk := params["streamingCfg"]
+	if cfgOk && streamingConfig == "" {
+		return ss, fmt.Errorf("specify a non-empty streaming config file path")
+	}
+	ss.StreamingConfig = streamingConfig
 
 	if hostOk && userOk && dbOk {
 		// All connection params provided through source-profile. Port and password handled later.
@@ -324,6 +339,7 @@ func NewSourceProfileConnectionOracle(params map[string]string) (SourceProfileCo
 
 type SourceProfileConnection struct {
 	Ty        SourceProfileConnectionType
+	Streaming bool
 	Mysql     SourceProfileConnectionMySQL
 	Pg        SourceProfileConnectionPostgreSQL
 	Dydb      SourceProfileConnectionDynamoDB
@@ -341,6 +357,9 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 			conn.Mysql, err = NewSourceProfileConnectionMySQL(params)
 			if err != nil {
 				return conn, err
+			}
+			if conn.Mysql.StreamingConfig != "" {
+				conn.Streaming = true
 			}
 		}
 	case "postgresql", "postgres", "pg":
@@ -374,6 +393,9 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 			conn.Oracle, err = NewSourceProfileConnectionOracle(params)
 			if err != nil {
 				return conn, err
+			}
+			if conn.Oracle.StreamingConfig != "" {
+				conn.Streaming = true
 			}
 		}
 	default:
@@ -410,91 +432,13 @@ func NewSourceProfileCsv(params map[string]string) SourceProfileCsv {
 	return csvProfile
 }
 
-type SourceProfileStreamingMySQL struct {
-	Conn            SourceProfileConnectionMySQL
-	StreamingConfig string
-}
-
-func NewSourceProfileStreamingMySQL(params map[string]string) (SourceProfileStreamingMySQL, error) {
-	profile := SourceProfileStreamingMySQL{}
-	if profile.StreamingConfig = params["streamingCfg"]; profile.StreamingConfig == "" {
-		return profile, fmt.Errorf("specify a non-empty streaming config file path")
-	}
-	conn := SourceProfileConnectionMySQL{}
-
-	host, hostOk := params["host"]
-	user, userOk := params["user"]
-	db, dbOk := params["dbName"]
-	port := params["port"]
-	pwd := params["password"]
-
-	if hostOk && userOk && dbOk {
-		// If atleast host, username and dbName are provided through source-profile,
-		// go ahead and use source-profile. Port and password handled later even if they are empty.
-		conn.Host, conn.User, conn.Db, conn.Port, conn.Pwd = host, user, db, port, pwd
-		// Throw error if the input entered is empty.
-		if conn.Host == "" || conn.User == "" || conn.Db == "" {
-			return profile, fmt.Errorf("found empty string for host/user/dbName. Please specify host, port, user and dbName in the source-profile")
-		}
-	} else {
-		// Partial params provided through source-profile. Ask user to provide all through the source-profile.
-		return profile, fmt.Errorf("please specify host, port, user and dbName in the source-profile")
-	}
-
-	// Throw same error if the input entered is empty.
-	if conn.Host == "" || conn.User == "" || conn.Db == "" {
-		return profile, fmt.Errorf("found empty string for host/user/db. please specify host, port, user and dbName in the source-profile")
-	}
-
-	if conn.Port == "" {
-		// Set default port for mysql, which rarely changes.
-		conn.Port = "3306"
-	}
-	if conn.Pwd == "" {
-		conn.Pwd = utils.GetPassword()
-	}
-	profile.Conn = conn
-	return profile, nil
-}
-
-type SourceProfileStreamingType int
-
-const (
-	SourceProfileStreamingTypeUnset = iota
-	SourceProfileStreamingTypeMySQL
-)
-
-type SourceProfileStreaming struct {
-	Ty    SourceProfileStreamingType
-	MySQL SourceProfileStreamingMySQL
-}
-
 type SourceProfile struct {
-	Driver    string
-	Ty        SourceProfileType
-	File      SourceProfileFile
-	Conn      SourceProfileConnection
-	Config    SourceProfileConfig
-	Csv       SourceProfileCsv
-	Streaming SourceProfileStreaming
-}
-
-func NewSourceProfileStreaming(source string, params map[string]string) (SourceProfileStreaming, error) {
-	srcProfile := SourceProfileStreaming{}
-	var err error
-	switch strings.ToLower(source) {
-	case "mysql":
-		{
-			srcProfile.Ty = SourceProfileStreamingTypeMySQL
-			srcProfile.MySQL, err = NewSourceProfileStreamingMySQL(params)
-			if err != nil {
-				return srcProfile, err
-			}
-		}
-	default:
-		return srcProfile, fmt.Errorf("streaming migration is only supported for MySQL source, source received: %v", source)
-	}
-	return srcProfile, nil
+	Driver string
+	Ty     SourceProfileType
+	File   SourceProfileFile
+	Conn   SourceProfileConnection
+	Config SourceProfileConfig
+	Csv    SourceProfileCsv
 }
 
 // UseTargetSchema returns true if the driver expects an existing schema
@@ -523,7 +467,7 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 			}
 		}
 	// No need to handle unsupported streaming source specified as it is already covered during source profile creation.
-	case SourceProfileTypeConnection, SourceProfileTypeStreaming:
+	case SourceProfileTypeConnection:
 		{
 			switch strings.ToLower(source) {
 			case "mysql":
@@ -587,9 +531,6 @@ func NewSourceProfile(s string, source string) (SourceProfile, error) {
 	} else if file, ok := params["config"]; ok {
 		config := NewSourceProfileConfig(file)
 		return SourceProfile{Ty: SourceProfileTypeConfig, Config: config}, fmt.Errorf("source-profile type config not yet implemented")
-	} else if _, ok := params["streamingCfg"]; ok {
-		profile, err := NewSourceProfileStreaming(source, params)
-		return SourceProfile{Ty: SourceProfileTypeStreaming, Streaming: profile}, err
 	} else {
 		// Assume connection profile type connection by default, since
 		// connection parameters could be specified as part of environment

@@ -15,18 +15,14 @@ import (
 )
 
 func startDatastream(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (streaming.StreamingCfg, error) {
-	streamingCfg := streaming.StreamingCfg{}
-	var err error
-	if sourceProfile.Ty == profiles.SourceProfileTypeStreaming {
-		streamingCfg, err = streaming.ReadStreamingConfig(sourceProfile.Streaming.MySQL.StreamingConfig, targetProfile.Conn.Sp.Dbname)
-		if err != nil {
-			return streamingCfg, fmt.Errorf("error reading streaming config: %v", err)
-		}
+	streamingCfg, err := streaming.ReadStreamingConfig(sourceProfile.Conn.Mysql.StreamingConfig, targetProfile.Conn.Sp.Dbname)
+	if err != nil {
+		return streamingCfg, fmt.Errorf("error reading streaming config: %v", err)
+	}
 
-		err = streaming.LaunchStream(ctx, sourceProfile.Streaming.MySQL.Conn.Db, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
-		if err != nil {
-			return streamingCfg, fmt.Errorf("error launching stream: %v", err)
-		}
+	err = streaming.LaunchStream(ctx, sourceProfile, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
+	if err != nil {
+		return streamingCfg, fmt.Errorf("error launching stream: %v", err)
 	}
 	return streamingCfg, nil
 }
@@ -44,11 +40,34 @@ func performSnapshotMigration(ctx context.Context, sourceProfile profiles.Source
 }
 
 func startDataflow(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, streamingCfg streaming.StreamingCfg) error {
-	if sourceProfile.Ty == profiles.SourceProfileTypeStreaming {
-		err := streaming.LaunchDataflowJob(ctx, targetProfile, streamingCfg.DatastreamCfg, streamingCfg.DataflowCfg)
-		if err != nil {
-			return fmt.Errorf("error launching dataflow: %v", err)
-		}
+	err := streaming.LaunchDataflowJob(ctx, targetProfile, streamingCfg.DatastreamCfg, streamingCfg.DataflowCfg)
+	if err != nil {
+		return fmt.Errorf("error launching dataflow: %v", err)
 	}
 	return nil
+}
+
+func migrateData(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper utils.IOStreams, client *sp.Client, conv *internal.Conv, writeLimit int64, dbURI string) (*writer.BatchWriter, error) {
+	streamingCfg := streaming.StreamingCfg{}
+	var err error
+	if sourceProfile.Ty == profiles.SourceProfileTypeConnection && sourceProfile.Conn.Streaming {
+		streamingCfg, err = startDatastream(ctx, sourceProfile, targetProfile)
+		if err != nil {
+			err = fmt.Errorf("error starting datastream: %v", err)
+			return nil, err
+		}
+	}
+	bw, err := performSnapshotMigration(ctx, sourceProfile, targetProfile, ioHelper, client, conv, writeLimit, dbURI)
+	if err != nil {
+		err = fmt.Errorf("can't do snapshot migration: %v", err)
+		return nil, err
+	}
+	if sourceProfile.Ty == profiles.SourceProfileTypeConnection && sourceProfile.Conn.Streaming {
+		err = startDataflow(ctx, sourceProfile, targetProfile, streamingCfg)
+		if err != nil {
+			err = fmt.Errorf("error starting dataflow: %v", err)
+			return nil, err
+		}
+	}
+	return bw, nil
 }

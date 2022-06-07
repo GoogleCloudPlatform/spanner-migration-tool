@@ -84,13 +84,6 @@ func GetSQLConnectionStr(sourceProfile SourceProfile) string {
 			return getORACLEConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
 		}
 	}
-	if sourceProfile.Ty == SourceProfileTypeStreaming {
-		switch sourceProfile.Streaming.Ty {
-		case SourceProfileStreamingTypeMySQL:
-			connParams := sourceProfile.Streaming.MySQL.Conn
-			return getMYSQLConnectionStr(connParams.Host, connParams.Port, connParams.User, connParams.Pwd, connParams.Db)
-		}
-	}
 	return sqlConnectionStr
 }
 

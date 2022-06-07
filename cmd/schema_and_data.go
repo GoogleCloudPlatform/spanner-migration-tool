@@ -165,21 +165,9 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 		return subcommands.ExitFailure
 	}
 
-	streamingCfg, err := startDatastream(ctx, sourceProfile, targetProfile)
+	bw, err := migrateData(ctx, sourceProfile, targetProfile, ioHelper, client, conv, cmd.writeLimit, dbURI)
 	if err != nil {
-		err = fmt.Errorf("error starting datastream: %v", err)
-		return subcommands.ExitFailure
-	}
-
-	bw, err := performSnapshotMigration(ctx, sourceProfile, targetProfile, ioHelper, client, conv, cmd.writeLimit, dbURI)
-	if err != nil {
-		err = fmt.Errorf("can't do snapshot migration: %v", err)
-		return subcommands.ExitFailure
-	}
-
-	err = startDataflow(ctx, sourceProfile, targetProfile, streamingCfg)
-	if err != nil {
-		err = fmt.Errorf("error starting dataflow: %v", err)
+		err = fmt.Errorf("can't do data migration: %v", err)
 		return subcommands.ExitFailure
 	}
 	if !cmd.skipForeignKeys {
