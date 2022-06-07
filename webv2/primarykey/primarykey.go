@@ -23,6 +23,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
 // updateprimaryKey updates primary key desc and order for primaryKey.
@@ -93,6 +94,19 @@ func addPrimaryKey(add []int, pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 				pkey.Desc = pkRequest.Columns[i].Desc
 				pkey.Order = pkRequest.Columns[i].Order
 
+				sessionState := session.GetSessionState()
+				schemaissue := sessionState.Conv.Issues[spannerTable.Name][pkey.Col]
+
+				fmt.Println("before addPrimaryKey ")
+
+				fmt.Println("schemaissue", schemaissue)
+
+				schemaissue = []internal.SchemaIssue{}
+				sessionState.Conv.Issues[spannerTable.Name][pkey.Col] = schemaissue
+				fmt.Println("after schemaissue[:0] ")
+
+				fmt.Println("schemaissue", schemaissue)
+
 				list = append(list, pkey)
 			}
 		}
@@ -113,50 +127,44 @@ func removePrimaryKey(remove []int, spannerTable ddl.CreateTable) []ddl.IndexKey
 
 			if spannerTable.Pks[i].Col == colname {
 
-				/*
-					sessionState := session.GetSessionState()
-					schemaissue := sessionState.Conv.Issues[spannerTable.Name][spannerTable.Pks[i].Col]
+				sessionState := session.GetSessionState()
+				schemaissue := sessionState.Conv.Issues[spannerTable.Name][spannerTable.Pks[i].Col]
 
-					if contains(schemaissue, internal.Hotspot_AutoIncrement) {
+				if contains(schemaissue, internal.Hotspot_AutoIncrement) {
 
-						schemaissue = Remove(schemaissue, internal.Hotspot_AutoIncrement)
-					}
+					schemaissue = Remove(schemaissue, internal.Hotspot_AutoIncrement)
+				}
 
-					if contains(schemaissue, internal.Hotspot_Timestamp) {
+				if contains(schemaissue, internal.Hotspot_Timestamp) {
 
-						schemaissue = Remove(schemaissue, internal.Hotspot_Timestamp)
-					}
+					schemaissue = Remove(schemaissue, internal.Hotspot_Timestamp)
+				}
 
-					if contains(schemaissue, internal.Interleaved_Order) {
+				if contains(schemaissue, internal.Interleaved_Order) {
 
-						schemaissue = Remove(schemaissue, internal.Interleaved_Order)
-					}
+					schemaissue = Remove(schemaissue, internal.Interleaved_Order)
+				}
 
-					if contains(schemaissue, internal.Interleaved_NotINOrder) {
+				if contains(schemaissue, internal.Interleaved_NotINOrder) {
 
-						schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
-					}
+					schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
+				}
 
-					if contains(schemaissue, internal.Interleaved_ADDCOLUMN) {
+				if contains(schemaissue, internal.Interleaved_ADDCOLUMN) {
 
-						schemaissue = Remove(schemaissue, internal.Interleaved_ADDCOLUMN)
-					}
+					schemaissue = Remove(schemaissue, internal.Interleaved_ADDCOLUMN)
+				}
 
-					fmt.Println("all suggestion removed before deleting PrimaryKey")
+				fmt.Println("all suggestion removed before deleting PrimaryKey")
 
-					fmt.Println("schemaissue :", schemaissue)
+				fmt.Println("schemaissue :", schemaissue)
 
-					if len(schemaissue) > 0 {
+				schemaissue = []internal.SchemaIssue{}
+				sessionState.Conv.Issues[spannerTable.Name][spannerTable.Pks[i].Col] = schemaissue
 
-						//	schemaissue = []internal.SchemaIssue{}
-						sessionState.Conv.Issues[spannerTable.Name][spannerTable.Pks[i].Col] = schemaissue
-
-					}
-
-				*/
 				list = append(spannerTable.Pks[:i], spannerTable.Pks[i+1:]...)
 
-				//fmt.Println("primary key removed removePrimaryKey")
+				fmt.Println("primary key removed removePrimaryKey")
 			}
 		}
 	}
