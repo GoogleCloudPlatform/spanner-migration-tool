@@ -325,6 +325,7 @@ func AnalyzeCols(conv *Conv, srcTable, spTable string) (map[string][]SchemaIssue
 // summary rating.
 func rateSchema(cols, warnings int64, missingPKey, summary bool) string {
 	pkMsg := "missing primary key"
+	s := fmt.Sprintf(" (%s%% of %d columns mapped cleanly)", pct(cols, warnings), cols)
 	if summary {
 		pkMsg = "some missing primary keys"
 	}
@@ -332,21 +333,21 @@ func rateSchema(cols, warnings int64, missingPKey, summary bool) string {
 	case cols == 0:
 		return "NONE (no schema found)"
 	case warnings == 0 && !missingPKey:
-		return "EXCELLENT (all columns mapped cleanly)"
+		return fmt.Sprintf("EXCELLENT (all %d columns mapped cleanly)", cols)
 	case warnings == 0 && missingPKey:
 		return fmt.Sprintf("GOOD (all columns mapped cleanly, but %s)", pkMsg)
 	case good(cols, warnings) && !missingPKey:
-		return "GOOD (most columns mapped cleanly)"
+		return "GOOD" + s
 	case good(cols, warnings) && missingPKey:
-		return fmt.Sprintf("GOOD (most columns mapped cleanly, but %s)", pkMsg)
+		return "GOOD" + s + fmt.Sprintf(" + %s", pkMsg)
 	case ok(cols, warnings) && !missingPKey:
-		return "OK (some columns did not map cleanly)"
+		return "OK" + s
 	case ok(cols, warnings) && missingPKey:
-		return fmt.Sprintf("OK (some columns did not map cleanly + %s)", pkMsg)
+		return "OK" + s + fmt.Sprintf(" + %s", pkMsg)
 	case !missingPKey:
-		return "POOR (many columns did not map cleanly)"
+		return "POOR" + s
 	default:
-		return fmt.Sprintf("POOR (many columns did not map cleanly + %s)", pkMsg)
+		return "POOR" + s + fmt.Sprintf(" + %s", pkMsg)
 	}
 }
 
@@ -367,11 +368,11 @@ func rateData(rows int64, badRows int64) string {
 }
 
 func good(total, badCount int64) bool {
-	return badCount < total/20
+	return float64(badCount) < float64(total)/20
 }
 
 func ok(total, badCount int64) bool {
-	return badCount < total/3
+	return float64(badCount) < float64(total)/3
 }
 
 func rateConversion(rows, badRows, cols, warnings int64, missingPKey, summary bool, schemaOnly bool) string {
@@ -544,10 +545,10 @@ func pct(total, bad int64) string {
 	}
 	pct := 100.0 * float64(total-bad) / float64(total)
 	if pct > 99.9 {
-		return fmt.Sprintf("%2.5f", pct)
+		return fmt.Sprintf("%2.2f", pct)
 	}
 	if pct > 95.0 {
-		return fmt.Sprintf("%2.3f", pct)
+		return fmt.Sprintf("%2.2f", pct)
 	}
 	return fmt.Sprintf("%2.0f", pct)
 }
