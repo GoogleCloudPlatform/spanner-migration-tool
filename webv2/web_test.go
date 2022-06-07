@@ -1066,6 +1066,7 @@ func TestGetConversionMySQL(t *testing.T) {
 	assert.Contains(t, result, "t2")
 }
 
+//todo update SetParentTable with case III suggest interleve table column.
 func TestSetParentTable(t *testing.T) {
 	tests := []struct {
 		name             string

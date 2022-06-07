@@ -596,11 +596,6 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				break
 			}
 		}
-
-		if tableInterleaveStatus.Parent == "" {
-			tableInterleaveStatus.Possible = false
-			tableInterleaveStatus.Comment = "No valid prefix"
-		}
 	}
 
 	fmt.Println("============================================")
@@ -649,6 +644,8 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 
 			tableInterleaveStatus.Comment = fmt.Sprintln(" table currently can be interleaved because order of primary key")
 			sessionState := session.GetSessionState()
+
+			fmt.Println("childPks[0].Col", childPks[0].Col)
 			schemaissue := sessionState.Conv.Issues[table][childPks[0].Col]
 
 			schemaissue = unique(schemaissue)
@@ -656,6 +653,8 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 			schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
 
 			schemaissue = Remove(schemaissue, internal.Interleaved_ADDCOLUMN)
+
+			schemaissue = Remove(schemaissue, internal.Interleaved_Order)
 
 			schemaissue = append(schemaissue, internal.Interleaved_Order)
 
@@ -681,9 +680,14 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 			tableInterleaveStatus.Possible = false
 
 			sessionState := session.GetSessionState()
+
 			schemaissue := sessionState.Conv.Issues[table][childPks[0].Col]
 
+			fmt.Println("childPks[0].Col", childPks[0].Col)
+
 			schemaissue = unique(schemaissue)
+
+			schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
 
 			schemaissue = Remove(schemaissue, internal.Interleaved_Order)
 			schemaissue = Remove(schemaissue, internal.Interleaved_ADDCOLUMN)
@@ -698,6 +702,11 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 
 		}
 
+	}
+
+	if tableInterleaveStatus.Parent == "" {
+		tableInterleaveStatus.Possible = false
+		tableInterleaveStatus.Comment = "No valid prefix"
 	}
 
 	//1 if columns are in order and both column are in composite keys
@@ -1244,12 +1253,16 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 				fmt.Println("case III")
 
 				sessionState := session.GetSessionState()
+
+				fmt.Println("pk.Col", pk.Col)
 				schemaissue := sessionState.Conv.Issues[table][pk.Col]
 
 				schemaissue = unique(schemaissue)
 
 				schemaissue = Remove(schemaissue, internal.Interleaved_Order)
 				schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
+
+				schemaissue = Remove(schemaissue, internal.Interleaved_ADDCOLUMN)
 
 				if tableInterleaveStatus.Parent == "" {
 

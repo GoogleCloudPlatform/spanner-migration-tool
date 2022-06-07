@@ -68,7 +68,7 @@ func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 	// hence remove primary key from  spannertable.Pks
 	rightjoin := difference(cidSpannerTableList, cidRequestList)
 
-	if len(rightjoin) > 0 {
+	if len(rightjoin) >= 0 {
 		nlist := removePrimaryKey(rightjoin, spannerTable)
 		spannerTable.Pks = nlist
 	}
@@ -94,17 +94,26 @@ func addPrimaryKey(add []int, pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 				pkey.Desc = pkRequest.Columns[i].Desc
 				pkey.Order = pkRequest.Columns[i].Order
 
-				sessionState := session.GetSessionState()
-				schemaissue := sessionState.Conv.Issues[spannerTable.Name][pkey.Col]
+				/*
+					sessionState := session.GetSessionState()
+					schemaissue := sessionState.Conv.Issues[spannerTable.Name][pkey.Col]
 
-				schemaissue = schemaissue[:0]
-				schemaissue = nil
 
-				if len(schemaissue) > 0 {
+						fmt.Println("before addPrimaryKey ")
 
-					sessionState.Conv.Issues[spannerTable.Name][pkey.Col] = schemaissue
+						fmt.Println("schemaissue", schemaissue)
 
-				}
+						if len(schemaissue) > 0 {
+							schemaissue = []internal.SchemaIssue{}
+							sessionState.Conv.Issues[spannerTable.Name][pkey.Col] = schemaissue
+
+						}
+
+						fmt.Println("after schemaissue[:0] ")
+
+						fmt.Println("schemaissue", schemaissue)
+
+				*/
 				list = append(list, pkey)
 			}
 		}
@@ -158,9 +167,11 @@ func removePrimaryKey(remove []int, spannerTable ddl.CreateTable) []ddl.IndexKey
 				fmt.Println("schemaissue :", schemaissue)
 
 				if len(schemaissue) > 0 {
-					sessionState.Conv.Issues[spannerTable.Name][spannerTable.Pks[i].Col] = schemaissue
-				}
 
+					//	schemaissue = []internal.SchemaIssue{}
+					sessionState.Conv.Issues[spannerTable.Name][spannerTable.Pks[i].Col] = schemaissue
+
+				}
 				list = append(spannerTable.Pks[:i], spannerTable.Pks[i+1:]...)
 
 				fmt.Println("primary key removed removePrimaryKey")
