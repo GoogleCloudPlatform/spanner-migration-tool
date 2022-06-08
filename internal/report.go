@@ -58,6 +58,8 @@ func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites ma
 	if isDump {
 		writeStmtStats(driverName, conv, w)
 	}
+	reportNameChanges(conv, w)
+
 	if printTableReports {
 		for _, t := range reports {
 			h := fmt.Sprintf("Table %s", t.SrcTable)
@@ -76,6 +78,7 @@ func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites ma
 			}
 		}
 	}
+
 	if printUnexpecteds {
 		writeUnexpectedConditions(driverName, conv, w)
 	}
@@ -172,6 +175,20 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 				l = append(l, fmt.Sprintf("UNIQUE constraint on column(s) '%s' replaced with primary key since this table didn't have one. Spanner requires a primary key for every table", strings.Join(uniquePK, ", ")))
 			}
 		}
+
+		if p.severity == note {
+			for srcKeyName, spKeyName := range conv.ToSpanner[srcTable].ForeignKey {
+				if srcKeyName != spKeyName {
+					l = append(l, fmt.Sprintf("%s, Foreign Key '%s' is mapped to '%s'", IssueDB[NameConvention].Brief, srcKeyName, spKeyName))
+				}
+			}
+			for srcIdxName, spIdxName := range conv.ToSpanner[srcTable].Index {
+				if srcIdxName != spIdxName {
+					l = append(l, fmt.Sprintf("%s, Index '%s' is mapped to '%s'", IssueDB[NameConvention].Brief, srcIdxName, spIdxName))
+				}
+			}
+		}
+
 		issueBatcher := make(map[SchemaIssue]bool)
 		for _, srcCol := range cols {
 			for _, i := range issues[srcCol] {
@@ -192,6 +209,9 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 				}
 				srcType := srcSchema.ColDefs[srcCol].Type.Print()
 				spType := spSchema.ColDefs[spCol].T.PrintColumnDefType()
+				srcName := fmt.Sprintf(srcSchema.ColDefs[srcCol].Name)
+				spName := fmt.Sprintf(spSchema.ColDefs[spCol].Name)
+
 				// A note on case: Spanner types are case insensitive, but
 				// default to upper case. In particular, the Spanner AST uses
 				// upper case, so spType is upper case. Many source DBs
@@ -215,6 +235,8 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					l = append(l, fmt.Sprintf("Some columns have source DB type 'datetime' which is mapped to Spanner type timestamp e.g. column '%s'. %s", srcCol, IssueDB[i].Brief))
 				case Widened:
 					l = append(l, fmt.Sprintf("%s e.g. for column '%s', source DB type %s is mapped to Spanner type %s", IssueDB[i].Brief, srcCol, srcType, spType))
+				case NameConvention:
+					l = append(l, fmt.Sprintf("%s, Column '%s' is mapped to '%s'", IssueDB[i].Brief, srcName, spName))
 				default:
 					l = append(l, fmt.Sprintf("Column '%s': type %s is mapped to %s. %s", srcCol, srcType, spType, IssueDB[i].Brief))
 				}
@@ -223,6 +245,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 		if len(l) == 0 {
 			continue
 		}
+
 		heading := p.heading
 		if len(l) > 1 {
 			heading = heading + "s"
@@ -277,6 +300,7 @@ var IssueDB = map[SchemaIssue]struct {
 	Time:                  {Brief: "Spanner does not support time/year types", severity: note, batch: true},
 	Widened:               {Brief: "Some columns will consume more storage in Spanner", severity: note, batch: true},
 	StringOverflow:        {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
+	NameConvention:        {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: note},
 }
 
 type severity int
@@ -432,6 +456,38 @@ func IgnoredStatements(conv *Conv) (l []string) {
 	}
 	sort.Strings(l)
 	return l
+}
+
+func reportNameChanges(conv *Conv, w *bufio.Writer) {
+
+	w.WriteString("-----------------------------------------------------------------------------------------------------\n")
+	w.WriteString("Name Changes in Migration\n")
+	w.WriteString("-----------------------------------------------------------------------------------------------------\n")
+	fmt.Fprintf(w, "%25s %15s %25s %25s\n", "Source Table", "Change", "Old Name", "New Name")
+	w.WriteString("-----------------------------------------------------------------------------------------------------\n")
+
+	for srcTableName, spTable := range conv.ToSpanner {
+		if srcTableName != spTable.Name {
+			fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Table Name", srcTableName, spTable.Name)
+		}
+		for srcColName, spColName := range spTable.Cols {
+			if srcColName != spColName {
+				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Column Name", srcColName, spColName)
+			}
+		}
+		for srcFkName, spFkName := range spTable.ForeignKey {
+			if srcFkName != spFkName {
+				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Foreign Key", srcFkName, spFkName)
+			}
+		}
+		for srcIdxName, spIdxName := range spTable.Index {
+			if srcIdxName != spIdxName {
+				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Index", srcIdxName, spIdxName)
+			}
+		}
+	}
+	w.WriteString("-----------------------------------------------------------------------------------------------------\n\n\n")
+
 }
 
 func writeStmtStats(driverName string, conv *Conv, w *bufio.Writer) {

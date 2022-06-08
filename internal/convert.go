@@ -85,13 +85,16 @@ const (
 	Widened
 	Time
 	StringOverflow
+	NameConvention
 )
 
 // NameAndCols contains the name of a table and its columns.
 // Used to map between source DB and Spanner table and column names.
 type NameAndCols struct {
-	Name string
-	Cols map[string]string
+	Name       string
+	Cols       map[string]string
+	ForeignKey map[string]string
+	Index      map[string]string
 }
 
 type rowSamples struct {

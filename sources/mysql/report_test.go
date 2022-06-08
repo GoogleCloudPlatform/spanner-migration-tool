@@ -98,6 +98,14 @@ Analysis of statements in mysqldump output, broken down by statement type.
 See https://github.com/pingcap/parser for definitions of statement types
 (pingcap/tidb/parser is the library we use for parsing mysqldump output).
 
+-----------------------------------------------------------------------------------------------------
+Name Changes in Migration
+-----------------------------------------------------------------------------------------------------
+             Source Table          Change                  Old Name                  New Name
+-----------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------
+
+
 ----------------------------
 Table bad_schema
 ----------------------------
