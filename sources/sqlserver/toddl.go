@@ -16,7 +16,6 @@
 package sqlserver
 
 import (
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -32,9 +31,6 @@ type ToDdlImpl struct {
 // conversion issues encountered.
 func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	ty, issues := toSpannerTypeInternal(columnType.Name, columnType.Mods)
-	if conv.TargetDb == constants.TargetExperimentalPostgres {
-		ty = overrideExperimentalType(columnType, ty)
-	}
 	return ty, issues
 }
 
@@ -84,12 +80,4 @@ func toSpannerTypeInternal(srcType string, mods []int64) (ddl.Type, []internal.S
 	default:
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 	}
-}
-
-// Override the types to map to experimental postgres types.
-func overrideExperimentalType(columnType schema.Type, originalType ddl.Type) ddl.Type {
-	if columnType.Name == "date" {
-		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-	}
-	return originalType
 }
