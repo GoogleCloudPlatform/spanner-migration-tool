@@ -74,7 +74,7 @@ func TestReport(t *testing.T) {
 		`----------------------------
 Summary of Conversion
 ----------------------------
-Schema conversion: GOOD (most columns mapped cleanly, but some missing primary keys).
+Schema conversion: GOOD (99.99412% of 17006 columns mapped cleanly) + some missing primary keys.
 Data conversion: POOR (66% of 6000 rows written to Spanner).
 
 The remainder of this report provides stats on the mysqldump statements
@@ -115,7 +115,7 @@ Note
 ----------------------------
 Table default_value
 ----------------------------
-Schema conversion: POOR (many columns did not map cleanly).
+Schema conversion: POOR (50% of 2 columns mapped cleanly).
 Data conversion: NONE (no data rows found).
 
 Warning
@@ -125,13 +125,13 @@ Warning
 ----------------------------
 Table excellent_schema
 ----------------------------
-Schema conversion: EXCELLENT (all columns mapped cleanly).
+Schema conversion: EXCELLENT (all 2 columns mapped cleanly).
 Data conversion: NONE (no data rows found).
 
 ----------------------------
 Table foreign_key
 ----------------------------
-Schema conversion: EXCELLENT (all columns mapped cleanly).
+Schema conversion: EXCELLENT (all 2 columns mapped cleanly).
 Data conversion: NONE (no data rows found).
 
 ----------------------------
