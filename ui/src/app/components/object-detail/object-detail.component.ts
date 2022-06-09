@@ -278,8 +278,6 @@ export class ObjectDetailComponent implements OnInit {
       next: (res: string) => {
         if (res == '') {
           this.data.getDdl()
-          console.log(element, 'element')
-
           this.snackbar.openSnackBar(
             `${element.get('spName').value} Foreign key dropped successfully`,
             'Close',
@@ -366,9 +364,6 @@ export class ObjectDetailComponent implements OnInit {
   }
   dropIndexKey(index: number) {
     let payload: ICreateIndex[] = []
-    console.log('drop index key ', index)
-    console.log(this.currentObject?.name, this.currentObject?.parent, ' object name')
-    console.log(this.indexData, 'indexData')
     const tableName = this.currentObject?.parent || ''
     if (this.indexData.length === 1) {
       this.dropIndex()
