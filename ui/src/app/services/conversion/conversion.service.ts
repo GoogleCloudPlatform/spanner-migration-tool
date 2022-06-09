@@ -217,6 +217,7 @@ export class ConversionService {
         srcOrder: srcIndexs && srcIndexs.length > 0 ? i + 1 : '',
         spColName: idx.Col,
         spOrder: i + 1,
+        spDesc: idx.Desc,
       }
     })
     return res

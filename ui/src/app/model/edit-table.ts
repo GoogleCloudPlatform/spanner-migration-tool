@@ -16,4 +16,5 @@ export interface IIndexData {
   spColName: string
   srcOrder: number | string
   spOrder: number | string
+  spDesc: boolean
 }

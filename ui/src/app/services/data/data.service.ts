@@ -283,6 +283,17 @@ export class DataService {
       },
     })
   }
+  updateIndex(tableName: string, payload: ICreateIndex[]) {
+    this.fetch.updateIndex(tableName, payload).subscribe({
+      next: (res: IConv) => {
+        this.convSubject.next(res)
+        this.snackbar.openSnackBar('Index updated successfully.', 'Close', 5)
+      },
+      error: (err: any) => {
+        this.snackbar.openSnackBar(err.error, 'Close')
+      },
+    })
+  }
 
   dropIndex(tableName: string, pos: number): Observable<string> {
     return this.fetch.dropIndex(tableName, pos).pipe(

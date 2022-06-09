@@ -113,6 +113,10 @@ export class FetchService {
     return this.http.post<IConv>(`${this.url}/add/indexes?table=${tableName}`, payload)
   }
 
+  updateIndex(tableName: string, payload: ICreateIndex[]) {
+    return this.http.post<IConv>(`${this.url}/update/indexes?table=${tableName}`, payload)
+  }
+
   dropIndex(tableName: string, idx: number) {
     return this.http.get<IConv>(`${this.url}/drop/secondaryindex?table=${tableName}&pos=${idx}`)
   }

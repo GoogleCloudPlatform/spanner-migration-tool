@@ -58,9 +58,9 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     })
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
-      const indexAdded = this.isIndexAdded(data)
+      const indexAddedOrRemoved = this.isIndexAddedOrRemoved(data)
       this.conv = data
-      if (indexAdded && this.conversionRates) this.reRenderObjectExplorerSpanner()
+      if (indexAddedOrRemoved && this.conversionRates) this.reRenderObjectExplorerSpanner()
       if (!this.objectExplorerInitiallyRender && this.conversionRates) {
         this.reRenderObjectExplorerSpanner()
         this.reRenderObjectExplorerSrc()
@@ -74,6 +74,17 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
         this.tableData = this.currentObject
           ? this.conversion.getColumnMapping(this.currentObject.name, data)
           : []
+      }
+      if (
+        this.currentObject &&
+        this.currentObject?.type === ObjectExplorerNodeType.Index &&
+        !indexAddedOrRemoved
+      ) {
+        this.indexData = this.conversion.getIndexMapping(
+          this.currentObject.parent,
+          this.conv,
+          this.currentObject.name
+        )
       }
     })
 
@@ -181,7 +192,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     )
   }
 
-  isIndexAdded(data: IConv) {
+  isIndexAddedOrRemoved(data: IConv) {
     if (this.conv) {
       let prevIndexCount = 0
       let curIndexCount = 0
@@ -191,7 +202,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
       Object.entries(data.SpSchema).forEach((item) => {
         curIndexCount += item[1].Indexes ? item[1].Indexes.length : 0
       })
-      if (prevIndexCount < curIndexCount) return true
+      if (prevIndexCount !== curIndexCount) return true
       else return false
     }
     return false

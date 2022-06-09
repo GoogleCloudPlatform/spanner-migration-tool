@@ -11,7 +11,7 @@ import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import FlatNode from 'src/app/model/schema-object-node'
 import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
-import IConv from 'src/app/model/conv'
+import IConv, { ICreateIndex } from 'src/app/model/conv'
 import { DropIndexDialogComponent } from '../drop-index-dialog/drop-index-dialog.component'
 
 @Component({
@@ -72,7 +72,13 @@ export class ObjectDetailComponent implements OnInit {
     'dropButton',
   ]
 
-  indexDisplayedColumns = ['srcIndexColName', 'srcIndexOrder', 'spIndexColName', 'spIndexOrder']
+  indexDisplayedColumns = [
+    'srcIndexColName',
+    'srcIndexOrder',
+    'spIndexColName',
+    'spIndexOrder',
+    'dropButton',
+  ]
   dataSource: any = []
   fkDataSource: any = []
   isEditMode: boolean = false
@@ -357,6 +363,34 @@ export class ObjectDetailComponent implements OnInit {
         this.currentObject = null
       }
     })
+  }
+  dropIndexKey(index: number) {
+    let payload: ICreateIndex[] = []
+    console.log('drop index key ', index)
+    console.log(this.currentObject?.name, this.currentObject?.parent, ' object name')
+    console.log(this.indexData, 'indexData')
+    const tableName = this.currentObject?.parent || ''
+    if (this.indexData.length === 1) {
+      this.dropIndex()
+    } else {
+      payload.push({
+        Name: this.currentObject?.name || '',
+        Table: this.currentObject?.parent || '',
+        Unique: false,
+        Keys: this.indexData
+          .filter((_, i: number) => {
+            if (i === index) return false
+            return true
+          })
+          .map((col: any) => {
+            return {
+              Col: col.spColName,
+              Desc: col.desc,
+            }
+          }),
+      })
+      this.data.updateIndex(tableName, payload)
+    }
   }
 
   selectedColumnChange(tableName: string) {}
