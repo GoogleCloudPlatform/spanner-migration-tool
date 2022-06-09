@@ -276,6 +276,7 @@ export class ObjectDetailComponent implements OnInit {
 
   setPkRows() {
     this.pkArray = new FormArray([])
+    this.pkOrderValidation()
     this.pkData.forEach((row) => {
       if (row.srcIsPk && row.spIsPk) {
         this.pkArray.push(
@@ -335,14 +336,19 @@ export class ObjectDetailComponent implements OnInit {
 
   addPkColumn() {
     let index = this.tableData.map((item) => item.spColName).indexOf(this.addedColumnName)
+    let newColumnOrder = 1
     this.tableData[index].spIsPk = true
     this.pkData = []
     this.pkData = this.conversion.getPkMapping(this.tableData)
     this.pkArray.value.forEach((pk: IColumnTabData, i: number) => {
+      if (pk.spIsPk) {
+        newColumnOrder = newColumnOrder + 1
+      }
       if (this.pkData[i].spOrder !== pk.spOrder && pk.spOrder) {
         this.pkData[i].spOrder = pk.spOrder
       }
     })
+    this.pkData[index].spOrder = newColumnOrder
     this.setAddPkColumnList()
     this.setPkRows()
   }
@@ -388,6 +394,20 @@ export class ObjectDetailComponent implements OnInit {
     }
   }
 
+  pkOrderValidation() {
+    let arr = this.pkData.map((item) => Number(item.spOrder))
+    arr.sort()
+    if (arr[arr.length - 1] > arr.length) {
+      arr.forEach((num: number, ind: number) => {
+        this.pkData.forEach((pk: IColumnTabData) => {
+          if (pk.spOrder == num) {
+            pk.spOrder = ind + 1
+          }
+        })
+      })
+    }
+  }
+
   getPkRequestObj() {
     let tableId: number = this.conv.SpSchema[this.currentObject!.name].Id
     let PrimaryKeyId: number = this.conv.SpSchema[this.currentObject!.name].PrimaryKeyId
@@ -427,8 +447,10 @@ export class ObjectDetailComponent implements OnInit {
           this.pkData[i].spOrder = pk.spOrder
         }
       })
+      this.isPkEditMode = false
       this.data.updatePk(this.pkObj).subscribe({
         next: (res: string) => {
+          console.log(res)
           if (res == '') {
             this.isEditMode = false
           } else {
@@ -436,11 +458,10 @@ export class ObjectDetailComponent implements OnInit {
               data: { message: res, type: 'error' },
               maxWidth: '500px',
             })
+            this.isPkEditMode = true
           }
         },
       })
-
-      this.isPkEditMode = false
     } else {
       this.isPkEditMode = true
     }
@@ -448,6 +469,7 @@ export class ObjectDetailComponent implements OnInit {
 
   dropPk(element: any) {
     let index = this.tableData.map((item) => item.spColName).indexOf(element.value.spColName)
+    let removedOrder = element.value.spOrder
     this.tableData[index].spIsPk = false
     this.pkData = []
     this.pkData = this.conversion.getPkMapping(this.tableData)
@@ -456,6 +478,13 @@ export class ObjectDetailComponent implements OnInit {
         this.pkData[i].spOrder = pk.spOrder
       }
     })
+
+    this.pkData.forEach((column: IColumnTabData, ind: number) => {
+      if (column.spOrder > removedOrder) {
+        column.spOrder = Number(column.spOrder) - 1
+      }
+    })
+
     this.setAddPkColumnList()
     this.setPkRows()
   }
