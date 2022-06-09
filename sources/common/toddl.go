@@ -99,7 +99,7 @@ func SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error {
 			ColNames: spColNames,
 			ColDefs:  spColDef,
 			Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
-			Fks:      cvtForeignKeys(conv, srcTable.Name, srcTable.ForeignKeys),
+			Fks:      cvtForeignKeys(conv, spTableName, srcTable.Name, srcTable.ForeignKeys),
 			Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes),
 			Comment:  comment}
 	}
@@ -130,7 +130,7 @@ func cvtPrimaryKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Key) 
 	return spKeys
 }
 
-func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.ForeignKey) []ddl.Foreignkey {
+func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTable string, srcKeys []schema.ForeignKey) []ddl.Foreignkey {
 	var spKeys []ddl.Foreignkey
 	for _, key := range srcKeys {
 		if len(key.Columns) != len(key.ReferColumns) {
@@ -161,7 +161,8 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 			ReferTable:   spReferTable,
 			ReferColumns: spReferCols}
 		spKeys = append(spKeys, spKey)
-		conv.ToSpanner[srcTable].ForeignKey[key.Name] = spKeyName
+		conv.ToSpannerFkIdx[srcTable].ForeignKey[key.Name] = spKeyName
+		//conv.ToSourceFkIdx[spTableName].ForeignKey[spKeyName] = key.Name
 	}
 
 	return spKeys
@@ -193,7 +194,8 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 			Keys:   spKeys,
 		}
 		spIndexes = append(spIndexes, spIndex)
-		conv.ToSpanner[srcTable].Index[srcIndex.Name] = spIndexName
+		conv.ToSpannerFkIdx[srcTable].Index[srcIndex.Name] = spIndexName
+		//conv.ToSourceFkIdx[spTableName].Index[spIndexName] = srcIndex.Name
 	}
 	return spIndexes
 }

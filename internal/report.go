@@ -177,12 +177,12 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 		}
 
 		if p.severity == note {
-			for srcKeyName, spKeyName := range conv.ToSpanner[srcTable].ForeignKey {
+			for srcKeyName, spKeyName := range conv.ToSpannerFkIdx[srcTable].ForeignKey {
 				if srcKeyName != spKeyName {
 					l = append(l, fmt.Sprintf("%s, Foreign Key '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcKeyName, spKeyName))
 				}
 			}
-			for srcIdxName, spIdxName := range conv.ToSpanner[srcTable].Index {
+			for srcIdxName, spIdxName := range conv.ToSpannerFkIdx[srcTable].Index {
 				if srcIdxName != spIdxName {
 					l = append(l, fmt.Sprintf("%s, Index '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcIdxName, spIdxName))
 				}
@@ -475,12 +475,12 @@ func reportNameChanges(conv *Conv, w *bufio.Writer) {
 				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Column Name", srcColName, spColName)
 			}
 		}
-		for srcFkName, spFkName := range spTable.ForeignKey {
+		for srcFkName, spFkName := range conv.ToSpannerFkIdx[srcTableName].ForeignKey {
 			if srcFkName != spFkName {
 				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Foreign Key", srcFkName, spFkName)
 			}
 		}
-		for srcIdxName, spIdxName := range spTable.Index {
+		for srcIdxName, spIdxName := range conv.ToSpannerFkIdx[srcTableName].Index {
 			if srcIdxName != spIdxName {
 				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Index", srcIdxName, spIdxName)
 			}

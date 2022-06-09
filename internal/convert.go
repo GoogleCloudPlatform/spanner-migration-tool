@@ -31,7 +31,9 @@ type Conv struct {
 	SrcSchema                map[string]schema.Table             // Maps source-DB table name to schema information.
 	Issues                   map[string]map[string][]SchemaIssue // Maps source-DB table/col to list of schema conversion issues.
 	ToSpanner                map[string]NameAndCols              // Maps from source-DB table name to Spanner name and column mapping.
+	ToSpannerFkIdx           map[string]FkeyAndIdxs              // Maps from source-DB table name to Spanner table name, foreign keys and index mappings.
 	ToSource                 map[string]NameAndCols              // Maps from Spanner table name to source-DB table name and column mapping.
+	ToSourceFkIdx            map[string]FkeyAndIdxs              // Maps from Spanner table name to source-DB table name, foreign key and index mappings.
 	UsedNames                map[string]bool                     // Map storing the names that are already assigned to tables, indices or foreign key contraints.
 	dataSink                 func(table string, cols []string, values []interface{})
 	DataFlush                func()         `json:"-"` // Data flush is used to flush out remaining writes and wait for them to complete.
@@ -91,12 +93,15 @@ const (
 // NameAndCols contains the name of a table and its columns.
 // Used to map between source DB and Spanner table and column names.
 type NameAndCols struct {
+	Name string
+	Cols map[string]string
+}
+
+type FkeyAndIdxs struct {
 	Name       string
-	Cols       map[string]string
 	ForeignKey map[string]string
 	Index      map[string]string
 }
-
 type rowSamples struct {
 	rows       []*row
 	bytes      int64 // Bytes consumed by l.
@@ -139,7 +144,9 @@ func MakeConv() *Conv {
 		SrcSchema:      make(map[string]schema.Table),
 		Issues:         make(map[string]map[string][]SchemaIssue),
 		ToSpanner:      make(map[string]NameAndCols),
+		ToSpannerFkIdx: make(map[string]FkeyAndIdxs),
 		ToSource:       make(map[string]NameAndCols),
+		ToSourceFkIdx:  make(map[string]FkeyAndIdxs),
 		UsedNames:      make(map[string]bool),
 		Location:       time.Local, // By default, use go's local time, which uses $TZ (when set).
 		sampleBadRows:  rowSamples{bytesLimit: 10 * 1000 * 1000},
