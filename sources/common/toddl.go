@@ -75,7 +75,7 @@ func SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error {
 				issues = append(issues, internal.ForeignKey)
 			}
 			if srcCol.Name != colName {
-				issues = append(issues, internal.NameConvention)
+				issues = append(issues, internal.IllegalName)
 			}
 			if srcCol.Ignored.Default {
 				issues = append(issues, internal.DefaultValue)

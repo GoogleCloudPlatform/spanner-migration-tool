@@ -179,12 +179,12 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 		if p.severity == note {
 			for srcKeyName, spKeyName := range conv.ToSpanner[srcTable].ForeignKey {
 				if srcKeyName != spKeyName {
-					l = append(l, fmt.Sprintf("%s, Foreign Key '%s' is mapped to '%s'", IssueDB[NameConvention].Brief, srcKeyName, spKeyName))
+					l = append(l, fmt.Sprintf("%s, Foreign Key '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcKeyName, spKeyName))
 				}
 			}
 			for srcIdxName, spIdxName := range conv.ToSpanner[srcTable].Index {
 				if srcIdxName != spIdxName {
-					l = append(l, fmt.Sprintf("%s, Index '%s' is mapped to '%s'", IssueDB[NameConvention].Brief, srcIdxName, spIdxName))
+					l = append(l, fmt.Sprintf("%s, Index '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcIdxName, spIdxName))
 				}
 			}
 		}
@@ -209,8 +209,8 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 				}
 				srcType := srcSchema.ColDefs[srcCol].Type.Print()
 				spType := spSchema.ColDefs[spCol].T.PrintColumnDefType()
-				srcName := fmt.Sprintf(srcSchema.ColDefs[srcCol].Name)
-				spName := fmt.Sprintf(spSchema.ColDefs[spCol].Name)
+				srcName := srcSchema.ColDefs[srcCol].Name
+				spName := spSchema.ColDefs[spCol].Name
 
 				// A note on case: Spanner types are case insensitive, but
 				// default to upper case. In particular, the Spanner AST uses
@@ -235,7 +235,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					l = append(l, fmt.Sprintf("Some columns have source DB type 'datetime' which is mapped to Spanner type timestamp e.g. column '%s'. %s", srcCol, IssueDB[i].Brief))
 				case Widened:
 					l = append(l, fmt.Sprintf("%s e.g. for column '%s', source DB type %s is mapped to Spanner type %s", IssueDB[i].Brief, srcCol, srcType, spType))
-				case NameConvention:
+				case IllegalName:
 					l = append(l, fmt.Sprintf("%s, Column '%s' is mapped to '%s'", IssueDB[i].Brief, srcName, spName))
 				default:
 					l = append(l, fmt.Sprintf("Column '%s': type %s is mapped to %s. %s", srcCol, srcType, spType, IssueDB[i].Brief))
@@ -300,7 +300,7 @@ var IssueDB = map[SchemaIssue]struct {
 	Time:                  {Brief: "Spanner does not support time/year types", severity: note, batch: true},
 	Widened:               {Brief: "Some columns will consume more storage in Spanner", severity: note, batch: true},
 	StringOverflow:        {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
-	NameConvention:        {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: note},
+	IllegalName:           {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: note},
 }
 
 type severity int

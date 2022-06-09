@@ -85,7 +85,7 @@ const (
 	Widened
 	Time
 	StringOverflow
-	NameConvention
+	IllegalName
 )
 
 // NameAndCols contains the name of a table and its columns.
