@@ -162,7 +162,7 @@ func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTable string, sr
 			ReferColumns: spReferCols}
 		spKeys = append(spKeys, spKey)
 		conv.ToSpannerFkIdx[srcTable].ForeignKey[key.Name] = spKeyName
-		//conv.ToSourceFkIdx[spTableName].ForeignKey[spKeyName] = key.Name
+		conv.ToSourceFkIdx[spTableName].ForeignKey[spKeyName] = key.Name
 	}
 
 	return spKeys
@@ -195,7 +195,7 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 		}
 		spIndexes = append(spIndexes, spIndex)
 		conv.ToSpannerFkIdx[srcTable].Index[srcIndex.Name] = spIndexName
-		//conv.ToSourceFkIdx[spTableName].Index[spIndexName] = srcIndex.Name
+		conv.ToSourceFkIdx[spTableName].Index[spIndexName] = srcIndex.Name
 	}
 	return spIndexes
 }
