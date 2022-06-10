@@ -542,6 +542,13 @@
           <p>{{ element.get('spColName').value }}</p>
         </td>
       </ng-container>
+      <ng-container matColumnDef="spAscOrDesc">
+        <th mat-header-cell class="table_header" *matHeaderCellDef>Asc/Desc</th>
+        <td mat-cell *matCellDef="let element">
+          <p *ngIf="element.get('spDesc').value">Desc</p>
+          <p *ngIf="!element.get('spDesc').value">Asc</p>
+        </td>
+      </ng-container>
       <ng-container matColumnDef="dropButton">
         <th mat-header-cell class="table_header" *matHeaderCellDef></th>
         <td
@@ -563,29 +570,35 @@
       <tr mat-header-row *matHeaderRowDef="indexDisplayedColumns"></tr>
       <tr mat-row *matRowDef="let row; columns: indexDisplayedColumns"></tr>
     </table>
-    <div [formGroup]="addColumnForm" *ngIf="isIndexEditMode" class="add-index-column">
+    <div
+      [formGroup]="addIndexKeyForm"
+      *ngIf="isIndexEditMode && indexColumnNames.length > 0"
+      class="add-index-column-container"
+    >
       <mat-form-field appearance="outline" class="index-column-list">
         <mat-label>Column Name</mat-label>
-        <mat-select
-          matSelect
-          class="input-field"
-          (selectionChange)="selectedColumnChange($event.value)"
-          formControlName="columnName"
-          required="true"
-        >
-          <mat-option *ngFor="let column of columnNames" [value]="column">{{ column }}</mat-option>
+        <mat-select matSelect class="input-field" formControlName="columnName">
+          <mat-option *ngFor="let column of indexColumnNames" [value]="column">{{
+            column
+          }}</mat-option>
         </mat-select>
       </mat-form-field>
-
+      <mat-form-field appearance="outline" class="index-column-order">
+        <mat-label>Asc/Desc</mat-label>
+        <mat-select matSelect class="input-field" formControlName="ascOrDesc">
+          <mat-option value="asc">Ascending</mat-option>
+          <mat-option value="desc">Descending</mat-option>
+        </mat-select>
+      </mat-form-field>
       <button
-        mat-button
+        mat-raised-button
         color="primary"
-        class="add-column-btn"
-        type="button"
-        (click)="addNewColumn()"
+        type="submit"
+        [disabled]="!addIndexKeyForm.valid"
+        (click)="addIndexKey()"
       >
         <mat-icon>add</mat-icon>
-        ADD COLUMN
+        <span> ADD COLUMN</span>
       </button>
     </div>
   </div>

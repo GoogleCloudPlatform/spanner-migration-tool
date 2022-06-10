@@ -76,6 +76,7 @@ export class ObjectDetailComponent implements OnInit {
     'srcIndexColName',
     'srcIndexOrder',
     'spIndexColName',
+    'spAscOrDesc',
     'spIndexOrder',
     'dropButton',
   ]
@@ -91,9 +92,10 @@ export class ObjectDetailComponent implements OnInit {
   isSpTableSuggesstionDisplay: boolean[] = []
   spTableSuggestion: string[] = []
   currentTabIndex: number = 0
-  columnNames: string[] = []
-  addColumnForm = new FormGroup({
+  indexColumnNames: string[] = []
+  addIndexKeyForm = new FormGroup({
     columnName: new FormControl('', [Validators.required]),
+    ascOrDesc: new FormControl('', [Validators.required]),
   })
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -128,7 +130,16 @@ export class ObjectDetailComponent implements OnInit {
         )
       })
     } else if (this.currentObject) {
-      this.columnNames = this.conv.SpSchema[this.currentObject?.parent].ColNames
+      const addedIndexColumns = this.indexData.map((data) => data.spColName)
+      this.indexColumnNames = this.conv.SpSchema[this.currentObject?.parent].ColNames.filter(
+        (columnName) => {
+          if (addedIndexColumns.includes(columnName)) {
+            return false
+          } else {
+            return true
+          }
+        }
+      )
       this.indexData.forEach((row: IIndexData) => {
         this.rowArray.push(
           new FormGroup({
@@ -136,6 +147,7 @@ export class ObjectDetailComponent implements OnInit {
             srcColName: new FormControl(row.srcColName),
             spOrder: new FormControl(row.spOrder),
             spColName: new FormControl(row.spColName),
+            spDesc: new FormControl(row.spDesc),
           })
         )
       })
@@ -380,7 +392,7 @@ export class ObjectDetailComponent implements OnInit {
           .map((col: any) => {
             return {
               Col: col.spColName,
-              Desc: col.desc,
+              Desc: col.spDesc,
             }
           }),
       })
@@ -388,10 +400,29 @@ export class ObjectDetailComponent implements OnInit {
     }
   }
 
-  selectedColumnChange(tableName: string) {}
+  addIndexKey() {
+    let payload: ICreateIndex[] = []
+    const tableName = this.currentObject?.parent || ''
+    payload.push({
+      Name: this.currentObject?.name || '',
+      Table: this.currentObject?.parent || '',
+      Unique: false,
+      Keys: this.indexData.map((col: any) => {
+        return {
+          Col: col.spColName,
+          Desc: col.spDesc,
+        }
+      }),
+    })
+    payload[0].Keys.push({
+      Col: this.addIndexKeyForm.value.columnName,
+      Desc: this.addIndexKeyForm.value.ascOrDesc === 'desc',
+    })
 
-  addNewColumn() {
-    alert('Add column implementation is in progress.')
+    this.data.updateIndex(tableName, payload)
+    this.addIndexKeyForm.controls['columnName'].setValue('')
+    this.addIndexKeyForm.controls['ascOrDesc'].setValue('')
+    this.addIndexKeyForm.markAsUntouched()
   }
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
