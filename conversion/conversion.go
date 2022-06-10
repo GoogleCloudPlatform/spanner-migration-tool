@@ -74,14 +74,7 @@ var (
 const migrationMetadataKey = "cloud-spanner-migration-metadata"
 
 // SchemaConv performs the schema conversion
-// TODO: Pass around cmd.SourceProfile instead of sqlConnectionStr and schemaSampleSize.
-// Doing that requires refactoring since that would introduce a circular dependency between
-// conversion.go and cmd/source_profile.go.
-// The sqlConnectionStr param provides the connection details to use the go SQL library.
-// It is empty in the following cases:
-//  - Driver is DynamoDB or a dump file mode.
-//  - This function is called as part of the legacy global CLI flag mode. (This string is constructed from env variables later on)
-// When using source-profile, the sqlConnectionStr is constructed from the input params.
+// The SourceProfile param provides the connection details to use the go SQL library.
 func SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams) (*internal.Conv, error) {
 	switch sourceProfile.Driver {
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE:
@@ -94,11 +87,7 @@ func SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.Tar
 }
 
 // DataConv performs the data conversion
-// The sqlConnectionStr param provides the connection details to use the go SQL library.
-// It is empty in the following cases:
-//  - Driver is DynamoDB or a dump file mode.
-//  - This function is called as part of the legacy global CLI flag mode. (This string is constructed from env variables later on)
-// When using source-profile, the sqlConnectionStr and schemaSampleSize are constructed from the input params.
+// The SourceProfile param provides the connection details to use the go SQL library.
 func DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, writeLimit int64) (*writer.BatchWriter, error) {
 	config := writer.BatchWriterConfig{
 		BytesLimit: 100 * 1000 * 1000,
