@@ -31,9 +31,7 @@ type Conv struct {
 	SrcSchema                map[string]schema.Table             // Maps source-DB table name to schema information.
 	Issues                   map[string]map[string][]SchemaIssue // Maps source-DB table/col to list of schema conversion issues.
 	ToSpanner                map[string]NameAndCols              // Maps from source-DB table name to Spanner name and column mapping.
-	ToSpannerFkIdx           map[string]FkeyAndIdxs              // Maps from source-DB table name to Spanner table name, foreign keys and index mappings.
 	ToSource                 map[string]NameAndCols              // Maps from Spanner table name to source-DB table name and column mapping.
-	ToSourceFkIdx            map[string]FkeyAndIdxs              // Maps from Spanner table name to source-DB table name, foreign key and index mappings.
 	UsedNames                map[string]bool                     // Map storing the names that are already assigned to tables, indices or foreign key contraints.
 	dataSink                 func(table string, cols []string, values []interface{})
 	DataFlush                func()         `json:"-"` // Data flush is used to flush out remaining writes and wait for them to complete.
@@ -43,6 +41,8 @@ type Conv struct {
 	TimezoneOffset           string                                 // Timezone offset for timestamp conversion.
 	TargetDb                 string                                 // The target database to which HarbourBridge is writing.
 	UniquePKey               map[string][]string                    // Maps Spanner table name to unique column name being used as primary key (if needed).
+	ToSpannerFkIdx           map[string]FkeyAndIdxs                 `json:"-"` // Maps from source-DB table name to Spanner table name, foreign keys and index mappings.
+	ToSourceFkIdx            map[string]FkeyAndIdxs                 `json:"-"` // Maps from Spanner table name to source-DB table name, foreign key and index mappings.
 	SchemaConversionDuration time.Duration                          `json:"-"` // Duration of schema conversion.
 	DataConversionDuration   time.Duration                          `json:"-"` // Duration of data conversion.
 	MigrationRequestId       string                                 `json:"-"` // Unique request id generated per migration
@@ -97,6 +97,8 @@ type NameAndCols struct {
 	Cols map[string]string
 }
 
+//FkeyAndIdxs contains the name of a table, its foreign keys and indexes
+//Used to map between source DB and spanner table name, foreign key name and index names.
 type FkeyAndIdxs struct {
 	Name       string
 	ForeignKey map[string]string
