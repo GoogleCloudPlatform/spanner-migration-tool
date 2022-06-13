@@ -15,6 +15,8 @@ export class AddIndexFormComponent implements OnInit {
   addIndexForm: FormGroup
   tableNames: string[] = []
   currentColumns: string[] = []
+  addColumns: string[][] = []
+  isEmptyColumns: boolean = false
   conv: IConv = {} as IConv
   constructor(private fb: FormBuilder, private data: DataService, private sidenav: SidenavService) {
     this.addIndexForm = this.fb.group({
@@ -45,14 +47,27 @@ export class AddIndexFormComponent implements OnInit {
 
   selectedTableChange(tableName: string) {
     this.currentColumns = this.conv.SpSchema[tableName].ColNames
+    this.isEmptyColumns = false
+    this.addColumns.push(JSON.parse(JSON.stringify(this.currentColumns)))
   }
   addNewColumnForm() {
     let newForm = this.fb.group({
       columnName: ['', Validators.required],
       sort: ['', Validators.required],
     })
-
     this.ColsArray.push(newForm)
+    if (this.ColsArray.value.length > 1) {
+      let index = this.currentColumns.indexOf(
+        this.ColsArray.value[this.ColsArray.value.length - 2].columnName
+      )
+      if (index > -1) {
+        this.currentColumns.splice(index, 1)
+        this.addColumns.push(JSON.parse(JSON.stringify(this.currentColumns)))
+        if (this.currentColumns.length == 1) {
+          this.isEmptyColumns = true
+        }
+      }
+    }
   }
 
   addIndex() {

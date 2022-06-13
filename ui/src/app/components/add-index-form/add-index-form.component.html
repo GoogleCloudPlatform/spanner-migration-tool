@@ -22,7 +22,7 @@
         <mat-form-field appearance="outline">
           <mat-label>Column Name</mat-label>
           <mat-select matSelect class="input-field" formControlName="columnName" required="true">
-            <mat-option *ngFor="let col of currentColumns" [value]="col">{{ col }}</mat-option>
+            <mat-option *ngFor="let col of addColumns[i]" [value]="col">{{ col }}</mat-option>
           </mat-select>
         </mat-form-field>
         <mat-form-field appearance="outline">
@@ -36,6 +36,7 @@
     </ng-container>
     <br />
     <button
+      *ngIf="!isEmptyColumns"
       mat-button
       color="primary"
       (click)="addNewColumnForm()"
