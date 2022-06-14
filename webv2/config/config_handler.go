@@ -32,8 +32,7 @@ type Config struct {
 
 // Config wiith metadata
 type ConfigWithMetadata struct {
-	GCPProjectID        string `json:"GCPProjectID"`
-	SpannerInstanceID   string `json:"SpannerInstanceID"`
+	Config
 	IsMetadataDbCreated bool
 }
 
@@ -67,8 +66,7 @@ func SetSpannerConfig(w http.ResponseWriter, r *http.Request) {
 	isDbCreated := session.SetSessionStorageConnectionState(c.GCPProjectID, c.SpannerInstanceID)
 
 	configWithMetadata := ConfigWithMetadata{
-		GCPProjectID:        c.GCPProjectID,
-		SpannerInstanceID:   c.SpannerInstanceID,
+		Config:              Config{c.GCPProjectID, c.SpannerInstanceID},
 		IsMetadataDbCreated: isDbCreated,
 	}
 

@@ -283,10 +283,17 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 		}
 	}
 
-	if config.TargetDb == constants.TargetExperimentalPostgres {
-		return fmt.Sprintf("%sCREATE TABLE %s (\n%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
+	var secondaryIndex string
+	if len(ct.Indexes) > 0 {
+		for _, index := range ct.Indexes {
+			secondaryIndex = secondaryIndex + index.PrintCreateIndex(config) + "\n"
+		}
 	}
-	return fmt.Sprintf("%sCREATE TABLE %s (\n%s) PRIMARY KEY (%s)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
+
+	if config.TargetDb == constants.TargetExperimentalPostgres {
+		return fmt.Sprintf("%sCREATE TABLE %s (\n%s\tPRIMARY KEY (%s)\n)%s\n\n%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave, secondaryIndex)
+	}
+	return fmt.Sprintf("%sCREATE TABLE %s (\n%s) PRIMARY KEY (%s)%s\n\n%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave, secondaryIndex)
 }
 
 // CreateIndex encodes the following DDL definition:

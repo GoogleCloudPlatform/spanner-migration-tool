@@ -276,6 +276,7 @@ export class DataService {
     this.fetch.addIndex(tableName, payload).subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
+        this.getDdl()
         this.snackbar.openSnackBar('Added new index.', 'Close', 5)
       },
       error: (err: any) => {
@@ -287,6 +288,7 @@ export class DataService {
     this.fetch.updateIndex(tableName, payload).subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
+        this.getDdl()
         this.snackbar.openSnackBar('Index updated successfully.', 'Close', 5)
       },
       error: (err: any) => {
@@ -307,6 +309,7 @@ export class DataService {
           return data.error
         } else {
           this.convSubject.next(data)
+          this.getDdl()
           this.snackbar.openSnackBar('Index dropped successfully', 'Close', 5)
           return ''
         }
