@@ -243,7 +243,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					str := fmt.Sprintf("Table %s %s go to Interleave Table Tab", spSchema.Name, IssueDB[i].Brief)
 
 					if !contains(l, str) {
-						//fmt.Println(str)
+						//log.Println(str)
 						l = append(l, str)
 					}
 
@@ -251,7 +251,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					str := fmt.Sprintf(" %s add %s as a primary key in table %s", IssueDB[i].Brief, srcCol, spSchema.Name)
 
 					if !contains(l, str) {
-						//fmt.Println(str)
+						//log.Println(str)
 						l = append(l, str)
 					}
 

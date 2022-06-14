@@ -39,8 +39,11 @@ func TestGetTypeMapNoDriver(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(getTypeMap)
 	handler.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusNotFound {
-		t.Errorf("handler returned wrong status code: got %v want %v",
+
+	status := rr.Code
+
+	if status != http.StatusNotFound {
+		t.Errorf("handler returned wrong status code : got %v want %v",
 			status, http.StatusNotFound)
 	}
 
@@ -1085,33 +1088,33 @@ func TestSetParentTable(t *testing.T) {
 			name:       "no table name provided",
 			statusCode: http.StatusBadRequest,
 			ct: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{"t1": {
+				SpSchema: map[string]ddl.CreateTable{"t1": ddl.CreateTable{
 					Name:     "t1",
 					ColNames: []string{"a", "b", "c"},
-					ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-						"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-						"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
-					Pks: []ddl.IndexKey{{Col: "a", Desc: false}},
-					Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "ref_t1", ReferColumns: []string{"ref_c1"}},
-						{Name: "fk2", Columns: []string{"c"}, ReferTable: "ref_t2", ReferColumns: []string{"ref_c2"}}},
+					ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}},
+					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"a"}, ReferTable: "ref_t1", ReferColumns: []string{"ref_c1"}},
+						ddl.Foreignkey{Name: "fk2", Columns: []string{"c"}, ReferTable: "ref_t2", ReferColumns: []string{"ref_c2"}}},
 				}}},
 		},
 		{
 			name: "table with synthetic PK",
 			ct: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{"t1": {
+				SpSchema: map[string]ddl.CreateTable{"t1": ddl.CreateTable{
 					Name:     "t1",
 					ColNames: []string{"a", "b", "c"},
-					ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-						"b":        {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-						"c":        {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+					ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 					},
-					Pks: []ddl.IndexKey{{Col: "synth_id", Desc: false}},
-					Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "ref_t1", ReferColumns: []string{"ref_c1"}},
-						{Name: "fk2", Columns: []string{"c"}, ReferTable: "ref_t2", ReferColumns: []string{"ref_c2"}}},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id", Desc: false}},
+					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"a"}, ReferTable: "ref_t1", ReferColumns: []string{"ref_c1"}},
+						ddl.Foreignkey{Name: "fk2", Columns: []string{"c"}, ReferTable: "ref_t2", ReferColumns: []string{"ref_c2"}}},
 				}},
-				SyntheticPKeys: map[string]internal.SyntheticPKey{"t1": {Col: "synth_id"}},
+				SyntheticPKeys: map[string]internal.SyntheticPKey{"t1": internal.SyntheticPKey{Col: "synth_id"}},
 			},
 			table:            "t1",
 			statusCode:       http.StatusOK,
@@ -1121,116 +1124,116 @@ func TestSetParentTable(t *testing.T) {
 			name: "no valid prefix 1",
 			ct: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
+					"t1": ddl.CreateTable{
 						Name:     "t1",
 						ColNames: []string{"a", "b", "c"},
-						ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}},
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}}},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}},
+						Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}}},
 					},
-					"t2": {
+					"t2": ddl.CreateTable{
 						Name:     "t2",
 						ColNames: []string{"a", "b", "c"},
-						ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"b":        {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c":        {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-							"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+							"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "synth_id", Desc: false}},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id", Desc: false}},
 					},
 				},
-				SyntheticPKeys: map[string]internal.SyntheticPKey{"t2": {Col: "synth_id"}},
+				SyntheticPKeys: map[string]internal.SyntheticPKey{"t2": internal.SyntheticPKey{Col: "synth_id"}},
 			},
 			table:            "t1",
 			statusCode:       http.StatusOK,
 			expectedResponse: &TableInterleaveStatus{Possible: false, Comment: "No valid prefix"},
-			expectedFKs:      []ddl.Foreignkey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}}},
+			expectedFKs:      []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}}},
 		},
 		{
 			name: "no valid prefix 2",
 			ct: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
+					"t1": ddl.CreateTable{
 						Name:     "t1",
 						ColNames: []string{"a", "b", "c"},
-						ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}},
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}}},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}},
+						Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}}},
 					},
-					"t2": {
+					"t2": ddl.CreateTable{
 						Name:     "t2",
 						ColNames: []string{"a", "b", "c"},
-						ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}, {Col: "b", Desc: false}},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "b", Desc: false}},
 					},
 				},
 			},
 			table:            "t1",
 			statusCode:       http.StatusOK,
-			expectedResponse: &TableInterleaveStatus{Possible: false, Comment: "No valid prefix"},
-			expectedFKs:      []ddl.Foreignkey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}}},
+			expectedResponse: &TableInterleaveStatus{Possible: true, Parent: "t2", Comment: ""},
+			expectedFKs:      []ddl.Foreignkey{ddl.Foreignkey{}},
 		},
 		{
 			name: "no valid prefix 3",
 			ct: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
+					"t1": ddl.CreateTable{
 						Name:     "t1",
 						ColNames: []string{"a", "b", "c"},
-						ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}, {Col: "b", Desc: false}},
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"c"}, ReferTable: "t2", ReferColumns: []string{"c"}}},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "b", Desc: false}},
+						Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"c"}, ReferTable: "t2", ReferColumns: []string{"c"}}},
 					},
-					"t2": {
+					"t2": ddl.CreateTable{
 						Name:     "t2",
 						ColNames: []string{"a", "b", "c"},
-						ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}},
 					},
 				},
 			},
 			table:            "t1",
 			statusCode:       http.StatusOK,
 			expectedResponse: &TableInterleaveStatus{Possible: false, Comment: "No valid prefix"},
-			expectedFKs:      []ddl.Foreignkey{{Name: "fk1", Columns: []string{"c"}, ReferTable: "t2", ReferColumns: []string{"c"}}},
+			expectedFKs:      []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"c"}, ReferTable: "t2", ReferColumns: []string{"c"}}},
 		},
 		{
 			name: "successful interleave",
 			ct: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
+					"t1": ddl.CreateTable{
 						Name:     "t1",
 						ColNames: []string{"a", "b", "c"},
-						ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}, {Col: "b", Desc: false}},
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}}},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "b", Desc: false}},
+						Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}}},
 					},
-					"t2": {
+					"t2": ddl.CreateTable{
 						Name:     "t2",
 						ColNames: []string{"a", "b", "c"},
-						ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}},
 					},
 				},
 			},
@@ -1244,24 +1247,24 @@ func TestSetParentTable(t *testing.T) {
 			name: "successful interleave with same primary key",
 			ct: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
+					"t1": ddl.CreateTable{
 						Name:     "t1",
 						ColNames: []string{"a", "b", "c"},
-						ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}, {Col: "b", Desc: false}},
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"a", "b"}, ReferTable: "t2", ReferColumns: []string{"a", "b"}}},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "b", Desc: false}},
+						Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"a", "b"}, ReferTable: "t2", ReferColumns: []string{"a", "b"}}},
 					},
-					"t2": {
+					"t2": ddl.CreateTable{
 						Name:     "t2",
 						ColNames: []string{"a", "b", "c"},
-						ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}, {Col: "b", Desc: false}},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "b", Desc: false}},
 					},
 				},
 			},
@@ -1275,35 +1278,35 @@ func TestSetParentTable(t *testing.T) {
 			name: "successful interleave with multiple fks refering multiple tables",
 			ct: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
+					"t1": ddl.CreateTable{
 						Name:     "t1",
 						ColNames: []string{"a", "b", "c"},
-						ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}, {Col: "b", Desc: false}},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "b", Desc: false}},
 						Fks: []ddl.Foreignkey{
-							{Name: "fk1", Columns: []string{"c"}, ReferTable: "t3", ReferColumns: []string{"c"}},
-							{Name: "fk1", Columns: []string{"a", "b"}, ReferTable: "t2", ReferColumns: []string{"a", "b"}}},
+							ddl.Foreignkey{Name: "fk1", Columns: []string{"c"}, ReferTable: "t3", ReferColumns: []string{"c"}},
+							ddl.Foreignkey{Name: "fk1", Columns: []string{"a", "b"}, ReferTable: "t2", ReferColumns: []string{"a", "b"}}},
 					},
-					"t2": {
+					"t2": ddl.CreateTable{
 						Name:     "t2",
 						ColNames: []string{"a", "b", "c"},
-						ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}, {Col: "b", Desc: false}},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}, ddl.IndexKey{Col: "b", Desc: false}},
 					},
-					"t3": {
+					"t3": ddl.CreateTable{
 						Name:     "t3",
 						ColNames: []string{"a", "b", "c"},
-						ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "c", Desc: false}},
+						Pks: []ddl.IndexKey{ddl.IndexKey{Col: "c", Desc: false}},
 					},
 				},
 			},
@@ -1311,7 +1314,7 @@ func TestSetParentTable(t *testing.T) {
 			statusCode:       http.StatusOK,
 			expectedResponse: &TableInterleaveStatus{Possible: true, Parent: "t2"},
 			expectedFKs: []ddl.Foreignkey{
-				{Name: "fk1", Columns: []string{"c"}, ReferTable: "t3", ReferColumns: []string{"c"}}},
+				ddl.Foreignkey{Name: "fk1", Columns: []string{"c"}, ReferTable: "t3", ReferColumns: []string{"c"}}},
 			parentTable: "t2",
 		},
 	}
@@ -1359,7 +1362,6 @@ func TestSetParentTable(t *testing.T) {
 		}
 	}
 }
-
 func TestDropForeignKey(t *testing.T) {
 	tc := []struct {
 		name         string

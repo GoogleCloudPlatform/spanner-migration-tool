@@ -237,10 +237,6 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
 
-	Printconv(conv)
-
-	sessionState.Conv = conv
-
 	primarykey.Suggesthotspot()
 
 	sessionState.SessionMetadata = sessionMetadata
@@ -363,7 +359,7 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 	// etc). In particular, note that we can't just blindly redo schema conversion (using an appropriate
 	// version of 'toDDL' with the new typeMap).
 	for t, spSchema := range sessionState.Conv.SpSchema {
-		for col, _ := range spSchema.ColDefs {
+		for col := range spSchema.ColDefs {
 			srcTable := sessionState.Conv.ToSource[t].Name
 			srcCol := sessionState.Conv.ToSource[t].Cols[col]
 			srcColDef := sessionState.Conv.SrcSchema[srcTable].ColDefs[srcCol]
@@ -600,21 +596,19 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 					sp.Fks = removeFk(sp.Fks, i)
 					sessionState.Conv.SpSchema[table] = sp
 				}
+
 				break
 			}
 		}
+		if tableInterleaveStatus.Parent == "" {
+			tableInterleaveStatus.Possible = false
+			tableInterleaveStatus.Comment = "No valid prefix"
+		}
 	}
-
-	fmt.Println("============================================")
 
 	parentpks := sessionState.Conv.SpSchema[tableInterleaveStatus.Parent].Pks
 
 	childPks := sessionState.Conv.SpSchema[table].Pks
-
-	fmt.Println("parentpks :", parentpks)
-	fmt.Println("childPks :", childPks)
-
-	fmt.Println("============================================")
 
 	if len(parentpks) >= 1 {
 
@@ -622,156 +616,53 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 
 		childindex := getPrimaryKeyIndexFromOrder(childPks, 1)
 
-		fmt.Println("parentindex", parentindex)
+		if parentindex != -1 && childindex != -1 {
 
-		fmt.Println("childindex", childindex)
+			if (parentpks[parentindex].Order == childPks[childindex].Order) && (parentpks[parentindex].Col == childPks[childindex].Col) {
 
-		fmt.Println("parentpks[parentindex].Col", parentpks[parentindex].Col)
+				sessionState := session.GetSessionState()
+				schemaissue := []internal.SchemaIssue{}
 
-		fmt.Println("childPks[childindex].Col", childPks[childindex].Col)
+				column := childPks[childindex].Col
+				schemaissue = sessionState.Conv.Issues[table][column]
 
-		fmt.Println("parentpks[parentindex].Order", parentpks[parentindex].Order)
+				schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
+				schemaissue = Remove(schemaissue, internal.Interleaved_ADDCOLUMN)
+				schemaissue = Remove(schemaissue, internal.Interleaved_Order)
 
-		fmt.Println("childPks[childindex].Order", childPks[childindex].Order)
+				schemaissue = append(schemaissue, internal.Interleaved_Order)
 
-		if (parentpks[parentindex].Order == childPks[childindex].Order) && (parentpks[parentindex].Col == childPks[childindex].Col) {
+				sessionState.Conv.Issues[table][column] = schemaissue
+				tableInterleaveStatus.Possible = true
 
-			fmt.Println("============================================")
-			fmt.Println("case I")
+			}
 
-			fmt.Println("parentpks[parentindex].Col", parentpks[parentindex].Col)
+			if parentpks[parentindex].Col != childPks[childindex].Col {
 
-			fmt.Println("childPks[childindex].Col", childPks[childindex].Col)
+				tableInterleaveStatus.Possible = false
 
-			fmt.Println("parentpks[parentindex].Order", parentpks[parentindex].Order)
+				sessionState := session.GetSessionState()
 
-			fmt.Println("childPks[childindex].Order", childPks[childindex].Order)
+				column := parentpks[parentindex].Col
 
-			fmt.Println(" table currently can be interleaved because order of primary key")
+				schemaissue := []internal.SchemaIssue{}
+				schemaissue = sessionState.Conv.Issues[table][column]
 
-			tableInterleaveStatus.Comment = fmt.Sprintln(" table currently can be interleaved because order of primary key")
-			sessionState := session.GetSessionState()
+				schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
+				schemaissue = Remove(schemaissue, internal.Interleaved_Order)
+				schemaissue = Remove(schemaissue, internal.Interleaved_ADDCOLUMN)
 
-			fmt.Println("childPks[0].Col", childPks[0].Col)
-			schemaissue := sessionState.Conv.Issues[table][childPks[0].Col]
+				schemaissue = append(schemaissue, internal.Interleaved_NotINOrder)
 
-			fmt.Println("before schemaissue :", schemaissue)
+				sessionState.Conv.Issues[table][column] = schemaissue
 
-			//schemaissue = unique(schemaissue)
-
-			schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
-
-			schemaissue = Remove(schemaissue, internal.Interleaved_ADDCOLUMN)
-
-			schemaissue = Remove(schemaissue, internal.Interleaved_Order)
-
-			schemaissue = append(schemaissue, internal.Interleaved_Order)
-
-			fmt.Println("after schemaissue", schemaissue)
-
-			sessionState.Conv.Issues[table][childPks[0].Col] = schemaissue
-
-			tableInterleaveStatus.Possible = true
-
-			fmt.Println("============================================")
-		}
-
-		if parentpks[parentindex].Col != childPks[childindex].Col {
-
-			fmt.Println("============================================")
-			fmt.Println("case II")
-
-			str := fmt.Sprintln(table, "can be interleaved with ", tableInterleaveStatus.Parent, "if order of", childPks[0].Col, "changed")
-
-			fmt.Println(str)
-
-			tableInterleaveStatus.Comment = fmt.Sprintln(table, "can be interleaved with ", tableInterleaveStatus.Parent, "if order of", childPks[0].Col, "changed")
-			tableInterleaveStatus.Possible = false
-
-			sessionState := session.GetSessionState()
-
-			schemaissue := sessionState.Conv.Issues[table][childPks[0].Col]
-
-			fmt.Println("childPks[0].Col", childPks[0].Col)
-
-			//schemaissue = unique(schemaissue)
-
-			schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
-
-			schemaissue = Remove(schemaissue, internal.Interleaved_Order)
-			schemaissue = Remove(schemaissue, internal.Interleaved_ADDCOLUMN)
-
-			schemaissue = append(schemaissue, internal.Interleaved_NotINOrder)
-
-			fmt.Println("schemaissue", schemaissue)
-
-			sessionState.Conv.Issues[table][childPks[0].Col] = schemaissue
-
-			fmt.Println("============================================")
+			}
 
 		}
 
 	}
 
-	if tableInterleaveStatus.Parent == "" {
-		tableInterleaveStatus.Possible = false
-		tableInterleaveStatus.Comment = "No valid prefix"
-	}
-
-	//1 if columns are in order and both column are in composite keys
-	//2 both column is in primary key but order is different.
-	//3 suggest column as parent so that table can be interleaved
 	return tableInterleaveStatus
-}
-
-func getPrimaryKeyIndexFromOrder(pk []ddl.IndexKey, order int) int {
-
-	for i := 0; i < len(pk); i++ {
-		if pk[i].Order == order {
-			return i
-		}
-	}
-	return -1
-}
-
-// getColumnIndex return Columnn Index as Inserted Order.
-func getIndex(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) int {
-
-	for i := 0; i < len(schemaissue); i++ {
-		if schemaissue[i] == issue {
-			return i
-		}
-	}
-	return -1
-}
-
-func RemoveIssue(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) []internal.SchemaIssue {
-	index := getIndex(schemaissue, issue)
-
-	fmt.Println("I am removing issue", schemaissue[index])
-
-	return append(schemaissue[:index], schemaissue[index+1:]...)
-}
-
-func isIssuePresent(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) {
-	index := getIndex(schemaissue, issue)
-
-	if index != 0 {
-		fmt.Println("issue is present", schemaissue[index])
-	}
-
-}
-
-func Remove(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) []internal.SchemaIssue {
-
-	for i := 0; i < len(schemaissue); i++ {
-		if schemaissue[i] == issue {
-			fmt.Println("I am removing", schemaissue[i])
-			//return append(schemaissue[:i], schemaissue[i+1:]...)
-			schemaissue = append(schemaissue[:i], schemaissue[i+1:]...)
-		}
-	}
-	return schemaissue
 }
 
 func dropForeignKey(w http.ResponseWriter, r *http.Request) {
@@ -1198,107 +1089,127 @@ func canRenameOrChangeType(colName, table string) (int, error) {
 }
 
 func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tableInterleaveStatus *TableInterleaveStatus) bool {
-	sessionState := session.GetSessionState()
 
+	sessionState := session.GetSessionState()
 	childPks := sessionState.Conv.SpSchema[table].Pks
 	parentPks := sessionState.Conv.SpSchema[refTable].Pks
 
-	fmt.Println("============================================")
+	interleaved := []ddl.IndexKey{}
 
-	fmt.Println("childPks :", childPks)
+	for i := 0; i < len(parentPks); i++ {
 
-	fmt.Println("parentPks :", parentPks)
+		for j := 0; j < len(childPks); j++ {
 
-	fmt.Println("fk name :", fk.Name)
+			for k := 0; k < len(fk.ReferColumns); k++ {
 
-	fmt.Println("fk ReferColumns :", fk.ReferColumns)
+				if parentPks[i].Col == childPks[j].Col && parentPks[i].Col == fk.ReferColumns[k] && childPks[j].Col == fk.ReferColumns[k] {
 
-	fmt.Println("fk Columns :", fk.Columns)
-
-	fmt.Println("fk ReferTable :", fk.ReferTable)
-
-	fmt.Println("============================================")
-
-	if len(childPks) >= len(parentPks) {
-		for i, pk := range parentPks {
-
-			if i+1 >= len(fk.ReferColumns) {
-				fmt.Println("condtion true of i >= len(fk.ReferColumns)")
+					interleaved = append(interleaved, parentPks[i])
+				}
 			}
 
-			if pk.Col != fk.ReferColumns[i] {
-				fmt.Println("condtion true of pk.Col == fk.ReferColumns[i]")
-			}
+		}
 
-			if fk.Columns[i] != fk.ReferColumns[i] {
-				fmt.Println("condtion true of fk.Columns[i] = fk.ReferColumns[i]")
-			}
+	}
 
-			var flag bool
+	diff := []ddl.IndexKey{}
+
+	if len(interleaved) == 0 {
+
+		for i := 0; i < len(parentPks); i++ {
 
 			for j := 0; j < len(childPks); j++ {
 
-				if i+1 >= len(fk.ReferColumns) || pk.Col != fk.ReferColumns[i] || fk.Columns[i] != fk.ReferColumns[i] {
+				if parentPks[i].Col != childPks[j].Col {
 
-					fmt.Println("I am if block loop of childPks")
+					diff = append(diff, parentPks[i])
+				}
 
-					if pk.Col == childPks[j].Col {
+			}
+		}
 
-						flag = true
-						fmt.Println("flag is set to as:", flag)
+	}
+
+	caninterleaved := []string{}
+	for i := 0; i < len(diff); i++ {
+
+		str := contains(fk.ReferColumns, diff[i].Col)
+
+		caninterleaved = append(caninterleaved, str)
+	}
+
+	if len(caninterleaved) > 0 {
+
+		for i := 0; i < len(caninterleaved); i++ {
+
+			sessionState := session.GetSessionState()
+
+			schemaissue := []internal.SchemaIssue{}
+
+			schemaissue = sessionState.Conv.Issues[table][caninterleaved[i]]
+
+			schemaissue = Remove(schemaissue, internal.Interleaved_Order)
+			schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
+			schemaissue = Remove(schemaissue, internal.Interleaved_ADDCOLUMN)
+
+			schemaissue = append(schemaissue, internal.Interleaved_ADDCOLUMN)
+
+			if len(schemaissue) > 0 {
+
+				if sessionState.Conv.Issues[table][caninterleaved[i]] == nil {
+
+					s := map[string][]internal.SchemaIssue{
+						caninterleaved[i]: schemaissue,
 					}
+					sessionState.Conv.Issues = map[string]map[string][]internal.SchemaIssue{}
+
+					sessionState.Conv.Issues[table] = s
 
 				} else {
-					fmt.Println("I am else block loop of childPks")
-
-				}
-			}
-
-			fmt.Println("flag :", flag)
-
-			if flag == false {
-
-				fmt.Println("============================================")
-
-				fmt.Println("case III")
-
-				sessionState := session.GetSessionState()
-
-				fmt.Println("pk.Col", pk.Col)
-				schemaissue := sessionState.Conv.Issues[table][pk.Col]
-
-				fmt.Println("schemaissue before:", schemaissue)
-
-				//schemaissue = unique(schemaissue)
-
-				schemaissue = Remove(schemaissue, internal.Interleaved_Order)
-				schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
-
-				schemaissue = Remove(schemaissue, internal.Interleaved_ADDCOLUMN)
-
-				if tableInterleaveStatus.Parent == "" {
-
-					tableInterleaveStatus.Comment = fmt.Sprintln("add column to make it interleaved")
-
+					sessionState.Conv.Issues[table][caninterleaved[i]] = schemaissue
 				}
 
-				schemaissue = append(schemaissue, internal.Interleaved_ADDCOLUMN)
-
-				fmt.Println("schemaissue after", schemaissue)
-
-				sessionState.Conv.Issues[table][pk.Col] = schemaissue
-
-				fmt.Println("============================================")
-
 			}
-			return flag
+
 		}
-	} else {
-		return false
 	}
-	return true
+
+	if len(interleaved) > 0 {
+		return true
+	}
+
+	return false
 }
 
+func contains(fc []string, col string) string {
+
+	for _, s := range fc {
+		if s == col {
+			return col
+		}
+	}
+	return ""
+}
+
+func Remove(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) []internal.SchemaIssue {
+
+	for i := 0; i < len(schemaissue); i++ {
+		if schemaissue[i] == issue {
+			schemaissue = append(schemaissue[:i], schemaissue[i+1:]...)
+		}
+	}
+	return schemaissue
+}
+
+func getPrimaryKeyIndexFromOrder(pk []ddl.IndexKey, order int) int {
+
+	for i := 0; i < len(pk); i++ {
+		if pk[i].Order == order {
+			return i
+		}
+	}
+	return -1
+}
 func isUniqueName(name string) bool {
 	sessionState := session.GetSessionState()
 

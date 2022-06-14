@@ -24,6 +24,17 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
+func Suggesthotspot() {
+
+	sessionState := session.GetSessionState()
+
+	for _, spannerTable := range sessionState.Conv.SpSchema {
+
+		isHotSpot(spannerTable.Pks, spannerTable)
+	}
+
+}
+
 func isHotSpot(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 
 	hotspotTimestamp(insert, spannerTable)
@@ -85,35 +96,4 @@ func suggesthotspotAutoincrement(spannerTable ddl.CreateTable, spannerColumnId i
 
 		}
 	}
-}
-
-func cleanup(schemaissue []internal.SchemaIssue) []internal.SchemaIssue {
-
-	if contains(schemaissue, internal.Hotspot_AutoIncrement) {
-
-		schemaissue = Remove(schemaissue, internal.Hotspot_AutoIncrement)
-	}
-
-	if contains(schemaissue, internal.Hotspot_Timestamp) {
-
-		schemaissue = Remove(schemaissue, internal.Hotspot_Timestamp)
-	}
-
-	if contains(schemaissue, internal.Interleaved_Order) {
-
-		schemaissue = Remove(schemaissue, internal.Interleaved_Order)
-	}
-
-	if contains(schemaissue, internal.Interleaved_NotINOrder) {
-
-		schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
-	}
-
-	if contains(schemaissue, internal.Interleaved_ADDCOLUMN) {
-
-		schemaissue = Remove(schemaissue, internal.Interleaved_ADDCOLUMN)
-	}
-
-	return schemaissue
-
 }

@@ -73,6 +73,7 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 	pkRequest := PrimaryKeyRequest{}
 
 	err = json.Unmarshal(reqBody, &pkRequest)
+
 	if err != nil {
 		log.Println("request's Body parse error")
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
@@ -83,29 +84,29 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 	spannerTable, found := getSpannerTable(sessionState, pkRequest)
 
 	if !found {
-		log.Println("tableId not found")
-		http.Error(w, fmt.Sprintf("tableId not found : %v", err), http.StatusNotFound)
+		log.Println("TableId not found")
+		http.Error(w, fmt.Sprintf("tableId not found"), http.StatusNotFound)
 		return
 
 	}
 
 	if len(pkRequest.Columns) == 0 {
-		log.Println("empty columm error")
-		http.Error(w, fmt.Sprintf("empty columm error : %v", err), http.StatusBadRequest)
+		log.Println("Empty columm error")
+		http.Error(w, fmt.Sprintf("empty columm error"), http.StatusBadRequest)
 		return
 
 	}
 
 	if !isValidColumnIds(pkRequest, spannerTable) {
-		log.Println("colummId not found error")
-		http.Error(w, fmt.Sprintf("colummId not found error : %v", err), http.StatusBadRequest)
+		log.Println("ColummId not found error")
+		http.Error(w, fmt.Sprintf("colummId not found error"), http.StatusBadRequest)
 		return
 
 	}
 
 	if isValidColumnOrder(pkRequest) {
-		log.Println("two primary key column can  not have same order")
-		http.Error(w, fmt.Sprintf("two primary key column can  not have same order : %v", err), http.StatusBadRequest)
+		log.Println("Two primary key column can  not have same order")
+		http.Error(w, fmt.Sprintf("two primary key column can  not have same order"), http.StatusBadRequest)
 		return
 
 	}
