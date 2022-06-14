@@ -325,7 +325,7 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 	// etc). In particular, note that we can't just blindly redo schema conversion (using an appropriate
 	// version of 'toDDL' with the new typeMap).
 	for t, spSchema := range sessionState.conv.SpSchema {
-		for col, _ := range spSchema.ColDefs {
+		for col := range spSchema.ColDefs {
 			srcTable := sessionState.conv.ToSource[t].Name
 			srcCol := sessionState.conv.ToSource[t].Cols[col]
 			srcColDef := sessionState.conv.SrcSchema[srcTable].ColDefs[srcCol]
@@ -955,7 +955,7 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 }
 
 func isUniqueName(name string) bool {
-	for table, _ := range sessionState.conv.SpSchema {
+	for table := range sessionState.conv.SpSchema {
 		if table == name {
 			return false
 		}
