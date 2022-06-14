@@ -36,8 +36,6 @@ func CheckOrCreateMetadataDb(projectId string, instanceId string) (isExist bool,
 	defer adminClient.Close()
 
 	dbExists, err := conversion.CheckExistingDb(ctx, adminClient, uri)
-	fmt.Println(dbExists)
-	fmt.Println("dbexist")
 	if err != nil {
 		fmt.Println(err)
 		return
