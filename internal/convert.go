@@ -44,6 +44,7 @@ type Conv struct {
 	TargetDb       string              // The target database to which HarbourBridge is writing.
 	UniquePKey     map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
 	Audit          audit               // Stores the audit information for the database conversion
+	DryRun         bool                // Flag to identify if the migration is a dry run
 }
 
 type mode int
@@ -208,7 +209,9 @@ func (conv *Conv) SetDataMode() {
 
 // WriteRow calls dataSink and updates row stats.
 func (conv *Conv) WriteRow(srcTable, spTable string, spCols []string, spVals []interface{}) {
-	if conv.dataSink == nil {
+	if conv.DryRun {
+		conv.statsAddGoodRow(srcTable, conv.DataMode())
+	} else if conv.dataSink == nil {
 		msg := "Internal error: ProcessDataRow called but dataSink not configured"
 		VerbosePrintf("%s\n", msg)
 		logger.Log.Debug("Internal error: ProcessDataRow called but dataSink not configured")

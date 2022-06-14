@@ -28,7 +28,9 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/google/subcommands"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -40,6 +42,7 @@ type SchemaCmd struct {
 	targetProfile string
 	filePrefix    string // TODO: move filePrefix to global flags
 	logLevel      string
+	dryRun        bool
 }
 
 // Name returns the name of operation.
@@ -71,6 +74,7 @@ func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.targetProfile, "target-profile", "", "Flag for specifying connection profile for target database e.g., \"dialect=postgresql\"")
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
 	f.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to INFO")
+	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 }
 
 func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -117,7 +121,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	if cmd.filePrefix == "" {
 		dbName, err := utils.GetDatabaseName(sourceProfile.Driver, time.Now())
 		if err != nil {
-			err = fmt.Errorf("can't generate database name for prefix: %v", err)
+			fmt.Printf("can't generate database name for prefix: %v", err)
 			return subcommands.ExitFailure
 		}
 		cmd.filePrefix = dbName + "."
@@ -130,10 +134,46 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		return subcommands.ExitFailure
 	}
 
+	conversion.WriteSchemaFile(conv, schemaConversionStartTime, cmd.filePrefix+schemaFile, ioHelper.Out)
+	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
+
+	if !cmd.dryRun {
+		// Populate migration request id and migration type in conv object
+		conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+		conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
+
+		project, instance, dbName, err := targetProfile.GetResourceIds(ctx, schemaConversionStartTime, sourceProfile.Driver, ioHelper.Out)
+		if err != nil {
+			return subcommands.ExitUsageError
+		}
+		fmt.Println("Using Google Cloud project:", project)
+		fmt.Println("Using Cloud Spanner instance:", instance)
+		utils.PrintPermissionsWarning(sourceProfile.Driver, ioHelper.Out)
+
+		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
+
+		adminClient, err := utils.NewDatabaseAdminClient(ctx)
+		if err != nil {
+			fmt.Printf("can't create admin client: %v", utils.AnalyzeError(err, dbURI))
+			return subcommands.ExitFailure
+		}
+		defer adminClient.Close()
+		client, err := utils.GetClient(ctx, dbURI)
+		if err != nil {
+			fmt.Printf("can't create client for db %s: %v", dbURI, err)
+			return subcommands.ExitFailure
+		}
+		defer client.Close()
+
+		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
+		if err != nil {
+			fmt.Printf("can't create/update database: %v", err)
+			return subcommands.ExitFailure
+		}
+	}
+
 	schemaCoversionEndTime := time.Now()
 	conv.Audit.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
-	conversion.WriteSchemaFile(conv, schemaCoversionEndTime, cmd.filePrefix+schemaFile, ioHelper.Out)
-	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
 	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
 	// Cleanup hb tmp data directory.
 	os.RemoveAll(os.TempDir() + constants.HB_TMP_DIR)

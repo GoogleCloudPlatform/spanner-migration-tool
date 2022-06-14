@@ -339,13 +339,16 @@ func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, clie
 	}
 	batchWriter := writer.NewBatchWriter(config)
 	conv.SetDataMode()
-	conv.SetDataSink(
-		func(table string, cols []string, vals []interface{}) {
-			batchWriter.AddRow(table, cols, vals)
-		})
-	conv.DataFlush = func() {
-		batchWriter.Flush()
+	if !conv.DryRun {
+		conv.SetDataSink(
+			func(table string, cols []string, vals []interface{}) {
+				batchWriter.AddRow(table, cols, vals)
+			})
+		conv.DataFlush = func() {
+			batchWriter.Flush()
+		}
 	}
+
 	return batchWriter
 }
 

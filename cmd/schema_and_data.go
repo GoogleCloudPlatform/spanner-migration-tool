@@ -127,12 +127,13 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 
 	schemaConversionStartTime := time.Now()
 
+	dbName, err := utils.GetDatabaseName(sourceProfile.Driver, schemaConversionStartTime)
+	if err != nil {
+		panic(fmt.Errorf("can't generate database name for prefix: %v", err))
+	}
+
 	// If filePrefix not explicitly set, use dbName as prefix.
 	if cmd.filePrefix == "" {
-		dbName, err := utils.GetDatabaseName(sourceProfile.Driver, schemaConversionStartTime)
-		if err != nil {
-			panic(fmt.Errorf("can't generate database name for prefix: %v", err))
-		}
 		cmd.filePrefix = dbName + "."
 	}
 
@@ -150,56 +151,71 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 
 	conversion.WriteSchemaFile(conv, schemaConversionStartTime, cmd.filePrefix+schemaFile, ioHelper.Out)
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
-	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
 
-	project, instance, dbName, err := targetProfile.GetResourceIds(ctx, schemaConversionStartTime, sourceProfile.Driver, ioHelper.Out)
-	if err != nil {
-		return subcommands.ExitUsageError
-	}
-	fmt.Println("Using Google Cloud project:", project)
-	fmt.Println("Using Cloud Spanner instance:", instance)
-	utils.PrintPermissionsWarning(sourceProfile.Driver, ioHelper.Out)
+	if !cmd.dryRun {
+		conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
 
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
+		project, instance, dbName, err := targetProfile.GetResourceIds(ctx, schemaConversionStartTime, sourceProfile.Driver, ioHelper.Out)
+		if err != nil {
+			return subcommands.ExitUsageError
+		}
+		fmt.Println("Using Google Cloud project:", project)
+		fmt.Println("Using Cloud Spanner instance:", instance)
+		utils.PrintPermissionsWarning(sourceProfile.Driver, ioHelper.Out)
 
-	adminClient, err := utils.NewDatabaseAdminClient(ctx)
-	if err != nil {
-		err = fmt.Errorf("can't create admin client: %w", utils.AnalyzeError(err, dbURI))
-		return subcommands.ExitFailure
-	}
-	defer adminClient.Close()
-	client, err := utils.GetClient(ctx, dbURI)
-	if err != nil {
-		err = fmt.Errorf("can't create client for db %s: %v", dbURI, err)
-		return subcommands.ExitFailure
-	}
-	defer client.Close()
-
-	err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
-	if err != nil {
-		err = fmt.Errorf("can't create/update database: %v", err)
-		return subcommands.ExitFailure
-	}
-
-	dataCoversionStartTime := time.Now()
-	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, client, conv, true, cmd.writeLimit)
-	if err != nil {
-		err = fmt.Errorf("can't finish data migration: %v", err)
-		return subcommands.ExitFailure
-	}
-	dataCoversionEndTime := time.Now()
-	dataCoversionDuration := dataCoversionEndTime.Sub(dataCoversionStartTime)
-	conv.Audit.DataConversionDuration = dataCoversionDuration
-
-	if !cmd.skipForeignKeys {
-		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
-			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
+		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
+		adminClient, err := utils.NewDatabaseAdminClient(ctx)
+		if err != nil {
+			err = fmt.Errorf("can't create admin client: %w", utils.AnalyzeError(err, dbURI))
 			return subcommands.ExitFailure
 		}
+		defer adminClient.Close()
+		client, err := utils.GetClient(ctx, dbURI)
+		if err != nil {
+			err = fmt.Errorf("can't create client for db %s: %v", dbURI, err)
+			return subcommands.ExitFailure
+		}
+		defer client.Close()
+
+		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
+		if err != nil {
+			err = fmt.Errorf("can't create/update database: %v", err)
+			return subcommands.ExitFailure
+		}
+		schemaCoversionEndTime := time.Now()
+		conv.Audit.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
+
+		bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, client, conv, true, cmd.writeLimit)
+		if err != nil {
+			err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
+			return subcommands.ExitFailure
+		}
+		if !cmd.skipForeignKeys {
+			if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
+				err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
+				return subcommands.ExitFailure
+			}
+		}
+		dataCoversionEndTime := time.Now()
+		conv.Audit.DataConversionDuration = dataCoversionEndTime.Sub(schemaCoversionEndTime)
+		banner := utils.GetBanner(schemaConversionStartTime, dbURI)
+		conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
+		conversion.WriteBadData(bw, conv, banner, cmd.filePrefix+badDataFile, ioHelper.Out)
+	} else {
+		conv.DryRun = true
+		schemaCoversionEndTime := time.Now()
+		conv.Audit.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
+		bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, nil, conv, true, cmd.writeLimit)
+		if err != nil {
+			fmt.Printf("can't finish data conversion for db %s: %v", dbName, err)
+			return subcommands.ExitFailure
+		}
+		dataCoversionEndTime := time.Now()
+		conv.Audit.DataConversionDuration = dataCoversionEndTime.Sub(schemaCoversionEndTime)
+		banner := utils.GetBanner(schemaConversionStartTime, dbName)
+		conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
+		conversion.WriteBadData(bw, conv, banner, cmd.filePrefix+badDataFile, ioHelper.Out)
 	}
-	banner := utils.GetBanner(schemaConversionStartTime, dbURI)
-	conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
-	conversion.WriteBadData(bw, conv, banner, cmd.filePrefix+badDataFile, ioHelper.Out)
 	// Cleanup hb tmp data directory.
 	os.RemoveAll(os.TempDir() + constants.HB_TMP_DIR)
 	return subcommands.ExitSuccess
