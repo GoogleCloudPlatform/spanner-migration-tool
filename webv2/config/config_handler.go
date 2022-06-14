@@ -30,6 +30,13 @@ type Config struct {
 	SpannerInstanceID string `json:"SpannerInstanceID"`
 }
 
+// Config wiith metadata
+type ConfigWithMetadata struct {
+	GCPProjectID        string `json:"GCPProjectID"`
+	SpannerInstanceID   string `json:"SpannerInstanceID"`
+	IsMetadataDbCreated bool
+}
+
 func GetConfig(w http.ResponseWriter, r *http.Request) {
 	content, err := GetSpannerConfig()
 	if err != nil {
@@ -56,9 +63,14 @@ func SetSpannerConfig(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-
 	SaveSpannerConfig(c)
-	session.SetSessionStorageConnectionState(c.GCPProjectID, c.SpannerInstanceID)
+	isDbCreated := session.SetSessionStorageConnectionState(c.GCPProjectID, c.SpannerInstanceID)
+
+	configWithMetadata := ConfigWithMetadata{
+		GCPProjectID:        c.GCPProjectID,
+		SpannerInstanceID:   c.SpannerInstanceID,
+		IsMetadataDbCreated: isDbCreated,
+	}
 
 	if err != nil {
 		log.Println(err)
@@ -66,5 +78,5 @@ func SetSpannerConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(c)
+	json.NewEncoder(w).Encode(configWithMetadata)
 }
