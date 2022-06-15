@@ -177,12 +177,12 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 		}
 
 		if p.severity == note {
-			for srcKeyName, spKeyName := range conv.ToSpannerFkIdx[srcTable].ForeignKey {
+			for srcKeyName, spKeyName := range conv.Audit.ToSpannerFkIdx[srcTable].ForeignKey {
 				if srcKeyName != spKeyName {
 					l = append(l, fmt.Sprintf("%s, Foreign Key '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcKeyName, spKeyName))
 				}
 			}
-			for srcIdxName, spIdxName := range conv.ToSpannerFkIdx[srcTable].Index {
+			for srcIdxName, spIdxName := range conv.Audit.ToSpannerFkIdx[srcTable].Index {
 				if srcIdxName != spIdxName {
 					l = append(l, fmt.Sprintf("%s, Index '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcIdxName, spIdxName))
 				}
@@ -475,12 +475,12 @@ func reportNameChanges(conv *Conv, w *bufio.Writer) {
 				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Column Name", srcColName, spColName)
 			}
 		}
-		for srcFkName, spFkName := range conv.ToSpannerFkIdx[srcTableName].ForeignKey {
+		for srcFkName, spFkName := range conv.Audit.ToSpannerFkIdx[srcTableName].ForeignKey {
 			if srcFkName != spFkName {
 				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Foreign Key", srcFkName, spFkName)
 			}
 		}
-		for srcIdxName, spIdxName := range conv.ToSpannerFkIdx[srcTableName].Index {
+		for srcIdxName, spIdxName := range conv.Audit.ToSpannerFkIdx[srcTableName].Index {
 			if srcIdxName != spIdxName {
 				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Index", srcIdxName, spIdxName)
 			}
@@ -618,13 +618,13 @@ func writeHeading(w *bufio.Writer, s string) {
 
 func conversionDuration(conv *Conv, w *bufio.Writer) string {
 	res := ""
-	if conv.DataConversionDuration.Microseconds() != 0 || conv.SchemaConversionDuration.Microseconds() != 0 {
+	if conv.Audit.DataConversionDuration.Microseconds() != 0 || conv.Audit.SchemaConversionDuration.Microseconds() != 0 {
 		writeHeading(w, "Time duration of Conversion")
-		if conv.SchemaConversionDuration.Microseconds() != 0 {
-			res += fmt.Sprintf("Schema conversion duration : %s \n", conv.SchemaConversionDuration)
+		if conv.Audit.SchemaConversionDuration.Microseconds() != 0 {
+			res += fmt.Sprintf("Schema conversion duration : %s \n", conv.Audit.SchemaConversionDuration)
 		}
-		if conv.DataConversionDuration.Microseconds() != 0 {
-			res += fmt.Sprintf("Data conversion duration : %s \n", conv.DataConversionDuration)
+		if conv.Audit.DataConversionDuration.Microseconds() != 0 {
+			res += fmt.Sprintf("Data conversion duration : %s \n", conv.Audit.DataConversionDuration)
 		}
 		res += "\n"
 	}

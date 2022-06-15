@@ -49,8 +49,8 @@ func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
 	}
 	conv.ToSpanner[srcTable] = NameAndCols{Name: spTable, Cols: make(map[string]string)}
 	conv.ToSource[spTable] = NameAndCols{Name: srcTable, Cols: make(map[string]string)}
-	conv.ToSpannerFkIdx[srcTable] = FkeyAndIdxs{Name: spTable, ForeignKey: make(map[string]string), Index: make(map[string]string)}
-	conv.ToSourceFkIdx[spTable] = FkeyAndIdxs{Name: srcTable, ForeignKey: make(map[string]string), Index: make(map[string]string)}
+	conv.Audit.ToSpannerFkIdx[srcTable] = FkeyAndIdxs{Name: spTable, ForeignKey: make(map[string]string), Index: make(map[string]string)}
+	conv.Audit.ToSourceFkIdx[spTable] = FkeyAndIdxs{Name: srcTable, ForeignKey: make(map[string]string), Index: make(map[string]string)}
 	return spTable, nil
 }
 

@@ -126,11 +126,11 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 		panic(err)
 	}
 	schemaCoversionEndTime := time.Now()
-	conv.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
+	conv.Audit.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
 
 	// Populate migration request id and migration type in conv object
-	conv.MigrationRequestId = "HB-" + uuid.New().String()
-	conv.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
+	conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
 
 	conversion.WriteSchemaFile(conv, schemaConversionStartTime, cmd.filePrefix+schemaFile, ioHelper.Out)
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)

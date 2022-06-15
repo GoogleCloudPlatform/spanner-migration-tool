@@ -25,28 +25,23 @@ import (
 
 // Conv contains all schema and data conversion state.
 type Conv struct {
-	mode                     mode                                // Schema mode or data mode.
-	SpSchema                 ddl.Schema                          // Maps Spanner table name to Spanner schema.
-	SyntheticPKeys           map[string]SyntheticPKey            // Maps Spanner table name to synthetic primary key (if needed).
-	SrcSchema                map[string]schema.Table             // Maps source-DB table name to schema information.
-	Issues                   map[string]map[string][]SchemaIssue // Maps source-DB table/col to list of schema conversion issues.
-	ToSpanner                map[string]NameAndCols              // Maps from source-DB table name to Spanner name and column mapping.
-	ToSource                 map[string]NameAndCols              // Maps from Spanner table name to source-DB table name and column mapping.
-	UsedNames                map[string]bool                     // Map storing the names that are already assigned to tables, indices or foreign key contraints.
-	dataSink                 func(table string, cols []string, values []interface{})
-	DataFlush                func()         `json:"-"` // Data flush is used to flush out remaining writes and wait for them to complete.
-	Location                 *time.Location // Timezone (for timestamp conversion).
-	sampleBadRows            rowSamples     // Rows that generated errors during conversion.
-	Stats                    stats
-	TimezoneOffset           string                                 // Timezone offset for timestamp conversion.
-	TargetDb                 string                                 // The target database to which HarbourBridge is writing.
-	UniquePKey               map[string][]string                    // Maps Spanner table name to unique column name being used as primary key (if needed).
-	ToSpannerFkIdx           map[string]FkeyAndIdxs                 `json:"-"` // Maps from source-DB table name to Spanner table name, foreign keys and index mappings.
-	ToSourceFkIdx            map[string]FkeyAndIdxs                 `json:"-"` // Maps from Spanner table name to source-DB table name, foreign key and index mappings.
-	SchemaConversionDuration time.Duration                          `json:"-"` // Duration of schema conversion.
-	DataConversionDuration   time.Duration                          `json:"-"` // Duration of data conversion.
-	MigrationRequestId       string                                 `json:"-"` // Unique request id generated per migration
-	MigrationType            *migration.MigrationData_MigrationType `json:"-"` // Type of migration: Schema migration, data migration or schema and data migration
+	mode           mode                                // Schema mode or data mode.
+	SpSchema       ddl.Schema                          // Maps Spanner table name to Spanner schema.
+	SyntheticPKeys map[string]SyntheticPKey            // Maps Spanner table name to synthetic primary key (if needed).
+	SrcSchema      map[string]schema.Table             // Maps source-DB table name to schema information.
+	Issues         map[string]map[string][]SchemaIssue // Maps source-DB table/col to list of schema conversion issues.
+	ToSpanner      map[string]NameAndCols              // Maps from source-DB table name to Spanner name and column mapping.
+	ToSource       map[string]NameAndCols              // Maps from Spanner table name to source-DB table name and column mapping.
+	UsedNames      map[string]bool                     // Map storing the names that are already assigned to tables, indices or foreign key contraints.
+	dataSink       func(table string, cols []string, values []interface{})
+	DataFlush      func()         `json:"-"` // Data flush is used to flush out remaining writes and wait for them to complete.
+	Location       *time.Location // Timezone (for timestamp conversion).
+	sampleBadRows  rowSamples     // Rows that generated errors during conversion.
+	Stats          stats
+	TimezoneOffset string              // Timezone offset for timestamp conversion.
+	TargetDb       string              // The target database to which HarbourBridge is writing.
+	UniquePKey     map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
+	Audit          audit               // Stores the audit information for the database conversion
 }
 
 type mode int
@@ -138,6 +133,17 @@ type statementStat struct {
 	Error  int64
 }
 
+// Stores the audit information of conversion.
+// Elements that do not affect the migration functionality but are relevant for the conversion report.
+type audit struct {
+	ToSpannerFkIdx           map[string]FkeyAndIdxs                 `json:"-"` // Maps from source-DB table name to Spanner names for table name, foreign key and indexes.
+	ToSourceFkIdx            map[string]FkeyAndIdxs                 `json:"-"` // Maps from Spanner table name to source-DB names for table name, foreign key and indexes.
+	SchemaConversionDuration time.Duration                          `json:"-"` // Duration of schema conversion.
+	DataConversionDuration   time.Duration                          `json:"-"` // Duration of data conversion.
+	MigrationRequestId       string                                 `json:"-"` // Unique request id generated per migration
+	MigrationType            *migration.MigrationData_MigrationType `json:"-"` // Type of migration: Schema migration, data migration or schema and data migration
+}
+
 // MakeConv returns a default-configured Conv.
 func MakeConv() *Conv {
 	return &Conv{
@@ -146,9 +152,7 @@ func MakeConv() *Conv {
 		SrcSchema:      make(map[string]schema.Table),
 		Issues:         make(map[string]map[string][]SchemaIssue),
 		ToSpanner:      make(map[string]NameAndCols),
-		ToSpannerFkIdx: make(map[string]FkeyAndIdxs),
 		ToSource:       make(map[string]NameAndCols),
-		ToSourceFkIdx:  make(map[string]FkeyAndIdxs),
 		UsedNames:      make(map[string]bool),
 		Location:       time.Local, // By default, use go's local time, which uses $TZ (when set).
 		sampleBadRows:  rowSamples{bytesLimit: 10 * 1000 * 1000},
@@ -161,6 +165,10 @@ func MakeConv() *Conv {
 		},
 		TimezoneOffset: "+00:00", // By default, use +00:00 offset which is equal to UTC timezone
 		UniquePKey:     make(map[string][]string),
+		Audit: audit{
+			ToSpannerFkIdx: make(map[string]FkeyAndIdxs),
+			ToSourceFkIdx:  make(map[string]FkeyAndIdxs),
+		},
 	}
 }
 
