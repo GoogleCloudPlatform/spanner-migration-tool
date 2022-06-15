@@ -23,6 +23,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -244,6 +245,58 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sessionState.DbName = ""
 	sessionState.SessionFile = ""
 	sessionState.SourceDB = nil
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionMetadata,
+		Conv:            *conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+}
+
+func LoadSession(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var s session.SessionParams
+	err = json.Unmarshal(reqBody, &s)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+	conv := internal.MakeConv()
+	err = conversion.ReadSessionFile(conv, s.FilePath)
+	if err != nil {
+		switch err.(type) {
+		case *fs.PathError:
+			http.Error(w, fmt.Sprintf("Failed to open session file : %v, no such file or directory", s.FilePath), http.StatusNotFound)
+		default:
+			http.Error(w, fmt.Sprintf("Failed to parse session file : %v", err), http.StatusBadRequest)
+		}
+		return
+	}
+
+	sessionMetadata := session.SessionMetadata{
+		SessionName:  "NewSession",
+		DatabaseType: s.Driver,
+		DatabaseName: strings.TrimRight(filepath.Base(s.FilePath), filepath.Ext(s.FilePath)),
+	}
+
+	sessionState.Conv = conv
+
+	AssignUniqueId(conv)
+
+	sessionState.Conv = conv
+
+	primarykey.Suggesthotspot()
+
+	sessionState.SessionMetadata = sessionMetadata
+	sessionState.Driver = s.Driver
+	sessionState.SessionFile = s.FilePath
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionMetadata,

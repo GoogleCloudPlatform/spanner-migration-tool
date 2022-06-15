@@ -18,18 +18,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"cloud.google.com/go/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/common"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -38,7 +34,7 @@ import (
 // session contains the metadata for a session file.
 // A session file is a snapshot of an ongoing HarbourBridge conversion session,
 // and consists of an internal.Conv struct in JSON format.
-type sessionParams struct {
+type SessionParams struct {
 	Driver    string `json:"driver"`
 	FilePath  string `json:"filePath"`
 	DBName    string `json:"dbName"`
@@ -222,51 +218,6 @@ func SaveRemoteSession(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode("Save successful, VersionId : " + scs.VersionId)
-}
-
-func LoadSession(w http.ResponseWriter, r *http.Request) {
-	sessionState := GetSessionState()
-
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-		return
-	}
-	var s sessionParams
-	err = json.Unmarshal(reqBody, &s)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
-		return
-	}
-	conv := internal.MakeConv()
-	err = conversion.ReadSessionFile(conv, s.FilePath)
-	if err != nil {
-		switch err.(type) {
-		case *fs.PathError:
-			http.Error(w, fmt.Sprintf("Failed to open session file : %v, no such file or directory", s.FilePath), http.StatusNotFound)
-		default:
-			http.Error(w, fmt.Sprintf("Failed to parse session file : %v", err), http.StatusBadRequest)
-		}
-		return
-	}
-
-	sessionMetadata := SessionMetadata{
-		SessionName:  "NewSession",
-		DatabaseType: s.Driver,
-		DatabaseName: strings.TrimRight(filepath.Base(s.FilePath), filepath.Ext(s.FilePath)),
-	}
-
-	sessionState.Conv = conv
-	sessionState.SessionMetadata = sessionMetadata
-	sessionState.Driver = s.Driver
-	sessionState.SessionFile = s.FilePath
-
-	convm := ConvWithMetadata{
-		SessionMetadata: sessionMetadata,
-		Conv:            *conv,
-	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(convm)
 }
 
 //Helpers
