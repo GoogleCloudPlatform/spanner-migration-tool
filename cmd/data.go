@@ -165,10 +165,9 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		}
 	}
 
-	dataCoversionStartTime := time.Now()
-	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, client, conv, true, cmd.writeLimit)
+	bw, err := migrateData(ctx, sourceProfile, targetProfile, ioHelper, client, conv, cmd.writeLimit, dbURI)
 	if err != nil {
-		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
+		err = fmt.Errorf("can't do data migration: %v", err)
 		return subcommands.ExitFailure
 	}
 	if !cmd.skipForeignKeys {
@@ -177,9 +176,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 			return subcommands.ExitFailure
 		}
 	}
-	dataCoversionEndTime := time.Now()
-	dataCoversionDuration := dataCoversionEndTime.Sub(dataCoversionStartTime)
-	conv.DataConversionDuration = dataCoversionDuration
+
 	banner := utils.GetBanner(now, dbURI)
 	conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, cmd.filePrefix+badDataFile, ioHelper.Out)
