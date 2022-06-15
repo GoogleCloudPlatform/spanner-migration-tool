@@ -45,17 +45,20 @@ func (ss *SessionService) GetConvWithMetadata(versionId string) (ConvWithMetadat
 	return ss.store.GetConvWithMetadata(ss.context, versionId)
 }
 
-func SetSessionStorageConnectionState(projectId string, spInstanceId string) {
+func SetSessionStorageConnectionState(projectId string, spInstanceId string) bool {
 	sessionState := GetSessionState()
 	sessionState.GCPProjectID = projectId
 	sessionState.SpannerInstanceID = spInstanceId
 	if projectId == "" || spInstanceId == "" {
 		sessionState.IsOffline = true
+		return false
 	} else {
-		if common.CheckOrCreateMetadataDb(projectId, spInstanceId) {
+		if isExist, isDbCreated := common.CheckOrCreateMetadataDb(projectId, spInstanceId); isExist {
 			sessionState.IsOffline = false
+			return isDbCreated
 		} else {
 			sessionState.IsOffline = true
+			return false
 		}
 	}
 }

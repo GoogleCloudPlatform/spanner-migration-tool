@@ -213,10 +213,14 @@ export class ConversionService {
 
     let res: IIndexData[] = spIndex.Keys.map((idx: IIndexKey, i: number) => {
       return {
-        srcColName: srcIndexs && srcIndexs.length > 0 ? srcIndexs[0].Keys[i].Column : '',
-        srcOrder: srcIndexs && srcIndexs.length > 0 ? i + 1 : '',
+        srcColName:
+          srcIndexs && srcIndexs.length > 0 && srcIndexs[0].Keys.length > i
+            ? srcIndexs[0].Keys[i].Column
+            : '',
+        srcOrder: srcIndexs && srcIndexs.length > 0 && srcIndexs[0].Keys.length > i ? i + 1 : '',
         spColName: idx.Col,
         spOrder: i + 1,
+        spDesc: idx.Desc,
       }
     })
     return res

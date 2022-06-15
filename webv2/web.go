@@ -805,6 +805,40 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
+func updateIndexes(w http.ResponseWriter, r *http.Request) {
+	table := r.FormValue("table")
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	}
+
+	newIndexes := []ddl.CreateIndex{}
+	if err = json.Unmarshal(reqBody, &newIndexes); err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+
+	sessionState := session.GetSessionState()
+	sp := sessionState.Conv.SpSchema[table]
+
+	for i, index := range sp.Indexes {
+		if index.Table == newIndexes[0].Table && index.Name == newIndexes[0].Name {
+			sp.Indexes[i] = newIndexes[0]
+			break
+		}
+	}
+
+	sessionState.Conv.SpSchema[table] = sp
+	updateSessionFile()
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+}
+
 func checkSpannerNamesValidity(input []string) (bool, []string) {
 	status := true
 	var invalidNewNames []string

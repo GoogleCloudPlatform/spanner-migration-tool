@@ -37,7 +37,11 @@ export class UpdateSpannerConfigFormComponent implements OnInit {
 
     this.fetch.setSpannerConfig(payload).subscribe({
       next: (res: ISpannerConfig) => {
-        this.snack.openSnackBar('Spanner Config updated successfully', 'Close', 5)
+        if (res.IsMetadataDbCreated) {
+          this.snack.openSnackBar('A new database has been created.', 'Close', 5)
+        } else {
+          this.snack.openSnackBar('Spanner Config updated successfully', 'Close', 5)
+        }
         this.dialogRef.close({ ...res })
         this.dataService.updateIsOffline()
         this.dataService.updateConfig(res)
