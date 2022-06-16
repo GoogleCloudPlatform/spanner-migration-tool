@@ -8,7 +8,7 @@ import { MatDialog } from '@angular/material/dialog'
 import IFkTabData from 'src/app/model/fk-tab-data'
 import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import ISchemaObjectNode, { FlatNode } from 'src/app/model/schema-object-node'
-import { ObjectExplorerNodeType } from 'src/app/app.constants'
+import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import { IUpdateTableArgument } from 'src/app/model/update-table'
 
 @Component({
@@ -37,6 +37,8 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   srcTree: ISchemaObjectNode[] = []
   issuesAndSuggestionsLabel: string = 'ISSUES AND SUGGESTIONS'
   objectExplorerInitiallyRender: boolean = false
+  srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
+  conversionRatePercentages: number[] = [0, 0, 0]
   constructor(
     private data: DataService,
     private conversion: ConversionService,
@@ -90,6 +92,8 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
 
     this.converObj = this.data.conversionRate.subscribe((rates: any) => {
       this.conversionRates = rates
+      this.updateConversionRatePercentages()
+
       if (this.conv) {
         this.reRenderObjectExplorerSpanner()
         this.reRenderObjectExplorerSrc()
@@ -111,6 +115,27 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.convObj.unsubscribe()
     this.ddlObj.unsubscribe()
     this.ddlsumconvObj.unsubscribe()
+  }
+
+  updateConversionRatePercentages() {
+    const conversionRateCount: number[] = [0, 0, 0]
+    let tableCount: number = Object.keys(this.conversionRates).length
+    for (const rate in this.conversionRates) {
+      if (this.conversionRates[rate] === 'GRAY' || this.conversionRates[rate] === 'GREEN') {
+        conversionRateCount[0] += 1
+      } else if (this.conversionRates[rate] === 'BLUE' || this.conversionRates[rate] === 'YELLOW') {
+        conversionRateCount[1] += 1
+      } else {
+        conversionRateCount[2] += 1
+      }
+    }
+    if (tableCount > 0) {
+      for (let i = 0; i < 3; i++) {
+        this.conversionRatePercentages[i] = Number(
+          ((conversionRateCount[i] / tableCount) * 100).toFixed(2)
+        )
+      }
+    }
   }
 
   reRenderObjectExplorerSpanner() {
