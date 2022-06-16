@@ -144,9 +144,7 @@ export interface IInterleaveStatus {
 }
 
 export interface IPrimaryKey {
-  tableId: number
-  columns: [{ columnId: number; Desc: boolean; Order: number }]
-  primaryKeyId: number
+  TableId: number
   Columns: IPkColumnDefs[]
   PrimaryKeyId: number
 }

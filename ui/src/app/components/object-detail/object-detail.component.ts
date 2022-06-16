@@ -427,7 +427,7 @@ export class ObjectDetailComponent implements OnInit {
           Order: parseInt(row.spOrder as string),
         })
     })
-    this.pkObj.tableId = tableId
+    this.pkObj.TableId = tableId
     this.pkObj.Columns = Columns
     this.pkObj.PrimaryKeyId = PrimaryKeyId
   }
