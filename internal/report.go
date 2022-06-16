@@ -316,11 +316,11 @@ var IssueDB = map[SchemaIssue]struct {
 	Time:                  {Brief: "Spanner does not support time/year types", severity: note, batch: true},
 	Widened:               {Brief: "Some columns will consume more storage in Spanner", severity: note, batch: true},
 	StringOverflow:        {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
-	HotspotTimestamp:      {Brief: "Timestamp Hotspot Occured", severity: warning},
-	HotspotAutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: warning},
-	InterleavedNotINOrder: {Brief: "can be converted as Interleaved Table if Primary Key Order  parameter changed for Table", severity: warning},
-	InterleavedOrder:      {Brief: "can be converted as Interleaved Table", severity: warning},
-	InterleavedADDCOLUMN:  {Brief: "Candidate for Interleaved Table", severity: warning},
+	HotspotTimestamp:      {Brief: "Timestamp Hotspot Occured", severity: note},
+	HotspotAutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: note},
+	InterleavedNotINOrder: {Brief: "can be converted as Interleaved Table if Primary Key Order  parameter changed for Table", severity: note},
+	InterleavedOrder:      {Brief: "can be converted as Interleaved Table", severity: note},
+	InterleavedADDCOLUMN:  {Brief: "Candidate for Interleaved Table", severity: note},
 }
 
 type severity int

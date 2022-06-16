@@ -19,8 +19,6 @@
 package primarykey
 
 import (
-	"fmt"
-
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
@@ -55,7 +53,7 @@ func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 	cidRequestList := getColumnIdListFromPrimaryKeyRequest(pkRequest)
 	cidSpannerTableList := getColumnIdListOfSpannerTablePrimaryKey(spannerTable)
 
-	//primary key Id only presnt in pkeyrequest
+	// primary key Id only presnt in pkeyrequest.
 	// hence new primary key add primary key into  spannerTable.Pk list
 	leftjoin := difference(cidRequestList, cidSpannerTableList)
 	insert := addPrimaryKey(leftjoin, pkRequest, spannerTable)
@@ -64,7 +62,7 @@ func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 
 	spannerTable.Pks = append(spannerTable.Pks, insert...)
 
-	//primary key Id only presnt in spannertable.Pks
+	// primary key Id only presnt in spannertable.Pks
 	// hence remove primary key from  spannertable.Pks
 	rightjoin := difference(cidSpannerTableList, cidRequestList)
 
@@ -225,7 +223,6 @@ func Remove(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) []in
 
 	for i := 0; i < len(schemaissue); i++ {
 		if schemaissue[i] == issue {
-			fmt.Println("I am removing", schemaissue[i])
 			return append(schemaissue[:i], schemaissue[i+1:]...)
 		}
 	}

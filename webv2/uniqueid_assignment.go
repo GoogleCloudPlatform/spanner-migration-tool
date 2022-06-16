@@ -26,7 +26,9 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// AssignUniqueId to handle  cascading effect in UI.
+// AssignUniqueId to handles  cascading effect in UI.
+// Its iterate over source and spanner schema
+// and assign id to table and column.
 func AssignUniqueId(conv *internal.Conv) {
 
 	tableuniqueid := 1
@@ -58,7 +60,7 @@ func AssignUniqueId(conv *internal.Conv) {
 
 							conv.SrcSchema[sourcetablename].ColDefs[sourcecolumnname] = sourcecolumn
 							conv.SpSchema[spannertablename].ColDefs[spannercolumnname] = spannercolumn
-							UpdateIndexKeyOrder(spannertable)
+							updateIndexKeyOrder(spannertable)
 							break
 						}
 					}
@@ -74,8 +76,8 @@ func AssignUniqueId(conv *internal.Conv) {
 
 }
 
-// UpdateIndexKeyOrder Update Primary Key Order as columnId.
-func UpdateIndexKeyOrder(spannertable ddl.CreateTable) {
+// updateIndexKeyOrder Update Primary Key Order as columnId.
+func updateIndexKeyOrder(spannertable ddl.CreateTable) {
 
 	for i := 0; i < len(spannertable.Pks); i++ {
 		for spannercolumnname, spannercolumn := range spannertable.ColDefs {

@@ -133,7 +133,8 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 	log.Println("request completed", "traceid", id.String(), "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
 }
 
-//prepareResponse prepares response for primary key api.
+// PrimaryKeyResponse represents primary key API response.
+// Synth is true for tables in which primary key is not present and is generated.
 func prepareResponse(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) PrimaryKeyResponse {
 
 	var pKeyResponse PrimaryKeyResponse
