@@ -185,7 +185,7 @@
             <td mat-cell *matCellDef="let element; let i = index">
               <div class="sp-datatype-data-cells">
                 <span
-                  *ngIf="isSpTableSuggesstionDisplay[i]"
+                  *ngIf="isSpTableSuggesstionDisplay[i] && element.get('spOrder').value !== ''"
                   class="material-icons summary-type error sp-datatype-suggestion-icon"
                   [matTooltip]="spTableSuggestion[i]"
                   matTooltipPosition="above"
@@ -392,7 +392,7 @@
             <td mat-cell *matCellDef="let element; let i = index">
               <div class="sp-datatype-data-cells">
                 <span
-                  *ngIf="isSpTableSuggesstionDisplay[i]"
+                  *ngIf="isSpTableSuggesstionDisplay[i] && element.get('spOrder').value !== ''"
                   class="material-icons summary-type error sp-datatype-suggestion-icon"
                   [matTooltip]="spTableSuggestion[i]"
                   matTooltipPosition="above"
