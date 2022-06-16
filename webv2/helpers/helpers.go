@@ -109,7 +109,6 @@ func Difference(listone, listtwo []int) []int {
 
 // RemoveSchemaIssues remove all  Hotspot and Interleaved from given list.
 // RemoveSchemaIssues is used when we are adding or removing primary key column from primary key.
-
 func RemoveSchemaIssues(schemaissue []internal.SchemaIssue) []internal.SchemaIssue {
 
 	if IsSchemaIssuePrsent(schemaissue, internal.HotspotAutoIncrement) {
