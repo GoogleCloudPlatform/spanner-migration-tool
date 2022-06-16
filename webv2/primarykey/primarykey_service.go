@@ -20,6 +20,7 @@ package primarykey
 
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
@@ -97,7 +98,7 @@ func isValidColumnIds(pkRequest PrimaryKeyRequest, spannertable ddl.CreateTable)
 
 	cidRequestList := getColumnIdListFromPrimaryKeyRequest(pkRequest)
 	cidSpannerTableList := getColumnIdListOfSpannerTable(spannertable)
-	leftjoin := difference(cidRequestList, cidSpannerTableList)
+	leftjoin := helpers.Difference(cidRequestList, cidSpannerTableList)
 
 	if len(leftjoin) > 0 {
 		return false
@@ -114,43 +115,9 @@ func isValidColumnOrder(pkRequest PrimaryKeyRequest) bool {
 		list = append(list, pkRequest.Columns[i].Order)
 	}
 
-	if duplicateInArray(list) == -1 {
+	if helpers.DuplicateInArray(list) == -1 {
 		return false
 	}
 
 	return true
-}
-
-// duplicateInArray checks element is already present in list.
-func duplicateInArray(element []int) int {
-	visited := make(map[int]bool, 0)
-	for i := 0; i < len(element); i++ {
-		if visited[element[i]] == true {
-			return element[i]
-		} else {
-			visited[element[i]] = true
-		}
-	}
-	return -1
-}
-
-// difference gives list of element that are only present in first list.
-func difference(listone, listtwo []int) []int {
-
-	hashmap := make(map[int]int, len(listtwo))
-
-	for _, val := range listtwo {
-		hashmap[val]++
-	}
-
-	var diff []int
-
-	for _, val := range listone {
-
-		_, found := hashmap[val]
-		if !found {
-			diff = append(diff, val)
-		}
-	}
-	return diff
 }

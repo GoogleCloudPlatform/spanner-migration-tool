@@ -56,7 +56,7 @@ func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 
 	// primary key Id only presnt in pkeyrequest.
 	// hence new primary key add primary key into  spannerTable.Pk list
-	leftjoin := difference(cidRequestList, cidSpannerTableList)
+	leftjoin := helpers.Difference(cidRequestList, cidSpannerTableList)
 	insert := addPrimaryKey(leftjoin, pkRequest, spannerTable)
 
 	isHotSpot(insert, spannerTable)
@@ -65,7 +65,7 @@ func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 
 	// primary key Id only presnt in spannertable.Pks
 	// hence remove primary key from  spannertable.Pks
-	rightjoin := difference(cidSpannerTableList, cidRequestList)
+	rightjoin := helpers.Difference(cidSpannerTableList, cidRequestList)
 
 	if len(rightjoin) > 0 {
 		nlist := removePrimaryKey(rightjoin, spannerTable)
@@ -100,27 +100,27 @@ func addPrimaryKey(add []int, pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 
 				if len(schemaissue) > 0 {
 
-					if isSchemaIssuePrsent(schemaissue, internal.HotspotAutoIncrement) {
+					if helpers.IsSchemaIssuePrsent(schemaissue, internal.HotspotAutoIncrement) {
 
 						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.HotspotAutoIncrement)
 					}
 
-					if isSchemaIssuePrsent(schemaissue, internal.HotspotTimestamp) {
+					if helpers.IsSchemaIssuePrsent(schemaissue, internal.HotspotTimestamp) {
 
 						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.HotspotTimestamp)
 					}
 
-					if isSchemaIssuePrsent(schemaissue, internal.InterleavedOrder) {
+					if helpers.IsSchemaIssuePrsent(schemaissue, internal.InterleavedOrder) {
 
 						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 					}
 
-					if isSchemaIssuePrsent(schemaissue, internal.InterleavedNotINOrder) {
+					if helpers.IsSchemaIssuePrsent(schemaissue, internal.InterleavedNotINOrder) {
 
 						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotINOrder)
 					}
 
-					if isSchemaIssuePrsent(schemaissue, internal.InterleavedADDCOLUMN) {
+					if helpers.IsSchemaIssuePrsent(schemaissue, internal.InterleavedADDCOLUMN) {
 
 						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedADDCOLUMN)
 					}
@@ -169,28 +169,28 @@ func removePrimaryKey(remove []int, spannerTable ddl.CreateTable) []ddl.IndexKey
 
 				if len(schemaissue) > 0 {
 
-					if isSchemaIssuePrsent(schemaissue, internal.HotspotAutoIncrement) {
+					if helpers.IsSchemaIssuePrsent(schemaissue, internal.HotspotAutoIncrement) {
 
 						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.HotspotAutoIncrement)
 					}
 
-					if isSchemaIssuePrsent(schemaissue, internal.HotspotTimestamp) {
+					if helpers.IsSchemaIssuePrsent(schemaissue, internal.HotspotTimestamp) {
 
 						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.HotspotTimestamp)
 					}
 
-					if isSchemaIssuePrsent(schemaissue, internal.InterleavedOrder) {
+					if helpers.IsSchemaIssuePrsent(schemaissue, internal.InterleavedOrder) {
 
 						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 					}
 
-					if isSchemaIssuePrsent(schemaissue, internal.InterleavedNotINOrder) {
+					if helpers.IsSchemaIssuePrsent(schemaissue, internal.InterleavedNotINOrder) {
 
 						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotINOrder)
 
 					}
 
-					if isSchemaIssuePrsent(schemaissue, internal.InterleavedADDCOLUMN) {
+					if helpers.IsSchemaIssuePrsent(schemaissue, internal.InterleavedADDCOLUMN) {
 
 						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedADDCOLUMN)
 					}
@@ -218,14 +218,4 @@ func removePrimaryKey(remove []int, spannerTable ddl.CreateTable) []ddl.IndexKey
 		}
 	}
 	return list
-}
-
-func isSchemaIssuePrsent(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) bool {
-
-	for _, s := range schemaissue {
-		if s == issue {
-			return true
-		}
-	}
-	return false
 }

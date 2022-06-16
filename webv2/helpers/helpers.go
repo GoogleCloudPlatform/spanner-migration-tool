@@ -40,6 +40,7 @@ func UpdateSessionFile() error {
 	return nil
 }
 
+// ContainString check string is present in given list.
 func ContainString(fc []string, col string) string {
 
 	for _, s := range fc {
@@ -50,6 +51,7 @@ func ContainString(fc []string, col string) string {
 	return ""
 }
 
+// RemoveSchemaIssue remove issue from given list.
 func RemoveSchemaIssue(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) []internal.SchemaIssue {
 
 	for i := 0; i < len(schemaissue); i++ {
@@ -58,4 +60,49 @@ func RemoveSchemaIssue(schemaissue []internal.SchemaIssue, issue internal.Schema
 		}
 	}
 	return schemaissue
+}
+
+// IsSchemaIssuePrsent check issue is present in given schemaissue list.
+func IsSchemaIssuePrsent(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) bool {
+
+	for _, s := range schemaissue {
+		if s == issue {
+			return true
+		}
+	}
+	return false
+}
+
+// DuplicateInArray checks element is already present in list.
+func DuplicateInArray(element []int) int {
+	visited := make(map[int]bool, 0)
+	for i := 0; i < len(element); i++ {
+		if visited[element[i]] == true {
+			return element[i]
+		} else {
+			visited[element[i]] = true
+		}
+	}
+	return -1
+}
+
+// Difference gives list of element that are only present in first list.
+func Difference(listone, listtwo []int) []int {
+
+	hashmap := make(map[int]int, len(listtwo))
+
+	for _, val := range listtwo {
+		hashmap[val]++
+	}
+
+	var diff []int
+
+	for _, val := range listone {
+
+		_, found := hashmap[val]
+		if !found {
+			diff = append(diff, val)
+		}
+	}
+	return diff
 }
