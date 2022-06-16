@@ -18,9 +18,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"go.uber.org/zap"
 )
 
 // Conv contains all schema and data conversion state.
@@ -204,6 +206,8 @@ func (conv *Conv) WriteRow(srcTable, spTable string, spCols []string, spVals []i
 	if conv.dataSink == nil {
 		msg := "Internal error: ProcessDataRow called but dataSink not configured"
 		VerbosePrintf("%s\n", msg)
+		logger.Log.Debug("Internal error: ProcessDataRow called but dataSink not configured")
+
 		conv.Unexpected(msg)
 		conv.StatsAddBadRow(srcTable, conv.DataMode())
 	} else {
@@ -342,6 +346,8 @@ func (conv *Conv) buildPrimaryKey(spTable string) string {
 // because we process dump data twice.
 func (conv *Conv) Unexpected(u string) {
 	VerbosePrintf("Unexpected condition: %s\n", u)
+	logger.Log.Debug("Unexpected condition", zap.String("condition", u))
+
 	// Limit size of unexpected map. If over limit, then only
 	// update existing entries.
 	if _, ok := conv.Stats.Unexpected[u]; ok || len(conv.Stats.Unexpected) < 1000 {
@@ -390,6 +396,7 @@ func (conv *Conv) getStatementStat(s string) *statementStat {
 func (conv *Conv) SkipStatement(stmtType string) {
 	if conv.SchemaMode() { // Record statement stats on first pass only.
 		VerbosePrintf("Skipping statement: %s\n", stmtType)
+		logger.Log.Debug("Skipping statement", zap.String("stmtType", stmtType))
 		conv.getStatementStat(stmtType).Skip++
 	}
 }
@@ -398,6 +405,7 @@ func (conv *Conv) SkipStatement(stmtType string) {
 func (conv *Conv) ErrorInStatement(stmtType string) {
 	if conv.SchemaMode() { // Record statement stats on first pass only.
 		VerbosePrintf("Error processing statement: %s\n", stmtType)
+		logger.Log.Debug("Error processing statement", zap.String("stmtType", stmtType))
 		conv.getStatementStat(stmtType).Error++
 	}
 }

@@ -34,6 +34,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/web"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2"
 	"github.com/google/subcommands"
@@ -119,6 +120,11 @@ func main() {
 	fmt.Printf("\nWarning: Found usage of deprecated flags. Support for these " +
 		"flags will be discontinued soon.\nIt is recommended to use Harbourbridge " +
 		"using connection profiles. Checkout usage here: https://github.com/cloudspannerecosystem/harbourbridge/tree/master/cmd#command-line-flags\n\n")
+	err = logger.InitializeLogger("INFO")
+	if err != nil {
+		panic(fmt.Errorf("error initialising logger"))
+	}
+	defer logger.Log.Sync()
 	// Running HB CLI in global command line mode.
 	setupGlobalFlags()
 	flag.Usage = usage

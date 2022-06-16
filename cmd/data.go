@@ -26,10 +26,12 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/google/subcommands"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 // DataCmd struct with flags.
@@ -43,6 +45,7 @@ type DataCmd struct {
 	filePrefix      string // TODO: move filePrefix to global flags
 	writeLimit      int64
 	dryRun          bool
+	logLevel        string
 }
 
 // Name returns the name of operation.
@@ -77,6 +80,7 @@ func (cmd *DataCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
 	f.Int64Var(&cmd.writeLimit, "write-limit", defaultWritersLimit, "Write limit for writes to spanner")
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "To validate the syntax of the command by running it in an air-gapped manner, such that no network calls are made.")
+	f.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to INFO")
 }
 
 func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -85,13 +89,20 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	var err error
 	defer func() {
 		if err != nil {
-			fmt.Printf("FATAL error: %v\n", err)
+			logger.Log.Fatal("FATAL error", zap.Error(err))
 		}
 	}()
 	if cmd.dryRun {
 		fmt.Print("--dry-run flag is not implemented")
 		return subcommands.ExitFailure
 	}
+	err = logger.InitializeLogger(cmd.logLevel)
+	if err != nil {
+		fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err)
+		return subcommands.ExitFailure
+	}
+	defer logger.Log.Sync()
+
 	conv := internal.MakeConv()
 
 	sourceProfile, err := profiles.NewSourceProfile(cmd.sourceProfile, cmd.source)

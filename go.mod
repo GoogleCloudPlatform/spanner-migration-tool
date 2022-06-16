@@ -32,6 +32,7 @@ require (
 	github.com/pingcap/tidb/parser v0.0.0-20220411093434-32b9c14779c2
 	github.com/sijms/go-ora/v2 v2.2.17
 	github.com/stretchr/testify v1.7.0
+	go.uber.org/zap v1.21.0
 	golang.org/x/crypto v0.0.0-20220214200702-86341886e292
 	golang.org/x/net v0.0.0-20220325170049-de3da57026de
 	golang.org/x/tools v0.1.11-0.20220316014157-77aa08bb151a // indirect

@@ -43,14 +43,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
-	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/protobuf/proto"
-
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/metrics"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/csv"
@@ -61,6 +58,10 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/writer"
+	"go.uber.org/zap"
+	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -368,6 +369,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 		return f, n, err
 	}
 	internal.VerbosePrintln("Creating a tmp file with a copy of stdin because stdin is not seekable.")
+	logger.Log.Debug("Creating a tmp file with a copy of stdin because stdin is not seekable.")
 
 	// Create file in os.TempDir. Its not clear this is a good idea e.g. if the
 	// pg_dump/mysqldump output is large (tens of GBs) and os.TempDir points to a directory
@@ -564,6 +566,8 @@ Recommended value is between 20-30.`)
 				workers <- workerID
 			}()
 			internal.VerbosePrintf("Submitting new FK create request: %s\n", fkStmt)
+			logger.Log.Debug("Submitting new FK create request", zap.String("fkStmt", fkStmt))
+
 			op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 				Database:   dbURI,
 				Statements: []string{fkStmt},
@@ -579,6 +583,7 @@ Recommended value is between 20-30.`)
 				return
 			}
 			internal.VerbosePrintln("Updated schema with statement: " + fkStmt)
+			logger.Log.Debug("Updated schema with statement", zap.String("fkStmt", fkStmt))
 		}(fkStmt, workerID)
 	}
 	// Wait for all the goroutines to finish.
