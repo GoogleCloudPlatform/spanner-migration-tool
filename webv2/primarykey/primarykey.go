@@ -100,32 +100,7 @@ func addPrimaryKey(add []int, pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 
 				if len(schemaissue) > 0 {
 
-					if helpers.IsSchemaIssuePrsent(schemaissue, internal.HotspotAutoIncrement) {
-
-						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.HotspotAutoIncrement)
-					}
-
-					if helpers.IsSchemaIssuePrsent(schemaissue, internal.HotspotTimestamp) {
-
-						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.HotspotTimestamp)
-					}
-
-					if helpers.IsSchemaIssuePrsent(schemaissue, internal.InterleavedOrder) {
-
-						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-					}
-
-					if helpers.IsSchemaIssuePrsent(schemaissue, internal.InterleavedNotINOrder) {
-
-						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotINOrder)
-					}
-
-					if helpers.IsSchemaIssuePrsent(schemaissue, internal.InterleavedADDCOLUMN) {
-
-						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedADDCOLUMN)
-					}
-
-					schemaissue = []internal.SchemaIssue{}
+					schemaissue = helpers.RemoveSchemaIssues(schemaissue)
 
 					sessionState.Conv.Issues[spannerTable.Name][pkey.Col] = schemaissue
 
@@ -169,31 +144,7 @@ func removePrimaryKey(remove []int, spannerTable ddl.CreateTable) []ddl.IndexKey
 
 				if len(schemaissue) > 0 {
 
-					if helpers.IsSchemaIssuePrsent(schemaissue, internal.HotspotAutoIncrement) {
-
-						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.HotspotAutoIncrement)
-					}
-
-					if helpers.IsSchemaIssuePrsent(schemaissue, internal.HotspotTimestamp) {
-
-						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.HotspotTimestamp)
-					}
-
-					if helpers.IsSchemaIssuePrsent(schemaissue, internal.InterleavedOrder) {
-
-						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-					}
-
-					if helpers.IsSchemaIssuePrsent(schemaissue, internal.InterleavedNotINOrder) {
-
-						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotINOrder)
-
-					}
-
-					if helpers.IsSchemaIssuePrsent(schemaissue, internal.InterleavedADDCOLUMN) {
-
-						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedADDCOLUMN)
-					}
+					schemaissue = helpers.RemoveSchemaIssues(schemaissue)
 
 					if sessionState.Conv.Issues[spannerTable.Name][spannerTable.Pks[i].Col] == nil {
 
