@@ -101,29 +101,29 @@ func addPrimaryKey(add []int, pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 
 				if len(schemaissue) > 0 {
 
-					if contains(schemaissue, internal.Hotspot_AutoIncrement) {
+					if contains(schemaissue, internal.HotspotAutoIncrement) {
 
-						schemaissue = Remove(schemaissue, internal.Hotspot_AutoIncrement)
+						schemaissue = Remove(schemaissue, internal.HotspotAutoIncrement)
 					}
 
-					if contains(schemaissue, internal.Hotspot_Timestamp) {
+					if contains(schemaissue, internal.HotspotTimestamp) {
 
-						schemaissue = Remove(schemaissue, internal.Hotspot_Timestamp)
+						schemaissue = Remove(schemaissue, internal.HotspotTimestamp)
 					}
 
-					if contains(schemaissue, internal.Interleaved_Order) {
+					if contains(schemaissue, internal.InterleavedOrder) {
 
-						schemaissue = Remove(schemaissue, internal.Interleaved_Order)
+						schemaissue = Remove(schemaissue, internal.InterleavedOrder)
 					}
 
-					if contains(schemaissue, internal.Interleaved_NotINOrder) {
+					if contains(schemaissue, internal.InterleavedNotINOrder) {
 
-						schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
+						schemaissue = Remove(schemaissue, internal.InterleavedNotINOrder)
 					}
 
-					if contains(schemaissue, internal.Interleaved_ADDCOLUMN) {
+					if contains(schemaissue, internal.InterleavedADDCOLUMN) {
 
-						schemaissue = Remove(schemaissue, internal.Interleaved_ADDCOLUMN)
+						schemaissue = Remove(schemaissue, internal.InterleavedADDCOLUMN)
 					}
 
 					schemaissue = []internal.SchemaIssue{}
@@ -170,30 +170,30 @@ func removePrimaryKey(remove []int, spannerTable ddl.CreateTable) []ddl.IndexKey
 
 				if len(schemaissue) > 0 {
 
-					if contains(schemaissue, internal.Hotspot_AutoIncrement) {
+					if contains(schemaissue, internal.HotspotAutoIncrement) {
 
-						schemaissue = Remove(schemaissue, internal.Hotspot_AutoIncrement)
+						schemaissue = Remove(schemaissue, internal.HotspotAutoIncrement)
 					}
 
-					if contains(schemaissue, internal.Hotspot_Timestamp) {
+					if contains(schemaissue, internal.HotspotTimestamp) {
 
-						schemaissue = Remove(schemaissue, internal.Hotspot_Timestamp)
+						schemaissue = Remove(schemaissue, internal.HotspotTimestamp)
 					}
 
-					if contains(schemaissue, internal.Interleaved_Order) {
+					if contains(schemaissue, internal.InterleavedOrder) {
 
-						schemaissue = Remove(schemaissue, internal.Interleaved_Order)
+						schemaissue = Remove(schemaissue, internal.InterleavedOrder)
 					}
 
-					if contains(schemaissue, internal.Interleaved_NotINOrder) {
+					if contains(schemaissue, internal.InterleavedNotINOrder) {
 
-						schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
+						schemaissue = Remove(schemaissue, internal.InterleavedNotINOrder)
 
 					}
 
-					if contains(schemaissue, internal.Interleaved_ADDCOLUMN) {
+					if contains(schemaissue, internal.InterleavedADDCOLUMN) {
 
-						schemaissue = Remove(schemaissue, internal.Interleaved_ADDCOLUMN)
+						schemaissue = Remove(schemaissue, internal.InterleavedADDCOLUMN)
 					}
 
 					if sessionState.Conv.Issues[spannerTable.Name][spannerTable.Pks[i].Col] == nil {

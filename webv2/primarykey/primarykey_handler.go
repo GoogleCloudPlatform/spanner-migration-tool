@@ -113,8 +113,6 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 
 	spannerTable = updatePrimaryKey(pkRequest, spannerTable)
 
-	pKeyResponse := prepareResponse(pkRequest, spannerTable)
-
 	//update spannerTable into sessionState.Conv.SpSchema.
 	for _, table := range sessionState.Conv.SpSchema {
 		if pkRequest.TableId == table.Id {
@@ -129,15 +127,13 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 		Conv:            *sessionState.Conv,
 	}
 
-	log.Println(pKeyResponse)
-
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 
 	log.Println("request completed", "traceid", id.String(), "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
 }
 
-//prepareResponse prepare response for primary key api
+//prepareResponse prepares response for primary key api.
 func prepareResponse(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) PrimaryKeyResponse {
 
 	var pKeyResponse PrimaryKeyResponse
@@ -147,7 +143,6 @@ func prepareResponse(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) 
 
 	var isSynthPrimaryKey bool
 
-	//todo check with team
 	for i := 0; i < len(spannerTable.ColNames); i++ {
 		if spannerTable.ColNames[i] == "synth_id" {
 			isSynthPrimaryKey = true

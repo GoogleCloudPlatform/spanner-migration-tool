@@ -172,7 +172,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
 
-	primarykey.Suggesthotspot()
+	primarykey.DetectHotspot()
 
 	sessionMetadata := session.SessionMetadata{
 		SessionName:  "NewSession",
@@ -238,7 +238,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
 
-	primarykey.Suggesthotspot()
+	primarykey.DetectHotspot()
 
 	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = dc.Driver
@@ -292,7 +292,7 @@ func LoadSession(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.Conv = conv
 
-	primarykey.Suggesthotspot()
+	primarykey.DetectHotspot()
 
 	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = s.Driver
@@ -679,11 +679,11 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				column := childPks[childindex].Col
 				schemaissue = sessionState.Conv.Issues[table][column]
 
-				schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
-				schemaissue = Remove(schemaissue, internal.Interleaved_ADDCOLUMN)
-				schemaissue = Remove(schemaissue, internal.Interleaved_Order)
+				schemaissue = Remove(schemaissue, internal.InterleavedNotINOrder)
+				schemaissue = Remove(schemaissue, internal.InterleavedADDCOLUMN)
+				schemaissue = Remove(schemaissue, internal.InterleavedOrder)
 
-				schemaissue = append(schemaissue, internal.Interleaved_Order)
+				schemaissue = append(schemaissue, internal.InterleavedOrder)
 
 				sessionState.Conv.Issues[table][column] = schemaissue
 				tableInterleaveStatus.Possible = true
@@ -701,11 +701,11 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				schemaissue := []internal.SchemaIssue{}
 				schemaissue = sessionState.Conv.Issues[table][column]
 
-				schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
-				schemaissue = Remove(schemaissue, internal.Interleaved_Order)
-				schemaissue = Remove(schemaissue, internal.Interleaved_ADDCOLUMN)
+				schemaissue = Remove(schemaissue, internal.InterleavedNotINOrder)
+				schemaissue = Remove(schemaissue, internal.InterleavedOrder)
+				schemaissue = Remove(schemaissue, internal.InterleavedADDCOLUMN)
 
-				schemaissue = append(schemaissue, internal.Interleaved_NotINOrder)
+				schemaissue = append(schemaissue, internal.InterleavedNotINOrder)
 
 				sessionState.Conv.Issues[table][column] = schemaissue
 
@@ -1201,11 +1201,11 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 
 			schemaissue = sessionState.Conv.Issues[table][caninterleaved[i]]
 
-			schemaissue = Remove(schemaissue, internal.Interleaved_Order)
-			schemaissue = Remove(schemaissue, internal.Interleaved_NotINOrder)
-			schemaissue = Remove(schemaissue, internal.Interleaved_ADDCOLUMN)
+			schemaissue = Remove(schemaissue, internal.InterleavedOrder)
+			schemaissue = Remove(schemaissue, internal.InterleavedNotINOrder)
+			schemaissue = Remove(schemaissue, internal.InterleavedADDCOLUMN)
 
-			schemaissue = append(schemaissue, internal.Interleaved_ADDCOLUMN)
+			schemaissue = append(schemaissue, internal.InterleavedADDCOLUMN)
 
 			if len(schemaissue) > 0 {
 

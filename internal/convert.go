@@ -86,11 +86,11 @@ const (
 	Widened
 	Time
 	StringOverflow
-	Hotspot_Timestamp
-	Hotspot_AutoIncrement
-	Interleaved_NotINOrder
-	Interleaved_Order
-	Interleaved_ADDCOLUMN
+	HotspotTimestamp
+	HotspotAutoIncrement
+	InterleavedNotINOrder
+	InterleavedOrder
+	InterleavedADDCOLUMN
 )
 
 // NameAndCols contains the name of a table and its columns.

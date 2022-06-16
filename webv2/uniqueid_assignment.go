@@ -74,7 +74,7 @@ func AssignUniqueId(conv *internal.Conv) {
 
 }
 
-// UpdateIndexKeyOrder Update Primary Key Order as ColumnId
+// UpdateIndexKeyOrder Update Primary Key Order as columnId.
 func UpdateIndexKeyOrder(spannertable ddl.CreateTable) {
 
 	for i := 0; i < len(spannertable.Pks); i++ {
@@ -86,7 +86,7 @@ func UpdateIndexKeyOrder(spannertable ddl.CreateTable) {
 	}
 }
 
-// getColumnIndex return Columnn Index as Inserted Order.
+// getColumnIndex return columnn index as Inserted Order.
 func getColumnIndex(spannertable ddl.CreateTable, columnName string) int {
 
 	for i := 0; i < len(spannertable.ColNames); i++ {

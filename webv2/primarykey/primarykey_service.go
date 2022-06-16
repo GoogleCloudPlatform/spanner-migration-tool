@@ -60,7 +60,7 @@ func getColumnName(spannerTable ddl.CreateTable, columnId int) string {
 	return columnName
 }
 
-// getColumnIdListFromPrimaryKeyRequest return list of column Id from PrimaryKeyRequest
+// getColumnIdListFromPrimaryKeyRequest return list of column Id from PrimaryKeyRequest.
 func getColumnIdListFromPrimaryKeyRequest(pkRequest PrimaryKeyRequest) []int {
 
 	cidlist := []int{}
@@ -71,7 +71,7 @@ func getColumnIdListFromPrimaryKeyRequest(pkRequest PrimaryKeyRequest) []int {
 	return cidlist
 }
 
-// getColumnIdListOfSpannerTablePrimaryKey return list of column Id from spannerTable PrimaryKey
+// getColumnIdListOfSpannerTablePrimaryKey return list of column Id from spannerTable PrimaryKey.
 func getColumnIdListOfSpannerTablePrimaryKey(spannerTable ddl.CreateTable) []int {
 	cidlist := []int{}
 
@@ -82,7 +82,7 @@ func getColumnIdListOfSpannerTablePrimaryKey(spannerTable ddl.CreateTable) []int
 	return cidlist
 }
 
-// getColumnIdListOfSpannerTable return list of column Id from spannerTable ColDefs
+// getColumnIdListOfSpannerTable return list of column Id from spannerTable ColDefs.
 func getColumnIdListOfSpannerTable(spannerTable ddl.CreateTable) []int {
 	cidlist := []int{}
 
@@ -121,6 +121,7 @@ func isValidColumnOrder(pkRequest PrimaryKeyRequest) bool {
 	return true
 }
 
+// duplicateInArray checks element is already present in list.
 func duplicateInArray(element []int) int {
 	visited := make(map[int]bool, 0)
 	for i := 0; i < len(element); i++ {
