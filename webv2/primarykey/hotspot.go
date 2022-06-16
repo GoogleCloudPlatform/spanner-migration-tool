@@ -36,6 +36,7 @@ func DetectHotspot() {
 
 }
 
+//Helpers method for hotspot detection.
 func isHotSpot(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 
 	hotspotTimestamp(insert, spannerTable)
@@ -76,14 +77,16 @@ func hotspotAutoincrement(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 		for _, c := range spannerTable.ColDefs {
 			if insert[i].Col == c.Name {
 				spannerColumnId := c.Id
-				suggesthotspotAutoincrement(spannerTable, spannerColumnId)
+				detecthotspotAutoincrement(spannerTable, spannerColumnId)
 			}
 
 		}
 	}
 }
 
-func suggesthotspotAutoincrement(spannerTable ddl.CreateTable, spannerColumnId int) {
+// detecthotspotAutoincrement check Autoincrement hotspot.
+// if prseent add HotspotAutoIncrement as issue in Issues.
+func detecthotspotAutoincrement(spannerTable ddl.CreateTable, spannerColumnId int) {
 
 	sessionState := session.GetSessionState()
 	sourcetable := sessionState.Conv.SrcSchema[spannerTable.Name]

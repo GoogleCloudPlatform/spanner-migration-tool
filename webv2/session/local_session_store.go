@@ -18,10 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
-	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 )
 
 const hbOutputDirPath string = "harbour_bridge_output"
@@ -91,17 +87,4 @@ func (st *localStore) IsSessionNameUnique(ctx context.Context, scs SchemaConvers
 
 func getSessionFilePath(dbName string) string {
 	return fmt.Sprintf("%s/%s/%s.session.json", hbOutputDirPath, dbName, dbName)
-}
-
-// UpdateSessionFile updates the content of session file with
-// latest sessionState.Conv while also dumping schemas and report.
-func updateSessionFile() error {
-	sessionState := GetSessionState()
-
-	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
-	_, err := conversion.WriteConvGeneratedFiles(sessionState.Conv, sessionState.DbName, sessionState.Driver, ioHelper.BytesRead, ioHelper.Out)
-	if err != nil {
-		return fmt.Errorf("encountered error %w. Cannot write files", err)
-	}
-	return nil
 }

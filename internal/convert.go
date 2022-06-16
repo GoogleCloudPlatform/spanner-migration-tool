@@ -45,7 +45,6 @@ type Conv struct {
 	DataConversionDuration   time.Duration                          `json:"-"` // Duration of data conversion.
 	MigrationRequestId       string                                 `json:"-"` // Unique request id generated per migration
 	MigrationType            *migration.MigrationData_MigrationType `json:"-"` // Type of migration: Schema migration, data migration or schema and data migration
-	TableNames               []string
 }
 
 type mode int

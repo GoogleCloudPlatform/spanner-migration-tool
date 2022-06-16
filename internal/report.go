@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -241,10 +242,10 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					}
 				case InterleavedADDCOLUMN:
 					str := fmt.Sprintf(" %s add %s as a primary key in table %s", IssueDB[i].Brief, srcCol, spSchema.Name)
+
 					if !contains(l, str) {
 						l = append(l, str)
 					}
-
 				default:
 					l = append(l, fmt.Sprintf("Column '%s': type %s is mapped to %s. %s", srcCol, srcType, spType, IssueDB[i].Brief))
 				}
@@ -260,15 +261,6 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 		body = append(body, tableReportBody{Heading: heading, Lines: l})
 	}
 	return body
-}
-
-func contains(l []string, str string) bool {
-	for _, s := range l {
-		if s == str {
-			return true
-		}
-	}
-	return false
 }
 
 func fillRowStats(conv *Conv, srcTable string, badWrites map[string]int64, tr *tableReport) {
@@ -316,11 +308,11 @@ var IssueDB = map[SchemaIssue]struct {
 	Time:                  {Brief: "Spanner does not support time/year types", severity: note, batch: true},
 	Widened:               {Brief: "Some columns will consume more storage in Spanner", severity: note, batch: true},
 	StringOverflow:        {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
-	HotspotTimestamp:      {Brief: "Timestamp Hotspot Occured", severity: warning},
-	HotspotAutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: warning},
-	InterleavedNotINOrder: {Brief: "can be converted as Interleaved Table if Primary Key Order  parameter changed for Table", severity: warning},
-	InterleavedOrder:      {Brief: "can be converted as Interleaved Table", severity: warning},
-	InterleavedADDCOLUMN:  {Brief: "Candidate for Interleaved Table", severity: warning},
+	HotspotTimestamp:      {Brief: "Timestamp Hotspot Occured", severity: note},
+	HotspotAutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: note},
+	InterleavedNotINOrder: {Brief: "can be converted as Interleaved Table if Primary Key Order  parameter changed for Table", severity: note},
+	InterleavedOrder:      {Brief: "can be converted as Interleaved Table", severity: note},
+	InterleavedADDCOLUMN:  {Brief: "Candidate for Interleaved Table", severity: note},
 }
 
 type severity int
