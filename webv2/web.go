@@ -679,9 +679,9 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				column := childPks[childindex].Col
 				schemaissue = sessionState.Conv.Issues[table][column]
 
-				schemaissue = Remove(schemaissue, internal.InterleavedNotINOrder)
-				schemaissue = Remove(schemaissue, internal.InterleavedADDCOLUMN)
-				schemaissue = Remove(schemaissue, internal.InterleavedOrder)
+				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotINOrder)
+				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedADDCOLUMN)
+				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 
 				schemaissue = append(schemaissue, internal.InterleavedOrder)
 
@@ -701,9 +701,9 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				schemaissue := []internal.SchemaIssue{}
 				schemaissue = sessionState.Conv.Issues[table][column]
 
-				schemaissue = Remove(schemaissue, internal.InterleavedNotINOrder)
-				schemaissue = Remove(schemaissue, internal.InterleavedOrder)
-				schemaissue = Remove(schemaissue, internal.InterleavedADDCOLUMN)
+				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotINOrder)
+				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
+				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedADDCOLUMN)
 
 				schemaissue = append(schemaissue, internal.InterleavedNotINOrder)
 
@@ -1186,7 +1186,7 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 	caninterleaved := []string{}
 	for i := 0; i < len(diff); i++ {
 
-		str := contains(fk.ReferColumns, diff[i].Col)
+		str := helpers.ContainString(fk.ReferColumns, diff[i].Col)
 
 		caninterleaved = append(caninterleaved, str)
 	}
@@ -1201,9 +1201,9 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 
 			schemaissue = sessionState.Conv.Issues[table][caninterleaved[i]]
 
-			schemaissue = Remove(schemaissue, internal.InterleavedOrder)
-			schemaissue = Remove(schemaissue, internal.InterleavedNotINOrder)
-			schemaissue = Remove(schemaissue, internal.InterleavedADDCOLUMN)
+			schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
+			schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotINOrder)
+			schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedADDCOLUMN)
 
 			schemaissue = append(schemaissue, internal.InterleavedADDCOLUMN)
 
@@ -1234,26 +1234,6 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 	return false
 }
 
-func contains(fc []string, col string) string {
-
-	for _, s := range fc {
-		if s == col {
-			return col
-		}
-	}
-	return ""
-}
-
-func Remove(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) []internal.SchemaIssue {
-
-	for i := 0; i < len(schemaissue); i++ {
-		if schemaissue[i] == issue {
-			schemaissue = append(schemaissue[:i], schemaissue[i+1:]...)
-		}
-	}
-	return schemaissue
-}
-
 func getPrimaryKeyIndexFromOrder(pk []ddl.IndexKey, order int) int {
 
 	for i := 0; i < len(pk); i++ {
@@ -1263,6 +1243,7 @@ func getPrimaryKeyIndexFromOrder(pk []ddl.IndexKey, order int) int {
 	}
 	return -1
 }
+
 func isUniqueName(name string) bool {
 	sessionState := session.GetSessionState()
 
@@ -1284,21 +1265,6 @@ func isUniqueName(name string) bool {
 		}
 	}
 	return true
-}
-
-func unique(schemaissue []internal.SchemaIssue) []internal.SchemaIssue {
-
-	inResult := make(map[internal.SchemaIssue]bool)
-
-	var result []internal.SchemaIssue
-
-	for _, issue := range schemaissue {
-		if _, ok := inResult[issue]; !ok {
-			inResult[issue] = true
-			result = append(result, issue)
-		}
-	}
-	return result
 }
 
 func remove(slice []string, s int) []string {

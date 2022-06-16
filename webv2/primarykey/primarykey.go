@@ -21,6 +21,7 @@ package primarykey
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
@@ -99,29 +100,29 @@ func addPrimaryKey(add []int, pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 
 				if len(schemaissue) > 0 {
 
-					if contains(schemaissue, internal.HotspotAutoIncrement) {
+					if isSchemaIssuePrsent(schemaissue, internal.HotspotAutoIncrement) {
 
-						schemaissue = Remove(schemaissue, internal.HotspotAutoIncrement)
+						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.HotspotAutoIncrement)
 					}
 
-					if contains(schemaissue, internal.HotspotTimestamp) {
+					if isSchemaIssuePrsent(schemaissue, internal.HotspotTimestamp) {
 
-						schemaissue = Remove(schemaissue, internal.HotspotTimestamp)
+						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.HotspotTimestamp)
 					}
 
-					if contains(schemaissue, internal.InterleavedOrder) {
+					if isSchemaIssuePrsent(schemaissue, internal.InterleavedOrder) {
 
-						schemaissue = Remove(schemaissue, internal.InterleavedOrder)
+						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 					}
 
-					if contains(schemaissue, internal.InterleavedNotINOrder) {
+					if isSchemaIssuePrsent(schemaissue, internal.InterleavedNotINOrder) {
 
-						schemaissue = Remove(schemaissue, internal.InterleavedNotINOrder)
+						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotINOrder)
 					}
 
-					if contains(schemaissue, internal.InterleavedADDCOLUMN) {
+					if isSchemaIssuePrsent(schemaissue, internal.InterleavedADDCOLUMN) {
 
-						schemaissue = Remove(schemaissue, internal.InterleavedADDCOLUMN)
+						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedADDCOLUMN)
 					}
 
 					schemaissue = []internal.SchemaIssue{}
@@ -168,30 +169,30 @@ func removePrimaryKey(remove []int, spannerTable ddl.CreateTable) []ddl.IndexKey
 
 				if len(schemaissue) > 0 {
 
-					if contains(schemaissue, internal.HotspotAutoIncrement) {
+					if isSchemaIssuePrsent(schemaissue, internal.HotspotAutoIncrement) {
 
-						schemaissue = Remove(schemaissue, internal.HotspotAutoIncrement)
+						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.HotspotAutoIncrement)
 					}
 
-					if contains(schemaissue, internal.HotspotTimestamp) {
+					if isSchemaIssuePrsent(schemaissue, internal.HotspotTimestamp) {
 
-						schemaissue = Remove(schemaissue, internal.HotspotTimestamp)
+						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.HotspotTimestamp)
 					}
 
-					if contains(schemaissue, internal.InterleavedOrder) {
+					if isSchemaIssuePrsent(schemaissue, internal.InterleavedOrder) {
 
-						schemaissue = Remove(schemaissue, internal.InterleavedOrder)
+						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 					}
 
-					if contains(schemaissue, internal.InterleavedNotINOrder) {
+					if isSchemaIssuePrsent(schemaissue, internal.InterleavedNotINOrder) {
 
-						schemaissue = Remove(schemaissue, internal.InterleavedNotINOrder)
+						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotINOrder)
 
 					}
 
-					if contains(schemaissue, internal.InterleavedADDCOLUMN) {
+					if isSchemaIssuePrsent(schemaissue, internal.InterleavedADDCOLUMN) {
 
-						schemaissue = Remove(schemaissue, internal.InterleavedADDCOLUMN)
+						schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedADDCOLUMN)
 					}
 
 					if sessionState.Conv.Issues[spannerTable.Name][spannerTable.Pks[i].Col] == nil {
@@ -219,18 +220,7 @@ func removePrimaryKey(remove []int, spannerTable ddl.CreateTable) []ddl.IndexKey
 	return list
 }
 
-func Remove(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) []internal.SchemaIssue {
-
-	for i := 0; i < len(schemaissue); i++ {
-		if schemaissue[i] == issue {
-			return append(schemaissue[:i], schemaissue[i+1:]...)
-		}
-	}
-
-	return schemaissue
-}
-
-func contains(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) bool {
+func isSchemaIssuePrsent(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) bool {
 
 	for _, s := range schemaissue {
 		if s == issue {

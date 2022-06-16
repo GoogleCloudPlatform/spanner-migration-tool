@@ -23,6 +23,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
@@ -37,4 +38,24 @@ func UpdateSessionFile() error {
 		return fmt.Errorf("Error encountered while updating session session file %w", err)
 	}
 	return nil
+}
+
+func ContainString(fc []string, col string) string {
+
+	for _, s := range fc {
+		if s == col {
+			return col
+		}
+	}
+	return ""
+}
+
+func RemoveSchemaIssue(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) []internal.SchemaIssue {
+
+	for i := 0; i < len(schemaissue); i++ {
+		if schemaissue[i] == issue {
+			schemaissue = append(schemaissue[:i], schemaissue[i+1:]...)
+		}
+	}
+	return schemaissue
 }
