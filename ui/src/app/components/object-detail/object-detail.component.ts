@@ -277,56 +277,56 @@ export class ObjectDetailComponent implements OnInit {
   setPkRows() {
     this.pkArray = new FormArray([])
     this.pkOrderValidation()
-    this.pkData.forEach((row) => {
-      if (row.srcIsPk && row.spIsPk) {
-        this.pkArray.push(
-          new FormGroup({
-            srcOrder: new FormControl(row.srcOrder),
-            srcColName: new FormControl(row.srcColName),
-            srcDataType: new FormControl(row.srcDataType),
-            srcIsPk: new FormControl(row.srcIsPk),
-            srcIsNotNull: new FormControl(row.srcIsNotNull),
-            spOrder: new FormControl(row.spOrder),
-            spColName: new FormControl(row.spColName),
-            spDataType: new FormControl(row.spDataType),
-            spIsPk: new FormControl(row.spIsPk),
-            spIsNotNull: new FormControl(row.spIsNotNull),
-          })
-        )
-      }
-      if (!row.srcIsPk && row.spIsPk) {
-        this.pkArray.push(
-          new FormGroup({
-            srcOrder: new FormControl(''),
-            srcColName: new FormControl(''),
-            srcDataType: new FormControl(''),
-            srcIsPk: new FormControl(false),
-            srcIsNotNull: new FormControl(false),
-            spOrder: new FormControl(row.spOrder),
-            spColName: new FormControl(row.spColName),
-            spDataType: new FormControl(row.spDataType),
-            spIsPk: new FormControl(row.spIsPk),
-            spIsNotNull: new FormControl(row.spIsNotNull),
-          })
-        )
-      }
-      if (row.srcIsPk && !row.spIsPk) {
-        this.pkArray.push(
-          new FormGroup({
-            srcOrder: new FormControl(row.srcOrder),
-            srcColName: new FormControl(row.srcColName),
-            srcDataType: new FormControl(row.srcDataType),
-            srcIsPk: new FormControl(row.srcIsPk),
-            srcIsNotNull: new FormControl(row.srcIsNotNull),
-            spOrder: new FormControl(''),
-            spColName: new FormControl(''),
-            spDataType: new FormControl(''),
-            spIsPk: new FormControl(false),
-            spIsNotNull: new FormControl(false),
-          })
-        )
-      }
-    })
+    // this.pkData.forEach((row) => {
+    //   if (row.srcIsPk && row.spIsPk) {
+    //     this.pkArray.push(
+    //       new FormGroup({
+    //         srcOrder: new FormControl(row.srcOrder),
+    //         srcColName: new FormControl(row.srcColName),
+    //         srcDataType: new FormControl(row.srcDataType),
+    //         srcIsPk: new FormControl(row.srcIsPk),
+    //         srcIsNotNull: new FormControl(row.srcIsNotNull),
+    //         spOrder: new FormControl(row.spOrder),
+    //         spColName: new FormControl(row.spColName),
+    //         spDataType: new FormControl(row.spDataType),
+    //         spIsPk: new FormControl(row.spIsPk),
+    //         spIsNotNull: new FormControl(row.spIsNotNull),
+    //       })
+    //     )
+    //   }
+    //   if (!row.srcIsPk && row.spIsPk) {
+    //     this.pkArray.push(
+    //       new FormGroup({
+    //         srcOrder: new FormControl(''),
+    //         srcColName: new FormControl(''),
+    //         srcDataType: new FormControl(''),
+    //         srcIsPk: new FormControl(false),
+    //         srcIsNotNull: new FormControl(false),
+    //         spOrder: new FormControl(row.spOrder),
+    //         spColName: new FormControl(row.spColName),
+    //         spDataType: new FormControl(row.spDataType),
+    //         spIsPk: new FormControl(row.spIsPk),
+    //         spIsNotNull: new FormControl(row.spIsNotNull),
+    //       })
+    //     )
+    //   }
+    //   if (row.srcIsPk && !row.spIsPk) {
+    //     this.pkArray.push(
+    //       new FormGroup({
+    //         srcOrder: new FormControl(row.srcOrder),
+    //         srcColName: new FormControl(row.srcColName),
+    //         srcDataType: new FormControl(row.srcDataType),
+    //         srcIsPk: new FormControl(row.srcIsPk),
+    //         srcIsNotNull: new FormControl(row.srcIsNotNull),
+    //         spOrder: new FormControl(''),
+    //         spColName: new FormControl(''),
+    //         spDataType: new FormControl(''),
+    //         spIsPk: new FormControl(false),
+    //         spIsNotNull: new FormControl(false),
+    //       })
+    //     )
+    //   }
+    // })
     this.pkDataSource = this.pkArray.controls
   }
 
