@@ -294,6 +294,8 @@ func LoadSession(w http.ResponseWriter, r *http.Request) {
 
 	primarykey.DetectHotspot()
 
+	SuggestIndex()
+
 	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = s.Driver
 	sessionState.SessionFile = s.FilePath
@@ -921,6 +923,8 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 
 	sp := sessionState.Conv.SpSchema[table]
+
+	DetectredandantIndex(newIndexes, sp)
 	sp.Indexes = append(sp.Indexes, newIndexes...)
 
 	sessionState.Conv.SpSchema[table] = sp
@@ -1001,6 +1005,9 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("No secondary index found at position %d", position), http.StatusBadRequest)
 		return
 	}
+
+	RemoveIndexIssue(table, sp.Indexes[position])
+
 	sp.Indexes = removeSecondaryIndex(sp.Indexes, position)
 	sessionState.Conv.SpSchema[table] = sp
 	helpers.UpdateSessionFile()

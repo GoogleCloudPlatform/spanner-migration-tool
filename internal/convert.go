@@ -90,6 +90,7 @@ const (
 	InterleavedNotINOrder
 	InterleavedOrder
 	InterleavedADDCOLUMN
+	IndexRedandant
 )
 
 // NameAndCols contains the name of a table and its columns.

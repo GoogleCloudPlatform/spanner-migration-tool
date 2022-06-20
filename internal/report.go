@@ -246,6 +246,14 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					if !contains(l, str) {
 						l = append(l, str)
 					}
+
+				case IndexRedandant:
+					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+
+					if !contains(l, str) {
+						l = append(l, str)
+					}
+
 				default:
 					l = append(l, fmt.Sprintf("Column '%s': type %s is mapped to %s. %s", srcCol, srcType, spType, IssueDB[i].Brief))
 				}
@@ -313,6 +321,7 @@ var IssueDB = map[SchemaIssue]struct {
 	InterleavedNotINOrder: {Brief: "can be converted as Interleaved Table if Primary Key Order  parameter changed for Table", severity: note},
 	InterleavedOrder:      {Brief: "can be converted as Interleaved Table", severity: note},
 	InterleavedADDCOLUMN:  {Brief: "Candidate for Interleaved Table", severity: note},
+	IndexRedandant:        {Brief: "Redudant Index", severity: warning},
 }
 
 type severity int
