@@ -720,7 +720,7 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 		{"boolean", ddl.Type{Name: ddl.Bool}},
 		{"bytea", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
 		{"char(42)", ddl.Type{Name: ddl.String, Len: int64(42)}},
-		{"date", ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		{"date", ddl.Type{Name: ddl.Date}},
 		{"decimal", ddl.Type{Name: ddl.Numeric}}, // pg parser maps this to numeric.
 		{"double precision", ddl.Type{Name: ddl.Float64}},
 		{"float8", ddl.Type{Name: ddl.Float64}},
@@ -1281,7 +1281,7 @@ COPY test (id, a, b, c) FROM stdin;
 \.
 `,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), "2019-10-29", float64(4.444), float64(5.44444)}}},
+				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), float64(5.44444)}}},
 		},
 		{
 			name: "Data conversion: int8, int4, int2, numeric",
@@ -1356,25 +1356,24 @@ COPY test (id, a, b, c, d, e) FROM stdin;
 				spannerData{
 					table: "test", cols: []string{"int8", "float8", "bool", "timestamp", "date", "bytea", "arr", "synth_id"},
 					vals: []interface{}{int64(7), float64(42.1), true, getTime(t, "2019-10-29T05:30:00Z"),
-						"2019-10-29", []byte{0x0, 0x1, 0xbe, 0xef},
+						getDate("2019-10-29"), []byte{0x0, 0x1, 0xbe, 0xef},
 						"{42,6}",
 						bitReverse(0)}},
 				spannerData{table: "test", cols: []string{"int8", "synth_id"}, vals: []interface{}{int64(7), bitReverse(1)}},
 				spannerData{table: "test", cols: []string{"float8", "synth_id"}, vals: []interface{}{float64(42.1), bitReverse(2)}},
 				spannerData{table: "test", cols: []string{"bool", "synth_id"}, vals: []interface{}{true, bitReverse(3)}},
 				spannerData{table: "test", cols: []string{"timestamp", "synth_id"}, vals: []interface{}{getTime(t, "2019-10-29T05:30:00Z"), bitReverse(4)}},
-				spannerData{table: "test", cols: []string{"date", "synth_id"}, vals: []interface{}{"2019-10-29", bitReverse(5)}},
-				spannerData{table: "test", cols: []string{"date", "synth_id"}, vals: []interface{}{"2019-10-42", bitReverse(6)}},
-				spannerData{table: "test", cols: []string{"bytea", "synth_id"}, vals: []interface{}{[]byte{0x0, 0x1, 0xbe, 0xef}, bitReverse(7)}},
-				spannerData{table: "test", cols: []string{"arr", "synth_id"}, vals: []interface{}{"{42,6}", bitReverse(8)}},
-				spannerData{table: "test", cols: []string{"arr", "synth_id"}, vals: []interface{}{"{42, 6}", bitReverse(9)}},
+				spannerData{table: "test", cols: []string{"date", "synth_id"}, vals: []interface{}{getDate("2019-10-29"), bitReverse(5)}},
+				spannerData{table: "test", cols: []string{"bytea", "synth_id"}, vals: []interface{}{[]byte{0x0, 0x1, 0xbe, 0xef}, bitReverse(6)}},
+				spannerData{table: "test", cols: []string{"arr", "synth_id"}, vals: []interface{}{"{42,6}", bitReverse(7)}},
+				spannerData{table: "test", cols: []string{"arr", "synth_id"}, vals: []interface{}{"{42, 6}", bitReverse(8)}},
 			},
 		},
 	}
 	for _, tc := range dataErrorTests {
 		conv, rows := runProcessPgDumpPGTarget(tc.input)
 		assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
-		assert.Equal(t, conv.BadRows(), int64(5), tc.name+": Error count did not match")
+		assert.Equal(t, conv.BadRows(), int64(6), tc.name+": Error count did not match")
 	}
 }
 

@@ -125,6 +125,8 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 	if err != nil {
 		panic(err)
 	}
+	schemaCoversionEndTime := time.Now()
+	conv.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
 
 	// Populate migration request id and migration type in conv object
 	conv.MigrationRequestId = "HB-" + uuid.New().String()
@@ -163,11 +165,9 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 		return subcommands.ExitFailure
 	}
 
-	schemaCoversionEndTime := time.Now()
-	conv.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
-	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, client, conv, true, cmd.writeLimit)
+	bw, err := migrateData(ctx, sourceProfile, targetProfile, ioHelper, client, conv, cmd.writeLimit, dbURI)
 	if err != nil {
-		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
+		err = fmt.Errorf("can't do data migration: %v", err)
 		return subcommands.ExitFailure
 	}
 	if !cmd.skipForeignKeys {
@@ -176,8 +176,6 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 			return subcommands.ExitFailure
 		}
 	}
-	dataCoversionEndTime := time.Now()
-	conv.DataConversionDuration = dataCoversionEndTime.Sub(schemaCoversionEndTime)
 	banner := utils.GetBanner(schemaConversionStartTime, dbURI)
 	conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, cmd.filePrefix+badDataFile, ioHelper.Out)

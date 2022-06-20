@@ -36,7 +36,7 @@ By default, HarbourBridge will generate a new Spanner database name to populate.
 You can override this and specify the database name to use by:
 
 ```sh
-harbourbridge data -session=mydb.session.json -source=mysql -target-profile="instance=my-spanner-instance,dbname=my-spanner-database-name" < my_mysqldump_file
+harbourbridge data -session=mydb.session.json -source=mysql -target-profile="instance=my-spanner-instance,dbName=my-spanner-database-name" < my_mysqldump_file
 ```
 
 You can also run HarbourBridge in a schema-and-data mode, where it will perform both
@@ -69,12 +69,12 @@ that HarbourBridge will not create directories as it writes these files.
 
 In this case, HarbourBridge connects directly to the MySQL database to retrieve
 table schema and data. Set the `-source=mysql` and corresponding source profile
-connection parameters `host`, `port`, `user`, `db_name` and `password`.
+connection parameters `host`, `port`, `user`, `dbName` and `password`.
 
 For example to perform schema conversion, run
 
 ```sh
-harbourbridge schema -source=mysql -source-profile="host=<>,port=<>,user=<>,db_name=<>"
+harbourbridge schema -source=mysql -source-profile="host=<>,port=<>,user=<>,dbName=<>"
 ```
 
 Parameters `port` and `password` are optional. Port (`port`) defaults to `3306`

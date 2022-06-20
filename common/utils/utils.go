@@ -249,10 +249,10 @@ func GetPassword() string {
 
 // GetDatabaseName generates database name with driver_date prefix.
 func GetDatabaseName(driver string, now time.Time) (string, error) {
-	return generateName(fmt.Sprintf("%s_%s", driver, now.Format("2006-01-02")))
+	return GenerateName(fmt.Sprintf("%s_%s", driver, now.Format("2006-01-02")))
 }
 
-func generateName(prefix string) (string, error) {
+func GenerateName(prefix string) (string, error) {
 	b := make([]byte, 4)
 	_, err := rand.Read(b)
 	if err != nil {

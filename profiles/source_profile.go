@@ -66,20 +66,29 @@ const (
 )
 
 type SourceProfileConnectionMySQL struct {
-	Host string // Same as MYSQLHOST environment variable
-	Port string // Same as MYSQLPORT environment variable
-	User string // Same as MYSQLUSER environment variable
-	Db   string // Same as MYSQLDATABASE environment variable
-	Pwd  string // Same as MYSQLPWD environment variable
+	Host            string // Same as MYSQLHOST environment variable
+	Port            string // Same as MYSQLPORT environment variable
+	User            string // Same as MYSQLUSER environment variable
+	Db              string // Same as MYSQLDATABASE environment variable
+	Pwd             string // Same as MYSQLPWD environment variable
+	StreamingConfig string
 }
 
 func NewSourceProfileConnectionMySQL(params map[string]string) (SourceProfileConnectionMySQL, error) {
 	mysql := SourceProfileConnectionMySQL{}
+
 	host, hostOk := params["host"]
 	user, userOk := params["user"]
-	db, dbOk := params["db_name"]
+	db, dbOk := params["dbName"]
 	port, portOk := params["port"]
 	pwd, pwdOk := params["password"]
+
+	streamingConfig, cfgOk := params["streamingCfg"]
+	if cfgOk && streamingConfig == "" {
+		return mysql, fmt.Errorf("specify a non-empty streaming config file path")
+	}
+	mysql.StreamingConfig = streamingConfig
+
 	// We don't users to mix and match params from source-profile and environment variables.
 	// We either try to get all params from the source-profile and if none are set, we read from the env variables.
 	if !(hostOk || userOk || dbOk || portOk || pwdOk) {
@@ -96,21 +105,21 @@ func NewSourceProfileConnectionMySQL(params map[string]string) (SourceProfileCon
 			return mysql, fmt.Errorf("found empty string for MYSQLHOST/MYSQLUSER/MYSQLDATABASE. Please specify these environment variables with correct values")
 		}
 	} else if hostOk && userOk && dbOk {
-		// If atleast host, username and dbname are provided through source-profile,
+		// If atleast host, username and dbName are provided through source-profile,
 		// go ahead and use source-profile. Port and password handled later even if they are empty.
 		mysql.Host, mysql.User, mysql.Db, mysql.Port, mysql.Pwd = host, user, db, port, pwd
 		// Throw error if the input entered is empty.
 		if mysql.Host == "" || mysql.User == "" || mysql.Db == "" {
-			return mysql, fmt.Errorf("found empty string for host/user/db_name. Please specify host, port, user and db_name in the source-profile")
+			return mysql, fmt.Errorf("found empty string for host/user/dbName. Please specify host, port, user and dbName in the source-profile")
 		}
 	} else {
 		// Partial params provided through source-profile. Ask user to provide all through the source-profile.
-		return mysql, fmt.Errorf("please specify host, port, user and db_name in the source-profile")
+		return mysql, fmt.Errorf("please specify host, port, user and dbName in the source-profile")
 	}
 
 	// Throw same error if the input entered is empty.
 	if mysql.Host == "" || mysql.User == "" || mysql.Db == "" {
-		return mysql, fmt.Errorf("found empty string for host/user/db. please specify host, port, user and db_name in the source-profile")
+		return mysql, fmt.Errorf("found empty string for host/user/db. please specify host, port, user and dbName in the source-profile")
 	}
 
 	if mysql.Port == "" {
@@ -136,7 +145,7 @@ func NewSourceProfileConnectionPostgreSQL(params map[string]string) (SourceProfi
 	pg := SourceProfileConnectionPostgreSQL{}
 	host, hostOk := params["host"]
 	user, userOk := params["user"]
-	db, dbOk := params["db_name"]
+	db, dbOk := params["dbName"]
 	port, portOk := params["port"]
 	pwd, pwdOk := params["password"]
 	// We don't users to mix and match params from source-profile and environment variables.
@@ -159,11 +168,11 @@ func NewSourceProfileConnectionPostgreSQL(params map[string]string) (SourceProfi
 		pg.Host, pg.User, pg.Db, pg.Port, pg.Pwd = host, user, db, port, pwd
 		// Throw error if the input entered is empty.
 		if pg.Host == "" || pg.User == "" || pg.Db == "" {
-			return pg, fmt.Errorf("found empty string for host/user/db_name. Please specify host, port, user and db_name in the source-profile")
+			return pg, fmt.Errorf("found empty string for host/user/dbName. Please specify host, port, user and dbName in the source-profile")
 		}
 	} else {
 		// Partial params provided through source-profile. Ask user to provide all through the source-profile.
-		return pg, fmt.Errorf("please specify host, port, user and db_name in the source-profile")
+		return pg, fmt.Errorf("please specify host, port, user and dbName in the source-profile")
 	}
 
 	if pg.Port == "" {
@@ -189,7 +198,7 @@ func NewSourceProfileConnectionSqlServer(params map[string]string) (SourceProfil
 	ss := SourceProfileConnectionSqlServer{}
 	host, hostOk := params["host"]
 	user, userOk := params["user"]
-	db, dbOk := params["db_name"]
+	db, dbOk := params["dbName"]
 	port, portOk := params["port"]
 	pwd, pwdOk := params["password"]
 
@@ -218,11 +227,11 @@ func NewSourceProfileConnectionSqlServer(params map[string]string) (SourceProfil
 		ss.Host, ss.User, ss.Db, ss.Port, ss.Pwd = host, user, db, port, pwd
 		// Throw error if the input entered is empty.
 		if ss.Host == "" || ss.User == "" || ss.Db == "" {
-			return ss, fmt.Errorf("found empty string for host/user/db_name. Please specify host, port, user and db_name in the source-profile")
+			return ss, fmt.Errorf("found empty string for host/user/dbName. Please specify host, port, user and dbName in the source-profile")
 		}
 	} else {
 		// Partial params provided through source-profile. Ask user to provide all through the source-profile.
-		return ss, fmt.Errorf("please specify host, port, user and db_name in the source-profile")
+		return ss, fmt.Errorf("please specify host, port, user and dbName in the source-profile")
 	}
 
 	if ss.Port == "" {
@@ -283,31 +292,38 @@ func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfile
 }
 
 type SourceProfileConnectionOracle struct {
-	Host string
-	Port string
-	User string
-	Db   string
-	Pwd  string
+	Host            string
+	Port            string
+	User            string
+	Db              string
+	Pwd             string
+	StreamingConfig string
 }
 
 func NewSourceProfileConnectionOracle(params map[string]string) (SourceProfileConnectionOracle, error) {
 	ss := SourceProfileConnectionOracle{}
 	host, hostOk := params["host"]
 	user, userOk := params["user"]
-	db, dbOk := params["db_name"]
+	db, dbOk := params["dbName"]
 	port, _ := params["port"]
 	pwd, _ := params["password"]
+
+	streamingConfig, cfgOk := params["streamingCfg"]
+	if cfgOk && streamingConfig == "" {
+		return ss, fmt.Errorf("specify a non-empty streaming config file path")
+	}
+	ss.StreamingConfig = streamingConfig
 
 	if hostOk && userOk && dbOk {
 		// All connection params provided through source-profile. Port and password handled later.
 		ss.Host, ss.User, ss.Db, ss.Port, ss.Pwd = host, user, db, port, pwd
 		// Throw error if the input entered is empty.
 		if ss.Host == "" || ss.User == "" || ss.Db == "" {
-			return ss, fmt.Errorf("found empty string for host/user/db_name. Please specify host, port, user and db_name in the source-profile")
+			return ss, fmt.Errorf("found empty string for host/user/dbName. Please specify host, port, user and dbName in the source-profile")
 		}
 	} else {
 		// Partial params provided through source-profile. Ask user to provide all through the source-profile.
-		return ss, fmt.Errorf("please specify host, port, user and db_name in the source-profile")
+		return ss, fmt.Errorf("please specify host, port, user and dbName in the source-profile")
 	}
 
 	if ss.Port == "" {
@@ -323,6 +339,7 @@ func NewSourceProfileConnectionOracle(params map[string]string) (SourceProfileCo
 
 type SourceProfileConnection struct {
 	Ty        SourceProfileConnectionType
+	Streaming bool
 	Mysql     SourceProfileConnectionMySQL
 	Pg        SourceProfileConnectionPostgreSQL
 	Dydb      SourceProfileConnectionDynamoDB
@@ -340,6 +357,9 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 			conn.Mysql, err = NewSourceProfileConnectionMySQL(params)
 			if err != nil {
 				return conn, err
+			}
+			if conn.Mysql.StreamingConfig != "" {
+				conn.Streaming = true
 			}
 		}
 	case "postgresql", "postgres", "pg":
@@ -373,6 +393,9 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 			conn.Oracle, err = NewSourceProfileConnectionOracle(params)
 			if err != nil {
 				return conn, err
+			}
+			if conn.Oracle.StreamingConfig != "" {
+				conn.Streaming = true
 			}
 		}
 	default:
@@ -443,6 +466,7 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 				return "", fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
 			}
 		}
+	// No need to handle unsupported streaming source specified as it is already covered during source profile creation.
 	case SourceProfileTypeConnection:
 		{
 			switch strings.ToLower(source) {
