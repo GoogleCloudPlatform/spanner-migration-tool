@@ -24,7 +24,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
-// DetectHotspot add hotspot suggetion in schema conversion process for schema.
+// DetectHotspot adds hotspot detected suggestion in schema conversion process for database.
 func DetectHotspot() {
 
 	sessionState := session.GetSessionState()
@@ -36,15 +36,15 @@ func DetectHotspot() {
 
 }
 
-//Helpers method for hotspot detection.
+// Helper method for hotspot detection.
 func isHotSpot(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 
 	hotspotTimestamp(insert, spannerTable)
 	hotspotAutoincrement(insert, spannerTable)
 }
 
-// hotspotTimestamp check Timestamp hotspot.
-// if prseent add Hotspot_Timestamp as issue in Issues.
+// hotspotTimestamp checks Timestamp hotspot.
+// If present adds HotspotTimestamp as an issue in Issues.
 func hotspotTimestamp(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 
 	for i := 0; i < len(insert); i++ {
@@ -69,8 +69,8 @@ func hotspotTimestamp(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 	}
 }
 
-// hotspotAutoincrement check Timestamp hotspot.
-// if prseent add Hotspot_AutoIncrement as issue in Issues.
+// hotspotAutoincrement check AutoIncrement hotspot.
+// If present adds AutoIncrement as an issue in Issues.
 func hotspotAutoincrement(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 
 	for i := 0; i < len(insert); i++ {
@@ -85,7 +85,7 @@ func hotspotAutoincrement(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 }
 
 // detecthotspotAutoincrement check Autoincrement hotspot.
-// if prseent add HotspotAutoIncrement as issue in Issues.
+// if present adds HotspotAutoIncrement as issue in Issues.
 func detecthotspotAutoincrement(spannerTable ddl.CreateTable, spannerColumnId int) {
 
 	sessionState := session.GetSessionState()

@@ -27,7 +27,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
-// updateSessionFile updates the content of session file with
+// UpdateSessionFile updates the content of session file with
 // latest sessionState.Conv while also dumping schemas and report.
 func UpdateSessionFile() error {
 	sessionState := session.GetSessionState()
@@ -51,7 +51,7 @@ func ContainString(fc []string, col string) string {
 	return ""
 }
 
-// RemoveSchemaIssue remove issue from given list.
+// RemoveSchemaIssue removes issue from the given list.
 func RemoveSchemaIssue(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) []internal.SchemaIssue {
 
 	for i := 0; i < len(schemaissue); i++ {
@@ -62,8 +62,8 @@ func RemoveSchemaIssue(schemaissue []internal.SchemaIssue, issue internal.Schema
 	return schemaissue
 }
 
-// IsSchemaIssuePrsent check issue is present in given schemaissue list.
-func IsSchemaIssuePrsent(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) bool {
+// IsSchemaIssuePresent checks if issue is present in the given schemaissue list.
+func IsSchemaIssuePresent(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) bool {
 
 	for _, s := range schemaissue {
 		if s == issue {
@@ -73,7 +73,7 @@ func IsSchemaIssuePrsent(schemaissue []internal.SchemaIssue, issue internal.Sche
 	return false
 }
 
-// DuplicateInArray checks element is already present in list.
+// DuplicateInArray checks if there is any duplicate element present in the list.
 func DuplicateInArray(element []int) int {
 	visited := make(map[int]bool, 0)
 	for i := 0; i < len(element); i++ {
@@ -113,23 +113,23 @@ func RemoveSchemaIssues(schemaissue []internal.SchemaIssue) []internal.SchemaIss
 
 	switch {
 
-	case IsSchemaIssuePrsent(schemaissue, internal.HotspotAutoIncrement):
+	case IsSchemaIssuePresent(schemaissue, internal.HotspotAutoIncrement):
 		schemaissue = RemoveSchemaIssue(schemaissue, internal.HotspotAutoIncrement)
 		fallthrough
 
-	case IsSchemaIssuePrsent(schemaissue, internal.HotspotTimestamp):
+	case IsSchemaIssuePresent(schemaissue, internal.HotspotTimestamp):
 		schemaissue = RemoveSchemaIssue(schemaissue, internal.HotspotTimestamp)
 		fallthrough
 
-	case IsSchemaIssuePrsent(schemaissue, internal.InterleavedOrder):
+	case IsSchemaIssuePresent(schemaissue, internal.InterleavedOrder):
 		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 
-	case IsSchemaIssuePrsent(schemaissue, internal.InterleavedNotINOrder):
-		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedNotINOrder)
+	case IsSchemaIssuePresent(schemaissue, internal.InterleavedNotInOrder):
+		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
 		fallthrough
 
-	case IsSchemaIssuePrsent(schemaissue, internal.InterleavedADDCOLUMN):
-		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedADDCOLUMN)
+	case IsSchemaIssuePresent(schemaissue, internal.InterleavedAddColumn):
+		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
 	}
 
 	return schemaissue

@@ -87,9 +87,9 @@ const (
 	StringOverflow
 	HotspotTimestamp
 	HotspotAutoIncrement
-	InterleavedNotINOrder
+	InterleavedNotInOrder
 	InterleavedOrder
-	InterleavedADDCOLUMN
+	InterleavedAddColumn
 )
 
 // NameAndCols contains the name of a table and its columns.

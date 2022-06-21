@@ -228,7 +228,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					if !contains(l, str) {
 						l = append(l, str)
 					}
-				case InterleavedNotINOrder:
+				case InterleavedNotInOrder:
 					str := fmt.Sprintf(" Table %s  %s and Column %s", IssueDB[i].Brief, spSchema.Name, srcCol)
 
 					if !contains(l, str) {
@@ -240,7 +240,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					if !contains(l, str) {
 						l = append(l, str)
 					}
-				case InterleavedADDCOLUMN:
+				case InterleavedAddColumn:
 					str := fmt.Sprintf(" %s add %s as a primary key in table %s", IssueDB[i].Brief, srcCol, spSchema.Name)
 
 					if !contains(l, str) {
@@ -310,9 +310,9 @@ var IssueDB = map[SchemaIssue]struct {
 	StringOverflow:        {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
 	HotspotTimestamp:      {Brief: "Timestamp Hotspot Occured", severity: note},
 	HotspotAutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: note},
-	InterleavedNotINOrder: {Brief: "can be converted as Interleaved Table if Primary Key Order  parameter changed for Table", severity: note},
-	InterleavedOrder:      {Brief: "can be converted as Interleaved Table", severity: note},
-	InterleavedADDCOLUMN:  {Brief: "Candidate for Interleaved Table", severity: note},
+	InterleavedNotInOrder: {Brief: "Can be converted to interleaved table if primary key order parameter is changed for the table", severity: note},
+	InterleavedOrder:      {Brief: "can be converted to Interleaved Table", severity: note},
+	InterleavedAddColumn:  {Brief: "Candidate for Interleaved Table", severity: note},
 }
 
 type severity int

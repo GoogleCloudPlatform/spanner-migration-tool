@@ -125,7 +125,7 @@ func addPrimaryKey(add []int, pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 	return list
 }
 
-// removePrimaryKey removed primary key from list of IndexKey.
+// removePrimaryKey removes primary key from list of IndexKey.
 func removePrimaryKey(remove []int, spannerTable ddl.CreateTable) []ddl.IndexKey {
 
 	list := []ddl.IndexKey{}

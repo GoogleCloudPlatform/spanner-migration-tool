@@ -679,8 +679,8 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				column := childPks[childindex].Col
 				schemaissue = sessionState.Conv.Issues[table][column]
 
-				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotINOrder)
-				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedADDCOLUMN)
+				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
+				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
 				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 
 				schemaissue = append(schemaissue, internal.InterleavedOrder)
@@ -701,11 +701,11 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				schemaissue := []internal.SchemaIssue{}
 				schemaissue = sessionState.Conv.Issues[table][column]
 
-				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotINOrder)
+				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
 				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedADDCOLUMN)
+				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
 
-				schemaissue = append(schemaissue, internal.InterleavedNotINOrder)
+				schemaissue = append(schemaissue, internal.InterleavedNotInOrder)
 
 				sessionState.Conv.Issues[table][column] = schemaissue
 
@@ -1202,10 +1202,10 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 			schemaissue = sessionState.Conv.Issues[table][caninterleaved[i]]
 
 			schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-			schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotINOrder)
-			schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedADDCOLUMN)
+			schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
+			schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
 
-			schemaissue = append(schemaissue, internal.InterleavedADDCOLUMN)
+			schemaissue = append(schemaissue, internal.InterleavedAddColumn)
 
 			if len(schemaissue) > 0 {
 
