@@ -2,32 +2,32 @@
   height: calc(100vh - 271px);
   position: relative;
   overflow-y: auto;
-  .no-object-container{
+  .no-object-container {
     height: 100%;
-    width: 100%;;
+    width: 100%;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    .no-object-icon-container{
+    .no-object-icon-container {
       padding: 15px;
       background-color: rgba(51, 103, 214, 0.12);
       border-radius: 3px;
     }
-    .no-object-message{
-      width:80%;
+    .no-object-message {
+      width: 80%;
       max-width: 500px;
       text-align: center;
     }
   }
-  .no-issue-container{
-    width:100%;
+  .no-issue-container {
+    width: 100%;
     min-height: 400px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    .no-issue-icon-container{
+    .no-issue-icon-container {
       padding: 10px;
       background-color: rgba(51, 103, 214, 0.12);
       border-radius: 3px;
@@ -156,7 +156,11 @@ h3 {
       font-size: 18px;
     }
     .suggestion {
-      color: #f1ed00;
+      color: #d6d348;
+      font-size: 18px;
+    }
+    .note {
+      color: #00c752;
       font-size: 18px;
     }
   }

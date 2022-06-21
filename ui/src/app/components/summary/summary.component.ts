@@ -22,7 +22,7 @@ export class SummaryComponent implements OnInit {
   filterInput = new FormControl()
   options: string[] = ['read', 'unread', 'warning', 'suggestion', 'note']
   obsFilteredOptions: Observable<string[]> = new Observable<string[]>()
-  searchFilters: string[] = ['unread', 'warning', 'note']
+  searchFilters: string[] = ['unread', 'warning', 'note', 'suggestion']
 
   @Input() currentObject: FlatNode | null = null
   constructor(private data: DataService) {}
@@ -60,9 +60,23 @@ export class SummaryComponent implements OnInit {
 
   initiateSummaryCollection(summary: ISummary) {
     this.summaryRows = []
+    summary.Errors.forEach((v) => {
+      this.summaryRows.push({
+        type: 'error',
+        content: v,
+        isRead: false,
+      })
+    })
     summary.Warnings.forEach((v) => {
       this.summaryRows.push({
         type: 'warning',
+        content: v,
+        isRead: false,
+      })
+    })
+    summary.Suggestions.forEach((v) => {
+      this.summaryRows.push({
+        type: 'suggestion',
         content: v,
         isRead: false,
       })
@@ -93,6 +107,9 @@ export class SummaryComponent implements OnInit {
     }
     if (this.searchFilters.includes('note')) {
       typeFilters.push((s: ISummaryRow) => s.type == 'note')
+    }
+    if (this.searchFilters.includes('suggestion')) {
+      typeFilters.push((s: ISummaryRow) => s.type == 'suggestion')
     }
 
     this.filteredSummaryRows = this.summaryRows.filter(
