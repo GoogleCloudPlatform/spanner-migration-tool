@@ -1,6 +1,6 @@
 package internal
 
-// Contains check string present in list.
+// contains check string present in list.
 func contains(l []string, str string) bool {
 	for _, s := range l {
 		if s == str {
