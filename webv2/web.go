@@ -54,6 +54,7 @@ import (
 
 	primarykey "github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
 
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/utility"
 	go_ora "github.com/sijms/go-ora/v2"
 )
 
@@ -1186,7 +1187,7 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 	caninterleaved := []string{}
 	for i := 0; i < len(diff); i++ {
 
-		str := helpers.ContainString(fk.ReferColumns, diff[i].Col)
+		str := utility.ContainString(fk.ReferColumns, diff[i].Col)
 
 		caninterleaved = append(caninterleaved, str)
 	}

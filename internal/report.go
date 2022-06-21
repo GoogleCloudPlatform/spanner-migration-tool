@@ -311,7 +311,7 @@ var IssueDB = map[SchemaIssue]struct {
 	HotspotTimestamp:      {Brief: "Timestamp Hotspot Occured", severity: note},
 	HotspotAutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: note},
 	InterleavedNotInOrder: {Brief: "Can be converted to interleaved table if primary key order parameter is changed for the table", severity: note},
-	InterleavedOrder:      {Brief: "can be converted to Interleaved Table", severity: note},
+	InterleavedOrder:      {Brief: "Can be converted to Interleaved Table", severity: note},
 	InterleavedAddColumn:  {Brief: "Candidate for Interleaved Table", severity: note},
 }
 
