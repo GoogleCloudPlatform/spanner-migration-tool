@@ -277,47 +277,58 @@ export class ObjectDetailComponent implements OnInit {
   setPkRows() {
     this.pkArray = new FormArray([])
     this.pkOrderValidation()
+    var srcArr = new Array()
+    var spArr = new Array()
     this.pkData.forEach((row) => {
-      if (row.srcIsPk && row.spIsPk) {
-        this.pkArray.push(
-          new FormGroup({
-            srcOrder: new FormControl(row.srcOrder),
-            srcColName: new FormControl(row.srcColName),
-            srcDataType: new FormControl(row.srcDataType),
-            srcIsPk: new FormControl(row.srcIsPk),
-            srcIsNotNull: new FormControl(row.srcIsNotNull),
-            spOrder: new FormControl(row.spOrder),
-            spColName: new FormControl(row.spColName),
-            spDataType: new FormControl(row.spDataType),
-            spIsPk: new FormControl(row.spIsPk),
-            spIsNotNull: new FormControl(row.spIsNotNull),
-          })
-        )
+      if (row.srcIsPk) {
+        srcArr.push({
+          srcColName: row.srcColName,
+          srcDataType: row.srcDataType,
+          srcIsNotNull: row.srcIsNotNull,
+          srcIsPk: row.srcIsPk,
+          srcOrder: row.srcOrder,
+        })
       }
-      if (!row.srcIsPk && row.spIsPk) {
-        this.pkArray.push(
-          new FormGroup({
-            srcOrder: new FormControl(''),
-            srcColName: new FormControl(''),
-            srcDataType: new FormControl(''),
-            srcIsPk: new FormControl(false),
-            srcIsNotNull: new FormControl(false),
-            spOrder: new FormControl(row.spOrder),
-            spColName: new FormControl(row.spColName),
-            spDataType: new FormControl(row.spDataType),
-            spIsPk: new FormControl(row.spIsPk),
-            spIsNotNull: new FormControl(row.spIsNotNull),
-          })
-        )
+      if (row.spIsPk) {
+        spArr.push({
+          spColName: row.spColName,
+          spDataType: row.spDataType,
+          spIsNotNull: row.spIsNotNull,
+          spIsPk: row.spIsPk,
+          spOrder: row.spOrder,
+        })
       }
-      if (row.srcIsPk && !row.spIsPk) {
+    })
+
+    spArr.sort((a, b) => {
+      return a.spOrder - b.spOrder
+    })
+
+    for (let i = 0; i < Math.min(srcArr.length, spArr.length); i++) {
+      this.pkArray.push(
+        new FormGroup({
+          srcOrder: new FormControl(srcArr[i].srcOrder),
+          srcColName: new FormControl(srcArr[i].srcColName),
+          srcDataType: new FormControl(srcArr[i].srcDataType),
+          srcIsPk: new FormControl(srcArr[i].srcIsPk),
+          srcIsNotNull: new FormControl(srcArr[i].srcIsNotNull),
+          spOrder: new FormControl(spArr[i].spOrder),
+          spColName: new FormControl(spArr[i].spColName),
+          spDataType: new FormControl(spArr[i].spDataType),
+          spIsPk: new FormControl(spArr[i].spIsPk),
+          spIsNotNull: new FormControl(spArr[i].spIsNotNull),
+        })
+      )
+    }
+    if (srcArr.length > Math.min(srcArr.length, spArr.length))
+      for (let i = Math.min(srcArr.length, spArr.length); i < srcArr.length; i++) {
         this.pkArray.push(
           new FormGroup({
-            srcOrder: new FormControl(row.srcOrder),
-            srcColName: new FormControl(row.srcColName),
-            srcDataType: new FormControl(row.srcDataType),
-            srcIsPk: new FormControl(row.srcIsPk),
-            srcIsNotNull: new FormControl(row.srcIsNotNull),
+            srcOrder: new FormControl(srcArr[i].srcOrder),
+            srcColName: new FormControl(srcArr[i].srcColName),
+            srcDataType: new FormControl(srcArr[i].srcDataType),
+            srcIsPk: new FormControl(srcArr[i].srcIsPk),
+            srcIsNotNull: new FormControl(srcArr[i].srcIsNotNull),
             spOrder: new FormControl(''),
             spColName: new FormControl(''),
             spDataType: new FormControl(''),
@@ -326,7 +337,23 @@ export class ObjectDetailComponent implements OnInit {
           })
         )
       }
-    })
+    else if (spArr.length > Math.min(srcArr.length, spArr.length))
+      for (let i = Math.min(srcArr.length, spArr.length); i < spArr.length; i++) {
+        this.pkArray.push(
+          new FormGroup({
+            srcOrder: new FormControl(''),
+            srcColName: new FormControl(''),
+            srcDataType: new FormControl(''),
+            srcIsPk: new FormControl(false),
+            srcIsNotNull: new FormControl(false),
+            spOrder: new FormControl(spArr[i].spOrder),
+            spColName: new FormControl(spArr[i].spColName),
+            spDataType: new FormControl(spArr[i].spDataType),
+            spIsPk: new FormControl(spArr[i].spIsPk),
+            spIsNotNull: new FormControl(spArr[i].spIsNotNull),
+          })
+        )
+      }
     this.pkDataSource = this.pkArray.controls
   }
 
@@ -340,12 +367,16 @@ export class ObjectDetailComponent implements OnInit {
     this.tableData[index].spIsPk = true
     this.pkData = []
     this.pkData = this.conversion.getPkMapping(this.tableData)
-    this.pkArray.value.forEach((pk: IColumnTabData, i: number) => {
+    index = this.pkData.findIndex((item) => item.srcOrder === index + 1)
+    this.pkArray.value.forEach((pk: IColumnTabData) => {
       if (pk.spIsPk) {
         newColumnOrder = newColumnOrder + 1
       }
-      if (this.pkData[i].spOrder !== pk.spOrder && pk.spOrder) {
-        this.pkData[i].spOrder = pk.spOrder
+      for (let i = 0; i < this.pkData.length; i++) {
+        if (this.pkData[i].spColName == pk.spColName) {
+          this.pkData[i].spOrder = pk.spOrder
+          break
+        }
       }
     })
     this.pkData[index].spOrder = newColumnOrder
@@ -442,15 +473,17 @@ export class ObjectDetailComponent implements OnInit {
           maxWidth: '500px',
         })
       }
-      this.pkArray.value.forEach((pk: IColumnTabData, i: number) => {
-        if (this.pkData[i].spOrder !== pk.spOrder) {
-          this.pkData[i].spOrder = pk.spOrder
+      this.pkArray.value.forEach((pk: IColumnTabData) => {
+        for (let i = 0; i < this.pkData.length; i++) {
+          if (pk.spColName == this.pkData[i].spColName) {
+            this.pkData[i].spOrder = pk.spOrder
+            break
+          }
         }
       })
       this.isPkEditMode = false
       this.data.updatePk(this.pkObj).subscribe({
         next: (res: string) => {
-          console.log(res)
           if (res == '') {
             this.isEditMode = false
           } else {
@@ -473,9 +506,12 @@ export class ObjectDetailComponent implements OnInit {
     this.tableData[index].spIsPk = false
     this.pkData = []
     this.pkData = this.conversion.getPkMapping(this.tableData)
-    this.pkArray.value.forEach((pk: IColumnTabData, i: number) => {
-      if (typeof this.pkData[i] !== 'undefined' && this.pkData[i].spOrder !== pk.spOrder) {
-        this.pkData[i].spOrder = pk.spOrder
+    this.pkArray.value.forEach((pk: IColumnTabData) => {
+      for (let i = 0; i < this.pkData.length; i++) {
+        if (pk.spColName == this.pkData[i].spColName) {
+          this.pkData[i].spOrder = pk.spOrder
+          break
+        }
       }
     })
 
@@ -525,8 +561,6 @@ export class ObjectDetailComponent implements OnInit {
       next: (res: string) => {
         if (res == '') {
           this.data.getDdl()
-          console.log(element, 'element')
-
           this.snackbar.openSnackBar(
             `${element.get('spName').value} Foreign key dropped successfully`,
             'Close',
