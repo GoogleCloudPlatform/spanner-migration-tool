@@ -93,6 +93,14 @@ Analysis of statements in pg_dump output, broken down by statement type.
 See github.com/pganalyze/pg_query_go for definitions of statement types
 (pganalyze/pg_query_go is the library we use for parsing pg_dump output).
 
+-----------------------------------------------------------------------------------------------------
+Name Changes in Migration
+-----------------------------------------------------------------------------------------------------
+             Source Table          Change                  Old Name                  New Name
+-----------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------
+
+
 ----------------------------
 Table bad_schema
 ----------------------------

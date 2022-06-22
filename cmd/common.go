@@ -35,7 +35,7 @@ func performSnapshotMigration(ctx context.Context, sourceProfile profiles.Source
 	}
 	dataCoversionEndTime := time.Now()
 	dataCoversionDuration := dataCoversionEndTime.Sub(dataCoversionStartTime)
-	conv.DataConversionDuration = dataCoversionDuration
+	conv.Audit.DataConversionDuration = dataCoversionDuration
 	return bw, nil
 }
 
