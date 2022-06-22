@@ -89,11 +89,11 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 	}
 
 	// Populate migration request id and migration type in conv object
-	conv.MigrationRequestId = "HB-" + uuid.New().String()
+	conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
 	if dataOnly {
-		conv.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
+		conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
 	} else {
-		conv.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
+		conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
 	}
 
 	adminClient, err := utils.NewDatabaseAdminClient(ctx)

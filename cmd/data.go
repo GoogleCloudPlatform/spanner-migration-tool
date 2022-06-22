@@ -154,8 +154,8 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	defer adminClient.Close()
 
 	// Populate migration request id and migration type in conv object
-	conv.MigrationRequestId = "HB-" + uuid.New().String()
-	conv.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
+	conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+	conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
 
 	if !sourceProfile.UseTargetSchema() {
 		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)

@@ -74,6 +74,9 @@ func SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error {
 			if srcCol.Ignored.ForeignKey {
 				issues = append(issues, internal.ForeignKey)
 			}
+			if srcCol.Name != colName {
+				issues = append(issues, internal.IllegalName)
+			}
 			if srcCol.Ignored.Default {
 				issues = append(issues, internal.DefaultValue)
 			}
@@ -96,7 +99,7 @@ func SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error {
 			ColNames: spColNames,
 			ColDefs:  spColDef,
 			Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
-			Fks:      cvtForeignKeys(conv, srcTable.Name, srcTable.ForeignKeys),
+			Fks:      cvtForeignKeys(conv, spTableName, srcTable.Name, srcTable.ForeignKeys),
 			Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes),
 			Comment:  comment}
 	}
@@ -127,7 +130,7 @@ func cvtPrimaryKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Key) 
 	return spKeys
 }
 
-func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.ForeignKey) []ddl.Foreignkey {
+func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTable string, srcKeys []schema.ForeignKey) []ddl.Foreignkey {
 	var spKeys []ddl.Foreignkey
 	for _, key := range srcKeys {
 		if len(key.Columns) != len(key.ReferColumns) {
@@ -151,13 +154,17 @@ func cvtForeignKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Forei
 			spReferCols = append(spReferCols, spReferCol)
 		}
 		spKeyName := internal.ToSpannerForeignKey(conv, key.Name)
+
 		spKey := ddl.Foreignkey{
 			Name:         spKeyName,
 			Columns:      spCols,
 			ReferTable:   spReferTable,
 			ReferColumns: spReferCols}
 		spKeys = append(spKeys, spKey)
+		conv.Audit.ToSpannerFkIdx[srcTable].ForeignKey[key.Name] = spKeyName
+		conv.Audit.ToSourceFkIdx[spTableName].ForeignKey[spKeyName] = key.Name
 	}
+
 	return spKeys
 }
 
@@ -165,6 +172,7 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 	var spIndexes []ddl.CreateIndex
 	for _, srcIndex := range srcIndexes {
 		var spKeys []ddl.IndexKey
+
 		for _, k := range srcIndex.Keys {
 			spCol, err := internal.GetSpannerCol(conv, srcTable, k.Column, true)
 			if err != nil {
@@ -186,6 +194,8 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 			Keys:   spKeys,
 		}
 		spIndexes = append(spIndexes, spIndex)
+		conv.Audit.ToSpannerFkIdx[srcTable].Index[srcIndex.Name] = spIndexName
+		conv.Audit.ToSourceFkIdx[spTableName].Index[spIndexName] = srcIndex.Name
 	}
 	return spIndexes
 }
