@@ -4,18 +4,18 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog'
 
 @Component({
   selector: 'app-drop-index-dialog',
-  templateUrl: './drop-index-dialog.component.html',
-  styleUrls: ['./drop-index-dialog.component.scss'],
+  templateUrl: './drop-index-or-table-dialog.component.html',
+  styleUrls: ['./drop-index-or-table-dialog.component.scss'],
 })
-export class DropIndexDialogComponent implements OnInit {
+export class DropIndexOrTableDialogComponent implements OnInit {
   confirmationInput: FormControl
   constructor(
-    @Inject(MAT_DIALOG_DATA) public data: string,
-    private dialogRef: MatDialogRef<DropIndexDialogComponent>
+    @Inject(MAT_DIALOG_DATA) public data: { name: string; type: string },
+    private dialogRef: MatDialogRef<DropIndexOrTableDialogComponent>
   ) {
     ;(this.confirmationInput = new FormControl('', [
       Validators.required,
-      Validators.pattern(`^${data}$`),
+      Validators.pattern(`^${data.name}$`),
     ])),
       (dialogRef.disableClose = true)
   }

@@ -12,8 +12,8 @@ import FlatNode from 'src/app/model/schema-object-node'
 import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
 import IConv, { ICreateIndex, IPrimaryKey } from 'src/app/model/conv'
-import { DropIndexDialogComponent } from '../drop-index-dialog/drop-index-dialog.component'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
+import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/drop-index-or-table-dialog.component'
 
 @Component({
   selector: 'app-object-detail',
@@ -698,11 +698,11 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropIndex() {
-    let openDialog = this.dialog.open(DropIndexDialogComponent, {
+    let openDialog = this.dialog.open(DropIndexOrTableDialogComponent, {
       width: '35vw',
       minWidth: '450px',
       maxWidth: '600px',
-      data: this.currentObject?.name,
+      data: { name: this.currentObject?.name, type: 'Index' },
     })
     openDialog.afterClosed().subscribe((res: string) => {
       if (res) {
@@ -741,9 +741,24 @@ export class ObjectDetailComponent implements OnInit {
       srcDesc: undefined,
       srcOrder: '',
     })
-
     this.setIndexRows()
   }
+
+  dropTable() {
+    let openDialog = this.dialog.open(DropIndexOrTableDialogComponent, {
+      width: '35vw',
+      minWidth: '450px',
+      maxWidth: '600px',
+      data: { name: this.currentObject?.name, type: 'Table' },
+    })
+    openDialog.afterClosed().subscribe((res: string) => {
+      if (res) {
+        console.log('Drop table coming soon!')
+      }
+    })
+  }
+
+  selectedColumnChange(tableName: string) {}
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
     this.currentTabIndex = tabChangeEvent.index
