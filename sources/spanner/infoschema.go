@@ -23,14 +23,14 @@ import (
 	"strings"
 
 	"cloud.google.com/go/spanner"
-	_ "github.com/lib/pq" // we will use database/sql package instead of using this package directly
-	"google.golang.org/api/iterator"
-
+	sp "cloud.google.com/go/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	_ "github.com/lib/pq" // we will use database/sql package instead of using this package directly
+	"google.golang.org/api/iterator"
 )
 
 // InfoSchemaImpl postgres specific implementation for InfoSchema.
@@ -45,7 +45,7 @@ func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
 }
 
-// We leave the 3 functions below empty to be able to pass this as an infoSchema interface. We don't need these for now.
+// We leave the 5 functions below empty to be able to pass this as an infoSchema interface. We don't need these for now.
 func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) error {
 	return nil
 }
@@ -56,6 +56,14 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
 	return nil, nil
+}
+
+func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
+	return nil, nil
+}
+
+func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) error {
+	return nil
 }
 
 // GetTableName returns table name.

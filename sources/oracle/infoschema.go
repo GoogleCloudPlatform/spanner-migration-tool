@@ -15,20 +15,26 @@
 package oracle
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
 
+	sp "cloud.google.com/go/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/streaming"
 )
 
 type InfoSchemaImpl struct {
-	DbName string
-	Db     *sql.DB
+	DbName        string
+	Db            *sql.DB
+	SourceProfile profiles.SourceProfile
+	TargetProfile profiles.TargetProfile
 }
 
 // GetToDdl function below implement the common.InfoSchema interface.
@@ -392,6 +398,36 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 		}
 	}
 	return indexes, nil
+}
+
+// StartChangeDataCapture is used for automatic triggering of Datastream job when
+// performing a streaming migration.
+func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
+	if isi.SourceProfile.Ty == profiles.SourceProfileTypeConnection && isi.SourceProfile.Conn.Streaming {
+		mp := make(map[string]interface{})
+		streamingCfg, err := streaming.StartDatastream(ctx, isi.SourceProfile, isi.TargetProfile)
+		if err != nil {
+			err = fmt.Errorf("error starting datastream: %v", err)
+			return nil, err
+		}
+		mp["streamingCfg"] = streamingCfg
+		return mp, err
+	}
+	return nil, nil
+}
+
+// StartStreamingMigration is used for automatic triggering of Dataflow job when
+// performing a streaming migration.
+func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) error {
+	if isi.SourceProfile.Ty == profiles.SourceProfileTypeConnection && isi.SourceProfile.Conn.Streaming {
+		streamingCfg, _ := streamingInfo["streamingCfg"].(streaming.StreamingCfg)
+		err := streaming.StartDataflow(ctx, isi.SourceProfile, isi.TargetProfile, streamingCfg)
+		if err != nil {
+			err = fmt.Errorf("error starting dataflow: %v", err)
+			return err
+		}
+	}
+	return nil
 }
 
 func toType(dataType string, typecode, elementDataType sql.NullString, charLen sql.NullInt64, numericPrecision, numericScale, elementCharMaxLen, elementNumericPrecision, elementNumericScale sql.NullInt64) schema.Type {

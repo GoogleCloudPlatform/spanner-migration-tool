@@ -15,8 +15,10 @@
 package common
 
 import (
+	"context"
 	"fmt"
 
+	sp "cloud.google.com/go/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
@@ -34,6 +36,8 @@ type InfoSchema interface {
 	GetForeignKeys(conv *internal.Conv, table SchemaAndName) (foreignKeys []schema.ForeignKey, err error)
 	GetIndexes(conv *internal.Conv, table SchemaAndName) ([]schema.Index, error)
 	ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) error
+	StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error)
+	StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamInfo map[string]interface{}) error
 }
 
 // SchemaAndName contains the schema and name for a table

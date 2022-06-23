@@ -15,11 +15,13 @@
 package sqlserver
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
 
+	sp "cloud.google.com/go/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
@@ -48,6 +50,15 @@ type InfoSchemaImpl struct {
 // GetToDdl function below implement the common.InfoSchema interface.
 func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
+}
+
+// We leave the 2 functions below empty to be able to pass this as an infoSchema interface. We don't need these for now.
+func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
+	return nil, nil
+}
+
+func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) error {
+	return nil
 }
 
 // GetTableName returns table name.
