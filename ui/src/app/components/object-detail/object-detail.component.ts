@@ -127,11 +127,11 @@ export class ObjectDetailComponent implements OnInit {
     this.isPkEditMode = false
     this.rowArray = new FormArray([])
     this.pkData = this.conversion.getPkMapping(this.tableData)
-    this.setPkOrder()
     this.pkColumnNames = []
     this.interleaveParentName = this.getParentFromDdl()
 
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
+      this.setPkOrder()
       this.checkIsInterleave()
       this.interleaveObj = this.data.tableInterleaveStatus.subscribe((res) => {
         this.interleaveStatus = res
@@ -442,11 +442,12 @@ export class ObjectDetailComponent implements OnInit {
   getPkRequestObj() {
     let tableId: number = this.conv.SpSchema[this.currentObject!.name].Id
     let PrimaryKeyId: number = this.conv.SpSchema[this.currentObject!.name].PrimaryKeyId
-    let Columns: { ColumnId: number; Desc: boolean; Order: number }[] = []
+    let Columns: { ColumnId: number; ColumnName: string; Desc: boolean; Order: number }[] = []
     this.pkArray.value.forEach((row: IColumnTabData) => {
       if (row.spIsPk)
         Columns.push({
           ColumnId: this.conv.SpSchema[this.currentObject!.name].ColDefs[row.spColName].Id,
+          ColumnName: row.spColName,
           Desc:
             typeof this.conv.SpSchema[this.currentObject!.name].Pks.find(
               ({ Col }) => Col === row.spColName
@@ -461,6 +462,7 @@ export class ObjectDetailComponent implements OnInit {
     this.pkObj.TableId = tableId
     this.pkObj.Columns = Columns
     this.pkObj.PrimaryKeyId = PrimaryKeyId
+    console.log(this.pkObj)
   }
 
   togglePkEdit() {
