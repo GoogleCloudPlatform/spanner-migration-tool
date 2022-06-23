@@ -26,6 +26,7 @@ import (
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
@@ -205,4 +206,12 @@ func RemoveSchemaIssues(schemaissue []internal.SchemaIssue) []internal.SchemaIss
 	}
 
 	return schemaissue
+}
+
+// RemoveIndex removes Primary Key from the given Primary Key list.
+func RemoveIndex(Pks []ddl.IndexKey, index int) []ddl.IndexKey {
+
+	list := append(Pks[:index], Pks[index+1:]...)
+
+	return list
 }

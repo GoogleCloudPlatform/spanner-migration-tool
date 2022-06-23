@@ -61,7 +61,7 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 
 	id := uuid.New()
 
-	log.Println("request started", "traceid", id.String(), "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
+	log.Println("request started", "traceid", id.String(), "method", r.Method, "path", r.URL.Path)
 
 	reqBody, err := ioutil.ReadAll(r.Body)
 
@@ -73,8 +73,6 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 	pkRequest := PrimaryKeyRequest{}
 
 	err = json.Unmarshal(reqBody, &pkRequest)
-
-	fmt.Println("pkRequest.Columns :", pkRequest.Columns)
 
 	if err != nil {
 		log.Println("request's Body parse error")

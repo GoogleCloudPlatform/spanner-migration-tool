@@ -45,7 +45,7 @@ func TestUpdatePrimaryKey(t *testing.T) {
 					"actor_id":    {Name: "actor_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 2},
 					"last_update": {Name: "last_update", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 3},
 				},
-				Pks:          []ddl.IndexKey{{Col: "film_id", Order: 0, Desc: false}},
+				Pks:          []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}},
 				Id:           1,
 				PrimaryKeyId: 1,
 			}},
