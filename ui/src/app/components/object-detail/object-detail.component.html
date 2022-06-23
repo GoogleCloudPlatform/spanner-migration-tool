@@ -69,6 +69,16 @@
         <mat-icon>delete</mat-icon>
         <span>DROP INDEX</span>
       </button>
+      <button
+        mat-button
+        color="primary"
+        class="icon drop"
+        (click)="dropTable()"
+        *ngIf="currentObject!.isSpannerNode && currentObject!.type !== 'indexName'"
+      >
+        <mat-icon>delete</mat-icon>
+        <span>DROP TABLE</span>
+      </button>
     </h3>
     <div class="interleaved-title" *ngIf="interleaveParentName">
       Interleaved:
