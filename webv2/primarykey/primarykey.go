@@ -36,7 +36,7 @@ func updatePrimaryKey(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable)
 
 			id := getColumnId(spannerTable, spannerTable.Pks[j].Col)
 
-			if pkRequest.Columns[i].ColumnId == id && pkRequest.Columns[i].ColName == spannerTable.Pks[j].Col {
+			if pkRequest.Columns[i].ColumnId == id && spannerTable.Pks[j].Col == pkRequest.Columns[i].ColName {
 
 				spannerTable.Pks[j].Desc = pkRequest.Columns[i].Desc
 				spannerTable.Pks[j].Order = pkRequest.Columns[i].Order

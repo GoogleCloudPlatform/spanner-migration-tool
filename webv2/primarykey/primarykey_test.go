@@ -56,7 +56,7 @@ func TestUpdatePrimaryKey(t *testing.T) {
 	input := PrimaryKeyRequest{
 		TableId:      1,
 		PrimaryKeyId: 1,
-		Columns:      []Column{{ColumnId: 1, Desc: true, Order: 1}},
+		Columns:      []Column{{ColumnId: 1, Desc: false, Order: 1, ColName: "film_id"}},
 	}
 
 	inputBytes, err := json.Marshal(input)
@@ -91,7 +91,7 @@ func TestUpdatePrimaryKey(t *testing.T) {
 					"actor_id":    {Name: "actor_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 2},
 					"last_update": {Name: "last_update", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 3},
 				},
-				Pks:          []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}},
+				Pks:          []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: false}},
 				Id:           1,
 				PrimaryKeyId: 1,
 			}},
