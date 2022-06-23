@@ -74,6 +74,8 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 
 	err = json.Unmarshal(reqBody, &pkRequest)
 
+	fmt.Println("pkRequest.Columns :", pkRequest.Columns)
+
 	if err != nil {
 		log.Println("request's Body parse error")
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
