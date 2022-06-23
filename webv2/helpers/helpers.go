@@ -23,7 +23,6 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
@@ -38,65 +37,4 @@ func UpdateSessionFile() error {
 		return fmt.Errorf("Error encountered while updating session session file %w", err)
 	}
 	return nil
-}
-
-// RemoveSchemaIssue removes issue from the given list.
-func RemoveSchemaIssue(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) []internal.SchemaIssue {
-
-	for i := 0; i < len(schemaissue); i++ {
-		if schemaissue[i] == issue {
-			schemaissue = append(schemaissue[:i], schemaissue[i+1:]...)
-		}
-	}
-	return schemaissue
-}
-
-// IsSchemaIssuePresent checks if issue is present in the given schemaissue list.
-func IsSchemaIssuePresent(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) bool {
-
-	for _, s := range schemaissue {
-		if s == issue {
-			return true
-		}
-	}
-	return false
-}
-
-// RemoveSchemaIssues remove all  hotspot and interleaved from given list.
-// RemoveSchemaIssues is used when we are adding or removing primary key column from primary key.
-func RemoveSchemaIssues(schemaissue []internal.SchemaIssue) []internal.SchemaIssue {
-
-	switch {
-
-	case IsSchemaIssuePresent(schemaissue, internal.HotspotAutoIncrement):
-		schemaissue = RemoveSchemaIssue(schemaissue, internal.HotspotAutoIncrement)
-		fallthrough
-
-	case IsSchemaIssuePresent(schemaissue, internal.HotspotTimestamp):
-		schemaissue = RemoveSchemaIssue(schemaissue, internal.HotspotTimestamp)
-		fallthrough
-
-	case IsSchemaIssuePresent(schemaissue, internal.InterleavedOrder):
-		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-
-	case IsSchemaIssuePresent(schemaissue, internal.InterleavedNotInOrder):
-		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
-		fallthrough
-
-	case IsSchemaIssuePresent(schemaissue, internal.InterleavedAddColumn):
-		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
-	}
-
-	return schemaissue
-}
-
-// IsColumnPresent check col is present in given columns list.
-func IsColumnPresent(columns []string, col string) string {
-
-	for _, c := range columns {
-		if c == col {
-			return col
-		}
-	}
-	return ""
 }

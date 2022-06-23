@@ -46,6 +46,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/common"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
 	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 
@@ -681,9 +682,9 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				column := childPks[childindex].Col
 				schemaissue = sessionState.Conv.Issues[table][column]
 
-				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
-				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
-				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
+				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
+				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 
 				schemaissue = append(schemaissue, internal.InterleavedOrder)
 
@@ -703,9 +704,9 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				schemaissue := []internal.SchemaIssue{}
 				schemaissue = sessionState.Conv.Issues[table][column]
 
-				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
-				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
+				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
+				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
 
 				schemaissue = append(schemaissue, internal.InterleavedNotInOrder)
 
@@ -1188,7 +1189,7 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 	caninterleaved := []string{}
 	for i := 0; i < len(diff); i++ {
 
-		str := helpers.IsColumnPresent(fk.ReferColumns, diff[i].Col)
+		str := utilities.IsColumnPresent(fk.ReferColumns, diff[i].Col)
 
 		caninterleaved = append(caninterleaved, str)
 	}
@@ -1203,9 +1204,9 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 
 			schemaissue = sessionState.Conv.Issues[table][caninterleaved[i]]
 
-			schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-			schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
-			schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
+			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
+			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
 
 			schemaissue = append(schemaissue, internal.InterleavedAddColumn)
 

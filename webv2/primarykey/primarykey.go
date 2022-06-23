@@ -22,7 +22,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	common "github.com/cloudspannerecosystem/harbourbridge/webv2/common"
-	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
@@ -101,7 +100,7 @@ func addPrimaryKey(add []int, pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 
 				if len(schemaissue) > 0 {
 
-					schemaissue = helpers.RemoveSchemaIssues(schemaissue)
+					schemaissue = common.RemoveSchemaIssues(schemaissue)
 
 					sessionState.Conv.Issues[spannerTable.Name][pkey.Col] = schemaissue
 
@@ -145,7 +144,7 @@ func removePrimaryKey(remove []int, spannerTable ddl.CreateTable) []ddl.IndexKey
 
 				if len(schemaissue) > 0 {
 
-					schemaissue = helpers.RemoveSchemaIssues(schemaissue)
+					schemaissue = common.RemoveSchemaIssues(schemaissue)
 
 					if sessionState.Conv.Issues[spannerTable.Name][spannerTable.Pks[i].Col] == nil {
 
