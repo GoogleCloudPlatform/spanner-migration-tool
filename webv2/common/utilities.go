@@ -110,3 +110,48 @@ func createDatabase(ctx context.Context, uri string) error {
 	fmt.Printf("Created database [%s]\n", matches[2])
 	return nil
 }
+
+// Contain check string is present in given list.
+func Contain(fc []string, col string) string {
+
+	for _, s := range fc {
+		if s == col {
+			return col
+		}
+	}
+	return ""
+}
+
+// DuplicateInArray checks if there is any duplicate element present in the list.
+func DuplicateInArray(element []int) int {
+	visited := make(map[int]bool, 0)
+	for i := 0; i < len(element); i++ {
+		if visited[element[i]] == true {
+			return element[i]
+		} else {
+			visited[element[i]] = true
+		}
+	}
+	return -1
+}
+
+// Difference gives list of element that are only present in first list.
+func Difference(listone, listtwo []int) []int {
+
+	hashmap := make(map[int]int, len(listtwo))
+
+	for _, val := range listtwo {
+		hashmap[val]++
+	}
+
+	var diff []int
+
+	for _, val := range listone {
+
+		_, found := hashmap[val]
+		if !found {
+			diff = append(diff, val)
+		}
+	}
+	return diff
+}

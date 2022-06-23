@@ -21,9 +21,9 @@ package primarykey
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	common "github.com/cloudspannerecosystem/harbourbridge/webv2/common"
 	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/utility"
 )
 
 // updateprimaryKey updates primary key desc and order for primaryKey.
@@ -57,7 +57,7 @@ func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 
 	// primary key Id only presnt in pkeyrequest.
 	// hence new primary key add primary key into  spannerTable.Pk list
-	leftjoin := utility.Difference(cidRequestList, cidSpannerTableList)
+	leftjoin := common.Difference(cidRequestList, cidSpannerTableList)
 	insert := addPrimaryKey(leftjoin, pkRequest, spannerTable)
 
 	isHotSpot(insert, spannerTable)
@@ -66,7 +66,7 @@ func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 
 	// primary key Id only presnt in spannertable.Pks
 	// hence remove primary key from  spannertable.Pks
-	rightjoin := utility.Difference(cidSpannerTableList, cidRequestList)
+	rightjoin := common.Difference(cidSpannerTableList, cidRequestList)
 
 	if len(rightjoin) > 0 {
 		nlist := removePrimaryKey(rightjoin, spannerTable)

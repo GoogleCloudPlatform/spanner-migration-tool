@@ -73,6 +73,7 @@ type ForeignKey struct {
 type Key struct {
 	Column string
 	Desc   bool // By default, order is ASC. Set to true to specifiy DESC.
+	Order  int
 }
 
 // Index represents a database index.

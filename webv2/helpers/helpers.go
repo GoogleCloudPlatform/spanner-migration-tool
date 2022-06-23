@@ -15,7 +15,7 @@
 // Package web defines web APIs to be used with harbourbridge frontend.
 // Apart from schema conversion, this package involves API to update
 // converted schema.
-package utils
+package helpers
 
 import (
 	"fmt"
@@ -62,7 +62,7 @@ func IsSchemaIssuePresent(schemaissue []internal.SchemaIssue, issue internal.Sch
 	return false
 }
 
-// RemoveSchemaIssues remove all  Hotspot and Interleaved from given list.
+// RemoveSchemaIssues remove all  hotspot and interleaved from given list.
 // RemoveSchemaIssues is used when we are adding or removing primary key column from primary key.
 func RemoveSchemaIssues(schemaissue []internal.SchemaIssue) []internal.SchemaIssue {
 
@@ -88,4 +88,15 @@ func RemoveSchemaIssues(schemaissue []internal.SchemaIssue) []internal.SchemaIss
 	}
 
 	return schemaissue
+}
+
+// IsColumnPresent check col is present in given columns list.
+func IsColumnPresent(columns []string, col string) string {
+
+	for _, c := range columns {
+		if c == col {
+			return col
+		}
+	}
+	return ""
 }

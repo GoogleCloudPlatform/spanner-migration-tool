@@ -48,13 +48,13 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
 	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
+
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
 
 	primarykey "github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
 
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/utility"
 	go_ora "github.com/sijms/go-ora/v2"
 )
 
@@ -255,7 +255,8 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
-func LoadSession(w http.ResponseWriter, r *http.Request) {
+// loadSession load seesion file to Harbourbridge.
+func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -1187,7 +1188,7 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 	caninterleaved := []string{}
 	for i := 0; i < len(diff); i++ {
 
-		str := utility.ContainString(fk.ReferColumns, diff[i].Col)
+		str := helpers.IsColumnPresent(fk.ReferColumns, diff[i].Col)
 
 		caninterleaved = append(caninterleaved, str)
 	}

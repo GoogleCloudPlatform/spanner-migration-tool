@@ -21,7 +21,8 @@ package primarykey
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/utility"
+
+	common "github.com/cloudspannerecosystem/harbourbridge/webv2/common"
 )
 
 // getColumnId return ColumnId for given columnName.
@@ -98,7 +99,7 @@ func isValidColumnIds(pkRequest PrimaryKeyRequest, spannertable ddl.CreateTable)
 
 	cidRequestList := getColumnIdListFromPrimaryKeyRequest(pkRequest)
 	cidSpannerTableList := getColumnIdListOfSpannerTable(spannertable)
-	leftjoin := utility.Difference(cidRequestList, cidSpannerTableList)
+	leftjoin := common.Difference(cidRequestList, cidSpannerTableList)
 
 	if len(leftjoin) > 0 {
 		return false
@@ -115,7 +116,7 @@ func isValidColumnOrder(pkRequest PrimaryKeyRequest) bool {
 		list = append(list, pkRequest.Columns[i].Order)
 	}
 
-	if utility.DuplicateInArray(list) == -1 {
+	if common.DuplicateInArray(list) == -1 {
 		return false
 	}
 

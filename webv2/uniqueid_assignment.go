@@ -23,6 +23,7 @@ package webv2
 
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -60,7 +61,9 @@ func AssignUniqueId(conv *internal.Conv) {
 
 							conv.SrcSchema[sourcetablename].ColDefs[sourcecolumnname] = sourcecolumn
 							conv.SpSchema[spannertablename].ColDefs[spannercolumnname] = spannercolumn
-							updateIndexKeyOrder(spannertable)
+
+							updateSpannerTableIndexKeyOrder(spannertable)
+							updateSourceTableIndexKeyOrder(sourcetable)
 							break
 						}
 					}
@@ -76,13 +79,25 @@ func AssignUniqueId(conv *internal.Conv) {
 
 }
 
-// updateIndexKeyOrder Update Primary Key Order as columnId.
-func updateIndexKeyOrder(spannertable ddl.CreateTable) {
+// updateSpannerTableIndexKeyOrder Update Primary Key Order as columnId.
+func updateSpannerTableIndexKeyOrder(spannertable ddl.CreateTable) {
 
 	for i := 0; i < len(spannertable.Pks); i++ {
 		for spannercolumnname, spannercolumn := range spannertable.ColDefs {
 			if spannertable.Pks[i].Col == spannercolumnname {
 				spannertable.Pks[i].Order = spannercolumn.Id
+			}
+		}
+	}
+}
+
+// updateSourceTableIndexKeyOrder Update Primary Key Order as columnId.
+func updateSourceTableIndexKeyOrder(sourcetable schema.Table) {
+
+	for i := 0; i < len(sourcetable.PrimaryKeys); i++ {
+		for sourcecolumnname, spannercolumn := range sourcetable.ColDefs {
+			if sourcetable.PrimaryKeys[i].Column == sourcecolumnname {
+				sourcetable.PrimaryKeys[i].Order = spannercolumn.Id
 			}
 		}
 	}
