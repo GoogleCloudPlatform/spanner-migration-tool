@@ -41,7 +41,7 @@ import (
 )
 
 //go:embed frontend/*
-var forntendDir embed.FS
+var frontendDir embed.FS
 
 var (
 	dbNameOverride   string
@@ -130,7 +130,7 @@ func main() {
 
 	// Note: the web interface does not use any commandline flags.
 	if webapi {
-		web.FrontendDir = forntendDir
+		web.FrontendDir = frontendDir
 		web.App()
 		return
 	}
