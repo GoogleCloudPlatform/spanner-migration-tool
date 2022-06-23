@@ -151,7 +151,7 @@ export interface IPrimaryKey {
 
 export interface IPkColumnDefs {
   ColumnId: number
-  ColumnName: string
+  ColName: string
   Desc: boolean
   Order: number
 }

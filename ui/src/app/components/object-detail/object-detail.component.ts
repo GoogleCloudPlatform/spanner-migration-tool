@@ -442,12 +442,12 @@ export class ObjectDetailComponent implements OnInit {
   getPkRequestObj() {
     let tableId: number = this.conv.SpSchema[this.currentObject!.name].Id
     let PrimaryKeyId: number = this.conv.SpSchema[this.currentObject!.name].PrimaryKeyId
-    let Columns: { ColumnId: number; ColumnName: string; Desc: boolean; Order: number }[] = []
+    let Columns: { ColumnId: number; ColName: string; Desc: boolean; Order: number }[] = []
     this.pkArray.value.forEach((row: IColumnTabData) => {
       if (row.spIsPk)
         Columns.push({
           ColumnId: this.conv.SpSchema[this.currentObject!.name].ColDefs[row.spColName].Id,
-          ColumnName: row.spColName,
+          ColName: row.spColName,
           Desc:
             typeof this.conv.SpSchema[this.currentObject!.name].Pks.find(
               ({ Col }) => Col === row.spColName
