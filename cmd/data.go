@@ -42,6 +42,7 @@ type DataCmd struct {
 	sessionJSON     string
 	filePrefix      string // TODO: move filePrefix to global flags
 	writeLimit      int64
+	dryRun          bool
 }
 
 // Name returns the name of operation.
@@ -75,6 +76,7 @@ func (cmd *DataCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&cmd.skipForeignKeys, "skip-foreign-keys", false, "Skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
 	f.Int64Var(&cmd.writeLimit, "write-limit", defaultWritersLimit, "Write limit for writes to spanner")
+	f.BoolVar(&cmd.dryRun, "dry-run", false, "To validate the syntax of the command by running it in an air-gapped manner, such that no network calls are made.")
 }
 
 func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -86,6 +88,10 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 			fmt.Printf("FATAL error: %v\n", err)
 		}
 	}()
+	if cmd.dryRun {
+		fmt.Print("--dry-run flag is not implemented")
+		return subcommands.ExitFailure
+	}
 	conv := internal.MakeConv()
 
 	sourceProfile, err := profiles.NewSourceProfile(cmd.sourceProfile, cmd.source)
