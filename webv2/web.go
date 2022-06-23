@@ -46,9 +46,9 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/common"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
 	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
+	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	_ "github.com/go-sql-driver/mysql"

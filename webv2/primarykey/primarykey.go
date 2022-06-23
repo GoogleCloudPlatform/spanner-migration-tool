@@ -21,8 +21,8 @@ package primarykey
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	common "github.com/cloudspannerecosystem/harbourbridge/webv2/common"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
 // updateprimaryKey updates primary key desc and order for primaryKey.
@@ -56,7 +56,7 @@ func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 
 	// primary key Id only presnt in pkeyrequest.
 	// hence new primary key add primary key into  spannerTable.Pk list
-	leftjoin := common.Difference(cidRequestList, cidSpannerTableList)
+	leftjoin := utilities.Difference(cidRequestList, cidSpannerTableList)
 	insert := addPrimaryKey(leftjoin, pkRequest, spannerTable)
 
 	isHotSpot(insert, spannerTable)
@@ -65,7 +65,7 @@ func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 
 	// primary key Id only presnt in spannertable.Pks
 	// hence remove primary key from  spannertable.Pks
-	rightjoin := common.Difference(cidSpannerTableList, cidRequestList)
+	rightjoin := utilities.Difference(cidSpannerTableList, cidRequestList)
 
 	if len(rightjoin) > 0 {
 		nlist := removePrimaryKey(rightjoin, spannerTable)
@@ -100,7 +100,7 @@ func addPrimaryKey(add []int, pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 
 				if len(schemaissue) > 0 {
 
-					schemaissue = common.RemoveSchemaIssues(schemaissue)
+					schemaissue = utilities.RemoveSchemaIssues(schemaissue)
 
 					sessionState.Conv.Issues[spannerTable.Name][pkey.Col] = schemaissue
 
@@ -144,7 +144,7 @@ func removePrimaryKey(remove []int, spannerTable ddl.CreateTable) []ddl.IndexKey
 
 				if len(schemaissue) > 0 {
 
-					schemaissue = common.RemoveSchemaIssues(schemaissue)
+					schemaissue = utilities.RemoveSchemaIssues(schemaissue)
 
 					if sessionState.Conv.Issues[spannerTable.Name][spannerTable.Pks[i].Col] == nil {
 
