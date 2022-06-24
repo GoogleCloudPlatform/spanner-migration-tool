@@ -392,8 +392,13 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 }
 
 // VerifyDb checks whether the db exists and if it does, verifies if the schema is what we currently support.
+// Timeout limit for request is set to 2 minutes to handle unsupported spanner API endpoints.
 func VerifyDb(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) (dbExists bool, err error) {
-	dbExists, err = CheckExistingDb(ctx, adminClient, dbURI)
+	requestTimeout := 2 * time.Minute
+	reqCtx, cancel := context.WithTimeout(ctx, requestTimeout)
+	defer cancel()
+
+	dbExists, err = CheckExistingDb(reqCtx, adminClient, dbURI)
 	if err != nil {
 		return dbExists, err
 	}
@@ -403,10 +408,14 @@ func VerifyDb(ctx context.Context, adminClient *database.DatabaseAdminClient, db
 	return dbExists, err
 }
 
-// CheckExistingDb checks whether the database with dbURI exists or not.
+// CheckExistingDb checks whether the database with dbURI exists or not. If request is not completed within
+// context deadline then it will return an context error.
 func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) (bool, error) {
 	_, err := adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: dbURI})
 	if err != nil {
+		if err == ctx.Err() {
+			return false, fmt.Errorf("spanner API endpoint unavailable: make sure that spanner api endpoint is configured properly")
+		}
 		if utils.ContainsAny(strings.ToLower(err.Error()), []string{"database not found"}) {
 			return false, nil
 		}
