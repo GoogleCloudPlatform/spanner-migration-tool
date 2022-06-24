@@ -25,7 +25,8 @@ import (
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
-// updateprimaryKey updates primary key desc and order for primaryKey.
+// updateprimaryKey insert or delete primary key column.
+// updateprimaryKey also update desc and order for primaryKey column.
 func updatePrimaryKey(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) ddl.CreateTable {
 
 	spannerTable = insertOrRemovePrimarykey(pkRequest, spannerTable)
