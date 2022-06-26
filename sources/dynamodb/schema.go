@@ -25,7 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
+	"github.com/aws/aws-sdk-go/service/dynamodbstreams/dynamodbstreamsiface"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
@@ -51,9 +51,8 @@ const (
 
 type InfoSchemaImpl struct {
 	DynamoClient        dynamodbiface.DynamoDBAPI
-	DynamoStreamsClient *dynamodbstreams.DynamoDBStreams
+	DynamoStreamsClient dynamodbstreamsiface.DynamoDBStreamsAPI
 	SampleSize          int64
-	Streaming           bool
 }
 
 func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {

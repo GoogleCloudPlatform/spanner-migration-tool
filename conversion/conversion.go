@@ -189,17 +189,22 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 	if err != nil {
 		return nil, err
 	}
-	streamInfo, err := infoSchema.StartChangeDataCapture(ctx, conv)
-	if err != nil {
-		return nil, err
+	var streamInfo map[string]interface{}
+	if sourceProfile.Conn.Streaming {
+		streamInfo, err = infoSchema.StartChangeDataCapture(ctx, conv)
+		if err != nil {
+			return nil, err
+		}
 	}
 	bw, err := performSnapshotMigration(config, conv, client, infoSchema)
 	if err != nil {
 		return nil, err
 	}
-	err = infoSchema.StartStreamingMigration(ctx, client, conv, streamInfo)
-	if err != nil {
-		return nil, err
+	if sourceProfile.Conn.Streaming {
+		err = infoSchema.StartStreamingMigration(ctx, client, conv, streamInfo)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return bw, nil
 }
@@ -805,16 +810,14 @@ func GetInfoSchema(sourceProfile profiles.SourceProfile, targetProfile profiles.
 	case constants.DYNAMODB:
 		mySession := session.Must(session.NewSession())
 		dydbClient := dydb.New(mySession, connectionConfig.(*aws.Config))
-		streaming := sourceProfile.Conn.Streaming
 		var dydbStreamsClient *dynamodbstreams.DynamoDBStreams
-		if streaming {
+		if sourceProfile.Conn.Streaming {
 			newSession := session.Must(session.NewSession())
 			dydbStreamsClient = dynamodbstreams.New(newSession, connectionConfig.(*aws.Config))
 		}
 		return dynamodb.InfoSchemaImpl{
 			DynamoClient:        dydbClient,
 			SampleSize:          profiles.GetSchemaSampleSize(sourceProfile),
-			Streaming:           streaming,
 			DynamoStreamsClient: dydbStreamsClient,
 		}, nil
 	case constants.SQLSERVER:
