@@ -11,8 +11,7 @@
           <div class="table-header-container">
             <span>Session Name</span>
             <button mat-icon-button (click)="toggleFilterDisplay('sessionName')">
-              <mat-icon *ngIf="!displayFilter.sessionName">arrow_drop_down</mat-icon>
-              <mat-icon *ngIf="displayFilter.sessionName">arrow_drop_up</mat-icon>
+              <mat-icon>filter_list</mat-icon>
             </button>
           </div>
           <mat-form-field
@@ -37,8 +36,7 @@
           <div class="table-header-container">
             <span>Editor</span>
             <button mat-icon-button (click)="toggleFilterDisplay('editorName')">
-              <mat-icon *ngIf="!displayFilter.editorName">arrow_drop_down</mat-icon>
-              <mat-icon *ngIf="displayFilter.editorName">arrow_drop_up</mat-icon>
+              <mat-icon>filter_list</mat-icon>
             </button>
           </div>
           <mat-form-field *ngIf="displayFilter.editorName" appearance="standard">
@@ -59,8 +57,7 @@
           <div class="table-header-container">
             <span>Database Type</span>
             <button mat-icon-button (click)="toggleFilterDisplay('databaseType')">
-              <mat-icon *ngIf="!displayFilter.databaseType">arrow_drop_down</mat-icon>
-              <mat-icon *ngIf="displayFilter.databaseType">arrow_drop_up</mat-icon>
+              <mat-icon>filter_list</mat-icon>
             </button>
           </div>
           <mat-form-field *ngIf="displayFilter.databaseType" appearance="standard">
@@ -81,8 +78,7 @@
           <div class="table-header-container">
             <span>Database Name</span>
             <button mat-icon-button (click)="toggleFilterDisplay('databaseName')">
-              <mat-icon *ngIf="!displayFilter.databaseName">arrow_drop_down</mat-icon>
-              <mat-icon *ngIf="displayFilter.databaseName">arrow_drop_up</mat-icon>
+              <mat-icon>filter_list</mat-icon>
             </button>
           </div>
           <mat-form-field *ngIf="displayFilter.databaseName" appearance="standard">

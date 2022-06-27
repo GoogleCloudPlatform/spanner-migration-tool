@@ -71,19 +71,35 @@ export class SessionListingComponent implements OnInit {
   applyFilter() {
     this.filteredDataSource = this.dataSource
       .filter((data: any) => {
-        if (data.SessionName.includes(this.filterColumnsValue.sessionName)) return true
+        if (
+          data.SessionName.toLowerCase().includes(this.filterColumnsValue.sessionName.toLowerCase())
+        )
+          return true
         else return false
       })
       .filter((data: any) => {
-        if (data.EditorName.includes(this.filterColumnsValue.editorName)) return true
+        if (
+          data.EditorName.toLowerCase().includes(this.filterColumnsValue.editorName.toLowerCase())
+        )
+          return true
         else return false
       })
       .filter((data: any) => {
-        if (data.DatabaseType.includes(this.filterColumnsValue.databaseType)) return true
+        if (
+          data.DatabaseType.toLowerCase().includes(
+            this.filterColumnsValue.databaseType.toLowerCase()
+          )
+        )
+          return true
         else return false
       })
       .filter((data: any) => {
-        if (data.DatabaseName.includes(this.filterColumnsValue.databaseName)) return true
+        if (
+          data.DatabaseName.toLowerCase().includes(
+            this.filterColumnsValue.databaseName.toLowerCase()
+          )
+        )
+          return true
         else return false
       })
   }
