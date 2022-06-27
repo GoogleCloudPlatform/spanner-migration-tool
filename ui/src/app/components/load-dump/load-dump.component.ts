@@ -24,7 +24,7 @@ export class LoadDumpComponent implements OnInit {
   })
   dbEngineList = [
     { value: 'mysqldump', displayName: 'MYSQL' },
-    { value: 'postgres', displayName: 'PostgreSQL' },
+    { value: 'pg_dump', displayName: 'PostgreSQL' },
   ]
 
   ngOnInit(): void {}
