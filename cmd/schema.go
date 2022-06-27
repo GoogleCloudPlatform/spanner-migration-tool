@@ -117,13 +117,14 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		defer ioHelper.In.Close()
 	}
 
+	dbName, err := utils.GetDatabaseName(sourceProfile.Driver, time.Now())
+	if err != nil {
+		fmt.Printf("can't generate database name for prefix: %v", err)
+		return subcommands.ExitFailure
+	}
+
 	// If filePrefix not explicitly set, use generated dbName.
 	if cmd.filePrefix == "" {
-		dbName, err := utils.GetDatabaseName(sourceProfile.Driver, time.Now())
-		if err != nil {
-			fmt.Printf("can't generate database name for prefix: %v", err)
-			return subcommands.ExitFailure
-		}
 		cmd.filePrefix = dbName + "."
 	}
 
@@ -137,10 +138,11 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	conversion.WriteSchemaFile(conv, schemaConversionStartTime, cmd.filePrefix+schemaFile, ioHelper.Out)
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
 
+	// Populate migration request id and migration type in conv object
+	conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
+
 	if !cmd.dryRun {
-		// Populate migration request id and migration type in conv object
-		conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
-		conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
 
 		project, instance, dbName, err := targetProfile.GetResourceIds(ctx, schemaConversionStartTime, sourceProfile.Driver, ioHelper.Out)
 		if err != nil {
@@ -154,27 +156,28 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 
 		adminClient, err := utils.NewDatabaseAdminClient(ctx)
 		if err != nil {
-			fmt.Printf("can't create admin client: %v", utils.AnalyzeError(err, dbURI))
+			fmt.Printf("can't create admin client: %v\n", utils.AnalyzeError(err, dbURI))
 			return subcommands.ExitFailure
 		}
 		defer adminClient.Close()
 		client, err := utils.GetClient(ctx, dbURI)
 		if err != nil {
-			fmt.Printf("can't create client for db %s: %v", dbURI, err)
+			fmt.Printf("can't create client for db %s: %v\n", dbURI, err)
 			return subcommands.ExitFailure
 		}
 		defer client.Close()
 
 		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
 		if err != nil {
-			fmt.Printf("can't create/update database: %v", err)
+			fmt.Printf("can't create/update database: %v\n", err)
 			return subcommands.ExitFailure
 		}
 	}
 
 	schemaCoversionEndTime := time.Now()
 	conv.Audit.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
-	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
+	banner := utils.GetBanner(schemaConversionStartTime, dbName)
+	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
 	// Cleanup hb tmp data directory.
 	os.RemoveAll(os.TempDir() + constants.HB_TMP_DIR)
 	return subcommands.ExitSuccess

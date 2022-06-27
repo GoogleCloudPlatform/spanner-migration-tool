@@ -29,6 +29,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/writer"
 	"github.com/google/subcommands"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -45,7 +46,10 @@ type DataCmd struct {
 	filePrefix      string // TODO: move filePrefix to global flags
 	writeLimit      int64
 	dryRun          bool
+<<<<<<< HEAD
 	logLevel        string
+=======
+>>>>>>> 2778961 (modification wrt report)
 }
 
 // Name returns the name of operation.
@@ -76,7 +80,6 @@ func (cmd *DataCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.sessionJSON, "session", "", "Specifies the file we restore session state from")
 	f.StringVar(&cmd.target, "target", "Spanner", "Specifies the target DB, defaults to Spanner (accepted values: `Spanner`)")
 	f.StringVar(&cmd.targetProfile, "target-profile", "", "Flag for specifying connection profile for target database e.g., \"dialect=postgresql\"")
-	f.BoolVar(&cmd.skipForeignKeys, "skip-foreign-keys", false, "Skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
 	f.Int64Var(&cmd.writeLimit, "write-limit", defaultWritersLimit, "Write limit for writes to spanner")
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "To validate the syntax of the command by running it in an air-gapped manner, such that no network calls are made.")
@@ -129,77 +132,84 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		defer ioHelper.In.Close()
 	}
 
-	now := time.Now()
-	project, instance, dbName, err := targetProfile.GetResourceIds(ctx, now, sourceProfile.Driver, ioHelper.Out)
+	var (
+		bw     *writer.BatchWriter
+		banner string
+	)
+	// Populate migration request id and migration type in conv object
+	conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+	conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
+	dataCoversionStartTime := time.Now()
+
+	dbName, err := utils.GetDatabaseName(sourceProfile.Driver, dataCoversionStartTime)
 	if err != nil {
-		return subcommands.ExitUsageError
+		panic(fmt.Errorf("can't generate database name for prefix: %v", err))
 	}
-	fmt.Println("Using Google Cloud project:", project)
-	fmt.Println("Using Cloud Spanner instance:", instance)
-	utils.PrintPermissionsWarning(sourceProfile.Driver, ioHelper.Out)
-
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
-
 	// If filePrefix not explicitly set, use dbName as prefix.
 	if cmd.filePrefix == "" {
 		cmd.filePrefix = dbName + "."
 	}
-
-	client, err := utils.GetClient(ctx, dbURI)
-	if err != nil {
-		err = fmt.Errorf("can't create client for db %s: %v", dbURI, err)
-		return subcommands.ExitFailure
-	}
-	defer client.Close()
-
 	if !sourceProfile.UseTargetSchema() {
 		err = conversion.ReadSessionFile(conv, cmd.sessionJSON)
 		if err != nil {
 			return subcommands.ExitUsageError
 		}
 		if targetProfile.TargetDb != "" && conv.TargetDb != targetProfile.TargetDb {
-			err = fmt.Errorf("running data migration for Spanner dialect: %v, whereas schema mapping was done for dialect: %v", targetProfile.TargetDb, conv.TargetDb)
+			fmt.Printf("running data migration for Spanner dialect: %v, whereas schema mapping was done for dialect: %v\n", targetProfile.TargetDb, conv.TargetDb)
 			return subcommands.ExitUsageError
 		}
 	}
 
-	adminClient, err := utils.NewDatabaseAdminClient(ctx)
-	if err != nil {
-		err = fmt.Errorf("can't create admin client: %w", utils.AnalyzeError(err, dbURI))
-		return subcommands.ExitFailure
-	}
-	defer adminClient.Close()
-
-	// Populate migration request id and migration type in conv object
-	conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
-	conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
-
-	if !sourceProfile.UseTargetSchema() {
-		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
+	if !cmd.dryRun {
+		now := time.Now()
+		project, instance, dbName, err := targetProfile.GetResourceIds(ctx, now, sourceProfile.Driver, ioHelper.Out)
 		if err != nil {
-			err = fmt.Errorf("can't create/update database: %v", err)
+			return subcommands.ExitUsageError
+		}
+		fmt.Println("Using Google Cloud project:", project)
+		fmt.Println("Using Cloud Spanner instance:", instance)
+		utils.PrintPermissionsWarning(sourceProfile.Driver, ioHelper.Out)
+
+		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
+		client, err := utils.GetClient(ctx, dbURI)
+		if err != nil {
+			fmt.Printf("can't create client for db %s: %v\n", dbURI, err)
 			return subcommands.ExitFailure
 		}
-	}
+		defer client.Close()
 
-	dataCoversionStartTime := time.Now()
-	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, client, conv, true, cmd.writeLimit)
-	if err != nil {
-		err = fmt.Errorf("can't finish data migration: %v", err)
-		return subcommands.ExitFailure
+		adminClient, err := utils.NewDatabaseAdminClient(ctx)
+		if err != nil {
+			fmt.Printf("can't create admin client: %v\n", utils.AnalyzeError(err, dbURI))
+			return subcommands.ExitFailure
+		}
+		defer adminClient.Close()
+		if !sourceProfile.UseTargetSchema() {
+			_, err = conversion.VerifyDbWithTables(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
+			if err != nil {
+				fmt.Printf("can't create/update database: %v\n", err)
+				return subcommands.ExitFailure
+			}
+		}
+		bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, client, conv, true, cmd.writeLimit)
+		if err != nil {
+			fmt.Printf("can't finish data conversion for db %s: %v\n", dbURI, err)
+			return subcommands.ExitFailure
+		}
+		banner = utils.GetBanner(now, dbURI)
+	} else {
+		conv.DryRun = true
+		bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, nil, conv, true, cmd.writeLimit)
+		if err != nil {
+			fmt.Printf("can't finish data conversion for db %s: %v\n", dbName, err)
+			return subcommands.ExitFailure
+		}
+		banner = utils.GetBanner(dataCoversionStartTime, dbName)
 	}
 	dataCoversionEndTime := time.Now()
 	dataCoversionDuration := dataCoversionEndTime.Sub(dataCoversionStartTime)
 	conv.Audit.DataConversionDuration = dataCoversionDuration
 
-	if !cmd.skipForeignKeys {
-		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
-			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
-			return subcommands.ExitFailure
-		}
-	}
-
-	banner := utils.GetBanner(now, dbURI)
 	conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, cmd.filePrefix+badDataFile, ioHelper.Out)
 	// Cleanup hb tmp data directory.

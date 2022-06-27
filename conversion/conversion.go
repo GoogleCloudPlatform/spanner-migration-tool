@@ -176,7 +176,10 @@ func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile prof
 func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error) {
 	common.SetRowStats(conv, infoSchema)
 	totalRows := conv.Rows()
-	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
+	var p *internal.Progress
+	if !conv.DryRun {
+		p = internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
+	}
 	batchWriter := populateDataConv(conv, config, client, p)
 	common.ProcessData(conv, infoSchema)
 	batchWriter.Flush()
@@ -414,6 +417,18 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 	}
 	n, _ := utils.GetFileSize(fcopy)
 	return fcopy, n, nil
+}
+
+func VerifyDbWithTables(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI, driver, targetDb string, conv *internal.Conv, out *os.File) (dbExists bool, err error) {
+	dbExists, err = CheckExistingDb(ctx, adminClient, dbURI)
+	if err != nil {
+		return dbExists, err
+	}
+	_, err = adminClient.GetDatabaseDdl(ctx, &adminpb.GetDatabaseDdlRequest{Database: dbURI})
+	if err != nil {
+		return dbExists, fmt.Errorf("can't fetch database ddl: %v", err)
+	}
+	return dbExists, err
 }
 
 // VerifyDb checks whether the db exists and if it does, verifies if the schema is what we currently support.
