@@ -14,6 +14,7 @@ export default interface IColumnTabData {
 export interface IIndexData {
   srcColName: string
   spColName: string
+  srcDesc: boolean | undefined
   srcOrder: number | string
   spOrder: number | string
   spDesc: boolean

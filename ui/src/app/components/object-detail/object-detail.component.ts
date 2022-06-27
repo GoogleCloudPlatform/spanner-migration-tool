@@ -74,9 +74,10 @@ export class ObjectDetailComponent implements OnInit {
 
   indexDisplayedColumns = [
     'srcIndexColName',
+    'srcSortBy',
     'srcIndexOrder',
     'spIndexColName',
-    'spAscOrDesc',
+    'spSortBy',
     'spIndexOrder',
     'dropButton',
   ]
@@ -145,6 +146,7 @@ export class ObjectDetailComponent implements OnInit {
           new FormGroup({
             srcOrder: new FormControl(row.srcOrder),
             srcColName: new FormControl(row.srcColName),
+            srcDesc: new FormControl(row.srcDesc),
             spOrder: new FormControl(row.spOrder),
             spColName: new FormControl(row.spColName),
             spDesc: new FormControl(row.spDesc),
