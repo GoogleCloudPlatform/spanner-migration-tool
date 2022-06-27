@@ -45,18 +45,16 @@ func TestUpdatePrimaryKey(t *testing.T) {
 					"actor_id":    {Name: "actor_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 2},
 					"last_update": {Name: "last_update", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 3},
 				},
-				Pks:          []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}},
-				Id:           1,
-				PrimaryKeyId: 1,
+				Pks: []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}},
+				Id:  1,
 			}},
 	}
 
 	sessionState.Conv = c
 
 	input := PrimaryKeyRequest{
-		TableId:      1,
-		PrimaryKeyId: 1,
-		Columns:      []Column{{ColumnId: 1, Desc: false, Order: 1, ColName: "film_id"}},
+		TableId: 1,
+		Columns: []Column{{ColumnId: 1, Desc: false, Order: 1, ColName: "film_id"}},
 	}
 
 	inputBytes, err := json.Marshal(input)
@@ -91,9 +89,8 @@ func TestUpdatePrimaryKey(t *testing.T) {
 					"actor_id":    {Name: "actor_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 2},
 					"last_update": {Name: "last_update", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 3},
 				},
-				Pks:          []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: false}},
-				Id:           1,
-				PrimaryKeyId: 1,
+				Pks: []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: false}},
+				Id:  1,
 			}},
 	}
 
@@ -115,18 +112,16 @@ func TestAddPrimaryKey(t *testing.T) {
 					"actor_id":    {Name: "actor_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 2},
 					"last_update": {Name: "last_update", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 3},
 				},
-				Pks:          []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}},
-				Id:           1,
-				PrimaryKeyId: 1,
+				Pks: []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}},
+				Id:  1,
 			}},
 	}
 
 	sessionState.Conv = c
 
 	input := PrimaryKeyRequest{
-		TableId:      1,
-		PrimaryKeyId: 1,
-		Columns:      []Column{{ColumnId: 1, Desc: true, Order: 1}, {ColumnId: 2, Desc: false, Order: 2}},
+		TableId: 1,
+		Columns: []Column{{ColumnId: 1, Desc: true, Order: 1}, {ColumnId: 2, Desc: false, Order: 2}},
 	}
 
 	inputBytes, err := json.Marshal(input)
@@ -165,9 +160,8 @@ func TestAddPrimaryKey(t *testing.T) {
 					"actor_id":    {Name: "actor_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 2},
 					"last_update": {Name: "last_update", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 3},
 				},
-				Pks:          []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}, {Col: "actor_id", Order: 2, Desc: false}},
-				Id:           1,
-				PrimaryKeyId: 1,
+				Pks: []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}, {Col: "actor_id", Order: 2, Desc: false}},
+				Id:  1,
 			}},
 	}
 
@@ -189,18 +183,16 @@ func TestRemovePrimaryKey(t *testing.T) {
 					"actor_id":    {Name: "actor_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 2},
 					"last_update": {Name: "last_update", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 3},
 				},
-				Pks:          []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}, {Col: "actor_id", Order: 2, Desc: true}, {Col: "last_update", Order: 3, Desc: true}},
-				Id:           1,
-				PrimaryKeyId: 1,
+				Pks: []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}, {Col: "actor_id", Order: 2, Desc: true}, {Col: "last_update", Order: 3, Desc: true}},
+				Id:  1,
 			}},
 	}
 
 	sessionState.Conv = c
 
 	input := PrimaryKeyRequest{
-		TableId:      1,
-		PrimaryKeyId: 1,
-		Columns:      []Column{{ColumnId: 1, Desc: true, Order: 1}, {ColumnId: 2, Desc: true, Order: 2}},
+		TableId: 1,
+		Columns: []Column{{ColumnId: 1, Desc: true, Order: 1}, {ColumnId: 2, Desc: true, Order: 2}},
 	}
 
 	inputBytes, err := json.Marshal(input)
@@ -239,9 +231,8 @@ func TestRemovePrimaryKey(t *testing.T) {
 					"actor_id":    {Name: "actor_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 2},
 					"last_update": {Name: "last_update", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 3},
 				},
-				Pks:          []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}, {Col: "actor_id", Order: 2, Desc: true}},
-				Id:           1,
-				PrimaryKeyId: 1,
+				Pks: []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}, {Col: "actor_id", Order: 2, Desc: true}},
+				Id:  1,
 			}},
 	}
 	assert.Equal(t, expectedConv, res)
@@ -262,9 +253,8 @@ func TestPrimarykey(t *testing.T) {
 					"actor_id":    {Name: "actor_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 2},
 					"last_update": {Name: "last_update", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, Id: 3},
 				},
-				Pks:          []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}, {Col: "actor_id", Order: 2, Desc: true}},
-				Id:           1,
-				PrimaryKeyId: 1,
+				Pks: []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}, {Col: "actor_id", Order: 2, Desc: true}},
+				Id:  1,
 			}},
 	}
 
@@ -280,18 +270,16 @@ func TestPrimarykey(t *testing.T) {
 		{
 			name: "Table Id Not found",
 			input: PrimaryKeyRequest{
-				TableId:      99,
-				PrimaryKeyId: 99,
-				Columns:      []Column{{ColumnId: 1, ColName: "film_id", Desc: true, Order: 1}, {ColumnId: 2, ColName: "actor_id", Desc: true, Order: 2}},
+				TableId: 99,
+				Columns: []Column{{ColumnId: 1, ColName: "film_id", Desc: true, Order: 1}, {ColumnId: 2, ColName: "actor_id", Desc: true, Order: 2}},
 			},
 			statusCode: http.StatusNotFound,
 		},
 		{
 			name: "Column are empty",
 			input: PrimaryKeyRequest{
-				TableId:      1,
-				PrimaryKeyId: 1,
-				Columns:      []Column{}},
+				TableId: 1,
+				Columns: []Column{}},
 			statusCode: http.StatusBadRequest,
 		},
 	}

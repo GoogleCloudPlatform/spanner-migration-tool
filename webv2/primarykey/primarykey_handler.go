@@ -34,18 +34,16 @@ import (
 
 // PrimaryKeyRequest represents  Primary keys API Payload.
 type PrimaryKeyRequest struct {
-	TableId      int      `json:"TableId"`
-	Columns      []Column `json:"Columns"`
-	PrimaryKeyId int      `json:"PrimaryKeyId"`
+	TableId int      `json:"TableId"`
+	Columns []Column `json:"Columns"`
 }
 
 // PrimaryKeyResponse represents  Primary keys API response.
 // Synth is true is for table Primary Key Id is not present and it is generated.
 type PrimaryKeyResponse struct {
-	TableId      int      `json:"TableId"`
-	Columns      []Column `json:"Columns"`
-	PrimaryKeyId int      `json:"PrimaryKeyId"`
-	Synth        bool     `json:"Synth"`
+	TableId int      `json:"TableId"`
+	Columns []Column `json:"Columns"`
+	Synth   bool     `json:"Synth"`
 }
 
 // Column represents  SpannerTables Column.
@@ -140,7 +138,6 @@ func prepareResponse(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) 
 	var pKeyResponse PrimaryKeyResponse
 
 	pKeyResponse.TableId = pkRequest.TableId
-	pKeyResponse.PrimaryKeyId = pkRequest.PrimaryKeyId
 
 	var isSynthPrimaryKey bool
 

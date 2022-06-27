@@ -43,9 +43,6 @@ func AssignUniqueId(conv *internal.Conv) {
 				sourcetable.Id = tableuniqueid
 				spannertable.Id = tableuniqueid
 
-				sourcetable.PrimaryKeyId = tableuniqueid
-				spannertable.PrimaryKeyId = tableuniqueid
-
 				tableuniqueid = tableuniqueid + 1
 
 				for sourcecolumnname, sourcecolumn := range sourcetable.ColDefs {
