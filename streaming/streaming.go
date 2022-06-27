@@ -288,8 +288,19 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	return nil
 }
 
+func getStreamingConfig(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (StreamingCfg, error) {
+	switch sourceProfile.Conn.Ty {
+	case profiles.SourceProfileConnectionTypeMySQL:
+		return ReadStreamingConfig(sourceProfile.Conn.Mysql.StreamingConfig, targetProfile.Conn.Sp.Dbname)
+	case profiles.SourceProfileConnectionTypeOracle:
+		return ReadStreamingConfig(sourceProfile.Conn.Oracle.StreamingConfig, targetProfile.Conn.Sp.Dbname)
+	default:
+		return StreamingCfg{}, fmt.Errorf("only MySQL and Oracle are supported as source streams")
+	}
+}
+
 func StartDatastream(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (StreamingCfg, error) {
-	streamingCfg, err := ReadStreamingConfig(sourceProfile.Conn.Mysql.StreamingConfig, targetProfile.Conn.Sp.Dbname)
+	streamingCfg, err := getStreamingConfig(sourceProfile, targetProfile)
 	if err != nil {
 		return streamingCfg, fmt.Errorf("error reading streaming config: %v", err)
 	}

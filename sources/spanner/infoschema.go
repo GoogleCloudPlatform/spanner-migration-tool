@@ -23,14 +23,14 @@ import (
 	"strings"
 
 	"cloud.google.com/go/spanner"
-	sp "cloud.google.com/go/spanner"
+	_ "github.com/lib/pq" // we will use database/sql package instead of using this package directly
+	"google.golang.org/api/iterator"
+
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	_ "github.com/lib/pq" // we will use database/sql package instead of using this package directly
-	"google.golang.org/api/iterator"
 )
 
 // InfoSchemaImpl postgres specific implementation for InfoSchema.
@@ -62,7 +62,7 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 	return nil, nil
 }
 
-func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) error {
+func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *spanner.Client, conv *internal.Conv, streamingInfo map[string]interface{}) error {
 	return nil
 }
 

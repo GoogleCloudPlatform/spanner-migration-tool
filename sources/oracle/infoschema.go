@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	sp "cloud.google.com/go/spanner"
+
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
@@ -419,7 +420,6 @@ func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *s
 	streamingCfg, _ := streamingInfo["streamingCfg"].(streaming.StreamingCfg)
 	err := streaming.StartDataflow(ctx, isi.SourceProfile, isi.TargetProfile, streamingCfg)
 	if err != nil {
-		err = fmt.Errorf("error starting dataflow: %v", err)
 		return err
 	}
 	return nil

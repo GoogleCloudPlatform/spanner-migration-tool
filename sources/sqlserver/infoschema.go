@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	sp "cloud.google.com/go/spanner"
+
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"

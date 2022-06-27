@@ -22,14 +22,15 @@ import (
 	"strings"
 
 	sp "cloud.google.com/go/spanner"
+	_ "github.com/go-sql-driver/mysql" // The driver should be used via the database/sql package.
+	_ "github.com/lib/pq"
+
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/streaming"
-	_ "github.com/go-sql-driver/mysql" // The driver should be used via the database/sql package.
-	_ "github.com/lib/pq"
 )
 
 // InfoSchemaImpl is MySQL specific implementation for InfoSchema.
@@ -351,7 +352,6 @@ func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *s
 	streamingCfg, _ := streamingInfo["streamingCfg"].(streaming.StreamingCfg)
 	err := streaming.StartDataflow(ctx, isi.SourceProfile, isi.TargetProfile, streamingCfg)
 	if err != nil {
-		err = fmt.Errorf("error starting dataflow: %v", err)
 		return err
 	}
 	return nil
