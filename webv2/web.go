@@ -52,6 +52,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
 
+	index "github.com/cloudspannerecosystem/harbourbridge/webv2/index"
 	primarykey "github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
 
 	go_ora "github.com/sijms/go-ora/v2"
@@ -294,7 +295,7 @@ func LoadSession(w http.ResponseWriter, r *http.Request) {
 
 	primarykey.DetectHotspot()
 
-	SuggestIndex()
+	index.IndexSuggestion()
 
 	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = s.Driver
@@ -924,7 +925,7 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 
 	sp := sessionState.Conv.SpSchema[table]
 
-	DetectredandantIndex(newIndexes, sp)
+	index.CheckIndexSuggestion(newIndexes, sp)
 	sp.Indexes = append(sp.Indexes, newIndexes...)
 
 	sessionState.Conv.SpSchema[table] = sp
@@ -1006,7 +1007,7 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	RemoveIndexIssue(table, sp.Indexes[position])
+	index.RemoveIndexIssues(table, sp.Indexes[position])
 
 	sp.Indexes = removeSecondaryIndex(sp.Indexes, position)
 	sessionState.Conv.SpSchema[table] = sp
