@@ -28,6 +28,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -413,7 +414,7 @@ func VerifyDb(ctx context.Context, adminClient *database.DatabaseAdminClient, db
 func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) (bool, error) {
 	_, err := adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: dbURI})
 	if err != nil {
-		if err == ctx.Err() {
+		if errors.Is(err, context.DeadlineExceeded) {
 			return false, fmt.Errorf("spanner API endpoint unavailable: make sure that spanner api endpoint is configured properly")
 		}
 		if utils.ContainsAny(strings.ToLower(err.Error()), []string{"database not found"}) {
