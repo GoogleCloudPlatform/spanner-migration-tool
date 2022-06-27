@@ -1,6 +1,8 @@
 package index
 
 import (
+	"fmt"
+
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
@@ -102,4 +104,41 @@ func RemoveIndexIssue(schemaissue []internal.SchemaIssue) []internal.SchemaIssue
 	}
 
 	return schemaissue
+}
+
+// to detect timestamp index
+// todo : add or remove suggestion based on timestamp index added or remove.
+func TimestampIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
+
+	fmt.Println("TimestampIndex for ", spannerTable.Name)
+	for i := 0; i < len(index); i++ {
+
+		keys := index[i].Keys
+
+		fmt.Println("Keys :", keys)
+
+		for i := 0; i < len(keys); i++ {
+
+			for _, c := range spannerTable.ColDefs {
+
+				if keys[i].Col == c.Name {
+
+					if c.T.Name == ddl.String {
+
+						fmt.Println("TimestampIndex :", spannerTable.Name, c.Name)
+
+						columnname := keys[i].Col
+						sessionState := session.GetSessionState()
+						schemaissue := sessionState.Conv.Issues[spannerTable.Name][columnname]
+
+						schemaissue = append(schemaissue, internal.INDEX_TIMESTAMP)
+						sessionState.Conv.Issues[spannerTable.Name][columnname] = schemaissue
+					}
+
+				}
+			}
+
+		}
+
+	}
 }

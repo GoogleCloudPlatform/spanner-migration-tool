@@ -322,6 +322,7 @@ var IssueDB = map[SchemaIssue]struct {
 	InterleavedOrder:      {Brief: "can be converted as Interleaved Table", severity: note},
 	InterleavedADDCOLUMN:  {Brief: "Candidate for Interleaved Table", severity: note},
 	IndexRedandant:        {Brief: "Redudant Index", severity: warning},
+	INDEX_TIMESTAMP:       {Brief: "Redudant Index due to Timestamp", severity: warning},
 }
 
 type severity int
