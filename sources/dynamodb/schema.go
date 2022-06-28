@@ -15,6 +15,7 @@
 package dynamodb
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math/big"
@@ -24,6 +25,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
+	"github.com/aws/aws-sdk-go/service/dynamodbstreams/dynamodbstreamsiface"
+
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
@@ -48,8 +51,9 @@ const (
 )
 
 type InfoSchemaImpl struct {
-	DynamoClient dynamodbiface.DynamoDBAPI
-	SampleSize   int64
+	DynamoClient        dynamodbiface.DynamoDBAPI
+	DynamoStreamsClient dynamodbstreamsiface.DynamoDBStreamsAPI
+	SampleSize          int64
 }
 
 func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
@@ -185,6 +189,14 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 	for _, attrsMap := range rows.([]map[string]*dynamodb.AttributeValue) {
 		ProcessDataRow(attrsMap, conv, srcTable, srcSchema, spTable, spCols, spSchema)
 	}
+	return nil
+}
+
+func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
+	return nil, nil
+}
+
+func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, LatestStream map[string]interface{}) error {
 	return nil
 }
 

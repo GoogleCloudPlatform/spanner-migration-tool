@@ -21,11 +21,12 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/stretchr/testify/assert"
 )
 
 type mockDynamoClient struct {
@@ -167,7 +168,7 @@ func TestProcessSchema(t *testing.T) {
 	sampleSize := int64(10000)
 
 	conv := internal.MakeConv()
-	err := common.ProcessSchema(conv, InfoSchemaImpl{client, sampleSize})
+	err := common.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize})
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -270,7 +271,7 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 	sampleSize := int64(10000)
 
 	conv := internal.MakeConv()
-	err := common.ProcessSchema(conv, InfoSchemaImpl{client, sampleSize})
+	err := common.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize})
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -353,7 +354,7 @@ func TestProcessData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	common.ProcessData(conv, InfoSchemaImpl{client, 10})
+	common.ProcessData(conv, InfoSchemaImpl{client, nil, 10})
 	assert.Equal(t,
 		[]spannerData{
 			{
@@ -532,7 +533,7 @@ func TestInfoSchemaImpl_GetIndexes(t *testing.T) {
 
 	dySchema := common.SchemaAndName{Name: "test"}
 	conv := internal.MakeConv()
-	isi := InfoSchemaImpl{client, 10}
+	isi := InfoSchemaImpl{client, nil, 10}
 	indexes, err := isi.GetIndexes(conv, dySchema)
 	assert.Nil(t, err)
 
@@ -587,7 +588,7 @@ func TestInfoSchemaImpl_GetConstraints(t *testing.T) {
 
 	dySchema := common.SchemaAndName{Name: "test"}
 	conv := internal.MakeConv()
-	isi := InfoSchemaImpl{client, 10}
+	isi := InfoSchemaImpl{client, nil, 10}
 	primaryKeys, constraints, err := isi.GetConstraints(conv, dySchema)
 	assert.Nil(t, err)
 
@@ -608,7 +609,7 @@ func TestInfoSchemaImpl_GetTables(t *testing.T) {
 	client := &mockDynamoClient{
 		listTableOutputs: listTableOutputs,
 	}
-	isi := InfoSchemaImpl{client, 10}
+	isi := InfoSchemaImpl{client, nil, 10}
 	tables, err := isi.GetTables()
 	assert.Nil(t, err)
 	assert.Equal(t, []common.SchemaAndName{{"", "table-a"}, {"", "table-b"}}, tables)
@@ -618,7 +619,7 @@ func TestInfoSchemaImpl_GetTableName(t *testing.T) {
 	tableNameA := "table-a"
 
 	client := &mockDynamoClient{}
-	isi := InfoSchemaImpl{client, 10}
+	isi := InfoSchemaImpl{client, nil, 10}
 	table := isi.GetTableName("", tableNameA)
 	assert.Equal(t, tableNameA, table)
 }
@@ -662,7 +663,7 @@ func TestInfoSchemaImpl_GetColumns(t *testing.T) {
 	}
 	dySchema := common.SchemaAndName{Name: "test"}
 
-	isi := InfoSchemaImpl{client, 10}
+	isi := InfoSchemaImpl{client, nil, 10}
 
 	colDefs, colNames, err := isi.GetColumns(conv, dySchema, nil, nil)
 	assert.Nil(t, err)
@@ -680,7 +681,7 @@ func TestInfoSchemaImpl_GetForeignKeys(t *testing.T) {
 	dySchema := common.SchemaAndName{Name: "test"}
 	conv := internal.MakeConv()
 	client := &mockDynamoClient{}
-	isi := InfoSchemaImpl{client, 10}
+	isi := InfoSchemaImpl{client, nil, 10}
 	fk, err := isi.GetForeignKeys(conv, dySchema)
 	assert.Nil(t, err)
 	assert.Nil(t, fk)
@@ -703,7 +704,7 @@ func TestInfoSchemaImpl_GetRowCount(t *testing.T) {
 		describeTableOutputs: describeTableOutputs,
 	}
 
-	isi := InfoSchemaImpl{client, 10}
+	isi := InfoSchemaImpl{client, nil, 10}
 	dySchema := common.SchemaAndName{Name: tableNameA}
 
 	rowCount, err := isi.GetRowCount(dySchema)
@@ -735,7 +736,7 @@ func TestInfoSchemaImpl_GetRowsFromTable(t *testing.T) {
 		scanOutputs: scanOutputs,
 	}
 	tableName := "testtable"
-	isi := InfoSchemaImpl{client, 10}
+	isi := InfoSchemaImpl{client, nil, 10}
 
 	rows, err := isi.GetRowsFromTable(conv, tableName)
 	assert.Nil(t, err)
@@ -771,7 +772,7 @@ func TestInfoSchemaImpl_ProcessData(t *testing.T) {
 	client := &mockDynamoClient{
 		scanOutputs: scanOutputs,
 	}
-	isi := InfoSchemaImpl{client, 10}
+	isi := InfoSchemaImpl{client, nil, 10}
 
 	tableName := "testtable"
 	cols := []string{"a", "b", "c", "d"}
@@ -906,7 +907,7 @@ func TestSetRowStats(t *testing.T) {
 		describeTableOutputs: describeTableOutputs,
 	}
 
-	common.SetRowStats(conv, InfoSchemaImpl{client, 10})
+	common.SetRowStats(conv, InfoSchemaImpl{client, nil, 10})
 
 	assert.Equal(t, tableItemCountA, conv.Stats.Rows[tableNameA])
 	assert.Equal(t, tableItemCountB, conv.Stats.Rows[tableNameB])
