@@ -178,8 +178,6 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 
 	primarykey.DetectHotspot()
 
-	PrintAssignUniqueId(conv)
-
 	sessionMetadata := session.SessionMetadata{
 		SessionName:  "NewSession",
 		DatabaseType: sessionState.Driver,
