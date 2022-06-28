@@ -15,6 +15,7 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"math/bits"
@@ -24,6 +25,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/civil"
+	sp "cloud.google.com/go/spanner"
 	_ "github.com/lib/pq" // we will use database/sql package instead of using this package directly
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -35,6 +37,15 @@ import (
 // InfoSchemaImpl postgres specific implementation for InfoSchema.
 type InfoSchemaImpl struct {
 	Db *sql.DB
+}
+
+// We leave the 2 functions below empty to be able to pass this as an infoSchema interface. We don't need these for now.
+func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
+	return nil, nil
+}
+
+func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) error {
+	return nil
 }
 
 // GetToDdl function below implement the common.InfoSchema interface.
