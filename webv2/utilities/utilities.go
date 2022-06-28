@@ -127,15 +127,15 @@ func DuplicateInArray(element []int) int {
 }
 
 // Difference gives list of element that are only present in first list.
-func Difference(listone, listtwo []int) []int {
+func Difference(listone, listtwo []string) []string {
 
-	hashmap := make(map[int]int, len(listtwo))
+	hashmap := make(map[string]int, len(listtwo))
 
 	for _, val := range listtwo {
 		hashmap[val]++
 	}
 
-	var diff []int
+	var diff []string
 
 	for _, val := range listone {
 

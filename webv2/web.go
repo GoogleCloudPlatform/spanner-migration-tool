@@ -171,10 +171,14 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	InitObjectId()
+
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
 
 	primarykey.DetectHotspot()
+
+	PrintAssignUniqueId(conv)
 
 	sessionMetadata := session.SessionMetadata{
 		SessionName:  "NewSession",
@@ -236,10 +240,10 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
+	InitObjectId()
 
 	AssignUniqueId(conv)
 	sessionState.Conv = conv
-
 	primarykey.DetectHotspot()
 
 	sessionState.SessionMetadata = sessionMetadata
@@ -259,6 +263,8 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 // loadSession load seesion file to Harbourbridge.
 func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
+
+	InitObjectId()
 
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1486,6 +1492,8 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 
 func init() {
 	sessionState := session.GetSessionState()
+
+	InitObjectId()
 
 	// Initialize mysqlTypeMap.
 	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {

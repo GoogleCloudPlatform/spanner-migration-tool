@@ -86,7 +86,7 @@ func hotspotAutoincrement(insert []ddl.IndexKey, spannerTable ddl.CreateTable) {
 
 // detecthotspotAutoincrement checks for autoincrement hotspot.
 // If present it adds HotspotAutoIncrement as an issue in Issues.
-func detecthotspotAutoincrement(spannerTable ddl.CreateTable, spannerColumnId int) {
+func detecthotspotAutoincrement(spannerTable ddl.CreateTable, spannerColumnId string) {
 
 	sessionState := session.GetSessionState()
 	sourcetable := sessionState.Conv.SrcSchema[spannerTable.Name]

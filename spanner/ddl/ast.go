@@ -147,7 +147,7 @@ type ColumnDef struct {
 	T       Type
 	NotNull bool
 	Comment string
-	Id      int
+	Id      string
 }
 
 // Config controls how AST nodes are printed (aka unparsed).
@@ -216,7 +216,7 @@ type Foreignkey struct {
 	Columns      []string
 	ReferTable   string
 	ReferColumns []string
-	Id           int
+	Id           string
 }
 
 // PrintForeignKey unparses the foreign keys.
@@ -244,7 +244,7 @@ type CreateTable struct {
 	Indexes  []CreateIndex
 	Parent   string //if not empty, this table will be interleaved
 	Comment  string
-	Id       int
+	Id       string
 }
 
 // PrintCreateTable unparses a CREATE TABLE statement.
@@ -301,7 +301,7 @@ type CreateIndex struct {
 	Table  string
 	Unique bool
 	Keys   []IndexKey
-	Id     int
+	Id     string
 	// We have no requirements for null-filtered option and
 	// storing/interleaving clauses yet, so we omit them for now.
 }

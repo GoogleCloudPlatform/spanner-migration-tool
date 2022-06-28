@@ -25,9 +25,9 @@ import (
 )
 
 // getColumnId return ColumnId for given columnName.
-func getColumnId(spannerTable ddl.CreateTable, columnName string) int {
+func getColumnId(spannerTable ddl.CreateTable, columnName string) string {
 
-	var id int
+	var id string
 	for _, col := range spannerTable.ColDefs {
 		if col.Name == columnName {
 			id = col.Id
@@ -50,7 +50,7 @@ func getSpannerTable(sessionState *session.SessionState, pkRequest PrimaryKeyReq
 }
 
 // getColumnName return columnName for given columnId.
-func getColumnName(spannerTable ddl.CreateTable, columnId int) string {
+func getColumnName(spannerTable ddl.CreateTable, columnId string) string {
 
 	var columnName string
 	for _, col := range spannerTable.ColDefs {
@@ -62,9 +62,9 @@ func getColumnName(spannerTable ddl.CreateTable, columnId int) string {
 }
 
 // getColumnIdListFromPrimaryKeyRequest return list of column Id from PrimaryKeyRequest.
-func getColumnIdListFromPrimaryKeyRequest(pkRequest PrimaryKeyRequest) []int {
+func getColumnIdListFromPrimaryKeyRequest(pkRequest PrimaryKeyRequest) []string {
 
-	cidlist := []int{}
+	cidlist := []string{}
 
 	for i := 0; i < len(pkRequest.Columns); i++ {
 		cidlist = append(cidlist, pkRequest.Columns[i].ColumnId)
@@ -73,8 +73,8 @@ func getColumnIdListFromPrimaryKeyRequest(pkRequest PrimaryKeyRequest) []int {
 }
 
 // getColumnIdListOfSpannerTablePrimaryKey return list of column Id from spannerTable PrimaryKey.
-func getColumnIdListOfSpannerTablePrimaryKey(spannerTable ddl.CreateTable) []int {
-	cidlist := []int{}
+func getColumnIdListOfSpannerTablePrimaryKey(spannerTable ddl.CreateTable) []string {
+	cidlist := []string{}
 
 	for i := 0; i < len(spannerTable.Pks); i++ {
 		cid := getColumnId(spannerTable, spannerTable.Pks[i].Col)
@@ -84,8 +84,8 @@ func getColumnIdListOfSpannerTablePrimaryKey(spannerTable ddl.CreateTable) []int
 }
 
 // getColumnIdListOfSpannerTable return list of column Id from spannerTable ColDefs.
-func getColumnIdListOfSpannerTable(spannerTable ddl.CreateTable) []int {
-	cidlist := []int{}
+func getColumnIdListOfSpannerTable(spannerTable ddl.CreateTable) []string {
+	cidlist := []string{}
 
 	for _, column := range spannerTable.ColDefs {
 		cidlist = append(cidlist, column.Id)

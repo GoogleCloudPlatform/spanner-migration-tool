@@ -75,13 +75,13 @@ func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 
 	}
 
-	cidRequestList = []int{}
-	cidSpannerTableList = []int{}
+	cidRequestList = []string{}
+	cidSpannerTableList = []string{}
 	return spannerTable
 }
 
 // addPrimaryKey insert primary key into list of IndexKey.
-func addPrimaryKey(add []int, pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) []ddl.IndexKey {
+func addPrimaryKey(add []string, pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) []ddl.IndexKey {
 
 	list := []ddl.IndexKey{}
 
@@ -131,7 +131,7 @@ func addPrimaryKey(add []int, pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 }
 
 // removePrimaryKey removes primary key from list of IndexKey.
-func removePrimaryKey(remove []int, spannerTable ddl.CreateTable) []ddl.IndexKey {
+func removePrimaryKey(remove []string, spannerTable ddl.CreateTable) []ddl.IndexKey {
 
 	list := spannerTable.Pks
 

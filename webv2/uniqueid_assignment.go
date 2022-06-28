@@ -22,9 +22,12 @@
 package webv2
 
 import (
+	"strconv"
+
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
 // AssignUniqueId to handles  cascading effect in UI.
@@ -32,18 +35,15 @@ import (
 // and assign id to table and column.
 func AssignUniqueId(conv *internal.Conv) {
 
-	tableuniqueid := 1
-
 	for sourcetablename, sourcetable := range conv.SrcSchema {
 
 		for spannertablename, spannertable := range conv.SpSchema {
 
 			if sourcetablename == spannertablename {
 
+				tableuniqueid := generateTableId()
 				sourcetable.Id = tableuniqueid
 				spannertable.Id = tableuniqueid
-
-				tableuniqueid = tableuniqueid + 1
 
 				for sourcecolumnname, sourcecolumn := range sourcetable.ColDefs {
 
@@ -51,21 +51,58 @@ func AssignUniqueId(conv *internal.Conv) {
 
 						if sourcecolumn.Name == spannercolumn.Name {
 
-							index := getColumnIndex(spannertable, spannercolumn.Name)
-
-							sourcecolumn.Id = index
-							spannercolumn.Id = index
+							columnuniqueid := generateColumnId()
+							sourcecolumn.Id = columnuniqueid
+							spannercolumn.Id = columnuniqueid
 
 							conv.SrcSchema[sourcetablename].ColDefs[sourcecolumnname] = sourcecolumn
 							conv.SpSchema[spannertablename].ColDefs[spannercolumnname] = spannercolumn
 
-							updateSpannerTableIndexKeyOrder(spannertable)
-							updateSourceTableIndexKeyOrder(sourcetable)
 							break
 						}
 					}
 
 				}
+
+				for sourceforeignkeyindex, sourceforeignkey := range sourcetable.ForeignKeys {
+
+					for spannerforeignkeyindex, spannerforeignkey := range spannertable.Fks {
+
+						if sourceforeignkey.Name == spannerforeignkey.Name {
+
+							foreignkeyid := generateForeignkeyId()
+
+							sourceforeignkey.Id = foreignkeyid
+							spannerforeignkey.Id = foreignkeyid
+
+							conv.SrcSchema[sourcetable.Name].ForeignKeys[sourceforeignkeyindex] = sourceforeignkey
+							conv.SpSchema[spannertable.Name].Fks[spannerforeignkeyindex] = spannerforeignkey
+						}
+
+					}
+				}
+
+				for sourcei, sourceindexes := range sourcetable.Indexes {
+
+					for spanneri, spannerindexes := range spannertable.Indexes {
+
+						if sourceindexes.Name == spannerindexes.Name {
+
+							indexesid := generateIndexesId()
+
+							sourceindexes.Id = indexesid
+							spannerindexes.Id = indexesid
+
+							conv.SrcSchema[sourcetable.Name].Indexes[sourcei] = sourceindexes
+							conv.SpSchema[spannertable.Name].Indexes[spanneri] = spannerindexes
+
+						}
+
+					}
+				}
+
+				updateSpannerTableIndexKeyOrder(spannertable)
+				updateSourceTableIndexKeyOrder(sourcetable)
 
 				conv.SrcSchema[sourcetablename] = sourcetable
 				conv.SpSchema[spannertablename] = spannertable
@@ -80,9 +117,12 @@ func AssignUniqueId(conv *internal.Conv) {
 func updateSpannerTableIndexKeyOrder(spannertable ddl.CreateTable) {
 
 	for i := 0; i < len(spannertable.Pks); i++ {
-		for spannercolumnname, spannercolumn := range spannertable.ColDefs {
+		for spannercolumnname, _ := range spannertable.ColDefs {
 			if spannertable.Pks[i].Col == spannercolumnname {
-				spannertable.Pks[i].Order = spannercolumn.Id
+
+				o := getSpannerColumnIndex(spannertable, spannercolumnname)
+				spannertable.Pks[i].Order = o
+
 			}
 		}
 	}
@@ -92,16 +132,18 @@ func updateSpannerTableIndexKeyOrder(spannertable ddl.CreateTable) {
 func updateSourceTableIndexKeyOrder(sourcetable schema.Table) {
 
 	for i := 0; i < len(sourcetable.PrimaryKeys); i++ {
-		for sourcecolumnname, spannercolumn := range sourcetable.ColDefs {
+		for sourcecolumnname, _ := range sourcetable.ColDefs {
 			if sourcetable.PrimaryKeys[i].Column == sourcecolumnname {
-				sourcetable.PrimaryKeys[i].Order = spannercolumn.Id
+
+				o := getSourceColumnIndex(sourcetable, sourcecolumnname)
+				sourcetable.PrimaryKeys[i].Order = o
 			}
 		}
 	}
 }
 
-// getColumnIndex return columnn index as Inserted Order.
-func getColumnIndex(spannertable ddl.CreateTable, columnName string) int {
+// getSpannerColumnIndex return columnn index as Inserted Order.
+func getSpannerColumnIndex(spannertable ddl.CreateTable, columnName string) int {
 
 	for i := 0; i < len(spannertable.ColNames); i++ {
 		if spannertable.ColNames[i] == columnName {
@@ -109,4 +151,65 @@ func getColumnIndex(spannertable ddl.CreateTable, columnName string) int {
 		}
 	}
 	return 0
+}
+
+// getColumnIndex return columnn index as Inserted Order.
+func getSourceColumnIndex(sourcetable schema.Table, columnName string) int {
+
+	for i := 0; i < len(sourcetable.ColNames); i++ {
+		if sourcetable.ColNames[i] == columnName {
+			return i + 1
+		}
+	}
+	return 0
+}
+
+func generateId() string {
+
+	sessionState := session.GetSessionState()
+
+	counter, _ := strconv.Atoi(sessionState.Counter.ObjectId)
+
+	counter = counter + 1
+
+	sessionState.Counter.ObjectId = strconv.Itoa(counter)
+	return sessionState.Counter.ObjectId
+}
+
+func generateTableId() string {
+	tablePrefix := "t"
+	id := generateId()
+	tableId := tablePrefix + id
+	return tableId
+}
+
+func generateColumnId() string {
+
+	columnPrefix := "c"
+	id := generateId()
+	columnId := columnPrefix + id
+	return columnId
+}
+
+func generateForeignkeyId() string {
+
+	foreignKeyPrefix := "f"
+	id := generateId()
+	foreignKeyId := foreignKeyPrefix + id
+	return foreignKeyId
+}
+
+func generateIndexesId() string {
+
+	indexesPrefix := "i"
+	id := generateId()
+
+	indexesId := indexesPrefix + id
+	return indexesId
+}
+
+func InitObjectId() {
+
+	sessionState := session.GetSessionState()
+	sessionState.Counter.ObjectId = "0"
 }
