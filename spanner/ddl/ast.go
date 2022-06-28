@@ -195,7 +195,6 @@ type IndexKey struct {
 	Col   string
 	Desc  bool // Default order is ascending i.e. Desc = false.
 	Order int
-	Id    int
 }
 
 // PrintIndexKey unparses the index keys.
