@@ -178,7 +178,6 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	uniqueid.AssignUniqueId(conv)
 	sessionState.Conv = conv
 
-	uniqueid.PrintAssignUniqueId(conv)
 	primarykey.DetectHotspot()
 
 	sessionMetadata := session.SessionMetadata{
