@@ -38,10 +38,10 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/setparent", setParentTable).Methods("GET")
 
 	// TODO:(searce) take constraint names themselves which are guaranteed to be unique for Spanner.
-	router.HandleFunc("/drop/fk", dropForeignKey).Methods("GET")
+	router.HandleFunc("/drop/fk", dropForeignKey).Methods("POST")
 
 	// TODO:(searce) take constraint names themselves which are guaranteed to be unique for Spanner.
-	router.HandleFunc("/drop/secondaryindex", dropSecondaryIndex).Methods("GET")
+	router.HandleFunc("/drop/secondaryindex", dropSecondaryIndex).Methods("POST")
 
 	router.HandleFunc("/rename/fks", renameForeignKeys).Methods("POST")
 	router.HandleFunc("/rename/indexes", renameIndexes).Methods("POST")

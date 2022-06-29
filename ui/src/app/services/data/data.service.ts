@@ -214,8 +214,8 @@ export class DataService {
     )
   }
 
-  dropFk(tableName: string, pos: number) {
-    return this.fetch.removeFk(tableName, pos).pipe(
+  dropFk(tableName: string, fkName: string) {
+    return this.fetch.removeFk(tableName, fkName).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),
@@ -297,8 +297,8 @@ export class DataService {
     })
   }
 
-  dropIndex(tableName: string, pos: number): Observable<string> {
-    return this.fetch.dropIndex(tableName, pos).pipe(
+  dropIndex(tableName: string, indexName: string): Observable<string> {
+    return this.fetch.dropIndex(tableName, indexName).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),

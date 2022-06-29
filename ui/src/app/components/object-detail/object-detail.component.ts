@@ -287,8 +287,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropFk(element: any) {
-    let ind: number = this.getRemovedFkIndex(element)
-    this.data.dropFk(this.currentObject!.name, ind).subscribe({
+    this.data.dropFk(this.currentObject!.name, element.get('spName').value).subscribe({
       next: (res: string) => {
         if (res == '') {
           this.data.getDdl()
@@ -364,7 +363,7 @@ export class ObjectDetailComponent implements OnInit {
     openDialog.afterClosed().subscribe((res: string) => {
       if (res) {
         this.data
-          .dropIndex(this.currentObject!.parent, this.currentObject!.pos)
+          .dropIndex(this.currentObject!.parent, this.currentObject!.name)
           .pipe(take(1))
           .subscribe((res: string) => {
             if (res === '') {

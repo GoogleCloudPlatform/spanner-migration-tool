@@ -589,23 +589,39 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 	return tableInterleaveStatus
 }
 
+type DropDetail struct {
+	Name string `json:"Name"`
+}
+
 func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
-	pos := r.FormValue("pos")
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	}
+
+	var dropDetail DropDetail
+	if err = json.Unmarshal(reqBody, &dropDetail); err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+
 	sessionState := session.GetSessionState()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
-	if table == "" || pos == "" {
+	if table == "" || dropDetail.Name == "" {
 		http.Error(w, fmt.Sprintf("Table name or position is empty"), http.StatusBadRequest)
 	}
 	sp := sessionState.Conv.SpSchema[table]
-	position, err := strconv.Atoi(pos)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error converting position to integer"), http.StatusBadRequest)
-		return
+	position := -1
+	for i, fk := range sp.Fks {
+		if dropDetail.Name == fk.Name {
+			position = i
+		}
 	}
+
 	if position < 0 || position >= len(sp.Fks) {
 		http.Error(w, fmt.Sprintf("No foreign key found at position %d", position), http.StatusBadRequest)
 		return
@@ -888,19 +904,29 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 
 	table := r.FormValue("table")
-	pos := r.FormValue("pos")
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	}
+
+	var dropDetail DropDetail
+	if err = json.Unmarshal(reqBody, &dropDetail); err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
-	if table == "" || pos == "" {
+	if table == "" || dropDetail.Name == "" {
 		http.Error(w, fmt.Sprintf("Table name or position is empty"), http.StatusBadRequest)
 	}
 	sp := sessionState.Conv.SpSchema[table]
-	position, err := strconv.Atoi(pos)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error converting position to integer"), http.StatusBadRequest)
-		return
+	position := -1
+	for i, index := range sp.Indexes {
+		if dropDetail.Name == index.Name {
+			position = i
+		}
 	}
 	if position < 0 || position >= len(sp.Indexes) {
 		http.Error(w, fmt.Sprintf("No secondary index found at position %d", position), http.StatusBadRequest)
