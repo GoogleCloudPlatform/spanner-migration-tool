@@ -117,7 +117,12 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 		if err != nil {
 			panic(fmt.Errorf("can't generate database name for prefix: %v", err))
 		}
-		cmd.filePrefix = dbName + "."
+		dirPath := "harbour_bridge_output/" + dbName + "/"
+		err = os.MkdirAll(dirPath, os.ModePerm)
+		if err != nil {
+			fmt.Fprintf(ioHelper.Out, "Can't create directory %s: %v\n", dirPath, err)
+		}
+		cmd.filePrefix = dirPath + dbName + "."
 	}
 
 	var conv *internal.Conv

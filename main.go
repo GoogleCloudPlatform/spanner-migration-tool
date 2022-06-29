@@ -196,7 +196,12 @@ func main() {
 
 	// If filePrefix not explicitly set, use dbName.
 	if filePrefix == "" {
-		filePrefix = dbName + "."
+		dirPath := "harbour_bridge_output/" + dbName + "/"
+		err = os.MkdirAll(dirPath, os.ModePerm)
+		if err != nil {
+			fmt.Fprintf(ioHelper.Out, "Can't create directory %s: %v\n", dirPath, err)
+		}
+		filePrefix = dirPath + dbName + "."
 	}
 
 	// TODO (agasheesh@): Collect all the config state in a single struct and pass the same to CommandLine instead of

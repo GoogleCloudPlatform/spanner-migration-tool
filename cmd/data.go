@@ -125,7 +125,12 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 
 	// If filePrefix not explicitly set, use dbName as prefix.
 	if cmd.filePrefix == "" {
-		cmd.filePrefix = dbName + "."
+		dirPath := "harbour_bridge_output/" + dbName + "/"
+		err = os.MkdirAll(dirPath, os.ModePerm)
+		if err != nil {
+			fmt.Fprintf(ioHelper.Out, "Can't create directory %s: %v\n", dirPath, err)
+		}
+		cmd.filePrefix = dirPath + dbName + "."
 	}
 
 	client, err := utils.GetClient(ctx, dbURI)
