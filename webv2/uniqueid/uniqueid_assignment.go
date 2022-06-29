@@ -12,14 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package ddl provides a go representation of Spanner DDL
-// as well as helpers for building and manipulating Spanner DDL.
-// We only implement enough DDL types to meet the needs of HarbourBridge.
-//
-// Definitions are from
-// https://cloud.google.com/spanner/docs/data-definition-language.
-
-package webv2
+package uniqueid
 
 import (
 	"strconv"
@@ -41,9 +34,20 @@ func AssignUniqueId(conv *internal.Conv) {
 
 			if sourcetablename == spannertablename {
 
-				tableuniqueid := generateTableId()
+				tableuniqueid := GenerateTableId()
 				sourcetable.Id = tableuniqueid
 				spannertable.Id = tableuniqueid
+
+				for spannercolumnname, spannercolumn := range spannertable.ColDefs {
+
+					if spannercolumn.Name == "synth_id" {
+
+						columnuniqueid := GenerateColumnId()
+						spannercolumn.Id = columnuniqueid
+						conv.SpSchema[spannertablename].ColDefs[spannercolumnname] = spannercolumn
+					}
+
+				}
 
 				for sourcecolumnname, sourcecolumn := range sourcetable.ColDefs {
 
@@ -51,7 +55,7 @@ func AssignUniqueId(conv *internal.Conv) {
 
 						if sourcecolumn.Name == spannercolumn.Name {
 
-							columnuniqueid := generateColumnId()
+							columnuniqueid := GenerateColumnId()
 							sourcecolumn.Id = columnuniqueid
 							spannercolumn.Id = columnuniqueid
 
@@ -70,7 +74,7 @@ func AssignUniqueId(conv *internal.Conv) {
 
 						if sourceforeignkey.Name == spannerforeignkey.Name {
 
-							foreignkeyid := generateForeignkeyId()
+							foreignkeyid := GenerateForeignkeyId()
 
 							sourceforeignkey.Id = foreignkeyid
 							spannerforeignkey.Id = foreignkeyid
@@ -88,7 +92,7 @@ func AssignUniqueId(conv *internal.Conv) {
 
 						if sourceindexes.Name == spannerindexes.Name {
 
-							indexesid := generateIndexesId()
+							indexesid := GenerateIndexesId()
 
 							sourceindexes.Id = indexesid
 							spannerindexes.Id = indexesid
@@ -164,7 +168,7 @@ func getSourceColumnIndex(sourcetable schema.Table, columnName string) int {
 	return 0
 }
 
-func generateId() string {
+func GenerateId() string {
 
 	sessionState := session.GetSessionState()
 
@@ -176,33 +180,33 @@ func generateId() string {
 	return sessionState.Counter.ObjectId
 }
 
-func generateTableId() string {
+func GenerateTableId() string {
 	tablePrefix := "t"
-	id := generateId()
+	id := GenerateId()
 	tableId := tablePrefix + id
 	return tableId
 }
 
-func generateColumnId() string {
+func GenerateColumnId() string {
 
 	columnPrefix := "c"
-	id := generateId()
+	id := GenerateId()
 	columnId := columnPrefix + id
 	return columnId
 }
 
-func generateForeignkeyId() string {
+func GenerateForeignkeyId() string {
 
 	foreignKeyPrefix := "f"
-	id := generateId()
+	id := GenerateId()
 	foreignKeyId := foreignKeyPrefix + id
 	return foreignKeyId
 }
 
-func generateIndexesId() string {
+func GenerateIndexesId() string {
 
 	indexesPrefix := "i"
-	id := generateId()
+	id := GenerateId()
 
 	indexesId := indexesPrefix + id
 	return indexesId

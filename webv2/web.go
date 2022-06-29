@@ -56,6 +56,8 @@ import (
 
 	primarykey "github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
 
+	uniqueid "github.com/cloudspannerecosystem/harbourbridge/webv2/uniqueid"
+
 	go_ora "github.com/sijms/go-ora/v2"
 )
 
@@ -171,11 +173,12 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	InitObjectId()
+	uniqueid.InitObjectId()
 
-	AssignUniqueId(conv)
+	uniqueid.AssignUniqueId(conv)
 	sessionState.Conv = conv
 
+	uniqueid.PrintAssignUniqueId(conv)
 	primarykey.DetectHotspot()
 
 	sessionMetadata := session.SessionMetadata{
@@ -238,10 +241,11 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
-	InitObjectId()
+	uniqueid.InitObjectId()
 
-	AssignUniqueId(conv)
+	uniqueid.AssignUniqueId(conv)
 	sessionState.Conv = conv
+	uniqueid.PrintAssignUniqueId(conv)
 	primarykey.DetectHotspot()
 
 	sessionState.SessionMetadata = sessionMetadata
@@ -262,7 +266,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 
-	InitObjectId()
+	uniqueid.InitObjectId()
 
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -295,9 +299,11 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.Conv = conv
 
-	AssignUniqueId(conv)
+	uniqueid.AssignUniqueId(conv)
 
 	sessionState.Conv = conv
+
+	uniqueid.PrintAssignUniqueId(conv)
 
 	primarykey.DetectHotspot()
 
@@ -928,6 +934,11 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 
 	sp := sessionState.Conv.SpSchema[table]
+
+	for i := 0; i < len(newIndexes); i++ {
+		newIndexes[i].Id = uniqueid.GenerateIndexesId()
+	}
+
 	sp.Indexes = append(sp.Indexes, newIndexes...)
 
 	sessionState.Conv.SpSchema[table] = sp
@@ -1491,7 +1502,7 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 func init() {
 	sessionState := session.GetSessionState()
 
-	InitObjectId()
+	uniqueid.InitObjectId()
 
 	// Initialize mysqlTypeMap.
 	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
