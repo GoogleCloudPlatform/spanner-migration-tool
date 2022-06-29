@@ -261,6 +261,7 @@ type SourceProfileConnectionDynamoDB struct {
 	AwsRegion          string // Same as AWS_REGION environment variable
 	DydbEndpoint       string // Same as DYNAMODB_ENDPOINT_OVERRIDE environment variable
 	SchemaSampleSize   int64  // Number of rows to use for inferring schema (default 100,000)
+	Streaming          string // Confirmation for streaming migration (required yes)
 }
 
 func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfileConnectionDynamoDB, error) {
@@ -287,6 +288,10 @@ func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfile
 	}
 	if dydb.DydbEndpoint, ok = params["dydb-endpoint"]; ok {
 		os.Setenv("DYNAMODB_ENDPOINT_OVERRIDE", dydb.DydbEndpoint)
+	}
+	streaming, ok := params["streaming"]
+	if ok {
+		dydb.Streaming = streaming
 	}
 	return dydb, nil
 }
@@ -376,6 +381,9 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 			conn.Dydb, err = NewSourceProfileConnectionDynamoDB(params)
 			if err != nil {
 				return conn, err
+			}
+			if conn.Dydb.Streaming == "yes" {
+				conn.Streaming = true
 			}
 		}
 

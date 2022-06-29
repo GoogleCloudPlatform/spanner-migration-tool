@@ -36,6 +36,8 @@ type mockDynamoClient struct {
 	describeTableOutputs   []dynamodb.DescribeTableOutput
 	scanCallCount          int
 	scanOutputs            []dynamodb.ScanOutput
+	updateTableCallCount   int
+	updateTableOutputs     []dynamodb.UpdateTableOutput
 	dynamodbiface.DynamoDBAPI
 }
 
@@ -61,6 +63,14 @@ func (m *mockDynamoClient) Scan(input *dynamodb.ScanInput) (*dynamodb.ScanOutput
 	}
 	m.scanCallCount++
 	return &m.scanOutputs[m.scanCallCount-1], nil
+}
+
+func (m *mockDynamoClient) UpdateTable(input *dynamodb.UpdateTableInput) (*dynamodb.UpdateTableOutput, error) {
+	if m.updateTableCallCount >= len(m.updateTableOutputs) {
+		return nil, fmt.Errorf("unexpected call to UpdateTable: %v", input)
+	}
+	m.updateTableCallCount++
+	return &m.updateTableOutputs[m.updateTableCallCount-1], nil
 }
 
 func TestProcessSchema(t *testing.T) {
