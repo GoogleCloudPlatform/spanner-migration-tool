@@ -9,3 +9,11 @@ body {
   margin: 0;
   font-family: Roboto, 'Helvetica Neue', sans-serif;
 }
+
+.content-height {
+  height: calc(100vh - 80px);
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
