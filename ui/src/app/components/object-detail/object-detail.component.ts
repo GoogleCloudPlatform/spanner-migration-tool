@@ -440,8 +440,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   getPkRequestObj() {
-    let tableId: number = this.conv.SpSchema[this.currentObject!.name].Id
-    let PrimaryKeyId: number = this.conv.SpSchema[this.currentObject!.name].PrimaryKeyId
+    let tableId: string = this.conv.SpSchema[this.currentObject!.name].Id
     let Columns: { ColumnId: number; ColName: string; Desc: boolean; Order: number }[] = []
     this.pkArray.value.forEach((row: IColumnTabData) => {
       if (row.spIsPk)
@@ -461,7 +460,6 @@ export class ObjectDetailComponent implements OnInit {
     })
     this.pkObj.TableId = tableId
     this.pkObj.Columns = Columns
-    this.pkObj.PrimaryKeyId = PrimaryKeyId
     console.log(this.pkObj)
   }
 
