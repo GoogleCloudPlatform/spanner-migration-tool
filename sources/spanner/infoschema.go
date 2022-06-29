@@ -45,7 +45,7 @@ func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
 }
 
-// We leave the 3 functions below empty to be able to pass this as an infoSchema interface. We don't need these for now.
+// We leave the 5 functions below empty to be able to pass this as an infoSchema interface. We don't need these for now.
 func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) error {
 	return nil
 }
@@ -56,6 +56,14 @@ func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error)
 
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
 	return nil, nil
+}
+
+func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
+	return nil, nil
+}
+
+func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *spanner.Client, conv *internal.Conv, streamingInfo map[string]interface{}) error {
+	return nil
 }
 
 // GetTableName returns table name.

@@ -182,11 +182,16 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		}
 	}
 
-	bw, err := migrateData(ctx, sourceProfile, targetProfile, ioHelper, client, conv, cmd.writeLimit, dbURI)
+	dataCoversionStartTime := time.Now()
+	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, client, conv, true, cmd.writeLimit)
 	if err != nil {
-		err = fmt.Errorf("can't do data migration: %v", err)
+		err = fmt.Errorf("can't finish data migration: %v", err)
 		return subcommands.ExitFailure
 	}
+	dataCoversionEndTime := time.Now()
+	dataCoversionDuration := dataCoversionEndTime.Sub(dataCoversionStartTime)
+	conv.Audit.DataConversionDuration = dataCoversionDuration
+
 	if !cmd.skipForeignKeys {
 		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
 			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
