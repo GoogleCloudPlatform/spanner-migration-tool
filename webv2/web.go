@@ -245,7 +245,6 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 
 	uniqueid.AssignUniqueId(conv)
 	sessionState.Conv = conv
-	uniqueid.PrintAssignUniqueId(conv)
 	primarykey.DetectHotspot()
 
 	sessionState.SessionMetadata = sessionMetadata
@@ -302,8 +301,6 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	uniqueid.AssignUniqueId(conv)
 
 	sessionState.Conv = conv
-
-	uniqueid.PrintAssignUniqueId(conv)
 
 	primarykey.DetectHotspot()
 
