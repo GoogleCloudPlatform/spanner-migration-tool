@@ -111,13 +111,13 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 
 	schemaConversionStartTime := time.Now()
 
-	// If filePrefix not explicitly set, use dbName as prefix.
+	// If filePrefix not explicitly set, use dbname for prefix.
 	if cmd.filePrefix == "" {
 		dbName, err := utils.GetDatabaseName(sourceProfile.Driver, schemaConversionStartTime)
 		if err != nil {
 			panic(fmt.Errorf("can't generate database name for prefix: %v", err))
 		}
-		dirPath := "harbour_bridge_output/" + dbName + "/"
+		dirPath := fmt.Sprintf("harbour_bridge_output/" + dbName + "/")
 		err = os.MkdirAll(dirPath, os.ModePerm)
 		if err != nil {
 			fmt.Fprintf(ioHelper.Out, "Can't create directory %s: %v\n", dirPath, err)

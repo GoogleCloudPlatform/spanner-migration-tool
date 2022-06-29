@@ -110,7 +110,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 			err = fmt.Errorf("can't generate database name for prefix: %v", err)
 			return subcommands.ExitFailure
 		}
-		dirPath := "harbour_bridge_output/" + dbName + "/"
+		dirPath := fmt.Sprintf("harbour_bridge_output/" + dbName + "/")
 		err = os.MkdirAll(dirPath, os.ModePerm)
 		if err != nil {
 			fmt.Fprintf(ioHelper.Out, "Can't create directory %s: %v\n", dirPath, err)

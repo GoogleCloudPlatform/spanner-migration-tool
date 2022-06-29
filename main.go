@@ -196,7 +196,7 @@ func main() {
 
 	// If filePrefix not explicitly set, use dbName.
 	if filePrefix == "" {
-		dirPath := "harbour_bridge_output/" + dbName + "/"
+		dirPath := fmt.Sprintf("harbour_bridge_output/" + dbName + "/")
 		err = os.MkdirAll(dirPath, os.ModePerm)
 		if err != nil {
 			fmt.Fprintf(ioHelper.Out, "Can't create directory %s: %v\n", dirPath, err)

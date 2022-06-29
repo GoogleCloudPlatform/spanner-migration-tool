@@ -123,9 +123,9 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
 
-	// If filePrefix not explicitly set, use dbName as prefix.
+	// If filePrefix not explicitly set, use dbName for prefix.
 	if cmd.filePrefix == "" {
-		dirPath := "harbour_bridge_output/" + dbName + "/"
+		dirPath := fmt.Sprintf("harbour_bridge_output/" + dbName + "/")
 		err = os.MkdirAll(dirPath, os.ModePerm)
 		if err != nil {
 			fmt.Fprintf(ioHelper.Out, "Can't create directory %s: %v\n", dirPath, err)
