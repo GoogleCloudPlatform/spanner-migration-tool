@@ -20,7 +20,6 @@ import (
 func TestInfoSchemaImpl_StartChangeDataCapture(t *testing.T) {
 	tableName := "testtable"
 	attrNameA := "a"
-	hashKeyType := "HASH"
 	latestStreamArn := "arn:aws:dynamodb:dydb_endpoint:test_stream"
 
 	cols := []string{attrNameA}
@@ -50,6 +49,10 @@ func TestInfoSchemaImpl_StartChangeDataCapture(t *testing.T) {
 		ctx  context.Context
 		conv *internal.Conv
 	}
+	arguments := args{
+		ctx:  context.Background(),
+		conv: conv,
+	}
 	tests := []struct {
 		name    string
 		fields  fields
@@ -58,31 +61,12 @@ func TestInfoSchemaImpl_StartChangeDataCapture(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "test for checking correctness of output",
+			name: "test for checking correctness of output when stream exists already",
 			fields: fields{
 				DynamoClient: &mockDynamoClient{
 					describeTableOutputs: []dynamodb.DescribeTableOutput{
 						{
 							Table: &dynamodb.TableDescription{
-								TableName: &tableName,
-								StreamSpecification: &dynamodb.StreamSpecification{
-									StreamEnabled:  aws.Bool(true),
-									StreamViewType: aws.String(dynamodb.StreamViewTypeNewAndOldImages),
-								},
-							},
-						},
-					},
-					updateTableOutputs: []dynamodb.UpdateTableOutput{
-						{
-							TableDescription: &dynamodb.TableDescription{
-								TableName: &tableName,
-								KeySchema: []*dynamodb.KeySchemaElement{
-									{AttributeName: &attrNameA, KeyType: &hashKeyType},
-								},
-							},
-						},
-						{
-							TableDescription: &dynamodb.TableDescription{
 								TableName: &tableName,
 								StreamSpecification: &dynamodb.StreamSpecification{
 									StreamEnabled:  aws.Bool(true),
@@ -94,10 +78,37 @@ func TestInfoSchemaImpl_StartChangeDataCapture(t *testing.T) {
 					},
 				},
 			},
-			args: args{
-				ctx:  context.Background(),
-				conv: conv,
+			args: arguments,
+			want: map[string]interface{}{
+				tableName: latestStreamArn,
 			},
+			wantErr: false,
+		},
+		{
+			name: "test for checking correctness of output when a new stream is created",
+			fields: fields{
+				DynamoClient: &mockDynamoClient{
+					describeTableOutputs: []dynamodb.DescribeTableOutput{
+						{
+							Table: &dynamodb.TableDescription{
+								TableName: &tableName,
+							},
+						},
+					},
+					updateTableOutputs: []dynamodb.UpdateTableOutput{
+						{
+							TableDescription: &dynamodb.TableDescription{
+								LatestStreamArn: &latestStreamArn,
+								StreamSpecification: &dynamodb.StreamSpecification{
+									StreamEnabled:  aws.Bool(true),
+									StreamViewType: aws.String(dynamodb.StreamViewTypeNewAndOldImages),
+								},
+							},
+						},
+					},
+				},
+			},
+			args: arguments,
 			want: map[string]interface{}{
 				tableName: latestStreamArn,
 			},
@@ -111,19 +122,12 @@ func TestInfoSchemaImpl_StartChangeDataCapture(t *testing.T) {
 						{
 							Table: &dynamodb.TableDescription{
 								TableName: &tableName,
-								StreamSpecification: &dynamodb.StreamSpecification{
-									StreamEnabled:  aws.Bool(true),
-									StreamViewType: aws.String(dynamodb.StreamViewTypeNewImage),
-								},
 							},
 						},
 					},
 				},
 			},
-			args: args{
-				ctx:  context.Background(),
-				conv: conv,
-			},
+			args:    arguments,
 			want:    map[string]interface{}{},
 			wantErr: false,
 		},

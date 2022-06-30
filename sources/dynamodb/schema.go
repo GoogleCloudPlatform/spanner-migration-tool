@@ -197,7 +197,7 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
 	fmt.Println("Starting DynamoDB Streams initialization...")
 
-	LatestStreamArn := make(map[string]interface{})
+	latestStreamArn := make(map[string]interface{})
 	orderTableNames := ddl.OrderTables(conv.SpSchema)
 
 	for _, spannerTable := range orderTableNames {
@@ -207,14 +207,14 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 			conv.Unexpected(fmt.Sprintf("Couldn't initialize DynamoDB Stream for table %s: %s", srcTable, err))
 			continue
 		}
-		LatestStreamArn[srcTable] = streamArn
+		latestStreamArn[srcTable] = streamArn
 	}
 
 	fmt.Println("DynamoDB Streams initialized successfully.")
-	return LatestStreamArn, nil
+	return latestStreamArn, nil
 }
 
-func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, LatestStream map[string]interface{}) error {
+func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, latestStreamArn map[string]interface{}) error {
 	// TODO(nareshz): work in progress
 	return nil
 }
