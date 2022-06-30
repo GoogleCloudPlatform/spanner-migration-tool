@@ -296,7 +296,7 @@ func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfile
 		case "no", "false":
 			dydb.enableStreaming = "no"
 		default:
-			return dydb, fmt.Errorf("please specify a valid choice for enableStreaming, e.g. (yes, no, true, false)")
+			return dydb, fmt.Errorf("please specify a valid choice for enableStreaming: available choices(yes, no, true, false)")
 		}
 	}
 	return dydb, nil
