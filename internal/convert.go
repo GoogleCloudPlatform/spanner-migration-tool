@@ -92,6 +92,7 @@ const (
 	InterleavedADDCOLUMN
 	IndexRedandant
 	INDEX_TIMESTAMP
+	InterleaveIndex
 )
 
 // NameAndCols contains the name of a table and its columns.

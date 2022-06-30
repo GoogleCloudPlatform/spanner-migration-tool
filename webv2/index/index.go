@@ -15,7 +15,6 @@ func IndexSuggestion() {
 	sessionState := session.GetSessionState()
 
 	for _, spannerTable := range sessionState.Conv.SpSchema {
-
 		CheckIndexSuggestion(spannerTable.Indexes, spannerTable)
 	}
 }
@@ -24,6 +23,7 @@ func IndexSuggestion() {
 func CheckIndexSuggestion(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 
 	redundantIndex(index, spannerTable)
+	interleaveIndex(index, spannerTable)
 }
 
 // redundantIndex check for redundant Index.
@@ -33,22 +33,87 @@ func redundantIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 	for i := 0; i < len(index); i++ {
 
 		keys := index[i].Keys
+		var primaryKeyFirstColumn string
+		pks := spannerTable.Pks
 
-		for i := 0; i < len(keys); i++ {
+		for i := range pks {
+			if pks[i].Order == 1 {
+				primaryKeyFirstColumn = pks[i].Col
+			}
+		}
 
-			for _, c := range spannerTable.Pks {
+		indexFirstColumn := index[i].Keys[0].Col
 
-				if keys[i].Col == c.Col {
+		if primaryKeyFirstColumn == indexFirstColumn {
+			columnname := keys[i].Col
+			sessionState := session.GetSessionState()
+			schemaissue := sessionState.Conv.Issues[spannerTable.Name][columnname]
+			schemaissue = append(schemaissue, internal.IndexRedandant)
+			sessionState.Conv.Issues[spannerTable.Name][columnname] = schemaissue
+		}
 
-					columnname := keys[i].Col
-					sessionState := session.GetSessionState()
-					schemaissue := sessionState.Conv.Issues[spannerTable.Name][columnname]
+	}
+}
 
-					schemaissue = append(schemaissue, internal.IndexRedandant)
+// interleaveIndex suggests if an index can be converted to interleave.
+// If possible it gets added as a suggestion.
+func interleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 
-					sessionState.Conv.Issues[spannerTable.Name][columnname] = schemaissue
+	//Suggestion gets added only if the table can be interleaved.
+	isInterleavable := spannerTable.Parent != ""
 
+	if isInterleavable {
+
+		for i := 0; i < len(index); i++ {
+			var primaryKeyFirstColumn string
+			pks := spannerTable.Pks
+			for i := range pks {
+				if pks[i].Order == 1 {
+					primaryKeyFirstColumn = pks[i].Col
 				}
+			}
+
+			indexFirstColumn := index[i].Keys[0].Col
+
+			sessionState := session.GetSessionState()
+
+			//Ensuring it is not a redundant index.
+			if primaryKeyFirstColumn != indexFirstColumn {
+
+				schemaissue := sessionState.Conv.Issues[spannerTable.Name][indexFirstColumn]
+				fks := spannerTable.Fks
+
+				for i := range fks {
+					if fks[i].Columns[0] == indexFirstColumn {
+						schemaissue = append(schemaissue, internal.InterleaveIndex)
+						sessionState.Conv.Issues[spannerTable.Name][indexFirstColumn] = schemaissue
+
+					}
+				}
+
+				//Interleave suggestion if the column is of type auto increment.
+				if helpers.IsSchemaIssuePresent(schemaissue, internal.AutoIncrement) {
+					schemaissue = append(schemaissue, internal.InterleaveIndex)
+					sessionState.Conv.Issues[spannerTable.Name][indexFirstColumn] = schemaissue
+				}
+
+				for _, c := range spannerTable.ColDefs {
+
+					if indexFirstColumn == c.Name {
+
+						if c.T.Name == ddl.Timestamp {
+
+							columnname := c.Name
+							sessionState := session.GetSessionState()
+							schemaissue := sessionState.Conv.Issues[spannerTable.Name][columnname]
+
+							schemaissue = append(schemaissue, internal.InterleaveIndex)
+							sessionState.Conv.Issues[spannerTable.Name][columnname] = schemaissue
+						}
+
+					}
+				}
+
 			}
 
 		}
@@ -88,19 +153,19 @@ func RemoveIndexIssues(table string, Index ddl.CreateIndex) {
 
 				}
 			}
-
 		}
-
 	}
 }
 
 // RemoveSchemaIssue removes issue from the schemaissue list.
 func RemoveIndexIssue(schemaissue []internal.SchemaIssue) []internal.SchemaIssue {
 
-	switch {
-
-	case helpers.IsSchemaIssuePrsent(schemaissue, internal.IndexRedandant):
+	if helpers.IsSchemaIssuePresent(schemaissue, internal.IndexRedandant) {
 		schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.IndexRedandant)
+	}
+
+	if helpers.IsSchemaIssuePresent(schemaissue, internal.InterleaveIndex) {
+		schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleaveIndex)
 	}
 
 	return schemaissue

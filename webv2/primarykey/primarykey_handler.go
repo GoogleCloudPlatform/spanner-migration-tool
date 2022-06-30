@@ -27,6 +27,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/index"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 
 	"github.com/google/uuid"
@@ -117,6 +118,9 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 	for _, table := range sessionState.Conv.SpSchema {
 		if pkRequest.TableId == table.Id {
 			sessionState.Conv.SpSchema[table.Name] = spannerTable
+			for _, ind := range spannerTable.Indexes {
+				index.RemoveIndexIssues(spannerTable.Name, ind)
+			}
 		}
 	}
 

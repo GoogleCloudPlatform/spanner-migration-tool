@@ -54,16 +54,19 @@ func ContainString(fc []string, col string) string {
 // RemoveSchemaIssue remove issue from given list.
 func RemoveSchemaIssue(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) []internal.SchemaIssue {
 
-	for i := 0; i < len(schemaissue); i++ {
-		if schemaissue[i] == issue {
-			schemaissue = append(schemaissue[:i], schemaissue[i+1:]...)
+	k := 0
+	for i := 0; i < len(schemaissue); {
+		if schemaissue[i] != issue {
+			schemaissue[k] = schemaissue[i]
+			k++
 		}
+		i++
 	}
-	return schemaissue
+	return schemaissue[0:k]
 }
 
-// IsSchemaIssuePrsent check issue is present in given schemaissue list.
-func IsSchemaIssuePrsent(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) bool {
+// IsSchemaIssuePresent check issue is present in given schemaissue list.
+func IsSchemaIssuePresent(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) bool {
 
 	for _, s := range schemaissue {
 		if s == issue {
@@ -113,22 +116,22 @@ func RemoveSchemaIssues(schemaissue []internal.SchemaIssue) []internal.SchemaIss
 
 	switch {
 
-	case IsSchemaIssuePrsent(schemaissue, internal.HotspotAutoIncrement):
+	case IsSchemaIssuePresent(schemaissue, internal.HotspotAutoIncrement):
 		schemaissue = RemoveSchemaIssue(schemaissue, internal.HotspotAutoIncrement)
 		fallthrough
 
-	case IsSchemaIssuePrsent(schemaissue, internal.HotspotTimestamp):
+	case IsSchemaIssuePresent(schemaissue, internal.HotspotTimestamp):
 		schemaissue = RemoveSchemaIssue(schemaissue, internal.HotspotTimestamp)
 		fallthrough
 
-	case IsSchemaIssuePrsent(schemaissue, internal.InterleavedOrder):
+	case IsSchemaIssuePresent(schemaissue, internal.InterleavedOrder):
 		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 
-	case IsSchemaIssuePrsent(schemaissue, internal.InterleavedNotINOrder):
+	case IsSchemaIssuePresent(schemaissue, internal.InterleavedNotINOrder):
 		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedNotINOrder)
 		fallthrough
 
-	case IsSchemaIssuePrsent(schemaissue, internal.InterleavedADDCOLUMN):
+	case IsSchemaIssuePresent(schemaissue, internal.InterleavedADDCOLUMN):
 		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedADDCOLUMN)
 	}
 

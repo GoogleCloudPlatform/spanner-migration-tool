@@ -174,6 +174,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv = conv
 
 	primarykey.DetectHotspot()
+	index.IndexSuggestion()
 
 	sessionMetadata := session.SessionMetadata{
 		SessionName:  "NewSession",
@@ -240,6 +241,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv = conv
 
 	primarykey.DetectHotspot()
+	index.IndexSuggestion()
 
 	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = dc.Driver
@@ -287,14 +289,11 @@ func LoadSession(w http.ResponseWriter, r *http.Request) {
 		DatabaseName: strings.TrimRight(filepath.Base(s.FilePath), filepath.Ext(s.FilePath)),
 	}
 
-	sessionState.Conv = conv
-
 	AssignUniqueId(conv)
 
 	sessionState.Conv = conv
 
 	primarykey.DetectHotspot()
-
 	index.IndexSuggestion()
 
 	sessionState.SessionMetadata = sessionMetadata
@@ -609,6 +608,8 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Table name is empty"), http.StatusBadRequest)
 	}
 	tableInterleaveStatus := parentTableHelper(table, update)
+
+	index.IndexSuggestion()
 	helpers.UpdateSessionFile()
 	w.WriteHeader(http.StatusOK)
 
@@ -645,14 +646,12 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 			if checkPrimaryKeyPrefix(table, refTable, fk, tableInterleaveStatus) {
 
 				tableInterleaveStatus.Parent = refTable
-
+				sp := sessionState.Conv.SpSchema[table]
+				sp.Parent = refTable
 				if update {
-					sp := sessionState.Conv.SpSchema[table]
-					sp.Parent = refTable
 					sp.Fks = removeFk(sp.Fks, i)
-					sessionState.Conv.SpSchema[table] = sp
 				}
-
+				sessionState.Conv.SpSchema[table] = sp
 				break
 			}
 		}
