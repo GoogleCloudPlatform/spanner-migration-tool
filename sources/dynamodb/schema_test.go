@@ -927,7 +927,6 @@ func TestSetRowStats(t *testing.T) {
 	assert.Equal(t, tableItemCountB, conv.Stats.Rows[tableNameB])
 }
 
-// tests StartChangeDataCapture and NewDynamoDBStream functions
 func TestInfoSchemaImpl_StartChangeDataCapture(t *testing.T) {
 	tableName := "testtable"
 	attrNameA := "a"
