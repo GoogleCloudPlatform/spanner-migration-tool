@@ -441,7 +441,7 @@ export class ObjectDetailComponent implements OnInit {
 
   getPkRequestObj() {
     let tableId: string = this.conv.SpSchema[this.currentObject!.name].Id
-    let Columns: { ColumnId: number; ColName: string; Desc: boolean; Order: number }[] = []
+    let Columns: { ColumnId: string; ColName: string; Desc: boolean; Order: number }[] = []
     this.pkArray.value.forEach((row: IColumnTabData) => {
       if (row.spIsPk)
         Columns.push({

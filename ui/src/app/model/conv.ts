@@ -118,7 +118,7 @@ export interface ISrcIndexKey {
 }
 
 export interface IColumnDef {
-  Id: number
+  Id: string
   Name: string
   T: IType
   NotNull: boolean
@@ -151,20 +151,8 @@ export interface IPrimaryKey {
 }
 
 export interface IPkColumnDefs {
-  ColumnId: number
+  ColumnId: string
   ColName: string
   Desc: boolean
   Order: number
-}
-
-export interface IPrimaryKeyResponse {
-  TableId: number
-  Columns: {
-    ColumnId: number
-    ColName: string
-    Desc: boolean
-    Order: number
-  }[]
-  PrimaryKeyId: number
-  Synth: boolean
 }
