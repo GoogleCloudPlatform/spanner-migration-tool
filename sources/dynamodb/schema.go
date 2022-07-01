@@ -192,11 +192,30 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 	return nil
 }
 
+// StartChangeDataCapture initializes the DynamoDB Streams for the source database. It
+// returns the latestStreamArn for all tables in the source database.
 func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
-	return nil, nil
+	fmt.Println("Starting DynamoDB Streams initialization...")
+
+	latestStreamArn := make(map[string]interface{})
+	orderTableNames := ddl.OrderTables(conv.SpSchema)
+
+	for _, spannerTable := range orderTableNames {
+		srcTable, _ := internal.GetSourceTable(conv, spannerTable)
+		streamArn, err := NewDynamoDBStream(isi.DynamoClient, srcTable)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Couldn't initialize DynamoDB Stream for table %s: %s", srcTable, err))
+			continue
+		}
+		latestStreamArn[srcTable] = streamArn
+	}
+
+	fmt.Println("DynamoDB Streams initialized successfully.")
+	return latestStreamArn, nil
 }
 
-func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, LatestStream map[string]interface{}) error {
+func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, latestStreamArn map[string]interface{}) error {
+	// TODO(nareshz): work in progress
 	return nil
 }
 
