@@ -20,6 +20,7 @@ import (
 	"log"
 	"math/big"
 	"sort"
+	"sync"
 
 	sp "cloud.google.com/go/spanner"
 	"github.com/aws/aws-sdk-go/aws"
@@ -214,8 +215,28 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 	return latestStreamArn, nil
 }
 
+// StartStreamingMigration starts the streaming migration process by creating a seperate
+// worker thread/goroutine for each table's DynamoDB Stream. It catches Ctrl+C signal if
+// customer wants to stop the process.
 func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, latestStreamArn map[string]interface{}) error {
-	// TODO(nareshz): work in progress
+	fmt.Println("Processing of DynamoDB Streams started...")
+	fmt.Println("Use Ctrl+C to stop the process.")
+
+	streamInfo := MakeInfo()
+	wg := &sync.WaitGroup{}
+
+	wg.Add(1)
+	go catchCtrlC(wg, streamInfo)
+
+	for srcTable, streamArn := range latestStreamArn {
+		streamInfo.Records[srcTable] = make(map[string]int64)
+
+		wg.Add(1)
+		go ProcessStream(wg, isi.DynamoStreamsClient, streamInfo, conv, streamArn.(string), srcTable)
+	}
+	wg.Wait()
+
+	fmt.Println("DynamoDB Streams processed successfully.")
 	return nil
 }
 
