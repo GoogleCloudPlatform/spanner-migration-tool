@@ -519,7 +519,7 @@ func CompareSchema(conv1, conv2 *internal.Conv) error {
 		spannerTable := conv2.SpSchema[t]
 		if sessionTable.Name != spannerTable.Name || sessionTable.Parent != spannerTable.Parent ||
 			len(sessionTable.Pks) != len(spannerTable.Pks) || len(sessionTable.ColDefs) != len(spannerTable.ColDefs) ||
-			len(sessionTable.Fks) != len(spannerTable.Fks) || len(sessionTable.Indexes) != len(spannerTable.Indexes) {
+			len(sessionTable.Indexes) != len(spannerTable.Indexes) {
 			return fmt.Errorf("table detail for table %v don't match", sessionTable.Name)
 		}
 		for i := range sessionTable.Pks {
@@ -533,33 +533,6 @@ func CompareSchema(conv1, conv2 *internal.Conv) error {
 			if colDef.Name != spannerCol.Name || colDef.NotNull != spannerCol.NotNull ||
 				colDef.T.IsArray != spannerCol.T.IsArray || colDef.T.Len != spannerCol.T.Len || colDef.T.Name != spannerCol.T.Name {
 				return fmt.Errorf("column detail for table %v don't match", sessionTable.Name)
-			}
-		}
-		for i := range sessionTable.Fks {
-			sessionTableFk := sessionTable.Fks[i]
-			found := 0
-			for j := range spannerTable.Fks {
-				spannerTableFk := spannerTable.Fks[j]
-				if sessionTableFk.Name == spannerTableFk.Name {
-					found = 1
-					if sessionTableFk.ReferTable != spannerTableFk.ReferTable || len(sessionTableFk.Columns) != len(spannerTableFk.Columns) {
-						return fmt.Errorf("foreign key %v details don't match", sessionTableFk.Name)
-					}
-					for col := range sessionTableFk.Columns {
-						if sessionTableFk.Columns[col] != spannerTableFk.Columns[col] {
-							return fmt.Errorf("foreign key %v columns don't match", sessionTableFk.Name)
-						}
-					}
-					for col := range sessionTableFk.ReferColumns {
-						if sessionTableFk.ReferColumns[col] != spannerTableFk.ReferColumns[col] {
-							return fmt.Errorf("foreign key %v refer columns don't match", sessionTableFk.Name)
-						}
-					}
-					break
-				}
-			}
-			if found == 0 {
-				return fmt.Errorf("foreign key %v not found in spanner schema", sessionTableFk.Name)
 			}
 		}
 		for i := range sessionTable.Indexes {
