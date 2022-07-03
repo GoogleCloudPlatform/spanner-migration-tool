@@ -50,6 +50,7 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 	return nil
 }
 
+// GetRowCount returns the row count of the table.
 func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error) {
 	q := "SELECT count(*) FROM " + table.Name + ";"
 	stmt := spanner.Statement{
@@ -309,7 +310,7 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 	return foreignKeys, nil
 }
 
-// GetIndexes returns a list of Indexes per table
+// GetIndexes returns a list of Indexes per table.
 func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName) ([]schema.Index, error) {
 	q := `SELECT distinct c.INDEX_NAME,c.COLUMN_NAME,c.ORDINAL_POSITION,c.COLUMN_ORDERING,i.IS_UNIQUE
 			FROM information_schema.index_columns AS c

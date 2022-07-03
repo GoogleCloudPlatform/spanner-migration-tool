@@ -459,6 +459,7 @@ func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminCli
 	}
 }
 
+// ValidateTables validates that all the tables in the database are empty.
 func ValidateTables(ctx context.Context, client *sp.Client, targetDb string) error {
 	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, TargetDb: targetDb}
 	tables, err := infoSchema.GetTables()
