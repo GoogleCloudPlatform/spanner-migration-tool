@@ -217,6 +217,11 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 			fmt.Printf("can't finish data conversion for db %s: %v\n", dbURI, err)
 			return subcommands.ExitFailure
 		}
+
+		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
+			fmt.Printf("can't perform update schema on db %s with foreign keys: %v\n", dbURI, err)
+			return subcommands.ExitFailure
+		}
 		banner = utils.GetBanner(now, dbURI)
 	} else {
 		conv.DryRun = true

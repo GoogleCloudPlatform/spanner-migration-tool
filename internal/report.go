@@ -43,11 +43,11 @@ func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites ma
 		w.WriteString("\n\n")
 	}
 	migrationType := ""
-	if *conv.MigrationType == migration.MigrationData_DATA_ONLY {
+	if *conv.Audit.MigrationType == migration.MigrationData_DATA_ONLY {
 		migrationType = "data"
-	} else if *conv.MigrationType == migration.MigrationData_SCHEMA_ONLY {
+	} else if *conv.Audit.MigrationType == migration.MigrationData_SCHEMA_ONLY {
 		migrationType = "schema"
-	} else if *conv.MigrationType == migration.MigrationData_SCHEMA_AND_DATA {
+	} else if *conv.Audit.MigrationType == migration.MigrationData_SCHEMA_AND_DATA {
 		migrationType = "schema and data"
 	}
 	statementsMsg := ""
@@ -76,7 +76,7 @@ func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites ma
 				h = h + fmt.Sprintf(" (mapped to Spanner table %s)", t.SpTable)
 			}
 			writeHeading(w, h)
-			w.WriteString(rateConversion(t.rows, t.badRows, t.Cols, t.Warnings, t.SyntheticPKey != "", false, conv.SchemaMode(), *conv.MigrationType))
+			w.WriteString(rateConversion(t.rows, t.badRows, t.Cols, t.Warnings, t.SyntheticPKey != "", false, conv.SchemaMode(), *conv.Audit.MigrationType))
 			w.WriteString("\n")
 			for _, x := range t.Body {
 				fmt.Fprintf(w, "%s\n", x.Heading)
@@ -136,7 +136,7 @@ func buildTableReport(conv *Conv, srcTable string, badWrites map[string]int64) t
 		tr.Body = []tableReportBody{{Heading: "Internal error: " + m}}
 		return tr
 	}
-	if *conv.MigrationType != migration.MigrationData_DATA_ONLY {
+	if *conv.Audit.MigrationType != migration.MigrationData_DATA_ONLY {
 		issues, cols, warnings := AnalyzeCols(conv, srcTable, spTable)
 		tr.Cols = cols
 		tr.Warnings = warnings
@@ -484,7 +484,7 @@ func GenerateSummary(conv *Conv, r []tableReport, badWrites map[string]int64) st
 	for _, n := range badWrites {
 		badRows += n
 	}
-	return rateConversion(rows, badRows, cols, warnings, missingPKey, true, conv.SchemaMode(), *conv.MigrationType)
+	return rateConversion(rows, badRows, cols, warnings, missingPKey, true, conv.SchemaMode(), *conv.Audit.MigrationType)
 }
 
 // IgnoredStatements creates a list of statements to ignore.
