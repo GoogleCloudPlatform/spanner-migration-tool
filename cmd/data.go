@@ -185,9 +185,30 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		}
 		defer adminClient.Close()
 		if !sourceProfile.UseTargetSchema() {
-			_, err = conversion.VerifyDbWithTables(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
+			dbExists, err := conversion.CheckExistingDb(ctx, adminClient, dbURI)
 			if err != nil {
-				fmt.Printf("can't create/update database: %v\n", err)
+				fmt.Printf("can't verify target database: %v\n", err)
+				return subcommands.ExitFailure
+			}
+			if !dbExists {
+				fmt.Println("target database doesn't exist")
+				return subcommands.ExitFailure
+			}
+			err = conversion.ValidateTables(ctx, client, conv.TargetDb)
+			if err != nil {
+				fmt.Printf("can't validate the tables: %v\n", err)
+				return subcommands.ExitFailure
+			}
+			spannerConv := internal.MakeConv()
+			spannerConv.TargetDb = targetProfile.TargetDb
+			err = utils.ReadSpannerSchema(ctx, spannerConv, client)
+			if err != nil {
+				fmt.Printf("can't read spanner schema: %v\n", err)
+				return subcommands.ExitFailure
+			}
+			err = utils.CompareSchema(conv, spannerConv)
+			if err != nil {
+				fmt.Printf("error while comparing the schema from session file and existing spanner schema: %v\n", err)
 				return subcommands.ExitFailure
 			}
 		}

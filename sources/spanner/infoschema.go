@@ -51,7 +51,23 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 }
 
 func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error) {
-	return 0, nil
+	q := "SELECT count(*) FROM " + table.Name + ";"
+	stmt := spanner.Statement{
+		SQL: q,
+	}
+	iter := isi.Client.Single().Query(isi.Ctx, stmt)
+	defer iter.Stop()
+	var count int64
+	row, err := iter.Next()
+	if err == iterator.Done {
+		return 0, nil
+	}
+	if err != nil {
+		return count, err
+	}
+	row.Columns(&count)
+	return count, err
+
 }
 
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
