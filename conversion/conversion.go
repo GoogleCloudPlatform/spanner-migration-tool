@@ -56,6 +56,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/writer"
@@ -421,18 +422,6 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 	return fcopy, n, nil
 }
 
-func VerifyDbWithTables(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI, driver, targetDb string, conv *internal.Conv, out *os.File) (dbExists bool, err error) {
-	dbExists, err = CheckExistingDb(ctx, adminClient, dbURI)
-	if err != nil {
-		return dbExists, err
-	}
-	_, err = adminClient.GetDatabaseDdl(ctx, &adminpb.GetDatabaseDdlRequest{Database: dbURI})
-	if err != nil {
-		return dbExists, fmt.Errorf("can't fetch database ddl: %v", err)
-	}
-	return dbExists, err
-}
-
 // VerifyDb checks whether the db exists and if it does, verifies if the schema is what we currently support.
 func VerifyDb(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) (dbExists bool, err error) {
 	dbExists, err = CheckExistingDb(ctx, adminClient, dbURI)
@@ -468,6 +457,24 @@ func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminCli
 			return true, nil
 		}
 	}
+}
+
+func ValidateTables(ctx context.Context, client *sp.Client, targetDb string) error {
+	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, TargetDb: targetDb}
+	tables, err := infoSchema.GetTables()
+	if err != nil {
+		return err
+	}
+	for _, t := range tables {
+		count, err := infoSchema.GetRowCount(t)
+		if err != nil {
+			return err
+		}
+		if count != 0 {
+			return fmt.Errorf("table %v should be empty for data migration to take place", t.Name)
+		}
+	}
+	return nil
 }
 
 // ValidateDDL verifies if an existing DB's ddl follows what is supported by harbourbridge. Currently,
