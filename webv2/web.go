@@ -152,6 +152,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	conv := internal.MakeConv()
+
 	// Setting target db to spanner by default.
 	conv.TargetDb = constants.TargetSpanner
 	var err error
@@ -243,8 +244,12 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	uniqueid.InitObjectId()
 
 	uniqueid.AssignUniqueId(conv)
+
 	sessionState.Conv = conv
+
 	primarykey.DetectHotspot()
+
+	uniqueid.UpdateConvViewModel()
 
 	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = dc.Driver
@@ -302,6 +307,8 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv = conv
 
 	primarykey.DetectHotspot()
+
+	uniqueid.UpdateConvViewModel()
 
 	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = s.Driver
