@@ -32,6 +32,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	"github.com/stretchr/testify/assert"
 
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
@@ -379,9 +380,18 @@ func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
 
 		gotRecords = append(gotRecords, gotRecord)
 	}
+
+	assert.Equal(t, 2, len(gotRecords))
+	if gotRecords[0].AttrString != "abcd" {
+		gotRecords[0], gotRecords[1] = gotRecords[1], gotRecords[0]
+	}
+
+	log.Println("----------")
 	log.Println(wantRecords)
 	log.Println("----------")
 	log.Println(gotRecords)
+	log.Println("----------")
+
 	for i := 0; i < 2; i++ {
 		if !reflect.DeepEqual(wantRecords[i], gotRecords[i]) {
 			t.Fatalf("mismatch in data written to spanner.")
