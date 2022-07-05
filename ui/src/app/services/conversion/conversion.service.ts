@@ -218,6 +218,10 @@ export class ConversionService {
             ? srcIndexs[0].Keys[i].Column
             : '',
         srcOrder: srcIndexs && srcIndexs.length > 0 && srcIndexs[0].Keys.length > i ? i + 1 : '',
+        srcDesc:
+          srcIndexs && srcIndexs.length > 0 && srcIndexs[0].Keys.length > i
+            ? srcIndexs[0].Keys[i].Desc
+            : undefined,
         spColName: idx.Col,
         spOrder: i + 1,
         spDesc: idx.Desc,

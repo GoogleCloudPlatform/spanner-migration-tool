@@ -16,7 +16,10 @@
   <div class="container">
     <h2>Configure schema</h2>
     <div class="summary">
-      <!-- Meaningful summary to be added -->
+      Estimation for {{ srcDbName.toUpperCase() }} to for Spanner conversion:
+      {{ conversionRatePercentages[0] }}% of tables can be converted automatically,
+      {{ conversionRatePercentages[1] }}% requires minimal conversion changes and
+      {{ conversionRatePercentages[2] }}% requires high complexity conversion changes.
     </div>
   </div>
   <div class="columns">

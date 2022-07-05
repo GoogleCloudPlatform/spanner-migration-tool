@@ -14,9 +14,9 @@ export class AddIndexFormComponent implements OnInit {
   @Output() resetRuleType: EventEmitter<any> = new EventEmitter<any>()
   addIndexForm: FormGroup
   tableNames: string[] = []
-  currentColumns: string[] = []
-  addColumns: string[][] = []
-  isEmptyColumns: boolean = false
+  totalColumns: string[] = []
+  addColumnsList: string[][] = []
+  commonColumns: string[] = []
   conv: IConv = {} as IConv
   constructor(private fb: FormBuilder, private data: DataService, private sidenav: SidenavService) {
     this.addIndexForm = this.fb.group({
@@ -46,9 +46,11 @@ export class AddIndexFormComponent implements OnInit {
   }
 
   selectedTableChange(tableName: string) {
-    this.currentColumns = this.conv.SpSchema[tableName].ColNames
-    this.isEmptyColumns = false
-    this.addColumns.push(JSON.parse(JSON.stringify(this.currentColumns)))
+    this.totalColumns = this.conv.SpSchema[tableName].ColNames
+    this.ColsArray.clear()
+    this.commonColumns = []
+    this.addColumnsList = []
+    this.updateCommonColumns()
   }
   addNewColumnForm() {
     let newForm = this.fb.group({
@@ -56,18 +58,37 @@ export class AddIndexFormComponent implements OnInit {
       sort: ['', Validators.required],
     })
     this.ColsArray.push(newForm)
-    if (this.ColsArray.value.length > 1) {
-      let index = this.currentColumns.indexOf(
-        this.ColsArray.value[this.ColsArray.value.length - 2].columnName
-      )
-      if (index > -1) {
-        this.currentColumns.splice(index, 1)
-        this.addColumns.push(JSON.parse(JSON.stringify(this.currentColumns)))
-        if (this.currentColumns.length == 1) {
-          this.isEmptyColumns = true
-        }
-      }
-    }
+    this.updateCommonColumns()
+    this.addColumnsList.push([...this.commonColumns])
+  }
+
+  selectedColumnChange() {
+    this.updateCommonColumns()
+    this.addColumnsList = this.addColumnsList.map((_, i) => {
+      const columns: string[] = [...this.commonColumns]
+      if (this.ColsArray.value[i].columnName !== '')
+        columns.push(this.ColsArray.value[i].columnName)
+      return columns
+    })
+  }
+
+  updateCommonColumns() {
+    this.commonColumns = this.totalColumns.filter((columnName) => {
+      let flag = true
+      this.ColsArray.value.forEach((col: any) => {
+        if (col.columnName === columnName) flag = false
+      })
+      return flag
+    })
+  }
+
+  removeColumnForm(index: number) {
+    this.ColsArray.removeAt(index)
+    this.addColumnsList = this.addColumnsList.filter((_, i) => {
+      if (i === index) return false
+      else return true
+    })
+    this.selectedColumnChange()
   }
 
   addIndex() {

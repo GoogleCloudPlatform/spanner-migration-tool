@@ -149,6 +149,8 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 	}{
 		{"Warning", warning},
 		{"Note", note},
+		{"Suggestion", suggestion},
+		{"Error", errors},
 	} {
 		// Print out issues is alphabetical column order.
 		var cols []string
@@ -267,13 +269,13 @@ var IssueDB = map[SchemaIssue]struct {
 	MultiDimensionalArray: {Brief: "Spanner doesn't support multi-dimensional arrays", severity: warning},
 	NoGoodType:            {Brief: "No appropriate Spanner type", severity: warning},
 	Numeric:               {Brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", severity: warning},
-	NumericThatFits:       {Brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", severity: note},
+	NumericThatFits:       {Brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", severity: suggestion},
 	Decimal:               {Brief: "Spanner does not support decimal. This type mapping could lose precision and is not recommended for production use", severity: warning},
-	DecimalThatFits:       {Brief: "Spanner does not support decimal, but this type mapping preserves the decimal's specified precision", severity: note},
+	DecimalThatFits:       {Brief: "Spanner does not support decimal, but this type mapping preserves the decimal's specified precision", severity: suggestion},
 	Serial:                {Brief: "Spanner does not support autoincrementing types", severity: warning},
 	AutoIncrement:         {Brief: "Spanner does not support auto_increment attribute", severity: warning},
-	Timestamp:             {Brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: note, batch: true},
-	Datetime:              {Brief: "Spanner timestamp is closer to MySQL timestamp", severity: note, batch: true},
+	Timestamp:             {Brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: suggestion, batch: true},
+	Datetime:              {Brief: "Spanner timestamp is closer to MySQL timestamp", severity: suggestion, batch: true},
 	Time:                  {Brief: "Spanner does not support time/year types", severity: note, batch: true},
 	Widened:               {Brief: "Some columns will consume more storage in Spanner", severity: note, batch: true},
 	StringOverflow:        {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
@@ -284,6 +286,8 @@ type severity int
 const (
 	warning severity = iota
 	note
+	suggestion
+	errors
 )
 
 // AnalyzeCols returns information about the quality of schema mappings
