@@ -612,13 +612,14 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if table == "" || dropDetail.Name == "" {
-		http.Error(w, fmt.Sprintf("Table name or position is empty"), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Table name or FK name is empty"), http.StatusBadRequest)
 	}
 	sp := sessionState.Conv.SpSchema[table]
 	position := -1
 	for i, fk := range sp.Fks {
 		if dropDetail.Name == fk.Name {
 			position = i
+			break
 		}
 	}
 
@@ -926,6 +927,7 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	for i, index := range sp.Indexes {
 		if dropDetail.Name == index.Name {
 			position = i
+			break
 		}
 	}
 	if position < 0 || position >= len(sp.Indexes) {

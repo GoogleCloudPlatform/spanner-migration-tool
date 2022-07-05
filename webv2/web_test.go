@@ -1363,7 +1363,7 @@ func TestDropForeignKey(t *testing.T) {
 	tc := []struct {
 		name         string
 		table        string
-		position     string
+		payload      string
 		statusCode   int64
 		conv         *internal.Conv
 		expectedConv *internal.Conv
@@ -1371,7 +1371,7 @@ func TestDropForeignKey(t *testing.T) {
 		{
 			name:       "Test drop valid FK success",
 			table:      "t1",
-			position:   "1",
+			payload:    `{"Name":"fk2"}`,
 			statusCode: http.StatusOK,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1388,9 +1388,9 @@ func TestDropForeignKey(t *testing.T) {
 			},
 		},
 		{
-			name:       "Test drop FK invalid position",
+			name:       "Test drop FK invalid fkName",
 			table:      "t1",
-			position:   "1",
+			payload:    `{"Name":""}`,
 			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1400,9 +1400,9 @@ func TestDropForeignKey(t *testing.T) {
 			},
 		},
 		{
-			name:       "Test drop FK invalid position 2",
+			name:       "Test drop FK invalid fkName 2",
 			table:      "t1",
-			position:   "AB",
+			payload:    `{"Name":"AB"}`,
 			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1417,7 +1417,8 @@ func TestDropForeignKey(t *testing.T) {
 
 		sessionState.Driver = constants.MYSQL
 		sessionState.Conv = tc.conv
-		req, err := http.NewRequest("GET", "/drop/fk?table="+tc.table+"&pos="+tc.position, nil)
+		payload := tc.payload
+		req, err := http.NewRequest("POST", "/drop/fk?table="+tc.table, strings.NewReader(payload))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2173,7 +2174,7 @@ func TestDropSecondaryIndex(t *testing.T) {
 	tc := []struct {
 		name         string
 		table        string
-		position     string
+		payload      string
 		statusCode   int64
 		conv         *internal.Conv
 		expectedConv *internal.Conv
@@ -2181,7 +2182,7 @@ func TestDropSecondaryIndex(t *testing.T) {
 		{
 			name:       "Test drop valid secondary index success",
 			table:      "t1",
-			position:   "1",
+			payload:    `{"Name":"idx2"}`,
 			statusCode: http.StatusOK,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -2198,9 +2199,9 @@ func TestDropSecondaryIndex(t *testing.T) {
 			},
 		},
 		{
-			name:       "Test drop secondary index invalid position",
+			name:       "Test drop secondary index invalid name",
 			table:      "t1",
-			position:   "1",
+			payload:    `{"Name":""}`,
 			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -2210,9 +2211,9 @@ func TestDropSecondaryIndex(t *testing.T) {
 			},
 		},
 		{
-			name:       "Test drop secondary index invalid position 2",
+			name:       "Test drop secondary index invalid name 2",
 			table:      "t1",
-			position:   "AB",
+			payload:    `{"Name":"AB"}`,
 			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -2227,7 +2228,8 @@ func TestDropSecondaryIndex(t *testing.T) {
 
 		sessionState.Driver = constants.MYSQL
 		sessionState.Conv = tc.conv
-		req, err := http.NewRequest("GET", "/drop/secondaryindex?table="+tc.table+"&pos="+tc.position, nil)
+		payload := tc.payload
+		req, err := http.NewRequest("POST", "/drop/secondaryindex?table="+tc.table, strings.NewReader(payload))
 		if err != nil {
 			t.Fatal(err)
 		}
