@@ -15,6 +15,7 @@
 package dynamodb_test
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -22,13 +23,14 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
-	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 
@@ -206,6 +208,75 @@ func populateDynamoDB(t *testing.T) {
 	log.Println("Successfully created table and put item for dynamodb")
 }
 
+func populateDynamoDBStreams(t *testing.T) {
+	tableName := "table_test"
+	dydbRecord := DydbRecord{
+		AttrString:    "efgh",
+		AttrInt:       20,
+		AttrFloat:     24.5,
+		AttrBool:      false,
+		AttrBytes:     []byte{48, 49},
+		AttrNumberSet: []float64{1.5, 2.5, 3.5},
+		AttrByteSet:   [][]byte{[]byte{48, 49}, []byte{50, 51}},
+		AttrStringSet: []string{"def", "abc"},
+		AttrList:      []interface{}{"str-2", 12.34, true},
+		AttrMap:       map[string]int{"key": 100},
+	}
+	av, err := dynamodbattribute.MarshalMap(dydbRecord)
+	if err != nil {
+		t.Fatalf("Got error marshalling new movie item: %s", err)
+	}
+
+	putItemInput := &dydb.PutItemInput{
+		Item:      av,
+		TableName: aws.String(tableName),
+	}
+
+	_, err = dydbClient.PutItem(putItemInput)
+	if err != nil {
+		t.Fatalf("Got error calling PutItem: %s", err)
+	}
+	log.Println("Successfully inserted item after bulk migration")
+}
+
+func RunStreamingMigration(t *testing.T, args string, projectID string) error {
+	// Be aware that when testing with the command, the time `now` might be
+	// different between file prefixes and the contents in the files. This
+	// is because file prefixes use `now` from here (the test function) and
+	// the generated time in the files uses a `now` inside the command, which
+	// can be different.
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge %v", args))
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("GCLOUD_PROJECT=%s", projectID),
+	)
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf(fmt.Sprintf("error while starting command: %v", err))
+	}
+	// Wait for a maximum of 5 minutes
+	timeLimit := 300
+	for timeLimit > 0 {
+		time.Sleep(1 * time.Second)
+		output := out.String()
+		if strings.Contains(output, "Processing of DynamoDB Streams started...") {
+			break
+		}
+		timeLimit--
+	}
+	if timeLimit == 0 {
+		return fmt.Errorf("error! command not executed successfully")
+	}
+	populateDynamoDBStreams(t)
+
+	// Wait for enough time for the record to get processed.
+	time.Sleep(30 * time.Second)
+
+	_ = cmd.Process.Kill()
+	return nil
+}
+
 func TestIntegration_DYNAMODB_Command(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
@@ -218,8 +289,8 @@ func TestIntegration_DYNAMODB_Command(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
-	args := fmt.Sprintf("-driver %s -prefix %s -instance %s -dbname %s", constants.DYNAMODB, filePrefix, instanceID, dbName)
-	err := common.RunCommand(args, projectID)
+	args := fmt.Sprintf(`schema-and-data -source=%s -prefix=%s -source-profile="enableStreaming=true" -target-profile="instance=%s,dbName=%s"`, constants.DYNAMODB, filePrefix, instanceID, dbName)
+	err := RunStreamingMigration(t, args, projectID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,21 +312,36 @@ func checkResults(t *testing.T, dbURI string) {
 }
 
 func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
-	wantRecord := SpannerRecord{
-		AttrString:    "abcd",
-		AttrInt:       int64(10),
-		AttrFloat:     float64(14.5),
-		AttrBool:      true,
-		AttrBytes:     []byte{48, 49},
-		AttrNumberSet: []float64{1.5, 2.5, 3.5},
-		AttrByteSet:   [][]byte{[]byte{48, 49}, []byte{50, 51}},
-		AttrStringSet: []string{"abc", "xyz"},
-		AttrList:      "[\"str-1\",\"12.34\",true]",
-		AttrMap:       "{\"key\":\"100\"}",
+	wantRecords := []SpannerRecord{
+		{
+			AttrString:    "abcd",
+			AttrInt:       int64(10),
+			AttrFloat:     float64(14.5),
+			AttrBool:      true,
+			AttrBytes:     []byte{48, 49},
+			AttrNumberSet: []float64{1.5, 2.5, 3.5},
+			AttrByteSet:   [][]byte{[]byte{48, 49}, []byte{50, 51}},
+			AttrStringSet: []string{"abc", "xyz"},
+			AttrList:      "[\"str-1\",\"12.34\",true]",
+			AttrMap:       "{\"key\":\"100\"}",
+		},
+		{
+			AttrString:    "efgh",
+			AttrInt:       int64(20),
+			AttrFloat:     float64(24.5),
+			AttrBool:      false,
+			AttrBytes:     []byte{48, 49},
+			AttrNumberSet: []float64{1.5, 2.5, 3.5},
+			AttrByteSet:   [][]byte{[]byte{48, 49}, []byte{50, 51}},
+			AttrStringSet: []string{"def", "abc"},
+			AttrList:      "[\"str-2\",\"12.34\",true]",
+			AttrMap:       "{\"key\":\"100\"}",
+		},
 	}
-	gotRecord := SpannerRecord{}
+
+	gotRecords := []SpannerRecord{}
 	stmt := spanner.Statement{SQL: `SELECT AttrString, AttrInt, AttrFloat, AttrBool, AttrBytes, AttrNumberSet, AttrByteSet, AttrStringSet, AttrList, AttrMap FROM table_test`}
-	iter := client.Single().Query(ctx, stmt)
+	iter := client.ReadOnlyTransaction().Query(ctx, stmt)
 	defer iter.Stop()
 	for {
 		row, err := iter.Next()
@@ -267,6 +353,7 @@ func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
 			t.Fatal(err)
 			break
 		}
+		gotRecord := SpannerRecord{}
 		// We don't create big.Rat fields in the SpannerRecord structs
 		// because cmp.Equal cannot compare big.Rat fields automatically.
 		var AttrInt, AttrFloat big.Rat
@@ -285,8 +372,18 @@ func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
 			floatSet = append(floatSet, floatVal)
 		}
 		gotRecord.AttrNumberSet = floatSet
+
+		gotRecords = append(gotRecords, gotRecord)
 	}
-	assert.True(t, cmp.Equal(wantRecord, gotRecord))
+	count := 0
+	for i := 0; i < 2; i++ {
+		for j := 0; j < 2; j++ {
+			if cmp.Equal(wantRecords[i], gotRecords[j]) {
+				count++
+			}
+		}
+	}
+	assert.Equal(t, 2, count)
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {
