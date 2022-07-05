@@ -25,14 +25,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
-	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
 
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
@@ -219,8 +218,8 @@ func populateDynamoDBStreams(t *testing.T) {
 		AttrNumberSet: []float64{1.5, 2.5, 3.5},
 		AttrByteSet:   [][]byte{[]byte{48, 49}, []byte{50, 51}},
 		AttrStringSet: []string{"def", "abc"},
-		AttrList:      []interface{}{"str-2", 12.34, true},
-		AttrMap:       map[string]int{"key": 100},
+		AttrList:      []interface{}{"str-1", 12.34, true},
+		AttrMap:       map[string]int{"key": 102},
 	}
 	av, err := dynamodbattribute.MarshalMap(dydbRecord)
 	if err != nil {
@@ -270,10 +269,15 @@ func RunStreamingMigration(t *testing.T, args string, projectID string) error {
 	}
 	populateDynamoDBStreams(t)
 
+	log.Println("Waiting for record to get processed.")
 	// Wait for enough time for the record to get processed.
-	time.Sleep(30 * time.Second)
+	time.Sleep(60 * time.Second)
+	log.Println("Record got processed.")
 
-	_ = cmd.Process.Kill()
+	err := cmd.Process.Signal(os.Interrupt)
+	if err != nil {
+		log.Println("Interrupt not successfull")
+	}
 	return nil
 }
 
@@ -334,8 +338,8 @@ func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
 			AttrNumberSet: []float64{1.5, 2.5, 3.5},
 			AttrByteSet:   [][]byte{[]byte{48, 49}, []byte{50, 51}},
 			AttrStringSet: []string{"def", "abc"},
-			AttrList:      "[\"str-2\",\"12.34\",true]",
-			AttrMap:       "{\"key\":\"100\"}",
+			AttrList:      "[\"str-1\",\"12.34\",true]",
+			AttrMap:       "{\"key\":\"102\"}",
 		},
 	}
 
@@ -375,15 +379,14 @@ func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
 
 		gotRecords = append(gotRecords, gotRecord)
 	}
-	count := 0
+	log.Println(wantRecords)
+	log.Println("----------")
+	log.Println(gotRecords)
 	for i := 0; i < 2; i++ {
-		for j := 0; j < 2; j++ {
-			if cmp.Equal(wantRecords[i], gotRecords[j]) {
-				count++
-			}
+		if !reflect.DeepEqual(wantRecords[i], gotRecords[i]) {
+			t.Fatalf("mismatch in data written to spanner.")
 		}
 	}
-	assert.Equal(t, 2, count)
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {
