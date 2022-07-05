@@ -16,17 +16,17 @@ HarbourBridge can be run directly on a SQL Server database (via go's database/sq
 The following examples assume a `harbourbridge` alias has been setup as described
 in the [Installing HarbourBridge](https://github.com/cloudspannerecosystem/harbourbridge#installing-harbourbridge) section of the main README.
 
-### Directly connecting to a Sql server database
+### Directly connecting to a SQL Server database
 
-In this case, HarbourBridge connects directly to the Sql server database to
+In this case, HarbourBridge connects directly to the SQL Server database to
 retrieve table schema and data. Set the `-source=sqlserver` and corresponding
-source profile connection parameters `host`, `port`, `user`, `db_name` and
+source profile connection parameters `host`, `port`, `user`, `dbName` and
 `password`.
 
 For example to perform schema conversion, run
 
 ```sh
-harbourbridge schema -source=sqlserver -source-profile="host=<>,port=<>,user=<>,db_name=<>"
+harbourbridge schema -source=sqlserver -source-profile="host=<>,port=<>,user=<>,dbName=<>"
 ```
 
 Parameters `port` and `password` are optional. Port (`port`) defaults to `1433`
