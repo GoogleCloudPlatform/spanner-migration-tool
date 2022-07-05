@@ -478,6 +478,9 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 	var t updateTable
 
 	table := r.FormValue("table")
+
+	fmt.Println("updateTableSchema getting called")
+
 	err = json.Unmarshal(reqBody, &t)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
@@ -1337,6 +1340,7 @@ func renameColumn(newName, table, colName, srcTableName string) {
 			T:       sp.ColDefs[colName].T,
 			NotNull: sp.ColDefs[colName].NotNull,
 			Comment: sp.ColDefs[colName].Comment,
+			Id:      sp.ColDefs[colName].Id,
 		}
 		delete(sp.ColDefs, colName)
 	}
