@@ -218,7 +218,7 @@ func populateDynamoDBStreams(t *testing.T) {
 		AttrBytes:     []byte{48, 49},
 		AttrNumberSet: []float64{1.5, 2.5, 3.5},
 		AttrByteSet:   [][]byte{[]byte{48, 49}, []byte{50, 51}},
-		AttrStringSet: []string{"def", "abc"},
+		AttrStringSet: []string{"abc", "xyz"},
 		AttrList:      []interface{}{"str-1", 12.34, true},
 		AttrMap:       map[string]int{"key": 102},
 	}
@@ -338,7 +338,7 @@ func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
 			AttrBytes:     []byte{48, 49},
 			AttrNumberSet: []float64{1.5, 2.5, 3.5},
 			AttrByteSet:   [][]byte{[]byte{48, 49}, []byte{50, 51}},
-			AttrStringSet: []string{"def", "abc"},
+			AttrStringSet: []string{"abc", "xyz"},
 			AttrList:      "[\"str-1\",\"12.34\",true]",
 			AttrMap:       "{\"key\":\"102\"}",
 		},
