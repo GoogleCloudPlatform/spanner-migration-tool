@@ -16,6 +16,7 @@ package dynamodb
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"math/big"
@@ -27,7 +28,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/aws/aws-sdk-go/service/dynamodbstreams/dynamodbstreamsiface"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/cloudspannerecosystem/harbourbridge/common/metrics"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
@@ -223,13 +228,17 @@ func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *s
 	fmt.Println("Use Ctrl+C to stop the process.")
 
 	streamInfo := MakeInfo()
-	wg := &sync.WaitGroup{}
+	setWriter(streamInfo, client, conv)
 
-	wg.Add(1)
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
 	go catchCtrlC(wg, streamInfo)
+	go CutoverHandler(wg, streamInfo)
 
 	for srcTable, streamArn := range latestStreamArn {
 		streamInfo.Records[srcTable] = make(map[string]int64)
+		streamInfo.BadRecords[srcTable] = make(map[string]int64)
+		streamInfo.DroppedRecords[srcTable] = make(map[string]int64)
 
 		wg.Add(1)
 		go ProcessStream(wg, isi.DynamoStreamsClient, streamInfo, conv, streamArn.(string), srcTable)
@@ -238,6 +247,18 @@ func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *s
 
 	fmt.Println("DynamoDB Streams processed successfully.")
 	return nil
+}
+
+// setWriter initializes the write function used to write data to Cloud Spanner.
+func setWriter(streamInfo *Info, client *sp.Client, conv *internal.Conv) {
+	streamInfo.write = func(m *sp.Mutation) error {
+		const migrationMetadataKey = "cloud-spanner-migration-metadata"
+		migrationData := metrics.GetMigrationData(conv, "", "", constants.DataConv)
+		serializedMigrationData, _ := proto.Marshal(migrationData)
+		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
+		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), migrationMetadataKey, migrationMetadataValue), []*sp.Mutation{m})
+		return err
+	}
 }
 
 func getSchemaIndexStruct(indexName string, keySchema []*dynamodb.KeySchemaElement) schema.Index {

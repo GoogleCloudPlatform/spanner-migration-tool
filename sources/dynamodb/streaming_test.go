@@ -14,15 +14,24 @@
 package dynamodb
 
 import (
+	"errors"
 	"fmt"
+	"math/big"
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 
+	sp "cloud.google.com/go/spanner"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
 	"github.com/aws/aws-sdk-go/service/dynamodbstreams/dynamodbstreamsiface"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
 type mockDynamoStreamsClient struct {
@@ -297,4 +306,324 @@ func TestProcessShard(t *testing.T) {
 	ProcessShard(wgShard, streamInfo, nil, mockStreamClient, shard, streamArn, srcTable)
 	assert.Equal(t, int64(1), streamInfo.TotalUnexpecteds())
 	assert.Equal(t, true, streamInfo.ShardStatus[*shard.ShardId])
+}
+
+func Test_getColsAndSchemas(t *testing.T) {
+	tableName := "testtable"
+	cols := []string{"a", "b", "c", "d"}
+	spSchema := ddl.CreateTable{
+		Name:     tableName,
+		ColNames: cols,
+		ColDefs: map[string]ddl.ColumnDef{
+			"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
+			"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
+		},
+		Pks: []ddl.IndexKey{{Col: "a"}},
+	}
+	srcSchema := schema.Table{
+		Name:     tableName,
+		ColNames: cols,
+		ColDefs: map[string]schema.Column{
+			"a": {Name: "a", Type: schema.Type{Name: typeString}},
+			"b": {Name: "b", Type: schema.Type{Name: typeNumber}},
+			"c": {Name: "c", Type: schema.Type{Name: typeNumberString}},
+			"d": {Name: "d", Type: schema.Type{Name: typeBool}},
+		},
+		PrimaryKeys: []schema.Key{{Column: "a"}},
+	}
+	conv := buildConv(spSchema, srcSchema)
+
+	type args struct {
+		conv     *internal.Conv
+		srcTable string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    schema.Table
+		want1   string
+		want2   []string
+		want3   ddl.CreateTable
+		wantErr bool
+	}{
+		{
+			name: "test for checking correctness of output",
+			args: args{
+				conv:     conv,
+				srcTable: tableName,
+			},
+			want:    srcSchema,
+			want1:   tableName,
+			want2:   cols,
+			want3:   spSchema,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1, got2, got3, err := getColsAndSchemas(tt.args.conv, tt.args.srcTable)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getColsAndSchemas() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getColsAndSchemas() got = %v, want %v", got, tt.want)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("getColsAndSchemas() got1 = %v, want %v", got1, tt.want1)
+			}
+			if !reflect.DeepEqual(got2, tt.want2) {
+				t.Errorf("getColsAndSchemas() got2 = %v, want %v", got2, tt.want2)
+			}
+			if !reflect.DeepEqual(got3, tt.want3) {
+				t.Errorf("getColsAndSchemas() got3 = %v, want %v", got3, tt.want3)
+			}
+		})
+	}
+}
+
+func TestProcessRecord(t *testing.T) {
+	valA := "strA"
+	numStr := "10.1"
+	numVal := big.NewRat(101, 10)
+
+	tableName := "testtable"
+	cols := []string{"a", "b"}
+	spSchema := ddl.CreateTable{
+		Name:     tableName,
+		ColNames: cols,
+		ColDefs: map[string]ddl.ColumnDef{
+			"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
+		},
+		Pks: []ddl.IndexKey{{Col: "a"}},
+	}
+	conv := buildConv(
+		spSchema,
+		schema.Table{
+			Name:     tableName,
+			ColNames: cols,
+			ColDefs: map[string]schema.Column{
+				"a": {Name: "a", Type: schema.Type{Name: typeString}},
+				"b": {Name: "b", Type: schema.Type{Name: typeNumber}},
+			},
+			PrimaryKeys: []schema.Key{{Column: "a"}},
+		},
+	)
+
+	record := &dynamodbstreams.Record{
+		Dynamodb: &dynamodbstreams.StreamRecord{
+			NewImage: map[string]*dynamodb.AttributeValue{
+				"a": {S: &valA},
+				"b": {N: &numStr},
+			},
+		},
+		EventName: aws.String("INSERT"),
+	}
+
+	streamInfo := MakeInfo()
+	streamInfo.Records[tableName] = make(map[string]int64)
+	writes := 0
+	streamInfo.write = func(m *sp.Mutation) error {
+		writes++
+		assert.Equal(t, m, sp.Insert(tableName, []string{"a", "b"}, []interface{}{valA, *numVal}))
+		return nil
+	}
+	ProcessRecord(conv, streamInfo, record, tableName)
+
+	// Check if call was successful.
+	assert.Equal(t, 1, writes)
+}
+
+func TestCreateMutation(t *testing.T) {
+	srcTable := "testtable_src"
+	spTable := "testtable_sp"
+	spCols := []string{"a", "b", "c", "d"}
+	srcSchema := schema.Table{
+		Name:     srcTable,
+		ColNames: spCols,
+		ColDefs: map[string]schema.Column{
+			"a": {Name: "a", Type: schema.Type{Name: typeNumber}},
+			"b": {Name: "b", Type: schema.Type{Name: typeString}},
+			"c": {Name: "c", Type: schema.Type{Name: typeBool}},
+			"d": {Name: "d", Type: schema.Type{Name: typeString}},
+		},
+		PrimaryKeys: []schema.Key{schema.Key{Column: "d"}, schema.Key{Column: "b"}},
+	}
+
+	type args struct {
+		eventName string
+		srcTable  string
+		spTable   string
+		spCols    []string
+		spVals    []interface{}
+		srcSchema schema.Table
+	}
+	tests := []struct {
+		name  string
+		args  args
+		wantM *sp.Mutation
+	}{
+		{
+			name: "test for checking insert/update mutations",
+			args: args{
+				eventName: "INSERT",
+				srcTable:  srcTable,
+				spTable:   spTable,
+				spCols:    spCols,
+				spVals:    []interface{}{25, "key1", true, "key2", 3},
+				srcSchema: srcSchema,
+			},
+			wantM: sp.Insert(spTable, spCols, []interface{}{25, "key1", true, "key2", 3}),
+		},
+		{
+			name: "test for checking delete mutations",
+			args: args{
+				eventName: "REMOVE",
+				srcTable:  srcTable,
+				spTable:   spTable,
+				spCols:    spCols,
+				spVals:    []interface{}{nil, "key1", nil, "key2", nil},
+				srcSchema: srcSchema,
+			},
+			wantM: sp.Delete(spTable, sp.Key{"key2", "key1"}),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if gotM := CreateMutation(tt.args.eventName, tt.args.srcTable, tt.args.spTable, tt.args.spCols, tt.args.spVals, tt.args.srcSchema); !reflect.DeepEqual(gotM, tt.wantM) {
+				t.Errorf("CreateMutation() = %v, want %v", gotM, tt.wantM)
+			}
+		})
+	}
+}
+
+func Test_WriteRecord(t *testing.T) {
+	streamInfo := MakeInfo()
+
+	table := "testTable"
+	streamInfo.Records[table] = make(map[string]int64)
+	streamInfo.BadRecords[table] = make(map[string]int64)
+	streamInfo.DroppedRecords[table] = make(map[string]int64)
+
+	srcSchema := schema.Table{
+		Name:     table,
+		ColNames: []string{"e", "f"},
+		ColDefs: map[string]schema.Column{
+			"e": {Name: "e", Type: schema.Type{Name: typeString}},
+			"f": {Name: "f", Type: schema.Type{Name: typeNumber}},
+		},
+		PrimaryKeys: []schema.Key{schema.Key{Column: "f"}, schema.Key{Column: "e"}},
+	}
+	tests := []struct {
+		srcTable  string
+		spTable   string
+		eventName string
+		spCols    []string
+		spVals    []interface{}
+		srcSchema schema.Table
+	}{
+		{
+			srcTable:  table,
+			spTable:   table,
+			eventName: "INSERT",
+			spCols:    []string{"a", "b"},
+			spVals:    []interface{}{23, true},
+		},
+		{
+			srcTable:  table,
+			spTable:   table,
+			eventName: "MODIFY",
+			spCols:    []string{"c", "d"},
+			spVals:    []interface{}{"goodTesting", 45},
+		},
+		{
+			srcTable:  table,
+			spTable:   table,
+			eventName: "INSERT",
+			spCols:    []string{"a", "b"},
+			spVals:    []interface{}{27, false},
+		},
+		{
+			srcTable:  table,
+			spTable:   table,
+			eventName: "MODIFY",
+			spCols:    []string{"c", "d"},
+			spVals:    []interface{}{"badTesting", 49},
+		},
+		{
+			srcTable:  table,
+			spTable:   table,
+			eventName: "REMOVE",
+			spCols:    []string{"e", "f"},
+			spVals:    []interface{}{"goodTesting", 45},
+			srcSchema: srcSchema,
+		},
+		{
+			srcTable:  table,
+			spTable:   table,
+			eventName: "REMOVE",
+			spCols:    []string{"e", "f"},
+			spVals:    []interface{}{"badTesting", 55},
+			srcSchema: srcSchema,
+		},
+	}
+	goodMutations := []*sp.Mutation{
+		sp.Insert(table, []string{"a", "b"}, []interface{}{23, true}),
+		sp.InsertOrUpdate(table, []string{"c", "d"}, []interface{}{"goodTesting", 45}),
+		sp.Delete(table, sp.Key{45, "goodTesting"}),
+	}
+	badMutations := []*sp.Mutation{
+		sp.Insert(table, []string{"a", "b"}, []interface{}{27, false}),
+		sp.InsertOrUpdate(table, []string{"c", "d"}, []interface{}{"badTesting", 49}),
+		sp.Delete(table, sp.Key{55, "badTesting"}),
+	}
+
+	writeCount := int64(0)
+	var mutationsWritten []*sp.Mutation
+	var mutationsFailed []*sp.Mutation
+
+	streamInfo.write = func(m *sp.Mutation) error {
+		var err error
+		writeCount++
+		if intersect(m, badMutations) {
+			err = errors.New("error! record not processed")
+			mutationsFailed = append(mutationsFailed, m)
+		} else {
+			mutationsWritten = append(mutationsWritten, m)
+		}
+		time.Sleep(20 * time.Millisecond)
+		return err
+	}
+
+	for _, data := range tests {
+		WriteRecord(streamInfo, data.srcTable, data.spTable, data.eventName, data.spCols, data.spVals, data.srcSchema)
+	}
+
+	// Check data written.
+	assert.Equal(t, true, reflect.DeepEqual(mutationsWritten, goodMutations))
+
+	// Check data rejected.
+	assert.Equal(t, true, reflect.DeepEqual(mutationsFailed, badMutations))
+
+	// Check total write calls.
+	assert.Equal(t, int64(6), writeCount)
+
+	// Check total dropped records.
+	assert.Equal(t, int64(3), streamInfo.TotalDroppedRecords())
+
+	// Check dropped insert record.
+	assert.Equal(t, "table=testTable cols=[a b] data=[27 false]", streamInfo.sampleBadWrites[0])
+
+}
+
+func intersect(m *sp.Mutation, mSet []*sp.Mutation) bool {
+	for _, mutation := range mSet {
+		if reflect.DeepEqual(m, mutation) {
+			return true
+		}
+	}
+	return false
 }
