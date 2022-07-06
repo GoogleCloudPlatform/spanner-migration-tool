@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -235,6 +236,37 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					l = append(l, fmt.Sprintf("Some columns have source DB type 'datetime' which is mapped to Spanner type timestamp e.g. column '%s'. %s", srcCol, IssueDB[i].Brief))
 				case Widened:
 					l = append(l, fmt.Sprintf("%s e.g. for column '%s', source DB type %s is mapped to Spanner type %s", IssueDB[i].Brief, srcCol, srcType, spType))
+				case HotspotTimestamp:
+					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+
+					if !contains(l, str) {
+						l = append(l, str)
+					}
+				case HotspotAutoIncrement:
+					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+
+					if !contains(l, str) {
+						l = append(l, str)
+					}
+				case InterleavedNotInOrder:
+					str := fmt.Sprintf(" Table %s  %s and Column %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+
+					if !contains(l, str) {
+						l = append(l, str)
+					}
+				case InterleavedOrder:
+					str := fmt.Sprintf("Table %s %s go to Interleave Table Tab", spSchema.Name, IssueDB[i].Brief)
+
+					if !contains(l, str) {
+						l = append(l, str)
+					}
+				case InterleavedAddColumn:
+					str := fmt.Sprintf(" %s add %s as a primary key in table %s", IssueDB[i].Brief, srcCol, spSchema.Name)
+
+					if !contains(l, str) {
+						l = append(l, str)
+					}
+
 				case IllegalName:
 					l = append(l, fmt.Sprintf("%s, Column '%s' is mapped to '%s'", IssueDB[i].Brief, srcName, spName))
 				default:
@@ -300,6 +332,11 @@ var IssueDB = map[SchemaIssue]struct {
 	Time:                  {Brief: "Spanner does not support time/year types", severity: note, batch: true},
 	Widened:               {Brief: "Some columns will consume more storage in Spanner", severity: note, batch: true},
 	StringOverflow:        {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
+	HotspotTimestamp:      {Brief: "Timestamp Hotspot Occured", severity: note},
+	HotspotAutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: note},
+	InterleavedNotInOrder: {Brief: "Can be converted to interleaved table if primary key order parameter is changed for the table", severity: note},
+	InterleavedOrder:      {Brief: "Can be converted to Interleaved Table", severity: note},
+	InterleavedAddColumn:  {Brief: "Candidate for Interleaved Table", severity: note},
 	IllegalName:           {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: note},
 }
 
