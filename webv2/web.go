@@ -497,7 +497,7 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if v.Rename != "" && v.Rename != colName {
-			if status, err := canRenameOrChangeType(colName, table); err != nil {
+			if status, err := canRenameOrChangeType(colName, v.Rename, v.ToType, table); err != nil {
 				err = rollback(err)
 				http.Error(w, fmt.Sprintf("%v", err), status)
 				return
@@ -518,11 +518,11 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if typeChange {
-				if status, err := canRenameOrChangeType(colName, table); err != nil {
-					err = rollback(err)
-					http.Error(w, fmt.Sprintf("%v", err), status)
-					return
-				}
+				// if status, err := canRenameOrChangeType(colName, table); err != nil {
+				// 	err = rollback(err)
+				// 	http.Error(w, fmt.Sprintf("%v", err), status)
+				// 	return
+				// }
 				updateType(v.ToType, table, colName, srcTableName, w)
 			}
 		}
@@ -1129,13 +1129,14 @@ func canRemoveColumn(colName, table string) (int, error) {
 	return http.StatusOK, nil
 }
 
-func canRenameOrChangeType(colName, table string) (int, error) {
+func canRenameOrChangeType(colName string, newName string, newType string, table string) (int, error) {
 	sessionState := session.GetSessionState()
 
 	isPartOfPK := isPartOfPK(colName, table)
 	isParent, childSchema := isParent(table)
 	isChild := sessionState.Conv.SpSchema[table].Parent != ""
 	if isPartOfPK && (isParent || isChild) {
+
 		return http.StatusBadRequest, fmt.Errorf("column : '%s' in table : '%s' is part of parent-child relation with schema : '%s'", colName, table, childSchema)
 	}
 	if isPartOfSecondaryIndex, indexName := isPartOfSecondaryIndex(colName, table); isPartOfSecondaryIndex {
@@ -1346,6 +1347,9 @@ func renameColumn(newName, table, colName, srcTableName string) {
 			break
 		}
 	}
+
+	//canRenameOrChangeType(colName, newName, sp.ColDefs[newName].T, table)
+
 	srcColName := sessionState.Conv.ToSource[table].Cols[colName]
 	sessionState.Conv.ToSpanner[srcTableName].Cols[srcColName] = newName
 	sessionState.Conv.ToSource[table].Cols[newName] = srcColName
