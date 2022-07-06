@@ -417,7 +417,7 @@ data conversion can be found here:
 - We recommend to use this data migration solution only for small databases 
 (smaller than 100GB) without strict downtime requirements. 
 - While using direct connect, it is recommended to use a secondary/read replica
- to ensure consistency and that there is no impact from the load.
+ to ensure consistency and that and avoid impact from the load on the primary.
 
 ## Troubleshooting Guide
 
