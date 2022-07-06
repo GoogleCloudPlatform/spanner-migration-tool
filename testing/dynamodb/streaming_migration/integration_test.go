@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dynamodb_test
+package dynamodb_streaming_test
 
 import (
 	"bytes"
@@ -236,7 +236,7 @@ func populateDynamoDBStreams(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got error calling PutItem: %s", err)
 	}
-	log.Println("Successfully inserted item after bulk migration")
+	log.Println("Successfully inserted item for streaming migration")
 }
 
 func RunStreamingMigration(t *testing.T, args string, projectID string) error {
@@ -266,18 +266,16 @@ func RunStreamingMigration(t *testing.T, args string, projectID string) error {
 		timeLimit--
 	}
 	if timeLimit == 0 {
-		return fmt.Errorf("error! command not executed successfully")
+		return fmt.Errorf("error! streaming migration not started successfully")
 	}
 	populateDynamoDBStreams(t)
 
-	log.Println("Waiting for record to get processed.")
-	// Wait for enough time for the record to get processed.
-	time.Sleep(60 * time.Second)
-	log.Println("Record got processed.")
+	// Wait for enough time for the record in DynamoDB Streams to get processed.
+	time.Sleep(30 * time.Second)
 
-	err := cmd.Process.Signal(os.Interrupt)
+	err := cmd.Process.Kill()
 	if err != nil {
-		log.Println("Interrupt not successfull")
+		log.Println("error! migration command not killed successfully")
 	}
 	return nil
 }
@@ -385,13 +383,6 @@ func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
 	if gotRecords[0].AttrString != "abcd" {
 		gotRecords[0], gotRecords[1] = gotRecords[1], gotRecords[0]
 	}
-
-	log.Println("----------")
-	log.Println(wantRecords)
-	log.Println("----------")
-	log.Println(gotRecords)
-	log.Println("----------")
-
 	for i := 0; i < 2; i++ {
 		if !reflect.DeepEqual(wantRecords[i], gotRecords[i]) {
 			t.Fatalf("mismatch in data written to spanner.")
