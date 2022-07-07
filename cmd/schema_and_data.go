@@ -125,10 +125,12 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 	if err != nil {
 		panic(err)
 	}
+	schemaCoversionEndTime := time.Now()
+	conv.Audit.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
 
 	// Populate migration request id and migration type in conv object
-	conv.MigrationRequestId = "HB-" + uuid.New().String()
-	conv.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
+	conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
 
 	conversion.WriteSchemaFile(conv, schemaConversionStartTime, cmd.filePrefix+schemaFile, ioHelper.Out)
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
@@ -163,21 +165,22 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 		return subcommands.ExitFailure
 	}
 
-	schemaCoversionEndTime := time.Now()
-	conv.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
+	dataCoversionStartTime := time.Now()
 	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, client, conv, true, cmd.writeLimit)
 	if err != nil {
-		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
+		err = fmt.Errorf("can't finish data migration: %v", err)
 		return subcommands.ExitFailure
 	}
+	dataCoversionEndTime := time.Now()
+	dataCoversionDuration := dataCoversionEndTime.Sub(dataCoversionStartTime)
+	conv.Audit.DataConversionDuration = dataCoversionDuration
+
 	if !cmd.skipForeignKeys {
 		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
 			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
 			return subcommands.ExitFailure
 		}
 	}
-	dataCoversionEndTime := time.Now()
-	conv.DataConversionDuration = dataCoversionEndTime.Sub(schemaCoversionEndTime)
 	banner := utils.GetBanner(schemaConversionStartTime, dbURI)
 	conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, cmd.filePrefix+badDataFile, ioHelper.Out)

@@ -3,7 +3,7 @@ package session
 import (
 	"context"
 
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/common"
+	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
 type SessionService struct {
@@ -53,7 +53,7 @@ func SetSessionStorageConnectionState(projectId string, spInstanceId string) boo
 		sessionState.IsOffline = true
 		return false
 	} else {
-		if isExist, isDbCreated := common.CheckOrCreateMetadataDb(projectId, spInstanceId); isExist {
+		if isExist, isDbCreated := utilities.CheckOrCreateMetadataDb(projectId, spInstanceId); isExist {
 			sessionState.IsOffline = false
 			return isDbCreated
 		} else {

@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -58,6 +59,8 @@ func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites ma
 	if isDump {
 		writeStmtStats(driverName, conv, w)
 	}
+	reportNameChanges(conv, w)
+
 	if printTableReports {
 		for _, t := range reports {
 			h := fmt.Sprintf("Table %s", t.SrcTable)
@@ -76,6 +79,7 @@ func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites ma
 			}
 		}
 	}
+
 	if printUnexpecteds {
 		writeUnexpectedConditions(driverName, conv, w)
 	}
@@ -174,6 +178,20 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 				l = append(l, fmt.Sprintf("UNIQUE constraint on column(s) '%s' replaced with primary key since this table didn't have one. Spanner requires a primary key for every table", strings.Join(uniquePK, ", ")))
 			}
 		}
+
+		if p.severity == note {
+			for srcKeyName, spKeyName := range conv.Audit.ToSpannerFkIdx[srcTable].ForeignKey {
+				if srcKeyName != spKeyName {
+					l = append(l, fmt.Sprintf("%s, Foreign Key '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcKeyName, spKeyName))
+				}
+			}
+			for srcIdxName, spIdxName := range conv.Audit.ToSpannerFkIdx[srcTable].Index {
+				if srcIdxName != spIdxName {
+					l = append(l, fmt.Sprintf("%s, Index '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcIdxName, spIdxName))
+				}
+			}
+		}
+
 		issueBatcher := make(map[SchemaIssue]bool)
 		for _, srcCol := range cols {
 			for _, i := range issues[srcCol] {
@@ -194,6 +212,9 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 				}
 				srcType := srcSchema.ColDefs[srcCol].Type.Print()
 				spType := spSchema.ColDefs[spCol].T.PrintColumnDefType()
+				srcName := srcSchema.ColDefs[srcCol].Name
+				spName := spSchema.ColDefs[spCol].Name
+
 				// A note on case: Spanner types are case insensitive, but
 				// default to upper case. In particular, the Spanner AST uses
 				// upper case, so spType is upper case. Many source DBs
@@ -217,6 +238,39 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					l = append(l, fmt.Sprintf("Some columns have source DB type 'datetime' which is mapped to Spanner type timestamp e.g. column '%s'. %s", srcCol, IssueDB[i].Brief))
 				case Widened:
 					l = append(l, fmt.Sprintf("%s e.g. for column '%s', source DB type %s is mapped to Spanner type %s", IssueDB[i].Brief, srcCol, srcType, spType))
+				case HotspotTimestamp:
+					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+
+					if !contains(l, str) {
+						l = append(l, str)
+					}
+				case HotspotAutoIncrement:
+					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+
+					if !contains(l, str) {
+						l = append(l, str)
+					}
+				case InterleavedNotInOrder:
+					str := fmt.Sprintf(" Table %s  %s and Column %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+
+					if !contains(l, str) {
+						l = append(l, str)
+					}
+				case InterleavedOrder:
+					str := fmt.Sprintf("Table %s %s go to Interleave Table Tab", spSchema.Name, IssueDB[i].Brief)
+
+					if !contains(l, str) {
+						l = append(l, str)
+					}
+				case InterleavedAddColumn:
+					str := fmt.Sprintf(" %s add %s as a primary key in table %s", IssueDB[i].Brief, srcCol, spSchema.Name)
+
+					if !contains(l, str) {
+						l = append(l, str)
+					}
+
+				case IllegalName:
+					l = append(l, fmt.Sprintf("%s, Column '%s' is mapped to '%s'", IssueDB[i].Brief, srcName, spName))
 				default:
 					l = append(l, fmt.Sprintf("Column '%s': type %s is mapped to %s. %s", srcCol, srcType, spType, IssueDB[i].Brief))
 				}
@@ -225,6 +279,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 		if len(l) == 0 {
 			continue
 		}
+
 		heading := p.heading
 		if len(l) > 1 {
 			heading = heading + "s"
@@ -279,6 +334,12 @@ var IssueDB = map[SchemaIssue]struct {
 	Time:                  {Brief: "Spanner does not support time/year types", severity: note, batch: true},
 	Widened:               {Brief: "Some columns will consume more storage in Spanner", severity: note, batch: true},
 	StringOverflow:        {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
+	HotspotTimestamp:      {Brief: "Timestamp Hotspot Occured", severity: note},
+	HotspotAutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: note},
+	InterleavedNotInOrder: {Brief: "Can be converted to interleaved table if primary key order parameter is changed for the table", severity: note},
+	InterleavedOrder:      {Brief: "Can be converted to Interleaved Table", severity: note},
+	InterleavedAddColumn:  {Brief: "Candidate for Interleaved Table", severity: note},
+	IllegalName:           {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: note},
 }
 
 type severity int
@@ -329,6 +390,7 @@ func AnalyzeCols(conv *Conv, srcTable, spTable string) (map[string][]SchemaIssue
 // summary rating.
 func rateSchema(cols, warnings int64, missingPKey, summary bool) string {
 	pkMsg := "missing primary key"
+	s := fmt.Sprintf(" (%s%% of %d columns mapped cleanly)", pct(cols, warnings), cols)
 	if summary {
 		pkMsg = "some missing primary keys"
 	}
@@ -336,21 +398,21 @@ func rateSchema(cols, warnings int64, missingPKey, summary bool) string {
 	case cols == 0:
 		return "NONE (no schema found)"
 	case warnings == 0 && !missingPKey:
-		return "EXCELLENT (all columns mapped cleanly)"
+		return fmt.Sprintf("EXCELLENT (all %d columns mapped cleanly)", cols)
 	case warnings == 0 && missingPKey:
 		return fmt.Sprintf("GOOD (all columns mapped cleanly, but %s)", pkMsg)
 	case good(cols, warnings) && !missingPKey:
-		return "GOOD (most columns mapped cleanly)"
+		return "GOOD" + s
 	case good(cols, warnings) && missingPKey:
-		return fmt.Sprintf("GOOD (most columns mapped cleanly, but %s)", pkMsg)
+		return "GOOD" + s + fmt.Sprintf(" + %s", pkMsg)
 	case ok(cols, warnings) && !missingPKey:
-		return "OK (some columns did not map cleanly)"
+		return "OK" + s
 	case ok(cols, warnings) && missingPKey:
-		return fmt.Sprintf("OK (some columns did not map cleanly + %s)", pkMsg)
+		return "OK" + s + fmt.Sprintf(" + %s", pkMsg)
 	case !missingPKey:
-		return "POOR (many columns did not map cleanly)"
+		return "POOR" + s
 	default:
-		return fmt.Sprintf("POOR (many columns did not map cleanly + %s)", pkMsg)
+		return "POOR" + s + fmt.Sprintf(" + %s", pkMsg)
 	}
 }
 
@@ -371,11 +433,11 @@ func rateData(rows int64, badRows int64) string {
 }
 
 func good(total, badCount int64) bool {
-	return badCount < total/20
+	return float64(badCount) < float64(total)/20
 }
 
 func ok(total, badCount int64) bool {
-	return badCount < total/3
+	return float64(badCount) < float64(total)/3
 }
 
 func rateConversion(rows, badRows, cols, warnings int64, missingPKey, summary bool, schemaOnly bool) string {
@@ -435,6 +497,38 @@ func IgnoredStatements(conv *Conv) (l []string) {
 	}
 	sort.Strings(l)
 	return l
+}
+
+func reportNameChanges(conv *Conv, w *bufio.Writer) {
+
+	w.WriteString("-----------------------------------------------------------------------------------------------------\n")
+	w.WriteString("Name Changes in Migration\n")
+	w.WriteString("-----------------------------------------------------------------------------------------------------\n")
+	fmt.Fprintf(w, "%25s %15s %25s %25s\n", "Source Table", "Change", "Old Name", "New Name")
+	w.WriteString("-----------------------------------------------------------------------------------------------------\n")
+
+	for srcTableName, spTable := range conv.ToSpanner {
+		if srcTableName != spTable.Name {
+			fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Table Name", srcTableName, spTable.Name)
+		}
+		for srcColName, spColName := range spTable.Cols {
+			if srcColName != spColName {
+				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Column Name", srcColName, spColName)
+			}
+		}
+		for srcFkName, spFkName := range conv.Audit.ToSpannerFkIdx[srcTableName].ForeignKey {
+			if srcFkName != spFkName {
+				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Foreign Key", srcFkName, spFkName)
+			}
+		}
+		for srcIdxName, spIdxName := range conv.Audit.ToSpannerFkIdx[srcTableName].Index {
+			if srcIdxName != spIdxName {
+				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Index", srcIdxName, spIdxName)
+			}
+		}
+	}
+	w.WriteString("-----------------------------------------------------------------------------------------------------\n\n\n")
+
 }
 
 func writeStmtStats(driverName string, conv *Conv, w *bufio.Writer) {
@@ -565,13 +659,13 @@ func writeHeading(w *bufio.Writer, s string) {
 
 func conversionDuration(conv *Conv, w *bufio.Writer) string {
 	res := ""
-	if conv.DataConversionDuration.Microseconds() != 0 || conv.SchemaConversionDuration.Microseconds() != 0 {
+	if conv.Audit.DataConversionDuration.Microseconds() != 0 || conv.Audit.SchemaConversionDuration.Microseconds() != 0 {
 		writeHeading(w, "Time duration of Conversion")
-		if conv.SchemaConversionDuration.Microseconds() != 0 {
-			res += fmt.Sprintf("Schema conversion duration : %s \n", conv.SchemaConversionDuration)
+		if conv.Audit.SchemaConversionDuration.Microseconds() != 0 {
+			res += fmt.Sprintf("Schema conversion duration : %s \n", conv.Audit.SchemaConversionDuration)
 		}
-		if conv.DataConversionDuration.Microseconds() != 0 {
-			res += fmt.Sprintf("Data conversion duration : %s \n", conv.DataConversionDuration)
+		if conv.Audit.DataConversionDuration.Microseconds() != 0 {
+			res += fmt.Sprintf("Data conversion duration : %s \n", conv.Audit.DataConversionDuration)
 		}
 		res += "\n"
 	}

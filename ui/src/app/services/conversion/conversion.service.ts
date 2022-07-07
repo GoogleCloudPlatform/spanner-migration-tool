@@ -168,6 +168,13 @@ export class ConversionService {
     })
   }
 
+  getPkMapping(tableData: IColumnTabData[]): IColumnTabData[] {
+    let pkColumns = tableData.filter((column: IColumnTabData) => {
+      return column.spIsPk || column.srcIsPk
+    })
+    return JSON.parse(JSON.stringify(pkColumns))
+  }
+
   getFkMapping(tableName: string, data: IConv): IFkTabData[] {
     let srcTableName: string = data.ToSource[tableName].Name
     let spFks = data.SpSchema[tableName].Fks

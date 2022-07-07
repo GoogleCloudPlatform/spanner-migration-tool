@@ -147,6 +147,7 @@ type ColumnDef struct {
 	T       Type
 	NotNull bool
 	Comment string
+	Id      string
 }
 
 // Config controls how AST nodes are printed (aka unparsed).
@@ -191,8 +192,9 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 //     key_part:
 //        column_name [{ ASC | DESC }]
 type IndexKey struct {
-	Col  string
-	Desc bool // Default order is ascending i.e. Desc = false.
+	Col   string
+	Desc  bool // Default order is ascending i.e. Desc = false.
+	Order int
 }
 
 // PrintIndexKey unparses the index keys.
@@ -213,6 +215,7 @@ type Foreignkey struct {
 	Columns      []string
 	ReferTable   string
 	ReferColumns []string
+	Id           string
 }
 
 // PrintForeignKey unparses the foreign keys.
@@ -240,6 +243,7 @@ type CreateTable struct {
 	Indexes  []CreateIndex
 	Parent   string //if not empty, this table will be interleaved
 	Comment  string
+	Id       string
 }
 
 // PrintCreateTable unparses a CREATE TABLE statement.
@@ -296,6 +300,7 @@ type CreateIndex struct {
 	Table  string
 	Unique bool
 	Keys   []IndexKey
+	Id     string
 	// We have no requirements for null-filtered option and
 	// storing/interleaving clauses yet, so we omit them for now.
 }
