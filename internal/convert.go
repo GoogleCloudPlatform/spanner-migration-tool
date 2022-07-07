@@ -93,6 +93,7 @@ const (
 	IndexRedandant
 	INDEX_TIMESTAMP
 	InterleaveIndex
+	HotspotIndex
 )
 
 // NameAndCols contains the name of a table and its columns.

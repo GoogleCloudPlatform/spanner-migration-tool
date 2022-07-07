@@ -261,6 +261,13 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 						l = append(l, str)
 					}
 
+				case HotspotIndex:
+					str := fmt.Sprintf("Column %s of Table %s %s", srcCol, spSchema.Name, IssueDB[i].Brief)
+
+					if !contains(l, str) {
+						l = append(l, str)
+					}
+
 				default:
 					l = append(l, fmt.Sprintf("Column '%s': type %s is mapped to %s. %s", srcCol, srcType, spType, IssueDB[i].Brief))
 				}
@@ -331,6 +338,7 @@ var IssueDB = map[SchemaIssue]struct {
 	IndexRedandant:        {Brief: "Redudant Index", severity: warning},
 	INDEX_TIMESTAMP:       {Brief: "Redudant Index due to Timestamp", severity: warning},
 	InterleaveIndex:       {Brief: "can be converted to an Interleave Index", severity: note},
+	HotspotIndex:          {Brief: "in Index can create a Hotspot", severity: warning},
 }
 
 type severity int

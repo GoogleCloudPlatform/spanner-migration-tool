@@ -93,7 +93,7 @@ func interleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 
 				//Interleave suggestion if the column is of type auto increment.
 				if helpers.IsSchemaIssuePresent(schemaissue, internal.AutoIncrement) {
-					schemaissue = append(schemaissue, internal.InterleaveIndex)
+					schemaissue = append(schemaissue, internal.HotspotIndex)
 					sessionState.Conv.Issues[spannerTable.Name][indexFirstColumn] = schemaissue
 				}
 
@@ -107,7 +107,7 @@ func interleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 							sessionState := session.GetSessionState()
 							schemaissue := sessionState.Conv.Issues[spannerTable.Name][columnname]
 
-							schemaissue = append(schemaissue, internal.InterleaveIndex)
+							schemaissue = append(schemaissue, internal.HotspotIndex)
 							sessionState.Conv.Issues[spannerTable.Name][columnname] = schemaissue
 						}
 
@@ -166,6 +166,10 @@ func RemoveIndexIssue(schemaissue []internal.SchemaIssue) []internal.SchemaIssue
 
 	if helpers.IsSchemaIssuePresent(schemaissue, internal.InterleaveIndex) {
 		schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleaveIndex)
+	}
+
+	if helpers.IsSchemaIssuePresent(schemaissue, internal.HotspotIndex) {
+		schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.HotspotIndex)
 	}
 
 	return schemaissue
