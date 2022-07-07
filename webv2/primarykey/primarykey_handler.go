@@ -114,6 +114,9 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// index.RemoveIndexIssues(spannerTable.Name)
+	// index.IndexSuggestion()
+
 	helpers.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{

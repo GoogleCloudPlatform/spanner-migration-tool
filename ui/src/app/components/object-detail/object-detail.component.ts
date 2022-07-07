@@ -131,8 +131,8 @@ export class ObjectDetailComponent implements OnInit {
     this.interleaveParentName = this.getParentFromDdl()
 
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
-      this.setPkOrder()
       this.checkIsInterleave()
+      //this.setPkOrder()
       this.interleaveObj = this.data.tableInterleaveStatus.subscribe((res) => {
         this.interleaveStatus = res
       })
@@ -428,6 +428,7 @@ export class ObjectDetailComponent implements OnInit {
   pkOrderValidation() {
     let arr = this.pkData.map((item) => Number(item.spOrder))
     arr.sort()
+
     if (arr[arr.length - 1] > arr.length) {
       arr.forEach((num: number, ind: number) => {
         this.pkData.forEach((pk: IColumnTabData) => {
@@ -437,12 +438,18 @@ export class ObjectDetailComponent implements OnInit {
         })
       })
     }
+
+    // this.pkData.forEach((pk: IColumnTabData) => {
+    //   if (pk.spOrder == 0) {
+    //     pk.spOrder = 1
+    //   }
+    // })
   }
 
   getPkRequestObj() {
     let tableId: string = this.conv.SpSchema[this.currentObject!.name].Id
     let Columns: { ColumnId: string; ColName: string; Desc: boolean; Order: number }[] = []
-    this.pkArray.value.forEach((row: IColumnTabData) => {
+    //this.pkData.forEach((row: IColumnTabData) => {
       if (row.spIsPk)
         Columns.push({
           ColumnId: this.conv.SpSchema[this.currentObject!.name].ColDefs[row.spColName].Id,
@@ -466,13 +473,6 @@ export class ObjectDetailComponent implements OnInit {
   togglePkEdit() {
     this.currentTabIndex = 1
     if (this.isPkEditMode) {
-      this.getPkRequestObj()
-      if (this.pkObj.Columns.length == 0) {
-        this.dialog.open(InfodialogComponent, {
-          data: { message: 'Add columns to the primary key for saving', type: 'error' },
-          maxWidth: '500px',
-        })
-      }
       this.pkArray.value.forEach((pk: IColumnTabData) => {
         for (let i = 0; i < this.pkData.length; i++) {
           if (pk.spColName == this.pkData[i].spColName) {
@@ -481,6 +481,15 @@ export class ObjectDetailComponent implements OnInit {
           }
         }
       })
+      // this.pkOrderValidation()
+      // this.getPkRequestObj()
+      // if (this.pkObj.Columns.length == 0) {
+      //   this.dialog.open(InfodialogComponent, {
+      //     data: { message: 'Add columns to the primary key for saving', type: 'error' },
+      //     maxWidth: '500px',
+      //   })
+      // }
+
       this.isPkEditMode = false
       this.data.updatePk(this.pkObj).subscribe({
         next: (res: string) => {

@@ -45,6 +45,8 @@ func redundantIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 		indexFirstColumn := index[i].Keys[0].Col
 
 		if primaryKeyFirstColumn == indexFirstColumn {
+			// fmt.Println("##########")
+			// fmt.Println(primaryKeyFirstColumn, "&&&&&", indexFirstColumn)
 			columnname := keys[i].Col
 			sessionState := session.GetSessionState()
 			schemaissue := sessionState.Conv.Issues[spannerTable.Name][columnname]
@@ -94,8 +96,6 @@ func interleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 				//Interleave suggestion if the column is of type auto increment.
 				if utilities.IsSchemaIssuePresent(schemaissue, internal.AutoIncrement) {
 					schemaissue = append(schemaissue, internal.HotspotIndex)
-				if utilities.IsSchemaIssuePresent(schemaissue, internal.AutoIncrement) {
-					schemaissue = append(schemaissue, internal.InterleaveIndex)
 					sessionState.Conv.Issues[spannerTable.Name][indexFirstColumn] = schemaissue
 				}
 
@@ -125,34 +125,43 @@ func interleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 
 // RemoveIndexIssues remove all  index suggestion from given list.
 // RemoveSchemaIssues is used when we are  removing index.
-func RemoveIndexIssues(table string, Index ddl.CreateIndex) {
 
-	for i := 0; i < len(Index.Keys); i++ {
+// func RemoveIndexIssues(table string) {
 
-		column := Index.Keys[i].Col
+// 	schemaissue := []internal.SchemaIssue{}
+// 	sessionState := session.GetSessionState()
+// 	ind := sessionState.Conv.SpSchema[table].Indexes
 
-		{
-			schemaissue := []internal.SchemaIssue{}
-			sessionState := session.GetSessionState()
-			schemaissue = sessionState.Conv.Issues[table][column]
+// 	for k := 0; k < len(ind); k++ {
 
-			if len(schemaissue) > 0 {
+// 		Index := ind[k]
 
-				schemaissue = RemoveIndexIssue(schemaissue)
+		for i := 0; i < len(Index.Keys); i++ {
 
-				if sessionState.Conv.Issues[table][column] == nil {
+			column := Index.Keys[i].Col
 
-					s := map[string][]internal.SchemaIssue{
-						column: schemaissue,
-					}
-					sessionState.Conv.Issues = map[string]map[string][]internal.SchemaIssue{}
+			{
 
-					sessionState.Conv.Issues[table] = s
+				schemaissue = sessionState.Conv.Issues[table][column]
 
-				} else {
+				if len(schemaissue) > 0 {
 
-					sessionState.Conv.Issues[table][column] = schemaissue
+					schemaissue = RemoveIndexIssue(schemaissue)
 
+					if sessionState.Conv.Issues[table][column] == nil {
+
+						s := map[string][]internal.SchemaIssue{
+							column: schemaissue,
+						}
+						sessionState.Conv.Issues = map[string]map[string][]internal.SchemaIssue{}
+
+						sessionState.Conv.Issues[table] = s
+
+					} else {
+
+						sessionState.Conv.Issues[table][column] = schemaissue
+
+					//}
 				}
 			}
 		}
@@ -170,8 +179,8 @@ func RemoveIndexIssue(schemaissue []internal.SchemaIssue) []internal.SchemaIssue
 		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleaveIndex)
 	}
 
-	if helpers.IsSchemaIssuePresent(schemaissue, internal.HotspotIndex) {
-		schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.HotspotIndex)
+	// if utilities.IsSchemaIssuePresent(schemaissue, internal.HotspotIndex) {
+	// 	schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.HotspotIndex)
 	}
 
 	return schemaissue

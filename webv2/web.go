@@ -1027,9 +1027,10 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	index.RemoveIndexIssues(table, sp.Indexes[position])
+	//index.RemoveIndexIssues(table)
 
 	sp.Indexes = removeSecondaryIndex(sp.Indexes, position)
+	//index.IndexSuggestion()
 	sessionState.Conv.SpSchema[table] = sp
 	helpers.UpdateSessionFile()
 
