@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package web defines web APIs to be used with harbourbridge frontend.
-// Apart from schema conversion, this package involves API to update
-// converted schema.
-
 package primarykey
 
 import (
@@ -27,7 +23,6 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/index"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 
 	"github.com/google/uuid"
@@ -35,23 +30,21 @@ import (
 
 // PrimaryKeyRequest represents  Primary keys API Payload.
 type PrimaryKeyRequest struct {
-	TableId      int      `json:"TableId"`
-	Columns      []Column `json:"Columns"`
-	PrimaryKeyId int      `json:"PrimaryKeyId"`
+	TableId string   `json:"TableId"`
+	Columns []Column `json:"Columns"`
 }
 
 // PrimaryKeyResponse represents  Primary keys API response.
 // Synth is true is for table Primary Key Id is not present and it is generated.
 type PrimaryKeyResponse struct {
-	TableId      int      `json:"TableId"`
-	Columns      []Column `json:"Columns"`
-	PrimaryKeyId int      `json:"PrimaryKeyId"`
-	Synth        bool     `json:"Synth"`
+	TableId string   `json:"TableId"`
+	Columns []Column `json:"Columns"`
+	Synth   bool     `json:"Synth"`
 }
 
 // Column represents  SpannerTables Column.
 type Column struct {
-	ColumnId int    `json:"ColumnId"`
+	ColumnId string `json:"ColumnId"`
 	ColName  string `json:"ColName"`
 	Desc     bool   `json:"Desc"`
 	Order    int    `json:"Order"`
@@ -62,7 +55,7 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 
 	id := uuid.New()
 
-	log.Println("request started", "traceid", id.String(), "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
+	log.Println("request started", "traceid", id.String(), "method", r.Method, "path", r.URL.Path)
 
 	reqBody, err := ioutil.ReadAll(r.Body)
 
@@ -118,9 +111,6 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 	for _, table := range sessionState.Conv.SpSchema {
 		if pkRequest.TableId == table.Id {
 			sessionState.Conv.SpSchema[table.Name] = spannerTable
-			for _, ind := range spannerTable.Indexes {
-				index.RemoveIndexIssues(spannerTable.Name, ind)
-			}
 		}
 	}
 
@@ -144,7 +134,6 @@ func prepareResponse(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) 
 	var pKeyResponse PrimaryKeyResponse
 
 	pKeyResponse.TableId = pkRequest.TableId
-	pKeyResponse.PrimaryKeyId = pkRequest.PrimaryKeyId
 
 	var isSynthPrimaryKey bool
 

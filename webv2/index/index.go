@@ -5,8 +5,8 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
 // IndexSuggestion adds redundant index and interleved index  suggestion in schema conversion process for database.
@@ -19,7 +19,7 @@ func IndexSuggestion() {
 	}
 }
 
-//Helpers method for checking Index Suggestion.
+// Helpers method for checking Index Suggestion.
 func CheckIndexSuggestion(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 
 	redundantIndex(index, spannerTable)
@@ -92,7 +92,7 @@ func interleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 				}
 
 				//Interleave suggestion if the column is of type auto increment.
-				if helpers.IsSchemaIssuePresent(schemaissue, internal.AutoIncrement) {
+				if utilities.IsSchemaIssuePresent(schemaissue, internal.AutoIncrement) {
 					schemaissue = append(schemaissue, internal.InterleaveIndex)
 					sessionState.Conv.Issues[spannerTable.Name][indexFirstColumn] = schemaissue
 				}
@@ -160,12 +160,12 @@ func RemoveIndexIssues(table string, Index ddl.CreateIndex) {
 // RemoveSchemaIssue removes issue from the schemaissue list.
 func RemoveIndexIssue(schemaissue []internal.SchemaIssue) []internal.SchemaIssue {
 
-	if helpers.IsSchemaIssuePresent(schemaissue, internal.IndexRedandant) {
-		schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.IndexRedandant)
+	if utilities.IsSchemaIssuePresent(schemaissue, internal.IndexRedandant) {
+		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.IndexRedandant)
 	}
 
-	if helpers.IsSchemaIssuePresent(schemaissue, internal.InterleaveIndex) {
-		schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleaveIndex)
+	if utilities.IsSchemaIssuePresent(schemaissue, internal.InterleaveIndex) {
+		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleaveIndex)
 	}
 
 	return schemaissue

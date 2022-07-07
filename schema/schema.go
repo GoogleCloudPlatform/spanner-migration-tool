@@ -33,15 +33,14 @@ import (
 
 // Table represents a database table.
 type Table struct {
-	Name         string
-	Schema       string
-	ColNames     []string          // List of column names (for predictable iteration order e.g. printing).
-	ColDefs      map[string]Column // Details of columns.
-	PrimaryKeys  []Key
-	ForeignKeys  []ForeignKey
-	Indexes      []Index
-	Id           int
-	PrimaryKeyId int
+	Name        string
+	Schema      string
+	ColNames    []string          // List of column names (for predictable iteration order e.g. printing).
+	ColDefs     map[string]Column // Details of columns.
+	PrimaryKeys []Key
+	ForeignKeys []ForeignKey
+	Indexes     []Index
+	Id          string
 }
 
 // Column represents a database column.
@@ -51,7 +50,7 @@ type Column struct {
 	Type    Type
 	NotNull bool
 	Ignored Ignored
-	Id      int
+	Id      string
 }
 
 // ForeignKey represents a foreign key.
@@ -67,12 +66,14 @@ type ForeignKey struct {
 	ReferColumns []string // len(ReferColumns) must be same as len(Columns)
 	OnDelete     string
 	OnUpdate     string
+	Id           string
 }
 
 // Key respresents a primary key or index key.
 type Key struct {
 	Column string
 	Desc   bool // By default, order is ASC. Set to true to specifiy DESC.
+	Order  int
 }
 
 // Index represents a database index.
@@ -91,6 +92,7 @@ type Index struct {
 	Name   string
 	Unique bool
 	Keys   []Key
+	Id     string
 }
 
 // Type represents the type of a column.

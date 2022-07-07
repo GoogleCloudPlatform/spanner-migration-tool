@@ -43,6 +43,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
@@ -97,7 +98,7 @@ func DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetP
 	}
 	switch sourceProfile.Driver {
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE:
-		return dataFromDatabase(sourceProfile, config, client, conv)
+		return dataFromDatabase(ctx, sourceProfile, targetProfile, config, conv, client)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		if conv.SpSchema.CheckInterleaved() {
 			return nil, fmt.Errorf("harbourBridge does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql")
@@ -166,18 +167,14 @@ func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (*internal.Conv, error) {
 	conv := internal.MakeConv()
 	conv.TargetDb = targetProfile.TargetDb
-	infoSchema, err := GetInfoSchema(sourceProfile)
+	infoSchema, err := GetInfoSchema(sourceProfile, targetProfile)
 	if err != nil {
 		return conv, err
 	}
 	return conv, common.ProcessSchema(conv, infoSchema)
 }
 
-func dataFromDatabase(sourceProfile profiles.SourceProfile, config writer.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*writer.BatchWriter, error) {
-	infoSchema, err := GetInfoSchema(sourceProfile)
-	if err != nil {
-		return nil, err
-	}
+func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error) {
 	common.SetRowStats(conv, infoSchema)
 	totalRows := conv.Rows()
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
@@ -185,6 +182,31 @@ func dataFromDatabase(sourceProfile profiles.SourceProfile, config writer.BatchW
 	common.ProcessData(conv, infoSchema)
 	batchWriter.Flush()
 	return batchWriter, nil
+}
+
+func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
+	infoSchema, err := GetInfoSchema(sourceProfile, targetProfile)
+	if err != nil {
+		return nil, err
+	}
+	var streamInfo map[string]interface{}
+	if sourceProfile.Conn.Streaming {
+		streamInfo, err = infoSchema.StartChangeDataCapture(ctx, conv)
+		if err != nil {
+			return nil, err
+		}
+	}
+	bw, err := performSnapshotMigration(config, conv, client, infoSchema)
+	if err != nil {
+		return nil, err
+	}
+	if sourceProfile.Conn.Streaming {
+		err = infoSchema.StartStreamingMigration(ctx, client, conv, streamInfo)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return bw, nil
 }
 
 func getDynamoDBClientConfig() (*aws.Config, error) {
@@ -760,7 +782,7 @@ func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 	}
 }
 
-func GetInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, error) {
+func GetInfoSchema(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error) {
 	connectionConfig, err := connectionConfig(sourceProfile)
 	if err != nil {
 		return nil, err
@@ -773,7 +795,12 @@ func GetInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, err
 		if err != nil {
 			return nil, err
 		}
-		return mysql.InfoSchemaImpl{DbName: dbName, Db: db}, nil
+		return mysql.InfoSchemaImpl{
+			DbName:        dbName,
+			Db:            db,
+			SourceProfile: sourceProfile,
+			TargetProfile: targetProfile,
+		}, nil
 	case constants.POSTGRES:
 		db, err := sql.Open(driver, connectionConfig.(string))
 		if err != nil {
@@ -783,7 +810,16 @@ func GetInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, err
 	case constants.DYNAMODB:
 		mySession := session.Must(session.NewSession())
 		dydbClient := dydb.New(mySession, connectionConfig.(*aws.Config))
-		return dynamodb.InfoSchemaImpl{DynamoClient: dydbClient, SampleSize: profiles.GetSchemaSampleSize(sourceProfile)}, nil
+		var dydbStreamsClient *dynamodbstreams.DynamoDBStreams
+		if sourceProfile.Conn.Streaming {
+			newSession := session.Must(session.NewSession())
+			dydbStreamsClient = dynamodbstreams.New(newSession, connectionConfig.(*aws.Config))
+		}
+		return dynamodb.InfoSchemaImpl{
+			DynamoClient:        dydbClient,
+			SampleSize:          profiles.GetSchemaSampleSize(sourceProfile),
+			DynamoStreamsClient: dydbStreamsClient,
+		}, nil
 	case constants.SQLSERVER:
 		db, err := sql.Open(driver, connectionConfig.(string))
 		dbName := getDbNameFromSQLConnectionStr(driver, connectionConfig.(string))
@@ -797,7 +833,7 @@ func GetInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, err
 		if err != nil {
 			return nil, err
 		}
-		return oracle.InfoSchemaImpl{DbName: strings.ToUpper(dbName), Db: db}, nil
+		return oracle.InfoSchemaImpl{DbName: strings.ToUpper(dbName), Db: db, SourceProfile: sourceProfile, TargetProfile: targetProfile}, nil
 	default:
 		return nil, fmt.Errorf("driver %s not supported", driver)
 	}
