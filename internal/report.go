@@ -59,6 +59,8 @@ func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites ma
 	if isDump {
 		writeStmtStats(driverName, conv, w)
 	}
+	reportNameChanges(conv, w)
+
 	if printTableReports {
 		for _, t := range reports {
 			h := fmt.Sprintf("Table %s", t.SrcTable)
@@ -77,6 +79,7 @@ func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites ma
 			}
 		}
 	}
+
 	if printUnexpecteds {
 		writeUnexpectedConditions(driverName, conv, w)
 	}
@@ -173,6 +176,20 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 				l = append(l, fmt.Sprintf("UNIQUE constraint on column(s) '%s' replaced with primary key since this table didn't have one. Spanner requires a primary key for every table", strings.Join(uniquePK, ", ")))
 			}
 		}
+
+		if p.severity == note {
+			for srcKeyName, spKeyName := range conv.Audit.ToSpannerFkIdx[srcTable].ForeignKey {
+				if srcKeyName != spKeyName {
+					l = append(l, fmt.Sprintf("%s, Foreign Key '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcKeyName, spKeyName))
+				}
+			}
+			for srcIdxName, spIdxName := range conv.Audit.ToSpannerFkIdx[srcTable].Index {
+				if srcIdxName != spIdxName {
+					l = append(l, fmt.Sprintf("%s, Index '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcIdxName, spIdxName))
+				}
+			}
+		}
+
 		issueBatcher := make(map[SchemaIssue]bool)
 		for _, srcCol := range cols {
 			for _, i := range issues[srcCol] {
@@ -193,6 +210,9 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 				}
 				srcType := srcSchema.ColDefs[srcCol].Type.Print()
 				spType := spSchema.ColDefs[spCol].T.PrintColumnDefType()
+				srcName := srcSchema.ColDefs[srcCol].Name
+				spName := spSchema.ColDefs[spCol].Name
+
 				// A note on case: Spanner types are case insensitive, but
 				// default to upper case. In particular, the Spanner AST uses
 				// upper case, so spType is upper case. Many source DBs
@@ -228,7 +248,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					if !contains(l, str) {
 						l = append(l, str)
 					}
-				case InterleavedNotINOrder:
+				case InterleavedNotInOrder:
 					str := fmt.Sprintf(" Table %s  %s and Column %s", IssueDB[i].Brief, spSchema.Name, srcCol)
 
 					if !contains(l, str) {
@@ -240,7 +260,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					if !contains(l, str) {
 						l = append(l, str)
 					}
-				case InterleavedADDCOLUMN:
+				case InterleavedAddColumn:
 					str := fmt.Sprintf(" %s add %s as a primary key in table %s", IssueDB[i].Brief, srcCol, spSchema.Name)
 
 					if !contains(l, str) {
@@ -268,6 +288,8 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 						l = append(l, str)
 					}
 
+				case IllegalName:
+					l = append(l, fmt.Sprintf("%s, Column '%s' is mapped to '%s'", IssueDB[i].Brief, srcName, spName))
 				default:
 					l = append(l, fmt.Sprintf("Column '%s': type %s is mapped to %s. %s", srcCol, srcType, spType, IssueDB[i].Brief))
 				}
@@ -276,6 +298,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 		if len(l) == 0 {
 			continue
 		}
+
 		heading := p.heading
 		if len(l) > 1 {
 			heading = heading + "s"
@@ -332,9 +355,10 @@ var IssueDB = map[SchemaIssue]struct {
 	StringOverflow:        {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
 	HotspotTimestamp:      {Brief: "Timestamp Hotspot Occured", severity: note},
 	HotspotAutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: note},
-	InterleavedNotINOrder: {Brief: "can be converted as Interleaved Table if Primary Key Order  parameter changed for Table", severity: note},
-	InterleavedOrder:      {Brief: "can be converted as Interleaved Table", severity: note},
-	InterleavedADDCOLUMN:  {Brief: "Candidate for Interleaved Table", severity: note},
+	InterleavedNotInOrder: {Brief: "Can be converted to interleaved table if primary key order parameter is changed for the table", severity: note},
+	InterleavedOrder:      {Brief: "Can be converted to Interleaved Table", severity: note},
+	InterleavedAddColumn:  {Brief: "Candidate for Interleaved Table", severity: note},
+	IllegalName:           {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: note},
 	IndexRedandant:        {Brief: "Redudant Index", severity: warning},
 	INDEX_TIMESTAMP:       {Brief: "Redudant Index due to Timestamp", severity: warning},
 	InterleaveIndex:       {Brief: "can be converted to an Interleave Index", severity: note},
@@ -496,6 +520,38 @@ func IgnoredStatements(conv *Conv) (l []string) {
 	return l
 }
 
+func reportNameChanges(conv *Conv, w *bufio.Writer) {
+
+	w.WriteString("-----------------------------------------------------------------------------------------------------\n")
+	w.WriteString("Name Changes in Migration\n")
+	w.WriteString("-----------------------------------------------------------------------------------------------------\n")
+	fmt.Fprintf(w, "%25s %15s %25s %25s\n", "Source Table", "Change", "Old Name", "New Name")
+	w.WriteString("-----------------------------------------------------------------------------------------------------\n")
+
+	for srcTableName, spTable := range conv.ToSpanner {
+		if srcTableName != spTable.Name {
+			fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Table Name", srcTableName, spTable.Name)
+		}
+		for srcColName, spColName := range spTable.Cols {
+			if srcColName != spColName {
+				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Column Name", srcColName, spColName)
+			}
+		}
+		for srcFkName, spFkName := range conv.Audit.ToSpannerFkIdx[srcTableName].ForeignKey {
+			if srcFkName != spFkName {
+				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Foreign Key", srcFkName, spFkName)
+			}
+		}
+		for srcIdxName, spIdxName := range conv.Audit.ToSpannerFkIdx[srcTableName].Index {
+			if srcIdxName != spIdxName {
+				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Index", srcIdxName, spIdxName)
+			}
+		}
+	}
+	w.WriteString("-----------------------------------------------------------------------------------------------------\n\n\n")
+
+}
+
 func writeStmtStats(driverName string, conv *Conv, w *bufio.Writer) {
 	type stat struct {
 		statement string
@@ -624,13 +680,13 @@ func writeHeading(w *bufio.Writer, s string) {
 
 func conversionDuration(conv *Conv, w *bufio.Writer) string {
 	res := ""
-	if conv.DataConversionDuration.Microseconds() != 0 || conv.SchemaConversionDuration.Microseconds() != 0 {
+	if conv.Audit.DataConversionDuration.Microseconds() != 0 || conv.Audit.SchemaConversionDuration.Microseconds() != 0 {
 		writeHeading(w, "Time duration of Conversion")
-		if conv.SchemaConversionDuration.Microseconds() != 0 {
-			res += fmt.Sprintf("Schema conversion duration : %s \n", conv.SchemaConversionDuration)
+		if conv.Audit.SchemaConversionDuration.Microseconds() != 0 {
+			res += fmt.Sprintf("Schema conversion duration : %s \n", conv.Audit.SchemaConversionDuration)
 		}
-		if conv.DataConversionDuration.Microseconds() != 0 {
-			res += fmt.Sprintf("Data conversion duration : %s \n", conv.DataConversionDuration)
+		if conv.Audit.DataConversionDuration.Microseconds() != 0 {
+			res += fmt.Sprintf("Data conversion duration : %s \n", conv.Audit.DataConversionDuration)
 		}
 		res += "\n"
 	}

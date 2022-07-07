@@ -210,6 +210,7 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, pro
 	}
 	fmt.Println("Successfully created stream ", datastreamCfg.StreamId)
 
+	fmt.Print("Setting stream state to RUNNING...")
 	streamInfo.Name = fmt.Sprintf("projects/%s/locations/%s/streams/%s", projectID, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
 	updateStreamRequest := &datastreampb.UpdateStreamRequest{
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"state"}},
@@ -219,12 +220,11 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, pro
 	if err != nil {
 		return fmt.Errorf("could not create update request: %v", err)
 	}
-
 	_, err = upOp.Wait(ctx)
 	if err != nil {
 		return fmt.Errorf("update stream operation failed: %v", err)
 	}
-	fmt.Println("Stream state set to RUNNING...")
+	fmt.Println("Done")
 	return nil
 }
 
@@ -285,5 +285,37 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	fmt.Println("\n------------------------------------------\n" +
 		"The Datastream job: " + fullStreamName + "and the Dataflow job: " + dfJobDetails +
 		" will have to be manually cleaned up via he UI. HarbourBridge will not delete them post completion of the migration.")
+	return nil
+}
+
+func getStreamingConfig(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (StreamingCfg, error) {
+	switch sourceProfile.Conn.Ty {
+	case profiles.SourceProfileConnectionTypeMySQL:
+		return ReadStreamingConfig(sourceProfile.Conn.Mysql.StreamingConfig, targetProfile.Conn.Sp.Dbname)
+	case profiles.SourceProfileConnectionTypeOracle:
+		return ReadStreamingConfig(sourceProfile.Conn.Oracle.StreamingConfig, targetProfile.Conn.Sp.Dbname)
+	default:
+		return StreamingCfg{}, fmt.Errorf("only MySQL and Oracle are supported as source streams")
+	}
+}
+
+func StartDatastream(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (StreamingCfg, error) {
+	streamingCfg, err := getStreamingConfig(sourceProfile, targetProfile)
+	if err != nil {
+		return streamingCfg, fmt.Errorf("error reading streaming config: %v", err)
+	}
+
+	err = LaunchStream(ctx, sourceProfile, targetProfile.Conn.Sp.Project, streamingCfg.DatastreamCfg)
+	if err != nil {
+		return streamingCfg, fmt.Errorf("error launching stream: %v", err)
+	}
+	return streamingCfg, nil
+}
+
+func StartDataflow(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg) error {
+	err := LaunchDataflowJob(ctx, targetProfile, streamingCfg.DatastreamCfg, streamingCfg.DataflowCfg)
+	if err != nil {
+		return fmt.Errorf("error launching dataflow: %v", err)
+	}
 	return nil
 }
