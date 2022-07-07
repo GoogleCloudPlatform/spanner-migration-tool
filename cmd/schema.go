@@ -121,7 +121,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	}
 
 	schemaCoversionEndTime := time.Now()
-	conv.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
+	conv.Audit.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
 	conversion.WriteSchemaFile(conv, schemaCoversionEndTime, cmd.filePrefix+schemaFile, ioHelper.Out)
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
 	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)

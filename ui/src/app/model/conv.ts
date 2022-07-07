@@ -86,8 +86,7 @@ export interface ICreateTable {
   Indexes: ICreateIndex[]
   Parent: string
   Comment: string
-  Id: number
-  PrimaryKeyId: number
+  Id: string
 }
 
 export interface ICreateIndex {
@@ -95,12 +94,15 @@ export interface ICreateIndex {
   Table: string
   Unique: boolean
   Keys: IIndexKey[]
+  Id: string
 }
+
 export interface IForeignKey {
   Name: string
   Columns: string[]
   ReferTable: string
   ReferColumns: string[]
+  Id: string
 }
 
 export interface IIndexKey {
@@ -116,7 +118,7 @@ export interface ISrcIndexKey {
 }
 
 export interface IColumnDef {
-  Id: number
+  Id: string
   Name: string
   T: IType
   NotNull: boolean
@@ -144,25 +146,13 @@ export interface IInterleaveStatus {
 }
 
 export interface IPrimaryKey {
-  TableId: number
+  TableId: string
   Columns: IPkColumnDefs[]
-  PrimaryKeyId: number
 }
 
 export interface IPkColumnDefs {
-  ColumnId: number
+  ColumnId: string
+  ColName: string
   Desc: boolean
   Order: number
-}
-
-export interface IPrimaryKeyResponse {
-  TableId: number
-  Columns: {
-    ColumnId: number
-    ColName: string
-    Desc: boolean
-    Order: number
-  }[]
-  PrimaryKeyId: number
-  Synth: boolean
 }

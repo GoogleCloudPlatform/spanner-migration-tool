@@ -14,12 +14,12 @@ import (
 func GetMigrationData(conv *internal.Conv, driver, targetDb, typeOfConv string) *migration.MigrationData {
 
 	migrationData := migration.MigrationData{
-		MigrationRequestId: &conv.MigrationRequestId,
+		MigrationRequestId: &conv.Audit.MigrationRequestId,
 	}
 	if typeOfConv == constants.DataConv {
 		return &migrationData
 	}
-	migrationData.MigrationType = conv.MigrationType
+	migrationData.MigrationType = conv.Audit.MigrationType
 	migrationData.SourceConnectionMechanism, migrationData.Source = getMigrationDataSourceDetails(driver, &migrationData)
 	migrationData.SchemaPatterns = getMigrationDataSchemaPatterns(conv, &migrationData)
 

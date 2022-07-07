@@ -147,7 +147,7 @@ type ColumnDef struct {
 	T       Type
 	NotNull bool
 	Comment string
-	Id      int
+	Id      string
 }
 
 // Config controls how AST nodes are printed (aka unparsed).
@@ -215,6 +215,7 @@ type Foreignkey struct {
 	Columns      []string
 	ReferTable   string
 	ReferColumns []string
+	Id           string
 }
 
 // PrintForeignKey unparses the foreign keys.
@@ -234,16 +235,15 @@ func (k Foreignkey) PrintForeignKey(c Config) string {
 // CreateTable encodes the following DDL definition:
 //     create_table: CREATE TABLE table_name ([column_def, ...] ) primary_key [, cluster]
 type CreateTable struct {
-	Name         string
-	ColNames     []string             // Provides names and order of columns
-	ColDefs      map[string]ColumnDef // Provides definition of columns (a map for simpler/faster lookup during type processing)
-	Pks          []IndexKey
-	Fks          []Foreignkey
-	Indexes      []CreateIndex
-	Parent       string //if not empty, this table will be interleaved
-	Comment      string
-	Id           int
-	PrimaryKeyId int
+	Name     string
+	ColNames []string             // Provides names and order of columns
+	ColDefs  map[string]ColumnDef // Provides definition of columns (a map for simpler/faster lookup during type processing)
+	Pks      []IndexKey
+	Fks      []Foreignkey
+	Indexes  []CreateIndex
+	Parent   string //if not empty, this table will be interleaved
+	Comment  string
+	Id       string
 }
 
 // PrintCreateTable unparses a CREATE TABLE statement.
@@ -300,6 +300,7 @@ type CreateIndex struct {
 	Table  string
 	Unique bool
 	Keys   []IndexKey
+	Id     string
 	// We have no requirements for null-filtered option and
 	// storing/interleaving clauses yet, so we omit them for now.
 }

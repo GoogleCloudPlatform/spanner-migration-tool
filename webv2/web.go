@@ -48,12 +48,16 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
 	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
+	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
+
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
 
 	index "github.com/cloudspannerecosystem/harbourbridge/webv2/index"
 	primarykey "github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
+
+	uniqueid "github.com/cloudspannerecosystem/harbourbridge/webv2/uniqueid"
 
 	go_ora "github.com/sijms/go-ora/v2"
 )
@@ -170,7 +174,9 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	AssignUniqueId(conv)
+	uniqueid.InitObjectId()
+
+	uniqueid.AssignUniqueId(conv)
 	sessionState.Conv = conv
 
 	primarykey.DetectHotspot()
@@ -236,10 +242,10 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
+	uniqueid.InitObjectId()
 
-	AssignUniqueId(conv)
+	uniqueid.AssignUniqueId(conv)
 	sessionState.Conv = conv
-
 	primarykey.DetectHotspot()
 	index.IndexSuggestion()
 
@@ -257,8 +263,11 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
-func LoadSession(w http.ResponseWriter, r *http.Request) {
+// loadSession load seesion file to Harbourbridge.
+func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
+
+	uniqueid.InitObjectId()
 
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -289,7 +298,9 @@ func LoadSession(w http.ResponseWriter, r *http.Request) {
 		DatabaseName: strings.TrimRight(filepath.Base(s.FilePath), filepath.Ext(s.FilePath)),
 	}
 
-	AssignUniqueId(conv)
+	sessionState.Conv = conv
+
+	uniqueid.AssignUniqueId(conv)
 
 	sessionState.Conv = conv
 
@@ -471,6 +482,9 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 	var t updateTable
 
 	table := r.FormValue("table")
+
+	fmt.Println("updateTableSchema getting called")
+
 	err = json.Unmarshal(reqBody, &t)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
@@ -681,9 +695,9 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				column := childPks[childindex].Col
 				schemaissue = sessionState.Conv.Issues[table][column]
 
-				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotINOrder)
-				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedADDCOLUMN)
-				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
+				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
+				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 
 				schemaissue = append(schemaissue, internal.InterleavedOrder)
 
@@ -703,11 +717,11 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				schemaissue := []internal.SchemaIssue{}
 				schemaissue = sessionState.Conv.Issues[table][column]
 
-				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotINOrder)
-				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-				schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedADDCOLUMN)
+				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
+				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
+				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
 
-				schemaissue = append(schemaissue, internal.InterleavedNotINOrder)
+				schemaissue = append(schemaissue, internal.InterleavedNotInOrder)
 
 				sessionState.Conv.Issues[table][column] = schemaissue
 
@@ -925,6 +939,10 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	sp := sessionState.Conv.SpSchema[table]
 
 	index.CheckIndexSuggestion(newIndexes, sp)
+	for i := 0; i < len(newIndexes); i++ {
+		newIndexes[i].Id = uniqueid.GenerateIndexesId()
+	}
+
 	sp.Indexes = append(sp.Indexes, newIndexes...)
 
 	sessionState.Conv.SpSchema[table] = sp
@@ -1193,7 +1211,7 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 	caninterleaved := []string{}
 	for i := 0; i < len(diff); i++ {
 
-		str := helpers.ContainString(fk.ReferColumns, diff[i].Col)
+		str := utilities.IsColumnPresent(fk.ReferColumns, diff[i].Col)
 
 		caninterleaved = append(caninterleaved, str)
 	}
@@ -1208,11 +1226,11 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 
 			schemaissue = sessionState.Conv.Issues[table][caninterleaved[i]]
 
-			schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-			schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedNotINOrder)
-			schemaissue = helpers.RemoveSchemaIssue(schemaissue, internal.InterleavedADDCOLUMN)
+			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
+			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
+			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
 
-			schemaissue = append(schemaissue, internal.InterleavedADDCOLUMN)
+			schemaissue = append(schemaissue, internal.InterleavedAddColumn)
 
 			if len(schemaissue) > 0 {
 
@@ -1330,6 +1348,7 @@ func renameColumn(newName, table, colName, srcTableName string) {
 			T:       sp.ColDefs[colName].T,
 			NotNull: sp.ColDefs[colName].NotNull,
 			Comment: sp.ColDefs[colName].Comment,
+			Id:      sp.ColDefs[colName].Id,
 		}
 		delete(sp.ColDefs, colName)
 	}
@@ -1490,6 +1509,8 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 
 func init() {
 	sessionState := session.GetSessionState()
+
+	uniqueid.InitObjectId()
 
 	// Initialize mysqlTypeMap.
 	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {

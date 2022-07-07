@@ -41,4 +41,10 @@ type SessionState struct {
 	GCPProjectID      string
 	SpannerInstanceID string
 	SessionMetadata   SessionMetadata
+	Counter
+}
+
+// Counter used to generate id for table, column, Foreignkey and indexes.
+type Counter struct {
+	ObjectId string
 }

@@ -154,8 +154,8 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	defer adminClient.Close()
 
 	// Populate migration request id and migration type in conv object
-	conv.MigrationRequestId = "HB-" + uuid.New().String()
-	conv.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
+	conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+	conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
 
 	if !sourceProfile.UseTargetSchema() {
 		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
@@ -165,11 +165,16 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		}
 	}
 
-	bw, err := migrateData(ctx, sourceProfile, targetProfile, ioHelper, client, conv, cmd.writeLimit, dbURI)
+	dataCoversionStartTime := time.Now()
+	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, client, conv, true, cmd.writeLimit)
 	if err != nil {
-		err = fmt.Errorf("can't do data migration: %v", err)
+		err = fmt.Errorf("can't finish data migration: %v", err)
 		return subcommands.ExitFailure
 	}
+	dataCoversionEndTime := time.Now()
+	dataCoversionDuration := dataCoversionEndTime.Sub(dataCoversionStartTime)
+	conv.Audit.DataConversionDuration = dataCoversionDuration
+
 	if !cmd.skipForeignKeys {
 		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
 			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
