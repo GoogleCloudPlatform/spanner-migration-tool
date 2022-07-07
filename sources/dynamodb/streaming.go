@@ -70,7 +70,7 @@ func NewDynamoDBStream(client dynamodbiface.DynamoDBAPI, srcTable string) (strin
 }
 
 // catchCtrlC catches the Ctrl+C signal if customer wants to exit.
-func catchCtrlC(wg *sync.WaitGroup, streamInfo *Info) {
+func catchCtrlC(wg *sync.WaitGroup, streamInfo *StreamingInfo) {
 	defer wg.Done()
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -80,23 +80,23 @@ func catchCtrlC(wg *sync.WaitGroup, streamInfo *Info) {
 	}()
 }
 
-// ProcessStream processes the latest enabled DynamoDB Stream for a table.
-// It searches for shards within stream and for each shard it creates a
-// seperate working thread to process records within it.
-func ProcessStream(wgStream *sync.WaitGroup, streamClient dynamodbstreamsiface.DynamoDBStreamsAPI, streamInfo *Info, conv *internal.Conv, streamArn, srcTable string) {
+// ProcessStream processes the latest enabled DynamoDB Stream for a table. It searches
+// for shards within stream and for each shard it creates a seperate working thread to
+// process records within it.
+func ProcessStream(wgStream *sync.WaitGroup, streamClient dynamodbstreamsiface.DynamoDBStreamsAPI, streamInfo *StreamingInfo, conv *internal.Conv, streamArn, srcTable string) {
 	defer wgStream.Done()
 	wgShard := &sync.WaitGroup{}
 
-	var lastEvaluatedShardId *string = nil
+	var lastProcessedShardId *string = nil
 	passAfterUserExit := false
 	for {
-		result, err := fetchShards(streamClient, lastEvaluatedShardId, streamArn)
+		result, err := fetchShards(streamClient, lastProcessedShardId, streamArn)
 		if err != nil {
 			streamInfo.Unexpected(fmt.Sprintf("Couldn't fetch shards for table %s: %s", srcTable, err))
 			break
 		}
 		for _, shard := range result.Shards {
-			lastEvaluatedShardId = shard.ShardId
+			lastProcessedShardId = shard.ShardId
 
 			wgShard.Add(1)
 			go ProcessShard(wgShard, streamInfo, conv, streamClient, shard, streamArn, srcTable)
@@ -114,10 +114,10 @@ func ProcessStream(wgStream *sync.WaitGroup, streamClient dynamodbstreamsiface.D
 	wgShard.Wait()
 }
 
-// fetchShards fetches latest unprocessed shards from a given DynamoDB Stream after the lastEvaluatedShardId.
-func fetchShards(streamClient dynamodbstreamsiface.DynamoDBStreamsAPI, lastEvaluatedShardId *string, streamArn string) (*dynamodbstreams.StreamDescription, error) {
+// fetchShards fetches latest unprocessed shards from a given DynamoDB Stream after the lastProcessedShardId.
+func fetchShards(streamClient dynamodbstreamsiface.DynamoDBStreamsAPI, lastProcessedShardId *string, streamArn string) (*dynamodbstreams.StreamDescription, error) {
 	describeStreamInput := &dynamodbstreams.DescribeStreamInput{
-		ExclusiveStartShardId: lastEvaluatedShardId,
+		ExclusiveStartShardId: lastProcessedShardId,
 		StreamArn:             &streamArn,
 	}
 	result, err := streamClient.DescribeStream(describeStreamInput)
@@ -127,8 +127,8 @@ func fetchShards(streamClient dynamodbstreamsiface.DynamoDBStreamsAPI, lastEvalu
 	return result.StreamDescription, nil
 }
 
-// CheckTrimmedDataError checks if the error is an TrimmedDataAccessException
-func CheckTrimmedDataError(err error) bool {
+// checkTrimmedDataError checks if the error is an TrimmedDataAccessException.
+func checkTrimmedDataError(err error) bool {
 	return strings.Contains(err.Error(), "TrimmedDataAccessException")
 }
 
@@ -136,20 +136,21 @@ func CheckTrimmedDataError(err error) bool {
 // doesn't start processing unless parent shard is processed. For closed shards this process is
 // completed after processing all records but for open shards it keeps searching for new records
 // until shards gets closed or customer calls for a exit.
-func ProcessShard(wgShard *sync.WaitGroup, streamInfo *Info, conv *internal.Conv, streamClient dynamodbstreamsiface.DynamoDBStreamsAPI, shard *dynamodbstreams.Shard, streamArn, srcTable string) {
+func ProcessShard(wgShard *sync.WaitGroup, streamInfo *StreamingInfo, conv *internal.Conv, streamClient dynamodbstreamsiface.DynamoDBStreamsAPI, shard *dynamodbstreams.Shard, streamArn, srcTable string) {
 	defer wgShard.Done()
 
-	WaitForParentShard(streamInfo, shard.ParentShardId)
+	waitForParentShard(streamInfo, shard.ParentShardId)
 
 	shardId := *shard.ShardId
 	streamInfo.SetShardStatus(shardId, false)
 
 	var lastEvaluatedSequenceNumber *string = nil
 	passAfterUserExit := false
+	retryCount := 0
 	for {
 		shardIterator, err := getShardIterator(streamClient, lastEvaluatedSequenceNumber, shardId, streamArn)
 		if err != nil {
-			if CheckTrimmedDataError(err) {
+			if checkTrimmedDataError(err) {
 				lastEvaluatedSequenceNumber = nil
 				continue
 			} else {
@@ -160,13 +161,16 @@ func ProcessShard(wgShard *sync.WaitGroup, streamInfo *Info, conv *internal.Conv
 
 		getRecordsOutput, err := getRecords(streamClient, shardIterator)
 		if err != nil {
-			if CheckTrimmedDataError(err) {
+			if checkTrimmedDataError(err) && retryCount < 5 {
 				lastEvaluatedSequenceNumber = nil
+				retryCount++
 				continue
 			} else {
 				streamInfo.Unexpected(fmt.Sprintf("Couldn't fetch records for table %s: %s", srcTable, err))
 				break
 			}
+		} else {
+			retryCount = 0
 		}
 
 		records := getRecordsOutput.Records
@@ -187,13 +191,13 @@ func ProcessShard(wgShard *sync.WaitGroup, streamInfo *Info, conv *internal.Conv
 	streamInfo.SetShardStatus(shardId, true)
 }
 
-// WaitForParentShard checks every 6 seconds if parentShard is processed or
+// waitForParentShard checks every 6 seconds if parentShard is processed or
 // not and waits as long as parent shard is not processed.
-func WaitForParentShard(streamInfo *Info, parentShard *string) {
+func waitForParentShard(streamInfo *StreamingInfo, parentShard *string) {
 	if parentShard != nil {
 		for {
 			streamInfo.lock.Lock()
-			done := streamInfo.ShardStatus[*parentShard]
+			done := streamInfo.ShardProcessed[*parentShard]
 			streamInfo.lock.Unlock()
 			if done {
 				return
@@ -246,7 +250,7 @@ func getRecords(streamClient dynamodbstreamsiface.DynamoDBStreamsAPI, shardItera
 }
 
 // ProcessRecord processes records retrieved from shards.
-func ProcessRecord(conv *internal.Conv, streamInfo *Info, record *dynamodbstreams.Record, srcTable string) {
+func ProcessRecord(conv *internal.Conv, streamInfo *StreamingInfo, record *dynamodbstreams.Record, srcTable string) {
 	streamInfo.StatsAddRecord(srcTable, *record.EventName)
 	// TODO(nareshz): work in progress
 	streamInfo.StatsAddRecordProcessed()

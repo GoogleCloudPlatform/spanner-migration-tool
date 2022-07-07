@@ -80,7 +80,7 @@ func (m *mockDynamoStreamsClient) GetRecords(input *dynamodbstreams.GetRecordsIn
 }
 
 func TestProcessStream(t *testing.T) {
-	streamInfo := MakeInfo()
+	streamInfo := MakeStreamingInfo()
 	streamInfo.UserExit = true
 	wgStream := &sync.WaitGroup{}
 
@@ -258,7 +258,7 @@ func Test_getRecords(t *testing.T) {
 
 func TestProcessShard(t *testing.T) {
 	wgShard := &sync.WaitGroup{}
-	streamInfo := MakeInfo()
+	streamInfo := MakeStreamingInfo()
 	streamInfo.UserExit = true
 	shardIterator_TrimHorizon := "testShardIteratorTrimHorizon"
 
@@ -291,10 +291,10 @@ func TestProcessShard(t *testing.T) {
 
 	wgShard.Add(1)
 	ProcessShard(wgShard, streamInfo, nil, mockStreamClient, shard, streamArn, srcTable)
-	assert.Equal(t, true, streamInfo.ShardStatus[*shard.ShardId])
+	assert.Equal(t, true, streamInfo.ShardProcessed[*shard.ShardId])
 
 	wgShard.Add(1)
 	ProcessShard(wgShard, streamInfo, nil, mockStreamClient, shard, streamArn, srcTable)
 	assert.Equal(t, int64(1), streamInfo.TotalUnexpecteds())
-	assert.Equal(t, true, streamInfo.ShardStatus[*shard.ShardId])
+	assert.Equal(t, true, streamInfo.ShardProcessed[*shard.ShardId])
 }

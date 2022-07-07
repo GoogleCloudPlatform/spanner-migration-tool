@@ -222,7 +222,7 @@ func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *s
 	fmt.Println("Processing of DynamoDB Streams started...")
 	fmt.Println("Use Ctrl+C to stop the process.")
 
-	streamInfo := MakeInfo()
+	streamInfo := MakeStreamingInfo()
 	wg := &sync.WaitGroup{}
 
 	wg.Add(1)

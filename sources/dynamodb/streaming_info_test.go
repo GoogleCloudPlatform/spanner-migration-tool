@@ -19,20 +19,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestInfo_Unexpected(t *testing.T) {
-	streamInfo := MakeInfo()
+func TestInfo_TotalUnexpecteds(t *testing.T) {
+	streamInfo := MakeStreamingInfo()
 	streamInfo.Unexpected("testing-unexpecteds-faced-1")
 	streamInfo.Unexpected("testing-unexpecteds-faced-2")
 	assert.Equal(t, int64(2), streamInfo.TotalUnexpecteds())
-}
-
-func TestInfo_TotalRecords(t *testing.T) {
-	streamInfo := MakeInfo()
-	testTables := [2]string{"testTable1", "testTable2"}
-	for i := 0; i < 2; i++ {
-		streamInfo.Records[testTables[i]] = make(map[string]int64)
-	}
-	streamInfo.Records[testTables[0]]["INSERT"] = 37
-	streamInfo.Records[testTables[1]]["MODIFY"] = 3
-	assert.Equal(t, int64(40), streamInfo.TotalRecords())
 }
