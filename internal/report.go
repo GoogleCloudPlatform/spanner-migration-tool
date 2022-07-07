@@ -350,7 +350,7 @@ var IssueDB = map[SchemaIssue]struct {
 	HotspotAutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: note},
 	InterleavedOrder:      {Brief: "can be converted as Interleaved Table", severity: note},
 	IndexRedandant:        {Brief: "Redudant Index", severity: warning},
-	INDEX_TIMESTAMP:       {Brief: "Redudant Index due to Timestamp", severity: warning},
+	IndexTimestamp:        {Brief: "Redudant Index due to Timestamp", severity: warning},
 	InterleaveIndex:       {Brief: "can be converted to an Interleave Index", severity: note},
 	InterleavedNotInOrder: {Brief: "Can be converted to interleaved table if primary key order parameter is changed for the table", severity: note},
 	InterleavedAddColumn:  {Brief: "Candidate for Interleaved Table", severity: note},

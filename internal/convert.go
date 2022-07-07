@@ -85,7 +85,7 @@ const (
 	HotspotTimestamp
 	HotspotAutoIncrement
 	IndexRedandant
-	INDEX_TIMESTAMP
+	IndexTimestamp
 	InterleaveIndex
 	InterleavedNotInOrder
 	InterleavedOrder
