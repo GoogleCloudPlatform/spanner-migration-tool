@@ -121,7 +121,7 @@ func AssignUniqueId(conv *internal.Conv) {
 func updateSpannerTableIndexKeyOrder(spannertable ddl.CreateTable) {
 
 	for i := 0; i < len(spannertable.Pks); i++ {
-		for spannercolumnname, _ := range spannertable.ColDefs {
+		for spannercolumnname := range spannertable.ColDefs {
 			if spannertable.Pks[i].Col == spannercolumnname {
 
 				o := getSpannerColumnIndex(spannertable, spannercolumnname)
@@ -136,7 +136,7 @@ func updateSpannerTableIndexKeyOrder(spannertable ddl.CreateTable) {
 func updateSourceTableIndexKeyOrder(sourcetable schema.Table) {
 
 	for i := 0; i < len(sourcetable.PrimaryKeys); i++ {
-		for sourcecolumnname, _ := range sourcetable.ColDefs {
+		for sourcecolumnname := range sourcetable.ColDefs {
 			if sourcetable.PrimaryKeys[i].Column == sourcecolumnname {
 
 				o := getSourceColumnIndex(sourcetable, sourcecolumnname)
