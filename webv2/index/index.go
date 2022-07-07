@@ -196,7 +196,7 @@ func TimestampIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 						sessionState := session.GetSessionState()
 						schemaissue := sessionState.Conv.Issues[spannerTable.Name][columnname]
 
-						schemaissue = append(schemaissue, internal.INDEX_TIMESTAMP)
+						schemaissue = append(schemaissue, internal.IndexTimestamp)
 						sessionState.Conv.Issues[spannerTable.Name][columnname] = schemaissue
 					}
 
