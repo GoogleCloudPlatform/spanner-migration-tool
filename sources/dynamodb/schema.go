@@ -229,7 +229,7 @@ func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *s
 	go catchCtrlC(wg, streamInfo)
 
 	for srcTable, streamArn := range latestStreamArn {
-		streamInfo.Records[srcTable] = make(map[string]int64)
+		streamInfo.makeRecordMaps(srcTable)
 
 		wg.Add(1)
 		go ProcessStream(wg, isi.DynamoStreamsClient, streamInfo, conv, streamArn.(string), srcTable)

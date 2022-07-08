@@ -161,6 +161,10 @@ func ProcessShard(wgShard *sync.WaitGroup, streamInfo *StreamingInfo, conv *inte
 
 		getRecordsOutput, err := getRecords(streamClient, shardIterator)
 		if err != nil {
+			// In case of closed shards, after all data records get expired it still returns a non-nil
+			// shardIterator for GetShardIterator query. Using this shardIterator for GetRecords
+			// API call results in TrimmedDataAccessException. This will result in same steps being
+			// followed again and again. To handle this a retry limit of 5 is set.
 			if checkTrimmedDataError(err) && retryCount < 5 {
 				lastEvaluatedSequenceNumber = nil
 				retryCount++

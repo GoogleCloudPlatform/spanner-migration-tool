@@ -40,6 +40,12 @@ func MakeStreamingInfo() *StreamingInfo {
 	}
 }
 
+// makeRecordMaps initializes maps used to stores record count for
+// a given table.
+func (info *StreamingInfo) makeRecordMaps(srcTable string) {
+	info.Records[srcTable] = make(map[string]int64)
+}
+
 // SetShardStatus changes the processing status of a shard.
 //
 // true -> shard processed and vice versa.
