@@ -42,6 +42,7 @@ type SessionState struct {
 	SpannerInstanceID string
 	SessionMetadata   SessionMetadata
 	Counter
+	ConvViewModel internal.ConvViewModel
 }
 
 // Counter used to generate id for table, column, Foreignkey and indexes.
