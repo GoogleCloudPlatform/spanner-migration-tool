@@ -57,6 +57,15 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
       const indexAdded = this.isIndexAdded(data)
+      if (
+        data &&
+        this.conv &&
+        Object.keys(data?.SpSchema).length != Object.keys(this.conv?.SpSchema).length
+      ) {
+        this.conv = data
+        this.reRenderObjectExplorerSpanner()
+        this.reRenderObjectExplorerSrc()
+      }
       this.conv = data
       if (indexAdded) this.reRenderObjectExplorerSpanner()
       if (this.currentObject && this.currentObject.type === ObjectExplorerNodeType.Table) {
@@ -168,7 +177,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
       Object.entries(data.SpSchema).forEach((item) => {
         curIndexCount += item[1].Indexes ? item[1].Indexes.length : 0
       })
-      if (prevIndexCount < curIndexCount) return true
+      if (prevIndexCount != curIndexCount) return true
       else return false
     }
     return false

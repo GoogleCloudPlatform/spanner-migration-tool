@@ -401,7 +401,7 @@ export class ObjectDetailComponent implements OnInit {
   setPkOrder() {
     if (
       this.currentObject &&
-      this.conv.SpSchema[this.currentObject!.name].Pks.length == this.pkData.length
+      this.conv.SpSchema[this.currentObject!.name]?.Pks.length == this.pkData.length
     ) {
       this.pkData.forEach((pk: IColumnTabData, i: number) => {
         if (this.pkData[i].spColName === this.conv.SpSchema[this.currentObject!.name].Pks[i].Col) {
@@ -415,11 +415,11 @@ export class ObjectDetailComponent implements OnInit {
       })
     } else {
       this.pkData.forEach((pk: IColumnTabData, i: number) => {
-        let index = this.conv.SpSchema[this.currentObject!.name].Pks.map(
+        let index = this.conv.SpSchema[this.currentObject!.name]?.Pks.map(
           (item) => item.Col
         ).indexOf(pk.spColName)
         if (index !== -1) {
-          pk.spOrder = this.conv.SpSchema[this.currentObject!.name].Pks[index].Order
+          pk.spOrder = this.conv.SpSchema[this.currentObject!.name]?.Pks[index].Order
         }
       })
     }
@@ -605,7 +605,7 @@ export class ObjectDetailComponent implements OnInit {
     let ddl: string = ''
     if (
       this.currentObject?.type === ObjectExplorerNodeType.Table &&
-      this.ddlStmts[this.currentObject.name].includes(substr)
+      this.ddlStmts[this.currentObject.name]?.includes(substr)
     ) {
       ddl = this.ddlStmts[this.currentObject.name].substring(
         this.ddlStmts[this.currentObject.name].indexOf(substr) + 20
@@ -631,7 +631,7 @@ export class ObjectDetailComponent implements OnInit {
       data: { name: this.currentObject?.name, type: 'Index' },
     })
     openDialog.afterClosed().subscribe((res: string) => {
-      if (res) {
+      if (res === 'Index') {
         this.data
           .dropIndex(this.currentObject!.parent, this.currentObject!.pos)
           .pipe(take(1))
@@ -656,8 +656,17 @@ export class ObjectDetailComponent implements OnInit {
       data: { name: this.currentObject?.name, type: 'Table' },
     })
     openDialog.afterClosed().subscribe((res: string) => {
-      if (res) {
-        console.log('Drop table coming soon!')
+      if (res === 'Table') {
+        this.data
+          .dropTable(this.currentObject!.name)
+          .pipe(take(1))
+          .subscribe((res: string) => {
+            if (res === '') {
+              this.isObjectSelected = false
+              this.updateSidebar.emit(true)
+            }
+          })
+        this.currentObject = null
       }
     })
   }
@@ -670,5 +679,8 @@ export class ObjectDetailComponent implements OnInit {
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
     this.currentTabIndex = tabChangeEvent.index
+  }
+  restoreSpannerTable() {
+    alert('Restore spanner table coming soon!')
   }
 }

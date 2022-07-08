@@ -159,13 +159,18 @@
               <mat-icon *ngIf="data.status === 'ORANGE'" class="icon orange">
                 check_circle
               </mat-icon>
+              <mat-icon *ngIf="data.status === 'GRAY'" class="icon gray"> delete </mat-icon>
             </td>
           </ng-container>
           <ng-container matColumnDef="name">
             <th mat-header-cell *matHeaderCellDef>
               <span style="text-align: center"> Object Name </span>
             </th>
-            <td mat-cell *matCellDef="let data" class="sidebar_link">
+            <td
+              mat-cell
+              *matCellDef="let data"
+              [ngClass]="{ sidebar_link: true, 'gray-out': data.isDeleted }"
+            >
               <button
                 mat-icon-button
                 [style.visibility]="!data.expandable ? 'hidden' : ''"

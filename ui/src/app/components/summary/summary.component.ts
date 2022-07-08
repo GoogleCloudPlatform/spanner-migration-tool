@@ -54,6 +54,9 @@ export class SummaryComponent implements OnInit {
         this.initiateSummaryCollection(s)
         this.summaryCount = s.NotesCount + s.WarningsCount
         this.changeIssuesLabel.emit(s.NotesCount + s.WarningsCount)
+      } else {
+        this.summaryCount = 0
+        this.changeIssuesLabel.emit(0)
       }
     }
   }
