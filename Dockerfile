@@ -47,8 +47,8 @@ RUN mkdir /harbourBridge/sourceDump
 COPY --from=build /hbBin/harbourbridge /harbourBridge/bin
 
 # Add Python3 to support GCloud SDK.
-RUN apt update
-RUN apt install -y python3.10
+RUN apt-get update
+RUN apt-get install -y python3.10
 
 # Download the gcloud package.
 RUN curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-391.0.0-linux-x86_64.tar.gz > /tmp/google-cloud-sdk.tar.gz
