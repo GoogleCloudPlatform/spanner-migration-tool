@@ -239,7 +239,7 @@ func populateDynamoDBStreams(t *testing.T) {
 	log.Println("Successfully inserted item for streaming migration")
 }
 
-func RunStreamingMigration(t *testing.T, args string, projectID string) error {
+func RunStreamingMigration(t *testing.T, args string, projectID string, client *spanner.Client) error {
 	// Be aware that when testing with the command, the time `now` might be
 	// different between file prefixes and the contents in the files. This
 	// is because file prefixes use `now` from here (the test function) and
@@ -258,7 +258,7 @@ func RunStreamingMigration(t *testing.T, args string, projectID string) error {
 	// Wait for a maximum of 5 minutes
 	timeLimit := 300
 	for timeLimit > 0 {
-		time.Sleep(1 * time.Second)
+		time.Sleep(2 * time.Second)
 		output := out.String()
 		if strings.Contains(output, "Processing of DynamoDB Streams started...") {
 			break
@@ -270,9 +270,35 @@ func RunStreamingMigration(t *testing.T, args string, projectID string) error {
 	}
 	populateDynamoDBStreams(t)
 
-	// Wait for enough time for the record in DynamoDB Streams to get processed.
-	time.Sleep(30 * time.Second)
-
+	// Wait for a maximum of 5 minutes and check row count
+	timeLimit = 300
+	for timeLimit > 0 {
+		time.Sleep(2 * time.Second)
+		// Check count of row to be 2.
+		rowCount := 0
+		stmt := spanner.Statement{SQL: `SELECT AttrString FROM table_test`}
+		iter := client.ReadOnlyTransaction().Query(ctx, stmt)
+		defer iter.Stop()
+		for {
+			_, err := iter.Next()
+			if err == nil {
+				rowCount++
+			} else {
+				if err != iterator.Done {
+					log.Println("Error reading row: ", err)
+					return err
+				}
+				break
+			}
+		}
+		if rowCount == 2 {
+			break
+		}
+		timeLimit -= 2
+	}
+	if timeLimit == 0 {
+		return fmt.Errorf("error! record within DynamoDB Streams not processed successfully.")
+	}
 	err := cmd.Process.Kill()
 	if err != nil {
 		log.Println("error! migration command not killed successfully")
@@ -292,29 +318,25 @@ func TestIntegration_DYNAMODB_Command(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
+	client, err := spanner.NewClient(ctx, dbURI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+
 	args := fmt.Sprintf(`schema-and-data -source=%s -prefix=%s -source-profile="enableStreaming=true" -target-profile="instance=%s,dbName=%s"`, constants.DYNAMODB, filePrefix, instanceID, dbName)
-	err := RunStreamingMigration(t, args, projectID)
+	err = RunStreamingMigration(t, args, projectID, client)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Drop the database later.
 	defer dropDatabase(t, dbURI)
 
-	checkResults(t, dbURI)
+	checkResults(t, client)
 }
 
-func checkResults(t *testing.T, dbURI string) {
+func checkResults(t *testing.T, client *spanner.Client) {
 	// Make a query to check results.
-	client, err := spanner.NewClient(ctx, dbURI)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer client.Close()
-
-	checkRow(ctx, t, client)
-}
-
-func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
 	wantRecords := []SpannerRecord{
 		{
 			AttrString:    "abcd",
