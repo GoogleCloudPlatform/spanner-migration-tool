@@ -61,6 +61,3 @@ RUN mkdir -p /usr/local/gcloud \
 # Add gcloud to $PATH.
 ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin
 
-# Default command to execute when the container is run.
-# NOTE : This command will be overridden by the HarbourBridge migration commands.
-CMD [ "/harbourBridge/bin/harbourbridge" ]
