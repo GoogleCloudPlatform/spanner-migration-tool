@@ -14,21 +14,31 @@
 package dynamodb
 
 import (
+	"context"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
+	sp "cloud.google.com/go/spanner"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
 	"github.com/aws/aws-sdk-go/service/dynamodbstreams/dynamodbstreamsiface"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/cloudspannerecosystem/harbourbridge/common/metrics"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
 // NewDynamoDBStream initializes a new DynamoDB Stream for a table with NEW_AND_OLD_IMAGES
@@ -78,6 +88,58 @@ func catchCtrlC(wg *sync.WaitGroup, streamInfo *StreamingInfo) {
 		<-c
 		streamInfo.UserExit = true
 	}()
+}
+
+const ESC = 27
+
+var clear = fmt.Sprintf("%c[%dA%c[2K", ESC, 1, ESC)
+
+// updateProgress updates the customer every minute with number of records processed
+// and if the current moment is an optimum condition for cutover or not.
+func updateProgress(optimumCondition, firstCall bool, totalRecordsProcessed int64) {
+	if !firstCall {
+		fmt.Print(strings.Repeat(clear, 2))
+	}
+	fmt.Printf("Optimum time for switching to Cloud Spanner: %s\n", strconv.FormatBool(optimumCondition))
+	fmt.Printf("Count of records processed: %s\n", strconv.FormatInt(totalRecordsProcessed, 10))
+}
+
+// cutoverHelper analyzes the records processed and makes a decision if current moment is
+// optimum for switching to Cloud Spanner or not.
+func cutoverHelper(wg *sync.WaitGroup, streamInfo *StreamingInfo) {
+	defer wg.Done()
+
+	updateProgress(false, true, streamInfo.recordsProcessed)
+
+	timer := int64(0)
+	firstFiveMin := int64(0)
+	lastFiveMin := int64(0)
+	tillLastMin := int64(0)
+	arr := [5]int64{0, 0, 0, 0, 0}
+
+	for {
+		time.Sleep(60 * time.Second)
+		if streamInfo.UserExit {
+			break
+		}
+		counter := timer % 5
+
+		lastFiveMin -= arr[counter]
+
+		arr[counter] = streamInfo.recordsProcessed - tillLastMin
+		tillLastMin += arr[counter]
+
+		lastFiveMin += arr[counter]
+
+		if timer < 5 {
+			firstFiveMin += arr[counter]
+		}
+
+		lastMin := arr[counter]
+		optimumCondition := ((lastFiveMin*100 <= 5*firstFiveMin) || (lastMin == 0))
+		updateProgress(optimumCondition, false, tillLastMin)
+		timer++
+	}
 }
 
 // ProcessStream processes the latest enabled DynamoDB Stream for a table. It searches
@@ -253,9 +315,133 @@ func getRecords(streamClient dynamodbstreamsiface.DynamoDBStreamsAPI, shardItera
 	return result, nil
 }
 
-// ProcessRecord processes records retrieved from shards.
+// getColsAndSchemas provides information about columns and schema for a table.
+func getColsAndSchemas(conv *internal.Conv, srcTable string) (schema.Table, string, []string, ddl.CreateTable, error) {
+	srcSchema := conv.SrcSchema[srcTable]
+	spTable, err1 := internal.GetSpannerTable(conv, srcTable)
+	spCols, err2 := internal.GetSpannerCols(conv, srcTable, srcSchema.ColNames)
+	spSchema, ok := conv.SpSchema[spTable]
+	var err error
+	if err1 != nil || err2 != nil || !ok {
+		err = fmt.Errorf(fmt.Sprintf("err1=%s, err2=%s, ok=%t", err1, err2, ok))
+	}
+	return srcSchema, spTable, spCols, spSchema, err
+}
+
+// ProcessRecord processes records retrieved from shards. It first converts the data
+// to Spanner data (based on the source and Spanner schemas), and then writes that data
+// to Cloud Spanner.
 func ProcessRecord(conv *internal.Conv, streamInfo *StreamingInfo, record *dynamodbstreams.Record, srcTable string) {
-	streamInfo.StatsAddRecord(srcTable, *record.EventName)
-	// TODO(nareshz): work in progress
+	eventName := *record.EventName
+	streamInfo.StatsAddRecord(srcTable, eventName)
+
+	srcSchema, spTable, spCols, spSchema, err := getColsAndSchemas(conv, srcTable)
+	if err != nil {
+		streamInfo.Unexpected(fmt.Sprintf("Can't get cols and schemas for table %s: %v", srcTable, err))
+		return
+	}
+
+	var srcImage map[string]*dynamodb.AttributeValue
+	if eventName == "REMOVE" {
+		srcImage = record.Dynamodb.Keys
+	} else {
+		srcImage = record.Dynamodb.NewImage
+	}
+
+	spVals, badCols, srcStrVals := cvtRow(srcImage, srcSchema, spSchema, spCols)
+	if len(badCols) == 0 {
+		writeRecord(streamInfo, srcTable, spTable, eventName, spCols, spVals, srcSchema)
+	} else {
+		streamInfo.StatsAddBadRecord(srcTable, eventName)
+		streamInfo.CollectBadRecord(eventName, srcTable, srcSchema.ColNames, srcStrVals)
+	}
 	streamInfo.StatsAddRecordProcessed()
+}
+
+// writeRecord checks if the writer to write data to Cloud Spanner is configured or not.
+//
+// It handles creation and processing of mutations to Cloud Spanner.
+func writeRecord(streamInfo *StreamingInfo, srcTable, spTable, eventName string, spCols []string, spVals []interface{}, srcSchema schema.Table) {
+	if streamInfo.write == nil {
+		msg := "Internal error: writeRecord called but writer not configured"
+		streamInfo.StatsAddBadRecord(srcTable, eventName)
+		streamInfo.Unexpected(msg)
+	} else {
+		m := getMutation(eventName, srcTable, spTable, spCols, spVals, srcSchema)
+		err := writeMutation(m, streamInfo)
+		if err != nil {
+			streamInfo.StatsAddDroppedRecord(srcTable, eventName)
+			streamInfo.CollectDroppedRecord(eventName, spTable, spCols, spVals, err)
+		}
+	}
+}
+
+// getMutation creates a mutation for writing to Cloud Spanner from the converted data.
+func getMutation(eventName, srcTable, spTable string, spCols []string, spVals []interface{}, srcSchema schema.Table) (m *sp.Mutation) {
+	if eventName == "INSERT" {
+		m = sp.Insert(spTable, spCols, spVals)
+	} else if eventName == "MODIFY" {
+		m = sp.InsertOrUpdate(spTable, spCols, spVals)
+	} else {
+		m = removeMutation(srcSchema, spTable, srcTable, spVals)
+	}
+	return m
+}
+
+// removeMutation create a mutation from converted data for records of type 'REMOVE'.
+// It ensures that when keyset is created the order for primary keys passed is same
+// as the original database i.e. HASH Key, Partition Key.
+func removeMutation(srcSchema schema.Table, spTable, srcTable string, spVals []interface{}) (m *sp.Mutation) {
+	var srcKeys []string
+	var reqSpVals []interface{}
+	for i := 0; i < len(spVals); i++ {
+		if spVals[i] == nil {
+			continue
+		}
+		srcKeys = append(srcKeys, srcSchema.ColNames[i])
+		reqSpVals = append(reqSpVals, spVals[i])
+	}
+	primaryKeys := srcSchema.PrimaryKeys
+	if primaryKeys[0].Column != srcKeys[0] {
+		reqSpVals[0], reqSpVals[1] = reqSpVals[1], reqSpVals[0]
+	}
+	if len(reqSpVals) == 1 {
+		m = sp.Delete(spTable, sp.Key{reqSpVals[0]})
+	} else {
+		m = sp.Delete(spTable, sp.Key{reqSpVals[0], reqSpVals[1]})
+	}
+	return m
+}
+
+// parentDataMissingError checks if the error is a parent data missing error.
+func parentDataMissingError(err error) bool {
+	return strings.Contains(err.Error(), "NotFound") && strings.Contains(err.Error(), "Parent row") && strings.Contains(err.Error(), "is missing")
+}
+
+// writeMutation handles writing of a mutation to Cloud Spanner. If insertion fails
+// because of parent data missing error then it retries for a limit of 1000.
+func writeMutation(m *sp.Mutation, streamInfo *StreamingInfo) error {
+	retryLimit := 1000
+	var err error
+	for retryLimit > 0 {
+		err = streamInfo.write(m)
+		if err == nil || !parentDataMissingError(err) {
+			break
+		}
+		time.Sleep(4 * time.Second)
+		retryLimit--
+	}
+	return err
+}
+
+// setWriter initializes the write function used to write mutations to Cloud Spanner.
+func setWriter(streamInfo *StreamingInfo, client *sp.Client, conv *internal.Conv) {
+	streamInfo.write = func(m *sp.Mutation) error {
+		const migrationMetadataKey = "cloud-spanner-migration-metadata"
+		migrationData := metrics.GetMigrationData(conv, "", "", constants.DataConv)
+		serializedMigrationData, _ := proto.Marshal(migrationData)
+		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
+		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), migrationMetadataKey, migrationMetadataValue), []*sp.Mutation{m})
+		return err
+	}
 }
