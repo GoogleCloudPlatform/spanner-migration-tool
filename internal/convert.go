@@ -84,6 +84,11 @@ const (
 	Widened
 	Time
 	StringOverflow
+	HotspotTimestamp
+	HotspotAutoIncrement
+	InterleavedNotInOrder
+	InterleavedOrder
+	InterleavedAddColumn
 	IllegalName
 )
 

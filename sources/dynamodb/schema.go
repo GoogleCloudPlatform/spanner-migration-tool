@@ -20,6 +20,7 @@ import (
 	"log"
 	"math/big"
 	"sort"
+	"sync"
 
 	sp "cloud.google.com/go/spanner"
 	"github.com/aws/aws-sdk-go/aws"
@@ -192,11 +193,50 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 	return nil
 }
 
+// StartChangeDataCapture initializes the DynamoDB Streams for the source database. It
+// returns the latestStreamArn for all tables in the source database.
 func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
-	return nil, nil
+	fmt.Println("Starting DynamoDB Streams initialization...")
+
+	latestStreamArn := make(map[string]interface{})
+	orderTableNames := ddl.OrderTables(conv.SpSchema)
+
+	for _, spannerTable := range orderTableNames {
+		srcTable, _ := internal.GetSourceTable(conv, spannerTable)
+		streamArn, err := NewDynamoDBStream(isi.DynamoClient, srcTable)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Couldn't initialize DynamoDB Stream for table %s: %s", srcTable, err))
+			continue
+		}
+		latestStreamArn[srcTable] = streamArn
+	}
+
+	fmt.Println("DynamoDB Streams initialized successfully.")
+	return latestStreamArn, nil
 }
 
-func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, LatestStream map[string]interface{}) error {
+// StartStreamingMigration starts the streaming migration process by creating a seperate
+// worker thread/goroutine for each table's DynamoDB Stream. It catches Ctrl+C signal if
+// customer wants to stop the process.
+func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, latestStreamArn map[string]interface{}) error {
+	fmt.Println("Processing of DynamoDB Streams started...")
+	fmt.Println("Use Ctrl+C to stop the process.")
+
+	streamInfo := MakeStreamingInfo()
+	wg := &sync.WaitGroup{}
+
+	wg.Add(1)
+	go catchCtrlC(wg, streamInfo)
+
+	for srcTable, streamArn := range latestStreamArn {
+		streamInfo.makeRecordMaps(srcTable)
+
+		wg.Add(1)
+		go ProcessStream(wg, isi.DynamoStreamsClient, streamInfo, conv, streamArn.(string), srcTable)
+	}
+	wg.Wait()
+
+	fmt.Println("DynamoDB Streams processed successfully.")
 	return nil
 }
 

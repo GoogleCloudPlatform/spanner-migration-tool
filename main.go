@@ -19,6 +19,7 @@ package main
 
 import (
 	"context"
+	"embed"
 	"flag"
 	"fmt"
 	"os"
@@ -39,6 +40,9 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2"
 	"github.com/google/subcommands"
 )
+
+//go:embed frontend/*
+var frontendDir embed.FS
 
 var (
 	dbNameOverride   string
@@ -132,6 +136,7 @@ func main() {
 
 	// Note: the web interface does not use any commandline flags.
 	if webapi {
+		web.FrontendDir = frontendDir
 		web.App()
 		return
 	}
