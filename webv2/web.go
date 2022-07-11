@@ -753,7 +753,7 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if table == "" || dropDetail.Name == "" {
-		http.Error(w, fmt.Sprintf("Table name or FK name is empty"), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Table name or foreign key name is empty"), http.StatusBadRequest)
 	}
 	sp := sessionState.Conv.SpSchema[table]
 	position := -1
