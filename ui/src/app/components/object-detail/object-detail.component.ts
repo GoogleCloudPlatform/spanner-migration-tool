@@ -431,14 +431,10 @@ export class ObjectDetailComponent implements OnInit {
     arr.forEach((num: number, ind: number) => {
       this.pkData.forEach((pk: IColumnTabData) => {
         if (pk.spOrder == num) {
-          console.log(ind + 1)
           pk.spOrder = ind + 1
         }
       })
     })
-    if (arr.length > 0) {
-      this.pkData[0].spOrder = 1
-    }
   }
 
   getPkRequestObj() {
@@ -462,7 +458,6 @@ export class ObjectDetailComponent implements OnInit {
     })
     this.pkObj.TableId = tableId
     this.pkObj.Columns = Columns
-    console.log(this.pkObj)
   }
 
   togglePkEdit() {
