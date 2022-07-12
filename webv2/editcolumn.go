@@ -10,6 +10,24 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
+// Actions to be performed on a column.
+// (1) Removed: true/false
+// (2) Rename: New name or empty string
+// (3) PK: "ADDED", "REMOVED" or ""
+// (4) NotNull: "ADDED", "REMOVED" or ""
+// (5) ToType: New type or empty string
+type updateCol struct {
+	Removed bool   `json:"Removed"`
+	Rename  string `json:"Rename"`
+	PK      string `json:"PK"`
+	NotNull string `json:"NotNull"`
+	ToType  string `json:"ToType"`
+}
+
+type updateTable struct {
+	UpdateCols map[string]updateCol `json:"UpdateCols"`
+}
+
 // updateTableSchema updates the Spanner schema.
 // Following actions can be performed on a specified table:
 // (1) Remove column
@@ -48,7 +66,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 			status, err := canRemoveColumn(colName, table)
 
 			if err != nil {
-				err = rollback(err)
 				http.Error(w, fmt.Sprintf("%v", err), status)
 				return
 			}
@@ -61,7 +78,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 		if v.Rename != "" && v.Rename != colName {
 
 			if status, err := canRenameOrChangeType(colName, table); err != nil {
-				err = rollback(err)
 				http.Error(w, fmt.Sprintf("%v", err), status)
 				return
 			}
@@ -87,7 +103,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 				if status, err := canRenameOrChangeType(colName, table); err != nil {
 
-					err = rollback(err)
 					http.Error(w, fmt.Sprintf("%v", err), status)
 					return
 				}
@@ -124,18 +139,24 @@ func canRenameOrChangeType(colName, table string) (int, error) {
 
 	}
 
+	// todo interleaved
+
 	isParent, childSchema := isParent(table)
 
 	isChild := sessionState.Conv.SpSchema[table].Parent != ""
 
-	if isPartOfPK && (isParent || isChild) {
+	if isParent || isChild {
 		return http.StatusBadRequest, fmt.Errorf("column : '%s' in table : '%s' is part of parent-child relation with schema : '%s'", colName, table, childSchema)
 	}
+
+	//todo indices
 
 	if isPartOfSecondaryIndex, indexName := isPartOfSecondaryIndex(colName, table); isPartOfSecondaryIndex {
 		return http.StatusPreconditionFailed, fmt.Errorf("column : '%s' in table : '%s' is part of secondary index : '%s', remove secondary index before making the update",
 			colName, table, indexName)
 	}
+
+	//todo fk
 
 	isPartOfFK := isPartOfFK(colName, table)
 

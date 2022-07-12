@@ -451,24 +451,6 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
-// Actions to be performed on a column.
-// (1) Removed: true/false
-// (2) Rename: New name or empty string
-// (3) PK: "ADDED", "REMOVED" or ""
-// (4) NotNull: "ADDED", "REMOVED" or ""
-// (5) ToType: New type or empty string
-type updateCol struct {
-	Removed bool   `json:"Removed"`
-	Rename  string `json:"Rename"`
-	PK      string `json:"PK"`
-	NotNull string `json:"NotNull"`
-	ToType  string `json:"ToType"`
-}
-
-type updateTable struct {
-	UpdateCols map[string]updateCol `json:"UpdateCols"`
-}
-
 // getConversionRate returns table wise color coded conversion rate.
 func getConversionRate(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
