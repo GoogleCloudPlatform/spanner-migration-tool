@@ -22,7 +22,7 @@
 FROM golang:1.18.3 AS build
 
 # Set the default work directory as “/hbBin” in the container.
-WORKDIR /hbBin
+WORKDIR /harbourbridge_bin
 
 # Copy HarbourBridge’s source code into the working directory.
 COPY . ./
@@ -44,7 +44,7 @@ RUN mkdir /harbourbridge/bin
 # Create directory to store the dump files. This directory binds with the host directory that contains the dump files of the source database.
 RUN mkdir /harbourbridge/sourceDump
 # Copy the HarbourBridge binary from the build stage's hbBin directory to the release stage's harbourbridge/bin directory.
-COPY --from=build /hbBin/harbourbridge /harbourbridge/bin
+COPY --from=build /harbourbridge_bin/harbourbridge /harbourbridge/bin
 
 # Add Python3 to support GCloud SDK.
 RUN apt-get update
