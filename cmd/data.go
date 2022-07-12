@@ -196,7 +196,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 			}
 			err = conversion.ValidateTables(ctx, client, conv.TargetDb)
 			if err != nil {
-				fmt.Printf("can't validate the tables: %v\n", err)
+				fmt.Printf("error validating the tables: %v\n", err)
 				return subcommands.ExitFailure
 			}
 			spannerConv := internal.MakeConv()
