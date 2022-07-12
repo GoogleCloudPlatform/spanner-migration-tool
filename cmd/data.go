@@ -22,6 +22,8 @@ import (
 	"path"
 	"time"
 
+	sp "cloud.google.com/go/spanner"
+	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
@@ -155,14 +157,21 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 			return subcommands.ExitUsageError
 		}
 		if targetProfile.TargetDb != "" && conv.TargetDb != targetProfile.TargetDb {
-			fmt.Printf("running data migration for Spanner dialect: %v, whereas schema mapping was done for dialect: %v\n", targetProfile.TargetDb, conv.TargetDb)
+			err = fmt.Errorf("running data migration for Spanner dialect: %v, whereas schema mapping was done for dialect: %v", targetProfile.TargetDb, conv.TargetDb)
 			return subcommands.ExitUsageError
 		}
 	}
 
+	var (
+		project, instance string
+		adminClient       *database.DatabaseAdminClient
+		client            *sp.Client
+		dbExists          bool
+	)
+
 	if !cmd.dryRun {
 		now := time.Now()
-		project, instance, dbName, err := targetProfile.GetResourceIds(ctx, now, sourceProfile.Driver, ioHelper.Out)
+		project, instance, dbName, err = targetProfile.GetResourceIds(ctx, now, sourceProfile.Driver, ioHelper.Out)
 		if err != nil {
 			return subcommands.ExitUsageError
 		}
@@ -171,63 +180,63 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		utils.PrintPermissionsWarning(sourceProfile.Driver, ioHelper.Out)
 
 		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
-		client, err := utils.GetClient(ctx, dbURI)
+		client, err = utils.GetClient(ctx, dbURI)
 		if err != nil {
-			fmt.Printf("can't create client for db %s: %v\n", dbURI, err)
+			err = fmt.Errorf("can't create client for db %s: %v", dbURI, err)
 			return subcommands.ExitFailure
 		}
 		defer client.Close()
 
-		adminClient, err := utils.NewDatabaseAdminClient(ctx)
+		adminClient, err = utils.NewDatabaseAdminClient(ctx)
 		if err != nil {
-			fmt.Printf("can't create admin client: %v\n", utils.AnalyzeError(err, dbURI))
+			err = fmt.Errorf("can't create admin client: %v", utils.AnalyzeError(err, dbURI))
 			return subcommands.ExitFailure
 		}
 		defer adminClient.Close()
 		if !sourceProfile.UseTargetSchema() {
-			dbExists, err := conversion.CheckExistingDb(ctx, adminClient, dbURI)
+			dbExists, err = conversion.CheckExistingDb(ctx, adminClient, dbURI)
 			if err != nil {
-				fmt.Printf("can't verify target database: %v\n", err)
+				err = fmt.Errorf("can't verify target database: %v", err)
 				return subcommands.ExitFailure
 			}
 			if !dbExists {
-				fmt.Println("target database doesn't exist")
+				err = fmt.Errorf("target database doesn't exist")
 				return subcommands.ExitFailure
 			}
 			err = conversion.ValidateTables(ctx, client, conv.TargetDb)
 			if err != nil {
-				fmt.Printf("error validating the tables: %v\n", err)
+				err = fmt.Errorf("error validating the tables: %v", err)
 				return subcommands.ExitFailure
 			}
 			spannerConv := internal.MakeConv()
 			spannerConv.TargetDb = targetProfile.TargetDb
 			err = utils.ReadSpannerSchema(ctx, spannerConv, client)
 			if err != nil {
-				fmt.Printf("can't read spanner schema: %v\n", err)
+				err = fmt.Errorf("can't read spanner schema: %v", err)
 				return subcommands.ExitFailure
 			}
 			err = utils.CompareSchema(conv, spannerConv)
 			if err != nil {
-				fmt.Printf("error while comparing the schema from session file and existing spanner schema: %v\n", err)
+				err = fmt.Errorf("error while comparing the schema from session file and existing spanner schema: %v", err)
 				return subcommands.ExitFailure
 			}
 		}
 		bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, client, conv, true, cmd.writeLimit)
 		if err != nil {
-			fmt.Printf("can't finish data conversion for db %s: %v\n", dbURI, err)
+			err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 			return subcommands.ExitFailure
 		}
 
 		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
-			fmt.Printf("can't perform update schema on db %s with foreign keys: %v\n", dbURI, err)
+			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
 			return subcommands.ExitFailure
 		}
 		banner = utils.GetBanner(now, dbURI)
 	} else {
-		conv.DryRun = true
+		conv.Audit.DryRun = true
 		bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, nil, conv, true, cmd.writeLimit)
 		if err != nil {
-			fmt.Printf("can't finish data conversion for db %s: %v\n", dbName, err)
+			err = fmt.Errorf("can't finish data conversion for db %s: %v", dbName, err)
 			return subcommands.ExitFailure
 		}
 		banner = utils.GetBanner(dataCoversionStartTime, dbName)

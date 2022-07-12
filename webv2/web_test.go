@@ -25,6 +25,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
@@ -278,6 +279,9 @@ func TestUpdateTableSchema(t *testing.T) {
 				ToSpanner: map[string]internal.NameAndCols{
 					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
 				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -487,6 +491,9 @@ func TestUpdateTableSchema(t *testing.T) {
 				ToSpanner: map[string]internal.NameAndCols{
 					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
 				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -549,6 +556,9 @@ func TestUpdateTableSchema(t *testing.T) {
 				Issues: map[string]map[string][]internal.SchemaIssue{
 					"t1": {},
 				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -609,6 +619,9 @@ func TestUpdateTableSchema(t *testing.T) {
 					}},
 				ToSource: map[string]internal.NameAndCols{
 					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
 			},
 			expectedConv: &internal.Conv{

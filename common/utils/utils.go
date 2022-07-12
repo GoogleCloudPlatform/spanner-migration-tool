@@ -511,9 +511,6 @@ func CompareSchema(conv1, conv2 *internal.Conv) error {
 	if conv1.TargetDb != conv2.TargetDb {
 		return fmt.Errorf("target db don't match")
 	}
-	if len(conv1.SpSchema) != len(conv2.SpSchema) {
-		return fmt.Errorf("number of tables don't match")
-	}
 	for t := range conv1.SpSchema {
 		sessionTable := conv1.SpSchema[t]
 		spannerTable := conv2.SpSchema[t]

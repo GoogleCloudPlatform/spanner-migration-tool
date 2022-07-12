@@ -178,7 +178,7 @@ func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Co
 	common.SetRowStats(conv, infoSchema)
 	totalRows := conv.Rows()
 	var p *internal.Progress
-	if !conv.DryRun {
+	if !conv.Audit.DryRun {
 		p = internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 	}
 	batchWriter := populateDataConv(conv, config, client, p)
@@ -341,7 +341,7 @@ func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, clie
 	}
 	batchWriter := writer.NewBatchWriter(config)
 	conv.SetDataMode()
-	if !conv.DryRun {
+	if !conv.Audit.DryRun {
 		conv.SetDataSink(
 			func(table string, cols []string, vals []interface{}) {
 				batchWriter.AddRow(table, cols, vals)
