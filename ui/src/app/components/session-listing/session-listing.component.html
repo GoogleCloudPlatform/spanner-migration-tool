@@ -99,7 +99,7 @@
         <td mat-cell *matCellDef="let element; let i = index">
           <div *ngIf="element.Notes" class="notes-wrapper">
             <button
-              *ngIf="element.Notes.length > 1 || element.Notes[0].length > 20"
+              *ngIf="element.Notes?.length > 1 || element.Notes[0]?.length > 20"
               class="notes-toggle-button"
               (click)="notesToggle[i] = !notesToggle[i]"
             >
@@ -109,7 +109,7 @@
               <p *ngFor="let note of element.Notes">{{ note }}</p>
             </div>
             <ng-template #short>
-              <p>{{ element.Notes?.[0].substring(0,20)}}</p>
+              <p>{{ element.Notes?.[0]?.substring(0,20)}}</p>
             </ng-template>
           </div>
         </td>
