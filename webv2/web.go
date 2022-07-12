@@ -492,7 +492,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 		if v.Removed {
 			status, err := canRemoveColumn(colName, table)
 			if err != nil {
-				err = rollback(err)
 				http.Error(w, fmt.Sprintf("%v", err), status)
 				return
 			}
@@ -501,7 +500,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 		if v.Rename != "" && v.Rename != colName {
 			if status, err := canRenameOrChangeType(colName, table); err != nil {
-				err = rollback(err)
 				http.Error(w, fmt.Sprintf("%v", err), status)
 				return
 			}
@@ -522,7 +520,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			if typeChange {
 				if status, err := canRenameOrChangeType(colName, table); err != nil {
-					err = rollback(err)
 					http.Error(w, fmt.Sprintf("%v", err), status)
 					return
 				}
