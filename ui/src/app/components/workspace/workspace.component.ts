@@ -10,6 +10,7 @@ import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import ISchemaObjectNode, { FlatNode } from 'src/app/model/schema-object-node'
 import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import { IUpdateTableArgument } from 'src/app/model/update-table'
+import ConversionRate from 'src/app/model/conversion-rate'
 
 @Component({
   selector: 'app-workspace',
@@ -38,7 +39,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   issuesAndSuggestionsLabel: string = 'ISSUES AND SUGGESTIONS'
   objectExplorerInitiallyRender: boolean = false
   srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
-  conversionRatePercentages: number[] = [0, 0, 0]
+  conversionRatePercentages: ConversionRate = { good: 0, ok: 0, bad: 0 }
   constructor(
     private data: DataService,
     private conversion: ConversionService,
@@ -118,21 +119,21 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
 
   updateConversionRatePercentages() {
-    const conversionRateCount: number[] = [0, 0, 0]
+    const conversionRateCount: ConversionRate = { good: 0, ok: 0, bad: 0 }
     let tableCount: number = Object.keys(this.conversionRates).length
     for (const rate in this.conversionRates) {
       if (this.conversionRates[rate] === 'GRAY' || this.conversionRates[rate] === 'GREEN') {
-        conversionRateCount[0] += 1
+        conversionRateCount.good += 1
       } else if (this.conversionRates[rate] === 'BLUE' || this.conversionRates[rate] === 'YELLOW') {
-        conversionRateCount[1] += 1
+        conversionRateCount.ok += 1
       } else {
-        conversionRateCount[2] += 1
+        conversionRateCount.bad += 1
       }
     }
     if (tableCount > 0) {
-      for (let i = 0; i < 3; i++) {
-        this.conversionRatePercentages[i] = Number(
-          ((conversionRateCount[i] / tableCount) * 100).toFixed(2)
+      for (let key in this.conversionRatePercentages) {
+        this.conversionRatePercentages[key as keyof ConversionRate] = Number(
+          ((conversionRateCount[key as keyof ConversionRate] / tableCount) * 100).toFixed(2)
         )
       }
     }
