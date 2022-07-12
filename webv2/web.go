@@ -479,8 +479,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	table := r.FormValue("table")
 
-	fmt.Println("updateTableSchema getting called")
-
 	err = json.Unmarshal(reqBody, &t)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
