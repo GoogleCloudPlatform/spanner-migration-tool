@@ -479,8 +479,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	table := r.FormValue("table")
 
-	fmt.Println("updateTableSchema getting called")
-
 	err = json.Unmarshal(reqBody, &t)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
@@ -492,7 +490,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 		if v.Removed {
 			status, err := canRemoveColumn(colName, table)
 			if err != nil {
-				err = rollback(err)
 				http.Error(w, fmt.Sprintf("%v", err), status)
 				return
 			}
@@ -501,7 +498,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 		if v.Rename != "" && v.Rename != colName {
 			if status, err := canRenameOrChangeType(colName, table); err != nil {
-				err = rollback(err)
 				http.Error(w, fmt.Sprintf("%v", err), status)
 				return
 			}
@@ -522,7 +518,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			if typeChange {
 				if status, err := canRenameOrChangeType(colName, table); err != nil {
-					err = rollback(err)
 					http.Error(w, fmt.Sprintf("%v", err), status)
 					return
 				}
