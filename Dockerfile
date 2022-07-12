@@ -42,7 +42,7 @@ WORKDIR /harbourbridge/harbour_bridge_output
 # Create directory to store the HarbourBridge binary. 
 RUN mkdir /harbourbridge/bin
 # Create directory to store the dump files. This directory binds with the host directory that contains the dump files of the source database.
-RUN mkdir /harbourbridge/sourceDump
+RUN mkdir /harbourbridge/source_dump
 # Copy the HarbourBridge binary from the build stage's hbBin directory to the release stage's harbourbridge/bin directory.
 COPY --from=build /harbourbridge_bin/harbourbridge /harbourbridge/bin
 
