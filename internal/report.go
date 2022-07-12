@@ -267,7 +267,14 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 						l = append(l, str)
 					}
 
-				case IndexRedandant:
+				case RedundantIndex:
+					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+
+					if !contains(l, str) {
+						l = append(l, str)
+					}
+
+				case AutoIncrementIndex:
 					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, srcCol)
 
 					if !contains(l, str) {
@@ -349,8 +356,8 @@ var IssueDB = map[SchemaIssue]struct {
 	HotspotTimestamp:      {Brief: "Timestamp Hotspot Occured", severity: note},
 	HotspotAutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: note},
 	InterleavedOrder:      {Brief: "can be converted as Interleaved Table", severity: note},
-	IndexRedandant:        {Brief: "Redudant Index", severity: warning},
-	IndexTimestamp:        {Brief: "Redudant Index due to Timestamp", severity: warning},
+	RedundantIndex:        {Brief: "Redundant Index", severity: warning},
+	AutoIncrementIndex:    {Brief: "Auto increment column in Index can create a Hotspot", severity: warning},
 	InterleaveIndex:       {Brief: "can be converted to an Interleave Index", severity: note},
 	InterleavedNotInOrder: {Brief: "Can be converted to interleaved table if primary key order parameter is changed for the table", severity: note},
 	InterleavedAddColumn:  {Brief: "Candidate for Interleaved Table", severity: note},
