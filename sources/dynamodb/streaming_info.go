@@ -123,7 +123,7 @@ func (info *StreamingInfo) CollectBadRecord(recordType, srcTable string, srcCols
 	info.lock.Lock()
 	badRecord := fmt.Sprintf("type=%s table=%s cols=%v data=%v", recordType, srcTable, srcCols, vals)
 	// Cap storage used by sampleBadRecords. Keep at least one bad record and at max 100.
-	if len(info.SampleBadRecords) == 0 || len(info.SampleBadRecords) < 100 {
+	if len(info.SampleBadRecords) < 100 {
 		info.SampleBadRecords = append(info.SampleBadRecords, badRecord)
 	}
 	info.lock.Unlock()
@@ -134,7 +134,7 @@ func (info *StreamingInfo) CollectDroppedRecord(recordType, spTable string, spCo
 	info.lock.Lock()
 	droppedRecord := fmt.Sprintf("type=%s table=%s cols=%v data=%v error=%v", recordType, spTable, spCols, spVals, err)
 	// Cap storage used by sampleBadWrites. Keep at least one dropped record and at max 100.
-	if len(info.SampleBadWrites) == 0 || len(info.SampleBadWrites) < 100 {
+	if len(info.SampleBadWrites) < 100 {
 		info.SampleBadWrites = append(info.SampleBadWrites, droppedRecord)
 	}
 	info.lock.Unlock()

@@ -38,7 +38,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/metrics"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 )
 
 // NewDynamoDBStream initializes a new DynamoDB Stream for a table with NEW_AND_OLD_IMAGES
@@ -92,6 +92,7 @@ func catchCtrlC(wg *sync.WaitGroup, streamInfo *StreamingInfo) {
 
 const ESC = 27
 
+// clear erases the last printed line on the output file.
 var clear = fmt.Sprintf("%c[%dA%c[2K", ESC, 1, ESC)
 
 // updateProgress updates the customer every minute with number of records processed
@@ -315,19 +316,6 @@ func getRecords(streamClient dynamodbstreamsiface.DynamoDBStreamsAPI, shardItera
 	return result, nil
 }
 
-// getColsAndSchemas provides information about columns and schema for a table.
-func getColsAndSchemas(conv *internal.Conv, srcTable string) (schema.Table, string, []string, ddl.CreateTable, error) {
-	srcSchema := conv.SrcSchema[srcTable]
-	spTable, err1 := internal.GetSpannerTable(conv, srcTable)
-	spCols, err2 := internal.GetSpannerCols(conv, srcTable, srcSchema.ColNames)
-	spSchema, ok := conv.SpSchema[spTable]
-	var err error
-	if err1 != nil || err2 != nil || !ok {
-		err = fmt.Errorf(fmt.Sprintf("err1=%s, err2=%s, ok=%t", err1, err2, ok))
-	}
-	return srcSchema, spTable, spCols, spSchema, err
-}
-
 // ProcessRecord processes records retrieved from shards. It first converts the data
 // to Spanner data (based on the source and Spanner schemas), and then writes that data
 // to Cloud Spanner.
@@ -335,7 +323,7 @@ func ProcessRecord(conv *internal.Conv, streamInfo *StreamingInfo, record *dynam
 	eventName := *record.EventName
 	streamInfo.StatsAddRecord(srcTable, eventName)
 
-	srcSchema, spTable, spCols, spSchema, err := getColsAndSchemas(conv, srcTable)
+	srcSchema, spTable, spCols, spSchema, err := common.GetColsAndSchemas(conv, srcTable)
 	if err != nil {
 		streamInfo.Unexpected(fmt.Sprintf("Can't get cols and schemas for table %s: %v", srcTable, err))
 		return
@@ -358,9 +346,9 @@ func ProcessRecord(conv *internal.Conv, streamInfo *StreamingInfo, record *dynam
 	streamInfo.StatsAddRecordProcessed()
 }
 
-// writeRecord checks if the writer to write data to Cloud Spanner is configured or not.
-//
-// It handles creation and processing of mutations to Cloud Spanner.
+// writeRecord handles creation and processing of mutation from the converted data to Cloud Spanner.
+// If the writer which writes mutations to Cloud Spanner is not configured then it treats the record
+// as a bad record.
 func writeRecord(streamInfo *StreamingInfo, srcTable, spTable, eventName string, spCols []string, spVals []interface{}, srcSchema schema.Table) {
 	if streamInfo.write == nil {
 		msg := "Internal error: writeRecord called but writer not configured"
@@ -437,11 +425,10 @@ func writeMutation(m *sp.Mutation, streamInfo *StreamingInfo) error {
 // setWriter initializes the write function used to write mutations to Cloud Spanner.
 func setWriter(streamInfo *StreamingInfo, client *sp.Client, conv *internal.Conv) {
 	streamInfo.write = func(m *sp.Mutation) error {
-		const migrationMetadataKey = "cloud-spanner-migration-metadata"
 		migrationData := metrics.GetMigrationData(conv, "", "", constants.DataConv)
 		serializedMigrationData, _ := proto.Marshal(migrationData)
 		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
-		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), migrationMetadataKey, migrationMetadataValue), []*sp.Mutation{m})
+		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), constants.MigrationMetadataKey, migrationMetadataValue), []*sp.Mutation{m})
 		return err
 	}
 }

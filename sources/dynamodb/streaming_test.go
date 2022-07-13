@@ -29,7 +29,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodbstreams/dynamodbstreamsiface"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -306,82 +305,6 @@ func TestProcessShard(t *testing.T) {
 	ProcessShard(wgShard, streamInfo, nil, mockStreamClient, shard, streamArn, srcTable)
 	assert.Equal(t, int64(1), streamInfo.TotalUnexpecteds())
 	assert.Equal(t, true, streamInfo.ShardProcessed[*shard.ShardId])
-}
-
-func Test_getColsAndSchemas(t *testing.T) {
-	tableName := "testtable"
-	cols := []string{"a", "b", "c", "d"}
-	spSchema := ddl.CreateTable{
-		Name:     tableName,
-		ColNames: cols,
-		ColDefs: map[string]ddl.ColumnDef{
-			"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
-			"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
-		},
-		Pks: []ddl.IndexKey{{Col: "a"}},
-	}
-	srcSchema := schema.Table{
-		Name:     tableName,
-		ColNames: cols,
-		ColDefs: map[string]schema.Column{
-			"a": {Name: "a", Type: schema.Type{Name: typeString}},
-			"b": {Name: "b", Type: schema.Type{Name: typeNumber}},
-			"c": {Name: "c", Type: schema.Type{Name: typeNumberString}},
-			"d": {Name: "d", Type: schema.Type{Name: typeBool}},
-		},
-		PrimaryKeys: []schema.Key{{Column: "a"}},
-	}
-	conv := buildConv(spSchema, srcSchema)
-
-	type args struct {
-		conv     *internal.Conv
-		srcTable string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    schema.Table
-		want1   string
-		want2   []string
-		want3   ddl.CreateTable
-		wantErr bool
-	}{
-		{
-			name: "test for checking correctness of output",
-			args: args{
-				conv:     conv,
-				srcTable: tableName,
-			},
-			want:    srcSchema,
-			want1:   tableName,
-			want2:   cols,
-			want3:   spSchema,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, got1, got2, got3, err := getColsAndSchemas(tt.args.conv, tt.args.srcTable)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("getColsAndSchemas() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getColsAndSchemas() got = %v, want %v", got, tt.want)
-			}
-			if got1 != tt.want1 {
-				t.Errorf("getColsAndSchemas() got1 = %v, want %v", got1, tt.want1)
-			}
-			if !reflect.DeepEqual(got2, tt.want2) {
-				t.Errorf("getColsAndSchemas() got2 = %v, want %v", got2, tt.want2)
-			}
-			if !reflect.DeepEqual(got3, tt.want3) {
-				t.Errorf("getColsAndSchemas() got3 = %v, want %v", got3, tt.want3)
-			}
-		})
-	}
 }
 
 func TestProcessRecord(t *testing.T) {
