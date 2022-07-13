@@ -114,7 +114,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	conversion.WriteSchemaFile(conv, schemaConversionStartTime, cmd.filePrefix+schemaFile, ioHelper.Out)
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
 
-	// Populate migration request id and migration type in conv object
+	// Populate migration request id and migration type in conv object.
 	conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
 	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
 

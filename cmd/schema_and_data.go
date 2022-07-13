@@ -126,7 +126,7 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 	schemaCoversionEndTime := time.Now()
 	conv.Audit.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
 
-	// Populate migration request id and migration type in conv object
+	// Populate migration request id and migration type in conv object.
 	conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
 	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
 

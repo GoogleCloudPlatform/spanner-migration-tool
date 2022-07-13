@@ -111,7 +111,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		bw     *writer.BatchWriter
 		banner string
 	)
-	// Populate migration request id and migration type in conv object
+	// Populate migration request id and migration type in conv object.
 	conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
 	conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
 	dataCoversionStartTime := time.Now()

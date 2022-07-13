@@ -49,7 +49,7 @@ func CreateDatabaseClient(ctx context.Context, targetProfile profiles.TargetProf
 	return adminClient, client, dbURI, nil
 }
 
-// PrepareMigrationPrerequisites creates source and target profiles, opens a new IOStream and generates the database name
+// PrepareMigrationPrerequisites creates source and target profiles, opens a new IOStream and generates the database name.
 func PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, source string) (profiles.SourceProfile, profiles.TargetProfile, utils.IOStreams, string, error) {
 	sourceProfile, err := profiles.NewSourceProfile(sourceProfileString, source)
 	if err != nil {
