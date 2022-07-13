@@ -66,20 +66,29 @@ const (
 )
 
 type SourceProfileConnectionMySQL struct {
-	Host string // Same as MYSQLHOST environment variable
-	Port string // Same as MYSQLPORT environment variable
-	User string // Same as MYSQLUSER environment variable
-	Db   string // Same as MYSQLDATABASE environment variable
-	Pwd  string // Same as MYSQLPWD environment variable
+	Host            string // Same as MYSQLHOST environment variable
+	Port            string // Same as MYSQLPORT environment variable
+	User            string // Same as MYSQLUSER environment variable
+	Db              string // Same as MYSQLDATABASE environment variable
+	Pwd             string // Same as MYSQLPWD environment variable
+	StreamingConfig string
 }
 
 func NewSourceProfileConnectionMySQL(params map[string]string) (SourceProfileConnectionMySQL, error) {
 	mysql := SourceProfileConnectionMySQL{}
+
 	host, hostOk := params["host"]
 	user, userOk := params["user"]
 	db, dbOk := params["dbName"]
 	port, portOk := params["port"]
 	pwd, pwdOk := params["password"]
+
+	streamingConfig, cfgOk := params["streamingCfg"]
+	if cfgOk && streamingConfig == "" {
+		return mysql, fmt.Errorf("specify a non-empty streaming config file path")
+	}
+	mysql.StreamingConfig = streamingConfig
+
 	// We don't users to mix and match params from source-profile and environment variables.
 	// We either try to get all params from the source-profile and if none are set, we read from the env variables.
 	if !(hostOk || userOk || dbOk || portOk || pwdOk) {
@@ -252,6 +261,7 @@ type SourceProfileConnectionDynamoDB struct {
 	AwsRegion          string // Same as AWS_REGION environment variable
 	DydbEndpoint       string // Same as DYNAMODB_ENDPOINT_OVERRIDE environment variable
 	SchemaSampleSize   int64  // Number of rows to use for inferring schema (default 100,000)
+	enableStreaming    string // Used for confirming streaming migration (valid options: `yes`,`no`,`true`,`false`)
 }
 
 func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfileConnectionDynamoDB, error) {
@@ -279,15 +289,26 @@ func NewSourceProfileConnectionDynamoDB(params map[string]string) (SourceProfile
 	if dydb.DydbEndpoint, ok = params["dydb-endpoint"]; ok {
 		os.Setenv("DYNAMODB_ENDPOINT_OVERRIDE", dydb.DydbEndpoint)
 	}
+	if dydb.enableStreaming, ok = params["enableStreaming"]; ok {
+		switch dydb.enableStreaming {
+		case "yes", "true":
+			dydb.enableStreaming = "yes"
+		case "no", "false":
+			dydb.enableStreaming = "no"
+		default:
+			return dydb, fmt.Errorf("please specify a valid choice for enableStreaming: available choices(yes, no, true, false)")
+		}
+	}
 	return dydb, nil
 }
 
 type SourceProfileConnectionOracle struct {
-	Host string
-	Port string
-	User string
-	Db   string
-	Pwd  string
+	Host            string
+	Port            string
+	User            string
+	Db              string
+	Pwd             string
+	StreamingConfig string
 }
 
 func NewSourceProfileConnectionOracle(params map[string]string) (SourceProfileConnectionOracle, error) {
@@ -297,6 +318,12 @@ func NewSourceProfileConnectionOracle(params map[string]string) (SourceProfileCo
 	db, dbOk := params["dbName"]
 	port, _ := params["port"]
 	pwd, _ := params["password"]
+
+	streamingConfig, cfgOk := params["streamingCfg"]
+	if cfgOk && streamingConfig == "" {
+		return ss, fmt.Errorf("specify a non-empty streaming config file path")
+	}
+	ss.StreamingConfig = streamingConfig
 
 	if hostOk && userOk && dbOk {
 		// All connection params provided through source-profile. Port and password handled later.
@@ -323,6 +350,7 @@ func NewSourceProfileConnectionOracle(params map[string]string) (SourceProfileCo
 
 type SourceProfileConnection struct {
 	Ty        SourceProfileConnectionType
+	Streaming bool
 	Mysql     SourceProfileConnectionMySQL
 	Pg        SourceProfileConnectionPostgreSQL
 	Dydb      SourceProfileConnectionDynamoDB
@@ -341,6 +369,9 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 			if err != nil {
 				return conn, err
 			}
+			if conn.Mysql.StreamingConfig != "" {
+				conn.Streaming = true
+			}
 		}
 	case "postgresql", "postgres", "pg":
 		{
@@ -356,6 +387,9 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 			conn.Dydb, err = NewSourceProfileConnectionDynamoDB(params)
 			if err != nil {
 				return conn, err
+			}
+			if conn.Dydb.enableStreaming == "yes" {
+				conn.Streaming = true
 			}
 		}
 
@@ -373,6 +407,9 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 			conn.Oracle, err = NewSourceProfileConnectionOracle(params)
 			if err != nil {
 				return conn, err
+			}
+			if conn.Oracle.StreamingConfig != "" {
+				conn.Streaming = true
 			}
 		}
 	default:
@@ -443,6 +480,7 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 				return "", fmt.Errorf("please specify a valid source database using -source flag, received source = %v", source)
 			}
 		}
+	// No need to handle unsupported streaming source specified as it is already covered during source profile creation.
 	case SourceProfileTypeConnection:
 		{
 			switch strings.ToLower(source) {

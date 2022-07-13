@@ -237,6 +237,12 @@ func getInstances(ctx context.Context, project string) ([]string, error) {
 }
 
 func GetPassword() string {
+	calledFromGCloud := os.Getenv("GCLOUD_HB_PLUGIN")
+	if strings.EqualFold(calledFromGCloud, "true") {
+		fmt.Println("\n Please specify password in enviroment variables (recommended) or --source-profile " +
+			"(not recommended) while using HarbourBridge from gCloud CLI.")
+		return ""
+	}
 	fmt.Print("Enter Password: ")
 	bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
 	if err != nil {
@@ -249,10 +255,10 @@ func GetPassword() string {
 
 // GetDatabaseName generates database name with driver_date prefix.
 func GetDatabaseName(driver string, now time.Time) (string, error) {
-	return generateName(fmt.Sprintf("%s_%s", driver, now.Format("2006-01-02")))
+	return GenerateName(fmt.Sprintf("%s_%s", driver, now.Format("2006-01-02")))
 }
 
-func generateName(prefix string) (string, error) {
+func GenerateName(prefix string) (string, error) {
 	b := make([]byte, 4)
 	_, err := rand.Read(b)
 	if err != nil {

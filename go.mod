@@ -1,10 +1,11 @@
 module github.com/cloudspannerecosystem/harbourbridge
 
-go 1.13
+go 1.16
 
 require (
 	cloud.google.com/go v0.100.2
-	cloud.google.com/go/compute v1.5.0 // indirect
+	cloud.google.com/go/dataflow v0.4.0
+	cloud.google.com/go/datastream v0.4.0
 	cloud.google.com/go/iam v0.3.0 // indirect
 	cloud.google.com/go/spanner v1.30.0
 	cloud.google.com/go/storage v1.21.0
@@ -31,12 +32,12 @@ require (
 	github.com/pingcap/tidb/parser v0.0.0-20220411093434-32b9c14779c2
 	github.com/sijms/go-ora/v2 v2.2.17
 	github.com/stretchr/testify v1.7.0
+	go.uber.org/zap v1.21.0
 	golang.org/x/crypto v0.0.0-20220214200702-86341886e292
-	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
-	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b // indirect
+	golang.org/x/net v0.0.0-20220325170049-de3da57026de
 	golang.org/x/tools v0.1.11-0.20220316014157-77aa08bb151a // indirect
-	google.golang.org/api v0.70.0
-	google.golang.org/genproto v0.0.0-20220304144024-325a89244dc8
-	google.golang.org/grpc v1.44.0
-	google.golang.org/protobuf v1.27.1
+	google.golang.org/api v0.74.0
+	google.golang.org/genproto v0.0.0-20220407144326-9054f6ed7bac
+	google.golang.org/grpc v1.45.0
+	google.golang.org/protobuf v1.28.0
 )

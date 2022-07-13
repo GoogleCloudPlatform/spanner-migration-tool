@@ -104,6 +104,7 @@ export class AddIndexFormComponent implements OnInit {
           Desc: col.sort === 'true',
         }
       }),
+      Id: '',
     })
     this.data.addIndex(idxData.tableName, payload)
     this.resetRuleType.emit('')

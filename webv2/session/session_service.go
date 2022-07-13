@@ -2,8 +2,9 @@ package session
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/common"
+	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
 type SessionService struct {
@@ -11,10 +12,14 @@ type SessionService struct {
 	context context.Context
 }
 
-type SessionNameError struct{}
+type SessionNameError struct {
+	DbName string
+	DbType string
+}
 
 func (e *SessionNameError) Error() string {
-	return "session name already exists"
+	return fmt.Sprintf("session name already exists for database '%s' and database type '%s'.", e.DbName, e.DbType)
+
 }
 
 func NewSessionService(ctx context.Context, store SessionStore) *SessionService {
@@ -31,7 +36,7 @@ func (ss *SessionService) SaveSession(scs SchemaConversionSession) error {
 	}
 
 	if !unique {
-		return &SessionNameError{}
+		return &SessionNameError{DbName: scs.DatabaseName, DbType: scs.DatabaseType}
 	}
 
 	return ss.store.SaveSession(ss.context, scs)
@@ -53,7 +58,7 @@ func SetSessionStorageConnectionState(projectId string, spInstanceId string) boo
 		sessionState.IsOffline = true
 		return false
 	} else {
-		if isExist, isDbCreated := common.CheckOrCreateMetadataDb(projectId, spInstanceId); isExist {
+		if isExist, isDbCreated := utilities.CheckOrCreateMetadataDb(projectId, spInstanceId); isExist {
 			sessionState.IsOffline = false
 			return isDbCreated
 		} else {

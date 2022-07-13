@@ -168,6 +168,13 @@ export class ConversionService {
     })
   }
 
+  getPkMapping(tableData: IColumnTabData[]): IColumnTabData[] {
+    let pkColumns = tableData.filter((column: IColumnTabData) => {
+      return column.spIsPk || column.srcIsPk
+    })
+    return JSON.parse(JSON.stringify(pkColumns))
+  }
+
   getFkMapping(tableName: string, data: IConv): IFkTabData[] {
     let srcTableName: string = data.ToSource[tableName].Name
     let spFks = data.SpSchema[tableName].Fks
@@ -227,6 +234,20 @@ export class ConversionService {
         spDesc: idx.Desc,
       }
     })
+    if (srcIndexs && srcIndexs[0] && spIndex.Keys.length < srcIndexs[0].Keys.length) {
+      srcIndexs[0].Keys.forEach((idx, index) => {
+        if (index >= spIndex.Keys.length) {
+          res.push({
+            srcColName: idx.Column,
+            srcOrder: index + 1,
+            srcDesc: idx.Desc,
+            spColName: undefined,
+            spOrder: undefined,
+            spDesc: undefined,
+          })
+        }
+      })
+    }
     return res
   }
 }

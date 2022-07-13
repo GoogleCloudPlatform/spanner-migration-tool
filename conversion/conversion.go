@@ -43,14 +43,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
-	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/protobuf/proto"
-
+	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/metrics"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/csv"
@@ -61,6 +59,10 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/writer"
+	"go.uber.org/zap"
+	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -74,14 +76,7 @@ var (
 const migrationMetadataKey = "cloud-spanner-migration-metadata"
 
 // SchemaConv performs the schema conversion
-// TODO: Pass around cmd.SourceProfile instead of sqlConnectionStr and schemaSampleSize.
-// Doing that requires refactoring since that would introduce a circular dependency between
-// conversion.go and cmd/source_profile.go.
-// The sqlConnectionStr param provides the connection details to use the go SQL library.
-// It is empty in the following cases:
-//  - Driver is DynamoDB or a dump file mode.
-//  - This function is called as part of the legacy global CLI flag mode. (This string is constructed from env variables later on)
-// When using source-profile, the sqlConnectionStr is constructed from the input params.
+// The SourceProfile param provides the connection details to use the go SQL library.
 func SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams) (*internal.Conv, error) {
 	switch sourceProfile.Driver {
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE:
@@ -94,11 +89,7 @@ func SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.Tar
 }
 
 // DataConv performs the data conversion
-// The sqlConnectionStr param provides the connection details to use the go SQL library.
-// It is empty in the following cases:
-//  - Driver is DynamoDB or a dump file mode.
-//  - This function is called as part of the legacy global CLI flag mode. (This string is constructed from env variables later on)
-// When using source-profile, the sqlConnectionStr and schemaSampleSize are constructed from the input params.
+// The SourceProfile param provides the connection details to use the go SQL library.
 func DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, writeLimit int64) (*writer.BatchWriter, error) {
 	config := writer.BatchWriterConfig{
 		BytesLimit: 100 * 1000 * 1000,
@@ -108,7 +99,7 @@ func DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetP
 	}
 	switch sourceProfile.Driver {
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE:
-		return dataFromDatabase(sourceProfile, config, client, conv)
+		return dataFromDatabase(ctx, sourceProfile, targetProfile, config, conv, client)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		if conv.SpSchema.CheckInterleaved() {
 			return nil, fmt.Errorf("harbourBridge does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql")
@@ -177,18 +168,14 @@ func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (*internal.Conv, error) {
 	conv := internal.MakeConv()
 	conv.TargetDb = targetProfile.TargetDb
-	infoSchema, err := GetInfoSchema(sourceProfile)
+	infoSchema, err := GetInfoSchema(sourceProfile, targetProfile)
 	if err != nil {
 		return conv, err
 	}
 	return conv, common.ProcessSchema(conv, infoSchema)
 }
 
-func dataFromDatabase(sourceProfile profiles.SourceProfile, config writer.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*writer.BatchWriter, error) {
-	infoSchema, err := GetInfoSchema(sourceProfile)
-	if err != nil {
-		return nil, err
-	}
+func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error) {
 	common.SetRowStats(conv, infoSchema)
 	totalRows := conv.Rows()
 	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
@@ -196,6 +183,31 @@ func dataFromDatabase(sourceProfile profiles.SourceProfile, config writer.BatchW
 	common.ProcessData(conv, infoSchema)
 	batchWriter.Flush()
 	return batchWriter, nil
+}
+
+func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
+	infoSchema, err := GetInfoSchema(sourceProfile, targetProfile)
+	if err != nil {
+		return nil, err
+	}
+	var streamInfo map[string]interface{}
+	if sourceProfile.Conn.Streaming {
+		streamInfo, err = infoSchema.StartChangeDataCapture(ctx, conv)
+		if err != nil {
+			return nil, err
+		}
+	}
+	bw, err := performSnapshotMigration(config, conv, client, infoSchema)
+	if err != nil {
+		return nil, err
+	}
+	if sourceProfile.Conn.Streaming {
+		err = infoSchema.StartStreamingMigration(ctx, client, conv, streamInfo)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return bw, nil
 }
 
 func getDynamoDBClientConfig() (*aws.Config, error) {
@@ -379,6 +391,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 		return f, n, err
 	}
 	internal.VerbosePrintln("Creating a tmp file with a copy of stdin because stdin is not seekable.")
+	logger.Log.Debug("Creating a tmp file with a copy of stdin because stdin is not seekable.")
 
 	// Create file in os.TempDir. Its not clear this is a good idea e.g. if the
 	// pg_dump/mysqldump output is large (tens of GBs) and os.TempDir points to a directory
@@ -415,15 +428,28 @@ func VerifyDb(ctx context.Context, adminClient *database.DatabaseAdminClient, db
 }
 
 // CheckExistingDb checks whether the database with dbURI exists or not.
+// If API call doesn't respond then user is informed after every 5 minutes on command line.
 func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) (bool, error) {
-	_, err := adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: dbURI})
-	if err != nil {
-		if utils.ContainsAny(strings.ToLower(err.Error()), []string{"database not found"}) {
-			return false, nil
+	gotResponse := make(chan bool)
+	var err error
+	go func() {
+		_, err = adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: dbURI})
+		gotResponse <- true
+	}()
+	for {
+		select {
+		case <-time.After(5 * time.Minute):
+			fmt.Println("WARNING! API call not responding: make sure that spanner api endpoint is configured properly")
+		case <-gotResponse:
+			if err != nil {
+				if utils.ContainsAny(strings.ToLower(err.Error()), []string{"database not found"}) {
+					return false, nil
+				}
+				return false, fmt.Errorf("can't get database info: %s", err)
+			}
+			return true, nil
 		}
-		return false, fmt.Errorf("can't get database info: %s", err)
 	}
-	return true, nil
 }
 
 // ValidateDDL verifies if an existing DB's ddl follows what is supported by harbourbridge. Currently,
@@ -575,6 +601,8 @@ Recommended value is between 20-30.`)
 				workers <- workerID
 			}()
 			internal.VerbosePrintf("Submitting new FK create request: %s\n", fkStmt)
+			logger.Log.Debug("Submitting new FK create request", zap.String("fkStmt", fkStmt))
+
 			op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 				Database:   dbURI,
 				Statements: []string{fkStmt},
@@ -590,6 +618,7 @@ Recommended value is between 20-30.`)
 				return
 			}
 			internal.VerbosePrintln("Updated schema with statement: " + fkStmt)
+			logger.Log.Debug("Updated schema with statement", zap.String("fkStmt", fkStmt))
 		}(fkStmt, workerID)
 	}
 	// Wait for all the goroutines to finish.
@@ -771,7 +800,7 @@ func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 	}
 }
 
-func GetInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, error) {
+func GetInfoSchema(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error) {
 	connectionConfig, err := connectionConfig(sourceProfile)
 	if err != nil {
 		return nil, err
@@ -784,7 +813,12 @@ func GetInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, err
 		if err != nil {
 			return nil, err
 		}
-		return mysql.InfoSchemaImpl{DbName: dbName, Db: db}, nil
+		return mysql.InfoSchemaImpl{
+			DbName:        dbName,
+			Db:            db,
+			SourceProfile: sourceProfile,
+			TargetProfile: targetProfile,
+		}, nil
 	case constants.POSTGRES:
 		db, err := sql.Open(driver, connectionConfig.(string))
 		if err != nil {
@@ -794,7 +828,16 @@ func GetInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, err
 	case constants.DYNAMODB:
 		mySession := session.Must(session.NewSession())
 		dydbClient := dydb.New(mySession, connectionConfig.(*aws.Config))
-		return dynamodb.InfoSchemaImpl{DynamoClient: dydbClient, SampleSize: profiles.GetSchemaSampleSize(sourceProfile)}, nil
+		var dydbStreamsClient *dynamodbstreams.DynamoDBStreams
+		if sourceProfile.Conn.Streaming {
+			newSession := session.Must(session.NewSession())
+			dydbStreamsClient = dynamodbstreams.New(newSession, connectionConfig.(*aws.Config))
+		}
+		return dynamodb.InfoSchemaImpl{
+			DynamoClient:        dydbClient,
+			SampleSize:          profiles.GetSchemaSampleSize(sourceProfile),
+			DynamoStreamsClient: dydbStreamsClient,
+		}, nil
 	case constants.SQLSERVER:
 		db, err := sql.Open(driver, connectionConfig.(string))
 		dbName := getDbNameFromSQLConnectionStr(driver, connectionConfig.(string))
@@ -808,7 +851,7 @@ func GetInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, err
 		if err != nil {
 			return nil, err
 		}
-		return oracle.InfoSchemaImpl{DbName: strings.ToUpper(dbName), Db: db}, nil
+		return oracle.InfoSchemaImpl{DbName: strings.ToUpper(dbName), Db: db, SourceProfile: sourceProfile, TargetProfile: targetProfile}, nil
 	default:
 		return nil, fmt.Errorf("driver %s not supported", driver)
 	}

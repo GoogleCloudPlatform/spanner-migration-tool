@@ -127,6 +127,7 @@ func TestPrintCreateTable(t *testing.T) {
 		nil,
 		"",
 		"",
+		"1",
 	}
 	t2 := CreateTable{
 		"mytable",
@@ -137,6 +138,7 @@ func TestPrintCreateTable(t *testing.T) {
 		nil,
 		"parent",
 		"",
+		"1",
 	}
 	tests := []struct {
 		name       string
@@ -195,6 +197,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 		nil,
 		"",
 		"",
+		"1",
 	}
 	t2 := CreateTable{
 		"mytable",
@@ -205,6 +208,7 @@ func TestPrintCreateTablePG(t *testing.T) {
 		nil,
 		"parent",
 		"",
+		"1",
 	}
 	tests := []struct {
 		name       string
@@ -258,12 +262,14 @@ func TestPrintCreateIndex(t *testing.T) {
 			"mytable",
 			/*Unique =*/ false,
 			[]IndexKey{{Col: "col1", Desc: true}, {Col: "col2"}},
+			"1",
 		},
 		{
 			"myindex2",
 			"mytable",
 			/*Unique =*/ true,
 			[]IndexKey{{Col: "col1", Desc: true}, {Col: "col2"}},
+			"1",
 		}}
 	tests := []struct {
 		name       string
@@ -290,12 +296,14 @@ func TestPrintForeignKey(t *testing.T) {
 			[]string{"c1", "c2"},
 			"ref_table",
 			[]string{"ref_c1", "ref_c2"},
+			"1",
 		},
 		{
 			"",
 			[]string{"c1"},
 			"ref_table",
 			[]string{"ref_c1"},
+			"1",
 		},
 	}
 	tests := []struct {
@@ -322,12 +330,14 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 			[]string{"c1", "c2"},
 			"ref_table",
 			[]string{"ref_c1", "ref_c2"},
+			"1",
 		},
 		{
 			"",
 			[]string{"c1"},
 			"ref_table",
 			[]string{"ref_c1"},
+			"1",
 		},
 	}
 	tests := []struct {

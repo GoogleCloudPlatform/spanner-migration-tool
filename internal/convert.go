@@ -18,33 +18,32 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"go.uber.org/zap"
 )
 
 // Conv contains all schema and data conversion state.
 type Conv struct {
-	mode                     mode                                // Schema mode or data mode.
-	SpSchema                 ddl.Schema                          // Maps Spanner table name to Spanner schema.
-	SyntheticPKeys           map[string]SyntheticPKey            // Maps Spanner table name to synthetic primary key (if needed).
-	SrcSchema                map[string]schema.Table             // Maps source-DB table name to schema information.
-	Issues                   map[string]map[string][]SchemaIssue // Maps source-DB table/col to list of schema conversion issues.
-	ToSpanner                map[string]NameAndCols              // Maps from source-DB table name to Spanner name and column mapping.
-	ToSource                 map[string]NameAndCols              // Maps from Spanner table name to source-DB table name and column mapping.
-	UsedNames                map[string]bool                     // Map storing the names that are already assigned to tables, indices or foreign key contraints.
-	dataSink                 func(table string, cols []string, values []interface{})
-	DataFlush                func()         `json:"-"` // Data flush is used to flush out remaining writes and wait for them to complete.
-	Location                 *time.Location // Timezone (for timestamp conversion).
-	sampleBadRows            rowSamples     // Rows that generated errors during conversion.
-	Stats                    stats
-	TimezoneOffset           string                                 // Timezone offset for timestamp conversion.
-	TargetDb                 string                                 // The target database to which HarbourBridge is writing.
-	UniquePKey               map[string][]string                    // Maps Spanner table name to unique column name being used as primary key (if needed).
-	SchemaConversionDuration time.Duration                          `json:"-"` // Duration of schema conversion.
-	DataConversionDuration   time.Duration                          `json:"-"` // Duration of data conversion.
-	MigrationRequestId       string                                 `json:"-"` // Unique request id generated per migration
-	MigrationType            *migration.MigrationData_MigrationType `json:"-"` // Type of migration: Schema migration, data migration or schema and data migration
+	mode           mode                                // Schema mode or data mode.
+	SpSchema       ddl.Schema                          // Maps Spanner table name to Spanner schema.
+	SyntheticPKeys map[string]SyntheticPKey            // Maps Spanner table name to synthetic primary key (if needed).
+	SrcSchema      map[string]schema.Table             // Maps source-DB table name to schema information.
+	Issues         map[string]map[string][]SchemaIssue // Maps source-DB table/col to list of schema conversion issues.
+	ToSpanner      map[string]NameAndCols              // Maps from source-DB table name to Spanner name and column mapping.
+	ToSource       map[string]NameAndCols              // Maps from Spanner table name to source-DB table name and column mapping.
+	UsedNames      map[string]bool                     // Map storing the names that are already assigned to tables, indices or foreign key contraints.
+	dataSink       func(table string, cols []string, values []interface{})
+	DataFlush      func()         `json:"-"` // Data flush is used to flush out remaining writes and wait for them to complete.
+	Location       *time.Location // Timezone (for timestamp conversion).
+	sampleBadRows  rowSamples     // Rows that generated errors during conversion.
+	Stats          stats
+	TimezoneOffset string              // Timezone offset for timestamp conversion.
+	TargetDb       string              // The target database to which HarbourBridge is writing.
+	UniquePKey     map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
+	Audit          audit               // Stores the audit information for the database conversion
 }
 
 type mode int
@@ -85,6 +84,12 @@ const (
 	Widened
 	Time
 	StringOverflow
+	HotspotTimestamp
+	HotspotAutoIncrement
+	InterleavedNotInOrder
+	InterleavedOrder
+	InterleavedAddColumn
+	IllegalName
 )
 
 // NameAndCols contains the name of a table and its columns.
@@ -94,6 +99,13 @@ type NameAndCols struct {
 	Cols map[string]string
 }
 
+//FkeyAndIdxs contains the name of a table, its foreign keys and indexes
+//Used to map between source DB and spanner table name, foreign key name and index names.
+type FkeyAndIdxs struct {
+	Name       string
+	ForeignKey map[string]string
+	Index      map[string]string
+}
 type rowSamples struct {
 	rows       []*row
 	bytes      int64 // Bytes consumed by l.
@@ -128,6 +140,17 @@ type statementStat struct {
 	Error  int64
 }
 
+// Stores the audit information of conversion.
+// Elements that do not affect the migration functionality but are relevant for the conversion report.
+type audit struct {
+	ToSpannerFkIdx           map[string]FkeyAndIdxs                 `json:"-"` // Maps from source-DB table name to Spanner names for table name, foreign key and indexes.
+	ToSourceFkIdx            map[string]FkeyAndIdxs                 `json:"-"` // Maps from Spanner table name to source-DB names for table name, foreign key and indexes.
+	SchemaConversionDuration time.Duration                          `json:"-"` // Duration of schema conversion.
+	DataConversionDuration   time.Duration                          `json:"-"` // Duration of data conversion.
+	MigrationRequestId       string                                 `json:"-"` // Unique request id generated per migration
+	MigrationType            *migration.MigrationData_MigrationType `json:"-"` // Type of migration: Schema migration, data migration or schema and data migration
+}
+
 // MakeConv returns a default-configured Conv.
 func MakeConv() *Conv {
 	return &Conv{
@@ -149,6 +172,10 @@ func MakeConv() *Conv {
 		},
 		TimezoneOffset: "+00:00", // By default, use +00:00 offset which is equal to UTC timezone
 		UniquePKey:     make(map[string][]string),
+		Audit: audit{
+			ToSpannerFkIdx: make(map[string]FkeyAndIdxs),
+			ToSourceFkIdx:  make(map[string]FkeyAndIdxs),
+		},
 	}
 }
 
@@ -184,6 +211,8 @@ func (conv *Conv) WriteRow(srcTable, spTable string, spCols []string, spVals []i
 	if conv.dataSink == nil {
 		msg := "Internal error: ProcessDataRow called but dataSink not configured"
 		VerbosePrintf("%s\n", msg)
+		logger.Log.Debug("Internal error: ProcessDataRow called but dataSink not configured")
+
 		conv.Unexpected(msg)
 		conv.StatsAddBadRow(srcTable, conv.DataMode())
 	} else {
@@ -322,6 +351,8 @@ func (conv *Conv) buildPrimaryKey(spTable string) string {
 // because we process dump data twice.
 func (conv *Conv) Unexpected(u string) {
 	VerbosePrintf("Unexpected condition: %s\n", u)
+	logger.Log.Debug("Unexpected condition", zap.String("condition", u))
+
 	// Limit size of unexpected map. If over limit, then only
 	// update existing entries.
 	if _, ok := conv.Stats.Unexpected[u]; ok || len(conv.Stats.Unexpected) < 1000 {
@@ -370,6 +401,7 @@ func (conv *Conv) getStatementStat(s string) *statementStat {
 func (conv *Conv) SkipStatement(stmtType string) {
 	if conv.SchemaMode() { // Record statement stats on first pass only.
 		VerbosePrintf("Skipping statement: %s\n", stmtType)
+		logger.Log.Debug("Skipping statement", zap.String("stmtType", stmtType))
 		conv.getStatementStat(stmtType).Skip++
 	}
 }
@@ -378,6 +410,7 @@ func (conv *Conv) SkipStatement(stmtType string) {
 func (conv *Conv) ErrorInStatement(stmtType string) {
 	if conv.SchemaMode() { // Record statement stats on first pass only.
 		VerbosePrintf("Error processing statement: %s\n", stmtType)
+		logger.Log.Debug("Error processing statement", zap.String("stmtType", stmtType))
 		conv.getStatementStat(stmtType).Error++
 	}
 }

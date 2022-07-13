@@ -38,7 +38,7 @@ export class SidenavSaveSessionComponent implements OnInit {
       SessionName: formValue.SessionName.trim(),
       EditorName: formValue.EditorName.trim(),
       DatabaseName: formValue.DatabaseName.trim(),
-      Notes: formValue.Notes?.split('\n'),
+      Notes: formValue.Notes?.trim() === '' ? undefined : formValue.Notes?.split('\n'),
     }
 
     this.fetch.saveSession(payload).subscribe({

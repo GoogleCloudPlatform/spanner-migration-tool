@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core'
 import IDbConfig from 'src/app/model/db-config'
 import ISession, { ISaveSessionPayload } from '../../model/session'
 import IUpdateTable from '../../model/update-table'
-import IConv, { ICreateIndex, IInterleaveStatus } from '../../model/conv'
+import IConv, { ICreateIndex, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
 import IDumpConfig from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
@@ -61,6 +61,10 @@ export class FetchService {
 
   updateTable(tableName: string, data: IUpdateTable): any {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/typemap/table?table=${tableName}`, data)
+  }
+
+  updatePk(pkObj: IPrimaryKey) {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/primaryKey`, pkObj)
   }
 
   updateFk(tableName: string, payload: Record<string, string>): any {

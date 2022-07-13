@@ -70,7 +70,7 @@ func TestReport(t *testing.T) {
 		`----------------------------
 Summary of Conversion
 ----------------------------
-Schema conversion: OK (some columns did not map cleanly + some missing primary keys).
+Schema conversion: OK (89% of 19006 columns mapped cleanly) + some missing primary keys.
 Data conversion: POOR (66% of 6000 rows written to Spanner).
 
 The remainder of this report provides stats on the pg_dump statements processed,
@@ -93,10 +93,18 @@ Analysis of statements in pg_dump output, broken down by statement type.
 See github.com/pganalyze/pg_query_go for definitions of statement types
 (pganalyze/pg_query_go is the library we use for parsing pg_dump output).
 
+-----------------------------------------------------------------------------------------------------
+Name Changes in Migration
+-----------------------------------------------------------------------------------------------------
+             Source Table          Change                  Old Name                  New Name
+-----------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------
+
+
 ----------------------------
 Table bad_schema
 ----------------------------
-Schema conversion: POOR (many columns did not map cleanly + missing primary key).
+Schema conversion: POOR (50% of 4 columns mapped cleanly) + missing primary key.
 Data conversion: OK (94% of 1000 rows written to Spanner).
 
 Warnings
@@ -114,7 +122,7 @@ Note
 ----------------------------
 Table default_value
 ----------------------------
-Schema conversion: POOR (many columns did not map cleanly).
+Schema conversion: POOR (50% of 2 columns mapped cleanly).
 Data conversion: NONE (no data rows found).
 
 Warning
@@ -124,13 +132,13 @@ Warning
 ----------------------------
 Table excellent_schema
 ----------------------------
-Schema conversion: EXCELLENT (all columns mapped cleanly).
+Schema conversion: EXCELLENT (all 2 columns mapped cleanly).
 Data conversion: NONE (no data rows found).
 
 ----------------------------
 Table foreign_key
 ----------------------------
-Schema conversion: EXCELLENT (all columns mapped cleanly).
+Schema conversion: EXCELLENT (all 2 columns mapped cleanly).
 Data conversion: NONE (no data rows found).
 
 ----------------------------
