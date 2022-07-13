@@ -90,9 +90,41 @@ func renameColumn(newName, table, colName, srcTableName string) {
 
 	if isParent {
 		fmt.Println("yes", table, "is parent table")
+
+		childSchemaSp := sessionState.Conv.SpSchema[childSchema]
+
+		childSchemaSp = convColNames(childSchemaSp, colName, newName)
+		childSchemaSp = renameColDefs(childSchemaSp, colName, newName)
+		childSchemaSp = renamePK(childSchemaSp, colName, newName)
+		childSchemaSp = renameIndex(childSchemaSp, colName, newName)
+		childSchemaSp = renameForeignkey(childSchemaSp, colName, newName)
+		childSchemaSp = renameReferColumns(childSchemaSp, colName, newName)
+
+		//todo
+		renameToSpannerToSource(childSchema, colName, newName)
+
+		sessionState.Conv.SpSchema[childSchema] = childSchemaSp
+
 	}
 
 	isChild := sessionState.Conv.SpSchema[table].Parent
+
+	if isChild != "" {
+
+		childSchemaSp := sessionState.Conv.SpSchema[isChild]
+
+		childSchemaSp = convColNames(childSchemaSp, colName, newName)
+		childSchemaSp = renameColDefs(childSchemaSp, colName, newName)
+		childSchemaSp = renamePK(childSchemaSp, colName, newName)
+		childSchemaSp = renameIndex(childSchemaSp, colName, newName)
+		childSchemaSp = renameForeignkey(childSchemaSp, colName, newName)
+		childSchemaSp = renameReferColumns(childSchemaSp, colName, newName)
+
+		//todo
+		renameToSpannerToSource(isChild, colName, newName)
+
+		sessionState.Conv.SpSchema[isChild] = childSchemaSp
+	}
 
 	fmt.Printf("column : '%s' in table : '%s' is part of parent-child relation with schema : '%s'", colName, table, childSchema)
 	fmt.Println("isChild :", isChild)
