@@ -77,7 +77,7 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 		conversion.WriteSchemaFile(conv, now, outputFilePrefix+schemaFile, ioHelper.Out)
 		conversion.WriteSessionFile(conv, outputFilePrefix+sessionFile, ioHelper.Out)
 		if schemaOnly {
-			// Populate migration request id and migration type in conv object
+			// Populate migration request id and migration type in conv object.
 			conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
 			conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
 			conversion.Report(driver, nil, ioHelper.BytesRead, "", conv, outputFilePrefix+reportFile, ioHelper.Out)
@@ -91,7 +91,7 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 		}
 	}
 
-	// Populate migration request id and migration type in conv object
+	// Populate migration request id and migration type in conv object.
 	conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
 	if dataOnly {
 		conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
