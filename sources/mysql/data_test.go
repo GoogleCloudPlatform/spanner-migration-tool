@@ -23,11 +23,17 @@ import (
 	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
+
+func init() {
+	logger.Log = zap.NewNop()
+}
 
 type spannerData struct {
 	table string

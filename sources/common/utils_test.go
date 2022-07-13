@@ -19,11 +19,17 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+  "go.uber.org/zap"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 )
+
+func init() {
+	logger.Log = zap.NewNop()
+}
 
 func TestToNotNull(t *testing.T) {
 	conv := internal.MakeConv()
