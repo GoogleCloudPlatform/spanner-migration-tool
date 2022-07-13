@@ -428,13 +428,30 @@ export class ObjectDetailComponent implements OnInit {
   pkOrderValidation() {
     let arr = this.pkData.map((item) => Number(item.spOrder))
     arr.sort()
-    arr.forEach((num: number, ind: number) => {
+    if (arr[arr.length - 1] > arr.length) {
+      arr.forEach((num: number, ind: number) => {
+        this.pkData.forEach((pk: IColumnTabData) => {
+          if (pk.spOrder == num) {
+            pk.spOrder = ind + 1
+          }
+        })
+      })
+    }
+    if (arr[0] == 0 && arr[arr.length - 1] <= arr.length) {
+      let missingOrder: number
+      for (let i = 0; i < arr.length; i++) {
+        if (arr[i] != i) {
+          missingOrder = i
+          break
+        }
+        missingOrder = arr.length
+      }
       this.pkData.forEach((pk: IColumnTabData) => {
-        if (pk.spOrder == num) {
-          pk.spOrder = ind + 1
+        if (pk.spOrder < missingOrder) {
+          pk.spOrder = Number(pk.spOrder) + 1
         }
       })
-    })
+    }
   }
 
   getPkRequestObj() {
