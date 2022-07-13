@@ -980,8 +980,14 @@ func updateIndexes(w http.ResponseWriter, r *http.Request) {
 	sp := sessionState.Conv.SpSchema[table]
 
 	for i, index := range sp.Indexes {
+
 		if index.Table == newIndexes[0].Table && index.Name == newIndexes[0].Name {
-			sp.Indexes[i] = newIndexes[0]
+
+			sp.Indexes[i].Keys = newIndexes[0].Keys
+			sp.Indexes[i].Name = newIndexes[0].Name
+			sp.Indexes[i].Table = newIndexes[0].Table
+			sp.Indexes[i].Unique = newIndexes[0].Unique
+
 			break
 		}
 	}
