@@ -46,6 +46,8 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	table := r.FormValue("table")
 
+	fmt.Println("\n\n\n")
+
 	fmt.Println("updateTableSchema getting called")
 
 	err = json.Unmarshal(reqBody, &t)
@@ -77,17 +79,8 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 		if v.Rename != "" && v.Rename != colName {
 
-			if status, err := canRenameOrChangeType(colName, table); err != nil {
-				http.Error(w, fmt.Sprintf("%v", err), status)
-				return
-			}
 			renameColumn(v.Rename, table, colName, srcTableName)
 			colName = v.Rename
-		}
-
-		if v.PK != "" {
-			http.Error(w, "HarbourBridge currently doesn't support editing primary keys", http.StatusNotImplemented)
-			return
 		}
 
 		if v.ToType != "" {
@@ -116,7 +109,14 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	fmt.Println("\n\n\n")
+	fmt.Println("\n\n\n")
+	fmt.Println("\n\n\n")
+
 	helpers.UpdateSessionFile()
+	fmt.Println("\n\n\n")
+	fmt.Println("\n\n\n")
+	fmt.Println("\n\n\n")
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -133,30 +133,18 @@ func canRenameOrChangeType(colName, table string) (int, error) {
 
 	isPartOfPK := isPartOfPK(colName, table)
 
-	if isPartOfPK {
-
-		fmt.Println("yes it part of pk ")
-
-	}
-
-	// todo interleaved
-
 	isParent, childSchema := isParent(table)
 
 	isChild := sessionState.Conv.SpSchema[table].Parent != ""
 
-	if isParent || isChild {
+	if isPartOfPK && (isParent || isChild) {
 		return http.StatusBadRequest, fmt.Errorf("column : '%s' in table : '%s' is part of parent-child relation with schema : '%s'", colName, table, childSchema)
 	}
-
-	//todo indices
 
 	if isPartOfSecondaryIndex, indexName := isPartOfSecondaryIndex(colName, table); isPartOfSecondaryIndex {
 		return http.StatusPreconditionFailed, fmt.Errorf("column : '%s' in table : '%s' is part of secondary index : '%s', remove secondary index before making the update",
 			colName, table, indexName)
 	}
-
-	//todo fk
 
 	isPartOfFK := isPartOfFK(colName, table)
 

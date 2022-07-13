@@ -1197,16 +1197,34 @@ func removeColumn(table string, colName string, srcTableName string) {
 }
 
 func renameColumn(newName, table, colName, srcTableName string) {
+
+	fmt.Println("renameColumn getting called")
+
 	sessionState := session.GetSessionState()
 
 	sp := sessionState.Conv.SpSchema[table]
+
+	// step I
+	// update sp.ColNames
+	fmt.Println("")
+	fmt.Println("step I")
 	for i, col := range sp.ColNames {
 		if col == colName {
+			fmt.Println("renaming sp.ColNames : ")
 			sp.ColNames[i] = newName
+			fmt.Println("renamed sp.ColNames[i] : ", sp.ColNames[i])
 			break
 		}
 	}
+
+	// step II
+	// update sp.ColDefs
+	fmt.Println("")
+	fmt.Println("step II")
+
 	if _, found := sp.ColDefs[colName]; found {
+		fmt.Println("renaming sp.ColDefs : ")
+
 		sp.ColDefs[newName] = ddl.ColumnDef{
 			Name:    newName,
 			T:       sp.ColDefs[colName].T,
@@ -1214,19 +1232,99 @@ func renameColumn(newName, table, colName, srcTableName string) {
 			Comment: sp.ColDefs[colName].Comment,
 			Id:      sp.ColDefs[colName].Id,
 		}
+
+		fmt.Println("renamed sp.ColDefs[newName]", sp.ColDefs[newName].Name)
+
 		delete(sp.ColDefs, colName)
 	}
+
+	// step III
+	// update sp.Pks
+	fmt.Println("")
+	fmt.Println("step III")
+
 	for i, pk := range sp.Pks {
 		if pk.Col == colName {
+
+			fmt.Println("renaming sp.Pks : ")
+
 			sp.Pks[i].Col = newName
+
+			fmt.Println("renamed sp.Pks[i].Col : ", sp.Pks[i].Col)
+
 			break
 		}
 	}
+
+	// step IV
+	// update sp.Indexes
+	fmt.Println("")
+	fmt.Println("step IV")
+
+	for i, index := range sp.Indexes {
+		for j, key := range index.Keys {
+			if key.Col == colName {
+
+				fmt.Println("renaming sp.Indexes[i].Keys[j].Col : ")
+
+				sp.Indexes[i].Keys[j].Col = newName
+
+				fmt.Println("renamed sp.Indexes[i].Keys[j].Col : ", sp.Indexes[i].Keys[j].Col)
+
+				break
+			}
+		}
+	}
+
+	// step V
+	// update sp.Fks
+	fmt.Println("")
+	fmt.Println("step V")
+
+	for i, fk := range sp.Fks {
+		for j, column := range fk.Columns {
+			if column == colName {
+
+				fmt.Println("renaming sp.Fks[i].Columns[j] :")
+
+				sp.Fks[i].Columns[j] = newName
+
+				fmt.Println("renamed sp.Fks[i].Columns[j] :", sp.Fks[i].Columns[j])
+
+			}
+		}
+	}
+
+	fmt.Println("")
+	fmt.Println("step VI")
+
+	// step VI
+	// update sp.Fks.ReferColumns
+	for i, spSchema := range sessionState.Conv.SpSchema {
+		if table != spSchema.Name {
+			for j, fk := range spSchema.Fks {
+				if fk.ReferTable == table {
+					for k, column := range fk.ReferColumns {
+						if column == colName {
+							fmt.Println("renaming sessionState.Conv.SpSchema[i].Fks[j].ReferColumns[k] : ")
+
+							sessionState.Conv.SpSchema[i].Fks[j].ReferColumns[k] = newName
+
+							fmt.Println("renamed sessionState.Conv.SpSchema[i].Fks[j].ReferColumns[k] : ", sessionState.Conv.SpSchema[i].Fks[j].ReferColumns[k])
+						}
+					}
+				}
+			}
+		}
+	}
+
 	srcColName := sessionState.Conv.ToSource[table].Cols[colName]
 	sessionState.Conv.ToSpanner[srcTableName].Cols[srcColName] = newName
 	sessionState.Conv.ToSource[table].Cols[newName] = srcColName
 	delete(sessionState.Conv.ToSource[table].Cols, colName)
 	sessionState.Conv.SpSchema[table] = sp
+
+	log.Println("")
 }
 
 func updateType(newType, table, colName, srcTableName string, w http.ResponseWriter) {
