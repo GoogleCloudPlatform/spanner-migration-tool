@@ -214,6 +214,7 @@ func runDataOnly(t *testing.T, dbName, dbURI, filePrefix, sessionFile, dumpFileP
 }
 
 func TestIntegration_MySQLDUMP_SchemaOnly(t *testing.T) {
+	onlyRunForEmulatorTest(t)
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
@@ -234,6 +235,11 @@ func TestIntegration_MySQLDUMP_SchemaOnly(t *testing.T) {
 	if _, err := os.Stat(sessionFile); os.IsNotExist(err) {
 		t.Fatalf("session file not generated during schema-only test")
 	}
+	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	// Drop the database later.
+	defer dropDatabase(t, dbURI)
+
+	checkResults(t, dbURI, true)
 }
 
 func TestIntegration_MySQLDUMP_DataOnly(t *testing.T) {
@@ -254,7 +260,7 @@ func TestIntegration_MySQLDUMP_DataOnly(t *testing.T) {
 }
 
 func runSchemaSubcommand(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string) {
-	args := fmt.Sprintf("schema -prefix %s -source=mysql -target-profile='dbName=%s' < %s", filePrefix, dbName, dumpFilePath)
+	args := fmt.Sprintf("schema -prefix %s -source=mysql -target-profile='instance=%s,dbName=%s' < %s", filePrefix, instanceID, dbName, dumpFilePath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
