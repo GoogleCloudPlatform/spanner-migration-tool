@@ -22,14 +22,12 @@ import (
 	"path"
 	"time"
 
-	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/logger"
-	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/google/subcommands"
 	"github.com/google/uuid"
@@ -95,34 +93,10 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	}
 	defer logger.Log.Sync()
 
-	sourceProfile, err := profiles.NewSourceProfile(cmd.sourceProfile, cmd.source)
+	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
 	if err != nil {
+		err = fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 		return subcommands.ExitUsageError
-	}
-	sourceProfile.Driver, err = sourceProfile.ToLegacyDriver(cmd.source)
-	if err != nil {
-		return subcommands.ExitUsageError
-	}
-
-	targetProfile, err := profiles.NewTargetProfile(cmd.targetProfile)
-	if err != nil {
-		return subcommands.ExitUsageError
-	}
-	targetProfile.TargetDb = targetProfile.ToLegacyTargetDb()
-
-	dumpFilePath := ""
-	if sourceProfile.Ty == profiles.SourceProfileTypeFile && (sourceProfile.File.Format == "" || sourceProfile.File.Format == "dump") {
-		dumpFilePath = sourceProfile.File.Path
-	}
-	ioHelper := utils.NewIOStreams(sourceProfile.Driver, dumpFilePath)
-	if ioHelper.SeekableIn != nil {
-		defer ioHelper.In.Close()
-	}
-
-	dbName, err := utils.GetDatabaseName(sourceProfile.Driver, time.Now())
-	if err != nil {
-		err = fmt.Errorf("can't generate database name for prefix: %v", err)
-		return subcommands.ExitFailure
 	}
 
 	// If filePrefix not explicitly set, use generated dbName.
@@ -145,35 +119,17 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
 
 	var (
-		project, instance string
-		adminClient       *database.DatabaseAdminClient
-		client            *sp.Client
+		adminClient *database.DatabaseAdminClient
+		dbURI       string
 	)
 
 	if !cmd.dryRun {
-
-		project, instance, dbName, err = targetProfile.GetResourceIds(ctx, schemaConversionStartTime, sourceProfile.Driver, ioHelper.Out)
+		adminClient, _, dbURI, err = CreateDatabaseClient(ctx, targetProfile, sourceProfile.Driver, ioHelper)
 		if err != nil {
-			return subcommands.ExitUsageError
-		}
-		fmt.Println("Using Google Cloud project:", project)
-		fmt.Println("Using Cloud Spanner instance:", instance)
-		utils.PrintPermissionsWarning(sourceProfile.Driver, ioHelper.Out)
-
-		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
-
-		adminClient, err = utils.NewDatabaseAdminClient(ctx)
-		if err != nil {
-			err = fmt.Errorf("can't create admin client: %v", utils.AnalyzeError(err, dbURI))
+			err = fmt.Errorf("can't create database client: %v", err)
 			return subcommands.ExitFailure
 		}
 		defer adminClient.Close()
-		client, err = utils.GetClient(ctx, dbURI)
-		if err != nil {
-			err = fmt.Errorf("can't create client for db %s: %v", dbURI, err)
-			return subcommands.ExitFailure
-		}
-		defer client.Close()
 
 		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
 		if err != nil {

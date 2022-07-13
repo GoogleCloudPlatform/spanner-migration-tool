@@ -76,7 +76,7 @@ func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites ma
 				h = h + fmt.Sprintf(" (mapped to Spanner table %s)", t.SpTable)
 			}
 			writeHeading(w, h)
-			w.WriteString(rateConversion(t.rows, t.badRows, t.Cols, t.Warnings, t.SyntheticPKey != "", false, conv.SchemaMode(), *conv.Audit.MigrationType))
+			w.WriteString(rateConversion(t.rows, t.badRows, t.Cols, t.Warnings, t.SyntheticPKey != "", false, conv.SchemaMode(), *conv.Audit.MigrationType, conv.Audit.DryRun))
 			w.WriteString("\n")
 			for _, x := range t.Body {
 				fmt.Fprintf(w, "%s\n", x.Heading)
@@ -423,13 +423,19 @@ func rateSchema(cols, warnings int64, missingPKey, summary bool) string {
 	}
 }
 
-func rateData(rows int64, badRows int64) string {
-	s := fmt.Sprintf(" (%s%% of %d rows written to Spanner)", pct(rows, badRows), rows)
+func rateData(rows int64, badRows int64, dryRun bool) string {
+	reportText := ""
+	if dryRun {
+		reportText = "successfully converted"
+	} else {
+		reportText = "written"
+	}
+	s := fmt.Sprintf(" (%s%% of %d rows %s to Spanner)", pct(rows, badRows), rows, reportText)
 	switch {
 	case rows == 0:
 		return "NONE (no data rows found)"
 	case badRows == 0:
-		return fmt.Sprintf("EXCELLENT (all %d rows written to Spanner)", rows)
+		return fmt.Sprintf("EXCELLENT (all %d rows %s to Spanner)", rows, reportText)
 	case good(rows, badRows):
 		return "GOOD" + s
 	case ok(rows, badRows):
@@ -447,13 +453,13 @@ func ok(total, badCount int64) bool {
 	return float64(badCount) < float64(total)/3
 }
 
-func rateConversion(rows, badRows, cols, warnings int64, missingPKey, summary bool, schemaOnly bool, migrationType migration.MigrationData_MigrationType) string {
+func rateConversion(rows, badRows, cols, warnings int64, missingPKey, summary bool, schemaOnly bool, migrationType migration.MigrationData_MigrationType, dryRun bool) string {
 	rate := ""
 	if migrationType != migration.MigrationData_DATA_ONLY {
 		rate = rate + fmt.Sprintf("Schema conversion: %s.\n", rateSchema(cols, warnings, missingPKey, summary))
 	}
 	if !schemaOnly {
-		rate = rate + fmt.Sprintf("Data conversion: %s.\n", rateData(rows, badRows))
+		rate = rate + fmt.Sprintf("Data conversion: %s.\n", rateData(rows, badRows, dryRun))
 	}
 	return rate
 }
@@ -484,7 +490,7 @@ func GenerateSummary(conv *Conv, r []tableReport, badWrites map[string]int64) st
 	for _, n := range badWrites {
 		badRows += n
 	}
-	return rateConversion(rows, badRows, cols, warnings, missingPKey, true, conv.SchemaMode(), *conv.Audit.MigrationType)
+	return rateConversion(rows, badRows, cols, warnings, missingPKey, true, conv.SchemaMode(), *conv.Audit.MigrationType, conv.Audit.DryRun)
 }
 
 // IgnoredStatements creates a list of statements to ignore.
