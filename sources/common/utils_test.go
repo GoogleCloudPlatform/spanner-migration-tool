@@ -19,12 +19,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-  "go.uber.org/zap"
+	"go.uber.org/zap"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/logger"
 )
 
 func init() {
