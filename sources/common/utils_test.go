@@ -18,8 +18,14 @@ import (
 	"testing"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
+
+func init() {
+	logger.Log = zap.NewNop()
+}
 
 func TestToNotNull(t *testing.T) {
 	conv := internal.MakeConv()

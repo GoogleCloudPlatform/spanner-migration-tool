@@ -237,6 +237,12 @@ func getInstances(ctx context.Context, project string) ([]string, error) {
 }
 
 func GetPassword() string {
+	calledFromGCloud := os.Getenv("GCLOUD_HB_PLUGIN")
+	if strings.EqualFold(calledFromGCloud, "true") {
+		fmt.Println("\n Please specify password in enviroment variables (recommended) or --source-profile " +
+			"(not recommended) while using HarbourBridge from gCloud CLI.")
+		return ""
+	}
 	fmt.Print("Enter Password: ")
 	bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
 	if err != nil {

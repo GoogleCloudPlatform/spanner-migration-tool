@@ -44,14 +44,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
-	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/protobuf/proto"
-
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/metrics"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/csv"
@@ -62,6 +59,10 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/writer"
+	"go.uber.org/zap"
+	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -390,6 +391,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 		return f, n, err
 	}
 	internal.VerbosePrintln("Creating a tmp file with a copy of stdin because stdin is not seekable.")
+	logger.Log.Debug("Creating a tmp file with a copy of stdin because stdin is not seekable.")
 
 	// Create file in os.TempDir. Its not clear this is a good idea e.g. if the
 	// pg_dump/mysqldump output is large (tens of GBs) and os.TempDir points to a directory
@@ -426,15 +428,28 @@ func VerifyDb(ctx context.Context, adminClient *database.DatabaseAdminClient, db
 }
 
 // CheckExistingDb checks whether the database with dbURI exists or not.
+// If API call doesn't respond then user is informed after every 5 minutes on command line.
 func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) (bool, error) {
-	_, err := adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: dbURI})
-	if err != nil {
-		if utils.ContainsAny(strings.ToLower(err.Error()), []string{"database not found"}) {
-			return false, nil
+	gotResponse := make(chan bool)
+	var err error
+	go func() {
+		_, err = adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: dbURI})
+		gotResponse <- true
+	}()
+	for {
+		select {
+		case <-time.After(5 * time.Minute):
+			fmt.Println("WARNING! API call not responding: make sure that spanner api endpoint is configured properly")
+		case <-gotResponse:
+			if err != nil {
+				if utils.ContainsAny(strings.ToLower(err.Error()), []string{"database not found"}) {
+					return false, nil
+				}
+				return false, fmt.Errorf("can't get database info: %s", err)
+			}
+			return true, nil
 		}
-		return false, fmt.Errorf("can't get database info: %s", err)
 	}
-	return true, nil
 }
 
 // ValidateDDL verifies if an existing DB's ddl follows what is supported by harbourbridge. Currently,
@@ -586,6 +601,8 @@ Recommended value is between 20-30.`)
 				workers <- workerID
 			}()
 			internal.VerbosePrintf("Submitting new FK create request: %s\n", fkStmt)
+			logger.Log.Debug("Submitting new FK create request", zap.String("fkStmt", fkStmt))
+
 			op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 				Database:   dbURI,
 				Statements: []string{fkStmt},
@@ -601,6 +618,7 @@ Recommended value is between 20-30.`)
 				return
 			}
 			internal.VerbosePrintln("Updated schema with statement: " + fkStmt)
+			logger.Log.Debug("Updated schema with statement", zap.String("fkStmt", fkStmt))
 		}(fkStmt, workerID)
 	}
 	// Wait for all the goroutines to finish.

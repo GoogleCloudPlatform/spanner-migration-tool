@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -46,6 +47,7 @@ func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
 	spTable := getSpannerID(conv, srcTable)
 	if spTable != srcTable {
 		VerbosePrintf("Mapping source DB table %s to Spanner table %s\n", srcTable, spTable)
+		logger.Log.Debug(fmt.Sprintf("Mapping source DB table %s to Spanner table %s\n", srcTable, spTable))
 	}
 	conv.ToSpanner[srcTable] = NameAndCols{Name: spTable, Cols: make(map[string]string)}
 	conv.ToSource[spTable] = NameAndCols{Name: srcTable, Cols: make(map[string]string)}
@@ -118,6 +120,7 @@ func GetSpannerCol(conv *Conv, srcTable, srcCol string, mustExist bool) (string,
 	}
 	if spCol != srcCol {
 		VerbosePrintf("Mapping source DB col %s (table %s) to Spanner col %s\n", srcCol, srcTable, spCol)
+		logger.Log.Debug(fmt.Sprintf("Mapping source DB col %s (table %s) to Spanner col %s\n", srcCol, srcTable, spCol))
 	}
 	conv.ToSpanner[srcTable].Cols[srcCol] = spCol
 	conv.ToSource[sp.Name].Cols[spCol] = srcCol

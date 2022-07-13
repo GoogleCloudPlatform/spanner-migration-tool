@@ -29,8 +29,10 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
@@ -38,6 +40,10 @@ import (
 
 	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
+
+func init() {
+	logger.Log = zap.NewNop()
+}
 
 var (
 	projectID  string

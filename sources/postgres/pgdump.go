@@ -24,6 +24,7 @@ import (
 	pg_query "github.com/pganalyze/pg_query_go/v2"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 )
@@ -70,6 +71,7 @@ func processPgDump(conv *internal.Conv, r *internal.Reader) error {
 		}
 		ci := processStatements(conv, stmts)
 		internal.VerbosePrintf("Parsed SQL command at line=%d/fpos=%d: %d stmts (%d lines, %d bytes) ci=%v\n", startLine, startOffset, len(stmts), r.LineNumber-startLine, len(b), ci != nil)
+		logger.Log.Debug(fmt.Sprintf("Parsed SQL command at line=%d/fpos=%d: %d stmts (%d lines, %d bytes) ci=%v\n", startLine, startOffset, len(stmts), r.LineNumber-startLine, len(b), ci != nil))
 		if ci != nil {
 			switch ci.stmt {
 			case copyFrom:
@@ -131,10 +133,12 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []*pg_q
 
 func processCopyBlock(conv *internal.Conv, srcTable string, srcCols []string, r *internal.Reader) {
 	internal.VerbosePrintf("Parsing COPY-FROM stdin block starting at line=%d/fpos=%d\n", r.LineNumber, r.Offset)
+	logger.Log.Debug(fmt.Sprintf("Parsing COPY-FROM stdin block starting at line=%d/fpos=%d\n", r.LineNumber, r.Offset))
 	for {
 		b := r.ReadLine()
 		if string(b) == "\\.\n" || string(b) == "\\.\r\n" {
 			internal.VerbosePrintf("Parsed COPY-FROM stdin block ending at line=%d/fpos=%d\n", r.LineNumber, r.Offset)
+			logger.Log.Debug(fmt.Sprintf("Parsed COPY-FROM stdin block ending at line=%d/fpos=%d\n", r.LineNumber, r.Offset))
 			return
 		}
 		if r.EOF {
@@ -269,6 +273,7 @@ func processAlterTableStmt(conv *internal.Conv, n *pg_query.AlterTableStmt) {
 		// in verbose mode, but otherwise  we just skip these statements.
 		conv.SkipStatement(printNodeType(n))
 		internal.VerbosePrintf("Processing %v statement: table %s not found", printNodeType(n), table)
+		logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s not found", printNodeType(n), table))
 	}
 }
 
@@ -289,6 +294,8 @@ func processCreateStmt(conv *internal.Conv, n *pg_query.CreateStmt) {
 		conv.SkipStatement(printNodeType(n))
 		conv.Unexpected(fmt.Sprintf("Found inherited table %s -- we do not currently handle inherited tables", table))
 		internal.VerbosePrintf("Processing %v statement: table %s is inherited table", printNodeType(n), table)
+		logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s is inherited table", printNodeType(n), table))
+
 		return
 	}
 	var constraints []constraint
@@ -355,6 +362,8 @@ func processInsertStmt(conv *internal.Conv, n *pg_query.InsertStmt) *copyOrInser
 		// for a table is that it is an inherited table - we skip all inherited tables.
 		conv.SkipStatement(printNodeType(n))
 		internal.VerbosePrintf("Processing %v statement: table %s not found", printNodeType(n), table)
+		logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s is inherited table", printNodeType(n), table))
+
 		return nil
 	}
 	conv.StatsAddRow(table, conv.SchemaMode())
@@ -399,6 +408,7 @@ func processCopyStmt(conv *internal.Conv, n *pg_query.CopyStmt) *copyOrInsert {
 		// for a table is that it is an inherited table - we skip all inherited tables.
 		conv.SkipStatement(printNodeType(n))
 		internal.VerbosePrintf("Processing %v statement: table %s not found", printNodeType(n), table)
+		logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s is inherited table", printNodeType(n), table))
 		return &copyOrInsert{stmt: copyFrom, table: table, cols: []string{}}
 	}
 	var cols []string
