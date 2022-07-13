@@ -192,13 +192,16 @@ func TestIntegration_MySQLInterleaveTable_DataOnlyWithSessionFile(t *testing.T) 
 	sessionFile := "../../test_data/mysql_interleave_session_test.json"
 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
+	dumpFilePath := "../../test_data/mysqldump.test.out"
+	filePrefix := filepath.Join(tmpdir, dbName+".")
+	runSchemaOnly(t, dbName, filePrefix, sessionFile, dumpFilePath)
 	runDataOnlySubcommandForSessionFile(t, dbName, dbURI, sessionFile)
 	defer dropDatabase(t, dbURI)
 	checkResults(t, dbURI, true)
 }
 
 func runSchemaOnly(t *testing.T, dbName, filePrefix, sessionFile, dumpFilePath string) {
-	args := fmt.Sprintf("-driver mysqldump -schema-only -dbname %s -prefix %s < %s", dbName, filePrefix, dumpFilePath)
+	args := fmt.Sprintf("-driver mysqldump -schema-only -instance %s -dbname %s -prefix %s < %s", instanceID, dbName, filePrefix, dumpFilePath)
 	err := common.RunCommand(args, projectID)
 	if err != nil {
 		t.Fatal(err)
@@ -238,8 +241,6 @@ func TestIntegration_MySQLDUMP_SchemaOnly(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	// Drop the database later.
 	defer dropDatabase(t, dbURI)
-
-	checkResults(t, dbURI, true)
 }
 
 func TestIntegration_MySQLDUMP_DataOnly(t *testing.T) {
@@ -293,6 +294,7 @@ func runDataOnlySubcommandForSessionFile(t *testing.T, dbName, dbURI, sessionFil
 }
 
 func TestIntegration_MySQLDUMP_SchemaSubcommand(t *testing.T) {
+	onlyRunForEmulatorTest(t)
 	tmpdir := prepareIntegrationTest(t)
 	defer os.RemoveAll(tmpdir)
 
