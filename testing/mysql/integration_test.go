@@ -194,7 +194,7 @@ func TestIntegration_MySQLInterleaveTable_DataOnlyWithSessionFile(t *testing.T) 
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	dumpFilePath := "../../test_data/mysqldump.test.out"
 	filePrefix := filepath.Join(tmpdir, dbName+".")
-	runSchemaOnly(t, dbName, filePrefix, sessionFile, dumpFilePath)
+	runSchemaSubcommand(t, dbName, filePrefix, sessionFile, dumpFilePath)
 	runDataOnlySubcommandForSessionFile(t, dbName, dbURI, sessionFile)
 	defer dropDatabase(t, dbURI)
 	checkResults(t, dbURI, true)
