@@ -29,7 +29,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/logger"
-	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/writer"
 	"github.com/google/subcommands"
@@ -80,7 +79,7 @@ func (cmd *SchemaAndDataCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&cmd.skipForeignKeys, "skip-foreign-keys", false, "Skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
 	f.Int64Var(&cmd.writeLimit, "write-limit", defaultWritersLimit, "Write limit for writes to spanner")
-	f.BoolVar(&cmd.dryRun, "dry-run", false, "To validate the syntax of the command by running it in an air-gapped manner, such that no network calls are made.")
+	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 	f.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to INFO")
 }
 
@@ -93,10 +92,6 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 			logger.Log.Fatal("FATAL error", zap.Error(err))
 		}
 	}()
-	if cmd.dryRun {
-		fmt.Print("--dry-run flag is not implemented")
-		return subcommands.ExitFailure
-	}
 	err = logger.InitializeLogger(cmd.logLevel)
 	if err != nil {
 		fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err)
@@ -104,36 +99,12 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 	}
 	defer logger.Log.Sync()
 
-	sourceProfile, err := profiles.NewSourceProfile(cmd.sourceProfile, cmd.source)
+	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
 	if err != nil {
+		err = fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 		return subcommands.ExitUsageError
 	}
-	sourceProfile.Driver, err = sourceProfile.ToLegacyDriver(cmd.source)
-	if err != nil {
-		return subcommands.ExitUsageError
-	}
-
-	targetProfile, err := profiles.NewTargetProfile(cmd.targetProfile)
-	if err != nil {
-		return subcommands.ExitUsageError
-	}
-	targetProfile.TargetDb = targetProfile.ToLegacyTargetDb()
-
-	dumpFilePath := ""
-	if sourceProfile.Ty == profiles.SourceProfileTypeFile && (sourceProfile.File.Format == "" || sourceProfile.File.Format == "dump") {
-		dumpFilePath = sourceProfile.File.Path
-	}
-	ioHelper := utils.NewIOStreams(sourceProfile.Driver, dumpFilePath)
-	if ioHelper.SeekableIn != nil {
-		defer ioHelper.In.Close()
-	}
-
 	schemaConversionStartTime := time.Now()
-
-	dbName, err := utils.GetDatabaseName(sourceProfile.Driver, schemaConversionStartTime)
-	if err != nil {
-		panic(fmt.Errorf("can't generate database name for prefix: %v", err))
-	}
 
 	// If filePrefix not explicitly set, use dbName as prefix.
 	if cmd.filePrefix == "" {
@@ -141,12 +112,12 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 	}
 
 	var (
-		conv              *internal.Conv
-		bw                *writer.BatchWriter
-		banner            string
-		project, instance string
-		adminClient       *database.DatabaseAdminClient
-		client            *sp.Client
+		conv        *internal.Conv
+		bw          *writer.BatchWriter
+		banner      string
+		dbURI       string
+		adminClient *database.DatabaseAdminClient
+		client      *sp.Client
 	)
 	conv, err = conversion.SchemaConv(sourceProfile, targetProfile, &ioHelper)
 	if err != nil {
@@ -164,26 +135,12 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 
 	if !cmd.dryRun {
 		conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
-		project, instance, dbName, err = targetProfile.GetResourceIds(ctx, schemaConversionStartTime, sourceProfile.Driver, ioHelper.Out)
+		adminClient, client, dbURI, err = CreateDatabaseClient(ctx, targetProfile, sourceProfile.Driver, ioHelper)
 		if err != nil {
-			return subcommands.ExitUsageError
-		}
-		fmt.Println("Using Google Cloud project:", project)
-		fmt.Println("Using Cloud Spanner instance:", instance)
-		utils.PrintPermissionsWarning(sourceProfile.Driver, ioHelper.Out)
-
-		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
-		adminClient, err = utils.NewDatabaseAdminClient(ctx)
-		if err != nil {
-			err = fmt.Errorf("can't create admin client: %v", utils.AnalyzeError(err, dbURI))
+			err = fmt.Errorf("can't create database client: %v", err)
 			return subcommands.ExitFailure
 		}
 		defer adminClient.Close()
-		client, err = utils.GetClient(ctx, dbURI)
-		if err != nil {
-			err = fmt.Errorf("can't create client for db %s: %v", dbURI, err)
-			return subcommands.ExitFailure
-		}
 		defer client.Close()
 
 		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)

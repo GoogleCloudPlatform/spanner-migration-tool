@@ -29,7 +29,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/logger"
-	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/writer"
 	"github.com/google/subcommands"
@@ -43,15 +42,12 @@ type DataCmd struct {
 	sourceProfile   string
 	target          string
 	targetProfile   string
-	skipForeignKeys bool
 	sessionJSON     string
 	filePrefix      string // TODO: move filePrefix to global flags
 	writeLimit      int64
 	dryRun          bool
-<<<<<<< HEAD
 	logLevel        string
-=======
->>>>>>> 2778961 (modification wrt report)
+	skipForeignKeys bool
 }
 
 // Name returns the name of operation.
@@ -84,8 +80,9 @@ func (cmd *DataCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.targetProfile, "target-profile", "", "Flag for specifying connection profile for target database e.g., \"dialect=postgresql\"")
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
 	f.Int64Var(&cmd.writeLimit, "write-limit", defaultWritersLimit, "Write limit for writes to spanner")
-	f.BoolVar(&cmd.dryRun, "dry-run", false, "To validate the syntax of the command by running it in an air-gapped manner, such that no network calls are made.")
+	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 	f.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to INFO")
+	f.BoolVar(&cmd.skipForeignKeys, "skip-foreign-keys", false, "Skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
 }
 
 func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -97,10 +94,6 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 			logger.Log.Fatal("FATAL error", zap.Error(err))
 		}
 	}()
-	if cmd.dryRun {
-		fmt.Print("--dry-run flag is not implemented")
-		return subcommands.ExitFailure
-	}
 	err = logger.InitializeLogger(cmd.logLevel)
 	if err != nil {
 		fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err)
@@ -109,31 +102,11 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	defer logger.Log.Sync()
 
 	conv := internal.MakeConv()
-
-	sourceProfile, err := profiles.NewSourceProfile(cmd.sourceProfile, cmd.source)
+	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
 	if err != nil {
+		err = fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 		return subcommands.ExitUsageError
 	}
-	sourceProfile.Driver, err = sourceProfile.ToLegacyDriver(cmd.source)
-	if err != nil {
-		return subcommands.ExitUsageError
-	}
-
-	targetProfile, err := profiles.NewTargetProfile(cmd.targetProfile)
-	if err != nil {
-		return subcommands.ExitUsageError
-	}
-	targetProfile.TargetDb = targetProfile.ToLegacyTargetDb()
-
-	dumpFilePath := ""
-	if sourceProfile.Ty == profiles.SourceProfileTypeFile && (sourceProfile.File.Format == "" || sourceProfile.File.Format == "dump") {
-		dumpFilePath = sourceProfile.File.Path
-	}
-	ioHelper := utils.NewIOStreams(sourceProfile.Driver, dumpFilePath)
-	if ioHelper.SeekableIn != nil {
-		defer ioHelper.In.Close()
-	}
-
 	var (
 		bw     *writer.BatchWriter
 		banner string
@@ -143,10 +116,6 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
 	dataCoversionStartTime := time.Now()
 
-	dbName, err := utils.GetDatabaseName(sourceProfile.Driver, dataCoversionStartTime)
-	if err != nil {
-		panic(fmt.Errorf("can't generate database name for prefix: %v", err))
-	}
 	// If filePrefix not explicitly set, use dbName as prefix.
 	if cmd.filePrefix == "" {
 		cmd.filePrefix = dbName + "."
@@ -163,61 +132,23 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	}
 
 	var (
-		project, instance string
-		adminClient       *database.DatabaseAdminClient
-		client            *sp.Client
-		dbExists          bool
+		dbURI       string
+		adminClient *database.DatabaseAdminClient
+		client      *sp.Client
 	)
-
 	if !cmd.dryRun {
 		now := time.Now()
-		project, instance, dbName, err = targetProfile.GetResourceIds(ctx, now, sourceProfile.Driver, ioHelper.Out)
+		adminClient, client, dbURI, err = CreateDatabaseClient(ctx, targetProfile, sourceProfile.Driver, ioHelper)
 		if err != nil {
-			return subcommands.ExitUsageError
-		}
-		fmt.Println("Using Google Cloud project:", project)
-		fmt.Println("Using Cloud Spanner instance:", instance)
-		utils.PrintPermissionsWarning(sourceProfile.Driver, ioHelper.Out)
-
-		dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, dbName)
-		client, err = utils.GetClient(ctx, dbURI)
-		if err != nil {
-			err = fmt.Errorf("can't create client for db %s: %v", dbURI, err)
-			return subcommands.ExitFailure
-		}
-		defer client.Close()
-
-		adminClient, err = utils.NewDatabaseAdminClient(ctx)
-		if err != nil {
-			err = fmt.Errorf("can't create admin client: %v", utils.AnalyzeError(err, dbURI))
+			err = fmt.Errorf("can't create database client: %v", err)
 			return subcommands.ExitFailure
 		}
 		defer adminClient.Close()
+		defer client.Close()
 		if !sourceProfile.UseTargetSchema() {
-			dbExists, err = conversion.CheckExistingDb(ctx, adminClient, dbURI)
+			err = validateExistingDb(ctx, conv.TargetDb, dbURI, adminClient, client, conv)
 			if err != nil {
-				err = fmt.Errorf("can't verify target database: %v", err)
-				return subcommands.ExitFailure
-			}
-			if !dbExists {
-				err = fmt.Errorf("target database doesn't exist")
-				return subcommands.ExitFailure
-			}
-			err = conversion.ValidateTables(ctx, client, conv.TargetDb)
-			if err != nil {
-				err = fmt.Errorf("error validating the tables: %v", err)
-				return subcommands.ExitFailure
-			}
-			spannerConv := internal.MakeConv()
-			spannerConv.TargetDb = targetProfile.TargetDb
-			err = utils.ReadSpannerSchema(ctx, spannerConv, client)
-			if err != nil {
-				err = fmt.Errorf("can't read spanner schema: %v", err)
-				return subcommands.ExitFailure
-			}
-			err = utils.CompareSchema(conv, spannerConv)
-			if err != nil {
-				err = fmt.Errorf("error while comparing the schema from session file and existing spanner schema: %v", err)
+				err = fmt.Errorf("error while validating existing database: %v", err)
 				return subcommands.ExitFailure
 			}
 		}
@@ -227,9 +158,11 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 			return subcommands.ExitFailure
 		}
 
-		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
-			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
-			return subcommands.ExitFailure
+		if !cmd.skipForeignKeys {
+			if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
+				err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
+				return subcommands.ExitFailure
+			}
 		}
 		banner = utils.GetBanner(now, dbURI)
 	} else {
@@ -250,4 +183,35 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	// Cleanup hb tmp data directory.
 	os.RemoveAll(os.TempDir() + constants.HB_TMP_DIR)
 	return subcommands.ExitSuccess
+}
+
+// validateExistingDb validates that the existing spanner schema is in accordance with the one specified in the session file.
+func validateExistingDb(ctx context.Context, targetDb, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, conv *internal.Conv) error {
+	dbExists, err := conversion.CheckExistingDb(ctx, adminClient, dbURI)
+	if err != nil {
+		err = fmt.Errorf("can't verify target database: %v", err)
+		return err
+	}
+	if !dbExists {
+		err = fmt.Errorf("target database doesn't exist")
+		return err
+	}
+	err = conversion.ValidateTables(ctx, client, targetDb)
+	if err != nil {
+		err = fmt.Errorf("error validating the tables: %v", err)
+		return err
+	}
+	spannerConv := internal.MakeConv()
+	spannerConv.TargetDb = targetDb
+	err = utils.ReadSpannerSchema(ctx, spannerConv, client)
+	if err != nil {
+		err = fmt.Errorf("can't read spanner schema: %v", err)
+		return err
+	}
+	err = utils.CompareSchema(conv, spannerConv)
+	if err != nil {
+		err = fmt.Errorf("error while comparing the schema from session file and existing spanner schema: %v", err)
+		return err
+	}
+	return nil
 }
