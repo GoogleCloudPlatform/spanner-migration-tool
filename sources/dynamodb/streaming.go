@@ -41,6 +41,11 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 )
 
+const (
+	ESC        = 27
+	retryLimit = 100
+)
+
 // NewDynamoDBStream initializes a new DynamoDB Stream for a table with NEW_AND_OLD_IMAGES
 // StreamViewType. If there exists a stream for a given table then it must be of type
 // NEW_IMAGE or NEW_AND_OLD_IMAGES otherwise streaming changes for this table won't be captured.
@@ -89,8 +94,6 @@ func catchCtrlC(wg *sync.WaitGroup, streamInfo *StreamingInfo) {
 		streamInfo.UserExit = true
 	}()
 }
-
-const ESC = 27
 
 // clear erases the last printed line on the output file.
 var clear = fmt.Sprintf("%c[%dA%c[2K", ESC, 1, ESC)
@@ -401,23 +404,26 @@ func removeMutation(srcSchema schema.Table, spTable, srcTable string, spVals []i
 	return m
 }
 
-// parentDataMissingError checks if the error is a parent data missing error.
+// parentDataMissingError is used to track errors where insertions fail because of missing parent data.
+//
+// Note: If error code and description for parent row missing error is changed in future, then this
+// function is subject to change.
 func parentDataMissingError(err error) bool {
 	return strings.Contains(err.Error(), "NotFound") && strings.Contains(err.Error(), "Parent row") && strings.Contains(err.Error(), "is missing")
 }
 
-// writeMutation handles writing of a mutation to Cloud Spanner. If insertion fails
-// because of parent data missing error then it retries for a limit of 100.
+// writeMutation handles writing of a mutation to Cloud Spanner. To handle insertions failing
+// because of missing parent data, a retryLimit is set.
 func writeMutation(m *sp.Mutation, streamInfo *StreamingInfo) error {
-	retryLimit := 100
 	var err error
-	for retryLimit > 0 {
+	tryNum := 0
+	for tryNum < retryLimit {
 		err = streamInfo.write(m)
 		if err == nil || !parentDataMissingError(err) {
 			break
 		}
 		time.Sleep(4 * time.Second)
-		retryLimit--
+		tryNum++
 	}
 	return err
 }
