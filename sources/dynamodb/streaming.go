@@ -407,9 +407,9 @@ func parentDataMissingError(err error) bool {
 }
 
 // writeMutation handles writing of a mutation to Cloud Spanner. If insertion fails
-// because of parent data missing error then it retries for a limit of 1000.
+// because of parent data missing error then it retries for a limit of 100.
 func writeMutation(m *sp.Mutation, streamInfo *StreamingInfo) error {
-	retryLimit := 1000
+	retryLimit := 100
 	var err error
 	for retryLimit > 0 {
 		err = streamInfo.write(m)
