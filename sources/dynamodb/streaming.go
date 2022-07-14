@@ -438,3 +438,25 @@ func setWriter(streamInfo *StreamingInfo, client *sp.Client, conv *internal.Conv
 		return err
 	}
 }
+
+// fillConvWithStreamingStats passes the information related to processing of DynamoDB Streams
+// to conv object for report and bad data file.
+func fillConvWithStreamingStats(streamInfo *StreamingInfo, conv *internal.Conv) {
+	// Pass Unexpected Conditions
+	for unexpectedCondition, count := range streamInfo.Unexpecteds {
+		conv.Unexpected(unexpectedCondition)
+		if _, ok := conv.Stats.Unexpected[unexpectedCondition]; ok {
+			conv.Stats.Unexpected[unexpectedCondition] += (count - 1)
+		}
+	}
+	conv.Audit.StreamingStats.Streaming = true
+
+	// Pass count stats to conv
+	conv.Audit.StreamingStats.Records = streamInfo.Records
+	conv.Audit.StreamingStats.BadRecords = streamInfo.BadRecords
+	conv.Audit.StreamingStats.DroppedRecords = streamInfo.DroppedRecords
+
+	// Pass badRecords and droppedRecords
+	conv.Audit.StreamingStats.SampleBadRecords = streamInfo.SampleBadRecords
+	conv.Audit.StreamingStats.SampleBadWrites = streamInfo.SampleBadWrites
+}

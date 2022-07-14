@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dynamodb_test
+package dynamodb_snapshot_test
 
 import (
 	"context"
@@ -26,21 +26,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
-	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
-	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
-
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/iterator"
 	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
 )
 
 var (
@@ -227,6 +226,7 @@ func TestIntegration_DYNAMODB_Command(t *testing.T) {
 	defer dropDatabase(t, dbURI)
 
 	checkResults(t, dbURI)
+
 }
 
 func checkResults(t *testing.T, dbURI string) {
