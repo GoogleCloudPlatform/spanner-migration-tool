@@ -73,8 +73,6 @@ var (
 	MaxWorkers = 20
 )
 
-const migrationMetadataKey = "cloud-spanner-migration-metadata"
-
 // SchemaConv performs the schema conversion
 // The SourceProfile param provides the connection details to use the go SQL library.
 func SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams) (*internal.Conv, error) {
@@ -329,7 +327,7 @@ func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, clie
 		migrationData := metrics.GetMigrationData(conv, "", "", constants.DataConv)
 		serializedMigrationData, _ := proto.Marshal(migrationData)
 		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
-		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), migrationMetadataKey, migrationMetadataValue), m)
+		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), constants.MigrationMetadataKey, migrationMetadataValue), m)
 		if err != nil {
 			return err
 		}
@@ -475,7 +473,7 @@ func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseA
 	migrationData := metrics.GetMigrationData(conv, driver, targetDb, constants.SchemaConv)
 	serializedMigrationData, _ := proto.Marshal(migrationData)
 	migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
-	ctx = metadata.AppendToOutgoingContext(ctx, migrationMetadataKey, migrationMetadataValue)
+	ctx = metadata.AppendToOutgoingContext(ctx, constants.MigrationMetadataKey, migrationMetadataValue)
 	if dbExists {
 		err := UpdateDatabase(ctx, adminClient, dbURI, conv, out)
 		if err != nil {

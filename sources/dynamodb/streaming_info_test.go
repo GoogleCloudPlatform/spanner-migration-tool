@@ -14,6 +14,8 @@
 package dynamodb
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -56,6 +58,28 @@ func TestStreamingInfo_StatsAddRecord(t *testing.T) {
 	assert.Equal(t, int64(2), sumNestedMapValues(streamInfo.Records))
 }
 
+func TestStreamingInfo_StatsAddBadRecord(t *testing.T) {
+	streamInfo := MakeStreamingInfo()
+	tableName := "testtable"
+	streamInfo.makeRecordMaps(tableName)
+
+	streamInfo.StatsAddBadRecord(tableName, "INSERT")
+	streamInfo.StatsAddBadRecord(tableName, "REMOVE")
+
+	assert.Equal(t, int64(2), sumNestedMapValues(streamInfo.BadRecords))
+}
+
+func TestStreamingInfo_StatsAddDroppedRecord(t *testing.T) {
+	streamInfo := MakeStreamingInfo()
+	tableName := "testtable"
+	streamInfo.makeRecordMaps(tableName)
+
+	streamInfo.StatsAddDroppedRecord(tableName, "REMOVE")
+	streamInfo.StatsAddDroppedRecord(tableName, "MODIFY")
+
+	assert.Equal(t, int64(2), sumNestedMapValues(streamInfo.DroppedRecords))
+}
+
 func TestStreamingInfo_StatsAddRecordProcessed(t *testing.T) {
 	streamInfo := MakeStreamingInfo()
 	for i := 0; i < 3; i++ {
@@ -71,4 +95,34 @@ func TestStreamingInfo_makeRecordMaps(t *testing.T) {
 	assert.Nil(t, streamInfo.Records[table])
 	streamInfo.makeRecordMaps(table)
 	assert.NotNil(t, streamInfo.Records[table])
+}
+
+func TestInfo_CollectBadRecord(t *testing.T) {
+	streamInfo := MakeStreamingInfo()
+	recordType := "REMOVE"
+	tableName := "testtable"
+	srcCols := []string{"a", "b", "c"}
+	srcVals := []string{"231", "34", "null"}
+	streamInfo.CollectBadRecord(recordType, tableName, srcCols, srcVals)
+
+	expectedBadRecord := fmt.Sprintf("type=%s table=%s cols=%v data=%v", recordType, tableName, srcCols, srcVals)
+	actualBadRecord := streamInfo.SampleBadRecords[0]
+
+	assert.Equal(t, expectedBadRecord, actualBadRecord)
+}
+
+func TestInfo_CollectDroppedRecord(t *testing.T) {
+	streamInfo := MakeStreamingInfo()
+	recordType := "MODIFY"
+	strVal := "1234"
+	tableName := "testtable"
+	cols := []string{"a", "b", "c"}
+	vals := []interface{}{strVal, 23, "null"}
+	err := errors.New("code:NotFound desc: data accessed not found")
+
+	streamInfo.CollectDroppedRecord(recordType, tableName, cols, vals, err)
+	expectedDroppedRecord := fmt.Sprintf("type=%s table=%s cols=%v data=%v error=%v", recordType, tableName, cols, vals, err)
+	actualDroppedRecord := streamInfo.SampleBadWrites[0]
+
+	assert.Equal(t, expectedDroppedRecord, actualDroppedRecord)
 }

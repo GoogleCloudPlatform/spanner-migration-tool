@@ -223,10 +223,13 @@ func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *s
 	fmt.Println("Use Ctrl+C to stop the process.")
 
 	streamInfo := MakeStreamingInfo()
+	setWriter(streamInfo, client, conv)
+
 	wg := &sync.WaitGroup{}
 
-	wg.Add(1)
+	wg.Add(2)
 	go catchCtrlC(wg, streamInfo)
+	go cutoverHelper(wg, streamInfo)
 
 	for srcTable, streamArn := range latestStreamArn {
 		streamInfo.makeRecordMaps(srcTable)
