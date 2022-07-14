@@ -689,7 +689,7 @@
     </mat-tab>
   </mat-tab-group>
 
-  <div *ngIf="currentObject!.type === 'indexName'" class="column-tab-container">
+  <div *ngIf="currentObject!.type === 'indexName'" class="index-tab-container">
     <table mat-table [dataSource]="dataSource">
       <ng-container matColumnDef="srcDatabase">
         <th mat-header-cell class="db_name" *matHeaderCellDef colspan="3">{{ srcDbName }}</th>
@@ -778,7 +778,7 @@
 
       <tr mat-header-row *matHeaderRowDef="['srcDatabase', 'spDatabase']"></tr>
       <tr mat-header-row *matHeaderRowDef="indexDisplayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: indexDisplayedColumns"></tr>
+      <tr mat-row class="index-data-row" *matRowDef="let row; columns: indexDisplayedColumns"></tr>
     </table>
     <div
       [formGroup]="addIndexKeyForm"

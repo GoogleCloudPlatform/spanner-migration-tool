@@ -78,7 +78,8 @@
 
 .column-tab-container,
 .fk-tab-container,
-.pk-tab-container {
+.pk-tab-container,
+.index-tab-container {
   height: 84%;
   table {
     width: 100%;
@@ -120,10 +121,9 @@
   .db_name {
     font-size: 16px;
     font-weight: 400;
-    line-height: 24px;
+    line-height: 48px;
     letter-spacing: 0.05px;
     color: black;
-    padding: 0.5rem;
     background-color: white;
   }
 
@@ -190,6 +190,11 @@
       margin-right: 5px;
       cursor: default;
     }
+  }
+}
+.index-tab-container {
+  .index-data-row {
+    height: 41px;
   }
 }
 
