@@ -16,56 +16,31 @@ func renameColumn(newName, table, colName, srcTableName string) {
 	sp := sessionState.Conv.SpSchema[table]
 
 	// step I
-	// update sp.ColNames
-	fmt.Println("")
-	fmt.Println("step I")
-
-	sp = convColNames(sp, colName, newName)
-
-	// step II
-	// update sp.ColDefs
-	fmt.Println("")
-	fmt.Println("step II")
-
 	sp = renameColDefs(sp, colName, newName)
 
-	// step III
-	// update sp.Pks
-	fmt.Println("")
-	fmt.Println("step III")
+	// step II
 	sp = renamePK(sp, colName, newName)
 
-	// step IV
-	// update sp.Indexes
-	fmt.Println("")
-	fmt.Println("step IV")
-
+	// step III
 	sp = renameIndex(sp, colName, newName)
 
-	// step V
-	// update sp.Fks
-	fmt.Println("")
-	fmt.Println("step V")
-
+	// step IV
 	sp = renameForeignkey(sp, colName, newName)
 
-	fmt.Println("")
-	fmt.Println("step VI")
-
-	// step VI
-	// update sp.Fks.ReferColumns
-
+	// step V
 	sp = renameReferColumns(sp, colName, newName)
 
-	srcColName := sessionState.Conv.ToSource[table].Cols[colName]
-	sessionState.Conv.ToSpanner[srcTableName].Cols[srcColName] = newName
-	sessionState.Conv.ToSource[table].Cols[newName] = srcColName
-	delete(sessionState.Conv.ToSource[table].Cols, colName)
+	// step VI
+	sp = convColNames(sp, colName, newName)
+
+	renameToSpannerToSource(table, colName, newName)
 
 	sessionState.Conv.SpSchema[table] = sp
 
 	// update foreignKey Table column names
 	for i, _ := range sp.Fks {
+
+		fmt.Println("update foreignKey Table column names")
 
 		relationTable := sp.Fks[i].ReferTable
 
@@ -126,12 +101,14 @@ func renameColumn(newName, table, colName, srcTableName string) {
 		sessionState.Conv.SpSchema[isChild] = childSchemaSp
 	}
 
-	fmt.Printf("column : '%s' in table : '%s' is part of parent-child relation with schema : '%s'", colName, table, childSchema)
-	fmt.Println("isChild :", isChild)
-
 }
 
 func convColNames(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
+
+	// step I
+	// update sp.ColNames
+	fmt.Println("")
+	fmt.Println("step I")
 
 	for i, col := range sp.ColNames {
 		if col == colName {
@@ -147,6 +124,11 @@ func convColNames(sp ddl.CreateTable, colName string, newName string) ddl.Create
 }
 
 func renameColDefs(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
+
+	// step II
+	// update sp.ColDefs
+	fmt.Println("")
+	fmt.Println("step II")
 
 	if _, found := sp.ColDefs[colName]; found {
 		fmt.Println("renaming sp.ColDefs : ")
@@ -169,6 +151,11 @@ func renameColDefs(sp ddl.CreateTable, colName string, newName string) ddl.Creat
 
 func renamePK(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
 
+	// step III
+	// update sp.Pks
+	fmt.Println("")
+	fmt.Println("step III")
+
 	for i, pk := range sp.Pks {
 		if pk.Col == colName {
 
@@ -186,6 +173,11 @@ func renamePK(sp ddl.CreateTable, colName string, newName string) ddl.CreateTabl
 }
 
 func renameIndex(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
+
+	// step IV
+	// update sp.Indexes
+	fmt.Println("")
+	fmt.Println("step IV")
 
 	for i, index := range sp.Indexes {
 		for j, key := range index.Keys {
@@ -207,6 +199,11 @@ func renameIndex(sp ddl.CreateTable, colName string, newName string) ddl.CreateT
 
 func renameForeignkey(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
 
+	// step V
+	// update sp.Fks
+	fmt.Println("")
+	fmt.Println("step V")
+
 	for i, fk := range sp.Fks {
 		for j, column := range fk.Columns {
 			if column == colName {
@@ -225,6 +222,13 @@ func renameForeignkey(sp ddl.CreateTable, colName string, newName string) ddl.Cr
 }
 
 func renameReferColumns(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
+
+	fmt.Println("")
+	fmt.Println("step VI")
+
+	// step VI
+	// update sp.Fks.ReferColumns
+
 	for i, fk := range sp.Fks {
 		for j, column := range fk.ReferColumns {
 

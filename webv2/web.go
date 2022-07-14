@@ -1197,14 +1197,106 @@ func removeColumn(table string, colName string, srcTableName string) {
 }
 
 func updateType(newType, table, colName, srcTableName string, w http.ResponseWriter) {
+
+	sessionState := session.GetSessionState()
+
 	sp, ty, err := getType(newType, table, colName, srcTableName)
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	fmt.Println("updating type for sp.ColDefs[colName] ", sp.ColDefs[colName], sp.ColDefs[colName].T)
+
 	colDef := sp.ColDefs[colName]
 	colDef.T = ty
+
 	sp.ColDefs[colName] = colDef
+
+	fmt.Println("updated type for sp.ColDefs[colName] ", sp.ColDefs[colName], sp.ColDefs[colName].T)
+
+	sessionState.Conv.SpSchema[table] = sp
+
+	//todo
+	for i, _ := range sp.Fks {
+
+		relationTable := sp.Fks[i].ReferTable
+
+		srcTableName := sessionState.Conv.ToSource[relationTable].Name
+
+		rsp, ty, err := getType(newType, relationTable, colName, srcTableName)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		fmt.Println("updating type for rsp.ColDefs[colName] ", rsp.ColDefs[colName], rsp.ColDefs[colName].T)
+
+		colDef := rsp.ColDefs[colName]
+		colDef.T = ty
+
+		rsp.ColDefs[colName] = colDef
+
+		fmt.Println("updated type for rsp.ColDefs[colName] ", rsp.ColDefs[colName], rsp.ColDefs[colName].T)
+
+		sessionState.Conv.SpSchema[table] = rsp
+	}
+
+	//todo
+	// update interleave table relation
+	isParent, childSchema := isParent(table)
+
+	if isParent {
+
+		srcTableName := sessionState.Conv.ToSource[childSchema].Name
+
+		childSp, ty, err := getType(newType, childSchema, colName, srcTableName)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		fmt.Println("updating type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
+
+		colDef := childSp.ColDefs[colName]
+		colDef.T = ty
+
+		childSp.ColDefs[colName] = colDef
+
+		fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
+
+		sessionState.Conv.SpSchema[table] = childSp
+
+	}
+
+	//todo
+	isChild := sessionState.Conv.SpSchema[table].Parent
+
+	if isChild != "" {
+
+		srcTableName := sessionState.Conv.ToSource[isChild].Name
+
+		childSp, ty, err := getType(newType, isChild, colName, srcTableName)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		fmt.Println("updating type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
+
+		colDef := childSp.ColDefs[colName]
+		colDef.T = ty
+
+		childSp.ColDefs[colName] = colDef
+
+		fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
+
+		sessionState.Conv.SpSchema[table] = childSp
+	}
 }
 
 func isTypeChanged(newType, table, colName, srcTableName string) (bool, error) {
