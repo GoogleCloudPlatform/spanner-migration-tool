@@ -138,8 +138,6 @@ func interleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 	}
 }
 
-// RemoveIndexIssues remove all  index suggestion from given list.
-// RemoveSchemaIssues is used when we are  removing index.
 func RemoveIndexIssues(table string, Index ddl.CreateIndex) {
 
 	for i := 0; i < len(Index.Keys); i++ {
@@ -149,7 +147,9 @@ func RemoveIndexIssues(table string, Index ddl.CreateIndex) {
 		{
 			schemaissue := []internal.SchemaIssue{}
 			sessionState := session.GetSessionState()
-			schemaissue = sessionState.Conv.Issues[table][column]
+			if sessionState.Conv.Issues != nil {
+				schemaissue = sessionState.Conv.Issues[table][column]
+			}
 
 			if len(schemaissue) > 0 {
 
@@ -174,7 +174,6 @@ func RemoveIndexIssues(table string, Index ddl.CreateIndex) {
 	}
 }
 
-// RemoveSchemaIssue removes issue from the schemaissue list.
 func removeIssue(schemaissue []internal.SchemaIssue) []internal.SchemaIssue {
 
 	if utilities.IsSchemaIssuePresent(schemaissue, internal.RedundantIndex) {
