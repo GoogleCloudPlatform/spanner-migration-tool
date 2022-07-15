@@ -182,13 +182,6 @@
             </td>
           </ng-container>
 
-          <ng-container matColumnDef="spOrder">
-            <th class="table_header" mat-header-cell *matHeaderCellDef>Order</th>
-            <td mat-cell *matCellDef="let element">
-              {{ element.get('spOrder').value }}
-            </td>
-          </ng-container>
-
           <ng-container matColumnDef="spColName">
             <th mat-header-cell class="table_header" *matHeaderCellDef>Name</th>
             <td mat-cell *matCellDef="let element">
@@ -310,6 +303,34 @@
           <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
           <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
         </table>
+
+        <div [formGroup]="addColumnForm" *ngIf="isEditMode" class="add-column">
+          <mat-form-field appearance="outline" class="column-list">
+            <mat-label>Column Name</mat-label>
+            <mat-select
+              matSelect
+              class="input-field"
+              (selectionChange)="setColumn($event.value)"
+              formControlName="columnName"
+              required="true"
+            >
+              <mat-option *ngFor="let column of droppedColumnNames" [value]="column">{{
+                column
+              }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <button
+            mat-button
+            color="primary"
+            class="add-column-btn"
+            type="button"
+            (click)="addColumn()"
+          >
+            <mat-icon>add</mat-icon>
+            ADD COLUMN
+          </button>
+        </div>
       </div>
     </mat-tab>
 
