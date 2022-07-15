@@ -1172,30 +1172,6 @@ func removeSecondaryIndex(slice []ddl.CreateIndex, s int) []ddl.CreateIndex {
 	return append(slice[:s], slice[s+1:]...)
 }
 
-func removeColumn(table string, colName string, srcTableName string) {
-	sessionState := session.GetSessionState()
-
-	sp := sessionState.Conv.SpSchema[table]
-	for i, col := range sp.ColNames {
-		if col == colName {
-			sp.ColNames = remove(sp.ColNames, i)
-			break
-		}
-	}
-	delete(sp.ColDefs, colName)
-	for i, pk := range sp.Pks {
-		if pk.Col == colName {
-			sp.Pks = removePk(sp.Pks, i)
-			break
-		}
-	}
-	srcColName := sessionState.Conv.ToSource[table].Cols[colName]
-	delete(sessionState.Conv.ToSource[table].Cols, colName)
-	delete(sessionState.Conv.ToSpanner[srcTableName].Cols, srcColName)
-	delete(sessionState.Conv.Issues[srcTableName], srcColName)
-	sessionState.Conv.SpSchema[table] = sp
-}
-
 func updateType(newType, table, colName, srcTableName string, w http.ResponseWriter) {
 
 	sessionState := session.GetSessionState()

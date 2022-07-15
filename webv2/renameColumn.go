@@ -3,6 +3,7 @@ package webv2
 import (
 	"fmt"
 
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
@@ -16,23 +17,27 @@ func renameColumn(newName, table, colName, srcTableName string) {
 	sp := sessionState.Conv.SpSchema[table]
 
 	// step I
-	sp = renameColDefs(sp, colName, newName)
+	sp = renameSpannerColDefs(sp, colName, newName)
 
 	// step II
-	sp = renamePK(sp, colName, newName)
+	sp = renameSpannerPK(sp, colName, newName)
 
 	// step III
-	sp = renameIndex(sp, colName, newName)
+	sp = renameSpannerSecondaryIndex(sp, colName, newName)
 
 	// step IV
-	sp = renameForeignkey(sp, colName, newName)
+	sp = renameSpannerForeignkey(sp, colName, newName)
 
 	// step V
-	sp = renameReferColumns(sp, colName, newName)
+	sp = renameSpannerReferColumns(sp, colName, newName)
 
 	// step VI
-	sp = convColNames(sp, colName, newName)
+	sp = renameSpannerColNames(sp, colName, newName)
 
+	// step VII
+	renameSpannerSchemaIssue(table, colName, newName)
+
+	// step VIII
 	renameToSpannerToSource(table, colName, newName)
 
 	sessionState.Conv.SpSchema[table] = sp
@@ -46,12 +51,12 @@ func renameColumn(newName, table, colName, srcTableName string) {
 
 		relationTableSp := sessionState.Conv.SpSchema[relationTable]
 
-		relationTableSp = convColNames(relationTableSp, colName, newName)
-		relationTableSp = renameColDefs(relationTableSp, colName, newName)
-		relationTableSp = renamePK(relationTableSp, colName, newName)
-		relationTableSp = renameIndex(relationTableSp, colName, newName)
-		relationTableSp = renameForeignkey(relationTableSp, colName, newName)
-		relationTableSp = renameReferColumns(relationTableSp, colName, newName)
+		relationTableSp = renameSpannerColNames(relationTableSp, colName, newName)
+		relationTableSp = renameSpannerColDefs(relationTableSp, colName, newName)
+		relationTableSp = renameSpannerPK(relationTableSp, colName, newName)
+		relationTableSp = renameSpannerSecondaryIndex(relationTableSp, colName, newName)
+		relationTableSp = renameSpannerForeignkey(relationTableSp, colName, newName)
+		relationTableSp = renameSpannerReferColumns(relationTableSp, colName, newName)
 
 		//todo
 		renameToSpannerToSource(relationTable, colName, newName)
@@ -68,12 +73,12 @@ func renameColumn(newName, table, colName, srcTableName string) {
 
 		childSchemaSp := sessionState.Conv.SpSchema[childSchema]
 
-		childSchemaSp = convColNames(childSchemaSp, colName, newName)
-		childSchemaSp = renameColDefs(childSchemaSp, colName, newName)
-		childSchemaSp = renamePK(childSchemaSp, colName, newName)
-		childSchemaSp = renameIndex(childSchemaSp, colName, newName)
-		childSchemaSp = renameForeignkey(childSchemaSp, colName, newName)
-		childSchemaSp = renameReferColumns(childSchemaSp, colName, newName)
+		childSchemaSp = renameSpannerColNames(childSchemaSp, colName, newName)
+		childSchemaSp = renameSpannerColDefs(childSchemaSp, colName, newName)
+		childSchemaSp = renameSpannerPK(childSchemaSp, colName, newName)
+		childSchemaSp = renameSpannerSecondaryIndex(childSchemaSp, colName, newName)
+		childSchemaSp = renameSpannerForeignkey(childSchemaSp, colName, newName)
+		childSchemaSp = renameSpannerReferColumns(childSchemaSp, colName, newName)
 
 		//todo
 		renameToSpannerToSource(childSchema, colName, newName)
@@ -88,12 +93,12 @@ func renameColumn(newName, table, colName, srcTableName string) {
 
 		childSchemaSp := sessionState.Conv.SpSchema[isChild]
 
-		childSchemaSp = convColNames(childSchemaSp, colName, newName)
-		childSchemaSp = renameColDefs(childSchemaSp, colName, newName)
-		childSchemaSp = renamePK(childSchemaSp, colName, newName)
-		childSchemaSp = renameIndex(childSchemaSp, colName, newName)
-		childSchemaSp = renameForeignkey(childSchemaSp, colName, newName)
-		childSchemaSp = renameReferColumns(childSchemaSp, colName, newName)
+		childSchemaSp = renameSpannerColNames(childSchemaSp, colName, newName)
+		childSchemaSp = renameSpannerColDefs(childSchemaSp, colName, newName)
+		childSchemaSp = renameSpannerPK(childSchemaSp, colName, newName)
+		childSchemaSp = renameSpannerSecondaryIndex(childSchemaSp, colName, newName)
+		childSchemaSp = renameSpannerForeignkey(childSchemaSp, colName, newName)
+		childSchemaSp = renameSpannerReferColumns(childSchemaSp, colName, newName)
 
 		//todo
 		renameToSpannerToSource(isChild, colName, newName)
@@ -103,7 +108,7 @@ func renameColumn(newName, table, colName, srcTableName string) {
 
 }
 
-func convColNames(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
+func renameSpannerColNames(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
 
 	// step I
 	// update sp.ColNames
@@ -123,7 +128,7 @@ func convColNames(sp ddl.CreateTable, colName string, newName string) ddl.Create
 
 }
 
-func renameColDefs(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
+func renameSpannerColDefs(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
 
 	// step II
 	// update sp.ColDefs
@@ -149,7 +154,7 @@ func renameColDefs(sp ddl.CreateTable, colName string, newName string) ddl.Creat
 	return sp
 }
 
-func renamePK(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
+func renameSpannerPK(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
 
 	// step III
 	// update sp.Pks
@@ -172,7 +177,7 @@ func renamePK(sp ddl.CreateTable, colName string, newName string) ddl.CreateTabl
 	return sp
 }
 
-func renameIndex(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
+func renameSpannerSecondaryIndex(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
 
 	// step IV
 	// update sp.Indexes
@@ -197,7 +202,7 @@ func renameIndex(sp ddl.CreateTable, colName string, newName string) ddl.CreateT
 	return sp
 }
 
-func renameForeignkey(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
+func renameSpannerForeignkey(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
 
 	// step V
 	// update sp.Fks
@@ -221,7 +226,7 @@ func renameForeignkey(sp ddl.CreateTable, colName string, newName string) ddl.Cr
 	return sp
 }
 
-func renameReferColumns(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
+func renameSpannerReferColumns(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
 
 	fmt.Println("")
 	fmt.Println("step VI")
@@ -255,5 +260,29 @@ func renameToSpannerToSource(table string, colName string, newName string) {
 	sessionState.Conv.ToSpanner[srcTableName].Cols[srcColName] = newName
 	sessionState.Conv.ToSource[table].Cols[newName] = srcColName
 	delete(sessionState.Conv.ToSource[table].Cols, colName)
+
+}
+
+func renameSpannerSchemaIssue(table string, colName string, newName string) {
+
+	sessionState := session.GetSessionState()
+
+	if sessionState.Conv.Issues != nil {
+
+		if sessionState.Conv.Issues[table] != nil && sessionState.Conv.Issues[table][colName] != nil {
+
+			schemaissue := sessionState.Conv.Issues[table][colName]
+
+			s := map[string][]internal.SchemaIssue{
+				newName: schemaissue,
+			}
+
+			sessionState.Conv.Issues[table] = s
+
+		}
+
+	}
+
+	delete(sessionState.Conv.Issues[table], colName)
 
 }
