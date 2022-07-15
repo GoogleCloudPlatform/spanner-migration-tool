@@ -17,6 +17,7 @@ import (
 // (4) NotNull: "ADDED", "REMOVED" or ""
 // (5) ToType: New type or empty string
 type updateCol struct {
+	Add     bool   `json:"Add"`
 	Removed bool   `json:"Removed"`
 	Rename  string `json:"Rename"`
 	PK      string `json:"PK"`
@@ -62,6 +63,22 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 	srcTableName := sessionState.Conv.ToSource[table].Name
 
 	for colName, v := range t.UpdateCols {
+
+		if v.Removed {
+
+			/*
+				status, err := canRemoveColumn(colName, table)
+
+				if err != nil {
+					http.Error(w, fmt.Sprintf("%v", err), status)
+					return
+				}
+
+			*/
+			addColumn(table, colName, srcTableName)
+
+			continue
+		}
 
 		if v.Removed {
 

@@ -26,10 +26,10 @@ func renameColumn(newName, table, colName, srcTableName string) {
 	sp = renameSpannerSecondaryIndex(sp, colName, newName)
 
 	// step IV
-	sp = renameSpannerForeignkey(sp, colName, newName)
+	sp = renameSpannerForeignkeyColumns(sp, colName, newName)
 
 	// step V
-	sp = renameSpannerReferColumns(sp, colName, newName)
+	sp = renameSpannerForeignkeyReferColumns(sp, colName, newName)
 
 	// step VI
 	sp = renameSpannerColNames(sp, colName, newName)
@@ -42,7 +42,7 @@ func renameColumn(newName, table, colName, srcTableName string) {
 
 	sessionState.Conv.SpSchema[table] = sp
 
-	// update foreignKey Table column names
+	// update foreignKey relationship Table column names
 	for i, _ := range sp.Fks {
 
 		fmt.Println("update foreignKey Table column names")
@@ -55,8 +55,8 @@ func renameColumn(newName, table, colName, srcTableName string) {
 		relationTableSp = renameSpannerColDefs(relationTableSp, colName, newName)
 		relationTableSp = renameSpannerPK(relationTableSp, colName, newName)
 		relationTableSp = renameSpannerSecondaryIndex(relationTableSp, colName, newName)
-		relationTableSp = renameSpannerForeignkey(relationTableSp, colName, newName)
-		relationTableSp = renameSpannerReferColumns(relationTableSp, colName, newName)
+		relationTableSp = renameSpannerForeignkeyColumns(relationTableSp, colName, newName)
+		relationTableSp = renameSpannerForeignkeyReferColumns(relationTableSp, colName, newName)
 
 		//todo
 		renameToSpannerToSource(relationTable, colName, newName)
@@ -77,8 +77,8 @@ func renameColumn(newName, table, colName, srcTableName string) {
 		childSchemaSp = renameSpannerColDefs(childSchemaSp, colName, newName)
 		childSchemaSp = renameSpannerPK(childSchemaSp, colName, newName)
 		childSchemaSp = renameSpannerSecondaryIndex(childSchemaSp, colName, newName)
-		childSchemaSp = renameSpannerForeignkey(childSchemaSp, colName, newName)
-		childSchemaSp = renameSpannerReferColumns(childSchemaSp, colName, newName)
+		childSchemaSp = renameSpannerForeignkeyColumns(childSchemaSp, colName, newName)
+		childSchemaSp = renameSpannerForeignkeyReferColumns(childSchemaSp, colName, newName)
 
 		//todo
 		renameToSpannerToSource(childSchema, colName, newName)
@@ -97,8 +97,8 @@ func renameColumn(newName, table, colName, srcTableName string) {
 		childSchemaSp = renameSpannerColDefs(childSchemaSp, colName, newName)
 		childSchemaSp = renameSpannerPK(childSchemaSp, colName, newName)
 		childSchemaSp = renameSpannerSecondaryIndex(childSchemaSp, colName, newName)
-		childSchemaSp = renameSpannerForeignkey(childSchemaSp, colName, newName)
-		childSchemaSp = renameSpannerReferColumns(childSchemaSp, colName, newName)
+		childSchemaSp = renameSpannerForeignkeyColumns(childSchemaSp, colName, newName)
+		childSchemaSp = renameSpannerForeignkeyReferColumns(childSchemaSp, colName, newName)
 
 		//todo
 		renameToSpannerToSource(isChild, colName, newName)
@@ -202,7 +202,7 @@ func renameSpannerSecondaryIndex(sp ddl.CreateTable, colName string, newName str
 	return sp
 }
 
-func renameSpannerForeignkey(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
+func renameSpannerForeignkeyColumns(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
 
 	// step V
 	// update sp.Fks
@@ -226,7 +226,7 @@ func renameSpannerForeignkey(sp ddl.CreateTable, colName string, newName string)
 	return sp
 }
 
-func renameSpannerReferColumns(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
+func renameSpannerForeignkeyReferColumns(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
 
 	fmt.Println("")
 	fmt.Println("step VI")
@@ -239,7 +239,7 @@ func renameSpannerReferColumns(sp ddl.CreateTable, colName string, newName strin
 
 			if column == colName {
 
-				fmt.Println("sp.Fks[i].ReferColumns[j] :")
+				fmt.Println("renaming sp.Fks[i].ReferColumns[j] :", sp.Fks[i].ReferColumns[j])
 				sp.Fks[i].ReferColumns[j] = newName
 
 				fmt.Println("renamed sp.Fks[i].ReferColumns[j] :", sp.Fks[i].Columns[j])

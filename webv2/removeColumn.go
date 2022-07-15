@@ -13,29 +13,108 @@ func removeColumn(table string, colName string, srcTableName string) {
 
 	sp := sessionState.Conv.SpSchema[table]
 
+	// step I
 	sp = removeSpannerColDefs(sp, colName)
 
+	// step II
 	sp = removeSpannerPK(sp, colName)
 
+	// step III
+	sp = removeSpannerSecondaryIndex(sp, colName)
+
+	// step IV
+	sp = removeSpannerForeignkeyColumns(sp, colName)
+
+	// step V
+	sp = removeSpannerForeignkeyReferColumns(sp, colName)
+
+	// step VI
 	sp = removeSpannerColNames(sp, colName)
 
+	// step VII
 	removeSpannerSchemaIssue(table, colName)
 
+	// step VIII
 	removeToSpannerToSource(table, colName)
-
-	srcColName := sessionState.Conv.ToSource[table].Cols[colName]
-	delete(sessionState.Conv.ToSource[table].Cols, colName)
-	delete(sessionState.Conv.ToSpanner[srcTableName].Cols, srcColName)
 	sessionState.Conv.SpSchema[table] = sp
+
+	// update foreignKey relationship Table column names
+	for i, _ := range sp.Fks {
+
+		fmt.Println("update foreignKey Table column names")
+
+		relationTable := sp.Fks[i].ReferTable
+
+		relationTableSp := sessionState.Conv.SpSchema[relationTable]
+
+		relationTableSp = removeSpannerColNames(relationTableSp, colName)
+		relationTableSp = removeSpannerColDefs(relationTableSp, colName)
+		relationTableSp = removeSpannerPK(relationTableSp, colName)
+		relationTableSp = removeSpannerSecondaryIndex(relationTableSp, colName)
+		relationTableSp = removeSpannerForeignkeyColumns(relationTableSp, colName)
+		relationTableSp = removeSpannerForeignkeyReferColumns(relationTableSp, colName)
+
+		//todo
+		removeSpannerSchemaIssue(relationTable, colName)
+
+		removeToSpannerToSource(relationTable, colName)
+
+		sessionState.Conv.SpSchema[relationTable] = relationTableSp
+
+	}
+
+	// update interleave table relation
+	isParent, childSchema := isParent(table)
+
+	if isParent {
+		fmt.Println("yes", table, "is parent table")
+
+		childSchemaSp := sessionState.Conv.SpSchema[childSchema]
+
+		childSchemaSp = removeSpannerColNames(childSchemaSp, colName)
+		childSchemaSp = removeSpannerColDefs(childSchemaSp, colName)
+		childSchemaSp = removeSpannerPK(childSchemaSp, colName)
+		childSchemaSp = removeSpannerSecondaryIndex(childSchemaSp, colName)
+		childSchemaSp = removeSpannerForeignkeyColumns(childSchemaSp, colName)
+		childSchemaSp = removeSpannerForeignkeyReferColumns(childSchemaSp, colName)
+
+		//todo
+		removeSpannerSchemaIssue(childSchema, colName)
+
+		removeToSpannerToSource(childSchema, colName)
+
+		sessionState.Conv.SpSchema[childSchema] = childSchemaSp
+
+	}
+
+	isChild := sessionState.Conv.SpSchema[table].Parent
+
+	if isChild != "" {
+
+		childSchemaSp := sessionState.Conv.SpSchema[isChild]
+
+		childSchemaSp = removeSpannerColNames(childSchemaSp, colName)
+		childSchemaSp = removeSpannerColDefs(childSchemaSp, colName)
+		childSchemaSp = removeSpannerPK(childSchemaSp, colName)
+		childSchemaSp = removeSpannerSecondaryIndex(childSchemaSp, colName)
+		childSchemaSp = removeSpannerForeignkeyColumns(childSchemaSp, colName)
+		childSchemaSp = removeSpannerForeignkeyReferColumns(childSchemaSp, colName)
+
+		//todo
+		removeSpannerSchemaIssue(isChild, colName)
+		removeToSpannerToSource(isChild, colName)
+
+		sessionState.Conv.SpSchema[isChild] = childSchemaSp
+	}
 }
 
 func removeSpannerColNames(sp ddl.CreateTable, colName string) ddl.CreateTable {
 
-	// step I
+	// step VI
 	// remove sp.ColNames
 
 	fmt.Println("")
-	fmt.Println("step I")
+	fmt.Println("step VI")
 
 	for i, col := range sp.ColNames {
 		if col == colName {
@@ -57,7 +136,7 @@ func removeSpannerColNames(sp ddl.CreateTable, colName string) ddl.CreateTable {
 func removeSpannerPK(sp ddl.CreateTable, colName string) ddl.CreateTable {
 
 	// step II
-	// remove sp.PK
+	// remove sp.Pks
 
 	fmt.Println("")
 	fmt.Println("step II")
@@ -99,9 +178,9 @@ func removeSpannerColDefs(sp ddl.CreateTable, colName string) ddl.CreateTable {
 	return sp
 }
 
-func removeSpannerIndex(sp ddl.CreateTable, colName string) ddl.CreateTable {
+func removeSpannerSecondaryIndex(sp ddl.CreateTable, colName string) ddl.CreateTable {
 
-	// step IV
+	// step III
 	// update sp.Indexes
 	fmt.Println("")
 	fmt.Println("step III")
@@ -130,6 +209,12 @@ func removeSecondaryIndexKey(slice []ddl.IndexKey, s int) []ddl.IndexKey {
 
 func removeSpannerSchemaIssue(table string, colName string) {
 
+	// step VII
+	// remove sessionState.Conv.Issues
+
+	fmt.Println("")
+	fmt.Println("step VII")
+
 	sessionState := session.GetSessionState()
 
 	if sessionState.Conv.Issues != nil {
@@ -146,6 +231,12 @@ func removeSpannerSchemaIssue(table string, colName string) {
 
 func removeToSpannerToSource(table string, colName string) {
 
+	// step VIII
+	// remove ToSpannerToSource
+
+	fmt.Println("")
+	fmt.Println("step VII")
+
 	sessionState := session.GetSessionState()
 
 	srcTableName := sessionState.Conv.ToSource[table].Name
@@ -153,4 +244,62 @@ func removeToSpannerToSource(table string, colName string) {
 	srcColName := sessionState.Conv.ToSource[table].Cols[colName]
 	delete(sessionState.Conv.ToSource[table].Cols, colName)
 	delete(sessionState.Conv.ToSpanner[srcTableName].Cols, srcColName)
+
+}
+
+func removeSpannerForeignkeyColumns(sp ddl.CreateTable, colName string) ddl.CreateTable {
+
+	// step IV
+	// update sp.fk.Columns
+	fmt.Println("")
+	fmt.Println("step IV")
+
+	for i, fk := range sp.Fks {
+		for j, column := range fk.Columns {
+			if column == colName {
+
+				fmt.Println("removing sp.Fks[i].Columns[j] : ", sp.Fks[i].Columns[j])
+
+				sp.Fks[i].Columns = removeFkColumns(fk.Columns, j)
+
+				fmt.Println("removed sp.Fks[i].Columns[j] :", sp.Fks[i].Columns)
+
+			}
+		}
+	}
+
+	return sp
+}
+
+func removeFkColumns(slice []string, s int) []string {
+	return append(slice[:s], slice[s+1:]...)
+}
+
+func removeSpannerForeignkeyReferColumns(sp ddl.CreateTable, colName string) ddl.CreateTable {
+
+	// step IV
+	// update sp.fk.ReferColumns
+	fmt.Println("")
+	fmt.Println("step IV")
+
+	for i, fk := range sp.Fks {
+		for j, column := range fk.ReferColumns {
+
+			if column == colName {
+
+				fmt.Println(" removing sp.Fks[i].ReferColumns[j] :", sp.Fks[i].ReferColumns[j])
+
+				sp.Fks[i].ReferColumns = removeFkReferColumns(sp.Fks[i].ReferColumns, j)
+
+				fmt.Println("removed sp.Fks[i].ReferColumns[j] :", sp.Fks[i].ReferColumns)
+
+			}
+
+		}
+	}
+	return sp
+}
+
+func removeFkReferColumns(slice []string, s int) []string {
+	return append(slice[:s], slice[s+1:]...)
 }
