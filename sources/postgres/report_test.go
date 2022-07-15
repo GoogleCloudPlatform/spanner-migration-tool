@@ -23,7 +23,6 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/stretchr/testify/assert"
 )
@@ -57,9 +56,6 @@ func TestReport(t *testing.T) {
 	conv.Stats.BadRows = map[string]int64{"bad_schema": 10, "no_pk": 2000}
 	badWrites := map[string]int64{"bad_schema": 50, "no_pk": 0}
 	conv.Stats.Unexpected["Testing unexpected messages"] = 5
-	conv.Audit = internal.Audit{
-		MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum(),
-	}
 	buf := new(bytes.Buffer)
 	w := bufio.NewWriter(buf)
 	internal.GenerateReport(constants.PGDUMP, conv, w, badWrites, true, true)

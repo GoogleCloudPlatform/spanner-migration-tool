@@ -43,7 +43,7 @@ type Conv struct {
 	TimezoneOffset string              // Timezone offset for timestamp conversion.
 	TargetDb       string              // The target database to which HarbourBridge is writing.
 	UniquePKey     map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
-	Audit          Audit               // Stores the audit information for the database conversion
+	Audit          audit               // Stores the audit information for the database conversion
 }
 
 type mode int
@@ -141,15 +141,14 @@ type statementStat struct {
 }
 
 // Stores the audit information of conversion.
-// Elements that do not affect the migration functionality but are relevant for the migration metadata.
-type Audit struct {
+// Elements that do not affect the migration functionality but are relevant for the conversion report.
+type audit struct {
 	ToSpannerFkIdx           map[string]FkeyAndIdxs                 `json:"-"` // Maps from source-DB table name to Spanner names for table name, foreign key and indexes.
 	ToSourceFkIdx            map[string]FkeyAndIdxs                 `json:"-"` // Maps from Spanner table name to source-DB names for table name, foreign key and indexes.
 	SchemaConversionDuration time.Duration                          `json:"-"` // Duration of schema conversion.
 	DataConversionDuration   time.Duration                          `json:"-"` // Duration of data conversion.
 	MigrationRequestId       string                                 `json:"-"` // Unique request id generated per migration
 	MigrationType            *migration.MigrationData_MigrationType `json:"-"` // Type of migration: Schema migration, data migration or schema and data migration
-	DryRun                   bool                                   `json:"-"` // Flag to identify if the migration is a dry run
 }
 
 // MakeConv returns a default-configured Conv.
@@ -173,7 +172,7 @@ func MakeConv() *Conv {
 		},
 		TimezoneOffset: "+00:00", // By default, use +00:00 offset which is equal to UTC timezone
 		UniquePKey:     make(map[string][]string),
-		Audit: Audit{
+		Audit: audit{
 			ToSpannerFkIdx: make(map[string]FkeyAndIdxs),
 			ToSourceFkIdx:  make(map[string]FkeyAndIdxs),
 		},
@@ -209,9 +208,7 @@ func (conv *Conv) SetDataMode() {
 
 // WriteRow calls dataSink and updates row stats.
 func (conv *Conv) WriteRow(srcTable, spTable string, spCols []string, spVals []interface{}) {
-	if conv.Audit.DryRun {
-		conv.statsAddGoodRow(srcTable, conv.DataMode())
-	} else if conv.dataSink == nil {
+	if conv.dataSink == nil {
 		msg := "Internal error: ProcessDataRow called but dataSink not configured"
 		VerbosePrintf("%s\n", msg)
 		logger.Log.Debug("Internal error: ProcessDataRow called but dataSink not configured")
