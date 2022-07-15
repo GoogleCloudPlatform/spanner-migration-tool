@@ -47,8 +47,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	table := r.FormValue("table")
 
-	fmt.Println("\n\n\n")
-
 	fmt.Println("updateTableSchema getting called")
 
 	err = json.Unmarshal(reqBody, &t)
@@ -129,14 +127,7 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	fmt.Println("\n\n\n")
-	fmt.Println("\n\n\n")
-	fmt.Println("\n\n\n")
-
 	helpers.UpdateSessionFile()
-	fmt.Println("\n\n\n")
-	fmt.Println("\n\n\n")
-	fmt.Println("\n\n\n")
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
