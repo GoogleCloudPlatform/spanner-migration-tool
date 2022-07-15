@@ -60,7 +60,7 @@ func renameColumn(newName, table, colName, srcTableName string) {
 
 		//todo
 		renameToSpannerToSource(relationTable, colName, newName)
-
+		renameSpannerSchemaIssue(relationTable, colName, newName)
 		sessionState.Conv.SpSchema[relationTable] = relationTableSp
 
 	}
@@ -82,6 +82,7 @@ func renameColumn(newName, table, colName, srcTableName string) {
 
 		//todo
 		renameToSpannerToSource(childSchema, colName, newName)
+		renameSpannerSchemaIssue(childSchema, colName, newName)
 
 		sessionState.Conv.SpSchema[childSchema] = childSchemaSp
 
@@ -102,6 +103,8 @@ func renameColumn(newName, table, colName, srcTableName string) {
 
 		//todo
 		renameToSpannerToSource(isChild, colName, newName)
+
+		renameSpannerSchemaIssue(isChild, colName, newName)
 
 		sessionState.Conv.SpSchema[isChild] = childSchemaSp
 	}

@@ -20,6 +20,10 @@ func addColumn(table string, colName string, srcTableName string) {
 		Comment: sp.ColDefs[colName].Comment,
 	}
 
+	srcColName := sessionState.Conv.ToSource[table].Cols[colName]
+	sessionState.Conv.ToSpanner[srcTableName].Cols[srcColName] = colName
+	sessionState.Conv.ToSource[table].Cols[colName] = srcColName
+
 	sessionState.Conv.SpSchema[table] = sp
 
 }
