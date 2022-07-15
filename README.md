@@ -352,8 +352,6 @@ conversion state endcoded as JSON.
 
 `-target-profile` Specifies detailed parameters for the target database. See [Target Profile](#target-profile) for details.
 
-`-dry-run` Controls whether we run the migration in dry run mode or not. Using this mode generates schema and report for schema and/or data conversion without any actual creation of tables.
-
 ### Source Profile
 
 HarbourBridge accepts the following params for --source-profile,

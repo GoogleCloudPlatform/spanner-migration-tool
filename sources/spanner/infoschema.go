@@ -50,25 +50,8 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 	return nil
 }
 
-// GetRowCount returns the row count of the table.
 func (isi InfoSchemaImpl) GetRowCount(table common.SchemaAndName) (int64, error) {
-	q := "SELECT count(*) FROM " + table.Name + ";"
-	stmt := spanner.Statement{
-		SQL: q,
-	}
-	iter := isi.Client.Single().Query(isi.Ctx, stmt)
-	defer iter.Stop()
-	var count int64
-	row, err := iter.Next()
-	if err == iterator.Done {
-		return 0, nil
-	}
-	if err != nil {
-		return count, err
-	}
-	row.Columns(&count)
-	return count, err
-
+	return 0, nil
 }
 
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
@@ -241,14 +224,14 @@ func (isi InfoSchemaImpl) GetConstraints(conv *internal.Conv, table common.Schem
 
 // GetForeignKeys returns a list of all the foreign key constraints.
 func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.SchemaAndName) (foreignKeys []schema.ForeignKey, err error) {
-	q := `SELECT  k.constraint_name, k.column_name, c.table_name, c.column_name 
+	q := `SELECT  k.constraint_name, k.column_name, t.table_name, c.column_name 
 			FROM information_schema.key_column_usage AS k 
 			JOIN information_schema.constraint_column_usage AS c ON k.constraint_name = c.constraint_name
 			JOIN information_schema.table_constraints AS t ON k.constraint_name = t.constraint_name 
 			WHERE t.constraint_type='FOREIGN KEY' AND t.table_schema = '' AND t.table_name = @p1
 			ORDER BY k.constraint_name, k.ordinal_position;`
 	if isi.TargetDb == constants.TargetExperimentalPostgres {
-		q = `SELECT  k.constraint_name, k.column_name, c.table_name, c.column_name 
+		q = `SELECT  k.constraint_name, k.column_name, t.table_name, c.column_name 
 				FROM information_schema.key_column_usage AS k 
 				JOIN information_schema.constraint_column_usage AS c ON k.constraint_name = c.constraint_name
 				JOIN information_schema.table_constraints AS t ON k.constraint_name = t.constraint_name 
@@ -310,60 +293,9 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 	return foreignKeys, nil
 }
 
-// GetIndexes returns a list of Indexes per table.
+// Skipped since we dont have a use case for storing indexes yet.
 func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName) ([]schema.Index, error) {
-	q := `SELECT distinct c.INDEX_NAME,c.COLUMN_NAME,c.ORDINAL_POSITION,c.COLUMN_ORDERING,i.IS_UNIQUE
-			FROM information_schema.index_columns AS c
-			JOIN information_schema.indexes AS i
-			ON c.INDEX_NAME=i.INDEX_NAME
-			WHERE c.table_schema = '' AND i.INDEX_TYPE='INDEX' AND c.TABLE_NAME = @p1 ORDER BY c.INDEX_NAME, c.ORDINAL_POSITION;`
-	if isi.TargetDb == constants.TargetExperimentalPostgres {
-		q = `SELECT distinct c.INDEX_NAME,c.COLUMN_NAME,c.ORDINAL_POSITION,c.COLUMN_ORDERING,i.IS_UNIQUE
-		FROM information_schema.index_columns AS c
-		JOIN information_schema.indexes AS i
-		ON c.INDEX_NAME=i.INDEX_NAME
-		WHERE c.table_schema = 'public' AND i.INDEX_TYPE='INDEX' AND c.TABLE_NAME = $1 ORDER BY c.INDEX_NAME, c.ORDINAL_POSITION;`
-	}
-	stmt := spanner.Statement{
-		SQL: q,
-		Params: map[string]interface{}{
-			"p1": table.Name,
-		},
-	}
-	iter := isi.Client.Single().Query(isi.Ctx, stmt)
-	defer iter.Stop()
-	var name, column, ordering string
-	var isUnique bool
-	var sequence int64
-	indexMap := make(map[string]schema.Index)
-	var indexNames []string
-	var indexes []schema.Index
-	for {
-		row, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("couldn't read row while fetching interleaved tables: %w", err)
-		}
-		err = row.Columns(&name, &column, &sequence, &ordering, &isUnique)
-		if err != nil {
-			fmt.Println(err)
-			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
-			continue
-		}
-		if _, found := indexMap[name]; !found {
-			indexNames = append(indexNames, name)
-			indexMap[name] = schema.Index{Name: name, Unique: isUnique}
-		}
-		index := indexMap[name]
-		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (ordering == "DESC")})
-		indexMap[name] = index
-	}
-	for _, k := range indexNames {
-		indexes = append(indexes, indexMap[k])
-	}
-	return indexes, nil
+	return []schema.Index{}, nil
 }
 
 func (isi InfoSchemaImpl) GetInterleaveTables() (map[string]string, error) {
