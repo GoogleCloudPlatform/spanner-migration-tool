@@ -30,8 +30,10 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
@@ -44,6 +46,10 @@ var (
 	ctx           context.Context
 	databaseAdmin *database.DatabaseAdminClient
 )
+
+func init() {
+	logger.Log = zap.NewNop()
+}
 
 func TestMain(m *testing.M) {
 	cleanup := initTests()

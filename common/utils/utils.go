@@ -237,6 +237,12 @@ func getInstances(ctx context.Context, project string) ([]string, error) {
 }
 
 func GetPassword() string {
+	calledFromGCloud := os.Getenv("GCLOUD_HB_PLUGIN")
+	if strings.EqualFold(calledFromGCloud, "true") {
+		fmt.Println("\n Please specify password in enviroment variables (recommended) or --source-profile " +
+			"(not recommended) while using HarbourBridge from gCloud CLI.")
+		return ""
+	}
 	fmt.Print("Enter Password: ")
 	bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
 	if err != nil {
@@ -496,6 +502,60 @@ func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Clie
 		spTable := conv.SpSchema[table]
 		spTable.Parent = parent
 		conv.SpSchema[table] = spTable
+	}
+	return nil
+}
+
+// CompareSchema compares the spanner schema of two conv objects and returns specific error if they don't match
+func CompareSchema(conv1, conv2 *internal.Conv) error {
+	if conv1.TargetDb != conv2.TargetDb {
+		return fmt.Errorf("target db don't match")
+	}
+	for t := range conv1.SpSchema {
+		sessionTable := conv1.SpSchema[t]
+		spannerTable := conv2.SpSchema[t]
+		if sessionTable.Name != spannerTable.Name || sessionTable.Parent != spannerTable.Parent ||
+			len(sessionTable.Pks) != len(spannerTable.Pks) || len(sessionTable.ColDefs) != len(spannerTable.ColDefs) ||
+			len(sessionTable.Indexes) != len(spannerTable.Indexes) {
+			return fmt.Errorf("table detail for table %v don't match", sessionTable.Name)
+		}
+		for i := range sessionTable.Pks {
+			if sessionTable.Pks[i].Col != spannerTable.Pks[i].Col || sessionTable.Pks[i].Desc != spannerTable.Pks[i].Desc {
+				return fmt.Errorf("primary keys for table %v don't match", sessionTable.Name)
+			}
+		}
+		for col := range sessionTable.ColDefs {
+			colDef := sessionTable.ColDefs[col]
+			spannerCol := spannerTable.ColDefs[col]
+			if colDef.Name != spannerCol.Name || colDef.NotNull != spannerCol.NotNull ||
+				colDef.T.IsArray != spannerCol.T.IsArray || colDef.T.Len != spannerCol.T.Len || colDef.T.Name != spannerCol.T.Name {
+				return fmt.Errorf("column detail for table %v don't match", sessionTable.Name)
+			}
+		}
+		for i := range sessionTable.Indexes {
+			sessionDbIndex := sessionTable.Indexes[i]
+			found := 0
+			for j := range spannerTable.Indexes {
+				if sessionDbIndex.Name == spannerTable.Indexes[j].Name {
+					spannerDbIndex := spannerTable.Indexes[j]
+					found = 1
+					if sessionDbIndex.Table != spannerDbIndex.Table || sessionDbIndex.Unique != spannerDbIndex.Unique ||
+						len(sessionDbIndex.Keys) != len(spannerDbIndex.Keys) {
+						return fmt.Errorf("index %v - details don't match", sessionDbIndex.Name)
+					}
+					for keyIndex := range sessionDbIndex.Keys {
+						if sessionDbIndex.Keys[keyIndex].Col != spannerTable.Indexes[j].Keys[keyIndex].Col ||
+							sessionDbIndex.Keys[keyIndex].Desc != spannerTable.Indexes[j].Keys[keyIndex].Desc {
+							return fmt.Errorf("index %v - keys don't match", sessionDbIndex.Name)
+						}
+					}
+					break
+				}
+			}
+			if found == 0 {
+				return fmt.Errorf("index %v not found in spanner schema", sessionDbIndex.Name)
+			}
+		}
 	}
 	return nil
 }

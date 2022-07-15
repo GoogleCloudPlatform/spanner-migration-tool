@@ -44,14 +44,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
-	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/protobuf/proto"
-
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/metrics"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/csv"
@@ -59,9 +56,14 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/writer"
+	"go.uber.org/zap"
+	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -71,8 +73,6 @@ var (
 	// If facing a quota limit error, consider reducing this value.
 	MaxWorkers = 20
 )
-
-const migrationMetadataKey = "cloud-spanner-migration-metadata"
 
 // SchemaConv performs the schema conversion
 // The SourceProfile param provides the connection details to use the go SQL library.
@@ -177,7 +177,10 @@ func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile prof
 func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error) {
 	common.SetRowStats(conv, infoSchema)
 	totalRows := conv.Rows()
-	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
+	var p *internal.Progress
+	if !conv.Audit.DryRun {
+		p = internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
+	}
 	batchWriter := populateDataConv(conv, config, client, p)
 	common.ProcessData(conv, infoSchema)
 	batchWriter.Flush()
@@ -328,7 +331,7 @@ func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, clie
 		migrationData := metrics.GetMigrationData(conv, "", "", constants.DataConv)
 		serializedMigrationData, _ := proto.Marshal(migrationData)
 		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
-		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), migrationMetadataKey, migrationMetadataValue), m)
+		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), constants.MigrationMetadataKey, migrationMetadataValue), m)
 		if err != nil {
 			return err
 		}
@@ -338,13 +341,16 @@ func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, clie
 	}
 	batchWriter := writer.NewBatchWriter(config)
 	conv.SetDataMode()
-	conv.SetDataSink(
-		func(table string, cols []string, vals []interface{}) {
-			batchWriter.AddRow(table, cols, vals)
-		})
-	conv.DataFlush = func() {
-		batchWriter.Flush()
+	if !conv.Audit.DryRun {
+		conv.SetDataSink(
+			func(table string, cols []string, vals []interface{}) {
+				batchWriter.AddRow(table, cols, vals)
+			})
+		conv.DataFlush = func() {
+			batchWriter.Flush()
+		}
 	}
+
 	return batchWriter
 }
 
@@ -390,6 +396,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 		return f, n, err
 	}
 	internal.VerbosePrintln("Creating a tmp file with a copy of stdin because stdin is not seekable.")
+	logger.Log.Debug("Creating a tmp file with a copy of stdin because stdin is not seekable.")
 
 	// Create file in os.TempDir. Its not clear this is a good idea e.g. if the
 	// pg_dump/mysqldump output is large (tens of GBs) and os.TempDir points to a directory
@@ -426,15 +433,47 @@ func VerifyDb(ctx context.Context, adminClient *database.DatabaseAdminClient, db
 }
 
 // CheckExistingDb checks whether the database with dbURI exists or not.
+// If API call doesn't respond then user is informed after every 5 minutes on command line.
 func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) (bool, error) {
-	_, err := adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: dbURI})
-	if err != nil {
-		if utils.ContainsAny(strings.ToLower(err.Error()), []string{"database not found"}) {
-			return false, nil
+	gotResponse := make(chan bool)
+	var err error
+	go func() {
+		_, err = adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: dbURI})
+		gotResponse <- true
+	}()
+	for {
+		select {
+		case <-time.After(5 * time.Minute):
+			fmt.Println("WARNING! API call not responding: make sure that spanner api endpoint is configured properly")
+		case <-gotResponse:
+			if err != nil {
+				if utils.ContainsAny(strings.ToLower(err.Error()), []string{"database not found"}) {
+					return false, nil
+				}
+				return false, fmt.Errorf("can't get database info: %s", err)
+			}
+			return true, nil
 		}
-		return false, fmt.Errorf("can't get database info: %s", err)
 	}
-	return true, nil
+}
+
+// ValidateTables validates that all the tables in the database are empty.
+func ValidateTables(ctx context.Context, client *sp.Client, targetDb string) error {
+	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, TargetDb: targetDb}
+	tables, err := infoSchema.GetTables()
+	if err != nil {
+		return err
+	}
+	for _, t := range tables {
+		count, err := infoSchema.GetRowCount(t)
+		if err != nil {
+			return err
+		}
+		if count != 0 {
+			return fmt.Errorf("table %v should be empty for data migration to take place", t.Name)
+		}
+	}
+	return nil
 }
 
 // ValidateDDL verifies if an existing DB's ddl follows what is supported by harbourbridge. Currently,
@@ -460,7 +499,7 @@ func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseA
 	migrationData := metrics.GetMigrationData(conv, driver, targetDb, constants.SchemaConv)
 	serializedMigrationData, _ := proto.Marshal(migrationData)
 	migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
-	ctx = metadata.AppendToOutgoingContext(ctx, migrationMetadataKey, migrationMetadataValue)
+	ctx = metadata.AppendToOutgoingContext(ctx, constants.MigrationMetadataKey, migrationMetadataValue)
 	if dbExists {
 		err := UpdateDatabase(ctx, adminClient, dbURI, conv, out)
 		if err != nil {
@@ -586,6 +625,8 @@ Recommended value is between 20-30.`)
 				workers <- workerID
 			}()
 			internal.VerbosePrintf("Submitting new FK create request: %s\n", fkStmt)
+			logger.Log.Debug("Submitting new FK create request", zap.String("fkStmt", fkStmt))
+
 			op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 				Database:   dbURI,
 				Statements: []string{fkStmt},
@@ -601,6 +642,7 @@ Recommended value is between 20-30.`)
 				return
 			}
 			internal.VerbosePrintln("Updated schema with statement: " + fkStmt)
+			logger.Log.Debug("Updated schema with statement", zap.String("fkStmt", fkStmt))
 		}(fkStmt, workerID)
 	}
 	// Wait for all the goroutines to finish.

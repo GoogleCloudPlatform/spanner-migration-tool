@@ -58,4 +58,7 @@ const (
 	// Information on what conversion is happening (schema conv or data conv)
 	SchemaConv string = "schema_conv"
 	DataConv   string = "data_conv"
+
+	// Information passed in metadata while using Cloud Spanner client.
+	MigrationMetadataKey string = "cloud-spanner-migration-metadata"
 )
