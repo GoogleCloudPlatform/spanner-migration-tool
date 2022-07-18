@@ -315,7 +315,7 @@ func rowCountTestTable(client *spanner.Client) (int, error) {
 	return rowCount, nil
 }
 
-func TestIntegration_DYNAMODB_Command(t *testing.T) {
+func TestIntegration_DYNAMODB_Streaming_Command(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
 

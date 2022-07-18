@@ -155,7 +155,7 @@ type audit struct {
 // Stores information related to the streaming migration process.
 type streamingStats struct {
 	Streaming        bool                        // Flag for confirmation of streaming migration.
-	Records          map[string]map[string]int64 // Tablewise count of records received for processing, broken down by record type i.e. INSERT, MODIFY & REMOVE.
+	TotalRecords     map[string]map[string]int64 // Tablewise count of records received for processing, broken down by record type i.e. INSERT, MODIFY & REMOVE.
 	BadRecords       map[string]map[string]int64 // Tablewise count of records not converted successfully, broken down by record type.
 	DroppedRecords   map[string]map[string]int64 // Tablewise count of records successfully converted but failed to written on Spanner, broken down by record type.
 	SampleBadRecords []string                    // Records that generated errors during conversion.

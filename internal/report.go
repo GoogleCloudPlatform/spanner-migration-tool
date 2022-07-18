@@ -110,7 +110,7 @@ func getStreamName(driver string) (string, error) {
 	}
 }
 
-func getChangeTypes(driver string) []string {
+func getRecordTypes(driver string) []string {
 	switch driver {
 	case constants.DYNAMODB:
 		return []string{"INSERT", "REMOVE", "MODIFY"}
@@ -135,22 +135,22 @@ func writeStreamingMigrationReport(driverName string, conv *Conv, w *bufio.Write
 
 	orderTableNames := ddl.OrderTables(conv.SpSchema)
 
-	w.WriteString(fmt.Sprintf("Processed %d out of %d %s successfully.\n", len(stats.Records), len(orderTableNames), streamName))
+	w.WriteString(fmt.Sprintf("Processed %d out of %d %s successfully.\n", len(stats.TotalRecords), len(orderTableNames), streamName))
 
-	totalReadRecords := sumNestedMapValues(stats.Records)
+	totalReadRecords := sumNestedMapValues(stats.TotalRecords)
 	w.WriteString(fmt.Sprintf("\nCount of records read from %s: %s\n", streamName, strconv.FormatInt(totalReadRecords, 10)))
 
 	totalWrittenRecords := totalReadRecords - sumNestedMapValues(stats.BadRecords) - sumNestedMapValues(stats.DroppedRecords)
 	w.WriteString(fmt.Sprintf("Count of records written to Cloud Spanner successfully: %s\n", strconv.FormatInt(totalWrittenRecords, 10)))
 
-	recordTypes := getChangeTypes(driverName)
+	recordTypes := getRecordTypes(driverName)
 
 	w.WriteString(fmt.Sprintf("\nTablewise summary of processing of %s (Written records / Total records)\nbroken down by record type.\n\n", streamName))
 
 	colWidth := make(map[string]int)
 
 	colWidth["Table"] = len("Table")
-	for srcTable := range stats.Records {
+	for srcTable := range stats.TotalRecords {
 		if len(srcTable) > colWidth["Table"] {
 			colWidth["Table"] = len(srcTable)
 		}
@@ -160,7 +160,7 @@ func writeStreamingMigrationReport(driverName string, conv *Conv, w *bufio.Write
 
 	for _, change := range recordTypes {
 		colWidth[change] = len(change)
-		for srcTable, records := range stats.Records {
+		for srcTable, records := range stats.TotalRecords {
 			total := records[change]
 			success := total - stats.BadRecords[srcTable][change] - stats.DroppedRecords[srcTable][change]
 
@@ -191,7 +191,7 @@ func writeStreamingMigrationReport(driverName string, conv *Conv, w *bufio.Write
 	}
 	w.WriteString("|\n" + seperator)
 
-	for srcTable, records := range stats.Records {
+	for srcTable, records := range stats.TotalRecords {
 		for _, colName := range recordTypes {
 			var progress string
 			if colName == "Table" {

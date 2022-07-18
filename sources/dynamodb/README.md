@@ -95,7 +95,6 @@ harbourbridge schema -source=dynamodb -source-profile="schema-sample-size=500000
 
 ## DynamoDB Streaming Migration Usage
 
-### Note
 - DynamoDB Streams will be used for Change Data Capture in streaming migration.
 - If there exists any DynamoDB Stream for a given table, then it must be of StreamViewType
 `NEW_IMAGE` or `NEW_AND_OLD_IMAGES`. If this condition is not followed then this table will

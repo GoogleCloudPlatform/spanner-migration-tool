@@ -452,7 +452,7 @@ func fillConvWithStreamingStats(streamInfo *StreamingInfo, conv *internal.Conv) 
 	conv.Audit.StreamingStats.Streaming = true
 
 	// Pass count stats to conv
-	conv.Audit.StreamingStats.Records = streamInfo.Records
+	conv.Audit.StreamingStats.TotalRecords = streamInfo.Records
 	conv.Audit.StreamingStats.BadRecords = streamInfo.BadRecords
 	conv.Audit.StreamingStats.DroppedRecords = streamInfo.DroppedRecords
 
