@@ -188,6 +188,7 @@ func MakeConv() *Conv {
 			ToSpannerFkIdx: make(map[string]FkeyAndIdxs),
 			ToSourceFkIdx:  make(map[string]FkeyAndIdxs),
 			StreamingStats: streamingStats{},
+			MigrationType:  migration.MigrationData_SCHEMA_ONLY.Enum(),
 		},
 	}
 }
