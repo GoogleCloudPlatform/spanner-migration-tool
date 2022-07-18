@@ -146,4 +146,8 @@ export class ObjectExplorerComponent implements OnInit {
       return false
     }
   }
+  onTabChanged() {
+    this.currentSelectedObject = null
+    this.selectObject.emit(undefined)
+  }
 }

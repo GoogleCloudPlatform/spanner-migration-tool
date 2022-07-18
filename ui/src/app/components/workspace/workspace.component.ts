@@ -150,7 +150,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
 
   changeCurrentObject(object: FlatNode) {
-    if (object.type === ObjectExplorerNodeType.Table) {
+    if (object?.type === ObjectExplorerNodeType.Table) {
       this.currentObject = object
       this.tableData = this.currentObject
         ? this.conversion.getColumnMapping(this.currentObject.name, this.conv)
@@ -160,9 +160,11 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
       this.fkData = this.currentObject
         ? this.conversion.getFkMapping(this.currentObject.name, this.conv)
         : []
-    } else {
+    } else if (object?.type === ObjectExplorerNodeType.Index) {
       this.currentObject = object
       this.indexData = this.conversion.getIndexMapping(object.parent, this.conv, object.name)
+    } else {
+      this.currentObject = null
     }
   }
 
