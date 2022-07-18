@@ -754,6 +754,18 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 	delete(toSpanner, table)
 	delete(issues, table)
 
+	//drop reference foreign key
+	for tableName, spTable := range spSchema {
+		fks := []ddl.Foreignkey{}
+		for _, fk := range spTable.Fks {
+			if fk.ReferTable != table {
+				fks = append(fks, fk)
+			}
+		}
+		spTable.Fks = fks
+		spSchema[tableName] = spTable
+	}
+
 	sessionState.Conv.SpSchema = spSchema
 	sessionState.Conv.ToSource = toSource
 	sessionState.Conv.ToSpanner = toSource
