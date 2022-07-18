@@ -56,7 +56,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/writer"
@@ -177,10 +176,7 @@ func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile prof
 func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error) {
 	common.SetRowStats(conv, infoSchema)
 	totalRows := conv.Rows()
-	var p *internal.Progress
-	if !conv.Audit.DryRun {
-		p = internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
-	}
+	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 	batchWriter := populateDataConv(conv, config, client, p)
 	common.ProcessData(conv, infoSchema)
 	batchWriter.Flush()
@@ -341,16 +337,13 @@ func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, clie
 	}
 	batchWriter := writer.NewBatchWriter(config)
 	conv.SetDataMode()
-	if !conv.Audit.DryRun {
-		conv.SetDataSink(
-			func(table string, cols []string, vals []interface{}) {
-				batchWriter.AddRow(table, cols, vals)
-			})
-		conv.DataFlush = func() {
-			batchWriter.Flush()
-		}
+	conv.SetDataSink(
+		func(table string, cols []string, vals []interface{}) {
+			batchWriter.AddRow(table, cols, vals)
+		})
+	conv.DataFlush = func() {
+		batchWriter.Flush()
 	}
-
 	return batchWriter
 }
 
@@ -455,25 +448,6 @@ func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminCli
 			return true, nil
 		}
 	}
-}
-
-// ValidateTables validates that all the tables in the database are empty.
-func ValidateTables(ctx context.Context, client *sp.Client, targetDb string) error {
-	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, TargetDb: targetDb}
-	tables, err := infoSchema.GetTables()
-	if err != nil {
-		return err
-	}
-	for _, t := range tables {
-		count, err := infoSchema.GetRowCount(t)
-		if err != nil {
-			return err
-		}
-		if count != 0 {
-			return fmt.Errorf("table %v should be empty for data migration to take place", t.Name)
-		}
-	}
-	return nil
 }
 
 // ValidateDDL verifies if an existing DB's ddl follows what is supported by harbourbridge. Currently,

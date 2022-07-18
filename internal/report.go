@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
+
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -43,14 +43,6 @@ func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites ma
 			strings.Join(ignored, ", ")), 80, 0)
 		w.WriteString("\n\n")
 	}
-	migrationType := ""
-	if *conv.Audit.MigrationType == migration.MigrationData_DATA_ONLY {
-		migrationType = "data"
-	} else if *conv.Audit.MigrationType == migration.MigrationData_SCHEMA_ONLY {
-		migrationType = "schema"
-	} else if *conv.Audit.MigrationType == migration.MigrationData_SCHEMA_AND_DATA {
-		migrationType = "schema and data"
-	}
 	statementsMsg := ""
 	var isDump bool
 	if strings.Contains(driverName, "dump") {
@@ -60,8 +52,8 @@ func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites ma
 		statementsMsg = "stats on the " + driverName + " statements processed, followed by "
 	}
 	justifyLines(w, "The remainder of this report provides "+statementsMsg+
-		"a table-by-table listing of "+migrationType+" conversion details. "+
-		"For background on the "+migrationType+" conversion process used, "+
+		"a table-by-table listing of schema and data conversion details. "+
+		"For background on the schema and data conversion process used, "+
 		"and explanations of the terms and notes used in this "+
 		"report, see HarbourBridge's README.", 80, 0)
 	w.WriteString("\n\n")
@@ -77,7 +69,7 @@ func GenerateReport(driverName string, conv *Conv, w *bufio.Writer, badWrites ma
 				h = h + fmt.Sprintf(" (mapped to Spanner table %s)", t.SpTable)
 			}
 			writeHeading(w, h)
-			w.WriteString(rateConversion(t.rows, t.badRows, t.Cols, t.Warnings, t.SyntheticPKey != "", false, conv.SchemaMode(), *conv.Audit.MigrationType, conv.Audit.DryRun))
+			w.WriteString(rateConversion(t.rows, t.badRows, t.Cols, t.Warnings, t.SyntheticPKey != "", false, conv.SchemaMode()))
 			w.WriteString("\n")
 			for _, x := range t.Body {
 				fmt.Fprintf(w, "%s\n", x.Heading)
@@ -262,19 +254,16 @@ func buildTableReport(conv *Conv, srcTable string, badWrites map[string]int64) t
 		tr.Body = []tableReportBody{{Heading: "Internal error: " + m}}
 		return tr
 	}
-	if *conv.Audit.MigrationType != migration.MigrationData_DATA_ONLY {
-		issues, cols, warnings := AnalyzeCols(conv, srcTable, spTable)
-		tr.Cols = cols
-		tr.Warnings = warnings
-		if pk, ok := conv.SyntheticPKeys[spTable]; ok {
-			tr.SyntheticPKey = pk.Col
-			tr.Body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, &pk.Col, nil)
-		} else if pk, ok := conv.UniquePKey[spTable]; ok {
-			tr.Body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, nil, pk)
-		} else {
-			tr.Body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, nil, nil)
-		}
-
+	issues, cols, warnings := AnalyzeCols(conv, srcTable, spTable)
+	tr.Cols = cols
+	tr.Warnings = warnings
+	if pk, ok := conv.SyntheticPKeys[spTable]; ok {
+		tr.SyntheticPKey = pk.Col
+		tr.Body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, &pk.Col, nil)
+	} else if pk, ok := conv.UniquePKey[spTable]; ok {
+		tr.Body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, nil, pk)
+	} else {
+		tr.Body = buildTableReportBody(conv, srcTable, issues, spSchema, srcSchema, nil, nil)
 	}
 	if !conv.SchemaMode() {
 		fillRowStats(conv, srcTable, badWrites, &tr)
@@ -549,19 +538,13 @@ func rateSchema(cols, warnings int64, missingPKey, summary bool) string {
 	}
 }
 
-func rateData(rows int64, badRows int64, dryRun bool) string {
-	reportText := ""
-	if dryRun {
-		reportText = "successfully converted"
-	} else {
-		reportText = "written"
-	}
-	s := fmt.Sprintf(" (%s%% of %d rows %s to Spanner)", pct(rows, badRows), rows, reportText)
+func rateData(rows int64, badRows int64) string {
+	s := fmt.Sprintf(" (%s%% of %d rows written to Spanner)", pct(rows, badRows), rows)
 	switch {
 	case rows == 0:
 		return "NONE (no data rows found)"
 	case badRows == 0:
-		return fmt.Sprintf("EXCELLENT (all %d rows %s to Spanner)", rows, reportText)
+		return fmt.Sprintf("EXCELLENT (all %d rows written to Spanner)", rows)
 	case good(rows, badRows):
 		return "GOOD" + s
 	case ok(rows, badRows):
@@ -579,13 +562,10 @@ func ok(total, badCount int64) bool {
 	return float64(badCount) < float64(total)/3
 }
 
-func rateConversion(rows, badRows, cols, warnings int64, missingPKey, summary bool, schemaOnly bool, migrationType migration.MigrationData_MigrationType, dryRun bool) string {
-	rate := ""
-	if migrationType != migration.MigrationData_DATA_ONLY {
-		rate = rate + fmt.Sprintf("Schema conversion: %s.\n", rateSchema(cols, warnings, missingPKey, summary))
-	}
+func rateConversion(rows, badRows, cols, warnings int64, missingPKey, summary bool, schemaOnly bool) string {
+	rate := fmt.Sprintf("Schema conversion: %s.\n", rateSchema(cols, warnings, missingPKey, summary))
 	if !schemaOnly {
-		rate = rate + fmt.Sprintf("Data conversion: %s.\n", rateData(rows, badRows, dryRun))
+		rate = rate + fmt.Sprintf("Data conversion: %s.\n", rateData(rows, badRows))
 	}
 	return rate
 }
@@ -616,7 +596,7 @@ func GenerateSummary(conv *Conv, r []tableReport, badWrites map[string]int64) st
 	for _, n := range badWrites {
 		badRows += n
 	}
-	return rateConversion(rows, badRows, cols, warnings, missingPKey, true, conv.SchemaMode(), *conv.Audit.MigrationType, conv.Audit.DryRun)
+	return rateConversion(rows, badRows, cols, warnings, missingPKey, true, conv.SchemaMode())
 }
 
 // IgnoredStatements creates a list of statements to ignore.
