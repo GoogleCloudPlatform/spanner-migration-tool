@@ -979,6 +979,8 @@ func updateIndexes(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sp := sessionState.Conv.SpSchema[table]
 
+	st := sessionState.Conv.SrcSchema[table]
+
 	for i, index := range sp.Indexes {
 
 		if index.Table == newIndexes[0].Table && index.Name == newIndexes[0].Name {
@@ -992,7 +994,29 @@ func updateIndexes(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	for i, spIndex := range sp.Indexes {
+
+		for j, srcIndex := range st.Indexes {
+
+			for k, spIndexKey := range spIndex.Keys {
+
+				for l, srcIndexKey := range srcIndex.Keys {
+
+					if srcIndexKey.Column == spIndexKey.Col {
+
+						st.Indexes[j].Keys[l].Order = sp.Indexes[i].Keys[k].Order
+					}
+
+				}
+			}
+
+		}
+	}
+
 	sessionState.Conv.SpSchema[table] = sp
+
+	sessionState.Conv.SrcSchema[table] = st
+
 	helpers.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
