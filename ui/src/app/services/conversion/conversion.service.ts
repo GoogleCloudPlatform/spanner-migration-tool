@@ -147,25 +147,47 @@ export class ConversionService {
 
   getColumnMapping(tableName: string, data: IConv): IColumnTabData[] {
     let srcTableName = data.ToSource[tableName].Name
-    return data.SrcSchema[srcTableName].ColNames.map((name: string, i: number) => {
-      let spColName = data.ToSpanner[srcTableName].Cols[name]
-      let srcPks = data.SrcSchema[srcTableName].PrimaryKeys
-      let spannerColDef = data.SpSchema[tableName].ColDefs[spColName]
-      return {
-        spOrder: spannerColDef ? i + 1 : '',
-        srcOrder: i + 1,
-        spColName: spannerColDef ? spColName : '',
-        spDataType: spannerColDef ? spannerColDef.T.Name : '',
-        srcColName: name,
-        srcDataType: data.SrcSchema[srcTableName].ColDefs[name].Type.Name,
-        spIsPk: spannerColDef
-          ? data.SpSchema[tableName].Pks.map((p) => p.Col).indexOf(spColName) !== -1
-          : false,
-        srcIsPk: srcPks ? srcPks.map((p) => p.Column).indexOf(name) !== -1 : false,
-        spIsNotNull: spannerColDef ? data.SpSchema[tableName].ColDefs[spColName].NotNull : false,
-        srcIsNotNull: data.SrcSchema[srcTableName].ColDefs[name].NotNull,
+    const res: IColumnTabData[] = data.SrcSchema[srcTableName].ColNames.map(
+      (name: string, i: number) => {
+        let spColName = data.ToSpanner[srcTableName].Cols[name]
+        let srcPks = data.SrcSchema[srcTableName].PrimaryKeys
+        let spannerColDef = data.SpSchema[tableName].ColDefs[spColName]
+        return {
+          spOrder: spannerColDef ? i + 1 : '',
+          srcOrder: i + 1,
+          spColName: spannerColDef ? spColName : '',
+          spDataType: spannerColDef ? spannerColDef.T.Name : '',
+          srcColName: name,
+          srcDataType: data.SrcSchema[srcTableName].ColDefs[name].Type.Name,
+          spIsPk: spannerColDef
+            ? data.SpSchema[tableName].Pks.map((p) => p.Col).indexOf(spColName) !== -1
+            : false,
+          srcIsPk: srcPks ? srcPks.map((p) => p.Column).indexOf(name) !== -1 : false,
+          spIsNotNull: spannerColDef ? data.SpSchema[tableName].ColDefs[spColName].NotNull : false,
+          srcIsNotNull: data.SrcSchema[srcTableName].ColDefs[name].NotNull,
+        }
+      }
+    )
+    data.SpSchema[srcTableName].ColNames.forEach((name: string, i: number) => {
+      if (data.SrcSchema[srcTableName].ColNames.indexOf(name) < 0) {
+        let spannerColDef = data.SpSchema[tableName].ColDefs[name]
+        res.push({
+          spOrder: i + 1,
+          srcOrder: '',
+          spColName: name,
+          spDataType: spannerColDef ? spannerColDef.T.Name : '',
+          srcColName: '',
+          srcDataType: '',
+          spIsPk: spannerColDef
+            ? data.SpSchema[tableName].Pks.map((p) => p.Col).indexOf(name) !== -1
+            : false,
+          srcIsPk: false,
+          spIsNotNull: spannerColDef ? data.SpSchema[tableName].ColDefs[name].NotNull : false,
+          srcIsNotNull: false,
+        })
       }
     })
+    return res
   }
 
   getPkMapping(tableData: IColumnTabData[]): IColumnTabData[] {

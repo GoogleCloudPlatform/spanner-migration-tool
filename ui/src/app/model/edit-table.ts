@@ -1,6 +1,6 @@
 export default interface IColumnTabData {
   spOrder: number | string
-  srcOrder: number
+  srcOrder: number | string
   srcColName: string
   srcDataType: string
   spColName: string

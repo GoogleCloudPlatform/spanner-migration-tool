@@ -277,7 +277,7 @@ export class ObjectDetailComponent implements OnInit {
       const srDataType = item.srcDataType
       const spDataType = item.spDataType
       let brief: string = ''
-      this.typeMap[srDataType].forEach((type: any) => {
+      this.typeMap[srDataType]?.forEach((type: any) => {
         if (spDataType == type.T) brief = type.Brief
       })
       this.isSpTableSuggesstionDisplay.push(brief !== '')
