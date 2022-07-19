@@ -239,6 +239,8 @@ func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *s
 	}
 	wg.Wait()
 
+	fillConvWithStreamingStats(streamInfo, conv)
+
 	fmt.Println("DynamoDB Streams processed successfully.")
 	return nil
 }

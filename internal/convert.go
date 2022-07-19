@@ -149,6 +149,17 @@ type audit struct {
 	DataConversionDuration   time.Duration                          `json:"-"` // Duration of data conversion.
 	MigrationRequestId       string                                 `json:"-"` // Unique request id generated per migration
 	MigrationType            *migration.MigrationData_MigrationType `json:"-"` // Type of migration: Schema migration, data migration or schema and data migration
+	StreamingStats           streamingStats                         `json:"-"` // Stores information related to streaming migration process.
+}
+
+// Stores information related to the streaming migration process.
+type streamingStats struct {
+	Streaming        bool                        // Flag for confirmation of streaming migration.
+	TotalRecords     map[string]map[string]int64 // Tablewise count of records received for processing, broken down by record type i.e. INSERT, MODIFY & REMOVE.
+	BadRecords       map[string]map[string]int64 // Tablewise count of records not converted successfully, broken down by record type.
+	DroppedRecords   map[string]map[string]int64 // Tablewise count of records successfully converted but failed to written on Spanner, broken down by record type.
+	SampleBadRecords []string                    // Records that generated errors during conversion.
+	SampleBadWrites  []string                    // Records that faced errors while writing to Cloud Spanner.
 }
 
 // MakeConv returns a default-configured Conv.
@@ -175,6 +186,7 @@ func MakeConv() *Conv {
 		Audit: audit{
 			ToSpannerFkIdx: make(map[string]FkeyAndIdxs),
 			ToSourceFkIdx:  make(map[string]FkeyAndIdxs),
+			StreamingStats: streamingStats{},
 		},
 	}
 }
