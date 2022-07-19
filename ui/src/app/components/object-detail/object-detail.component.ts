@@ -666,7 +666,11 @@ export class ObjectDetailComponent implements OnInit {
   dropIndexKey(index: number) {
     let payload: ICreateIndex[] = []
     const tableName = this.currentObject?.parent || ''
-    if (this.indexData.length === 1) {
+    let spIndexCount = 0
+    this.indexData.forEach((idx) => {
+      if (idx.spColName) spIndexCount += 1
+    })
+    if (spIndexCount <= 1) {
       this.dropIndex()
     } else {
       payload.push({
@@ -674,8 +678,8 @@ export class ObjectDetailComponent implements OnInit {
         Table: this.currentObject?.parent || '',
         Unique: false,
         Keys: this.indexData
-          .filter((_, i: number) => {
-            if (i === index) return false
+          .filter((idx, i: number) => {
+            if (i === index || idx.spColName === undefined) return false
             return true
           })
           .map((col: any) => {
@@ -694,23 +698,32 @@ export class ObjectDetailComponent implements OnInit {
   addIndexKey() {
     let payload: ICreateIndex[] = []
     const tableName = this.currentObject?.parent || ''
+    let spIndexCount = 0
+    this.indexData.forEach((idx) => {
+      if (idx.spColName) spIndexCount += 1
+    })
     payload.push({
       Name: this.currentObject?.name || '',
       Table: this.currentObject?.parent || '',
       Unique: false,
-      Keys: this.indexData.map((col: any) => {
-        return {
-          Col: col.spColName,
-          Desc: col.spDesc,
-          Order: col.spOrder,
-        }
-      }),
+      Keys: this.indexData
+        .filter((idx) => {
+          if (idx.spColName) return true
+          return false
+        })
+        .map((col: any) => {
+          return {
+            Col: col.spColName,
+            Desc: col.spDesc,
+            Order: col.spOrder,
+          }
+        }),
       Id: '',
     })
     payload[0].Keys.push({
       Col: this.addIndexKeyForm.value.columnName,
       Desc: this.addIndexKeyForm.value.ascOrDesc === 'desc',
-      Order: 5,
+      Order: spIndexCount + 1,
     })
 
     this.data.updateIndex(tableName, payload)

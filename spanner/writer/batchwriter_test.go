@@ -25,8 +25,14 @@ import (
 	"time"
 
 	sp "cloud.google.com/go/spanner"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
+
+func init() {
+	logger.Log = zap.NewNop()
+}
 
 // TestFlush tests NewBatchWriter, AddRow and Flush.
 func TestFlush(t *testing.T) {

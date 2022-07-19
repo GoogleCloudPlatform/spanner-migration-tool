@@ -479,8 +479,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	table := r.FormValue("table")
 
-	fmt.Println("updateTableSchema getting called")
-
 	err = json.Unmarshal(reqBody, &t)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
@@ -492,7 +490,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 		if v.Removed {
 			status, err := canRemoveColumn(colName, table)
 			if err != nil {
-				err = rollback(err)
 				http.Error(w, fmt.Sprintf("%v", err), status)
 				return
 			}
@@ -501,7 +498,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 		if v.Rename != "" && v.Rename != colName {
 			if status, err := canRenameOrChangeType(colName, table); err != nil {
-				err = rollback(err)
 				http.Error(w, fmt.Sprintf("%v", err), status)
 				return
 			}
@@ -522,7 +518,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			if typeChange {
 				if status, err := canRenameOrChangeType(colName, table); err != nil {
-					err = rollback(err)
 					http.Error(w, fmt.Sprintf("%v", err), status)
 					return
 				}
@@ -753,7 +748,7 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if table == "" || dropDetail.Name == "" {
-		http.Error(w, fmt.Sprintf("Table name or FK name is empty"), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Table name or foreign key name is empty"), http.StatusBadRequest)
 	}
 	sp := sessionState.Conv.SpSchema[table]
 	position := -1
@@ -984,14 +979,44 @@ func updateIndexes(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sp := sessionState.Conv.SpSchema[table]
 
+	st := sessionState.Conv.SrcSchema[table]
+
 	for i, index := range sp.Indexes {
+
 		if index.Table == newIndexes[0].Table && index.Name == newIndexes[0].Name {
-			sp.Indexes[i] = newIndexes[0]
+
+			sp.Indexes[i].Keys = newIndexes[0].Keys
+			sp.Indexes[i].Name = newIndexes[0].Name
+			sp.Indexes[i].Table = newIndexes[0].Table
+			sp.Indexes[i].Unique = newIndexes[0].Unique
+
 			break
 		}
 	}
 
+	for i, spIndex := range sp.Indexes {
+
+		for j, srcIndex := range st.Indexes {
+
+			for k, spIndexKey := range spIndex.Keys {
+
+				for l, srcIndexKey := range srcIndex.Keys {
+
+					if srcIndexKey.Column == spIndexKey.Col {
+
+						st.Indexes[j].Keys[l].Order = sp.Indexes[i].Keys[k].Order
+					}
+
+				}
+			}
+
+		}
+	}
+
 	sessionState.Conv.SpSchema[table] = sp
+
+	sessionState.Conv.SrcSchema[table] = st
+
 	helpers.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{

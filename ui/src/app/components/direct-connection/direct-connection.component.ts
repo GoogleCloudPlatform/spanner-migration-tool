@@ -50,17 +50,15 @@ export class DirectConnectionComponent implements OnInit {
     const { dbEngine, hostName, port, userName, password, dbName } = this.connectForm.value
     const config: IDbConfig = { dbEngine, hostName, port, userName, password, dbName }
     this.fetch.connectTodb(config).subscribe({
-      next: (res) => {
-        if (res.status == 200) {
+      next: () => {
+        this.data.getSchemaConversionFromDb()
+        this.data.conv.subscribe((res) => {
           localStorage.setItem(
             StorageKeys.Config,
             JSON.stringify({ dbEngine, hostName, port, userName, password, dbName })
           )
           localStorage.setItem(StorageKeys.Type, InputType.DirectConnect)
           localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine))
-        }
-        this.data.getSchemaConversionFromDb()
-        this.data.conv.subscribe((res) => {
           this.clickEvent.closeDatabaseLoader()
           this.router.navigate(['/workspace'])
         })

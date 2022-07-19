@@ -20,6 +20,9 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
+	"go.uber.org/zap"
 )
 
 // Progress provides console progress functionality. i.e. it reports what
@@ -87,6 +90,7 @@ func (p *Progress) reportPct(firstCall bool) {
 		fmt.Printf("%s: %2d%%\n", p.message, p.pct)
 		return
 	}
+	logger.Log.Debug(p.message, zap.Int("Progress", p.pct))
 	if firstCall {
 		fmt.Printf("%s: %2d%%", p.message, p.pct)
 	} else {
@@ -102,6 +106,7 @@ func (p *Progress) reportFraction(firstCall bool) {
 		fmt.Printf("%s: %d/%d\n", p.message, p.progress, p.total)
 		return
 	}
+	logger.Log.Debug(p.message, zap.Float32("Progress", float32(p.progress/p.total)))
 	if firstCall {
 		fmt.Printf("%s: %d/%d", p.message, p.progress, p.total)
 	} else {

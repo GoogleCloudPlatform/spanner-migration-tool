@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2022 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dynamodb_test
+package dynamodb_streaming_test
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -22,25 +23,25 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
-	"github.com/cloudspannerecosystem/harbourbridge/testing/common"
-	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
-
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/iterator"
 	databasepb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 )
 
 var (
@@ -135,7 +136,7 @@ func dropDatabase(t *testing.T, dbURI string) {
 	}
 
 	deleteTableInput := &dydb.DeleteTableInput{
-		TableName: aws.String("table_test"),
+		TableName: aws.String("testtable"),
 	}
 	dydbClient.DeleteTable(deleteTableInput)
 }
@@ -153,7 +154,7 @@ func prepareIntegrationTest(t *testing.T) string {
 }
 
 func populateDynamoDB(t *testing.T) {
-	tableName := "table_test"
+	tableName := "testtable"
 	createTableInput := &dydb.CreateTableInput{
 		AttributeDefinitions: []*dydb.AttributeDefinition{
 			{
@@ -206,7 +207,115 @@ func populateDynamoDB(t *testing.T) {
 	log.Println("Successfully created table and put item for dynamodb")
 }
 
-func TestIntegration_DYNAMODB_Command(t *testing.T) {
+func populateDynamoDBStreams(t *testing.T) {
+	tableName := "testtable"
+	dydbRecord := DydbRecord{
+		AttrString:    "efgh",
+		AttrInt:       20,
+		AttrFloat:     24.5,
+		AttrBool:      false,
+		AttrBytes:     []byte{48, 49},
+		AttrNumberSet: []float64{1.5, 2.5, 3.5},
+		AttrByteSet:   [][]byte{[]byte{48, 49}, []byte{50, 51}},
+		AttrStringSet: []string{"abc", "xyz"},
+		AttrList:      []interface{}{"str-1", 12.34, true},
+		AttrMap:       map[string]int{"key": 102},
+	}
+	av, err := dynamodbattribute.MarshalMap(dydbRecord)
+	if err != nil {
+		t.Fatalf("Got error marshalling new movie item: %s", err)
+	}
+
+	putItemInput := &dydb.PutItemInput{
+		Item:      av,
+		TableName: aws.String(tableName),
+	}
+
+	_, err = dydbClient.PutItem(putItemInput)
+	if err != nil {
+		t.Fatalf("Got error calling PutItem: %s", err)
+	}
+	log.Println("Successfully inserted item for streaming migration")
+}
+
+func RunStreamingMigration(t *testing.T, args string, projectID string, client *spanner.Client) error {
+	// Be aware that when testing with the command, the time `now` might be
+	// different between file prefixes and the contents in the files. This
+	// is because file prefixes use `now` from here (the test function) and
+	// the generated time in the files uses a `now` inside the command, which
+	// can be different.
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("go run github.com/cloudspannerecosystem/harbourbridge %v", args))
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("GCLOUD_PROJECT=%s", projectID),
+	)
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf(fmt.Sprintf("error while starting command: %v", err))
+	}
+	// Wait for a maximum of 5 minutes
+	timeLimit := 300
+	for timeLimit > 0 {
+		time.Sleep(2 * time.Second)
+		output := out.String()
+		if strings.Contains(output, "Processing of DynamoDB Streams started...") {
+			break
+		}
+		timeLimit--
+	}
+	if timeLimit == 0 {
+		return fmt.Errorf("error! streaming migration not started successfully")
+	}
+
+	populateDynamoDBStreams(t)
+
+	// Wait for a maximum of 5 minutes and check row count
+	timeLimit = 300
+	for timeLimit > 0 {
+		time.Sleep(2 * time.Second)
+		// Check count of row to be 2.
+		rowCount, err := rowCountTestTable(client)
+		if err != nil {
+			return err
+		}
+		if rowCount == 2 {
+			break
+		}
+		timeLimit -= 2
+	}
+	if timeLimit == 0 {
+		return fmt.Errorf("error! record within DynamoDB Streams not processed successfully.")
+	}
+
+	err := cmd.Process.Kill()
+	if err != nil {
+		log.Println("error! migration command not killed successfully")
+	}
+	return nil
+}
+
+func rowCountTestTable(client *spanner.Client) (int, error) {
+	rowCount := 0
+	stmt := spanner.Statement{SQL: `SELECT AttrString FROM testtable`}
+	iter := client.ReadOnlyTransaction().Query(ctx, stmt)
+	defer iter.Stop()
+	for {
+		_, err := iter.Next()
+		if err == nil {
+			rowCount++
+		} else {
+			if err != iterator.Done {
+				log.Println("Error reading row: ", err)
+				return 0, err
+			}
+			break
+		}
+	}
+	return rowCount, nil
+}
+
+func TestIntegration_DYNAMODB_Streaming_Command(t *testing.T) {
 	onlyRunForEmulatorTest(t)
 	t.Parallel()
 
@@ -218,44 +327,55 @@ func TestIntegration_DYNAMODB_Command(t *testing.T) {
 	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectID, instanceID, dbName)
 	filePrefix := filepath.Join(tmpdir, dbName+".")
 
-	args := fmt.Sprintf("-driver %s -prefix %s -instance %s -dbname %s", constants.DYNAMODB, filePrefix, instanceID, dbName)
-	err := common.RunCommand(args, projectID)
+	client, err := spanner.NewClient(ctx, dbURI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+
+	args := fmt.Sprintf(`schema-and-data -source=%s -prefix=%s -source-profile="enableStreaming=true" -target-profile="instance=%s,dbName=%s"`, constants.DYNAMODB, filePrefix, instanceID, dbName)
+	err = RunStreamingMigration(t, args, projectID, client)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Drop the database later.
 	defer dropDatabase(t, dbURI)
 
-	checkResults(t, dbURI)
+	checkResults(t, client)
 }
 
-func checkResults(t *testing.T, dbURI string) {
+func checkResults(t *testing.T, client *spanner.Client) {
 	// Make a query to check results.
-	client, err := spanner.NewClient(ctx, dbURI)
-	if err != nil {
-		log.Fatal(err)
+	wantRecords := []SpannerRecord{
+		{
+			AttrString:    "abcd",
+			AttrInt:       int64(10),
+			AttrFloat:     float64(14.5),
+			AttrBool:      true,
+			AttrBytes:     []byte{48, 49},
+			AttrNumberSet: []float64{1.5, 2.5, 3.5},
+			AttrByteSet:   [][]byte{[]byte{48, 49}, []byte{50, 51}},
+			AttrStringSet: []string{"abc", "xyz"},
+			AttrList:      "[\"str-1\",\"12.34\",true]",
+			AttrMap:       "{\"key\":\"100\"}",
+		},
+		{
+			AttrString:    "efgh",
+			AttrInt:       int64(20),
+			AttrFloat:     float64(24.5),
+			AttrBool:      false,
+			AttrBytes:     []byte{48, 49},
+			AttrNumberSet: []float64{1.5, 2.5, 3.5},
+			AttrByteSet:   [][]byte{[]byte{48, 49}, []byte{50, 51}},
+			AttrStringSet: []string{"abc", "xyz"},
+			AttrList:      "[\"str-1\",\"12.34\",true]",
+			AttrMap:       "{\"key\":\"102\"}",
+		},
 	}
-	defer client.Close()
 
-	checkRow(ctx, t, client)
-}
-
-func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
-	wantRecord := SpannerRecord{
-		AttrString:    "abcd",
-		AttrInt:       int64(10),
-		AttrFloat:     float64(14.5),
-		AttrBool:      true,
-		AttrBytes:     []byte{48, 49},
-		AttrNumberSet: []float64{1.5, 2.5, 3.5},
-		AttrByteSet:   [][]byte{[]byte{48, 49}, []byte{50, 51}},
-		AttrStringSet: []string{"abc", "xyz"},
-		AttrList:      "[\"str-1\",\"12.34\",true]",
-		AttrMap:       "{\"key\":\"100\"}",
-	}
-	gotRecord := SpannerRecord{}
-	stmt := spanner.Statement{SQL: `SELECT AttrString, AttrInt, AttrFloat, AttrBool, AttrBytes, AttrNumberSet, AttrByteSet, AttrStringSet, AttrList, AttrMap FROM table_test`}
-	iter := client.Single().Query(ctx, stmt)
+	gotRecords := []SpannerRecord{}
+	stmt := spanner.Statement{SQL: `SELECT AttrString, AttrInt, AttrFloat, AttrBool, AttrBytes, AttrNumberSet, AttrByteSet, AttrStringSet, AttrList, AttrMap FROM testtable`}
+	iter := client.ReadOnlyTransaction().Query(ctx, stmt)
 	defer iter.Stop()
 	for {
 		row, err := iter.Next()
@@ -267,6 +387,7 @@ func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
 			t.Fatal(err)
 			break
 		}
+		gotRecord := SpannerRecord{}
 		// We don't create big.Rat fields in the SpannerRecord structs
 		// because cmp.Equal cannot compare big.Rat fields automatically.
 		var AttrInt, AttrFloat big.Rat
@@ -285,8 +406,19 @@ func checkRow(ctx context.Context, t *testing.T, client *spanner.Client) {
 			floatSet = append(floatSet, floatVal)
 		}
 		gotRecord.AttrNumberSet = floatSet
+
+		gotRecords = append(gotRecords, gotRecord)
 	}
-	assert.True(t, cmp.Equal(wantRecord, gotRecord))
+
+	assert.Equal(t, 2, len(gotRecords))
+	if gotRecords[0].AttrString != "abcd" {
+		gotRecords[0], gotRecords[1] = gotRecords[1], gotRecords[0]
+	}
+	for i := 0; i < 2; i++ {
+		if !reflect.DeepEqual(wantRecords[i], gotRecords[i]) {
+			t.Fatalf("mismatch in data written to spanner.")
+		}
+	}
 }
 
 func onlyRunForEmulatorTest(t *testing.T) {

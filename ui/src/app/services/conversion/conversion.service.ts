@@ -256,6 +256,20 @@ export class ConversionService {
         spDesc: idx.Desc,
       }
     })
+    if (srcIndexs && srcIndexs[0] && spIndex.Keys.length < srcIndexs[0].Keys.length) {
+      srcIndexs[0].Keys.forEach((idx, index) => {
+        if (index >= spIndex.Keys.length) {
+          res.push({
+            srcColName: idx.Column,
+            srcOrder: index + 1,
+            srcDesc: idx.Desc,
+            spColName: undefined,
+            spOrder: undefined,
+            spDesc: undefined,
+          })
+        }
+      })
+    }
     return res
   }
 }

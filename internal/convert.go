@@ -18,9 +18,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"go.uber.org/zap"
 )
 
 // Conv contains all schema and data conversion state.
@@ -147,6 +149,17 @@ type audit struct {
 	DataConversionDuration   time.Duration                          `json:"-"` // Duration of data conversion.
 	MigrationRequestId       string                                 `json:"-"` // Unique request id generated per migration
 	MigrationType            *migration.MigrationData_MigrationType `json:"-"` // Type of migration: Schema migration, data migration or schema and data migration
+	StreamingStats           streamingStats                         `json:"-"` // Stores information related to streaming migration process.
+}
+
+// Stores information related to the streaming migration process.
+type streamingStats struct {
+	Streaming        bool                        // Flag for confirmation of streaming migration.
+	TotalRecords     map[string]map[string]int64 // Tablewise count of records received for processing, broken down by record type i.e. INSERT, MODIFY & REMOVE.
+	BadRecords       map[string]map[string]int64 // Tablewise count of records not converted successfully, broken down by record type.
+	DroppedRecords   map[string]map[string]int64 // Tablewise count of records successfully converted but failed to written on Spanner, broken down by record type.
+	SampleBadRecords []string                    // Records that generated errors during conversion.
+	SampleBadWrites  []string                    // Records that faced errors while writing to Cloud Spanner.
 }
 
 // MakeConv returns a default-configured Conv.
@@ -173,6 +186,7 @@ func MakeConv() *Conv {
 		Audit: audit{
 			ToSpannerFkIdx: make(map[string]FkeyAndIdxs),
 			ToSourceFkIdx:  make(map[string]FkeyAndIdxs),
+			StreamingStats: streamingStats{},
 		},
 	}
 }
@@ -209,6 +223,8 @@ func (conv *Conv) WriteRow(srcTable, spTable string, spCols []string, spVals []i
 	if conv.dataSink == nil {
 		msg := "Internal error: ProcessDataRow called but dataSink not configured"
 		VerbosePrintf("%s\n", msg)
+		logger.Log.Debug("Internal error: ProcessDataRow called but dataSink not configured")
+
 		conv.Unexpected(msg)
 		conv.StatsAddBadRow(srcTable, conv.DataMode())
 	} else {
@@ -347,6 +363,8 @@ func (conv *Conv) buildPrimaryKey(spTable string) string {
 // because we process dump data twice.
 func (conv *Conv) Unexpected(u string) {
 	VerbosePrintf("Unexpected condition: %s\n", u)
+	logger.Log.Debug("Unexpected condition", zap.String("condition", u))
+
 	// Limit size of unexpected map. If over limit, then only
 	// update existing entries.
 	if _, ok := conv.Stats.Unexpected[u]; ok || len(conv.Stats.Unexpected) < 1000 {
@@ -395,6 +413,7 @@ func (conv *Conv) getStatementStat(s string) *statementStat {
 func (conv *Conv) SkipStatement(stmtType string) {
 	if conv.SchemaMode() { // Record statement stats on first pass only.
 		VerbosePrintf("Skipping statement: %s\n", stmtType)
+		logger.Log.Debug("Skipping statement", zap.String("stmtType", stmtType))
 		conv.getStatementStat(stmtType).Skip++
 	}
 }
@@ -403,6 +422,7 @@ func (conv *Conv) SkipStatement(stmtType string) {
 func (conv *Conv) ErrorInStatement(stmtType string) {
 	if conv.SchemaMode() { // Record statement stats on first pass only.
 		VerbosePrintf("Error processing statement: %s\n", stmtType)
+		logger.Log.Debug("Error processing statement", zap.String("stmtType", stmtType))
 		conv.getStatementStat(stmtType).Error++
 	}
 }

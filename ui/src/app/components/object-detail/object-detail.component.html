@@ -684,14 +684,12 @@
 
     <mat-tab label="SQL">
       <div class="ddl_container">
-        <pre>
-          <code>{{ddlStmts[currentObject!.name]}}</code>
-        </pre>
+        <pre><code>{{ddlStmts[currentObject!.name]}}</code></pre>
       </div>
     </mat-tab>
   </mat-tab-group>
 
-  <div *ngIf="currentObject!.type === 'indexName'" class="column-tab-container">
+  <div *ngIf="currentObject!.type === 'indexName'" class="index-tab-container">
     <table mat-table [dataSource]="dataSource">
       <ng-container matColumnDef="srcDatabase">
         <th mat-header-cell class="db_name" *matHeaderCellDef colspan="3">{{ srcDbName }}</th>
@@ -735,20 +733,20 @@
       <ng-container matColumnDef="spIndexColName">
         <th mat-header-cell class="table_header" *matHeaderCellDef>Column</th>
         <td mat-cell *matCellDef="let element">
-          <p>{{ element.get('spColName').value }}</p>
+          <p *ngIf="element.get('spColName').value">{{ element.get('spColName').value }}</p>
         </td>
       </ng-container>
       <ng-container matColumnDef="spSortBy">
         <th mat-header-cell class="table_header" *matHeaderCellDef>Sort By</th>
         <td mat-cell *matCellDef="let element">
           <p *ngIf="element.get('spDesc').value">Desc</p>
-          <p *ngIf="!element.get('spDesc').value">Asc</p>
+          <p *ngIf="element.get('spDesc').value === false">Asc</p>
         </td>
       </ng-container>
       <ng-container matColumnDef="spIndexOrder">
         <th class="table_header" mat-header-cell *matHeaderCellDef>Column Order</th>
         <td mat-cell *matCellDef="let element">
-          <div *ngIf="isIndexEditMode && element.get('spOrder').value !== ''">
+          <div *ngIf="isIndexEditMode && element.get('spOrder').value">
             <input
               matInput
               class="order_input"
@@ -767,7 +765,7 @@
           *matCellDef="let element; let i = index"
           [ngClass]="{ 'drop-button-left-border': isIndexEditMode }"
         >
-          <div *ngIf="isIndexEditMode">
+          <div *ngIf="isIndexEditMode && element.get('spColName').value">
             <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
             <mat-menu #menu="matMenu" xPosition="before">
               <button mat-menu-item (click)="dropIndexKey(i)">
@@ -780,21 +778,8 @@
 
       <tr mat-header-row *matHeaderRowDef="['srcDatabase', 'spDatabase']"></tr>
       <tr mat-header-row *matHeaderRowDef="indexDisplayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: indexDisplayedColumns"></tr>
+      <tr mat-row class="index-data-row" *matRowDef="let row; columns: indexDisplayedColumns"></tr>
     </table>
-    <!-- <div [formGroup]="addIndexColumnForm" *ngIf="isIndexEditMode" class="add-index-column">
-      <mat-form-field appearance="outline" class="column-list">
-        <mat-label>Column Name</mat-label>
-        <mat-select
-          matSelect
-          class="input-field"
-          (selectionChange)="setIndexColumn($event.value)"
-          formControlName="columnName"
-          required="true"
-        >
-          <mat-option *ngFor="let column of indexColumnNames" [value]="column">{{
-            column
-          }}</mat-option> -->
     <div
       [formGroup]="addIndexKeyForm"
       *ngIf="isIndexEditMode && indexColumnNames.length > 0"
@@ -815,9 +800,6 @@
           <mat-option value="desc">Descending</mat-option>
         </mat-select>
       </mat-form-field>
-      <!-- class="add-column-btn"
-        type="button"
-        (click)="addIndexColumn()" -->
       <button
         mat-raised-button
         color="primary"

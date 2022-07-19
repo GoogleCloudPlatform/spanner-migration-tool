@@ -18,6 +18,8 @@ import (
 	"fmt"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
 // ToNotNull returns true if a column is not nullable and false if it is.
@@ -30,4 +32,17 @@ func ToNotNull(conv *internal.Conv, isNullable string) bool {
 	}
 	conv.Unexpected(fmt.Sprintf("isNullable column has unknown value: %s", isNullable))
 	return false
+}
+
+// GetColsAndSchemas provides information about columns and schema for a table.
+func GetColsAndSchemas(conv *internal.Conv, srcTable string) (schema.Table, string, []string, ddl.CreateTable, error) {
+	srcSchema := conv.SrcSchema[srcTable]
+	spTable, err1 := internal.GetSpannerTable(conv, srcTable)
+	spCols, err2 := internal.GetSpannerCols(conv, srcTable, srcSchema.ColNames)
+	spSchema, ok := conv.SpSchema[spTable]
+	var err error
+	if err1 != nil || err2 != nil || !ok {
+		err = fmt.Errorf(fmt.Sprintf("err1=%s, err2=%s, ok=%t", err1, err2, ok))
+	}
+	return srcSchema, spTable, spCols, spSchema, err
 }
