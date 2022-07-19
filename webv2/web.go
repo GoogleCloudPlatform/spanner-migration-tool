@@ -47,6 +47,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/typemap"
 
 	//	typemap "github.com/cloudspannerecosystem/harbourbridge/webv2/typemap"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
@@ -458,7 +459,7 @@ func getConversionRate(w http.ResponseWriter, r *http.Request) {
 	reports := internal.AnalyzeTables(sessionState.Conv, nil)
 	rate := make(map[string]string)
 	for _, t := range reports {
-		rate[t.SpTable] = rateSchema(t.Cols, t.Warnings, t.SyntheticPKey != "")
+		rate[t.SpTable] = utilities.RateSchema(t.Cols, t.Warnings, t.SyntheticPKey != "")
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(rate)
@@ -469,7 +470,7 @@ func getSchemaFile(w http.ResponseWriter, r *http.Request) {
 	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
 	var err error
 	now := time.Now()
-	filePrefix, err := getFilePrefix(now)
+	filePrefix, err := utilities.GetFilePrefix(now)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Can not get file prefix : %v", err), http.StatusInternalServerError)
 	}
@@ -490,7 +491,7 @@ func getReportFile(w http.ResponseWriter, r *http.Request) {
 	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
 	var err error
 	now := time.Now()
-	filePrefix, err := getFilePrefix(now)
+	filePrefix, err := utilities.GetFilePrefix(now)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Can not get file prefix : %v", err), http.StatusInternalServerError)
 	}
@@ -587,9 +588,9 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 
 	if len(parentpks) >= 1 {
 
-		parentindex := getPrimaryKeyIndexFromOrder(parentpks, 1)
+		parentindex := utilities.GetPrimaryKeyIndexFromOrder(parentpks, 1)
 
-		childindex := getPrimaryKeyIndexFromOrder(childPks, 1)
+		childindex := utilities.GetPrimaryKeyIndexFromOrder(childPks, 1)
 
 		if parentindex != -1 && childindex != -1 {
 
@@ -707,13 +708,13 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ok, invalidNames := checkSpannerNamesValidity(newNames); !ok {
+	if ok, invalidNames := utilities.CheckSpannerNamesValidity(newNames); !ok {
 		http.Error(w, fmt.Sprintf("Following names are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
 		return
 	}
 
 	// Check that the new names are not already used by existing tables, secondary indexes or foreign key constraints.
-	if ok, err := canRename(newNames, table); !ok {
+	if ok, err := utilities.CanRename(newNames, table); !ok {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -769,13 +770,13 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ok, invalidNames := checkSpannerNamesValidity(newNames); !ok {
+	if ok, invalidNames := utilities.CheckSpannerNamesValidity(newNames); !ok {
 		http.Error(w, fmt.Sprintf("Following names are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
 		return
 	}
 
 	// Check that the new names are not already used by existing tables, secondary indexes or foreign key constraints.
-	if ok, err := canRename(newNames, table); !ok {
+	if ok, err := utilities.CanRename(newNames, table); !ok {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -830,13 +831,13 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Found duplicate names in input : %s", strings.Join(newNames, ",")), http.StatusBadRequest)
 		return
 	}
-	if ok, invalidNames := checkSpannerNamesValidity(newNames); !ok {
+	if ok, invalidNames := utilities.CheckSpannerNamesValidity(newNames); !ok {
 		http.Error(w, fmt.Sprintf("Following names are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
 		return
 	}
 
 	// Check that the new names are not already used by existing tables, secondary indexes or foreign key constraints.
-	if ok, err := canRename(newNames, table); !ok {
+	if ok, err := utilities.CanRename(newNames, table); !ok {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -860,51 +861,6 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
-}
-
-func checkSpannerNamesValidity(input []string) (bool, []string) {
-	status := true
-	var invalidNewNames []string
-	for _, changed := range input {
-		if _, status := internal.FixName(changed); status {
-			status = false
-			invalidNewNames = append(invalidNewNames, changed)
-		}
-	}
-	return status, invalidNewNames
-}
-
-func canRename(names []string, table string) (bool, error) {
-	sessionState := session.GetSessionState()
-
-	namesMap := map[string]bool{}
-	// Check that this name isn't already used by another table.
-	for _, name := range names {
-		namesMap[name] = true
-		if _, ok := sessionState.Conv.SpSchema[name]; ok {
-			return false, fmt.Errorf("new name : '%s' is used by another table", name)
-		}
-	}
-
-	// Check that this name isn't already used by another foreign key.
-	for _, sp := range sessionState.Conv.SpSchema {
-		for _, foreignKey := range sp.Fks {
-			if _, ok := namesMap[foreignKey.Name]; ok {
-				return false, fmt.Errorf("new name : '%s' is used by another foreign key in table : '%s'", foreignKey.Name, sp.Name)
-			}
-
-		}
-	}
-
-	// Check that this name isn't already used by another secondary index.
-	for _, sp := range sessionState.Conv.SpSchema {
-		for _, index := range sp.Indexes {
-			if _, ok := namesMap[index.Name]; ok {
-				return false, fmt.Errorf("new name : '%s' is used by another index in table : '%s'", index.Name, sp.Name)
-			}
-		}
-	}
-	return true, nil
 }
 
 func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
@@ -1054,78 +1010,6 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 	return false
 }
 
-func getPrimaryKeyIndexFromOrder(pk []ddl.IndexKey, order int) int {
-
-	for i := 0; i < len(pk); i++ {
-		if pk[i].Order == order {
-			return i
-		}
-	}
-	return -1
-}
-
-func isUniqueName(name string) bool {
-	sessionState := session.GetSessionState()
-
-	for table := range sessionState.Conv.SpSchema {
-		if table == name {
-			return false
-		}
-	}
-	for _, spSchema := range sessionState.Conv.SpSchema {
-		for _, fk := range spSchema.Fks {
-			if fk.Name == name {
-				return false
-			}
-		}
-		for _, index := range spSchema.Indexes {
-			if index.Name == name {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-func rateSchema(cols, warnings int64, missingPKey bool) string {
-	good := func(total, badCount int64) bool { return badCount < total/20 }
-	ok := func(total, badCount int64) bool { return badCount < total/3 }
-	switch {
-	case cols == 0:
-		return "GRAY"
-	case warnings == 0 && !missingPKey:
-		return "GREEN"
-	case warnings == 0 && missingPKey:
-		return "BLUE"
-	case good(cols, warnings) && !missingPKey:
-		return "BLUE"
-	case good(cols, warnings) && missingPKey:
-		return "BLUE"
-	case ok(cols, warnings) && !missingPKey:
-		return "YELLOW"
-	case ok(cols, warnings) && missingPKey:
-		return "YELLOW"
-	case !missingPKey:
-		return "ORANGE"
-	default:
-		return "ORANGE"
-	}
-}
-
-func getFilePrefix(now time.Time) (string, error) {
-	sessionState := session.GetSessionState()
-
-	dbName := sessionState.DbName
-	var err error
-	if dbName == "" {
-		dbName, err = utils.GetDatabaseName(sessionState.Driver, now)
-		if err != nil {
-			return "", fmt.Errorf("Can not create database name : %v", err)
-		}
-	}
-	return dbName + ".", nil
-}
-
 // SessionState stores information for the current migration session.
 type SessionState struct {
 	sourceDB    *sql.DB        // Connection to source database in case of direct connection
@@ -1165,7 +1049,7 @@ func init() {
 	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
-			ty, issues := utilities.ToSpannerTypeMySQL(srcType, spType, []int64{})
+			ty, issues := typemap.ToSpannerTypeMySQL(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		if srcType == "tinyint" {
@@ -1177,7 +1061,7 @@ func init() {
 	for _, srcType := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
-			ty, issues := utilities.ToSpannerTypePostgres(srcType, spType, []int64{})
+			ty, issues := typemap.ToSpannerTypePostgres(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		postgresTypeMap[srcType] = l
@@ -1187,7 +1071,7 @@ func init() {
 	for _, srcType := range []string{"int", "tinyint", "smallint", "bigint", "bit", "float", "real", "numeric", "decimal", "money", "smallmoney", "char", "nchar", "varchar", "nvarchar", "text", "ntext", "date", "datetime", "datetime2", "smalldatetime", "datetimeoffset", "time", "timestamp", "rowversion", "binary", "varbinary", "image", "xml", "geography", "geometry", "uniqueidentifier", "sql_variant", "hierarchyid"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
-			ty, issues := utilities.ToSpannerTypeSQLserver(srcType, spType, []int64{})
+			ty, issues := typemap.ToSpannerTypeSQLserver(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		sqlserverTypeMap[srcType] = l

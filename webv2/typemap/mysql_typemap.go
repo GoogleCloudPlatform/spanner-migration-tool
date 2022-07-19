@@ -12,46 +12,66 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utilities
+package typemap
 
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// toSpannerTypeSQLserver defines the mapping of source types into Spanner
+// toSpannerTypeMySQL defines the mapping of source types into Spanner
 // types. Each source type has a default Spanner type, as well as other potential
-// Spanner types it could map to. When calling toSpannerTypeSQLserver, you specify
+// Spanner types it could map to. When calling toSpannerTypeMySQL, you specify
 // the source type name (along with any modifiers), and optionally you specify
 // a target Spanner type name (empty string if you don't have one). If the target
 // Spanner type name is specified and is a potential mapping for this source type,
 // then it will be used to build the returned ddl.Type. If not, the default
 // Spanner type for this source type will be used.
-// Note that toSpannerTypeSQLserver is extensively tested via tests in web_test.go.
+// Note that toSpannerTypeMySQL is extensively tested via tests in web_test.go.
 //
 // TODO: Move the type remapping function to toddl.go (once we've merged
-// dynamodb/toddl.go, mysql/toddl.go, sqlserver/toddl.go and postgres/toddl.go).
+// dynamodb/toddl.go, mysql/toddl.go and postgres/toddl.go).
 // Consider some refactoring to reduce code duplication (although note
 // that this type remapping has to preserve all previous changes done via the UI!)
-func ToSpannerTypeSQLserver(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
+func ToSpannerTypeMySQL(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
 	switch srcType {
-	case "tinyint", "smallint", "int", "bigint":
+	case "bool", "boolean":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		case ddl.Int64:
 			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 		default:
+			return ddl.Type{Name: ddl.Bool}, nil
+		}
+	case "tinyint":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Int64:
+			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
+		default:
+			// tinyint(1) is a bool in MySQL
+			if len(mods) > 0 && mods[0] == 1 {
+				return ddl.Type{Name: ddl.Bool}, nil
+			}
 			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 		}
-	case "float", "real":
+	case "double":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Float64}, nil
+		}
+	case "float":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
 		}
-	case "numeric", "decimal", "money", "smallmoney":
+	case "numeric", "decimal":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
@@ -60,36 +80,64 @@ func ToSpannerTypeSQLserver(srcType string, spType string, mods []int64) (ddl.Ty
 			// if this numeric won't fit in Spanner's NUMERIC.
 			return ddl.Type{Name: ddl.Numeric}, nil
 		}
-
+	case "bigint":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Int64}, nil
+		}
+	case "smallint", "mediumint", "integer", "int":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
+		}
 	case "bit":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
-			return ddl.Type{Name: ddl.Bool}, nil
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}
-	case "varchar", "char", "nvarchar", "nchar", "uniqueidentifier":
+	case "varchar", "char":
 		switch spType {
 		case ddl.Bytes:
-			if len(mods) > 0 && mods[0] > 0 {
+			if len(mods) > 0 {
 				return ddl.Type{Name: ddl.Bytes, Len: mods[0]}, nil
 			}
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		default:
-			if len(mods) > 0 && mods[0] > 0 {
+			if len(mods) > 0 {
 				return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
 			}
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		}
-	case "ntext", "text", "xml":
+	case "text", "tinytext", "mediumtext", "longtext":
 		switch spType {
 		case ddl.Bytes:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		default:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		}
-
-	case "binary", "varbinary", "image":
+	case "set", "enum":
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+	case "json":
+		switch spType {
+		case ddl.Bytes:
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		}
+	case "binary", "varbinary":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		}
+	case "tinyblob", "mediumblob", "blob", "longblob":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
@@ -103,7 +151,7 @@ func ToSpannerTypeSQLserver(srcType string, spType string, mods []int64) (ddl.Ty
 		default:
 			return ddl.Type{Name: ddl.Date}, nil
 		}
-	case "datetime2", "datetime", "datetimeoffset", "smalldatetime", "rowversion":
+	case "datetime":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
@@ -115,10 +163,11 @@ func ToSpannerTypeSQLserver(srcType string, spType string, mods []int64) (ddl.Ty
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
-			return ddl.Type{Name: ddl.Int64}, nil
+			return ddl.Type{Name: ddl.Timestamp}, nil
 		}
-	case "time":
+	case "time", "year":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Time}
+
 	}
 	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 }

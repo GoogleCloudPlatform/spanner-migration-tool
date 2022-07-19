@@ -20,11 +20,11 @@ import (
 	"net/http"
 	"reflect"
 	"regexp"
+	"time"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
@@ -196,173 +196,6 @@ func IsTypeChanged(newType, table, colName, srcTableName string) (bool, error) {
 	return !reflect.DeepEqual(colDef.T, ty), nil
 }
 
-func UpdateType(newType, table, colName, srcTableName string, w http.ResponseWriter) {
-
-	sessionState := session.GetSessionState()
-
-	sp, ty, err := GetType(newType, table, colName, srcTableName)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	fmt.Println("updating type for sp.ColDefs[colName] ", sp.ColDefs[colName], sp.ColDefs[colName].T)
-
-	colDef := sp.ColDefs[colName]
-	colDef.T = ty
-
-	sp.ColDefs[colName] = colDef
-
-	fmt.Println("updated type for sp.ColDefs[colName] ", sp.ColDefs[colName], sp.ColDefs[colName].T)
-
-	sessionState.Conv.SpSchema[table] = sp
-
-	//todo
-	for i, _ := range sp.Fks {
-
-		relationTable := sp.Fks[i].ReferTable
-
-		srcTableName := sessionState.Conv.ToSource[relationTable].Name
-
-		rsp, ty, err := GetType(newType, relationTable, colName, srcTableName)
-
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		fmt.Println("updating type for rsp.ColDefs[colName] ", rsp.ColDefs[colName], rsp.ColDefs[colName].T)
-
-		colDef := rsp.ColDefs[colName]
-		colDef.T = ty
-
-		rsp.ColDefs[colName] = colDef
-
-		fmt.Println("updated type for rsp.ColDefs[colName] ", rsp.ColDefs[colName], rsp.ColDefs[colName].T)
-
-		sessionState.Conv.SpSchema[table] = rsp
-	}
-
-	//todo
-	// update interleave table relation
-	isParent, childSchema := IsParent(table)
-
-	if isParent {
-
-		srcTableName := sessionState.Conv.ToSource[childSchema].Name
-
-		childSp, ty, err := GetType(newType, childSchema, colName, srcTableName)
-
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		fmt.Println("updating type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
-
-		colDef := childSp.ColDefs[colName]
-		colDef.T = ty
-
-		childSp.ColDefs[colName] = colDef
-
-		fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
-
-		sessionState.Conv.SpSchema[table] = childSp
-
-	}
-
-	//todo
-	isChild := sessionState.Conv.SpSchema[table].Parent
-
-	if isChild != "" {
-
-		srcTableName := sessionState.Conv.ToSource[isChild].Name
-
-		childSp, ty, err := GetType(newType, isChild, colName, srcTableName)
-
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		fmt.Println("updating type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
-
-		colDef := childSp.ColDefs[colName]
-		colDef.T = ty
-
-		childSp.ColDefs[colName] = colDef
-
-		fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
-
-		sessionState.Conv.SpSchema[table] = childSp
-	}
-}
-
-func GetType(newType, table, colName string, srcTableName string) (ddl.CreateTable, ddl.Type, error) {
-	sessionState := session.GetSessionState()
-
-	sp := sessionState.Conv.SpSchema[table]
-	srcColName := sessionState.Conv.ToSource[table].Cols[colName]
-	srcCol := sessionState.Conv.SrcSchema[srcTableName].ColDefs[srcColName]
-	var ty ddl.Type
-	var issues []internal.SchemaIssue
-	switch sessionState.Driver {
-	case constants.MYSQL, constants.MYSQLDUMP:
-		ty, issues = ToSpannerTypeMySQL(srcCol.Type.Name, newType, srcCol.Type.Mods)
-	case constants.PGDUMP, constants.POSTGRES:
-		ty, issues = ToSpannerTypePostgres(srcCol.Type.Name, newType, srcCol.Type.Mods)
-	case constants.SQLSERVER:
-		ty, issues = ToSpannerTypeSQLserver(srcCol.Type.Name, newType, srcCol.Type.Mods)
-	case constants.ORACLE:
-		ty, issues = oracle.ToSpannerTypeWeb(sessionState.Conv, newType, srcCol.Type.Name, srcCol.Type.Mods)
-	default:
-		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.Driver)
-	}
-	if len(srcCol.Type.ArrayBounds) > 1 {
-		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-		issues = append(issues, internal.MultiDimensionalArray)
-	}
-	if srcCol.Ignored.Default {
-		issues = append(issues, internal.DefaultValue)
-	}
-	if srcCol.Ignored.AutoIncrement {
-		issues = append(issues, internal.AutoIncrement)
-	}
-	if sessionState.Conv.Issues != nil && len(issues) > 0 {
-		sessionState.Conv.Issues[srcTableName][srcCol.Name] = issues
-	}
-	ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
-	return sp, ty, nil
-}
-
-func UpdateNotNull(notNullChange, table, colName string) {
-	sessionState := session.GetSessionState()
-
-	sp := sessionState.Conv.SpSchema[table]
-	switch notNullChange {
-	case "ADDED":
-		spColDef := sp.ColDefs[colName]
-		spColDef.NotNull = true
-		sp.ColDefs[colName] = spColDef
-	case "REMOVED":
-		spColDef := sp.ColDefs[colName]
-		spColDef.NotNull = false
-		sp.ColDefs[colName] = spColDef
-	}
-}
-
-func IsParent(table string) (bool, string) {
-	sessionState := session.GetSessionState()
-
-	for _, spSchema := range sessionState.Conv.SpSchema {
-		if spSchema.Parent == table {
-			return true, spSchema.Name
-		}
-	}
-	return false, ""
-}
-
 func IsPartOfPK(col, table string) bool {
 	sessionState := session.GetSessionState()
 
@@ -436,4 +269,107 @@ func RemoveFk(slice []ddl.Foreignkey, s int) []ddl.Foreignkey {
 
 func RemoveSecondaryIndex(slice []ddl.CreateIndex, s int) []ddl.CreateIndex {
 	return append(slice[:s], slice[s+1:]...)
+}
+
+func CheckSpannerNamesValidity(input []string) (bool, []string) {
+	status := true
+	var invalidNewNames []string
+	for _, changed := range input {
+		if _, status := internal.FixName(changed); status {
+			status = false
+			invalidNewNames = append(invalidNewNames, changed)
+		}
+	}
+	return status, invalidNewNames
+}
+
+func CanRename(names []string, table string) (bool, error) {
+	sessionState := session.GetSessionState()
+
+	namesMap := map[string]bool{}
+	// Check that this name isn't already used by another table.
+	for _, name := range names {
+		namesMap[name] = true
+		if _, ok := sessionState.Conv.SpSchema[name]; ok {
+			return false, fmt.Errorf("new name : '%s' is used by another table", name)
+		}
+	}
+
+	// Check that this name isn't already used by another foreign key.
+	for _, sp := range sessionState.Conv.SpSchema {
+		for _, foreignKey := range sp.Fks {
+			if _, ok := namesMap[foreignKey.Name]; ok {
+				return false, fmt.Errorf("new name : '%s' is used by another foreign key in table : '%s'", foreignKey.Name, sp.Name)
+			}
+
+		}
+	}
+
+	// Check that this name isn't already used by another secondary index.
+	for _, sp := range sessionState.Conv.SpSchema {
+		for _, index := range sp.Indexes {
+			if _, ok := namesMap[index.Name]; ok {
+				return false, fmt.Errorf("new name : '%s' is used by another index in table : '%s'", index.Name, sp.Name)
+			}
+		}
+	}
+	return true, nil
+}
+
+func GetPrimaryKeyIndexFromOrder(pk []ddl.IndexKey, order int) int {
+
+	for i := 0; i < len(pk); i++ {
+		if pk[i].Order == order {
+			return i
+		}
+	}
+	return -1
+}
+
+func IsUniqueName(name string) bool {
+	sessionState := session.GetSessionState()
+
+	for table := range sessionState.Conv.SpSchema {
+		if table == name {
+			return false
+		}
+	}
+	for _, spSchema := range sessionState.Conv.SpSchema {
+		for _, fk := range spSchema.Fks {
+			if fk.Name == name {
+				return false
+			}
+		}
+		for _, index := range spSchema.Indexes {
+			if index.Name == name {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func GetFilePrefix(now time.Time) (string, error) {
+	sessionState := session.GetSessionState()
+
+	dbName := sessionState.DbName
+	var err error
+	if dbName == "" {
+		dbName, err = utils.GetDatabaseName(sessionState.Driver, now)
+		if err != nil {
+			return "", fmt.Errorf("Can not create database name : %v", err)
+		}
+	}
+	return dbName + ".", nil
+}
+
+func UpdateType(newType, table, colName, srcTableName string, w http.ResponseWriter) {
+	sp, ty, err := GetType(newType, table, colName, srcTableName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	colDef := sp.ColDefs[colName]
+	colDef.T = ty
+	sp.ColDefs[colName] = colDef
 }

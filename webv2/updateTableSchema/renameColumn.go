@@ -6,7 +6,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
 func renameColumn(newName, table, colName, srcTableName string) {
@@ -67,7 +66,7 @@ func renameColumn(newName, table, colName, srcTableName string) {
 	}
 
 	// update interleave table relation
-	isParent, childSchema := utilities.IsParent(table)
+	isParent, childSchema := IsParent(table)
 
 	if isParent {
 		fmt.Println("yes", table, "is parent table")
