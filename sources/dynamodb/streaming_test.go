@@ -130,31 +130,17 @@ func TestProcessStream(t *testing.T) {
 	assert.Equal(t, int64(1), streamInfo.TotalUnexpecteds())
 }
 
-func Test_fetchShards(t *testing.T) {
+func Test_scanShards(t *testing.T) {
 	streamArn := "testStreamArn"
 	tableName := "testTable"
 	type args struct {
 		streamClient         dynamodbstreamsiface.DynamoDBStreamsAPI
-		lastEvaluatedShardId *string
 		streamArn            string
-	}
-	streamDescription := dynamodbstreams.StreamDescription{
-		LastEvaluatedShardId: aws.String("shard2"),
-		Shards: []*dynamodbstreams.Shard{
-			{
-				ShardId: aws.String("shard1"),
-			},
-			{
-				ShardId: aws.String("shard2"),
-			},
-		},
-		StreamArn: &streamArn,
-		TableName: &tableName,
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    *dynamodbstreams.StreamDescription
+		want    []*dynamodbstreams.Shard
 		wantErr bool
 	}{
 		{
@@ -163,13 +149,53 @@ func Test_fetchShards(t *testing.T) {
 				streamClient: &mockDynamoStreamsClient{
 					describeStreamOutputs: []dynamodbstreams.DescribeStreamOutput{
 						{
-							StreamDescription: &streamDescription,
+							StreamDescription: &dynamodbstreams.StreamDescription{
+								LastEvaluatedShardId: aws.String("shard2"),
+								Shards: []*dynamodbstreams.Shard{
+									{
+										ShardId: aws.String("shard1"),
+									},
+									{
+										ShardId: aws.String("shard2"),
+									},
+								},
+								StreamArn: &streamArn,
+								TableName: &tableName,
+							},
+						},
+						{
+							StreamDescription: &dynamodbstreams.StreamDescription{
+								LastEvaluatedShardId: nil,
+								Shards: []*dynamodbstreams.Shard{
+									{
+										ShardId: aws.String("shard3"),
+									},
+									{
+										ShardId: aws.String("shard4"),
+									},
+								},
+								StreamArn: &streamArn,
+								TableName: &tableName,
+							},
 						},
 					},
 				},
 				streamArn: streamArn,
 			},
-			want:    &streamDescription,
+			want:    []*dynamodbstreams.Shard{
+				{
+					ShardId: aws.String("shard1"),
+				},
+				{
+					ShardId: aws.String("shard2"),
+				},
+				{
+					ShardId: aws.String("shard3"),
+				},
+				{
+					ShardId: aws.String("shard4"),
+				},
+			},
 			wantErr: false,
 		},
 		{
@@ -184,13 +210,13 @@ func Test_fetchShards(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := fetchShards(tt.args.streamClient, tt.args.lastEvaluatedShardId, tt.args.streamArn)
+			got, err := scanShards(tt.args.streamClient, tt.args.streamArn)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("fetchShards() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("scanShards() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("fetchShards() = %v, want %v", got, tt.want)
+				t.Errorf("scanShards() = %v, want %v", got, tt.want)
 			}
 		})
 	}
