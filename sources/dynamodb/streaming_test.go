@@ -134,8 +134,8 @@ func Test_scanShards(t *testing.T) {
 	streamArn := "testStreamArn"
 	tableName := "testTable"
 	type args struct {
-		streamClient         dynamodbstreamsiface.DynamoDBStreamsAPI
-		streamArn            string
+		streamClient dynamodbstreamsiface.DynamoDBStreamsAPI
+		streamArn    string
 	}
 	tests := []struct {
 		name    string
@@ -182,7 +182,7 @@ func Test_scanShards(t *testing.T) {
 				},
 				streamArn: streamArn,
 			},
-			want:    []*dynamodbstreams.Shard{
+			want: []*dynamodbstreams.Shard{
 				{
 					ShardId: aws.String("shard1"),
 				},
