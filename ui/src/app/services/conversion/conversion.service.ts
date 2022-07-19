@@ -78,7 +78,7 @@ export class ConversionService {
     deletedTableNames.forEach((tableName: string) => {
       parentNode.children?.push({
         name: tableName,
-        status: 'GRAY',
+        status: 'DARK',
         type: ObjectExplorerNodeType.Table,
         parent: '',
         pos: -1,
