@@ -5,6 +5,7 @@ import ISessionConfig from '../../model/session-config'
 import { Router } from '@angular/router'
 import { InputType, StorageKeys } from 'src/app/app.constants'
 import { extractSourceDbName } from 'src/app/utils/utils'
+import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 
 @Component({
   selector: 'app-load-session',
@@ -12,7 +13,11 @@ import { extractSourceDbName } from 'src/app/utils/utils'
   styleUrls: ['./load-session.component.scss'],
 })
 export class LoadSessionComponent implements OnInit {
-  constructor(private data: DataService, private router: Router) {}
+  constructor(
+    private data: DataService,
+    private router: Router,
+    private clickEvent: ClickEventService
+  ) {}
 
   connectForm = new FormGroup({
     dbEngine: new FormControl('sqlserver', [Validators.required]),
@@ -29,6 +34,7 @@ export class LoadSessionComponent implements OnInit {
   ngOnInit(): void {}
 
   convertFromSessionFile() {
+    this.clickEvent.openDatabaseLoader('session', '')
     this.data.resetStore()
     const { dbEngine, filePath } = this.connectForm.value
     const payload: ISessionConfig = {
@@ -40,6 +46,7 @@ export class LoadSessionComponent implements OnInit {
       localStorage.setItem(StorageKeys.Config, JSON.stringify(payload))
       localStorage.setItem(StorageKeys.Type, InputType.SessionFile)
       localStorage.setItem(StorageKeys.SourceDbName, extractSourceDbName(dbEngine))
+      this.clickEvent.closeDatabaseLoader()
       this.router.navigate(['/workspace'])
     })
   }

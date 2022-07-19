@@ -8,8 +8,8 @@
         </div>
         <div class="right">
           <input
-            [(ngModel)]="searchText"
-            (ngModelChange)="filterSrcTable($event)"
+            [(ngModel)]="srcSearchText"
+            (ngModelChange)="filterSrcTable()"
             placeholder="Filter by name"
           />
         </div>
@@ -19,19 +19,51 @@
           <ng-container matColumnDef="status">
             <th mat-header-cell *matHeaderCellDef>Status</th>
             <td mat-cell *matCellDef="let data">
-              <mat-icon *ngIf="data.status === 'BLUE'" class="icon danger"> error </mat-icon>
-              <mat-icon *ngIf="data.status === 'YELLOW'" class="icon warning"> warning </mat-icon>
-              <mat-icon *ngIf="data.status === 'GREEN'" class="icon success">
+              <mat-icon
+                *ngIf="data.status === 'GREEN' || data.status === 'GRAY'"
+                class="icon success"
+                matTooltip="Can be converted automatically"
+                matTooltipPosition="above"
+              >
                 check_circle
               </mat-icon>
-              <mat-icon *ngIf="data.status === 'ORANGE'" class="icon orange">
-                check_circle
+              <mat-icon
+                *ngIf="data.status === 'YELLOW' || data.status === 'BLUE'"
+                class="icon warning"
+                matTooltip="Requires minimal conversion changes"
+                matTooltipPosition="above"
+              >
+                warning
+              </mat-icon>
+              <mat-icon
+                *ngIf="data.status === 'ORANGE'"
+                class="icon orange"
+                matTooltip="Requires high complexity conversion changes"
+                matTooltipPosition="above"
+              >
+                error
               </mat-icon>
             </td>
           </ng-container>
           <ng-container matColumnDef="name">
-            <th mat-header-cell *matHeaderCellDef>
-              <span style="text-align: center"> Object Name </span>
+            <th
+              mat-header-cell
+              *matHeaderCellDef
+              (click)="srcTableSort()"
+              class="mat-header-cell-name cursor-pointer"
+            >
+              <div>
+                <span> Object Name </span>
+                <mat-icon class="src-unsorted-icon sort-icon" *ngIf="this.srcSortOrder === ''"
+                  >arrow_upward</mat-icon
+                >
+                <mat-icon *ngIf="this.srcSortOrder === 'asc'" class="sort-icon"
+                  >arrow_upward</mat-icon
+                >
+                <mat-icon *ngIf="this.srcSortOrder === 'desc'" class="sort-icon"
+                  >arrow_downward</mat-icon
+                >
+              </div>
             </th>
             <td mat-cell *matCellDef="let data" class="sidebar_link">
               <button
@@ -113,7 +145,7 @@
                 <span class="actions" *ngIf="isIndexNode(data.type) && data.isSpannerNode">
                   <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
                   <mat-menu #menu="matMenu">
-                    <button mat-menu-item (click)="openAddIndexForm()">
+                    <button mat-menu-item>
                       <span>Add Index</span>
                     </button>
                   </mat-menu>
@@ -139,8 +171,8 @@
         </div>
         <div class="right">
           <input
-            [(ngModel)]="searchText"
-            (ngModelChange)="filterSpannerTable($event)"
+            [(ngModel)]="spannerSearchText"
+            (ngModelChange)="filterSpannerTable()"
             placeholder="Filter by name"
           />
         </div>
@@ -151,20 +183,54 @@
           <ng-container matColumnDef="status">
             <th mat-header-cell *matHeaderCellDef>Status</th>
             <td mat-cell *matCellDef="let data">
-              <mat-icon *ngIf="data.status === 'BLUE'" class="icon danger"> error </mat-icon>
-              <mat-icon *ngIf="data.status === 'YELLOW'" class="icon warning"> warning </mat-icon>
-              <mat-icon *ngIf="data.status === 'GREEN'" class="icon success">
+              <mat-icon
+                *ngIf="data.status === 'GREEN' || data.status === 'GRAY'"
+                class="icon success"
+                matTooltip="Can be converted automatically"
+                matTooltipPosition="above"
+              >
                 check_circle
               </mat-icon>
-              <mat-icon *ngIf="data.status === 'ORANGE'" class="icon orange">
-                check_circle
+              <mat-icon
+                *ngIf="data.status === 'YELLOW' || data.status === 'BLUE'"
+                class="icon warning"
+                matTooltip="Requires minimal conversion changes"
+                matTooltipPosition="above"
+              >
+                warning
+              </mat-icon>
+              <mat-icon
+                *ngIf="data.status === 'ORANGE'"
+                class="icon orange"
+                matTooltip="Requires high complexity conversion changes"
+                matTooltipPosition="above"
+              >
+                error
               </mat-icon>
               <mat-icon *ngIf="data.status === 'GRAY'" class="icon gray"> delete </mat-icon>
             </td>
           </ng-container>
           <ng-container matColumnDef="name">
-            <th mat-header-cell *matHeaderCellDef>
-              <span style="text-align: center"> Object Name </span>
+            <th
+              mat-header-cell
+              *matHeaderCellDef
+              (click)="spannerTableSort()"
+              class="mat-header-cell-name cursor-pointer"
+            >
+              <div>
+                <span> Object Name </span>
+                <mat-icon
+                  class="spanner-unsorted-icon sort-icon"
+                  *ngIf="this.spannerSortOrder === ''"
+                  >arrow_upward</mat-icon
+                >
+                <mat-icon *ngIf="this.spannerSortOrder === 'asc'" class="sort-icon"
+                  >arrow_upward</mat-icon
+                >
+                <mat-icon *ngIf="this.spannerSortOrder === 'desc'" class="sort-icon"
+                  >arrow_downward</mat-icon
+                >
+              </div>
             </th>
             <td
               mat-cell
@@ -250,7 +316,7 @@
                 <span class="actions" *ngIf="isIndexNode(data.type)">
                   <mat-icon class="add-index-icon" [matMenuTriggerFor]="menu">more_vert</mat-icon>
                   <mat-menu #menu="matMenu" xPosition="before">
-                    <button mat-menu-item (click)="openAddIndexForm()">
+                    <button mat-menu-item (click)="openAddIndexForm(data.parent)">
                       <span>Add Index</span>
                     </button>
                   </mat-menu>

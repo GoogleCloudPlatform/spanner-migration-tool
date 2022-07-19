@@ -39,8 +39,8 @@
       <svg
         *ngIf="currentObject!.type === ObjectExplorerNodeType.Index"
         class="icon"
-        width="12"
-        height="14"
+        width="18"
+        height="20"
         viewBox="0 0 12 14"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
@@ -114,7 +114,7 @@
           </ng-container>
 
           <ng-container matColumnDef="spDatabase">
-            <th mat-header-cell *matHeaderCellDef class="db_name" colspan="5">
+            <th mat-header-cell *matHeaderCellDef class="db_name" colspan="6">
               <div class="spanner_edit-button">
                 <span>Spanner</span>
                 <div *ngIf="!isEditMode && !currentObject.isDeleted">
@@ -698,23 +698,57 @@
       </div>
     </mat-tab>
 
+    <mat-tab
+      label="INTERLEAVE"
+      *ngIf="
+        (interleaveStatus.tableInterleaveStatus &&
+          interleaveStatus.tableInterleaveStatus.Possible) ||
+        this.interleaveParentName !== null
+      "
+    >
+      <div class="interleave-tab-container">
+        <button
+          *ngIf="
+            interleaveStatus.tableInterleaveStatus &&
+            interleaveStatus.tableInterleaveStatus.Possible &&
+            this.interleaveParentName === null
+          "
+          mat-raised-button
+          color="primary"
+          (click)="setInterleave()"
+        >
+          Convert to Interleave
+        </button>
+        <button
+          *ngIf="
+            (interleaveStatus.tableInterleaveStatus &&
+              !interleaveStatus.tableInterleaveStatus.Possible) ||
+            this.interleaveParentName !== null
+          "
+          mat-raised-button
+          color="primary"
+          (click)="convertToFk()"
+        >
+          Convert Back to Foreign Key
+        </button>
+      </div>
+    </mat-tab>
+
     <mat-tab label="SQL" *ngIf="currentObject!.isSpannerNode && !currentObject!.isDeleted">
       <div class="ddl_container">
-        <pre>
-          <code>{{ddlStmts[currentObject!.name]}}</code>
-        </pre>
+        <pre><code>{{ddlStmts[currentObject!.name]}}</code></pre>
       </div>
     </mat-tab>
   </mat-tab-group>
 
-  <div *ngIf="currentObject!.type === 'indexName'" class="column-tab-container">
+  <div *ngIf="currentObject!.type === 'indexName'" class="index-tab-container">
     <table mat-table [dataSource]="dataSource">
       <ng-container matColumnDef="srcDatabase">
-        <th mat-header-cell class="db_name" *matHeaderCellDef colspan="2">{{ srcDbName }}</th>
+        <th mat-header-cell class="db_name" *matHeaderCellDef colspan="3">{{ srcDbName }}</th>
       </ng-container>
 
       <ng-container matColumnDef="spDatabase">
-        <th mat-header-cell *matHeaderCellDef class="db_name" colspan="2">
+        <th mat-header-cell *matHeaderCellDef class="db_name" colspan="4">
           <div class="spanner_edit-button">
             <span>Spanner</span>
 
@@ -728,24 +762,43 @@
         </th>
       </ng-container>
 
-      <ng-container matColumnDef="srcIndexOrder">
-        <th class="table_header" mat-header-cell *matHeaderCellDef>Sort Order</th>
-        <td mat-cell *matCellDef="let element">
-          {{ element.get('srcOrder').value }}
-        </td>
-      </ng-container>
-
       <ng-container matColumnDef="srcIndexColName">
         <th class="table_header" mat-header-cell *matHeaderCellDef>Column</th>
         <td mat-cell *matCellDef="let element">
           {{ element.get('srcColName').value }}
         </td>
       </ng-container>
-
-      <ng-container matColumnDef="spIndexOrder">
-        <th class="table_header" mat-header-cell *matHeaderCellDef>Sort Order</th>
+      <ng-container matColumnDef="srcSortBy">
+        <th mat-header-cell class="table_header" *matHeaderCellDef>Sort By</th>
         <td mat-cell *matCellDef="let element">
-          <div *ngIf="isIndexEditMode && element.get('spOrder').value !== ''">
+          <p *ngIf="element.get('srcDesc').value">Desc</p>
+          <p *ngIf="element.get('srcDesc').value === false">Asc</p>
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="srcIndexOrder">
+        <th class="table_header" mat-header-cell *matHeaderCellDef>Column Order</th>
+        <td mat-cell *matCellDef="let element">
+          {{ element.get('srcOrder').value }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="spIndexColName">
+        <th mat-header-cell class="table_header" *matHeaderCellDef>Column</th>
+        <td mat-cell *matCellDef="let element">
+          <p *ngIf="element.get('spColName').value">{{ element.get('spColName').value }}</p>
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="spSortBy">
+        <th mat-header-cell class="table_header" *matHeaderCellDef>Sort By</th>
+        <td mat-cell *matCellDef="let element">
+          <p *ngIf="element.get('spDesc').value">Desc</p>
+          <p *ngIf="element.get('spDesc').value === false">Asc</p>
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="spIndexOrder">
+        <th class="table_header" mat-header-cell *matHeaderCellDef>Column Order</th>
+        <td mat-cell *matCellDef="let element">
+          <div *ngIf="isIndexEditMode && element.get('spOrder').value">
             <input
               matInput
               class="order_input"
@@ -757,44 +810,57 @@
           <p *ngIf="!isIndexEditMode">{{ element.get('spOrder').value }}</p>
         </td>
       </ng-container>
-
-      <ng-container matColumnDef="spIndexColName">
-        <th mat-header-cell class="table_header" *matHeaderCellDef>Column</th>
-        <td mat-cell *matCellDef="let element">
-          <p>{{ element.get('spColName').value }}</p>
+      <ng-container matColumnDef="dropButton">
+        <th mat-header-cell class="table_header" *matHeaderCellDef></th>
+        <td
+          mat-cell
+          *matCellDef="let element; let i = index"
+          [ngClass]="{ 'drop-button-left-border': isIndexEditMode }"
+        >
+          <div *ngIf="isIndexEditMode && element.get('spColName').value">
+            <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
+            <mat-menu #menu="matMenu" xPosition="before">
+              <button mat-menu-item (click)="dropIndexKey(i)">
+                <span>Drop Index Key</span>
+              </button>
+            </mat-menu>
+          </div>
         </td>
       </ng-container>
 
       <tr mat-header-row *matHeaderRowDef="['srcDatabase', 'spDatabase']"></tr>
       <tr mat-header-row *matHeaderRowDef="indexDisplayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: indexDisplayedColumns"></tr>
+      <tr mat-row class="index-data-row" *matRowDef="let row; columns: indexDisplayedColumns"></tr>
     </table>
-
-    <div [formGroup]="addIndexColumnForm" *ngIf="isIndexEditMode" class="add-index-column">
-      <mat-form-field appearance="outline" class="column-list">
+    <div
+      [formGroup]="addIndexKeyForm"
+      *ngIf="isIndexEditMode && indexColumnNames.length > 0"
+      class="add-index-column-container"
+    >
+      <mat-form-field appearance="outline" class="index-column-list">
         <mat-label>Column Name</mat-label>
-        <mat-select
-          matSelect
-          class="input-field"
-          (selectionChange)="setIndexColumn($event.value)"
-          formControlName="columnName"
-          required="true"
-        >
+        <mat-select matSelect class="input-field" formControlName="columnName">
           <mat-option *ngFor="let column of indexColumnNames" [value]="column">{{
             column
           }}</mat-option>
         </mat-select>
       </mat-form-field>
-
+      <mat-form-field appearance="outline" class="index-column-order">
+        <mat-label>Sort By</mat-label>
+        <mat-select matSelect class="input-field" formControlName="ascOrDesc">
+          <mat-option value="asc">Ascending</mat-option>
+          <mat-option value="desc">Descending</mat-option>
+        </mat-select>
+      </mat-form-field>
       <button
-        mat-button
+        mat-raised-button
         color="primary"
-        class="add-column-btn"
-        type="button"
-        (click)="addIndexColumn()"
+        type="submit"
+        [disabled]="!addIndexKeyForm.valid"
+        (click)="addIndexKey()"
       >
         <mat-icon>add</mat-icon>
-        ADD COLUMN
+        <span> ADD COLUMN</span>
       </button>
     </div>
   </div>

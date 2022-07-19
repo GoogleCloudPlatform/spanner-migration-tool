@@ -75,8 +75,10 @@ export class FetchService {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/rename/fks?table=${tableName}`, payload)
   }
 
-  removeFk(tableName: string, pos: number): any {
-    return this.http.get<HttpResponse<IConv>>(`${this.url}/drop/fk?table=${tableName}&pos=${pos}`)
+  removeFk(tableName: string, fkName: string): any {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/fk?table=${tableName}`, {
+      Name: fkName,
+    })
   }
 
   getSessions() {
@@ -121,8 +123,14 @@ export class FetchService {
     return this.http.post<IConv>(`${this.url}/add/indexes?table=${tableName}`, payload)
   }
 
-  dropIndex(tableName: string, idx: number) {
-    return this.http.get<IConv>(`${this.url}/drop/secondaryindex?table=${tableName}&pos=${idx}`)
+  updateIndex(tableName: string, payload: ICreateIndex[]) {
+    return this.http.post<IConv>(`${this.url}/update/indexes?table=${tableName}`, payload)
+  }
+
+  dropIndex(tableName: string, indexName: string) {
+    return this.http.post<IConv>(`${this.url}/drop/secondaryindex?table=${tableName}`, {
+      Name: indexName,
+    })
   }
 
   getInterleaveStatus(tableName: string) {

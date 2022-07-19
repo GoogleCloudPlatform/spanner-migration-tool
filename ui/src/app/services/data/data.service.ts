@@ -12,6 +12,7 @@ import ISession from 'src/app/model/session'
 import ISpannerConfig from '../../model/spanner-config'
 import { SnackbarService } from '../snackbar/snackbar.service'
 import ISummary from 'src/app/model/summary'
+import { ClickEventService } from '../click-event/click-event.service'
 
 @Injectable({
   providedIn: 'root',
@@ -46,7 +47,11 @@ export class DataService {
     .asObservable()
     .pipe(filter((res) => Object.keys(res).length !== 0))
 
-  constructor(private fetch: FetchService, private snackbar: SnackbarService) {
+  constructor(
+    private fetch: FetchService,
+    private snackbar: SnackbarService,
+    private clickEvent: ClickEventService
+  ) {
     let inputType = localStorage.getItem(StorageKeys.Type) as string
     let config: unknown = localStorage.getItem(StorageKeys.Config)
 
@@ -64,6 +69,11 @@ export class DataService {
       case InputType.SessionFile:
         if (config !== null) {
           this.getSchemaConversionFromSession(config as ISessionConfig)
+        }
+        break
+      case InputType.ResumeSession:
+        if (config !== null) {
+          this.getSchemaConversionFromResumeSession(config as string)
         }
         break
 
@@ -113,6 +123,7 @@ export class DataService {
         this.convSubject.next(res)
       },
       error: (err: any) => {
+        this.clickEvent.closeDatabaseLoader()
         this.snackbar.openSnackBar(err.error, 'Close')
       },
     })
@@ -125,6 +136,7 @@ export class DataService {
       },
       error: (err: any) => {
         this.snackbar.openSnackBar(err.error, 'Close')
+        this.clickEvent.closeDatabaseLoader()
       },
     })
   }
@@ -159,7 +171,6 @@ export class DataService {
         this.ddlSub.next(ddl)
       })
   }
-
   getSummary() {
     return this.fetch.getSummary().subscribe({
       next: (summary: any) => {
@@ -179,6 +190,7 @@ export class DataService {
           return data.error
         } else {
           this.convSubject.next(data)
+          this.getDdl()
           return ''
         }
       })
@@ -238,8 +250,8 @@ export class DataService {
     )
   }
 
-  dropFk(tableName: string, pos: number) {
-    return this.fetch.removeFk(tableName, pos).pipe(
+  dropFk(tableName: string, fkName: string) {
+    return this.fetch.removeFk(tableName, fkName).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),
@@ -277,6 +289,8 @@ export class DataService {
       next: (data: any) => {
         this.convSubject.next(data)
         this.snackbar.openSnackBar('Global datatype updated successfully', 'Close', 5)
+        this.getSummary()
+        this.getDdl()
       },
       error: (err: any) => {
         this.snackbar.openSnackBar('Unable to add rule', 'Close')
@@ -298,6 +312,7 @@ export class DataService {
     this.fetch.addIndex(tableName, payload).subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
+        this.getDdl()
         this.snackbar.openSnackBar('Added new index.', 'Close', 5)
       },
       error: (err: any) => {
@@ -305,9 +320,21 @@ export class DataService {
       },
     })
   }
+  updateIndex(tableName: string, payload: ICreateIndex[]) {
+    this.fetch.updateIndex(tableName, payload).subscribe({
+      next: (res: IConv) => {
+        this.convSubject.next(res)
+        this.getDdl()
+        this.snackbar.openSnackBar('Index updated successfully.', 'Close', 5)
+      },
+      error: (err: any) => {
+        this.snackbar.openSnackBar(err.error, 'Close')
+      },
+    })
+  }
 
-  dropIndex(tableName: string, pos: number): Observable<string> {
-    return this.fetch.dropIndex(tableName, pos).pipe(
+  dropIndex(tableName: string, indexName: string): Observable<string> {
+    return this.fetch.dropIndex(tableName, indexName).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),
@@ -318,6 +345,7 @@ export class DataService {
           return data.error
         } else {
           this.convSubject.next(data)
+          this.getDdl()
           this.snackbar.openSnackBar('Index dropped successfully', 'Close', 5)
           return ''
         }

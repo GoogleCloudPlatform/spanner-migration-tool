@@ -11,7 +11,7 @@ import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import FlatNode from 'src/app/model/schema-object-node'
 import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
-import IConv, { IPrimaryKey } from 'src/app/model/conv'
+import IConv, { ICreateIndex, IPrimaryKey } from 'src/app/model/conv'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
 import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/drop-index-or-table-dialog.component'
 
@@ -86,7 +86,15 @@ export class ObjectDetailComponent implements OnInit {
     'dropButton',
   ]
 
-  indexDisplayedColumns = ['srcIndexColName', 'srcIndexOrder', 'spIndexColName', 'spIndexOrder']
+  indexDisplayedColumns = [
+    'srcIndexColName',
+    'srcSortBy',
+    'srcIndexOrder',
+    'spIndexColName',
+    'spSortBy',
+    'spIndexOrder',
+    'dropButton',
+  ]
   dataSource: any = []
   fkDataSource: any = []
   pkDataSource: any = []
@@ -110,10 +118,12 @@ export class ObjectDetailComponent implements OnInit {
   addColumnForm = new FormGroup({
     columnName: new FormControl('', [Validators.required]),
   })
-  addPkColumnForm = new FormGroup({
+  addIndexKeyForm = new FormGroup({
     columnName: new FormControl('', [Validators.required]),
+    ascOrDesc: new FormControl('', [Validators.required]),
   })
-  addIndexColumnForm = new FormGroup({
+  addedPkColumnName: string = ''
+  addPkColumnForm = new FormGroup({
     columnName: new FormControl('', [Validators.required]),
   })
   pkObj: IPrimaryKey = {} as IPrimaryKey
@@ -448,11 +458,11 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setPkColumn(columnName: string) {
-    this.addedColumnName = columnName
+    this.addedPkColumnName = columnName
   }
 
   addPkColumn() {
-    let index = this.tableData.map((item) => item.spColName).indexOf(this.addedColumnName)
+    let index = this.tableData.map((item) => item.spColName).indexOf(this.addedPkColumnName)
     let newColumnOrder = 1
     this.tableData[index].spIsPk = true
     this.pkData = []
@@ -550,7 +560,6 @@ export class ObjectDetailComponent implements OnInit {
     })
     this.pkObj.TableId = tableId
     this.pkObj.Columns = Columns
-    console.log(this.pkObj)
   }
 
   togglePkEdit() {
@@ -665,8 +674,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropFk(element: any) {
-    let ind: number = this.getRemovedFkIndex(element)
-    this.data.dropFk(this.currentObject!.name, ind).subscribe({
+    this.data.dropFk(this.currentObject!.name, element.get('spName').value).subscribe({
       next: (res: string) => {
         if (res == '') {
           this.data.getDdl()
@@ -725,14 +733,25 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setIndexRows() {
-    this.indexColumnNames = this.conv.SpSchema[this.currentObject!.parent].ColNames
+    const addedIndexColumns = this.indexData.map((data) => data.spColName)
+    this.indexColumnNames = this.conv.SpSchema[this.currentObject!.parent].ColNames.filter(
+      (columnName) => {
+        if (addedIndexColumns.includes(columnName)) {
+          return false
+        } else {
+          return true
+        }
+      }
+    )
     this.indexData.forEach((row: IIndexData) => {
       this.rowArray.push(
         new FormGroup({
           srcOrder: new FormControl(row.srcOrder),
           srcColName: new FormControl(row.srcColName),
+          srcDesc: new FormControl(row.srcDesc),
           spOrder: new FormControl(row.spOrder),
           spColName: new FormControl(row.spColName),
+          spDesc: new FormControl(row.spDesc),
         })
       )
     })
@@ -757,7 +776,7 @@ export class ObjectDetailComponent implements OnInit {
     openDialog.afterClosed().subscribe((res: string) => {
       if (res === 'Index') {
         this.data
-          .dropIndex(this.currentObject!.parent, this.currentObject!.pos)
+          .dropIndex(this.currentObject!.parent, this.currentObject!.name)
           .pipe(take(1))
           .subscribe((res: string) => {
             if (res === '') {
@@ -769,8 +788,73 @@ export class ObjectDetailComponent implements OnInit {
       }
     })
   }
+  dropIndexKey(index: number) {
+    let payload: ICreateIndex[] = []
+    const tableName = this.currentObject?.parent || ''
+    let spIndexCount = 0
+    this.indexData.forEach((idx) => {
+      if (idx.spColName) spIndexCount += 1
+    })
+    if (spIndexCount <= 1) {
+      this.dropIndex()
+    } else {
+      payload.push({
+        Name: this.currentObject?.name || '',
+        Table: this.currentObject?.parent || '',
+        Unique: false,
+        Keys: this.indexData
+          .filter((idx, i: number) => {
+            if (i === index || idx.spColName === undefined) return false
+            return true
+          })
+          .map((col: any) => {
+            return {
+              Col: col.spColName,
+              Desc: col.spDesc,
+              Order: col.spOrder,
+            }
+          }),
+        Id: '',
+      })
+      this.data.updateIndex(tableName, payload)
+    }
+  }
 
-  setIndexColumn(columnName: string) {}
+  addIndexKey() {
+    let payload: ICreateIndex[] = []
+    const tableName = this.currentObject?.parent || ''
+    let spIndexCount = 0
+    this.indexData.forEach((idx) => {
+      if (idx.spColName) spIndexCount += 1
+    })
+    payload.push({
+      Name: this.currentObject?.name || '',
+      Table: this.currentObject?.parent || '',
+      Unique: false,
+      Keys: this.indexData
+        .filter((idx) => {
+          if (idx.spColName) return true
+          return false
+        })
+        .map((col: any) => {
+          return {
+            Col: col.spColName,
+            Desc: col.spDesc,
+            Order: col.spOrder,
+          }
+        }),
+      Id: '',
+    })
+    payload[0].Keys.push({
+      Col: this.addIndexKeyForm.value.columnName,
+      Desc: this.addIndexKeyForm.value.ascOrDesc === 'desc',
+      Order: spIndexCount + 1,
+    })
+    this.data.updateIndex(tableName, payload)
+    this.addIndexKeyForm.controls['columnName'].setValue('')
+    this.addIndexKeyForm.controls['ascOrDesc'].setValue('')
+    this.addIndexKeyForm.markAsUntouched()
+  }
 
   dropTable() {
     let openDialog = this.dialog.open(DropIndexOrTableDialogComponent, {
