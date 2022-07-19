@@ -14,7 +14,8 @@ export class ConversionService {
   createTreeNode(
     conv: IConv,
     conversionRates: Record<string, string>,
-    searchText: string = ''
+    searchText: string = '',
+    sortOrder: string = ''
   ): ISchemaObjectNode[] {
     let spannerTableNames = Object.keys(conv.SpSchema).filter((name: string) =>
       name.toLocaleLowerCase().includes(searchText.toLocaleLowerCase())
@@ -39,7 +40,7 @@ export class ConversionService {
               name: `Indexes (${spannerTable.Indexes ? spannerTable.Indexes.length : 0})`,
               status: '',
               type: ObjectExplorerNodeType.Indexes,
-              parent: '',
+              parent: name,
               pos: -1,
               isSpannerNode: true,
               children: spannerTable.Indexes
@@ -58,6 +59,12 @@ export class ConversionService {
         }
       }),
     }
+    if (sortOrder === 'asc') {
+      parentNode.children?.sort((a, b) => (a.name > b.name ? 1 : b.name > a.name ? -1 : 0))
+    } else if (sortOrder === 'desc') {
+      parentNode.children?.sort((a, b) => (b.name > a.name ? 1 : a.name > b.name ? -1 : 0))
+    }
+
     return [
       {
         name: conv.DatabaseName,
@@ -73,7 +80,8 @@ export class ConversionService {
   createTreeNodeForSource(
     conv: IConv,
     conversionRates: Record<string, string>,
-    searchText: string = ''
+    searchText: string = '',
+    sortOrder: string = ''
   ): ISchemaObjectNode[] {
     let srcTableNames = Object.keys(conv.SrcSchema).filter((name: string) =>
       name.toLocaleLowerCase().includes(searchText.toLocaleLowerCase())
@@ -100,7 +108,7 @@ export class ConversionService {
               name: `Indexes (${srcTable.Indexes?.length || '0'})`,
               status: '',
               type: ObjectExplorerNodeType.Indexes,
-              parent: '',
+              parent: name,
               pos: -1,
               isSpannerNode: false,
               children: srcTable.Indexes
@@ -118,6 +126,11 @@ export class ConversionService {
           ],
         }
       }),
+    }
+    if (sortOrder === 'asc') {
+      parentNode.children?.sort((a, b) => (a.name > b.name ? 1 : b.name > a.name ? -1 : 0))
+    } else if (sortOrder === 'desc') {
+      parentNode.children?.sort((a, b) => (b.name > a.name ? 1 : a.name > b.name ? -1 : 0))
     }
 
     return [
@@ -207,12 +220,34 @@ export class ConversionService {
 
     let res: IIndexData[] = spIndex.Keys.map((idx: IIndexKey, i: number) => {
       return {
-        srcColName: srcIndexs && srcIndexs.length > 0 ? srcIndexs[0].Keys[i].Column : '',
-        srcOrder: srcIndexs && srcIndexs.length > 0 ? i + 1 : '',
+        srcColName:
+          srcIndexs && srcIndexs.length > 0 && srcIndexs[0].Keys.length > i
+            ? srcIndexs[0].Keys[i].Column
+            : '',
+        srcOrder: srcIndexs && srcIndexs.length > 0 && srcIndexs[0].Keys.length > i ? i + 1 : '',
+        srcDesc:
+          srcIndexs && srcIndexs.length > 0 && srcIndexs[0].Keys.length > i
+            ? srcIndexs[0].Keys[i].Desc
+            : undefined,
         spColName: idx.Col,
         spOrder: i + 1,
+        spDesc: idx.Desc,
       }
     })
+    if (srcIndexs && srcIndexs[0] && spIndex.Keys.length < srcIndexs[0].Keys.length) {
+      srcIndexs[0].Keys.forEach((idx, index) => {
+        if (index >= spIndex.Keys.length) {
+          res.push({
+            srcColName: idx.Column,
+            srcOrder: index + 1,
+            srcDesc: idx.Desc,
+            spColName: undefined,
+            spOrder: undefined,
+            spDesc: undefined,
+          })
+        }
+      })
+    }
     return res
   }
 }

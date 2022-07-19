@@ -36,33 +36,40 @@ func GetSpannerUri(projectId string, instanceId string) string {
 	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, GetMetadataDbName())
 }
 
-func CheckOrCreateMetadataDb(projectId string, instanceId string) bool {
+func CheckOrCreateMetadataDb(projectId string, instanceId string) (isExist bool, isDbCreated bool) {
 	uri := GetSpannerUri(projectId, instanceId)
 	if uri == "" {
 		fmt.Println("Invalid spanner uri")
-		return false
+		return
 	}
 
 	ctx := context.Background()
 	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	defer adminClient.Close()
 
 	dbExists, err := conversion.CheckExistingDb(ctx, adminClient, uri)
 	if err != nil {
 		fmt.Println(err)
-		return false
+		return
 	}
 	if dbExists {
-		return true
+		isExist = true
+		return
 	}
 
-	fmt.Println("No existing database found to store session metadata.")
 	err = createDatabase(ctx, uri)
 	if err != nil {
 		fmt.Println(err)
-		return false
+		return
 	}
-	return true
+	fmt.Println("No existing database found to store session metadata.")
+	isDbCreated = true
+	isExist = true
+	return
 }
 
 func createDatabase(ctx context.Context, uri string) error {
@@ -87,10 +94,10 @@ func createDatabase(ctx context.Context, uri string) error {
 				VersionId STRING(36) NOT NULL,
 				PreviousVersionId ARRAY<STRING(36)>,
 				SessionName STRING(50) NOT NULL,
-				EditorName STRING(100) NOT NULL,
+				EditorName STRING(100),
 				DatabaseType STRING(50) NOT NULL,
 				DatabaseName STRING(50) NOT NULL,
-				Notes ARRAY<STRING(MAX)> NOT NULL,
+				Notes ARRAY<STRING(MAX)>,
 				Tags ARRAY<STRING(20)>,
 				SchemaChanges STRING(MAX),
 				SchemaConversionObject JSON NOT NULL,

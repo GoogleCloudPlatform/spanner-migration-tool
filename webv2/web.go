@@ -479,8 +479,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	table := r.FormValue("table")
 
-	fmt.Println("updateTableSchema getting called")
-
 	err = json.Unmarshal(reqBody, &t)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
@@ -492,7 +490,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 		if v.Removed {
 			status, err := canRemoveColumn(colName, table)
 			if err != nil {
-				err = rollback(err)
 				http.Error(w, fmt.Sprintf("%v", err), status)
 				return
 			}
@@ -501,7 +498,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 		if v.Rename != "" && v.Rename != colName {
 			if status, err := canRenameOrChangeType(colName, table); err != nil {
-				err = rollback(err)
 				http.Error(w, fmt.Sprintf("%v", err), status)
 				return
 			}
@@ -522,7 +518,6 @@ func updateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			if typeChange {
 				if status, err := canRenameOrChangeType(colName, table); err != nil {
-					err = rollback(err)
 					http.Error(w, fmt.Sprintf("%v", err), status)
 					return
 				}
@@ -730,23 +725,40 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 	return tableInterleaveStatus
 }
 
+type DropDetail struct {
+	Name string `json:"Name"`
+}
+
 func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
-	pos := r.FormValue("pos")
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	}
+
+	var dropDetail DropDetail
+	if err = json.Unmarshal(reqBody, &dropDetail); err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+
 	sessionState := session.GetSessionState()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
-	if table == "" || pos == "" {
-		http.Error(w, fmt.Sprintf("Table name or position is empty"), http.StatusBadRequest)
+	if table == "" || dropDetail.Name == "" {
+		http.Error(w, fmt.Sprintf("Table name or foreign key name is empty"), http.StatusBadRequest)
 	}
 	sp := sessionState.Conv.SpSchema[table]
-	position, err := strconv.Atoi(pos)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error converting position to integer"), http.StatusBadRequest)
-		return
+	position := -1
+	for i, fk := range sp.Fks {
+		if dropDetail.Name == fk.Name {
+			position = i
+			break
+		}
 	}
+
 	if position < 0 || position >= len(sp.Fks) {
 		http.Error(w, fmt.Sprintf("No foreign key found at position %d", position), http.StatusBadRequest)
 		return
@@ -951,6 +963,70 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
+func updateIndexes(w http.ResponseWriter, r *http.Request) {
+	table := r.FormValue("table")
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	}
+
+	newIndexes := []ddl.CreateIndex{}
+	if err = json.Unmarshal(reqBody, &newIndexes); err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+
+	sessionState := session.GetSessionState()
+	sp := sessionState.Conv.SpSchema[table]
+
+	st := sessionState.Conv.SrcSchema[table]
+
+	for i, index := range sp.Indexes {
+
+		if index.Table == newIndexes[0].Table && index.Name == newIndexes[0].Name {
+
+			sp.Indexes[i].Keys = newIndexes[0].Keys
+			sp.Indexes[i].Name = newIndexes[0].Name
+			sp.Indexes[i].Table = newIndexes[0].Table
+			sp.Indexes[i].Unique = newIndexes[0].Unique
+
+			break
+		}
+	}
+
+	for i, spIndex := range sp.Indexes {
+
+		for j, srcIndex := range st.Indexes {
+
+			for k, spIndexKey := range spIndex.Keys {
+
+				for l, srcIndexKey := range srcIndex.Keys {
+
+					if srcIndexKey.Column == spIndexKey.Col {
+
+						st.Indexes[j].Keys[l].Order = sp.Indexes[i].Keys[k].Order
+					}
+
+				}
+			}
+
+		}
+	}
+
+	sessionState.Conv.SpSchema[table] = sp
+
+	sessionState.Conv.SrcSchema[table] = st
+
+	helpers.UpdateSessionFile()
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+}
+
 func checkSpannerNamesValidity(input []string) (bool, []string) {
 	status := true
 	var invalidNewNames []string
@@ -1000,19 +1076,30 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 
 	table := r.FormValue("table")
-	pos := r.FormValue("pos")
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	}
+
+	var dropDetail DropDetail
+	if err = json.Unmarshal(reqBody, &dropDetail); err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
-	if table == "" || pos == "" {
+	if table == "" || dropDetail.Name == "" {
 		http.Error(w, fmt.Sprintf("Table name or position is empty"), http.StatusBadRequest)
 	}
 	sp := sessionState.Conv.SpSchema[table]
-	position, err := strconv.Atoi(pos)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error converting position to integer"), http.StatusBadRequest)
-		return
+	position := -1
+	for i, index := range sp.Indexes {
+		if dropDetail.Name == index.Name {
+			position = i
+			break
+		}
 	}
 	if position < 0 || position >= len(sp.Indexes) {
 		http.Error(w, fmt.Sprintf("No secondary index found at position %d", position), http.StatusBadRequest)

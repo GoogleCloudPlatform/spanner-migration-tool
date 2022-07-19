@@ -153,6 +153,8 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 	}{
 		{"Warning", warning},
 		{"Note", note},
+		{"Suggestion", suggestion},
+		{"Error", errors},
 	} {
 		// Print out issues is alphabetical column order.
 		var cols []string
@@ -345,6 +347,8 @@ type severity int
 const (
 	warning severity = iota
 	note
+	suggestion
+	errors
 )
 
 // AnalyzeCols returns information about the quality of schema mappings
