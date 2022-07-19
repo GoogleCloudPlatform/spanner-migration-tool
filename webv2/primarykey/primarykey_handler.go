@@ -22,8 +22,8 @@ import (
 	"net/http"
 
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	updateSessionFile "github.com/cloudspannerecosystem/harbourbridge/webv2/updateSessionFile"
 
 	"github.com/google/uuid"
 )
@@ -114,7 +114,7 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	helpers.UpdateSessionFile()
+	updateSessionFile.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,

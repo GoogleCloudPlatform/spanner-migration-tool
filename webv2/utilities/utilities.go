@@ -17,12 +17,16 @@ package utilities
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"reflect"
 	"regexp"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
-	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
@@ -34,35 +38,6 @@ func GetMetadataDbName() string {
 
 func GetSpannerUri(projectId string, instanceId string) string {
 	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, GetMetadataDbName())
-}
-
-func CheckOrCreateMetadataDb(projectId string, instanceId string) bool {
-	uri := GetSpannerUri(projectId, instanceId)
-	if uri == "" {
-		fmt.Println("Invalid spanner uri")
-		return false
-	}
-
-	ctx := context.Background()
-	adminClient, err := database.NewDatabaseAdminClient(ctx)
-	defer adminClient.Close()
-
-	dbExists, err := conversion.CheckExistingDb(ctx, adminClient, uri)
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
-	if dbExists {
-		return true
-	}
-
-	fmt.Println("No existing database found to store session metadata.")
-	err = createDatabase(ctx, uri)
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
-	return true
 }
 
 func createDatabase(ctx context.Context, uri string) error {
@@ -210,4 +185,255 @@ func RemoveIndex(Pks []ddl.IndexKey, index int) []ddl.IndexKey {
 	list := append(Pks[:index], Pks[index+1:]...)
 
 	return list
+}
+
+func IsTypeChanged(newType, table, colName, srcTableName string) (bool, error) {
+	sp, ty, err := GetType(newType, table, colName, srcTableName)
+	if err != nil {
+		return false, err
+	}
+	colDef := sp.ColDefs[colName]
+	return !reflect.DeepEqual(colDef.T, ty), nil
+}
+
+func UpdateType(newType, table, colName, srcTableName string, w http.ResponseWriter) {
+
+	sessionState := session.GetSessionState()
+
+	sp, ty, err := GetType(newType, table, colName, srcTableName)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	fmt.Println("updating type for sp.ColDefs[colName] ", sp.ColDefs[colName], sp.ColDefs[colName].T)
+
+	colDef := sp.ColDefs[colName]
+	colDef.T = ty
+
+	sp.ColDefs[colName] = colDef
+
+	fmt.Println("updated type for sp.ColDefs[colName] ", sp.ColDefs[colName], sp.ColDefs[colName].T)
+
+	sessionState.Conv.SpSchema[table] = sp
+
+	//todo
+	for i, _ := range sp.Fks {
+
+		relationTable := sp.Fks[i].ReferTable
+
+		srcTableName := sessionState.Conv.ToSource[relationTable].Name
+
+		rsp, ty, err := GetType(newType, relationTable, colName, srcTableName)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		fmt.Println("updating type for rsp.ColDefs[colName] ", rsp.ColDefs[colName], rsp.ColDefs[colName].T)
+
+		colDef := rsp.ColDefs[colName]
+		colDef.T = ty
+
+		rsp.ColDefs[colName] = colDef
+
+		fmt.Println("updated type for rsp.ColDefs[colName] ", rsp.ColDefs[colName], rsp.ColDefs[colName].T)
+
+		sessionState.Conv.SpSchema[table] = rsp
+	}
+
+	//todo
+	// update interleave table relation
+	isParent, childSchema := IsParent(table)
+
+	if isParent {
+
+		srcTableName := sessionState.Conv.ToSource[childSchema].Name
+
+		childSp, ty, err := GetType(newType, childSchema, colName, srcTableName)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		fmt.Println("updating type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
+
+		colDef := childSp.ColDefs[colName]
+		colDef.T = ty
+
+		childSp.ColDefs[colName] = colDef
+
+		fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
+
+		sessionState.Conv.SpSchema[table] = childSp
+
+	}
+
+	//todo
+	isChild := sessionState.Conv.SpSchema[table].Parent
+
+	if isChild != "" {
+
+		srcTableName := sessionState.Conv.ToSource[isChild].Name
+
+		childSp, ty, err := GetType(newType, isChild, colName, srcTableName)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		fmt.Println("updating type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
+
+		colDef := childSp.ColDefs[colName]
+		colDef.T = ty
+
+		childSp.ColDefs[colName] = colDef
+
+		fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
+
+		sessionState.Conv.SpSchema[table] = childSp
+	}
+}
+
+func GetType(newType, table, colName string, srcTableName string) (ddl.CreateTable, ddl.Type, error) {
+	sessionState := session.GetSessionState()
+
+	sp := sessionState.Conv.SpSchema[table]
+	srcColName := sessionState.Conv.ToSource[table].Cols[colName]
+	srcCol := sessionState.Conv.SrcSchema[srcTableName].ColDefs[srcColName]
+	var ty ddl.Type
+	var issues []internal.SchemaIssue
+	switch sessionState.Driver {
+	case constants.MYSQL, constants.MYSQLDUMP:
+		ty, issues = ToSpannerTypeMySQL(srcCol.Type.Name, newType, srcCol.Type.Mods)
+	case constants.PGDUMP, constants.POSTGRES:
+		ty, issues = ToSpannerTypePostgres(srcCol.Type.Name, newType, srcCol.Type.Mods)
+	case constants.SQLSERVER:
+		ty, issues = ToSpannerTypeSQLserver(srcCol.Type.Name, newType, srcCol.Type.Mods)
+	case constants.ORACLE:
+		ty, issues = oracle.ToSpannerTypeWeb(sessionState.Conv, newType, srcCol.Type.Name, srcCol.Type.Mods)
+	default:
+		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.Driver)
+	}
+	if len(srcCol.Type.ArrayBounds) > 1 {
+		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+		issues = append(issues, internal.MultiDimensionalArray)
+	}
+	if srcCol.Ignored.Default {
+		issues = append(issues, internal.DefaultValue)
+	}
+	if srcCol.Ignored.AutoIncrement {
+		issues = append(issues, internal.AutoIncrement)
+	}
+	if sessionState.Conv.Issues != nil && len(issues) > 0 {
+		sessionState.Conv.Issues[srcTableName][srcCol.Name] = issues
+	}
+	ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
+	return sp, ty, nil
+}
+
+func UpdateNotNull(notNullChange, table, colName string) {
+	sessionState := session.GetSessionState()
+
+	sp := sessionState.Conv.SpSchema[table]
+	switch notNullChange {
+	case "ADDED":
+		spColDef := sp.ColDefs[colName]
+		spColDef.NotNull = true
+		sp.ColDefs[colName] = spColDef
+	case "REMOVED":
+		spColDef := sp.ColDefs[colName]
+		spColDef.NotNull = false
+		sp.ColDefs[colName] = spColDef
+	}
+}
+
+func IsParent(table string) (bool, string) {
+	sessionState := session.GetSessionState()
+
+	for _, spSchema := range sessionState.Conv.SpSchema {
+		if spSchema.Parent == table {
+			return true, spSchema.Name
+		}
+	}
+	return false, ""
+}
+
+func IsPartOfPK(col, table string) bool {
+	sessionState := session.GetSessionState()
+
+	for _, pk := range sessionState.Conv.SpSchema[table].Pks {
+		if pk.Col == col {
+			return true
+		}
+	}
+	return false
+}
+
+func IsPartOfSecondaryIndex(col, table string) (bool, string) {
+	sessionState := session.GetSessionState()
+
+	for _, index := range sessionState.Conv.SpSchema[table].Indexes {
+		for _, key := range index.Keys {
+			if key.Col == col {
+				return true, index.Name
+			}
+		}
+	}
+	return false, ""
+}
+
+func IsPartOfFK(col, table string) bool {
+	sessionState := session.GetSessionState()
+
+	for _, fk := range sessionState.Conv.SpSchema[table].Fks {
+		for _, column := range fk.Columns {
+			if column == col {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// TODO: create a map to store referenced column to get
+// this information in O(1).
+// TODO:(searce) can have foreign key constraints between columns of the same table, as well as between same column on a given table.
+func IsReferencedByFK(col, table string) (bool, string) {
+	sessionState := session.GetSessionState()
+
+	for _, spSchema := range sessionState.Conv.SpSchema {
+		if table != spSchema.Name {
+			for _, fk := range spSchema.Fks {
+				if fk.ReferTable == table {
+					for _, column := range fk.ReferColumns {
+						if column == col {
+							return true, spSchema.Name
+						}
+					}
+				}
+			}
+		}
+	}
+	return false, ""
+}
+
+func Remove(slice []string, s int) []string {
+	return append(slice[:s], slice[s+1:]...)
+}
+
+func RemovePk(slice []ddl.IndexKey, s int) []ddl.IndexKey {
+	return append(slice[:s], slice[s+1:]...)
+}
+
+func RemoveFk(slice []ddl.Foreignkey, s int) []ddl.Foreignkey {
+	return append(slice[:s], slice[s+1:]...)
+}
+
+func RemoveSecondaryIndex(slice []ddl.CreateIndex, s int) []ddl.CreateIndex {
+	return append(slice[:s], slice[s+1:]...)
 }

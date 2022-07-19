@@ -1,10 +1,11 @@
-package webv2
+package updateTableSchema
 
 import (
 	"fmt"
 
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
 func removeColumn(table string, colName string, srcTableName string) {
@@ -64,7 +65,7 @@ func removeColumn(table string, colName string, srcTableName string) {
 	}
 
 	// update interleave table relation
-	isParent, childSchema := isParent(table)
+	isParent, childSchema := utilities.IsParent(table)
 
 	if isParent {
 		fmt.Println("yes", table, "is parent table")
@@ -118,7 +119,7 @@ func removeSpannerColNames(sp ddl.CreateTable, colName string) ddl.CreateTable {
 
 	for i, col := range sp.ColNames {
 		if col == colName {
-			sp.ColNames = remove(sp.ColNames, i)
+			sp.ColNames = utilities.Remove(sp.ColNames, i)
 			break
 		}
 	}
@@ -146,7 +147,7 @@ func removeSpannerPK(sp ddl.CreateTable, colName string) ddl.CreateTable {
 
 			fmt.Println("removing sp.Pks : ", i)
 
-			sp.Pks = removePk(sp.Pks, i)
+			sp.Pks = utilities.RemovePk(sp.Pks, i)
 
 			fmt.Println("removed sp.Pks : ", sp.Pks)
 

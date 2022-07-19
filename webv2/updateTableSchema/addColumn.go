@@ -1,4 +1,4 @@
-package webv2
+package updateTableSchema
 
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"

@@ -29,7 +29,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -47,10 +46,10 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
-	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
-	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
-
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+
+	//	typemap "github.com/cloudspannerecosystem/harbourbridge/webv2/typemap"
+	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
 
@@ -58,6 +57,8 @@ import (
 	primarykey "github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
 
 	uniqueid "github.com/cloudspannerecosystem/harbourbridge/webv2/uniqueid"
+
+	updateSessionFile "github.com/cloudspannerecosystem/harbourbridge/webv2/updateSessionFile"
 
 	go_ora "github.com/sijms/go-ora/v2"
 )
@@ -437,11 +438,11 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 			// column as is. Note that per-column type overrides could be lost in
 			// this process -- the mapping in typeMap always takes precendence.
 			if _, found := typeMap[srcColDef.Type.Name]; found {
-				updateType(typeMap[srcColDef.Type.Name], t, col, srcTable, w)
+				utilities.UpdateType(typeMap[srcColDef.Type.Name], t, col, srcTable, w)
 			}
 		}
 	}
-	helpers.UpdateSessionFile()
+	updateSessionFile.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -529,7 +530,7 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	tableInterleaveStatus := parentTableHelper(table, update)
 
 	index.IndexSuggestion()
-	helpers.UpdateSessionFile()
+	updateSessionFile.UpdateSessionFile()
 	w.WriteHeader(http.StatusOK)
 
 	if update {
@@ -568,7 +569,7 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				sp := sessionState.Conv.SpSchema[table]
 				sp.Parent = refTable
 				if update {
-					sp.Fks = removeFk(sp.Fks, i)
+					sp.Fks = utilities.RemoveFk(sp.Fks, i)
 				}
 				sessionState.Conv.SpSchema[table] = sp
 				break
@@ -660,9 +661,9 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("No foreign key found at position %d", position), http.StatusBadRequest)
 		return
 	}
-	sp.Fks = removeFk(sp.Fks, position)
+	sp.Fks = utilities.RemoveFk(sp.Fks, position)
 	sessionState.Conv.SpSchema[table] = sp
-	helpers.UpdateSessionFile()
+	updateSessionFile.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -730,7 +731,7 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 	sp.Fks = newFKs
 
 	sessionState.Conv.SpSchema[table] = sp
-	helpers.UpdateSessionFile()
+	updateSessionFile.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -793,7 +794,7 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 	sp.Indexes = newIndexes
 
 	sessionState.Conv.SpSchema[table] = sp
-	helpers.UpdateSessionFile()
+	updateSessionFile.UpdateSessionFile()
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
 		Conv:            *sessionState.Conv,
@@ -851,7 +852,7 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	sp.Indexes = append(sp.Indexes, newIndexes...)
 
 	sessionState.Conv.SpSchema[table] = sp
-	helpers.UpdateSessionFile()
+	updateSessionFile.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -931,9 +932,9 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 
 	index.RemoveIndexIssues(table, sp.Indexes[position])
 
-	sp.Indexes = removeSecondaryIndex(sp.Indexes, position)
+	sp.Indexes = utilities.RemoveSecondaryIndex(sp.Indexes, position)
 	sessionState.Conv.SpSchema[table] = sp
-	helpers.UpdateSessionFile()
+	updateSessionFile.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -958,76 +959,6 @@ func rollback(err error) error {
 		return fmt.Errorf("encountered error %w. rollback failed: %v", err, err2)
 	}
 	return err
-}
-
-func isPartOfPK(col, table string) bool {
-	sessionState := session.GetSessionState()
-
-	for _, pk := range sessionState.Conv.SpSchema[table].Pks {
-		if pk.Col == col {
-			return true
-		}
-	}
-	return false
-}
-
-func isParent(table string) (bool, string) {
-	sessionState := session.GetSessionState()
-
-	for _, spSchema := range sessionState.Conv.SpSchema {
-		if spSchema.Parent == table {
-			return true, spSchema.Name
-		}
-	}
-	return false, ""
-}
-
-func isPartOfSecondaryIndex(col, table string) (bool, string) {
-	sessionState := session.GetSessionState()
-
-	for _, index := range sessionState.Conv.SpSchema[table].Indexes {
-		for _, key := range index.Keys {
-			if key.Col == col {
-				return true, index.Name
-			}
-		}
-	}
-	return false, ""
-}
-
-func isPartOfFK(col, table string) bool {
-	sessionState := session.GetSessionState()
-
-	for _, fk := range sessionState.Conv.SpSchema[table].Fks {
-		for _, column := range fk.Columns {
-			if column == col {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// TODO: create a map to store referenced column to get
-// this information in O(1).
-// TODO:(searce) can have foreign key constraints between columns of the same table, as well as between same column on a given table.
-func isReferencedByFK(col, table string) (bool, string) {
-	sessionState := session.GetSessionState()
-
-	for _, spSchema := range sessionState.Conv.SpSchema {
-		if table != spSchema.Name {
-			for _, fk := range spSchema.Fks {
-				if fk.ReferTable == table {
-					for _, column := range fk.ReferColumns {
-						if column == col {
-							return true, spSchema.Name
-						}
-					}
-				}
-			}
-		}
-	}
-	return false, ""
 }
 
 func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tableInterleaveStatus *TableInterleaveStatus) bool {
@@ -1156,187 +1087,6 @@ func isUniqueName(name string) bool {
 	return true
 }
 
-func remove(slice []string, s int) []string {
-	return append(slice[:s], slice[s+1:]...)
-}
-
-func removePk(slice []ddl.IndexKey, s int) []ddl.IndexKey {
-	return append(slice[:s], slice[s+1:]...)
-}
-
-func removeFk(slice []ddl.Foreignkey, s int) []ddl.Foreignkey {
-	return append(slice[:s], slice[s+1:]...)
-}
-
-func removeSecondaryIndex(slice []ddl.CreateIndex, s int) []ddl.CreateIndex {
-	return append(slice[:s], slice[s+1:]...)
-}
-
-func updateType(newType, table, colName, srcTableName string, w http.ResponseWriter) {
-
-	sessionState := session.GetSessionState()
-
-	sp, ty, err := getType(newType, table, colName, srcTableName)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	fmt.Println("updating type for sp.ColDefs[colName] ", sp.ColDefs[colName], sp.ColDefs[colName].T)
-
-	colDef := sp.ColDefs[colName]
-	colDef.T = ty
-
-	sp.ColDefs[colName] = colDef
-
-	fmt.Println("updated type for sp.ColDefs[colName] ", sp.ColDefs[colName], sp.ColDefs[colName].T)
-
-	sessionState.Conv.SpSchema[table] = sp
-
-	//todo
-	for i, _ := range sp.Fks {
-
-		relationTable := sp.Fks[i].ReferTable
-
-		srcTableName := sessionState.Conv.ToSource[relationTable].Name
-
-		rsp, ty, err := getType(newType, relationTable, colName, srcTableName)
-
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		fmt.Println("updating type for rsp.ColDefs[colName] ", rsp.ColDefs[colName], rsp.ColDefs[colName].T)
-
-		colDef := rsp.ColDefs[colName]
-		colDef.T = ty
-
-		rsp.ColDefs[colName] = colDef
-
-		fmt.Println("updated type for rsp.ColDefs[colName] ", rsp.ColDefs[colName], rsp.ColDefs[colName].T)
-
-		sessionState.Conv.SpSchema[table] = rsp
-	}
-
-	//todo
-	// update interleave table relation
-	isParent, childSchema := isParent(table)
-
-	if isParent {
-
-		srcTableName := sessionState.Conv.ToSource[childSchema].Name
-
-		childSp, ty, err := getType(newType, childSchema, colName, srcTableName)
-
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		fmt.Println("updating type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
-
-		colDef := childSp.ColDefs[colName]
-		colDef.T = ty
-
-		childSp.ColDefs[colName] = colDef
-
-		fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
-
-		sessionState.Conv.SpSchema[table] = childSp
-
-	}
-
-	//todo
-	isChild := sessionState.Conv.SpSchema[table].Parent
-
-	if isChild != "" {
-
-		srcTableName := sessionState.Conv.ToSource[isChild].Name
-
-		childSp, ty, err := getType(newType, isChild, colName, srcTableName)
-
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		fmt.Println("updating type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
-
-		colDef := childSp.ColDefs[colName]
-		colDef.T = ty
-
-		childSp.ColDefs[colName] = colDef
-
-		fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
-
-		sessionState.Conv.SpSchema[table] = childSp
-	}
-}
-
-func isTypeChanged(newType, table, colName, srcTableName string) (bool, error) {
-	sp, ty, err := getType(newType, table, colName, srcTableName)
-	if err != nil {
-		return false, err
-	}
-	colDef := sp.ColDefs[colName]
-	return !reflect.DeepEqual(colDef.T, ty), nil
-}
-
-func getType(newType, table, colName string, srcTableName string) (ddl.CreateTable, ddl.Type, error) {
-	sessionState := session.GetSessionState()
-
-	sp := sessionState.Conv.SpSchema[table]
-	srcColName := sessionState.Conv.ToSource[table].Cols[colName]
-	srcCol := sessionState.Conv.SrcSchema[srcTableName].ColDefs[srcColName]
-	var ty ddl.Type
-	var issues []internal.SchemaIssue
-	switch sessionState.Driver {
-	case constants.MYSQL, constants.MYSQLDUMP:
-		ty, issues = toSpannerTypeMySQL(srcCol.Type.Name, newType, srcCol.Type.Mods)
-	case constants.PGDUMP, constants.POSTGRES:
-		ty, issues = toSpannerTypePostgres(srcCol.Type.Name, newType, srcCol.Type.Mods)
-	case constants.SQLSERVER:
-		ty, issues = toSpannerTypeSQLserver(srcCol.Type.Name, newType, srcCol.Type.Mods)
-	case constants.ORACLE:
-		ty, issues = oracle.ToSpannerTypeWeb(sessionState.Conv, newType, srcCol.Type.Name, srcCol.Type.Mods)
-	default:
-		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.Driver)
-	}
-	if len(srcCol.Type.ArrayBounds) > 1 {
-		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-		issues = append(issues, internal.MultiDimensionalArray)
-	}
-	if srcCol.Ignored.Default {
-		issues = append(issues, internal.DefaultValue)
-	}
-	if srcCol.Ignored.AutoIncrement {
-		issues = append(issues, internal.AutoIncrement)
-	}
-	if sessionState.Conv.Issues != nil && len(issues) > 0 {
-		sessionState.Conv.Issues[srcTableName][srcCol.Name] = issues
-	}
-	ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
-	return sp, ty, nil
-}
-
-func updateNotNull(notNullChange, table, colName string) {
-	sessionState := session.GetSessionState()
-
-	sp := sessionState.Conv.SpSchema[table]
-	switch notNullChange {
-	case "ADDED":
-		spColDef := sp.ColDefs[colName]
-		spColDef.NotNull = true
-		sp.ColDefs[colName] = spColDef
-	case "REMOVED":
-		spColDef := sp.ColDefs[colName]
-		spColDef.NotNull = false
-		sp.ColDefs[colName] = spColDef
-	}
-}
-
 func rateSchema(cols, warnings int64, missingPKey bool) string {
 	good := func(total, badCount int64) bool { return badCount < total/20 }
 	ok := func(total, badCount int64) bool { return badCount < total/3 }
@@ -1415,7 +1165,7 @@ func init() {
 	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
-			ty, issues := toSpannerTypeMySQL(srcType, spType, []int64{})
+			ty, issues := utilities.ToSpannerTypeMySQL(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		if srcType == "tinyint" {
@@ -1427,7 +1177,7 @@ func init() {
 	for _, srcType := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
-			ty, issues := toSpannerTypePostgres(srcType, spType, []int64{})
+			ty, issues := utilities.ToSpannerTypePostgres(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		postgresTypeMap[srcType] = l
@@ -1437,7 +1187,7 @@ func init() {
 	for _, srcType := range []string{"int", "tinyint", "smallint", "bigint", "bit", "float", "real", "numeric", "decimal", "money", "smallmoney", "char", "nchar", "varchar", "nvarchar", "text", "ntext", "date", "datetime", "datetime2", "smalldatetime", "datetimeoffset", "time", "timestamp", "rowversion", "binary", "varbinary", "image", "xml", "geography", "geometry", "uniqueidentifier", "sql_variant", "hierarchyid"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
-			ty, issues := toSpannerTypeSQLserver(srcType, spType, []int64{})
+			ty, issues := utilities.ToSpannerTypeSQLserver(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		sqlserverTypeMap[srcType] = l
