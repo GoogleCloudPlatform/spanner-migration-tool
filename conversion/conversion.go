@@ -464,13 +464,13 @@ func ValidateTables(ctx context.Context, client *sp.Client, targetDb string) err
 	if err != nil {
 		return err
 	}
-	for _, t := range tables {
-		count, err := infoSchema.GetRowCount(t)
+	for _, table := range tables {
+		count, err := infoSchema.GetRowCount(table)
 		if err != nil {
 			return err
 		}
 		if count != 0 {
-			return fmt.Errorf("table %v should be empty for data migration to take place", t.Name)
+			return fmt.Errorf("table %v should be empty for data migration to take place", table.Name)
 		}
 	}
 	return nil
