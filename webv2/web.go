@@ -728,6 +728,55 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 	return tableInterleaveStatus
 }
 
+func restoreTable(w http.ResponseWriter, r *http.Request) {
+	table := r.FormValue("table")
+	sessionState := session.GetSessionState()
+	if sessionState.Conv == nil || sessionState.Driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
+		return
+	}
+	if table == "" {
+		http.Error(w, fmt.Sprintf("Table name is empty"), http.StatusBadRequest)
+	}
+
+	conv := sessionState.Conv
+	var toddl common.ToDdl
+	switch sessionState.Driver {
+	case constants.MYSQL:
+		toddl = mysql.InfoSchemaImpl{}.GetToDdl()
+	case constants.POSTGRES:
+		toddl = postgres.InfoSchemaImpl{}.GetToDdl()
+	case constants.SQLSERVER:
+		toddl = sqlserver.InfoSchemaImpl{}.GetToDdl()
+	case constants.ORACLE:
+		toddl = oracle.InfoSchemaImpl{}.GetToDdl()
+	case constants.MYSQLDUMP:
+		toddl = mysql.DbDumpImpl{}.GetToDdl()
+	case constants.PGDUMP:
+		toddl = postgres.DbDumpImpl{}.GetToDdl()
+	default:
+		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", sessionState.Driver), http.StatusBadRequest)
+		return
+	}
+
+	err := common.SrcTableToSpannerDDL(conv, toddl, sessionState.Conv.SrcSchema[table])
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Restoring spanner table fail"), http.StatusBadRequest)
+		return
+	}
+
+	uniqueid.CopyUniqueIdToSpannerTable(conv, conv.ToSpanner[table].Name)
+	sessionState.Conv = conv
+	primarykey.DetectHotspot()
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+}
+
 func dropTable(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
 	sessionState := session.GetSessionState()
@@ -743,6 +792,16 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 	toSpanner := sessionState.Conv.ToSpanner
 	issues := sessionState.Conv.Issues
 
+	//remove deleted name from usedName
+	usedNames := sessionState.Conv.UsedNames
+	delete(usedNames, table)
+	for _, index := range sessionState.Conv.SpSchema[table].Indexes {
+		delete(usedNames, index.Name)
+	}
+	for _, fk := range sessionState.Conv.SpSchema[table].Fks {
+		delete(usedNames, fk.Name)
+	}
+
 	delete(spSchema, table)
 	delete(toSource, table)
 	delete(toSpanner, table)
@@ -754,7 +813,10 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 		for _, fk := range spTable.Fks {
 			if fk.ReferTable != table {
 				fks = append(fks, fk)
+			} else {
+				delete(usedNames, fk.Name)
 			}
+
 		}
 		spTable.Fks = fks
 		spSchema[tableName] = spTable
@@ -764,6 +826,7 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv.ToSource = toSource
 	sessionState.Conv.ToSpanner = toSource
 	sessionState.Conv.Issues = issues
+	sessionState.Conv.UsedNames = usedNames
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,

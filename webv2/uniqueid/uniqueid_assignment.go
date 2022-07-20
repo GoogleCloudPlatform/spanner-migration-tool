@@ -258,3 +258,50 @@ func InitObjectId() {
 	sessionState := session.GetSessionState()
 	sessionState.Counter.ObjectId = "0"
 }
+
+//CopyUniqueIdToSpannerTable copy ids from source table to spanner table content
+func CopyUniqueIdToSpannerTable(conv *internal.Conv, spannertablename string) {
+	sourcetablename := conv.ToSource[spannertablename].Name
+	spannertable := conv.SpSchema[spannertablename]
+	sourcetable := conv.SrcSchema[sourcetablename]
+	spannertable.Id = sourcetable.Id
+
+	for spannercolumnname, spannercolumn := range spannertable.ColDefs {
+		if spannercolumn.Name == "synth_id" {
+			columnuniqueid := GenerateColumnId()
+			spannercolumn.Id = columnuniqueid
+			conv.SpSchema[spannertablename].ColDefs[spannercolumnname] = spannercolumn
+		}
+	}
+
+	for _, sourcecolumn := range sourcetable.ColDefs {
+		for spannercolumnname, spannercolumn := range spannertable.ColDefs {
+			if sourcecolumn.Name == spannercolumn.Name {
+				spannercolumn.Id = sourcecolumn.Id
+				conv.SpSchema[spannertablename].ColDefs[spannercolumnname] = spannercolumn
+				break
+			}
+		}
+	}
+
+	for _, sourceforeignkey := range sourcetable.ForeignKeys {
+		for spannerforeignkeyindex, spannerforeignkey := range spannertable.Fks {
+			if sourceforeignkey.Name == spannerforeignkey.Name {
+				spannerforeignkey.Id = sourceforeignkey.Id
+				conv.SpSchema[spannertable.Name].Fks[spannerforeignkeyindex] = spannerforeignkey
+			}
+		}
+	}
+
+	for _, sourceindexes := range sourcetable.Indexes {
+		for spanneri, spannerindexes := range spannertable.Indexes {
+			if sourceindexes.Name == spannerindexes.Name {
+				spannerindexes.Id = sourceindexes.Id
+				conv.SpSchema[spannertable.Name].Indexes[spanneri] = spannerindexes
+			}
+		}
+	}
+
+	updateSpannerTableIndexKeyOrder(spannertable)
+	conv.SpSchema[spannertablename] = spannertable
+}
