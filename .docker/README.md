@@ -1,7 +1,7 @@
 # HarbourBridge: Docker Mode
 
 HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation and
-migration. This README provides instructions on how to run HarbourBridge inside a docker container. For general HarbourBridge information see
+migration. This README provides instructions on running HarbourBridge inside a docker container. For general HarbourBridge information see
 this [README](https://github.com/cloudspannerecosystem/harbourbridge).
 
 ### Before you begin
@@ -84,4 +84,40 @@ gcr.io/cloud-spanner-intern/harbour-bridge:latest ../bin/harbourbridge \
 
 1. The `<migration-command-for-dump-files>` should **not** include `go run github.com/cloudspannerecosystem/harbourbridge`.
 2. The `<migration-command-for-direct-connect>` should **not** include `go run github.com/cloudspannerecosystem/harbourbridge`.
-3. The `-prefix` flag is not supported in docker mode.
+3. The `-prefix` flag is not supported when running HarbourBridge via docker.
+
+### Example run commands
+
+This section contains sample commands for running HarbourBridge via docker.
+   
+The commands use the `schema-and-data` mode of migration. 
+   
+The `schema` mode and `data` mode can also be used with the same command paradigm.
+
+#### Migration using dump files
+   
+```sh
+docker run --rm \
+-v "$HOME/.config/gcloud:/gcp/config:ro" \
+-v /gcp/config/logs \
+--env CLOUDSDK_CONFIG=/gcp/config \
+--env GOOGLE_APPLICATION_CREDENTIALS=/gcp/config/application_default_credentials.json \
+-v "$HOME/Desktop/sourcedump:/harbourbridge/source_dump" \
+-v "$HOME/Desktop/outputfiles:/harbourbridge/harbour_bridge_output" \
+gcr.io/cloud-spanner-intern/harbour-bridge:latest ../bin/harbourbridge \
+schema-and-data -source=mysql -target-profile="instance=spanner-test-2" -source-profile="file=/harbourbridge/source_dump/singers.mysqldump"
+```
+
+#### Migration using direct-connection with hosted databases
+ 
+```sh
+docker run --rm \
+-v "$HOME/.config/gcloud:/gcp/config:ro" \
+-v /gcp/config/logs \
+--env CLOUDSDK_CONFIG=/gcp/config \
+--env GOOGLE_APPLICATION_CREDENTIALS=/gcp/config/application_default_credentials.json \
+-v "$HOME/Desktop/outputfiles:/harbourbridge/harbour_bridge_output" \
+gcr.io/cloud-spanner-intern/harbour-bridge:latest ../bin/harbourbridge \
+schema-and-data -source=mysql -target-profile="instance=spanner-test-2" -source-profile="host=<>, port=<>, user=<>, dbName=<>, password=<>"
+```
+   
