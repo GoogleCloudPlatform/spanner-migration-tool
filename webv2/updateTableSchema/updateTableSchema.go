@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	updateSessionFile "github.com/cloudspannerecosystem/harbourbridge/webv2/updateSessionFile"
+	updatesessionfiles "github.com/cloudspannerecosystem/harbourbridge/webv2/updatesessionfiles"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
@@ -29,6 +29,7 @@ type updateCol struct {
 
 type updateTable struct {
 	UpdateCols map[string]updateCol `json:"UpdateCols"`
+	table      string
 }
 
 // updateTableSchema updates the Spanner schema.
@@ -95,16 +96,16 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			if typeChange {
 
-				utilities.UpdateType(v.ToType, table, colName, srcTableName, w)
+				UpdatecolNameType(v.ToType, table, colName, srcTableName, w)
 			}
 		}
 
 		if v.NotNull != "" {
-			utilities.UpdateNotNull(v.NotNull, table, colName)
+			UpdateNotNull(v.NotNull, table, colName)
 		}
 	}
 
-	updateSessionFile.UpdateSessionFile()
+	updatesessionfiles.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
