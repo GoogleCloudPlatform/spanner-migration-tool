@@ -65,7 +65,7 @@ func removeColumn(table string, colName string, srcTableName string) {
 	}
 
 	// update interleave table relation
-	isParent, childSchema := utilities.IsParent(table)
+	isParent, childSchema := IsParent(table)
 
 	if isParent {
 		fmt.Println("yes", table, "is parent table")

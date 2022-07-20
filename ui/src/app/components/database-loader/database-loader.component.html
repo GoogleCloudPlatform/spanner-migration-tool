@@ -1,0 +1,11 @@
+<div class="container content-height">
+  <img
+    src="../../../assets/gifs/database-loader.gif"
+    alt="database-loader-gif"
+    class="loader-gif"
+  />
+  <h3 *ngIf="loaderType === 'direct'">Connecting to {{ databaseName }} database...</h3>
+  <h3 *ngIf="loaderType === 'dump'">Loading the dump file...</h3>
+  <h3 *ngIf="loaderType === 'session'">Loading the session file...</h3>
+  <h5>{{ timeElapsed }} seconds have elapsed</h5>
+</div>

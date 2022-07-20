@@ -1,4 +1,4 @@
-package updatesessionfile
+package updatesessionfiles
 
 import (
 	"fmt"

@@ -16,8 +16,10 @@
   <div class="container">
     <h2>Configure schema</h2>
     <div class="summary">
-      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
-      labore et dolore magna aliqua.
+      Estimation for {{ srcDbName.toUpperCase() }} to for Spanner conversion:
+      {{ conversionRatePercentages.good }}% of tables can be converted automatically,
+      {{ conversionRatePercentages.ok }}% requires minimal conversion changes and
+      {{ conversionRatePercentages.bad }}% requires high complexity conversion changes.
     </div>
   </div>
   <div class="columns">
@@ -27,8 +29,8 @@
     >
       <app-object-explorer
         (selectObject)="changeCurrentObject($event)"
-        (searchSpannerTable)="searchSpannerTable($event)"
-        (searchSrcTable)="searchSrcTable($event)"
+        (updateSpannerTable)="updateSpannerTable($event)"
+        (updateSrcTable)="updateSrcTable($event)"
         (leftCollaspe)="leftColumnToggle()"
         [spannerTree]="spannerTree"
         [srcTree]="srcTree"
