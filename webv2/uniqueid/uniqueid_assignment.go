@@ -108,6 +108,9 @@ func AssignUniqueId(conv *internal.Conv) {
 				updateSpannerTableIndexKeyOrder(spannertable)
 				updateSourceTableIndexKeyOrder(sourcetable)
 
+				updateSpannerTableSecondaryIndexKeyOrder(spannertable)
+				updateSourceTableSecondaryIndexKeyOrder(sourcetable)
+
 				conv.SrcSchema[sourcetablename] = sourcetable
 				conv.SpSchema[spannertablename] = spannertable
 				break
@@ -141,6 +144,44 @@ func updateSourceTableIndexKeyOrder(sourcetable schema.Table) {
 
 				o := getSourceColumnIndex(sourcetable, sourcecolumnname)
 				sourcetable.PrimaryKeys[i].Order = o
+			}
+		}
+	}
+}
+
+// updateSpannerTableSecondaryIndexKeyOrder Update Secondary Index Key s Order as Inserted Order.
+func updateSpannerTableSecondaryIndexKeyOrder(spannertable ddl.CreateTable) {
+
+	for i := 0; i < len(spannertable.Indexes); i++ {
+
+		for j := 0; j < len(spannertable.Indexes[i].Keys); j++ {
+
+			for spannercolumnname, _ := range spannertable.ColDefs {
+				if spannertable.Indexes[i].Keys[j].Col == spannercolumnname {
+
+					o := getSpannerColumnIndex(spannertable, spannercolumnname)
+					spannertable.Indexes[i].Keys[j].Order = o
+
+				}
+			}
+		}
+	}
+}
+
+// updateSourceTableSecondaryIndexKeyOrder Update Secondary Index Keys Order as Inserted Order.
+func updateSourceTableSecondaryIndexKeyOrder(sourcetable schema.Table) {
+
+	for i := 0; i < len(sourcetable.Indexes); i++ {
+
+		for j := 0; j < len(sourcetable.Indexes[i].Keys); j++ {
+
+			for spannercolumnname, _ := range sourcetable.ColDefs {
+				if sourcetable.Indexes[i].Keys[j].Column == spannercolumnname {
+
+					o := getSourceColumnIndex(sourcetable, spannercolumnname)
+					sourcetable.Indexes[i].Keys[j].Order = o
+
+				}
 			}
 		}
 	}

@@ -9,6 +9,11 @@
 
 table {
   width: 100%;
+  .table-header-container {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+  }
 }
 
 .sessions-wrapper {
@@ -47,6 +52,6 @@ table {
   }
 }
 
-.notes-wrapper{
+.notes-wrapper {
   margin-top: 10px;
 }

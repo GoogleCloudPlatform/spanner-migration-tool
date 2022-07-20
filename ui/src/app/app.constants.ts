@@ -2,6 +2,7 @@ export enum InputType {
   DirectConnect = 'directConnect',
   DumpFile = 'dumpFile',
   SessionFile = 'sessionFile',
+  ResumeSession = 'resumeSession',
 }
 
 export enum StorageKeys {
