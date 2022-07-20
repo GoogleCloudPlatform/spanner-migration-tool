@@ -1,22 +1,31 @@
 # HarbourBridge: Docker Mode
 
 HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation and
-migration. This README provides details of HarbourBridge in docker mode. For general HarbourBridge information see
+migration. This README provides instructions on how to run HarbourBridge inside a docker container. For general HarbourBridge information see
 this [README](https://github.com/cloudspannerecosystem/harbourbridge).
 
 ### Before you begin
 
-1. [Install](https://cloud.google.com/sdk/docs/install) and [authorize](https://cloud.google.com/sdk/docs/authorizing#:~:text=If%20you%20want,grant%20access%20permissions.) the GCloud CLI using your Google Cloud account.
-2. Complete the steps in the [before you begin](https://github.com/cloudspannerecosystem/harbourbridge#before-you-begin) section in the HarbourBridge [README](https://github.com/cloudspannerecosystem/harbourbridge).
-3. [Install](https://docs.docker.com/engine/install/) docker.
-4. Configure docker to run without the root user privilages using the step mentioned [here](https://cloud.google.com/container-registry/docs/advanced-authentication#:~:text=Docker%20requires%20privileged%20access%20to%20interact%20with%20registries.%20On%20Linux%20or%20Windows%2C%20add%20the%20user%20that%20you%20use%20to%20run%20Docker%20commands%20to%20the%20Docker%20security%20group.%20This%20step%20is%20not%20required%20on%20MacOS%20since%20Docker%20Desktop%20runs%20on%20a%20virtual%20machine%20as%20the%20root%20user.) - point four in the [before you begin](https://cloud.google.com/container-registry/docs/advanced-authentication#prereqs) section.
-5. [Configure](https://cloud.google.com/sdk/gcloud/reference/auth/configure-docker) docker to pull docker images from the Google Container Registry. 
+1. [Install](https://cloud.google.com/sdk/docs/install) the GCloud CLI.
+2. [Authorize](https://cloud.google.com/sdk/docs/authorizing#:~:text=If%20you%20want,grant%20access%20permissions.) the GCloud CLI using your Google Cloud account.
+   ```sh
+   gcloud auth login
+   ```
+3. Set up your local development environment with the gcloud application default credentials using the following command.
+   ```sh
+   gcloud auth application-default login
+   ```
+4. [Install](https://docs.docker.com/engine/install/) docker.
+5. [Configure](https://cloud.google.com/container-registry/docs/advanced-authentication#:~:text=Docker%20requires%20privileged%20access%20to%20interact%20with%20registries.%20On%20Linux%20or%20Windows%2C%20add%20the%20user%20that%20you%20use%20to%20run%20Docker%20commands%20to%20the%20Docker%20security%20group.%20This%20step%20is%20not%20required%20on%20MacOS%20since%20Docker%20Desktop%20runs%20on%20a%20virtual%20machine%20as%20the%20root%20user.) docker to run without the root user privilage.
+   ```sh
+   sudo usermod -a -G docker ${USER}
+   ```
+6. [Configure](https://cloud.google.com/sdk/gcloud/reference/auth/configure-docker) docker to pull the docker images from the Google Container Registry. 
    ```sh
    gcloud auth configure-docker
    ```
    
-**Note:** When using `sudo` with the docker commands, the gcloud configuration command in step 5, must also be entered with `sudo`.
-
+**Note:** When using `sudo` with the docker commands, the gcloud configuration command in step 6 must also be entered with `sudo`.
 
 ### Pull HarbourBridge's docker image
 
