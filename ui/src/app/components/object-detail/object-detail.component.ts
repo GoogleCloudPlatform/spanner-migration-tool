@@ -744,6 +744,18 @@ export class ObjectDetailComponent implements OnInit {
     this.setIndexRows()
   }
 
+  restoreSpannerTable() {
+    this.data
+      .restoreTable(this.currentObject!.name)
+      .pipe(take(1))
+      .subscribe((res: string) => {
+        if (res === '') {
+          this.isObjectSelected = false
+        }
+      })
+    this.currentObject = null
+  }
+
   dropTable() {
     let openDialog = this.dialog.open(DropIndexOrTableDialogComponent, {
       width: '35vw',
@@ -771,8 +783,5 @@ export class ObjectDetailComponent implements OnInit {
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
     this.currentTabIndex = tabChangeEvent.index
-  }
-  restoreSpannerTable() {
-    alert('Restore spanner table coming soon!')
   }
 }
