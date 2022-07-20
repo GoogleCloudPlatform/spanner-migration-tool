@@ -25,7 +25,7 @@ this [README](https://github.com/cloudspannerecosystem/harbourbridge).
    gcloud auth configure-docker
    ```
    
-**Note:** When using `sudo` with the docker commands, the gcloud configuration command in step 6 must also be entered with `sudo`.
+**Note:** When using `sudo` with the docker commands, the gcloud commands must also be entered with `sudo`.
 
 ### Pull HarbourBridge's docker image
 
