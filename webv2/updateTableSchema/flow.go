@@ -1,5 +1,7 @@
 package updateTableSchema
 
+import "github.com/cloudspannerecosystem/harbourbridge/internal"
+
 type UpdateTableSchemaResponse struct {
 	DDL     string
 	Changes []TableSchemaChanges
@@ -15,6 +17,12 @@ type Columnchange struct {
 	Type             string
 	UpdateColumnName string
 	UpdateType       string
+}
+
+type ConvWithUpdateTableSchema struct {
+	DDL     string
+	Changes []TableSchemaChanges
+	internal.Conv
 }
 
 /*

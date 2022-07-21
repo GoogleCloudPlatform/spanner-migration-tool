@@ -85,7 +85,7 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 		if v.Rename != "" && v.Rename != colName {
 
 			renameColumn(v.Rename, table, colName, Conv)
-			colName = v.Rename
+
 		}
 
 		if v.ToType != "" {
@@ -108,32 +108,21 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	/*
-		Update := true
+	if t.Update {
+		updatesessionfiles.UpdateSessionFile()
+		sessionState.Conv = Conv
 
-		if Update {
+	}
 
-			updatesessionfiles.UpdateSessionFile()
-			sessionState.Conv = Conv
-			convm := session.ConvWithMetadata{
-				SessionMetadata: sessionState.SessionMetadata,
-				Conv:            *sessionState.Conv,
-			}
+	//todo fill TableSchemaChanges
+	Changes := []TableSchemaChanges{}
 
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(convm)
-
-		}
-
-	*/
-
-	updatesessionfiles.UpdateSessionFile()
-	sessionState.Conv = Conv
-	convm := session.ConvWithMetadata{
-		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
+	convts := ConvWithUpdateTableSchema{
+		DDL:     getDDL(table, Conv),
+		Changes: Changes,
+		Conv:    *Conv,
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(convm)
+	json.NewEncoder(w).Encode(convts)
 }
