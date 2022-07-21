@@ -153,44 +153,64 @@ func ProcessStream(wgStream *sync.WaitGroup, streamClient dynamodbstreamsiface.D
 	defer wgStream.Done()
 	wgShard := &sync.WaitGroup{}
 
-	var lastProcessedShardId *string = nil
+	processingStarted := make(map[string]bool)
+
 	passAfterUserExit := false
 	for {
-		result, err := fetchShards(streamClient, lastProcessedShardId, streamArn)
+		shards, err := scanShards(streamClient, streamArn)
 		if err != nil {
-			streamInfo.Unexpected(fmt.Sprintf("Couldn't fetch shards for table %s: %s", srcTable, err))
+			streamInfo.Unexpected(fmt.Sprintf("Couldn't scan shards for table %s: %s", srcTable, err))
 			break
 		}
-		for _, shard := range result.Shards {
-			lastProcessedShardId = shard.ShardId
+		for _, shard := range shards {
+			shardId := *shard.ShardId
+			if _, ok := processingStarted[shardId]; !ok {
+				processingStarted[shardId] = false
+				streamInfo.SetShardStatus(shardId, false)
+			}
+		}
+		for _, shard := range shards {
+			shardId := *shard.ShardId
+			if !processingStarted[shardId] {
+				processingStarted[shardId] = true
 
-			wgShard.Add(1)
-			go ProcessShard(wgShard, streamInfo, conv, streamClient, shard, streamArn, srcTable)
+				wgShard.Add(1)
+				go ProcessShard(wgShard, streamInfo, conv, streamClient, shard, streamArn, srcTable)
+			}
 		}
 
-		if result.LastEvaluatedShardId == nil && passAfterUserExit {
+		if passAfterUserExit {
 			break
-		}
-		if streamInfo.UserExit {
+		} else if streamInfo.UserExit {
 			passAfterUserExit = true
-		} else if len(result.Shards) == 0 {
-			time.Sleep(10 * time.Second)
+		} else {
+			time.Sleep(20 * time.Second)
 		}
 	}
 	wgShard.Wait()
 }
 
-// fetchShards fetches latest unprocessed shards from a given DynamoDB Stream after the lastProcessedShardId.
-func fetchShards(streamClient dynamodbstreamsiface.DynamoDBStreamsAPI, lastProcessedShardId *string, streamArn string) (*dynamodbstreams.StreamDescription, error) {
+// scanShards fetches all the shards from a given DynamoDB Stream.
+func scanShards(streamClient dynamodbstreamsiface.DynamoDBStreamsAPI, streamArn string) ([]*dynamodbstreams.Shard, error) {
 	describeStreamInput := &dynamodbstreams.DescribeStreamInput{
-		ExclusiveStartShardId: lastProcessedShardId,
+		ExclusiveStartShardId: nil,
 		StreamArn:             &streamArn,
 	}
-	result, err := streamClient.DescribeStream(describeStreamInput)
-	if err != nil {
-		return nil, fmt.Errorf("unexpected call to DescribeStream: %v", err)
+	var scanResult []*dynamodbstreams.Shard
+	for {
+		result, err := streamClient.DescribeStream(describeStreamInput)
+		if err != nil {
+			return nil, fmt.Errorf("unexpected call to DescribeStream: %v", err)
+		}
+		scanResult = append(scanResult, result.StreamDescription.Shards...)
+
+		if result.StreamDescription.LastEvaluatedShardId == nil {
+			break
+		} else {
+			describeStreamInput.ExclusiveStartShardId = result.StreamDescription.LastEvaluatedShardId
+		}
 	}
-	return result.StreamDescription, nil
+	return scanResult, nil
 }
 
 // checkTrimmedDataError checks if the error is an TrimmedDataAccessException.
@@ -208,7 +228,6 @@ func ProcessShard(wgShard *sync.WaitGroup, streamInfo *StreamingInfo, conv *inte
 	waitForParentShard(streamInfo, shard.ParentShardId)
 
 	shardId := *shard.ShardId
-	streamInfo.SetShardStatus(shardId, false)
 
 	var lastEvaluatedSequenceNumber *string = nil
 	passAfterUserExit := false
@@ -267,9 +286,9 @@ func waitForParentShard(streamInfo *StreamingInfo, parentShard *string) {
 	if parentShard != nil {
 		for {
 			streamInfo.lock.Lock()
-			done := streamInfo.ShardProcessed[*parentShard]
+			done, ok := streamInfo.ShardProcessed[*parentShard]
 			streamInfo.lock.Unlock()
-			if done {
+			if !ok || done {
 				return
 			} else {
 				time.Sleep(6 * time.Second)
