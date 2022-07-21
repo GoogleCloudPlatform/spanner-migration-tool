@@ -20,6 +20,7 @@ import (
 // (4) NotNull: "ADDED", "REMOVED" or ""
 // (5) ToType: New type or empty string
 type updateCol struct {
+	Add     bool   `json:"Add"`
 	Removed bool   `json:"Removed"`
 	Rename  string `json:"Rename"`
 	PK      string `json:"PK"`
