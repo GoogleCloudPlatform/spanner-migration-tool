@@ -190,11 +190,11 @@ func RemoveIndex(Pks []ddl.IndexKey, index int) []ddl.IndexKey {
 	return list
 }
 
-func IsTypeChanged(newType, table, colName string) (bool, error) {
+func IsTypeChanged(newType, table, colName string, Conv *internal.Conv) (bool, error) {
 
-	sessionState := session.GetSessionState()
+	//sessionState := session.GetSessionState()
 
-	srcTableName := sessionState.Conv.ToSource[table].Name
+	srcTableName := Conv.ToSource[table].Name
 
 	sp, ty, err := GetType(newType, table, colName, srcTableName)
 	if err != nil {

@@ -3,16 +3,18 @@ package updateTableSchema
 import (
 	"fmt"
 
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
-func removeColumn(table string, colName string) {
+func removeColumn(table string, colName string, Conv *internal.Conv) {
 
-	sessionState := session.GetSessionState()
+	//	sessionState := session.GetSessionState()
 
-	sp := sessionState.Conv.SpSchema[table]
+	//sp := sessionState.Conv.SpSchema[table]
+
+	sp := Conv.SpSchema[table]
 
 	// step I
 	sp = removeSpannerColDefs(sp, colName)
@@ -33,13 +35,15 @@ func removeColumn(table string, colName string) {
 	sp = removeSpannerColNames(sp, colName)
 
 	// step VII
-	removeSpannerSchemaIssue(table, colName)
+	removeSpannerSchemaIssue(table, colName, Conv)
 
 	// step VIII
-	removeToSpannerToSource(table, colName)
+	removeToSpannerToSource(table, colName, Conv)
 
 	//2
-	sessionState.Conv.SpSchema[table] = sp
+	//sessionState.Conv.SpSchema[table] = sp
+
+	Conv.SpSchema[table] = sp
 
 	// update foreignKey relationship Table column names
 	for i, _ := range sp.Fks {
@@ -48,7 +52,8 @@ func removeColumn(table string, colName string) {
 
 		relationTable := sp.Fks[i].ReferTable
 
-		relationTableSp := sessionState.Conv.SpSchema[relationTable]
+		//relationTableSp := sessionState.Conv.SpSchema[relationTable]
+		relationTableSp := Conv.SpSchema[relationTable]
 
 		relationTableSp = removeSpannerColNames(relationTableSp, colName)
 		relationTableSp = removeSpannerColDefs(relationTableSp, colName)
@@ -58,12 +63,13 @@ func removeColumn(table string, colName string) {
 		relationTableSp = removeSpannerForeignkeyReferColumns(relationTableSp, colName)
 
 		//todo
-		removeSpannerSchemaIssue(relationTable, colName)
+		removeSpannerSchemaIssue(relationTable, colName, Conv)
 
-		removeToSpannerToSource(relationTable, colName)
+		removeToSpannerToSource(relationTable, colName, Conv)
 
 		//3
-		sessionState.Conv.SpSchema[relationTable] = relationTableSp
+		//sessionState.Conv.SpSchema[relationTable] = relationTableSp
+		Conv.SpSchema[relationTable] = relationTableSp
 
 	}
 
@@ -73,7 +79,9 @@ func removeColumn(table string, colName string) {
 	if isParent {
 		fmt.Println("yes", table, "is parent table")
 
-		childSchemaSp := sessionState.Conv.SpSchema[childSchema]
+		//childSchemaSp := sessionState.Conv.SpSchema[childSchema]
+
+		childSchemaSp := Conv.SpSchema[childSchema]
 
 		childSchemaSp = removeSpannerColNames(childSchemaSp, colName)
 		childSchemaSp = removeSpannerColDefs(childSchemaSp, colName)
@@ -83,20 +91,24 @@ func removeColumn(table string, colName string) {
 		childSchemaSp = removeSpannerForeignkeyReferColumns(childSchemaSp, colName)
 
 		//todo
-		removeSpannerSchemaIssue(childSchema, colName)
+		removeSpannerSchemaIssue(childSchema, colName, Conv)
 
-		removeToSpannerToSource(childSchema, colName)
+		removeToSpannerToSource(childSchema, colName, Conv)
 
 		//4
-		sessionState.Conv.SpSchema[childSchema] = childSchemaSp
+		//sessionState.Conv.SpSchema[childSchema] = childSchemaSp
+		Conv.SpSchema[childSchema] = childSchemaSp
 
 	}
 
-	isChild := sessionState.Conv.SpSchema[table].Parent
+	//isChild := sessionState.Conv.SpSchema[table].Parent
+	isChild := Conv.SpSchema[table].Parent
 
 	if isChild != "" {
 
-		childSchemaSp := sessionState.Conv.SpSchema[isChild]
+		//childSchemaSp := sessionState.Conv.SpSchema[isChild]
+
+		childSchemaSp := Conv.SpSchema[isChild]
 
 		childSchemaSp = removeSpannerColNames(childSchemaSp, colName)
 		childSchemaSp = removeSpannerColDefs(childSchemaSp, colName)
@@ -106,11 +118,13 @@ func removeColumn(table string, colName string) {
 		childSchemaSp = removeSpannerForeignkeyReferColumns(childSchemaSp, colName)
 
 		//todo
-		removeSpannerSchemaIssue(isChild, colName)
-		removeToSpannerToSource(isChild, colName)
+		removeSpannerSchemaIssue(isChild, colName, Conv)
+		removeToSpannerToSource(isChild, colName, Conv)
 
 		//5
-		sessionState.Conv.SpSchema[isChild] = childSchemaSp
+		//	sessionState.Conv.SpSchema[isChild] = childSchemaSp
+		Conv.SpSchema[isChild] = childSchemaSp
+
 	}
 }
 
@@ -213,7 +227,7 @@ func removeSecondaryIndexKey(slice []ddl.IndexKey, s int) []ddl.IndexKey {
 	return append(slice[:s], slice[s+1:]...)
 }
 
-func removeSpannerSchemaIssue(table string, colName string) {
+func removeSpannerSchemaIssue(table string, colName string, Conv *internal.Conv) {
 
 	// step VII
 	// remove sessionState.Conv.Issues
@@ -221,13 +235,13 @@ func removeSpannerSchemaIssue(table string, colName string) {
 	fmt.Println("")
 	fmt.Println("step VII")
 
-	sessionState := session.GetSessionState()
+	//sessionState := session.GetSessionState()
 
-	if sessionState.Conv.Issues != nil {
+	if Conv.Issues != nil {
 
-		if sessionState.Conv.Issues[table] != nil && sessionState.Conv.Issues[table][colName] != nil {
+		if Conv.Issues[table] != nil && Conv.Issues[table][colName] != nil {
 
-			delete(sessionState.Conv.Issues[table], colName)
+			delete(Conv.Issues[table], colName)
 
 		}
 
@@ -235,7 +249,7 @@ func removeSpannerSchemaIssue(table string, colName string) {
 
 }
 
-func removeToSpannerToSource(table string, colName string) {
+func removeToSpannerToSource(table string, colName string, Conv *internal.Conv) {
 
 	// step VIII
 	// remove ToSpannerToSource
@@ -243,13 +257,13 @@ func removeToSpannerToSource(table string, colName string) {
 	fmt.Println("")
 	fmt.Println("step VII")
 
-	sessionState := session.GetSessionState()
+	//sessionState := session.GetSessionState()
 
-	srcTableName := sessionState.Conv.ToSource[table].Name
+	srcTableName := Conv.ToSource[table].Name
 
-	srcColName := sessionState.Conv.ToSource[table].Cols[colName]
-	delete(sessionState.Conv.ToSource[table].Cols, colName)
-	delete(sessionState.Conv.ToSpanner[srcTableName].Cols, srcColName)
+	srcColName := Conv.ToSource[table].Cols[colName]
+	delete(Conv.ToSource[table].Cols, colName)
+	delete(Conv.ToSpanner[srcTableName].Cols, srcColName)
 
 }
 
