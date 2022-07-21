@@ -46,11 +46,11 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
+	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
+
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/typemap"
 
-	//	typemap "github.com/cloudspannerecosystem/harbourbridge/webv2/typemap"
-	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
 
@@ -176,13 +176,13 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	uniqueid.InitObjectId()
+
 	uniqueid.AssignUniqueId(conv)
 	sessionState.Conv = conv
 
 	primarykey.DetectHotspot()
-
 	index.IndexSuggestion()
-	uniqueid.InitObjectId()
 
 	sessionMetadata := session.SessionMetadata{
 		SessionName:  "NewSession",
@@ -244,13 +244,10 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
-
 	uniqueid.InitObjectId()
 
 	uniqueid.AssignUniqueId(conv)
 	sessionState.Conv = conv
-	primarykey.DetectHotspot()
-
 	primarykey.DetectHotspot()
 	index.IndexSuggestion()
 

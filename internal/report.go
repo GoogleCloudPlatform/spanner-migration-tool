@@ -406,7 +406,14 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 						l = append(l, str)
 					}
 
-				case IndexRedandant:
+				case RedundantIndex:
+					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+
+					if !contains(l, str) {
+						l = append(l, str)
+					}
+
+				case AutoIncrementIndex:
 					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, srcCol)
 
 					if !contains(l, str) {
@@ -487,13 +494,13 @@ var IssueDB = map[SchemaIssue]struct {
 	StringOverflow:        {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
 	HotspotTimestamp:      {Brief: "Timestamp Hotspot Occured", severity: note},
 	HotspotAutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: note},
+	InterleavedOrder:      {Brief: "can be converted as Interleaved Table", severity: note},
+	RedundantIndex:        {Brief: "Redundant Index", severity: warning},
+	AutoIncrementIndex:    {Brief: "Auto increment column in Index can create a Hotspot", severity: warning},
+	InterleaveIndex:       {Brief: "can be converted to an Interleave Index", severity: note},
 	InterleavedNotInOrder: {Brief: "Can be converted to interleaved table if primary key order parameter is changed for the table", severity: note},
-	InterleavedOrder:      {Brief: "Can be converted to Interleaved Table", severity: note},
 	InterleavedAddColumn:  {Brief: "Candidate for Interleaved Table", severity: note},
 	IllegalName:           {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: note},
-	IndexRedandant:        {Brief: "Redudant Index", severity: warning},
-	INDEX_TIMESTAMP:       {Brief: "Redudant Index due to Timestamp", severity: warning},
-	InterleaveIndex:       {Brief: "can be converted to an Interleave Index", severity: note},
 }
 
 type severity int

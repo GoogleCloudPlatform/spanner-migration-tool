@@ -1,7 +1,7 @@
 package updateTableSchema
 
 type UpdateTableSchemaResponse struct {
-	DDL     map[string]string
+	DDL     string
 	Changes []TableSchemaChanges
 }
 

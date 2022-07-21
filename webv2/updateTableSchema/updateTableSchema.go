@@ -30,6 +30,7 @@ type updateCol struct {
 
 type updateTable struct {
 	UpdateCols map[string]updateCol `json:"UpdateCols"`
+	Update     bool                 `json:"Update"`
 }
 
 // updateTableSchema updates the Spanner schema.

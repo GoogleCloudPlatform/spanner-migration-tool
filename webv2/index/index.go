@@ -1,15 +1,27 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package index
 
 import (
-	"fmt"
-
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
-// IndexSuggestion adds redundant index and interleved index  suggestion in schema conversion process for database.
+// IndexSuggestion adds redundant index issue and interleved index suggestion in issues and suggestions tab.
 func IndexSuggestion() {
 
 	sessionState := session.GetSessionState()
@@ -19,7 +31,7 @@ func IndexSuggestion() {
 	}
 }
 
-// Helpers method for checking Index Suggestion.
+// Helper method for checking Index Suggestion.
 func CheckIndexSuggestion(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 
 	redundantIndex(index, spannerTable)
@@ -27,18 +39,20 @@ func CheckIndexSuggestion(index []ddl.CreateIndex, spannerTable ddl.CreateTable)
 }
 
 // redundantIndex check for redundant Index.
-// If present adds IndexRedandant as an issue in Issues.
+// If present adds Redundant as an issue in Issues.
 func redundantIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
+
+	var primaryKeyFirstColumn string
+	pks := spannerTable.Pks
 
 	for i := 0; i < len(index); i++ {
 
 		keys := index[i].Keys
-		var primaryKeyFirstColumn string
-		pks := spannerTable.Pks
 
 		for i := range pks {
 			if pks[i].Order == 1 {
 				primaryKeyFirstColumn = pks[i].Col
+				break
 			}
 		}
 
@@ -48,7 +62,7 @@ func redundantIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 			columnname := keys[i].Col
 			sessionState := session.GetSessionState()
 			schemaissue := sessionState.Conv.Issues[spannerTable.Name][columnname]
-			schemaissue = append(schemaissue, internal.IndexRedandant)
+			schemaissue = append(schemaissue, internal.RedundantIndex)
 			sessionState.Conv.Issues[spannerTable.Name][columnname] = schemaissue
 		}
 
@@ -59,17 +73,20 @@ func redundantIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 // If possible it gets added as a suggestion.
 func interleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 
-	//Suggestion gets added only if the table can be interleaved.
+	// Suggestion gets added only if the table can be interleaved.
 	isInterleavable := spannerTable.Parent != ""
 
 	if isInterleavable {
 
+		var primaryKeyFirstColumn string
+		pks := spannerTable.Pks
+
 		for i := 0; i < len(index); i++ {
-			var primaryKeyFirstColumn string
-			pks := spannerTable.Pks
+
 			for i := range pks {
 				if pks[i].Order == 1 {
 					primaryKeyFirstColumn = pks[i].Col
+					break
 				}
 			}
 
@@ -77,7 +94,7 @@ func interleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 
 			sessionState := session.GetSessionState()
 
-			//Ensuring it is not a redundant index.
+			// Ensuring it is not a redundant index.
 			if primaryKeyFirstColumn != indexFirstColumn {
 
 				schemaissue := sessionState.Conv.Issues[spannerTable.Name][indexFirstColumn]
@@ -91,9 +108,9 @@ func interleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 					}
 				}
 
-				//Interleave suggestion if the column is of type auto increment.
+				// Interleave suggestion if the column is of type auto increment.
 				if utilities.IsSchemaIssuePresent(schemaissue, internal.AutoIncrement) {
-					schemaissue = append(schemaissue, internal.InterleaveIndex)
+					schemaissue = append(schemaissue, internal.AutoIncrementIndex)
 					sessionState.Conv.Issues[spannerTable.Name][indexFirstColumn] = schemaissue
 				}
 
@@ -107,7 +124,7 @@ func interleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 							sessionState := session.GetSessionState()
 							schemaissue := sessionState.Conv.Issues[spannerTable.Name][columnname]
 
-							schemaissue = append(schemaissue, internal.InterleaveIndex)
+							schemaissue = append(schemaissue, internal.AutoIncrementIndex)
 							sessionState.Conv.Issues[spannerTable.Name][columnname] = schemaissue
 						}
 
@@ -136,7 +153,7 @@ func RemoveIndexIssues(table string, Index ddl.CreateIndex) {
 
 			if len(schemaissue) > 0 {
 
-				schemaissue = RemoveIndexIssue(schemaissue)
+				schemaissue = removeIssue(schemaissue)
 
 				if sessionState.Conv.Issues[table][column] == nil {
 
@@ -158,52 +175,19 @@ func RemoveIndexIssues(table string, Index ddl.CreateIndex) {
 }
 
 // RemoveSchemaIssue removes issue from the schemaissue list.
-func RemoveIndexIssue(schemaissue []internal.SchemaIssue) []internal.SchemaIssue {
+func removeIssue(schemaissue []internal.SchemaIssue) []internal.SchemaIssue {
 
-	if utilities.IsSchemaIssuePresent(schemaissue, internal.IndexRedandant) {
-		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.IndexRedandant)
+	if utilities.IsSchemaIssuePresent(schemaissue, internal.RedundantIndex) {
+		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.RedundantIndex)
 	}
 
 	if utilities.IsSchemaIssuePresent(schemaissue, internal.InterleaveIndex) {
 		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleaveIndex)
 	}
 
-	return schemaissue
-}
-
-// to detect timestamp index
-// todo : add or remove suggestion based on timestamp index added or remove.
-func TimestampIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
-
-	fmt.Println("TimestampIndex for ", spannerTable.Name)
-	for i := 0; i < len(index); i++ {
-
-		keys := index[i].Keys
-
-		fmt.Println("Keys :", keys)
-
-		for i := 0; i < len(keys); i++ {
-
-			for _, c := range spannerTable.ColDefs {
-
-				if keys[i].Col == c.Name {
-
-					if c.T.Name == ddl.String {
-
-						fmt.Println("TimestampIndex :", spannerTable.Name, c.Name)
-
-						columnname := keys[i].Col
-						sessionState := session.GetSessionState()
-						schemaissue := sessionState.Conv.Issues[spannerTable.Name][columnname]
-
-						schemaissue = append(schemaissue, internal.INDEX_TIMESTAMP)
-						sessionState.Conv.Issues[spannerTable.Name][columnname] = schemaissue
-					}
-
-				}
-			}
-
-		}
-
+	if utilities.IsSchemaIssuePresent(schemaissue, internal.AutoIncrementIndex) {
+		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.AutoIncrementIndex)
 	}
+
+	return schemaissue
 }
