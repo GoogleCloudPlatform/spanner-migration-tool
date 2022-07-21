@@ -6,7 +6,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/uniqueid"
 )
 
-func addColumn(table string, colName string, srcTableName string) {
+func addColumn(table string, colName string) {
 
 	sessionState := session.GetSessionState()
 
@@ -20,10 +20,11 @@ func addColumn(table string, colName string, srcTableName string) {
 		Comment: sp.ColDefs[colName].Comment,
 	}
 
+	srcTableName := sessionState.Conv.ToSource[table].Name
 	srcColName := sessionState.Conv.ToSource[table].Cols[colName]
+
+	//1
 	sessionState.Conv.ToSpanner[srcTableName].Cols[srcColName] = colName
 	sessionState.Conv.ToSource[table].Cols[colName] = srcColName
-
-	sessionState.Conv.SpSchema[table] = sp
 
 }

@@ -8,7 +8,7 @@ import (
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
-func removeColumn(table string, colName string, srcTableName string) {
+func removeColumn(table string, colName string) {
 
 	sessionState := session.GetSessionState()
 
@@ -37,6 +37,8 @@ func removeColumn(table string, colName string, srcTableName string) {
 
 	// step VIII
 	removeToSpannerToSource(table, colName)
+
+	//2
 	sessionState.Conv.SpSchema[table] = sp
 
 	// update foreignKey relationship Table column names
@@ -60,6 +62,7 @@ func removeColumn(table string, colName string, srcTableName string) {
 
 		removeToSpannerToSource(relationTable, colName)
 
+		//3
 		sessionState.Conv.SpSchema[relationTable] = relationTableSp
 
 	}
@@ -84,6 +87,7 @@ func removeColumn(table string, colName string, srcTableName string) {
 
 		removeToSpannerToSource(childSchema, colName)
 
+		//4
 		sessionState.Conv.SpSchema[childSchema] = childSchemaSp
 
 	}
@@ -105,6 +109,7 @@ func removeColumn(table string, colName string, srcTableName string) {
 		removeSpannerSchemaIssue(isChild, colName)
 		removeToSpannerToSource(isChild, colName)
 
+		//5
 		sessionState.Conv.SpSchema[isChild] = childSchemaSp
 	}
 }

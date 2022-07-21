@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	updatesessionfiles "github.com/cloudspannerecosystem/harbourbridge/webv2/updatesessionfiles"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 
@@ -19,7 +20,6 @@ import (
 // (4) NotNull: "ADDED", "REMOVED" or ""
 // (5) ToType: New type or empty string
 type updateCol struct {
-	Add     bool   `json:"Add"`
 	Removed bool   `json:"Removed"`
 	Rename  string `json:"Rename"`
 	PK      string `json:"PK"`
@@ -29,7 +29,6 @@ type updateCol struct {
 
 type updateTable struct {
 	UpdateCols map[string]updateCol `json:"UpdateCols"`
-	table      string
 }
 
 // updateTableSchema updates the Spanner schema.
@@ -61,33 +60,38 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("updateTable :", t)
 
 	sessionState := session.GetSessionState()
-	srcTableName := sessionState.Conv.ToSource[table].Name
+
+	var Conv *internal.Conv
+
+	Conv = sessionState.Conv
+
+	fmt.Println("conv", *Conv)
 
 	for colName, v := range t.UpdateCols {
 
 		if v.Removed {
 
-			addColumn(table, colName, srcTableName)
+			addColumn(table, colName)
 
 			continue
 		}
 
 		if v.Removed {
 
-			removeColumn(table, colName, srcTableName)
+			removeColumn(table, colName)
 
 			continue
 		}
 
 		if v.Rename != "" && v.Rename != colName {
 
-			renameColumn(v.Rename, table, colName, srcTableName)
+			renameColumn(v.Rename, table, colName, Conv)
 			colName = v.Rename
 		}
 
 		if v.ToType != "" {
 
-			typeChange, err := utilities.IsTypeChanged(v.ToType, table, colName, srcTableName)
+			typeChange, err := utilities.IsTypeChanged(v.ToType, table, colName)
 
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -96,7 +100,7 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			if typeChange {
 
-				UpdatecolNameType(v.ToType, table, colName, srcTableName, w)
+				UpdatecolNameType(v.ToType, table, colName, w)
 			}
 		}
 
@@ -105,7 +109,15 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	updatesessionfiles.UpdateSessionFile()
+	Update := true
+
+	if Update {
+
+		updatesessionfiles.UpdateSessionFile()
+
+	}
+
+	sessionState.Conv = Conv
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,

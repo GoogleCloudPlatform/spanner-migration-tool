@@ -5,16 +5,17 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
-func renameColumn(newName, table, colName, srcTableName string) {
+func renameColumn(newName, table, colName string, Conv *internal.Conv) {
 
 	fmt.Println("renameColumn getting called")
 
-	sessionState := session.GetSessionState()
+	//sessionState := session.GetSessionState()
 
-	sp := sessionState.Conv.SpSchema[table]
+	//sp := sessionState.Conv.SpSchema[table]
+
+	sp := Conv.SpSchema[table]
 
 	// step I
 	sp = renameSpannerColDefs(sp, colName, newName)
@@ -35,12 +36,15 @@ func renameColumn(newName, table, colName, srcTableName string) {
 	sp = renameSpannerColNames(sp, colName, newName)
 
 	// step VII
-	renameSpannerSchemaIssue(table, colName, newName)
+	renameSpannerSchemaIssue(table, colName, newName, Conv)
 
 	// step VIII
-	renameToSpannerToSource(table, colName, newName)
+	renameToSpannerToSource(table, colName, newName, Conv)
 
-	sessionState.Conv.SpSchema[table] = sp
+	//7
+	//sessionState.Conv.SpSchema[table] = sp
+
+	Conv.SpSchema[table] = sp
 
 	// update foreignKey relationship Table column names
 	for i, _ := range sp.Fks {
@@ -49,7 +53,9 @@ func renameColumn(newName, table, colName, srcTableName string) {
 
 		relationTable := sp.Fks[i].ReferTable
 
-		relationTableSp := sessionState.Conv.SpSchema[relationTable]
+		//relationTableSp := sessionState.Conv.SpSchema[relationTable]
+
+		relationTableSp := Conv.SpSchema[relationTable]
 
 		relationTableSp = renameSpannerColNames(relationTableSp, colName, newName)
 		relationTableSp = renameSpannerColDefs(relationTableSp, colName, newName)
@@ -59,9 +65,13 @@ func renameColumn(newName, table, colName, srcTableName string) {
 		relationTableSp = renameSpannerForeignkeyReferColumns(relationTableSp, colName, newName)
 
 		//todo
-		renameToSpannerToSource(relationTable, colName, newName)
-		renameSpannerSchemaIssue(relationTable, colName, newName)
-		sessionState.Conv.SpSchema[relationTable] = relationTableSp
+		renameToSpannerToSource(relationTable, colName, newName, Conv)
+		renameSpannerSchemaIssue(relationTable, colName, newName, Conv)
+
+		//8
+		//sessionState.Conv.SpSchema[relationTable] = relationTableSp
+
+		Conv.SpSchema[relationTable] = relationTableSp
 
 	}
 
@@ -71,7 +81,9 @@ func renameColumn(newName, table, colName, srcTableName string) {
 	if isParent {
 		fmt.Println("yes", table, "is parent table")
 
-		childSchemaSp := sessionState.Conv.SpSchema[childSchema]
+		//childSchemaSp := sessionState.Conv.SpSchema[childSchema]
+
+		childSchemaSp := Conv.SpSchema[childSchema]
 
 		childSchemaSp = renameSpannerColNames(childSchemaSp, colName, newName)
 		childSchemaSp = renameSpannerColDefs(childSchemaSp, colName, newName)
@@ -81,18 +93,27 @@ func renameColumn(newName, table, colName, srcTableName string) {
 		childSchemaSp = renameSpannerForeignkeyReferColumns(childSchemaSp, colName, newName)
 
 		//todo
-		renameToSpannerToSource(childSchema, colName, newName)
-		renameSpannerSchemaIssue(childSchema, colName, newName)
+		renameToSpannerToSource(childSchema, colName, newName, Conv)
+		renameSpannerSchemaIssue(childSchema, colName, newName, Conv)
 
-		sessionState.Conv.SpSchema[childSchema] = childSchemaSp
+		//9
+		//sessionState.Conv.SpSchema[childSchema] = childSchemaSp
+
+		Conv.SpSchema[childSchema] = childSchemaSp
 
 	}
 
-	isChild := sessionState.Conv.SpSchema[table].Parent
+	//10
+	//isChild := sessionState.Conv.SpSchema[table].Parent
+
+	isChild := Conv.SpSchema[table].Parent
 
 	if isChild != "" {
 
-		childSchemaSp := sessionState.Conv.SpSchema[isChild]
+		//12
+		//childSchemaSp := sessionState.Conv.SpSchema[isChild]
+
+		childSchemaSp := Conv.SpSchema[isChild]
 
 		childSchemaSp = renameSpannerColNames(childSchemaSp, colName, newName)
 		childSchemaSp = renameSpannerColDefs(childSchemaSp, colName, newName)
@@ -102,11 +123,14 @@ func renameColumn(newName, table, colName, srcTableName string) {
 		childSchemaSp = renameSpannerForeignkeyReferColumns(childSchemaSp, colName, newName)
 
 		//todo
-		renameToSpannerToSource(isChild, colName, newName)
+		renameToSpannerToSource(isChild, colName, newName, Conv)
 
-		renameSpannerSchemaIssue(isChild, colName, newName)
+		renameSpannerSchemaIssue(isChild, colName, newName, Conv)
 
-		sessionState.Conv.SpSchema[isChild] = childSchemaSp
+		//11
+		//sessionState.Conv.SpSchema[isChild] = childSchemaSp
+		Conv.SpSchema[isChild] = childSchemaSp
+
 	}
 
 }
@@ -254,38 +278,50 @@ func renameSpannerForeignkeyReferColumns(sp ddl.CreateTable, colName string, new
 	return sp
 }
 
-func renameToSpannerToSource(table string, colName string, newName string) {
+func renameToSpannerToSource(table string, colName string, newName string, Conv *internal.Conv) {
 
-	sessionState := session.GetSessionState()
-	srcTableName := sessionState.Conv.ToSource[table].Name
+	//sessionState := session.GetSessionState()
 
-	srcColName := sessionState.Conv.ToSource[table].Cols[colName]
-	sessionState.Conv.ToSpanner[srcTableName].Cols[srcColName] = newName
-	sessionState.Conv.ToSource[table].Cols[newName] = srcColName
-	delete(sessionState.Conv.ToSource[table].Cols, colName)
+	//srcTableName := sessionState.Conv.ToSource[table].Name
+
+	srcTableName := Conv.ToSource[table].Name
+
+	//srcColName := sessionState.Conv.ToSource[table].Cols[colName]
+
+	srcColName := Conv.ToSource[table].Cols[colName]
+
+	//10
+	//	sessionState.Conv.ToSpanner[srcTableName].Cols[srcColName] = newName
+	//	sessionState.Conv.ToSource[table].Cols[newName] = srcColName
+	//	delete(sessionState.Conv.ToSource[table].Cols, colName)
+
+	Conv.ToSpanner[srcTableName].Cols[srcColName] = newName
+	Conv.ToSource[table].Cols[newName] = srcColName
+	delete(Conv.ToSource[table].Cols, colName)
 
 }
 
-func renameSpannerSchemaIssue(table string, colName string, newName string) {
+func renameSpannerSchemaIssue(table string, colName string, newName string, Conv *internal.Conv) {
 
-	sessionState := session.GetSessionState()
+	//	sessionState := session.GetSessionState()
 
-	if sessionState.Conv.Issues != nil {
+	//12
+	if Conv.Issues != nil {
 
-		if sessionState.Conv.Issues[table] != nil && sessionState.Conv.Issues[table][colName] != nil {
+		if Conv.Issues[table] != nil && Conv.Issues[table][colName] != nil {
 
-			schemaissue := sessionState.Conv.Issues[table][colName]
+			schemaissue := Conv.Issues[table][colName]
 
 			s := map[string][]internal.SchemaIssue{
 				newName: schemaissue,
 			}
 
-			sessionState.Conv.Issues[table] = s
+			Conv.Issues[table] = s
 
 		}
 
 	}
 
-	delete(sessionState.Conv.Issues[table], colName)
+	delete(Conv.Issues[table], colName)
 
 }

@@ -8,9 +8,11 @@ import (
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
-func UpdatecolNameType(newType, table, colName, srcTableName string, w http.ResponseWriter) {
+func UpdatecolNameType(newType, table, colName string, w http.ResponseWriter) {
 
 	sessionState := session.GetSessionState()
+
+	srcTableName := sessionState.Conv.ToSource[table].Name
 
 	sp, ty, err := utilities.GetType(newType, table, colName, srcTableName)
 
@@ -28,6 +30,7 @@ func UpdatecolNameType(newType, table, colName, srcTableName string, w http.Resp
 
 	fmt.Println("updated type for sp.ColDefs[colName] ", sp.ColDefs[colName], sp.ColDefs[colName].T)
 
+	//13
 	sessionState.Conv.SpSchema[table] = sp
 
 	//todo
@@ -53,6 +56,7 @@ func UpdatecolNameType(newType, table, colName, srcTableName string, w http.Resp
 
 		fmt.Println("updated type for rsp.ColDefs[colName] ", rsp.ColDefs[colName], rsp.ColDefs[colName].T)
 
+		//14
 		sessionState.Conv.SpSchema[table] = rsp
 	}
 
@@ -80,6 +84,7 @@ func UpdatecolNameType(newType, table, colName, srcTableName string, w http.Resp
 
 		fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
 
+		//15
 		sessionState.Conv.SpSchema[table] = childSp
 
 	}
@@ -107,14 +112,16 @@ func UpdatecolNameType(newType, table, colName, srcTableName string, w http.Resp
 
 		fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
 
+		//16
 		sessionState.Conv.SpSchema[table] = childSp
 	}
 }
 
 func UpdateNotNull(notNullChange, table, colName string) {
-	sessionState := session.GetSessionState()
 
+	sessionState := session.GetSessionState()
 	sp := sessionState.Conv.SpSchema[table]
+
 	switch notNullChange {
 	case "ADDED":
 		spColDef := sp.ColDefs[colName]
