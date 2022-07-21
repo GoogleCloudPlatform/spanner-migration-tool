@@ -244,22 +244,23 @@ export class ObjectDetailComponent implements OnInit {
   toggleEdit() {
     this.currentTabIndex = 0
     if (this.isEditMode) {
-      let updateData: IUpdateTable = { UpdateCols: {} }
+      let updateData: IUpdateTable = { UpdateCols: {}, Update: false }
       this.rowArray.value.forEach((col: IColumnTabData, i: number) => {
         let oldRow = this.tableData[i]
         updateData.UpdateCols[this.tableData[i].spColName] = {
+          Add: false,
           Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
           NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
-          PK: '',
           Removed: false,
           ToType: oldRow.spDataType !== col.spDataType ? col.spDataType : '',
         }
       })
+      updateData.Update = true
       this.droppedColumnNames.forEach((col: string) => {
         updateData.UpdateCols[col] = {
+          Add: this.conv.SpSchema[this.currentObject!.name].ColDefs[col] == undefined,
           Rename: '',
           NotNull: '',
-          PK: '',
           Removed: true,
           ToType: '',
         }
@@ -303,7 +304,6 @@ export class ObjectDetailComponent implements OnInit {
 
   dropColumn(element: any) {
     let colName = element.get('srcColName').value
-    let updateData: IUpdateTable = { UpdateCols: {} }
     this.rowArray.value.forEach((col: IColumnTabData, i: number) => {
       if (col.srcColName === colName) {
         this.droppedColumnNames.push(colName)
