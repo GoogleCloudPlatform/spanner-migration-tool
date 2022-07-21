@@ -12,17 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
+package utilities
 
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"reflect"
 	"regexp"
+	"time"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
-	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
@@ -34,42 +38,6 @@ func GetMetadataDbName() string {
 
 func GetSpannerUri(projectId string, instanceId string) string {
 	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", projectId, instanceId, GetMetadataDbName())
-}
-
-func CheckOrCreateMetadataDb(projectId string, instanceId string) (isExist bool, isDbCreated bool) {
-	uri := GetSpannerUri(projectId, instanceId)
-	if uri == "" {
-		fmt.Println("Invalid spanner uri")
-		return
-	}
-
-	ctx := context.Background()
-	adminClient, err := database.NewDatabaseAdminClient(ctx)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer adminClient.Close()
-
-	dbExists, err := conversion.CheckExistingDb(ctx, adminClient, uri)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	if dbExists {
-		isExist = true
-		return
-	}
-
-	err = createDatabase(ctx, uri)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Println("No existing database found to store session metadata.")
-	isDbCreated = true
-	isExist = true
-	return
 }
 
 func createDatabase(ctx context.Context, uri string) error {
@@ -94,10 +62,10 @@ func createDatabase(ctx context.Context, uri string) error {
 				VersionId STRING(36) NOT NULL,
 				PreviousVersionId ARRAY<STRING(36)>,
 				SessionName STRING(50) NOT NULL,
-				EditorName STRING(100),
+				EditorName STRING(100) NOT NULL,
 				DatabaseType STRING(50) NOT NULL,
 				DatabaseName STRING(50) NOT NULL,
-				Notes ARRAY<STRING(MAX)>,
+				Notes ARRAY<STRING(MAX)> NOT NULL,
 				Tags ARRAY<STRING(20)>,
 				SchemaChanges STRING(MAX),
 				SchemaConversionObject JSON NOT NULL,
@@ -164,12 +132,15 @@ func IsColumnPresent(columns []string, col string) string {
 // RemoveSchemaIssue removes issue from the given list.
 func RemoveSchemaIssue(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) []internal.SchemaIssue {
 
-	for i := 0; i < len(schemaissue); i++ {
-		if schemaissue[i] == issue {
-			schemaissue = append(schemaissue[:i], schemaissue[i+1:]...)
+	k := 0
+	for i := 0; i < len(schemaissue); {
+		if schemaissue[i] != issue {
+			schemaissue[k] = schemaissue[i]
+			k++
 		}
+		i++
 	}
-	return schemaissue
+	return schemaissue[0:k]
 }
 
 // IsSchemaIssuePresent checks if issue is present in the given schemaissue list.
@@ -217,4 +188,196 @@ func RemoveIndex(Pks []ddl.IndexKey, index int) []ddl.IndexKey {
 	list := append(Pks[:index], Pks[index+1:]...)
 
 	return list
+}
+
+func IsTypeChanged(newType, table, colName string) (bool, error) {
+
+	sessionState := session.GetSessionState()
+
+	srcTableName := sessionState.Conv.ToSource[table].Name
+
+	sp, ty, err := GetType(newType, table, colName, srcTableName)
+	if err != nil {
+		return false, err
+	}
+	colDef := sp.ColDefs[colName]
+	return !reflect.DeepEqual(colDef.T, ty), nil
+}
+
+func IsPartOfPK(col, table string) bool {
+	sessionState := session.GetSessionState()
+
+	for _, pk := range sessionState.Conv.SpSchema[table].Pks {
+		if pk.Col == col {
+			return true
+		}
+	}
+	return false
+}
+
+func IsPartOfSecondaryIndex(col, table string) (bool, string) {
+	sessionState := session.GetSessionState()
+
+	for _, index := range sessionState.Conv.SpSchema[table].Indexes {
+		for _, key := range index.Keys {
+			if key.Col == col {
+				return true, index.Name
+			}
+		}
+	}
+	return false, ""
+}
+
+func IsPartOfFK(col, table string) bool {
+	sessionState := session.GetSessionState()
+
+	for _, fk := range sessionState.Conv.SpSchema[table].Fks {
+		for _, column := range fk.Columns {
+			if column == col {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// TODO: create a map to store referenced column to get
+// this information in O(1).
+// TODO:(searce) can have foreign key constraints between columns of the same table, as well as between same column on a given table.
+func IsReferencedByFK(col, table string) (bool, string) {
+	sessionState := session.GetSessionState()
+
+	for _, spSchema := range sessionState.Conv.SpSchema {
+		if table != spSchema.Name {
+			for _, fk := range spSchema.Fks {
+				if fk.ReferTable == table {
+					for _, column := range fk.ReferColumns {
+						if column == col {
+							return true, spSchema.Name
+						}
+					}
+				}
+			}
+		}
+	}
+	return false, ""
+}
+
+func Remove(slice []string, s int) []string {
+	return append(slice[:s], slice[s+1:]...)
+}
+
+func RemovePk(slice []ddl.IndexKey, s int) []ddl.IndexKey {
+	return append(slice[:s], slice[s+1:]...)
+}
+
+func RemoveFk(slice []ddl.Foreignkey, s int) []ddl.Foreignkey {
+	return append(slice[:s], slice[s+1:]...)
+}
+
+func RemoveSecondaryIndex(slice []ddl.CreateIndex, s int) []ddl.CreateIndex {
+	return append(slice[:s], slice[s+1:]...)
+}
+
+func CheckSpannerNamesValidity(input []string) (bool, []string) {
+	status := true
+	var invalidNewNames []string
+	for _, changed := range input {
+		if _, status := internal.FixName(changed); status {
+			status = false
+			invalidNewNames = append(invalidNewNames, changed)
+		}
+	}
+	return status, invalidNewNames
+}
+
+func CanRename(names []string, table string) (bool, error) {
+	sessionState := session.GetSessionState()
+
+	namesMap := map[string]bool{}
+	// Check that this name isn't already used by another table.
+	for _, name := range names {
+		namesMap[name] = true
+		if _, ok := sessionState.Conv.SpSchema[name]; ok {
+			return false, fmt.Errorf("new name : '%s' is used by another table", name)
+		}
+	}
+
+	// Check that this name isn't already used by another foreign key.
+	for _, sp := range sessionState.Conv.SpSchema {
+		for _, foreignKey := range sp.Fks {
+			if _, ok := namesMap[foreignKey.Name]; ok {
+				return false, fmt.Errorf("new name : '%s' is used by another foreign key in table : '%s'", foreignKey.Name, sp.Name)
+			}
+
+		}
+	}
+
+	// Check that this name isn't already used by another secondary index.
+	for _, sp := range sessionState.Conv.SpSchema {
+		for _, index := range sp.Indexes {
+			if _, ok := namesMap[index.Name]; ok {
+				return false, fmt.Errorf("new name : '%s' is used by another index in table : '%s'", index.Name, sp.Name)
+			}
+		}
+	}
+	return true, nil
+}
+
+func GetPrimaryKeyIndexFromOrder(pk []ddl.IndexKey, order int) int {
+
+	for i := 0; i < len(pk); i++ {
+		if pk[i].Order == order {
+			return i
+		}
+	}
+	return -1
+}
+
+func IsUniqueName(name string) bool {
+	sessionState := session.GetSessionState()
+
+	for table := range sessionState.Conv.SpSchema {
+		if table == name {
+			return false
+		}
+	}
+	for _, spSchema := range sessionState.Conv.SpSchema {
+		for _, fk := range spSchema.Fks {
+			if fk.Name == name {
+				return false
+			}
+		}
+		for _, index := range spSchema.Indexes {
+			if index.Name == name {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func GetFilePrefix(now time.Time) (string, error) {
+	sessionState := session.GetSessionState()
+
+	dbName := sessionState.DbName
+	var err error
+	if dbName == "" {
+		dbName, err = utils.GetDatabaseName(sessionState.Driver, now)
+		if err != nil {
+			return "", fmt.Errorf("Can not create database name : %v", err)
+		}
+	}
+	return dbName + ".", nil
+}
+
+func UpdateType(newType, table, colName, srcTableName string, w http.ResponseWriter) {
+	sp, ty, err := GetType(newType, table, colName, srcTableName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	colDef := sp.ColDefs[colName]
+	colDef.T = ty
+	sp.ColDefs[colName] = colDef
 }
