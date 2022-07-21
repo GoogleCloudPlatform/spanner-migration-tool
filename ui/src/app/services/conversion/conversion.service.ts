@@ -268,29 +268,34 @@ export class ConversionService {
   }
 
   getIndexMapping(tableName: string, data: IConv, indexName: string): IIndexData[] {
-    let srcTableName = data.ToSource[tableName].Name
-    let spIndex = data.SpSchema[tableName].Indexes.filter((idx) => idx.Name === indexName)[0]
+    // let srcTableName = data.ToSource[tableName].Name
+    let srcTableName = tableName
+    let spIndex = data.SpSchema[tableName]?.Indexes.filter((idx) => idx.Name === indexName)[0]
     let srcIndexs = data.SrcSchema[srcTableName].Indexes?.filter((idx) => idx.Name === indexName)
 
-    let res: IIndexData[] = spIndex.Keys.map((idx: IIndexKey, i: number) => {
-      return {
-        srcColName:
-          srcIndexs && srcIndexs.length > 0 && srcIndexs[0].Keys.length > i
-            ? srcIndexs[0].Keys[i].Column
-            : '',
-        srcOrder: srcIndexs && srcIndexs.length > 0 && srcIndexs[0].Keys.length > i ? i + 1 : '',
-        srcDesc:
-          srcIndexs && srcIndexs.length > 0 && srcIndexs[0].Keys.length > i
-            ? srcIndexs[0].Keys[i].Desc
-            : undefined,
-        spColName: idx.Col,
-        spOrder: i + 1,
-        spDesc: idx.Desc,
-      }
-    })
-    if (srcIndexs && srcIndexs[0] && spIndex.Keys.length < srcIndexs[0].Keys.length) {
+    let res: IIndexData[] = spIndex
+      ? spIndex.Keys.map((idx: IIndexKey, i: number) => {
+          return {
+            srcColName:
+              srcIndexs && srcIndexs.length > 0 && srcIndexs[0].Keys.length > i
+                ? srcIndexs[0].Keys[i].Column
+                : '',
+            srcOrder:
+              srcIndexs && srcIndexs.length > 0 && srcIndexs[0].Keys.length > i ? i + 1 : '',
+            srcDesc:
+              srcIndexs && srcIndexs.length > 0 && srcIndexs[0].Keys.length > i
+                ? srcIndexs[0].Keys[i].Desc
+                : undefined,
+            spColName: idx.Col,
+            spOrder: i + 1,
+            spDesc: idx.Desc,
+          }
+        })
+      : []
+    let spKeyLength = spIndex ? spIndex.Keys.length : 0
+    if (srcIndexs && srcIndexs[0] && spKeyLength < srcIndexs[0].Keys.length) {
       srcIndexs[0].Keys.forEach((idx, index) => {
-        if (index >= spIndex.Keys.length) {
+        if (index >= spKeyLength) {
           res.push({
             srcColName: idx.Column,
             srcOrder: index + 1,
