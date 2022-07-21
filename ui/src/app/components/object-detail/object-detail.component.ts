@@ -228,12 +228,10 @@ export class ObjectDetailComponent implements OnInit {
         )
       }
     }
-    console.log(this.rowArray.value)
     this.dataSource = this.rowArray.controls
   }
 
   setColumnsToAdd() {
-    console.log(this.tableData)
     this.tableData.forEach((col) => {
       if (!col.spColName) {
         this.droppedColumnNames.push(col.srcColName)
@@ -248,7 +246,7 @@ export class ObjectDetailComponent implements OnInit {
       this.rowArray.value.forEach((col: IColumnTabData, i: number) => {
         let oldRow = this.tableData[i]
         updateData.UpdateCols[this.tableData[i].spColName] = {
-          Add: false,
+          Add: !this.conv.SpSchema[this.currentObject!.name].ColNames.includes(col.spColName),
           Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
           NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
           Removed: false,
@@ -258,7 +256,7 @@ export class ObjectDetailComponent implements OnInit {
       updateData.Update = true
       this.droppedColumnNames.forEach((col: string) => {
         updateData.UpdateCols[col] = {
-          Add: this.conv.SpSchema[this.currentObject!.name].ColDefs[col] == undefined,
+          Add: false,
           Rename: '',
           NotNull: '',
           Removed: true,
@@ -266,7 +264,6 @@ export class ObjectDetailComponent implements OnInit {
         }
       })
 
-      console.log(this.typeMap)
       this.data.updateTable(this.currentObject!.name, updateData).subscribe({
         next: (res: string) => {
           if (res == '') {
@@ -298,7 +295,6 @@ export class ObjectDetailComponent implements OnInit {
     if (ind > -1) {
       this.droppedColumnNames.splice(ind, 1)
     }
-    console.log(this.droppedColumnNames)
     this.setTableRows()
   }
 
@@ -310,7 +306,6 @@ export class ObjectDetailComponent implements OnInit {
       }
     })
     this.dropColumnFromUI(colName)
-    console.log(this.droppedColumnNames)
   }
 
   dropColumnFromUI(colName: string) {
@@ -323,7 +318,6 @@ export class ObjectDetailComponent implements OnInit {
         col.spOrder = ''
       }
     })
-    console.log(this.tableData)
     this.setTableRows()
   }
 
@@ -508,7 +502,6 @@ export class ObjectDetailComponent implements OnInit {
     arr.forEach((num: number, ind: number) => {
       this.pkData.forEach((pk: IColumnTabData) => {
         if (pk.spOrder == num) {
-          console.log(ind + 1)
           pk.spOrder = ind + 1
         }
       })
