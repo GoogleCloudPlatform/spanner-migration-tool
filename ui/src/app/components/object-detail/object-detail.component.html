@@ -752,7 +752,7 @@
           <div class="spanner_edit-button">
             <span>Spanner</span>
 
-            <div *ngIf="!isIndexEditMode">
+            <div *ngIf="!isIndexEditMode && currentObject!.isSpannerNode">
               <button mat-stroked-button color="primary" (click)="toggleIndexEdit()">
                 <mat-icon class="edit-icon">edit</mat-icon>
                 EDIT
