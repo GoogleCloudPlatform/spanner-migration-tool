@@ -147,6 +147,7 @@ export class ObjectDetailComponent implements OnInit {
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
       this.setPkOrder()
       this.checkIsInterleave()
+      this.setColumnsToAdd()
 
       this.interleaveObj = this.data.tableInterleaveStatus.subscribe((res) => {
         this.interleaveStatus = res
@@ -229,6 +230,15 @@ export class ObjectDetailComponent implements OnInit {
     this.dataSource = this.rowArray.controls
   }
 
+  setColumnsToAdd() {
+    console.log(this.tableData)
+    this.tableData.forEach((col) => {
+      if (!col.spColName) {
+        this.droppedColumnNames.push(col.srcColName)
+      }
+    })
+  }
+
   toggleEdit() {
     this.currentTabIndex = 0
     if (this.isEditMode) {
@@ -278,9 +288,7 @@ export class ObjectDetailComponent implements OnInit {
   addColumn() {
     let index = this.tableData.map((item) => item.srcColName).indexOf(this.addedColumnName)
     this.tableData[index].spColName = this.addedColumnName
-    this.tableData[index].spDataType = String(
-      this.conv.SpSchema[this.currentObject!.name].ColDefs[this.addedColumnName].T
-    )
+    this.tableData[index].spDataType = ''
     this.tableData[index].spOrder = index
     this.tableData[index].spIsPk = true
     let ind = this.droppedColumnNames.indexOf(this.addedColumnName)
@@ -289,26 +297,6 @@ export class ObjectDetailComponent implements OnInit {
     }
     console.log(this.droppedColumnNames)
     this.setTableRows()
-
-    //alert('Feature comming soon!')
-    // this.tableData[index].spIsPk = true
-    // this.pkData = []
-    // this.pkData = this.conversion.getPkMapping(this.tableData)
-    // index = this.pkData.findIndex((item) => item.srcOrder === index + 1)
-    // this.pkArray.value.forEach((pk: IColumnTabData) => {
-    //   if (pk.spIsPk) {
-    //     newColumnOrder = newColumnOrder + 1
-    //   }
-    //   for (let i = 0; i < this.pkData.length; i++) {
-    //     if (this.pkData[i].spColName == pk.spColName) {
-    //       this.pkData[i].spOrder = pk.spOrder
-    //       break
-    //     }
-    //   }
-    // })
-    // this.pkData[index].spOrder = newColumnOrder
-    // this.setAddPkColumnList()
-    // this.setPkRows()
   }
 
   dropColumn(element: any) {
@@ -321,19 +309,6 @@ export class ObjectDetailComponent implements OnInit {
     })
     this.dropColumnFromUI(colName)
     console.log(this.droppedColumnNames)
-    // this.data.updateTable(this.currentObject!.name, updateData).subscribe({
-    //   next: (res: string) => {
-    //     if (res == '') {
-    //       this.data.getDdl()
-    //       this.snackbar.openSnackBar(`${colName} column dropped successfully`, 'Close', 5)
-    //     } else {
-    //       this.dialog.open(InfodialogComponent, {
-    //         data: { message: res, type: 'error' },
-    //         maxWidth: '500px',
-    //       })
-    //     }
-    //   },
-    // })
   }
 
   dropColumnFromUI(colName: string) {
