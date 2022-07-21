@@ -14,9 +14,9 @@ import (
 )
 
 // Actions to be performed on a column.
-// (1) Removed: true/false
-// (2) Rename: New name or empty string
-// (3) PK: "ADDED", "REMOVED" or ""
+// (1) Add : Add column if true
+// (2) Removed: Remove column if true
+// (3) Rename: New name or empty string
 // (4) NotNull: "ADDED", "REMOVED" or ""
 // (5) ToType: New type or empty string
 type updateCol struct {
@@ -34,9 +34,9 @@ type updateTable struct {
 
 // updateTableSchema updates the Spanner schema.
 // Following actions can be performed on a specified table:
-// (1) Remove column
-// (2) Rename column
-// (3) Add or Remove Primary Key
+// (1) Add column
+// (2) Remove column
+// (3) Rename column
 // (4) Add or Remove NotNull constraint
 // (5) Update Spanner type
 func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
@@ -66,13 +66,11 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	Conv = sessionState.Conv
 
-	fmt.Println("conv", *Conv)
-
 	for colName, v := range t.UpdateCols {
 
 		if v.Add {
 
-			addColumn(table, colName)
+			addColumn(table, colName, Conv)
 
 			continue
 		}
@@ -110,29 +108,32 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	Update := true
+	/*
+		Update := true
 
-	if Update {
+		if Update {
 
-		updatesessionfiles.UpdateSessionFile()
-		sessionState.Conv = Conv
-		convm := session.ConvWithMetadata{
-			SessionMetadata: sessionState.SessionMetadata,
-			Conv:            *sessionState.Conv,
+			updatesessionfiles.UpdateSessionFile()
+			sessionState.Conv = Conv
+			convm := session.ConvWithMetadata{
+				SessionMetadata: sessionState.SessionMetadata,
+				Conv:            *sessionState.Conv,
+			}
+
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(convm)
+
 		}
 
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(convm)
+	*/
 
+	updatesessionfiles.UpdateSessionFile()
+	sessionState.Conv = Conv
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
 	}
 
-	/*
-		convm := session.ConvWithMetadata{
-			SessionMetadata: sessionState.SessionMetadata,
-			Conv:            *sessionState.Conv,
-		}
-
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(convm)
-	*/
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
 }

@@ -1,30 +1,65 @@
 package updateTableSchema
 
 import (
+	"fmt"
+
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/uniqueid"
 )
 
-func addColumn(table string, colName string) {
+func addColumn(table string, colName string, Conv *internal.Conv) {
 
-	sessionState := session.GetSessionState()
+	//sessionState := session.GetSessionState()
 
-	sp := sessionState.Conv.SpSchema[table]
+	fmt.Println("addColumn getting called")
+
+	sp := Conv.SpSchema[table]
+
+	src := Conv.SpSchema[table]
+
+	srcColumnId := src.ColDefs[colName].Id
+
+	fmt.Println("before sp.ColumnDef", sp.ColDefs)
+
+	fmt.Println("")
+	fmt.Println("")
+
+	for k, v := range sp.ColDefs {
+		fmt.Println("k :", k)
+		fmt.Println("v :", v)
+	}
 
 	sp.ColDefs[colName] = ddl.ColumnDef{
-		Id:      uniqueid.GenerateColumnId(),
+		Id:      srcColumnId,
 		Name:    colName,
 		T:       sp.ColDefs[colName].T,
 		NotNull: sp.ColDefs[colName].NotNull,
 		Comment: sp.ColDefs[colName].Comment,
 	}
 
-	srcTableName := sessionState.Conv.ToSource[table].Name
-	srcColName := sessionState.Conv.ToSource[table].Cols[colName]
+	fmt.Println("after Add sp.ColumnDef", sp.ColDefs)
+
+	fmt.Println("")
+	fmt.Println("")
+
+	for k, v := range sp.ColDefs {
+		fmt.Println("k :", k)
+		fmt.Println("v :", v)
+	}
+
+	fmt.Println(" before len of sp.ColNames  ", sp.ColNames)
+
+	sp.ColNames = append(sp.ColNames, colName)
+
+	fmt.Println("after len of sp.ColNames  ", sp.ColNames)
+
+	Conv.SpSchema[table] = sp
+
+	srcTableName := Conv.ToSource[table].Name
+	srcColName := Conv.ToSource[table].Cols[colName]
 
 	//1
-	sessionState.Conv.ToSpanner[srcTableName].Cols[srcColName] = colName
-	sessionState.Conv.ToSource[table].Cols[colName] = srcColName
+	Conv.ToSpanner[srcTableName].Cols[srcColName] = colName
+	Conv.ToSource[table].Cols[colName] = srcColName
 
 }
