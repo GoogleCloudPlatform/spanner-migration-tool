@@ -23,7 +23,6 @@ type updateCol struct {
 	Add     bool   `json:"Add"`
 	Removed bool   `json:"Removed"`
 	Rename  string `json:"Rename"`
-	PK      string `json:"PK"`
 	NotNull string `json:"NotNull"`
 	ToType  string `json:"ToType"`
 }
@@ -71,7 +70,7 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	for colName, v := range t.UpdateCols {
 
-		if v.Removed {
+		if v.Add {
 
 			addColumn(table, colName)
 
@@ -80,7 +79,7 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 		if v.Removed {
 
-			removeColumn(table, colName)
+			removeColumn(table, colName, Conv)
 
 			continue
 		}
@@ -93,7 +92,7 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 		if v.ToType != "" {
 
-			typeChange, err := utilities.IsTypeChanged(v.ToType, table, colName)
+			typeChange, err := utilities.IsTypeChanged(v.ToType, table, colName, Conv)
 
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -102,12 +101,12 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			if typeChange {
 
-				UpdatecolNameType(v.ToType, table, colName, w)
+				UpdatecolNameType(v.ToType, table, colName, Conv, w)
 			}
 		}
 
 		if v.NotNull != "" {
-			UpdateNotNull(v.NotNull, table, colName)
+			UpdateNotNull(v.NotNull, table, colName, Conv)
 		}
 	}
 
@@ -116,16 +115,24 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 	if Update {
 
 		updatesessionfiles.UpdateSessionFile()
+		sessionState.Conv = Conv
+		convm := session.ConvWithMetadata{
+			SessionMetadata: sessionState.SessionMetadata,
+			Conv:            *sessionState.Conv,
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(convm)
 
 	}
 
-	sessionState.Conv = Conv
+	/*
+		convm := session.ConvWithMetadata{
+			SessionMetadata: sessionState.SessionMetadata,
+			Conv:            *sessionState.Conv,
+		}
 
-	convm := session.ConvWithMetadata{
-		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(convm)
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(convm)
+	*/
 }

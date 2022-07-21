@@ -149,6 +149,7 @@ export class ObjectDetailComponent implements OnInit {
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
       this.setPkOrder()
       this.checkIsInterleave()
+      this.setColumnsToAdd()
 
       this.interleaveObj = this.data.tableInterleaveStatus.subscribe((res) => {
         this.interleaveStatus = res
@@ -227,35 +228,42 @@ export class ObjectDetailComponent implements OnInit {
         )
       }
     }
-    console.log(this.rowArray.value)
     this.dataSource = this.rowArray.controls
+  }
+
+  setColumnsToAdd() {
+    this.tableData.forEach((col) => {
+      if (!col.spColName) {
+        this.droppedColumnNames.push(col.srcColName)
+      }
+    })
   }
 
   toggleEdit() {
     this.currentTabIndex = 0
     if (this.isEditMode) {
-      let updateData: IUpdateTable = { UpdateCols: {} }
+      let updateData: IUpdateTable = { UpdateCols: {}, Update: false }
       this.rowArray.value.forEach((col: IColumnTabData, i: number) => {
         let oldRow = this.tableData[i]
         updateData.UpdateCols[this.tableData[i].spColName] = {
+          Add: !this.conv.SpSchema[this.currentObject!.name].ColNames.includes(col.spColName),
           Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
           NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
-          PK: '',
           Removed: false,
           ToType: oldRow.spDataType !== col.spDataType ? col.spDataType : '',
         }
       })
+      updateData.Update = true
       this.droppedColumnNames.forEach((col: string) => {
         updateData.UpdateCols[col] = {
+          Add: false,
           Rename: '',
           NotNull: '',
-          PK: '',
           Removed: true,
           ToType: '',
         }
       })
 
-      console.log(this.typeMap)
       this.data.updateTable(this.currentObject!.name, updateData).subscribe({
         next: (res: string) => {
           if (res == '') {
@@ -280,62 +288,24 @@ export class ObjectDetailComponent implements OnInit {
   addColumn() {
     let index = this.tableData.map((item) => item.srcColName).indexOf(this.addedColumnName)
     this.tableData[index].spColName = this.addedColumnName
-    this.tableData[index].spDataType = String(
-      this.conv.SpSchema[this.currentObject!.name].ColDefs[this.addedColumnName].T
-    )
+    this.tableData[index].spDataType = ''
     this.tableData[index].spOrder = index
     this.tableData[index].spIsPk = true
     let ind = this.droppedColumnNames.indexOf(this.addedColumnName)
     if (ind > -1) {
       this.droppedColumnNames.splice(ind, 1)
     }
-    console.log(this.droppedColumnNames)
     this.setTableRows()
-
-    //alert('Feature comming soon!')
-    // this.tableData[index].spIsPk = true
-    // this.pkData = []
-    // this.pkData = this.conversion.getPkMapping(this.tableData)
-    // index = this.pkData.findIndex((item) => item.srcOrder === index + 1)
-    // this.pkArray.value.forEach((pk: IColumnTabData) => {
-    //   if (pk.spIsPk) {
-    //     newColumnOrder = newColumnOrder + 1
-    //   }
-    //   for (let i = 0; i < this.pkData.length; i++) {
-    //     if (this.pkData[i].spColName == pk.spColName) {
-    //       this.pkData[i].spOrder = pk.spOrder
-    //       break
-    //     }
-    //   }
-    // })
-    // this.pkData[index].spOrder = newColumnOrder
-    // this.setAddPkColumnList()
-    // this.setPkRows()
   }
 
   dropColumn(element: any) {
     let colName = element.get('srcColName').value
-    let updateData: IUpdateTable = { UpdateCols: {} }
     this.rowArray.value.forEach((col: IColumnTabData, i: number) => {
       if (col.srcColName === colName) {
         this.droppedColumnNames.push(colName)
       }
     })
     this.dropColumnFromUI(colName)
-    console.log(this.droppedColumnNames)
-    // this.data.updateTable(this.currentObject!.name, updateData).subscribe({
-    //   next: (res: string) => {
-    //     if (res == '') {
-    //       this.data.getDdl()
-    //       this.snackbar.openSnackBar(`${colName} column dropped successfully`, 'Close', 5)
-    //     } else {
-    //       this.dialog.open(InfodialogComponent, {
-    //         data: { message: res, type: 'error' },
-    //         maxWidth: '500px',
-    //       })
-    //     }
-    //   },
-    // })
   }
 
   dropColumnFromUI(colName: string) {
@@ -348,7 +318,6 @@ export class ObjectDetailComponent implements OnInit {
         col.spOrder = ''
       }
     })
-    console.log(this.tableData)
     this.setTableRows()
   }
 
@@ -533,7 +502,6 @@ export class ObjectDetailComponent implements OnInit {
     arr.forEach((num: number, ind: number) => {
       this.pkData.forEach((pk: IColumnTabData) => {
         if (pk.spOrder == num) {
-          console.log(ind + 1)
           pk.spOrder = ind + 1
         }
       })

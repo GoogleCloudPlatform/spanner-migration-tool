@@ -4,15 +4,18 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
-func UpdatecolNameType(newType, table, colName string, w http.ResponseWriter) {
+func UpdatecolNameType(newType, table, colName string, Conv *internal.Conv, w http.ResponseWriter) {
 
-	sessionState := session.GetSessionState()
+	//sessionState := session.GetSessionState()
 
-	srcTableName := sessionState.Conv.ToSource[table].Name
+	//srcTableName := sessionState.Conv.ToSource[table].Name
+
+	srcTableName := Conv.ToSource[table].Name
 
 	sp, ty, err := utilities.GetType(newType, table, colName, srcTableName)
 
@@ -31,14 +34,14 @@ func UpdatecolNameType(newType, table, colName string, w http.ResponseWriter) {
 	fmt.Println("updated type for sp.ColDefs[colName] ", sp.ColDefs[colName], sp.ColDefs[colName].T)
 
 	//13
-	sessionState.Conv.SpSchema[table] = sp
+	Conv.SpSchema[table] = sp
 
 	//todo
 	for i, _ := range sp.Fks {
 
 		relationTable := sp.Fks[i].ReferTable
 
-		srcTableName := sessionState.Conv.ToSource[relationTable].Name
+		srcTableName := Conv.ToSource[relationTable].Name
 
 		rsp, ty, err := utilities.GetType(newType, relationTable, colName, srcTableName)
 
@@ -57,7 +60,7 @@ func UpdatecolNameType(newType, table, colName string, w http.ResponseWriter) {
 		fmt.Println("updated type for rsp.ColDefs[colName] ", rsp.ColDefs[colName], rsp.ColDefs[colName].T)
 
 		//14
-		sessionState.Conv.SpSchema[table] = rsp
+		Conv.SpSchema[table] = rsp
 	}
 
 	//todo
@@ -66,7 +69,7 @@ func UpdatecolNameType(newType, table, colName string, w http.ResponseWriter) {
 
 	if isParent {
 
-		srcTableName := sessionState.Conv.ToSource[childSchema].Name
+		srcTableName := Conv.ToSource[childSchema].Name
 
 		childSp, ty, err := utilities.GetType(newType, childSchema, colName, srcTableName)
 
@@ -85,16 +88,16 @@ func UpdatecolNameType(newType, table, colName string, w http.ResponseWriter) {
 		fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
 
 		//15
-		sessionState.Conv.SpSchema[table] = childSp
+		Conv.SpSchema[table] = childSp
 
 	}
 
 	//todo
-	isChild := sessionState.Conv.SpSchema[table].Parent
+	isChild := Conv.SpSchema[table].Parent
 
 	if isChild != "" {
 
-		srcTableName := sessionState.Conv.ToSource[isChild].Name
+		srcTableName := Conv.ToSource[isChild].Name
 
 		childSp, ty, err := utilities.GetType(newType, isChild, colName, srcTableName)
 
@@ -113,14 +116,13 @@ func UpdatecolNameType(newType, table, colName string, w http.ResponseWriter) {
 		fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
 
 		//16
-		sessionState.Conv.SpSchema[table] = childSp
+		Conv.SpSchema[table] = childSp
 	}
 }
 
-func UpdateNotNull(notNullChange, table, colName string) {
+func UpdateNotNull(notNullChange, table, colName string, Conv *internal.Conv) {
 
-	sessionState := session.GetSessionState()
-	sp := sessionState.Conv.SpSchema[table]
+	sp := Conv.SpSchema[table]
 
 	switch notNullChange {
 	case "ADDED":
