@@ -708,8 +708,10 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setIndexRows() {
-    const addedIndexColumns = this.indexData.map((data) => data.spColName)
-    this.indexColumnNames = this.conv.SpSchema[this.currentObject!.parent].ColNames.filter(
+    const addedIndexColumns: string[] = this.indexData
+      .map((data) => (data.spColName ? data.spColName : ''))
+      .filter((name) => name != '')
+    this.indexColumnNames = this.conv.SpSchema[this.currentObject!.parent]?.ColNames.filter(
       (columnName) => {
         if (addedIndexColumns.includes(columnName)) {
           return false
