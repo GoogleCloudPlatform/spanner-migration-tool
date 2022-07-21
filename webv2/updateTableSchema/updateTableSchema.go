@@ -126,11 +126,13 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	convm := session.ConvWithMetadata{
-		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
-	}
+	/*
+		convm := session.ConvWithMetadata{
+			SessionMetadata: sessionState.SessionMetadata,
+			Conv:            *sessionState.Conv,
+		}
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(convm)
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(convm)
+	*/
 }
