@@ -216,7 +216,7 @@ export class ConversionService {
       spFklength = spFklength - 1
       if (
         data.SpSchema[tableName] &&
-        data.SpSchema[tableName].Fks.length != data.SrcSchema[srcTableName].ForeignKeys.length &&
+        data.SpSchema[tableName].Fks?.length != data.SrcSchema[srcTableName].ForeignKeys.length &&
         spFklength < 0
       ) {
         return {

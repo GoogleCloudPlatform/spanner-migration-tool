@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
+	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 )
 
 type SessionService struct {
@@ -58,7 +58,7 @@ func SetSessionStorageConnectionState(projectId string, spInstanceId string) boo
 		sessionState.IsOffline = true
 		return false
 	} else {
-		if isExist, isDbCreated := utilities.CheckOrCreateMetadataDb(projectId, spInstanceId); isExist {
+		if isExist, isDbCreated := helpers.CheckOrCreateMetadataDb(projectId, spInstanceId); isExist {
 			sessionState.IsOffline = false
 			return isDbCreated
 		} else {

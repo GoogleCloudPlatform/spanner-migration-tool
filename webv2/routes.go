@@ -19,6 +19,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/summary"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/updateTableSchema"
 
 	"github.com/gorilla/mux"
 )
@@ -36,7 +37,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/report", getReportFile).Methods("GET")
 	router.HandleFunc("/schema", getSchemaFile).Methods("GET")
 	router.HandleFunc("/typemap/global", setTypeMapGlobal).Methods("POST")
-	router.HandleFunc("/typemap/table", updateTableSchema).Methods("POST")
+	router.HandleFunc("/typemap/table", updateTableSchema.UpdateTableSchema).Methods("POST")
 	router.HandleFunc("/setparent", setParentTable).Methods("GET")
 
 	// TODO:(searce) take constraint names themselves which are guaranteed to be unique for Spanner.
@@ -45,6 +46,7 @@ func getRoutes() *mux.Router {
 	// TODO:(searce) take constraint names themselves which are guaranteed to be unique for Spanner.
 	router.HandleFunc("/drop/secondaryindex", dropSecondaryIndex).Methods("POST")
 
+	router.HandleFunc("/restore/table", restoreTable).Methods("POST")
 	router.HandleFunc("/drop/table", dropTable).Methods("PUT")
 
 	router.HandleFunc("/rename/fks", renameForeignKeys).Methods("POST")

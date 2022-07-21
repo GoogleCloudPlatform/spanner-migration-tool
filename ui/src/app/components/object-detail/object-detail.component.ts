@@ -14,6 +14,7 @@ import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
 import IConv, { ICreateIndex, IPrimaryKey } from 'src/app/model/conv'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
 import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/drop-index-or-table-dialog.component'
+import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 
 @Component({
   selector: 'app-object-detail',
@@ -25,7 +26,8 @@ export class ObjectDetailComponent implements OnInit {
     private data: DataService,
     private dialog: MatDialog,
     private snackbar: SnackbarService,
-    private conversion: ConversionService
+    private conversion: ConversionService,
+    private sidenav: SidenavService
   ) {}
 
   @Input() currentObject: FlatNode | null = null
@@ -503,21 +505,23 @@ export class ObjectDetailComponent implements OnInit {
   pkOrderValidation() {
     let arr = this.pkData.map((item) => Number(item.spOrder))
     arr.sort()
-    if (arr[arr.length - 1] > arr.length) {
-      arr.forEach((num: number, ind: number) => {
-        this.pkData.forEach((pk: IColumnTabData) => {
-          if (pk.spOrder == num) {
-            pk.spOrder = ind + 1
-          }
-        })
+    arr.forEach((num: number, ind: number) => {
+      this.pkData.forEach((pk: IColumnTabData) => {
+        if (pk.spOrder == num) {
+          console.log(ind + 1)
+          pk.spOrder = ind + 1
+        }
       })
+    })
+    if (arr.length > 0) {
+      this.pkData[0].spOrder = 1
     }
   }
 
   getPkRequestObj() {
     let tableId: string = this.conv.SpSchema[this.currentObject!.name].Id
     let Columns: { ColumnId: string; ColName: string; Desc: boolean; Order: number }[] = []
-    this.pkArray.value.forEach((row: IColumnTabData) => {
+    this.pkData.forEach((row: IColumnTabData) => {
       if (row.spIsPk)
         Columns.push({
           ColumnId: this.conv.SpSchema[this.currentObject!.name].ColDefs[row.spColName].Id,
@@ -540,13 +544,6 @@ export class ObjectDetailComponent implements OnInit {
   togglePkEdit() {
     this.currentTabIndex = 1
     if (this.isPkEditMode) {
-      this.getPkRequestObj()
-      if (this.pkObj.Columns.length == 0) {
-        this.dialog.open(InfodialogComponent, {
-          data: { message: 'Add columns to the primary key for saving', type: 'error' },
-          maxWidth: '500px',
-        })
-      }
       this.pkArray.value.forEach((pk: IColumnTabData) => {
         for (let i = 0; i < this.pkData.length; i++) {
           if (pk.spColName == this.pkData[i].spColName) {
@@ -555,6 +552,16 @@ export class ObjectDetailComponent implements OnInit {
           }
         }
       })
+      this.pkOrderValidation()
+
+      this.getPkRequestObj()
+      if (this.pkObj.Columns.length == 0) {
+        this.dialog.open(InfodialogComponent, {
+          data: { message: 'Add columns to the primary key for saving', type: 'error' },
+          maxWidth: '500px',
+        })
+      }
+
       this.isPkEditMode = false
       this.data.updatePk(this.pkObj).subscribe({
         next: (res: string) => {
@@ -831,6 +838,18 @@ export class ObjectDetailComponent implements OnInit {
     this.addIndexKeyForm.markAsUntouched()
   }
 
+  restoreSpannerTable() {
+    this.data
+      .restoreTable(this.currentObject!.name)
+      .pipe(take(1))
+      .subscribe((res: string) => {
+        if (res === '') {
+          this.isObjectSelected = false
+        }
+      })
+    this.currentObject = null
+  }
+
   dropTable() {
     let openDialog = this.dialog.open(DropIndexOrTableDialogComponent, {
       width: '35vw',
@@ -863,7 +882,9 @@ export class ObjectDetailComponent implements OnInit {
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
     this.currentTabIndex = tabChangeEvent.index
   }
-  restoreSpannerTable() {
-    alert('Restore spanner table coming soon!')
+
+  openReviewChangesSidenav() {
+    this.sidenav.openSidenav()
+    this.sidenav.setSidenavComponent('reviewChanges')
   }
 }

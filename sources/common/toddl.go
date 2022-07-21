@@ -199,3 +199,105 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 	}
 	return spIndexes
 }
+
+func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Table) error {
+	spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
+		return err
+	}
+	var spColNames []string
+	spColDef := make(map[string]ddl.ColumnDef)
+	conv.Issues[srcTable.Name] = make(map[string][]internal.SchemaIssue)
+	// Iterate over columns using ColNames order.
+	for _, srcColName := range srcTable.ColNames {
+		srcCol := srcTable.ColDefs[srcColName]
+		colName, err := internal.GetSpannerCol(conv, srcTable.Name, srcCol.Name, false)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Couldn't map source column %s of table %s to Spanner: %s", srcTable.Name, srcCol.Name, err))
+			continue
+		}
+		spColNames = append(spColNames, colName)
+		ty, issues := toddl.ToSpannerType(conv, srcCol.Type)
+		// TODO(hengfeng): add issues for all elements of srcCol.Ignored.
+		if srcCol.Ignored.ForeignKey {
+			issues = append(issues, internal.ForeignKey)
+		}
+		if srcCol.Name != colName {
+			issues = append(issues, internal.IllegalName)
+		}
+		if srcCol.Ignored.Default {
+			issues = append(issues, internal.DefaultValue)
+		}
+		if srcCol.Ignored.AutoIncrement { //TODO(adibh) - check why this is not there in postgres
+			issues = append(issues, internal.AutoIncrement)
+		}
+		if len(issues) > 0 {
+			conv.Issues[srcTable.Name][srcCol.Name] = issues
+		}
+		spColDef[colName] = ddl.ColumnDef{
+			Name:    colName,
+			T:       ty,
+			NotNull: srcCol.NotNull,
+			Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
+		}
+	}
+	comment := "Spanner schema for source table " + quoteIfNeeded(srcTable.Name)
+	conv.SpSchema[spTableName] = ddl.CreateTable{
+		Name:     spTableName,
+		ColNames: spColNames,
+		ColDefs:  spColDef,
+		Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
+		Fks:      cvtForeignKeys(conv, spTableName, srcTable.Name, srcTable.ForeignKeys),
+		Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes),
+		Comment:  comment}
+
+	for srcTableName, srcTable2 := range conv.SrcSchema {
+		spTableName := conv.ToSpanner[srcTableName].Name
+		spTable := conv.SpSchema[srcTableName]
+		if srcTable2.Name != srcTable.Name {
+			spTable.Fks = cvtForeignKeysForAReferenceTable(conv, spTableName, srcTableName, srcTable.Name, srcTable2.ForeignKeys, spTable.Fks)
+			conv.SpSchema[spTableName] = spTable
+		}
+	}
+	internal.ResolveRefs(conv)
+	return nil
+}
+
+func cvtForeignKeysForAReferenceTable(conv *internal.Conv, spTableName string, srcTable string, referTable string, srcKeys []schema.ForeignKey, spKeys []ddl.Foreignkey) []ddl.Foreignkey {
+	for _, key := range srcKeys {
+		if len(key.Columns) != len(key.ReferColumns) {
+			conv.Unexpected(fmt.Sprintf("ConvertForeignKeys: columns and referColumns don't have the same lengths: len(columns)=%d, len(referColumns)=%d for source table: %s, referenced table: %s", len(key.Columns), len(key.ReferColumns), srcTable, key.ReferTable))
+			continue
+		}
+		if key.ReferTable == referTable {
+			spReferTable, err := internal.GetSpannerTable(conv, key.ReferTable)
+			if err != nil {
+				conv.Unexpected(fmt.Sprintf("Can't map foreign key for source table: %s, referenced table: %s", srcTable, key.ReferTable))
+				continue
+			}
+			var spCols, spReferCols []string
+			for i, col := range key.Columns {
+				spCol, err1 := internal.GetSpannerCol(conv, srcTable, col, false)
+				spReferCol, err2 := internal.GetSpannerCol(conv, key.ReferTable, key.ReferColumns[i], false)
+				if err1 != nil || err2 != nil {
+					conv.Unexpected(fmt.Sprintf("Can't map foreign key for table: %s, referenced table: %s, column: %s", srcTable, key.ReferTable, col))
+					continue
+				}
+				spCols = append(spCols, spCol)
+				spReferCols = append(spReferCols, spReferCol)
+			}
+			spKeyName := internal.ToSpannerForeignKey(conv, key.Name)
+
+			spKey := ddl.Foreignkey{
+				Name:         spKeyName,
+				Columns:      spCols,
+				ReferTable:   spReferTable,
+				ReferColumns: spReferCols}
+			spKeys = append(spKeys, spKey)
+			conv.Audit.ToSpannerFkIdx[srcTable].ForeignKey[key.Name] = spKeyName
+			conv.Audit.ToSourceFkIdx[spTableName].ForeignKey[spKeyName] = key.Name
+		}
+	}
+	return spKeys
+}

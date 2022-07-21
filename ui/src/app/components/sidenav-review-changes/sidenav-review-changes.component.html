@@ -1,0 +1,19 @@
+<div class="container">
+  <div class="header">
+    <span class="header-title">Review changes to your schema</span>
+    <button class="close-button" mat-icon-button color="primary" (click)="closeSidenav()">
+      <mat-icon class="close-icon">close</mat-icon>
+    </button>
+  </div>
+  <mat-divider></mat-divider>
+  <div class="content">
+    <h5>Review the DDL changes below.</h5>
+    <div class="ddl-display">
+      <pre><code>{{ddl}}</code></pre>
+    </div>
+  </div>
+  <mat-divider></mat-divider>
+  <div class="footer">
+    <button mat-raised-button color="primary">Confirm Conversion</button>
+  </div>
+</div>

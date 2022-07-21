@@ -56,6 +56,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/writer"
@@ -176,7 +177,10 @@ func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile prof
 func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error) {
 	common.SetRowStats(conv, infoSchema)
 	totalRows := conv.Rows()
-	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
+	var p *internal.Progress
+	if !conv.Audit.DryRun {
+		p = internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
+	}
 	batchWriter := populateDataConv(conv, config, client, p)
 	common.ProcessData(conv, infoSchema)
 	batchWriter.Flush()
@@ -337,13 +341,16 @@ func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, clie
 	}
 	batchWriter := writer.NewBatchWriter(config)
 	conv.SetDataMode()
-	conv.SetDataSink(
-		func(table string, cols []string, vals []interface{}) {
-			batchWriter.AddRow(table, cols, vals)
-		})
-	conv.DataFlush = func() {
-		batchWriter.Flush()
+	if !conv.Audit.DryRun {
+		conv.SetDataSink(
+			func(table string, cols []string, vals []interface{}) {
+				batchWriter.AddRow(table, cols, vals)
+			})
+		conv.DataFlush = func() {
+			batchWriter.Flush()
+		}
 	}
+
 	return batchWriter
 }
 
@@ -448,6 +455,25 @@ func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminCli
 			return true, nil
 		}
 	}
+}
+
+// ValidateTables validates that all the tables in the database are empty.
+func ValidateTables(ctx context.Context, client *sp.Client, targetDb string) error {
+	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, TargetDb: targetDb}
+	tables, err := infoSchema.GetTables()
+	if err != nil {
+		return err
+	}
+	for _, table := range tables {
+		count, err := infoSchema.GetRowCount(table)
+		if err != nil {
+			return err
+		}
+		if count != 0 {
+			return fmt.Errorf("table %v should be empty for data migration to take place", table.Name)
+		}
+	}
+	return nil
 }
 
 // ValidateDDL verifies if an existing DB's ddl follows what is supported by harbourbridge. Currently,
@@ -742,7 +768,13 @@ func ReadSessionFile(conv *internal.Conv, sessionJSON string) error {
 func WriteBadData(bw *writer.BatchWriter, conv *internal.Conv, banner, name string, out *os.File) {
 	badConversions := conv.BadRows()
 	badWrites := utils.SumMapValues(bw.DroppedRowsByTable())
-	if badConversions == 0 && badWrites == 0 {
+
+	badDataStreaming := int64(0)
+	if conv.Audit.StreamingStats.Streaming {
+		badDataStreaming = getBadStreamingDataCount(conv)
+	}
+
+	if badConversions == 0 && badWrites == 0 && badDataStreaming == 0 {
 		os.Remove(name) // Cleanup bad-data file from previous run.
 		return
 	}
@@ -783,7 +815,77 @@ func WriteBadData(bw *writer.BatchWriter, conv *internal.Conv, banner, name stri
 			}
 		}
 	}
+	if badDataStreaming > 0 {
+		err = writeBadStreamingData(conv, f)
+		if err != nil {
+			fmt.Fprintf(out, "Can't write out bad data file: %v\n", err)
+			return
+		}
+	}
+
 	fmt.Fprintf(out, "See file '%s' for details of bad rows\n", name)
+}
+
+// getBadStreamingDataCount returns the total sum of bad and dropped records during
+// streaming migration process.
+func getBadStreamingDataCount(conv *internal.Conv) int64 {
+	badDataCount := int64(0)
+
+	for _, x := range conv.Audit.StreamingStats.BadRecords {
+		badDataCount += utils.SumMapValues(x)
+	}
+	for _, x := range conv.Audit.StreamingStats.DroppedRecords {
+		badDataCount += utils.SumMapValues(x)
+	}
+	return badDataCount
+}
+
+// writeBadStreamingData writes sample of bad records and dropped records during streaming
+// migration process to bad data file.
+func writeBadStreamingData(conv *internal.Conv, f *os.File) error {
+	f.WriteString("\nBad data encountered during streaming migration:\n\n")
+
+	stats := (conv.Audit.StreamingStats)
+
+	badRecords := int64(0)
+	for _, x := range stats.BadRecords {
+		badRecords += utils.SumMapValues(x)
+	}
+	droppedRecords := int64(0)
+	for _, x := range stats.DroppedRecords {
+		droppedRecords += utils.SumMapValues(x)
+	}
+
+	if badRecords > 0 {
+		l := stats.SampleBadRecords
+		if int64(len(l)) < badRecords {
+			f.WriteString("A sample of records that generated conversion errors:\n")
+		} else {
+			f.WriteString("Records that generated conversion errors:\n")
+		}
+		for _, r := range l {
+			_, err := f.WriteString("  " + r + "\n")
+			if err != nil {
+				return err
+			}
+		}
+		f.WriteString("\n")
+	}
+	if droppedRecords > 0 {
+		l := stats.SampleBadWrites
+		if int64(len(l)) < droppedRecords {
+			f.WriteString("A sample of records that successfully converted but couldn't be written to Spanner:\n")
+		} else {
+			f.WriteString("Records that successfully converted but couldn't be written to Spanner:\n")
+		}
+		for _, r := range l {
+			_, err := f.WriteString("  " + r + "\n")
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // ProcessDump invokes process dump function from a sql package based on driver selected.
