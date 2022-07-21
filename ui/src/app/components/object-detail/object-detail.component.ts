@@ -14,6 +14,7 @@ import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
 import IConv, { ICreateIndex, IPrimaryKey } from 'src/app/model/conv'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
 import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/drop-index-or-table-dialog.component'
+import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 
 @Component({
   selector: 'app-object-detail',
@@ -25,7 +26,8 @@ export class ObjectDetailComponent implements OnInit {
     private data: DataService,
     private dialog: MatDialog,
     private snackbar: SnackbarService,
-    private conversion: ConversionService
+    private conversion: ConversionService,
+    private sidenav: SidenavService
   ) {}
 
   @Input() currentObject: FlatNode | null = null
@@ -899,5 +901,10 @@ export class ObjectDetailComponent implements OnInit {
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
     this.currentTabIndex = tabChangeEvent.index
+  }
+
+  openReviewChangesSidenav() {
+    this.sidenav.openSidenav()
+    this.sidenav.setSidenavComponent('reviewChanges')
   }
 }
