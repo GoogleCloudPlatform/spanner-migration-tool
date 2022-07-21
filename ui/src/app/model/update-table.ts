@@ -1,7 +1,7 @@
 interface IUpdateCol {
+  Add: boolean
   Removed: boolean
   Rename: string
-  PK: string
   NotNull: string
   ToType: string
 }
@@ -12,4 +12,5 @@ export interface IUpdateTableArgument {
 
 export default interface IUpdateTable {
   UpdateCols: { [key: string]: IUpdateCol }
+  Update: boolean
 }
