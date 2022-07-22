@@ -124,7 +124,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	)
 
 	if !cmd.dryRun {
-		adminClient, _, dbURI, err = CreateDatabaseClient(ctx, targetProfile, sourceProfile.Driver, ioHelper)
+		adminClient, _, dbURI, err = CreateDatabaseClient(ctx, targetProfile, sourceProfile.Driver, dbName, ioHelper)
 		if err != nil {
 			err = fmt.Errorf("can't create database client: %v", err)
 			return subcommands.ExitFailure

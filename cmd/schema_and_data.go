@@ -135,7 +135,7 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 
 	if !cmd.dryRun {
 		conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
-		adminClient, client, dbURI, err = CreateDatabaseClient(ctx, targetProfile, sourceProfile.Driver, ioHelper)
+		adminClient, client, dbURI, err = CreateDatabaseClient(ctx, targetProfile, sourceProfile.Driver, dbName, ioHelper)
 		if err != nil {
 			err = fmt.Errorf("can't create database client: %v", err)
 			return subcommands.ExitFailure
