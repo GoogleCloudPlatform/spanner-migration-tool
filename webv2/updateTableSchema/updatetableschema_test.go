@@ -1,6 +1,20 @@
 package updateTableSchema
 
-/*
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/bmizerany/assert"
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+)
+
 func TestUpdateTableSchema(t *testing.T) {
 	tc := []struct {
 		name         string
@@ -535,5 +549,3 @@ func TestUpdateTableSchema(t *testing.T) {
 		}
 	}
 }
-
-*/

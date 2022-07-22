@@ -29,6 +29,8 @@ func addColumn(table string, colName string, Conv *internal.Conv) {
 		fmt.Println("v :", v)
 	}
 
+	//todo check colName is already present or not
+
 	sp.ColDefs[colName] = ddl.ColumnDef{
 		Id:      srcColumnId,
 		Name:    colName,

@@ -83,8 +83,8 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 		if v.Rename != "" && v.Rename != colName {
 
-			renameColumn(v.Rename, table, colName, Conv)
-			v.Rename = colName
+			//renameColumn(v.Rename, table, colName, Conv)
+			colName = v.Rename
 		}
 
 		if v.ToType != "" {
@@ -98,7 +98,7 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			if typeChange {
 
-				UpdatecolNameType(v.ToType, table, colName, Conv, w)
+				//UpdatecolNameType(v.ToType, table, colName, Conv, w)
 			}
 		}
 

@@ -12,7 +12,7 @@ import (
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
-type UpdateTableSchemaResponse struct {
+type ReviewTableSchemaResponse struct {
 	DDL     string
 	Changes []TableSchemaChanges
 }
@@ -60,6 +60,8 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	Changes := []TableSchemaChanges{}
 
+	columnchange := []Columnchange{}
+
 	for colName, v := range t.UpdateCols {
 
 		if v.Add {
@@ -78,8 +80,9 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 		if v.Rename != "" && v.Rename != colName {
 
-			renameColumn(v.Rename, table, colName, Conv)
-			v.Rename = colName
+			columnchange = reviewRenameColumn(v.Rename, table, colName, Conv, columnchange)
+
+			colName = v.Rename
 		}
 
 		if v.ToType != "" {
@@ -93,7 +96,11 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			if typeChange {
 
-				UpdatecolNameType(v.ToType, table, colName, Conv, w)
+				columnchange, err := ReviewcolNameType(v.ToType, table, colName, Conv, columnchange, w)
+				if err != nil {
+					return
+				}
+				fmt.Println(columnchange)
 			}
 		}
 
@@ -104,7 +111,9 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	updatesessionfiles.UpdateSessionFile()
 
-	resp := UpdateTableSchemaResponse{
+	fmt.Println("table", table)
+
+	resp := ReviewTableSchemaResponse{
 		DDL:     getDDL(table, Conv),
 		Changes: Changes,
 	}
