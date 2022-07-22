@@ -15,6 +15,7 @@ import IConv, { ICreateIndex, IPrimaryKey } from 'src/app/model/conv'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
 import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/drop-index-or-table-dialog.component'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
+import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/table-update-pub-sub.service'
 
 @Component({
   selector: 'app-object-detail',
@@ -27,7 +28,8 @@ export class ObjectDetailComponent implements OnInit {
     private dialog: MatDialog,
     private snackbar: SnackbarService,
     private conversion: ConversionService,
-    private sidenav: SidenavService
+    private sidenav: SidenavService,
+    private tableUpdatePubSub: TableUpdatePubSubService
   ) {}
 
   @Input() currentObject: FlatNode | null = null
@@ -247,7 +249,7 @@ export class ObjectDetailComponent implements OnInit {
     if (this.isEditMode) {
       console.log(this.tableData)
       console.log(this.spRowArray.value)
-      let updateData: IUpdateTable = { UpdateCols: {}, Update: false }
+      let updateData: IUpdateTable = { UpdateCols: {} }
 
       this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
         for (let j = 0; j < this.tableData.length; j++) {
@@ -266,7 +268,6 @@ export class ObjectDetailComponent implements OnInit {
       })
 
       console.log(updateData)
-      updateData.Update = true
 
       this.droppedColumns.forEach((col: IColumnTabData) => {
         updateData.UpdateCols[col.spColName] = {
@@ -278,9 +279,15 @@ export class ObjectDetailComponent implements OnInit {
         }
       })
 
-      this.data.updateTable(this.currentObject!.name, updateData).subscribe({
+      this.data.reviewTableUpdate(this.currentObject!.name, updateData).subscribe({
         next: (res: string) => {
           if (res == '') {
+            this.sidenav.openSidenav()
+            this.sidenav.setSidenavComponent('reviewChanges')
+            this.tableUpdatePubSub.setTableUpdateDetail({
+              tableName: this.currentObject!.name,
+              updateDetail: updateData,
+            })
             this.isEditMode = false
           } else {
             this.dialog.open(InfodialogComponent, {
@@ -731,8 +738,10 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setIndexRows() {
-    const addedIndexColumns = this.indexData.map((data) => data.spColName)
-    this.indexColumnNames = this.conv.SpSchema[this.currentObject!.parent].ColNames.filter(
+    const addedIndexColumns: string[] = this.indexData
+      .map((data) => (data.spColName ? data.spColName : ''))
+      .filter((name) => name != '')
+    this.indexColumnNames = this.conv.SpSchema[this.currentObject!.parent]?.ColNames.filter(
       (columnName) => {
         if (addedIndexColumns.includes(columnName)) {
           return false
@@ -897,10 +906,5 @@ export class ObjectDetailComponent implements OnInit {
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
     this.currentTabIndex = tabChangeEvent.index
-  }
-
-  openReviewChangesSidenav() {
-    this.sidenav.openSidenav()
-    this.sidenav.setSidenavComponent('reviewChanges')
   }
 }

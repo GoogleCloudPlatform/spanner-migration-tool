@@ -1,5 +1,7 @@
 package updateTableSchema
 
+/*
+
 type UpdateTableSchemaResponse struct {
 	DDL     string
 	Changes []TableSchemaChanges
@@ -16,8 +18,6 @@ type Columnchange struct {
 	UpdateColumnName string
 	UpdateType       string
 }
-
-/*
 
 flow II confirm
 

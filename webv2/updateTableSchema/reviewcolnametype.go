@@ -5,11 +5,10 @@ import (
 	"net/http"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
-func UpdatecolNameType(newType, table, colName string, Conv *internal.Conv, w http.ResponseWriter) {
+func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, columnchange []Columnchange, w http.ResponseWriter) (_ []Columnchange, err error) {
 
 	//sessionState := session.GetSessionState()
 
@@ -21,7 +20,7 @@ func UpdatecolNameType(newType, table, colName string, Conv *internal.Conv, w ht
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return nil, err
 	}
 
 	fmt.Println("updating type for sp.ColDefs[colName] ", sp.ColDefs[colName], sp.ColDefs[colName].T)
@@ -47,7 +46,7 @@ func UpdatecolNameType(newType, table, colName string, Conv *internal.Conv, w ht
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+			return nil, err
 		}
 
 		fmt.Println("updating type for rsp.ColDefs[colName] ", rsp.ColDefs[colName], rsp.ColDefs[colName].T)
@@ -75,7 +74,7 @@ func UpdatecolNameType(newType, table, colName string, Conv *internal.Conv, w ht
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+			return nil, err
 		}
 
 		fmt.Println("updating type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
@@ -103,7 +102,7 @@ func UpdatecolNameType(newType, table, colName string, Conv *internal.Conv, w ht
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+			return nil, err
 		}
 
 		fmt.Println("updating type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
@@ -118,42 +117,6 @@ func UpdatecolNameType(newType, table, colName string, Conv *internal.Conv, w ht
 		//16
 		Conv.SpSchema[table] = childSp
 	}
-}
 
-func UpdateNotNull(notNullChange, table, colName string, Conv *internal.Conv) {
-
-	sp := Conv.SpSchema[table]
-
-	switch notNullChange {
-	case "ADDED":
-		spColDef := sp.ColDefs[colName]
-		spColDef.NotNull = true
-		sp.ColDefs[colName] = spColDef
-	case "REMOVED":
-		spColDef := sp.ColDefs[colName]
-		spColDef.NotNull = false
-		sp.ColDefs[colName] = spColDef
-	}
-}
-
-func IsParent(table string) (bool, string) {
-	sessionState := session.GetSessionState()
-
-	for _, spSchema := range sessionState.Conv.SpSchema {
-		if spSchema.Parent == table {
-			return true, spSchema.Name
-		}
-	}
-	return false, ""
-}
-
-func IsPartOfPK(col, table string) bool {
-	sessionState := session.GetSessionState()
-
-	for _, pk := range sessionState.Conv.SpSchema[table].Pks {
-		if pk.Col == col {
-			return true
-		}
-	}
-	return false
+	return columnchange, nil
 }

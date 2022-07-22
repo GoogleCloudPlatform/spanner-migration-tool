@@ -7,7 +7,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-func renameColumn(newName, table, colName string, Conv *internal.Conv) {
+func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, columnchange []Columnchange) []Columnchange {
 
 	fmt.Println("renameColumn getting called")
 
@@ -75,6 +75,8 @@ func renameColumn(newName, table, colName string, Conv *internal.Conv) {
 
 	}
 
+	columnchange = checkinterleavenamechanges(columnchange, colName, newName)
+
 	// update interleave table relation
 	isParent, childSchema := IsParent(table)
 
@@ -100,6 +102,8 @@ func renameColumn(newName, table, colName string, Conv *internal.Conv) {
 		//sessionState.Conv.SpSchema[childSchema] = childSchemaSp
 
 		Conv.SpSchema[childSchema] = childSchemaSp
+
+		columnchange = checkinterleavenamechanges(columnchange, colName, newName)
 
 	}
 
@@ -131,8 +135,50 @@ func renameColumn(newName, table, colName string, Conv *internal.Conv) {
 		//sessionState.Conv.SpSchema[isChild] = childSchemaSp
 		Conv.SpSchema[isChild] = childSchemaSp
 
+		columnchange = checkinterleavenamechanges(columnchange, colName, newName)
+
 	}
 
+	return columnchange
+
+}
+
+func checkinterleavenamechanges(columnchange []Columnchange, colName string, newName string) []Columnchange {
+
+	flag := isColumnPresent(columnchange, colName)
+
+	if flag == false {
+
+		columnchange = updatecolumnchangelist(columnchange, colName, newName)
+
+		return columnchange
+	}
+
+	return columnchange
+}
+
+func isColumnPresent(columnchange []Columnchange, colName string) bool {
+
+	for i := 0; i < len(columnchange); i++ {
+
+		if columnchange[i].ColumnName == colName {
+			return true
+		}
+
+	}
+
+	return false
+}
+
+func updatecolumnchangelist(columnchange []Columnchange, colName string, newName string) []Columnchange {
+
+	c := Columnchange{}
+	c.ColumnName = colName
+	c.UpdateColumnName = newName
+
+	columnchange = append(columnchange, c)
+
+	return columnchange
 }
 
 func renameSpannerColNames(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
