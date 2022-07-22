@@ -12,5 +12,9 @@ export interface IUpdateTableArgument {
 
 export default interface IUpdateTable {
   UpdateCols: { [key: string]: IUpdateCol }
-  Update: boolean
+}
+
+export interface IReviewUpdateTable {
+  Changes: any[]
+  DDL: string
 }

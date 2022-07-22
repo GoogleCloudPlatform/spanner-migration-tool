@@ -2,7 +2,7 @@ import { HttpClient, HttpResponse } from '@angular/common/http'
 import { Injectable } from '@angular/core'
 import IDbConfig from 'src/app/model/db-config'
 import ISession, { ISaveSessionPayload } from '../../model/session'
-import IUpdateTable from '../../model/update-table'
+import IUpdateTable, { IReviewUpdateTable } from '../../model/update-table'
 import IConv, { ICreateIndex, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
 import IDumpConfig from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
@@ -61,6 +61,12 @@ export class FetchService {
 
   updateTable(tableName: string, data: IUpdateTable): any {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/typemap/table?table=${tableName}`, data)
+  }
+  reviewTableUpdate(tableName: string, data: IUpdateTable): any {
+    return this.http.post<HttpResponse<IReviewUpdateTable>>(
+      `${this.url}/typemap/ReviewTableSchema?table=${tableName}`,
+      data
+    )
   }
 
   restoreTable(tableName: string) {
