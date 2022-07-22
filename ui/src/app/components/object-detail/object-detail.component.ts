@@ -15,6 +15,7 @@ import IConv, { ICreateIndex, IPrimaryKey } from 'src/app/model/conv'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
 import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/drop-index-or-table-dialog.component'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
+import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/table-update-pub-sub.service'
 
 @Component({
   selector: 'app-object-detail',
@@ -27,7 +28,8 @@ export class ObjectDetailComponent implements OnInit {
     private dialog: MatDialog,
     private snackbar: SnackbarService,
     private conversion: ConversionService,
-    private sidenav: SidenavService
+    private sidenav: SidenavService,
+    private tableUpdatePubSub: TableUpdatePubSubService
   ) {}
 
   @Input() currentObject: FlatNode | null = null
@@ -242,7 +244,7 @@ export class ObjectDetailComponent implements OnInit {
   toggleEdit() {
     this.currentTabIndex = 0
     if (this.isEditMode) {
-      let updateData: IUpdateTable = { UpdateCols: {}, Update: false }
+      let updateData: IUpdateTable = { UpdateCols: {} }
       this.rowArray.value.forEach((col: IColumnTabData, i: number) => {
         let oldRow = this.tableData[i]
         updateData.UpdateCols[this.tableData[i].spColName] = {
@@ -253,7 +255,6 @@ export class ObjectDetailComponent implements OnInit {
           ToType: oldRow.spDataType !== col.spDataType ? col.spDataType : '',
         }
       })
-      updateData.Update = true
       this.droppedColumnNames.forEach((col: string) => {
         updateData.UpdateCols[col] = {
           Add: false,
@@ -264,9 +265,15 @@ export class ObjectDetailComponent implements OnInit {
         }
       })
 
-      this.data.updateTable(this.currentObject!.name, updateData).subscribe({
+      this.data.reviewTableUpdate(this.currentObject!.name, updateData).subscribe({
         next: (res: string) => {
           if (res == '') {
+            this.sidenav.openSidenav()
+            this.sidenav.setSidenavComponent('reviewChanges')
+            this.tableUpdatePubSub.setTableUpdateDetail({
+              tableName: this.currentObject!.name,
+              updateDetail: updateData,
+            })
             this.isEditMode = false
           } else {
             this.dialog.open(InfodialogComponent, {

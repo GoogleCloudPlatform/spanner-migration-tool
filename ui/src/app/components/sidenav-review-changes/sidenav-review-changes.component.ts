@@ -1,6 +1,10 @@
 import { Component, OnInit } from '@angular/core'
 import ITableColumnChanges from 'src/app/model/table-column-changes'
+import IUpdateTable from 'src/app/model/update-table'
+import { DataService } from 'src/app/services/data/data.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
+import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
+import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/table-update-pub-sub.service'
 
 @Component({
   selector: 'app-sidenav-review-changes',
@@ -9,7 +13,11 @@ import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 })
 export class SidenavReviewChangesComponent implements OnInit {
   ddl: string = ''
-  showDdl: boolean = false
+  showDdl: boolean = true
+  tableUpdateData: { tableName: string; updateDetail: IUpdateTable } = {
+    tableName: '',
+    updateDetail: { UpdateCols: {} },
+  }
   tableChanges: ITableColumnChanges[][] = [
     [
       {
@@ -85,15 +93,39 @@ export class SidenavReviewChangesComponent implements OnInit {
     ],
   ]
 
-  constructor(private sidenav: SidenavService) {}
+  constructor(
+    private sidenav: SidenavService,
+    private tableUpdatePubSub: TableUpdatePubSubService,
+    private data: DataService,
+    private snackbar: SnackbarService
+  ) {}
 
   ngOnInit(): void {
-    this.ddl =
-      '--\n-- Spanner schema for source table cart\n--\nCREATE TABLE cart (\n\tuser_id STRING(20) NOT NULL,    -- From: user_id varchar(20)\n\tproduct_id STRING(20) NOT NULL, -- From: product_id varchar(20)\n\tquantity INT64,                 -- From: quantity bigint(20)\n) PRIMARY KEY (user_id, product_id)'
-    this.showDdl = Math.floor(Math.random() * 100) % 2 === 0
+    this.tableUpdatePubSub.reviewTableChanges.subscribe((data) => {
+      this.ddl = data.DDL
+    })
+    this.tableUpdatePubSub.tableUpdateDetail.subscribe((data) => {
+      this.tableUpdateData = data
+    })
+  }
+
+  updateTable() {
+    this.data
+      .updateTable(this.tableUpdateData.tableName, this.tableUpdateData.updateDetail)
+      .subscribe({
+        next: (res: string) => {
+          if (res == '') {
+            this.snackbar.openSnackBar('Table updated successfully', 'Close', 5)
+            this.closeSidenav()
+          } else {
+            this.snackbar.openSnackBar(res, 'Close', 5)
+          }
+        },
+      })
   }
 
   closeSidenav(): void {
+    this.ddl = ''
     this.sidenav.closeSidenav()
   }
 }
