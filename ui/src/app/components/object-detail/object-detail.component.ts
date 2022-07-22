@@ -884,9 +884,4 @@ export class ObjectDetailComponent implements OnInit {
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
     this.currentTabIndex = tabChangeEvent.index
   }
-
-  openReviewChangesSidenav() {
-    this.sidenav.openSidenav()
-    this.sidenav.setSidenavComponent('reviewChanges')
-  }
 }

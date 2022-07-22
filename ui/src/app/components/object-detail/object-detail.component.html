@@ -868,9 +868,6 @@
   <div class="save-edits">
     <mat-divider></mat-divider>
     <div class="save-button" *ngIf="isEditMode && currentTabIndex === 0">
-      <button mat-raised-button color="primary" (click)="openReviewChangesSidenav()">
-        REVIEW CHANGES
-      </button>
       <button mat-raised-button color="primary" (click)="toggleEdit()">SAVE & CONVERT</button>
     </div>
     <div class="save-button" *ngIf="isPkEditMode && currentTabIndex === 1">
