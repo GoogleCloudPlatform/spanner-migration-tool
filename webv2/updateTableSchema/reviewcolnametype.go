@@ -2,6 +2,7 @@ package updateTableSchema
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -10,9 +11,23 @@ import (
 
 func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, columnchange []Columnchange, w http.ResponseWriter) (_ []Columnchange, err error) {
 
+	fmt.Println("ReviewcolNameType getting called")
+
+	fmt.Println("")
+
 	//sessionState := session.GetSessionState()
 
 	//srcTableName := sessionState.Conv.ToSource[table].Name
+
+	_, ok := Conv.SpSchema[table].ColDefs[colName]
+
+	if !ok {
+
+		log.Println("colname not found in table")
+		http.Error(w, fmt.Sprintf("colname not found in table"), http.StatusBadRequest)
+		return
+
+	}
 
 	srcTableName := Conv.ToSource[table].Name
 
@@ -23,14 +38,28 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, colu
 		return nil, err
 	}
 
-	fmt.Println("updating type for sp.ColDefs[colName] ", sp.ColDefs[colName], sp.ColDefs[colName].T)
+	fmt.Println("updating for sp.ColDefs[colName] ", sp.ColDefs[colName].Name)
+
+	fmt.Println("")
+
+	fmt.Println("its current is ", sp.ColDefs[colName].T)
+
+	fmt.Println("")
+
+	fmt.Println("its new type will be  ", ty)
+
+	fmt.Println("")
 
 	colDef := sp.ColDefs[colName]
 	colDef.T = ty
 
 	sp.ColDefs[colName] = colDef
 
-	fmt.Println("updated type for sp.ColDefs[colName] ", sp.ColDefs[colName], sp.ColDefs[colName].T)
+	fmt.Println("updated type for sp.ColDefs[colName] ", sp.ColDefs[colName].Name)
+
+	fmt.Println("")
+
+	fmt.Println("its updated type is ", sp.ColDefs[colName].T)
 
 	//13
 	Conv.SpSchema[table] = sp
@@ -39,6 +68,8 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, colu
 	for i, _ := range sp.Fks {
 
 		relationTable := sp.Fks[i].ReferTable
+
+		fmt.Println("relationTable", relationTable)
 
 		srcTableName := Conv.ToSource[relationTable].Name
 
@@ -49,17 +80,44 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, colu
 			return nil, err
 		}
 
-		fmt.Println("updating type for rsp.ColDefs[colName] ", rsp.ColDefs[colName], rsp.ColDefs[colName].T)
+		_, ok := rsp.ColDefs[colName]
 
-		colDef := rsp.ColDefs[colName]
-		colDef.T = ty
+		if ok {
+			{
 
-		rsp.ColDefs[colName] = colDef
+				fmt.Println("")
 
-		fmt.Println("updated type for rsp.ColDefs[colName] ", rsp.ColDefs[colName], rsp.ColDefs[colName].T)
+				fmt.Println("updating type for rsp.ColDefs[colName].Name ", rsp.ColDefs[colName].Name)
 
-		//14
-		Conv.SpSchema[table] = rsp
+				fmt.Println("")
+
+				fmt.Println("it current type is ", rsp.ColDefs[colName].T)
+
+				fmt.Println("")
+
+				fmt.Println("its new type will be  ", ty)
+
+				fmt.Println("")
+
+				colDef := rsp.ColDefs[colName]
+				colDef.T = ty
+
+				rsp.ColDefs[colName] = colDef
+
+				fmt.Println("updated type for sp.ColDefs[colName] ", rsp.ColDefs[colName].Name)
+
+				fmt.Println("")
+
+				fmt.Println("its updated type is ", rsp.ColDefs[colName].T)
+
+				//14
+				Conv.SpSchema[table] = rsp
+
+			}
+		} else {
+			fmt.Println("column not found")
+		}
+
 	}
 
 	//todo
@@ -77,17 +135,27 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, colu
 			return nil, err
 		}
 
-		fmt.Println("updating type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
+		_, ok := childSp.ColDefs[colName]
 
-		colDef := childSp.ColDefs[colName]
-		colDef.T = ty
+		if ok {
 
-		childSp.ColDefs[colName] = colDef
+			{
+				fmt.Println("updating type for rsp.ColDefs[colName] ", childSp.ColDefs[colName].Name, childSp.ColDefs[colName].T)
 
-		fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
+				colDef := childSp.ColDefs[colName]
+				colDef.T = ty
 
-		//15
-		Conv.SpSchema[table] = childSp
+				childSp.ColDefs[colName] = colDef
+
+				fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName].Name, childSp.ColDefs[colName].T)
+
+				//15
+				Conv.SpSchema[table] = childSp
+
+			}
+		} else {
+			fmt.Println("column not found")
+		}
 
 	}
 
@@ -105,17 +173,27 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, colu
 			return nil, err
 		}
 
-		fmt.Println("updating type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
+		_, ok := childSp.ColDefs[colName]
 
-		colDef := childSp.ColDefs[colName]
-		colDef.T = ty
+		if ok {
+			{
+				fmt.Println("updating type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
 
-		childSp.ColDefs[colName] = colDef
+				colDef := childSp.ColDefs[colName]
+				colDef.T = ty
 
-		fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
+				childSp.ColDefs[colName] = colDef
 
-		//16
-		Conv.SpSchema[table] = childSp
+				fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
+
+				//16
+				Conv.SpSchema[table] = childSp
+			}
+		} else {
+			fmt.Println("column not found")
+
+		}
+
 	}
 
 	return columnchange, nil

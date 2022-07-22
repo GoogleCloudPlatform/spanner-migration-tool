@@ -9,15 +9,22 @@ import (
 
 func getDDL(table string, Conv *internal.Conv) string {
 
-	c := ddl.Config{Comments: true, ProtectIds: false}
+	fmt.Println("inside getDDL table :", table)
 
-	ddl := Conv.SpSchema[table].PrintCreateTable(c)
+	c := ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true}
+
+	sp := Conv.SpSchema[table]
+
+	fmt.Println("sp.table name", sp.Name)
+
+	ddl := sp.PrintCreateTable(c)
 
 	fmt.Println("")
 	fmt.Println("")
 	fmt.Println("")
 
 	fmt.Println("ddl :", ddl)
+
 	fmt.Println("")
 	fmt.Println("")
 	fmt.Println("")

@@ -2,12 +2,14 @@ package updateTableSchema
 
 import (
 	"fmt"
+	"log"
+	"net/http"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-func addColumn(table string, colName string, Conv *internal.Conv) {
+func addColumn(table string, colName string, Conv *internal.Conv, w http.ResponseWriter) error {
 
 	//sessionState := session.GetSessionState()
 
@@ -19,6 +21,17 @@ func addColumn(table string, colName string, Conv *internal.Conv) {
 
 	srcColumnId := src.ColDefs[colName].Id
 
+	//todo check colName is already present or not
+
+	_, ok := sp.ColDefs[colName]
+
+	if ok {
+
+		log.Println("colname is already present in table")
+		err := fmt.Errorf("colName is already present in table")
+		return err
+	}
+
 	fmt.Println("before sp.ColumnDef", sp.ColDefs)
 
 	fmt.Println("")
@@ -29,25 +42,15 @@ func addColumn(table string, colName string, Conv *internal.Conv) {
 		fmt.Println("v :", v)
 	}
 
-	//todo check colName is already present or not
-
 	sp.ColDefs[colName] = ddl.ColumnDef{
 		Id:      srcColumnId,
 		Name:    colName,
-		T:       sp.ColDefs[colName].T,
-		NotNull: sp.ColDefs[colName].NotNull,
-		Comment: sp.ColDefs[colName].Comment,
+		T:       src.ColDefs[colName].T,
+		NotNull: src.ColDefs[colName].NotNull,
+		Comment: src.ColDefs[colName].Comment,
 	}
 
 	fmt.Println("after Add sp.ColumnDef", sp.ColDefs)
-
-	fmt.Println("")
-	fmt.Println("")
-
-	for k, v := range sp.ColDefs {
-		fmt.Println("k :", k)
-		fmt.Println("v :", v)
-	}
 
 	fmt.Println(" before len of sp.ColNames  ", sp.ColNames)
 
@@ -64,4 +67,5 @@ func addColumn(table string, colName string, Conv *internal.Conv) {
 	Conv.ToSpanner[srcTableName].Cols[srcColName] = colName
 	Conv.ToSource[table].Cols[colName] = srcColName
 
+	return nil
 }
