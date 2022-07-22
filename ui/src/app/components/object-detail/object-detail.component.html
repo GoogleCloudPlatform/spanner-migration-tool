@@ -376,8 +376,8 @@
               formControlName="columnName"
               required="true"
             >
-              <mat-option *ngFor="let column of droppedColumns" [value]="column.spColName">{{
-                column
+              <mat-option *ngFor="let column of droppedColumns" [value]="column.srcColName">{{
+                column.srcColName
               }}</mat-option>
             </mat-select>
           </mat-form-field>
