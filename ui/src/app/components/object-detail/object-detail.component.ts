@@ -131,6 +131,7 @@ export class ObjectDetailComponent implements OnInit {
   pkObj: IPrimaryKey = {} as IPrimaryKey
 
   ngOnChanges(changes: SimpleChanges): void {
+    console.log('HSIAHSAHDDAIHSDHI')
     this.fkData = changes['fkData']?.currentValue || this.fkData
     this.currentObject = changes['currentObject']?.currentValue || this.currentObject
     this.tableData = changes['tableData']?.currentValue || this.tableData
@@ -243,10 +244,12 @@ export class ObjectDetailComponent implements OnInit {
     this.currentTabIndex = 0
     if (this.isEditMode) {
       let updateData: IUpdateTable = { UpdateCols: {}, Update: false }
+      console.log(this.conv.SpSchema[this.currentObject!.name].ColNames)
+      console.log(this.rowArray.value)
       this.rowArray.value.forEach((col: IColumnTabData, i: number) => {
         let oldRow = this.tableData[i]
         updateData.UpdateCols[this.tableData[i].spColName] = {
-          Add: !this.conv.SpSchema[this.currentObject!.name].ColNames.includes(col.spColName),
+          Add: !this.conv.SpSchema[this.currentObject!.name].ColNames.includes(col.srcColName),
           Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
           NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
           Removed: false,
