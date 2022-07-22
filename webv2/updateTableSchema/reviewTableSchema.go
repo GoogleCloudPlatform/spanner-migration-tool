@@ -66,8 +66,12 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 		if v.Add {
 
-			addColumn(table, colName, Conv, w)
+			err := addColumn(table, colName, Conv, w)
 
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 			continue
 		}
 
