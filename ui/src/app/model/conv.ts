@@ -156,3 +156,12 @@ export interface IPkColumnDefs {
   Desc: boolean
   Order: number
 }
+
+export interface ISourceDestinationDetails {
+  DatabaseType: string
+  ConnectionDetail: string
+  SourceTableCount: number
+  SpannerTableCount: number
+  SourceIndexCount: number
+  SpannerIndexCount: number
+}

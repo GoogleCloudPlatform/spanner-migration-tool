@@ -11,6 +11,7 @@ import ISchemaObjectNode, { FlatNode } from 'src/app/model/schema-object-node'
 import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import { IUpdateTableArgument } from 'src/app/model/update-table'
 import ConversionRate from 'src/app/model/conversion-rate'
+import { Router } from '@angular/router'
 
 @Component({
   selector: 'app-workspace',
@@ -44,7 +45,8 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     private data: DataService,
     private conversion: ConversionService,
     private dialog: MatDialog,
-    private sidenav: SidenavService
+    private sidenav: SidenavService,
+    private router: Router
   ) {
     this.currentObject = null
   }
@@ -232,5 +234,8 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
       else return false
     }
     return false
+  }
+  prepareMigration() {
+    this.router.navigate(['/prepare-migration'])
   }
 }

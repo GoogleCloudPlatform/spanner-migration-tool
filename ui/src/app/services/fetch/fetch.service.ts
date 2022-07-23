@@ -3,10 +3,11 @@ import { Injectable } from '@angular/core'
 import IDbConfig from 'src/app/model/db-config'
 import ISession, { ISaveSessionPayload } from '../../model/session'
 import IUpdateTable from '../../model/update-table'
-import IConv, { ICreateIndex, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
+import IConv, { ICreateIndex, IInterleaveStatus, IPrimaryKey, ISourceDestinationDetails } from '../../model/conv'
 import IDumpConfig from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
+import ITargetDetails from '../../model/target-details'
 
 @Injectable({
   providedIn: 'root',
@@ -135,5 +136,13 @@ export class FetchService {
 
   setInterleave(tableName: string) {
     return this.http.get(`${this.url}/setparent?table=${tableName}&update=true`)
+  }
+
+  getSourceDestinationSummary() {
+    return this.http.get<ISourceDestinationDetails>(`${this.url}/GetSourceDestinationSummary`)
+  }
+
+  migrate(payload: ITargetDetails) {
+    return this.http.post(`${this.url}/Migrate`,payload)
   }
 }
