@@ -143,7 +143,7 @@ export class FetchService {
   }
 
   getInterleaveStatus(tableName: string) {
-    return this.http.get<IInterleaveStatus>(`${this.url}/setparent?table=${tableName}`)
+    return this.http.get<IInterleaveStatus>(`${this.url}/setparent?table=${tableName}&update=false`)
   }
 
   setInterleave(tableName: string) {
