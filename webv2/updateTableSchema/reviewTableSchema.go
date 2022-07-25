@@ -48,11 +48,19 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("updateTable :", t)
+	fmt.Println(" before updateTable :")
+
+	for k, v := range t.UpdateCols {
+
+		fmt.Println("column :", k)
+		fmt.Println("updateCol:", v)
+	}
 
 	sessionState := session.GetSessionState()
 
 	var Conv *internal.Conv
+
+	Conv = nil
 
 	Conv = sessionState.Conv
 
@@ -72,14 +80,12 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			continue
 		}
 
 		if v.Removed {
 
 			removeColumn(table, colName, Conv)
 
-			continue
 		}
 
 		if v.Rename != "" && v.Rename != colName {
@@ -111,6 +117,14 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 		if v.NotNull != "" {
 			UpdateNotNull(v.NotNull, table, colName, Conv)
 		}
+	}
+
+	fmt.Println(" before updateTable :")
+
+	for k, v := range t.UpdateCols {
+
+		fmt.Println("column :", k)
+		fmt.Println("updateCol:", v)
 	}
 
 	updatesessionfiles.UpdateSessionFile()

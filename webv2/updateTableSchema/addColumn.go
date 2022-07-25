@@ -27,7 +27,7 @@ func addColumn(table string, colName string, Conv *internal.Conv, w http.Respons
 
 	if ok {
 
-		log.Println("colname is already present in table")
+		log.Println("colName is already present in table")
 		err := fmt.Errorf("colName is already present in table")
 		return err
 	}
