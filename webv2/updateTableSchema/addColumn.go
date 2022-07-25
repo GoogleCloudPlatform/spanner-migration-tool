@@ -54,7 +54,11 @@ func addColumn(table string, colName string, Conv *internal.Conv, w http.Respons
 
 	fmt.Println(" before len of sp.ColNames  ", sp.ColNames)
 
-	sp.ColNames = append(sp.ColNames, colName)
+	if IsColNamesPresent(sp.ColNames, colName) == false {
+
+		sp.ColNames = append(sp.ColNames, colName)
+
+	}
 
 	fmt.Println("after len of sp.ColNames  ", sp.ColNames)
 
@@ -68,4 +72,15 @@ func addColumn(table string, colName string, Conv *internal.Conv, w http.Respons
 	Conv.ToSource[table].Cols[colName] = srcColName
 
 	return nil
+}
+
+func IsColNamesPresent(s []string, str string) bool {
+
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+
+	return false
 }
