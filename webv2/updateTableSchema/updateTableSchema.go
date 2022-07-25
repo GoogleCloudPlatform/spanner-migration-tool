@@ -69,8 +69,12 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 		if v.Add {
 
-			addColumn(table, colName, Conv)
+			err = addColumn(table, colName, Conv, w)
 
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 			continue
 		}
 
@@ -83,7 +87,7 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 		if v.Rename != "" && v.Rename != colName {
 
-			//renameColumn(v.Rename, table, colName, Conv)
+			renameColumn(v.Rename, table, colName, Conv)
 			colName = v.Rename
 		}
 
@@ -98,7 +102,7 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			if typeChange {
 
-				//UpdatecolNameType(v.ToType, table, colName, Conv, w)
+				UpdatecolNameType(v.ToType, table, colName, Conv, w)
 			}
 		}
 

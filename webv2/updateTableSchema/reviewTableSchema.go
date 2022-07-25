@@ -66,8 +66,12 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 		if v.Add {
 
-			addColumn(table, colName, Conv)
+			err := addColumn(table, colName, Conv, w)
 
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 			continue
 		}
 
@@ -111,10 +115,12 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	updatesessionfiles.UpdateSessionFile()
 
-	fmt.Println("table", table)
+	fmt.Println("before getDDL table", table)
+
+	ddl := getDDL(table, Conv)
 
 	resp := ReviewTableSchemaResponse{
-		DDL:     getDDL(table, Conv),
+		DDL:     ddl,
 		Changes: Changes,
 	}
 
