@@ -260,7 +260,7 @@ export class ObjectDetailComponent implements OnInit {
               Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
               NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
               Removed: false,
-              ToType: oldRow.spDataType !== col.spDataType ? col.spDataType : '',
+              ToType: col.spDataType,
             }
             break
           }
