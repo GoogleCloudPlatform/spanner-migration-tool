@@ -2,7 +2,6 @@ package updateTableSchema
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -23,14 +22,14 @@ func addColumn(table string, colName string, Conv *internal.Conv, w http.Respons
 
 	//todo check colName is already present or not
 
-	_, ok := sp.ColDefs[colName]
+	// _, ok := sp.ColDefs[colName]
 
-	if ok {
+	// if ok {
 
-		log.Println("colName is already present in table")
-		err := fmt.Errorf("colName is already present in table")
-		return err
-	}
+	// 	log.Println("colName is already present in table")
+	// 	err := fmt.Errorf("colName is already present in table")
+	// 	return err
+	// }
 
 	fmt.Println("before sp.ColumnDef", sp.ColDefs)
 
