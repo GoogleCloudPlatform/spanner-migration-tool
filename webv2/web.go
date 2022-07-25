@@ -414,6 +414,8 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var typeMap map[string]string
+	fmt.Println("typeMap:", typeMap)
+
 	err = json.Unmarshal(reqBody, &typeMap)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)

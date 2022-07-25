@@ -75,14 +75,12 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			continue
 		}
 
 		if v.Removed {
 
 			removeColumn(table, colName, Conv)
 
-			continue
 		}
 
 		if v.Rename != "" && v.Rename != colName {
