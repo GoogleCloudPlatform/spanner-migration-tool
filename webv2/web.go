@@ -568,8 +568,8 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 
 				tableInterleaveStatus.Parent = refTable
 				sp := sessionState.Conv.SpSchema[table]
-				sp.Parent = refTable
 				if update {
+					sp.Parent = refTable
 					sp.Fks = utilities.RemoveFk(sp.Fks, i)
 				}
 				sessionState.Conv.SpSchema[table] = sp
