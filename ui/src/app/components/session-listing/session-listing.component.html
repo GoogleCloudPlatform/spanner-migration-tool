@@ -11,7 +11,8 @@
           <div class="table-header-container">
             <span>Session Name</span>
             <button mat-icon-button (click)="toggleFilterDisplay('sessionName')">
-              <mat-icon>filter_list</mat-icon>
+              <mat-icon *ngIf="displayFilter['sessionName']">keyboard_arrow_up</mat-icon>
+              <mat-icon *ngIf="!displayFilter['sessionName']">filter_list</mat-icon>
             </button>
           </div>
           <mat-form-field
