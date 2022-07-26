@@ -82,7 +82,7 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 	}
 
-	interleaveColumn = checkinterleavenamechanges(interleavecolumn, colName, newName)
+	interleavecolumn = checkinterleavenamechanges(interleavecolumn, colName, newName)
 
 	// update interleave table relation
 	isParent, childSchema := IsParent(table)
@@ -114,7 +114,7 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 				Conv.SpSchema[childSchema] = childSchemaSp
 
-				interleaveColumn := checkinterleavenamechanges(interleavecolumn, colName, newName)
+				interleavecolumn = checkinterleavenamechanges(interleavecolumn, colName, newName)
 
 			}
 		}
@@ -153,7 +153,7 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 				//sessionState.Conv.SpSchema[isChild] = childSchemaSp
 				Conv.SpSchema[isChild] = childSchemaSp
 
-				interleaveColumn = checkinterleavenamechanges(interleavecolumn, colName, newName)
+				interleavecolumn = checkinterleavenamechanges(interleavecolumn, colName, newName)
 
 			}
 		}

@@ -9,7 +9,7 @@ import (
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
-func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, columnchange []InterleaveColumn, w http.ResponseWriter) (_ []InterleaveColumn, err error) {
+func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, interleaveColumn []InterleaveColumn, w http.ResponseWriter) (_ []InterleaveColumn, err error) {
 
 	fmt.Println("ReviewcolNameType getting called")
 
@@ -120,7 +120,7 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, colu
 
 	}
 
-	c := checkcolumnchangeobj(columnchange, colName)
+	c := getInterleaveColumn(interleaveColumn, colName)
 
 	//todo
 	// update interleave table relation
@@ -151,7 +151,7 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, colu
 
 				c.Type = ty.Name
 
-				columnchange = append(columnchange, c)
+				interleaveColumn = append(interleaveColumn, c)
 
 				fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName].Name, childSp.ColDefs[colName].T)
 
@@ -192,7 +192,7 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, colu
 
 				c.Type = ty.Name
 
-				columnchange = append(columnchange, c)
+				interleaveColumn = append(interleaveColumn, c)
 				fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
 
 				//16
@@ -205,15 +205,15 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, colu
 
 	}
 
-	return columnchange, nil
+	return interleaveColumn, nil
 }
 
-func checkcolumnchangeobj(columnchange []InterleaveColumn, colName string) InterleaveColumn {
+func getInterleaveColumn(interleaveColumn []InterleaveColumn, colName string) InterleaveColumn {
 
-	for i := 0; i < len(columnchange); i++ {
+	for i := 0; i < len(interleaveColumn); i++ {
 
-		if columnchange[i].ColumnName == colName {
-			return columnchange[i]
+		if interleaveColumn[i].ColumnName == colName {
+			return interleaveColumn[i]
 		}
 	}
 
