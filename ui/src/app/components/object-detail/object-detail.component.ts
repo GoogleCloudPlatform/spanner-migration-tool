@@ -142,6 +142,7 @@ export class ObjectDetailComponent implements OnInit {
     this.pkColumnNames = []
     this.interleaveParentName = this.getParentFromDdl()
     console.log(this.tableData)
+    console.log(this.conv)
 
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
       this.setPkOrder()
@@ -267,8 +268,6 @@ export class ObjectDetailComponent implements OnInit {
         }
       })
 
-      console.log(updateData)
-
       this.droppedColumns.forEach((col: IColumnTabData) => {
         updateData.UpdateCols[col.spColName] = {
           Add: false,
@@ -303,7 +302,6 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setColumn(columnName: string) {
-    console.log(columnName)
     this.addedColumnName = columnName
   }
 
@@ -324,7 +322,6 @@ export class ObjectDetailComponent implements OnInit {
     if (ind > -1) {
       this.droppedColumns.splice(ind, 1)
     }
-    console.log(this.tableData)
     this.setSpTableRows()
   }
 
