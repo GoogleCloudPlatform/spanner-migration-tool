@@ -9,15 +9,11 @@ import (
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
-func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, interleaveColumn []InterleaveColumn, w http.ResponseWriter) (_ []InterleaveColumn, err error) {
+func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema, w http.ResponseWriter) (_ []InterleaveTableSchema, err error) {
 
 	fmt.Println("ReviewcolNameType getting called")
 
 	fmt.Println("")
-
-	//sessionState := session.GetSessionState()
-
-	//srcTableName := sessionState.Conv.ToSource[table].Name
 
 	_, ok := Conv.SpSchema[table].ColDefs[colName]
 
@@ -60,6 +56,27 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 	fmt.Println("")
 
 	fmt.Println("its updated type is ", sp.ColDefs[colName].T)
+
+	updateType := sp.ColDefs[colName].T.Name
+
+	if len(interleaveTableSchema) > 0 {
+		interleaveTableSchema = setTypetointerleaveTableSchema(interleaveTableSchema, table, colName, updateType)
+
+	} else {
+		itc := InterleaveTableSchema{}
+
+		itc.table = table
+		itc.interleaveColumnChanges = []InterleaveColumn{}
+		ic := InterleaveColumn{}
+
+		ic.ColumnName = colName
+		ic.Type = sp.ColDefs[colName].T.Name
+
+		itc.interleaveColumnChanges = append(itc.interleaveColumnChanges, ic)
+
+		interleaveTableSchema = append(interleaveTableSchema, itc)
+
+	}
 
 	//13
 	Conv.SpSchema[table] = sp
@@ -120,8 +137,6 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 
 	}
 
-	c := getInterleaveColumn(interleaveColumn, colName)
-
 	//todo
 	// update interleave table relation
 	isParent, childSchema := IsParent(table)
@@ -149,12 +164,30 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 
 				childSp.ColDefs[colName] = colDef
 
-				c.Type = ty.Name
-
-				interleaveColumn = append(interleaveColumn, c)
-
 				fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName].Name, childSp.ColDefs[colName].T)
 
+				{
+
+					if len(interleaveTableSchema) > 0 {
+						interleaveTableSchema = setTypetointerleaveTableSchema(interleaveTableSchema, childSchema, colName, updateType)
+
+					} else {
+						itc := InterleaveTableSchema{}
+
+						itc.table = childSchema
+						itc.interleaveColumnChanges = []InterleaveColumn{}
+						ic := InterleaveColumn{}
+
+						ic.ColumnName = colName
+						ic.Type = childSp.ColDefs[colName].T.Name
+
+						itc.interleaveColumnChanges = append(itc.interleaveColumnChanges, ic)
+
+						interleaveTableSchema = append(interleaveTableSchema, itc)
+
+					}
+
+				}
 				//15
 				Conv.SpSchema[table] = childSp
 
@@ -190,10 +223,29 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 
 				childSp.ColDefs[colName] = colDef
 
-				c.Type = ty.Name
-
-				interleaveColumn = append(interleaveColumn, c)
 				fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
+
+				{
+					if len(interleaveTableSchema) > 0 {
+						interleaveTableSchema = setTypetointerleaveTableSchema(interleaveTableSchema, childSchema, colName, updateType)
+
+					} else {
+						itc := InterleaveTableSchema{}
+
+						itc.table = childSchema
+						itc.interleaveColumnChanges = []InterleaveColumn{}
+						ic := InterleaveColumn{}
+
+						ic.ColumnName = colName
+						ic.Type = childSp.ColDefs[colName].T.Name
+
+						itc.interleaveColumnChanges = append(itc.interleaveColumnChanges, ic)
+
+						interleaveTableSchema = append(interleaveTableSchema, itc)
+
+					}
+
+				}
 
 				//16
 				Conv.SpSchema[table] = childSp
@@ -205,20 +257,50 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 
 	}
 
-	return interleaveColumn, nil
+	return interleaveTableSchema, nil
 }
 
-func getInterleaveColumn(interleaveColumn []InterleaveColumn, colName string) InterleaveColumn {
+func getInterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, table string) int {
 
-	for i := 0; i < len(interleaveColumn); i++ {
+	for i := 0; i < len(interleaveTableSchema); i++ {
 
-		if interleaveColumn[i].ColumnName == colName {
-			return interleaveColumn[i]
+		if interleaveTableSchema[i].table == table {
+			return i
 		}
 	}
 
-	c := InterleaveColumn{}
-	c.ColumnName = colName
+	return -1
+}
 
-	return c
+func getInterleaveColumnChanges(interleaveColumnChanges []InterleaveColumn, colName string) int {
+
+	for i := 0; i < len(interleaveColumnChanges); i++ {
+
+		if interleaveColumnChanges[i].ColumnName == colName {
+			return i
+		}
+	}
+
+	return -1
+}
+
+func setTypetointerleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, table string, colName string, updateType string) []InterleaveTableSchema {
+
+	for i := 0; i < len(interleaveTableSchema); i++ {
+
+		if interleaveTableSchema[i].table == table {
+
+			for j := 0; j < len(interleaveTableSchema[i].interleaveColumnChanges); j++ {
+
+				if interleaveTableSchema[i].interleaveColumnChanges[j].ColumnName == colName {
+					interleaveTableSchema[i].interleaveColumnChanges[j].UpdateType = updateType
+
+				}
+			}
+
+		}
+	}
+
+	return interleaveTableSchema
+
 }

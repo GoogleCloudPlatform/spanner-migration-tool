@@ -7,7 +7,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, interleavecolumn []InterleaveColumn) []InterleaveColumn {
+func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema) []InterleaveTableSchema {
 
 	fmt.Println("renameColumn getting called")
 
@@ -43,6 +43,21 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 	//7
 	//sessionState.Conv.SpSchema[table] = sp
+
+	itc := InterleaveTableSchema{}
+
+	itc.table = table
+	itc.interleaveColumnChanges = []InterleaveColumn{}
+
+	ic := InterleaveColumn{}
+
+	ic.ColumnName = colName
+	ic.Type = sp.ColDefs[colName].T.Name
+	ic.UpdateColumnName = newName
+
+	itc.interleaveColumnChanges = append(itc.interleaveColumnChanges, ic)
+
+	interleaveTableSchema = append(interleaveTableSchema, itc)
 
 	Conv.SpSchema[table] = sp
 
@@ -82,8 +97,6 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 	}
 
-	interleavecolumn = checkinterleavenamechanges(interleavecolumn, colName, newName)
-
 	// update interleave table relation
 	isParent, childSchema := IsParent(table)
 
@@ -114,7 +127,19 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 				Conv.SpSchema[childSchema] = childSchemaSp
 
-				interleavecolumn = checkinterleavenamechanges(interleavecolumn, colName, newName)
+				itc := InterleaveTableSchema{}
+
+				itc.table = childSchema
+				itc.interleaveColumnChanges = []InterleaveColumn{}
+
+				ic := InterleaveColumn{}
+				ic.ColumnName = colName
+				ic.Type = childSchemaSp.ColDefs[colName].T.Name
+				ic.UpdateColumnName = newName
+
+				itc.interleaveColumnChanges = append(itc.interleaveColumnChanges, ic)
+
+				interleaveTableSchema = append(interleaveTableSchema, itc)
 
 			}
 		}
@@ -153,14 +178,26 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 				//sessionState.Conv.SpSchema[isChild] = childSchemaSp
 				Conv.SpSchema[isChild] = childSchemaSp
 
-				interleavecolumn = checkinterleavenamechanges(interleavecolumn, colName, newName)
+				itc := InterleaveTableSchema{}
+
+				itc.table = isChild
+				itc.interleaveColumnChanges = []InterleaveColumn{}
+
+				ic := InterleaveColumn{}
+				ic.ColumnName = colName
+				ic.Type = childSchemaSp.ColDefs[colName].T.Name
+				ic.UpdateColumnName = newName
+
+				itc.interleaveColumnChanges = append(itc.interleaveColumnChanges, ic)
+
+				interleaveTableSchema = append(interleaveTableSchema, itc)
 
 			}
 		}
 
 	}
 
-	return interleavecolumn
+	return interleaveTableSchema
 
 }
 

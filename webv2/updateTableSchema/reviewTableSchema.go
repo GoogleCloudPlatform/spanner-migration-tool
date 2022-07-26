@@ -19,7 +19,7 @@ type ReviewTableSchemaResponse struct {
 
 type InterleaveTableSchema struct {
 	table                   string
-	InterleaveColumnChanges []InterleaveColumn
+	interleaveColumnChanges []InterleaveColumn
 }
 
 type InterleaveColumn struct {
@@ -68,8 +68,6 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	interleaveTableSchema := []InterleaveTableSchema{}
 
-	interleaveColumn := []InterleaveColumn{}
-
 	for colName, v := range t.UpdateCols {
 
 		if v.Add {
@@ -90,7 +88,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 		if v.Rename != "" && v.Rename != colName {
 
-			interleaveColumn = reviewRenameColumn(v.Rename, table, colName, Conv, interleaveColumn)
+			interleaveTableSchema = reviewRenameColumn(v.Rename, table, colName, Conv, interleaveTableSchema)
 
 			colName = v.Rename
 		}
@@ -106,11 +104,10 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			if typeChange {
 
-				interleaveColumn, err := ReviewcolNameType(v.ToType, table, colName, Conv, interleaveColumn, w)
+				interleaveTableSchema, err = ReviewcolNameType(v.ToType, table, colName, Conv, interleaveTableSchema, w)
 				if err != nil {
 					return
 				}
-				fmt.Println(interleaveColumn)
 			}
 		}
 
