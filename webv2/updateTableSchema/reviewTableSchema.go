@@ -14,15 +14,15 @@ import (
 
 type ReviewTableSchemaResponse struct {
 	DDL     string
-	Changes []TableSchemaChanges
+	Changes []InterleaveTableSchema
 }
 
-type TableSchemaChanges struct {
+type InterleaveTableSchema struct {
 	table         string
-	Columnchanges []Columnchange
+	Columnchanges []InterleaveColumn
 }
 
-type Columnchange struct {
+type InterleaveColumn struct {
 	ColumnName       string
 	Type             string
 	UpdateColumnName string
@@ -66,9 +66,9 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	//todo work on TableSchemaChanges
 
-	Changes := []TableSchemaChanges{}
+	Changes := []InterleaveTableSchema{}
 
-	columnchange := []Columnchange{}
+	interleaveColumn := []InterleaveColumn{}
 
 	for colName, v := range t.UpdateCols {
 
@@ -90,7 +90,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 		if v.Rename != "" && v.Rename != colName {
 
-			columnchange = reviewRenameColumn(v.Rename, table, colName, Conv, columnchange)
+			interleaveColumn = reviewRenameColumn(v.Rename, table, colName, Conv, interleaveColumn)
 
 			colName = v.Rename
 		}
@@ -106,11 +106,11 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			if typeChange {
 
-				columnchange, err := ReviewcolNameType(v.ToType, table, colName, Conv, columnchange, w)
+				InterleaveColumn, err := ReviewcolNameType(v.ToType, table, colName, Conv, interleaveColumn, w)
 				if err != nil {
 					return
 				}
-				fmt.Println(columnchange)
+				fmt.Println(InterleaveColumn)
 			}
 		}
 
@@ -132,6 +132,11 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("before getDDL table", table)
 
 	ddl := getDDL(table, Conv)
+
+	fmt.Println("")
+	fmt.Println("")
+
+	fmt.Println("Changes :", Changes)
 
 	resp := ReviewTableSchemaResponse{
 		DDL:     ddl,

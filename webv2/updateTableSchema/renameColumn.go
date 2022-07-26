@@ -7,7 +7,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, columnchange []Columnchange) []Columnchange {
+func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, interleavecolumn []InterleaveColumn) []InterleaveColumn {
 
 	fmt.Println("renameColumn getting called")
 
@@ -82,7 +82,7 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, col
 
 	}
 
-	columnchange = checkinterleavenamechanges(columnchange, colName, newName)
+	interleaveColumn = checkinterleavenamechanges(interleavecolumn, colName, newName)
 
 	// update interleave table relation
 	isParent, childSchema := IsParent(table)
@@ -114,7 +114,7 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, col
 
 				Conv.SpSchema[childSchema] = childSchemaSp
 
-				columnchange = checkinterleavenamechanges(columnchange, colName, newName)
+				interleaveColumn := checkinterleavenamechanges(interleavecolumn, colName, newName)
 
 			}
 		}
@@ -153,36 +153,36 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, col
 				//sessionState.Conv.SpSchema[isChild] = childSchemaSp
 				Conv.SpSchema[isChild] = childSchemaSp
 
-				columnchange = checkinterleavenamechanges(columnchange, colName, newName)
+				interleaveColumn = checkinterleavenamechanges(interleavecolumn, colName, newName)
 
 			}
 		}
 
 	}
 
-	return columnchange
+	return interleavecolumn
 
 }
 
-func checkinterleavenamechanges(columnchange []Columnchange, colName string, newName string) []Columnchange {
+func checkinterleavenamechanges(interleaveColumn []InterleaveColumn, colName string, newName string) []InterleaveColumn {
 
-	flag := isColumnPresent(columnchange, colName)
+	flag := isColumnPresent(interleaveColumn, colName)
 
 	if flag == false {
 
-		columnchange = updatecolumnchangelist(columnchange, colName, newName)
+		interleaveColumn = updatecolumnchangelist(interleaveColumn, colName, newName)
 
-		return columnchange
+		return interleaveColumn
 	}
 
-	return columnchange
+	return interleaveColumn
 }
 
-func isColumnPresent(columnchange []Columnchange, colName string) bool {
+func isColumnPresent(interleaveColumn []InterleaveColumn, colName string) bool {
 
-	for i := 0; i < len(columnchange); i++ {
+	for i := 0; i < len(interleaveColumn); i++ {
 
-		if columnchange[i].ColumnName == colName {
+		if interleaveColumn[i].ColumnName == colName {
 			return true
 		}
 
@@ -191,15 +191,15 @@ func isColumnPresent(columnchange []Columnchange, colName string) bool {
 	return false
 }
 
-func updatecolumnchangelist(columnchange []Columnchange, colName string, newName string) []Columnchange {
+func updatecolumnchangelist(interleaveColumn []InterleaveColumn, colName string, newName string) []InterleaveColumn {
 
-	c := Columnchange{}
-	c.ColumnName = colName
-	c.UpdateColumnName = newName
+	ic := InterleaveColumn{}
+	ic.ColumnName = colName
+	ic.UpdateColumnName = newName
 
-	columnchange = append(columnchange, c)
+	interleaveColumn = append(interleaveColumn, ic)
 
-	return columnchange
+	return interleaveColumn
 }
 
 func renameSpannerColNames(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {

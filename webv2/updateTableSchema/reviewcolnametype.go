@@ -9,7 +9,7 @@ import (
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
-func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, columnchange []Columnchange, w http.ResponseWriter) (_ []Columnchange, err error) {
+func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, columnchange []InterleaveColumn, w http.ResponseWriter) (_ []InterleaveColumn, err error) {
 
 	fmt.Println("ReviewcolNameType getting called")
 
@@ -120,6 +120,8 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, colu
 
 	}
 
+	c := checkcolumnchangeobj(columnchange, colName)
+
 	//todo
 	// update interleave table relation
 	isParent, childSchema := IsParent(table)
@@ -146,6 +148,10 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, colu
 				colDef.T = ty
 
 				childSp.ColDefs[colName] = colDef
+
+				c.Type = ty.Name
+
+				columnchange = append(columnchange, c)
 
 				fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName].Name, childSp.ColDefs[colName].T)
 
@@ -184,6 +190,9 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, colu
 
 				childSp.ColDefs[colName] = colDef
 
+				c.Type = ty.Name
+
+				columnchange = append(columnchange, c)
 				fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
 
 				//16
@@ -197,4 +206,19 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, colu
 	}
 
 	return columnchange, nil
+}
+
+func checkcolumnchangeobj(columnchange []InterleaveColumn, colName string) InterleaveColumn {
+
+	for i := 0; i < len(columnchange); i++ {
+
+		if columnchange[i].ColumnName == colName {
+			return columnchange[i]
+		}
+	}
+
+	c := InterleaveColumn{}
+	c.ColumnName = colName
+
+	return c
 }

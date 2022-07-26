@@ -67,7 +67,7 @@ func addColumn(table string, colName string, Conv *internal.Conv, w http.Respons
 	srcTableName := Conv.ToSource[table].Name
 	srcColName := Conv.ToSource[table].Cols[colName]
 
-	//1
+	//1 todo
 	Conv.ToSpanner[srcTableName].Cols[srcColName] = colName
 	Conv.ToSource[table].Cols[colName] = srcColName
 
