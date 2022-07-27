@@ -127,6 +127,7 @@ export class SessionListingComponent implements OnInit {
       this.router.navigate(['/workspace'])
     })
   }
+
   openSpannerConfigDialog() {
     this.clickEvent.openSpannerConfig()
   }
