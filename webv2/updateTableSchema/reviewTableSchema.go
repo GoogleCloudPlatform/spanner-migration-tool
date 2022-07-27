@@ -133,6 +133,16 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("")
 	fmt.Println("")
 
+	fmt.Println("ddl :", ddl)
+
+	fmt.Println("")
+	fmt.Println("")
+
+	fmt.Println("interleaveTableSchema :", interleaveTableSchema)
+
+	fmt.Println("")
+	fmt.Println("")
+
 	resp := ReviewTableSchemaResponse{
 		DDL:     ddl,
 		Changes: interleaveTableSchema,
