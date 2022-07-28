@@ -10,10 +10,6 @@ import (
 
 func removeColumn(table string, colName string, Conv *internal.Conv) {
 
-	//	sessionState := session.GetSessionState()
-
-	//sp := sessionState.Conv.SpSchema[table]
-
 	sp := Conv.SpSchema[table]
 
 	// step I
@@ -47,8 +43,6 @@ func removeColumn(table string, colName string, Conv *internal.Conv) {
 
 	// update foreignKey relationship Table column names
 	for i, _ := range sp.Fks {
-
-		fmt.Println("update foreignKey Table column names")
 
 		relationTable := sp.Fks[i].ReferTable
 
@@ -147,7 +141,7 @@ func removeSpannerColNames(sp ddl.CreateTable, colName string) ddl.CreateTable {
 
 	delete(sp.ColDefs, colName)
 
-	fmt.Println("removed sp.ColNames : ", sp.ColDefs)
+	fmt.Println("removed sp.ColNames : ", sp.ColNames)
 
 	return sp
 

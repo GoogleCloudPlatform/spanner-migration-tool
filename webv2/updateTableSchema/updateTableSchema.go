@@ -118,14 +118,6 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.Conv = Conv
 
-	fmt.Println(" before updateTable :")
-
-	for k, v := range t.UpdateCols {
-
-		fmt.Println("column :", k)
-		fmt.Println("updateCol:", v)
-	}
-
 	updatesessionfiles.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{

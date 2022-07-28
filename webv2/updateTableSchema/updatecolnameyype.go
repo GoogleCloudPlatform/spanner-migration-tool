@@ -13,10 +13,6 @@ import (
 
 func UpdatecolNameType(newType, table, colName string, Conv *internal.Conv, w http.ResponseWriter) {
 
-	//sessionState := session.GetSessionState()
-
-	//srcTableName := sessionState.Conv.ToSource[table].Name
-
 	srcTableName := Conv.ToSource[table].Name
 
 	sp, ty, err := utilities.GetType(newType, table, colName, srcTableName)
@@ -62,7 +58,7 @@ func UpdatecolNameType(newType, table, colName string, Conv *internal.Conv, w ht
 		fmt.Println("updated type for rsp.ColDefs[colName] ", rsp.ColDefs[colName], rsp.ColDefs[colName].T)
 
 		//14
-		Conv.SpSchema[table] = rsp
+		Conv.SpSchema[relationTable] = rsp
 	}
 
 	//todo
@@ -90,7 +86,7 @@ func UpdatecolNameType(newType, table, colName string, Conv *internal.Conv, w ht
 		fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
 
 		//15
-		Conv.SpSchema[table] = childSp
+		Conv.SpSchema[childSchema] = childSp
 
 	}
 
@@ -118,7 +114,7 @@ func UpdatecolNameType(newType, table, colName string, Conv *internal.Conv, w ht
 		fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
 
 		//16
-		Conv.SpSchema[table] = childSp
+		Conv.SpSchema[isChild] = childSp
 	}
 }
 

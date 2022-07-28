@@ -3,21 +3,16 @@ package updateTableSchema
 import (
 	"fmt"
 
-	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-func getDDL(table string, Conv *internal.Conv) string {
+func getDDL(spannerTable ddl.CreateTable) string {
 
-	fmt.Println("inside getDDL table :", table)
+	fmt.Println("inside getDDL table :", spannerTable.Name)
 
-	c := ddl.Config{Comments: true, ProtectIds: false, Tables: true, ForeignKeys: true}
+	c := ddl.Config{Comments: true, ProtectIds: false}
 
-	sp := Conv.SpSchema[table]
-
-	fmt.Println("sp.table name", sp.Name)
-
-	ddl := sp.PrintCreateTable(c)
+	ddl := spannerTable.PrintCreateTable(c)
 
 	fmt.Println("")
 	fmt.Println("")

@@ -10,48 +10,35 @@ import (
 
 func addColumn(table string, colName string, Conv *internal.Conv, w http.ResponseWriter) error {
 
-	//sessionState := session.GetSessionState()
-
 	fmt.Println("addColumn getting called")
+	fmt.Println("")
 
 	sp := Conv.SpSchema[table]
 
-	src := Conv.SpSchema[table]
+	src := Conv.SrcSchema[table]
 
 	srcColumnId := src.ColDefs[colName].Id
 
-	//todo check colName is already present or not
-
-	// _, ok := sp.ColDefs[colName]
-
-	// if ok {
-
-	// 	log.Println("colName is already present in table")
-	// 	err := fmt.Errorf("colName is already present in table")
-	// 	return err
-	// }
-
 	fmt.Println("before sp.ColumnDef", sp.ColDefs)
-
-	fmt.Println("")
 	fmt.Println("")
 
-	for k, v := range sp.ColDefs {
-		fmt.Println("k :", k)
-		fmt.Println("v :", v)
+	for k, _ := range sp.ColDefs {
+		fmt.Println("Column Name :", k)
 	}
 
 	sp.ColDefs[colName] = ddl.ColumnDef{
-		Id:      srcColumnId,
-		Name:    colName,
-		T:       src.ColDefs[colName].T,
-		NotNull: src.ColDefs[colName].NotNull,
-		Comment: src.ColDefs[colName].Comment,
+		Id:   srcColumnId,
+		Name: colName,
 	}
 
 	fmt.Println("after Add sp.ColumnDef", sp.ColDefs)
+	fmt.Println("")
 
-	fmt.Println(" before len of sp.ColNames  ", sp.ColNames)
+	for k, _ := range sp.ColDefs {
+		fmt.Println("Column Name :", k)
+	}
+
+	fmt.Println(" before sp.ColNames  ", sp.ColNames)
 
 	if IsColNamesPresent(sp.ColNames, colName) == false {
 
@@ -59,14 +46,15 @@ func addColumn(table string, colName string, Conv *internal.Conv, w http.Respons
 
 	}
 
-	fmt.Println("after len of sp.ColNames  ", sp.ColNames)
+	fmt.Println("after sp.ColNames ", sp.ColNames)
 
 	Conv.SpSchema[table] = sp
 
 	srcTableName := Conv.ToSource[table].Name
+
+	//getting null
 	srcColName := Conv.ToSource[table].Cols[colName]
 
-	//1 todo
 	Conv.ToSpanner[srcTableName].Cols[srcColName] = colName
 	Conv.ToSource[table].Cols[colName] = srcColName
 

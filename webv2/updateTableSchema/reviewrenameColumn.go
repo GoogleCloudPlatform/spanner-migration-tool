@@ -10,10 +10,6 @@ func renameColumn(newName, table, colName string, Conv *internal.Conv) {
 
 	fmt.Println("renameColumn getting called")
 
-	//sessionState := session.GetSessionState()
-
-	//sp := sessionState.Conv.SpSchema[table]
-
 	sp := Conv.SpSchema[table]
 
 	// step I
@@ -68,7 +64,6 @@ func renameColumn(newName, table, colName string, Conv *internal.Conv) {
 		renameSpannerSchemaIssue(relationTable, colName, newName, Conv)
 
 		//8
-		//sessionState.Conv.SpSchema[relationTable] = relationTableSp
 
 		Conv.SpSchema[relationTable] = relationTableSp
 
@@ -80,8 +75,6 @@ func renameColumn(newName, table, colName string, Conv *internal.Conv) {
 	if isParent {
 		fmt.Println("yes", table, "is parent table")
 
-		//childSchemaSp := sessionState.Conv.SpSchema[childSchema]
-
 		childSchemaSp := Conv.SpSchema[childSchema]
 
 		childSchemaSp = renameSpannerColNames(childSchemaSp, colName, newName)
@@ -91,26 +84,16 @@ func renameColumn(newName, table, colName string, Conv *internal.Conv) {
 		childSchemaSp = renameSpannerForeignkeyColumns(childSchemaSp, colName, newName)
 		childSchemaSp = renameSpannerForeignkeyReferColumns(childSchemaSp, colName, newName)
 
-		//todo
 		renameToSpannerToSource(childSchema, colName, newName, Conv)
 		renameSpannerSchemaIssue(childSchema, colName, newName, Conv)
-
-		//9
-		//sessionState.Conv.SpSchema[childSchema] = childSchemaSp
 
 		Conv.SpSchema[childSchema] = childSchemaSp
 
 	}
 
-	//10
-	//isChild := sessionState.Conv.SpSchema[table].Parent
-
 	isChild := Conv.SpSchema[table].Parent
 
 	if isChild != "" {
-
-		//12
-		//childSchemaSp := sessionState.Conv.SpSchema[isChild]
 
 		childSchemaSp := Conv.SpSchema[isChild]
 
@@ -121,13 +104,10 @@ func renameColumn(newName, table, colName string, Conv *internal.Conv) {
 		childSchemaSp = renameSpannerForeignkeyColumns(childSchemaSp, colName, newName)
 		childSchemaSp = renameSpannerForeignkeyReferColumns(childSchemaSp, colName, newName)
 
-		//todo
 		renameToSpannerToSource(isChild, colName, newName, Conv)
 
 		renameSpannerSchemaIssue(isChild, colName, newName, Conv)
 
-		//11
-		//sessionState.Conv.SpSchema[isChild] = childSchemaSp
 		Conv.SpSchema[isChild] = childSchemaSp
 
 	}

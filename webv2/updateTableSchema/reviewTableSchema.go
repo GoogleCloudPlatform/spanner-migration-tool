@@ -40,20 +40,16 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	table := r.FormValue("table")
 
+	fmt.Println("table :", table)
+
 	fmt.Println("updateTableSchema getting called")
+
+	fmt.Println("")
 
 	err = json.Unmarshal(reqBody, &t)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
-	}
-
-	fmt.Println(" before updateTable :")
-
-	for k, v := range t.UpdateCols {
-
-		fmt.Println("column :", k)
-		fmt.Println("updateCol:", v)
 	}
 
 	sessionState := session.GetSessionState()
@@ -63,8 +59,6 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 	Conv = nil
 
 	Conv = sessionState.Conv
-
-	//todo work on TableSchemaChanges
 
 	interleaveTableSchema := []InterleaveTableSchema{}
 
@@ -116,31 +110,16 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	fmt.Println(" before updateTable :")
-
-	for k, v := range t.UpdateCols {
-
-		fmt.Println("column :", k)
-		fmt.Println("updateCol:", v)
-	}
-
 	updatesessionfiles.UpdateSessionFile()
 
-	fmt.Println("before getDDL table", table)
+	fmt.Println("Conv.SpSchema[table] name :", Conv.SpSchema[table].Name)
 
-	ddl := getDDL(table, Conv)
-
-	fmt.Println("")
-	fmt.Println("")
+	ddl := getDDL(Conv.SpSchema[table])
 
 	fmt.Println("ddl :", ddl)
-
-	fmt.Println("")
 	fmt.Println("")
 
 	fmt.Println("interleaveTableSchema :", interleaveTableSchema)
-
-	fmt.Println("")
 	fmt.Println("")
 
 	resp := ReviewTableSchemaResponse{
