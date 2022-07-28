@@ -65,14 +65,14 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 	} else {
 		itc := InterleaveTableSchema{}
 
-		itc.table = table
-		itc.interleaveColumnChanges = []InterleaveColumn{}
+		itc.Table = table
+		itc.InterleaveColumnChanges = []InterleaveColumn{}
 		ic := InterleaveColumn{}
 
 		ic.ColumnName = colName
 		ic.Type = sp.ColDefs[colName].T.Name
 
-		itc.interleaveColumnChanges = append(itc.interleaveColumnChanges, ic)
+		itc.InterleaveColumnChanges = append(itc.InterleaveColumnChanges, ic)
 
 		interleaveTableSchema = append(interleaveTableSchema, itc)
 
@@ -174,14 +174,14 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 					} else {
 						itc := InterleaveTableSchema{}
 
-						itc.table = childSchema
-						itc.interleaveColumnChanges = []InterleaveColumn{}
+						itc.Table = childSchema
+						itc.InterleaveColumnChanges = []InterleaveColumn{}
 						ic := InterleaveColumn{}
 
 						ic.ColumnName = colName
 						ic.Type = childSp.ColDefs[colName].T.Name
 
-						itc.interleaveColumnChanges = append(itc.interleaveColumnChanges, ic)
+						itc.InterleaveColumnChanges = append(itc.InterleaveColumnChanges, ic)
 
 						interleaveTableSchema = append(interleaveTableSchema, itc)
 
@@ -232,14 +232,14 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 					} else {
 						itc := InterleaveTableSchema{}
 
-						itc.table = childSchema
-						itc.interleaveColumnChanges = []InterleaveColumn{}
+						itc.Table = childSchema
+						itc.InterleaveColumnChanges = []InterleaveColumn{}
 						ic := InterleaveColumn{}
 
 						ic.ColumnName = colName
 						ic.Type = childSp.ColDefs[colName].T.Name
 
-						itc.interleaveColumnChanges = append(itc.interleaveColumnChanges, ic)
+						itc.InterleaveColumnChanges = append(itc.InterleaveColumnChanges, ic)
 
 						interleaveTableSchema = append(interleaveTableSchema, itc)
 
@@ -264,7 +264,7 @@ func getInterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, tab
 
 	for i := 0; i < len(interleaveTableSchema); i++ {
 
-		if interleaveTableSchema[i].table == table {
+		if interleaveTableSchema[i].Table == table {
 			return i
 		}
 	}
@@ -288,12 +288,12 @@ func setTypetointerleaveTableSchema(interleaveTableSchema []InterleaveTableSchem
 
 	for i := 0; i < len(interleaveTableSchema); i++ {
 
-		if interleaveTableSchema[i].table == table {
+		if interleaveTableSchema[i].Table == table {
 
-			for j := 0; j < len(interleaveTableSchema[i].interleaveColumnChanges); j++ {
+			for j := 0; j < len(interleaveTableSchema[i].InterleaveColumnChanges); j++ {
 
-				if interleaveTableSchema[i].interleaveColumnChanges[j].ColumnName == colName {
-					interleaveTableSchema[i].interleaveColumnChanges[j].UpdateType = updateType
+				if interleaveTableSchema[i].InterleaveColumnChanges[j].ColumnName == colName {
+					interleaveTableSchema[i].InterleaveColumnChanges[j].UpdateType = updateType
 
 				}
 			}

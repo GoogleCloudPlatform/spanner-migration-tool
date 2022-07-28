@@ -18,8 +18,8 @@ type ReviewTableSchemaResponse struct {
 }
 
 type InterleaveTableSchema struct {
-	table                   string
-	interleaveColumnChanges []InterleaveColumn
+	Table                   string
+	InterleaveColumnChanges []InterleaveColumn
 }
 
 type InterleaveColumn struct {

@@ -46,8 +46,8 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 	itc := InterleaveTableSchema{}
 
-	itc.table = table
-	itc.interleaveColumnChanges = []InterleaveColumn{}
+	itc.Table = table
+	itc.InterleaveColumnChanges = []InterleaveColumn{}
 
 	ic := InterleaveColumn{}
 
@@ -55,7 +55,7 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 	ic.Type = sp.ColDefs[colName].T.Name
 	ic.UpdateColumnName = newName
 
-	itc.interleaveColumnChanges = append(itc.interleaveColumnChanges, ic)
+	itc.InterleaveColumnChanges = append(itc.InterleaveColumnChanges, ic)
 
 	interleaveTableSchema = append(interleaveTableSchema, itc)
 
@@ -129,15 +129,15 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 				itc := InterleaveTableSchema{}
 
-				itc.table = childSchema
-				itc.interleaveColumnChanges = []InterleaveColumn{}
+				itc.Table = childSchema
+				itc.InterleaveColumnChanges = []InterleaveColumn{}
 
 				ic := InterleaveColumn{}
 				ic.ColumnName = colName
 				ic.Type = childSchemaSp.ColDefs[colName].T.Name
 				ic.UpdateColumnName = newName
 
-				itc.interleaveColumnChanges = append(itc.interleaveColumnChanges, ic)
+				itc.InterleaveColumnChanges = append(itc.InterleaveColumnChanges, ic)
 
 				interleaveTableSchema = append(interleaveTableSchema, itc)
 
@@ -180,15 +180,15 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 				itc := InterleaveTableSchema{}
 
-				itc.table = isChild
-				itc.interleaveColumnChanges = []InterleaveColumn{}
+				itc.Table = isChild
+				itc.InterleaveColumnChanges = []InterleaveColumn{}
 
 				ic := InterleaveColumn{}
 				ic.ColumnName = colName
 				ic.Type = childSchemaSp.ColDefs[colName].T.Name
 				ic.UpdateColumnName = newName
 
-				itc.interleaveColumnChanges = append(itc.interleaveColumnChanges, ic)
+				itc.InterleaveColumnChanges = append(itc.InterleaveColumnChanges, ic)
 
 				interleaveTableSchema = append(interleaveTableSchema, itc)
 
