@@ -9,58 +9,14 @@
     <td mat-cell *matCellDef="let element">{{ element.Type }}</td>
   </ng-container>
 
-  <ng-container matColumnDef="Pk">
-    <th mat-header-cell *matHeaderCellDef>PK</th>
-    <td mat-cell *matCellDef="let element">
-      <div *ngIf="element.Pk">
-        <svg
-          width="14"
-          height="8"
-          viewBox="0 0 14 8"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M4 8C5.86384 8 7.42994 6.72523 7.87398 5H10V7H13V5H14V3H7.87398C7.42994 1.27477 5.86384 0 4 0C1.79086 0 0 1.79086 0 4C0 6.20914 1.79086 8 4 8ZM6 4C6 5.10457 5.10457 6 4 6C2.89543 6 2 5.10457 2 4C2 2.89543 2.89543 2 4 2C5.10457 2 6 2.89543 6 4Z"
-            fill="black"
-          />
-        </svg>
-      </div>
-    </td>
-  </ng-container>
-
-  <ng-container matColumnDef="UpdatedColumnName">
+  <ng-container matColumnDef="UpdateColumnName">
     <th mat-header-cell *matHeaderCellDef>Updated Column</th>
-    <td mat-cell *matCellDef="let element">{{ element.UpdatedColumnName }}</td>
+    <td mat-cell *matCellDef="let element">{{ element.UpdateColumnName }}</td>
   </ng-container>
 
-  <ng-container matColumnDef="UpdatedType">
+  <ng-container matColumnDef="UpdateType">
     <th mat-header-cell *matHeaderCellDef>Updated Type</th>
-    <td mat-cell *matCellDef="let element">{{ element.UpdatedType }}</td>
-  </ng-container>
-
-  <ng-container matColumnDef="UpdatedPk">
-    <th mat-header-cell *matHeaderCellDef>Updated PK</th>
-    <td mat-cell *matCellDef="let element">
-      <div *ngIf="element.UpdatedPk">
-        <svg
-          width="14"
-          height="8"
-          viewBox="0 0 14 8"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M4 8C5.86384 8 7.42994 6.72523 7.87398 5H10V7H13V5H14V3H7.87398C7.42994 1.27477 5.86384 0 4 0C1.79086 0 0 1.79086 0 4C0 6.20914 1.79086 8 4 8ZM6 4C6 5.10457 5.10457 6 4 6C2.89543 6 2 5.10457 2 4C2 2.89543 2.89543 2 4 2C5.10457 2 6 2.89543 6 4Z"
-            fill="black"
-          />
-        </svg>
-      </div>
-    </td>
+    <td mat-cell *matCellDef="let element">{{ element.UpdateType }}</td>
   </ng-container>
 
   <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>

@@ -5,6 +5,16 @@ interface IUpdateCol {
   NotNull: string
   ToType: string
 }
+export interface ITableColumnChanges {
+  ColumnName: string
+  Type: string
+  UpdateColumnName: string
+  UpdateType: string
+}
+export interface IReviewInterleaveTableChanges {
+  InterleaveColumnChanges: ITableColumnChanges[]
+  Table: string
+}
 export interface IUpdateTableArgument {
   text: string
   order: string
@@ -15,6 +25,6 @@ export default interface IUpdateTable {
 }
 
 export interface IReviewUpdateTable {
-  Changes: any[]
+  Changes: IReviewInterleaveTableChanges[]
   DDL: string
 }

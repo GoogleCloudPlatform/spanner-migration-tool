@@ -1,5 +1,5 @@
-import { Component, Input, OnInit } from '@angular/core'
-import ITableColumnChanges from 'src/app/model/table-column-changes'
+import { Component, Input, OnInit, SimpleChanges } from '@angular/core'
+import { IReviewInterleaveTableChanges, ITableColumnChanges } from 'src/app/model/update-table'
 
 @Component({
   selector: 'app-table-column-changes-preview',
@@ -7,17 +7,15 @@ import ITableColumnChanges from 'src/app/model/table-column-changes'
   styleUrls: ['./table-column-changes-preview.component.scss'],
 })
 export class TableColumnChangesPreviewComponent implements OnInit {
-  @Input() dataSource: ITableColumnChanges[] = []
-  displayedColumns: string[] = [
-    'ColumnName',
-    'Type',
-    'Pk',
-    'UpdatedColumnName',
-    'UpdatedType',
-    'UpdatedPk',
-  ]
+  @Input() tableChange: IReviewInterleaveTableChanges = { InterleaveColumnChanges: [], Table: '' }
+  dataSource: ITableColumnChanges[] = []
+  displayedColumns: string[] = ['ColumnName', 'Type', 'UpdateColumnName', 'UpdateType']
 
   constructor() {}
 
   ngOnInit(): void {}
+  ngOnChanges(changes: SimpleChanges): void {
+    this.tableChange = changes['tableChange']?.currentValue || this.tableChange
+    this.dataSource = this.tableChange.InterleaveColumnChanges
+  }
 }

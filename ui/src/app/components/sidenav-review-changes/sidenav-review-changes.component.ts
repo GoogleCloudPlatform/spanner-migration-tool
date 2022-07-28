@@ -1,6 +1,9 @@
 import { Component, OnInit } from '@angular/core'
-import ITableColumnChanges from 'src/app/model/table-column-changes'
-import IUpdateTable from 'src/app/model/update-table'
+import IUpdateTable, {
+  IReviewInterleaveTableChanges,
+  IReviewUpdateTable,
+  ITableColumnChanges,
+} from 'src/app/model/update-table'
 import { DataService } from 'src/app/services/data/data.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
@@ -18,80 +21,9 @@ export class SidenavReviewChangesComponent implements OnInit {
     tableName: '',
     updateDetail: { UpdateCols: {} },
   }
-  tableChanges: ITableColumnChanges[][] = [
-    [
-      {
-        ColumnName: 'product',
-        Type: 'string',
-        Pk: false,
-        UpdatedColumnName: 'product_v2',
-        UpdatedType: 'byte',
-        UpdatedPk: false,
-      },
-      {
-        ColumnName: 'product_id',
-        Type: 'string',
-        Pk: true,
-        UpdatedColumnName: 'product_id_v2',
-        UpdatedType: 'string',
-        UpdatedPk: true,
-      },
-    ],
-    [
-      {
-        ColumnName: 'product',
-        Type: 'string',
-        Pk: false,
-        UpdatedColumnName: 'product_v2',
-        UpdatedType: 'byte',
-        UpdatedPk: false,
-      },
-      {
-        ColumnName: 'product_id',
-        Type: 'string',
-        Pk: true,
-        UpdatedColumnName: 'product_id_v2',
-        UpdatedType: 'string',
-        UpdatedPk: true,
-      },
-    ],
-    [
-      {
-        ColumnName: 'product',
-        Type: 'string',
-        Pk: false,
-        UpdatedColumnName: 'product_v2',
-        UpdatedType: 'byte',
-        UpdatedPk: false,
-      },
-      {
-        ColumnName: 'product_id',
-        Type: 'string',
-        Pk: true,
-        UpdatedColumnName: 'product_id_v2',
-        UpdatedType: 'string',
-        UpdatedPk: true,
-      },
-    ],
-    [
-      {
-        ColumnName: 'product',
-        Type: 'string',
-        Pk: false,
-        UpdatedColumnName: 'product_v2',
-        UpdatedType: 'byte',
-        UpdatedPk: false,
-      },
-      {
-        ColumnName: 'product_id',
-        Type: 'string',
-        Pk: true,
-        UpdatedColumnName: 'product_id_v2',
-        UpdatedType: 'string',
-        UpdatedPk: true,
-      },
-    ],
-  ]
+  tableChanges: IReviewInterleaveTableChanges[] = []
+  tableNames: string[] = []
+  tableList: string = ''
 
   constructor(
     private sidenav: SidenavService,
@@ -102,7 +34,25 @@ export class SidenavReviewChangesComponent implements OnInit {
 
   ngOnInit(): void {
     this.tableUpdatePubSub.reviewTableChanges.subscribe((data) => {
-      this.ddl = data.DDL
+      if (data.Changes) {
+        this.showDdl = false
+        this.tableChanges = data.Changes
+        const updatedTableNames: string[] = []
+        this.tableList = ''
+        this.tableChanges.forEach((data, index) => {
+          updatedTableNames.push(data.Table)
+          if (index == 0) {
+            this.tableList += data.Table
+          } else {
+            this.tableList += ', ' + data.Table
+          }
+        })
+        this.tableList += '.'
+        this.tableNames = updatedTableNames
+      } else {
+        this.showDdl = true
+        this.ddl = data.DDL
+      }
     })
     this.tableUpdatePubSub.tableUpdateDetail.subscribe((data) => {
       this.tableUpdateData = data
