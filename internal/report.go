@@ -490,7 +490,7 @@ var IssueDB = map[SchemaIssue]struct {
 	Timestamp:             {Brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: note, batch: true},
 	Datetime:              {Brief: "Spanner timestamp is closer to MySQL timestamp", severity: note, batch: true},
 	Time:                  {Brief: "Spanner does not support time/year types", severity: note, batch: true},
-	Widened:               {Brief: "Some columns will consume more storage in Spanner", severity: warning, batch: true},
+	Widened:               {Brief: "Some columns will consume more storage in Spanner", severity: note, batch: true},
 	StringOverflow:        {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
 	HotspotTimestamp:      {Brief: "Timestamp Hotspot Occured", severity: note},
 	HotspotAutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: warning},
