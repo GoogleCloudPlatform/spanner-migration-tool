@@ -30,7 +30,7 @@ func updatetypeinterleaveTableSchema(interleaveTableSchema []InterleaveTableSche
 
 func getInterleaveColumnfortype(interleaveColumn []InterleaveColumn, columnId string, colName string, previoustype string, updateType string) []InterleaveColumn {
 
-	index := isColumnPresent(interleaveColumn, colName)
+	index := isColumnPresent(interleaveColumn, columnId)
 
 	if index == -1 {
 

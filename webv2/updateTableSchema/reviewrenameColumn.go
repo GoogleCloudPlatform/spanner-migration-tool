@@ -87,6 +87,8 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 		childSchemaSp := Conv.SpSchema[childSchema]
 
+		columnId := childSchemaSp.ColDefs[colName].Id
+
 		_, ok := childSchemaSp.ColDefs[colName]
 
 		if ok {
@@ -103,6 +105,12 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 				Conv.SpSchema[childSchema] = childSchemaSp
 
+				{
+
+					interleaveTableSchema = updatenameinterleaveTableSchema(interleaveTableSchema, childSchema, columnId, colName, newName)
+
+				}
+
 			}
 		}
 	}
@@ -115,6 +123,8 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 		childSchemaSp := Conv.SpSchema[isChild]
 
 		_, ok := childSchemaSp.ColDefs[colName]
+
+		columnId := childSchemaSp.ColDefs[colName].Id
 
 		if ok {
 			{
@@ -133,6 +143,12 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 				//11
 				Conv.SpSchema[isChild] = childSchemaSp
+
+				{
+
+					interleaveTableSchema = updatenameinterleaveTableSchema(interleaveTableSchema, childSchema, columnId, colName, newName)
+
+				}
 
 			}
 		}
@@ -153,19 +169,25 @@ func updatenameinterleaveTableSchema(interleaveTableSchema []InterleaveTableSche
 		itc.Table = table
 		itc.InterleaveColumnChanges = []InterleaveColumn{}
 
-		ic := InterleaveColumn{}
+		{
+			ic := InterleaveColumn{}
 
-		fmt.Println("$$$$$$$$$$$$$$$$$$$$$$$$")
-		fmt.Println("updatenameinterleaveTableSchema  ic.ColumnId :", ic.ColumnId)
-		fmt.Println("$$$$$$$$$$$$$$$$$$$$$$$$")
+			ic.ColumnId = columnId
 
-		ic.ColumnId = columnId
-		ic.ColumnName = colName
-		ic.UpdateColumnName = newName
+			fmt.Println("$$$$$$$$$$$$$$$$$$$$$$$$")
+			fmt.Println("updatenameinterleaveTableSchema  ic.ColumnId :", ic.ColumnId)
+			fmt.Println("$$$$$$$$$$$$$$$$$$$$$$$$")
 
-		itc.InterleaveColumnChanges = append(itc.InterleaveColumnChanges, ic)
+			ic.ColumnName = colName
+			ic.UpdateColumnName = newName
 
-		interleaveTableSchema = append(interleaveTableSchema, itc)
+			fmt.Println("I am trying to append :")
+			fmt.Println("InterleaveColumn", ic)
+
+			itc.InterleaveColumnChanges = append(itc.InterleaveColumnChanges, ic)
+
+			interleaveTableSchema = append(interleaveTableSchema, itc)
+		}
 
 		return interleaveTableSchema
 	}

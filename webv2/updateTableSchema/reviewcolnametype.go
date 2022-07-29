@@ -26,18 +26,7 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 
 	previoustype := sp.ColDefs[colName].T.Name
 
-	fmt.Println("###########################")
 	fmt.Println("previoustype :", previoustype)
-	fmt.Println("")
-	fmt.Println("###########################")
-
-	fmt.Println("updating for sp.ColDefs[colName] ", sp.ColDefs[colName].Name)
-	fmt.Println("")
-
-	fmt.Println("its current is ", sp.ColDefs[colName].T)
-	fmt.Println("")
-
-	fmt.Println("its new type will be  ", ty)
 	fmt.Println("")
 
 	colDef := sp.ColDefs[colName]
@@ -133,6 +122,8 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 			//15
 			Conv.SpSchema[childSchema] = childSp
 
+			interleaveTableSchema = updatetypeinterleaveTableSchema(interleaveTableSchema, childSchema, colName, columnId, previoustype, updateType)
+
 		}
 
 	}
@@ -162,6 +153,9 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 			fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
 			//16
 			Conv.SpSchema[isChild] = childSp
+
+			interleaveTableSchema = updatetypeinterleaveTableSchema(interleaveTableSchema, isChild, colName, columnId, previoustype, updateType)
+
 		}
 
 	}

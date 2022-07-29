@@ -57,13 +57,6 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println(" before updateTable :")
-
-	for k, v := range t.UpdateCols {
-
-		fmt.Println("column :", k)
-		fmt.Println("updateCol:", v)
-	}
 	sessionState := session.GetSessionState()
 
 	var Conv *internal.Conv
