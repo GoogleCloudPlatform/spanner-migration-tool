@@ -6,6 +6,7 @@ interface IUpdateCol {
   ToType: string
 }
 export interface ITableColumnChanges {
+  ColumnId: string
   ColumnName: string
   Type: string
   UpdateColumnName: string

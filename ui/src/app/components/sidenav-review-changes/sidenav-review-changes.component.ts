@@ -34,7 +34,7 @@ export class SidenavReviewChangesComponent implements OnInit {
 
   ngOnInit(): void {
     this.tableUpdatePubSub.reviewTableChanges.subscribe((data) => {
-      if (data.Changes) {
+      if (data.Changes && data.Changes.length > 0) {
         this.showDdl = false
         this.tableChanges = data.Changes
         const updatedTableNames: string[] = []
