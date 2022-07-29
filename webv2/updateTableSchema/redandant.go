@@ -57,4 +57,19 @@ func canRenameOrChangeType(colName, table string) (int, error) {
 
 	return http.StatusOK, nil
 }
+
+
+
+		_, ok := Conv.SpSchema[table].ColDefs[colName]
+
+		fmt.Println("ok :", ok)
+
+		if !ok {
+
+			log.Println("colname not found in table")
+			http.Error(w, fmt.Sprintf("colname not found in table"), http.StatusBadRequest)
+			return
+
+		}
+
 */

@@ -13,20 +13,6 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 	fmt.Println("ReviewcolNameType getting called")
 	fmt.Println("")
 
-	/*
-		_, ok := Conv.SpSchema[table].ColDefs[colName]
-
-		fmt.Println("ok :", ok)
-
-		if !ok {
-
-			log.Println("colname not found in table")
-			http.Error(w, fmt.Sprintf("colname not found in table"), http.StatusBadRequest)
-			return
-
-		}
-	*/
-
 	srcTableName := Conv.ToSource[table].Name
 
 	sp, ty, err := utilities.GetType(newType, table, colName, srcTableName)
@@ -55,6 +41,12 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 	fmt.Println("its updated type is ", sp.ColDefs[colName].T)
 
 	updateType := sp.ColDefs[colName].T.Name
+
+	fmt.Println("###########################")
+
+	fmt.Println("updateType :", updateType)
+	fmt.Println("")
+	fmt.Println("###########################")
 
 	if len(interleaveTableSchema) > 0 {
 		interleaveTableSchema = setTypetointerleaveTableSchema(interleaveTableSchema, table, colName, updateType)
