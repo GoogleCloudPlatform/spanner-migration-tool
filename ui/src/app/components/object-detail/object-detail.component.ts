@@ -141,8 +141,6 @@ export class ObjectDetailComponent implements OnInit {
     this.droppedColumns = []
     this.pkColumnNames = []
     this.interleaveParentName = this.getParentFromDdl()
-    console.log(this.tableData)
-    console.log(this.conv)
 
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
       this.setPkOrder()
@@ -248,8 +246,6 @@ export class ObjectDetailComponent implements OnInit {
   toggleEdit() {
     this.currentTabIndex = 0
     if (this.isEditMode) {
-      console.log(this.tableData)
-      console.log(this.spRowArray.value)
       let updateData: IUpdateTable = { UpdateCols: {} }
 
       this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
@@ -287,7 +283,7 @@ export class ObjectDetailComponent implements OnInit {
               tableName: this.currentObject!.name,
               updateDetail: updateData,
             })
-            this.isEditMode = false
+            this.isEditMode = true
           } else {
             this.dialog.open(InfodialogComponent, {
               data: { message: res, type: 'error' },

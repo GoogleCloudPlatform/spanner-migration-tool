@@ -9,16 +9,16 @@
   <div class="content">
     <p *ngIf="showDdl">Review the DDL changes below.</p>
     <p *ngIf="!showDdl">
-      Changing an interleaved table will have an impact on the following tables [Table name, Table
-      name, Table, name]
+      Changing an interleaved table will have an impact on the following tables
+      {{ tableList }}
     </p>
     <div *ngIf="showDdl" class="ddl-display">
       <pre><code>{{ddl}}</code></pre>
     </div>
     <div *ngIf="!showDdl" class="table-changes-display">
       <ng-container *ngFor="let key of tableChanges; let i = index">
-        <h4>Table {{ i + 1 }}</h4>
-        <app-table-column-changes-preview [dataSource]="key"></app-table-column-changes-preview>
+        <h4>{{ tableNames[i] }}</h4>
+        <app-table-column-changes-preview [tableChange]="key"></app-table-column-changes-preview>
       </ng-container>
     </div>
   </div>
