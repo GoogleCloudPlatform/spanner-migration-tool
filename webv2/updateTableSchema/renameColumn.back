@@ -14,8 +14,6 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 	sp := Conv.SpSchema[table]
 
-	columnId := sp.ColDefs[colName].Id
-
 	// step I
 	sp = renameSpannerColDefs(sp, colName, newName)
 
@@ -40,13 +38,25 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 	// step VIII
 	renameToSpannerToSource(table, colName, newName, Conv)
 
-	Conv.SpSchema[table] = sp
-
 	{
+		itc := InterleaveTableSchema{}
 
-		interleaveTableSchema = updatenameinterleaveTableSchema(interleaveTableSchema, table, columnId, colName, newName)
+		itc.Table = table
+		itc.InterleaveColumnChanges = []InterleaveColumn{}
+
+		ic := InterleaveColumn{}
+
+		ic.ColumnName = colName
+		ic.Type = sp.ColDefs[colName].T.Name
+		ic.UpdateColumnName = newName
+
+		itc.InterleaveColumnChanges = append(itc.InterleaveColumnChanges, ic)
+
+		interleaveTableSchema = append(interleaveTableSchema, itc)
 
 	}
+
+	Conv.SpSchema[table] = sp
 
 	// update foreignKey relationship Table column names
 	for i, _ := range sp.Fks {
@@ -103,6 +113,20 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 				Conv.SpSchema[childSchema] = childSchemaSp
 
+				itc := InterleaveTableSchema{}
+
+				itc.Table = childSchema
+				itc.InterleaveColumnChanges = []InterleaveColumn{}
+
+				ic := InterleaveColumn{}
+				ic.ColumnName = colName
+				ic.Type = childSchemaSp.ColDefs[colName].T.Name
+				ic.UpdateColumnName = newName
+
+				itc.InterleaveColumnChanges = append(itc.InterleaveColumnChanges, ic)
+
+				interleaveTableSchema = append(interleaveTableSchema, itc)
+
 			}
 		}
 	}
@@ -134,6 +158,20 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 				//11
 				Conv.SpSchema[isChild] = childSchemaSp
 
+				itc := InterleaveTableSchema{}
+
+				itc.Table = isChild
+				itc.InterleaveColumnChanges = []InterleaveColumn{}
+
+				ic := InterleaveColumn{}
+				ic.ColumnName = colName
+				ic.Type = childSchemaSp.ColDefs[colName].T.Name
+				ic.UpdateColumnName = newName
+
+				itc.InterleaveColumnChanges = append(itc.InterleaveColumnChanges, ic)
+
+				interleaveTableSchema = append(interleaveTableSchema, itc)
+
 			}
 		}
 
@@ -143,83 +181,42 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 }
 
-func updatenameinterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, table string, columnId string, colName string, newName string) []InterleaveTableSchema {
+func checkinterleavenamechanges(interleaveColumn []InterleaveColumn, colName string, newName string) []InterleaveColumn {
 
-	index := isTablePresent(interleaveTableSchema, table)
+	flag := isColumnPresent(interleaveColumn, colName)
 
-	if index == -1 {
-		itc := InterleaveTableSchema{}
+	if flag == false {
 
-		itc.Table = table
-		itc.InterleaveColumnChanges = []InterleaveColumn{}
-
-		ic := InterleaveColumn{}
-
-		fmt.Println("$$$$$$$$$$$$$$$$$$$$$$$$")
-		fmt.Println("updatenameinterleaveTableSchema  ic.ColumnId :", ic.ColumnId)
-		fmt.Println("$$$$$$$$$$$$$$$$$$$$$$$$")
-
-		ic.ColumnId = columnId
-		ic.ColumnName = colName
-		ic.UpdateColumnName = newName
-
-		itc.InterleaveColumnChanges = append(itc.InterleaveColumnChanges, ic)
-
-		interleaveTableSchema = append(interleaveTableSchema, itc)
-
-		return interleaveTableSchema
-	}
-
-	interleaveTableSchema[index].InterleaveColumnChanges = getInterleaveColumn(interleaveTableSchema[index].InterleaveColumnChanges, columnId, colName, newName)
-
-	return interleaveTableSchema
-}
-
-func isTablePresent(interleaveTableSchema []InterleaveTableSchema, table string) int {
-
-	for i := 0; i < len(interleaveTableSchema); i++ {
-
-		if interleaveTableSchema[i].Table == table {
-			return i
-		}
-
-	}
-
-	return -1
-}
-
-func getInterleaveColumn(interleaveColumn []InterleaveColumn, columnId string, colName string, newName string) []InterleaveColumn {
-
-	index := isColumnPresent(interleaveColumn, columnId)
-
-	if index == -1 {
-
-		ic := InterleaveColumn{}
-		ic.ColumnId = columnId
-		ic.ColumnName = colName
-		ic.UpdateColumnName = newName
-		interleaveColumn = append(interleaveColumn, ic)
+		interleaveColumn = updatecolumnchangelist(interleaveColumn, colName, newName)
 
 		return interleaveColumn
 	}
 
-	interleaveColumn[index].ColumnName = colName
-	interleaveColumn[index].UpdateColumnName = newName
-
 	return interleaveColumn
 }
 
-func isColumnPresent(interleaveColumn []InterleaveColumn, columnId string) int {
+func isColumnPresent(interleaveColumn []InterleaveColumn, colName string) bool {
 
 	for i := 0; i < len(interleaveColumn); i++ {
 
-		if interleaveColumn[i].ColumnId == columnId {
-			return i
+		if interleaveColumn[i].ColumnName == colName {
+			return true
 		}
 
 	}
 
-	return -1
+	return false
+}
+
+func updatecolumnchangelist(interleaveColumn []InterleaveColumn, colName string, newName string) []InterleaveColumn {
+
+	ic := InterleaveColumn{}
+	ic.ColumnName = colName
+	ic.UpdateColumnName = newName
+
+	interleaveColumn = append(interleaveColumn, ic)
+
+	return interleaveColumn
 }
 
 func renameSpannerColNames(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
