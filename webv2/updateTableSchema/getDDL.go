@@ -4,7 +4,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-func getSpannerTableDDL(spannerTable ddl.CreateTable) string {
+func GetSpannerTableDDL(spannerTable ddl.CreateTable) string {
 
 	c := ddl.Config{Comments: true, ProtectIds: false}
 

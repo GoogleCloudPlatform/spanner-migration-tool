@@ -114,7 +114,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	updatesessionfiles.UpdateSessionFile()
 
-	ddl := getSpannerTableDDL(Conv.SpSchema[table])
+	ddl := GetSpannerTableDDL(Conv.SpSchema[table])
 
 	fmt.Println("interleaveTableSchema :", interleaveTableSchema)
 	fmt.Println("")
