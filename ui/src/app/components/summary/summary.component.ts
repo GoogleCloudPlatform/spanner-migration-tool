@@ -35,8 +35,8 @@ export class SummaryComponent implements OnInit {
           let s = summary.get(this.currentObject.name)
           if (s) {
             this.initiateSummaryCollection(s)
-            this.summaryCount = s.NotesCount + s.WarningsCount
-            this.changeIssuesLabel.emit(s.NotesCount + s.WarningsCount)
+            this.summaryCount = s.NotesCount + s.WarningsCount + s.SuggestionsCount
+            this.changeIssuesLabel.emit(s.NotesCount + s.WarningsCount + s.SuggestionsCount)
           }
         }
       },
@@ -52,8 +52,8 @@ export class SummaryComponent implements OnInit {
       let s = this.summary.get(this.currentObject.name)
       if (s) {
         this.initiateSummaryCollection(s)
-        this.summaryCount = s.NotesCount + s.WarningsCount
-        this.changeIssuesLabel.emit(s.NotesCount + s.WarningsCount)
+        this.summaryCount = s.NotesCount + s.WarningsCount + s.SuggestionsCount
+        this.changeIssuesLabel.emit(s.NotesCount + s.WarningsCount + s.SuggestionsCount)
       }
     }
   }
