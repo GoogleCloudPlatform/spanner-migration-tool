@@ -155,8 +155,6 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 			Conv.SpSchema[isChild] = childSp
 
 			//todo
-			//interleaveTableSchema = updatetypeinterleaveTableSchema(interleaveTableSchema, isChild, colName, columnId, previoustype, updateType)
-
 			interleaveTableSchema = typeinterleaveTableSchema(interleaveTableSchema, isChild, columnId, colName, previoustype, updateType)
 
 		}
