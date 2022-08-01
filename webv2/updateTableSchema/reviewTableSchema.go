@@ -77,6 +77,13 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 		if v.Rename != "" && v.Rename != colName {
 
+			for _, c := range Conv.SpSchema[table].ColNames {
+				if c == v.Rename {
+					http.Error(w, fmt.Sprintf("Multiple columns with similar name cannot exist for column : %v", v.Rename), http.StatusBadRequest)
+					return
+				}
+			}
+
 			interleaveTableSchema = reviewRenameColumn(v.Rename, table, colName, Conv, interleaveTableSchema)
 
 			colName = v.Rename
