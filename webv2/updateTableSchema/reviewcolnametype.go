@@ -45,8 +45,9 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 	fmt.Println("")
 	fmt.Println("###########################")
 
-	interleaveTableSchema = updatetypeinterleaveTableSchema(interleaveTableSchema, table, colName, columnId, previoustype, updateType)
+	//interleaveTableSchema = updatetypeinterleaveTableSchema(interleaveTableSchema, table, colName, columnId, previoustype, updateType)
 
+	interleaveTableSchema = typeinterleaveTableSchema(interleaveTableSchema, table, columnId, colName, previoustype, updateType)
 	//13
 	Conv.SpSchema[table] = sp
 
@@ -68,25 +69,9 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 
 		{
 
-			fmt.Println("")
-			fmt.Println("updating type for rsp.ColDefs[colName].Name ", rsp.ColDefs[colName].Name)
-
-			fmt.Println("")
-			fmt.Println("it current type is ", rsp.ColDefs[colName].T)
-
-			fmt.Println("")
-			fmt.Println("its new type will be  ", ty)
-			fmt.Println("")
-
 			colDef := rsp.ColDefs[colName]
 			colDef.T = ty
-
 			rsp.ColDefs[colName] = colDef
-
-			fmt.Println("updated type for sp.ColDefs[colName] ", rsp.ColDefs[colName].Name)
-			fmt.Println("")
-			fmt.Println("its updated type is ", rsp.ColDefs[colName].T)
-
 			//14
 			Conv.SpSchema[relationTable] = rsp
 
@@ -104,6 +89,10 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 
 		childSp, ty, err := utilities.GetType(newType, childSchema, colName, srcTableName)
 
+		columnId := childSp.ColDefs[colName].Id
+
+		previoustype := childSp.ColDefs[colName].T.Name
+
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return nil, err
@@ -117,12 +106,16 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 
 			childSp.ColDefs[colName] = colDef
 
+			updateType := childSp.ColDefs[colName].T.Name
+
 			fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName].Name, childSp.ColDefs[colName].T)
 
 			//15
 			Conv.SpSchema[childSchema] = childSp
 
-			interleaveTableSchema = updatetypeinterleaveTableSchema(interleaveTableSchema, childSchema, colName, columnId, previoustype, updateType)
+			//todo
+			//interleaveTableSchema = updatetypeinterleaveTableSchema(interleaveTableSchema, childSchema, colName, columnId, previoustype, updateType)
+			interleaveTableSchema = typeinterleaveTableSchema(interleaveTableSchema, childSchema, columnId, colName, previoustype, updateType)
 
 		}
 
@@ -143,6 +136,11 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 		}
 
 		{
+
+			columnId := childSp.ColDefs[colName].Id
+
+			previoustype := childSp.ColDefs[colName].T.Name
+
 			fmt.Println("updating type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
 
 			colDef := childSp.ColDefs[colName]
@@ -150,11 +148,16 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 
 			childSp.ColDefs[colName] = colDef
 
+			updateType := childSp.ColDefs[colName].T.Name
+
 			fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
 			//16
 			Conv.SpSchema[isChild] = childSp
 
-			interleaveTableSchema = updatetypeinterleaveTableSchema(interleaveTableSchema, isChild, colName, columnId, previoustype, updateType)
+			//todo
+			//interleaveTableSchema = updatetypeinterleaveTableSchema(interleaveTableSchema, isChild, colName, columnId, previoustype, updateType)
+
+			interleaveTableSchema = typeinterleaveTableSchema(interleaveTableSchema, isChild, columnId, colName, previoustype, updateType)
 
 		}
 

@@ -41,12 +41,6 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	table := r.FormValue("table")
 
-	fmt.Println("table :", table)
-
-	fmt.Println("updateTableSchema getting called")
-
-	fmt.Println("")
-
 	err = json.Unmarshal(reqBody, &t)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
@@ -85,17 +79,6 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			interleaveTableSchema = reviewRenameColumn(v.Rename, table, colName, Conv, interleaveTableSchema)
 
-			fmt.Println(" interleaveTableSchema after reviewRenameColumn :")
-			fmt.Printf("")
-			fmt.Printf("")
-			fmt.Printf("")
-
-			fmt.Println("interleaveTableSchema :", interleaveTableSchema)
-
-			fmt.Printf("")
-			fmt.Printf("")
-			fmt.Printf("")
-
 			colName = v.Rename
 		}
 
@@ -124,12 +107,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	updatesessionfiles.UpdateSessionFile()
 
-	fmt.Println("Conv.SpSchema[table] name :", Conv.SpSchema[table].Name)
-
 	ddl := getDDL(Conv.SpSchema[table])
-
-	fmt.Println("ddl :", ddl)
-	fmt.Println("")
 
 	fmt.Println("interleaveTableSchema :", interleaveTableSchema)
 	fmt.Println("")

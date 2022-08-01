@@ -16,6 +16,8 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 	columnId := sp.ColDefs[colName].Id
 
+	fmt.Println("columnId :", columnId)
+
 	// step I
 	sp = renameSpannerColDefs(sp, colName, newName)
 
@@ -42,11 +44,9 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 	Conv.SpSchema[table] = sp
 
-	{
+	//interleaveTableSchema = updatenameinterleaveTableSchema(interleaveTableSchema, table, columnId, colName, newName)
 
-		interleaveTableSchema = updatenameinterleaveTableSchema(interleaveTableSchema, table, columnId, colName, newName)
-
-	}
+	interleaveTableSchema = renameinterleaveTableSchema(interleaveTableSchema, table, columnId, colName, newName)
 
 	// update foreignKey relationship Table column names
 	for i, _ := range sp.Fks {
@@ -83,11 +83,14 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 	isParent, childSchema := IsParent(table)
 
 	if isParent {
+
 		fmt.Println("yes", table, "is parent table")
 
 		childSchemaSp := Conv.SpSchema[childSchema]
 
 		columnId := childSchemaSp.ColDefs[colName].Id
+
+		fmt.Println("columnId :", columnId)
 
 		_, ok := childSchemaSp.ColDefs[colName]
 
@@ -105,11 +108,11 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 				Conv.SpSchema[childSchema] = childSchemaSp
 
-				{
+				fmt.Println("childSchema :", childSchema)
 
-					interleaveTableSchema = updatenameinterleaveTableSchema(interleaveTableSchema, childSchema, columnId, colName, newName)
+				//interleaveTableSchema = updatenameinterleaveTableSchema(interleaveTableSchema, childSchema, columnId, colName, newName)
 
-				}
+				interleaveTableSchema = renameinterleaveTableSchema(interleaveTableSchema, childSchema, columnId, colName, newName)
 
 			}
 		}
@@ -125,6 +128,8 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 		_, ok := childSchemaSp.ColDefs[colName]
 
 		columnId := childSchemaSp.ColDefs[colName].Id
+
+		fmt.Println("columnId :", columnId)
 
 		if ok {
 			{
@@ -145,9 +150,11 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 				Conv.SpSchema[isChild] = childSchemaSp
 
 				{
+					fmt.Println("isChild :", isChild)
 
-					interleaveTableSchema = updatenameinterleaveTableSchema(interleaveTableSchema, childSchema, columnId, colName, newName)
+					//	interleaveTableSchema = updatenameinterleaveTableSchema(interleaveTableSchema, isChild, columnId, colName, newName)
 
+					interleaveTableSchema = renameinterleaveTableSchema(interleaveTableSchema, isChild, columnId, colName, newName)
 				}
 
 			}
@@ -161,9 +168,13 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 func updatenameinterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, table string, columnId string, colName string, newName string) []InterleaveTableSchema {
 
+	fmt.Println("updatenameinterleaveTableSchema getting called")
+	fmt.Println("")
+
 	index := isTablePresent(interleaveTableSchema, table)
 
 	if index == -1 {
+
 		itc := InterleaveTableSchema{}
 
 		itc.Table = table
@@ -173,16 +184,13 @@ func updatenameinterleaveTableSchema(interleaveTableSchema []InterleaveTableSche
 			ic := InterleaveColumn{}
 
 			ic.ColumnId = columnId
-
-			fmt.Println("$$$$$$$$$$$$$$$$$$$$$$$$")
-			fmt.Println("updatenameinterleaveTableSchema  ic.ColumnId :", ic.ColumnId)
-			fmt.Println("$$$$$$$$$$$$$$$$$$$$$$$$")
-
 			ic.ColumnName = colName
 			ic.UpdateColumnName = newName
 
-			fmt.Println("I am trying to append :")
-			fmt.Println("InterleaveColumn", ic)
+			fmt.Println("this first time we are creating InterleaveTableSchema")
+
+			fmt.Println("interleaveColumn : ", ic)
+			fmt.Println("")
 
 			itc.InterleaveColumnChanges = append(itc.InterleaveColumnChanges, ic)
 
@@ -197,20 +205,9 @@ func updatenameinterleaveTableSchema(interleaveTableSchema []InterleaveTableSche
 	return interleaveTableSchema
 }
 
-func isTablePresent(interleaveTableSchema []InterleaveTableSchema, table string) int {
-
-	for i := 0; i < len(interleaveTableSchema); i++ {
-
-		if interleaveTableSchema[i].Table == table {
-			return i
-		}
-
-	}
-
-	return -1
-}
-
 func getInterleaveColumn(interleaveColumn []InterleaveColumn, columnId string, colName string, newName string) []InterleaveColumn {
+
+	fmt.Println("getInterleaveColumn getting callded")
 
 	index := isColumnPresent(interleaveColumn, columnId)
 
@@ -220,42 +217,34 @@ func getInterleaveColumn(interleaveColumn []InterleaveColumn, columnId string, c
 		ic.ColumnId = columnId
 		ic.ColumnName = colName
 		ic.UpdateColumnName = newName
+
+		fmt.Println("interleaveColumn : ", ic)
+
 		interleaveColumn = append(interleaveColumn, ic)
 
 		return interleaveColumn
-	}
+	} else {
+		interleaveColumn[index].ColumnId = columnId
+		interleaveColumn[index].ColumnName = colName
+		interleaveColumn[index].UpdateColumnName = newName
 
-	interleaveColumn[index].ColumnName = colName
-	interleaveColumn[index].UpdateColumnName = newName
+	}
 
 	return interleaveColumn
-}
-
-func isColumnPresent(interleaveColumn []InterleaveColumn, columnId string) int {
-
-	for i := 0; i < len(interleaveColumn); i++ {
-
-		if interleaveColumn[i].ColumnId == columnId {
-			return i
-		}
-
-	}
-
-	return -1
 }
 
 func renameSpannerColNames(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
 
 	// step I
 	// update sp.ColNames
-	fmt.Println("")
-	fmt.Println("step I")
+	//fmt.Println("")
+	//	fmt.Println("step I")
 
 	for i, col := range sp.ColNames {
 		if col == colName {
-			fmt.Println("renaming sp.ColNames : ")
+			//	fmt.Println("renaming sp.ColNames : ")
 			sp.ColNames[i] = newName
-			fmt.Println("renamed sp.ColNames[i] : ", sp.ColNames[i])
+			//	fmt.Println("renamed sp.ColNames[i] : ", sp.ColNames[i])
 			break
 		}
 	}
@@ -268,11 +257,11 @@ func renameSpannerColDefs(sp ddl.CreateTable, colName string, newName string) dd
 
 	// step II
 	// update sp.ColDefs
-	fmt.Println("")
-	fmt.Println("step II")
+	//fmt.Println("")
+	//fmt.Println("step II")
 
 	if _, found := sp.ColDefs[colName]; found {
-		fmt.Println("renaming sp.ColDefs : ")
+		//	fmt.Println("renaming sp.ColDefs : ")
 
 		sp.ColDefs[newName] = ddl.ColumnDef{
 			Name:    newName,
@@ -282,7 +271,7 @@ func renameSpannerColDefs(sp ddl.CreateTable, colName string, newName string) dd
 			Id:      sp.ColDefs[colName].Id,
 		}
 
-		fmt.Println("renamed sp.ColDefs[newName]", sp.ColDefs[newName].Name)
+		//	fmt.Println("renamed sp.ColDefs[newName]", sp.ColDefs[newName].Name)
 
 		delete(sp.ColDefs, colName)
 	}
@@ -294,17 +283,17 @@ func renameSpannerPK(sp ddl.CreateTable, colName string, newName string) ddl.Cre
 
 	// step III
 	// update sp.Pks
-	fmt.Println("")
-	fmt.Println("step III")
+	//	fmt.Println("")
+	//	fmt.Println("step III")
 
 	for i, pk := range sp.Pks {
 		if pk.Col == colName {
 
-			fmt.Println("renaming sp.Pks : ")
+			//	fmt.Println("renaming sp.Pks : ")
 
 			sp.Pks[i].Col = newName
 
-			fmt.Println("renamed sp.Pks[i].Col : ", sp.Pks[i].Col)
+			//	fmt.Println("renamed sp.Pks[i].Col : ", sp.Pks[i].Col)
 
 			break
 		}
@@ -317,18 +306,18 @@ func renameSpannerSecondaryIndex(sp ddl.CreateTable, colName string, newName str
 
 	// step IV
 	// update sp.Indexes
-	fmt.Println("")
-	fmt.Println("step IV")
+	//	fmt.Println("")
+	//	fmt.Println("step IV")
 
 	for i, index := range sp.Indexes {
 		for j, key := range index.Keys {
 			if key.Col == colName {
 
-				fmt.Println("renaming sp.Indexes[i].Keys[j].Col : ")
+				//		fmt.Println("renaming sp.Indexes[i].Keys[j].Col : ")
 
 				sp.Indexes[i].Keys[j].Col = newName
 
-				fmt.Println("renamed sp.Indexes[i].Keys[j].Col : ", sp.Indexes[i].Keys[j].Col)
+				//		fmt.Println("renamed sp.Indexes[i].Keys[j].Col : ", sp.Indexes[i].Keys[j].Col)
 
 				break
 			}
@@ -342,18 +331,18 @@ func renameSpannerForeignkeyColumns(sp ddl.CreateTable, colName string, newName 
 
 	// step V
 	// update sp.Fks
-	fmt.Println("")
-	fmt.Println("step V")
+	//	fmt.Println("")
+	//	fmt.Println("step V")
 
 	for i, fk := range sp.Fks {
 		for j, column := range fk.Columns {
 			if column == colName {
 
-				fmt.Println("renaming sp.Fks[i].Columns[j] :")
+				//	fmt.Println("renaming sp.Fks[i].Columns[j] :")
 
 				sp.Fks[i].Columns[j] = newName
 
-				fmt.Println("renamed sp.Fks[i].Columns[j] :", sp.Fks[i].Columns[j])
+				//	fmt.Println("renamed sp.Fks[i].Columns[j] :", sp.Fks[i].Columns[j])
 
 			}
 		}
@@ -364,8 +353,8 @@ func renameSpannerForeignkeyColumns(sp ddl.CreateTable, colName string, newName 
 
 func renameSpannerForeignkeyReferColumns(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
 
-	fmt.Println("")
-	fmt.Println("step VI")
+	//fmt.Println("")
+	//	fmt.Println("step VI")
 
 	// step VI
 	// update sp.Fks.ReferColumns
@@ -375,10 +364,10 @@ func renameSpannerForeignkeyReferColumns(sp ddl.CreateTable, colName string, new
 
 			if column == colName {
 
-				fmt.Println("renaming sp.Fks[i].ReferColumns[j] :", sp.Fks[i].ReferColumns[j])
+				//		fmt.Println("renaming sp.Fks[i].ReferColumns[j] :", sp.Fks[i].ReferColumns[j])
 				sp.Fks[i].ReferColumns[j] = newName
 
-				fmt.Println("renamed sp.Fks[i].ReferColumns[j] :", sp.Fks[i].Columns[j])
+				//		fmt.Println("renamed sp.Fks[i].ReferColumns[j] :", sp.Fks[i].Columns[j])
 
 			}
 
