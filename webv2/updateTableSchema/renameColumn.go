@@ -102,9 +102,9 @@ func renameparentTableSchema(Conv *internal.Conv, parentschemaTable string, colN
 	Conv.SpSchema[parentschemaTable] = childSchemaSp
 }
 
-func renamechildTableSchema(Conv *internal.Conv, parentschemaTable string, colName string, newName string) {
+func renamechildTableSchema(Conv *internal.Conv, childschemaTable string, colName string, newName string) {
 
-	childSchemaSp := Conv.SpSchema[parentschemaTable]
+	childSchemaSp := Conv.SpSchema[childschemaTable]
 
 	childSchemaSp = renameSpannerColNames(childSchemaSp, colName, newName)
 	childSchemaSp = renameSpannerColDefs(childSchemaSp, colName, newName)
@@ -113,9 +113,8 @@ func renamechildTableSchema(Conv *internal.Conv, parentschemaTable string, colNa
 	childSchemaSp = renameSpannerForeignkeyColumns(childSchemaSp, colName, newName)
 	childSchemaSp = renameSpannerForeignkeyReferColumns(childSchemaSp, colName, newName)
 
-	renameToSpannerToSource(parentschemaTable, colName, newName, Conv)
+	renameToSpannerToSource(childschemaTable, colName, newName, Conv)
+	renameSpannerSchemaIssue(childschemaTable, colName, newName, Conv)
 
-	renameSpannerSchemaIssue(parentschemaTable, colName, newName, Conv)
-
-	Conv.SpSchema[parentschemaTable] = childSchemaSp
+	Conv.SpSchema[childschemaTable] = childSchemaSp
 }

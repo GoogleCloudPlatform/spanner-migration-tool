@@ -36,90 +36,83 @@ func removeColumn(table string, colName string, Conv *internal.Conv) {
 	// step VIII
 	removeToSpannerToSource(table, colName, Conv)
 
-	//2
-	//sessionState.Conv.SpSchema[table] = sp
-
 	Conv.SpSchema[table] = sp
 
 	// update foreignKey relationship Table column names
 	for i, _ := range sp.Fks {
 
-		relationTable := sp.Fks[i].ReferTable
-
-		//relationTableSp := sessionState.Conv.SpSchema[relationTable]
-		relationTableSp := Conv.SpSchema[relationTable]
-
-		relationTableSp = removeSpannerColNames(relationTableSp, colName)
-		relationTableSp = removeSpannerColDefs(relationTableSp, colName)
-		relationTableSp = removeSpannerPK(relationTableSp, colName)
-		relationTableSp = removeSpannerSecondaryIndex(relationTableSp, colName)
-		relationTableSp = removeSpannerForeignkeyColumns(relationTableSp, colName)
-		relationTableSp = removeSpannerForeignkeyReferColumns(relationTableSp, colName)
-
-		//todo
-		removeSpannerSchemaIssue(relationTable, colName, Conv)
-
-		removeToSpannerToSource(relationTable, colName, Conv)
-
-		//3
-		//sessionState.Conv.SpSchema[relationTable] = relationTableSp
-		Conv.SpSchema[relationTable] = relationTableSp
+		removeForeignkeyTableSchema(Conv, sp, i, colName)
 
 	}
 
-	// update interleave table relation
-	isParent, childSchema := IsParent(table)
+	isParent, parentSchemaTable := IsParent(table)
 
 	if isParent {
-		fmt.Println("yes", table, "is parent table")
 
-		//childSchemaSp := sessionState.Conv.SpSchema[childSchema]
-
-		childSchemaSp := Conv.SpSchema[childSchema]
-
-		childSchemaSp = removeSpannerColNames(childSchemaSp, colName)
-		childSchemaSp = removeSpannerColDefs(childSchemaSp, colName)
-		childSchemaSp = removeSpannerPK(childSchemaSp, colName)
-		childSchemaSp = removeSpannerSecondaryIndex(childSchemaSp, colName)
-		childSchemaSp = removeSpannerForeignkeyColumns(childSchemaSp, colName)
-		childSchemaSp = removeSpannerForeignkeyReferColumns(childSchemaSp, colName)
-
-		//todo
-		removeSpannerSchemaIssue(childSchema, colName, Conv)
-
-		removeToSpannerToSource(childSchema, colName, Conv)
-
-		//4
-		//sessionState.Conv.SpSchema[childSchema] = childSchemaSp
-		Conv.SpSchema[childSchema] = childSchemaSp
+		removeparentTableSchema(Conv, parentSchemaTable, colName)
 
 	}
 
-	//isChild := sessionState.Conv.SpSchema[table].Parent
 	isChild := Conv.SpSchema[table].Parent
 
 	if isChild != "" {
 
-		//childSchemaSp := sessionState.Conv.SpSchema[isChild]
-
-		childSchemaSp := Conv.SpSchema[isChild]
-
-		childSchemaSp = removeSpannerColNames(childSchemaSp, colName)
-		childSchemaSp = removeSpannerColDefs(childSchemaSp, colName)
-		childSchemaSp = removeSpannerPK(childSchemaSp, colName)
-		childSchemaSp = removeSpannerSecondaryIndex(childSchemaSp, colName)
-		childSchemaSp = removeSpannerForeignkeyColumns(childSchemaSp, colName)
-		childSchemaSp = removeSpannerForeignkeyReferColumns(childSchemaSp, colName)
-
-		//todo
-		removeSpannerSchemaIssue(isChild, colName, Conv)
-		removeToSpannerToSource(isChild, colName, Conv)
-
-		//5
-		//	sessionState.Conv.SpSchema[isChild] = childSchemaSp
-		Conv.SpSchema[isChild] = childSchemaSp
-
+		removechildTableSchema(Conv, parentSchemaTable, colName)
 	}
+}
+
+func removeForeignkeyTableSchema(Conv *internal.Conv, sp ddl.CreateTable, index int, colName string) {
+
+	relationTable := sp.Fks[index].ReferTable
+	relationTableSp := Conv.SpSchema[relationTable]
+
+	relationTableSp = removeSpannerColNames(relationTableSp, colName)
+	relationTableSp = removeSpannerColDefs(relationTableSp, colName)
+	relationTableSp = removeSpannerPK(relationTableSp, colName)
+	relationTableSp = removeSpannerSecondaryIndex(relationTableSp, colName)
+	relationTableSp = removeSpannerForeignkeyColumns(relationTableSp, colName)
+	relationTableSp = removeSpannerForeignkeyReferColumns(relationTableSp, colName)
+
+	removeSpannerSchemaIssue(relationTable, colName, Conv)
+	removeToSpannerToSource(relationTable, colName, Conv)
+
+	Conv.SpSchema[relationTable] = relationTableSp
+}
+
+func removeparentTableSchema(Conv *internal.Conv, parentSchemaTable string, colName string) {
+
+	childSchemaSp := Conv.SpSchema[parentSchemaTable]
+
+	childSchemaSp = removeSpannerColNames(childSchemaSp, colName)
+	childSchemaSp = removeSpannerColDefs(childSchemaSp, colName)
+	childSchemaSp = removeSpannerPK(childSchemaSp, colName)
+	childSchemaSp = removeSpannerSecondaryIndex(childSchemaSp, colName)
+	childSchemaSp = removeSpannerForeignkeyColumns(childSchemaSp, colName)
+	childSchemaSp = removeSpannerForeignkeyReferColumns(childSchemaSp, colName)
+
+	removeSpannerSchemaIssue(parentSchemaTable, colName, Conv)
+	removeToSpannerToSource(parentSchemaTable, colName, Conv)
+
+	Conv.SpSchema[parentSchemaTable] = childSchemaSp
+
+}
+
+func removechildTableSchema(Conv *internal.Conv, childSchemaTable string, colName string) {
+
+	childSchemaSp := Conv.SpSchema[childSchemaTable]
+
+	childSchemaSp = removeSpannerColNames(childSchemaSp, colName)
+	childSchemaSp = removeSpannerColDefs(childSchemaSp, colName)
+	childSchemaSp = removeSpannerPK(childSchemaSp, colName)
+	childSchemaSp = removeSpannerSecondaryIndex(childSchemaSp, colName)
+	childSchemaSp = removeSpannerForeignkeyColumns(childSchemaSp, colName)
+	childSchemaSp = removeSpannerForeignkeyReferColumns(childSchemaSp, colName)
+
+	removeSpannerSchemaIssue(childSchemaTable, colName, Conv)
+	removeToSpannerToSource(childSchemaTable, colName, Conv)
+
+	Conv.SpSchema[childSchemaTable] = childSchemaSp
+
 }
 
 func removeSpannerColNames(sp ddl.CreateTable, colName string) ddl.CreateTable {
