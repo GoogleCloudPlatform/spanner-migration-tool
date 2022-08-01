@@ -735,6 +735,14 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 		spSchema[tableName] = spTable
 	}
 
+	//remove interleave that are interleaved on the drop table as parent
+	for tableName, spTable := range spSchema {
+		if spTable.Parent == table {
+			spTable.Parent = ""
+			spSchema[tableName] = spTable
+		}
+	}
+
 	sessionState.Conv.SpSchema = spSchema
 	sessionState.Conv.ToSource = toSource
 	sessionState.Conv.ToSpanner = toSource
