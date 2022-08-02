@@ -3,11 +3,12 @@ import { Injectable } from '@angular/core'
 import IDbConfig from 'src/app/model/db-config'
 import ISession, { ISaveSessionPayload } from '../../model/session'
 import IUpdateTable from '../../model/update-table'
-import IConv, { ICreateIndex, IInterleaveStatus, IPrimaryKey, ISourceDestinationDetails } from '../../model/conv'
+import IConv, { ICreateIndex, IInterleaveStatus, IPrimaryKey, ISessionSummary } from '../../model/conv'
 import IDumpConfig from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
 import ITargetDetails from '../../model/target-details'
+import IMigrationDetails from 'src/app/model/migrate'
 
 @Injectable({
   providedIn: 'root',
@@ -139,10 +140,10 @@ export class FetchService {
   }
 
   getSourceDestinationSummary() {
-    return this.http.get<ISourceDestinationDetails>(`${this.url}/GetSourceDestinationSummary`)
+    return this.http.get<ISessionSummary>(`${this.url}/GetSourceDestinationSummary`)
   }
 
-  migrate(payload: ITargetDetails) {
+  migrate(payload: IMigrationDetails) {
     return this.http.post(`${this.url}/Migrate`,payload)
   }
 }

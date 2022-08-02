@@ -31,11 +31,12 @@ type ConvWithMetadata struct {
 }
 
 type SourceDBConnDetails struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	Path     string
+	Host           string
+	Port           string
+	User           string
+	Password       string
+	Path           string
+	ConnectionType string
 }
 
 // SessionState stores information for the current migration session.

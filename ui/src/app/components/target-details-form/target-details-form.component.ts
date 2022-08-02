@@ -1,6 +1,6 @@
-import { Component, OnInit } from '@angular/core'
+import { Component, Inject, OnInit } from '@angular/core'
 import { FormBuilder, FormGroup, Validators } from '@angular/forms'
-import { MatDialogRef } from '@angular/material/dialog'
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog'
 import ITargetDetails from 'src/app/model/target-details'
 import { TargetDetailsService } from 'src/app/services/target-details/target-details.service'
 
@@ -14,13 +14,17 @@ export class TargetDetailsFormComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private targetDetailService: TargetDetailsService,
-    private dialogRef: MatDialogRef<TargetDetailsFormComponent>
+    private dialogRef: MatDialogRef<TargetDetailsFormComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: boolean
   ) {
     this.targetDetailsForm = this.fb.group({
       targetDb: ['', Validators.required],
       dialect: ['',Validators.required],
       streamingConfig: [''],
     })
+    if (data) {
+      this.targetDetailsForm.get('streamingConfig')?.setValidators(Validators.required)
+    }
   }
 
   ngOnInit(): void {}

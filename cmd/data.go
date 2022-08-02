@@ -79,7 +79,7 @@ func (cmd *DataCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.target, "target", "Spanner", "Specifies the target DB, defaults to Spanner (accepted values: `Spanner`)")
 	f.StringVar(&cmd.targetProfile, "target-profile", "", "Flag for specifying connection profile for target database e.g., \"dialect=postgresql\"")
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
-	f.Int64Var(&cmd.writeLimit, "write-limit", defaultWritersLimit, "Write limit for writes to spanner")
+	f.Int64Var(&cmd.writeLimit, "write-limit", DefaultWritersLimit, "Write limit for writes to spanner")
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 	f.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to INFO")
 	f.BoolVar(&cmd.skipForeignKeys, "skip-foreign-keys", false, "Skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
@@ -128,37 +128,14 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	}
 
 	var (
-		dbURI       string
-		adminClient *database.DatabaseAdminClient
-		client      *sp.Client
+		dbURI string
 	)
 	if !cmd.dryRun {
 		now := time.Now()
-		adminClient, client, dbURI, err = CreateDatabaseClient(ctx, targetProfile, sourceProfile.Driver, dbName, ioHelper)
+		bw, err = MigrateData(ctx, targetProfile, sourceProfile, dbName, &ioHelper, cmd.writeLimit, conv, cmd.skipForeignKeys, false, true)
 		if err != nil {
-			err = fmt.Errorf("can't create database client: %v", err)
+			err = fmt.Errorf("can't finish data migration for db %s: %v", dbName, err)
 			return subcommands.ExitFailure
-		}
-		defer adminClient.Close()
-		defer client.Close()
-		if !sourceProfile.UseTargetSchema() {
-			err = validateExistingDb(ctx, conv.TargetDb, dbURI, adminClient, client, conv)
-			if err != nil {
-				err = fmt.Errorf("error while validating existing database: %v", err)
-				return subcommands.ExitFailure
-			}
-		}
-		bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, client, conv, true, cmd.writeLimit)
-		if err != nil {
-			err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
-			return subcommands.ExitFailure
-		}
-
-		if !cmd.skipForeignKeys {
-			if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
-				err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
-				return subcommands.ExitFailure
-			}
 		}
 		banner = utils.GetBanner(now, dbURI)
 	} else {

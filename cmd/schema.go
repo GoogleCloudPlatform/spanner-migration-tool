@@ -22,7 +22,6 @@ import (
 	"path"
 	"time"
 
-	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
@@ -118,22 +117,10 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
 	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
 
-	var (
-		adminClient *database.DatabaseAdminClient
-		dbURI       string
-	)
-
 	if !cmd.dryRun {
-		adminClient, _, dbURI, err = CreateDatabaseClient(ctx, targetProfile, sourceProfile.Driver, dbName, ioHelper)
+		_, err = MigrateData(ctx, targetProfile, sourceProfile, dbName, &ioHelper, DefaultWritersLimit, conv, false, true, false)
 		if err != nil {
-			err = fmt.Errorf("can't create database client: %v", err)
-			return subcommands.ExitFailure
-		}
-		defer adminClient.Close()
-
-		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
-		if err != nil {
-			err = fmt.Errorf("can't create/update database: %v", err)
+			err = fmt.Errorf("can't finish data migration for db %s: %v", dbName, err)
 			return subcommands.ExitFailure
 		}
 	}

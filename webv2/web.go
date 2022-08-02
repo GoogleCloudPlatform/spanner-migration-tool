@@ -36,6 +36,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/cmd"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
@@ -91,13 +92,20 @@ type driverConfig struct {
 	Password string `json:"Password"`
 }
 
-type sourceDestinationDetails struct {
+type sessionSummary struct {
 	DatabaseType      string
 	ConnectionDetail  string
 	SourceTableCount  int
 	SpannerTableCount int
 	SourceIndexCount  int
 	SpannerIndexCount int
+	ConnectionType    string
+}
+
+type migrationDetails struct {
+	TargetDetails targetDetails `json:"TargetDetails"`
+	MigrationMode string        `json:MigrationMode`
+	MigrationType string        `json:MigrationType`
 }
 
 type targetDetails struct {
@@ -156,10 +164,11 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	sessionState.Driver = config.Driver
 	sessionState.SessionFile = ""
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
-		Host:     config.Host,
-		Port:     config.Port,
-		User:     config.User,
-		Password: config.Password,
+		Host:           config.Host,
+		Port:           config.Port,
+		User:           config.User,
+		Password:       config.Password,
+		ConnectionType: "direct",
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -245,6 +254,8 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	}
 	// We don't support Dynamodb in web hence no need to pass schema sample size here.
 	sourceProfile, _ := profiles.NewSourceProfile("", dc.Driver)
+	fmt.Println(dc.Driver)
+	fmt.Println(sourceProfile.Driver)
 	sourceProfile.Driver = dc.Driver
 	targetProfile, _ := profiles.NewTargetProfile("")
 	targetProfile.TargetDb = constants.TargetSpanner
@@ -273,7 +284,8 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sessionState.SessionFile = ""
 	sessionState.SourceDB = nil
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
-		Path: dc.FilePath,
+		Path:           dc.FilePath,
+		ConnectionType: "dump",
 	}
 
 	convm := session.ConvWithMetadata{
@@ -331,7 +343,8 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState.Driver = s.Driver
 	sessionState.SessionFile = s.FilePath
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
-		Path: s.FilePath,
+		Path:           s.FilePath,
+		ConnectionType: "session",
 	}
 
 	convm := session.ConvWithMetadata{
@@ -992,10 +1005,11 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 
 func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
-	var sourceDestinationDetails sourceDestinationDetails
-	sourceDestinationDetails.DatabaseType = sessionState.Driver
-	sourceDestinationDetails.SourceTableCount = len(sessionState.Conv.SrcSchema)
-	sourceDestinationDetails.SpannerTableCount = len(sessionState.Conv.SpSchema)
+	var sessionSummary sessionSummary
+	sessionSummary.DatabaseType = sessionState.Driver
+	sessionSummary.ConnectionType = sessionState.SourceDBConnDetails.ConnectionType
+	sessionSummary.SourceTableCount = len(sessionState.Conv.SrcSchema)
+	sessionSummary.SpannerTableCount = len(sessionState.Conv.SpSchema)
 
 	sourceIndexCount, spannerIndexCount := 0, 0
 	for _, spannerSchema := range sessionState.Conv.SpSchema {
@@ -1004,10 +1018,10 @@ func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 	for _, sourceSchema := range sessionState.Conv.SrcSchema {
 		sourceIndexCount = sourceIndexCount + len(sourceSchema.Indexes)
 	}
-	sourceDestinationDetails.SourceIndexCount = sourceIndexCount
-	sourceDestinationDetails.SpannerIndexCount = spannerIndexCount
+	sessionSummary.SourceIndexCount = sourceIndexCount
+	sessionSummary.SpannerIndexCount = spannerIndexCount
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sourceDestinationDetails)
+	json.NewEncoder(w).Encode(sessionSummary)
 }
 
 func migrate(w http.ResponseWriter, r *http.Request) {
@@ -1021,7 +1035,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 	}
 
-	details := targetDetails{}
+	details := migrationDetails{}
 
 	err = json.Unmarshal(reqBody, &details)
 
@@ -1032,69 +1046,50 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
+	ctx := context.Background()
+	var (
+		sourceProfileString  string
+		schemaOnly, dataOnly bool
+	)
 	sourceDBConnectionDetails := sessionState.SourceDBConnDetails
-	sourceProfileString := fmt.Sprintf("host=%v,port=%v,user=%v,password=%v,dbName=%v",
-		sourceDBConnectionDetails.Host, sourceDBConnectionDetails.Port, sourceDBConnectionDetails.User,
-		sourceDBConnectionDetails.Password, sessionState.DbName)
-	if details.StreamingCfg != "" {
-		sourceProfileString = sourceProfileString + fmt.Sprintf(",streamingCfg=%v", details.StreamingCfg)
+	if sourceDBConnectionDetails.ConnectionType == "dump" {
+		sourceProfileString = fmt.Sprintf("file=%v,format=dump", sourceDBConnectionDetails.Path)
+	} else {
+		sourceProfileString = fmt.Sprintf("host=%v,port=%v,user=%v,password=%v,dbName=%v",
+			sourceDBConnectionDetails.Host, sourceDBConnectionDetails.Port, sourceDBConnectionDetails.User,
+			sourceDBConnectionDetails.Password, sessionState.DbName)
 	}
-	fmt.Println(sourceProfileString)
-	sourceProfile, err := profiles.NewSourceProfile(sourceProfileString, sessionState.Driver)
+	targetProfileString := fmt.Sprintf("project=%v,instance=%v,dbName=%v", sessionState.GCPProjectID, sessionState.SpannerInstanceID, details.TargetDetails.TargetDB)
+
+	if details.TargetDetails.StreamingCfg != "" {
+		sourceProfileString = sourceProfileString + fmt.Sprintf(",streamingCfg=%v", details.TargetDetails.StreamingCfg)
+	}
+	source, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
 	if err != nil {
-		log.Println("can't create source profile")
-		http.Error(w, fmt.Sprintf("Can't create source profile : %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Error while getting source database: %v", err), http.StatusBadRequest)
+		return
+	}
+	sourceProfile, targetProfile, ioHelper, dbName, err := cmd.PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, source)
+	if err != nil && sourceDBConnectionDetails.ConnectionType != "session" {
+		log.Println("error while preparing prerequisites for migration")
+		http.Error(w, fmt.Sprintf("Error while preparing prerequisites for migration: %v", err), http.StatusBadRequest)
 		return
 	}
 	sourceProfile.Driver = sessionState.Driver
-
-	targetProfileString := fmt.Sprintf("project=%v,instance=%v,dbName=%v", sessionState.GCPProjectID, sessionState.SpannerInstanceID, details.TargetDB)
-	targetProfile, err := profiles.NewTargetProfile(targetProfileString)
-	if err != nil {
-		log.Println("can't create target profile")
-		http.Error(w, fmt.Sprintf("Can't create target profile : %v", err), http.StatusBadRequest)
-		return
-	}
 	targetProfile.TargetDb = targetProfile.ToLegacyTargetDb()
+	if details.MigrationMode == "Schema" {
+		schemaOnly = true
 
-	dbURI := fmt.Sprintf("projects/%s/instances/%s/databases/%s", sessionState.GCPProjectID, sessionState.SpannerInstanceID, details.TargetDB)
-	ctx := context.Background()
-	adminClient, err := utils.NewDatabaseAdminClient(ctx)
-	if err != nil {
-		log.Println("can't create admin client")
-		http.Error(w, fmt.Sprintf("Can't create admin client : %v", err), http.StatusBadRequest)
-		return
+	} else if details.MigrationMode == "Data" {
+		dataOnly = true
 	}
-	defer adminClient.Close()
-	client, err := utils.GetClient(ctx, dbURI)
-	if err != nil {
-		log.Println("can't create client for db")
-		http.Error(w, fmt.Sprintf("Can't create client for db %s: %v", dbURI, err), http.StatusBadRequest)
-		return
-	}
-	defer client.Close()
-
-	err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sessionState.Driver, "spanner", sessionState.Conv, nil)
-	if err != nil {
-		log.Println("can't create/update database")
-		http.Error(w, fmt.Sprintf("Can't create/update database: %v", err), http.StatusBadRequest)
-		return
-	}
-	_, err = conversion.DataConv(ctx, sourceProfile, targetProfile, nil, client, sessionState.Conv, true, 40)
+	_, err = cmd.MigrateData(ctx, targetProfile, sourceProfile, dbName, &ioHelper, cmd.DefaultWritersLimit, sessionState.Conv, false, schemaOnly, dataOnly)
 	if err != nil {
 		log.Println("can't finish data migration")
 		http.Error(w, fmt.Sprintf("Can't finish data migration: %v", err), http.StatusBadRequest)
 		return
 	}
-
-	if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, sessionState.Conv, nil); err != nil {
-		log.Println("can't perform update schema on db")
-		http.Error(w, fmt.Sprintf("Can't perform update schema on db %s with foreign keys: %v", dbURI, err), http.StatusBadRequest)
-		return
-	}
-
 	w.WriteHeader(http.StatusOK)
-
 	log.Println("migration completed", "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
 }
 

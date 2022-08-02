@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
@@ -34,4 +35,17 @@ func UpdateSessionFile() error {
 		return fmt.Errorf("Error encountered while updating session session file %w", err)
 	}
 	return nil
+}
+
+func GetSourceDatabaseFromDriver(driver string) (string, error) {
+	switch driver {
+	case constants.MYSQLDUMP, constants.MYSQL:
+		return constants.MYSQL, nil
+	case constants.PGDUMP, constants.POSTGRES:
+		return constants.POSTGRES, nil
+	case constants.ORACLE, constants.SQLSERVER:
+		return driver, nil
+	default:
+		return "", fmt.Errorf("unsupported driver type: %v", driver)
+	}
 }
