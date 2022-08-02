@@ -162,6 +162,7 @@ export class ObjectDetailComponent implements OnInit {
         )
       })
     } else if (this.currentObject) {
+      this.checkIsInterleave()
       const addedIndexColumns = this.indexData.map((data) => data.spColName)
       this.indexColumnNames = this.conv.SpSchema[this.currentObject?.parent].ColNames.filter(
         (columnName) => {
