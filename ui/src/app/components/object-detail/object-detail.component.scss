@@ -52,6 +52,9 @@
   height: 100%;
   background-color: white;
   .mat-tab-group {
+    height: 93%;
+  }
+  .height-on-edit {
     height: 84%;
   }
 }
@@ -165,7 +168,7 @@
 
   .mat-column-srcIsNotNull,
   .mat-column-spIsNotNull {
-    min-width: 70px;
+    min-width: 100px;
   }
 
   .mat-column-srcIsNotNull,
