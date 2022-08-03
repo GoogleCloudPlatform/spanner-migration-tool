@@ -8,7 +8,6 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	updatesessionfiles "github.com/cloudspannerecosystem/harbourbridge/webv2/updatesessionfiles"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
@@ -61,12 +60,26 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 		if v.Add {
 
-			err := addColumn(table, colName, Conv, w)
+			addColumn(table, colName, Conv)
 
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
+			/*
+				fmt.Println("err", err)
+
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
+					return
+				}
+
+			*/
+
+			fmt.Println("after addColumn")
+
+			fmt.Println("Conv.SpSchema[table] : ", Conv.SpSchema[table])
+
+			fmt.Println("Conv.ToSpanner : ", Conv.ToSpanner)
+
+			fmt.Println("Conv.ToSource : ", Conv.ToSource)
+
 		}
 
 		if v.Removed {
@@ -112,7 +125,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	updatesessionfiles.UpdateSessionFile()
+	//updatesessionfiles.UpdateSessionFile()
 
 	ddl := GetSpannerTableDDL(Conv.SpSchema[table])
 

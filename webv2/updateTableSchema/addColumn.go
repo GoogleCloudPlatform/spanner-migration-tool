@@ -2,13 +2,12 @@ package updateTableSchema
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-func addColumn(table string, colName string, Conv *internal.Conv, w http.ResponseWriter) error {
+func addColumn(table string, colName string, Conv *internal.Conv) {
 
 	fmt.Println("addColumn getting called")
 	fmt.Println("")
@@ -57,7 +56,12 @@ func addColumn(table string, colName string, Conv *internal.Conv, w http.Respons
 	Conv.ToSpanner[srcTableName].Cols[srcColName] = colName
 	Conv.ToSource[table].Cols[colName] = srcColName
 
-	return nil
+	//	fmt.Println("Conv.SpSchema[table] : ", Conv.SpSchema[table])
+
+	//fmt.Println("Conv.ToSpanner : ", Conv.ToSpanner)
+
+	//fmt.Println("Conv.ToSource : ", Conv.ToSource)
+
 }
 
 func IsColNamesPresent(s []string, str string) bool {

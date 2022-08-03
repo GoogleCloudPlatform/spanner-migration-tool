@@ -18,6 +18,7 @@ func UpdatecolNameType(newType, table, colName string, Conv *internal.Conv, w ht
 	sp, ty, err := utilities.GetType(newType, table, colName, srcTableName)
 
 	if err != nil {
+		fmt.Println("err:", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -44,6 +45,7 @@ func UpdatecolNameType(newType, table, colName string, Conv *internal.Conv, w ht
 		rsp, ty, err := utilities.GetType(newType, relationTable, colName, srcTableName)
 
 		if err != nil {
+			fmt.Println("err")
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
