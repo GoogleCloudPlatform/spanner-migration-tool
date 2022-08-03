@@ -20,6 +20,8 @@ export class ObjectExplorerComponent implements OnInit {
   spannerSortOrder: string = ''
   srcSearchText: string = ''
   spannerSearchText: string = ''
+  selectedTab: string = 'spanner'
+  @Output() selectedDatabase = new EventEmitter<string>()
   @Output() selectObject = new EventEmitter<FlatNode>()
   @Output() updateSpannerTable = new EventEmitter<IUpdateTableArgument>()
   @Output() updateSrcTable = new EventEmitter<IUpdateTableArgument>()
@@ -147,6 +149,12 @@ export class ObjectExplorerComponent implements OnInit {
     }
   }
   onTabChanged() {
+    if (this.selectedTab == 'spanner') {
+      this.selectedTab = 'source'
+    } else {
+      this.selectedTab = 'spanner'
+    }
+    this.selectedDatabase.emit(this.selectedTab)
     this.currentSelectedObject = null
     this.selectObject.emit(undefined)
   }

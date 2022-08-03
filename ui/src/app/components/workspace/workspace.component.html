@@ -28,6 +28,7 @@
       [ngClass]="[isLeftColumnCollapse ? 'left-column-collapse' : 'left-column-expand']"
     >
       <app-object-explorer
+        (selectedDatabase)="changeCurrentDatabase($event)"
         (selectObject)="changeCurrentObject($event)"
         (updateSpannerTable)="updateSpannerTable($event)"
         (updateSrcTable)="updateSrcTable($event)"
@@ -53,6 +54,7 @@
         [typeMap]="typeMap"
         [ddlStmts]="ddlStmts"
         [fkData]="fkData"
+        [currentDatabase]="currentDatabase"
       >
       </app-object-detail>
     </div>
