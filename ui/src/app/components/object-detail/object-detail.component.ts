@@ -163,28 +163,7 @@ export class ObjectDetailComponent implements OnInit {
       })
     } else if (this.currentObject) {
       this.checkIsInterleave()
-      const addedIndexColumns = this.indexData.map((data) => data.spColName)
-      this.indexColumnNames = this.conv.SpSchema[this.currentObject?.parent].ColNames.filter(
-        (columnName) => {
-          if (addedIndexColumns.includes(columnName)) {
-            return false
-          } else {
-            return true
-          }
-        }
-      )
-      this.indexData.forEach((row: IIndexData) => {
-        this.rowArray.push(
-          new FormGroup({
-            srcOrder: new FormControl(row.srcOrder),
-            srcColName: new FormControl(row.srcColName),
-            srcDesc: new FormControl(row.srcDesc),
-            spOrder: new FormControl(row.spOrder),
-            spColName: new FormControl(row.spColName),
-            spDesc: new FormControl(row.spDesc),
-          })
-        )
-      })
+      this.setIndexRows()
     }
 
     this.dataSource = this.rowArray.controls
@@ -652,8 +631,66 @@ export class ObjectDetailComponent implements OnInit {
     return null
   }
 
+  setIndexRows() {
+    this.rowArray = new FormArray([])
+    const addedIndexColumns: string[] = this.indexData
+      .map((data) => (data.spColName ? data.spColName : ''))
+      .filter((name) => name != '')
+    console.log(addedIndexColumns)
+    this.indexColumnNames = this.conv.SpSchema[this.currentObject!.parent]?.ColNames.filter(
+      (columnName) => {
+        if (addedIndexColumns.includes(columnName)) {
+          return false
+        } else {
+          return true
+        }
+      }
+    )
+
+    this.indexData.forEach((row: IIndexData) => {
+      this.rowArray.push(
+        new FormGroup({
+          srcOrder: new FormControl(row.srcOrder),
+          srcColName: new FormControl(row.srcColName),
+          srcDesc: new FormControl(row.srcDesc),
+          spOrder: new FormControl(row.spOrder),
+          spColName: new FormControl(row.spColName),
+          spDesc: new FormControl(row.spDesc),
+        })
+      )
+    })
+    console.log(this.rowArray.value)
+    this.dataSource = this.rowArray.controls
+  }
+
   toggleIndexEdit() {
     if (this.isIndexEditMode) {
+      let payload: ICreateIndex[] = []
+      const tableName = this.currentObject?.parent || ''
+      payload.push({
+        Name: this.currentObject?.name || '',
+        Table: this.currentObject?.parent || '',
+        Unique: false,
+        Keys: this.indexData
+          .filter((idx) => {
+            if (idx.spColName) return true
+            return false
+          })
+          .map((col: any) => {
+            return {
+              Col: col.spColName,
+              Desc: col.spDesc,
+              Order: col.spOrder,
+            }
+          }),
+        Id: '',
+      })
+
+      this.data.updateIndex(tableName, payload)
+      this.addIndexKeyForm.controls['columnName'].setValue('')
+      this.addIndexKeyForm.controls['ascOrDesc'].setValue('')
+      this.addIndexKeyForm.markAsUntouched()
+      this.data.getSummary()
       this.isIndexEditMode = false
     } else {
       this.isIndexEditMode = true
@@ -683,72 +720,98 @@ export class ObjectDetailComponent implements OnInit {
     })
   }
   dropIndexKey(index: number) {
-    let payload: ICreateIndex[] = []
-    const tableName = this.currentObject?.parent || ''
-    let spIndexCount = 0
-    this.indexData.forEach((idx) => {
-      if (idx.spColName) spIndexCount += 1
-    })
-    if (spIndexCount <= 1) {
-      this.dropIndex()
-    } else {
-      payload.push({
-        Name: this.currentObject?.name || '',
-        Table: this.currentObject?.parent || '',
-        Unique: false,
-        Keys: this.indexData
-          .filter((idx, i: number) => {
-            if (i === index || idx.spColName === undefined) return false
-            return true
-          })
-          .map((col: any) => {
-            return {
-              Col: col.spColName,
-              Desc: col.spDesc,
-              Order: col.spOrder,
-            }
-          }),
-        Id: '',
-      })
-      this.data.updateIndex(tableName, payload)
+    // const i = this.indexData.indexOf(index)
+    // if (index > -1) {
+    //   // only splice array when item is found
+    //   array.splice(index, 1) // 2nd parameter means remove one item only
+    // }
+
+    for (let i = 0; i < this.indexData.length; i++) {
+      // if (this.indexData[i].spOrder || 0 > (this.indexData[index].spOrder || 0)) {
+      //   this.indexData[i].spOrder = this.indexData[i].spOrder - 1
+      // }
+      if (i === index || this.indexData[i].spColName === undefined) {
+        this.indexData.splice(index, 1)
+      }
     }
+    this.setIndexRows()
+    console.log(this.indexData)
+
+    // let payload: ICreateIndex[] = []
+    // const tableName = this.currentObject?.parent || ''
+    // let spIndexCount = 0
+    // this.indexData.forEach((idx) => {
+    //   if (idx.spColName) spIndexCount += 1
+    // })
+    // if (spIndexCount <= 1) {
+    //   this.dropIndex()
+    // } else {
+    //   payload.push({
+    //     Name: this.currentObject?.name || '',
+    //     Table: this.currentObject?.parent || '',
+    //     Unique: false,
+    //     Keys: this.indexData
+    //       .filter((idx, i: number) => {
+    //         if (i === index || idx.spColName === undefined) return false
+    //         return true
+    //       })
+    //       .map((col: any) => {
+    //         return {
+    //           Col: col.spColName,
+    //           Desc: col.spDesc,
+    //           Order: col.spOrder,
+    //         }
+    //       }),
+    //     Id: '',
+    //   })
+    //   this.data.updateIndex(tableName, payload)
+    //}
   }
 
   addIndexKey() {
-    let payload: ICreateIndex[] = []
-    const tableName = this.currentObject?.parent || ''
     let spIndexCount = 0
     this.indexData.forEach((idx) => {
       if (idx.spColName) spIndexCount += 1
     })
-    payload.push({
-      Name: this.currentObject?.name || '',
-      Table: this.currentObject?.parent || '',
-      Unique: false,
-      Keys: this.indexData
-        .filter((idx) => {
-          if (idx.spColName) return true
-          return false
-        })
-        .map((col: any) => {
-          return {
-            Col: col.spColName,
-            Desc: col.spDesc,
-            Order: col.spOrder,
-          }
-        }),
-      Id: '',
+    this.indexData.push({
+      spColName: this.addIndexKeyForm.value.columnName,
+      spDesc: this.addIndexKeyForm.value.ascOrDesc === 'desc',
+      spOrder: spIndexCount + 1,
+      srcColName: '',
+      srcDesc: undefined,
+      srcOrder: '',
     })
-    payload[0].Keys.push({
-      Col: this.addIndexKeyForm.value.columnName,
-      Desc: this.addIndexKeyForm.value.ascOrDesc === 'desc',
-      Order: spIndexCount + 1,
-    })
+    console.log(this.indexData)
+    this.setIndexRows()
 
-    this.data.updateIndex(tableName, payload)
-    this.addIndexKeyForm.controls['columnName'].setValue('')
-    this.addIndexKeyForm.controls['ascOrDesc'].setValue('')
-    this.addIndexKeyForm.markAsUntouched()
+    // payload.push({
+    //   Name: this.currentObject?.name || '',
+    //   Table: this.currentObject?.parent || '',
+    //   Unique: false,
+    //   Keys: this.indexData
+    //     .filter((idx) => {
+    //       if (idx.spColName) return true
+    //       return false
+    //     })
+    //     .map((col: any) => {
+    //       return {
+    //         Col: col.spColName,
+    //         Desc: col.spDesc,
+    //         Order: col.spOrder,
+    //       }
+    //     }),
+    //   Id: '',
+    // })
+    // payload[0].Keys.push({
+    //   Col: this.addIndexKeyForm.value.columnName,
+    //   Desc: this.addIndexKeyForm.value.ascOrDesc === 'desc',
+    //   Order: spIndexCount + 1,
+    // })
+
+    // this.data.updateIndex(tableName, payload)
+    // this.addIndexKeyForm.controls['columnName'].setValue('')
+    // this.addIndexKeyForm.controls['ascOrDesc'].setValue('')
+    // this.addIndexKeyForm.markAsUntouched()
   }
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
