@@ -89,6 +89,7 @@ func PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, sou
 	return sourceProfile, targetProfile, ioHelper, dbName, nil
 }
 
+// MigrateData creates database and populates data in it.
 func MigrateData(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile, dbName string, ioHelper *utils.IOStreams, writeLimit int64, conv *internal.Conv, skipForeignKeys, schemaOnly, dataOnly bool) (*writer.BatchWriter, error) {
 	var bw *writer.BatchWriter
 	adminClient, client, dbURI, err := CreateDatabaseClient(ctx, targetProfile, sourceProfile.Driver, dbName, *ioHelper)
