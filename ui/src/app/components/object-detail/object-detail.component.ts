@@ -636,7 +636,6 @@ export class ObjectDetailComponent implements OnInit {
     const addedIndexColumns: string[] = this.indexData
       .map((data) => (data.spColName ? data.spColName : ''))
       .filter((name) => name != '')
-    console.log(addedIndexColumns)
     this.indexColumnNames = this.conv.SpSchema[this.currentObject!.parent]?.ColNames.filter(
       (columnName) => {
         if (addedIndexColumns.includes(columnName)) {
@@ -659,7 +658,6 @@ export class ObjectDetailComponent implements OnInit {
         })
       )
     })
-    console.log(this.rowArray.value)
     this.dataSource = this.rowArray.controls
   }
 
@@ -720,52 +718,12 @@ export class ObjectDetailComponent implements OnInit {
     })
   }
   dropIndexKey(index: number) {
-    // const i = this.indexData.indexOf(index)
-    // if (index > -1) {
-    //   // only splice array when item is found
-    //   array.splice(index, 1) // 2nd parameter means remove one item only
-    // }
-
     for (let i = 0; i < this.indexData.length; i++) {
-      // if (this.indexData[i].spOrder || 0 > (this.indexData[index].spOrder || 0)) {
-      //   this.indexData[i].spOrder = this.indexData[i].spOrder - 1
-      // }
       if (i === index || this.indexData[i].spColName === undefined) {
         this.indexData.splice(index, 1)
       }
     }
     this.setIndexRows()
-    console.log(this.indexData)
-
-    // let payload: ICreateIndex[] = []
-    // const tableName = this.currentObject?.parent || ''
-    // let spIndexCount = 0
-    // this.indexData.forEach((idx) => {
-    //   if (idx.spColName) spIndexCount += 1
-    // })
-    // if (spIndexCount <= 1) {
-    //   this.dropIndex()
-    // } else {
-    //   payload.push({
-    //     Name: this.currentObject?.name || '',
-    //     Table: this.currentObject?.parent || '',
-    //     Unique: false,
-    //     Keys: this.indexData
-    //       .filter((idx, i: number) => {
-    //         if (i === index || idx.spColName === undefined) return false
-    //         return true
-    //       })
-    //       .map((col: any) => {
-    //         return {
-    //           Col: col.spColName,
-    //           Desc: col.spDesc,
-    //           Order: col.spOrder,
-    //         }
-    //       }),
-    //     Id: '',
-    //   })
-    //   this.data.updateIndex(tableName, payload)
-    //}
   }
 
   addIndexKey() {
@@ -781,37 +739,8 @@ export class ObjectDetailComponent implements OnInit {
       srcDesc: undefined,
       srcOrder: '',
     })
-    console.log(this.indexData)
+
     this.setIndexRows()
-
-    // payload.push({
-    //   Name: this.currentObject?.name || '',
-    //   Table: this.currentObject?.parent || '',
-    //   Unique: false,
-    //   Keys: this.indexData
-    //     .filter((idx) => {
-    //       if (idx.spColName) return true
-    //       return false
-    //     })
-    //     .map((col: any) => {
-    //       return {
-    //         Col: col.spColName,
-    //         Desc: col.spDesc,
-    //         Order: col.spOrder,
-    //       }
-    //     }),
-    //   Id: '',
-    // })
-    // payload[0].Keys.push({
-    //   Col: this.addIndexKeyForm.value.columnName,
-    //   Desc: this.addIndexKeyForm.value.ascOrDesc === 'desc',
-    //   Order: spIndexCount + 1,
-    // })
-
-    // this.data.updateIndex(tableName, payload)
-    // this.addIndexKeyForm.controls['columnName'].setValue('')
-    // this.addIndexKeyForm.controls['ascOrDesc'].setValue('')
-    // this.addIndexKeyForm.markAsUntouched()
   }
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
