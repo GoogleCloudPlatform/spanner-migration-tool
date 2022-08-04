@@ -2,11 +2,10 @@
   padding: 0 20px;
   width: 600px;
   .mat-card-title {
-    font-size: 13pt;
+    font-size: 20px;
     font-weight: normal;
   }
   .mat-card-subtitle {
-    font-size: 9pt;
     font-weight: normal;
   }
   p {
@@ -18,7 +17,6 @@
       padding: 0px 5px 10px 5px;
       margin: 0;
       border-radius: 10px;
-      font-size: 9px;
       height: 9px;
       width: 9px;
       text-align: center;
@@ -26,7 +24,6 @@
     span {
       margin-left: 40px;
       font-weight: lighter;
-      font-size: 13px;
     }
   }
   hr {

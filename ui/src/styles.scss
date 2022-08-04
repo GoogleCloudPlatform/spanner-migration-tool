@@ -4,10 +4,12 @@ html,
 body {
   height: 100%;
   box-sizing: border-box;
+
 }
 body {
   margin: 0;
   font-family: Roboto, 'Helvetica Neue', sans-serif;
+
 }
 
 .content-height {
@@ -17,3 +19,24 @@ body {
 .cursor-pointer {
   cursor: pointer;
 }
+.mat-button.mat-primary{
+  color: #3367D6;
+}
+.global-font-color{
+  color: #000000;
+}
+.body-font{
+font-size: 14px;
+}
+.primay-header{
+font-size: 20px;
+}
+.mat-stroked-button.mat-primary {
+  color: #3367D6;
+
+}
+.mat-raised-button {
+  color:white;
+  background-color:#3367D6
+}
+

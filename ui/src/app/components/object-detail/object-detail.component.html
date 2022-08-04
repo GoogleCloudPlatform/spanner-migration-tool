@@ -662,7 +662,7 @@
             this.interleaveParentName === null
           "
           mat-raised-button
-          color="primary"
+        
           (click)="setInterleave()"
         >
           Convert to Interleave
@@ -816,16 +816,16 @@
   <div class="save-edits">
     <mat-divider></mat-divider>
     <div class="save-button" *ngIf="isEditMode && currentTabIndex === 0">
-      <button mat-raised-button color="primary" (click)="toggleEdit()">SAVE & CONVERT</button>
+      <button mat-raised-button  (click)="toggleEdit()">SAVE & CONVERT</button>
     </div>
     <div class="save-button" *ngIf="isPkEditMode && currentTabIndex === 1">
-      <button mat-raised-button color="primary" (click)="togglePkEdit()">SAVE & CONVERT</button>
+      <button mat-raised-button (click)="togglePkEdit()">SAVE & CONVERT</button>
     </div>
     <div class="save-button" *ngIf="isFkEditMode && currentTabIndex === 2">
-      <button mat-raised-button color="primary" (click)="toggleFkEdit()">SAVE & CONVERT</button>
+      <button mat-raised-button  (click)="toggleFkEdit()">SAVE & CONVERT</button>
     </div>
     <div class="save-button" *ngIf="isIndexEditMode && currentTabIndex === -1">
-      <button mat-raised-button color="primary" (click)="toggleIndexEdit()">SAVE & CONVERT</button>
+      <button mat-raised-button  (click)="toggleIndexEdit()">SAVE & CONVERT</button>
     </div>
   </div>
 </div>

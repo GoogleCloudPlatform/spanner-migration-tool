@@ -6,7 +6,7 @@
       <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'">Configure Schema</a>
     </div>
     <div class="header_action">
-      <button mat-button (click)="openAssessment()">VIEW ASSESSMENT</button>
+      <button mat-button class="col" (click)="openAssessment()">VIEW ASSESSMENT</button>
       <button mat-button (click)="openSaveSessionSidenav()" *ngIf="!isOfflineStatus">
         SAVE SESSION
       </button>
@@ -15,7 +15,7 @@
   </div>
   <div class="container">
     <h2>Configure schema</h2>
-    <div class="summary">
+    <div class="summary global-font-color">
       Estimation for {{ srcDbName.toUpperCase() }} to for Spanner conversion:
       {{ conversionRatePercentages.good }}% of tables can be converted automatically,
       {{ conversionRatePercentages.ok }}% requires minimal conversion changes and
