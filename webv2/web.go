@@ -256,8 +256,6 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	}
 	// We don't support Dynamodb in web hence no need to pass schema sample size here.
 	sourceProfile, _ := profiles.NewSourceProfile("", dc.Driver)
-	fmt.Println(dc.Driver)
-	fmt.Println(sourceProfile.Driver)
 	sourceProfile.Driver = dc.Driver
 	targetProfile, _ := profiles.NewTargetProfile("")
 	targetProfile.TargetDb = constants.TargetSpanner
