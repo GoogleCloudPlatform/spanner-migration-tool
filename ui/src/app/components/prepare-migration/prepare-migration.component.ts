@@ -7,6 +7,7 @@ import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
 import { ISessionSummary } from 'src/app/model/conv'
 import IMigrationDetails from 'src/app/model/migrate'
+import { InputType, MigrationModes, SourceDbNames } from 'src/app/app.constants'
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
@@ -27,7 +28,7 @@ export class PrepareMigrationComponent implements OnInit {
   isStreamingCfgSet: boolean = false
   isSchemaMigration: boolean = true
   isBulkMigration: boolean = true
-  selectedMigrationMode: string = 'Schema'
+  selectedMigrationMode: string = MigrationModes.schemaOnly
   selectedMigrationType: string = 'bulk'
   targetDetails: ITargetDetails = this.targetDetailService.getTargetDetails()
 
@@ -35,7 +36,7 @@ export class PrepareMigrationComponent implements OnInit {
     this.fetch.getSourceDestinationSummary().subscribe({
       next: (res: ISessionSummary) => {
         this.dataSource = [
-          { title: 'Database driver', source: res.DatabaseType, target: 'Spanner' },
+          { title: 'Database Type', source: res.DatabaseType, target: 'Spanner' },
           {
             title: 'Number of tables',
             source: res.SourceTableCount,
@@ -47,21 +48,19 @@ export class PrepareMigrationComponent implements OnInit {
             target: res.SpannerIndexCount,
           },
         ]
-        if (res.ConnectionType == 'dump') {
-          this.migrationModes = ['Schema and Data']
-        } else if (res.ConnectionType == 'session') {
-          this.migrationModes = ['Schema']
+        if (res.ConnectionType == InputType.DumpFile) {
+          this.migrationModes = [MigrationModes.schemaAndData]
+        } else if (res.ConnectionType == InputType.SessionFile) {
+          this.migrationModes = [MigrationModes.schemaOnly]
         } else {
-          this.migrationModes = ['Schema', 'Data', 'Schema-and-Data']
+          this.migrationModes = [MigrationModes.schemaOnly, MigrationModes.dataOnly, MigrationModes.schemaAndData]
         }
-        if (res.DatabaseType == 'mysql' || res.DatabaseType == 'oracle') {
+        if (res.DatabaseType == SourceDbNames.MySQL.toLowerCase() || res.DatabaseType == SourceDbNames.Oracle.toLowerCase()) {
           this.isBulkMigration = false
         }
-        console.log(res)
       },
       error: (err: any) => {
-        console.log(err.error)
-        // this.snackbar.openSnackBar(err.error, 'Close')
+         this.snack.openSnackBar(err.error, 'Close')
       },
     })
   }
@@ -89,7 +88,6 @@ export class PrepareMigrationComponent implements OnInit {
       MigrationType: this.selectedMigrationType,
       MigrationMode: this.selectedMigrationMode
     }
-    console.log(payload)
     this.fetch.migrate(payload).subscribe({
       next: () => {
         if (this.isStreamingCfgSet) {

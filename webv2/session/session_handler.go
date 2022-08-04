@@ -165,7 +165,7 @@ func ResumeSession(w http.ResponseWriter, r *http.Request) {
 	sessionState.Driver = convm.DatabaseType
 	sessionState.DbName = convm.DatabaseName
 	sessionState.SourceDBConnDetails = SourceDBConnDetails{
-		ConnectionType: "session",
+		ConnectionType: common.SESSION_FILE_MODE,
 	}
 
 	w.WriteHeader(http.StatusOK)

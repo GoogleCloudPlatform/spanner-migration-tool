@@ -168,7 +168,7 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 		Port:           config.Port,
 		User:           config.User,
 		Password:       config.Password,
-		ConnectionType: "direct",
+		ConnectionType: utilities.DIRECT_CONNECT_MODE,
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -254,8 +254,6 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	}
 	// We don't support Dynamodb in web hence no need to pass schema sample size here.
 	sourceProfile, _ := profiles.NewSourceProfile("", dc.Driver)
-	fmt.Println(dc.Driver)
-	fmt.Println(sourceProfile.Driver)
 	sourceProfile.Driver = dc.Driver
 	targetProfile, _ := profiles.NewTargetProfile("")
 	targetProfile.TargetDb = constants.TargetSpanner
@@ -285,7 +283,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sessionState.SourceDB = nil
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
 		Path:           dc.FilePath,
-		ConnectionType: "dump",
+		ConnectionType: utilities.DUMP_MODE,
 	}
 
 	convm := session.ConvWithMetadata{
@@ -344,7 +342,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState.SessionFile = s.FilePath
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
 		Path:           s.FilePath,
-		ConnectionType: "session",
+		ConnectionType: utilities.SESSION_FILE_MODE,
 	}
 
 	convm := session.ConvWithMetadata{
@@ -1006,7 +1004,12 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	var sessionSummary sessionSummary
-	sessionSummary.DatabaseType = sessionState.Driver
+	databaseType, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error while getting source database: %v", err), http.StatusBadRequest)
+		return
+	}
+	sessionSummary.DatabaseType = databaseType
 	sessionSummary.ConnectionType = sessionState.SourceDBConnDetails.ConnectionType
 	sessionSummary.SourceTableCount = len(sessionState.Conv.SrcSchema)
 	sessionSummary.SpannerTableCount = len(sessionState.Conv.SpSchema)
@@ -1052,7 +1055,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		schemaOnly, dataOnly bool
 	)
 	sourceDBConnectionDetails := sessionState.SourceDBConnDetails
-	if sourceDBConnectionDetails.ConnectionType == "dump" {
+	if sourceDBConnectionDetails.ConnectionType == utilities.DUMP_MODE {
 		sourceProfileString = fmt.Sprintf("file=%v,format=dump", sourceDBConnectionDetails.Path)
 	} else {
 		sourceProfileString = fmt.Sprintf("host=%v,port=%v,user=%v,password=%v,dbName=%v",
@@ -1070,17 +1073,17 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sourceProfile, targetProfile, ioHelper, dbName, err := cmd.PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, source)
-	if err != nil && sourceDBConnectionDetails.ConnectionType != "session" {
+	if err != nil && sourceDBConnectionDetails.ConnectionType != utilities.SESSION_FILE_MODE {
 		log.Println("error while preparing prerequisites for migration")
 		http.Error(w, fmt.Sprintf("Error while preparing prerequisites for migration: %v", err), http.StatusBadRequest)
 		return
 	}
 	sourceProfile.Driver = sessionState.Driver
 	targetProfile.TargetDb = targetProfile.ToLegacyTargetDb()
-	if details.MigrationMode == "Schema" {
+	if details.MigrationMode == utilities.SCHEMA_ONLY {
 		schemaOnly = true
 
-	} else if details.MigrationMode == "Data" {
+	} else if details.MigrationMode == utilities.DATA_ONLY {
 		dataOnly = true
 	}
 	_, err = cmd.MigrateData(ctx, targetProfile, sourceProfile, dbName, &ioHelper, cmd.DefaultWritersLimit, sessionState.Conv, false, schemaOnly, dataOnly)
