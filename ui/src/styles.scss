@@ -25,7 +25,7 @@ body {
 .global-font-color{
   color: #000000;
 }
-.body-font{
+.body-font-size{
 font-size: 14px;
 }
 .primay-header{
@@ -33,10 +33,7 @@ font-size: 20px;
 }
 .mat-stroked-button.mat-primary {
   color: #3367D6;
-
 }
-.mat-raised-button {
-  color:white;
-  background-color:#3367D6
-}
-
+.mat-raised-button.mat-primary {
+  color: white;
+  background-color: #3367d6;}
