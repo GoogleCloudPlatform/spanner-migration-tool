@@ -296,13 +296,14 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 // CreateIndex encodes the following DDL definition:
 //     create index: CREATE [UNIQUE] [NULL_FILTERED] INDEX index_name ON table_name ( key_part [, ...] ) [ storing_clause ] [ , interleave_clause ]
 type CreateIndex struct {
-	Name   string
-	Table  string
-	Unique bool
-	Keys   []IndexKey
-	Id     string
+	Name          string
+	Table         string
+	Unique        bool
+	Keys          []IndexKey
+	Id            string
+	StoredColumns []string
 	// We have no requirements for null-filtered option and
-	// storing/interleaving clauses yet, so we omit them for now.
+	// interleaving clauses yet, so we omit them for now.
 }
 
 // PrintCreateIndex unparses a CREATE INDEX statement.
