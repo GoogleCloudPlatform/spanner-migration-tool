@@ -164,28 +164,8 @@ export class ObjectDetailComponent implements OnInit {
         )
       })
     } else if (this.currentObject) {
-      const addedIndexColumns = this.indexData.map((data) => data.spColName)
-      this.indexColumnNames = this.conv.SpSchema[this.currentObject?.parent].ColNames.filter(
-        (columnName) => {
-          if (addedIndexColumns.includes(columnName)) {
-            return false
-          } else {
-            return true
-          }
-        }
-      )
-      this.indexData.forEach((row: IIndexData) => {
-        this.rowArray.push(
-          new FormGroup({
-            srcOrder: new FormControl(row.srcOrder),
-            srcColName: new FormControl(row.srcColName),
-            srcDesc: new FormControl(row.srcDesc),
-            spOrder: new FormControl(row.spOrder),
-            spColName: new FormControl(row.spColName),
-            spDesc: new FormControl(row.spDesc),
-          })
-        )
-      })
+      this.checkIsInterleave()
+      this.setIndexRows()
     }
 
     this.dataSource = this.rowArray.controls
@@ -459,12 +439,27 @@ export class ObjectDetailComponent implements OnInit {
         })
       })
     }
+    if (arr[0] == 0 && arr[arr.length - 1] <= arr.length) {
+      let missingOrder: number
+      for (let i = 0; i < arr.length; i++) {
+        if (arr[i] != i) {
+          missingOrder = i
+          break
+        }
+        missingOrder = arr.length
+      }
+      this.pkData.forEach((pk: IColumnTabData) => {
+        if (pk.spOrder < missingOrder) {
+          pk.spOrder = Number(pk.spOrder) + 1
+        }
+      })
+    }
   }
 
   getPkRequestObj() {
     let tableId: string = this.conv.SpSchema[this.currentObject!.name].Id
     let Columns: { ColumnId: string; ColName: string; Desc: boolean; Order: number }[] = []
-    this.pkArray.value.forEach((row: IColumnTabData) => {
+    this.pkData.forEach((row: IColumnTabData) => {
       if (row.spIsPk)
         Columns.push({
           ColumnId: this.conv.SpSchema[this.currentObject!.name].ColDefs[row.spColName].Id,
@@ -487,13 +482,6 @@ export class ObjectDetailComponent implements OnInit {
   togglePkEdit() {
     this.currentTabIndex = 1
     if (this.isPkEditMode) {
-      this.getPkRequestObj()
-      if (this.pkObj.Columns.length == 0) {
-        this.dialog.open(InfodialogComponent, {
-          data: { message: 'Add columns to the primary key for saving', type: 'error' },
-          maxWidth: '500px',
-        })
-      }
       this.pkArray.value.forEach((pk: IColumnTabData) => {
         for (let i = 0; i < this.pkData.length; i++) {
           if (pk.spColName == this.pkData[i].spColName) {
@@ -502,6 +490,16 @@ export class ObjectDetailComponent implements OnInit {
           }
         }
       })
+      this.pkOrderValidation()
+
+      this.getPkRequestObj()
+      if (this.pkObj.Columns.length == 0) {
+        this.dialog.open(InfodialogComponent, {
+          data: { message: 'Add columns to the primary key for saving', type: 'error' },
+          maxWidth: '500px',
+        })
+      }
+
       this.isPkEditMode = false
       this.data.updatePk(this.pkObj).subscribe({
         next: (res: string) => {
@@ -635,8 +633,64 @@ export class ObjectDetailComponent implements OnInit {
     return null
   }
 
+  setIndexRows() {
+    this.rowArray = new FormArray([])
+    const addedIndexColumns: string[] = this.indexData
+      .map((data) => (data.spColName ? data.spColName : ''))
+      .filter((name) => name != '')
+    this.indexColumnNames = this.conv.SpSchema[this.currentObject!.parent]?.ColNames.filter(
+      (columnName) => {
+        if (addedIndexColumns.includes(columnName)) {
+          return false
+        } else {
+          return true
+        }
+      }
+    )
+
+    this.indexData.forEach((row: IIndexData) => {
+      this.rowArray.push(
+        new FormGroup({
+          srcOrder: new FormControl(row.srcOrder),
+          srcColName: new FormControl(row.srcColName),
+          srcDesc: new FormControl(row.srcDesc),
+          spOrder: new FormControl(row.spOrder),
+          spColName: new FormControl(row.spColName),
+          spDesc: new FormControl(row.spDesc),
+        })
+      )
+    })
+    this.dataSource = this.rowArray.controls
+  }
+
   toggleIndexEdit() {
     if (this.isIndexEditMode) {
+      let payload: ICreateIndex[] = []
+      const tableName = this.currentObject?.parent || ''
+      payload.push({
+        Name: this.currentObject?.name || '',
+        Table: this.currentObject?.parent || '',
+        Unique: false,
+        Keys: this.indexData
+          .filter((idx) => {
+            if (idx.spColName) return true
+            return false
+          })
+          .map((col: any) => {
+            return {
+              Col: col.spColName,
+              Desc: col.spDesc,
+              Order: col.spOrder,
+            }
+          }),
+        Id: '',
+      })
+
+      this.data.updateIndex(tableName, payload)
+      this.addIndexKeyForm.controls['columnName'].setValue('')
+      this.addIndexKeyForm.controls['ascOrDesc'].setValue('')
+      this.addIndexKeyForm.markAsUntouched()
+      this.data.getSummary()
       this.isIndexEditMode = false
     } else {
       this.isIndexEditMode = true
@@ -666,72 +720,29 @@ export class ObjectDetailComponent implements OnInit {
     })
   }
   dropIndexKey(index: number) {
-    let payload: ICreateIndex[] = []
-    const tableName = this.currentObject?.parent || ''
-    let spIndexCount = 0
-    this.indexData.forEach((idx) => {
-      if (idx.spColName) spIndexCount += 1
-    })
-    if (spIndexCount <= 1) {
-      this.dropIndex()
-    } else {
-      payload.push({
-        Name: this.currentObject?.name || '',
-        Table: this.currentObject?.parent || '',
-        Unique: false,
-        Keys: this.indexData
-          .filter((idx, i: number) => {
-            if (i === index || idx.spColName === undefined) return false
-            return true
-          })
-          .map((col: any) => {
-            return {
-              Col: col.spColName,
-              Desc: col.spDesc,
-              Order: col.spOrder,
-            }
-          }),
-        Id: '',
-      })
-      this.data.updateIndex(tableName, payload)
+    for (let i = 0; i < this.indexData.length; i++) {
+      if (i === index || this.indexData[i].spColName === undefined) {
+        this.indexData.splice(index, 1)
+      }
     }
+    this.setIndexRows()
   }
 
   addIndexKey() {
-    let payload: ICreateIndex[] = []
-    const tableName = this.currentObject?.parent || ''
     let spIndexCount = 0
     this.indexData.forEach((idx) => {
       if (idx.spColName) spIndexCount += 1
     })
-    payload.push({
-      Name: this.currentObject?.name || '',
-      Table: this.currentObject?.parent || '',
-      Unique: false,
-      Keys: this.indexData
-        .filter((idx) => {
-          if (idx.spColName) return true
-          return false
-        })
-        .map((col: any) => {
-          return {
-            Col: col.spColName,
-            Desc: col.spDesc,
-            Order: col.spOrder,
-          }
-        }),
-      Id: '',
-    })
-    payload[0].Keys.push({
-      Col: this.addIndexKeyForm.value.columnName,
-      Desc: this.addIndexKeyForm.value.ascOrDesc === 'desc',
-      Order: spIndexCount + 1,
+    this.indexData.push({
+      spColName: this.addIndexKeyForm.value.columnName,
+      spDesc: this.addIndexKeyForm.value.ascOrDesc === 'desc',
+      spOrder: spIndexCount + 1,
+      srcColName: '',
+      srcDesc: undefined,
+      srcOrder: '',
     })
 
-    this.data.updateIndex(tableName, payload)
-    this.addIndexKeyForm.controls['columnName'].setValue('')
-    this.addIndexKeyForm.controls['ascOrDesc'].setValue('')
-    this.addIndexKeyForm.markAsUntouched()
+    this.setIndexRows()
   }
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {

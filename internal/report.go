@@ -406,6 +406,27 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 						l = append(l, str)
 					}
 
+				case RedundantIndex:
+					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+
+					if !contains(l, str) {
+						l = append(l, str)
+					}
+
+				case AutoIncrementIndex:
+					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+
+					if !contains(l, str) {
+						l = append(l, str)
+					}
+
+				case InterleaveIndex:
+					str := fmt.Sprintf("Column %s of Table %s %s", srcCol, spSchema.Name, IssueDB[i].Brief)
+
+					if !contains(l, str) {
+						l = append(l, str)
+					}
+
 				case IllegalName:
 					l = append(l, fmt.Sprintf("%s, Column '%s' is mapped to '%s'", IssueDB[i].Brief, srcName, spName))
 				default:
@@ -472,9 +493,12 @@ var IssueDB = map[SchemaIssue]struct {
 	Widened:               {Brief: "Some columns will consume more storage in Spanner", severity: note, batch: true},
 	StringOverflow:        {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
 	HotspotTimestamp:      {Brief: "Timestamp Hotspot Occured", severity: note},
-	HotspotAutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: note},
-	InterleavedNotInOrder: {Brief: "Can be converted to interleaved table if primary key order parameter is changed for the table", severity: note},
-	InterleavedOrder:      {Brief: "Can be converted to Interleaved Table", severity: note},
+	HotspotAutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: warning},
+	InterleavedOrder:      {Brief: "can be converted as Interleaved Table", severity: suggestion},
+	RedundantIndex:        {Brief: "Redundant Index", severity: warning},
+	AutoIncrementIndex:    {Brief: "Auto increment column in Index can create a Hotspot", severity: warning},
+	InterleaveIndex:       {Brief: "can be converted to an Interleave Index", severity: suggestion},
+	InterleavedNotInOrder: {Brief: "Can be converted to interleaved table if primary key order parameter is changed for the table", severity: suggestion},
 	InterleavedAddColumn:  {Brief: "Candidate for Interleaved Table", severity: note},
 	IllegalName:           {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: note},
 }

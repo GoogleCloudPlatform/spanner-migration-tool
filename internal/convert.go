@@ -86,6 +86,9 @@ const (
 	StringOverflow
 	HotspotTimestamp
 	HotspotAutoIncrement
+	RedundantIndex
+	AutoIncrementIndex
+	InterleaveIndex
 	InterleavedNotInOrder
 	InterleavedOrder
 	InterleavedAddColumn
