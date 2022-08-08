@@ -253,8 +253,14 @@ func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Tabl
 		Comment:  comment}
 
 	for srcTableName, srcTable2 := range conv.SrcSchema {
-		spTableName := conv.ToSpanner[srcTableName].Name
-		spTable := conv.SpSchema[srcTableName]
+		if _, isPresent := conv.ToSpanner[srcTableName]; !isPresent {
+			continue
+		}
+		spTableName = conv.ToSpanner[srcTableName].Name
+		if _, isPresent := conv.SpSchema[spTableName]; !isPresent {
+			continue
+		}
+		spTable := conv.SpSchema[spTableName]
 		if srcTable2.Name != srcTable.Name {
 			spTable.Fks = cvtForeignKeysForAReferenceTable(conv, spTableName, srcTableName, srcTable.Name, srcTable2.ForeignKeys, spTable.Fks)
 			conv.SpSchema[spTableName] = spTable

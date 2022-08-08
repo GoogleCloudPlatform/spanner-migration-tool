@@ -13,6 +13,32 @@ export default interface IConv {
   DatabaseType: string
   DatabaseName: string
   EditorName: string
+  Audit: IAudit
+}
+
+export interface IAudit {
+  ToSpannerFkIdx: Record<string, IFkeyAndIdxs>
+  ToSourceFkIdx: Record<string, IFkeyAndIdxs>
+  SchemaConversionDuration: number
+  DataConversionDuration: number
+  MigrationRequestId: string
+  MigrationType: number
+  DryRun: boolean
+  StreamingStats: IStreamingStats
+}
+
+export interface IFkeyAndIdxs {
+  Name: string
+  ForeignKey: Record<string, string>
+  Index: Record<string, string>
+}
+export interface IStreamingStats {
+  Streaming: boolean
+  TotalRecords: Record<string, Record<string, number>>
+  BadRecords: Record<string, Record<string, number>>
+  DroppedRecords: Record<string, Record<string, number>>
+  SampleBadRecords: Array<string>
+  SampleBadWrites: Array<string>
 }
 
 export interface IStats {
