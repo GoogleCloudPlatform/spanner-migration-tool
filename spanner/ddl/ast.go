@@ -312,11 +312,19 @@ func (ci CreateIndex) PrintCreateIndex(c Config) string {
 	for _, p := range ci.Keys {
 		keys = append(keys, p.PrintIndexKey(c))
 	}
-	var unique string
+	var unique, stored, storingClause string
 	if ci.Unique {
 		unique = "UNIQUE "
 	}
-	return fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)", unique, c.quote(ci.Name), c.quote(ci.Table), strings.Join(keys, ", "))
+	if c.TargetDb == constants.TargetExperimentalPostgres {
+		stored = "INCLUDE"
+	} else {
+		stored = "STORING"
+	}
+	if ci.StoredColumns != nil {
+		storingClause = fmt.Sprintf(" %s (%s)", stored, strings.Join(ci.StoredColumns, ", "))
+	}
+	return fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)%s", unique, c.quote(ci.Name), c.quote(ci.Table), strings.Join(keys, ", "), storingClause)
 }
 
 // PrintForeignKeyAlterTable unparses the foreign keys using ALTER TABLE.
