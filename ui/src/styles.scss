@@ -4,12 +4,10 @@ html,
 body {
   height: 100%;
   box-sizing: border-box;
-
 }
 body {
   margin: 0;
   font-family: Roboto, 'Helvetica Neue', sans-serif;
-
 }
 
 .content-height {
@@ -19,21 +17,22 @@ body {
 .cursor-pointer {
   cursor: pointer;
 }
-.mat-button.mat-primary{
-  color: #3367D6;
+.mat-button.mat-primary {
+  color: #3367d6;
 }
-.global-font-color{
+.global-font-color {
   color: #000000;
 }
-.body-font-size{
-font-size: 14px;
+.body-font-size {
+  font-size: 14px;
 }
-.primay-header{
-font-size: 20px;
+.primay-header {
+  font-size: 20px;
 }
 .mat-stroked-button.mat-primary {
-  color: #3367D6;
+  color: #3367d6;
 }
 .mat-raised-button.mat-primary {
   color: white;
-  background-color: #3367d6;}
+  background-color: #3367d6;
+}
