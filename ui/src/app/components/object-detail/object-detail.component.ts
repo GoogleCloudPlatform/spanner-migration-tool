@@ -33,6 +33,7 @@ export class ObjectDetailComponent implements OnInit {
   @Input() ddlStmts: any = {}
   @Input() fkData: IFkTabData[] = []
   @Input() tableData: IColumnTabData[] = []
+  @Input() currentDatabase: string = 'spanner'
   @Input() indexData: IIndexData[] = []
   @Output() updateSidebar = new EventEmitter<boolean>()
   ObjectExplorerNodeType = ObjectExplorerNodeType
@@ -129,6 +130,7 @@ export class ObjectDetailComponent implements OnInit {
     this.currentObject = changes['currentObject']?.currentValue || this.currentObject
     this.tableData = changes['tableData']?.currentValue || this.tableData
     this.indexData = changes['indexData']?.currentValue || this.indexData
+    this.currentDatabase = changes['currentDatabase']?.currentValue || this.currentDatabase
     this.currentTabIndex = this.currentObject?.type === ObjectExplorerNodeType.Table ? 0 : -1
     this.isObjectSelected = this.currentObject ? true : false
     this.isEditMode = false
@@ -257,7 +259,7 @@ export class ObjectDetailComponent implements OnInit {
       const srDataType = item.srcDataType
       const spDataType = item.spDataType
       let brief: string = ''
-      this.typeMap[srDataType].forEach((type: any) => {
+      this.typeMap[srDataType]?.forEach((type: any) => {
         if (spDataType == type.T) brief = type.Brief
       })
       this.isSpTableSuggesstionDisplay.push(brief !== '')

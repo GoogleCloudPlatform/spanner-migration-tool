@@ -55,7 +55,7 @@
 }
 
 .add-index-column-container {
-  margin-left: 40%;
+  margin-left: 45%;
   padding: 10px;
   .index-column-list {
     margin-right: 1rem;
@@ -196,6 +196,14 @@
   .index-data-row {
     height: 41px;
   }
+}
+
+.interleave-tab-container {
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 
 .interleave-tab-container {
