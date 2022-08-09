@@ -1014,9 +1014,11 @@ func updateIndexes(w http.ResponseWriter, r *http.Request) {
 
 	st := sessionState.Conv.SrcSchema[table]
 
-	for i, index := range sp.Indexes {
+	for i, ind := range sp.Indexes {
 
-		if index.Table == newIndexes[0].Table && index.Name == newIndexes[0].Name {
+		if ind.Table == newIndexes[0].Table && ind.Name == newIndexes[0].Name {
+
+			index.RemoveIndexIssues(table, sp.Indexes[i])
 
 			sp.Indexes[i].Keys = newIndexes[0].Keys
 			sp.Indexes[i].Name = newIndexes[0].Name

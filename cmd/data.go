@@ -116,10 +116,6 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
 	dataCoversionStartTime := time.Now()
 
-	// If filePrefix not explicitly set, use dbName as prefix.
-	if cmd.filePrefix == "" {
-		cmd.filePrefix = dbName + "."
-	}
 	if !sourceProfile.UseTargetSchema() {
 		err = conversion.ReadSessionFile(conv, cmd.sessionJSON)
 		if err != nil {
@@ -138,7 +134,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	)
 	if !cmd.dryRun {
 		now := time.Now()
-		adminClient, client, dbURI, err = CreateDatabaseClient(ctx, targetProfile, sourceProfile.Driver, ioHelper)
+		adminClient, client, dbURI, err = CreateDatabaseClient(ctx, targetProfile, sourceProfile.Driver, dbName, ioHelper)
 		if err != nil {
 			err = fmt.Errorf("can't create database client: %v", err)
 			return subcommands.ExitFailure
@@ -178,6 +174,10 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	dataCoversionDuration := dataCoversionEndTime.Sub(dataCoversionStartTime)
 	conv.Audit.DataConversionDuration = dataCoversionDuration
 
+	// If filePrefix not explicitly set, use dbName as prefix.
+	if cmd.filePrefix == "" {
+		cmd.filePrefix = targetProfile.Conn.Sp.Dbname + "."
+	}
 	conversion.Report(sourceProfile.Driver, bw.DroppedRowsByTable(), ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
 	conversion.WriteBadData(bw, conv, banner, cmd.filePrefix+badDataFile, ioHelper.Out)
 	// Cleanup hb tmp data directory.

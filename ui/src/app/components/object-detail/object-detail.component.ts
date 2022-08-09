@@ -37,6 +37,7 @@ export class ObjectDetailComponent implements OnInit {
   @Input() ddlStmts: any = {}
   @Input() fkData: IFkTabData[] = []
   @Input() tableData: IColumnTabData[] = []
+  @Input() currentDatabase: string = 'spanner'
   @Input() indexData: IIndexData[] = []
   @Output() updateSidebar = new EventEmitter<boolean>()
   ObjectExplorerNodeType = ObjectExplorerNodeType
@@ -130,6 +131,7 @@ export class ObjectDetailComponent implements OnInit {
     this.currentObject = changes['currentObject']?.currentValue || this.currentObject
     this.tableData = changes['tableData']?.currentValue || this.tableData
     this.indexData = changes['indexData']?.currentValue || this.indexData
+    this.currentDatabase = changes['currentDatabase']?.currentValue || this.currentDatabase
     this.currentTabIndex = this.currentObject?.type === ObjectExplorerNodeType.Table ? 0 : -1
     this.isObjectSelected = this.currentObject ? true : false
     this.isEditMode = false
@@ -154,6 +156,7 @@ export class ObjectDetailComponent implements OnInit {
       this.setSpTableRows()
       this.setColumnsToAdd()
     } else if (this.currentObject?.type === ObjectExplorerNodeType.Index) {
+      this.checkIsInterleave()
       this.setIndexRows()
     }
 
@@ -351,7 +354,7 @@ export class ObjectDetailComponent implements OnInit {
       const srDataType = item.srcDataType
       const spDataType = item.spDataType
       let brief: string = ''
-      this.typeMap[srDataType].forEach((type: any) => {
+      this.typeMap[srDataType]?.forEach((type: any) => {
         if (spDataType == type.T) brief = type.Brief
       })
       this.isSpTableSuggesstionDisplay.push(brief !== '')
@@ -531,6 +534,21 @@ export class ObjectDetailComponent implements OnInit {
     })
     if (arr.length > 0) {
       this.pkData[0].spOrder = 1
+    }
+    if (arr[0] == 0 && arr[arr.length - 1] <= arr.length) {
+      let missingOrder: number
+      for (let i = 0; i < arr.length; i++) {
+        if (arr[i] != i) {
+          missingOrder = i
+          break
+        }
+        missingOrder = arr.length
+      }
+      this.pkData.forEach((pk: IColumnTabData) => {
+        if (pk.spOrder < missingOrder) {
+          pk.spOrder = Number(pk.spOrder) + 1
+        }
+      })
     }
   }
 
@@ -731,6 +749,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setIndexRows() {
+    this.spRowArray = new FormArray([])
     const addedIndexColumns: string[] = this.indexData
       .map((data) => (data.spColName ? data.spColName : ''))
       .filter((name) => name != '')
@@ -760,6 +779,32 @@ export class ObjectDetailComponent implements OnInit {
 
   toggleIndexEdit() {
     if (this.isIndexEditMode) {
+      let payload: ICreateIndex[] = []
+      const tableName = this.currentObject?.parent || ''
+      payload.push({
+        Name: this.currentObject?.name || '',
+        Table: this.currentObject?.parent || '',
+        Unique: false,
+        Keys: this.indexData
+          .filter((idx) => {
+            if (idx.spColName) return true
+            return false
+          })
+          .map((col: any) => {
+            return {
+              Col: col.spColName,
+              Desc: col.spDesc,
+              Order: col.spOrder,
+            }
+          }),
+        Id: '',
+      })
+
+      this.data.updateIndex(tableName, payload)
+      this.addIndexKeyForm.controls['columnName'].setValue('')
+      this.addIndexKeyForm.controls['ascOrDesc'].setValue('')
+      this.addIndexKeyForm.markAsUntouched()
+      this.data.getSummary()
       this.isIndexEditMode = false
     } else {
       this.isIndexEditMode = true
@@ -789,71 +834,29 @@ export class ObjectDetailComponent implements OnInit {
     })
   }
   dropIndexKey(index: number) {
-    let payload: ICreateIndex[] = []
-    const tableName = this.currentObject?.parent || ''
-    let spIndexCount = 0
-    this.indexData.forEach((idx) => {
-      if (idx.spColName) spIndexCount += 1
-    })
-    if (spIndexCount <= 1) {
-      this.dropIndex()
-    } else {
-      payload.push({
-        Name: this.currentObject?.name || '',
-        Table: this.currentObject?.parent || '',
-        Unique: false,
-        Keys: this.indexData
-          .filter((idx, i: number) => {
-            if (i === index || idx.spColName === undefined) return false
-            return true
-          })
-          .map((col: any) => {
-            return {
-              Col: col.spColName,
-              Desc: col.spDesc,
-              Order: col.spOrder,
-            }
-          }),
-        Id: '',
-      })
-      this.data.updateIndex(tableName, payload)
+    for (let i = 0; i < this.indexData.length; i++) {
+      if (i === index || this.indexData[i].spColName === undefined) {
+        this.indexData.splice(index, 1)
+      }
     }
+    this.setIndexRows()
   }
 
   addIndexKey() {
-    let payload: ICreateIndex[] = []
-    const tableName = this.currentObject?.parent || ''
     let spIndexCount = 0
     this.indexData.forEach((idx) => {
       if (idx.spColName) spIndexCount += 1
     })
-    payload.push({
-      Name: this.currentObject?.name || '',
-      Table: this.currentObject?.parent || '',
-      Unique: false,
-      Keys: this.indexData
-        .filter((idx) => {
-          if (idx.spColName) return true
-          return false
-        })
-        .map((col: any) => {
-          return {
-            Col: col.spColName,
-            Desc: col.spDesc,
-            Order: col.spOrder,
-          }
-        }),
-      Id: '',
+    this.indexData.push({
+      spColName: this.addIndexKeyForm.value.columnName,
+      spDesc: this.addIndexKeyForm.value.ascOrDesc === 'desc',
+      spOrder: spIndexCount + 1,
+      srcColName: '',
+      srcDesc: undefined,
+      srcOrder: '',
     })
-    payload[0].Keys.push({
-      Col: this.addIndexKeyForm.value.columnName,
-      Desc: this.addIndexKeyForm.value.ascOrDesc === 'desc',
-      Order: spIndexCount + 1,
-    })
-    this.data.updateIndex(tableName, payload)
-    this.addIndexKeyForm.controls['columnName'].setValue('')
-    this.addIndexKeyForm.controls['ascOrDesc'].setValue('')
-    this.addIndexKeyForm.markAsUntouched()
+
+    this.setIndexRows()
   }
 
   restoreSpannerTable() {

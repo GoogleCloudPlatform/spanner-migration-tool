@@ -91,12 +91,16 @@ func detecthotspotAutoincrement(spannerTable ddl.CreateTable, spannerColumnId st
 
 		if s.Id == spannerColumnId {
 
-			columnname := s.Name
-			sessionState := session.GetSessionState()
-			schemaissue := sessionState.Conv.Issues[spannerTable.Name][columnname]
+			if s.Ignored.AutoIncrement {
 
-			schemaissue = append(schemaissue, internal.HotspotAutoIncrement)
-			sessionState.Conv.Issues[spannerTable.Name][columnname] = schemaissue
+				columnname := s.Name
+				sessionState := session.GetSessionState()
+				schemaissue := sessionState.Conv.Issues[spannerTable.Name][columnname]
+
+				schemaissue = append(schemaissue, internal.HotspotAutoIncrement)
+				sessionState.Conv.Issues[spannerTable.Name][columnname] = schemaissue
+
+			}
 
 		}
 	}
