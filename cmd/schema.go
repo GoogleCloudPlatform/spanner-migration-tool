@@ -118,7 +118,8 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
 
 	if !cmd.dryRun {
-		_, err = MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, cmd, conv)
+		var progress *internal.Progress
+		_, err = MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, cmd, conv, nil, progress)
 		if err != nil {
 			err = fmt.Errorf("can't finish database migration for db %s: %v", dbName, err)
 			return subcommands.ExitFailure

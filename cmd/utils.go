@@ -90,8 +90,16 @@ func PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, sou
 }
 
 // MigrateData creates database and populates data in it.
-func MigrateDatabase(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile, dbName string, ioHelper *utils.IOStreams, cmd interface{}, conv *internal.Conv) (*writer.BatchWriter, error) {
-	var bw *writer.BatchWriter
+func MigrateDatabase(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile, dbName string, ioHelper *utils.IOStreams, cmd interface{}, conv *internal.Conv, migrationError *error, progress *internal.Progress) (*writer.BatchWriter, error) {
+	var (
+		bw  *writer.BatchWriter
+		err error
+	)
+	defer func() {
+		if err != nil && migrationError != nil {
+			*migrationError = err
+		}
+	}()
 	adminClient, client, dbURI, err := CreateDatabaseClient(ctx, targetProfile, sourceProfile.Driver, dbName, *ioHelper)
 	if err != nil {
 		err = fmt.Errorf("can't create database client: %v", err)

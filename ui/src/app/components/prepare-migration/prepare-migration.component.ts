@@ -8,6 +8,7 @@ import ITargetDetails from 'src/app/model/target-details'
 import { ISessionSummary } from 'src/app/model/conv'
 import IMigrationDetails from 'src/app/model/migrate'
 import { InputType, MigrationModes, SourceDbNames } from 'src/app/app.constants'
+import {interval, Observable, Subscription} from 'rxjs'
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
@@ -17,6 +18,7 @@ export class PrepareMigrationComponent implements OnInit {
   displayedColumns = ['Title', 'Source', 'Destination']
   dataSource: any = []
   migrationModes: any = []
+  subscription!: Subscription
   constructor(
     private dialog: MatDialog,
     private fetch: FetchService,
@@ -87,7 +89,7 @@ export class PrepareMigrationComponent implements OnInit {
     let payload: IMigrationDetails = {
       TargetDetails: this.targetDetailService.getTargetDetails(),
       MigrationType: this.selectedMigrationType,
-      MigrationMode: this.selectedMigrationMode
+      MigrationMode: this.selectedMigrationMode,
     }
     this.fetch.migrate(payload).subscribe({
       next: () => {
@@ -97,5 +99,15 @@ export class PrepareMigrationComponent implements OnInit {
         this.snack.openSnackBar(err.error, 'Close')
       },
     })
+    this.subscription= interval(5000).subscribe((x =>{
+      console.log('called');
+  }));
+
   }
+  ngOnDestroy() {
+    if (this.subscription) {
+      this.subscription.unsubscribe();
+    }
+    
+}
 }

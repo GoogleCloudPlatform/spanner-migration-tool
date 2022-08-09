@@ -5,3 +5,8 @@ export default interface IMigrationDetails {
     MigrationType: string
     MigrationMode: string
 }
+
+export interface Progress {
+    progress: number
+    error: string
+}
