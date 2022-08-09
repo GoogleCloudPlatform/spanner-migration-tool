@@ -53,9 +53,9 @@ func removeColumn(table string, colName string, Conv *internal.Conv) {
 
 	}
 
-	isChild := Conv.SpSchema[table].Parent
+	childSchemaTable := Conv.SpSchema[table].Parent
 
-	if isChild != "" {
+	if childSchemaTable != "" {
 
 		removechildTableSchema(Conv, parentSchemaTable, colName)
 	}

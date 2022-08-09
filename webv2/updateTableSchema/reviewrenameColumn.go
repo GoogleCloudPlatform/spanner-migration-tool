@@ -44,121 +44,29 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 	Conv.SpSchema[table] = sp
 
-	//interleaveTableSchema = updatenameinterleaveTableSchema(interleaveTableSchema, table, columnId, colName, newName)
-
 	interleaveTableSchema = renameinterleaveTableSchema(interleaveTableSchema, table, columnId, colName, newName)
 
 	// update foreignKey relationship Table column names
 	for i, _ := range sp.Fks {
 
-		fmt.Println("update foreignKey Table column names")
-		fmt.Println("")
-
-		relationTable := sp.Fks[i].ReferTable
-
-		relationTableSp := Conv.SpSchema[relationTable]
-
-		_, ok := relationTableSp.ColDefs[colName]
-
-		if ok {
-			{
-				relationTableSp = renameSpannerColNames(relationTableSp, colName, newName)
-				relationTableSp = renameSpannerColDefs(relationTableSp, colName, newName)
-				relationTableSp = renameSpannerPK(relationTableSp, colName, newName)
-				relationTableSp = renameSpannerSecondaryIndex(relationTableSp, colName, newName)
-				relationTableSp = renameSpannerForeignkeyColumns(relationTableSp, colName, newName)
-				relationTableSp = renameSpannerForeignkeyReferColumns(relationTableSp, colName, newName)
-
-				renameToSpannerToSource(relationTable, colName, newName, Conv)
-				renameSpannerSchemaIssue(relationTable, colName, newName, Conv)
-
-				Conv.SpSchema[relationTable] = relationTableSp
-
-			}
-		}
+		reviewRenameForeignkeyTableSchema(Conv, sp, i, colName, newName)
 
 	}
 
 	// update interleave table relation
-	isParent, childSchema := IsParent(table)
+	isParent, parentSchemaTable := IsParent(table)
 
 	if isParent {
 
-		fmt.Println("yes", table, "is parent table")
-
-		childSchemaSp := Conv.SpSchema[childSchema]
-
-		columnId := childSchemaSp.ColDefs[colName].Id
-
-		fmt.Println("columnId :", columnId)
-
-		_, ok := childSchemaSp.ColDefs[colName]
-
-		if ok {
-			{
-				childSchemaSp = renameSpannerColNames(childSchemaSp, colName, newName)
-				childSchemaSp = renameSpannerColDefs(childSchemaSp, colName, newName)
-				childSchemaSp = renameSpannerPK(childSchemaSp, colName, newName)
-				childSchemaSp = renameSpannerSecondaryIndex(childSchemaSp, colName, newName)
-				childSchemaSp = renameSpannerForeignkeyColumns(childSchemaSp, colName, newName)
-				childSchemaSp = renameSpannerForeignkeyReferColumns(childSchemaSp, colName, newName)
-
-				renameToSpannerToSource(childSchema, colName, newName, Conv)
-				renameSpannerSchemaIssue(childSchema, colName, newName, Conv)
-
-				Conv.SpSchema[childSchema] = childSchemaSp
-
-				fmt.Println("childSchema :", childSchema)
-
-				//interleaveTableSchema = updatenameinterleaveTableSchema(interleaveTableSchema, childSchema, columnId, colName, newName)
-
-				interleaveTableSchema = renameinterleaveTableSchema(interleaveTableSchema, childSchema, columnId, colName, newName)
-
-			}
-		}
+		reviewRenameparentTableSchema(Conv, parentSchemaTable, interleaveTableSchema, colName, newName)
 	}
 
 	//10
-	isChild := Conv.SpSchema[table].Parent
+	childSchemaTable := Conv.SpSchema[table].Parent
 
-	if isChild != "" {
+	if childSchemaTable != "" {
 
-		childSchemaSp := Conv.SpSchema[isChild]
-
-		_, ok := childSchemaSp.ColDefs[colName]
-
-		columnId := childSchemaSp.ColDefs[colName].Id
-
-		fmt.Println("columnId :", columnId)
-
-		if ok {
-			{
-
-				childSchemaSp = renameSpannerColNames(childSchemaSp, colName, newName)
-				childSchemaSp = renameSpannerColDefs(childSchemaSp, colName, newName)
-				childSchemaSp = renameSpannerPK(childSchemaSp, colName, newName)
-				childSchemaSp = renameSpannerSecondaryIndex(childSchemaSp, colName, newName)
-				childSchemaSp = renameSpannerForeignkeyColumns(childSchemaSp, colName, newName)
-				childSchemaSp = renameSpannerForeignkeyReferColumns(childSchemaSp, colName, newName)
-
-				//todo
-				renameToSpannerToSource(isChild, colName, newName, Conv)
-
-				renameSpannerSchemaIssue(isChild, colName, newName, Conv)
-
-				//11
-				Conv.SpSchema[isChild] = childSchemaSp
-
-				{
-					fmt.Println("isChild :", isChild)
-
-					//	interleaveTableSchema = updatenameinterleaveTableSchema(interleaveTableSchema, isChild, columnId, colName, newName)
-
-					interleaveTableSchema = renameinterleaveTableSchema(interleaveTableSchema, isChild, columnId, colName, newName)
-				}
-
-			}
-		}
+		reviewRenamechildTableSchema(Conv, childSchemaTable, interleaveTableSchema, colName, newName)
 
 	}
 
@@ -166,71 +74,105 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 }
 
-func updatenameinterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, table string, columnId string, colName string, newName string) []InterleaveTableSchema {
+func reviewRenameForeignkeyTableSchema(Conv *internal.Conv, sp ddl.CreateTable, index int, colName string, newName string) {
 
-	fmt.Println("updatenameinterleaveTableSchema getting called")
+	fmt.Println("update foreignKey Table column names")
 	fmt.Println("")
 
-	index := isTablePresent(interleaveTableSchema, table)
+	relationTable := sp.Fks[index].ReferTable
 
-	if index == -1 {
+	relationTableSp := Conv.SpSchema[relationTable]
 
-		itc := InterleaveTableSchema{}
+	_, ok := relationTableSp.ColDefs[colName]
 
-		itc.Table = table
-		itc.InterleaveColumnChanges = []InterleaveColumn{}
-
+	if ok {
 		{
-			ic := InterleaveColumn{}
+			relationTableSp = renameSpannerColNames(relationTableSp, colName, newName)
+			relationTableSp = renameSpannerColDefs(relationTableSp, colName, newName)
+			relationTableSp = renameSpannerPK(relationTableSp, colName, newName)
+			relationTableSp = renameSpannerSecondaryIndex(relationTableSp, colName, newName)
+			relationTableSp = renameSpannerForeignkeyColumns(relationTableSp, colName, newName)
+			relationTableSp = renameSpannerForeignkeyReferColumns(relationTableSp, colName, newName)
 
-			ic.ColumnId = columnId
-			ic.ColumnName = colName
-			ic.UpdateColumnName = newName
+			renameToSpannerToSource(relationTable, colName, newName, Conv)
+			renameSpannerSchemaIssue(relationTable, colName, newName, Conv)
 
-			fmt.Println("this first time we are creating InterleaveTableSchema")
+			Conv.SpSchema[relationTable] = relationTableSp
 
-			fmt.Println("interleaveColumn : ", ic)
-			fmt.Println("")
-
-			itc.InterleaveColumnChanges = append(itc.InterleaveColumnChanges, ic)
-
-			interleaveTableSchema = append(interleaveTableSchema, itc)
 		}
-
-		return interleaveTableSchema
 	}
+}
 
-	interleaveTableSchema[index].InterleaveColumnChanges = getInterleaveColumn(interleaveTableSchema[index].InterleaveColumnChanges, columnId, colName, newName)
+func reviewRenameparentTableSchema(Conv *internal.Conv, parentSchemaTable string, interleaveTableSchema []InterleaveTableSchema, colName string, newName string) []InterleaveTableSchema {
+
+	childSchemaSp := Conv.SpSchema[parentSchemaTable]
+
+	columnId := childSchemaSp.ColDefs[colName].Id
+
+	fmt.Println("columnId :", columnId)
+
+	_, ok := childSchemaSp.ColDefs[colName]
+
+	if ok {
+		{
+			childSchemaSp = renameSpannerColNames(childSchemaSp, colName, newName)
+			childSchemaSp = renameSpannerColDefs(childSchemaSp, colName, newName)
+			childSchemaSp = renameSpannerPK(childSchemaSp, colName, newName)
+			childSchemaSp = renameSpannerSecondaryIndex(childSchemaSp, colName, newName)
+			childSchemaSp = renameSpannerForeignkeyColumns(childSchemaSp, colName, newName)
+			childSchemaSp = renameSpannerForeignkeyReferColumns(childSchemaSp, colName, newName)
+
+			renameToSpannerToSource(parentSchemaTable, colName, newName, Conv)
+			renameSpannerSchemaIssue(parentSchemaTable, colName, newName, Conv)
+
+			Conv.SpSchema[parentSchemaTable] = childSchemaSp
+
+			fmt.Println("childSchema :", parentSchemaTable)
+
+			interleaveTableSchema = renameinterleaveTableSchema(interleaveTableSchema, parentSchemaTable, columnId, colName, newName)
+
+		}
+	}
 
 	return interleaveTableSchema
 }
 
-func getInterleaveColumn(interleaveColumn []InterleaveColumn, columnId string, colName string, newName string) []InterleaveColumn {
+func reviewRenamechildTableSchema(Conv *internal.Conv, childSchemaTable string, interleaveTableSchema []InterleaveTableSchema, colName string, newName string) {
 
-	fmt.Println("getInterleaveColumn getting callded")
+	childSchemaSp := Conv.SpSchema[childSchemaTable]
 
-	index := isColumnPresent(interleaveColumn, columnId)
+	_, ok := childSchemaSp.ColDefs[colName]
 
-	if index == -1 {
+	columnId := childSchemaSp.ColDefs[colName].Id
 
-		ic := InterleaveColumn{}
-		ic.ColumnId = columnId
-		ic.ColumnName = colName
-		ic.UpdateColumnName = newName
+	fmt.Println("columnId :", columnId)
 
-		fmt.Println("interleaveColumn : ", ic)
+	if ok {
+		{
 
-		interleaveColumn = append(interleaveColumn, ic)
+			childSchemaSp = renameSpannerColNames(childSchemaSp, colName, newName)
+			childSchemaSp = renameSpannerColDefs(childSchemaSp, colName, newName)
+			childSchemaSp = renameSpannerPK(childSchemaSp, colName, newName)
+			childSchemaSp = renameSpannerSecondaryIndex(childSchemaSp, colName, newName)
+			childSchemaSp = renameSpannerForeignkeyColumns(childSchemaSp, colName, newName)
+			childSchemaSp = renameSpannerForeignkeyReferColumns(childSchemaSp, colName, newName)
 
-		return interleaveColumn
-	} else {
-		interleaveColumn[index].ColumnId = columnId
-		interleaveColumn[index].ColumnName = colName
-		interleaveColumn[index].UpdateColumnName = newName
+			//todo
+			renameToSpannerToSource(childSchemaTable, colName, newName, Conv)
 
+			renameSpannerSchemaIssue(childSchemaTable, colName, newName, Conv)
+
+			//11
+			Conv.SpSchema[childSchemaTable] = childSchemaSp
+
+			{
+				fmt.Println("isChild :", childSchemaTable)
+
+				interleaveTableSchema = renameinterleaveTableSchema(interleaveTableSchema, childSchemaTable, columnId, colName, newName)
+			}
+
+		}
 	}
-
-	return interleaveColumn
 }
 
 func renameSpannerColNames(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {

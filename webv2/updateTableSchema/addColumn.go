@@ -56,12 +56,6 @@ func addColumn(table string, colName string, Conv *internal.Conv) {
 	Conv.ToSpanner[srcTableName].Cols[srcColName] = colName
 	Conv.ToSource[table].Cols[colName] = srcColName
 
-	//	fmt.Println("Conv.SpSchema[table] : ", Conv.SpSchema[table])
-
-	//fmt.Println("Conv.ToSpanner : ", Conv.ToSpanner)
-
-	//fmt.Println("Conv.ToSource : ", Conv.ToSource)
-
 }
 
 func IsColNamesPresent(s []string, str string) bool {
