@@ -21,9 +21,12 @@
       </svg>
     </div>
     <div class="inner-text">
-      {{
-        'To view and modify an object details, click on the object name on the Spanner draft panel.'
-      }}
+      <span *ngIf="currentDatabase == 'spanner'">
+        To view and modify an object details, click on the object name on the Spanner draft panel.
+      </span>
+      <span *ngIf="currentDatabase == 'source'">
+        To view an object details, click on the object name on the {{ srcDbName }} panel.
+      </span>
     </div>
   </div>
 </div>

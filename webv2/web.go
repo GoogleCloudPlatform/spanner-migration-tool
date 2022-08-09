@@ -54,6 +54,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
 
+	index "github.com/cloudspannerecosystem/harbourbridge/webv2/index"
 	primarykey "github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
 
 	uniqueid "github.com/cloudspannerecosystem/harbourbridge/webv2/uniqueid"
@@ -179,6 +180,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv = conv
 
 	primarykey.DetectHotspot()
+	index.IndexSuggestion()
 
 	sessionMetadata := session.SessionMetadata{
 		SessionName:  "NewSession",
@@ -245,6 +247,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	uniqueid.AssignUniqueId(conv)
 	sessionState.Conv = conv
 	primarykey.DetectHotspot()
+	index.IndexSuggestion()
 
 	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = dc.Driver
@@ -302,6 +305,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv = conv
 
 	primarykey.DetectHotspot()
+	index.IndexSuggestion()
 
 	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = s.Driver
@@ -613,6 +617,8 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Table name is empty"), http.StatusBadRequest)
 	}
 	tableInterleaveStatus := parentTableHelper(table, update)
+
+	index.IndexSuggestion()
 	helpers.UpdateSessionFile()
 	w.WriteHeader(http.StatusOK)
 
@@ -649,14 +655,13 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 			if checkPrimaryKeyPrefix(table, refTable, fk, tableInterleaveStatus) {
 
 				tableInterleaveStatus.Parent = refTable
+				sp := sessionState.Conv.SpSchema[table]
 
 				if update {
-					sp := sessionState.Conv.SpSchema[table]
 					sp.Parent = refTable
 					sp.Fks = removeFk(sp.Fks, i)
-					sessionState.Conv.SpSchema[table] = sp
 				}
-
+				sessionState.Conv.SpSchema[table] = sp
 				break
 			}
 		}
@@ -946,6 +951,7 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 
 	sp := sessionState.Conv.SpSchema[table]
 
+	index.CheckIndexSuggestion(newIndexes, sp)
 	for i := 0; i < len(newIndexes); i++ {
 		newIndexes[i].Id = uniqueid.GenerateIndexesId()
 	}
@@ -981,9 +987,11 @@ func updateIndexes(w http.ResponseWriter, r *http.Request) {
 
 	st := sessionState.Conv.SrcSchema[table]
 
-	for i, index := range sp.Indexes {
+	for i, ind := range sp.Indexes {
 
-		if index.Table == newIndexes[0].Table && index.Name == newIndexes[0].Name {
+		if ind.Table == newIndexes[0].Table && ind.Name == newIndexes[0].Name {
+
+			index.RemoveIndexIssues(table, sp.Indexes[i])
 
 			sp.Indexes[i].Keys = newIndexes[0].Keys
 			sp.Indexes[i].Name = newIndexes[0].Name
@@ -1105,6 +1113,9 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("No secondary index found at position %d", position), http.StatusBadRequest)
 		return
 	}
+
+	index.RemoveIndexIssues(table, sp.Indexes[position])
+
 	sp.Indexes = removeSecondaryIndex(sp.Indexes, position)
 	sessionState.Conv.SpSchema[table] = sp
 	helpers.UpdateSessionFile()

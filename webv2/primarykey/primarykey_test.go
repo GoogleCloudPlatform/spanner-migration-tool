@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	"github.com/stretchr/testify/assert"
@@ -45,6 +46,9 @@ func TestUpdatePrimaryKey(t *testing.T) {
 				Pks: []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}},
 				Id:  "1",
 			}},
+		Audit: internal.Audit{
+			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+		},
 	}
 
 	sessionState.Conv = c
@@ -112,6 +116,9 @@ func TestAddPrimaryKey(t *testing.T) {
 				Pks: []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}},
 				Id:  "1",
 			}},
+		Audit: internal.Audit{
+			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+		},
 	}
 
 	sessionState.Conv = c
@@ -183,6 +190,9 @@ func TestRemovePrimaryKey(t *testing.T) {
 				Pks: []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}, {Col: "actor_id", Order: 2, Desc: true}, {Col: "last_update", Order: 3, Desc: true}},
 				Id:  "1",
 			}},
+		Audit: internal.Audit{
+			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+		},
 	}
 
 	sessionState.Conv = c
@@ -253,6 +263,9 @@ func TestPrimarykey(t *testing.T) {
 				Pks: []ddl.IndexKey{{Col: "film_id", Order: 1, Desc: true}, {Col: "actor_id", Order: 2, Desc: true}},
 				Id:  "1",
 			}},
+		Audit: internal.Audit{
+			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+		},
 	}
 
 	sessionState.Conv = c

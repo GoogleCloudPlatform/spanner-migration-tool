@@ -40,6 +40,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   objectExplorerInitiallyRender: boolean = false
   srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
   conversionRatePercentages: ConversionRate = { good: 0, ok: 0, bad: 0 }
+  currentDatabase: string = 'spanner'
   constructor(
     private data: DataService,
     private conversion: ConversionService,
@@ -167,6 +168,10 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     } else {
       this.currentObject = null
     }
+  }
+
+  changeCurrentDatabase(database: string) {
+    this.currentDatabase = database
   }
 
   updateIssuesLabel(count: number) {

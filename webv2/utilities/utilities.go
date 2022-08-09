@@ -164,12 +164,15 @@ func IsColumnPresent(columns []string, col string) string {
 // RemoveSchemaIssue removes issue from the given list.
 func RemoveSchemaIssue(schemaissue []internal.SchemaIssue, issue internal.SchemaIssue) []internal.SchemaIssue {
 
-	for i := 0; i < len(schemaissue); i++ {
-		if schemaissue[i] == issue {
-			schemaissue = append(schemaissue[:i], schemaissue[i+1:]...)
+	k := 0
+	for i := 0; i < len(schemaissue); {
+		if schemaissue[i] != issue {
+			schemaissue[k] = schemaissue[i]
+			k++
 		}
+		i++
 	}
-	return schemaissue
+	return schemaissue[0:k]
 }
 
 // IsSchemaIssuePresent checks if issue is present in the given schemaissue list.
