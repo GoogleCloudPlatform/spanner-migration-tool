@@ -5,11 +5,17 @@ import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
 import { ISessionSummary } from 'src/app/model/conv'
+<<<<<<< HEAD
 import IMigrationDetails, { IProgress } from 'src/app/model/migrate'
 import { InputType, MigrationDetails, MigrationModes, MigrationTypes, SourceDbNames, TargetDetails } from 'src/app/app.constants'
 import { interval, Subscription } from 'rxjs'
 import { DataService } from 'src/app/services/data/data.service'
 import { ThisReceiver } from '@angular/compiler'
+=======
+import IMigrationDetails from 'src/app/model/migrate'
+import { InputType, MigrationModes, SourceDbNames } from 'src/app/app.constants'
+import {interval, Observable, Subscription} from 'rxjs'
+>>>>>>> 40a1778 (added progress and error)
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
@@ -180,6 +186,10 @@ export class PrepareMigrationComponent implements OnInit {
         this.clearLocalStorage()
       },
     })
+    this.subscription= interval(5000).subscribe((x =>{
+      console.log('called');
+  }));
+
   }
 
   subscribeMigrationProgress() {
