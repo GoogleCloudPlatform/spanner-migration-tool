@@ -120,7 +120,7 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 				fmt.Println("before UpdatecolNameType")
 
-				UpdatecolNameType(v.ToType, table, colName, Conv, w)
+				UpdateColNameType(v.ToType, table, colName, Conv, w)
 
 				fmt.Println("after UpdatecolNameType")
 
