@@ -20,8 +20,18 @@ export class ConversionService {
     let spannerTableNames = Object.keys(conv.SpSchema).filter((name: string) =>
       name.toLocaleLowerCase().includes(searchText.toLocaleLowerCase())
     )
+    let srcTableNames = Object.keys(conv.SrcSchema).filter((name: string) =>
+      name.toLocaleLowerCase().replace('.', '_').includes(searchText.toLocaleLowerCase())
+    )
+
+    let deletedTableNames = srcTableNames.filter((srcTableName: string) => {
+      if (spannerTableNames.indexOf(srcTableName) > -1) {
+        return false
+      }
+      return true
+    })
     let parentNode: ISchemaObjectNode = {
-      name: `Tables (${spannerTableNames.length})`,
+      name: `Tables (${srcTableNames.length})`,
       type: ObjectExplorerNodeType.Tables,
       parent: '',
       pos: -1,
@@ -65,6 +75,18 @@ export class ConversionService {
       parentNode.children?.sort((a, b) => (b.name > a.name ? 1 : a.name > b.name ? -1 : 0))
     }
 
+    deletedTableNames.forEach((tableName: string) => {
+      parentNode.children?.push({
+        name: tableName,
+        status: 'GRAY',
+        type: ObjectExplorerNodeType.Table,
+        parent: '',
+        pos: -1,
+        isSpannerNode: true,
+        children: [],
+        isDeleted: true,
+      })
+    })
     return [
       {
         name: conv.DatabaseName,
@@ -95,10 +117,10 @@ export class ConversionService {
       isSpannerNode: false,
       children: srcTableNames.map((name: string) => {
         let srcTable = conv.SrcSchema[name]
-        let spname = conv.ToSpanner[name].Name
+        let spname = conv.ToSpanner[name] ? conv.ToSpanner[name].Name : ''
         return {
           name: name,
-          status: conversionRates[spname],
+          status: conversionRates[spname] ? conversionRates[spname] : 'NONE',
           type: ObjectExplorerNodeType.Table,
           parent: '',
           pos: -1,
@@ -146,7 +168,9 @@ export class ConversionService {
   }
 
   getColumnMapping(tableName: string, data: IConv): IColumnTabData[] {
-    let srcTableName = data.ToSource[tableName].Name
+    //Todo : Need to differentiate between src and spanner table name in argument
+    // let srcTableName = data.ToSource[tableName]?.Name
+    let srcTableName = tableName
     const res: IColumnTabData[] = data.SrcSchema[srcTableName].ColNames.map(
       (name: string, i: number) => {
         let spColName = data.ToSpanner[srcTableName].Cols[name]
@@ -198,15 +222,21 @@ export class ConversionService {
   }
 
   getFkMapping(tableName: string, data: IConv): IFkTabData[] {
-    let srcTableName: string = data.ToSource[tableName].Name
-    let spFks = data.SpSchema[tableName].Fks
-    if (!spFks) {
+    //Todo : Need to differentiate between src and spanner table name in argument
+    // let srcTableName: string = data.ToSource[tableName].Name
+    let srcTableName = tableName
+    let spFks =
+      data.SpSchema[tableName] && data.SpSchema[tableName].Fks ? data.SpSchema[tableName].Fks : []
+    let srcFks = data.SrcSchema[srcTableName]?.ForeignKeys
+
+    if (!srcFks) {
       return []
     }
     let spFklength: number = spFks.length
     return data.SrcSchema[srcTableName].ForeignKeys.map((item: ISpannerForeignKey, i: number) => {
       spFklength = spFklength - 1
       if (
+        data.SpSchema[tableName] &&
         data.SpSchema[tableName].Fks.length != data.SrcSchema[srcTableName].ForeignKeys.length &&
         spFklength < 0
       ) {
@@ -222,13 +252,15 @@ export class ConversionService {
         }
       } else {
         return {
-          spName: data.SpSchema[tableName].Fks[i].Name,
+          spName: data.SpSchema[tableName] ? data.SpSchema[tableName].Fks[i].Name : '',
           srcName: data.SrcSchema[srcTableName].ForeignKeys[i].Name,
-          spColumns: data.SpSchema[tableName].Fks[i].Columns,
+          spColumns: data.SpSchema[tableName] ? data.SpSchema[tableName].Fks[i].Columns : [],
           srcColumns: data.SrcSchema[srcTableName].ForeignKeys[i].Columns,
-          spReferTable: data.SpSchema[tableName].Fks[i].ReferTable,
+          spReferTable: data.SpSchema[tableName] ? data.SpSchema[tableName].Fks[i].ReferTable : '',
           srcReferTable: data.SrcSchema[srcTableName].ForeignKeys[i].ReferTable,
-          spReferColumns: data.SpSchema[tableName].Fks[i].ReferColumns,
+          spReferColumns: data.SpSchema[tableName]
+            ? data.SpSchema[tableName].Fks[i].ReferColumns
+            : [],
           srcReferColumns: data.SrcSchema[srcTableName].ForeignKeys[i].ReferColumns,
         }
       }

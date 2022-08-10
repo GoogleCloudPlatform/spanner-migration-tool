@@ -734,6 +734,39 @@ type DropDetail struct {
 	Name string `json:"Name"`
 }
 
+func dropTable(w http.ResponseWriter, r *http.Request) {
+	table := r.FormValue("table")
+	sessionState := session.GetSessionState()
+	if sessionState.Conv == nil || sessionState.Driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
+		return
+	}
+	if table == "" {
+		http.Error(w, fmt.Sprintf("Table name is empty"), http.StatusBadRequest)
+	}
+	spSchema := sessionState.Conv.SpSchema
+	toSource := sessionState.Conv.ToSource
+	toSpanner := sessionState.Conv.ToSpanner
+	issues := sessionState.Conv.Issues
+
+	delete(spSchema, table)
+	delete(toSource, table)
+	delete(toSpanner, table)
+	delete(issues, table)
+
+	sessionState.Conv.SpSchema = spSchema
+	sessionState.Conv.ToSource = toSource
+	sessionState.Conv.ToSpanner = toSource
+	sessionState.Conv.Issues = issues
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+}
+
 func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
 	reqBody, err := ioutil.ReadAll(r.Body)

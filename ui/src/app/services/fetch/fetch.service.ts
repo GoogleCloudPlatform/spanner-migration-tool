@@ -63,6 +63,10 @@ export class FetchService {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/typemap/table?table=${tableName}`, data)
   }
 
+  dropTable(tableName: string) {
+    return this.http.put<HttpResponse<IConv>>(`${this.url}/drop/table?table=${tableName}`, {})
+  }
+
   updatePk(pkObj: IPrimaryKey) {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/primaryKey`, pkObj)
   }

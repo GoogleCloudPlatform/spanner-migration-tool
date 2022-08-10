@@ -77,10 +77,24 @@
         color="primary"
         class="icon drop"
         (click)="dropTable()"
-        *ngIf="currentObject!.isSpannerNode && currentObject!.type !== 'indexName'"
+        *ngIf="
+          currentObject!.isSpannerNode &&
+          currentObject!.type !== 'indexName' &&
+          !currentObject!.isDeleted
+        "
       >
         <mat-icon>delete</mat-icon>
         <span>DROP TABLE</span>
+      </button>
+      <button
+        mat-button
+        color="primary"
+        class="icon drop"
+        (click)="restoreSpannerTable()"
+        *ngIf="currentObject!.isSpannerNode && currentObject!.isDeleted"
+      >
+        <mat-icon>undo</mat-icon>
+        <span> RESTORE TABLE</span>
       </button>
     </h3>
     <div class="interleaved-title" *ngIf="interleaveParentName">
@@ -106,7 +120,7 @@
             <th mat-header-cell *matHeaderCellDef class="db_name" colspan="6">
               <div class="spanner_edit-button">
                 <span>Spanner</span>
-                <div *ngIf="!isEditMode">
+                <div *ngIf="!isEditMode && !currentObject.isDeleted">
                   <button
                     mat-stroked-button
                     color="primary"
@@ -313,7 +327,7 @@
             <th mat-header-cell *matHeaderCellDef class="db_name" colspan="5">
               <div class="spanner_edit-button">
                 <span>Spanner</span>
-                <div *ngIf="!isPkEditMode">
+                <div *ngIf="!isPkEditMode && !currentObject.isDeleted">
                   <button
                     mat-stroked-button
                     color="primary"
@@ -520,7 +534,14 @@
             <th mat-header-cell *matHeaderCellDef class="db_name" colspan="5">
               <div class="spanner_edit-button">
                 <span>Spanner</span>
-                <div *ngIf="!isFkEditMode && fkDataSource.length > 0 && !interleaveParentName">
+                <div
+                  *ngIf="
+                    !isFkEditMode &&
+                    fkDataSource.length > 0 &&
+                    !interleaveParentName &&
+                    !currentObject.isDeleted
+                  "
+                >
                   <button mat-stroked-button color="primary" (click)="toggleFkEdit()">
                     <mat-icon class="edit-icon">edit</mat-icon>
                     EDIT
@@ -695,7 +716,7 @@
       </div>
     </mat-tab>
 
-    <mat-tab label="SQL">
+    <mat-tab label="SQL" *ngIf="currentObject!.isSpannerNode && !currentObject!.isDeleted">
       <div class="ddl_container">
         <pre><code>{{ddlStmts[currentObject!.name]}}</code></pre>
       </div>

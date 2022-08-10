@@ -63,6 +63,15 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
       const indexAddedOrRemoved = this.isIndexAddedOrRemoved(data)
+      if (
+        data &&
+        this.conv &&
+        Object.keys(data?.SpSchema).length != Object.keys(this.conv?.SpSchema).length
+      ) {
+        this.conv = data
+        this.reRenderObjectExplorerSpanner()
+        this.reRenderObjectExplorerSrc()
+      }
       this.conv = data
       if (indexAddedOrRemoved && this.conversionRates) this.reRenderObjectExplorerSpanner()
       if (!this.objectExplorerInitiallyRender && this.conversionRates) {

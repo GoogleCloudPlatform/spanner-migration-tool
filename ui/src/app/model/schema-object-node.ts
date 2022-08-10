@@ -8,6 +8,7 @@ export default interface ISchemaObjectNode {
   parent: string
   pos: number
   isSpannerNode: boolean
+  isDeleted?: boolean
 }
 
 export interface FlatNode {
@@ -19,4 +20,5 @@ export interface FlatNode {
   pos: number
   level: number
   isSpannerNode: boolean
+  isDeleted: boolean
 }

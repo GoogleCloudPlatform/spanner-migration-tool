@@ -20,8 +20,8 @@ export class DropIndexOrTableDialogComponent implements OnInit {
       (dialogRef.disableClose = true)
   }
 
-  deleteIndex() {
-    this.dialogRef.close('delete')
+  delete() {
+    this.dialogRef.close(this.data.type)
   }
 
   ngOnInit(): void {}
