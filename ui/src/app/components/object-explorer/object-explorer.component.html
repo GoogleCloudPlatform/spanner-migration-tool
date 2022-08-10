@@ -1,5 +1,9 @@
 <div class="container">
-  <mat-tab-group [ngClass]="[isLeftColumnCollapse ? 'hidden' : 'display']" selectedIndex="1">
+  <mat-tab-group
+    [ngClass]="[isLeftColumnCollapse ? 'hidden' : 'display']"
+    selectedIndex="1"
+    (selectedTabChange)="onTabChanged()"
+  >
     <mat-tab [label]="srcDbName.toUpperCase()">
       <div class="filter-wrapper">
         <div class="left">

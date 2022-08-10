@@ -34,13 +34,13 @@ func IndexSuggestion() {
 // Helper method for checking Index Suggestion.
 func CheckIndexSuggestion(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 
-	redundantIndex(index, spannerTable)
-	interleaveIndex(index, spannerTable)
+	checkRedundantIndex(index, spannerTable)
+	checkInterleaveIndex(index, spannerTable)
 }
 
 // redundantIndex check for redundant Index.
 // If present adds Redundant as an issue in Issues.
-func redundantIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
+func checkRedundantIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 
 	var primaryKeyFirstColumn string
 	pks := spannerTable.Pks
@@ -71,7 +71,7 @@ func redundantIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 
 // interleaveIndex suggests if an index can be converted to interleave.
 // If possible it gets added as a suggestion.
-func interleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
+func checkInterleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 
 	// Suggestion gets added only if the table can be interleaved.
 	isInterleavable := spannerTable.Parent != ""
@@ -138,8 +138,9 @@ func interleaveIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 	}
 }
 
-// RemoveIndexIssues remove all  index suggestion from given list.
-// RemoveSchemaIssues is used when we are  removing index.
+// RemoveIndexIssues removes the issues in a column which is part of the passed Index.
+// This is called when we drop an index or make changes in the primarykey of the current table.
+// Editing the primary key can affect the issues in an index (eg. Changing pk order affects Redundant index issue).
 func RemoveIndexIssues(table string, Index ddl.CreateIndex) {
 
 	for i := 0; i < len(Index.Keys); i++ {
@@ -149,11 +150,13 @@ func RemoveIndexIssues(table string, Index ddl.CreateIndex) {
 		{
 			schemaissue := []internal.SchemaIssue{}
 			sessionState := session.GetSessionState()
-			schemaissue = sessionState.Conv.Issues[table][column]
+			if sessionState.Conv.Issues != nil {
+				schemaissue = sessionState.Conv.Issues[table][column]
+			}
 
 			if len(schemaissue) > 0 {
 
-				schemaissue = removeIssue(schemaissue)
+				schemaissue = removeColumnIssue(schemaissue)
 
 				if sessionState.Conv.Issues[table][column] == nil {
 
@@ -174,8 +177,7 @@ func RemoveIndexIssues(table string, Index ddl.CreateIndex) {
 	}
 }
 
-// RemoveSchemaIssue removes issue from the schemaissue list.
-func removeIssue(schemaissue []internal.SchemaIssue) []internal.SchemaIssue {
+func removeColumnIssue(schemaissue []internal.SchemaIssue) []internal.SchemaIssue {
 
 	if utilities.IsSchemaIssuePresent(schemaissue, internal.RedundantIndex) {
 		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.RedundantIndex)

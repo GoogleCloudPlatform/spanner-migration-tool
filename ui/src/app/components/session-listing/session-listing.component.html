@@ -11,7 +11,8 @@
           <div class="table-header-container">
             <span>Session Name</span>
             <button mat-icon-button (click)="toggleFilterDisplay('sessionName')">
-              <mat-icon>filter_list</mat-icon>
+              <mat-icon *ngIf="displayFilter['sessionName']">keyboard_arrow_up</mat-icon>
+              <mat-icon *ngIf="!displayFilter['sessionName']">filter_list</mat-icon>
             </button>
           </div>
           <mat-form-field
@@ -36,7 +37,8 @@
           <div class="table-header-container">
             <span>Editor</span>
             <button mat-icon-button (click)="toggleFilterDisplay('editorName')">
-              <mat-icon>filter_list</mat-icon>
+              <mat-icon *ngIf="displayFilter['editorName']">keyboard_arrow_up</mat-icon>
+              <mat-icon *ngIf="!displayFilter['editorName']">filter_list</mat-icon>
             </button>
           </div>
           <mat-form-field *ngIf="displayFilter.editorName" appearance="standard">
@@ -57,7 +59,8 @@
           <div class="table-header-container">
             <span>Database Type</span>
             <button mat-icon-button (click)="toggleFilterDisplay('databaseType')">
-              <mat-icon>filter_list</mat-icon>
+              <mat-icon *ngIf="displayFilter['databaseType']">keyboard_arrow_up</mat-icon>
+              <mat-icon *ngIf="!displayFilter['databaseType']">filter_list</mat-icon>
             </button>
           </div>
           <mat-form-field *ngIf="displayFilter.databaseType" appearance="standard">
@@ -78,7 +81,8 @@
           <div class="table-header-container">
             <span>Database Name</span>
             <button mat-icon-button (click)="toggleFilterDisplay('databaseName')">
-              <mat-icon>filter_list</mat-icon>
+              <mat-icon *ngIf="displayFilter['databaseName']">keyboard_arrow_up</mat-icon>
+              <mat-icon *ngIf="!displayFilter['databaseName']">filter_list</mat-icon>
             </button>
           </div>
           <mat-form-field *ngIf="displayFilter.databaseName" appearance="standard">

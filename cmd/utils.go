@@ -26,7 +26,10 @@ import (
 )
 
 // CreateDatabaseClient creates new database client and admin client.
-func CreateDatabaseClient(ctx context.Context, targetProfile profiles.TargetProfile, driver string, ioHelper utils.IOStreams) (*database.DatabaseAdminClient, *sp.Client, string, error) {
+func CreateDatabaseClient(ctx context.Context, targetProfile profiles.TargetProfile, driver, dbName string, ioHelper utils.IOStreams) (*database.DatabaseAdminClient, *sp.Client, string, error) {
+	if targetProfile.Conn.Sp.Dbname == "" {
+		targetProfile.Conn.Sp.Dbname = dbName
+	}
 	project, instance, dbName, err := targetProfile.GetResourceIds(ctx, time.Now(), driver, ioHelper.Out)
 	if err != nil {
 		return nil, nil, "", err

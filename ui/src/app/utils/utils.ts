@@ -4,7 +4,7 @@ export function extractSourceDbName(srcDbName: string) {
   if (srcDbName == 'mysql' || srcDbName == 'mysqldump') {
     return SourceDbNames.MySQL
   }
-  if (srcDbName === 'postgres' || srcDbName === 'pgdump') {
+  if (srcDbName === 'postgres' || srcDbName === 'pgdump' || srcDbName === 'pg_dump') {
     return SourceDbNames.Postgres
   }
   if (srcDbName === 'oracle') {
