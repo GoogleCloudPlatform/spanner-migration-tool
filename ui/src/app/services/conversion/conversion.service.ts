@@ -168,12 +168,12 @@ export class ConversionService {
   }
 
   getColumnMapping(tableName: string, data: IConv): IColumnTabData[] {
-    let srcTableName = data.ToSource[tableName].Name
+    let srcTableName = tableName
     const res: IColumnTabData[] = data.SrcSchema[srcTableName].ColNames.map(
       (name: string, i: number) => {
-        let spColName = data.ToSpanner[srcTableName].Cols[name]
+        let spColName = data.ToSpanner[srcTableName]?.Cols[name]
         let srcPks = data.SrcSchema[srcTableName].PrimaryKeys
-        let spannerColDef = data.SpSchema[tableName].ColDefs[spColName]
+        let spannerColDef = data.SpSchema[tableName]?.ColDefs[spColName]
         return {
           spOrder: spannerColDef ? i + 1 : '',
           srcOrder: i + 1,
@@ -190,7 +190,7 @@ export class ConversionService {
         }
       }
     )
-    data.SpSchema[srcTableName].ColNames.forEach((name: string, i: number) => {
+    data.SpSchema[srcTableName]?.ColNames.forEach((name: string, i: number) => {
       if (data.SrcSchema[srcTableName].ColNames.indexOf(name) < 0) {
         let spannerColDef = data.SpSchema[tableName].ColDefs[name]
         res.push({
