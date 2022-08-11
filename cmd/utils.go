@@ -90,7 +90,7 @@ func PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, sou
 }
 
 // MigrateData creates database and populates data in it.
-func MigrateData(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile, dbName string, ioHelper *utils.IOStreams, writeLimit int64, conv *internal.Conv, skipForeignKeys, schemaOnly, dataOnly bool) (*writer.BatchWriter, error) {
+func MigrateDatabase(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile, dbName string, ioHelper *utils.IOStreams, cmd interface{}, conv *internal.Conv) (*writer.BatchWriter, error) {
 	var bw *writer.BatchWriter
 	adminClient, client, dbURI, err := CreateDatabaseClient(ctx, targetProfile, sourceProfile.Driver, dbName, *ioHelper)
 	if err != nil {
@@ -99,29 +99,46 @@ func MigrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 	}
 	defer adminClient.Close()
 	defer client.Close()
-	if !sourceProfile.UseTargetSchema() && dataOnly {
-		err = validateExistingDb(ctx, conv.TargetDb, dbURI, adminClient, client, conv)
-		if err != nil {
-			err = fmt.Errorf("error while validating existing database: %v", err)
-			return nil, err
-		}
-	}
-	if !dataOnly {
+	fmt.Println("Reaching here 1")
+	switch v := cmd.(type) {
+	case SchemaCmd:
+		fmt.Println("Reaching here")
 		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
 		if err != nil {
 			err = fmt.Errorf("can't create/update database: %v", err)
 			return nil, err
 		}
-	}
-
-	if !schemaOnly {
-		bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, writeLimit)
+	case DataCmd:
+		if !sourceProfile.UseTargetSchema() {
+			err = validateExistingDb(ctx, conv.TargetDb, dbURI, adminClient, client, conv)
+			if err != nil {
+				err = fmt.Errorf("error while validating existing database: %v", err)
+				return nil, err
+			}
+		}
+		bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, v.WriteLimit)
 		if err != nil {
 			err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 			return nil, err
 		}
-
-		if !skipForeignKeys {
+		if !v.SkipForeignKeys {
+			if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
+				err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
+				return bw, err
+			}
+		}
+	case SchemaAndDataCmd:
+		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
+		if err != nil {
+			err = fmt.Errorf("can't create/update database: %v", err)
+			return nil, err
+		}
+		bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, v.WriteLimit)
+		if err != nil {
+			err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
+			return nil, err
+		}
+		if !v.SkipForeignKeys {
 			if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
 				err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
 				return bw, err

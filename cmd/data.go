@@ -44,10 +44,10 @@ type DataCmd struct {
 	targetProfile   string
 	sessionJSON     string
 	filePrefix      string // TODO: move filePrefix to global flags
-	writeLimit      int64
+	WriteLimit      int64
 	dryRun          bool
 	logLevel        string
-	skipForeignKeys bool
+	SkipForeignKeys bool
 }
 
 // Name returns the name of operation.
@@ -79,10 +79,10 @@ func (cmd *DataCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.target, "target", "Spanner", "Specifies the target DB, defaults to Spanner (accepted values: `Spanner`)")
 	f.StringVar(&cmd.targetProfile, "target-profile", "", "Flag for specifying connection profile for target database e.g., \"dialect=postgresql\"")
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
-	f.Int64Var(&cmd.writeLimit, "write-limit", DefaultWritersLimit, "Write limit for writes to spanner")
+	f.Int64Var(&cmd.WriteLimit, "write-limit", DefaultWritersLimit, "Write limit for writes to spanner")
 	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 	f.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to INFO")
-	f.BoolVar(&cmd.skipForeignKeys, "skip-foreign-keys", false, "Skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
+	f.BoolVar(&cmd.SkipForeignKeys, "skip-foreign-keys", false, "Skip creating foreign keys after data migration is complete (ddl statements for foreign keys can still be found in the downloaded schema.ddl.txt file and the same can be applied separately)")
 }
 
 func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -132,7 +132,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	)
 	if !cmd.dryRun {
 		now := time.Now()
-		bw, err = MigrateData(ctx, targetProfile, sourceProfile, dbName, &ioHelper, cmd.writeLimit, conv, cmd.skipForeignKeys, false, true)
+		bw, err = MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, cmd, conv)
 		if err != nil {
 			err = fmt.Errorf("can't finish data migration for db %s: %v", dbName, err)
 			return subcommands.ExitFailure
@@ -140,7 +140,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		banner = utils.GetBanner(now, dbURI)
 	} else {
 		conv.Audit.DryRun = true
-		bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, nil, conv, true, cmd.writeLimit)
+		bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, nil, conv, true, cmd.WriteLimit)
 		if err != nil {
 			err = fmt.Errorf("can't finish data conversion for db %s: %v", dbName, err)
 			return subcommands.ExitFailure

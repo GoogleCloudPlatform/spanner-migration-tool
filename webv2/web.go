@@ -1030,18 +1030,14 @@ func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 func migrate(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("request started", "method", r.Method, "path", r.URL.Path)
-
 	reqBody, err := ioutil.ReadAll(r.Body)
-
 	if err != nil {
 		log.Println("request's body Read Error")
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
 	}
 
 	details := migrationDetails{}
-
 	err = json.Unmarshal(reqBody, &details)
-
 	if err != nil {
 		log.Println("request's Body parse error")
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
@@ -1050,9 +1046,40 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 
 	sessionState := session.GetSessionState()
 	ctx := context.Background()
+	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
+	if err != nil {
+		log.Println("can't get source and target profile")
+		http.Error(w, fmt.Sprintf("Can't get source and target profiles: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if details.MigrationMode == utilities.SCHEMA_ONLY {
+		_, err = cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, cmd.SchemaCmd{}, sessionState.Conv)
+	} else if details.MigrationMode == utilities.DATA_ONLY {
+		dataCmd := &cmd.DataCmd{
+			SkipForeignKeys: false,
+			WriteLimit:      cmd.DefaultWritersLimit,
+		}
+		_, err = cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, dataCmd, sessionState.Conv)
+	} else {
+		schemaAndDataCmd := &cmd.SchemaAndDataCmd{
+			SkipForeignKeys: false,
+			WriteLimit:      cmd.DefaultWritersLimit,
+		}
+		_, err = cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, schemaAndDataCmd, sessionState.Conv)
+	}
+	if err != nil {
+		log.Println("can't finish database migration")
+		http.Error(w, fmt.Sprintf("Can't finish database migration: %v", err), http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	log.Println("migration completed", "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
+}
+
+func getSourceAndTargetProfiles(sessionState *session.SessionState, details migrationDetails) (profiles.SourceProfile, profiles.TargetProfile, utils.IOStreams, string, error) {
 	var (
-		sourceProfileString  string
-		schemaOnly, dataOnly bool
+		sourceProfileString string
 	)
 	sourceDBConnectionDetails := sessionState.SourceDBConnDetails
 	if sourceDBConnectionDetails.ConnectionType == utilities.DUMP_MODE {
@@ -1069,31 +1096,15 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	}
 	source, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Error while getting source database: %v", err), http.StatusBadRequest)
-		return
+		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while getting source database: %v", err)
 	}
 	sourceProfile, targetProfile, ioHelper, dbName, err := cmd.PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, source)
 	if err != nil && sourceDBConnectionDetails.ConnectionType != utilities.SESSION_FILE_MODE {
-		log.Println("error while preparing prerequisites for migration")
-		http.Error(w, fmt.Sprintf("Error while preparing prerequisites for migration: %v", err), http.StatusBadRequest)
-		return
+		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 	}
 	sourceProfile.Driver = sessionState.Driver
 	targetProfile.TargetDb = targetProfile.ToLegacyTargetDb()
-	if details.MigrationMode == utilities.SCHEMA_ONLY {
-		schemaOnly = true
-
-	} else if details.MigrationMode == utilities.DATA_ONLY {
-		dataOnly = true
-	}
-	_, err = cmd.MigrateData(ctx, targetProfile, sourceProfile, dbName, &ioHelper, cmd.DefaultWritersLimit, sessionState.Conv, false, schemaOnly, dataOnly)
-	if err != nil {
-		log.Println("can't finish data migration")
-		http.Error(w, fmt.Sprintf("Can't finish data migration: %v", err), http.StatusBadRequest)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-	log.Println("migration completed", "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
+	return sourceProfile, targetProfile, ioHelper, dbName, nil
 }
 
 func updateIndexes(w http.ResponseWriter, r *http.Request) {
