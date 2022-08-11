@@ -99,16 +99,14 @@ func MigrateDatabase(ctx context.Context, targetProfile profiles.TargetProfile, 
 	}
 	defer adminClient.Close()
 	defer client.Close()
-	fmt.Println("Reaching here 1")
 	switch v := cmd.(type) {
-	case SchemaCmd:
-		fmt.Println("Reaching here")
+	case *SchemaCmd:
 		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
 		if err != nil {
 			err = fmt.Errorf("can't create/update database: %v", err)
 			return nil, err
 		}
-	case DataCmd:
+	case *DataCmd:
 		if !sourceProfile.UseTargetSchema() {
 			err = validateExistingDb(ctx, conv.TargetDb, dbURI, adminClient, client, conv)
 			if err != nil {
@@ -127,7 +125,7 @@ func MigrateDatabase(ctx context.Context, targetProfile profiles.TargetProfile, 
 				return bw, err
 			}
 		}
-	case SchemaAndDataCmd:
+	case *SchemaAndDataCmd:
 		err = conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
 		if err != nil {
 			err = fmt.Errorf("can't create/update database: %v", err)

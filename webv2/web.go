@@ -1054,7 +1054,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if details.MigrationMode == utilities.SCHEMA_ONLY {
-		_, err = cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, cmd.SchemaCmd{}, sessionState.Conv)
+		_, err = cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv)
 	} else if details.MigrationMode == utilities.DATA_ONLY {
 		dataCmd := &cmd.DataCmd{
 			SkipForeignKeys: false,
