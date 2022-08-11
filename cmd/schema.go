@@ -120,7 +120,7 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	if !cmd.dryRun {
 		_, err = MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, cmd, conv)
 		if err != nil {
-			err = fmt.Errorf("can't finish data migration for db %s: %v", dbName, err)
+			err = fmt.Errorf("can't finish database migration for db %s: %v", dbName, err)
 			return subcommands.ExitFailure
 		}
 	}
