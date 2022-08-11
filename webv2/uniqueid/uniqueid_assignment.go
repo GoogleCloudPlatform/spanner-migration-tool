@@ -156,7 +156,7 @@ func updateSpannerTableSecondaryIndexKeyOrder(spannertable ddl.CreateTable) {
 
 		for j := 0; j < len(spannertable.Indexes[i].Keys); j++ {
 
-			for spannercolumnname, _ := range spannertable.ColDefs {
+			for spannercolumnname := range spannertable.ColDefs {
 				if spannertable.Indexes[i].Keys[j].Col == spannercolumnname {
 
 					o := getSpannerColumnIndex(spannertable, spannercolumnname)
@@ -175,7 +175,7 @@ func updateSourceTableSecondaryIndexKeyOrder(sourcetable schema.Table) {
 
 		for j := 0; j < len(sourcetable.Indexes[i].Keys); j++ {
 
-			for spannercolumnname, _ := range sourcetable.ColDefs {
+			for spannercolumnname := range sourcetable.ColDefs {
 				if sourcetable.Indexes[i].Keys[j].Column == spannercolumnname {
 
 					o := getSourceColumnIndex(sourcetable, spannercolumnname)
