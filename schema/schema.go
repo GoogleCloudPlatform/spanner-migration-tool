@@ -89,10 +89,11 @@ type Key struct {
 // to handle lots of cases for the same concept. Our choice of an index representation for unique is largely
 // motivated by the fact that databases typically implement UNIQUE via an index.
 type Index struct {
-	Name   string
-	Unique bool
-	Keys   []Key
-	Id     string
+	Name          string
+	Unique        bool
+	Keys          []Key
+	Id            string
+	StoredColumns []string
 }
 
 // Type represents the type of a column.
