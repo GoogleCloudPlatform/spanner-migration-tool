@@ -162,7 +162,7 @@ func TestConvertData(t *testing.T) {
 		col := "a"
 		conv := buildConv([]ddl.CreateTable{{
 			Name:    tableName,
-			ColDefs: map[string]ddl.ColumnDef{col: {Name: col, T: tc.ty}}}})
+			ColDefs: map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: tc.ty}}}})
 		_, av, err := convertData(conv, "", tableName, []string{col}, []string{tc.in})
 		// NULL scenario.
 		if tc.ev == nil {
@@ -178,9 +178,9 @@ func TestConvertData(t *testing.T) {
 	spTable := ddl.CreateTable{
 		Name: tableName,
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
-			"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
-			"c": {Name: "c", T: ddl.Type{Name: ddl.Bool}},
+			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
+			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 		}}
 	errorTests := []struct {
 		name string

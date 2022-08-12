@@ -204,86 +204,86 @@ func TestProcessSchema(t *testing.T) {
 	err := common.ProcessSchema(conv, InfoSchemaImpl{db})
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
-		"user": {
+		"user": ddl.CreateTable{
 			Name:     "user",
 			ColNames: []string{"user_id", "name", "ref"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"user_id": {Name: "user_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"name":    {Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"ref":     {Name: "ref", T: ddl.Type{Name: ddl.Int64}},
+				"user_id": ddl.ColumnDef{Name: "user_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"name":    ddl.ColumnDef{Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"ref":     ddl.ColumnDef{Name: "ref", T: ddl.Type{Name: ddl.Int64}},
 			},
-			Pks: []ddl.IndexKey{{Col: "user_id"}},
-			Fks: []ddl.Foreignkey{{Name: "fk_test", Columns: []string{"ref"}, ReferTable: "test", ReferColumns: []string{"id"}}}},
-		"cart": {
+			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "user_id"}},
+			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"ref"}, ReferTable: "test", ReferColumns: []string{"id"}}}},
+		"cart": ddl.CreateTable{
 			Name:     "cart",
 			ColNames: []string{"productid", "userid", "quantity"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"productid": {Name: "productid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"userid":    {Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"quantity":  {Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
+				"productid": ddl.ColumnDef{Name: "productid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"userid":    ddl.ColumnDef{Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
 			},
-			Pks: []ddl.IndexKey{{Col: "productid"}, {Col: "userid"}},
-			Fks: []ddl.Foreignkey{{Name: "fk_test2", Columns: []string{"productid"}, ReferTable: "product", ReferColumns: []string{"product_id"}},
-				{Name: "fk_test3", Columns: []string{"userid"}, ReferTable: "user", ReferColumns: []string{"user_id"}}},
-			Indexes: []ddl.CreateIndex{{Name: "index1", Table: "cart", Unique: false, Keys: []ddl.IndexKey{{Col: "userid", Desc: false}}},
-				{Name: "index2", Table: "cart", Unique: true, Keys: []ddl.IndexKey{{Col: "userid", Desc: false}, {Col: "productid", Desc: true}}},
-				{Name: "index3", Table: "cart", Unique: true, Keys: []ddl.IndexKey{{Col: "productid", Desc: true}, {Col: "userid", Desc: false}}}}},
-		"product": {
+			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "productid"}, ddl.IndexKey{Col: "userid"}},
+			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test2", Columns: []string{"productid"}, ReferTable: "product", ReferColumns: []string{"product_id"}},
+				ddl.Foreignkey{Name: "fk_test3", Columns: []string{"userid"}, ReferTable: "user", ReferColumns: []string{"user_id"}}},
+			Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", Table: "cart", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "userid", Desc: false}}},
+				ddl.CreateIndex{Name: "index2", Table: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "userid", Desc: false}, ddl.IndexKey{Col: "productid", Desc: true}}},
+				ddl.CreateIndex{Name: "index3", Table: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "productid", Desc: true}, ddl.IndexKey{Col: "userid", Desc: false}}}}},
+		"product": ddl.CreateTable{
 			Name:     "product",
 			ColNames: []string{"product_id", "product_name"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"product_id":   {Name: "product_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"product_name": {Name: "product_name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"product_id":   ddl.ColumnDef{Name: "product_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"product_name": ddl.ColumnDef{Name: "product_name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 			},
-			Pks: []ddl.IndexKey{{Col: "product_id"}}},
-		"test": {
+			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "product_id"}}},
+		"test": ddl.CreateTable{
 			Name:     "test",
 			ColNames: []string{"id", "aint", "atext", "b", "bs", "by", "c", "c8", "d", "f8", "f4", "i8", "i4", "i2", "num", "s", "ts", "tz", "txt", "vc", "vc6"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"id":    {Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-				"aint":  {Name: "aint", T: ddl.Type{Name: ddl.Int64, IsArray: true}},
-				"atext": {Name: "atext", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}},
-				"b":     {Name: "b", T: ddl.Type{Name: ddl.Bool}},
-				"bs":    {Name: "bs", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-				"by":    {Name: "by", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-				"c":     {Name: "c", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
-				"c8":    {Name: "c8", T: ddl.Type{Name: ddl.String, Len: int64(8)}},
-				"d":     {Name: "d", T: ddl.Type{Name: ddl.Date}},
-				"f8":    {Name: "f8", T: ddl.Type{Name: ddl.Float64}},
-				"f4":    {Name: "f4", T: ddl.Type{Name: ddl.Float64}},
-				"i8":    {Name: "i8", T: ddl.Type{Name: ddl.Int64}},
-				"i4":    {Name: "i4", T: ddl.Type{Name: ddl.Int64}},
-				"i2":    {Name: "i2", T: ddl.Type{Name: ddl.Int64}},
-				"num":   {Name: "num", T: ddl.Type{Name: ddl.Numeric}},
-				"s":     {Name: "s", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-				"ts":    {Name: "ts", T: ddl.Type{Name: ddl.Timestamp}},
-				"tz":    {Name: "tz", T: ddl.Type{Name: ddl.Timestamp}},
-				"txt":   {Name: "txt", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"vc":    {Name: "vc", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-				"vc6":   {Name: "vc6", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
+				"id":    ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+				"aint":  ddl.ColumnDef{Name: "aint", T: ddl.Type{Name: ddl.Int64, IsArray: true}},
+				"atext": ddl.ColumnDef{Name: "atext", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}},
+				"b":     ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Bool}},
+				"bs":    ddl.ColumnDef{Name: "bs", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+				"by":    ddl.ColumnDef{Name: "by", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+				"c":     ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
+				"c8":    ddl.ColumnDef{Name: "c8", T: ddl.Type{Name: ddl.String, Len: int64(8)}},
+				"d":     ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Date}},
+				"f8":    ddl.ColumnDef{Name: "f8", T: ddl.Type{Name: ddl.Float64}},
+				"f4":    ddl.ColumnDef{Name: "f4", T: ddl.Type{Name: ddl.Float64}},
+				"i8":    ddl.ColumnDef{Name: "i8", T: ddl.Type{Name: ddl.Int64}},
+				"i4":    ddl.ColumnDef{Name: "i4", T: ddl.Type{Name: ddl.Int64}},
+				"i2":    ddl.ColumnDef{Name: "i2", T: ddl.Type{Name: ddl.Int64}},
+				"num":   ddl.ColumnDef{Name: "num", T: ddl.Type{Name: ddl.Numeric}},
+				"s":     ddl.ColumnDef{Name: "s", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+				"ts":    ddl.ColumnDef{Name: "ts", T: ddl.Type{Name: ddl.Timestamp}},
+				"tz":    ddl.ColumnDef{Name: "tz", T: ddl.Type{Name: ddl.Timestamp}},
+				"txt":   ddl.ColumnDef{Name: "txt", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"vc":    ddl.ColumnDef{Name: "vc", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"vc6":   ddl.ColumnDef{Name: "vc6", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
 			},
-			Pks: []ddl.IndexKey{{Col: "id"}},
-			Fks: []ddl.Foreignkey{{Name: "fk_test4", Columns: []string{"id", "txt"}, ReferTable: "test_ref", ReferColumns: []string{"ref_id", "ref_txt"}}}},
-		"test_ref": {
+			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "id"}},
+			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test4", Columns: []string{"id", "txt"}, ReferTable: "test_ref", ReferColumns: []string{"ref_id", "ref_txt"}}}},
+		"test_ref": ddl.CreateTable{
 			Name:     "test_ref",
 			ColNames: []string{"ref_id", "ref_txt", "abc"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"ref_id":  {Name: "ref_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-				"ref_txt": {Name: "ref_txt", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"abc":     {Name: "abc", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"ref_id":  ddl.ColumnDef{Name: "ref_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+				"ref_txt": ddl.ColumnDef{Name: "ref_txt", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"abc":     ddl.ColumnDef{Name: "abc", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 			},
-			Pks: []ddl.IndexKey{{Col: "ref_id"}, {Col: "ref_txt"}}},
+			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "ref_id"}, ddl.IndexKey{Col: "ref_txt"}}},
 	}
 	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	assert.Equal(t, len(conv.Issues["cart"]), 0)
 	expectedIssues := map[string][]internal.SchemaIssue{
-		"aint": {internal.Widened},
-		"bs":   {internal.DefaultValue},
-		"f4":   {internal.Widened},
-		"i4":   {internal.Widened},
-		"i2":   {internal.Widened},
-		"s":    {internal.Widened, internal.DefaultValue},
-		"ts":   {internal.Timestamp},
+		"aint": []internal.SchemaIssue{internal.Widened},
+		"bs":   []internal.SchemaIssue{internal.DefaultValue},
+		"f4":   []internal.SchemaIssue{internal.Widened},
+		"i4":   []internal.SchemaIssue{internal.Widened},
+		"i2":   []internal.SchemaIssue{internal.Widened},
+		"s":    []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
+		"ts":   []internal.SchemaIssue{internal.Timestamp},
 	}
 	assert.Equal(t, expectedIssues, conv.Issues["test"])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
@@ -310,18 +310,18 @@ func TestProcessData(t *testing.T) {
 			Name:     "te_st",
 			ColNames: []string{"a a", " b", " c "},
 			ColDefs: map[string]ddl.ColumnDef{
-				"a_a": {Name: "a_a", T: ddl.Type{Name: ddl.Float64}},
-				"Ab":  {Name: "Ab", T: ddl.Type{Name: ddl.Int64}},
-				"Ac_": {Name: "Ac_", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"a_a": ddl.ColumnDef{Name: "a_a", T: ddl.Type{Name: ddl.Float64}},
+				"Ab":  ddl.ColumnDef{Name: "Ab", T: ddl.Type{Name: ddl.Int64}},
+				"Ac_": ddl.ColumnDef{Name: "Ac_", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			}},
 		schema.Table{
 			Name:     "te st",
 			Schema:   "public",
 			ColNames: []string{"a_a", "_b", "_c_"},
 			ColDefs: map[string]schema.Column{
-				"a a": {Name: "a a", Type: schema.Type{Name: "float4"}},
-				" b":  {Name: " b", Type: schema.Type{Name: "int8"}},
-				" c ": {Name: " c ", Type: schema.Type{Name: "text"}},
+				"a a": schema.Column{Name: "a a", Type: schema.Type{Name: "float4"}},
+				" b":  schema.Column{Name: " b", Type: schema.Type{Name: "int8"}},
+				" c ": schema.Column{Name: " c ", Type: schema.Type{Name: "text"}},
 			}})
 	conv.SetDataMode()
 	var rows []spannerData
@@ -333,8 +333,8 @@ func TestProcessData(t *testing.T) {
 
 	assert.Equal(t,
 		[]spannerData{
-			{table: "te_st", cols: []string{"a a", " b", " c "}, vals: []interface{}{float64(42.3), int64(3), "cat"}},
-			{table: "te_st", cols: []string{"a a", " b", " c "}, vals: []interface{}{float64(6.6), int64(22), "dog"}},
+			spannerData{table: "te_st", cols: []string{"a a", " b", " c "}, vals: []interface{}{float64(42.3), int64(3), "cat"}},
+			spannerData{table: "te_st", cols: []string{"a a", " b", " c "}, vals: []interface{}{float64(6.6), int64(22), "dog"}},
 		},
 		rows)
 	assert.Equal(t, conv.BadRows(), int64(1))
@@ -386,14 +386,14 @@ func TestConvertSqlRow_SingleCol(t *testing.T) {
 		// only test a few cases here.
 		{name: "array bool", srcType: schema.Type{Name: "bool", ArrayBounds: []int64{-1}}, spType: ddl.Type{Name: ddl.Bool, IsArray: true},
 			in: []byte("{true,false,NULL}"), e: []spanner.NullBool{
-				{Bool: true, Valid: true},
-				{Bool: false, Valid: true},
-				{Valid: false}}},
+				spanner.NullBool{Bool: true, Valid: true},
+				spanner.NullBool{Bool: false, Valid: true},
+				spanner.NullBool{Valid: false}}},
 		{name: "timestamp array", srcType: schema.Type{Name: "timestamptz", ArrayBounds: []int64{-1}}, spType: ddl.Type{Name: ddl.Timestamp, IsArray: true},
 			in: []byte(`{"2019-10-29 05:30:00+10",NULL}`),
 			e: []spanner.NullTime{
-				{Time: getTime(t, "2019-10-29T05:30:00+10:00"), Valid: true},
-				{Valid: false}}},
+				spanner.NullTime{Time: getTime(t, "2019-10-29T05:30:00+10:00"), Valid: true},
+				spanner.NullTime{Valid: false}}},
 	}
 	tableName := "testtable"
 	for _, tc := range tc {
@@ -401,11 +401,11 @@ func TestConvertSqlRow_SingleCol(t *testing.T) {
 		conv := internal.MakeConv()
 		conv.SetLocation(time.UTC)
 		cols := []string{col}
-		srcSchema := schema.Table{Name: tableName, ColNames: []string{col}, ColDefs: map[string]schema.Column{col: {Type: tc.srcType}}}
+		srcSchema := schema.Table{Name: tableName, ColNames: []string{col}, ColDefs: map[string]schema.Column{col: schema.Column{Type: tc.srcType}}}
 		spSchema := ddl.CreateTable{
 			Name:     tableName,
 			ColNames: []string{col},
-			ColDefs:  map[string]ddl.ColumnDef{col: {Name: col, T: tc.spType}}}
+			ColDefs:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: tc.spType}}}
 		ac, av, err := convertSQLRow(conv, tableName, cols, srcSchema, tableName, cols, spSchema, []interface{}{tc.in})
 		assert.Equal(t, cols, ac)
 		assert.Equal(t, []interface{}{tc.e}, av)

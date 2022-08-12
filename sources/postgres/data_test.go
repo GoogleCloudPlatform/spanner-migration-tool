@@ -38,17 +38,17 @@ func TestProcessDataRow(t *testing.T) {
 			Name:     tableName,
 			ColNames: cols,
 			ColDefs: map[string]ddl.ColumnDef{
-				"a": {Name: "a", T: ddl.Type{Name: ddl.Float64}},
-				"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}},
-				"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Float64}},
+				"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}},
+				"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			}},
 		schema.Table{
 			Name:     tableName,
 			ColNames: cols,
 			ColDefs: map[string]schema.Column{
-				"a": {Name: "a", Type: schema.Type{Name: "float4"}},
-				"b": {Name: "b", Type: schema.Type{Name: "int8"}},
-				"c": {Name: "c", Type: schema.Type{Name: "text"}},
+				"a": schema.Column{Name: "a", Type: schema.Type{Name: "float4"}},
+				"b": schema.Column{Name: "b", Type: schema.Type{Name: "int8"}},
+				"c": schema.Column{Name: "c", Type: schema.Type{Name: "text"}},
 			}})
 	conv.SetDataMode()
 	var rows []spannerData
@@ -57,7 +57,7 @@ func TestProcessDataRow(t *testing.T) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
 	ProcessDataRow(conv, tableName, cols, []string{"4.2", "6", "prisoner zero"})
-	assert.Equal(t, []spannerData{{table: tableName, cols: cols, vals: []interface{}{float64(4.2), int64(6), "prisoner zero"}}}, rows)
+	assert.Equal(t, []spannerData{spannerData{table: tableName, cols: cols, vals: []interface{}{float64(4.2), int64(6), "prisoner zero"}}}, rows)
 }
 
 func TestConvertData(t *testing.T) {
@@ -81,31 +81,31 @@ func TestConvertData(t *testing.T) {
 		// Note: the PostgreSQL array output routine puts double quotes around
 		// elements if they have white space e.g. timestamps, bytea arrays.
 		{"bool array", ddl.Type{Name: ddl.Bool, IsArray: true}, "", "{true,false,NULL}", []spanner.NullBool{
-			{Bool: true, Valid: true}, {Bool: false, Valid: true},
-			{Valid: false}}},
+			spanner.NullBool{Bool: true, Valid: true}, spanner.NullBool{Bool: false, Valid: true},
+			spanner.NullBool{Valid: false}}},
 		{"bytes array", ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength, IsArray: true}, "", `{"\\x0001beef",NULL}`, [][]byte{{0x0, 0x1, 0xbe, 0xef}, nil}},
 		{"date array", ddl.Type{Name: ddl.Date, IsArray: true}, "", "{2019-10-29,NULL,2019-10-28}", []spanner.NullDate{
-			{Date: getDate("2019-10-29"), Valid: true},
-			{Valid: false},
-			{Date: getDate("2019-10-28"), Valid: true}}},
+			spanner.NullDate{Date: getDate("2019-10-29"), Valid: true},
+			spanner.NullDate{Valid: false},
+			spanner.NullDate{Date: getDate("2019-10-28"), Valid: true}}},
 		{"float64 array", ddl.Type{Name: ddl.Float64, IsArray: true}, "", "{1.1,NULL,2.2,3.3}", []spanner.NullFloat64{
-			{Float64: 1.1, Valid: true},
-			{Valid: false},
-			{Float64: 2.2, Valid: true},
-			{Float64: 3.3, Valid: true}}},
+			spanner.NullFloat64{Float64: 1.1, Valid: true},
+			spanner.NullFloat64{Valid: false},
+			spanner.NullFloat64{Float64: 2.2, Valid: true},
+			spanner.NullFloat64{Float64: 3.3, Valid: true}}},
 		{"int64 array", ddl.Type{Name: ddl.Int64, IsArray: true}, "", "{NULL,1,2,3}", []spanner.NullInt64{
-			{Valid: false},
-			{Int64: 1, Valid: true},
-			{Int64: 2, Valid: true},
-			{Int64: 3, Valid: true}}},
+			spanner.NullInt64{Valid: false},
+			spanner.NullInt64{Int64: 1, Valid: true},
+			spanner.NullInt64{Int64: 2, Valid: true},
+			spanner.NullInt64{Int64: 3, Valid: true}}},
 		{"string array", ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}, "", `{1,NULL,3,"NULL"}`, []spanner.NullString{
-			{StringVal: "1", Valid: true},
-			{Valid: false},
-			{StringVal: "3", Valid: true},
-			{StringVal: "NULL", Valid: true}}},
+			spanner.NullString{StringVal: "1", Valid: true},
+			spanner.NullString{Valid: false},
+			spanner.NullString{StringVal: "3", Valid: true},
+			spanner.NullString{StringVal: "NULL", Valid: true}}},
 		{"timestamp array", ddl.Type{Name: ddl.Timestamp, IsArray: true}, "timestamptz", `{"2019-10-29 05:30:00+10",NULL}`, []spanner.NullTime{
-			{Time: getTime(t, "2019-10-29T05:30:00+10:00"), Valid: true},
-			{Valid: false}}},
+			spanner.NullTime{Time: getTime(t, "2019-10-29T05:30:00+10:00"), Valid: true},
+			spanner.NullTime{Valid: false}}},
 		{"empty array", ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}, "", "{}", []spanner.NullString{}},
 	}
 	tableName := "testtable"
@@ -115,9 +115,9 @@ func TestConvertData(t *testing.T) {
 			ddl.CreateTable{
 				Name:     tableName,
 				ColNames: []string{col},
-				ColDefs:  map[string]ddl.ColumnDef{col: {Name: col, T: tc.ty, NotNull: false}},
+				ColDefs:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: tc.ty, NotNull: false}},
 				Pks:      []ddl.IndexKey{}},
-			schema.Table{Name: tableName, ColNames: []string{col}, ColDefs: map[string]schema.Column{col: {Type: schema.Type{Name: tc.srcTy}}}})
+			schema.Table{Name: tableName, ColNames: []string{col}, ColDefs: map[string]schema.Column{col: schema.Column{Type: schema.Type{Name: tc.srcTy}}}})
 		conv.SetLocation(time.UTC)
 		at, ac, av, err := ConvertData(conv, tableName, []string{col}, []string{tc.in})
 		checkResults(t, at, ac, av, err, tableName, []string{col}, []interface{}{tc.e}, tc.name)
@@ -140,11 +140,11 @@ func TestConvertData(t *testing.T) {
 			ddl.CreateTable{
 				Name:     tableName,
 				ColNames: []string{col},
-				ColDefs:  map[string]ddl.ColumnDef{col: {Name: col, T: ddl.Type{Name: ddl.Timestamp}}}},
+				ColDefs:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: ddl.Type{Name: ddl.Timestamp}}}},
 			schema.Table{
 				Name:     tableName,
 				ColNames: []string{col},
-				ColDefs:  map[string]schema.Column{col: {Type: schema.Type{Name: tc.srcTy}}}})
+				ColDefs:  map[string]schema.Column{col: schema.Column{Type: schema.Type{Name: tc.srcTy}}}})
 		loc, _ := time.LoadLocation("Australia/Sydney")
 		conv.SetLocation(loc) // Set location so test is robust i.e. doesn't depent on local timezone.
 		atable, ac, av, err := ConvertData(conv, tableName, []string{col}, []string{tc.in})
@@ -201,17 +201,17 @@ func TestConvertData(t *testing.T) {
 		Name:     tableName,
 		ColNames: []string{"a", "b", "c"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
-			"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
-			"c": {Name: "c", T: ddl.Type{Name: ddl.Bool}},
+			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
+			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
+			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
 		}}
 	srcTable := schema.Table{
 		Name:     tableName,
 		ColNames: []string{"a", "b", "c"},
 		ColDefs: map[string]schema.Column{
-			"a": {Type: schema.Type{Name: "int8"}},
-			"b": {Type: schema.Type{Name: "float8"}},
-			"c": {Type: schema.Type{Name: "bool"}},
+			"a": schema.Column{Type: schema.Type{Name: "int8"}},
+			"b": schema.Column{Type: schema.Type{Name: "float8"}},
+			"c": schema.Column{Type: schema.Type{Name: "bool"}},
 		}}
 	for _, tc := range multiColTests {
 		conv := buildConv(spTable, srcTable)

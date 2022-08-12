@@ -1086,12 +1086,12 @@ func TestSetParentTable(t *testing.T) {
 				SpSchema: map[string]ddl.CreateTable{"t1": {
 					Name:     "t1",
 					ColNames: []string{"a", "b", "c"},
-					ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-						"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-						"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
-					Pks: []ddl.IndexKey{{Col: "a", Desc: false}},
-					Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "ref_t1", ReferColumns: []string{"ref_c1"}},
-						{Name: "fk2", Columns: []string{"c"}, ReferTable: "ref_t2", ReferColumns: []string{"ref_c2"}}},
+					ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}},
+					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"a"}, ReferTable: "ref_t1", ReferColumns: []string{"ref_c1"}},
+						ddl.Foreignkey{Name: "fk2", Columns: []string{"c"}, ReferTable: "ref_t2", ReferColumns: []string{"ref_c2"}}},
 				}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -1113,7 +1113,7 @@ func TestSetParentTable(t *testing.T) {
 					Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "ref_t1", ReferColumns: []string{"ref_c1"}},
 						{Name: "fk2", Columns: []string{"c"}, ReferTable: "ref_t2", ReferColumns: []string{"ref_c2"}}},
 				}},
-				SyntheticPKeys: map[string]internal.SyntheticPKey{"t1": {Col: "synth_id"}},
+				SyntheticPKeys: map[string]internal.SyntheticPKey{"t1": internal.SyntheticPKey{Col: "synth_id"}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
@@ -1147,7 +1147,7 @@ func TestSetParentTable(t *testing.T) {
 						Pks: []ddl.IndexKey{{Col: "synth_id", Desc: false}},
 					},
 				},
-				SyntheticPKeys: map[string]internal.SyntheticPKey{"t2": {Col: "synth_id"}},
+				SyntheticPKeys: map[string]internal.SyntheticPKey{"t2": internal.SyntheticPKey{Col: "synth_id"}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
