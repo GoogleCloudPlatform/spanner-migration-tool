@@ -45,6 +45,20 @@ func removeColumn(table string, colName string, Conv *internal.Conv) {
 
 	}
 
+	for _, sp := range Conv.SpSchema {
+
+		for j := 0; j < len(sp.Fks); j++ {
+			if sp.Fks[j].ReferTable == table {
+				fmt.Println("found")
+				fmt.Println("sp.Name :", sp.Name)
+
+				removeForeignkeyReferTableSchema(Conv, sp, sp.Name, colName)
+			}
+
+		}
+
+	}
+
 	isParent, parentSchemaTable := IsParent(table)
 
 	if isParent {
@@ -77,6 +91,35 @@ func removeForeignkeyTableSchema(Conv *internal.Conv, sp ddl.CreateTable, index 
 	removeToSpannerToSource(relationTable, colName, Conv)
 
 	Conv.SpSchema[relationTable] = relationTableSp
+}
+
+func removeForeignkeyReferTableSchema(Conv *internal.Conv, referTable ddl.CreateTable, table string, colName string) {
+
+	referTable = removeSpannerColDefs(referTable, colName)
+
+	// step II
+	referTable = removeSpannerPK(referTable, colName)
+
+	// step III
+	referTable = removeSpannerSecondaryIndex(referTable, colName)
+
+	// step IV
+	referTable = removeSpannerForeignkeyColumns(referTable, colName)
+
+	// step V
+	referTable = removeSpannerForeignkeyReferColumns(referTable, colName)
+
+	// step VI
+	referTable = removeSpannerColNames(referTable, colName)
+
+	// step VII
+	removeSpannerSchemaIssue(table, colName, Conv)
+
+	// step VIII
+	removeToSpannerToSource(table, colName, Conv)
+
+	Conv.SpSchema[table] = referTable
+
 }
 
 func removeparentTableSchema(Conv *internal.Conv, parentSchemaTable string, colName string) {

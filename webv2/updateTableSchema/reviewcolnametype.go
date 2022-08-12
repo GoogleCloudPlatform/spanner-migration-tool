@@ -58,6 +58,23 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 	}
 
 	//todo
+
+	for _, sp := range Conv.SpSchema {
+
+		for j := 0; j < len(sp.Fks); j++ {
+			if sp.Fks[j].ReferTable == table {
+				fmt.Println("found")
+				fmt.Println("sp.Name :", sp.Name)
+
+				reviewchangeTypeForeignkeyReferTableSchema(Conv, sp, sp.Name, colName, newType, w)
+
+			}
+
+		}
+
+	}
+
+	//todo
 	// update interleave table relation
 	isParent, parentschemaTable := IsParent(table)
 
@@ -108,6 +125,29 @@ func reviewchangeTypeForeignkeyTableSchema(Conv *internal.Conv, sp ddl.CreateTab
 		Conv.SpSchema[relationTable] = rsp
 
 	}
+
+	return nil
+}
+
+func reviewchangeTypeForeignkeyReferTableSchema(Conv *internal.Conv, sp ddl.CreateTable, table string, colName string, newType string, w http.ResponseWriter) error {
+
+	srcTableName := Conv.ToSource[table].Name
+
+	sp, ty, err := utilities.GetType(newType, table, colName, srcTableName)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return err
+	}
+
+	colDef := sp.ColDefs[colName]
+	colDef.T = ty
+
+	sp.ColDefs[colName] = colDef
+
+	fmt.Println("updated type for sp.ColDefs[colName] ", sp.ColDefs[colName].Name)
+	fmt.Println("")
+	fmt.Println("its updated type is ", sp.ColDefs[colName].T)
 
 	return nil
 }
