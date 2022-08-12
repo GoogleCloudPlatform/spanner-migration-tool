@@ -366,7 +366,7 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			IX.name, 
 			COL_NAME(IX.object_id, IXC.column_id) as [Column Name],
 			IX.is_unique,
-			IXC.is_descending_key ,
+			IXC.is_descending_key,
 			IXC.is_included_column
 		FROM sys.indexes IX 
 		INNER JOIN sys.index_columns IXC 
