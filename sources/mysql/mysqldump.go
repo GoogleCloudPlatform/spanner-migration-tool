@@ -260,7 +260,7 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 			// TODO: Avoid Spanner-specific schema transformations in this file -- they should only
 			// appear in toddl.go. This file should focus on generic transformation from source
 			// database schemas into schema.go.
-			index = append(index, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{Column: colname, Desc: false}}})
+			index = append(index, schema.Index{Name: "", Unique: true, Keys: []schema.Key{{Column: colname, Desc: false}}})
 		}
 	}
 	conv.SchemaStatement(NodeType(stmt))
@@ -394,7 +394,7 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 					// Convert unique column constraint in mysql to a corresponding unique index in schema
 					// Note that schema represents all unique constraints as indexes.
 					ctable := conv.SrcSchema[tableName]
-					ctable.Indexes = append(ctable.Indexes, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{Column: colname, Desc: false}}})
+					ctable.Indexes = append(ctable.Indexes, schema.Index{Name: "", Unique: true, Keys: []schema.Key{{Column: colname, Desc: false}}})
 					conv.SrcSchema[tableName] = ctable
 				}
 				conv.SchemaStatement(NodeType(stmt))

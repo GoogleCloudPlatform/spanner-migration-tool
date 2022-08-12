@@ -115,8 +115,8 @@ func TestSampleBadRows(t *testing.T) {
 	bw := NewBatchWriter(BatchWriterConfig{})
 	bw.async.lock.Lock()
 	bw.async.sampleBadRows = []*row{
-		&row{"test", []string{"col1", "col2"}, []interface{}{"a", int64(42)}},
-		&row{"test", []string{"col1", "col2"}, []interface{}{"b", int64(6)}},
+		{"test", []string{"col1", "col2"}, []interface{}{"a", int64(42)}},
+		{"test", []string{"col1", "col2"}, []interface{}{"b", int64(6)}},
 	}
 	bw.async.lock.Unlock()
 	l := bw.SampleBadRows(1)

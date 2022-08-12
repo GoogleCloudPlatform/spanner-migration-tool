@@ -187,33 +187,33 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 				"CREATE TABLE test2 (c SMALLINT, d SMALLINT, CONSTRAINT `1_fk_test_2` FOREIGN KEY (d) REFERENCES test (a) ON DELETE RESTRICT ON UPDATE CASCADE );\n" +
 				"ALTER TABLE test2 ADD CONSTRAINT __fk_test_2 FOREIGN KEY (c) REFERENCES test3(e);\n",
 			expectedSchema: map[string]ddl.CreateTable{
-				"test": ddl.CreateTable{
+				"test": {
 					Name:     "test",
 					ColNames: []string{"a", "b"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}},
-				"test3": ddl.CreateTable{
+					Pks: []ddl.IndexKey{{Col: "a"}}},
+				"test3": {
 					Name:     "test3",
 					ColNames: []string{"e", "f"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-						"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"e": {Name: "e", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"f": {Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "e"}}},
-				"test2": ddl.CreateTable{
+					Pks: []ddl.IndexKey{{Col: "e"}}},
+				"test2": {
 					Name:     "test2",
 					ColNames: []string{"c", "d", "synth_id"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
-						"d":        ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Int64}},
-						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+						"c":        {Name: "c", T: ddl.Type{Name: ddl.Int64}},
+						"d":        {Name: "d", T: ddl.Type{Name: ddl.Int64}},
+						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "A_fk_test_2", Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}},
-						ddl.Foreignkey{Name: "A_fk_test_2_4", Columns: []string{"c"}, ReferTable: "test3", ReferColumns: []string{"e"}}}}},
+					Pks: []ddl.IndexKey{{Col: "synth_id"}},
+					Fks: []ddl.Foreignkey{{Name: "A_fk_test_2", Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}},
+						{Name: "A_fk_test_2_4", Columns: []string{"c"}, ReferTable: "test3", ReferColumns: []string{"e"}}}}},
 		},
 		{
 			name: "Alter table add foreign key",
@@ -221,24 +221,24 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 				"CREATE TABLE test2 (c SMALLINT, d SMALLINT );\n" +
 				"ALTER TABLE test2 ADD FOREIGN KEY (d) REFERENCES test(a);\n",
 			expectedSchema: map[string]ddl.CreateTable{
-				"test": ddl.CreateTable{
+				"test": {
 					Name:     "test",
 					ColNames: []string{"a", "b"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}},
-				"test2": ddl.CreateTable{
+					Pks: []ddl.IndexKey{{Col: "a"}}},
+				"test2": {
 					Name:     "test2",
 					ColNames: []string{"c", "d", "synth_id"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
-						"d":        ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Int64}},
-						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+						"c":        {Name: "c", T: ddl.Type{Name: ddl.Int64}},
+						"d":        {Name: "d", T: ddl.Type{Name: ddl.Int64}},
+						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Fks: []ddl.Foreignkey{ddl.Foreignkey{Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}}}}},
+					Pks: []ddl.IndexKey{{Col: "synth_id"}},
+					Fks: []ddl.Foreignkey{{Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}}}}},
 		},
 		{
 			name: "Alter table add constraint foreign key",
@@ -246,24 +246,24 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 				"CREATE TABLE test2 (c SMALLINT, d SMALLINT );\n" +
 				"ALTER TABLE test2 ADD CONSTRAINT fk_test FOREIGN KEY (d) REFERENCES test(a);\n",
 			expectedSchema: map[string]ddl.CreateTable{
-				"test": ddl.CreateTable{
+				"test": {
 					Name:     "test",
 					ColNames: []string{"a", "b"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}},
-				"test2": ddl.CreateTable{
+					Pks: []ddl.IndexKey{{Col: "a"}}},
+				"test2": {
 					Name:     "test2",
 					ColNames: []string{"c", "d", "synth_id"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
-						"d":        ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Int64}},
-						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+						"c":        {Name: "c", T: ddl.Type{Name: ddl.Int64}},
+						"d":        {Name: "d", T: ddl.Type{Name: ddl.Int64}},
+						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}}}}},
+					Pks: []ddl.IndexKey{{Col: "synth_id"}},
+					Fks: []ddl.Foreignkey{{Name: "fk_test", Columns: []string{"d"}, ReferTable: "test", ReferColumns: []string{"a"}}}}},
 		},
 		{
 			name: "Create table with multiple foreign keys",
@@ -271,61 +271,61 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 				"CREATE TABLE test2 (c SMALLINT, d text, PRIMARY KEY (c) );\n" +
 				"CREATE TABLE test3 (e SMALLINT, f SMALLINT, g text, CONSTRAINT `fk_test` FOREIGN KEY (e) REFERENCES test (a) ON DELETE RESTRICT ON UPDATE CASCADE,CONSTRAINT `fk_test2` FOREIGN KEY (f) REFERENCES test2 (c) ON DELETE RESTRICT ON UPDATE CASCADE );",
 			expectedSchema: map[string]ddl.CreateTable{
-				"test": ddl.CreateTable{
+				"test": {
 					Name:     "test",
 					ColNames: []string{"a", "b"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}},
-				"test2": ddl.CreateTable{
+					Pks: []ddl.IndexKey{{Col: "a"}}},
+				"test2": {
 					Name:     "test2",
 					ColNames: []string{"c", "d"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-						"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c": {Name: "c", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"d": {Name: "d", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "c"}}},
-				"test3": ddl.CreateTable{
+					Pks: []ddl.IndexKey{{Col: "c"}}},
+				"test3": {
 					Name:     "test3",
 					ColNames: []string{"e", "f", "g", "synth_id"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"e":        ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Int64}},
-						"f":        ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Int64}},
-						"g":        ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+						"e":        {Name: "e", T: ddl.Type{Name: ddl.Int64}},
+						"f":        {Name: "f", T: ddl.Type{Name: ddl.Int64}},
+						"g":        {Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"e"}, ReferTable: "test", ReferColumns: []string{"a"}},
-						ddl.Foreignkey{Name: "fk_test2", Columns: []string{"f"}, ReferTable: "test2", ReferColumns: []string{"c"}}}}},
+					Pks: []ddl.IndexKey{{Col: "synth_id"}},
+					Fks: []ddl.Foreignkey{{Name: "fk_test", Columns: []string{"e"}, ReferTable: "test", ReferColumns: []string{"a"}},
+						{Name: "fk_test2", Columns: []string{"f"}, ReferTable: "test2", ReferColumns: []string{"c"}}}}},
 		},
 		{
 			name: "Create table with single foreign key multiple column",
 			input: "CREATE TABLE test (a SMALLINT, b SMALLINT, c text, PRIMARY KEY (a) );\n" +
 				"CREATE TABLE test2 (e SMALLINT, f SMALLINT, g text, CONSTRAINT `fk_test` FOREIGN KEY (e,f) REFERENCES test (a,b) ON DELETE RESTRICT ON UPDATE CASCADE );",
 			expectedSchema: map[string]ddl.CreateTable{
-				"test": ddl.CreateTable{
+				"test": {
 					Name:     "test",
 					ColNames: []string{"a", "b", "c"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}},
-						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}},
+						"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}},
+					Pks: []ddl.IndexKey{{Col: "a"}}},
 
-				"test2": ddl.CreateTable{
+				"test2": {
 					Name:     "test2",
 					ColNames: []string{"e", "f", "g", "synth_id"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"e":        ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Int64}},
-						"f":        ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Int64}},
-						"g":        ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+						"e":        {Name: "e", T: ddl.Type{Name: ddl.Int64}},
+						"f":        {Name: "f", T: ddl.Type{Name: ddl.Int64}},
+						"g":        {Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"e", "f"}, ReferTable: "test", ReferColumns: []string{"a", "b"}}}}},
+					Pks: []ddl.IndexKey{{Col: "synth_id"}},
+					Fks: []ddl.Foreignkey{{Name: "fk_test", Columns: []string{"e", "f"}, ReferTable: "test", ReferColumns: []string{"a", "b"}}}}},
 		},
 		{
 			name: "Create table with index keys",
@@ -336,17 +336,17 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 				"KEY custom_index (b, c)" +
 				");\n",
 			expectedSchema: map[string]ddl.CreateTable{
-				"test": ddl.CreateTable{
+				"test": {
 					Name:     "test",
 					ColNames: []string{"a", "b", "c", "synth_id"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+						"a":        {Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b":        {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c":        {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
-					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+					Pks:     []ddl.IndexKey{{Col: "synth_id"}},
+					Indexes: []ddl.CreateIndex{{Name: "custom_index", Table: "test", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}, {Col: "c", Desc: false}}}}}},
 		},
 		{
 			name: "Create table with unique index keys",
@@ -357,15 +357,15 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 				"UNIQUE KEY custom_index (b, c)" +
 				");\n",
 			expectedSchema: map[string]ddl.CreateTable{
-				"test": ddl.CreateTable{
+				"test": {
 					Name:     "test",
 					ColNames: []string{"a", "b", "c"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "b"}, ddl.IndexKey{Col: "c"}},
+					Pks:     []ddl.IndexKey{{Col: "b"}, {Col: "c"}},
 					Indexes: []ddl.CreateIndex{}}},
 		},
 		{
@@ -378,16 +378,16 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 				"KEY custom_index2 (c, a)" +
 				");\n",
 			expectedSchema: map[string]ddl.CreateTable{
-				"test": ddl.CreateTable{
+				"test": {
 					Name:     "test",
 					ColNames: []string{"a", "b", "c"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "b"}, ddl.IndexKey{Col: "c"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index2", Table: "test", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "c", Desc: false}, ddl.IndexKey{Col: "a", Desc: false}}}}}},
+					Pks:     []ddl.IndexKey{{Col: "b"}, {Col: "c"}},
+					Indexes: []ddl.CreateIndex{{Name: "custom_index2", Table: "test", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "a", Desc: false}}}}}},
 		},
 		{
 			name: "Alter table add index keys",
@@ -398,17 +398,17 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 				");\n" +
 				"ALTER TABLE test ADD INDEX custom_index (b, c);\n",
 			expectedSchema: map[string]ddl.CreateTable{
-				"test": ddl.CreateTable{
+				"test": {
 					Name:     "test",
 					ColNames: []string{"a", "b", "c", "synth_id"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+						"a":        {Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b":        {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c":        {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
-					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+					Pks:     []ddl.IndexKey{{Col: "synth_id"}},
+					Indexes: []ddl.CreateIndex{{Name: "custom_index", Table: "test", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}, {Col: "c", Desc: false}}}}}},
 		},
 		{
 			name: "Alter table add unique index keys",
@@ -419,15 +419,15 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 				");\n" +
 				"ALTER TABLE test ADD UNIQUE INDEX custom_index (b, c);\n",
 			expectedSchema: map[string]ddl.CreateTable{
-				"test": ddl.CreateTable{
+				"test": {
 					Name:     "test",
 					ColNames: []string{"a", "b", "c"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "b"}, ddl.IndexKey{Col: "c"}},
+					Pks:     []ddl.IndexKey{{Col: "b"}, {Col: "c"}},
 					Indexes: []ddl.CreateIndex{},
 				}},
 		},
@@ -440,15 +440,15 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 				");\n" +
 				"ALTER TABLE test ADD CONSTRAINT custom_index UNIQUE (b, c);\n",
 			expectedSchema: map[string]ddl.CreateTable{
-				"test": ddl.CreateTable{
+				"test": {
 					Name:     "test",
 					ColNames: []string{"a", "b", "c"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "b"}, ddl.IndexKey{Col: "c"}},
+					Pks:     []ddl.IndexKey{{Col: "b"}, {Col: "c"}},
 					Indexes: []ddl.CreateIndex{},
 				}},
 		},
@@ -461,17 +461,17 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 				");\n" +
 				"CREATE INDEX custom_index ON test (b, c);\n",
 			expectedSchema: map[string]ddl.CreateTable{
-				"test": ddl.CreateTable{
+				"test": {
 					Name:     "test",
 					ColNames: []string{"a", "b", "c", "synth_id"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+						"a":        {Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b":        {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c":        {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
-					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}},
-					Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "custom_index", Table: "test", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "b", Desc: false}, ddl.IndexKey{Col: "c", Desc: false}}}}}},
+					Pks:     []ddl.IndexKey{{Col: "synth_id"}},
+					Indexes: []ddl.CreateIndex{{Name: "custom_index", Table: "test", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}, {Col: "c", Desc: false}}}}}},
 		},
 		{
 			name: "Create unique index statement",
@@ -482,15 +482,15 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 				");\n" +
 				"CREATE UNIQUE INDEX custom_index ON test (b, c);\n",
 			expectedSchema: map[string]ddl.CreateTable{
-				"test": ddl.CreateTable{
+				"test": {
 					Name:     "test",
 					ColNames: []string{"a", "b", "c"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks:     []ddl.IndexKey{ddl.IndexKey{Col: "b"}, ddl.IndexKey{Col: "c"}},
+					Pks:     []ddl.IndexKey{{Col: "b"}, {Col: "c"}},
 					Indexes: []ddl.CreateIndex{},
 				}},
 		},
@@ -498,14 +498,14 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 			name:  "Create table with mysql schema",
 			input: "CREATE TABLE myschema.test (a text PRIMARY KEY, b text);\n",
 			expectedSchema: map[string]ddl.CreateTable{
-				"myschema_test": ddl.CreateTable{
+				"myschema_test": {
 					Name:     "myschema_test",
 					ColNames: []string{"a", "b"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}}},
+					Pks: []ddl.IndexKey{{Col: "a"}}}},
 		},
 		{
 			name: "Create table with function, trigger and procedure",
@@ -532,14 +532,14 @@ DELIMITER ;
 
 CREATE TABLE test (a text PRIMARY KEY, b text);`,
 			expectedSchema: map[string]ddl.CreateTable{
-				"test": ddl.CreateTable{
+				"test": {
 					Name:     "test",
 					ColNames: []string{"a", "b"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}}},
+					Pks: []ddl.IndexKey{{Col: "a"}}}},
 			expectIssues: true, // conv.Stats.Reparsed != 0
 		},
 		{
@@ -547,14 +547,14 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 			input: "CREATE TABLE test (a text PRIMARY KEY, b text);\n" +
 				"ALTER TABLE test MODIFY b text NOT NULL;\n",
 			expectedSchema: map[string]ddl.CreateTable{
-				"test": ddl.CreateTable{
+				"test": {
 					Name:     "test",
 					ColNames: []string{"a", "b"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}}},
+					Pks: []ddl.IndexKey{{Col: "a"}}}},
 		},
 		{
 			name: "Multiple statements on one line",
@@ -562,19 +562,19 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 				"ALTER TABLE t1 ADD CONSTRAINT t1_pkey PRIMARY KEY (a);\n" +
 				"ALTER TABLE t2 ADD CONSTRAINT t2_pkey PRIMARY KEY (c);",
 			expectedSchema: map[string]ddl.CreateTable{
-				"t1": ddl.CreateTable{
+				"t1": {
 					Name:     "t1",
 					ColNames: []string{"a", "b"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}}},
-				"t2": ddl.CreateTable{
+						"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}}},
+					Pks: []ddl.IndexKey{{Col: "a"}}},
+				"t2": {
 					Name:     "t2",
 					ColNames: []string{"c"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "c"}}}},
+						"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
+					Pks: []ddl.IndexKey{{Col: "c"}}}},
 		},
 		{
 			name: "INSERT statement",
@@ -583,8 +583,8 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 				"INSERT INTO test (a, b, n) VALUES ('a1','b1',42),\n" +
 				"('a22','b99', 6);",
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a1", "b1", int64(42)}},
-				spannerData{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a22", "b99", int64(6)}}},
+				{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a1", "b1", int64(42)}},
+				{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a22", "b99", int64(6)}}},
 		},
 		{
 			name: "INSERT INTO with renamed table/cols",
@@ -593,8 +593,8 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 				"INSERT INTO _test (_a, b, n) VALUES ('a1','b1',42),\n" +
 				"('a22','b99', 6);",
 			expectedData: []spannerData{
-				spannerData{table: "Atest", cols: []string{"Aa", "b", "n"}, vals: []interface{}{"a1", "b1", int64(42)}},
-				spannerData{table: "Atest", cols: []string{"Aa", "b", "n"}, vals: []interface{}{"a22", "b99", int64(6)}}},
+				{table: "Atest", cols: []string{"Aa", "b", "n"}, vals: []interface{}{"a1", "b1", int64(42)}},
+				{table: "Atest", cols: []string{"Aa", "b", "n"}, vals: []interface{}{"a22", "b99", int64(6)}}},
 		},
 		{
 			name: "INSERT INTO with CRLF",
@@ -603,8 +603,8 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 				"('a22','b99', 6);\r\n" +
 				"ALTER TABLE test ADD CONSTRAINT test_pkey PRIMARY KEY (a, b);\r\n",
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a1", "b1", int64(42)}},
-				spannerData{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a22", "b99", int64(6)}}},
+				{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a1", "b1", int64(42)}},
+				{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a22", "b99", int64(6)}}},
 		},
 		{
 			name: "INSERT INTO with spaces",
@@ -613,8 +613,8 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 				"INSERT INTO test (a, b, n) VALUES ('a1 ',' b1',42),\n" +
 				"('a22','b 99 ', 6);",
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a1 ", " b1", int64(42)}},
-				spannerData{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a22", "b 99 ", int64(6)}}},
+				{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a1 ", " b1", int64(42)}},
+				{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a22", "b 99 ", int64(6)}}},
 		},
 		{
 			name: "INSERT INTO with no primary key",
@@ -625,10 +625,10 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 				"('a33','b',9),\n" +
 				"('a3','b',7);",
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"a", "b", "n", "synth_id"}, vals: []interface{}{"a1", "b1", int64(42), bitReverse(0)}},
-				spannerData{table: "test", cols: []string{"a", "b", "n", "synth_id"}, vals: []interface{}{"a22", "b99", int64(6), bitReverse(1)}},
-				spannerData{table: "test", cols: []string{"a", "b", "n", "synth_id"}, vals: []interface{}{"a33", "b", int64(9), bitReverse(2)}},
-				spannerData{table: "test", cols: []string{"a", "b", "n", "synth_id"}, vals: []interface{}{"a3", "b", int64(7), bitReverse(3)}}},
+				{table: "test", cols: []string{"a", "b", "n", "synth_id"}, vals: []interface{}{"a1", "b1", int64(42), bitReverse(0)}},
+				{table: "test", cols: []string{"a", "b", "n", "synth_id"}, vals: []interface{}{"a22", "b99", int64(6), bitReverse(1)}},
+				{table: "test", cols: []string{"a", "b", "n", "synth_id"}, vals: []interface{}{"a33", "b", int64(9), bitReverse(2)}},
+				{table: "test", cols: []string{"a", "b", "n", "synth_id"}, vals: []interface{}{"a3", "b", int64(7), bitReverse(3)}}},
 		},
 		{
 			name: "INSERT INTO with empty cols",
@@ -639,10 +639,10 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 				"('a33','b',NULL),\n" +
 				"('a3','b',7);\n",
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"b", "n", "synth_id"}, vals: []interface{}{"b1", int64(42), bitReverse(0)}},
-				spannerData{table: "test", cols: []string{"a", "n", "synth_id"}, vals: []interface{}{"a22", int64(6), bitReverse(1)}},
-				spannerData{table: "test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"a33", "b", bitReverse(2)}},
-				spannerData{table: "test", cols: []string{"a", "b", "n", "synth_id"}, vals: []interface{}{"a3", "b", int64(7), bitReverse(3)}}},
+				{table: "test", cols: []string{"b", "n", "synth_id"}, vals: []interface{}{"b1", int64(42), bitReverse(0)}},
+				{table: "test", cols: []string{"a", "n", "synth_id"}, vals: []interface{}{"a22", int64(6), bitReverse(1)}},
+				{table: "test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"a33", "b", bitReverse(2)}},
+				{table: "test", cols: []string{"a", "b", "n", "synth_id"}, vals: []interface{}{"a3", "b", int64(7), bitReverse(3)}}},
 		},
 		{
 			name: "INSERT",
@@ -650,14 +650,14 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 				"ALTER TABLE test ADD CONSTRAINT test_pkey PRIMARY KEY (a, b);\n" +
 				"INSERT INTO test (a, b, n) VALUES ('a42', 'b6', 2);",
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a42", "b6", int64(2)}}},
+				{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a42", "b6", int64(2)}}},
 		},
 		{
 			name: "INSERT with no primary key",
 			input: "CREATE TABLE test (a text NOT NULL, b text NOT NULL, n bigint);\n" +
 				"INSERT INTO test (a, b, n) VALUES ('a42', 'b6', 2);",
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"a", "b", "n", "synth_id"}, vals: []interface{}{"a42", "b6", int64(2), bitReverse(0)}}},
+				{table: "test", cols: []string{"a", "b", "n", "synth_id"}, vals: []interface{}{"a42", "b6", int64(2), bitReverse(0)}}},
 		},
 		{
 			name: "INSERT with spaces",
@@ -665,7 +665,7 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 				"ALTER TABLE test ADD CONSTRAINT test_pkey PRIMARY KEY (a, b);\n" +
 				"INSERT INTO test (a, b, n) VALUES (' a42 ', '\nb6\n', 2);\n",
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{" a42 ", "\nb6\n", int64(2)}}},
+				{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{" a42 ", "\nb6\n", int64(2)}}},
 		},
 		{
 			name: "Statements with embedded semicolons",
@@ -673,24 +673,24 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 				"ALTER TABLE test ADD CONSTRAINT test_pkey PRIMARY KEY (a, b);\n" +
 				`INSERT INTO test (a, b, n) VALUES ('a;\n2', 'b;6\n', 2);` + "\n",
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a;\n2", "b;6\n", int64(2)}}},
+				{table: "test", cols: []string{"a", "b", "n"}, vals: []interface{}{"a;\n2", "b;6\n", int64(2)}}},
 		},
 		{
 			name: "Tables and columns with illegal characters",
 			input: "CREATE TABLE `te.s t` (`a?^` text PRIMARY KEY, `b.b` text, `n*n` bigint);\n" +
 				"INSERT INTO `te.s t` (`a?^`, `b.b`, `n*n`) VALUES ('a', 'b', 2);",
 			expectedData: []spannerData{
-				spannerData{table: "te_s_t", cols: []string{"a__", "b_b", "n_n"}, vals: []interface{}{"a", "b", int64(2)}}},
+				{table: "te_s_t", cols: []string{"a__", "b_b", "n_n"}, vals: []interface{}{"a", "b", int64(2)}}},
 			expectedSchema: map[string]ddl.CreateTable{
-				"te_s_t": ddl.CreateTable{
+				"te_s_t": {
 					Name:     "te_s_t",
 					ColNames: []string{"a__", "b_b", "n_n"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a__": ddl.ColumnDef{Name: "a__", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						"b_b": ddl.ColumnDef{Name: "b_b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"n_n": ddl.ColumnDef{Name: "n_n", T: ddl.Type{Name: ddl.Int64}},
+						"a__": {Name: "a__", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"b_b": {Name: "b_b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"n_n": {Name: "n_n", T: ddl.Type{Name: ddl.Int64}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a__"}}}},
+					Pks: []ddl.IndexKey{{Col: "a__"}}}},
 		},
 		{
 			name: "Tables and columns with illegal characters: CREATE-ALTER",
@@ -698,17 +698,17 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 				"ALTER TABLE `te.s t` ADD CONSTRAINT test_pkey PRIMARY KEY (`a?^`);\n" +
 				"INSERT INTO `te.s t` (`a?^`, `b.b`, `n*n`) VALUES ('a', 'b', 2);",
 			expectedData: []spannerData{
-				spannerData{table: "te_s_t", cols: []string{"a__", "b_b", "n_n"}, vals: []interface{}{"a", "b", int64(2)}}},
+				{table: "te_s_t", cols: []string{"a__", "b_b", "n_n"}, vals: []interface{}{"a", "b", int64(2)}}},
 			expectedSchema: map[string]ddl.CreateTable{
-				"te_s_t": ddl.CreateTable{
+				"te_s_t": {
 					Name:     "te_s_t",
 					ColNames: []string{"a__", "b_b", "n_n"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a__": ddl.ColumnDef{Name: "a__", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-						"b_b": ddl.ColumnDef{Name: "b_b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"n_n": ddl.ColumnDef{Name: "n_n", T: ddl.Type{Name: ddl.Int64}},
+						"a__": {Name: "a__", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						"b_b": {Name: "b_b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"n_n": {Name: "n_n", T: ddl.Type{Name: ddl.Int64}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a__"}}}},
+					Pks: []ddl.IndexKey{{Col: "a__"}}}},
 		},
 		// The "Data conversion: ..." cases check data conversion for each type.
 		{
@@ -717,7 +717,7 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 	CREATE TABLE test (id integer PRIMARY KEY, a bool, b bigint, c char(1),d blob);
 	INSERT INTO test (id, a, b, c, d) VALUES (1, 1, 42, 'x',_binary '` + string([]byte{137, 80}) + `');`,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), true, int64(42), "x", []byte{0x89, 0x50}}}},
+				{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), true, int64(42), "x", []byte{0x89, 0x50}}}},
 		},
 		{
 			name: "Data conversion: date, float, decimal, mediumint",
@@ -726,7 +726,7 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 	INSERT INTO test (id, a, b, c) VALUES (1,'2019-10-29',4.444,5.44444);
 	`,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), big.NewRat(136111, 25000)}}},
+				{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), big.NewRat(136111, 25000)}}},
 		},
 		{
 			name: "Data conversion: smallint, mediumint, bigint, double",
@@ -735,7 +735,7 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 	INSERT INTO test (id, a, b, c, d) VALUES (1, 88, 44, 22, 444.9876);
 	`,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), int64(88), int64(44), int64(22), float64(444.9876)}}},
+				{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), int64(88), int64(44), int64(22), float64(444.9876)}}},
 		},
 		{
 			name: "Data conversion: negative values for smallint, mediumint, bigint, double",
@@ -744,7 +744,7 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 	INSERT INTO test (id, a, b, c, d) VALUES (-1, -88, -44, -22, -444.9876);
 	`,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(-1), int64(-88), int64(-44), int64(-22), float64(-444.9876)}}},
+				{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(-1), int64(-88), int64(-44), int64(-22), float64(-444.9876)}}},
 		},
 		// test with different timezone
 		{
@@ -755,7 +755,7 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 	INSERT INTO test (id, a, b, c, d) VALUES (1, 'my text', '2019-10-29 05:30:00', '2019-10-29 05:30:00', 'my varchar');
 	`,
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), "my text", getTime(t, "2019-10-29T05:30:00+02:30"), getTimeWithoutTimezone(t, "2019-10-29 05:30:00"), "my varchar"}}},
+				{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), "my text", getTime(t, "2019-10-29T05:30:00+02:30"), getTimeWithoutTimezone(t, "2019-10-29 05:30:00"), "my varchar"}}},
 		},
 	}
 	for _, tc := range multiColTests {
@@ -804,18 +804,18 @@ func TestProcessMySQLDump_DataError(t *testing.T) {
 				"INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,NULL,NULL,NULL,NULL,'42,6');\n" + // Good
 				"INSERT INTO test (a, b, c, d, e, f) VALUES (NULL,NULL,NULL,NULL,NULL,42,6);\n", // Error
 			expectedData: []spannerData{
-				spannerData{
+				{
 					table: "test", cols: []string{"a", "b", "c", "d", "e", "f", "synth_id"},
 					vals: []interface{}{int64(7), float64(42.1), true,
 						getDate("2019-10-29"), []byte{0x89, 0x50},
 						[]spanner.NullString{{StringVal: "42", Valid: true}, {StringVal: "6", Valid: true}},
 						bitReverse(0)}},
-				spannerData{table: "test", cols: []string{"a", "synth_id"}, vals: []interface{}{int64(7), bitReverse(1)}},
-				spannerData{table: "test", cols: []string{"b", "synth_id"}, vals: []interface{}{float64(42.1), bitReverse(2)}},
-				spannerData{table: "test", cols: []string{"c", "synth_id"}, vals: []interface{}{true, bitReverse(3)}},
-				spannerData{table: "test", cols: []string{"d", "synth_id"}, vals: []interface{}{getDate("2019-10-29"), bitReverse(4)}},
-				spannerData{table: "test", cols: []string{"e", "synth_id"}, vals: []interface{}{[]byte{0x89, 0x50}, bitReverse(5)}},
-				spannerData{table: "test", cols: []string{"f", "synth_id"},
+				{table: "test", cols: []string{"a", "synth_id"}, vals: []interface{}{int64(7), bitReverse(1)}},
+				{table: "test", cols: []string{"b", "synth_id"}, vals: []interface{}{float64(42.1), bitReverse(2)}},
+				{table: "test", cols: []string{"c", "synth_id"}, vals: []interface{}{true, bitReverse(3)}},
+				{table: "test", cols: []string{"d", "synth_id"}, vals: []interface{}{getDate("2019-10-29"), bitReverse(4)}},
+				{table: "test", cols: []string{"e", "synth_id"}, vals: []interface{}{[]byte{0x89, 0x50}, bitReverse(5)}},
+				{table: "test", cols: []string{"f", "synth_id"},
 					vals: []interface{}{[]spanner.NullString{{StringVal: "42", Valid: true}, {StringVal: "6", Valid: true}}, bitReverse(6)}},
 			},
 		},
@@ -869,31 +869,31 @@ func TestProcessMySQLDump_AddPrimaryKeys(t *testing.T) {
 			name:  "Shopping cart",
 			input: "CREATE TABLE cart (productid text, userid text, quantity bigint);",
 			expectedSchema: map[string]ddl.CreateTable{
-				"cart": ddl.CreateTable{
+				"cart": {
 					Name:     "cart",
 					ColNames: []string{"productid", "userid", "quantity", "synth_id"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"productid": ddl.ColumnDef{Name: "productid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"userid":    ddl.ColumnDef{Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
-						"synth_id":  ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+						"productid": {Name: "productid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"userid":    {Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"quantity":  {Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
+						"synth_id":  {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}}}},
+					Pks: []ddl.IndexKey{{Col: "synth_id"}}}},
 		},
 		{
 			name:  "synth_id clash",
 			input: "CREATE TABLE test (synth_id text, synth_id0 text, synth_id1 bigint);",
 			expectedSchema: map[string]ddl.CreateTable{
-				"test": ddl.CreateTable{
+				"test": {
 					Name:     "test",
 					ColNames: []string{"synth_id", "synth_id0", "synth_id1", "synth_id2"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"synth_id":  ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"synth_id0": ddl.ColumnDef{Name: "synth_id0", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-						"synth_id1": ddl.ColumnDef{Name: "synth_id1", T: ddl.Type{Name: ddl.Int64}},
-						"synth_id2": ddl.ColumnDef{Name: "synth_id2", T: ddl.Type{Name: ddl.Int64}},
+						"synth_id":  {Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id0": {Name: "synth_id0", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+						"synth_id1": {Name: "synth_id1", T: ddl.Type{Name: ddl.Int64}},
+						"synth_id2": {Name: "synth_id2", T: ddl.Type{Name: ddl.Int64}},
 					},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id2"}}}},
+					Pks: []ddl.IndexKey{{Col: "synth_id2"}}}},
 		},
 	}
 	for _, tc := range cases {

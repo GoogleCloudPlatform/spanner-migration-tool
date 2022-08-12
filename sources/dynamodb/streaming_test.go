@@ -399,7 +399,7 @@ func Test_getMutation(t *testing.T) {
 			"c": {Name: "c", Type: schema.Type{Name: typeBool}},
 			"d": {Name: "d", Type: schema.Type{Name: typeString}},
 		},
-		PrimaryKeys: []schema.Key{schema.Key{Column: "d"}, schema.Key{Column: "b"}},
+		PrimaryKeys: []schema.Key{{Column: "d"}, {Column: "b"}},
 	}
 
 	type args struct {
@@ -464,7 +464,7 @@ func Test_writeRecord(t *testing.T) {
 			"e": {Name: "e", Type: schema.Type{Name: typeString}},
 			"f": {Name: "f", Type: schema.Type{Name: typeNumber}},
 		},
-		PrimaryKeys: []schema.Key{schema.Key{Column: "f"}, schema.Key{Column: "e"}},
+		PrimaryKeys: []schema.Key{{Column: "f"}, {Column: "e"}},
 	}
 	tests := []struct {
 		srcTable  string
