@@ -2388,6 +2388,79 @@ func TestDropSecondaryIndex(t *testing.T) {
 	}
 }
 
+func TestDropTable(t *testing.T) {
+	sessionState := session.GetSessionState()
+	sessionState.Driver = constants.MYSQL
+
+	c := &internal.Conv{
+
+		SpSchema: map[string]ddl.CreateTable{
+			"t1": {
+				Name:     "t1",
+				ColNames: []string{"a", "b", "c"},
+				ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+					"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+					"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				},
+				Pks: []ddl.IndexKey{{Col: "a", Desc: false}},
+				Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}}},
+			},
+			"t2": {
+				Name:     "t2",
+				ColNames: []string{"a", "b", "c"},
+				ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+					"b":        {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+					"c":        {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+					"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+				},
+				Pks: []ddl.IndexKey{{Col: "synth_id", Desc: false}},
+			}},
+		Audit: internal.Audit{
+			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+		},
+	}
+
+	sessionState.Conv = c
+
+	payload := `{}`
+
+	req, err := http.NewRequest("PUT", "/drop/table?table=t1", strings.NewReader(payload))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Println(req.URL)
+
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(dropTable)
+	handler.ServeHTTP(rr, req)
+
+	res := &internal.Conv{}
+
+	json.Unmarshal(rr.Body.Bytes(), &res)
+
+	expectedConv := &internal.Conv{
+
+		SpSchema: map[string]ddl.CreateTable{
+			"t2": {
+				Name:     "t2",
+				ColNames: []string{"a", "b", "c"},
+				ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+					"b":        {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+					"c":        {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+					"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+				},
+				Pks:     []ddl.IndexKey{{Col: "synth_id", Desc: false}},
+				Fks:     []ddl.Foreignkey{},
+				Indexes: []ddl.CreateIndex(nil),
+			}},
+	}
+
+	assert.Equal(t, expectedConv.SpSchema, res.SpSchema)
+}
+
 func buildConvMySQL(conv *internal.Conv) {
 	conv.SrcSchema = map[string]schema.Table{
 		"t1": {
