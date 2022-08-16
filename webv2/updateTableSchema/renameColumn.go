@@ -45,8 +45,24 @@ func renameColumn(newName, table, colName string, Conv *internal.Conv) {
 		renameForeignkeyTableSchema(Conv, sp, i, colName, newName)
 	}
 
+	for _, sp := range Conv.SpSchema {
+
+		for j := 0; j < len(sp.Fks); j++ {
+			if sp.Fks[j].ReferTable == table {
+				fmt.Println("found")
+				fmt.Println("sp.Name :", sp.Name)
+
+				reviewRenameForeignkeyReferTableSchema(Conv, sp, sp.Name, colName, newName)
+			}
+
+		}
+
+	}
+
 	// update interleave table relation
 	isParent, parentschemaTable := IsParent(table)
+
+	fmt.Println("parentschemaTable :", parentschemaTable)
 
 	if isParent {
 		renamechildTableSchema(Conv, parentschemaTable, colName, newName)
@@ -54,6 +70,8 @@ func renameColumn(newName, table, colName string, Conv *internal.Conv) {
 	}
 
 	childschemaTable := Conv.SpSchema[table].Parent
+
+	fmt.Println("childschemaTable :", childschemaTable)
 
 	if childschemaTable != "" {
 
