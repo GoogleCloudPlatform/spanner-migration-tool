@@ -13,6 +13,8 @@
 # limitations under the License.
 
 on:
+  schedule:
+    - cron:  '0 0 * * *'
   push:
     branches:
       - master
