@@ -63,11 +63,11 @@ export class FetchService {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/typemap/table?table=${tableName}`, data)
   }
 
-  restoreTable(tableName: string) {
-    return this.http.post<HttpResponse<IConv>>(`${this.url}/restore/table?table=${tableName}`, {})
+  restoreTable(tableId: string) {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/restore/table?tableId=${tableId}`, {})
   }
-  dropTable(tableName: string) {
-    return this.http.put<HttpResponse<IConv>>(`${this.url}/drop/table?table=${tableName}`, {})
+  dropTable(tableId: string) {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/table?tableId=${tableId}`, {})
   }
 
   updatePk(pkObj: IPrimaryKey) {

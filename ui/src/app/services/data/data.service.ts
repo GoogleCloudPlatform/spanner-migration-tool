@@ -197,8 +197,8 @@ export class DataService {
     )
   }
 
-  restoreTable(tableName: string): Observable<string> {
-    return this.fetch.restoreTable(tableName).pipe(
+  restoreTable(tableId: string): Observable<string> {
+    return this.fetch.restoreTable(tableId).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),
@@ -216,8 +216,8 @@ export class DataService {
     )
   }
 
-  dropTable(tableName: string): Observable<string> {
-    return this.fetch.dropTable(tableName).pipe(
+  dropTable(tableId: string): Observable<string> {
+    return this.fetch.dropTable(tableId).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),

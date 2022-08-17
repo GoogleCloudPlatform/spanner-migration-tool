@@ -308,4 +308,25 @@ export class ConversionService {
     }
     return res
   }
+
+  getSourceTableNameToIdMapping(tableName: string, conv: IConv): string {
+    let Id: string = ''
+    Object.keys(conv.SrcSchema).forEach((key: string) => {
+      if (conv.SrcSchema[key].Name === tableName) {
+        Id = conv.SrcSchema[key].Id
+        console.log(key, '\n')
+      }
+    })
+    return Id
+  }
+  getSpannerTableNameToIdMapping(tableName: string, conv: IConv): string {
+    let Id: string = ''
+    Object.keys(conv.SpSchema).forEach((key: string) => {
+      if (conv.SpSchema[key].Name === tableName) {
+        Id = conv.SpSchema[key].Id
+        console.log(key, '\n')
+      }
+    })
+    return Id
+  }
 }
