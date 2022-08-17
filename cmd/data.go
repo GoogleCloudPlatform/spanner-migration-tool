@@ -128,7 +128,8 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	}
 
 	var (
-		dbURI string
+		dbURI    string
+		progress *internal.Progress
 	)
 	if !cmd.dryRun {
 		now := time.Now()
@@ -140,7 +141,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 		banner = utils.GetBanner(now, dbURI)
 	} else {
 		conv.Audit.DryRun = true
-		bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, nil, conv, true, cmd.WriteLimit)
+		bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, nil, conv, true, cmd.WriteLimit, progress)
 		if err != nil {
 			err = fmt.Errorf("can't finish data conversion for db %s: %v", dbName, err)
 			return subcommands.ExitFailure
