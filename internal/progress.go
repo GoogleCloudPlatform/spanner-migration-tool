@@ -58,10 +58,6 @@ func NewProgress(total int64, message string, verbose, fractional bool) *Progres
 func (p *Progress) MaybeReport(progress int64) {
 	if progress > p.progress {
 		p.progress = progress
-		if p.fractional {
-			p.reportFraction(false)
-			return
-		}
 		var pct int
 		if p.total > 0 {
 			pct = int((progress * 100) / p.total)
@@ -73,6 +69,10 @@ func (p *Progress) MaybeReport(progress int64) {
 		}
 		if pct > p.pct {
 			p.pct = pct
+		}
+		if p.fractional {
+			p.reportFraction(false)
+		} else {
 			p.reportPct(false)
 		}
 
@@ -118,4 +118,8 @@ func (p *Progress) reportFraction(firstCall bool) {
 	if p.progress == p.total {
 		fmt.Printf("\n")
 	}
+}
+
+func (p *Progress) ReportProgress() (int, string) {
+	return int(p.pct), p.message
 }

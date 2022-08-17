@@ -6,7 +6,8 @@ export default interface IMigrationDetails {
     MigrationMode: string
 }
 
-export interface Progress {
-    progress: number
-    error: string
+export interface IProgress {
+    Progress: number
+    ErrorMessage: string
+    Message: string
 }

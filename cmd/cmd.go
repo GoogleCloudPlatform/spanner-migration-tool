@@ -54,8 +54,11 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 		return fmt.Errorf("legacy mode is not supported for drivers other than %s", strings.Join(utils.GetLegacyModeSupportedDrivers(), ", "))
 	}
 
-	var conv *internal.Conv
-	var err error
+	var (
+		conv     *internal.Conv
+		err      error
+		progress *internal.Progress
+	)
 	// Creating profiles from legacy flags. We only pass schema-sample-size here because thats the
 	// only flag passed through the arguments. Dumpfile params are contained within ioHelper
 	// and direct connect params will be fetched from the env variables.
@@ -116,12 +119,12 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 
 	// We pass an empty string to the sqlConnectionStr parameter as this is the legacy codepath,
 	// which reads the environment variables and constructs the string later on.
-	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, dataOnly, DefaultWritersLimit)
+	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, dataOnly, DefaultWritersLimit, progress)
 	if err != nil {
 		return fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 	}
 	if !skipForeignKeys {
-		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
+		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out, progress); err != nil {
 			return fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
 		}
 	}

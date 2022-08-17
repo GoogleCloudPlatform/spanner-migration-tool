@@ -103,6 +103,12 @@ type sessionSummary struct {
 	ConnectionType    string
 }
 
+type progressDetails struct {
+	Progress     int
+	ErrorMessage string
+	Message      string
+}
+
 type migrationDetails struct {
 	TargetDetails targetDetails `json:"TargetDetails"`
 	MigrationMode string        `json:MigrationMode`
@@ -1201,6 +1207,22 @@ func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(sessionSummary)
 }
 
+func updateProgress(w http.ResponseWriter, r *http.Request) {
+
+	var detail progressDetails
+	sessionState := session.GetSessionState()
+	if sessionState.Error != nil {
+		fmt.Println("Error", sessionState.Error)
+		detail.ErrorMessage = sessionState.Error.Error()
+	} else {
+		detail.ErrorMessage = ""
+		detail.Progress, detail.Message = sessionState.Progress.ReportProgress()
+		fmt.Println("Progress ", detail.Progress, detail.Message)
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(detail)
+}
+
 func migrate(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("request started", "method", r.Method, "path", r.URL.Path)
@@ -1219,6 +1241,8 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
+	sessionState.Error = nil
+	sessionState.Progress = internal.Progress{}
 	ctx := context.Background()
 	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
 	if err != nil {
@@ -1226,22 +1250,21 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Can't get source and target profiles: %v", err), http.StatusBadRequest)
 		return
 	}
-	var progress *internal.Progress
 
 	if details.MigrationMode == utilities.SCHEMA_ONLY {
-		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv, &sessionState.Error, progress)
+		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv, &sessionState.Error, &sessionState.Progress)
 	} else if details.MigrationMode == utilities.DATA_ONLY {
 		dataCmd := &cmd.DataCmd{
 			SkipForeignKeys: false,
 			WriteLimit:      cmd.DefaultWritersLimit,
 		}
-		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, dataCmd, sessionState.Conv, &sessionState.Error, progress)
+		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, dataCmd, sessionState.Conv, &sessionState.Error, &sessionState.Progress)
 	} else {
 		schemaAndDataCmd := &cmd.SchemaAndDataCmd{
 			SkipForeignKeys: false,
 			WriteLimit:      cmd.DefaultWritersLimit,
 		}
-		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, schemaAndDataCmd, sessionState.Conv, &sessionState.Error, progress)
+		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, schemaAndDataCmd, sessionState.Conv, &sessionState.Error, &sessionState.Progress)
 	}
 	w.WriteHeader(http.StatusOK)
 	log.Println("migration completed", "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)

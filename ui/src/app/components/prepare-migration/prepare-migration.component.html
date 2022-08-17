@@ -77,5 +77,5 @@
         <span *ngIf="isStreamingCfgSet"><b>Streaming Config:</b>{{ targetDetails.StreamingConfig }}</span><br />
     </div>
     <button mat-raised-button type="submit" color="primary" (click)="migrate()" class="migrate"
-        [disabled]="!isTargetDetailSet">Migrate</button>
+        [disabled]="!isTargetDetailSet || isDisabled">Migrate</button>
 </div>

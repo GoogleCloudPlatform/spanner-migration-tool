@@ -111,7 +111,28 @@ func MigrateDatabase(ctx context.Context, targetProfile profiles.TargetProfile, 
 	case *SchemaCmd:
 		err = migrateSchema(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient)
 	case *DataCmd:
+<<<<<<< HEAD
 		bw, err = migrateData(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client, v)
+=======
+		if !sourceProfile.UseTargetSchema() {
+			err = validateExistingDb(ctx, conv.TargetDb, dbURI, adminClient, client, conv)
+			if err != nil {
+				err = fmt.Errorf("error while validating existing database: %v", err)
+				return nil, err
+			}
+		}
+		bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, v.WriteLimit, progress)
+		if err != nil {
+			err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
+			return nil, err
+		}
+		if !v.SkipForeignKeys {
+			if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out, progress); err != nil {
+				err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
+				return bw, err
+			}
+		}
+>>>>>>> 5a6e3cc (added progress tracking)
 	case *SchemaAndDataCmd:
 		bw, err = migrateSchemaAndData(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client, v)
 	}
@@ -144,6 +165,7 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 			err = fmt.Errorf("error while validating existing database: %v", err)
 			return nil, err
 		}
+<<<<<<< HEAD
 	}
 	bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit)
 	if err != nil {
@@ -175,6 +197,18 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
 			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
 			return bw, err
+=======
+		bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, v.WriteLimit, progress)
+		if err != nil {
+			err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
+			return nil, err
+		}
+		if !v.SkipForeignKeys {
+			if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out, progress); err != nil {
+				err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
+				return bw, err
+			}
+>>>>>>> 5a6e3cc (added progress tracking)
 		}
 	}
 	return bw, nil

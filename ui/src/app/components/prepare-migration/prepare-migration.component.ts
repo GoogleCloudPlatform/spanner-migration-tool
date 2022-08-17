@@ -6,9 +6,9 @@ import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
 import { ISessionSummary } from 'src/app/model/conv'
-import IMigrationDetails from 'src/app/model/migrate'
+import IMigrationDetails, { IProgress } from 'src/app/model/migrate'
 import { InputType, MigrationModes, SourceDbNames } from 'src/app/app.constants'
-import {interval, Observable, Subscription} from 'rxjs'
+import { interval, Observable, Subscription } from 'rxjs'
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
@@ -24,14 +24,19 @@ export class PrepareMigrationComponent implements OnInit {
     private fetch: FetchService,
     private snack: SnackbarService,
     private targetDetailService: TargetDetailsService
-  ) {}
+  ) { }
 
   isTargetDetailSet: boolean = false
   isStreamingCfgSet: boolean = false
   isSchemaMigration: boolean = true
   isStreamingSupported: boolean = false
+  isDisabled: boolean = false
+  error: boolean = false
   selectedMigrationMode: string = MigrationModes.schemaOnly
   selectedMigrationType: string = 'bulk'
+  errorMessage: string = ''
+  progressMessage: string = ''
+  progress: number = 0
   targetDetails: ITargetDetails = this.targetDetailService.getTargetDetails()
 
   ngOnInit(): void {
@@ -63,7 +68,7 @@ export class PrepareMigrationComponent implements OnInit {
         }
       },
       error: (err: any) => {
-         this.snack.openSnackBar(err.error, 'Close')
+        this.snack.openSnackBar(err.error, 'Close')
       },
     })
   }
@@ -73,7 +78,7 @@ export class PrepareMigrationComponent implements OnInit {
       width: '30vw',
       minWidth: '400px',
       maxWidth: '500px',
-      data:this.selectedMigrationType=='lowdt',
+      data: this.selectedMigrationType == 'lowdt',
     })
     dialogRef.afterClosed().subscribe(() => {
       if (this.targetDetails.TargetDB != '') {
@@ -86,6 +91,7 @@ export class PrepareMigrationComponent implements OnInit {
   }
 
   migrate() {
+    this.isDisabled = !this.isDisabled
     let payload: IMigrationDetails = {
       TargetDetails: this.targetDetailService.getTargetDetails(),
       MigrationType: this.selectedMigrationType,
@@ -99,15 +105,36 @@ export class PrepareMigrationComponent implements OnInit {
         this.snack.openSnackBar(err.error, 'Close')
       },
     })
-    this.subscription= interval(5000).subscribe((x =>{
+    this.subscription = interval(5000).subscribe((x => {
+      this.fetch.getProgress().subscribe({
+        next: (res: IProgress) => {
+          if (res.ErrorMessage == '') {
+            this.progress = res.Progress
+            this.progressMessage = res.Message
+            if (this.progress == 100 && this.progressMessage.startsWith('Updating schema of database')) {
+              this.subscription.unsubscribe();
+              this.isDisabled = !this.isDisabled
+            }
+
+          } else {
+            this.error = true;
+            this.errorMessage = res.ErrorMessage;
+            this.subscription.unsubscribe();
+            this.isDisabled = !this.isDisabled
+          }
+        },
+        error: (err: any) => {
+          this.snack.openSnackBar(err.error, 'Close')
+        },
+      })
       console.log('called');
-  }));
+    }));
 
   }
   ngOnDestroy() {
     if (this.subscription) {
       this.subscription.unsubscribe();
     }
-    
-}
+
+  }
 }

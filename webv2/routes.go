@@ -75,6 +75,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/Migrate", migrate).Methods("POST")
 
 	router.HandleFunc("/GetSourceDestinationSummary", getSourceDestinationSummary).Methods("GET")
+	router.HandleFunc("/GetProgress", updateProgress).Methods("GET")
 
 	return router
 }
