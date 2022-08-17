@@ -17,6 +17,10 @@ then
 	exit 1
 fi
 echo "Version is semantically valid, please ensure that it is the next version as per SemVer..."
+
+echo "Verifying that all tests pass..."
+make test
+
 echo "Verifying that harbourbrige binary can be built..."
 make build-static
 
