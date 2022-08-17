@@ -146,14 +146,14 @@ type statementStat struct {
 // Stores the audit information of conversion.
 // Elements that do not affect the migration functionality but are relevant for the migration metadata.
 type Audit struct {
-	ToSpannerFkIdx           map[string]FkeyAndIdxs                 `json:"ToSpannerFkIdx"` // Maps from source-DB table name to Spanner names for table name, foreign key and indexes.
-	ToSourceFkIdx            map[string]FkeyAndIdxs                 `json:"ToSourceFkIdx"`  // Maps from Spanner table name to source-DB names for table name, foreign key and indexes.
-	SchemaConversionDuration time.Duration                          `json:"-"`              // Duration of schema conversion.
-	DataConversionDuration   time.Duration                          `json:"-"`              // Duration of data conversion.
-	MigrationRequestId       string                                 `json:"-"`              // Unique request id generated per migration
-	MigrationType            *migration.MigrationData_MigrationType `json:"-"`              // Type of migration: Schema migration, data migration or schema and data migration
-	DryRun                   bool                                   `json:"-"`              // Flag to identify if the migration is a dry run.
-	StreamingStats           streamingStats                         `json:"-"`              // Stores information related to streaming migration process.
+	ToSpannerFkIdx           map[string]FkeyAndIdxs                 // Maps from source-DB table name to Spanner names for table name, foreign key and indexes.
+	ToSourceFkIdx            map[string]FkeyAndIdxs                 // Maps from Spanner table name to source-DB names for table name, foreign key and indexes.
+	SchemaConversionDuration time.Duration                          `json:"-"` // Duration of schema conversion.
+	DataConversionDuration   time.Duration                          `json:"-"` // Duration of data conversion.
+	MigrationRequestId       string                                 `json:"-"` // Unique request id generated per migration
+	MigrationType            *migration.MigrationData_MigrationType `json:"-"` // Type of migration: Schema migration, data migration or schema and data migration
+	DryRun                   bool                                   `json:"-"` // Flag to identify if the migration is a dry run.
+	StreamingStats           streamingStats                         `json:"-"` // Stores information related to streaming migration process.
 }
 
 // Stores information related to the streaming migration process.
