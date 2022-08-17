@@ -508,12 +508,6 @@
             <th mat-header-cell *matHeaderCellDef class="db_name" colspan="5">
               <div class="spanner_edit-button">
                 <span>Spanner</span>
-                <div *ngIf="!isFkEditMode && fkDataSource.length > 0 && !interleaveParentName">
-                  <button mat-stroked-button color="primary" (click)="toggleFkEdit()">
-                    <mat-icon class="edit-icon">edit</mat-icon>
-                    EDIT
-                  </button>
-                </div>
               </div>
             </th>
           </ng-container>
@@ -701,7 +695,7 @@
           <div class="spanner_edit-button">
             <span>Spanner</span>
 
-            <div *ngIf="!isIndexEditMode">
+            <div *ngIf="currentObject!.isSpannerNode && currentObject!.type === 'indexName'">
               <button mat-stroked-button color="primary" (click)="toggleIndexEdit()">
                 <mat-icon class="edit-icon">edit</mat-icon>
                 EDIT
