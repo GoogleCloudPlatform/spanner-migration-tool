@@ -27,7 +27,7 @@ export class PrepareMigrationComponent implements OnInit {
   isTargetDetailSet: boolean = false
   isStreamingCfgSet: boolean = false
   isSchemaMigration: boolean = true
-  isBulkMigration: boolean = true
+  isStreamingSupported: boolean = false
   selectedMigrationMode: string = MigrationModes.schemaOnly
   selectedMigrationType: string = 'bulk'
   targetDetails: ITargetDetails = this.targetDetailService.getTargetDetails()
@@ -56,7 +56,7 @@ export class PrepareMigrationComponent implements OnInit {
           this.migrationModes = [MigrationModes.schemaOnly, MigrationModes.dataOnly, MigrationModes.schemaAndData]
         }
         if (res.DatabaseType == SourceDbNames.MySQL.toLowerCase() || res.DatabaseType == SourceDbNames.Oracle.toLowerCase()) {
-          this.isBulkMigration = false
+          this.isStreamingSupported = true
         }
       },
       error: (err: any) => {

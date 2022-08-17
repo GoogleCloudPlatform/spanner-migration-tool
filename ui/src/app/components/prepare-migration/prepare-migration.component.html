@@ -42,7 +42,7 @@
         </mat-select>
     </mat-form-field>
 
-    <div *ngIf="!(selectedMigrationMode ==='Schema' || isBulkMigration)">
+    <div *ngIf="!(selectedMigrationMode ==='Schema') && isStreamingSupported">
         <mat-form-field appearance="outline">
             <mat-label>Migration Type:</mat-label>
             <mat-select [(ngModel)]="selectedMigrationType">

@@ -17,3 +17,75 @@ body {
 .cursor-pointer {
   cursor: pointer;
 }
+
+.header {
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #cccccc;
+  padding-bottom: 10px;
+  .header_action {
+    button {
+      border: none;
+      background-color: inherit;
+      color: #1967d2;
+      font-size: 0.8rem;
+    }
+  }
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    .breadcrumb_source {
+      padding-left: 0;
+      color: rgba(0, 0, 0, 0.56);
+      font-weight: 400;
+      font-size: 14px;
+    }
+    .breadcrumb_workspace {
+      font-weight: 400;
+      font-size: 14px;
+    }
+    span {
+      font-size: 1.2rem;
+      color: rgb(143, 143, 143);
+    }
+  }
+}
+
+.prerequisites {
+  padding: 0;
+  width: 600px;
+  .mat-card-title {
+    font-size: 13pt;
+    font-weight: normal;
+  }
+  .mat-card-subtitle {
+    font-size: 9pt;
+    font-weight: normal;
+  }
+  p {
+    color: #5c5c5c;
+    .bullet {
+      position: relative;
+      display: inline-block;
+      background-color: #e5e5e5;
+      padding: 0px 5px 10px 5px;
+      margin: 0;
+      border-radius: 12px;
+      font-size: 9px;
+      height: 9px;
+      width: 9px;
+      text-align: center;
+    }
+    span {
+      margin-left: 40px;
+      font-weight: lighter;
+      font-size: 13px;
+    }
+  }
+  hr {
+    border-color: #ffffff;
+    margin-bottom: 20px;
+  }
+}

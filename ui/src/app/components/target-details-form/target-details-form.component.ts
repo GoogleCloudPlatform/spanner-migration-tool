@@ -12,12 +12,12 @@ import { TargetDetailsService } from 'src/app/services/target-details/target-det
 export class TargetDetailsFormComponent implements OnInit {
   targetDetailsForm: FormGroup
   constructor(
-    private fb: FormBuilder,
+    private formBuilder: FormBuilder,
     private targetDetailService: TargetDetailsService,
     private dialogRef: MatDialogRef<TargetDetailsFormComponent>,
     @Inject(MAT_DIALOG_DATA) public data: boolean
   ) {
-    this.targetDetailsForm = this.fb.group({
+    this.targetDetailsForm = this.formBuilder.group({
       targetDb: ['', Validators.required],
       dialect: ['',Validators.required],
       streamingConfig: [''],
