@@ -1250,6 +1250,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 
 	sessionState := session.GetSessionState()
 	sessionState.Error = nil
+	sessionState.Progress = internal.Progress{}
 	ctx := context.Background()
 	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
 	if err != nil {

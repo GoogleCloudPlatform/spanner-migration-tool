@@ -110,10 +110,11 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 	}
 
 	var (
-		conv   *internal.Conv
-		bw     *writer.BatchWriter
-		banner string
-		dbURI  string
+		conv     *internal.Conv
+		bw       *writer.BatchWriter
+		banner   string
+		dbURI    string
+		progress *internal.Progress
 	)
 	conv, err = conversion.SchemaConv(sourceProfile, targetProfile, &ioHelper)
 	if err != nil {
@@ -144,7 +145,7 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 		conv.Audit.DryRun = true
 		schemaCoversionEndTime := time.Now()
 		conv.Audit.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
-		bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, nil, conv, true, cmd.WriteLimit)
+		bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, &ioHelper, nil, conv, true, cmd.WriteLimit, progress)
 		if err != nil {
 			err = fmt.Errorf("can't finish data conversion for db %s: %v", dbName, err)
 			return subcommands.ExitFailure

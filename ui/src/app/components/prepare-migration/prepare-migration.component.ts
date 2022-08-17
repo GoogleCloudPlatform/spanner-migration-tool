@@ -5,17 +5,11 @@ import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
 import { ISessionSummary } from 'src/app/model/conv'
-<<<<<<< HEAD
 import IMigrationDetails, { IProgress } from 'src/app/model/migrate'
 import { InputType, MigrationDetails, MigrationModes, MigrationTypes, SourceDbNames, TargetDetails } from 'src/app/app.constants'
 import { interval, Subscription } from 'rxjs'
 import { DataService } from 'src/app/services/data/data.service'
 import { ThisReceiver } from '@angular/compiler'
-=======
-import IMigrationDetails from 'src/app/model/migrate'
-import { InputType, MigrationModes, SourceDbNames } from 'src/app/app.constants'
-import {interval, Observable, Subscription} from 'rxjs'
->>>>>>> 40a1778 (added progress and error)
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
@@ -34,6 +28,8 @@ export class PrepareMigrationComponent implements OnInit {
   ) { }
 
   isStreamingSupported: boolean = false
+  isDisabled: boolean = false
+  error: boolean = false
   selectedMigrationMode: string = MigrationModes.schemaOnly
   connectionType: string = InputType.DirectConnect
   selectedMigrationType: string = MigrationTypes.bulkMigration
@@ -160,7 +156,7 @@ export class PrepareMigrationComponent implements OnInit {
   }
 
   migrate() {
-    this.resetValues()
+this.resetValues()
     let payload: IMigrationDetails = {
       TargetDetails: this.targetDetails,
       MigrationType: this.selectedMigrationType,
@@ -186,9 +182,30 @@ export class PrepareMigrationComponent implements OnInit {
         this.clearLocalStorage()
       },
     })
-    this.subscription= interval(5000).subscribe((x =>{
+    this.subscription = interval(5000).subscribe((x => {
+      this.fetch.getProgress().subscribe({
+        next: (res: IProgress) => {
+          if (res.ErrorMessage == '') {
+            this.progress = res.Progress
+            this.progressMessage = res.Message
+            if (this.progress == 100 && this.progressMessage.startsWith('Updating schema of database')) {
+              this.subscription.unsubscribe();
+              this.isDisabled = !this.isDisabled
+            }
+
+          } else {
+            this.error = true;
+            this.errorMessage = res.ErrorMessage;
+            this.subscription.unsubscribe();
+            this.isDisabled = !this.isDisabled
+          }
+        },
+        error: (err: any) => {
+          this.snack.openSnackBar(err.error, 'Close')
+        },
+      })
       console.log('called');
-  }));
+    }));
 
   }
 
