@@ -2393,7 +2393,10 @@ func TestDropTable(t *testing.T) {
 	sessionState.Driver = constants.MYSQL
 
 	c := &internal.Conv{
-
+		Issues: map[string]map[string][]internal.SchemaIssue{
+			"t1": {},
+			"t2": {},
+		},
 		SpSchema: map[string]ddl.CreateTable{
 			"t1": {
 				Name:     "t1",
