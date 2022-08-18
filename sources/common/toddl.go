@@ -52,58 +52,63 @@ type ToDdl interface {
 // the Spanner schema to conv.SpSchema.
 func SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error {
 	for _, srcTable := range conv.SrcSchema {
-		spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
-			continue
-		}
-		var spColNames []string
-		spColDef := make(map[string]ddl.ColumnDef)
-		conv.Issues[srcTable.Name] = make(map[string][]internal.SchemaIssue)
-		// Iterate over columns using ColNames order.
-		for _, srcColName := range srcTable.ColNames {
-			srcCol := srcTable.ColDefs[srcColName]
-			colName, err := internal.GetSpannerCol(conv, srcTable.Name, srcCol.Name, false)
-			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Couldn't map source column %s of table %s to Spanner: %s", srcTable.Name, srcCol.Name, err))
-				continue
-			}
-			spColNames = append(spColNames, colName)
-			ty, issues := toddl.ToSpannerType(conv, srcCol.Type)
-			// TODO(hengfeng): add issues for all elements of srcCol.Ignored.
-			if srcCol.Ignored.ForeignKey {
-				issues = append(issues, internal.ForeignKey)
-			}
-			if srcCol.Name != colName {
-				issues = append(issues, internal.IllegalName)
-			}
-			if srcCol.Ignored.Default {
-				issues = append(issues, internal.DefaultValue)
-			}
-			if srcCol.Ignored.AutoIncrement { //TODO(adibh) - check why this is not there in postgres
-				issues = append(issues, internal.AutoIncrement)
-			}
-			if len(issues) > 0 {
-				conv.Issues[srcTable.Name][srcCol.Name] = issues
-			}
-			spColDef[colName] = ddl.ColumnDef{
-				Name:    colName,
-				T:       ty,
-				NotNull: srcCol.NotNull,
-				Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
-			}
-		}
-		comment := "Spanner schema for source table " + quoteIfNeeded(srcTable.Name)
-		conv.SpSchema[spTableName] = ddl.CreateTable{
-			Name:     spTableName,
-			ColNames: spColNames,
-			ColDefs:  spColDef,
-			Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
-			Fks:      cvtForeignKeys(conv, spTableName, srcTable.Name, srcTable.ForeignKeys),
-			Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes),
-			Comment:  comment}
+		SchemaToSpannerDDLHelper(conv, toddl, srcTable)
 	}
 	internal.ResolveRefs(conv)
+	return nil
+}
+
+func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table) error {
+	spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
+		return err
+	}
+	var spColNames []string
+	spColDef := make(map[string]ddl.ColumnDef)
+	conv.Issues[srcTable.Name] = make(map[string][]internal.SchemaIssue)
+	// Iterate over columns using ColNames order.
+	for _, srcColName := range srcTable.ColNames {
+		srcCol := srcTable.ColDefs[srcColName]
+		colName, err := internal.GetSpannerCol(conv, srcTable.Name, srcCol.Name, false)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Couldn't map source column %s of table %s to Spanner: %s", srcTable.Name, srcCol.Name, err))
+			continue
+		}
+		spColNames = append(spColNames, colName)
+		ty, issues := toddl.ToSpannerType(conv, srcCol.Type)
+		// TODO(hengfeng): add issues for all elements of srcCol.Ignored.
+		if srcCol.Ignored.ForeignKey {
+			issues = append(issues, internal.ForeignKey)
+		}
+		if srcCol.Name != colName {
+			issues = append(issues, internal.IllegalName)
+		}
+		if srcCol.Ignored.Default {
+			issues = append(issues, internal.DefaultValue)
+		}
+		if srcCol.Ignored.AutoIncrement { //TODO(adibh) - check why this is not there in postgres
+			issues = append(issues, internal.AutoIncrement)
+		}
+		if len(issues) > 0 {
+			conv.Issues[srcTable.Name][srcCol.Name] = issues
+		}
+		spColDef[colName] = ddl.ColumnDef{
+			Name:    colName,
+			T:       ty,
+			NotNull: srcCol.NotNull,
+			Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
+		}
+	}
+	comment := "Spanner schema for source table " + quoteIfNeeded(srcTable.Name)
+	conv.SpSchema[spTableName] = ddl.CreateTable{
+		Name:     spTableName,
+		ColNames: spColNames,
+		ColDefs:  spColDef,
+		Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
+		Fks:      cvtForeignKeys(conv, spTableName, srcTable.Name, srcTable.ForeignKeys),
+		Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes),
+		Comment:  comment}
 	return nil
 }
 
@@ -201,62 +206,15 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 }
 
 func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Table) error {
-	spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
+	err := SchemaToSpannerDDLHelper(conv, toddl, srcTable)
 	if err != nil {
-		conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
 		return err
 	}
-	var spColNames []string
-	spColDef := make(map[string]ddl.ColumnDef)
-	conv.Issues[srcTable.Name] = make(map[string][]internal.SchemaIssue)
-	// Iterate over columns using ColNames order.
-	for _, srcColName := range srcTable.ColNames {
-		srcCol := srcTable.ColDefs[srcColName]
-		colName, err := internal.GetSpannerCol(conv, srcTable.Name, srcCol.Name, false)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Couldn't map source column %s of table %s to Spanner: %s", srcTable.Name, srcCol.Name, err))
-			continue
-		}
-		spColNames = append(spColNames, colName)
-		ty, issues := toddl.ToSpannerType(conv, srcCol.Type)
-		// TODO(hengfeng): add issues for all elements of srcCol.Ignored.
-		if srcCol.Ignored.ForeignKey {
-			issues = append(issues, internal.ForeignKey)
-		}
-		if srcCol.Name != colName {
-			issues = append(issues, internal.IllegalName)
-		}
-		if srcCol.Ignored.Default {
-			issues = append(issues, internal.DefaultValue)
-		}
-		if srcCol.Ignored.AutoIncrement { //TODO(adibh) - check why this is not there in postgres
-			issues = append(issues, internal.AutoIncrement)
-		}
-		if len(issues) > 0 {
-			conv.Issues[srcTable.Name][srcCol.Name] = issues
-		}
-		spColDef[colName] = ddl.ColumnDef{
-			Name:    colName,
-			T:       ty,
-			NotNull: srcCol.NotNull,
-			Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
-		}
-	}
-	comment := "Spanner schema for source table " + quoteIfNeeded(srcTable.Name)
-	conv.SpSchema[spTableName] = ddl.CreateTable{
-		Name:     spTableName,
-		ColNames: spColNames,
-		ColDefs:  spColDef,
-		Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
-		Fks:      cvtForeignKeys(conv, spTableName, srcTable.Name, srcTable.ForeignKeys),
-		Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes),
-		Comment:  comment}
-
 	for srcTableName, srcTable2 := range conv.SrcSchema {
 		if _, isPresent := conv.ToSpanner[srcTableName]; !isPresent {
 			continue
 		}
-		spTableName = conv.ToSpanner[srcTableName].Name
+		spTableName := conv.ToSpanner[srcTableName].Name
 		if _, isPresent := conv.SpSchema[spTableName]; !isPresent {
 			continue
 		}
