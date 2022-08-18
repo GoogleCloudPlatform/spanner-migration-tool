@@ -833,7 +833,7 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 	delete(spSchema, table)
 	delete(toSource, table)
 	delete(toSpanner, table)
-	delete(issues, table)
+	issues[table] = map[string][]internal.SchemaIssue{}
 
 	//drop reference foreign key
 	for tableName, spTable := range spSchema {
@@ -855,6 +855,23 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 		if spTable.Parent == table {
 			spTable.Parent = ""
 			spSchema[tableName] = spTable
+		}
+	}
+
+	//remove interleavable suggestion on droping the parent table
+	for tableName, tableIssues := range issues {
+		for colName, colIssues := range tableIssues {
+			updatedColIssues := []internal.SchemaIssue{}
+			for _, val := range colIssues {
+				if val != internal.InterleavedOrder {
+					updatedColIssues = append(updatedColIssues, val)
+				}
+			}
+			if len(updatedColIssues) == 0 {
+				delete(issues[tableName], colName)
+			} else {
+				issues[tableName][colName] = updatedColIssues
+			}
 		}
 	}
 
