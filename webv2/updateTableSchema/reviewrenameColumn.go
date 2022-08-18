@@ -18,34 +18,6 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 	fmt.Println("columnId :", columnId)
 
-	// step I
-	sp = renameSpannerColDefs(sp, colName, newName)
-
-	// step II
-	sp = renameSpannerPK(sp, colName, newName)
-
-	// step III
-	sp = renameSpannerSecondaryIndex(sp, colName, newName)
-
-	// step IV
-	sp = renameSpannerForeignkeyColumns(sp, colName, newName)
-
-	// step V
-	sp = renameSpannerForeignkeyReferColumns(sp, colName, newName)
-
-	// step VI
-	sp = renameSpannerColNames(sp, colName, newName)
-
-	// step VII
-	renameSpannerSchemaIssue(table, colName, newName, Conv)
-
-	// step VIII
-	renameToSpannerToSource(table, colName, newName, Conv)
-
-	Conv.SpSchema[table] = sp
-
-	interleaveTableSchema = renameinterleaveTableSchema(interleaveTableSchema, table, columnId, colName, newName)
-
 	// update foreignKey relationship Table column names
 	for i, _ := range sp.Fks {
 
@@ -87,6 +59,8 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 		reviewRenamechildTableSchema(Conv, childSchemaTable, interleaveTableSchema, colName, newName)
 
 	}
+
+	interleaveTableSchema = reanmeCurrentTable(Conv, sp, interleaveTableSchema, table, columnId, colName, newName, parentSchemaTable, childSchemaTable)
 
 	return interleaveTableSchema
 
@@ -399,4 +373,39 @@ func renameSpannerSchemaIssue(table string, colName string, newName string, Conv
 
 	delete(Conv.Issues[table], colName)
 
+}
+
+func reanmeCurrentTable(Conv *internal.Conv, sp ddl.CreateTable, interleaveTableSchema []InterleaveTableSchema, table string, columnId string, colName string, newName string, childSchemaTable string, parentSchemaTable string) []InterleaveTableSchema {
+	// step I
+	sp = renameSpannerColDefs(sp, colName, newName)
+
+	// step II
+	sp = renameSpannerPK(sp, colName, newName)
+
+	// step III
+	sp = renameSpannerSecondaryIndex(sp, colName, newName)
+
+	// step IV
+	sp = renameSpannerForeignkeyColumns(sp, colName, newName)
+
+	// step V
+	sp = renameSpannerForeignkeyReferColumns(sp, colName, newName)
+
+	// step VI
+	sp = renameSpannerColNames(sp, colName, newName)
+
+	// step VII
+	renameSpannerSchemaIssue(table, colName, newName, Conv)
+
+	// step VIII
+	renameToSpannerToSource(table, colName, newName, Conv)
+
+	Conv.SpSchema[table] = sp
+
+	if parentSchemaTable != "" || childSchemaTable != "" {
+		interleaveTableSchema = renameinterleaveTableSchema(interleaveTableSchema, table, columnId, colName, newName)
+
+	}
+
+	return interleaveTableSchema
 }
