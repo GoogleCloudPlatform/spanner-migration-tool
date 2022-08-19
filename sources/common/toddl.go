@@ -138,39 +138,47 @@ func cvtPrimaryKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Key) 
 func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTable string, srcKeys []schema.ForeignKey) []ddl.Foreignkey {
 	var spKeys []ddl.Foreignkey
 	for _, key := range srcKeys {
-		if len(key.Columns) != len(key.ReferColumns) {
-			conv.Unexpected(fmt.Sprintf("ConvertForeignKeys: columns and referColumns don't have the same lengths: len(columns)=%d, len(referColumns)=%d for source table: %s, referenced table: %s", len(key.Columns), len(key.ReferColumns), srcTable, key.ReferTable))
-			continue
-		}
-		spReferTable, err := internal.GetSpannerTable(conv, key.ReferTable)
+		spKey, err := cvtForeignKeysHelper(conv, spTableName, srcTable, key)
 		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Can't map foreign key for source table: %s, referenced table: %s", srcTable, key.ReferTable))
 			continue
 		}
-		var spCols, spReferCols []string
-		for i, col := range key.Columns {
-			spCol, err1 := internal.GetSpannerCol(conv, srcTable, col, false)
-			spReferCol, err2 := internal.GetSpannerCol(conv, key.ReferTable, key.ReferColumns[i], false)
-			if err1 != nil || err2 != nil {
-				conv.Unexpected(fmt.Sprintf("Can't map foreign key for table: %s, referenced table: %s, column: %s", srcTable, key.ReferTable, col))
-				continue
-			}
-			spCols = append(spCols, spCol)
-			spReferCols = append(spReferCols, spReferCol)
-		}
-		spKeyName := internal.ToSpannerForeignKey(conv, key.Name)
-
-		spKey := ddl.Foreignkey{
-			Name:         spKeyName,
-			Columns:      spCols,
-			ReferTable:   spReferTable,
-			ReferColumns: spReferCols}
 		spKeys = append(spKeys, spKey)
-		conv.Audit.ToSpannerFkIdx[srcTable].ForeignKey[key.Name] = spKeyName
-		conv.Audit.ToSourceFkIdx[spTableName].ForeignKey[spKeyName] = key.Name
 	}
-
 	return spKeys
+}
+
+func cvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTable string, srcKey schema.ForeignKey) (ddl.Foreignkey, error) {
+	if len(srcKey.Columns) != len(srcKey.ReferColumns) {
+		conv.Unexpected(fmt.Sprintf("ConvertForeignKeys: columns and referColumns don't have the same lengths: len(columns)=%d, len(referColumns)=%d for source table: %s, referenced table: %s", len(srcKey.Columns), len(srcKey.ReferColumns), srcTable, srcKey.ReferTable))
+		return ddl.Foreignkey{}, fmt.Errorf("ConvertForeignKeys: columns and referColumns don't have the same lengths")
+	}
+	spReferTable, err := internal.GetSpannerTable(conv, srcKey.ReferTable)
+	if err != nil {
+		conv.Unexpected(fmt.Sprintf("Can't map foreign key for source table: %s, referenced table: %s", srcTable, srcKey.ReferTable))
+		return ddl.Foreignkey{}, err
+	}
+	var spCols, spReferCols []string
+	for i, col := range srcKey.Columns {
+		spCol, err1 := internal.GetSpannerCol(conv, srcTable, col, false)
+		spReferCol, err2 := internal.GetSpannerCol(conv, srcKey.ReferTable, srcKey.ReferColumns[i], false)
+		if err1 != nil || err2 != nil {
+			conv.Unexpected(fmt.Sprintf("Can't map foreign key for table: %s, referenced table: %s, column: %s", srcTable, srcKey.ReferTable, col))
+			continue
+		}
+		spCols = append(spCols, spCol)
+		spReferCols = append(spReferCols, spReferCol)
+	}
+	spKeyName := internal.ToSpannerForeignKey(conv, srcKey.Name)
+
+	spKey := ddl.Foreignkey{
+		Name:         spKeyName,
+		Columns:      spCols,
+		ReferTable:   spReferTable,
+		ReferColumns: spReferCols}
+	conv.Audit.ToSpannerFkIdx[srcTable].ForeignKey[srcKey.Name] = spKeyName
+	conv.Audit.ToSourceFkIdx[spTableName].ForeignKey[spKeyName] = srcKey.Name
+
+	return spKey, nil
 }
 
 func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcIndexes []schema.Index) []ddl.CreateIndex {
@@ -230,37 +238,12 @@ func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Tabl
 
 func cvtForeignKeysForAReferenceTable(conv *internal.Conv, spTableName string, srcTable string, referTable string, srcKeys []schema.ForeignKey, spKeys []ddl.Foreignkey) []ddl.Foreignkey {
 	for _, key := range srcKeys {
-		if len(key.Columns) != len(key.ReferColumns) {
-			conv.Unexpected(fmt.Sprintf("ConvertForeignKeys: columns and referColumns don't have the same lengths: len(columns)=%d, len(referColumns)=%d for source table: %s, referenced table: %s", len(key.Columns), len(key.ReferColumns), srcTable, key.ReferTable))
-			continue
-		}
 		if key.ReferTable == referTable {
-			spReferTable, err := internal.GetSpannerTable(conv, key.ReferTable)
+			spKey, err := cvtForeignKeysHelper(conv, spTableName, srcTable, key)
 			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Can't map foreign key for source table: %s, referenced table: %s", srcTable, key.ReferTable))
 				continue
 			}
-			var spCols, spReferCols []string
-			for i, col := range key.Columns {
-				spCol, err1 := internal.GetSpannerCol(conv, srcTable, col, false)
-				spReferCol, err2 := internal.GetSpannerCol(conv, key.ReferTable, key.ReferColumns[i], false)
-				if err1 != nil || err2 != nil {
-					conv.Unexpected(fmt.Sprintf("Can't map foreign key for table: %s, referenced table: %s, column: %s", srcTable, key.ReferTable, col))
-					continue
-				}
-				spCols = append(spCols, spCol)
-				spReferCols = append(spReferCols, spReferCol)
-			}
-			spKeyName := internal.ToSpannerForeignKey(conv, key.Name)
-
-			spKey := ddl.Foreignkey{
-				Name:         spKeyName,
-				Columns:      spCols,
-				ReferTable:   spReferTable,
-				ReferColumns: spReferCols}
 			spKeys = append(spKeys, spKey)
-			conv.Audit.ToSpannerFkIdx[srcTable].ForeignKey[key.Name] = spKeyName
-			conv.Audit.ToSourceFkIdx[spTableName].ForeignKey[spKeyName] = key.Name
 		}
 	}
 	return spKeys
