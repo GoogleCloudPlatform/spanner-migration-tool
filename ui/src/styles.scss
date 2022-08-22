@@ -17,3 +17,22 @@ body {
 .cursor-pointer {
   cursor: pointer;
 }
+.mat-button.mat-primary {
+  color: #3367d6;
+}
+.global-font-color {
+  color: #000000;
+}
+.body-font-size {
+  font-size: 14px;
+}
+.primary-header {
+  font-size: 20px !important;
+}
+.mat-stroked-button.mat-primary {
+  color: #3367d6;
+}
+.mat-raised-button.mat-primary {
+  color: white;
+  background-color: #3367d6;
+}

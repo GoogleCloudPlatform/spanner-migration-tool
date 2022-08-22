@@ -1,7 +1,7 @@
 <div class="container">
   <mat-card class="form-container">
     <form [formGroup]="connectForm" (ngSubmit)="convertFromDump()">
-      <h3>Load from database dump</h3>
+      <h3 class="primary-header">Load from database dump</h3>
 
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Database Engine</mat-label>
@@ -12,7 +12,7 @@
         </mat-select>
       </mat-form-field>
 
-      <h3>Dump File</h3>
+      <h3 class="primary-header">Dump File</h3>
 
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>File path</mat-label>
