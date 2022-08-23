@@ -50,6 +50,7 @@ export class PrepareMigrationComponent implements OnInit {
         ]
         if (res.ConnectionType == InputType.DumpFile) {
           this.migrationModes = [MigrationModes.schemaAndData]
+          this.selectedMigrationMode = MigrationModes.schemaAndData
         } else if (res.ConnectionType == InputType.SessionFile) {
           this.migrationModes = [MigrationModes.schemaOnly]
         } else {
