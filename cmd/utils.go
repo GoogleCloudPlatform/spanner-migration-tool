@@ -28,6 +28,8 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/writer"
 )
 
+const completionPercentage = 100
+
 // CreateDatabaseClient creates new database client and admin client.
 func CreateDatabaseClient(ctx context.Context, targetProfile profiles.TargetProfile, driver, dbName string, ioHelper utils.IOStreams) (*database.DatabaseAdminClient, *sp.Client, string, error) {
 	if targetProfile.Conn.Sp.Dbname == "" {
@@ -109,7 +111,7 @@ func MigrateDatabase(ctx context.Context, targetProfile profiles.TargetProfile, 
 	defer client.Close()
 	switch v := cmd.(type) {
 	case *SchemaCmd:
-		err = migrateSchema(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient)
+		err = migrateSchema(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, progress)
 	case *DataCmd:
 		bw, err = migrateData(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client, v, progress)
 	case *SchemaAndDataCmd:
@@ -123,12 +125,13 @@ func MigrateDatabase(ctx context.Context, targetProfile profiles.TargetProfile, 
 }
 
 func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
-	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient) error {
+	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, progress *internal.Progress) error {
 	err := conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
 	if err != nil {
 		err = fmt.Errorf("can't create/update database: %v", err)
 		return err
 	}
+	progress.SetProgressMessageAndUpdate("Schema migration complete.", completionPercentage)
 	return nil
 }
 
