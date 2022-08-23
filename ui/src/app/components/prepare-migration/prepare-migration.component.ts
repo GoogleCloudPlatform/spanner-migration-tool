@@ -8,7 +8,7 @@ import ITargetDetails from 'src/app/model/target-details'
 import { ISessionSummary } from 'src/app/model/conv'
 import IMigrationDetails, { IProgress } from 'src/app/model/migrate'
 import { InputType, MigrationModes, SourceDbNames } from 'src/app/app.constants'
-import { interval, Observable, Subscription } from 'rxjs'
+import { interval, Subscription } from 'rxjs'
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
@@ -31,12 +31,17 @@ export class PrepareMigrationComponent implements OnInit {
   isSchemaMigration: boolean = true
   isStreamingSupported: boolean = false
   isDisabled: boolean = false
-  error: boolean = false
+  hasDataMigrationStarted: boolean = false
+  hasDataMigrationCompleted: boolean = false
+  hasSchemaMigrationStarted: boolean = false
+  hasSchemaMigrationCompleted: boolean = false
   selectedMigrationMode: string = MigrationModes.schemaOnly
   selectedMigrationType: string = 'bulk'
   errorMessage: string = ''
-  progressMessage: string = ''
-  progress: number = 0
+  schemaProgressMessage: string = 'Schema creation in progress...'
+  dataProgressMessage: string = 'Data migration in progress...'
+  dataMigrationProgress: number = 0
+  schemaMigrationProgress: number = 0
   targetDetails: ITargetDetails = this.targetDetailService.getTargetDetails()
 
   ngOnInit(): void {
@@ -91,7 +96,7 @@ export class PrepareMigrationComponent implements OnInit {
   }
 
   migrate() {
-    this.isDisabled = !this.isDisabled
+    this.resetValues()
     let payload: IMigrationDetails = {
       TargetDetails: this.targetDetailService.getTargetDetails(),
       MigrationType: this.selectedMigrationType,
@@ -105,31 +110,69 @@ export class PrepareMigrationComponent implements OnInit {
         this.snack.openSnackBar(err.error, 'Close')
       },
     })
-    this.subscription = interval(5000).subscribe((x => {
-      this.fetch.getProgress().subscribe({
-        next: (res: IProgress) => {
-          if (res.ErrorMessage == '') {
-            this.progress = res.Progress
-            this.progressMessage = res.Message
-            if (this.progress == 100 && this.progressMessage.startsWith('Updating schema of database')) {
+    console.log(this.selectedMigrationMode, " ", this.selectedMigrationType)
+    if (this.selectedMigrationType == 'bulk') {
+      console.log("yes")
+      this.subscription = interval(5000).subscribe((x => {
+        this.fetch.getProgress().subscribe({
+          next: (res: IProgress) => {
+            if (res.ErrorMessage == '') {
+              if (res.Message.startsWith('Schema migration complete')) {
+                this.schemaMigrationProgress = 100
+                if (res.Progress == 100) {
+                  if (this.selectedMigrationMode == MigrationModes.schemaOnly) {
+                    this.markMigrationComplete()
+                  }
+                }
+              } else if (res.Message.startsWith('Writing data to Spanner')) {
+                this.hasDataMigrationStarted = true
+                this.schemaMigrationProgress = 100
+                this.schemaProgressMessage = "Schema migration completed successfully!"
+                if (this.hasDataMigrationCompleted) {
+                  this.markMigrationComplete()
+                }
+                if (res.Progress == 100) {
+                  this.hasDataMigrationCompleted = true
+                }
+                this.dataMigrationProgress = res.Progress
+              } else if (res.Message.startsWith('Updating schema of database')) {
+                this.dataMigrationProgress = 100
+                if (res.Progress == 100) {
+                  this.markMigrationComplete()
+                }
+              }
+            } else {
+              this.errorMessage = res.ErrorMessage;
               this.subscription.unsubscribe();
               this.isDisabled = !this.isDisabled
+              this.snack.openSnackBarWithoutTimeout(this.errorMessage, 'Close')
             }
+          },
+          error: (err: any) => {
+            this.snack.openSnackBar(err.error, 'Close')
+          },
+        })
+      }));
+    }
+  }
 
-          } else {
-            this.error = true;
-            this.errorMessage = res.ErrorMessage;
-            this.subscription.unsubscribe();
-            this.isDisabled = !this.isDisabled
-          }
-        },
-        error: (err: any) => {
-          this.snack.openSnackBar(err.error, 'Close')
-        },
-      })
-      console.log('called');
-    }));
-
+  markMigrationComplete() {
+    this.subscription.unsubscribe();
+    this.isDisabled = !this.isDisabled
+    this.dataProgressMessage = "Data migration completed successfully!"
+    this.schemaProgressMessage = "Schema migration completed successfully!"
+  }
+  resetValues() {
+    this.isDisabled = !this.isDisabled
+    this.hasSchemaMigrationStarted = false
+    this.hasDataMigrationStarted = false
+    this.dataMigrationProgress = 0
+    this.schemaMigrationProgress = 0
+    if (this.selectedMigrationMode == MigrationModes.schemaOnly) {
+      this.hasSchemaMigrationStarted = true
+    } else {
+      this.hasDataMigrationStarted = true
+    }
   }
   ngOnDestroy() {
     if (this.subscription) {

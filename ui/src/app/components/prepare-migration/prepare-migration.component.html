@@ -76,6 +76,14 @@
         <span><b>Spanner Dialect:</b>{{ targetDetails.Dialect }}</span><br />
         <span *ngIf="isStreamingCfgSet"><b>Streaming Config:</b>{{ targetDetails.StreamingConfig }}</span><br />
     </div>
+    <div *ngIf="hasSchemaMigrationStarted" class="progress_bar">
+        <mat-progress-bar mode="determinate" [value]="schemaMigrationProgress"></mat-progress-bar> 
+        <span> {{this.schemaProgressMessage}}</span>
+    </div>
+    <div *ngIf="hasDataMigrationStarted" class="progress_bar">
+        <mat-progress-bar mode="determinate" [value]="dataMigrationProgress"></mat-progress-bar> 
+        <span> {{this.dataProgressMessage}}</span>
+    </div>
     <button mat-raised-button type="submit" color="primary" (click)="migrate()" class="migrate"
         [disabled]="!isTargetDetailSet || isDisabled">Migrate</button>
 </div>

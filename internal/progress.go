@@ -123,3 +123,8 @@ func (p *Progress) reportFraction(firstCall bool) {
 func (p *Progress) ReportProgress() (int, string) {
 	return int(p.pct), p.message
 }
+
+func (p *Progress) SetProgressMessageAndUpdate(message string, pct int) {
+	p.message = message
+	p.pct = pct
+}
