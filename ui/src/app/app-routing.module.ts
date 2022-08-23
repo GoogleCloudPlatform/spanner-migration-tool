@@ -8,7 +8,7 @@ import { LoadSessionComponent } from './components/load-session/load-session.com
 import { SourceSelectionComponent } from './components/source-selection/source-selection.component'
 import { SummaryComponent } from './components/summary/summary.component'
 import { WorkspaceComponent } from './components/workspace/workspace.component'
-
+import { PrepareMigrationComponent } from './components/prepare-migration/prepare-migration.component'
 
 const routes: Routes = [
   {
@@ -45,6 +45,10 @@ const routes: Routes = [
   {
     path: 'instruction',
     component: InstructionComponent,
+  },
+  {
+    path: 'prepare-migration',
+    component: PrepareMigrationComponent,
   },
   {
     path: '**',

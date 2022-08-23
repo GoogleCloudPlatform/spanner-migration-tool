@@ -30,3 +30,9 @@ export enum RulesTypes {
   ChangeGlobalDataType = 'globalDatatype',
   AddIndex = 'addIndex',
 }
+
+export enum MigrationModes {
+  schemaOnly = 'Schema',
+  dataOnly = 'Data',
+  schemaAndData = 'Schema And Data'
+}
