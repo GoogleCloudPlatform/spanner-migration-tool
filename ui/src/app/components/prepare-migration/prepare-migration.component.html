@@ -85,6 +85,14 @@
         <mat-progress-bar mode="determinate" [value]="dataMigrationProgress"></mat-progress-bar>
         <span> {{this.dataProgressMessage}}</span>
     </div>
+    <div *ngIf="hasSchemaMigrationStarted" class="progress_bar">
+        <mat-progress-bar mode="determinate" [value]="schemaMigrationProgress"></mat-progress-bar> 
+        <span> {{this.schemaProgressMessage}}</span>
+    </div>
+    <div *ngIf="hasDataMigrationStarted" class="progress_bar">
+        <mat-progress-bar mode="determinate" [value]="dataMigrationProgress"></mat-progress-bar> 
+        <span> {{this.dataProgressMessage}}</span>
+    </div>
     <button mat-raised-button type="submit" color="primary" (click)="migrate()" class="migrate"
         [disabled]="!isTargetDetailSet || isMigrationInProgress">Migrate</button>
 </div>
