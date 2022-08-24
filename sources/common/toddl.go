@@ -218,7 +218,7 @@ func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Tabl
 	if err != nil {
 		return err
 	}
-	for srcTableName, srcTable2 := range conv.SrcSchema {
+	for srcTableName, sourceTable := range conv.SrcSchema {
 		if _, isPresent := conv.ToSpanner[srcTableName]; !isPresent {
 			continue
 		}
@@ -227,8 +227,8 @@ func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Tabl
 			continue
 		}
 		spTable := conv.SpSchema[spTableName]
-		if srcTable2.Name != srcTable.Name {
-			spTable.Fks = cvtForeignKeysForAReferenceTable(conv, spTableName, srcTableName, srcTable.Name, srcTable2.ForeignKeys, spTable.Fks)
+		if sourceTable.Name != srcTable.Name {
+			spTable.Fks = cvtForeignKeysForAReferenceTable(conv, spTableName, srcTableName, srcTable.Name, sourceTable.ForeignKeys, spTable.Fks)
 			conv.SpSchema[spTableName] = spTable
 		}
 	}
