@@ -782,7 +782,9 @@ func restoreTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uniqueid.CopyUniqueIdToSpannerTable(conv, conv.ToSpanner[table].Name)
+	for _, spTable := range conv.SpSchema {
+		uniqueid.CopyUniqueIdToSpannerTable(conv, spTable.Name)
+	}
 	sessionState.Conv = conv
 	primarykey.DetectHotspot()
 
