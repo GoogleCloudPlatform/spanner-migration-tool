@@ -196,6 +196,16 @@ func MakeConv() *Conv {
 	}
 }
 
+func (conv *Conv) ResetStats() {
+	conv.Stats = stats{
+		Rows:       make(map[string]int64),
+		GoodRows:   make(map[string]int64),
+		BadRows:    make(map[string]int64),
+		Statement:  make(map[string]*statementStat),
+		Unexpected: make(map[string]int64),
+	}
+}
+
 // SetDataSink configures conv to use the specified data sink.
 func (conv *Conv) SetDataSink(ds func(table string, cols []string, values []interface{})) {
 	conv.dataSink = ds

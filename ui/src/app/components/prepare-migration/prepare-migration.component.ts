@@ -104,56 +104,66 @@ export class PrepareMigrationComponent implements OnInit {
     }
     this.fetch.migrate(payload).subscribe({
       next: () => {
+        if (this.selectedMigrationMode == MigrationModes.dataOnly) {
+          this.hasDataMigrationStarted = true
+        } else {
+          this.hasSchemaMigrationStarted = true
+        }
         this.snack.openSnackBar('Migration started successfully', 'Close', 5)
+        this.subscribeMigrationProgress()
       },
       error: (err: any) => {
         this.snack.openSnackBar(err.error, 'Close')
+        this.isDisabled = !this.isDisabled
       },
     })
-    console.log(this.selectedMigrationMode, " ", this.selectedMigrationType)
-    if (this.selectedMigrationType == 'bulk') {
-      console.log("yes")
-      this.subscription = interval(5000).subscribe((x => {
-        this.fetch.getProgress().subscribe({
-          next: (res: IProgress) => {
-            if (res.ErrorMessage == '') {
-              if (res.Message.startsWith('Schema migration complete')) {
-                this.schemaMigrationProgress = 100
-                if (res.Progress == 100) {
-                  if (this.selectedMigrationMode == MigrationModes.schemaOnly) {
-                    this.markMigrationComplete()
-                  }
-                }
-              } else if (res.Message.startsWith('Writing data to Spanner')) {
-                this.hasDataMigrationStarted = true
-                this.schemaMigrationProgress = 100
-                this.schemaProgressMessage = "Schema migration completed successfully!"
-                if (this.hasDataMigrationCompleted) {
-                  this.markMigrationComplete()
-                }
-                if (res.Progress == 100) {
-                  this.hasDataMigrationCompleted = true
-                }
-                this.dataMigrationProgress = res.Progress
-              } else if (res.Message.startsWith('Updating schema of database')) {
-                this.dataMigrationProgress = 100
-                if (res.Progress == 100) {
+  }
+
+  subscribeMigrationProgress() {
+    this.subscription = interval(5000).subscribe((x => {
+      this.fetch.getProgress().subscribe({
+        next: (res: IProgress) => {
+          if (res.ErrorMessage == '') {
+            if (res.Message.startsWith('Schema migration complete')) {
+              this.schemaMigrationProgress = 100
+              if (res.Progress == 100) {
+                if (this.selectedMigrationMode == MigrationModes.schemaOnly) {
                   this.markMigrationComplete()
                 }
               }
-            } else {
-              this.errorMessage = res.ErrorMessage;
-              this.subscription.unsubscribe();
-              this.isDisabled = !this.isDisabled
-              this.snack.openSnackBarWithoutTimeout(this.errorMessage, 'Close')
+            } else if (res.Message.startsWith('Writing data to Spanner')) {
+              this.hasDataMigrationStarted = true
+              this.schemaMigrationProgress = 100
+              this.schemaProgressMessage = "Schema migration completed successfully!"
+              this.dataMigrationProgress = res.Progress
+              if (this.hasDataMigrationCompleted) {
+                this.markMigrationComplete()
+              }
+              if (res.Progress == 100) {
+                this.hasDataMigrationCompleted = true
+              }
+            } else if (res.Message.startsWith('Updating schema of database')) {
+              this.hasDataMigrationStarted = true
+              this.schemaMigrationProgress = 100
+              this.schemaProgressMessage = "Schema migration completed successfully!"
+              this.dataMigrationProgress = 100
+              if (res.Progress == 100) {
+                this.markMigrationComplete()
+              }
             }
-          },
-          error: (err: any) => {
-            this.snack.openSnackBar(err.error, 'Close')
-          },
-        })
-      }));
-    }
+          } else {
+            this.errorMessage = res.ErrorMessage;
+            this.subscription.unsubscribe();
+            this.isDisabled = !this.isDisabled
+            this.snack.openSnackBarWithoutTimeout(this.errorMessage, 'Close')
+          }
+        },
+        error: (err: any) => {
+          this.snack.openSnackBar(err.error, 'Close')
+          this.isDisabled = !this.isDisabled
+        },
+      })
+    }));
   }
 
   markMigrationComplete() {
@@ -166,13 +176,11 @@ export class PrepareMigrationComponent implements OnInit {
     this.isDisabled = !this.isDisabled
     this.hasSchemaMigrationStarted = false
     this.hasDataMigrationStarted = false
+    this.hasDataMigrationCompleted = false
     this.dataMigrationProgress = 0
     this.schemaMigrationProgress = 0
-    if (this.selectedMigrationMode == MigrationModes.schemaOnly) {
-      this.hasSchemaMigrationStarted = true
-    } else {
-      this.hasDataMigrationStarted = true
-    }
+    this.schemaProgressMessage = "Schema creation in progress..."
+    this.dataProgressMessage = "Data migration in progress..."
   }
   ngOnDestroy() {
     if (this.subscription) {
