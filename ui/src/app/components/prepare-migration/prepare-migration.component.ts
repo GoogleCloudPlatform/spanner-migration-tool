@@ -182,50 +182,6 @@ this.resetValues()
         this.clearLocalStorage()
       },
     })
-    console.log(this.selectedMigrationMode, " ", this.selectedMigrationType)
-    if (this.selectedMigrationType == 'bulk') {
-      console.log("yes")
-      this.subscription = interval(5000).subscribe((x => {
-        this.fetch.getProgress().subscribe({
-          next: (res: IProgress) => {
-            if (res.ErrorMessage == '') {
-              if (res.Message.startsWith('Schema migration complete')) {
-                this.schemaMigrationProgress = 100
-                if (res.Progress == 100) {
-                  if (this.selectedMigrationMode == MigrationModes.schemaOnly) {
-                    this.markMigrationComplete()
-                  }
-                }
-              } else if (res.Message.startsWith('Writing data to Spanner')) {
-                this.hasDataMigrationStarted = true
-                this.schemaMigrationProgress = 100
-                this.schemaProgressMessage = "Schema migration completed successfully!"
-                if (this.hasDataMigrationCompleted) {
-                  this.markMigrationComplete()
-                }
-                if (res.Progress == 100) {
-                  this.hasDataMigrationCompleted = true
-                }
-                this.dataMigrationProgress = res.Progress
-              } else if (res.Message.startsWith('Updating schema of database')) {
-                this.dataMigrationProgress = 100
-                if (res.Progress == 100) {
-                  this.markMigrationComplete()
-                }
-              }
-            } else {
-              this.errorMessage = res.ErrorMessage;
-              this.subscription.unsubscribe();
-              this.isDisabled = !this.isDisabled
-              this.snack.openSnackBarWithoutTimeout(this.errorMessage, 'Close')
-            }
-          },
-          error: (err: any) => {
-            this.snack.openSnackBar(err.error, 'Close')
-          },
-        })
-      }));
-    }
   }
 
 

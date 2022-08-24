@@ -1249,6 +1249,13 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
+	pct, msg := sessionState.Progress.ReportProgress()
+	if msg != "" && pct != 100 && sessionState.Error == nil {
+		log.Println("Cannot run migration, another migration in progress.")
+		http.Error(w, "Cannot run migration, another migration in progress. Please try again after some time.", http.StatusBadRequest)
+		return
+	}
+	sessionState.Conv.ResetStats()
 	sessionState.Error = nil
 	sessionState.Progress = internal.Progress{}
 	ctx := context.Background()
