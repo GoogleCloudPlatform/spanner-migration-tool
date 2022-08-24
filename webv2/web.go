@@ -814,7 +814,18 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if table == "" {
-		http.Error(w, fmt.Sprintf("Table not found"), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Spanner table not found"), http.StatusBadRequest)
+	}
+
+	srcTable := ""
+	for _, value := range sessionState.Conv.SrcSchema {
+		if value.Id == tableId {
+			srcTable = value.Name
+			break
+		}
+	}
+	if srcTable == "" {
+		http.Error(w, fmt.Sprintf("Source table not found"), http.StatusBadRequest)
 	}
 
 	spSchema := sessionState.Conv.SpSchema
@@ -834,7 +845,7 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 
 	delete(spSchema, table)
 	delete(toSource, table)
-	delete(toSpanner, table)
+	delete(toSpanner, srcTable)
 	issues[table] = map[string][]internal.SchemaIssue{}
 
 	//drop reference foreign key
