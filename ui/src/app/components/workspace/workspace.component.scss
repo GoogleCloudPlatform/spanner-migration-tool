@@ -1,37 +1,3 @@
-.header {
-  padding: 0 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #cccccc;
-  padding-bottom: 10px;
-  .header_action {
-    button {
-      border: none;
-      background-color: inherit;
-      font-size: 0.8rem;
-    }
-  }
-  .breadcrumb {
-    display: flex;
-    align-items: center;
-    .breadcrumb_source {
-      padding-left: 0;
-      color: rgba(0, 0, 0, 0.56);
-      font-weight: 400;
-      font-size: 14px;
-    }
-    .breadcrumb_workspace {
-      font-weight: bold;
-      font-size: 14px;
-    }
-    span {
-      font-size: 1.2rem;
-      color: rgb(143, 143, 143);
-    }
-  }
-}
-
 app-object-detail {
   height: 100%;
 }

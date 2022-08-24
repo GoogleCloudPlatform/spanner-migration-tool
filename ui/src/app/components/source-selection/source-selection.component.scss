@@ -1,32 +1,3 @@
 .prerequisites {
   padding: 0 20px;
-  width: 600px;
-  .mat-card-title {
-    font-weight: normal;
-  }
-  .mat-card-subtitle {
-    font-weight: normal;
-  }
-  p {
-    color: #5c5c5c;
-    .bullet {
-      position: absolute;
-      display: inline-block;
-      background-color: #e5e5e5;
-      padding: 0px 5px 10px 5px;
-      margin: 0;
-      border-radius: 10px;
-      height: 9px;
-      width: 9px;
-      text-align: center;
-    }
-    span {
-      margin-left: 40px;
-      font-weight: lighter;
-    }
-  }
-  hr {
-    border-color: #ffffff;
-    margin-bottom: 20px;
-  }
 }

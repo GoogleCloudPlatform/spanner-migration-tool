@@ -6,6 +6,7 @@
       <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'">Configure Schema</a>
     </div>
     <div class="header_action">
+      <button mat-button (click)="prepareMigration()">PREPARE MIGRATION</button>
       <button mat-button color="primary" (click)="openAssessment()">VIEW ASSESSMENT</button>
       <button mat-button (click)="openSaveSessionSidenav()" *ngIf="!isOfflineStatus">
         SAVE SESSION
@@ -28,6 +29,7 @@
       [ngClass]="[isLeftColumnCollapse ? 'left-column-collapse' : 'left-column-expand']"
     >
       <app-object-explorer
+        (selectedDatabase)="changeCurrentDatabase($event)"
         (selectObject)="changeCurrentObject($event)"
         (updateSpannerTable)="updateSpannerTable($event)"
         (updateSrcTable)="updateSrcTable($event)"
@@ -53,6 +55,7 @@
         [typeMap]="typeMap"
         [ddlStmts]="ddlStmts"
         [fkData]="fkData"
+        [currentDatabase]="currentDatabase"
       >
       </app-object-detail>
     </div>
