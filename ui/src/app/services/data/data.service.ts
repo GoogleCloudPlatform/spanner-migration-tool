@@ -208,6 +208,7 @@ export class DataService {
           return data.error
         } else {
           this.convSubject.next(data)
+          this.getDdl()
           return ''
         }
       })
@@ -225,6 +226,7 @@ export class DataService {
           return data.error
         } else {
           this.convSubject.next(data)
+          this.getDdl()
           return ''
         }
       })
@@ -242,6 +244,7 @@ export class DataService {
           return data.error
         } else {
           this.convSubject.next(data)
+          this.getDdl()
           return ''
         }
       })
