@@ -294,10 +294,10 @@ func CopyUniqueIdToSpannerTable(conv *internal.Conv, spannertablename string) {
 	}
 
 	for _, sourceindexes := range sourcetable.Indexes {
-		for spanneri, spannerindexes := range spannertable.Indexes {
+		for ind, spannerindexes := range spannertable.Indexes {
 			if sourceindexes.Name == spannerindexes.Name {
 				spannerindexes.Id = sourceindexes.Id
-				conv.SpSchema[spannertable.Name].Indexes[spanneri] = spannerindexes
+				conv.SpSchema[spannertable.Name].Indexes[ind] = spannerindexes
 			}
 		}
 	}
