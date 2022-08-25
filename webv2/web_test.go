@@ -2545,7 +2545,7 @@ func TestRestoreTable(t *testing.T) {
 
 	payload := `{}`
 
-	req, err := http.NewRequest("POST", "/restore/table?table=t1", strings.NewReader(payload))
+	req, err := http.NewRequest("POST", "/restore/table?tableId=t1", strings.NewReader(payload))
 
 	if err != nil {
 		t.Fatal(err)
