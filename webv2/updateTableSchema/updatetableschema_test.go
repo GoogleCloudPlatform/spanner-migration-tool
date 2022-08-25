@@ -139,6 +139,7 @@ func TestUpdateTableSchemaV2(t *testing.T) {
 
 		sessionState := session.GetSessionState()
 		sessionState.Conv = tc.conv
+		sessionState.Driver = constants.MYSQL
 
 		payload := tc.payload
 

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/bmizerany/assert"
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
@@ -107,6 +108,7 @@ func TestUpdateTableSchemainterleaved(t *testing.T) {
 
 		sessionState := session.GetSessionState()
 		sessionState.Conv = tc.conv
+		sessionState.Driver = constants.MYSQL
 
 		payload := tc.payload
 
