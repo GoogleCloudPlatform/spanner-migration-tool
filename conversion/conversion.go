@@ -187,6 +187,18 @@ func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Co
 	return batchWriter, nil
 }
 
+func snapshotMigrationHandler(sourceProfile profiles.SourceProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error) {
+	switch sourceProfile.Driver {
+	// Skip snapshot migration via harbourbridge for mysql and oracle since dataflow job will job will handle this from backfilled data.
+	case constants.MYSQL, constants.ORACLE:
+		return &writer.BatchWriter{}, nil
+	case constants.DYNAMODB:
+		return performSnapshotMigration(config, conv, client, infoSchema)
+	default:
+		return &writer.BatchWriter{}, fmt.Errorf("streaming migration not supported for driver %s", sourceProfile.Driver)
+	}
+}
+
 func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
 	infoSchema, err := GetInfoSchema(sourceProfile, targetProfile)
 	if err != nil {
@@ -198,16 +210,19 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 		if err != nil {
 			return nil, err
 		}
-	}
-	bw, err := performSnapshotMigration(config, conv, client, infoSchema)
-	if err != nil {
-		return nil, err
-	}
-	if sourceProfile.Conn.Streaming {
+		bw, err := snapshotMigrationHandler(sourceProfile, config, conv, client, infoSchema)
+		if err != nil {
+			return nil, err
+		}
 		err = infoSchema.StartStreamingMigration(ctx, client, conv, streamInfo)
 		if err != nil {
 			return nil, err
 		}
+		return bw, nil
+	}
+	bw, err := performSnapshotMigration(config, conv, client, infoSchema)
+	if err != nil {
+		return nil, err
 	}
 	return bw, nil
 }
