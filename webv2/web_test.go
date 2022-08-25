@@ -2429,12 +2429,10 @@ func TestDropTable(t *testing.T) {
 
 	payload := `{}`
 
-	req, err := http.NewRequest("PUT", "/drop/table?tableId=id1", strings.NewReader(payload))
+	req, err := http.NewRequest("POST", "/drop/table?tableId=id1", strings.NewReader(payload))
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	fmt.Println(req.URL)
 
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
