@@ -43,6 +43,7 @@ export interface NameAndCols {
 // Spanner schema
 export interface ITable {
   Name: string
+  Id: string
   Schema: string
   ColNames: string[]
   ColDefs: Record<string, IColumn>

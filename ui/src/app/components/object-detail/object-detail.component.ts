@@ -702,10 +702,10 @@ export class ObjectDetailComponent implements OnInit {
       width: '35vw',
       minWidth: '450px',
       maxWidth: '600px',
-      data: { name: this.currentObject?.name, type: 'Index' },
+      data: { name: this.currentObject?.name, type: ObjectExplorerNodeType.Index },
     })
     openDialog.afterClosed().subscribe((res: string) => {
-      if (res === 'Index') {
+      if (res === ObjectExplorerNodeType.Index) {
         this.data
           .dropIndex(this.currentObject!.parent, this.currentObject!.name)
           .pipe(take(1))
@@ -745,8 +745,9 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   restoreSpannerTable() {
+    let tableId = this.conversion.getSourceTableNameToIdMapping(this.currentObject!.name, this.conv)
     this.data
-      .restoreTable(this.currentObject!.name)
+      .restoreTable(tableId)
       .pipe(take(1))
       .subscribe((res: string) => {
         if (res === '') {
@@ -761,12 +762,16 @@ export class ObjectDetailComponent implements OnInit {
       width: '35vw',
       minWidth: '450px',
       maxWidth: '600px',
-      data: { name: this.currentObject?.name, type: 'Table' },
+      data: { name: this.currentObject?.name, type: ObjectExplorerNodeType.Table },
     })
     openDialog.afterClosed().subscribe((res: string) => {
-      if (res === 'Table') {
+      if (res === ObjectExplorerNodeType.Table) {
+        let tableId = this.conversion.getSpannerTableNameToIdMapping(
+          this.currentObject!.name,
+          this.conv
+        )
         this.data
-          .dropTable(this.currentObject!.name)
+          .dropTable(tableId)
           .pipe(take(1))
           .subscribe((res: string) => {
             if (res === '') {

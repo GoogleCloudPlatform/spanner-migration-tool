@@ -735,14 +735,25 @@ type DropDetail struct {
 }
 
 func restoreTable(w http.ResponseWriter, r *http.Request) {
-	table := r.FormValue("table")
+	tableId := r.FormValue("tableId")
 	sessionState := session.GetSessionState()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
+	if tableId == "" {
+		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
+	}
+
+	table := ""
+	for _, value := range sessionState.Conv.SrcSchema {
+		if value.Id == tableId {
+			table = value.Name
+			break
+		}
+	}
 	if table == "" {
-		http.Error(w, fmt.Sprintf("Table name is empty"), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Table not found"), http.StatusBadRequest)
 	}
 
 	conv := sessionState.Conv
@@ -784,15 +795,26 @@ func restoreTable(w http.ResponseWriter, r *http.Request) {
 }
 
 func dropTable(w http.ResponseWriter, r *http.Request) {
-	table := r.FormValue("table")
+	tableId := r.FormValue("tableId")
 	sessionState := session.GetSessionState()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
-	if table == "" {
-		http.Error(w, fmt.Sprintf("Table name is empty"), http.StatusBadRequest)
+	if tableId == "" {
+		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
 	}
+	table := ""
+	for _, value := range sessionState.Conv.SpSchema {
+		if value.Id == tableId {
+			table = value.Name
+			break
+		}
+	}
+	if table == "" {
+		http.Error(w, fmt.Sprintf("Table not found"), http.StatusBadRequest)
+	}
+
 	spSchema := sessionState.Conv.SpSchema
 	toSource := sessionState.Conv.ToSource
 	toSpanner := sessionState.Conv.ToSpanner
@@ -811,7 +833,7 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 	delete(spSchema, table)
 	delete(toSource, table)
 	delete(toSpanner, table)
-	delete(issues, table)
+	issues[table] = map[string][]internal.SchemaIssue{}
 
 	//drop reference foreign key
 	for tableName, spTable := range spSchema {
@@ -833,6 +855,23 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 		if spTable.Parent == table {
 			spTable.Parent = ""
 			spSchema[tableName] = spTable
+		}
+	}
+
+	//remove interleavable suggestion on droping the parent table
+	for tableName, tableIssues := range issues {
+		for colName, colIssues := range tableIssues {
+			updatedColIssues := []internal.SchemaIssue{}
+			for _, val := range colIssues {
+				if val != internal.InterleavedOrder {
+					updatedColIssues = append(updatedColIssues, val)
+				}
+			}
+			if len(updatedColIssues) == 0 {
+				delete(issues[tableName], colName)
+			} else {
+				issues[tableName][colName] = updatedColIssues
+			}
 		}
 	}
 

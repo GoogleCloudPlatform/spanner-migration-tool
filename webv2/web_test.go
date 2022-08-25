@@ -2393,7 +2393,10 @@ func TestDropTable(t *testing.T) {
 	sessionState.Driver = constants.MYSQL
 
 	c := &internal.Conv{
-
+		Issues: map[string]map[string][]internal.SchemaIssue{
+			"t1": {},
+			"t2": {},
+		},
 		SpSchema: map[string]ddl.CreateTable{
 			"t1": {
 				Name:     "t1",
@@ -2404,6 +2407,7 @@ func TestDropTable(t *testing.T) {
 				},
 				Pks: []ddl.IndexKey{{Col: "a", Desc: false}},
 				Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}}},
+				Id:  "id1",
 			},
 			"t2": {
 				Name:     "t2",
@@ -2414,6 +2418,7 @@ func TestDropTable(t *testing.T) {
 					"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 				},
 				Pks: []ddl.IndexKey{{Col: "synth_id", Desc: false}},
+				Id:  "id2",
 			}},
 		Audit: internal.Audit{
 			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
@@ -2424,7 +2429,7 @@ func TestDropTable(t *testing.T) {
 
 	payload := `{}`
 
-	req, err := http.NewRequest("PUT", "/drop/table?table=t1", strings.NewReader(payload))
+	req, err := http.NewRequest("PUT", "/drop/table?tableId=id1", strings.NewReader(payload))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2455,6 +2460,7 @@ func TestDropTable(t *testing.T) {
 				Pks:     []ddl.IndexKey{{Col: "synth_id", Desc: false}},
 				Fks:     []ddl.Foreignkey{},
 				Indexes: []ddl.CreateIndex(nil),
+				Id:      "id2",
 			}},
 	}
 
