@@ -6,6 +6,7 @@
       <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'">Configure Schema</a>
     </div>
     <div class="header_action">
+      <button mat-button (click)="prepareMigration()">PREPARE MIGRATION</button>
       <button mat-button (click)="openAssessment()">VIEW ASSESSMENT</button>
       <button mat-button (click)="openSaveSessionSidenav()" *ngIf="!isOfflineStatus">
         SAVE SESSION

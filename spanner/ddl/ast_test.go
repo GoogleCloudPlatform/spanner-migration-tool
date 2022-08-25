@@ -263,6 +263,7 @@ func TestPrintCreateIndex(t *testing.T) {
 			/*Unique =*/ false,
 			[]IndexKey{{Col: "col1", Desc: true}, {Col: "col2"}},
 			"1",
+			nil,
 		},
 		{
 			"myindex2",
@@ -270,6 +271,7 @@ func TestPrintCreateIndex(t *testing.T) {
 			/*Unique =*/ true,
 			[]IndexKey{{Col: "col1", Desc: true}, {Col: "col2"}},
 			"1",
+			nil,
 		}}
 	tests := []struct {
 		name       string

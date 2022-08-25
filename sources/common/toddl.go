@@ -185,6 +185,7 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 	var spIndexes []ddl.CreateIndex
 	for _, srcIndex := range srcIndexes {
 		var spKeys []ddl.IndexKey
+		var spStoredColumns []string
 
 		for _, k := range srcIndex.Keys {
 			spCol, err := internal.GetSpannerCol(conv, srcTable, k.Column, true)
@@ -194,6 +195,14 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 			}
 			spKeys = append(spKeys, ddl.IndexKey{Col: spCol, Desc: k.Desc})
 		}
+		for _, k := range srcIndex.StoredColumns {
+			spCol, err := internal.GetSpannerCol(conv, srcTable, k, true)
+			if err != nil {
+				conv.Unexpected(fmt.Sprintf("Can't map index column name for table %s column %s", srcTable, k))
+				continue
+			}
+			spStoredColumns = append(spStoredColumns, spCol)
+		}
 		if srcIndex.Name == "" {
 			// Generate a name if index name is empty in MySQL.
 			// Collision of index name will be handled by ToSpannerIndexName.
@@ -201,10 +210,11 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 		}
 		spIndexName := internal.ToSpannerIndexName(conv, srcIndex.Name)
 		spIndex := ddl.CreateIndex{
-			Name:   spIndexName,
-			Table:  spTableName,
-			Unique: srcIndex.Unique,
-			Keys:   spKeys,
+			Name:          spIndexName,
+			Table:         spTableName,
+			Unique:        srcIndex.Unique,
+			Keys:          spKeys,
+			StoredColumns: spStoredColumns,
 		}
 		spIndexes = append(spIndexes, spIndex)
 		conv.Audit.ToSpannerFkIdx[srcTable].Index[srcIndex.Name] = spIndexName
