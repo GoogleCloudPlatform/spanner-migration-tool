@@ -5,7 +5,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-// addColumn add given colName into spannerTable.
+// addColumn add given column into spannerTable.
 func addColumn(table string, colName string, Conv *internal.Conv) {
 
 	sp := Conv.SpSchema[table]

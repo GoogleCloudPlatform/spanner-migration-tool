@@ -8,6 +8,7 @@ import (
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
+// removeColumn remove given column from schema.
 func removeColumn(table string, colName string, Conv *internal.Conv) {
 
 	sp := Conv.SpSchema[table]
@@ -39,7 +40,7 @@ func removeColumn(table string, colName string, Conv *internal.Conv) {
 
 	if isParent {
 
-		removeColumnFromparentTableSchema(Conv, parentSchemaTable, colName)
+		removeColumnFromParentTableSchema(Conv, parentSchemaTable, colName)
 
 	}
 
@@ -51,6 +52,7 @@ func removeColumn(table string, colName string, Conv *internal.Conv) {
 	}
 }
 
+// removeColumnFromCurrentTableSchema remove given column from current table schema.
 func removeColumnFromCurrentTableSchema(Conv *internal.Conv, sp ddl.CreateTable, table string, colName string) {
 	// step I
 	sp = removeColumnFromSpannerColDefs(sp, colName)
@@ -80,6 +82,7 @@ func removeColumnFromCurrentTableSchema(Conv *internal.Conv, sp ddl.CreateTable,
 
 }
 
+// removeColumnFromForeignkeyTableSchema remove given column from Foreignkey Table relationship Schema.
 func removeColumnFromForeignkeyTableSchema(Conv *internal.Conv, sp ddl.CreateTable, index int, colName string) {
 
 	relationTable := sp.Fks[index].ReferTable
@@ -98,6 +101,7 @@ func removeColumnFromForeignkeyTableSchema(Conv *internal.Conv, sp ddl.CreateTab
 	Conv.SpSchema[relationTable] = relationTableSp
 }
 
+// removeColumnFromForeignkeyReferTableSchema remove given column from Foreign key Refer Table Schema.
 func removeColumnFromForeignkeyReferTableSchema(Conv *internal.Conv, referTable ddl.CreateTable, table string, colName string) {
 
 	referTable = removeColumnFromSpannerColDefs(referTable, colName)
@@ -127,7 +131,8 @@ func removeColumnFromForeignkeyReferTableSchema(Conv *internal.Conv, referTable 
 
 }
 
-func removeColumnFromparentTableSchema(Conv *internal.Conv, parentSchemaTable string, colName string) {
+// removeColumnFromParentTableSchema remove given column from interleaved Parent Table Schema.
+func removeColumnFromParentTableSchema(Conv *internal.Conv, parentSchemaTable string, colName string) {
 
 	childSchemaSp := Conv.SpSchema[parentSchemaTable]
 
@@ -145,6 +150,7 @@ func removeColumnFromparentTableSchema(Conv *internal.Conv, parentSchemaTable st
 
 }
 
+// removeColumnFromChildTableSchema remove given column from interleaved Child Table Schema.
 func removeColumnFromChildTableSchema(Conv *internal.Conv, childSchemaTable string, colName string) {
 
 	childSchemaSp := Conv.SpSchema[childSchemaTable]
@@ -163,6 +169,7 @@ func removeColumnFromChildTableSchema(Conv *internal.Conv, childSchemaTable stri
 
 }
 
+// removeColumnFromSpannerColNames remove given column from ColNames.
 func removeColumnFromSpannerColNames(sp ddl.CreateTable, colName string) ddl.CreateTable {
 
 	// step VI
@@ -188,6 +195,7 @@ func removeColumnFromSpannerColNames(sp ddl.CreateTable, colName string) ddl.Cre
 
 }
 
+// removeColumnFromSpannerPK remove given column from Primary Key List.
 func removeColumnFromSpannerPK(sp ddl.CreateTable, colName string) ddl.CreateTable {
 
 	// step II
@@ -212,6 +220,7 @@ func removeColumnFromSpannerPK(sp ddl.CreateTable, colName string) ddl.CreateTab
 	return sp
 }
 
+// removeColumnFromSpannerColDefs remove given column from ColDefs List.
 func removeColumnFromSpannerColDefs(sp ddl.CreateTable, colName string) ddl.CreateTable {
 
 	// step I

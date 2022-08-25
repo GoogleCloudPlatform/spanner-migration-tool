@@ -19,7 +19,7 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 	//todo
 	for i, _ := range sp.Fks {
 
-		err := reviewchangeTypeForeignkeyTableSchema(Conv, sp, i, colName, newType, w)
+		err := reviewColumnNameTypeChangeOfForeignkeyTableSchema(Conv, sp, i, colName, newType, w)
 		return interleaveTableSchema, err
 	}
 
@@ -32,7 +32,7 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 				fmt.Println("found")
 				fmt.Println("sp.Name :", sp.Name)
 
-				reviewchangeTypeForeignkeyReferTableSchema(Conv, sp, sp.Name, colName, newType, w)
+				reviewColumnNameTypeChangeOfForeignkeyReferTableSchema(Conv, sp, sp.Name, colName, newType, w)
 
 			}
 
@@ -45,7 +45,7 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 	isParent, parentSchemaTable := IsParent(table)
 
 	if isParent {
-		interleaveTableSchema, err = reviewchangeparentTableSchema(Conv, interleaveTableSchema, parentSchemaTable, colName, newType, w)
+		interleaveTableSchema, err = reviewColumnNameTypeChangeOfParentTableSchema(Conv, interleaveTableSchema, parentSchemaTable, colName, newType, w)
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -57,14 +57,14 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 	childSchemaTable := Conv.SpSchema[table].Parent
 
 	if childSchemaTable != "" {
-		interleaveTableSchema, err = reviewchangechildTableSchema(Conv, interleaveTableSchema, childSchemaTable, colName, newType, w)
+		interleaveTableSchema, err = reviewColumnNameTypeChangeOfChildTableSchema(Conv, interleaveTableSchema, childSchemaTable, colName, newType, w)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return interleaveTableSchema, err
 		}
 	}
 
-	reviewchangeTypeCurrentTable(Conv, sp, interleaveTableSchema, table, colName, newType, parentSchemaTable, childSchemaTable, w)
+	reviewColumnNameTypeChangeOfCurrentTableSchema(Conv, sp, interleaveTableSchema, table, colName, newType, parentSchemaTable, childSchemaTable, w)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -74,7 +74,8 @@ func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, inte
 	return interleaveTableSchema, nil
 }
 
-func reviewchangeTypeForeignkeyTableSchema(Conv *internal.Conv, sp ddl.CreateTable, index int, colName string, newType string, w http.ResponseWriter) error {
+// reviewColumnNameTypeChangeOfForeignkeyTableSchema reviews columname type to given newType.
+func reviewColumnNameTypeChangeOfForeignkeyTableSchema(Conv *internal.Conv, sp ddl.CreateTable, index int, colName string, newType string, w http.ResponseWriter) error {
 
 	relationTable := sp.Fks[index].ReferTable
 
@@ -102,7 +103,8 @@ func reviewchangeTypeForeignkeyTableSchema(Conv *internal.Conv, sp ddl.CreateTab
 	return nil
 }
 
-func reviewchangeTypeForeignkeyReferTableSchema(Conv *internal.Conv, sp ddl.CreateTable, table string, colName string, newType string, w http.ResponseWriter) error {
+// reviewColumnNameTypeChangeOfForeignkeyReferTableSchema reviews columname type to given newType.
+func reviewColumnNameTypeChangeOfForeignkeyReferTableSchema(Conv *internal.Conv, sp ddl.CreateTable, table string, colName string, newType string, w http.ResponseWriter) error {
 
 	srcTableName := Conv.ToSource[table].Name
 
@@ -125,7 +127,8 @@ func reviewchangeTypeForeignkeyReferTableSchema(Conv *internal.Conv, sp ddl.Crea
 	return nil
 }
 
-func reviewchangeparentTableSchema(Conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema, parentschemaTable string, colName string, newType string, w http.ResponseWriter) ([]InterleaveTableSchema, error) {
+// reviewColumnNameTypeChangeOfParentTableSchema reviews columname type to given newType.
+func reviewColumnNameTypeChangeOfParentTableSchema(Conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema, parentschemaTable string, colName string, newType string, w http.ResponseWriter) ([]InterleaveTableSchema, error) {
 
 	srcTableName := Conv.ToSource[parentschemaTable].Name
 
@@ -160,7 +163,8 @@ func reviewchangeparentTableSchema(Conv *internal.Conv, interleaveTableSchema []
 	return interleaveTableSchema, nil
 }
 
-func reviewchangechildTableSchema(Conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema, childSchemaTable string, colName string, newType string, w http.ResponseWriter) ([]InterleaveTableSchema, error) {
+// reviewColumnNameTypeChangeOfChildTableSchema reviews columname type to gieven newType.
+func reviewColumnNameTypeChangeOfChildTableSchema(Conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema, childSchemaTable string, colName string, newType string, w http.ResponseWriter) ([]InterleaveTableSchema, error) {
 	srcTableName := Conv.ToSource[childSchemaTable].Name
 
 	childSp, ty, err := utilities.GetType(newType, childSchemaTable, colName, srcTableName)
@@ -198,7 +202,8 @@ func reviewchangechildTableSchema(Conv *internal.Conv, interleaveTableSchema []I
 
 }
 
-func reviewchangeTypeCurrentTable(Conv *internal.Conv, sp ddl.CreateTable, interleaveTableSchema []InterleaveTableSchema, table string, colName string, newType string, parentSchemaTable string, childSchemaTable string, w http.ResponseWriter) ([]InterleaveTableSchema, error) {
+// reviewColumnNameTypeChangeOfCurrentTableSchema reviews columname type to gieven newType.
+func reviewColumnNameTypeChangeOfCurrentTableSchema(Conv *internal.Conv, sp ddl.CreateTable, interleaveTableSchema []InterleaveTableSchema, table string, colName string, newType string, parentSchemaTable string, childSchemaTable string, w http.ResponseWriter) ([]InterleaveTableSchema, error) {
 
 	srcTableName := Conv.ToSource[table].Name
 
