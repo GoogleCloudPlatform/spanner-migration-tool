@@ -2467,6 +2467,131 @@ func TestDropTable(t *testing.T) {
 	assert.Equal(t, expectedConv.SpSchema, res.SpSchema)
 }
 
+func TestRestoreTable(t *testing.T) {
+	sessionState := session.GetSessionState()
+
+	sessionState.Driver = constants.MYSQL
+
+	c := &internal.Conv{
+
+		SpSchema: map[string]ddl.CreateTable{
+			"t2": {
+				Name:     "t2",
+				ColNames: []string{"a", "b"},
+				ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: "STRING", IsArray: false}, NotNull: true, Comment: "", Id: "c7"},
+					"b": {Name: "b", T: ddl.Type{Name: "STRING", IsArray: false}, NotNull: true, Comment: "", Id: "c8"},
+				},
+				Pks: []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}},
+				Id:  "t6",
+			}},
+		SrcSchema: map[string]schema.Table{
+			"t1": {
+				Name:     "t1",
+				ColNames: []string{"a", "x", "y"},
+				ColDefs: map[string]schema.Column{
+					"a": {Name: "a", Type: schema.Type{Name: "varchar"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c4"},
+					"x": {Name: "x", Type: schema.Type{Name: "varchar"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c2"},
+					"y": {Name: "y", Type: schema.Type{Name: "bigint"}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c3"},
+				},
+				PrimaryKeys: []schema.Key{{Column: "a", Desc: false, Order: 1}},
+				Id:          "t1",
+			},
+
+			"t2": {
+				Name:     "t2",
+				ColNames: []string{"a", "b"},
+				ColDefs: map[string]schema.Column{
+					"a": {Name: "a", Type: schema.Type{Name: "varchar"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c7"},
+					"b": {Name: "b", Type: schema.Type{Name: "char"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c8"},
+				},
+				PrimaryKeys: []schema.Key{{Column: "a", Desc: false, Order: 1}},
+				Id:          "t6",
+			},
+		},
+
+		UsedNames: map[string]bool{
+			"t2": true,
+		},
+
+		ToSource: map[string]internal.NameAndCols{
+			"t2": {Name: "t2", Cols: map[string]string{"a": "a", "b": "b"}},
+		},
+		ToSpanner: map[string]internal.NameAndCols{
+			"t2": {Name: "t2", Cols: map[string]string{"a": "a", "b": "b"}},
+		},
+
+		Audit: internal.Audit{
+			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+			ToSourceFkIdx: map[string]internal.FkeyAndIdxs{
+				"t2": {
+					Name:       "t2",
+					ForeignKey: map[string]string{},
+					Index:      map[string]string{},
+				},
+			},
+			ToSpannerFkIdx: map[string]internal.FkeyAndIdxs{
+				"t2": {
+					Name:       "t2",
+					ForeignKey: map[string]string{},
+					Index:      map[string]string{},
+				},
+			},
+		},
+
+		Issues: map[string]map[string][]internal.SchemaIssue{},
+	}
+
+	sessionState.Conv = c
+
+	payload := `{}`
+
+	req, err := http.NewRequest("POST", "/restore/table?table=t1", strings.NewReader(payload))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(restoreTable)
+	handler.ServeHTTP(rr, req)
+
+	res := &internal.Conv{}
+
+	json.Unmarshal(rr.Body.Bytes(), &res)
+
+	expectedConv := &internal.Conv{
+
+		SpSchema: map[string]ddl.CreateTable{
+
+			"t1": {
+				Name:     "t1",
+				ColNames: []string{"a", "x", "y"},
+				ColDefs: map[string]ddl.ColumnDef{
+					"a": {Name: "a", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: true, Comment: "From: a varchar", Id: "c4"},
+					"x": {Name: "x", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: true, Comment: "From: x varchar", Id: "c2"},
+					"y": {Name: "y", T: ddl.Type{Name: "INT64", Len: 0, IsArray: false}, NotNull: false, Comment: "From: y bigint", Id: "c3"},
+				},
+				Pks:     []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}},
+				Id:      "t1",
+				Comment: "Spanner schema for source table t1",
+			},
+
+			"t2": {
+				Name:     "t2",
+				ColNames: []string{"a", "b"},
+				ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", T: ddl.Type{Name: "STRING", Len: 0, IsArray: false}, NotNull: true, Comment: "", Id: "c7"},
+					"b": {Name: "b", T: ddl.Type{Name: "STRING", Len: 0, IsArray: false}, NotNull: true, Comment: "", Id: "c8"},
+				},
+				Pks: []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}},
+				Id:  "t6",
+			}},
+	}
+	assert.Equal(t, expectedConv.SpSchema, res.SpSchema)
+
+}
+
 func buildConvMySQL(conv *internal.Conv) {
 	conv.SrcSchema = map[string]schema.Table{
 		"t1": {
