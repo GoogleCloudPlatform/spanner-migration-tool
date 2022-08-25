@@ -270,7 +270,7 @@ func CopyUniqueIdToSpannerTable(conv *internal.Conv, spannertablename string) {
 		if spannercolumn.Name == "synth_id" {
 			columnuniqueid := GenerateColumnId()
 			spannercolumn.Id = columnuniqueid
-			conv.SpSchema[spannertablename].ColDefs[spannercolumnname] = spannercolumn
+			spannertable.ColDefs[spannercolumnname] = spannercolumn
 		}
 	}
 
@@ -278,7 +278,7 @@ func CopyUniqueIdToSpannerTable(conv *internal.Conv, spannertablename string) {
 		for spannercolumnname, spannercolumn := range spannertable.ColDefs {
 			if sourcecolumn.Name == spannercolumn.Name {
 				spannercolumn.Id = sourcecolumn.Id
-				conv.SpSchema[spannertablename].ColDefs[spannercolumnname] = spannercolumn
+				spannertable.ColDefs[spannercolumnname] = spannercolumn
 				break
 			}
 		}
@@ -288,7 +288,7 @@ func CopyUniqueIdToSpannerTable(conv *internal.Conv, spannertablename string) {
 		for spannerforeignkeyindex, spannerforeignkey := range spannertable.Fks {
 			if sourceforeignkey.Name == spannerforeignkey.Name {
 				spannerforeignkey.Id = sourceforeignkey.Id
-				conv.SpSchema[spannertable.Name].Fks[spannerforeignkeyindex] = spannerforeignkey
+				spannertable.Fks[spannerforeignkeyindex] = spannerforeignkey
 			}
 		}
 	}
@@ -297,7 +297,7 @@ func CopyUniqueIdToSpannerTable(conv *internal.Conv, spannertablename string) {
 		for ind, spannerindexes := range spannertable.Indexes {
 			if sourceindexes.Name == spannerindexes.Name {
 				spannerindexes.Id = sourceindexes.Id
-				conv.SpSchema[spannertable.Name].Indexes[ind] = spannerindexes
+				spannertable.Indexes[ind] = spannerindexes
 			}
 		}
 	}
