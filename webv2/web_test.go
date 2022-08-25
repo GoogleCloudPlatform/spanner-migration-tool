@@ -2397,6 +2397,30 @@ func TestDropTable(t *testing.T) {
 			"t1": {},
 			"t2": {},
 		},
+		SrcSchema: map[string]schema.Table{
+			"t1": {
+				Name:     "t1",
+				ColNames: []string{"a", "b", "c"},
+				ColDefs: map[string]schema.Column{
+					"a": {Name: "a", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c4"},
+					"b": {Name: "b", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c2"},
+					"c": {Name: "c", Type: schema.Type{Name: "varchar"}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c3"},
+				},
+				PrimaryKeys: []schema.Key{{Column: "a", Desc: false, Order: 1}},
+				Id:          "id1",
+			},
+
+			"t2": {
+				Name:     "t2",
+				ColNames: []string{"a", "b", "c"},
+				ColDefs: map[string]schema.Column{
+					"a": {Name: "a", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c7"},
+					"b": {Name: "b", Type: schema.Type{Name: "varchar"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c8"},
+					"c": {Name: "c", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c9"},
+				},
+				Id: "id2",
+			},
+		},
 		SpSchema: map[string]ddl.CreateTable{
 			"t1": {
 				Name:     "t1",
@@ -2406,7 +2430,6 @@ func TestDropTable(t *testing.T) {
 					"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				},
 				Pks: []ddl.IndexKey{{Col: "a", Desc: false}},
-				Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}}},
 				Id:  "id1",
 			},
 			"t2": {
