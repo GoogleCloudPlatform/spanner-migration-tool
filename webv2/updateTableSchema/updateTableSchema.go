@@ -59,9 +59,7 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 
 	var Conv *internal.Conv
-
 	Conv = nil
-
 	Conv = sessionState.Conv
 
 	for colName, v := range t.UpdateCols {
@@ -69,13 +67,6 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 		if v.Add {
 
 			addColumn(table, colName, Conv)
-
-			/*
-				if err != nil {
-					http.Error(w, err.Error(), http.StatusBadRequest)
-					return
-				}
-			*/
 
 			fmt.Println("after addColumn")
 

@@ -9,10 +9,53 @@ import (
 
 func renameColumn(newName, table, colName string, Conv *internal.Conv) {
 
-	fmt.Println("renameColumn getting called")
-
 	sp := Conv.SpSchema[table]
 
+	renameColumnNameInCurrentTableSchema(Conv, sp, table, colName, newName)
+
+	// update foreignKey relationship Table
+	for i, _ := range sp.Fks {
+
+		renameColumnNameInForeignkeyTableSchema(Conv, sp, i, colName, newName)
+	}
+
+	for _, sp := range Conv.SpSchema {
+
+		for j := 0; j < len(sp.Fks); j++ {
+			if sp.Fks[j].ReferTable == table {
+				fmt.Println("found")
+				fmt.Println("sp.Name :", sp.Name)
+
+				renameColumnNameInForeignkeyReferTableSchema(Conv, sp, sp.Name, colName, newName)
+			}
+
+		}
+
+	}
+
+	// update interleave table relation
+	isParent, parentschemaTable := IsParent(table)
+
+	fmt.Println("parentschemaTable :", parentschemaTable)
+
+	if isParent {
+		renameColumnNameInparentTableSchema(Conv, parentschemaTable, colName, newName)
+
+	}
+
+	childschemaTable := Conv.SpSchema[table].Parent
+
+	fmt.Println("childschemaTable :", childschemaTable)
+
+	if childschemaTable != "" {
+
+		renameColumnNameInchildTableSchema(Conv, childschemaTable, colName, newName)
+
+	}
+
+}
+
+func renameColumnNameInCurrentTableSchema(Conv *internal.Conv, sp ddl.CreateTable, table string, colName string, newName string) {
 	// step I
 	sp = renameSpannerColDefs(sp, colName, newName)
 
@@ -39,49 +82,9 @@ func renameColumn(newName, table, colName string, Conv *internal.Conv) {
 
 	Conv.SpSchema[table] = sp
 
-	// update foreignKey relationship Table column names
-	for i, _ := range sp.Fks {
-
-		renameForeignkeyTableSchema(Conv, sp, i, colName, newName)
-	}
-
-	for _, sp := range Conv.SpSchema {
-
-		for j := 0; j < len(sp.Fks); j++ {
-			if sp.Fks[j].ReferTable == table {
-				fmt.Println("found")
-				fmt.Println("sp.Name :", sp.Name)
-
-				reviewRenameForeignkeyReferTableSchema(Conv, sp, sp.Name, colName, newName)
-			}
-
-		}
-
-	}
-
-	// update interleave table relation
-	isParent, parentschemaTable := IsParent(table)
-
-	fmt.Println("parentschemaTable :", parentschemaTable)
-
-	if isParent {
-		renamechildTableSchema(Conv, parentschemaTable, colName, newName)
-
-	}
-
-	childschemaTable := Conv.SpSchema[table].Parent
-
-	fmt.Println("childschemaTable :", childschemaTable)
-
-	if childschemaTable != "" {
-
-		renamechildTableSchema(Conv, childschemaTable, colName, newName)
-
-	}
-
 }
 
-func renameForeignkeyTableSchema(Conv *internal.Conv, sp ddl.CreateTable, index int, colName string, newName string) {
+func renameColumnNameInForeignkeyTableSchema(Conv *internal.Conv, sp ddl.CreateTable, index int, colName string, newName string) {
 
 	fmt.Println("update foreignKey Table column names")
 
@@ -103,7 +106,35 @@ func renameForeignkeyTableSchema(Conv *internal.Conv, sp ddl.CreateTable, index 
 
 }
 
-func renameparentTableSchema(Conv *internal.Conv, parentschemaTable string, colName string, newName string) {
+func renameColumnNameInForeignkeyReferTableSchema(Conv *internal.Conv, sp ddl.CreateTable, table string, colName string, newName string) {
+	// step I
+	sp = renameSpannerColDefs(sp, colName, newName)
+
+	// step II
+	sp = renameSpannerPK(sp, colName, newName)
+
+	// step III
+	sp = renameSpannerSecondaryIndex(sp, colName, newName)
+
+	// step IV
+	sp = renameSpannerForeignkeyColumns(sp, colName, newName)
+
+	// step V
+	sp = renameSpannerForeignkeyReferColumns(sp, colName, newName)
+
+	// step VI
+	sp = renameSpannerColNames(sp, colName, newName)
+
+	// step VII
+	renameSpannerSchemaIssue(table, colName, newName, Conv)
+
+	// step VIII
+	renameToSpannerToSource(table, colName, newName, Conv)
+
+	Conv.SpSchema[table] = sp
+}
+
+func renameColumnNameInparentTableSchema(Conv *internal.Conv, parentschemaTable string, colName string, newName string) {
 
 	childSchemaSp := Conv.SpSchema[parentschemaTable]
 
@@ -120,7 +151,7 @@ func renameparentTableSchema(Conv *internal.Conv, parentschemaTable string, colN
 	Conv.SpSchema[parentschemaTable] = childSchemaSp
 }
 
-func renamechildTableSchema(Conv *internal.Conv, childschemaTable string, colName string, newName string) {
+func renameColumnNameInchildTableSchema(Conv *internal.Conv, childschemaTable string, colName string, newName string) {
 
 	childSchemaSp := Conv.SpSchema[childschemaTable]
 

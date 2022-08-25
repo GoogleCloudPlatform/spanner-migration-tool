@@ -10,8 +10,6 @@ import (
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
-//todo check type update
-
 func UpdateColNameType(newType, table, colName string, Conv *internal.Conv, w http.ResponseWriter) {
 
 	srcTableName := Conv.ToSource[table].Name
