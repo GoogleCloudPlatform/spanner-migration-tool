@@ -220,7 +220,7 @@ func removeColumnFromSpannerPK(sp ddl.CreateTable, colName string) ddl.CreateTab
 	return sp
 }
 
-// removeColumnFromSpannerColDefs remove given column from ColDefs List.
+// removeColumnFromSpannerColDefs remove given column from Spanner ColDefs List.
 func removeColumnFromSpannerColDefs(sp ddl.CreateTable, colName string) ddl.CreateTable {
 
 	// step I
@@ -242,6 +242,7 @@ func removeColumnFromSpannerColDefs(sp ddl.CreateTable, colName string) ddl.Crea
 	return sp
 }
 
+// removeColumnFromSpannerSecondaryIndex remove given column from Spanner SecondaryIndex List.
 func removeColumnFromSpannerSecondaryIndex(sp ddl.CreateTable, colName string) ddl.CreateTable {
 
 	// step III
@@ -267,10 +268,12 @@ func removeColumnFromSpannerSecondaryIndex(sp ddl.CreateTable, colName string) d
 	return sp
 }
 
+// removeColumnFromSecondaryIndexKey remove given column from SpannerSecondary Index Key List.
 func removeColumnFromSecondaryIndexKey(slice []ddl.IndexKey, s int) []ddl.IndexKey {
 	return append(slice[:s], slice[s+1:]...)
 }
 
+// removeColumnFromSecondaryIndexKey remove given column from Spanner Secondary Schema Issue List.
 func removeSpannerSchemaIssue(table string, colName string, Conv *internal.Conv) {
 
 	// step VII
@@ -293,6 +296,7 @@ func removeSpannerSchemaIssue(table string, colName string, Conv *internal.Conv)
 
 }
 
+// removeColumnFromToSpannerToSource remove given column from ToSpanner and ToSource List.
 func removeColumnFromToSpannerToSource(table string, colName string, Conv *internal.Conv) {
 
 	// step VIII
@@ -311,6 +315,7 @@ func removeColumnFromToSpannerToSource(table string, colName string, Conv *inter
 
 }
 
+// removeColumnFromSpannerForeignkeyColumns remove given column from Spanner Foreignkey Columns List.
 func removeColumnFromSpannerForeignkeyColumns(sp ddl.CreateTable, colName string) ddl.CreateTable {
 
 	// step IV
@@ -335,10 +340,12 @@ func removeColumnFromSpannerForeignkeyColumns(sp ddl.CreateTable, colName string
 	return sp
 }
 
+// removeFkColumns remove given column from Spanner Foreignkey Columns List.
 func removeFkColumns(slice []string, s int) []string {
 	return append(slice[:s], slice[s+1:]...)
 }
 
+// removeColumnFromSpannerForeignkeyReferColumns remove given column from Spanner Foreignkey Refer Columns List.
 func removeColumnFromSpannerForeignkeyReferColumns(sp ddl.CreateTable, colName string) ddl.CreateTable {
 
 	// step IV
@@ -364,6 +371,7 @@ func removeColumnFromSpannerForeignkeyReferColumns(sp ddl.CreateTable, colName s
 	return sp
 }
 
+// removeFkReferColumns remove given column from Spanner FkReferColumns Columns List.
 func removeFkReferColumns(slice []string, s int) []string {
 	return append(slice[:s], slice[s+1:]...)
 }

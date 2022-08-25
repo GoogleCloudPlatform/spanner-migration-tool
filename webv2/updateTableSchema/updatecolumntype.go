@@ -10,6 +10,7 @@ import (
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
+//UpdateColNameType updates type of given columnname to newType.
 func UpdateColNameType(newType, table, colName string, Conv *internal.Conv, w http.ResponseWriter) {
 
 	srcTableName := Conv.ToSource[table].Name
@@ -78,13 +79,14 @@ func UpdateColNameType(newType, table, colName string, Conv *internal.Conv, w ht
 
 	if childSchemaTable != "" {
 
-		err = UpdateColNameTypechildschemaTable(Conv, childSchemaTable, colName, newType, w)
+		err = UpdateColNameTypeChildschemaTable(Conv, childSchemaTable, colName, newType, w)
 		if err != nil {
 			return
 		}
 	}
 }
 
+//UpdateColNameTypeForeignkeyTableSchema updates column type to newtype in from Foreignkey Table Schema.
 func UpdateColNameTypeForeignkeyTableSchema(Conv *internal.Conv, sp ddl.CreateTable, index int, colName string, newType string, w http.ResponseWriter) error {
 
 	relationTable := sp.Fks[index].ReferTable
@@ -115,6 +117,7 @@ func UpdateColNameTypeForeignkeyTableSchema(Conv *internal.Conv, sp ddl.CreateTa
 
 }
 
+//UpdateColNameTypeForeignkeyReferTableSchema updates column type to newtype in from Foreignkey Refer Table Schema.
 func UpdateColNameTypeForeignkeyReferTableSchema(Conv *internal.Conv, sp ddl.CreateTable, table string, colName string, newType string, w http.ResponseWriter) error {
 
 	srcTableName := Conv.ToSource[table].Name
@@ -138,33 +141,35 @@ func UpdateColNameTypeForeignkeyReferTableSchema(Conv *internal.Conv, sp ddl.Cre
 	return nil
 }
 
+//UpdateColNameTypeParentschemaTable updates column type to newtype in from Parent Table Schema.
 func UpdateColNameTypeParentschemaTable(Conv *internal.Conv, parentschemaTable string, colName string, newType string, w http.ResponseWriter) error {
 
 	srcTableName := Conv.ToSource[parentschemaTable].Name
 
-	childSp, ty, err := utilities.GetType(newType, parentschemaTable, colName, srcTableName)
+	parentSp, ty, err := utilities.GetType(newType, parentschemaTable, colName, srcTableName)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
 
-	fmt.Println("updating type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
+	fmt.Println("updating type for rsp.ColDefs[colName] ", parentSp.ColDefs[colName], parentSp.ColDefs[colName].T)
 
-	colDef := childSp.ColDefs[colName]
+	colDef := parentSp.ColDefs[colName]
 	colDef.T = ty
 
-	childSp.ColDefs[colName] = colDef
+	parentSp.ColDefs[colName] = colDef
 
-	fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
+	fmt.Println("updated type for rsp.ColDefs[colName] ", parentSp.ColDefs[colName], parentSp.ColDefs[colName].T)
 
 	//15
-	Conv.SpSchema[parentschemaTable] = childSp
+	Conv.SpSchema[parentschemaTable] = parentSp
 
 	return nil
 }
 
-func UpdateColNameTypechildschemaTable(Conv *internal.Conv, childSchemaTable string, colName string, newType string, w http.ResponseWriter) error {
+//UpdateColNameTypechildschemaTable updates column type to newtype in from child Table Schema.
+func UpdateColNameTypeChildschemaTable(Conv *internal.Conv, childSchemaTable string, colName string, newType string, w http.ResponseWriter) error {
 
 	srcTableName := Conv.ToSource[childSchemaTable].Name
 

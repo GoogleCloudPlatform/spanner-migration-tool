@@ -9,7 +9,8 @@ import (
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
-func ReviewcolNameType(newType, table, colName string, Conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema, w http.ResponseWriter) (_ []InterleaveTableSchema, err error) {
+// ReviewColumnNameType reviews columname type to given newType.
+func ReviewColumnNameType(newType, table, colName string, Conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema, w http.ResponseWriter) (_ []InterleaveTableSchema, err error) {
 
 	fmt.Println("ReviewcolNameType getting called")
 	fmt.Println("")

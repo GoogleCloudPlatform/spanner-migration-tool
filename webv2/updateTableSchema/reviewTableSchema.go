@@ -29,6 +29,7 @@ type InterleaveColumn struct {
 	ColumnId         string
 }
 
+//ReviewTableSchema review Spanner Table Schema.
 func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -113,7 +114,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			if typeChange {
 
-				interleaveTableSchema, err = ReviewcolNameType(v.ToType, table, colName, Conv, interleaveTableSchema, w)
+				interleaveTableSchema, err = ReviewColumnNameType(v.ToType, table, colName, Conv, interleaveTableSchema, w)
 				if err != nil {
 					return
 				}
