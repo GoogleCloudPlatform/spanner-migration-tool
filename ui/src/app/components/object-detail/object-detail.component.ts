@@ -194,6 +194,8 @@ export class ObjectDetailComponent implements OnInit {
     this.data.getSummary()
   }
 
+
+
   toggleEdit() {
     this.currentTabIndex = 0
     if (this.isEditMode) {
@@ -740,5 +742,95 @@ export class ObjectDetailComponent implements OnInit {
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
     this.currentTabIndex = tabChangeEvent.index
+  }
+
+  Updatetable(){
+    this.currentTabIndex = this.currentObject?.type === ObjectExplorerNodeType.Table ? 0 : -1
+    this.isObjectSelected = this.currentObject ? true : false
+    this.isEditMode = false
+    this.isFkEditMode = false
+    this.isPkEditMode = false
+    this.rowArray = new FormArray([])
+    this.pkData = this.conversion.getPkMapping(this.tableData)
+    this.pkColumnNames = []
+    this.interleaveParentName = this.getParentFromDdl()
+
+    if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
+      this.setPkOrder()
+      this.checkIsInterleave()
+      this.interleaveObj = this.data.tableInterleaveStatus.subscribe((res) => {
+        this.interleaveStatus = res
+      })
+      this.tableData.forEach((row) => {
+        this.rowArray.push(
+          new FormGroup({
+            srcOrder: new FormControl(row.srcOrder),
+            srcColName: new FormControl(row.srcColName),
+            srcDataType: new FormControl(row.srcDataType),
+            srcIsPk: new FormControl(row.srcIsPk),
+            srcIsNotNull: new FormControl(row.srcIsNotNull),
+            spOrder: new FormControl(row.spOrder),
+            spColName: new FormControl(row.spColName),
+            spDataType: new FormControl(row.spDataType),
+            spIsPk: new FormControl(row.spIsPk),
+            spIsNotNull: new FormControl(row.spIsNotNull),
+          })
+        )
+      })
+    } else if (this.currentObject) {
+      const addedIndexColumns = this.indexData.map((data) => data.spColName)
+      this.indexColumnNames = this.conv.SpSchema[this.currentObject?.parent].ColNames.filter(
+        (columnName) => {
+          if (addedIndexColumns.includes(columnName)) {
+            return false
+          } else {
+            return true
+          }
+        }
+      )
+      this.indexData.forEach((row: IIndexData) => {
+        this.rowArray.push(
+          new FormGroup({
+            srcOrder: new FormControl(row.srcOrder),
+            srcColName: new FormControl(row.srcColName),
+            srcDesc: new FormControl(row.srcDesc),
+            spOrder: new FormControl(row.spOrder),
+            spColName: new FormControl(row.spColName),
+            spDesc: new FormControl(row.spDesc),
+          })
+        )
+      })
+    }
+
+    this.dataSource = this.rowArray.controls
+    this.updateSpTableSuggestion()
+
+    this.setAddPkColumnList()
+    this.setPkRows()
+
+    this.fkArray = new FormArray([])
+    this.fkData.forEach((fk) => {
+      this.fkArray.push(
+        new FormGroup({
+          spName: new FormControl(fk.spName),
+          srcName: new FormControl(fk.srcName),
+          spColumns: new FormControl(fk.spColumns),
+          srcColumns: new FormControl(fk.srcColumns),
+          spReferTable: new FormControl(fk.spReferTable),
+          srcReferTable: new FormControl(fk.srcReferTable),
+          spReferColumns: new FormControl(fk.spReferColumns),
+          srcReferColumns: new FormControl(fk.srcReferColumns),
+        })
+      )
+    })
+    this.fkDataSource = this.fkArray.controls
+
+    this.data.getSummary()
+  }
+  getParentFromDdl(): string | null {
+    throw new Error('Method not implemented.')
+  }
+  cancelEdit() {
+    this.Updatetable();
   }
 }
