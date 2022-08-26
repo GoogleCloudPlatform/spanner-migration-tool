@@ -28,7 +28,7 @@ export class PrepareMigrationComponent implements OnInit {
   ) { }
 
   isStreamingSupported: boolean = false
-  isDisabled: boolean = false
+  isButtonDisabled: boolean = false
   hasDataMigrationStarted: boolean = false
   hasDataMigrationCompleted: boolean = false
   hasSchemaMigrationStarted: boolean = false
