@@ -22,7 +22,10 @@ export class TargetDetailsFormComponent implements OnInit {
     })
     if (!data) {
       this.targetDetailsForm.get('streamingConfig')?.disable()
+<<<<<<< HEAD
       localStorage.setItem(TargetDetails.StreamingConfig, "")
+=======
+>>>>>>> a10065c (fixed bugs)
     }
     this.targetDetailsForm.setValue({
       targetDb: localStorage.getItem(TargetDetails.TargetDB),
@@ -30,8 +33,17 @@ export class TargetDetailsFormComponent implements OnInit {
       streamingConfig: localStorage.getItem(TargetDetails.StreamingConfig)
     })
   }
+  targetDetails: ITargetDetails = this.targetDetailService.getTargetDetails()
 
   ngOnInit(): void {
+<<<<<<< HEAD
+=======
+    this.targetDetailsForm.setValue({
+      targetDb: this.targetDetails.TargetDB,
+      dialect: this.targetDetails.Dialect,
+      streamingConfig: this.targetDetails.StreamingConfig
+    })
+>>>>>>> a10065c (fixed bugs)
   }
 
   updateTargetDetails() {
