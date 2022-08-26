@@ -7,7 +7,7 @@ import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
 import { ISessionSummary } from 'src/app/model/conv'
 import IMigrationDetails, { IProgress } from 'src/app/model/migrate'
-import { InputType, MigrationModes, SourceDbNames } from 'src/app/app.constants'
+import { InputType, MigrationModes, MigrationTypes, SourceDbNames } from 'src/app/app.constants'
 import { interval, Subscription } from 'rxjs'
 @Component({
   selector: 'app-prepare-migration',
@@ -27,16 +27,16 @@ export class PrepareMigrationComponent implements OnInit {
   ) { }
 
   isTargetDetailSet: boolean = false
-  isStreamingCfgSet: boolean = false
   isSchemaMigration: boolean = true
   isStreamingSupported: boolean = false
-  isDisabled: boolean = false
+  isButtonDisabled: boolean = false
   hasDataMigrationStarted: boolean = false
   hasDataMigrationCompleted: boolean = false
   hasSchemaMigrationStarted: boolean = false
   hasSchemaMigrationCompleted: boolean = false
   selectedMigrationMode: string = MigrationModes.schemaOnly
-  selectedMigrationType: string = 'bulk'
+  connectionType: string = InputType.DirectConnect
+  selectedMigrationType: string = MigrationTypes.bulkMigration
   errorMessage: string = ''
   schemaProgressMessage: string = 'Schema creation in progress...'
   dataProgressMessage: string = 'Data migration in progress...'
@@ -47,6 +47,7 @@ export class PrepareMigrationComponent implements OnInit {
   ngOnInit(): void {
     this.fetch.getSourceDestinationSummary().subscribe({
       next: (res: ISessionSummary) => {
+        this.connectionType = res.ConnectionType
         this.dataSource = [
           { title: 'Database Type', source: res.DatabaseType, target: 'Spanner' },
           {
@@ -61,8 +62,7 @@ export class PrepareMigrationComponent implements OnInit {
           },
         ]
         if (res.ConnectionType == InputType.DumpFile) {
-          this.migrationModes = [MigrationModes.schemaAndData]
-          this.selectedMigrationMode = MigrationModes.schemaAndData
+          this.migrationModes = [MigrationModes.schemaOnly, MigrationModes.dataOnly, MigrationModes.schemaAndData]
         } else if (res.ConnectionType == InputType.SessionFile) {
           this.migrationModes = [MigrationModes.schemaOnly]
         } else {
@@ -83,14 +83,11 @@ export class PrepareMigrationComponent implements OnInit {
       width: '30vw',
       minWidth: '400px',
       maxWidth: '500px',
-      data: this.selectedMigrationType == 'lowdt',
+      data: this.selectedMigrationType == MigrationTypes.lowDowntimeMigration,
     })
     dialogRef.afterClosed().subscribe(() => {
       if (this.targetDetails.TargetDB != '') {
         this.isTargetDetailSet = true
-      }
-      if (this.targetDetails.StreamingConfig != '') {
-        this.isStreamingCfgSet = true
       }
     })
   }
@@ -114,7 +111,9 @@ export class PrepareMigrationComponent implements OnInit {
       },
       error: (err: any) => {
         this.snack.openSnackBar(err.error, 'Close')
-        this.isDisabled = !this.isDisabled
+        this.isButtonDisabled = !this.isButtonDisabled
+        this.hasDataMigrationStarted = false
+        this.hasSchemaMigrationStarted = false
       },
     })
   }
@@ -124,6 +123,7 @@ export class PrepareMigrationComponent implements OnInit {
       this.fetch.getProgress().subscribe({
         next: (res: IProgress) => {
           if (res.ErrorMessage == '') {
+            // Checking for completion of schema migration
             if (res.Message.startsWith('Schema migration complete')) {
               this.schemaMigrationProgress = 100
               if (res.Progress == 100) {
@@ -131,10 +131,10 @@ export class PrepareMigrationComponent implements OnInit {
                   this.markMigrationComplete()
                 }
               }
-            } else if (res.Message.startsWith('Writing data to Spanner')) {
-              this.hasDataMigrationStarted = true
-              this.schemaMigrationProgress = 100
-              this.schemaProgressMessage = "Schema migration completed successfully!"
+            }
+            // Checking for data migration in progree
+            else if (res.Message.startsWith('Writing data to Spanner')) {
+              this.markSchemaMigrationComplete()
               this.dataMigrationProgress = res.Progress
               if (this.hasDataMigrationCompleted) {
                 this.markMigrationComplete()
@@ -142,10 +142,10 @@ export class PrepareMigrationComponent implements OnInit {
               if (res.Progress == 100) {
                 this.hasDataMigrationCompleted = true
               }
-            } else if (res.Message.startsWith('Updating schema of database')) {
-              this.hasDataMigrationStarted = true
-              this.schemaMigrationProgress = 100
-              this.schemaProgressMessage = "Schema migration completed successfully!"
+            }
+            // Checking for foreign key update in progress
+            else if (res.Message.startsWith('Updating schema of database')) {
+              this.markSchemaMigrationComplete()
               this.dataMigrationProgress = 100
               if (res.Progress == 100) {
                 this.markMigrationComplete()
@@ -154,26 +154,34 @@ export class PrepareMigrationComponent implements OnInit {
           } else {
             this.errorMessage = res.ErrorMessage;
             this.subscription.unsubscribe();
-            this.isDisabled = !this.isDisabled
+            this.isButtonDisabled = !this.isButtonDisabled
             this.snack.openSnackBarWithoutTimeout(this.errorMessage, 'Close')
+            this.schemaProgressMessage = "Schema migration cancelled!"
+            this.dataProgressMessage = "Data migration cancelled!"
           }
         },
         error: (err: any) => {
           this.snack.openSnackBar(err.error, 'Close')
-          this.isDisabled = !this.isDisabled
+          this.isButtonDisabled = !this.isButtonDisabled
         },
       })
     }));
   }
 
+  markSchemaMigrationComplete() {
+    this.hasDataMigrationStarted = true
+    this.schemaMigrationProgress = 100
+    this.schemaProgressMessage = "Schema migration completed successfully!"
+  }
+
   markMigrationComplete() {
     this.subscription.unsubscribe();
-    this.isDisabled = !this.isDisabled
+    this.isButtonDisabled = !this.isButtonDisabled
     this.dataProgressMessage = "Data migration completed successfully!"
     this.schemaProgressMessage = "Schema migration completed successfully!"
   }
   resetValues() {
-    this.isDisabled = !this.isDisabled
+    this.isButtonDisabled = !this.isButtonDisabled
     this.hasSchemaMigrationStarted = false
     this.hasDataMigrationStarted = false
     this.hasDataMigrationCompleted = false

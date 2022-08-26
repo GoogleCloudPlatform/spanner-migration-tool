@@ -19,15 +19,22 @@ export class TargetDetailsFormComponent implements OnInit {
   ) {
     this.targetDetailsForm = this.formBuilder.group({
       targetDb: ['', Validators.required],
-      dialect: ['',Validators.required],
-      streamingConfig: [''],
+      dialect: ['', Validators.required],
+      streamingConfig: ['', Validators.required],
     })
-    if (data) {
-      this.targetDetailsForm.get('streamingConfig')?.setValidators(Validators.required)
+    if (!data) {
+      this.targetDetailsForm.get('streamingConfig')?.disable()
     }
   }
+  targetDetails: ITargetDetails = this.targetDetailService.getTargetDetails()
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.targetDetailsForm.setValue({
+      targetDb: this.targetDetails.TargetDB,
+      dialect: this.targetDetails.Dialect,
+      streamingConfig: this.targetDetails.StreamingConfig
+    })
+  }
 
   updateTargetDetails() {
     let formValue = this.targetDetailsForm.value

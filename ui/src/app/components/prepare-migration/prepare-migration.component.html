@@ -42,12 +42,12 @@
         </mat-select>
     </mat-form-field>
 
-    <div *ngIf="!(selectedMigrationMode ==='Schema') && isStreamingSupported">
+    <div *ngIf="!(selectedMigrationMode ==='Schema') && isStreamingSupported && !(connectionType ==='dumpFile')">
         <mat-form-field appearance="outline">
             <mat-label>Migration Type:</mat-label>
             <mat-select [(ngModel)]="selectedMigrationType">
-                    <mat-option value="bulk">Bulk Migration</mat-option>
-                    <mat-option value="lowdt">Low downtime migration</mat-option>
+                <mat-option value="bulk">Bulk Migration</mat-option>
+                <mat-option value="lowdt">Low downtime migration</mat-option>
             </mat-select>
         </mat-form-field>
     </div>
@@ -61,7 +61,7 @@
                 <p class="point">
                     <span class="bullet">1</span>
                     <span>Setup Target details</span><span><button mat-button class="configure"
-                            (click)="openTargetDetailsForm()">
+                            (click)="openTargetDetailsForm()" [disabled]="isButtonDisabled">
                             Configure
                             <mat-icon>edit</mat-icon>
                         </button></span>
@@ -74,16 +74,17 @@
         <h3>Target Details</h3>
         <span><b>Target Database:</b>{{ targetDetails.TargetDB }}</span><br />
         <span><b>Spanner Dialect:</b>{{ targetDetails.Dialect }}</span><br />
-        <span *ngIf="isStreamingCfgSet"><b>Streaming Config:</b>{{ targetDetails.StreamingConfig }}</span><br />
+        <span *ngIf="(selectedMigrationType === 'lowdt')"><b>Streaming Config:</b>{{ targetDetails.StreamingConfig
+            }}</span><br />
     </div>
     <div *ngIf="hasSchemaMigrationStarted" class="progress_bar">
-        <mat-progress-bar mode="determinate" [value]="schemaMigrationProgress"></mat-progress-bar> 
+        <mat-progress-bar mode="determinate" [value]="schemaMigrationProgress"></mat-progress-bar>
         <span> {{this.schemaProgressMessage}}</span>
     </div>
     <div *ngIf="hasDataMigrationStarted" class="progress_bar">
-        <mat-progress-bar mode="determinate" [value]="dataMigrationProgress"></mat-progress-bar> 
+        <mat-progress-bar mode="determinate" [value]="dataMigrationProgress"></mat-progress-bar>
         <span> {{this.dataProgressMessage}}</span>
     </div>
     <button mat-raised-button type="submit" color="primary" (click)="migrate()" class="migrate"
-        [disabled]="!isTargetDetailSet || isDisabled">Migrate</button>
+        [disabled]="!isTargetDetailSet || isButtonDisabled">Migrate</button>
 </div>

@@ -41,3 +41,8 @@ export enum ObjectDetailNodeType {
   Table = 'table',
   Index = 'index',
 }
+
+export enum MigrationTypes {
+  bulkMigration = 'bulk',
+  lowDowntimeMigration = 'lowdt'
+}
