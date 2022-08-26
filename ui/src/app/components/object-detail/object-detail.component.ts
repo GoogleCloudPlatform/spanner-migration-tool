@@ -139,7 +139,7 @@ export class ObjectDetailComponent implements OnInit {
     this.rowArray = new FormArray([])
     this.pkData = this.conversion.getPkMapping(this.tableData)
     this.pkColumnNames = []
-    this.interleaveParentName = this.getParentFromDdl()
+    this.interleaveParentName = this.getInterleaveParentFromConv()
 
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
       this.setPkOrder()
@@ -618,19 +618,12 @@ export class ObjectDetailComponent implements OnInit {
     this.data.setInterleave(this.currentObject!.name)
   }
 
-  getParentFromDdl() {
-    let substr: string = 'INTERLEAVE IN PARENT'
-    let ddl: string = ''
-    if (
-      this.currentObject?.type === ObjectExplorerNodeType.Table &&
-      this.ddlStmts[this.currentObject.name].includes(substr)
-    ) {
-      ddl = this.ddlStmts[this.currentObject.name].substring(
-        this.ddlStmts[this.currentObject.name].indexOf(substr) + 20
-      )
-      return ddl.split(' ')[1]
-    }
-    return null
+  getInterleaveParentFromConv() {
+    return this.currentObject?.type === ObjectExplorerNodeType.Table &&
+      this.currentObject.isSpannerNode &&
+      this.conv.SpSchema[this.currentObject.name].Parent != ''
+      ? this.conv.SpSchema[this.currentObject.name].Parent
+      : null
   }
 
   setIndexRows() {

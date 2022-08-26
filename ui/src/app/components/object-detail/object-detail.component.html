@@ -73,7 +73,7 @@
         <span>DROP INDEX</span>
       </button>
     </h3>
-    <div class="interleaved-title" *ngIf="interleaveParentName">
+    <div class="interleaved-title" *ngIf="currentObject.isSpannerNode && interleaveParentName">
       Interleaved:
       <div class="interleave-parent-name">
         {{ interleaveParentName }}
