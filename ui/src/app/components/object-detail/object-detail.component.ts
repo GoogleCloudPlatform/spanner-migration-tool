@@ -745,7 +745,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   restoreSpannerTable() {
-    let tableId = this.conversion.getSourceTableNameToIdMapping(this.currentObject!.name, this.conv)
+    let tableId = this.currentObject!.id
     this.data
       .restoreTable(tableId)
       .pipe(take(1))
@@ -766,10 +766,7 @@ export class ObjectDetailComponent implements OnInit {
     })
     openDialog.afterClosed().subscribe((res: string) => {
       if (res === ObjectExplorerNodeType.Table) {
-        let tableId = this.conversion.getSpannerTableNameToIdMapping(
-          this.currentObject!.name,
-          this.conv
-        )
+        let tableId = this.currentObject!.id
         this.data
           .dropTable(tableId)
           .pipe(take(1))

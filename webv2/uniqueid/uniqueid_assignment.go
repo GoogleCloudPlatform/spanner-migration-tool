@@ -32,7 +32,7 @@ func AssignUniqueId(conv *internal.Conv) {
 
 		for spannertablename, spannertable := range conv.SpSchema {
 
-			if sourcetablename == spannertablename {
+			if validSpannerTableName, _ := internal.FixName(sourcetablename); validSpannerTableName == spannertablename {
 
 				tableuniqueid := GenerateTableId()
 				sourcetable.Id = tableuniqueid
@@ -53,7 +53,7 @@ func AssignUniqueId(conv *internal.Conv) {
 
 					for spannercolumnname, spannercolumn := range spannertable.ColDefs {
 
-						if sourcecolumn.Name == spannercolumn.Name {
+						if validSpannerColumnName, _ := internal.FixName(sourcecolumn.Name); validSpannerColumnName == spannercolumn.Name {
 
 							columnuniqueid := GenerateColumnId()
 							sourcecolumn.Id = columnuniqueid
@@ -72,7 +72,7 @@ func AssignUniqueId(conv *internal.Conv) {
 
 					for spannerforeignkeyindex, spannerforeignkey := range spannertable.Fks {
 
-						if sourceforeignkey.Name == spannerforeignkey.Name {
+						if validSpannerFkName, _ := internal.FixName(sourceforeignkey.Name); validSpannerFkName == spannerforeignkey.Name {
 
 							foreignkeyid := GenerateForeignkeyId()
 
@@ -88,9 +88,9 @@ func AssignUniqueId(conv *internal.Conv) {
 
 				for sourcei, sourceindexes := range sourcetable.Indexes {
 
-					for spanneri, spannerindexes := range spannertable.Indexes {
+					for ind, spannerindexes := range spannertable.Indexes {
 
-						if sourceindexes.Name == spannerindexes.Name {
+						if validSpannerIndexName, _ := internal.FixName(sourceindexes.Name); validSpannerIndexName == spannerindexes.Name {
 
 							indexesid := GenerateIndexesId()
 
@@ -98,7 +98,7 @@ func AssignUniqueId(conv *internal.Conv) {
 							spannerindexes.Id = indexesid
 
 							conv.SrcSchema[sourcetable.Name].Indexes[sourcei] = sourceindexes
-							conv.SpSchema[spannertable.Name].Indexes[spanneri] = spannerindexes
+							conv.SpSchema[spannertable.Name].Indexes[ind] = spannerindexes
 
 						}
 
@@ -276,7 +276,7 @@ func CopyUniqueIdToSpannerTable(conv *internal.Conv, spannertablename string) {
 
 	for _, sourcecolumn := range sourcetable.ColDefs {
 		for spannercolumnname, spannercolumn := range spannertable.ColDefs {
-			if sourcecolumn.Name == spannercolumn.Name {
+			if validSpannerColumnName, _ := internal.FixName(sourcecolumn.Name); validSpannerColumnName == spannercolumn.Name {
 				spannercolumn.Id = sourcecolumn.Id
 				spannertable.ColDefs[spannercolumnname] = spannercolumn
 				break
@@ -286,7 +286,7 @@ func CopyUniqueIdToSpannerTable(conv *internal.Conv, spannertablename string) {
 
 	for _, sourceforeignkey := range sourcetable.ForeignKeys {
 		for spannerforeignkeyindex, spannerforeignkey := range spannertable.Fks {
-			if sourceforeignkey.Name == spannerforeignkey.Name {
+			if validSpannerFkName, _ := internal.FixName(sourceforeignkey.Name); validSpannerFkName == spannerforeignkey.Name {
 				spannerforeignkey.Id = sourceforeignkey.Id
 				spannertable.Fks[spannerforeignkeyindex] = spannerforeignkey
 			}
@@ -295,7 +295,7 @@ func CopyUniqueIdToSpannerTable(conv *internal.Conv, spannertablename string) {
 
 	for _, sourceindexes := range sourcetable.Indexes {
 		for ind, spannerindexes := range spannertable.Indexes {
-			if sourceindexes.Name == spannerindexes.Name {
+			if validSpannerIndexName, _ := internal.FixName(sourceindexes.Name); validSpannerIndexName == spannerindexes.Name {
 				spannerindexes.Id = sourceindexes.Id
 				spannertable.Indexes[ind] = spannerindexes
 			}

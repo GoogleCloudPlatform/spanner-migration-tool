@@ -78,6 +78,7 @@ export interface IIndex {
   Name: string
   Unique: boolean
   Keys: ISrcIndexKey[]
+  Id: string
 }
 
 export interface ISpannerForeignKey {
