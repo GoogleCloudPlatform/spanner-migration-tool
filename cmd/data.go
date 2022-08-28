@@ -128,9 +128,9 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	}
 
 	var (
-		dbURI    string
-		progress *internal.Progress
+		dbURI string
 	)
+	progress := &internal.Progress{}
 	if !cmd.dryRun {
 		now := time.Now()
 		bw, err = MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, cmd, conv, nil)

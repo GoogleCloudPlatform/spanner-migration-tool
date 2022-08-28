@@ -110,12 +110,12 @@ func (cmd *SchemaAndDataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...
 	}
 
 	var (
-		conv     *internal.Conv
-		bw       *writer.BatchWriter
-		banner   string
-		dbURI    string
-		progress *internal.Progress
+		conv   *internal.Conv
+		bw     *writer.BatchWriter
+		banner string
+		dbURI  string
 	)
+	progress := &internal.Progress{}
 	conv, err = conversion.SchemaConv(sourceProfile, targetProfile, &ioHelper)
 	if err != nil {
 		panic(err)
