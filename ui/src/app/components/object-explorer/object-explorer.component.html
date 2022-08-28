@@ -6,7 +6,7 @@
   >
     <mat-tab>
       <ng-template mat-tab-label>
-        <span [ngClass]="{ 'blue-font': selectedTab === 'source' }">
+        <span [ngClass]="{ 'blue-font-color': selectedTab === 'source' }">
           {{ srcDbName.toUpperCase() }}
         </span>
       </ng-template>
@@ -174,7 +174,7 @@
     </mat-tab>
     <mat-tab>
       <ng-template mat-tab-label>
-        <span [ngClass]="{ 'blue-font': selectedTab === 'spanner' }"> SPANNER DRAFT </span>
+        <span [ngClass]="{ 'blue-font-color': selectedTab === 'spanner' }"> SPANNER DRAFT </span>
       </ng-template>
       <div class="filter-wrapper">
         <div class="left">
