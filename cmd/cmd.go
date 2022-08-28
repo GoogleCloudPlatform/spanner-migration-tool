@@ -55,9 +55,8 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 	}
 
 	var (
-		conv     *internal.Conv
-		err      error
-		progress *internal.Progress
+		conv *internal.Conv
+		err  error
 	)
 	// Creating profiles from legacy flags. We only pass schema-sample-size here because thats the
 	// only flag passed through the arguments. Dumpfile params are contained within ioHelper
@@ -66,6 +65,7 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 	sourceProfile.Driver = driver
 	targetProfile, _ := profiles.NewTargetProfile("")
 	targetProfile.TargetDb = targetDb
+	progress := &internal.Progress{}
 	if !dataOnly {
 		// We pass an empty string to the sqlConnectionStr parameter as this is the legacy codepath,
 		// which reads the environment variables and constructs the string later on.
