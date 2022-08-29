@@ -47,7 +47,7 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 	if isParent {
 
-		reviewRenameColumnNameInparentTableSchema(Conv, parentSchemaTable, interleaveTableSchema, colName, newName)
+		interleaveTableSchema = reviewRenameColumnNameInparentTableSchema(Conv, parentSchemaTable, interleaveTableSchema, colName, newName)
 	}
 
 	//10
@@ -57,7 +57,7 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 	if childSchemaTable != "" {
 
-		reviewRenameColumnNameInchildTableSchema(Conv, childSchemaTable, interleaveTableSchema, colName, newName)
+		interleaveTableSchema = reviewRenameColumnNameInchildTableSchema(Conv, childSchemaTable, interleaveTableSchema, colName, newName)
 
 	}
 
@@ -164,7 +164,7 @@ func reviewRenameColumnNameInparentTableSchema(Conv *internal.Conv, parentSchema
 }
 
 // reviewRenameColumnNameInchildTableSchema review  rename Columnname in Child Table Schema.
-func reviewRenameColumnNameInchildTableSchema(Conv *internal.Conv, childSchemaTable string, interleaveTableSchema []InterleaveTableSchema, colName string, newName string) {
+func reviewRenameColumnNameInchildTableSchema(Conv *internal.Conv, childSchemaTable string, interleaveTableSchema []InterleaveTableSchema, colName string, newName string) []InterleaveTableSchema {
 
 	childSchemaSp := Conv.SpSchema[childSchemaTable]
 
@@ -200,6 +200,7 @@ func reviewRenameColumnNameInchildTableSchema(Conv *internal.Conv, childSchemaTa
 
 		}
 	}
+	return interleaveTableSchema
 }
 
 // reviewreanmeColumnNameInCurrentTable review  rename Columnname in current Table Schema.

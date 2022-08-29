@@ -65,7 +65,7 @@ func ReviewColumnNameType(newType, table, colName string, Conv *internal.Conv, i
 		}
 	}
 
-	reviewColumnNameTypeChangeOfCurrentTableSchema(Conv, sp, interleaveTableSchema, table, colName, newType, parentSchemaTable, childSchemaTable, w)
+	interleaveTableSchema, err = reviewColumnNameTypeChangeOfCurrentTableSchema(Conv, sp, interleaveTableSchema, table, colName, newType, parentSchemaTable, childSchemaTable, w)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
