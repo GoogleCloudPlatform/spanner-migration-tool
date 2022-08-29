@@ -305,13 +305,13 @@ export class ConversionService {
     })
   }
 
-  getIndexMapping(tableId: string, data: IConv, indexName: string): IIndexData[] {
+  getIndexMapping(tableId: string, data: IConv, indexId: string): IIndexData[] {
     let srcTableName = this.getSourceTableNameFromId(tableId, data)
     let spTableName = this.getSpannerTableNameFromId(tableId, data)
     let spIndex = spTableName
-      ? data.SpSchema[spTableName]?.Indexes.filter((idx) => idx.Name === indexName)[0]
+      ? data.SpSchema[spTableName]?.Indexes.filter((idx) => idx.Id === indexId)[0]
       : null
-    let srcIndexs = data.SrcSchema[srcTableName].Indexes?.filter((idx) => idx.Name === indexName)
+    let srcIndexs = data.SrcSchema[srcTableName].Indexes?.filter((idx) => idx.Id === indexId)
 
     let res: IIndexData[] = spIndex
       ? spIndex.Keys.map((idx: IIndexKey, i: number) => {

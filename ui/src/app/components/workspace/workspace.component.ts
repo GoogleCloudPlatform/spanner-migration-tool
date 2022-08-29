@@ -98,7 +98,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
         this.indexData = this.conversion.getIndexMapping(
           this.currentObject.parentId,
           this.conv,
-          this.currentObject.name
+          this.currentObject.id
         )
       }
     })
@@ -175,7 +175,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
         : []
     } else if (object?.type === ObjectExplorerNodeType.Index) {
       this.currentObject = object
-      this.indexData = this.conversion.getIndexMapping(object.parentId, this.conv, object.name)
+      this.indexData = this.conversion.getIndexMapping(object.parentId, this.conv, object.id)
     } else {
       this.currentObject = null
     }
