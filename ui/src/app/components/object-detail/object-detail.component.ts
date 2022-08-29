@@ -165,6 +165,7 @@ export class ObjectDetailComponent implements OnInit {
       })
     } else if (this.currentObject) {
       this.checkIsInterleave()
+      this.indexOrderValidation()
       this.setIndexRows()
     }
 
@@ -663,9 +664,37 @@ export class ObjectDetailComponent implements OnInit {
     this.dataSource = this.rowArray.controls
   }
 
+  setIndexOrder() {
+    this.rowArray.value.forEach((idx: IIndexData) => {
+      for (let i = 0; i < this.indexData.length; i++) {
+        if (idx.spColName == this.indexData[i].spColName) {
+          this.indexData[i].spOrder = idx.spOrder
+          break
+        }
+      }
+    })
+    this.indexOrderValidation()
+    console.log(this.indexData)
+  }
+
+  indexOrderValidation() {
+    let arr = this.indexData.map((item) => Number(item.spOrder))
+    arr.sort()
+    if (arr[arr.length - 1] > arr.length) {
+      arr.forEach((num: number, i: number) => {
+        this.indexData.forEach((ind: IIndexData) => {
+          if (ind.spOrder == num) {
+            ind.spOrder = i + 1
+          }
+        })
+      })
+    }
+  }
+
   toggleIndexEdit() {
     if (this.isIndexEditMode) {
       let payload: ICreateIndex[] = []
+      this.setIndexOrder()
       const tableName = this.currentObject?.parent || ''
       payload.push({
         Name: this.currentObject?.name || '',

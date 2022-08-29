@@ -252,7 +252,7 @@ export class ConversionService {
             ? srcIndexs[0].Keys[i].Desc
             : undefined,
         spColName: idx.Col,
-        spOrder: i + 1,
+        spOrder: idx.Order,
         spDesc: idx.Desc,
       }
     })

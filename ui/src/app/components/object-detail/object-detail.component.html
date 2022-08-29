@@ -749,13 +749,12 @@
       <ng-container matColumnDef="spIndexOrder">
         <th class="table_header" mat-header-cell *matHeaderCellDef>Column Order</th>
         <td mat-cell *matCellDef="let element">
-          <div *ngIf="isIndexEditMode && element.get('spOrder').value">
+          <div *ngIf="isIndexEditMode && element.get('spColName').value">
             <input
               matInput
               class="order_input"
-              type="text"
+              type="number"
               [formControl]="element.get('spOrder')"
-              readonly
             />
           </div>
           <p *ngIf="!isIndexEditMode">{{ element.get('spOrder').value }}</p>
