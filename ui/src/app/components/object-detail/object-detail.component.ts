@@ -774,6 +774,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   Updatetable(){
+   
     this.currentTabIndex = this.currentObject?.type === ObjectExplorerNodeType.Table ? 0 : -1
     this.isObjectSelected = this.currentObject ? true : false
     this.isEditMode = false
@@ -782,7 +783,7 @@ export class ObjectDetailComponent implements OnInit {
     this.rowArray = new FormArray([])
     this.pkData = this.conversion.getPkMapping(this.tableData)
     this.pkColumnNames = []
-    this.interleaveParentName = this.getParentFromDdl()
+    this.interleaveParentName = this.getInterleaveParentFromConv()
 
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
       this.setPkOrder()
@@ -807,28 +808,9 @@ export class ObjectDetailComponent implements OnInit {
         )
       })
     } else if (this.currentObject) {
-      const addedIndexColumns = this.indexData.map((data) => data.spColName)
-      this.indexColumnNames = this.conv.SpSchema[this.currentObject?.parent].ColNames.filter(
-        (columnName) => {
-          if (addedIndexColumns.includes(columnName)) {
-            return false
-          } else {
-            return true
-          }
-        }
-      )
-      this.indexData.forEach((row: IIndexData) => {
-        this.rowArray.push(
-          new FormGroup({
-            srcOrder: new FormControl(row.srcOrder),
-            srcColName: new FormControl(row.srcColName),
-            srcDesc: new FormControl(row.srcDesc),
-            spOrder: new FormControl(row.spOrder),
-            spColName: new FormControl(row.spColName),
-            spDesc: new FormControl(row.spDesc),
-          })
-        )
-      })
+      this.checkIsInterleave()
+      this.indexOrderValidation()
+      this.setIndexRows()
     }
 
     this.dataSource = this.rowArray.controls
