@@ -136,28 +136,27 @@ export class ObjectDetailComponent implements OnInit {
     this.pkData = this.conversion.getPkMapping(this.tableData)
     this.interleaveParentName = this.getInterleaveParentFromConv()
 
+    this.isEditMode = false
+    this.isFkEditMode = false
+    this.isIndexEditMode = false
+    this.isPkEditMode = false
+
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
       this.setPkOrder()
       this.checkIsInterleave()
       this.interleaveObj = this.data.tableInterleaveStatus.subscribe((res) => {
         this.interleaveStatus = res
       })
-      if (changes['tableData']) {
-        this.setColumnTable()
-      }
-      if (changes['fkData'].currentValue == this.fkData) {
-        this.fkData = changes['fkData']?.currentValue || this.fkData
-        this.setFkRows()
-      }
+      this.setColumnTable()
+      this.setFkRows()
       this.setAddPkColumnList()
       this.setPkRows()
-
-      this.data.getSummary()
+      this.updateSpTableSuggestion()
     } else if (this.currentObject) {
       this.checkIsInterleave()
       this.setIndexRows()
     }
-    this.updateSpTableSuggestion()
+    this.data.getSummary()
   }
 
   setColumnTable() {
