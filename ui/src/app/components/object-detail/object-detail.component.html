@@ -111,7 +111,7 @@
                   <button
                     mat-stroked-button
                     color="primary"
-                    (click)="cancelEdit()"
+                    (click)="toggleEdit()"
                     *ngIf="currentObject!.isSpannerNode"
                   >
                     CANCEL
@@ -328,7 +328,7 @@
                   <button
                     mat-stroked-button
                     color="primary"
-                    (click)="cancelEdit()"
+                    (click)="togglePkEdit()"
                     *ngIf="currentObject!.isSpannerNode"
                   >
                     CANCEL
@@ -540,7 +540,7 @@
                   <button
                     mat-stroked-button
                     color="primary"
-                    (click)="cancelEdit()"
+                    (click)="toggleFkEdit()"
                     *ngIf="currentObject!.isSpannerNode"
                   >
                     CANCEL
@@ -858,16 +858,16 @@
   <div class="save-edits">
     <mat-divider></mat-divider>
     <div class="save-button" *ngIf="isEditMode && currentTabIndex === 0">
-      <button mat-raised-button color="primary" (click)="toggleEdit()">SAVE & CONVERT</button>
+      <button mat-raised-button color="primary" (click)="saveColumnTable()">SAVE & CONVERT</button>
     </div>
     <div class="save-button" *ngIf="isPkEditMode && currentTabIndex === 1">
-      <button mat-raised-button color="primary" (click)="togglePkEdit()">SAVE & CONVERT</button>
+      <button mat-raised-button color="primary" (click)="savePk()">SAVE & CONVERT</button>
     </div>
     <div class="save-button" *ngIf="isFkEditMode && currentTabIndex === 2">
-      <button mat-raised-button color="primary" (click)="toggleFkEdit()">SAVE & CONVERT</button>
+      <button mat-raised-button color="primary" (click)="saveFk()">SAVE & CONVERT</button>
     </div>
     <div class="save-button" *ngIf="isIndexEditMode && currentTabIndex === -1">
-      <button mat-raised-button color="primary" (click)="toggleIndexEdit()">SAVE & CONVERT</button>
+      <button mat-raised-button color="primary" (click)="saveIndex()">SAVE & CONVERT</button>
     </div>
   </div>
 </div>
