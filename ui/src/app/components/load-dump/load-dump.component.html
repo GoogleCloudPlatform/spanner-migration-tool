@@ -1,5 +1,5 @@
-<div class="container">
-  <mat-card class="form-container">
+<div class="connect-load-database-container">
+  <div class="form-container">
     <form [formGroup]="connectForm" (ngSubmit)="convertFromDump()">
       <h3 class="primary-header">Load from database dump</h3>
 
@@ -30,5 +30,5 @@
       </button>
       <button mat-raised-button [routerLink]="'/'">Cancel</button>
     </form>
-  </mat-card>
+  </div>
 </div>
