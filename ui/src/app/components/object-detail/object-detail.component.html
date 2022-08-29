@@ -73,7 +73,7 @@
         <span>DROP INDEX</span>
       </button>
     </h3>
-    <div class="interleaved-title" *ngIf="interleaveParentName">
+    <div class="interleaved-title" *ngIf="currentObject.isSpannerNode && interleaveParentName">
       Interleaved:
       <div class="interleave-parent-name">
         {{ interleaveParentName }}
@@ -105,6 +105,16 @@
                   >
                     <mat-icon class="edit-icon">edit</mat-icon>
                     EDIT
+                  </button>
+                </div>
+                <div *ngIf="isEditMode">
+                  <button
+                    mat-stroked-button
+                    color="primary"
+                    (click)="cancelEdit()"
+                    *ngIf="currentObject!.isSpannerNode"
+                  >
+                    CANCEL
                   </button>
                 </div>
               </div>
@@ -314,6 +324,16 @@
                     EDIT
                   </button>
                 </div>
+                <div *ngIf="isPkEditMode">
+                  <button
+                    mat-stroked-button
+                    color="primary"
+                    (click)="cancelEdit()"
+                    *ngIf="currentObject!.isSpannerNode"
+                  >
+                    CANCEL
+                  </button>
+                </div>
               </div>
             </th>
           </ng-container>
@@ -516,6 +536,16 @@
                     EDIT
                   </button>
                 </div>
+                <div *ngIf="isFkEditMode">
+                  <button
+                    mat-stroked-button
+                    color="primary"
+                    (click)="cancelEdit()"
+                    *ngIf="currentObject!.isSpannerNode"
+                  >
+                    CANCEL
+                  </button>
+                </div>
               </div>
             </th>
           </ng-container>
@@ -707,6 +737,16 @@
               <button mat-stroked-button color="primary" (click)="toggleIndexEdit()">
                 <mat-icon class="edit-icon">edit</mat-icon>
                 EDIT
+              </button>
+            </div>
+            <div *ngIf="isIndexEditMode">
+              <button
+                mat-stroked-button
+                color="primary"
+                (click)="toggleIndexEdit()"
+                *ngIf="currentObject!.isSpannerNode"
+              >
+                CANCEL
               </button>
             </div>
           </div>

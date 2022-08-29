@@ -346,6 +346,9 @@ export class DataService {
   setInterleave(tableName: string) {
     this.fetch.setInterleave(tableName).subscribe((res: any) => {
       this.getDdl()
+      if (res.sessionState) {
+        this.convSubject.next(res.sessionState as IConv)
+      }
     })
   }
 }
