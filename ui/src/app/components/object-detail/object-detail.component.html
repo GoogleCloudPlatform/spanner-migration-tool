@@ -106,6 +106,7 @@
   </div>
 
   <mat-tab-group
+    [ngClass]="{ 'height-on-edit': isEditMode || isPkEditMode || isFkEditMode }"
     *ngIf="currentObject!.type === 'tableName'"
     (selectedTabChange)="tabChanged($event)"
   >
@@ -539,6 +540,7 @@
                     !isFkEditMode &&
                     fkDataSource.length > 0 &&
                     !interleaveParentName &&
+                    currentObject!.isSpannerNode &&
                     !currentObject.isDeleted
                   "
                 >
@@ -734,7 +736,7 @@
           <div class="spanner_edit-button">
             <span>Spanner</span>
 
-            <div *ngIf="!isIndexEditMode">
+            <div *ngIf="!isIndexEditMode && currentObject!.isSpannerNode">
               <button mat-stroked-button color="primary" (click)="toggleIndexEdit()">
                 <mat-icon class="edit-icon">edit</mat-icon>
                 EDIT
@@ -848,7 +850,7 @@
   </div>
 
   <div class="save-edits">
-    <mat-divider></mat-divider>
+    <mat-divider *ngIf="isEditMode || isPkEditMode || isFkEditMode"></mat-divider>
     <div class="save-button" *ngIf="isEditMode && currentTabIndex === 0">
       <button mat-raised-button color="primary" (click)="toggleEdit()">SAVE & CONVERT</button>
     </div>
