@@ -884,7 +884,7 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 	delete(spSchema, table)
 	delete(toSource, table)
 	delete(toSpanner, srcTable)
-	issues[table] = map[string][]internal.SchemaIssue{}
+	issues[srcTable] = map[string][]internal.SchemaIssue{}
 
 	//drop reference foreign key
 	for tableName, spTable := range spSchema {
@@ -928,7 +928,7 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.Conv.SpSchema = spSchema
 	sessionState.Conv.ToSource = toSource
-	sessionState.Conv.ToSpanner = toSource
+	sessionState.Conv.ToSpanner = toSpanner
 	sessionState.Conv.Issues = issues
 	sessionState.Conv.UsedNames = usedNames
 
