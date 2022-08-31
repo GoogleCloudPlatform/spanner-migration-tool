@@ -52,6 +52,7 @@ export interface ITable {
 }
 
 export interface IColumn {
+  Id: string
   Name: string
   Type: ISpannerType
   NotNull: boolean

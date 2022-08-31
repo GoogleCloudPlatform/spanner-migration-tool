@@ -507,7 +507,7 @@ export class ObjectDetailComponent implements OnInit {
           let index = this.conv.SpSchema[this.currentObject!.name].Pks.map(
             (item) => item.Col
           ).indexOf(pk.spColName)
-          pk.spOrder = this.conv.SpSchema[this.currentObject!.name].Pks[index].Order
+          pk.spOrder = this.conv.SpSchema[this.currentObject!.name].Pks[index]?.Order
         }
       })
     } else {
