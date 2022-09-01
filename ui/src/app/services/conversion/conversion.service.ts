@@ -217,27 +217,6 @@ export class ConversionService {
         }
       }
     )
-    data.SpSchema[srcTableName]?.ColNames.forEach((name: string, i: number) => {
-      if (data.SrcSchema[srcTableName].ColNames.indexOf(name) < 0) {
-        let spannerColDef = spTableName ? data.SpSchema[spTableName].ColDefs[name] : null
-        res.push({
-          spOrder: i + 1,
-          srcOrder: '',
-          spColName: name,
-          spDataType: spannerColDef ? spannerColDef.T.Name : '',
-          srcColName: '',
-          srcDataType: '',
-          spIsPk:
-            spannerColDef && spTableName
-              ? data.SpSchema[spTableName].Pks.map((p) => p.Col).indexOf(name) !== -1
-              : false,
-          srcIsPk: false,
-          spIsNotNull:
-            spannerColDef && spTableName ? data.SpSchema[spTableName].ColDefs[name].NotNull : false,
-          srcIsNotNull: false,
-        })
-      }
-    })
     return res
   }
 
