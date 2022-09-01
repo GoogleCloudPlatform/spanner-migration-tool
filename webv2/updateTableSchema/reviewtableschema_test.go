@@ -10,6 +10,7 @@ import (
 	"github.com/bmizerany/assert"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
@@ -66,6 +67,9 @@ func TestReviewTableSchemachangetype(t *testing.T) {
 				Issues: map[string]map[string][]internal.SchemaIssue{
 					"t1": {},
 				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -98,6 +102,9 @@ func TestReviewTableSchemachangetype(t *testing.T) {
 					"t1": {
 						"a": {internal.Widened},
 					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 				},
 			},
 		},
@@ -192,6 +199,9 @@ func TestReviewTableSchemaAddsuccess(t *testing.T) {
 				ToSpanner: map[string]internal.NameAndCols{
 					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
 				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -224,6 +234,9 @@ func TestReviewTableSchemaAddsuccess(t *testing.T) {
 				},
 				ToSpanner: map[string]internal.NameAndCols{
 					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 				},
 			},
 		},
@@ -310,6 +323,9 @@ func TestReviewTableSchemaRemove(t *testing.T) {
 				ToSpanner: map[string]internal.NameAndCols{
 					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
 				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -330,6 +346,9 @@ func TestReviewTableSchemaRemove(t *testing.T) {
 				},
 				ToSpanner: map[string]internal.NameAndCols{
 					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 				},
 			},
 		},
@@ -363,6 +382,9 @@ func TestReviewTableSchemaRemove(t *testing.T) {
 				ToSpanner: map[string]internal.NameAndCols{
 					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
 				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -381,6 +403,9 @@ func TestReviewTableSchemaRemove(t *testing.T) {
 				},
 				ToSpanner: map[string]internal.NameAndCols{
 					"t1": {Name: "t1", Cols: map[string]string{"a": "aa", "b": "b", "c": "c"}},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 				},
 			},
 		},

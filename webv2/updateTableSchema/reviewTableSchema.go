@@ -8,6 +8,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/updatesessionfiles"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
@@ -126,7 +127,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	//updatesessionfiles.UpdateSessionFile()
+	updatesessionfiles.UpdateSessionFile()
 
 	ddl := GetSpannerTableDDL(Conv.SpSchema[table])
 
