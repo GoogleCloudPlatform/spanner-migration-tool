@@ -73,7 +73,7 @@ func NewIOStreams(driver string, dumpFile string) IOStreams {
 		fmt.Printf("\nLoading dump file from path: %s\n", dumpFile)
 		var f *os.File
 		var err error
-		if u.Scheme == "gs" {
+		if u.Scheme == constants.GCS_SCHEME {
 			bucketName := u.Host
 			filePath := u.Path[1:] // removes "/" from beginning of path
 			f, err = DownloadFromGCS(bucketName, filePath, "harbourbridge.gcs.data")
@@ -152,7 +152,7 @@ func PreloadGCSFiles(tables []ManifestTable) ([]ManifestTable, error) {
 			if err != nil {
 				return nil, fmt.Errorf("unable parse file path %s for table %s", filePath, table.Table_name)
 			}
-			if u.Scheme == "gs" {
+			if u.Scheme == constants.GCS_SCHEME {
 				bucketName := u.Host
 				filePath := u.Path[1:] // removes "/" from beginning of path
 				tmpFile := strings.ReplaceAll(filePath, "/", ".")
@@ -170,6 +170,23 @@ func PreloadGCSFiles(tables []ManifestTable) ([]ManifestTable, error) {
 	return tables, nil
 }
 
+func ParseGCSFilePath(filePath string) (*url.URL, error) {
+	if len(filePath) == 0 {
+		return nil, fmt.Errorf("found empty GCS path")
+	}
+	if filePath[len(filePath)-1] != '/' {
+		filePath = filePath + "/"
+	}
+	u, err := url.Parse(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("parseFilePath: unable to parse file path %s", filePath)
+	}
+	if u.Scheme != constants.GCS_SCHEME {
+		return nil, fmt.Errorf("not a valid GCS path: %s, should start with 'gs'", filePath)
+	}
+	return u, nil
+}
+
 func WriteToGCS(filePath, fileName, data string) error {
 	ctx := context.Background()
 
@@ -179,17 +196,9 @@ func WriteToGCS(filePath, fileName, data string) error {
 		return err
 	}
 	defer client.Close()
-	if filePath[len(filePath)-1] != '/' {
-		filePath = filePath + "/"
-	}
-	u, err := url.Parse(filePath)
+	u, err := ParseGCSFilePath(filePath)
 	if err != nil {
-		fmt.Printf("parseFilePath: unable to parse file path %s", filePath)
-		return err
-	}
-	if u.Scheme != "gs" {
-		fmt.Printf("not a valid GCS path: %s, should start with 'gs'", filePath)
-		return err
+		return fmt.Errorf("parseFilePath: unable to parse file path: %v", err)
 	}
 	bucketName := u.Host
 	bucket := client.Bucket(bucketName)

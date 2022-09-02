@@ -174,7 +174,7 @@ func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile prof
 	return conv, common.ProcessSchema(conv, infoSchema)
 }
 
-func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error) {
+func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) *writer.BatchWriter {
 	common.SetRowStats(conv, infoSchema)
 	totalRows := conv.Rows()
 	var p *internal.Progress
@@ -184,7 +184,7 @@ func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Co
 	batchWriter := populateDataConv(conv, config, client, p)
 	common.ProcessData(conv, infoSchema)
 	batchWriter.Flush()
-	return batchWriter, nil
+	return batchWriter
 }
 
 func snapshotMigrationHandler(sourceProfile profiles.SourceProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error) {
@@ -193,7 +193,7 @@ func snapshotMigrationHandler(sourceProfile profiles.SourceProfile, config write
 	case constants.MYSQL, constants.ORACLE:
 		return &writer.BatchWriter{}, nil
 	case constants.DYNAMODB:
-		return performSnapshotMigration(config, conv, client, infoSchema)
+		return performSnapshotMigration(config, conv, client, infoSchema), nil
 	default:
 		return &writer.BatchWriter{}, fmt.Errorf("streaming migration not supported for driver %s", sourceProfile.Driver)
 	}
@@ -220,11 +220,7 @@ func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile,
 		}
 		return bw, nil
 	}
-	bw, err := performSnapshotMigration(config, conv, client, infoSchema)
-	if err != nil {
-		return nil, err
-	}
-	return bw, nil
+	return performSnapshotMigration(config, conv, client, infoSchema), nil
 }
 
 func getDynamoDBClientConfig() (*aws.Config, error) {

@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/url"
 	"strings"
 	"time"
 
@@ -32,6 +31,11 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
+)
+
+const (
+	numWorkers int32 = 50
+	maxWorkers int32 = 50
 )
 
 type SrcConnCfg struct {
@@ -112,16 +116,9 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string) error {
 	}
 
 	filePath := streamingCfg.TmpDir
-	if filePath[len(filePath)-1] != '/' {
-		filePath = filePath + "/"
-		streamingCfg.TmpDir = filePath
-	}
-	u, err := url.Parse(filePath)
+	u, err := utils.ParseGCSFilePath(filePath)
 	if err != nil {
-		return fmt.Errorf("parseFilePath: unable to parse file path %s", filePath)
-	}
-	if u.Scheme != "gs" {
-		return fmt.Errorf("not a valid GCS path: %s, should start with 'gs'", filePath)
+		return fmt.Errorf("parseFilePath: unable to parse file path: %v", err)
 	}
 	bucketName := u.Host
 	ctx := context.Background()
@@ -300,8 +297,8 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 			"sessionFilePath":  streamingCfg.TmpDir + "session.json",
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
-			NumWorkers: 60,
-			MaxWorkers: 60,
+			NumWorkers: numWorkers,
+			MaxWorkers: maxWorkers,
 		},
 	}
 
