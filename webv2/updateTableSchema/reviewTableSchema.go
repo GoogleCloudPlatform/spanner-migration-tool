@@ -52,9 +52,15 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	var Conv *internal.Conv
 
-	Conv = nil
-
-	Conv = sessionState.Conv
+	convByte, err := json.Marshal(sessionState.Conv)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Conversion object parse error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	if err := json.Unmarshal(convByte, &Conv); err != nil {
+		http.Error(w, fmt.Sprintf("Conversion object parse error : %v", err), http.StatusInternalServerError)
+		return
+	}
 
 	interleaveTableSchema := []InterleaveTableSchema{}
 

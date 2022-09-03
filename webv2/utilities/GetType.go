@@ -25,12 +25,12 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/typemap"
 )
 
-func GetType(newType, table, colName string, srcTableName string) (ddl.CreateTable, ddl.Type, error) {
+func GetType(conv *internal.Conv, newType, table, colName string, srcTableName string) (ddl.CreateTable, ddl.Type, error) {
 	sessionState := session.GetSessionState()
 
-	sp := sessionState.Conv.SpSchema[table]
-	srcColName := sessionState.Conv.ToSource[table].Cols[colName]
-	srcCol := sessionState.Conv.SrcSchema[srcTableName].ColDefs[srcColName]
+	sp := conv.SpSchema[table]
+	srcColName := conv.ToSource[table].Cols[colName]
+	srcCol := conv.SrcSchema[srcTableName].ColDefs[srcColName]
 	var ty ddl.Type
 	var issues []internal.SchemaIssue
 	switch sessionState.Driver {
@@ -41,7 +41,7 @@ func GetType(newType, table, colName string, srcTableName string) (ddl.CreateTab
 	case constants.SQLSERVER:
 		ty, issues = typemap.ToSpannerTypeSQLserver(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	case constants.ORACLE:
-		ty, issues = oracle.ToSpannerTypeWeb(sessionState.Conv, newType, srcCol.Type.Name, srcCol.Type.Mods)
+		ty, issues = oracle.ToSpannerTypeWeb(conv, newType, srcCol.Type.Name, srcCol.Type.Mods)
 	default:
 		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.Driver)
 	}
@@ -55,8 +55,8 @@ func GetType(newType, table, colName string, srcTableName string) (ddl.CreateTab
 	if srcCol.Ignored.AutoIncrement {
 		issues = append(issues, internal.AutoIncrement)
 	}
-	if sessionState.Conv.Issues != nil && len(issues) > 0 {
-		sessionState.Conv.Issues[srcTableName][srcCol.Name] = issues
+	if conv.Issues != nil && len(issues) > 0 {
+		conv.Issues[srcTableName][srcCol.Name] = issues
 	}
 	ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
 	return sp, ty, nil

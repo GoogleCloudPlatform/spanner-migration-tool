@@ -439,7 +439,7 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 			// column as is. Note that per-column type overrides could be lost in
 			// this process -- the mapping in typeMap always takes precendence.
 			if _, found := typeMap[srcColDef.Type.Name]; found {
-				utilities.UpdateType(typeMap[srcColDef.Type.Name], t, col, srcTable, w)
+				utilities.UpdateType(sessionState.Conv, typeMap[srcColDef.Type.Name], t, col, srcTable, w)
 			}
 		}
 	}

@@ -15,7 +15,7 @@ func UpdateColNameType(newType, table, colName string, Conv *internal.Conv, w ht
 
 	srcTableName := Conv.ToSource[table].Name
 
-	sp, ty, err := utilities.GetType(newType, table, colName, srcTableName)
+	sp, ty, err := utilities.GetType(Conv, newType, table, colName, srcTableName)
 
 	if err != nil {
 		fmt.Println("err:", err)
@@ -93,7 +93,7 @@ func UpdateColNameTypeForeignkeyTableSchema(Conv *internal.Conv, sp ddl.CreateTa
 
 	srcTableName := Conv.ToSource[relationTable].Name
 
-	rsp, ty, err := utilities.GetType(newType, relationTable, colName, srcTableName)
+	rsp, ty, err := utilities.GetType(Conv, newType, relationTable, colName, srcTableName)
 
 	if err != nil {
 		fmt.Println("err")
@@ -122,7 +122,7 @@ func UpdateColNameTypeForeignkeyReferTableSchema(Conv *internal.Conv, sp ddl.Cre
 
 	srcTableName := Conv.ToSource[table].Name
 
-	sp, ty, err := utilities.GetType(newType, table, colName, srcTableName)
+	sp, ty, err := utilities.GetType(Conv, newType, table, colName, srcTableName)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -146,7 +146,7 @@ func UpdateColNameTypeParentschemaTable(Conv *internal.Conv, parentschemaTable s
 
 	srcTableName := Conv.ToSource[parentschemaTable].Name
 
-	parentSp, ty, err := utilities.GetType(newType, parentschemaTable, colName, srcTableName)
+	parentSp, ty, err := utilities.GetType(Conv, newType, parentschemaTable, colName, srcTableName)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -173,7 +173,7 @@ func UpdateColNameTypeChildschemaTable(Conv *internal.Conv, childSchemaTable str
 
 	srcTableName := Conv.ToSource[childSchemaTable].Name
 
-	childSp, ty, err := utilities.GetType(newType, childSchemaTable, colName, srcTableName)
+	childSp, ty, err := utilities.GetType(Conv, newType, childSchemaTable, colName, srcTableName)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

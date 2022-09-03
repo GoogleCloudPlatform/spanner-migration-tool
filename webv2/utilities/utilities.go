@@ -196,7 +196,7 @@ func IsTypeChanged(newType, table, colName string, Conv *internal.Conv) (bool, e
 
 	srcTableName := Conv.ToSource[table].Name
 
-	sp, ty, err := GetType(newType, table, colName, srcTableName)
+	sp, ty, err := GetType(Conv, newType, table, colName, srcTableName)
 	if err != nil {
 		return false, err
 	}
@@ -371,8 +371,8 @@ func GetFilePrefix(now time.Time) (string, error) {
 	return dbName + ".", nil
 }
 
-func UpdateType(newType, table, colName, srcTableName string, w http.ResponseWriter) {
-	sp, ty, err := GetType(newType, table, colName, srcTableName)
+func UpdateType(conv *internal.Conv, newType, table, colName, srcTableName string, w http.ResponseWriter) {
+	sp, ty, err := GetType(conv, newType, table, colName, srcTableName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

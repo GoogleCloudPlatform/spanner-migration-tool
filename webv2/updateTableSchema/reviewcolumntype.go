@@ -84,7 +84,7 @@ func reviewColumnNameTypeChangeOfForeignkeyTableSchema(Conv *internal.Conv, sp d
 
 	srcTableName := Conv.ToSource[relationTable].Name
 
-	rsp, ty, err := utilities.GetType(newType, relationTable, colName, srcTableName)
+	rsp, ty, err := utilities.GetType(Conv, newType, relationTable, colName, srcTableName)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -109,7 +109,7 @@ func reviewColumnNameTypeChangeOfForeignkeyReferTableSchema(Conv *internal.Conv,
 
 	srcTableName := Conv.ToSource[table].Name
 
-	sp, ty, err := utilities.GetType(newType, table, colName, srcTableName)
+	sp, ty, err := utilities.GetType(Conv, newType, table, colName, srcTableName)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -133,7 +133,7 @@ func reviewColumnNameTypeChangeOfParentTableSchema(Conv *internal.Conv, interlea
 
 	srcTableName := Conv.ToSource[parentschemaTable].Name
 
-	childSp, ty, err := utilities.GetType(newType, parentschemaTable, colName, srcTableName)
+	childSp, ty, err := utilities.GetType(Conv, newType, parentschemaTable, colName, srcTableName)
 
 	columnId := childSp.ColDefs[colName].Id
 
@@ -168,7 +168,7 @@ func reviewColumnNameTypeChangeOfParentTableSchema(Conv *internal.Conv, interlea
 func reviewColumnNameTypeChangeOfChildTableSchema(Conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema, childSchemaTable string, colName string, newType string, w http.ResponseWriter) ([]InterleaveTableSchema, error) {
 	srcTableName := Conv.ToSource[childSchemaTable].Name
 
-	childSp, ty, err := utilities.GetType(newType, childSchemaTable, colName, srcTableName)
+	childSp, ty, err := utilities.GetType(Conv, newType, childSchemaTable, colName, srcTableName)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -208,7 +208,7 @@ func reviewColumnNameTypeChangeOfCurrentTableSchema(Conv *internal.Conv, sp ddl.
 
 	srcTableName := Conv.ToSource[table].Name
 
-	sp, ty, err := utilities.GetType(newType, table, colName, srcTableName)
+	sp, ty, err := utilities.GetType(Conv, newType, table, colName, srcTableName)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
