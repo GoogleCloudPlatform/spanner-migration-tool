@@ -21,7 +21,10 @@ func ReviewColumnNameType(newType, table, colName string, Conv *internal.Conv, i
 	for i, _ := range sp.Fks {
 
 		err := reviewColumnNameTypeChangeOfForeignkeyTableSchema(Conv, sp, i, colName, newType, w)
-		return interleaveTableSchema, err
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return interleaveTableSchema, err
+		}
 	}
 
 	//todo
