@@ -137,6 +137,8 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	ddl := GetSpannerTableDDL(Conv.SpSchema[table])
 
+	interleaveTableSchema = trimRedundantInterleaveTableSchema(interleaveTableSchema)
+
 	fmt.Println("interleaveTableSchema :", interleaveTableSchema)
 	fmt.Println("")
 

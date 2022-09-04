@@ -183,3 +183,13 @@ func createInterleaveColumntype(interleaveTableSchema []InterleaveTableSchema, t
 
 	return interleaveTableSchema
 }
+
+func trimRedundantInterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema) []InterleaveTableSchema {
+	updatedInterleaveTableSchema := []InterleaveTableSchema{}
+	for _, v := range interleaveTableSchema {
+		if len(v.InterleaveColumnChanges) > 0 {
+			updatedInterleaveTableSchema = append(updatedInterleaveTableSchema, v)
+		}
+	}
+	return updatedInterleaveTableSchema
+}
