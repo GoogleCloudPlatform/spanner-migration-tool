@@ -86,22 +86,6 @@
   .icon {
     margin-right: 20px;
   }
-
-  .danger {
-    color: #da4236;
-  }
-
-  .warning {
-    color: #f3b300;
-  }
-
-  .success {
-    color: green;
-  }
-
-  .orange {
-    color: rgb(248, 116, 68);
-  }
 }
 
 .filter-wrapper {
@@ -126,13 +110,6 @@
       background-color: transparent;
     }
   }
-}
-
-.display {
-  display: block;
-}
-.hidden {
-  display: none;
 }
 
 #left-column-toggle-button {
