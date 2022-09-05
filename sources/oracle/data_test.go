@@ -132,14 +132,14 @@ func TestConvertsyntheticPKey(t *testing.T) {
 			cols:  []string{"a", "b", "c"},
 			vals:  []string{"6", "6.6", "t"},
 			ecols: []string{"a", "b", "c", "synth_id"},
-			evals: []interface{}{int64(6), float64(6.6), "t", int64(0)},
+			evals: []interface{}{int64(6), float64(6.6), "t", "0"},
 		},
 		{
 			name:  "Sequence 1",
 			cols:  []string{"a"},
 			vals:  []string{"7"},
 			ecols: []string{"a", "synth_id"},
-			evals: []interface{}{int64(7), int64(bits.Reverse64(1))},
+			evals: []interface{}{int64(7), fmt.Sprintf("%d", int64(bits.Reverse64(1)))},
 		},
 	}
 	tableName := "testtable"
