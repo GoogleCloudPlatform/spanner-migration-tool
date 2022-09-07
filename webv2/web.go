@@ -656,6 +656,25 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	}
 	tableInterleaveStatus := parentTableHelper(table, update)
 
+	if tableInterleaveStatus.Possible {
+
+		childPks := sessionState.Conv.SpSchema[table].Pks
+		childindex := getPrimaryKeyIndexFromOrder(childPks, 1)
+		sessionState := session.GetSessionState()
+		schemaissue := []internal.SchemaIssue{}
+
+		column := childPks[childindex].Col
+		schemaissue = sessionState.Conv.Issues[table][column]
+		if update {
+			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
+		} else {
+			schemaissue = append(schemaissue, internal.InterleavedOrder)
+		}
+
+		sessionState.Conv.Issues[table][column] = schemaissue
+
+	}
+
 	index.IndexSuggestion()
 	helpers.UpdateSessionFile()
 	w.WriteHeader(http.StatusOK)
@@ -733,7 +752,7 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 
-				schemaissue = append(schemaissue, internal.InterleavedOrder)
+				//schemaissue = append(schemaissue, internal.InterleavedOrder)
 
 				sessionState.Conv.Issues[table][column] = schemaissue
 				tableInterleaveStatus.Possible = true

@@ -15,6 +15,10 @@
 package webv2
 
 import (
+	"embed"
+	"io/fs"
+	"net/http"
+
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
@@ -23,8 +27,12 @@ import (
 	"github.com/gorilla/mux"
 )
 
+var FrontendV2Dir embed.FS
+
 func getRoutes() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
+	frontendRoot, _ := fs.Sub(FrontendV2Dir, "ui/dist/ui")
+	frontendStatic := http.FileServer(http.FS(frontendRoot))
 	router.HandleFunc("/connect", databaseConnection).Methods("POST")
 	router.HandleFunc("/convert/infoschema", convertSchemaSQL).Methods("GET")
 	router.HandleFunc("/convert/dump", convertSchemaDump).Methods("POST")
@@ -72,6 +80,8 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/Migrate", migrate).Methods("POST")
 
 	router.HandleFunc("/GetSourceDestinationSummary", getSourceDestinationSummary).Methods("GET")
+
+	router.PathPrefix("/").Handler(frontendStatic)
 
 	return router
 }
