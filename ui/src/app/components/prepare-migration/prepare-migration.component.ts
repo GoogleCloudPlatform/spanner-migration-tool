@@ -6,11 +6,7 @@ import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
 import { ISessionSummary } from 'src/app/model/conv'
 import IMigrationDetails, { IProgress } from 'src/app/model/migrate'
-<<<<<<< HEAD
 import { InputType, MigrationDetails, MigrationModes, MigrationTypes, SourceDbNames, TargetDetails } from 'src/app/app.constants'
-=======
-import { InputType, MigrationModes, MigrationTypes, SourceDbNames } from 'src/app/app.constants'
->>>>>>> a10065c (fixed bugs)
 import { interval, Subscription } from 'rxjs'
 import { DataService } from 'src/app/services/data/data.service'
 import { ThisReceiver } from '@angular/compiler'
@@ -45,19 +41,21 @@ export class PrepareMigrationComponent implements OnInit {
   schemaProgressMessage: string = 'Schema migration in progress...'
 =======
   isTargetDetailSet: boolean = false
-  isSchemaMigration: boolean = true
   isStreamingSupported: boolean = false
   isButtonDisabled: boolean = false
   hasDataMigrationStarted: boolean = false
   hasDataMigrationCompleted: boolean = false
   hasSchemaMigrationStarted: boolean = false
-  hasSchemaMigrationCompleted: boolean = false
   selectedMigrationMode: string = MigrationModes.schemaOnly
   connectionType: string = InputType.DirectConnect
   selectedMigrationType: string = MigrationTypes.bulkMigration
   errorMessage: string = ''
+<<<<<<< HEAD
   schemaProgressMessage: string = 'Schema creation in progress...'
 >>>>>>> a10065c (fixed bugs)
+=======
+  schemaProgressMessage: string = 'Schema migration in progress...'
+>>>>>>> 519f527 (addressing comments)
   dataProgressMessage: string = 'Data migration in progress...'
   dataMigrationProgress: number = 0
   schemaMigrationProgress: number = 0
@@ -207,7 +205,11 @@ this.resetValues()
         this.isButtonDisabled = !this.isButtonDisabled
         this.hasDataMigrationStarted = false
         this.hasSchemaMigrationStarted = false
+<<<<<<< HEAD
 >>>>>>> a10065c (fixed bugs)
+=======
+        console.log("Error here")
+>>>>>>> 519f527 (addressing comments)
       },
     })
   }
