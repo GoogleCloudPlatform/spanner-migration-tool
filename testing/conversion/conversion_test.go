@@ -197,8 +197,7 @@ func TestUpdateDDLForeignKeys(t *testing.T) {
 			t.Fatal(err)
 		}
 		conversion.MaxWorkers = tc.numWorkers
-		p := internal.Progress{}
-		if err = conversion.UpdateDDLForeignKeys(ctx, databaseAdmin, dbURI, conv, os.Stdout, &p); err != nil {
+		if err = conversion.UpdateDDLForeignKeys(ctx, databaseAdmin, dbURI, conv, os.Stdout); err != nil {
 			t.Fatalf("\nCan't perform update operation on db %s with foreign keys: %v\n", tc.dbName, err)
 		}
 

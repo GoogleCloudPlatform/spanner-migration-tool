@@ -1212,12 +1212,10 @@ func updateProgress(w http.ResponseWriter, r *http.Request) {
 	var detail progressDetails
 	sessionState := session.GetSessionState()
 	if sessionState.Error != nil {
-		fmt.Println("Error", sessionState.Error)
 		detail.ErrorMessage = sessionState.Error.Error()
 	} else {
 		detail.ErrorMessage = ""
-		detail.Progress, detail.Message = sessionState.Progress.ReportProgress()
-		fmt.Println("Progress ", detail.Progress, detail.Message)
+		detail.Progress, detail.Message = sessionState.Conv.Audit.Progress.ReportProgress()
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(detail)
@@ -1241,7 +1239,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
-	pct, msg := sessionState.Progress.ReportProgress()
+	pct, msg := sessionState.Conv.Audit.Progress.ReportProgress()
 	if msg != "" && pct != 100 && sessionState.Error == nil {
 		log.Println("Cannot run migration, another migration in progress.")
 		http.Error(w, "Cannot run migration, another migration in progress. Please try again after some time.", http.StatusBadRequest)
@@ -1249,8 +1247,8 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionState.Conv.ResetStats()
 	sessionState.Error = nil
-	sessionState.Progress = internal.Progress{}
 	ctx := context.Background()
+	sessionState.Conv.Audit.Progress = &internal.Progress{}
 	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
 	if err != nil {
 		log.Println("can't get source and target profile")
@@ -1259,19 +1257,19 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if details.MigrationMode == utilities.SCHEMA_ONLY {
-		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv, &sessionState.Error, &sessionState.Progress)
+		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv, &sessionState.Error)
 	} else if details.MigrationMode == utilities.DATA_ONLY {
 		dataCmd := &cmd.DataCmd{
 			SkipForeignKeys: false,
 			WriteLimit:      cmd.DefaultWritersLimit,
 		}
-		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, dataCmd, sessionState.Conv, &sessionState.Error, &sessionState.Progress)
+		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, dataCmd, sessionState.Conv, &sessionState.Error)
 	} else {
 		schemaAndDataCmd := &cmd.SchemaAndDataCmd{
 			SkipForeignKeys: false,
 			WriteLimit:      cmd.DefaultWritersLimit,
 		}
-		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, schemaAndDataCmd, sessionState.Conv, &sessionState.Error, &sessionState.Progress)
+		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, schemaAndDataCmd, sessionState.Conv, &sessionState.Error)
 	}
 	w.WriteHeader(http.StatusOK)
 	log.Println("migration completed", "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)

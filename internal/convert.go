@@ -154,6 +154,7 @@ type Audit struct {
 	MigrationType            *migration.MigrationData_MigrationType `json:"-"` // Type of migration: Schema migration, data migration or schema and data migration
 	DryRun                   bool                                   `json:"-"` // Flag to identify if the migration is a dry run.
 	StreamingStats           streamingStats                         `json:"-"` // Stores information related to streaming migration process.
+	Progress                 *Progress                              `json:"-"` // Stores information related to progress of the migration progress
 }
 
 // Stores information related to the streaming migration process.
@@ -192,6 +193,7 @@ func MakeConv() *Conv {
 			ToSourceFkIdx:  make(map[string]FkeyAndIdxs),
 			StreamingStats: streamingStats{},
 			MigrationType:  migration.MigrationData_SCHEMA_ONLY.Enum(),
+			Progress:       &Progress{},
 		},
 	}
 }

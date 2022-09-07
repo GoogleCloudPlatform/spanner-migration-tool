@@ -90,7 +90,7 @@ func SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.Tar
 
 // DataConv performs the data conversion
 // The SourceProfile param provides the connection details to use the go SQL library.
-func DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, writeLimit int64, progress *internal.Progress) (*writer.BatchWriter, error) {
+func DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, writeLimit int64) (*writer.BatchWriter, error) {
 	config := writer.BatchWriterConfig{
 		BytesLimit: 100 * 1000 * 1000,
 		WriteLimit: writeLimit,
@@ -99,14 +99,14 @@ func DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetP
 	}
 	switch sourceProfile.Driver {
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE:
-		return dataFromDatabase(ctx, sourceProfile, targetProfile, config, conv, client, progress)
+		return dataFromDatabase(ctx, sourceProfile, targetProfile, config, conv, client)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		if conv.SpSchema.CheckInterleaved() {
 			return nil, fmt.Errorf("harbourBridge does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql")
 		}
-		return dataFromDump(sourceProfile.Driver, config, ioHelper, client, conv, dataOnly, progress)
+		return dataFromDump(sourceProfile.Driver, config, ioHelper, client, conv, dataOnly)
 	case constants.CSV:
-		return dataFromCSV(ctx, sourceProfile, targetProfile, config, conv, client, progress)
+		return dataFromCSV(ctx, sourceProfile, targetProfile, config, conv, client)
 	default:
 		return nil, fmt.Errorf("data conversion for driver %s not supported", sourceProfile.Driver)
 	}
@@ -179,9 +179,9 @@ func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Co
 	common.SetRowStats(conv, infoSchema)
 	totalRows := conv.Rows()
 	if !conv.Audit.DryRun {
-		*progress = *internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
+		conv.Audit.Progress = internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 	}
-	batchWriter := populateDataConv(conv, config, client, progress)
+	batchWriter := populateDataConv(conv, config, client)
 	common.ProcessData(conv, infoSchema)
 	batchWriter.Flush()
 	return batchWriter
@@ -199,7 +199,7 @@ func snapshotMigrationHandler(sourceProfile profiles.SourceProfile, config write
 	}
 }
 
-func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, progress *internal.Progress) (*writer.BatchWriter, error) {
+func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
 	infoSchema, err := GetInfoSchema(sourceProfile, targetProfile)
 	if err != nil {
 		return nil, err
@@ -255,7 +255,7 @@ func schemaFromDump(driver string, targetDb string, ioHelper *utils.IOStreams) (
 	return conv, nil
 }
 
-func dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, progress *internal.Progress) (*writer.BatchWriter, error) {
+func dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool) (*writer.BatchWriter, error) {
 	// TODO: refactor of the way we handle getSeekable
 	// to avoid the code duplication here
 	if !dataOnly {
@@ -277,17 +277,17 @@ func dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *util
 	}
 	totalRows := conv.Rows()
 
-	progress = internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
+	conv.Audit.Progress = internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 	r := internal.NewReader(bufio.NewReader(ioHelper.SeekableIn), nil)
-	batchWriter := populateDataConv(conv, config, client, progress)
+	batchWriter := populateDataConv(conv, config, client)
 	ProcessDump(driver, conv, r)
 	batchWriter.Flush()
-	progress.Done()
+	conv.Audit.Progress.Done()
 
 	return batchWriter, nil
 }
 
-func dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, progress *internal.Progress) (*writer.BatchWriter, error) {
+func dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
 	if targetProfile.Conn.Sp.Dbname == "" {
 		return nil, fmt.Errorf("dbName is mandatory in target-profile for csv source")
 	}
@@ -325,18 +325,18 @@ func dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targ
 	}
 
 	totalRows := conv.Rows()
-	progress = internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
-	batchWriter := populateDataConv(conv, config, client, progress)
+	conv.Audit.Progress = internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
+	batchWriter := populateDataConv(conv, config, client)
 	err = csv.ProcessCSV(conv, tables, sourceProfile.Csv.NullStr, delimiter)
 	if err != nil {
 		return nil, fmt.Errorf("can't process csv: %v", err)
 	}
 	batchWriter.Flush()
-	progress.Done()
+	conv.Audit.Progress.Done()
 	return batchWriter, nil
 }
 
-func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, client *sp.Client, progress *internal.Progress) *writer.BatchWriter {
+func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, client *sp.Client) *writer.BatchWriter {
 	rows := int64(0)
 	config.Write = func(m []*sp.Mutation) error {
 		migrationData := metrics.GetMigrationData(conv, "", "", constants.DataConv)
@@ -347,7 +347,7 @@ func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, clie
 			return err
 		}
 		atomic.AddInt64(&rows, int64(len(m)))
-		progress.MaybeReport(atomic.LoadInt64(&rows))
+		conv.Audit.Progress.MaybeReport(atomic.LoadInt64(&rows))
 		return nil
 	}
 	batchWriter := writer.NewBatchWriter(config)
@@ -592,7 +592,7 @@ func UpdateDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 
 // UpdateDDLForeignKeys updates the Spanner database with foreign key
 // constraints using ALTER TABLE statements.
-func UpdateDDLForeignKeys(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File, p *internal.Progress) error {
+func UpdateDDLForeignKeys(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string, conv *internal.Conv, out *os.File) error {
 	// The schema we send to Spanner excludes comments (since Cloud
 	// Spanner DDL doesn't accept them), and protects table and col names
 	// using backticks (to avoid any issues with Spanner reserved words).
@@ -611,7 +611,7 @@ However, setting it to a very high value might lead to exceeding the admin quota
 Recommended value is between 20-30.`)
 	}
 	msg := fmt.Sprintf("Updating schema of database %s with foreign key constraints ...", dbURI)
-	*p = *internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose(), true)
+	conv.Audit.Progress = internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose(), true)
 
 	workers := make(chan int, MaxWorkers)
 	for i := 1; i <= MaxWorkers; i++ {
@@ -631,7 +631,7 @@ Recommended value is between 20-30.`)
 				// Locking the progress reporting otherwise progress results displayed could be in random order.
 				progressMutex.Lock()
 				progress++
-				p.MaybeReport(progress)
+				conv.Audit.Progress.MaybeReport(progress)
 				progressMutex.Unlock()
 				workers <- workerID
 			}()
@@ -660,7 +660,7 @@ Recommended value is between 20-30.`)
 	for i := 1; i <= MaxWorkers; i++ {
 		<-workers
 	}
-	p.Done()
+	conv.Audit.Progress.Done()
 	return nil
 }
 

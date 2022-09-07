@@ -27,18 +27,16 @@ export class PrepareMigrationComponent implements OnInit {
   ) { }
 
   isTargetDetailSet: boolean = false
-  isSchemaMigration: boolean = true
   isStreamingSupported: boolean = false
   isButtonDisabled: boolean = false
   hasDataMigrationStarted: boolean = false
   hasDataMigrationCompleted: boolean = false
   hasSchemaMigrationStarted: boolean = false
-  hasSchemaMigrationCompleted: boolean = false
   selectedMigrationMode: string = MigrationModes.schemaOnly
   connectionType: string = InputType.DirectConnect
   selectedMigrationType: string = MigrationTypes.bulkMigration
   errorMessage: string = ''
-  schemaProgressMessage: string = 'Schema creation in progress...'
+  schemaProgressMessage: string = 'Schema migration in progress...'
   dataProgressMessage: string = 'Data migration in progress...'
   dataMigrationProgress: number = 0
   schemaMigrationProgress: number = 0
@@ -114,6 +112,7 @@ export class PrepareMigrationComponent implements OnInit {
         this.isButtonDisabled = !this.isButtonDisabled
         this.hasDataMigrationStarted = false
         this.hasSchemaMigrationStarted = false
+        console.log("Error here")
       },
     })
   }

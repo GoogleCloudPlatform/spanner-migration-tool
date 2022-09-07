@@ -51,7 +51,6 @@ type SessionState struct {
 	GCPProjectID        string
 	SpannerInstanceID   string
 	SessionMetadata     SessionMetadata
-	Progress            internal.Progress
 	Error               error
 	Counter
 }

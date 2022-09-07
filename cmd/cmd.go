@@ -65,7 +65,6 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 	sourceProfile.Driver = driver
 	targetProfile, _ := profiles.NewTargetProfile("")
 	targetProfile.TargetDb = targetDb
-	progress := &internal.Progress{}
 	if !dataOnly {
 		// We pass an empty string to the sqlConnectionStr parameter as this is the legacy codepath,
 		// which reads the environment variables and constructs the string later on.
@@ -119,12 +118,12 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 
 	// We pass an empty string to the sqlConnectionStr parameter as this is the legacy codepath,
 	// which reads the environment variables and constructs the string later on.
-	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, dataOnly, DefaultWritersLimit, progress)
+	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, dataOnly, DefaultWritersLimit)
 	if err != nil {
 		return fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 	}
 	if !skipForeignKeys {
-		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out, progress); err != nil {
+		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
 			return fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
 		}
 	}
