@@ -17,6 +17,62 @@ body {
 .cursor-pointer {
   cursor: pointer;
 }
+.mat-drawer-container {
+  background-color: white;
+}
+
+.mat-button.mat-primary {
+  color: #3367d6;
+}
+.global-font-color {
+  color: #000000;
+}
+.body-font-size {
+  font-size: 14px;
+}
+.primary-header {
+  font-size: 20px !important;
+}
+.mat-stroked-button.mat-primary {
+  color: #3367d6;
+}
+.mat-raised-button.mat-primary {
+  color: white;
+  background-color: #3367d6;
+}
+.blue-font-color {
+  color: #3367d6;
+}
+
+.danger {
+  color: #eb0000;
+}
+.warning {
+  color: #ff9800;
+}
+.success {
+  color: green;
+}
+.suggestion {
+  color: #f6be00;
+}
+.dark {
+  color: rgb(77, 75, 75);
+}
+
+.success-border {
+  border: 1px solid #008000;
+}
+.warning-border {
+  border: 1px solid #f3b300;
+}
+
+.display {
+  display: block !important;
+}
+.hidden {
+  display: none !important;
+}
 
 .header {
   padding: 0 20px;
@@ -59,13 +115,15 @@ body {
   .mat-card-title {
     font-size: 13pt;
     font-weight: normal;
+    color: #000000;
   }
   .mat-card-subtitle {
     font-size: 9pt;
     font-weight: normal;
+    color: #000000;
   }
   p {
-    color: #5c5c5c;
+    color: #000000;
     .bullet {
       position: relative;
       display: inline-block;
@@ -87,5 +145,24 @@ body {
   hr {
     border-color: #ffffff;
     margin-bottom: 20px;
+  }
+}
+
+.connect-load-database-container {
+  padding: 0 20px;
+  h5 {
+    margin-bottom: 20px;
+    color: #5c5c5c;
+  }
+  .mat-form-field {
+    width: 400px;
+    margin-right: 20px;
+  }
+  button {
+    margin-right: 20px;
+  }
+  .form-container {
+    background-color: inherit;
+    padding: 16px;
   }
 }

@@ -315,6 +315,19 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	conv := internal.MakeConv()
+	metadata := session.SessionMetadata{}
+
+	err = session.ReadSessionFileForSessionMetadata(&metadata, s.FilePath)
+	if err != nil {
+		switch err.(type) {
+		case *fs.PathError:
+			http.Error(w, fmt.Sprintf("Failed to open session file : %v, no such file or directory", s.FilePath), http.StatusNotFound)
+		default:
+			http.Error(w, fmt.Sprintf("Failed to parse session file : %v", err), http.StatusBadRequest)
+		}
+		return
+	}
+
 	err = conversion.ReadSessionFile(conv, s.FilePath)
 	if err != nil {
 		switch err.(type) {
@@ -329,7 +342,11 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionMetadata := session.SessionMetadata{
 		SessionName:  "NewSession",
 		DatabaseType: s.Driver,
-		DatabaseName: strings.TrimRight(filepath.Base(s.FilePath), filepath.Ext(s.FilePath)),
+		DatabaseName: metadata.DatabaseName,
+	}
+
+	if sessionMetadata.DatabaseName == "" {
+		sessionMetadata.DatabaseName = strings.TrimRight(filepath.Base(s.FilePath), filepath.Ext(s.FilePath))
 	}
 
 	sessionState.Conv = conv

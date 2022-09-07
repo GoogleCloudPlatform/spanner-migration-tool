@@ -4,7 +4,12 @@
     selectedIndex="1"
     (selectedTabChange)="onTabChanged()"
   >
-    <mat-tab [label]="srcDbName.toUpperCase()">
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <span [ngClass]="{ 'blue-font-color': selectedTab === 'source' }">
+          {{ srcDbName.toUpperCase() }}
+        </span>
+      </ng-template>
       <div class="filter-wrapper">
         <div class="left">
           <span class="material-icons filter-icon">filter_list</span>
@@ -41,7 +46,7 @@
               </mat-icon>
               <mat-icon
                 *ngIf="data.status === 'ORANGE'"
-                class="icon orange"
+                class="icon danger"
                 matTooltip="Requires high complexity conversion changes"
                 matTooltipPosition="above"
               >
@@ -167,7 +172,10 @@
         </table>
       </div>
     </mat-tab>
-    <mat-tab label="SPANNER DRAFT">
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <span [ngClass]="{ 'blue-font-color': selectedTab === 'spanner' }"> SPANNER DRAFT </span>
+      </ng-template>
       <div class="filter-wrapper">
         <div class="left">
           <span class="material-icons filter-icon">filter_list</span>
@@ -205,7 +213,7 @@
               </mat-icon>
               <mat-icon
                 *ngIf="data.status === 'ORANGE'"
-                class="icon orange"
+                class="icon danger"
                 matTooltip="Requires high complexity conversion changes"
                 matTooltipPosition="above"
               >

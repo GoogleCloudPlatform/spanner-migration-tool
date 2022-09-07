@@ -1,5 +1,6 @@
 .no-table-selected {
   height: 90%;
+  background-color: white;
 }
 
 .select-table-message {
@@ -49,7 +50,11 @@
 
 .table {
   height: 100%;
+  background-color: white;
   .mat-tab-group {
+    height: 93%;
+  }
+  .height-on-edit {
     height: 84%;
   }
 }
@@ -163,7 +168,7 @@
 
   .mat-column-srcIsNotNull,
   .mat-column-spIsNotNull {
-    min-width: 70px;
+    min-width: 100px;
   }
 
   .mat-column-srcIsNotNull,
@@ -181,8 +186,7 @@
     flex-direction: row;
     justify-content: left;
     align-items: center;
-    .error {
-      color: #eb0000;
+    .material-icons {
       font-size: 18px;
     }
 
@@ -241,13 +245,6 @@
 
 p {
   margin: 0;
-}
-
-.visible {
-  visibility: visible;
-}
-.hidden {
-  visibility: hidden;
 }
 
 .mr10 {
