@@ -1636,15 +1636,12 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 
 			if len(schemaissue) > 0 {
 
-				if sessionState.Conv.Issues[table][caninterleaved[i]] == nil {
+				if sessionState.Conv.Issues[table] == nil {
 
 					s := map[string][]internal.SchemaIssue{
 						caninterleaved[i]: schemaissue,
 					}
-					sessionState.Conv.Issues = map[string]map[string][]internal.SchemaIssue{}
-
 					sessionState.Conv.Issues[table] = s
-
 				} else {
 					sessionState.Conv.Issues[table][caninterleaved[i]] = schemaissue
 				}
