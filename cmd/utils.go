@@ -111,11 +111,11 @@ func MigrateDatabase(ctx context.Context, targetProfile profiles.TargetProfile, 
 	defer client.Close()
 	switch v := cmd.(type) {
 	case *SchemaCmd:
-		err = migrateSchema(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, progress)
+		err = migrateSchema(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient)
 	case *DataCmd:
-		bw, err = migrateData(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client, v, progress)
+		bw, err = migrateData(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client, v)
 	case *SchemaAndDataCmd:
-		bw, err = migrateSchemaAndData(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client, v, progress)
+		bw, err = migrateSchemaAndData(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client, v)
 	}
 	if err != nil {
 		err = fmt.Errorf("can't migrate database: %v", err)
@@ -125,7 +125,7 @@ func MigrateDatabase(ctx context.Context, targetProfile profiles.TargetProfile, 
 }
 
 func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
-	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, progress *internal.Progress) error {
+	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient) error {
 	err := conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
 	if err != nil {
 		err = fmt.Errorf("can't create/update database: %v", err)
@@ -136,7 +136,7 @@ func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, so
 }
 
 func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
-	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, cmd *DataCmd, progress *internal.Progress) (*writer.BatchWriter, error) {
+	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, cmd *DataCmd) (*writer.BatchWriter, error) {
 	var (
 		bw  *writer.BatchWriter
 		err error
@@ -148,13 +148,13 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 			return nil, err
 		}
 	}
-	bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit, progress)
+	bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit)
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 		return nil, err
 	}
 	if !cmd.SkipForeignKeys {
-		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out, progress); err != nil {
+		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
 			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
 			return bw, err
 		}
@@ -163,7 +163,7 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 }
 
 func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
-	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, cmd *SchemaAndDataCmd, progress *internal.Progress) (*writer.BatchWriter, error) {
+	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, cmd *SchemaAndDataCmd) (*writer.BatchWriter, error) {
 	err := conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
 	if err != nil {
 		err = fmt.Errorf("can't create/update database: %v", err)
@@ -177,7 +177,7 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 	}
 
 	if !cmd.SkipForeignKeys {
-		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out, progress); err != nil {
+		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
 			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
 			return bw, err
 		}

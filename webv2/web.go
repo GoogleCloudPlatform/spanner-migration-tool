@@ -1249,7 +1249,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
-	pct, msg := sessionState.Progress.ReportProgress()
+	pct, msg := sessionState.Conv.Audit.Progress.ReportProgress()
 	if msg != "" && pct != 100 && sessionState.Error == nil {
 		log.Println("Cannot run migration, another migration in progress.")
 		http.Error(w, "Cannot run migration, another migration in progress. Please try again after some time.", http.StatusBadRequest)
@@ -1257,8 +1257,8 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionState.Conv.ResetStats()
 	sessionState.Error = nil
-	sessionState.Progress = internal.Progress{}
 	ctx := context.Background()
+	sessionState.Conv.Audit.Progress = &internal.Progress{}
 	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
 	if err != nil {
 		log.Println("can't get source and target profile")

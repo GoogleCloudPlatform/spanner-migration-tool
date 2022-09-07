@@ -32,7 +32,6 @@ export class PrepareMigrationComponent implements OnInit {
   hasDataMigrationStarted: boolean = false
   hasDataMigrationCompleted: boolean = false
   hasSchemaMigrationStarted: boolean = false
-  hasSchemaMigrationCompleted: boolean = false
   selectedMigrationMode: string = MigrationModes.schemaOnly
   connectionType: string = InputType.DirectConnect
   selectedMigrationType: string = MigrationTypes.bulkMigration
