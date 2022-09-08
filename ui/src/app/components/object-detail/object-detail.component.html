@@ -108,17 +108,7 @@
                     EDIT
                   </button>
                 </div>
-                <div *ngIf="isEditMode">
-                  <button
-                    mat-stroked-button
-                    color="primary"
-                    (click)="toggleEdit()"
-                    *ngIf="currentObject!.isSpannerNode"
-                  >
-                    CANCEL
-                  </button>
-                </div>
-              </div>
+              </div>  
             </th>
           </ng-container>
 
@@ -324,18 +314,8 @@
                     <mat-icon class="edit-icon">edit</mat-icon>
                     EDIT
                   </button>
-                </div>
-                <div *ngIf="isPkEditMode">
-                  <button
-                    mat-stroked-button
-                    color="primary"
-                    (click)="togglePkEdit()"
-                    *ngIf="currentObject!.isSpannerNode"
-                  >
-                    CANCEL
-                  </button>
-                </div>
-              </div>
+                </div> 
+              </div>   
             </th>
           </ng-container>
 
@@ -536,18 +516,8 @@
                     <mat-icon class="edit-icon">edit</mat-icon>
                     EDIT
                   </button>
-                </div>
-                <div *ngIf="isFkEditMode">
-                  <button
-                    mat-stroked-button
-                    color="primary"
-                    (click)="toggleFkEdit()"
-                    *ngIf="currentObject!.isSpannerNode"
-                  >
-                    CANCEL
-                  </button>
-                </div>
-              </div>
+                </div> 
+              </div>  
             </th>
           </ng-container>
 
@@ -740,16 +710,6 @@
                 EDIT
               </button>
             </div>
-            <div *ngIf="isIndexEditMode">
-              <button
-                mat-stroked-button
-                color="primary"
-                (click)="toggleIndexEdit()"
-                *ngIf="currentObject!.isSpannerNode"
-              >
-                CANCEL
-              </button>
-            </div>
           </div>
         </th>
       </ng-container>
@@ -856,19 +816,26 @@
     </div>
   </div>
 
+  
+
   <div class="save-edits">
+   
     <mat-divider *ngIf="isEditMode || isPkEditMode || isFkEditMode"></mat-divider>
+
     <div class="save-button" *ngIf="isEditMode && currentTabIndex === 0">
       <button mat-raised-button color="primary" (click)="saveColumnTable()">SAVE & CONVERT</button>
+      <button class ='cancel-button' mat-raised-button color="primary" (click)="toggleEdit()" *ngIf="currentObject!.isSpannerNode">CANCEL</button>
     </div>
     <div class="save-button" *ngIf="isPkEditMode && currentTabIndex === 1">
       <button mat-raised-button color="primary" (click)="savePk()">SAVE & CONVERT</button>
+      <button class ='cancel-button' mat-raised-button color="primary"(click)="togglePkEdit()" *ngIf="currentObject!.isSpannerNode">CANCEL</button>
     </div>
     <div class="save-button" *ngIf="isFkEditMode && currentTabIndex === 2">
       <button mat-raised-button color="primary" (click)="saveFk()">SAVE & CONVERT</button>
+      <button class ='cancel-button' mat-raised-button color="primary" (click)="toggleFkEdit()" *ngIf="currentObject!.isSpannerNode">CANCEL</button>
     </div>
     <div class="save-button" *ngIf="isIndexEditMode && currentTabIndex === -1">
       <button mat-raised-button color="primary" (click)="saveIndex()">SAVE & CONVERT</button>
+      <button class ='cancel-button' mat-raised-button color="primary"(click)="toggleIndexEdit()" *ngIf="currentObject!.isSpannerNode">CANCEL</button>
     </div>
-  </div>
 </div>
