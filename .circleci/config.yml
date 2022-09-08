@@ -26,23 +26,25 @@ jobs:
           install-npm: true
 
       - run: node --version
-      
+
       - run: cd frontend && npm install && npm run test
+
+      - run: cd ui && npm install && npm run build
 
 workflows:
   version: 2
 
-  commit:  # Run on every commit.
+  commit: # Run on every commit.
     jobs:
       - build_and_test
 
-  nightly:  # Run every night.
+  nightly: # Run every night.
     triggers:
       - schedule:
           cron: "0 0 * * *"
           filters:
             branches:
               only:
-                  - master
+                - master
     jobs:
       - build_and_test
