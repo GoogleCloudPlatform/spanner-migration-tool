@@ -20,8 +20,6 @@ jobs:
             echo $GCLOUD_SERVICE_KEY > $HOME/gcloud-service-key.json
             echo 'export GOOGLE_APPLICATION_CREDENTIALS=$HOME/gcloud-service-key.json' >> $BASH_ENV
 
-      - run: go test -v ./...
-
       - node/install:
           install-npm: true
 
@@ -30,6 +28,8 @@ jobs:
       - run: cd frontend && npm install && npm run test
 
       - run: cd ui && npm install && npm run build
+
+      - run: go test -v ./...
 
 workflows:
   version: 2
