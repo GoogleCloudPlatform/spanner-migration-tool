@@ -44,9 +44,6 @@ import (
 //go:embed frontend/*
 var frontendDir embed.FS
 
-//go:embed ui/dist/ui/*
-var frontendV2Dir embed.FS
-
 var (
 	dbNameOverride   string
 	instanceOverride string
@@ -146,7 +143,6 @@ func main() {
 
 	// Note: the web interface does not use any commandline flags.
 	if webapiv2 {
-		webv2.FrontendV2Dir = frontendV2Dir
 		webv2.App()
 		return
 	}
