@@ -53,7 +53,6 @@ export class HeaderComponent implements OnInit {
       }
     })
   }
-
   showWarning() {
     return !this.spannerConfig.GCPProjectID && !this.spannerConfig.SpannerInstanceID
   }
