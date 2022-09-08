@@ -609,7 +609,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   checkIsInterleave() {
-    if (this.currentObject) {
+    if (!this.currentObject?.isDeleted && this.currentObject?.isSpannerNode) {
       this.data.getInterleaveConversionForATable(this.currentObject!.name)
     }
   }

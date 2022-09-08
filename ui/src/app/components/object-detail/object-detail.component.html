@@ -97,7 +97,7 @@
         <span> RESTORE TABLE</span>
       </button>
     </h3>
-    <div class="interleaved-title" *ngIf="interleaveParentName">
+    <div class="interleaved-title" *ngIf="interleaveParentName && currentObject.isSpannerNode">
       Interleaved:
       <div class="interleave-parent-name">
         {{ interleaveParentName }}
@@ -685,9 +685,10 @@
     <mat-tab
       label="INTERLEAVE"
       *ngIf="
-        (interleaveStatus.tableInterleaveStatus &&
+        ((interleaveStatus.tableInterleaveStatus &&
           interleaveStatus.tableInterleaveStatus.Possible) ||
-        this.interleaveParentName !== null
+          this.interleaveParentName !== null) &&
+        currentObject.isSpannerNode
       "
     >
       <div class="interleave-tab-container">
