@@ -14,7 +14,7 @@
 
 on:
   schedule:
-    - cron:  '0 0 * * *'
+    - cron: "0 0 * * *"
   push:
     branches:
       - master
@@ -47,7 +47,7 @@ jobs:
 
       # sql server envs
       # Password for connection as SA
-      MSSQL_SA_PASSWORD : tCUE9c1&Ucp0 
+      MSSQL_SA_PASSWORD: tCUE9c1&Ucp0
 
     services:
       spanner_emulator:
@@ -62,7 +62,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: postgres
         ports:
-        - 5432:5432
+          - 5432:5432
         # needed because the postgres container does not provide a healthcheck
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
       mariadb:
@@ -71,13 +71,13 @@ jobs:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: test
         ports:
-        - 3306:3306
+          - 3306:3306
         # needed because the mysql container does not provide a healthcheck
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
       dynamodb_emulator:
         image: amazon/dynamodb-local:1.16.0
         ports:
-        - 8000:8000
+          - 8000:8000
         options: --workdir /home/dynamodblocal --health-cmd "curl --fail http://127.0.0.1:8000/shell/ || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
       sqlserver:
         image: mcr.microsoft.com/mssql/server
@@ -92,7 +92,7 @@ jobs:
           --health-interval 10s --health-timeout 5s --health-retries 3
       oracle:
         image: oracleinanutshell/oracle-xe-11g
-        ports: 
+        ports:
           - 1521:1521
 
     steps:
@@ -135,11 +135,10 @@ jobs:
           sudo sh -c 'echo /usr/lib/oracle/21.5/client64/lib/ > /etc/ld.so.conf.d/oracle.conf'
           sudo ldconfig
       - run: sqlplus SYS/oracle@127.0.0.1:1521/xe as sysdba @test_data/oracle.test.out
-     
       # create a spanner instance
       - uses: google-github-actions/setup-gcloud@v0
         with:
-          version: '290.0.1'
+          version: "290.0.1"
       - run: gcloud info
       - run: gcloud config configurations create emulator
       - run: gcloud config set auth/disable_credentials true
@@ -150,8 +149,9 @@ jobs:
       # run tests
       - uses: actions/setup-go@v2
         with:
-          go-version: '1.16'
+          go-version: "1.16"
       - run: go version
+      - run: cd ui && npm install && npm run build
       - run: go test -v ./...
         env:
           SPANNER_EMULATOR_HOST: localhost:9010

@@ -28,6 +28,8 @@ jobs:
         go-version: '1.16'
 
     - name: Unit tests
+      run: | 
+            cd ui && npm install && npm run build
       run: |
             go test ./... -coverprofile coverage.out -covermode count
             go tool cover -func coverage.out
