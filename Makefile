@@ -36,3 +36,11 @@ test:
 test-coverage:
 	go test ./... -coverprofile coverage.out -covermode count
 	go tool cover -func coverage.out
+
+ng-build:
+	cd ./ui && npm install && npm run build
+
+run-binary:
+	./harbourbridge -webv2
+
+run-all:	ng-build build run-binary
