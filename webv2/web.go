@@ -1225,8 +1225,11 @@ func updateProgress(w http.ResponseWriter, r *http.Request) {
 		detail.ErrorMessage = sessionState.Error.Error()
 	} else {
 		detail.ErrorMessage = ""
-		detail.Progress, detail.Message = sessionState.Conv.Audit.Progress.ReportProgress()
+		if sessionState.Conv.Audit.Progress != nil {
+			detail.Progress, detail.Message = sessionState.Conv.Audit.Progress.ReportProgress()
+		}
 	}
+
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(detail)
 }
@@ -1249,16 +1252,9 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
-	pct, msg := sessionState.Conv.Audit.Progress.ReportProgress()
-	if msg != "" && pct != 100 && sessionState.Error == nil {
-		log.Println("Cannot run migration, another migration in progress.")
-		http.Error(w, "Cannot run migration, another migration in progress. Please try again after some time.", http.StatusBadRequest)
-		return
-	}
 	sessionState.Conv.ResetStats()
 	sessionState.Error = nil
 	ctx := context.Background()
-	sessionState.Conv.Audit.Progress = &internal.Progress{}
 	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
 	if err != nil {
 		log.Println("can't get source and target profile")
