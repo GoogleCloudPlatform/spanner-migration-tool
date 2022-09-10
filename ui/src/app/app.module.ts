@@ -31,9 +31,10 @@ import { EditGlobalDatatypeFormComponent } from './components/edit-global-dataty
 import { SidenavViewAssessmentComponent } from './components/sidenav-view-assessment/sidenav-view-assessment.component'
 import { SidenavSaveSessionComponent } from './components/sidenav-save-session/sidenav-save-session.component'
 import { DropIndexOrTableDialogComponent } from './components/drop-index-or-table-dialog/drop-index-or-table-dialog.component'
-import { DatabaseLoaderComponent } from './components/database-loader/database-loader.component'
-import { PrepareMigrationComponent } from './components/prepare-migration/prepare-migration.component'
-import { TargetDetailsFormComponent } from './components/target-details-form/target-details-form.component'
+import { DatabaseLoaderComponent } from './components/database-loader/database-loader.component';
+import { PrepareMigrationComponent } from './components/prepare-migration/prepare-migration.component';
+import { TargetDetailsFormComponent } from './components/target-details-form/target-details-form.component';
+import { ConnectionProfileFormComponent } from './components/connection-profile-form/connection-profile-form.component'
 
 @NgModule({
   declarations: [
@@ -64,6 +65,7 @@ import { TargetDetailsFormComponent } from './components/target-details-form/tar
     DropIndexOrTableDialogComponent,
     PrepareMigrationComponent,
     TargetDetailsFormComponent,
+    ConnectionProfileFormComponent,
   ],
   imports: [
     BrowserModule,

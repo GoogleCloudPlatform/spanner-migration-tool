@@ -51,6 +51,10 @@ export class FetchService {
     return this.http.get<Record<string, string>>(`${this.url}/conversion`)
   }
 
+  getRegions() {
+    return this.http.get(`${this.url}/GetRegions`)
+  }
+
   getSummary() {
     return this.http.get(`${this.url}/summary`)
   }

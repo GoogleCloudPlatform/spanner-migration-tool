@@ -67,6 +67,14 @@
                             <mat-icon>edit</mat-icon>
                         </button></span>
                 </p>
+                <p class="point" *ngIf="(selectedMigrationType ==='lowdt')">
+                    <span class="bullet">2</span>
+                    <span>Setup source connection profile</span><span><button mat-button class="configure"
+                            (click)="openConnectionProfileForm()" [disabled]="isButtonDisabled">
+                            Configure
+                            <mat-icon>edit</mat-icon>
+                        </button></span>
+                </p>
             </div>
         </mat-card>
         <br />

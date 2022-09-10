@@ -17,6 +17,7 @@ package webv2
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/profile"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/summary"
 
@@ -77,6 +78,8 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/GetSourceDestinationSummary", getSourceDestinationSummary).Methods("GET")
 	router.HandleFunc("/GetProgress", updateProgress).Methods("GET")
 	router.HandleFunc("/GetLatestSessionDetails", fetchLastLoadedSessionDetails).Methods("GET")
+
+	router.HandleFunc("/GetRegions", profile.GetRegions).Methods("GET")
 
 	return router
 }

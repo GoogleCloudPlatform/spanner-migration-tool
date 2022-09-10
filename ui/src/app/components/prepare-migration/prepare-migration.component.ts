@@ -10,6 +10,7 @@ import { InputType, MigrationDetails, MigrationModes, MigrationTypes, SourceDbNa
 import { interval, Subscription } from 'rxjs'
 import { DataService } from 'src/app/services/data/data.service'
 import { ThisReceiver } from '@angular/compiler'
+import { ConnectionProfileFormComponent } from '../connection-profile-form/connection-profile-form.component'
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
@@ -27,7 +28,7 @@ export class PrepareMigrationComponent implements OnInit {
     private data: DataService
   ) { }
 
-<<<<<<< HEAD
+  isTargetDetailSet: boolean = false
   isStreamingSupported: boolean = false
   hasDataMigrationStarted: boolean = false
   hasDataMigrationCompleted: boolean = false
@@ -36,26 +37,8 @@ export class PrepareMigrationComponent implements OnInit {
   connectionType: string = InputType.DirectConnect
   selectedMigrationType: string = MigrationTypes.bulkMigration
   isMigrationInProgress: boolean = false
-  isTargetDetailSet: boolean = false
   errorMessage: string = ''
   schemaProgressMessage: string = 'Schema migration in progress...'
-=======
-  isTargetDetailSet: boolean = false
-  isStreamingSupported: boolean = false
-  isButtonDisabled: boolean = false
-  hasDataMigrationStarted: boolean = false
-  hasDataMigrationCompleted: boolean = false
-  hasSchemaMigrationStarted: boolean = false
-  selectedMigrationMode: string = MigrationModes.schemaOnly
-  connectionType: string = InputType.DirectConnect
-  selectedMigrationType: string = MigrationTypes.bulkMigration
-  errorMessage: string = ''
-<<<<<<< HEAD
-  schemaProgressMessage: string = 'Schema creation in progress...'
->>>>>>> a10065c (fixed bugs)
-=======
-  schemaProgressMessage: string = 'Schema migration in progress...'
->>>>>>> 519f527 (addressing comments)
   dataProgressMessage: string = 'Data migration in progress...'
   dataMigrationProgress: number = 0
   schemaMigrationProgress: number = 0
@@ -151,6 +134,17 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.DataProgressMessage)
     localStorage.removeItem(MigrationDetails.SchemaProgressMessage)
   }
+  openConnectionProfileForm() {
+    this.fetch.getRegions().subscribe((res) => {
+      console.log(res)
+    })
+    let dialogRef = this.dialog.open(ConnectionProfileFormComponent, {
+      width: '30vw',
+      minWidth: '400px',
+      maxWidth: '500px',
+    })
+    dialogRef.afterClosed().subscribe()
+  }
 
   openTargetDetailsForm() {
     let dialogRef = this.dialog.open(TargetDetailsFormComponent, {
@@ -165,13 +159,10 @@ export class PrepareMigrationComponent implements OnInit {
         Dialect: localStorage.getItem(TargetDetails.Dialect) as string,
         StreamingConfig: localStorage.getItem(TargetDetails.StreamingConfig) as string
       }
-<<<<<<< HEAD
       if (this.targetDetails.TargetDB != '' || (this.selectedMigrationType == MigrationTypes.lowDowntimeMigration && this.targetDetails.StreamingConfig != '')) {
         this.isTargetDetailSet = true
         localStorage.setItem(MigrationDetails.IsTargetDetailSet, this.isTargetDetailSet.toString())
       }
-=======
->>>>>>> a10065c (fixed bugs)
     })
   }
 
@@ -196,20 +187,10 @@ this.resetValues()
       },
       error: (err: any) => {
         this.snack.openSnackBar(err.error, 'Close')
-<<<<<<< HEAD
         this.isMigrationInProgress = !this.isMigrationInProgress
         this.hasDataMigrationStarted = false
         this.hasSchemaMigrationStarted = false
         this.clearLocalStorage()
-=======
-        this.isButtonDisabled = !this.isButtonDisabled
-        this.hasDataMigrationStarted = false
-        this.hasSchemaMigrationStarted = false
-<<<<<<< HEAD
->>>>>>> a10065c (fixed bugs)
-=======
-        console.log("Error here")
->>>>>>> 519f527 (addressing comments)
       },
     })
   }
@@ -231,12 +212,8 @@ this.resetValues()
             // Checking for data migration in progree
             else if (res.Message.startsWith('Writing data to Spanner')) {
               this.markSchemaMigrationComplete()
-<<<<<<< HEAD
               localStorage.setItem(MigrationDetails.DataMigrationProgress, res.Progress.toString())
               this.dataMigrationProgress = parseInt(localStorage.getItem(MigrationDetails.DataMigrationProgress) as string)
-=======
-              this.dataMigrationProgress = res.Progress
->>>>>>> a10065c (fixed bugs)
               if (this.hasDataMigrationCompleted) {
                 this.markMigrationComplete()
               }
@@ -258,28 +235,17 @@ this.resetValues()
           } else {
             this.errorMessage = res.ErrorMessage;
             this.subscription.unsubscribe();
-<<<<<<< HEAD
             this.isMigrationInProgress = !this.isMigrationInProgress
             this.snack.openSnackBarWithoutTimeout(this.errorMessage, 'Close')
             this.schemaProgressMessage = "Schema migration cancelled!"
             this.dataProgressMessage = "Data migration cancelled!"
             this.clearLocalStorage()
-=======
-            this.isButtonDisabled = !this.isButtonDisabled
-            this.snack.openSnackBarWithoutTimeout(this.errorMessage, 'Close')
-            this.schemaProgressMessage = "Schema migration cancelled!"
-            this.dataProgressMessage = "Data migration cancelled!"
->>>>>>> a10065c (fixed bugs)
           }
         },
         error: (err: any) => {
           this.snack.openSnackBar(err.error, 'Close')
-<<<<<<< HEAD
           this.isMigrationInProgress = !this.isMigrationInProgress
           this.clearLocalStorage()
-=======
-          this.isButtonDisabled = !this.isButtonDisabled
->>>>>>> a10065c (fixed bugs)
         },
       })
     }));
@@ -289,31 +255,20 @@ this.resetValues()
     this.hasDataMigrationStarted = true
     this.schemaMigrationProgress = 100
     this.schemaProgressMessage = "Schema migration completed successfully!"
-<<<<<<< HEAD
     localStorage.setItem(MigrationDetails.HasDataMigrationStarted, this.hasDataMigrationStarted.toString())
     localStorage.setItem(MigrationDetails.SchemaMigrationProgress, this.schemaMigrationProgress.toString())
     localStorage.setItem(MigrationDetails.SchemaProgressMessage, this.schemaProgressMessage)
-=======
->>>>>>> a10065c (fixed bugs)
   }
 
   markMigrationComplete() {
     this.subscription.unsubscribe();
-<<<<<<< HEAD
     this.isMigrationInProgress = !this.isMigrationInProgress
-=======
-    this.isButtonDisabled = !this.isButtonDisabled
->>>>>>> a10065c (fixed bugs)
     this.dataProgressMessage = "Data migration completed successfully!"
     this.schemaProgressMessage = "Schema migration completed successfully!"
     this.clearLocalStorage()
   }
   resetValues() {
-<<<<<<< HEAD
     this.isMigrationInProgress = !this.isMigrationInProgress
-=======
-    this.isButtonDisabled = !this.isButtonDisabled
->>>>>>> a10065c (fixed bugs)
     this.hasSchemaMigrationStarted = false
     this.hasDataMigrationStarted = false
     this.hasDataMigrationCompleted = false
