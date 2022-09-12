@@ -241,12 +241,14 @@ func AnalyzeTables(conv *Conv, badWrites map[string]int64) (r []tableReport) {
 	// Process tables in alphabetical order. This ensures that tables
 	// appear in alphabetical order in report.txt.
 	var tables []string
-	for t := range conv.SpSchema {
+	for t := range conv.SrcSchema {
 		tables = append(tables, t)
 	}
 	sort.Strings(tables)
-	for _, spTable := range tables {
-		r = append(r, buildTableReport(conv, spTable, badWrites))
+	for _, srcTable := range tables {
+		if _, isPresent := conv.ToSpanner[srcTable]; isPresent {
+			r = append(r, buildTableReport(conv, srcTable, badWrites))
+		}
 	}
 	return r
 }
