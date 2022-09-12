@@ -43,6 +43,9 @@ export class SummaryComponent implements OnInit {
             this.changeIssuesLabel.emit(
               s.NotesCount + s.WarningsCount + s.ErrorsCount + s.SuggestionsCount
             )
+          } else {
+            this.summaryCount = 0
+            this.changeIssuesLabel.emit(0)
           }
         } else {
           this.summaryCount = 0
@@ -69,6 +72,9 @@ export class SummaryComponent implements OnInit {
         this.changeIssuesLabel.emit(
           s.NotesCount + s.WarningsCount + s.ErrorsCount + s.SuggestionsCount
         )
+      } else {
+        this.summaryCount = 0
+        this.changeIssuesLabel.emit(0)
       }
     } else {
       this.summaryCount = 0

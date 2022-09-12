@@ -168,25 +168,6 @@ export class ConversionService {
         }
       }
     )
-    data.SpSchema[srcTableName].ColNames.forEach((name: string, i: number) => {
-      if (data.SrcSchema[srcTableName].ColNames.indexOf(name) < 0) {
-        let spannerColDef = data.SpSchema[tableName].ColDefs[name]
-        res.push({
-          spOrder: i + 1,
-          srcOrder: '',
-          spColName: name,
-          spDataType: spannerColDef ? spannerColDef.T.Name : '',
-          srcColName: '',
-          srcDataType: '',
-          spIsPk: spannerColDef
-            ? data.SpSchema[tableName].Pks.map((p) => p.Col).indexOf(name) !== -1
-            : false,
-          srcIsPk: false,
-          spIsNotNull: spannerColDef ? data.SpSchema[tableName].ColDefs[name].NotNull : false,
-          srcIsNotNull: false,
-        })
-      }
-    })
     return res
   }
 
