@@ -192,6 +192,10 @@ export class ConversionService {
     let srcTableName = this.getSourceTableNameFromId(id, data)
     let spTableName = this.getSpannerTableNameFromId(id, data)
 
+    let srcTableIds = Object.keys(data.SrcSchema[srcTableName].ColDefs).map(
+      (name: string) => data.SrcSchema[srcTableName].ColDefs[name].Id
+    )
+
     const res: IColumnTabData[] = data.SrcSchema[srcTableName].ColNames.map(
       (name: string, i: number) => {
         let spColName = data.ToSpanner[srcTableName]?.Cols[name]
@@ -206,7 +210,7 @@ export class ConversionService {
           srcDataType: data.SrcSchema[srcTableName].ColDefs[name].Type.Name,
           spIsPk:
             spannerColDef && spTableName
-              ? data.SpSchema[spTableName].Pks.map((p) => p.Col).indexOf(spColName) !== -1
+              ? data.SpSchema[spTableName].Pks?.map((p) => p.Col).indexOf(spColName) !== -1
               : false,
           srcIsPk: srcPks ? srcPks.map((p) => p.Column).indexOf(name) !== -1 : false,
           spIsNotNull:
@@ -217,6 +221,32 @@ export class ConversionService {
         }
       }
     )
+    if (spTableName) {
+      data.SpSchema[spTableName]?.ColNames.forEach((name: string, i: number) => {
+        if (spTableName && srcTableIds.indexOf(data.SpSchema[spTableName].ColDefs[name].Id) < 0) {
+          let spannerColDef = spTableName ? data.SpSchema[spTableName].ColDefs[name] : null
+          res.push({
+            spOrder: i + 1,
+            srcOrder: '',
+            spColName: name,
+            spDataType: spannerColDef ? spannerColDef.T.Name : '',
+            srcColName: '',
+            srcDataType: '',
+            spIsPk:
+              spannerColDef && spTableName
+                ? data.SpSchema[spTableName].Pks.map((p) => p.Col).indexOf(name) !== -1
+                : false,
+            srcIsPk: false,
+            spIsNotNull:
+              spannerColDef && spTableName
+                ? data.SpSchema[spTableName].ColDefs[name].NotNull
+                : false,
+            srcIsNotNull: false,
+          })
+        }
+      })
+    }
+
     return res
   }
 

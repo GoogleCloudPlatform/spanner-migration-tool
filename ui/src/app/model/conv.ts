@@ -57,6 +57,7 @@ export interface IColumn {
   Type: ISpannerType
   NotNull: boolean
   Ignored: IIgnored
+  Id: string
 }
 
 export interface IIgnored {
