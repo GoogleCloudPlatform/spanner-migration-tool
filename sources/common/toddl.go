@@ -52,13 +52,13 @@ type ToDdl interface {
 // the Spanner schema to conv.SpSchema.
 func SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error {
 	for _, srcTable := range conv.SrcSchema {
-		SchemaToSpannerDDLHelper(conv, toddl, srcTable)
+		SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
 	}
 	internal.ResolveRefs(conv)
 	return nil
 }
 
-func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table) error {
+func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool) error {
 	spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
@@ -106,7 +106,7 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 		ColNames: spColNames,
 		ColDefs:  spColDef,
 		Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
-		Fks:      cvtForeignKeys(conv, spTableName, srcTable.Name, srcTable.ForeignKeys),
+		Fks:      cvtForeignKeys(conv, spTableName, srcTable.Name, srcTable.ForeignKeys, isRestore),
 		Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes),
 		Comment:  comment}
 	return nil
@@ -135,10 +135,10 @@ func cvtPrimaryKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Key) 
 	return spKeys
 }
 
-func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTable string, srcKeys []schema.ForeignKey) []ddl.Foreignkey {
+func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTable string, srcKeys []schema.ForeignKey, isRestore bool) []ddl.Foreignkey {
 	var spKeys []ddl.Foreignkey
 	for _, key := range srcKeys {
-		spKey, err := cvtForeignKeysHelper(conv, spTableName, srcTable, key)
+		spKey, err := cvtForeignKeysHelper(conv, spTableName, srcTable, key, isRestore)
 		if err != nil {
 			continue
 		}
@@ -147,12 +147,17 @@ func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTable string, sr
 	return spKeys
 }
 
-func cvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTable string, srcKey schema.ForeignKey) (ddl.Foreignkey, error) {
+func cvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTable string, srcKey schema.ForeignKey, isRestore bool) (ddl.Foreignkey, error) {
 	if len(srcKey.Columns) != len(srcKey.ReferColumns) {
 		conv.Unexpected(fmt.Sprintf("ConvertForeignKeys: columns and referColumns don't have the same lengths: len(columns)=%d, len(referColumns)=%d for source table: %s, referenced table: %s", len(srcKey.Columns), len(srcKey.ReferColumns), srcTable, srcKey.ReferTable))
 		return ddl.Foreignkey{}, fmt.Errorf("ConvertForeignKeys: columns and referColumns don't have the same lengths")
 	}
+	_, isPresent := conv.UsedNames[srcKey.ReferTable]
+	if !isPresent && isRestore {
+		return ddl.Foreignkey{}, nil
+	}
 	spReferTable, err := internal.GetSpannerTable(conv, srcKey.ReferTable)
+
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Can't map foreign key for source table: %s, referenced table: %s", srcTable, srcKey.ReferTable))
 		return ddl.Foreignkey{}, err
@@ -224,7 +229,7 @@ func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcInd
 }
 
 func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Table) error {
-	err := SchemaToSpannerDDLHelper(conv, toddl, srcTable)
+	err := SchemaToSpannerDDLHelper(conv, toddl, srcTable, true)
 	if err != nil {
 		return err
 	}
@@ -249,7 +254,7 @@ func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Tabl
 func cvtForeignKeysForAReferenceTable(conv *internal.Conv, spTableName string, srcTable string, referTable string, srcKeys []schema.ForeignKey, spKeys []ddl.Foreignkey) []ddl.Foreignkey {
 	for _, key := range srcKeys {
 		if key.ReferTable == referTable {
-			spKey, err := cvtForeignKeysHelper(conv, spTableName, srcTable, key)
+			spKey, err := cvtForeignKeysHelper(conv, spTableName, srcTable, key, true)
 			if err != nil {
 				continue
 			}

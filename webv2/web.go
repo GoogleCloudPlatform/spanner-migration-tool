@@ -819,7 +819,7 @@ func restoreTable(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Restoring spanner table fail"), http.StatusBadRequest)
 		return
 	}
-
+	conv.AddPrimaryKeys()
 	for _, spTable := range conv.SpSchema {
 		uniqueid.CopyUniqueIdToSpannerTable(conv, spTable.Name)
 	}
@@ -870,6 +870,9 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 	toSource := sessionState.Conv.ToSource
 	toSpanner := sessionState.Conv.ToSpanner
 	issues := sessionState.Conv.Issues
+	syntheticPkey := sessionState.Conv.SyntheticPKeys
+	toSourceFkIdx := sessionState.Conv.Audit.ToSourceFkIdx
+	toSpannerFkIdx := sessionState.Conv.Audit.ToSpannerFkIdx
 
 	//remove deleted name from usedName
 	usedNames := sessionState.Conv.UsedNames
@@ -885,6 +888,9 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 	delete(toSource, table)
 	delete(toSpanner, srcTable)
 	issues[srcTable] = map[string][]internal.SchemaIssue{}
+	delete(syntheticPkey, table)
+	delete(toSourceFkIdx, table)
+	delete(toSpannerFkIdx, srcTable)
 
 	//drop reference foreign key
 	for tableName, spTable := range spSchema {
@@ -925,12 +931,6 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-
-	sessionState.Conv.SpSchema = spSchema
-	sessionState.Conv.ToSource = toSource
-	sessionState.Conv.ToSpanner = toSpanner
-	sessionState.Conv.Issues = issues
-	sessionState.Conv.UsedNames = usedNames
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
