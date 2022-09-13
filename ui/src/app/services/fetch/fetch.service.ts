@@ -8,6 +8,8 @@ import IDumpConfig from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
 import IMigrationDetails, { IProgress } from 'src/app/model/migrate'
+import IConnectionProfile from 'src/app/model/profile'
+
 
 @Injectable({
   providedIn: 'root',
@@ -51,8 +53,8 @@ export class FetchService {
     return this.http.get<Record<string, string>>(`${this.url}/conversion`)
   }
 
-  getRegions() {
-    return this.http.get(`${this.url}/GetRegions`)
+  getSourceConnectionProfiles(region: string) {
+    return this.http.get<IConnectionProfile[]>(`${this.url}/GetConnectionProfiles?region=${region}&source=true`)
   }
 
   getSummary() {

@@ -1,1 +1,27 @@
-<p>connection-profile-form works!</p>
+<div mat-dialog-content>
+    <form [formGroup]="connectionProfileForm" class="conn-profile-form">
+    <span class="mat-h3 header-title">{{profileType}} Connection Profile</span>
+    <br>
+    <mat-form-field appearance="outline">
+        <mat-label>Select region</mat-label>
+        <mat-select class="input-field" formControlName="region" required="true" [(ngModel)]="selectedRegion" (selectionChange)="getConnectionProfile($event.value)">
+            <mat-option *ngFor="let region of regionList" [value]="region">
+                {{region}}
+            </mat-option>
+        </mat-select>
+    </mat-form-field>
+    <div *ngIf="isRegionSelected">
+        <mat-form-field appearance="outline">
+            <mat-label>Select connection profile</mat-label>
+            <mat-select class="input-field" formControlName="profile" required="true" [(ngModel)]="selectedProfile">
+                <mat-option *ngFor="let profile of profileList" [value]="profile.Name">
+                    {{profile.DisplayName}}
+                </mat-option>
+            </mat-select>
+        </mat-form-field>
+    </div>
+    <div mat-dialog-actions class="buttons-container">
+        <button mat-button color="primary" mat-dialog-close>Cancel</button>
+      </div>
+</form>
+</div>
