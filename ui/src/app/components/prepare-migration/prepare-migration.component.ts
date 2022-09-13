@@ -135,9 +135,6 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.SchemaProgressMessage)
   }
   openConnectionProfileForm() {
-    this.fetch.getRegions().subscribe((res) => {
-      console.log(res)
-    })
     let dialogRef = this.dialog.open(ConnectionProfileFormComponent, {
       width: '30vw',
       minWidth: '400px',

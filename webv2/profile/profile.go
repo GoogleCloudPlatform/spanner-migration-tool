@@ -6,11 +6,12 @@ import (
 	"net/http"
 
 	datastream "cloud.google.com/go/datastream/apiv1"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	"google.golang.org/api/iterator"
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
 )
 
-func GetRegions(w http.ResponseWriter, r *http.Request) {
+func GetConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	dsClient, err := datastream.NewClient(ctx)
 	if err != nil {
@@ -19,8 +20,10 @@ func GetRegions(w http.ResponseWriter, r *http.Request) {
 	defer dsClient.Close()
 	fmt.Println("Created client...")
 
+	//re1 := &datastreampb.CreateConnectionProfileRequest{}
+	sessionState := session.GetSessionState()
 	req := &datastreampb.ListConnectionProfilesRequest{
-		Parent: fmt.Sprintf("projects/%s/locations/%s", "span-cloud-testing", "us-central1"),
+		Parent: fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, "us-central1"),
 	}
 	it := dsClient.ListConnectionProfiles(ctx, req)
 	for {
