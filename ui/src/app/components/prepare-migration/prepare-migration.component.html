@@ -61,7 +61,7 @@
                 <p class="point">
                     <span class="bullet">1</span>
                     <span>Setup Target details</span><span><button mat-button class="configure"
-                            (click)="openTargetDetailsForm()" [disabled]="isButtonDisabled">
+                            (click)="openTargetDetailsForm()" [disabled]="isMigrationInProgress">
                             Configure
                             <mat-icon>edit</mat-icon>
                         </button></span>
@@ -86,5 +86,5 @@
         <span> {{this.dataProgressMessage}}</span>
     </div>
     <button mat-raised-button type="submit" color="primary" (click)="migrate()" class="migrate"
-        [disabled]="!isTargetDetailSet || isButtonDisabled">Migrate</button>
+        [disabled]="!isTargetDetailSet || isMigrationInProgress">Migrate</button>
 </div>

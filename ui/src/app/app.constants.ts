@@ -46,3 +46,23 @@ export enum MigrationTypes {
   bulkMigration = 'bulk',
   lowDowntimeMigration = 'lowdt'
 }
+
+export enum MigrationDetails {
+  MigrationMode = 'migrationMode',
+  MigrationType = 'migrationType',
+  IsTargetDetailSet = 'isTargetDetailSet',
+  IsMigrationInProgress ='isMigrationInProgress',
+  HasDataMigrationStarted ='hasDataMigrationStarted',
+  HasDataMigrationCompleted = 'hasDataMigrationCompleted',
+  HasSchemaMigrationStarted = 'hasSchemaMigrationStarted',
+  SchemaProgressMessage = 'schemaProgressMessage',
+  DataProgressMessage = 'dataProgressMessage',
+  DataMigrationProgress = 'dataMigrationProgress',
+  SchemaMigrationProgress = 'schemaMigrationProgress'
+}
+
+export enum TargetDetails {
+  TargetDB = 'targetDb',
+  Dialect = 'dialect',
+  StreamingConfig = 'streamingConfig'
+}

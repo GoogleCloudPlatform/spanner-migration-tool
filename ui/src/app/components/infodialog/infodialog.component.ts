@@ -3,6 +3,7 @@ import { MAT_DIALOG_DATA } from '@angular/material/dialog'
 interface IDialogProps {
   message: string
   type: 'warning' | 'error' | 'success'
+  title: string
 }
 @Component({
   selector: 'app-infodialog',
@@ -10,7 +11,11 @@ interface IDialogProps {
   styleUrls: ['./infodialog.component.scss'],
 })
 export class InfodialogComponent implements OnInit {
-  constructor(@Inject(MAT_DIALOG_DATA) public data: IDialogProps) {}
+  constructor(@Inject(MAT_DIALOG_DATA) public data: IDialogProps) {
+    if (data.title === undefined) {
+      data.title = "Update can not be saved"
+    }
+  }
 
   ngOnInit(): void {}
 
