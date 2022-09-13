@@ -30,7 +30,6 @@ export class TargetDetailsFormComponent implements OnInit {
       streamingConfig: localStorage.getItem(TargetDetails.StreamingConfig)
     })
   }
-  targetDetails: ITargetDetails = this.targetDetailService.getTargetDetails()
 
   ngOnInit(): void {
   }

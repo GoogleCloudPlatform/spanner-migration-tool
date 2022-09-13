@@ -28,7 +28,6 @@ export class PrepareMigrationComponent implements OnInit {
   ) { }
 
   isStreamingSupported: boolean = false
-  isButtonDisabled: boolean = false
   hasDataMigrationStarted: boolean = false
   hasDataMigrationCompleted: boolean = false
   hasSchemaMigrationStarted: boolean = false
@@ -150,6 +149,7 @@ export class PrepareMigrationComponent implements OnInit {
       }
       if (this.targetDetails.TargetDB != '' || (this.selectedMigrationType == MigrationTypes.lowDowntimeMigration && this.targetDetails.StreamingConfig != '')) {
         this.isTargetDetailSet = true
+        localStorage.setItem(MigrationDetails.IsTargetDetailSet, this.isTargetDetailSet.toString())
       }
     })
   }
@@ -186,9 +186,9 @@ this.resetValues()
 
   subscribeMigrationProgress() {
     this.subscription = interval(5000).subscribe((x => {
-
       this.fetch.getProgress().subscribe({
         next: (res: IProgress) => {
+          console.log(res.Message)
           if (res.ErrorMessage == '') {
             // Checking for completion of schema migration
             if (res.Message.startsWith('Schema migration complete')) {
