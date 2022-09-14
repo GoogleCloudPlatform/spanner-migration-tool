@@ -246,7 +246,9 @@ func AnalyzeTables(conv *Conv, badWrites map[string]int64) (r []tableReport) {
 	}
 	sort.Strings(tables)
 	for _, srcTable := range tables {
-		r = append(r, buildTableReport(conv, srcTable, badWrites))
+		if _, isPresent := conv.ToSpanner[srcTable]; isPresent {
+			r = append(r, buildTableReport(conv, srcTable, badWrites))
+		}
 	}
 	return r
 }

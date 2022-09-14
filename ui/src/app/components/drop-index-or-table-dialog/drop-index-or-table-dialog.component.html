@@ -1,16 +1,18 @@
 <div mat-dialog-content>
-  <h2>Delete Index ({{ data }})?</h2>
-  <div class="alert-container">
+  <h2>Delete {{ data.type }} ({{ data.name }})?</h2>
+  <div class="alert-container" *ngIf="data.type === 'Index'">
     <mat-icon>warning</mat-icon>
     <span>This operation cannot be undone</span>
   </div>
   <div class="form-container">
     <form>
       <span class="form-custom-label">
-        Confirm deletion by typing the following below: <b>{{ data }}</b>
+        Confirm deletion by typing the following below: <b>{{ data.name }}</b>
       </span>
       <mat-form-field appearance="outline">
-        <mat-label>Index Name</mat-label>
+        <mat-label
+          >{{ data.type == ObjectDetailNodeType.Table ? 'Table' : 'Index' }} Name</mat-label
+        >
         <input matInput type="text" [formControl]="confirmationInput" />
       </mat-form-field>
     </form>
@@ -20,7 +22,7 @@
   <button mat-button color="primary" mat-dialog-close>Cancel</button>
   <button
     mat-button
-    (click)="deleteIndex()"
+    (click)="delete()"
     type="submit"
     color="primary"
     [disabled]="!confirmationInput.valid"

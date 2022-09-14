@@ -146,8 +146,8 @@ type statementStat struct {
 // Stores the audit information of conversion.
 // Elements that do not affect the migration functionality but are relevant for the migration metadata.
 type Audit struct {
-	ToSpannerFkIdx           map[string]FkeyAndIdxs                 `json:"-"` // Maps from source-DB table name to Spanner names for table name, foreign key and indexes.
-	ToSourceFkIdx            map[string]FkeyAndIdxs                 `json:"-"` // Maps from Spanner table name to source-DB names for table name, foreign key and indexes.
+	ToSpannerFkIdx           map[string]FkeyAndIdxs                 // Maps from source-DB table name to Spanner names for table name, foreign key and indexes.
+	ToSourceFkIdx            map[string]FkeyAndIdxs                 // Maps from Spanner table name to source-DB names for table name, foreign key and indexes.
 	SchemaConversionDuration time.Duration                          `json:"-"` // Duration of schema conversion.
 	DataConversionDuration   time.Duration                          `json:"-"` // Duration of data conversion.
 	MigrationRequestId       string                                 `json:"-"` // Unique request id generated per migration

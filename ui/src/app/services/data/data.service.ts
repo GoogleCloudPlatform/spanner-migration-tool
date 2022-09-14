@@ -197,6 +197,44 @@ export class DataService {
     )
   }
 
+  restoreTable(tableId: string): Observable<string> {
+    return this.fetch.restoreTable(tableId).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data) => {
+        if (data.error) {
+          this.snackbar.openSnackBar(data.error, 'Close')
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          this.snackbar.openSnackBar('Table restored successfully', 'Close', 5)
+          return ''
+        }
+      })
+    )
+  }
+
+  dropTable(tableId: string): Observable<string> {
+    return this.fetch.dropTable(tableId).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data) => {
+        if (data.error) {
+          this.snackbar.openSnackBar(data.error, 'Close')
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          this.snackbar.openSnackBar('Table dropped successfully', 'Close', 5)
+          return ''
+        }
+      })
+    )
+  }
+
   updatePk(pkObj: IPrimaryKey) {
     return this.fetch.updatePk(pkObj).pipe(
       catchError((e: any) => {
