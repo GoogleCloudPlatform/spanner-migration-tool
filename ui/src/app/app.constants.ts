@@ -34,5 +34,10 @@ export enum RulesTypes {
 export enum MigrationModes {
   schemaOnly = 'Schema',
   dataOnly = 'Data',
-  schemaAndData = 'Schema And Data'
+  schemaAndData = 'Schema And Data',
+}
+
+export enum ObjectDetailNodeType {
+  Table = 'table',
+  Index = 'index',
 }

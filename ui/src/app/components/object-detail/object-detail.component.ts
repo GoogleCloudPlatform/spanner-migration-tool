@@ -7,7 +7,7 @@ import { InfodialogComponent } from '../infodialog/infodialog.component'
 import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
+import { ObjectDetailNodeType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import FlatNode from 'src/app/model/schema-object-node'
 import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
@@ -702,10 +702,10 @@ export class ObjectDetailComponent implements OnInit {
       width: '35vw',
       minWidth: '450px',
       maxWidth: '600px',
-      data: { name: this.currentObject?.name, type: ObjectExplorerNodeType.Index },
+      data: { name: this.currentObject?.name, type: ObjectDetailNodeType.Index },
     })
     openDialog.afterClosed().subscribe((res: string) => {
-      if (res === ObjectExplorerNodeType.Index) {
+      if (res === ObjectDetailNodeType.Index) {
         this.data
           .dropIndex(this.currentObject!.parent, this.currentObject!.name)
           .pipe(take(1))
@@ -762,10 +762,10 @@ export class ObjectDetailComponent implements OnInit {
       width: '35vw',
       minWidth: '450px',
       maxWidth: '600px',
-      data: { name: this.currentObject?.name, type: ObjectExplorerNodeType.Table },
+      data: { name: this.currentObject?.name, type: ObjectDetailNodeType.Table },
     })
     openDialog.afterClosed().subscribe((res: string) => {
-      if (res === ObjectExplorerNodeType.Table) {
+      if (res === ObjectDetailNodeType.Table) {
         let tableId = this.currentObject!.id
         this.data
           .dropTable(tableId)
