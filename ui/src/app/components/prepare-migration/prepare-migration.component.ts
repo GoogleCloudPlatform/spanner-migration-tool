@@ -54,14 +54,21 @@ export class PrepareMigrationComponent implements OnInit {
         } else if (res.ConnectionType == InputType.SessionFile) {
           this.migrationModes = [MigrationModes.schemaOnly]
         } else {
-          this.migrationModes = [MigrationModes.schemaOnly, MigrationModes.dataOnly, MigrationModes.schemaAndData]
+          this.migrationModes = [
+            MigrationModes.schemaOnly,
+            MigrationModes.dataOnly,
+            MigrationModes.schemaAndData,
+          ]
         }
-        if (res.DatabaseType == SourceDbNames.MySQL.toLowerCase() || res.DatabaseType == SourceDbNames.Oracle.toLowerCase()) {
+        if (
+          res.DatabaseType == SourceDbNames.MySQL.toLowerCase() ||
+          res.DatabaseType == SourceDbNames.Oracle.toLowerCase()
+        ) {
           this.isStreamingSupported = true
         }
       },
       error: (err: any) => {
-         this.snack.openSnackBar(err.error, 'Close')
+        this.snack.openSnackBar(err.error, 'Close')
       },
     })
   }
@@ -71,7 +78,7 @@ export class PrepareMigrationComponent implements OnInit {
       width: '30vw',
       minWidth: '400px',
       maxWidth: '500px',
-      data:this.selectedMigrationType=='lowdt',
+      data: this.selectedMigrationType == 'lowdt',
     })
     dialogRef.afterClosed().subscribe(() => {
       if (this.targetDetails.TargetDB != '') {
@@ -87,7 +94,7 @@ export class PrepareMigrationComponent implements OnInit {
     let payload: IMigrationDetails = {
       TargetDetails: this.targetDetailService.getTargetDetails(),
       MigrationType: this.selectedMigrationType,
-      MigrationMode: this.selectedMigrationMode
+      MigrationMode: this.selectedMigrationMode,
     }
     this.fetch.migrate(payload).subscribe({
       next: () => {

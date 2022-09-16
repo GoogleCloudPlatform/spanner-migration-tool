@@ -9,8 +9,8 @@ import { ObjectDetailNodeType } from 'src/app/app.constants'
   styleUrls: ['./drop-index-or-table-dialog.component.scss'],
 })
 export class DropIndexOrTableDialogComponent implements OnInit {
-  confirmationInput: FormControl
   ObjectDetailNodeType = ObjectDetailNodeType
+  confirmationInput: FormControl
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: { name: string; type: string },
     private dialogRef: MatDialogRef<DropIndexOrTableDialogComponent>
