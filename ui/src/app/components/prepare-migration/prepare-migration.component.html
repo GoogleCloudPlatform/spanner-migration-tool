@@ -1,0 +1,81 @@
+<div class="header">
+    <div class="breadcrumb">
+        <a class="breadcrumb_source" mat-button [routerLink]="'/'">Select Source</a>
+        <span>></span>
+        <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'">Configure Schema</a>
+        <span>></span>
+        <a class="breadcrumb_prepare_migration" mat-button [routerLink]="'/prepare-migration'">Prepare Migration</a>
+    </div>
+</div>
+<br />
+<div class="body">
+    <div class="definition-container">
+        <h2>Source and destination Database definitions</h2>
+        <div class="summary">
+            <table mat-table [dataSource]="dataSource">
+                <ng-container matColumnDef="Title">
+                    <th mat-header-cell *matHeaderCellDef>Title</th>
+                    <td mat-cell *matCellDef="let element">
+                        <b>{{ element.title }}</b>
+                    </td>
+                </ng-container>
+                <ng-container matColumnDef="Source">
+                    <th mat-header-cell *matHeaderCellDef>Source</th>
+                    <td mat-cell *matCellDef="let element">{{ element.source }}</td>
+                </ng-container>
+                <ng-container matColumnDef="Destination">
+                    <th mat-header-cell *matHeaderCellDef>Destination</th>
+                    <td mat-cell *matCellDef="let element">{{ element.target }}</td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+            </table>
+        </div>
+    </div>
+    <br />
+    <mat-form-field appearance="outline">
+        <mat-label>Migration Mode:</mat-label>
+        <mat-select [(ngModel)]="selectedMigrationMode">
+            <mat-option *ngFor="let mode of migrationModes" [value]="mode">
+                {{mode}}
+            </mat-option>
+        </mat-select>
+    </mat-form-field>
+
+    <div *ngIf="!(selectedMigrationMode ==='Schema') && isStreamingSupported">
+        <mat-form-field appearance="outline">
+            <mat-label>Migration Type:</mat-label>
+            <mat-select [(ngModel)]="selectedMigrationType">
+                    <mat-option value="bulk">Bulk Migration</mat-option>
+                    <mat-option value="lowdt">Low downtime migration</mat-option>
+            </mat-select>
+        </mat-form-field>
+    </div>
+    <br />
+    <div class="prerequisites">
+        <mat-card>
+            <mat-card-title>Prerequisites</mat-card-title>
+            <mat-card-subtitle>Before we begin, please ensure you have done the following:</mat-card-subtitle>
+            <hr />
+            <div>
+                <p class="point">
+                    <span class="bullet">1</span>
+                    <span>Setup Target details</span><span><button mat-button class="configure"
+                            (click)="openTargetDetailsForm()">
+                            Configure
+                            <mat-icon>edit</mat-icon>
+                        </button></span>
+                </p>
+            </div>
+        </mat-card>
+        <br />
+    </div>
+    <div *ngIf="isTargetDetailSet">
+        <h3>Target Details</h3>
+        <span><b>Target Database:</b>{{ targetDetails.TargetDB }}</span><br />
+        <span><b>Spanner Dialect:</b>{{ targetDetails.Dialect }}</span><br />
+        <span *ngIf="isStreamingCfgSet"><b>Streaming Config:</b>{{ targetDetails.StreamingConfig }}</span><br />
+    </div>
+    <button mat-raised-button type="submit" color="primary" (click)="migrate()" class="migrate"
+        [disabled]="!isTargetDetailSet">Migrate</button>
+</div>

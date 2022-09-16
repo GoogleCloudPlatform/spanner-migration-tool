@@ -20,6 +20,7 @@ package webv2
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -34,6 +35,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudspannerecosystem/harbourbridge/cmd"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
@@ -46,6 +48,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
@@ -91,6 +94,27 @@ type driverConfig struct {
 	Database string `json:"Database"`
 	User     string `json:"User"`
 	Password string `json:"Password"`
+}
+
+type sessionSummary struct {
+	DatabaseType      string
+	ConnectionDetail  string
+	SourceTableCount  int
+	SpannerTableCount int
+	SourceIndexCount  int
+	SpannerIndexCount int
+	ConnectionType    string
+}
+
+type migrationDetails struct {
+	TargetDetails targetDetails `json:"TargetDetails"`
+	MigrationMode string        `json:MigrationMode`
+	MigrationType string        `json:MigrationType`
+}
+
+type targetDetails struct {
+	TargetDB     string `json:"TargetDB"`
+	StreamingCfg string `json:"StreamingConfig"`
 }
 
 // databaseConnection creates connection with database when using
@@ -143,6 +167,13 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionState.Driver = config.Driver
 	sessionState.SessionFile = ""
+	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
+		Host:           config.Host,
+		Port:           config.Port,
+		User:           config.User,
+		Password:       config.Password,
+		ConnectionType: utilities.DIRECT_CONNECT_MODE,
+	}
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -257,6 +288,10 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sessionState.DbName = ""
 	sessionState.SessionFile = ""
 	sessionState.SourceDB = nil
+	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
+		Path:           dc.FilePath,
+		ConnectionType: utilities.DUMP_MODE,
+	}
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionMetadata,
@@ -313,6 +348,10 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = s.Driver
 	sessionState.SessionFile = s.FilePath
+	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
+		Path:           s.FilePath,
+		ConnectionType: utilities.SESSION_FILE_MODE,
+	}
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionMetadata,
@@ -664,15 +703,30 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 	return tableInterleaveStatus
 }
 
+type DropDetail struct {
+	Name string `json:"Name"`
+}
+
 func restoreTable(w http.ResponseWriter, r *http.Request) {
-	table := r.FormValue("table")
+	tableId := r.FormValue("tableId")
 	sessionState := session.GetSessionState()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
+	if tableId == "" {
+		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
+	}
+
+	table := ""
+	for _, value := range sessionState.Conv.SrcSchema {
+		if value.Id == tableId {
+			table = value.Name
+			break
+		}
+	}
 	if table == "" {
-		http.Error(w, fmt.Sprintf("Table name is empty"), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Table not found"), http.StatusBadRequest)
 	}
 
 	conv := sessionState.Conv
@@ -700,8 +754,10 @@ func restoreTable(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Restoring spanner table fail"), http.StatusBadRequest)
 		return
 	}
-
-	uniqueid.CopyUniqueIdToSpannerTable(conv, conv.ToSpanner[table].Name)
+	conv.AddPrimaryKeys()
+	for _, spTable := range conv.SpSchema {
+		uniqueid.CopyUniqueIdToSpannerTable(conv, spTable.Name)
+	}
 	sessionState.Conv = conv
 	primarykey.DetectHotspot()
 
@@ -714,19 +770,44 @@ func restoreTable(w http.ResponseWriter, r *http.Request) {
 }
 
 func dropTable(w http.ResponseWriter, r *http.Request) {
-	table := r.FormValue("table")
+	tableId := r.FormValue("tableId")
 	sessionState := session.GetSessionState()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
-	if table == "" {
-		http.Error(w, fmt.Sprintf("Table name is empty"), http.StatusBadRequest)
+	if tableId == "" {
+		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
 	}
+	table := ""
+	for _, value := range sessionState.Conv.SpSchema {
+		if value.Id == tableId {
+			table = value.Name
+			break
+		}
+	}
+	if table == "" {
+		http.Error(w, fmt.Sprintf("Spanner table not found"), http.StatusBadRequest)
+	}
+
+	srcTable := ""
+	for _, value := range sessionState.Conv.SrcSchema {
+		if value.Id == tableId {
+			srcTable = value.Name
+			break
+		}
+	}
+	if srcTable == "" {
+		http.Error(w, fmt.Sprintf("Source table not found"), http.StatusBadRequest)
+	}
+
 	spSchema := sessionState.Conv.SpSchema
 	toSource := sessionState.Conv.ToSource
 	toSpanner := sessionState.Conv.ToSpanner
 	issues := sessionState.Conv.Issues
+	syntheticPkey := sessionState.Conv.SyntheticPKeys
+	toSourceFkIdx := sessionState.Conv.Audit.ToSourceFkIdx
+	toSpannerFkIdx := sessionState.Conv.Audit.ToSpannerFkIdx
 
 	//remove deleted name from usedName
 	usedNames := sessionState.Conv.UsedNames
@@ -740,8 +821,11 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 
 	delete(spSchema, table)
 	delete(toSource, table)
-	delete(toSpanner, table)
-	delete(issues, table)
+	delete(toSpanner, srcTable)
+	issues[srcTable] = map[string][]internal.SchemaIssue{}
+	delete(syntheticPkey, table)
+	delete(toSourceFkIdx, table)
+	delete(toSpannerFkIdx, srcTable)
 
 	//drop reference foreign key
 	for tableName, spTable := range spSchema {
@@ -766,11 +850,22 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	sessionState.Conv.SpSchema = spSchema
-	sessionState.Conv.ToSource = toSource
-	sessionState.Conv.ToSpanner = toSource
-	sessionState.Conv.Issues = issues
-	sessionState.Conv.UsedNames = usedNames
+	//remove interleavable suggestion on droping the parent table
+	for tableName, tableIssues := range issues {
+		for colName, colIssues := range tableIssues {
+			updatedColIssues := []internal.SchemaIssue{}
+			for _, val := range colIssues {
+				if val != internal.InterleavedOrder {
+					updatedColIssues = append(updatedColIssues, val)
+				}
+			}
+			if len(updatedColIssues) == 0 {
+				delete(issues[tableName], colName)
+			} else {
+				issues[tableName][colName] = updatedColIssues
+			}
+		}
+	}
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -778,10 +873,6 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
-}
-
-type DropDetail struct {
-	Name string `json:"Name"`
 }
 
 func dropForeignKey(w http.ResponseWriter, r *http.Request) {
@@ -1019,6 +1110,112 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
+func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	var sessionSummary sessionSummary
+	databaseType, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error while getting source database: %v", err), http.StatusBadRequest)
+		return
+	}
+	sessionSummary.DatabaseType = databaseType
+	sessionSummary.ConnectionType = sessionState.SourceDBConnDetails.ConnectionType
+	sessionSummary.SourceTableCount = len(sessionState.Conv.SrcSchema)
+	sessionSummary.SpannerTableCount = len(sessionState.Conv.SpSchema)
+
+	sourceIndexCount, spannerIndexCount := 0, 0
+	for _, spannerSchema := range sessionState.Conv.SpSchema {
+		spannerIndexCount = spannerIndexCount + len(spannerSchema.Indexes)
+	}
+	for _, sourceSchema := range sessionState.Conv.SrcSchema {
+		sourceIndexCount = sourceIndexCount + len(sourceSchema.Indexes)
+	}
+	sessionSummary.SourceIndexCount = sourceIndexCount
+	sessionSummary.SpannerIndexCount = spannerIndexCount
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(sessionSummary)
+}
+
+func migrate(w http.ResponseWriter, r *http.Request) {
+
+	log.Println("request started", "method", r.Method, "path", r.URL.Path)
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Println("request's body Read Error")
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+	}
+
+	details := migrationDetails{}
+	err = json.Unmarshal(reqBody, &details)
+	if err != nil {
+		log.Println("request's Body parse error")
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+
+	sessionState := session.GetSessionState()
+	ctx := context.Background()
+	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
+	if err != nil {
+		log.Println("can't get source and target profile")
+		http.Error(w, fmt.Sprintf("Can't get source and target profiles: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if details.MigrationMode == utilities.SCHEMA_ONLY {
+		_, err = cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv)
+	} else if details.MigrationMode == utilities.DATA_ONLY {
+		dataCmd := &cmd.DataCmd{
+			SkipForeignKeys: false,
+			WriteLimit:      cmd.DefaultWritersLimit,
+		}
+		_, err = cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, dataCmd, sessionState.Conv)
+	} else {
+		schemaAndDataCmd := &cmd.SchemaAndDataCmd{
+			SkipForeignKeys: false,
+			WriteLimit:      cmd.DefaultWritersLimit,
+		}
+		_, err = cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, schemaAndDataCmd, sessionState.Conv)
+	}
+	if err != nil {
+		log.Println("can't finish database migration")
+		http.Error(w, fmt.Sprintf("Can't finish database migration: %v", err), http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	log.Println("migration completed", "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
+}
+
+func getSourceAndTargetProfiles(sessionState *session.SessionState, details migrationDetails) (profiles.SourceProfile, profiles.TargetProfile, utils.IOStreams, string, error) {
+	var (
+		sourceProfileString string
+	)
+	sourceDBConnectionDetails := sessionState.SourceDBConnDetails
+	if sourceDBConnectionDetails.ConnectionType == utilities.DUMP_MODE {
+		sourceProfileString = fmt.Sprintf("file=%v,format=dump", sourceDBConnectionDetails.Path)
+	} else {
+		sourceProfileString = fmt.Sprintf("host=%v,port=%v,user=%v,password=%v,dbName=%v",
+			sourceDBConnectionDetails.Host, sourceDBConnectionDetails.Port, sourceDBConnectionDetails.User,
+			sourceDBConnectionDetails.Password, sessionState.DbName)
+	}
+	targetProfileString := fmt.Sprintf("project=%v,instance=%v,dbName=%v", sessionState.GCPProjectID, sessionState.SpannerInstanceID, details.TargetDetails.TargetDB)
+
+	if details.TargetDetails.StreamingCfg != "" {
+		sourceProfileString = sourceProfileString + fmt.Sprintf(",streamingCfg=%v", details.TargetDetails.StreamingCfg)
+	}
+	source, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
+	if err != nil {
+		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while getting source database: %v", err)
+	}
+	sourceProfile, targetProfile, ioHelper, dbName, err := cmd.PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, source)
+	if err != nil && sourceDBConnectionDetails.ConnectionType != utilities.SESSION_FILE_MODE {
+		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while preparing prerequisites for migration: %v", err)
+	}
+	sourceProfile.Driver = sessionState.Driver
+	targetProfile.TargetDb = targetProfile.ToLegacyTargetDb()
+	return sourceProfile, targetProfile, ioHelper, dbName, nil
+}
+
 func updateIndexes(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -1218,15 +1415,12 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 
 			if len(schemaissue) > 0 {
 
-				if sessionState.Conv.Issues[table][caninterleaved[i]] == nil {
+				if sessionState.Conv.Issues[table] == nil {
 
 					s := map[string][]internal.SchemaIssue{
 						caninterleaved[i]: schemaissue,
 					}
-					sessionState.Conv.Issues = map[string]map[string][]internal.SchemaIssue{}
-
 					sessionState.Conv.Issues[table] = s
-
 				} else {
 					sessionState.Conv.Issues[table][caninterleaved[i]] = schemaissue
 				}

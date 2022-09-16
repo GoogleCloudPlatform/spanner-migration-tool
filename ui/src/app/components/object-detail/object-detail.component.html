@@ -97,7 +97,7 @@
         <span> RESTORE TABLE</span>
       </button>
     </h3>
-    <div class="interleaved-title" *ngIf="interleaveParentName">
+    <div class="interleaved-title" *ngIf="interleaveParentName && currentObject.isSpannerNode">
       Interleaved:
       <div class="interleave-parent-name">
         {{ interleaveParentName }}
@@ -106,6 +106,7 @@
   </div>
 
   <mat-tab-group
+    [ngClass]="{ 'height-on-edit': isEditMode || isPkEditMode || isFkEditMode }"
     *ngIf="currentObject!.type === 'tableName'"
     (selectedTabChange)="tabChanged($event)"
   >
@@ -626,6 +627,7 @@
                     !isFkEditMode &&
                     fkDataSource.length > 0 &&
                     !interleaveParentName &&
+                    currentObject!.isSpannerNode &&
                     !currentObject.isDeleted
                   "
                 >
@@ -770,9 +772,10 @@
     <mat-tab
       label="INTERLEAVE"
       *ngIf="
-        (interleaveStatus.tableInterleaveStatus &&
+        ((interleaveStatus.tableInterleaveStatus &&
           interleaveStatus.tableInterleaveStatus.Possible) ||
-        this.interleaveParentName !== null
+          this.interleaveParentName !== null) &&
+        currentObject.isSpannerNode
       "
     >
       <div class="interleave-tab-container">
@@ -935,7 +938,7 @@
   </div>
 
   <div class="save-edits">
-    <mat-divider></mat-divider>
+    <mat-divider *ngIf="isEditMode || isPkEditMode || isFkEditMode"></mat-divider>
     <div class="save-button" *ngIf="isEditMode && currentTabIndex === 0">
       <button mat-raised-button color="primary" (click)="toggleEdit()">SAVE & CONVERT</button>
     </div>

@@ -296,13 +296,14 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 // CreateIndex encodes the following DDL definition:
 //     create index: CREATE [UNIQUE] [NULL_FILTERED] INDEX index_name ON table_name ( key_part [, ...] ) [ storing_clause ] [ , interleave_clause ]
 type CreateIndex struct {
-	Name   string
-	Table  string
-	Unique bool
-	Keys   []IndexKey
-	Id     string
+	Name          string
+	Table         string
+	Unique        bool
+	Keys          []IndexKey
+	Id            string
+	StoredColumns []string
 	// We have no requirements for null-filtered option and
-	// storing/interleaving clauses yet, so we omit them for now.
+	// interleaving clauses yet, so we omit them for now.
 }
 
 // PrintCreateIndex unparses a CREATE INDEX statement.
@@ -311,11 +312,19 @@ func (ci CreateIndex) PrintCreateIndex(c Config) string {
 	for _, p := range ci.Keys {
 		keys = append(keys, p.PrintIndexKey(c))
 	}
-	var unique string
+	var unique, stored, storingClause string
 	if ci.Unique {
 		unique = "UNIQUE "
 	}
-	return fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)", unique, c.quote(ci.Name), c.quote(ci.Table), strings.Join(keys, ", "))
+	if c.TargetDb == constants.TargetExperimentalPostgres {
+		stored = "INCLUDE"
+	} else {
+		stored = "STORING"
+	}
+	if ci.StoredColumns != nil {
+		storingClause = fmt.Sprintf(" %s (%s)", stored, strings.Join(ci.StoredColumns, ", "))
+	}
+	return fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)%s", unique, c.quote(ci.Name), c.quote(ci.Table), strings.Join(keys, ", "), storingClause)
 }
 
 // PrintForeignKeyAlterTable unparses the foreign keys using ALTER TABLE.

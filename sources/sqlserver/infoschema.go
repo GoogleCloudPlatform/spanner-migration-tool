@@ -366,7 +366,8 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			IX.name, 
 			COL_NAME(IX.object_id, IXC.column_id) as [Column Name],
 			IX.is_unique,
-			IXC.is_descending_key 
+			IXC.is_descending_key,
+			IXC.is_included_column
 		FROM sys.indexes IX 
 		INNER JOIN sys.index_columns IXC 
 			ON  IX.object_id = IXC.object_id AND IX.index_id = IXC.index_id
@@ -385,12 +386,12 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 		return nil, err
 	}
 	defer rows.Close()
-	var name, column, isUnique, collation string
+	var name, column, isUnique, collation, isStored string
 	indexMap := make(map[string]schema.Index)
 	var indexNames []string
 	var indexes []schema.Index
 	for rows.Next() {
-		if err := rows.Scan(&name, &column, &isUnique, &collation); err != nil {
+		if err := rows.Scan(&name, &column, &isUnique, &collation, &isStored); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
@@ -400,7 +401,11 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			indexMap[name] = schema.Index{Name: name, Unique: (isUnique == "true")}
 		}
 		index := indexMap[name]
-		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation == "DESC")})
+		if isStored == "false" {
+			index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation == "DESC")})
+		} else {
+			index.StoredColumns = append(index.StoredColumns, column)
+		}
 		indexMap[name] = index
 	}
 	for _, k := range indexNames {

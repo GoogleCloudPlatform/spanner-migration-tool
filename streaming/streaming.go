@@ -18,10 +18,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"strings"
 	"time"
 
 	dataflow "cloud.google.com/go/dataflow/apiv1beta3"
 	datastream "cloud.google.com/go/datastream/apiv1alpha1"
+	"cloud.google.com/go/storage"
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1alpha1"
 	dataflowpb "google.golang.org/genproto/googleapis/dataflow/v1beta3"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -29,6 +31,11 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
+)
+
+const (
+	numWorkers int32 = 50
+	maxWorkers int32 = 50
 )
 
 type SrcConnCfg struct {
@@ -58,6 +65,7 @@ type DataflowCfg struct {
 type StreamingCfg struct {
 	DatastreamCfg DatastreamCfg
 	DataflowCfg   DataflowCfg
+	TmpDir        string
 }
 
 // VerifyAndUpdateCfg checks the fields and errors out if certain fields are empty.
@@ -100,10 +108,29 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string) error {
 	if dfCfg.JobName == "" {
 		// Update names to have more info like dbname.
 		jobName, err := utils.GenerateName("hb-dataflow-" + dbName)
+		jobName = strings.Replace(jobName, "_", "-", -1)
 		if err != nil {
 			return fmt.Errorf("error generating stream name: %v", err)
 		}
 		streamingCfg.DataflowCfg.JobName = jobName
+	}
+
+	filePath := streamingCfg.TmpDir
+	u, err := utils.ParseGCSFilePath(filePath)
+	if err != nil {
+		return fmt.Errorf("parseFilePath: unable to parse file path: %v", err)
+	}
+	bucketName := u.Host
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create GCS client")
+	}
+	defer client.Close()
+	bucket := client.Bucket(bucketName)
+	_, err = bucket.Attrs(ctx)
+	if err != nil {
+		return fmt.Errorf("bucket %s does not exist", bucketName)
 	}
 	return nil
 }
@@ -187,7 +214,7 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, pro
 		SourceConfig:      srcCfg,
 		DestinationConfig: dstCfg,
 		State:             datastreampb.Stream_RUNNING,
-		BackfillStrategy:  &datastreampb.Stream_BackfillNone{BackfillNone: &datastreampb.Stream_BackfillNoneStrategy{}},
+		BackfillStrategy:  &datastreampb.Stream_BackfillAll{BackfillAll: &datastreampb.Stream_BackfillAllStrategy{}},
 	}
 	createStreamRequest := &datastreampb.CreateStreamRequest{
 		Parent:   fmt.Sprintf("projects/%s/locations/%s", projectID, datastreamCfg.StreamLocation),
@@ -199,13 +226,13 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, pro
 
 	dsOp, err := dsClient.CreateStream(ctx, createStreamRequest)
 	if err != nil {
-		fmt.Printf("createStreamRequest: %+v\n", createStreamRequest)
+		fmt.Printf("cannot create stream: createStreamRequest: %+v\n", createStreamRequest)
 		return fmt.Errorf("cannot create stream: %v ", err)
 	}
 
 	_, err = dsOp.Wait(ctx)
 	if err != nil {
-		fmt.Printf("createStreamRequest: %+v\n", createStreamRequest)
+		fmt.Printf("datastream create operation failed: createStreamRequest: %+v\n", createStreamRequest)
 		return fmt.Errorf("datastream create operation failed: %v", err)
 	}
 	fmt.Println("Successfully created stream ", datastreamCfg.StreamId)
@@ -229,8 +256,10 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, pro
 }
 
 // LaunchDataflowJob populates the parameters from the streaming config and triggers a Dataflow job.
-func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, datastreamCfg DatastreamCfg, dataflowCfg DataflowCfg) error {
+func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg) error {
 	project, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil)
+	dataflowCfg := streamingCfg.DataflowCfg
+	datastreamCfg := streamingCfg.DatastreamCfg
 	fmt.Println("Launching dataflow job ", dataflowCfg.JobName, " in ", project, "-", dataflowCfg.Location)
 
 	c, err := dataflow.NewFlexTemplatesClient(ctx)
@@ -265,6 +294,11 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 			"streamName":       fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
 			"instanceId":       instance,
 			"databaseId":       dbName,
+			"sessionFilePath":  streamingCfg.TmpDir + "session.json",
+		},
+		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
+			NumWorkers: numWorkers,
+			MaxWorkers: maxWorkers,
 		},
 	}
 
@@ -313,7 +347,7 @@ func StartDatastream(ctx context.Context, sourceProfile profiles.SourceProfile, 
 }
 
 func StartDataflow(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg) error {
-	err := LaunchDataflowJob(ctx, targetProfile, streamingCfg.DatastreamCfg, streamingCfg.DataflowCfg)
+	err := LaunchDataflowJob(ctx, targetProfile, streamingCfg)
 	if err != nil {
 		return fmt.Errorf("error launching dataflow: %v", err)
 	}

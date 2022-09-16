@@ -22,7 +22,10 @@ import (
 	sp "cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/writer"
 )
 
 // CreateDatabaseClient creates new database client and admin client.
@@ -54,20 +57,20 @@ func CreateDatabaseClient(ctx context.Context, targetProfile profiles.TargetProf
 
 // PrepareMigrationPrerequisites creates source and target profiles, opens a new IOStream and generates the database name.
 func PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, source string) (profiles.SourceProfile, profiles.TargetProfile, utils.IOStreams, string, error) {
-	sourceProfile, err := profiles.NewSourceProfile(sourceProfileString, source)
+	targetProfile, err := profiles.NewTargetProfile(targetProfileString)
 	if err != nil {
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", err
+	}
+	targetProfile.TargetDb = targetProfile.ToLegacyTargetDb()
+
+	sourceProfile, err := profiles.NewSourceProfile(sourceProfileString, source)
+	if err != nil {
+		return profiles.SourceProfile{}, targetProfile, utils.IOStreams{}, "", err
 	}
 	sourceProfile.Driver, err = sourceProfile.ToLegacyDriver(source)
 	if err != nil {
-		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", err
+		return profiles.SourceProfile{}, targetProfile, utils.IOStreams{}, "", err
 	}
-
-	targetProfile, err := profiles.NewTargetProfile(targetProfileString)
-	if err != nil {
-		return sourceProfile, profiles.TargetProfile{}, utils.IOStreams{}, "", err
-	}
-	targetProfile.TargetDb = targetProfile.ToLegacyTargetDb()
 
 	dumpFilePath := ""
 	if sourceProfile.Ty == profiles.SourceProfileTypeFile && (sourceProfile.File.Format == "" || sourceProfile.File.Format == "dump") {
@@ -84,4 +87,87 @@ func PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, sou
 		return sourceProfile, targetProfile, ioHelper, "", err
 	}
 	return sourceProfile, targetProfile, ioHelper, dbName, nil
+}
+
+// MigrateData creates database and populates data in it.
+func MigrateDatabase(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile, dbName string, ioHelper *utils.IOStreams, cmd interface{}, conv *internal.Conv) (*writer.BatchWriter, error) {
+	var bw *writer.BatchWriter
+	adminClient, client, dbURI, err := CreateDatabaseClient(ctx, targetProfile, sourceProfile.Driver, dbName, *ioHelper)
+	if err != nil {
+		err = fmt.Errorf("can't create database client: %v", err)
+		return nil, err
+	}
+	defer adminClient.Close()
+	defer client.Close()
+	switch v := cmd.(type) {
+	case *SchemaCmd:
+		err = migrateSchema(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient)
+	case *DataCmd:
+		bw, err = migrateData(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client, v)
+	case *SchemaAndDataCmd:
+		bw, err = migrateSchemaAndData(ctx, targetProfile, sourceProfile, ioHelper, conv, dbURI, adminClient, client, v)
+	}
+	if err != nil {
+		err = fmt.Errorf("can't migrate database: %v", err)
+		return nil, err
+	}
+	return bw, nil
+}
+
+func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
+	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient) error {
+	err := conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
+	if err != nil {
+		err = fmt.Errorf("can't create/update database: %v", err)
+		return err
+	}
+	return nil
+}
+
+func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
+	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, cmd *DataCmd) (*writer.BatchWriter, error) {
+	var (
+		bw  *writer.BatchWriter
+		err error
+	)
+	if !sourceProfile.UseTargetSchema() {
+		err = validateExistingDb(ctx, conv.TargetDb, dbURI, adminClient, client, conv)
+		if err != nil {
+			err = fmt.Errorf("error while validating existing database: %v", err)
+			return nil, err
+		}
+	}
+	bw, err = conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit)
+	if err != nil {
+		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
+		return nil, err
+	}
+	if !cmd.SkipForeignKeys {
+		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
+			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
+			return bw, err
+		}
+	}
+	return bw, nil
+}
+
+func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile,
+	ioHelper *utils.IOStreams, conv *internal.Conv, dbURI string, adminClient *database.DatabaseAdminClient, client *sp.Client, cmd *SchemaAndDataCmd) (*writer.BatchWriter, error) {
+	err := conversion.CreateOrUpdateDatabase(ctx, adminClient, dbURI, sourceProfile.Driver, targetProfile.TargetDb, conv, ioHelper.Out)
+	if err != nil {
+		err = fmt.Errorf("can't create/update database: %v", err)
+		return nil, err
+	}
+	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit)
+	if err != nil {
+		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
+		return nil, err
+	}
+	if !cmd.SkipForeignKeys {
+		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
+			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
+			return bw, err
+		}
+	}
+	return bw, nil
 }

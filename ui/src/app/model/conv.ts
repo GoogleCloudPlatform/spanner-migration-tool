@@ -43,6 +43,7 @@ export interface NameAndCols {
 // Spanner schema
 export interface ITable {
   Name: string
+  Id: string
   Schema: string
   ColNames: string[]
   ColDefs: Record<string, IColumn>
@@ -57,6 +58,7 @@ export interface IColumn {
   Type: ISpannerType
   NotNull: boolean
   Ignored: IIgnored
+  Id: string
 }
 
 export interface IIgnored {
@@ -78,6 +80,7 @@ export interface IIndex {
   Name: string
   Unique: boolean
   Keys: ISrcIndexKey[]
+  Id: string
 }
 
 export interface ISpannerForeignKey {
@@ -168,4 +171,14 @@ export interface IPkColumnDefs {
   ColName: string
   Desc: boolean
   Order: number
+}
+
+export interface ISessionSummary {
+  DatabaseType: string
+  ConnectionDetail: string
+  SourceTableCount: number
+  SpannerTableCount: number
+  SourceIndexCount: number
+  SpannerIndexCount: number
+  ConnectionType: string
 }

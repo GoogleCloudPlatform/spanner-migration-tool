@@ -5,6 +5,7 @@ harbour_bridge_output/
 *__debug_bin*
 *.code-workspace
 .DS_Store
+*.log
 
 # angular ui development
 ui/.angular

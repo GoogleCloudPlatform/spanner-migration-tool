@@ -20,6 +20,7 @@ import (
 	"regexp"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
@@ -112,4 +113,16 @@ func CheckOrCreateMetadataDb(projectId string, instanceId string) (isExist bool,
 	isDbCreated = true
 	isExist = true
 	return
+}
+func GetSourceDatabaseFromDriver(driver string) (string, error) {
+	switch driver {
+	case constants.MYSQLDUMP, constants.MYSQL:
+		return constants.MYSQL, nil
+	case constants.PGDUMP, constants.POSTGRES:
+		return constants.POSTGRES, nil
+	case constants.ORACLE, constants.SQLSERVER:
+		return driver, nil
+	default:
+		return "", fmt.Errorf("unsupported driver type: %v", driver)
+	}
 }

@@ -49,7 +49,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/drop/secondaryindex", dropSecondaryIndex).Methods("POST")
 
 	router.HandleFunc("/restore/table", restoreTable).Methods("POST")
-	router.HandleFunc("/drop/table", dropTable).Methods("PUT")
+	router.HandleFunc("/drop/table", dropTable).Methods("POST")
 
 	router.HandleFunc("/rename/fks", renameForeignKeys).Methods("POST")
 	router.HandleFunc("/rename/indexes", renameIndexes).Methods("POST")
@@ -73,6 +73,11 @@ func getRoutes() *mux.Router {
 	// Application Configuration
 	router.HandleFunc("/GetConfig", config.GetConfig).Methods("GET")
 	router.HandleFunc("/SetSpannerConfig", config.SetSpannerConfig).Methods("POST")
+
+	// Run migration
+	router.HandleFunc("/Migrate", migrate).Methods("POST")
+
+	router.HandleFunc("/GetSourceDestinationSummary", getSourceDestinationSummary).Methods("GET")
 
 	return router
 }

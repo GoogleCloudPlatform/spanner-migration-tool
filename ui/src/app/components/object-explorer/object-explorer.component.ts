@@ -40,6 +40,8 @@ export class ObjectExplorerComponent implements OnInit {
       isSpannerNode: node.isSpannerNode,
       level: level,
       isDeleted: node.isDeleted ? true : false,
+      id: node.id,
+      parentId: node.parentId,
     }
   }
   treeControl = new FlatTreeControl<FlatNode>(

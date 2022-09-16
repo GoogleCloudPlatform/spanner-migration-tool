@@ -1,5 +1,6 @@
 .no-table-selected {
   height: 90%;
+  background-color: white;
 }
 
 .select-table-message {
@@ -49,8 +50,11 @@
 
 .table {
   height: 100%;
+  background-color: white;
   .mat-tab-group {
-    width: 100%;
+    height: 93%;
+  }
+  .height-on-edit {
     height: 84%;
   }
 }
@@ -181,7 +185,7 @@
 
   .mat-column-srcIsNotNull,
   .mat-column-spIsNotNull {
-    min-width: 70px;
+    min-width: 100px;
   }
 
   .mat-column-srcIsNotNull,
