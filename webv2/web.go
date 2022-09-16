@@ -172,7 +172,7 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 		Port:           config.Port,
 		User:           config.User,
 		Password:       config.Password,
-		ConnectionType: utilities.DIRECT_CONNECT_MODE,
+		ConnectionType: session.DIRECT_CONNECT_MODE,
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -290,7 +290,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sessionState.SourceDB = nil
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
 		Path:           dc.FilePath,
-		ConnectionType: utilities.DUMP_MODE,
+		ConnectionType: session.DUMP_MODE,
 	}
 
 	convm := session.ConvWithMetadata{
@@ -350,7 +350,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState.SessionFile = s.FilePath
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
 		Path:           s.FilePath,
-		ConnectionType: utilities.SESSION_FILE_MODE,
+		ConnectionType: session.SESSION_FILE_MODE,
 	}
 
 	convm := session.ConvWithMetadata{
@@ -1162,9 +1162,9 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if details.MigrationMode == utilities.SCHEMA_ONLY {
+	if details.MigrationMode == session.SCHEMA_ONLY {
 		_, err = cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv)
-	} else if details.MigrationMode == utilities.DATA_ONLY {
+	} else if details.MigrationMode == session.DATA_ONLY {
 		dataCmd := &cmd.DataCmd{
 			SkipForeignKeys: false,
 			WriteLimit:      cmd.DefaultWritersLimit,
@@ -1191,7 +1191,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 		sourceProfileString string
 	)
 	sourceDBConnectionDetails := sessionState.SourceDBConnDetails
-	if sourceDBConnectionDetails.ConnectionType == utilities.DUMP_MODE {
+	if sourceDBConnectionDetails.ConnectionType == session.DUMP_MODE {
 		sourceProfileString = fmt.Sprintf("file=%v,format=dump", sourceDBConnectionDetails.Path)
 	} else {
 		sourceProfileString = fmt.Sprintf("host=%v,port=%v,user=%v,password=%v,dbName=%v",
@@ -1208,7 +1208,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while getting source database: %v", err)
 	}
 	sourceProfile, targetProfile, ioHelper, dbName, err := cmd.PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, source)
-	if err != nil && sourceDBConnectionDetails.ConnectionType != utilities.SESSION_FILE_MODE {
+	if err != nil && sourceDBConnectionDetails.ConnectionType != session.SESSION_FILE_MODE {
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 	}
 	sourceProfile.Driver = sessionState.Driver
