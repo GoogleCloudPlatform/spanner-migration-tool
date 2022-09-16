@@ -79,7 +79,9 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/GetProgress", updateProgress).Methods("GET")
 	router.HandleFunc("/GetLatestSessionDetails", fetchLastLoadedSessionDetails).Methods("GET")
 
+	// Connection profiles
 	router.HandleFunc("/GetConnectionProfiles", profile.GetConnectionProfiles).Methods("GET")
-
+	router.HandleFunc("/GetStaticIps", profile.GetStaticIps).Methods("GET")
+	router.HandleFunc("/CreateConnectionProfile", profile.CreateConnectionProfile).Methods("POST")
 	return router
 }

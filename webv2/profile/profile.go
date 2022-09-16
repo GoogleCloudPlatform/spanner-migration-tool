@@ -24,7 +24,6 @@ func GetConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("datastream client can not be created: %v", err), http.StatusBadRequest)
 	}
 	defer dsClient.Close()
-	fmt.Println("Created client...")
 	sessionState := session.GetSessionState()
 
 	/*locReq := &locationpb.ListLocationsRequest{
@@ -64,7 +63,8 @@ func GetConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		if err != nil {
-			fmt.Println(err)
+			http.Error(w, fmt.Sprintf("Error while getting list of connection profiles: %v", err), http.StatusBadRequest)
+			return
 		}
 		if source && databaseType == constants.MYSQL && resp.GetMysqlProfile().GetHostname() != "" {
 			connectionProfileList = append(connectionProfileList, connectionProfile{Name: resp.GetName(), DisplayName: resp.GetDisplayName()})
@@ -78,6 +78,35 @@ func GetConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(connectionProfileList)
 }
 
+func GetStaticIps(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	dsClient, err := datastream.NewClient(ctx)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("datastream client can not be created: %v", err), http.StatusBadRequest)
+	}
+	defer dsClient.Close()
+	sessionState := session.GetSessionState()
+	region := r.FormValue("region")
+	req := &datastreampb.FetchStaticIpsRequest{
+		Name: fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, region),
+	}
+	it := dsClient.FetchStaticIps(ctx, req)
+	var staticIpList []string
+	for {
+		resp, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error while fetching static Ips: %v", err), http.StatusBadRequest)
+			return
+		}
+		staticIpList = append(staticIpList, resp)
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(staticIpList)
+}
+
 func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 	log.Println("request started", "method", r.Method, "path", r.URL.Path)
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -88,6 +117,7 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 
 	details := connectionProfileReq{}
 	err = json.Unmarshal(reqBody, &details)
+	fmt.Println(details)
 	if err != nil {
 		log.Println("request's Body parse error")
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
@@ -99,7 +129,6 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("datastream client can not be created: %v", err), http.StatusBadRequest)
 	}
 	defer dsClient.Close()
-	fmt.Println("Created client...")
 	sessionState := session.GetSessionState()
 	databaseType, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
 	if err != nil {
@@ -139,20 +168,21 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 	} else {
 		req.ConnectionProfile.Profile = &datastreampb.ConnectionProfile_GcsProfile{
 			GcsProfile: &datastreampb.GcsProfile{
-				Bucket: "",
+				Bucket: details.Bucket,
 			},
 		}
 	}
 	op, err := dsClient.CreateConnectionProfile(ctx, req)
 	if err != nil {
-		fmt.Println(err)
+		http.Error(w, fmt.Sprintf("Error while creating connection profile: %v", err), http.StatusBadRequest)
+		return
 	}
 
-	resp, err := op.Wait(ctx)
+	_, err = op.Wait(ctx)
 	if err != nil {
-		fmt.Println(err)
+		http.Error(w, fmt.Sprintf("Error while creating connection profile: %v", err), http.StatusBadRequest)
+		return
 	}
-	fmt.Println("Printing connectivity", resp.GetStaticServiceIpConnectivity().String())
 }
 
 type connectionProfileReq struct {
@@ -160,6 +190,7 @@ type connectionProfileReq struct {
 	Region       string
 	ValidateOnly bool
 	IsSource     bool
+	Bucket       string
 }
 
 type connectionProfile struct {

@@ -2,6 +2,8 @@ import { NgModule } from '@angular/core'
 import { BrowserModule } from '@angular/platform-browser'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { MaterialModule } from './material/material.module'
+import { MatRadioModule } from '@angular/material/radio'
+import { ClipboardModule } from '@angular/cdk/clipboard'
 import { AppRoutingModule } from './app-routing.module'
 import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http'
 import { FormsModule } from '@angular/forms'
@@ -74,6 +76,8 @@ import { ConnectionProfileFormComponent } from './components/connection-profile-
     MaterialModule,
     HttpClientModule,
     FormsModule,
+    MatRadioModule,
+    ClipboardModule
   ],
   providers: [
     {
@@ -84,4 +88,4 @@ import { ConnectionProfileFormComponent } from './components/connection-profile-
   ],
   bootstrap: [AppComponent],
 })
-export class AppModule {}
+export class AppModule { }

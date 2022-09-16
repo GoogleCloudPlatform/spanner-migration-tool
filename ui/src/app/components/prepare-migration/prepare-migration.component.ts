@@ -134,11 +134,12 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.DataProgressMessage)
     localStorage.removeItem(MigrationDetails.SchemaProgressMessage)
   }
-  openConnectionProfileForm() {
+  openConnectionProfileForm(isSource: boolean) {
     let dialogRef = this.dialog.open(ConnectionProfileFormComponent, {
       width: '30vw',
       minWidth: '400px',
       maxWidth: '500px',
+      data: isSource,
     })
     dialogRef.afterClosed().subscribe()
   }

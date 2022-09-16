@@ -70,7 +70,23 @@
                 <p class="point" *ngIf="(selectedMigrationType ==='lowdt')">
                     <span class="bullet">2</span>
                     <span>Setup source connection profile</span><span><button mat-button class="configure"
-                            (click)="openConnectionProfileForm()" [disabled]="isButtonDisabled">
+                            (click)="openConnectionProfileForm(true)" [disabled]="isButtonDisabled">
+                            Configure
+                            <mat-icon>edit</mat-icon>
+                        </button></span>
+                </p>
+                <p class="point" *ngIf="(selectedMigrationType ==='lowdt')">
+                    <span class="bullet">3</span>
+                    <span>Setup target connection profile</span><span><button mat-button class="configure"
+                            (click)="openConnectionProfileForm(false)" [disabled]="isButtonDisabled">
+                            Configure
+                            <mat-icon>edit</mat-icon>
+                        </button></span>
+                </p>
+                <p class="point" *ngIf="(selectedMigrationType ==='lowdt')">
+                    <span class="bullet">4</span>
+                    <span>Setup datastream and dataflow job details</span><span><button mat-button class="configure"
+                            (click)="openStreamingDetailsForm()" [disabled]="isButtonDisabled">
                             Configure
                             <mat-icon>edit</mat-icon>
                         </button></span>
