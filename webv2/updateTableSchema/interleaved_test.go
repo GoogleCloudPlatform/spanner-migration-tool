@@ -10,6 +10,7 @@ import (
 	"github.com/bmizerany/assert"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
@@ -67,6 +68,7 @@ func TestUpdateTableSchemainterleaved(t *testing.T) {
 					"t1": {Name: "t2", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
 					"t2": {Name: "t2", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
 				},
+				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{

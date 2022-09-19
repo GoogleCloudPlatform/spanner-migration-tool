@@ -11,6 +11,7 @@ import (
 	"github.com/bmizerany/assert"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
@@ -59,6 +60,7 @@ func TestUpdateTableSchemaV2(t *testing.T) {
 				ToSpanner: map[string]internal.NameAndCols{
 					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
 				},
+				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -87,11 +89,11 @@ func TestUpdateTableSchemaV2(t *testing.T) {
 			name:  "Test rename success",
 			table: "t1",
 			payload: `
-    {
-      "UpdateCols":{
-		"a": { "Rename": "aa" }
-	}
-    }`,
+		{
+		  "UpdateCols":{
+			"a": { "Rename": "aa" }
+		}
+		}`,
 			statusCode: http.StatusOK,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -112,6 +114,7 @@ func TestUpdateTableSchemaV2(t *testing.T) {
 				ToSpanner: map[string]internal.NameAndCols{
 					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
 				},
+				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -222,6 +225,7 @@ func TestAddUpdateTableSchemaV2(t *testing.T) {
 				ToSpanner: map[string]internal.NameAndCols{
 					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
 				},
+				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -349,6 +353,7 @@ func TestChangetypeUpdateTableSchemaV2(t *testing.T) {
 				Issues: map[string]map[string][]internal.SchemaIssue{
 					"t1": {},
 				},
+				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{

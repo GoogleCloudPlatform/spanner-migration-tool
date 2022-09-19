@@ -134,7 +134,7 @@ func TestReviewTableSchemainterleaved(t *testing.T) {
 				status, tc.statusCode)
 		}
 
-		expectedddl := GetSpannerTableDDL(tc.conv.SpSchema[tc.table])
+		expectedddl := GetSpannerTableDDL(tc.expectedConv.SpSchema[tc.table])
 
 		if tc.statusCode == http.StatusOK {
 			assert.Equal(t, expectedddl, res.DDL)
