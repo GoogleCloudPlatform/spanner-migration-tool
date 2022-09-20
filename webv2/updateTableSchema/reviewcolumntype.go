@@ -1,7 +1,6 @@
 package updateTableSchema
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -12,12 +11,8 @@ import (
 // ReviewColumnNameType reviews columname type to given newType.
 func ReviewColumnNameType(newType, table, colName string, Conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema, w http.ResponseWriter) (_ []InterleaveTableSchema, err error) {
 
-	fmt.Println("ReviewcolNameType getting called")
-	fmt.Println("")
-
 	sp := Conv.SpSchema[table]
 
-	//todo
 	for i, _ := range sp.Fks {
 
 		err := reviewColumnNameTypeChangeOfForeignkeyTableSchema(Conv, sp, i, colName, newType, w)
@@ -27,14 +22,10 @@ func ReviewColumnNameType(newType, table, colName string, Conv *internal.Conv, i
 		}
 	}
 
-	//todo
-
 	for _, sp := range Conv.SpSchema {
 
 		for j := 0; j < len(sp.Fks); j++ {
 			if sp.Fks[j].ReferTable == table {
-				fmt.Println("found")
-				fmt.Println("sp.Name :", sp.Name)
 
 				reviewColumnNameTypeChangeOfForeignkeyReferTableSchema(Conv, sp, sp.Name, colName, newType, w)
 
@@ -44,7 +35,6 @@ func ReviewColumnNameType(newType, table, colName string, Conv *internal.Conv, i
 
 	}
 
-	//todo
 	// update interleave table relation
 	isParent, parentSchemaTable := IsParent(table)
 
@@ -57,7 +47,6 @@ func ReviewColumnNameType(newType, table, colName string, Conv *internal.Conv, i
 		}
 	}
 
-	//todo
 	childSchemaTable := Conv.SpSchema[table].Parent
 
 	if childSchemaTable != "" {
@@ -83,8 +72,6 @@ func reviewColumnNameTypeChangeOfForeignkeyTableSchema(Conv *internal.Conv, sp d
 
 	relationTable := sp.Fks[index].ReferTable
 
-	fmt.Println("relationTable", relationTable)
-
 	srcTableName := Conv.ToSource[relationTable].Name
 
 	rsp, ty, err := utilities.GetType(Conv, newType, relationTable, colName, srcTableName)
@@ -99,7 +86,6 @@ func reviewColumnNameTypeChangeOfForeignkeyTableSchema(Conv *internal.Conv, sp d
 		colDef := rsp.ColDefs[colName]
 		colDef.T = ty
 		rsp.ColDefs[colName] = colDef
-		//14
 		Conv.SpSchema[relationTable] = rsp
 
 	}
@@ -124,10 +110,6 @@ func reviewColumnNameTypeChangeOfForeignkeyReferTableSchema(Conv *internal.Conv,
 
 	sp.ColDefs[colName] = colDef
 
-	fmt.Println("updated type for sp.ColDefs[colName] ", sp.ColDefs[colName].Name)
-	fmt.Println("")
-	fmt.Println("its updated type is ", sp.ColDefs[colName].T)
-
 	return nil
 }
 
@@ -148,7 +130,6 @@ func reviewColumnNameTypeChangeOfParentTableSchema(Conv *internal.Conv, interlea
 	}
 
 	{
-		fmt.Println("updating type for rsp.ColDefs[colName] ", childSp.ColDefs[colName].Name, childSp.ColDefs[colName].T)
 
 		colDef := childSp.ColDefs[colName]
 		colDef.T = ty
@@ -156,8 +137,6 @@ func reviewColumnNameTypeChangeOfParentTableSchema(Conv *internal.Conv, interlea
 		childSp.ColDefs[colName] = colDef
 
 		updateType := childSp.ColDefs[colName].T.Name
-
-		fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName].Name, childSp.ColDefs[colName].T)
 
 		Conv.SpSchema[parentschemaTable] = childSp
 
@@ -184,20 +163,14 @@ func reviewColumnNameTypeChangeOfChildTableSchema(Conv *internal.Conv, interleav
 
 		previoustype := childSp.ColDefs[colName].T.Name
 
-		fmt.Println("updating type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
-
 		colDef := childSp.ColDefs[colName]
 		colDef.T = ty
 
 		childSp.ColDefs[colName] = colDef
 
 		updateType := childSp.ColDefs[colName].T.Name
-
-		fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
-		//16
 		Conv.SpSchema[childSchemaTable] = childSp
 
-		//todo
 		interleaveTableSchema = typeinterleaveTableSchema(interleaveTableSchema, childSchemaTable, columnId, colName, previoustype, updateType)
 
 	}
@@ -222,26 +195,13 @@ func reviewColumnNameTypeChangeOfCurrentTableSchema(Conv *internal.Conv, sp ddl.
 
 	previoustype := sp.ColDefs[colName].T.Name
 
-	fmt.Println("previoustype :", previoustype)
-	fmt.Println("")
-
 	colDef := sp.ColDefs[colName]
 	colDef.T = ty
 
 	sp.ColDefs[colName] = colDef
 
-	fmt.Println("updated type for sp.ColDefs[colName] ", sp.ColDefs[colName].Name)
-	fmt.Println("")
-	fmt.Println("its updated type is ", sp.ColDefs[colName].T)
-
 	updateType := sp.ColDefs[colName].T.Name
 
-	fmt.Println("###########################")
-	fmt.Println("updateType :", updateType)
-	fmt.Println("")
-	fmt.Println("###########################")
-
-	//13
 	Conv.SpSchema[table] = sp
 
 	if parentSchemaTable != "" || childSchemaTable != "" {

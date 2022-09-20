@@ -1,8 +1,6 @@
 package updateTableSchema
 
 import (
-	"fmt"
-
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -34,8 +32,6 @@ func renameinterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, 
 
 	interleaveTableSchema = createinterleaveTableSchema(interleaveTableSchema, table, tindex)
 
-	fmt.Println("interleaveTableSchema :", interleaveTableSchema)
-
 	interleaveTableSchema = renameInterleaveColumn(interleaveTableSchema, table, columnId, colName, newName)
 
 	return interleaveTableSchema
@@ -43,13 +39,10 @@ func renameinterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, 
 
 func isTablePresent(interleaveTableSchema []InterleaveTableSchema, table string) int {
 
-	fmt.Println("isTablePresent getting called")
-
 	for i := 0; i < len(interleaveTableSchema); i++ {
 
 		if interleaveTableSchema[i].Table == table {
 
-			fmt.Println("table :", table)
 			return i
 		}
 
@@ -75,11 +68,7 @@ func renameInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, table
 
 	tindex := isTablePresent(interleaveTableSchema, table)
 
-	fmt.Println("tindex :", tindex)
-
 	cindex := isColumnPresent(interleaveTableSchema[tindex].InterleaveColumnChanges, columnId)
-
-	fmt.Println("cindex :", cindex)
 
 	interleaveTableSchema = createInterleaveColumn(interleaveTableSchema, tindex, cindex, columnId, colName, newName)
 
@@ -115,9 +104,6 @@ func createInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, tinde
 
 func isColumnPresent(interleaveColumn []InterleaveColumn, columnId string) int {
 
-	fmt.Println("isColumnPresent getting called ")
-	fmt.Println("")
-
 	for i := 0; i < len(interleaveColumn); i++ {
 
 		if interleaveColumn[i].ColumnId == columnId {
@@ -135,8 +121,6 @@ func typeinterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, ta
 
 	interleaveTableSchema = createinterleaveTableSchema(interleaveTableSchema, table, tindex)
 
-	fmt.Println("interleaveTableSchema :", interleaveTableSchema)
-
 	interleaveTableSchema = typeInterleaveColumn(interleaveTableSchema, table, columnId, colName, previoustype, updateType)
 	return interleaveTableSchema
 }
@@ -145,11 +129,7 @@ func typeInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, table, 
 
 	tindex := isTablePresent(interleaveTableSchema, table)
 
-	fmt.Println("tindex :", tindex)
-
 	cindex := isColumnPresent(interleaveTableSchema[tindex].InterleaveColumnChanges, columnId)
-
-	fmt.Println("cindex :", cindex)
 
 	interleaveTableSchema = createInterleaveColumntype(interleaveTableSchema, tindex, cindex, columnId, colName, previoustype, updateType)
 

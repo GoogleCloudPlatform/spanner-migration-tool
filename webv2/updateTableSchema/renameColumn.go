@@ -1,8 +1,6 @@
 package updateTableSchema
 
 import (
-	"fmt"
-
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -34,16 +32,12 @@ func renameColumn(newName, table, colName string, Conv *internal.Conv) {
 	// update interleave table relation
 	isParent, parentschemaTable := IsParent(table)
 
-	fmt.Println("parentschemaTable :", parentschemaTable)
-
 	if isParent {
 		renameColumnNameInParentTableSchema(Conv, parentschemaTable, colName, newName)
 
 	}
 
 	childschemaTable := Conv.SpSchema[table].Parent
-
-	fmt.Println("childschemaTable :", childschemaTable)
 
 	if childschemaTable != "" {
 
@@ -85,8 +79,6 @@ func renameColumnNameInCurrentTableSchema(Conv *internal.Conv, sp ddl.CreateTabl
 
 // renameColumnNameInForeignkeyTableSchema renames given column in Foreignkey Table Schema.
 func renameColumnNameInForeignkeyTableSchema(Conv *internal.Conv, sp ddl.CreateTable, index int, colName string, newName string) {
-
-	fmt.Println("update foreignKey Table column names")
 
 	relationTable := sp.Fks[index].ReferTable
 
@@ -176,14 +168,10 @@ func renameColumnNameInSpannerColNames(sp ddl.CreateTable, colName string, newNa
 
 	// step I
 	// update sp.ColNames
-	//fmt.Println("")
-	//	fmt.Println("step I")
 
 	for i, col := range sp.ColNames {
 		if col == colName {
-			//	fmt.Println("renaming sp.ColNames : ")
 			sp.ColNames[i] = newName
-			//	fmt.Println("renamed sp.ColNames[i] : ", sp.ColNames[i])
 			break
 		}
 	}
@@ -197,11 +185,8 @@ func renameColumnNameInSpannerColDefs(sp ddl.CreateTable, colName string, newNam
 
 	// step II
 	// update sp.ColDefs
-	//fmt.Println("")
-	//fmt.Println("step II")
 
 	if _, found := sp.ColDefs[colName]; found {
-		//	fmt.Println("renaming sp.ColDefs : ")
 
 		sp.ColDefs[newName] = ddl.ColumnDef{
 			Name:    newName,
@@ -210,8 +195,6 @@ func renameColumnNameInSpannerColDefs(sp ddl.CreateTable, colName string, newNam
 			Comment: sp.ColDefs[colName].Comment,
 			Id:      sp.ColDefs[colName].Id,
 		}
-
-		//	fmt.Println("renamed sp.ColDefs[newName]", sp.ColDefs[newName].Name)
 
 		delete(sp.ColDefs, colName)
 	}
@@ -224,17 +207,11 @@ func renameColumnNameInSpannerPK(sp ddl.CreateTable, colName string, newName str
 
 	// step III
 	// update sp.Pks
-	//	fmt.Println("")
-	//	fmt.Println("step III")
 
 	for i, pk := range sp.Pks {
 		if pk.Col == colName {
 
-			//	fmt.Println("renaming sp.Pks : ")
-
 			sp.Pks[i].Col = newName
-
-			//	fmt.Println("renamed sp.Pks[i].Col : ", sp.Pks[i].Col)
 
 			break
 		}
@@ -248,18 +225,12 @@ func renameColumnNameInSpannerSecondaryIndex(sp ddl.CreateTable, colName string,
 
 	// step IV
 	// update sp.Indexes
-	//	fmt.Println("")
-	//	fmt.Println("step IV")
 
 	for i, index := range sp.Indexes {
 		for j, key := range index.Keys {
 			if key.Col == colName {
 
-				//		fmt.Println("renaming sp.Indexes[i].Keys[j].Col : ")
-
 				sp.Indexes[i].Keys[j].Col = newName
-
-				//		fmt.Println("renamed sp.Indexes[i].Keys[j].Col : ", sp.Indexes[i].Keys[j].Col)
 
 				break
 			}
@@ -274,18 +245,12 @@ func renameColumnNameInSpannerForeignkeyColumns(sp ddl.CreateTable, colName stri
 
 	// step V
 	// update sp.Fks
-	//	fmt.Println("")
-	//	fmt.Println("step V")
 
 	for i, fk := range sp.Fks {
 		for j, column := range fk.Columns {
 			if column == colName {
 
-				//	fmt.Println("renaming sp.Fks[i].Columns[j] :")
-
 				sp.Fks[i].Columns[j] = newName
-
-				//	fmt.Println("renamed sp.Fks[i].Columns[j] :", sp.Fks[i].Columns[j])
 
 			}
 		}
@@ -297,9 +262,6 @@ func renameColumnNameInSpannerForeignkeyColumns(sp ddl.CreateTable, colName stri
 // renameColumnNameInSpannerForeignkeyReferColumns renames given column in Spanner Table Foreignkey Refer Columns List.
 func renameColumnNameInSpannerForeignkeyReferColumns(sp ddl.CreateTable, colName string, newName string) ddl.CreateTable {
 
-	//fmt.Println("")
-	//	fmt.Println("step VI")
-
 	// step VI
 	// update sp.Fks.ReferColumns
 
@@ -308,10 +270,7 @@ func renameColumnNameInSpannerForeignkeyReferColumns(sp ddl.CreateTable, colName
 
 			if column == colName {
 
-				//		fmt.Println("renaming sp.Fks[i].ReferColumns[j] :", sp.Fks[i].ReferColumns[j])
 				sp.Fks[i].ReferColumns[j] = newName
-
-				//		fmt.Println("renamed sp.Fks[i].ReferColumns[j] :", sp.Fks[i].Columns[j])
 
 			}
 
@@ -336,7 +295,6 @@ func renameColumnNameInToSpannerToSource(table string, colName string, newName s
 // renameColumnNameInSpannerSchemaIssue renames given column in ToSpanner and ToSource List.
 func renameColumnNameInSpannerSchemaIssue(table string, colName string, newName string, Conv *internal.Conv) {
 
-	//12
 	if Conv.Issues != nil {
 
 		if Conv.Issues[table] != nil && Conv.Issues[table][colName] != nil {

@@ -49,8 +49,6 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	table := r.FormValue("table")
 
-	fmt.Println("updateTableSchema getting called")
-
 	err = json.Unmarshal(reqBody, &t)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
@@ -69,14 +67,6 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			addColumn(table, colName, Conv)
 
-			fmt.Println("after addColumn")
-
-			fmt.Println("Conv.SpSchema[table] : ", Conv.SpSchema[table])
-
-			fmt.Println("Conv.ToSpanner : ", Conv.ToSpanner)
-
-			fmt.Println("Conv.ToSource : ", Conv.ToSource)
-
 		}
 
 		if v.Removed {
@@ -93,34 +83,18 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 		if v.ToType != "" {
 
-			fmt.Println("before IsTypeChanged")
-
 			typeChange, err := utilities.IsTypeChanged(v.ToType, table, colName, Conv)
 
-			fmt.Println("after IsTypeChanged")
-
 			if err != nil {
-				fmt.Println("err", err)
 
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 
-			fmt.Println("typeChange :", typeChange)
-
 			if typeChange {
-
-				fmt.Println("before UpdatecolNameType")
 
 				UpdateColNameType(v.ToType, table, colName, Conv, w)
 
-				fmt.Println("after UpdatecolNameType")
-
-				fmt.Println("Conv.SpSchema[table] : ", Conv.SpSchema[table])
-
-				fmt.Println("Conv.ToSpanner : ", Conv.ToSpanner)
-
-				fmt.Println("Conv.ToSource : ", Conv.ToSource)
 			}
 		}
 

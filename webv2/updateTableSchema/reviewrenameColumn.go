@@ -1,8 +1,6 @@
 package updateTableSchema
 
 import (
-	"fmt"
-
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
@@ -10,14 +8,9 @@ import (
 // reviewRenameColumn review  rename Columnname in schmema.
 func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema) []InterleaveTableSchema {
 
-	fmt.Println("renameColumn getting called")
-	fmt.Println("")
-
 	sp := Conv.SpSchema[table]
 
 	columnId := sp.ColDefs[colName].Id
-
-	fmt.Println("columnId :", columnId)
 
 	// update foreignKey relationship Table column names
 	for i, _ := range sp.Fks {
@@ -30,8 +23,6 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 		for j := 0; j < len(sp.Fks); j++ {
 			if sp.Fks[j].ReferTable == table {
-				fmt.Println("found")
-				fmt.Println("sp.Name :", sp.Name)
 
 				reviewRenameColumnNameInForeignkeyReferTableSchema(Conv, sp, sp.Name, colName, newName)
 			}
@@ -43,17 +34,12 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 	// update interleave table relation
 	isParent, parentSchemaTable := IsParent(table)
 
-	fmt.Println("parentSchemaTable :", parentSchemaTable)
-
 	if isParent {
 
 		interleaveTableSchema = reviewRenameColumnNameInparentTableSchema(Conv, parentSchemaTable, interleaveTableSchema, colName, newName)
 	}
 
-	//10
 	childSchemaTable := Conv.SpSchema[table].Parent
-
-	fmt.Println("childSchemaTable :", childSchemaTable)
 
 	if childSchemaTable != "" {
 
@@ -69,9 +55,6 @@ func reviewRenameColumn(newName, table, colName string, Conv *internal.Conv, int
 
 // reviewRenameForeignkeyTableSchema review  rename Columnname in Foreignkey Table Schema.
 func reviewRenameColumnNameInForeignkeyTableSchema(Conv *internal.Conv, sp ddl.CreateTable, index int, colName string, newName string) {
-
-	fmt.Println("update foreignKey Table column names")
-	fmt.Println("")
 
 	relationTable := sp.Fks[index].ReferTable
 
@@ -135,8 +118,6 @@ func reviewRenameColumnNameInparentTableSchema(Conv *internal.Conv, parentSchema
 
 	columnId := parentSchemaSp.ColDefs[colName].Id
 
-	fmt.Println("columnId :", columnId)
-
 	_, ok := parentSchemaSp.ColDefs[colName]
 
 	if ok {
@@ -152,8 +133,6 @@ func reviewRenameColumnNameInparentTableSchema(Conv *internal.Conv, parentSchema
 			renameColumnNameInSpannerSchemaIssue(parentSchemaTable, colName, newName, Conv)
 
 			Conv.SpSchema[parentSchemaTable] = parentSchemaSp
-
-			fmt.Println("parentSchema :", parentSchemaTable)
 
 			interleaveTableSchema = renameinterleaveTableSchema(interleaveTableSchema, parentSchemaTable, columnId, colName, newName)
 
@@ -171,8 +150,6 @@ func reviewRenameColumnNameInchildTableSchema(Conv *internal.Conv, childSchemaTa
 	_, ok := childSchemaSp.ColDefs[colName]
 
 	columnId := childSchemaSp.ColDefs[colName].Id
-
-	fmt.Println("columnId :", columnId)
 
 	if ok {
 		{
@@ -193,7 +170,6 @@ func reviewRenameColumnNameInchildTableSchema(Conv *internal.Conv, childSchemaTa
 			Conv.SpSchema[childSchemaTable] = childSchemaSp
 
 			{
-				fmt.Println("childSchemaTable :", childSchemaTable)
 
 				interleaveTableSchema = renameinterleaveTableSchema(interleaveTableSchema, childSchemaTable, columnId, colName, newName)
 			}

@@ -1,7 +1,6 @@
 package updateTableSchema
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -18,24 +17,17 @@ func UpdateColNameType(newType, table, colName string, Conv *internal.Conv, w ht
 	sp, ty, err := utilities.GetType(Conv, newType, table, colName, srcTableName)
 
 	if err != nil {
-		fmt.Println("err:", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	fmt.Println("updating type for sp.ColDefs[colName] ", sp.ColDefs[colName], sp.ColDefs[colName].T)
 
 	colDef := sp.ColDefs[colName]
 	colDef.T = ty
 
 	sp.ColDefs[colName] = colDef
 
-	fmt.Println("updated type for sp.ColDefs[colName] ", sp.ColDefs[colName], sp.ColDefs[colName].T)
-
-	//13
 	Conv.SpSchema[table] = sp
 
-	//todo
 	for i, _ := range sp.Fks {
 
 		err = UpdateColNameTypeForeignkeyTableSchema(Conv, sp, i, colName, newType, w)
@@ -45,14 +37,10 @@ func UpdateColNameType(newType, table, colName string, Conv *internal.Conv, w ht
 		}
 	}
 
-	//todo
-
 	for _, sp := range Conv.SpSchema {
 
 		for j := 0; j < len(sp.Fks); j++ {
 			if sp.Fks[j].ReferTable == table {
-				fmt.Println("found")
-				fmt.Println("sp.Name :", sp.Name)
 
 				UpdateColNameTypeForeignkeyReferTableSchema(Conv, sp, sp.Name, colName, newType, w)
 
@@ -62,7 +50,6 @@ func UpdateColNameType(newType, table, colName string, Conv *internal.Conv, w ht
 
 	}
 
-	//todo
 	// update interleave table relation
 	isParent, parentschemaTable := IsParent(table)
 
@@ -74,7 +61,6 @@ func UpdateColNameType(newType, table, colName string, Conv *internal.Conv, w ht
 		}
 	}
 
-	//todo
 	childSchemaTable := Conv.SpSchema[table].Parent
 
 	if childSchemaTable != "" {
@@ -96,21 +82,15 @@ func UpdateColNameTypeForeignkeyTableSchema(Conv *internal.Conv, sp ddl.CreateTa
 	rsp, ty, err := utilities.GetType(Conv, newType, relationTable, colName, srcTableName)
 
 	if err != nil {
-		fmt.Println("err")
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
-
-	fmt.Println("updating type for rsp.ColDefs[colName] ", rsp.ColDefs[colName], rsp.ColDefs[colName].T)
 
 	colDef := rsp.ColDefs[colName]
 	colDef.T = ty
 
 	rsp.ColDefs[colName] = colDef
 
-	fmt.Println("updated type for rsp.ColDefs[colName] ", rsp.ColDefs[colName], rsp.ColDefs[colName].T)
-
-	//14
 	Conv.SpSchema[relationTable] = rsp
 
 	return nil
@@ -134,10 +114,6 @@ func UpdateColNameTypeForeignkeyReferTableSchema(Conv *internal.Conv, sp ddl.Cre
 
 	sp.ColDefs[colName] = colDef
 
-	fmt.Println("updated type for sp.ColDefs[colName] ", sp.ColDefs[colName].Name)
-	fmt.Println("")
-	fmt.Println("its updated type is ", sp.ColDefs[colName].T)
-
 	return nil
 }
 
@@ -153,16 +129,11 @@ func UpdateColNameTypeParentschemaTable(Conv *internal.Conv, parentschemaTable s
 		return err
 	}
 
-	fmt.Println("updating type for rsp.ColDefs[colName] ", parentSp.ColDefs[colName], parentSp.ColDefs[colName].T)
-
 	colDef := parentSp.ColDefs[colName]
 	colDef.T = ty
 
 	parentSp.ColDefs[colName] = colDef
 
-	fmt.Println("updated type for rsp.ColDefs[colName] ", parentSp.ColDefs[colName], parentSp.ColDefs[colName].T)
-
-	//15
 	Conv.SpSchema[parentschemaTable] = parentSp
 
 	return nil
@@ -180,16 +151,11 @@ func UpdateColNameTypeChildschemaTable(Conv *internal.Conv, childSchemaTable str
 		return err
 	}
 
-	fmt.Println("updating type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
-
 	colDef := childSp.ColDefs[colName]
 	colDef.T = ty
 
 	childSp.ColDefs[colName] = colDef
 
-	fmt.Println("updated type for rsp.ColDefs[colName] ", childSp.ColDefs[colName], childSp.ColDefs[colName].T)
-
-	//16
 	Conv.SpSchema[childSchemaTable] = childSp
 
 	return nil
