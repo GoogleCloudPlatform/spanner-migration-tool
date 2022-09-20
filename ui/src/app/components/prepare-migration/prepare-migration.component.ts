@@ -188,7 +188,6 @@ this.resetValues()
     this.subscription = interval(5000).subscribe((x => {
       this.fetch.getProgress().subscribe({
         next: (res: IProgress) => {
-          console.log(res.Message)
           if (res.ErrorMessage == '') {
             // Checking for completion of schema migration
             if (res.Message.startsWith('Schema migration complete')) {

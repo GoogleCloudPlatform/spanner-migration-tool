@@ -320,6 +320,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
+	fmt.Println("printing this")
 	conv := internal.MakeConv()
 	err = conversion.ReadSessionFile(conv, s.FilePath)
 	if err != nil {
@@ -1225,11 +1226,8 @@ func updateProgress(w http.ResponseWriter, r *http.Request) {
 		detail.ErrorMessage = sessionState.Error.Error()
 	} else {
 		detail.ErrorMessage = ""
-		if sessionState.Conv.Audit.Progress != nil {
-			detail.Progress, detail.Message = sessionState.Conv.Audit.Progress.ReportProgress()
-		}
+		detail.Progress, detail.Message = sessionState.Conv.Audit.Progress.ReportProgress()
 	}
-
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(detail)
 }
@@ -1252,7 +1250,6 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
-	sessionState.Conv.ResetStats()
 	sessionState.Error = nil
 	ctx := context.Background()
 	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
