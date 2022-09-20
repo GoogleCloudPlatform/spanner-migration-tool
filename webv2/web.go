@@ -320,7 +320,6 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	fmt.Println("printing this")
 	conv := internal.MakeConv()
 	err = conversion.ReadSessionFile(conv, s.FilePath)
 	if err != nil {
