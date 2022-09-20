@@ -169,11 +169,13 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 		err = fmt.Errorf("can't create/update database: %v", err)
 		return nil, err
 	}
+	conv.Audit.Progress.SetProgressMessageAndUpdate("Schema migration complete.", completionPercentage)
 	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit)
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 		return nil, err
 	}
+
 	if !cmd.SkipForeignKeys {
 		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
 			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)

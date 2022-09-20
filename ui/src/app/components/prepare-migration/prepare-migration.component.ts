@@ -9,6 +9,7 @@ import IMigrationDetails, { IProgress } from 'src/app/model/migrate'
 import { InputType, MigrationDetails, MigrationModes, MigrationTypes, SourceDbNames, TargetDetails } from 'src/app/app.constants'
 import { interval, Subscription } from 'rxjs'
 import { DataService } from 'src/app/services/data/data.service'
+import { ThisReceiver } from '@angular/compiler'
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
@@ -29,7 +30,7 @@ export class PrepareMigrationComponent implements OnInit {
   isStreamingSupported: boolean = false
   selectedMigrationMode: string = 'Schema'
   connectionType: string = InputType.DirectConnect
-  selectedMigrationType: string = 'bulk'
+  selectedMigrationType: string = MigrationTypes.bulkMigration
   isMigrationInProgress: boolean = false
   isTargetDetailSet: boolean = false
   errorMessage: string = ''
@@ -48,9 +49,6 @@ export class PrepareMigrationComponent implements OnInit {
   }
 
   ngOnInit(): void {
-   this.data.conv.subscribe((data) => {
-      console.log(data)
-    })
     this.initializeFromLocalStorage()
     this.fetch.getSourceDestinationSummary().subscribe({
       next: (res: ISessionSummary) => {
@@ -94,6 +92,7 @@ export class PrepareMigrationComponent implements OnInit {
     }
     if (localStorage.getItem(MigrationDetails.IsMigrationInProgress) != null) {
       this.isMigrationInProgress = (localStorage.getItem(MigrationDetails.IsMigrationInProgress) as string === 'true')
+      this.subscribeMigrationProgress()
     }
     if (localStorage.getItem(MigrationDetails.IsTargetDetailSet) != null) {
       this.isTargetDetailSet = (localStorage.getItem(MigrationDetails.IsTargetDetailSet) as string === 'true')
@@ -186,19 +185,16 @@ export class PrepareMigrationComponent implements OnInit {
 
   subscribeMigrationProgress() {
     this.subscription = interval(5000).subscribe((x => {
-      
+
       this.fetch.getProgress().subscribe({
         next: (res: IProgress) => {
-          console.log(res.Message)
           if (res.ErrorMessage == '') {
             // Checking for completion of schema migration
             if (res.Message.startsWith('Schema migration complete')) {
               localStorage.setItem(MigrationDetails.SchemaMigrationProgress, "100")
               this.schemaMigrationProgress = parseInt(localStorage.getItem(MigrationDetails.SchemaMigrationProgress) as string)
-              if (res.Progress == 100) {
-                if (this.selectedMigrationMode == MigrationModes.schemaOnly) {
-                  this.markMigrationComplete()
-                }
+              if (this.selectedMigrationMode == MigrationModes.schemaOnly || this.selectedMigrationType == MigrationTypes.lowDowntimeMigration) {
+                this.markMigrationComplete()
               }
             }
             // Checking for data migration in progree

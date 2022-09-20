@@ -32,6 +32,9 @@ export class FetchService {
     )
   }
 
+  getLastSessionDetails() {
+    return this.http.get<IConv>(`${this.url}/GetLatestSessionDetails`)
+  }
   getSchemaConversionFromDirectConnect() {
     return this.http.get<IConv>(`${this.url}/convert/infoschema`)
   }

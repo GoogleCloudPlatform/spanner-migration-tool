@@ -52,34 +52,7 @@ export class DataService {
     private snackbar: SnackbarService,
     private clickEvent: ClickEventService
   ) {
-    let inputType = localStorage.getItem(StorageKeys.Type) as string
-    let config: unknown = localStorage.getItem(StorageKeys.Config)
-
-    switch (inputType) {
-      case InputType.DirectConnect:
-        this.getSchemaConversionFromDb()
-        break
-
-      case InputType.DumpFile:
-        if (config !== null) {
-          this.getSchemaConversionFromDump(config as IDumpConfig)
-        }
-        break
-
-      case InputType.SessionFile:
-        if (config !== null) {
-          this.getSchemaConversionFromSession(config as ISessionConfig)
-        }
-        break
-      case InputType.ResumeSession:
-        if (config !== null) {
-          this.getSchemaConversionFromResumeSession(config as string)
-        }
-        break
-
-      default:
-        console.log('Unable to find input type')
-    }
+    this.getLastSessionDetails()
     this.getConfig()
     this.updateIsOffline()
   }
@@ -113,6 +86,17 @@ export class DataService {
       },
       error: (err: any) => {
         this.snackbar.openSnackBar('Unable to fetch sessions.', 'Close')
+      },
+    })
+  }
+
+  getLastSessionDetails() {
+    this.fetch.getLastSessionDetails().subscribe({
+      next: (res: IConv) => {
+        this.convSubject.next(res)
+      },
+      error: (err: any) => {
+        this.snackbar.openSnackBar(err.error, 'Close')
       },
     })
   }
@@ -298,7 +282,6 @@ export class DataService {
 
   initiateSession() {
     this.fetch.InitiateSession().subscribe((data: any) => {
-      console.log('get initiate session', data)
       this.currentSessionSub.next(data)
     })
   }

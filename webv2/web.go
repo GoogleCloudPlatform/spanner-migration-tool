@@ -320,6 +320,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
+	fmt.Println("printing this")
 	conv := internal.MakeConv()
 	err = conversion.ReadSessionFile(conv, s.FilePath)
 	if err != nil {
@@ -358,6 +359,16 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionMetadata,
 		Conv:            *conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+}
+
+func fetchLastLoadedSessionDetails(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
@@ -1215,11 +1226,8 @@ func updateProgress(w http.ResponseWriter, r *http.Request) {
 		detail.ErrorMessage = sessionState.Error.Error()
 	} else {
 		detail.ErrorMessage = ""
-		if sessionState.Conv.Audit.Progress != nil {
-			detail.Progress, detail.Message = sessionState.Conv.Audit.Progress.ReportProgress()
-		}
+		detail.Progress, detail.Message = sessionState.Conv.Audit.Progress.ReportProgress()
 	}
-
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(detail)
 }
@@ -1242,7 +1250,6 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState := session.GetSessionState()
-	sessionState.Conv.ResetStats()
 	sessionState.Error = nil
 	ctx := context.Background()
 	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
@@ -1251,8 +1258,8 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Can't get source and target profiles: %v", err), http.StatusBadRequest)
 		return
 	}
-
-	sessionState.Conv.Audit.Progress = &internal.Progress{}
+	sessionState.Conv.ResetStats()
+	sessionState.Conv.Audit.Progress = internal.Progress{}
 	sessionState.Conv.Audit.Progress.SetProgressMessageAndUpdate("Migration in progress", 0)
 	if details.MigrationMode == utilities.SCHEMA_ONLY {
 		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv, &sessionState.Error)

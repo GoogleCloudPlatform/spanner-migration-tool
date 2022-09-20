@@ -179,7 +179,7 @@ func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Co
 	common.SetRowStats(conv, infoSchema)
 	totalRows := conv.Rows()
 	if !conv.Audit.DryRun {
-		conv.Audit.Progress = internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
+		conv.Audit.Progress = *internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 	}
 	batchWriter := populateDataConv(conv, config, client)
 	common.ProcessData(conv, infoSchema)
@@ -277,7 +277,7 @@ func dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *util
 	}
 	totalRows := conv.Rows()
 
-	conv.Audit.Progress = internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
+	conv.Audit.Progress = *internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 	r := internal.NewReader(bufio.NewReader(ioHelper.SeekableIn), nil)
 	batchWriter := populateDataConv(conv, config, client)
 	ProcessDump(driver, conv, r)
@@ -325,7 +325,7 @@ func dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targ
 	}
 
 	totalRows := conv.Rows()
-	conv.Audit.Progress = internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
+	conv.Audit.Progress = *internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 	batchWriter := populateDataConv(conv, config, client)
 	err = csv.ProcessCSV(conv, tables, sourceProfile.Csv.NullStr, delimiter)
 	if err != nil {
@@ -611,7 +611,7 @@ However, setting it to a very high value might lead to exceeding the admin quota
 Recommended value is between 20-30.`)
 	}
 	msg := fmt.Sprintf("Updating schema of database %s with foreign key constraints ...", dbURI)
-	conv.Audit.Progress = internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose(), true)
+	conv.Audit.Progress = *internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose(), true)
 
 	workers := make(chan int, MaxWorkers)
 	for i := 1; i <= MaxWorkers; i++ {
