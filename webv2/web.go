@@ -1261,18 +1261,21 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv.Audit.Progress = internal.Progress{}
 	sessionState.Conv.Audit.Progress.SetProgressMessageAndUpdate("Migration in progress", 0)
 	if details.MigrationMode == utilities.SCHEMA_ONLY {
+		log.Println("Starting schema only migration")
 		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv, &sessionState.Error)
 	} else if details.MigrationMode == utilities.DATA_ONLY {
 		dataCmd := &cmd.DataCmd{
 			SkipForeignKeys: false,
 			WriteLimit:      cmd.DefaultWritersLimit,
 		}
+		log.Println("Starting data only migration")
 		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, dataCmd, sessionState.Conv, &sessionState.Error)
 	} else {
 		schemaAndDataCmd := &cmd.SchemaAndDataCmd{
 			SkipForeignKeys: false,
 			WriteLimit:      cmd.DefaultWritersLimit,
 		}
+		log.Println("Starting schema and data migration")
 		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, schemaAndDataCmd, sessionState.Conv, &sessionState.Error)
 	}
 	w.WriteHeader(http.StatusOK)

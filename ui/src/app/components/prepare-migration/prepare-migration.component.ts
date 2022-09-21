@@ -28,7 +28,7 @@ export class PrepareMigrationComponent implements OnInit {
   ) { }
 
   isStreamingSupported: boolean = false
-  selectedMigrationMode: string = 'Schema'
+  selectedMigrationMode: string = MigrationModes.schemaOnly
   connectionType: string = InputType.DirectConnect
   selectedMigrationType: string = MigrationTypes.bulkMigration
   isMigrationInProgress: boolean = false
@@ -149,7 +149,6 @@ export class PrepareMigrationComponent implements OnInit {
       }
       if (this.targetDetails.TargetDB != '' || (this.selectedMigrationType == MigrationTypes.lowDowntimeMigration && this.targetDetails.StreamingConfig != '')) {
         this.isTargetDetailSet = true
-        localStorage.setItem(MigrationDetails.IsTargetDetailSet, this.isTargetDetailSet.toString())
       }
     })
   }
@@ -277,6 +276,7 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.setItem(MigrationDetails.SchemaMigrationProgress, this.schemaMigrationProgress.toString())
     localStorage.setItem(MigrationDetails.SchemaProgressMessage, this.schemaProgressMessage)
     localStorage.setItem(MigrationDetails.DataProgressMessage, this.dataProgressMessage)
+    localStorage.setItem(MigrationDetails.IsTargetDetailSet, this.isTargetDetailSet.toString())
   }
   ngOnDestroy() {
   }
