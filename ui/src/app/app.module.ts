@@ -32,8 +32,6 @@ import { SidenavViewAssessmentComponent } from './components/sidenav-view-assess
 import { SidenavSaveSessionComponent } from './components/sidenav-save-session/sidenav-save-session.component'
 import { DropIndexOrTableDialogComponent } from './components/drop-index-or-table-dialog/drop-index-or-table-dialog.component'
 import { DatabaseLoaderComponent } from './components/database-loader/database-loader.component'
-import { SidenavReviewChangesComponent } from './components/sidenav-review-changes/sidenav-review-changes.component'
-import { TableColumnChangesPreviewComponent } from './components/table-column-changes-preview/table-column-changes-preview.component'
 import { PrepareMigrationComponent } from './components/prepare-migration/prepare-migration.component'
 import { TargetDetailsFormComponent } from './components/target-details-form/target-details-form.component'
 
@@ -62,10 +60,8 @@ import { TargetDetailsFormComponent } from './components/target-details-form/tar
     EditGlobalDatatypeFormComponent,
     SidenavViewAssessmentComponent,
     SidenavSaveSessionComponent,
-    DropIndexOrTableDialogComponent,
     DatabaseLoaderComponent,
-    SidenavReviewChangesComponent,
-    TableColumnChangesPreviewComponent,
+    DropIndexOrTableDialogComponent,
     PrepareMigrationComponent,
     TargetDetailsFormComponent,
   ],

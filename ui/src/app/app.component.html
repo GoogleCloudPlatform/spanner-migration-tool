@@ -6,15 +6,11 @@
     [opened]="showSidenav"
     [ngClass]="{
       'width-40pc': sidenavComponent === 'rule' || sidenavComponent === 'saveSession',
-      'width-50pc': sidenavComponent === 'reviewChanges',
       'width-60pc': sidenavComponent === 'assessment' || sidenavComponent === 'instruction'
     }"
   >
     <app-sidenav-rule *ngIf="sidenavComponent === 'rule'"></app-sidenav-rule>
     <app-sidenav-save-session *ngIf="sidenavComponent == 'saveSession'"></app-sidenav-save-session>
-    <app-sidenav-review-changes
-      *ngIf="sidenavComponent == 'reviewChanges'"
-    ></app-sidenav-review-changes>
     <app-sidenav-view-assessment
       *ngIf="sidenavComponent === 'assessment'"
     ></app-sidenav-view-assessment>
