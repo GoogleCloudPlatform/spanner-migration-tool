@@ -13,7 +13,6 @@ import ISpannerConfig from '../../model/spanner-config'
 import { SnackbarService } from '../snackbar/snackbar.service'
 import ISummary from 'src/app/model/summary'
 import { ClickEventService } from '../click-event/click-event.service'
-import { TableUpdatePubSubService } from '../table-update-pub-sub/table-update-pub-sub.service'
 
 @Injectable({
   providedIn: 'root',
@@ -51,8 +50,7 @@ export class DataService {
   constructor(
     private fetch: FetchService,
     private snackbar: SnackbarService,
-    private clickEvent: ClickEventService,
-    private tableUpdatePubSub: TableUpdatePubSubService
+    private clickEvent: ClickEventService
   ) {
     let inputType = localStorage.getItem(StorageKeys.Type) as string
     let config: unknown = localStorage.getItem(StorageKeys.Config)
@@ -179,24 +177,6 @@ export class DataService {
         this.summarySub.next(new Map<string, ISummary>(Object.entries(summary)))
       },
     })
-  }
-
-  reviewTableUpdate(tableName: string, data: IUpdateTable): Observable<string> {
-    return this.fetch.reviewTableUpdate(tableName, data).pipe(
-      catchError((e: any) => {
-        return of({ error: e.error })
-      }),
-      tap(console.log),
-      map((data: any) => {
-        if (data.error) {
-          return data.error
-        } else {
-          this.tableUpdatePubSub.setTableReviewChanges(data)
-          console.log(data, 'review')
-          return ''
-        }
-      })
-    )
   }
 
   updateTable(tableName: string, data: IUpdateTable): Observable<string> {
