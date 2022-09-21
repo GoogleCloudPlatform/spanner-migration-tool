@@ -64,5 +64,5 @@ export enum MigrationDetails {
 export enum TargetDetails {
   TargetDB = 'targetDb',
   Dialect = 'dialect',
-  StreamingConfig = 'streamingConfig'
+  Region = 'region'
 }

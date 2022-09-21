@@ -117,7 +117,6 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 
 	details := connectionProfileReq{}
 	err = json.Unmarshal(reqBody, &details)
-	fmt.Println(details)
 	if err != nil {
 		log.Println("request's Body parse error")
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
@@ -149,8 +148,8 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 		if databaseType == constants.MYSQL {
 			req.ConnectionProfile.Profile = &datastreampb.ConnectionProfile_MysqlProfile{
 				MysqlProfile: &datastreampb.MysqlProfile{
-					Hostname: sessionState.SourceDBConnDetails.Host,
-					Port:     int32(port),
+					Hostname: "35.222.246.87",
+					Port:     3306,
 					Username: sessionState.SourceDBConnDetails.User,
 					Password: sessionState.SourceDBConnDetails.Password,
 				},
@@ -172,6 +171,7 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 			},
 		}
 	}
+	fmt.Println(req)
 	op, err := dsClient.CreateConnectionProfile(ctx, req)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error while creating connection profile: %v", err), http.StatusBadRequest)

@@ -33,6 +33,7 @@ export class PrepareMigrationComponent implements OnInit {
   hasDataMigrationStarted: boolean = false
   hasDataMigrationCompleted: boolean = false
   hasSchemaMigrationStarted: boolean = false
+  isRegionSet: boolean = false
   selectedMigrationMode: string = MigrationModes.schemaOnly
   connectionType: string = InputType.DirectConnect
   selectedMigrationType: string = MigrationTypes.bulkMigration
@@ -46,7 +47,7 @@ export class PrepareMigrationComponent implements OnInit {
   targetDetails: ITargetDetails = {
     TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
     Dialect: localStorage.getItem(TargetDetails.Dialect) as string,
-    StreamingConfig: localStorage.getItem(TargetDetails.StreamingConfig) as string
+    Region: localStorage.getItem(TargetDetails.Region) as string
   }
 
   ngOnInit(): void {
@@ -155,11 +156,14 @@ export class PrepareMigrationComponent implements OnInit {
       this.targetDetails = {
         TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
         Dialect: localStorage.getItem(TargetDetails.Dialect) as string,
-        StreamingConfig: localStorage.getItem(TargetDetails.StreamingConfig) as string
+        Region: localStorage.getItem(TargetDetails.Region) as string
       }
-      if (this.targetDetails.TargetDB != '' || (this.selectedMigrationType == MigrationTypes.lowDowntimeMigration && this.targetDetails.StreamingConfig != '')) {
+      if (this.targetDetails.TargetDB != '' || (this.selectedMigrationType == MigrationTypes.lowDowntimeMigration && this.targetDetails.Region != '')) {
         this.isTargetDetailSet = true
         localStorage.setItem(MigrationDetails.IsTargetDetailSet, this.isTargetDetailSet.toString())
+      }
+      if (this.targetDetails.Region != '') {
+        this.isRegionSet = true
       }
     })
   }

@@ -2,80 +2,69 @@
     <form [formGroup]="connectionProfileForm" class="conn-profile-form">
         <span class="mat-h3 header-title">{{profileType}} Connection Profile</span>
         <br>
-        <mat-form-field appearance="outline">
-            <mat-label>Select region</mat-label>
-            <mat-select class="input-field" formControlName="region" required="true" ng-value="selectedRegion"
-                (selectionChange)="getConnectionProfilesAndIps($event.value)">
-                <mat-option *ngFor="let region of regionList" [value]="region">
-                    {{region}}
-                </mat-option>
-            </mat-select>
-        </mat-form-field>
-        <div *ngIf="isRegionSelected">
-            <div class="radio-button-container">
-                <mat-radio-group formControlName="profileOption" [(ngModel)]="selectedOption">
-                    <mat-radio-button *ngFor="let option of profileOptions" [value]="option.value"
-                        (change)="onItemChange(option.value)">
-                        {{option.display}}</mat-radio-button>
-                </mat-radio-group>
-            </div>
-            <br>
-            <div *ngIf="(selectedOption === 'existing')">
-                <mat-form-field appearance="outline">
-                    <mat-label>Select connection profile</mat-label>
-                    <mat-select class="input-field" formControlName="existingProfile" required="true"
-                        ng-value="selectedProfile">
-                        <mat-option *ngFor="let profile of profileList" [value]="profile.Name">
-                            {{profile.DisplayName}}
-                        </mat-option>
-                    </mat-select>
-                </mat-form-field>
-            </div>
-            <div *ngIf="(selectedOption === 'new')">
-                <mat-form-field appearance="outline">
-                    <mat-label>Connection profile name</mat-label>
-                    <input matInput placeholder="Connection profile name" type="text" formControlName="newProfile"
-                        required="true" />
-                </mat-form-field>
-                <div *ngIf="isSource">
-                    <div><b>Copy the public IPs below, and use them to configure the network firewall to accept
-                            connections
-                            from them.</b></div>
-                    <br>
-                    <li *ngFor="let ip of ipList" class="container">
-                        <span class="left-text">{{ip}}</span>
-                        <span>
-                            <mat-icon class="icon copy" [cdkCopyToClipboard]="ip" matTooltip="Copy">file_copy</mat-icon>
-                        </span>
-                    </li>
-                    <div *ngIf="!testSuccess && errorMessage!=''" class="failure">
-                        <span class="left-text">Test connection failed</span>
-                        <mat-icon class="icon error" matTooltip="Test connection failed" matTooltipPosition="above">
-                            error
-                        </mat-icon>
-                    </div>
-                    <br>
-                    <button mat-raised-button type="submit" color="primary" (click)="testConnection()"
-                        [disabled]="!(connectionProfileForm.valid)">Test Connection</button>
-                    <mat-icon *ngIf="testSuccess" class="success" matTooltip="Test connection successful"
-                        matTooltipPosition="above">
-                        check_circle
+        <div class="radio-button-container">
+            <mat-radio-group formControlName="profileOption" [(ngModel)]="selectedOption">
+                <mat-radio-button *ngFor="let option of profileOptions" [value]="option.value"
+                    (change)="onItemChange(option.value)">
+                    {{option.display}}</mat-radio-button>
+            </mat-radio-group>
+        </div>
+        <br>
+        <div *ngIf="(selectedOption === 'existing')">
+            <mat-form-field appearance="outline">
+                <mat-label>Select connection profile</mat-label>
+                <mat-select class="input-field" formControlName="existingProfile" required="true"
+                    ng-value="selectedProfile">
+                    <mat-option *ngFor="let profile of profileList" [value]="profile.Name">
+                        {{profile.DisplayName}}
+                    </mat-option>
+                </mat-select>
+            </mat-form-field>
+        </div>
+        <div *ngIf="(selectedOption === 'new')">
+            <mat-form-field appearance="outline">
+                <mat-label>Connection profile name</mat-label>
+                <input matInput placeholder="Connection profile name" type="text" formControlName="newProfile"
+                    required="true" />
+            </mat-form-field>
+            <div *ngIf="isSource">
+                <div><b>Copy the public IPs below, and use them to configure the network firewall to accept
+                        connections
+                        from them.</b></div>
+                <br>
+                <li *ngFor="let ip of ipList" class="container">
+                    <span class="left-text">{{ip}}</span>
+                    <span>
+                        <mat-icon class="icon copy" [cdkCopyToClipboard]="ip" matTooltip="Copy">file_copy</mat-icon>
+                    </span>
+                </li>
+                <div *ngIf="!testSuccess && errorMessage!=''" class="failure">
+                    <span class="left-text">Test connection failed</span>
+                    <mat-icon class="icon error" matTooltip="Test connection failed" matTooltipPosition="above">
+                        error
                     </mat-icon>
                 </div>
-                <div *ngIf="!isSource">
-                    <mat-form-field appearance="outline">
-                        <mat-label>Bucket name</mat-label>
-                        <input matInput placeholder="Bucket name" type="text" formControlName="bucket"
-                            required="true" />
-                    </mat-form-field> 
-                </div>
+                <br>
+                <button mat-raised-button type="submit" color="primary" (click)="testConnection()"
+                    [disabled]="!(connectionProfileForm.valid)">Test Connection</button>
+                <mat-icon *ngIf="testSuccess" class="success" matTooltip="Test connection successful"
+                    matTooltipPosition="above">
+                    check_circle
+                </mat-icon>
+            </div>
+            <div *ngIf="!isSource">
+                <mat-form-field appearance="outline">
+                    <mat-label>Bucket name</mat-label>
+                    <input matInput placeholder="Bucket name" type="text" formControlName="bucket" required="true" />
+                </mat-form-field>
             </div>
         </div>
 
         <div mat-dialog-actions class="buttons-container">
             <button mat-button color="primary" mat-dialog-close>Cancel</button>
             <button mat-button type="submit" color="primary"
-                [disabled]="!(connectionProfileForm.valid) || (!testSuccess && (selectedOption === 'new') && isSource)" (click)="createConnectionProfile()">
+                [disabled]="!(connectionProfileForm.valid) || (!testSuccess && (selectedOption === 'new') && isSource)"
+                (click)="createConnectionProfile()">
                 Save
             </button>
         </div>
