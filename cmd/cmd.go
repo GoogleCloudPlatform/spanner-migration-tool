@@ -54,8 +54,10 @@ func CommandLine(ctx context.Context, driver, targetDb, dbURI string, dataOnly, 
 		return fmt.Errorf("legacy mode is not supported for drivers other than %s", strings.Join(utils.GetLegacyModeSupportedDrivers(), ", "))
 	}
 
-	var conv *internal.Conv
-	var err error
+	var (
+		conv *internal.Conv
+		err  error
+	)
 	// Creating profiles from legacy flags. We only pass schema-sample-size here because thats the
 	// only flag passed through the arguments. Dumpfile params are contained within ioHelper
 	// and direct connect params will be fetched from the env variables.
