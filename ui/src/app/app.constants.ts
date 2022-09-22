@@ -51,6 +51,9 @@ export enum MigrationDetails {
   MigrationMode = 'migrationMode',
   MigrationType = 'migrationType',
   IsTargetDetailSet = 'isTargetDetailSet',
+  IsSourceConnectionProfileSet = 'isSourceConnectionProfileSet',
+  IsTargetConnectionProfileSet = 'isTargetConnectionProfileSet',
+  IsMigrationDetailSet = "isMigrationDetailSet",
   IsMigrationInProgress ='isMigrationInProgress',
   HasDataMigrationStarted ='hasDataMigrationStarted',
   HasDataMigrationCompleted = 'hasDataMigrationCompleted',
@@ -64,5 +67,7 @@ export enum MigrationDetails {
 export enum TargetDetails {
   TargetDB = 'targetDb',
   Dialect = 'dialect',
-  Region = 'region'
+  Region = 'region',
+  SourceConnProfile = 'sourceConnProfile',
+  TargetConnProfile = 'targetConnProfile'
 }

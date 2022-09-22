@@ -28,12 +28,14 @@ export class PrepareMigrationComponent implements OnInit {
     private data: DataService
   ) { }
 
+  isSourceConnectionProfileSet: boolean = false
+  isTargetConnectionProfileSet: boolean = false
   isTargetDetailSet: boolean = false
+  isMigrationDetailSet: boolean = false
   isStreamingSupported: boolean = false
   hasDataMigrationStarted: boolean = false
   hasDataMigrationCompleted: boolean = false
   hasSchemaMigrationStarted: boolean = false
-  isRegionSet: boolean = false
   selectedMigrationMode: string = MigrationModes.schemaOnly
   connectionType: string = InputType.DirectConnect
   selectedMigrationType: string = MigrationTypes.bulkMigration
@@ -47,7 +49,15 @@ export class PrepareMigrationComponent implements OnInit {
   targetDetails: ITargetDetails = {
     TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
     Dialect: localStorage.getItem(TargetDetails.Dialect) as string,
-    Region: localStorage.getItem(TargetDetails.Region) as string
+    Region: localStorage.getItem(TargetDetails.Region) as string,
+    SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
+    TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string
+  }
+
+  refreshPrerequisites() {
+    this.isSourceConnectionProfileSet = false
+    this.isTargetConnectionProfileSet = false
+    this.isTargetDetailSet = false
   }
 
   ngOnInit(): void {
@@ -96,8 +106,11 @@ export class PrepareMigrationComponent implements OnInit {
       this.isMigrationInProgress = (localStorage.getItem(MigrationDetails.IsMigrationInProgress) as string === 'true')
       this.subscribeMigrationProgress()
     }
-    if (localStorage.getItem(MigrationDetails.IsTargetDetailSet) != null) {
-      this.isTargetDetailSet = (localStorage.getItem(MigrationDetails.IsTargetDetailSet) as string === 'true')
+    localStorage.removeItem(MigrationDetails.IsTargetDetailSet)
+    localStorage.removeItem(MigrationDetails.IsSourceConnectionProfileSet)
+    localStorage.removeItem(MigrationDetails.IsTargetConnectionProfileSet)
+    if (localStorage.getItem(MigrationDetails.IsMigrationDetailSet) != null) {
+      this.isMigrationDetailSet = (localStorage.getItem(MigrationDetails.IsMigrationDetailSet) as string === 'true')
     }
     if (localStorage.getItem(MigrationDetails.HasSchemaMigrationStarted) != null) {
       this.hasSchemaMigrationStarted = (localStorage.getItem(MigrationDetails.HasSchemaMigrationStarted) as string === 'true')
@@ -126,6 +139,8 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.MigrationMode)
     localStorage.removeItem(MigrationDetails.MigrationType)
     localStorage.removeItem(MigrationDetails.IsTargetDetailSet)
+    localStorage.removeItem(MigrationDetails.IsSourceConnectionProfileSet)
+    localStorage.removeItem(MigrationDetails.IsTargetConnectionProfileSet)
     localStorage.removeItem(MigrationDetails.IsMigrationInProgress)
     localStorage.removeItem(MigrationDetails.HasSchemaMigrationStarted)
     localStorage.removeItem(MigrationDetails.HasDataMigrationStarted)
@@ -142,7 +157,22 @@ export class PrepareMigrationComponent implements OnInit {
       maxWidth: '500px',
       data: isSource,
     })
-    dialogRef.afterClosed().subscribe()
+    dialogRef.afterClosed().subscribe(() => {
+      this.targetDetails = {
+        TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
+        Dialect: localStorage.getItem(TargetDetails.Dialect) as string,
+        Region: localStorage.getItem(TargetDetails.Region) as string,
+        SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
+        TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string
+      }
+      this.isSourceConnectionProfileSet = localStorage.getItem(MigrationDetails.IsSourceConnectionProfileSet) as string === 'true'
+      this.isTargetConnectionProfileSet = localStorage.getItem(MigrationDetails.IsTargetConnectionProfileSet) as string === 'true'
+      if (this.isTargetDetailSet && this.isSourceConnectionProfileSet && this.isTargetConnectionProfileSet) {
+        localStorage.setItem(MigrationDetails.IsMigrationDetailSet, "true")
+        this.isMigrationDetailSet = true
+      }
+    }
+    )
   }
 
   openTargetDetailsForm() {
@@ -156,14 +186,14 @@ export class PrepareMigrationComponent implements OnInit {
       this.targetDetails = {
         TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
         Dialect: localStorage.getItem(TargetDetails.Dialect) as string,
-        Region: localStorage.getItem(TargetDetails.Region) as string
+        Region: localStorage.getItem(TargetDetails.Region) as string,
+        SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
+        TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string
       }
-      if (this.targetDetails.TargetDB != '' || (this.selectedMigrationType == MigrationTypes.lowDowntimeMigration && this.targetDetails.Region != '')) {
-        this.isTargetDetailSet = true
-        localStorage.setItem(MigrationDetails.IsTargetDetailSet, this.isTargetDetailSet.toString())
-      }
-      if (this.targetDetails.Region != '') {
-        this.isRegionSet = true
+      this.isTargetDetailSet = localStorage.getItem(MigrationDetails.IsTargetDetailSet) as string === 'true'
+      if (this.isTargetDetailSet && this.selectedMigrationType == MigrationTypes.bulkMigration) {
+        localStorage.setItem(MigrationDetails.IsMigrationDetailSet, "true")
+        this.isMigrationDetailSet = true
       }
     })
   }

@@ -1,7 +1,7 @@
 import { Component, Inject, OnInit } from '@angular/core'
 import { FormBuilder, FormGroup, Validators } from '@angular/forms'
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog'
-import { TargetDetails } from 'src/app/app.constants'
+import { MigrationDetails, TargetDetails } from 'src/app/app.constants'
 @Component({
   selector: 'app-target-details-form',
   templateUrl: './target-details-form.component.html',
@@ -42,6 +42,7 @@ export class TargetDetailsFormComponent implements OnInit {
     if (formValue.region !== undefined) {
       localStorage.setItem(TargetDetails.Region, formValue.region)
     }
+    localStorage.setItem(MigrationDetails.IsTargetDetailSet, "true")
     this.dialogRef.close()
   }
 }

@@ -1,7 +1,7 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { TargetDetails } from 'src/app/app.constants';
+import { MigrationDetails, TargetDetails } from 'src/app/app.constants';
 import IConnectionProfile, { ICreateConnectionProfile } from 'src/app/model/profile';
 import { FetchService } from 'src/app/services/fetch/fetch.service';
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service';
@@ -54,11 +54,15 @@ export class ConnectionProfileFormComponent implements OnInit {
     if (this.selectedOption === 'new') {
       this.connectionProfileForm.get('newProfile')?.setValidators([Validators.required])
       this.connectionProfileForm.controls['existingProfile'].clearValidators()
+      this.connectionProfileForm.get('bucket')?.setValidators([Validators.required])
+      this.connectionProfileForm.controls['bucket'].updateValueAndValidity()
       this.connectionProfileForm.controls['newProfile'].updateValueAndValidity()
       this.connectionProfileForm.controls['existingProfile'].updateValueAndValidity()
     } else {
       this.connectionProfileForm.controls['newProfile'].clearValidators()
       this.connectionProfileForm.get('existingProfile')?.addValidators([Validators.required])
+      this.connectionProfileForm.get('bucket')?.clearValidators()
+      this.connectionProfileForm.controls['bucket'].updateValueAndValidity()
       this.connectionProfileForm.controls['newProfile'].updateValueAndValidity()
       this.connectionProfileForm.controls['existingProfile'].updateValueAndValidity()
     }
@@ -84,26 +88,41 @@ export class ConnectionProfileFormComponent implements OnInit {
   }
   createConnectionProfile() {
     let formValue = this.connectionProfileForm.value
-    let payload: ICreateConnectionProfile = {
-      Id: formValue.newProfile,
-      Region: this.selectedRegion,
-      IsSource: this.isSource,
-      ValidateOnly: false,
-      Bucket: formValue.bucket
+    if (this.selectedOption === 'new') {
+      let payload: ICreateConnectionProfile = {
+        Id: formValue.newProfile,
+        Region: this.selectedRegion,
+        IsSource: this.isSource,
+        ValidateOnly: false,
+        Bucket: formValue.bucket
+      }
+      this.fetch.createConnectionProfile(payload).subscribe({
+        next: () => {
+          if (this.isSource) {
+            localStorage.setItem(MigrationDetails.IsSourceConnectionProfileSet, "true")
+            localStorage.setItem(TargetDetails.SourceConnProfile, formValue.newProfile)
+          } else {
+            localStorage.setItem(MigrationDetails.IsTargetConnectionProfileSet, "true")
+            localStorage.setItem(TargetDetails.TargetConnProfile, formValue.newProfile)
+          }
+        },
+        error: (err: any) => {
+          this.snack.openSnackBar(err.error, 'Close')
+        },
+      })
+    } else {
+      if (this.isSource) {
+        localStorage.setItem(MigrationDetails.IsSourceConnectionProfileSet, "true")
+        localStorage.setItem(TargetDetails.SourceConnProfile, formValue.existingProfile)
+      } else {
+        localStorage.setItem(MigrationDetails.IsTargetConnectionProfileSet, "true")
+        localStorage.setItem(TargetDetails.TargetConnProfile, formValue.existingProfile)
+      }
     }
-    this.fetch.createConnectionProfile(payload).subscribe({
-      next: () => {
-        localStorage.setItem(this.profileType + "ProfileSet", "true")
-      },
-      error: (err: any) => {
-        this.snack.openSnackBar(err.error, 'Close')
-      },
-    })
+    
     this.dialogRef.close()
   }
-  ngOnInit(): void {
-    
-  }
+  ngOnInit(): void { }
 
   getConnectionProfilesAndIps(selectedRegion: string) {
     this.fetch.getConnectionProfiles(selectedRegion, this.isSource).subscribe({

@@ -17,7 +17,24 @@ import (
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
 )
 
-func GetConnectionProfiles(w http.ResponseWriter, r *http.Request) {
+func GetBucketName(project, location, profileName string) (string, error) {
+	ctx := context.Background()
+	dsClient, err := datastream.NewClient(ctx)
+	if err != nil {
+		return "", fmt.Errorf("datastream client can not be created: %v", err)
+	}
+	defer dsClient.Close()
+	// Fetch the GCS path from the destination connection profile.
+	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", project, location, profileName)
+	res, err := dsClient.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: dstProf})
+	if err != nil {
+		return "", fmt.Errorf("could not get connection profile: %v", err)
+	}
+	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
+	return "gs://" + gcsProfile.GetBucket() + gcsProfile.GetRootPath(), nil
+}
+
+func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	dsClient, err := datastream.NewClient(ctx)
 	if err != nil {
@@ -25,26 +42,6 @@ func GetConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 	}
 	defer dsClient.Close()
 	sessionState := session.GetSessionState()
-
-	/*locReq := &locationpb.ListLocationsRequest{
-		Name: fmt.Sprintf("projects/%s", sessionState.GCPProjectID),
-	}
-	fmt.Println(locReq)
-	it1 := dsClient.ListLocations(ctx, locReq)
-
-	for {
-		resp, err := it1.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			fmt.Println(err.Error())
-			break
-		}
-		fmt.Println("Printing")
-		fmt.Println(resp.Name)
-
-	}*/
 	region := r.FormValue("region")
 	source := r.FormValue("source") == "true"
 	databaseType, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
@@ -148,8 +145,8 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 		if databaseType == constants.MYSQL {
 			req.ConnectionProfile.Profile = &datastreampb.ConnectionProfile_MysqlProfile{
 				MysqlProfile: &datastreampb.MysqlProfile{
-					Hostname: "35.222.246.87",
-					Port:     3306,
+					Hostname: sessionState.SourceDBConnDetails.Host,
+					Port:     int32(port),
 					Username: sessionState.SourceDBConnDetails.User,
 					Password: sessionState.SourceDBConnDetails.Password,
 				},
@@ -171,7 +168,6 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 			},
 		}
 	}
-	fmt.Println(req)
 	op, err := dsClient.CreateConnectionProfile(ctx, req)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error while creating connection profile: %v", err), http.StatusBadRequest)

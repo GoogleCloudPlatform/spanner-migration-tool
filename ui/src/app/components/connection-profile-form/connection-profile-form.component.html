@@ -15,7 +15,7 @@
                 <mat-label>Select connection profile</mat-label>
                 <mat-select class="input-field" formControlName="existingProfile" required="true"
                     ng-value="selectedProfile">
-                    <mat-option *ngFor="let profile of profileList" [value]="profile.Name">
+                    <mat-option *ngFor="let profile of profileList" [value]="profile.DisplayName">
                         {{profile.DisplayName}}
                     </mat-option>
                 </mat-select>
