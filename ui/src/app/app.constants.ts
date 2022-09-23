@@ -71,3 +71,10 @@ export enum TargetDetails {
   SourceConnProfile = 'sourceConnProfile',
   TargetConnProfile = 'targetConnProfile'
 }
+
+export const Profile = {
+  SourceProfileType : 'Source',
+  TargetProfileType : 'Target',
+  NewConnProfile: 'new',
+  ExistingConnProfile: 'existing',
+}

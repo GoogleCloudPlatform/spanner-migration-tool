@@ -17,7 +17,7 @@ import (
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
 )
 
-func GetBucketName(project, location, profileName string) (string, error) {
+func GetBucket(project, location, profileName string) (string, error) {
 	ctx := context.Background()
 	dsClient, err := datastream.NewClient(ctx)
 	if err != nil {
@@ -140,7 +140,22 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 		},
 		ValidateOnly: details.ValidateOnly,
 	}
-	if details.IsSource {
+	setConnectionProfile(details.IsSource, *sessionState, req, databaseType, details.Bucket)
+	op, err := dsClient.CreateConnectionProfile(ctx, req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error while creating connection profile: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	_, err = op.Wait(ctx)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error while creating connection profile: %v", err), http.StatusBadRequest)
+		return
+	}
+}
+
+func setConnectionProfile(isSource bool, sessionState session.SessionState, req *datastreampb.CreateConnectionProfileRequest, databaseType, bucket string) {
+	if isSource {
 		port, _ := strconv.ParseInt((sessionState.SourceDBConnDetails.Port), 10, 32)
 		if databaseType == constants.MYSQL {
 			req.ConnectionProfile.Profile = &datastreampb.ConnectionProfile_MysqlProfile{
@@ -164,21 +179,12 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 	} else {
 		req.ConnectionProfile.Profile = &datastreampb.ConnectionProfile_GcsProfile{
 			GcsProfile: &datastreampb.GcsProfile{
-				Bucket: details.Bucket,
+				Bucket:   bucket,
+				RootPath: "/",
 			},
 		}
 	}
-	op, err := dsClient.CreateConnectionProfile(ctx, req)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error while creating connection profile: %v", err), http.StatusBadRequest)
-		return
-	}
 
-	_, err = op.Wait(ctx)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error while creating connection profile: %v", err), http.StatusBadRequest)
-		return
-	}
 }
 
 type connectionProfileReq struct {

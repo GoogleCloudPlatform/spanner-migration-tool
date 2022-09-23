@@ -30,7 +30,7 @@
             <div *ngIf="isSource">
                 <div><b>Copy the public IPs below, and use them to configure the network firewall to accept
                         connections
-                        from them.</b></div>
+                        from them.</b><a href="https://cloud.google.com/datastream/docs/network-connectivity-options#ipallowlists">Learn More</a></div>
                 <br>
                 <li *ngFor="let ip of ipList" class="container">
                     <span class="left-text">{{ip}}</span>
@@ -38,7 +38,7 @@
                         <mat-icon class="icon copy" [cdkCopyToClipboard]="ip" matTooltip="Copy">file_copy</mat-icon>
                     </span>
                 </li>
-                <div *ngIf="!testSuccess && errorMessage!=''" class="failure">
+                <div *ngIf="!testSuccess && errorMsg != ''" class="failure">
                     <span class="left-text">Test connection failed</span>
                     <mat-icon class="icon error" matTooltip="Test connection failed" matTooltipPosition="above">
                         error

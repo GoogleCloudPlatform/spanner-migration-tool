@@ -199,7 +199,7 @@ export class PrepareMigrationComponent implements OnInit {
   }
 
   migrate() {
-this.resetValues()
+    this.resetValues()
     let payload: IMigrationDetails = {
       TargetDetails: this.targetDetails,
       MigrationType: this.selectedMigrationType,

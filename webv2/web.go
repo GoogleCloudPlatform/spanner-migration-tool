@@ -1347,7 +1347,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 }
 
 func createStreamingCfgFile(projectId string, targetDetails targetDetails, fileName string) error {
-	bucket, err := profile.GetBucketName(projectId, targetDetails.Region, targetDetails.TargetConnectionProfileName)
+	bucket, err := profile.GetBucket(projectId, targetDetails.Region, targetDetails.TargetConnectionProfileName)
 	if err != nil {
 		return fmt.Errorf("error while getting bucket details: %v", err)
 	}
@@ -1372,13 +1372,11 @@ func createStreamingCfgFile(projectId string, targetDetails targetDetails, fileN
 		TmpDir: bucket,
 	}
 
-	fmt.Println(data)
 	file, err := json.MarshalIndent(data, "", " ")
 	if err != nil {
 		return fmt.Errorf("error while marshalling json: %v", err)
 	}
 
-	fmt.Println(file)
 	err = ioutil.WriteFile(fileName, file, 0644)
 	if err != nil {
 		return fmt.Errorf("error while writing json to file: %v", err)

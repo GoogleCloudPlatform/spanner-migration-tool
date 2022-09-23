@@ -9,8 +9,42 @@ import { MigrationDetails, TargetDetails } from 'src/app/app.constants'
 })
 export class TargetDetailsFormComponent implements OnInit {
   targetDetailsForm: FormGroup
-  regionList = ['us-central1']
+  regionList = [
+    'northamerica-northeast1',
+    'northamerica-northeast2',
+    'southamerica-east1',
+    'southamerica-west1',
+    'us-central1',
+    'us-east1',
+    'us-east4',
+    'us-west1',
+    'us-west2',
+    'us-west3',
+    'us-west4',
+    'asia-east1',
+    'asia-east2',
+    'asia-northeast1',
+    'asia-northeast2',
+    'asia-northeast3',
+    'asia-south1',
+    'asia-south2',
+    'asia-southeast1',
+    'asia-southeast2',
+    'australia-southeast1',
+    'australia-southeast2',
+    'europe-central2',
+    'europe-north1',
+    'europe-west1',
+    'europe-west2',
+    'europe-west3',
+    'europe-west4',
+    'europe-west6',
+    'europe-west8',
+    'europe-west9',
+  ]
   selectedRegion: string = 'us-central1'
+
+
   constructor(
     private formBuilder: FormBuilder,
     private dialogRef: MatDialogRef<TargetDetailsFormComponent>,
