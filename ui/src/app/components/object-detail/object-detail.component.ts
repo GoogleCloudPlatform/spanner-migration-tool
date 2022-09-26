@@ -777,10 +777,13 @@ export class ObjectDetailComponent implements OnInit {
     })
   }
   dropIndexKey(index: number) {
-    for (let i = 0; i < this.localIndexData.length; i++) {
-      if (i === index || this.localIndexData[i].spColName === undefined) {
-        this.localIndexData.splice(index, 1)
-      }
+    if(this.localIndexData[index].spColName){
+      this.localIndexData[index].spColName = undefined
+      this.localIndexData[index].spDesc = undefined
+      this.localIndexData[index].spOrder= undefined
+    }
+    else{
+      this.localIndexData.splice(index,1)
     }
     this.setIndexRows()
   }

@@ -689,7 +689,6 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 		}
 
 		sessionState.Conv.Issues[table][column] = schemaissue
-
 	}
 
 	index.IndexSuggestion()
@@ -768,8 +767,6 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-
-				//schemaissue = append(schemaissue, internal.InterleavedOrder)
 
 				sessionState.Conv.Issues[table][column] = schemaissue
 				tableInterleaveStatus.Possible = true
