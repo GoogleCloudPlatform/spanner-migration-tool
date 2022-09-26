@@ -118,6 +118,7 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	RemoveInterleave(sessionState.Conv, spannerTable)
 	helpers.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
