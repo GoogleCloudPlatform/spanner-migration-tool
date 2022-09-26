@@ -383,6 +383,15 @@ func toType(dataType string, columnType string, charLen sql.NullInt64, numericPr
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
 	case dataType == "decimal" && numericPrecision.Valid:
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
+	// We only want to parse the length for tinyints when it is present, in the form tinyint(12). columnType can also be just 'tinyint',
+	// in which case we skip this parsing.
+	case dataType == "tinyint" && len(columnType) > len("tinyint"):
+		var length int64
+		_, err := fmt.Sscanf(columnType, "tinyint(%d)", &length)
+		if err != nil {
+			return schema.Type{Name: dataType}
+		}
+		return schema.Type{Name: dataType, Mods: []int64{length}}
 	default:
 		return schema.Type{Name: dataType}
 	}
