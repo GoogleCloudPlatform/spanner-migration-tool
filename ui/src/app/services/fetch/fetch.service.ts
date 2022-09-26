@@ -12,8 +12,7 @@ import IConv, {
 import IDumpConfig from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
-import ITargetDetails from '../../model/target-details'
-import IMigrationDetails from 'src/app/model/migrate'
+import IMigrationDetails, { IProgress } from 'src/app/model/migrate'
 
 @Injectable({
   providedIn: 'root',
@@ -38,6 +37,9 @@ export class FetchService {
     )
   }
 
+  getLastSessionDetails() {
+    return this.http.get<IConv>(`${this.url}/GetLatestSessionDetails`)
+  }
   getSchemaConversionFromDirectConnect() {
     return this.http.get<IConv>(`${this.url}/convert/infoschema`)
   }
@@ -157,5 +159,8 @@ export class FetchService {
 
   migrate(payload: IMigrationDetails) {
     return this.http.post(`${this.url}/Migrate`, payload)
+  }
+  getProgress() {
+    return this.http.get<IProgress>(`${this.url}/GetProgress`)
   }
 }

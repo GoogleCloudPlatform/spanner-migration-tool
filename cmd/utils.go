@@ -28,6 +28,8 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/writer"
 )
 
+const completionPercentage = 100
+
 // CreateDatabaseClient creates new database client and admin client.
 func CreateDatabaseClient(ctx context.Context, targetProfile profiles.TargetProfile, driver, dbName string, ioHelper utils.IOStreams) (*database.DatabaseAdminClient, *sp.Client, string, error) {
 	if targetProfile.Conn.Sp.Dbname == "" {
@@ -90,8 +92,16 @@ func PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, sou
 }
 
 // MigrateData creates database and populates data in it.
-func MigrateDatabase(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile, dbName string, ioHelper *utils.IOStreams, cmd interface{}, conv *internal.Conv) (*writer.BatchWriter, error) {
-	var bw *writer.BatchWriter
+func MigrateDatabase(ctx context.Context, targetProfile profiles.TargetProfile, sourceProfile profiles.SourceProfile, dbName string, ioHelper *utils.IOStreams, cmd interface{}, conv *internal.Conv, migrationError *error) (*writer.BatchWriter, error) {
+	var (
+		bw  *writer.BatchWriter
+		err error
+	)
+	defer func() {
+		if err != nil && migrationError != nil {
+			*migrationError = err
+		}
+	}()
 	adminClient, client, dbURI, err := CreateDatabaseClient(ctx, targetProfile, sourceProfile.Driver, dbName, *ioHelper)
 	if err != nil {
 		err = fmt.Errorf("can't create database client: %v", err)
@@ -121,6 +131,7 @@ func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, so
 		err = fmt.Errorf("can't create/update database: %v", err)
 		return err
 	}
+	conv.Audit.Progress.SetProgressMessageAndUpdate("Schema migration complete.", completionPercentage)
 	return nil
 }
 
@@ -158,11 +169,13 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 		err = fmt.Errorf("can't create/update database: %v", err)
 		return nil, err
 	}
+	conv.Audit.Progress.SetProgressMessageAndUpdate("Schema migration complete.", completionPercentage)
 	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit)
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 		return nil, err
 	}
+
 	if !cmd.SkipForeignKeys {
 		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
 			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)

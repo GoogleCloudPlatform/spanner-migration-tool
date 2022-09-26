@@ -132,7 +132,7 @@ func (cmd *DataCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 	)
 	if !cmd.dryRun {
 		now := time.Now()
-		bw, err = MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, cmd, conv)
+		bw, err = MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, cmd, conv, nil)
 		if err != nil {
 			err = fmt.Errorf("can't finish database migration for db %s: %v", dbName, err)
 			return subcommands.ExitFailure
