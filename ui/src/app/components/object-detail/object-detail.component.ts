@@ -447,8 +447,12 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   pkOrderValidation() {
-    let arr = this.pkData.map((item) => Number(item.spOrder))
-    arr.sort()
+    let arr = this.pkData
+      .filter((column: IColumnTabData) => {
+        return column.spIsPk
+      })
+      .map((item) => Number(item.spOrder))
+    arr.sort((a, b) => a - b)
     if (arr[arr.length - 1] > arr.length) {
       arr.forEach((num: number, ind: number) => {
         this.pkData.forEach((pk: IColumnTabData) => {
@@ -515,7 +519,7 @@ export class ObjectDetailComponent implements OnInit {
     this.pkArray.value.forEach((pk: IColumnTabData) => {
       for (let i = 0; i < this.pkData.length; i++) {
         if (pk.spColName == this.pkData[i].spColName) {
-          this.pkData[i].spOrder = pk.spOrder
+          this.pkData[i].spOrder = Number(pk.spOrder)
           break
         }
       }
@@ -777,13 +781,12 @@ export class ObjectDetailComponent implements OnInit {
     })
   }
   dropIndexKey(index: number) {
-    if(this.localIndexData[index].spColName){
+    if (this.localIndexData[index].spColName) {
       this.localIndexData[index].spColName = undefined
       this.localIndexData[index].spDesc = undefined
-      this.localIndexData[index].spOrder= undefined
-    }
-    else{
-      this.localIndexData.splice(index,1)
+      this.localIndexData[index].spOrder = undefined
+    } else {
+      this.localIndexData.splice(index, 1)
     }
     this.setIndexRows()
   }
