@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { FetchService } from '../fetch/fetch.service'
-import IConv, { ICreateIndex, IInterleaveStatus } from '../../model/conv'
+import IConv, { ICreateIndex, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
 import IRuleContent from 'src/app/model/rule'
 import { BehaviorSubject, forkJoin, Observable, of } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
@@ -12,6 +12,7 @@ import ISession from 'src/app/model/session'
 import ISpannerConfig from '../../model/spanner-config'
 import { SnackbarService } from '../snackbar/snackbar.service'
 import ISummary from 'src/app/model/summary'
+import { ClickEventService } from '../click-event/click-event.service'
 
 @Injectable({
   providedIn: 'root',
@@ -46,30 +47,12 @@ export class DataService {
     .asObservable()
     .pipe(filter((res) => Object.keys(res).length !== 0))
 
-  constructor(private fetch: FetchService, private snackbar: SnackbarService) {
-    let inputType = localStorage.getItem(StorageKeys.Type) as string
-    let config: unknown = localStorage.getItem(StorageKeys.Config)
-
-    switch (inputType) {
-      case InputType.DirectConnect:
-        this.getSchemaConversionFromDb()
-        break
-
-      case InputType.DumpFile:
-        if (config !== null) {
-          this.getSchemaConversionFromDump(config as IDumpConfig)
-        }
-        break
-
-      case InputType.SessionFile:
-        if (config !== null) {
-          this.getSchemaConversionFromSession(config as ISessionConfig)
-        }
-        break
-
-      default:
-        console.log('Unable to find input type')
-    }
+  constructor(
+    private fetch: FetchService,
+    private snackbar: SnackbarService,
+    private clickEvent: ClickEventService
+  ) {
+    this.getLastSessionDetails()
     this.getConfig()
     this.updateIsOffline()
   }
@@ -107,12 +90,24 @@ export class DataService {
     })
   }
 
+  getLastSessionDetails() {
+    this.fetch.getLastSessionDetails().subscribe({
+      next: (res: IConv) => {
+        this.convSubject.next(res)
+      },
+      error: (err: any) => {
+        this.snackbar.openSnackBar(err.error, 'Close')
+      },
+    })
+  }
+
   getSchemaConversionFromDump(payload: IDumpConfig) {
     this.fetch.getSchemaConversionFromDump(payload).subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
       },
       error: (err: any) => {
+        this.clickEvent.closeDatabaseLoader()
         this.snackbar.openSnackBar(err.error, 'Close')
       },
     })
@@ -125,6 +120,7 @@ export class DataService {
       },
       error: (err: any) => {
         this.snackbar.openSnackBar(err.error, 'Close')
+        this.clickEvent.closeDatabaseLoader()
       },
     })
   }
@@ -159,9 +155,72 @@ export class DataService {
         this.ddlSub.next(ddl)
       })
   }
+  getSummary() {
+    return this.fetch.getSummary().subscribe({
+      next: (summary: any) => {
+        this.summarySub.next(new Map<string, ISummary>(Object.entries(summary)))
+      },
+    })
+  }
 
   updateTable(tableName: string, data: IUpdateTable): Observable<string> {
     return this.fetch.updateTable(tableName, data).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data: any) => {
+        if (data.error) {
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          this.getDdl()
+          return ''
+        }
+      })
+    )
+  }
+
+  restoreTable(tableId: string): Observable<string> {
+    return this.fetch.restoreTable(tableId).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data) => {
+        if (data.error) {
+          this.snackbar.openSnackBar(data.error, 'Close')
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          this.snackbar.openSnackBar('Table restored successfully', 'Close', 5)
+          return ''
+        }
+      })
+    )
+  }
+
+  dropTable(tableId: string): Observable<string> {
+    return this.fetch.dropTable(tableId).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data) => {
+        if (data.error) {
+          this.snackbar.openSnackBar(data.error, 'Close')
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          this.snackbar.openSnackBar('Table dropped successfully', 'Close', 5)
+          return ''
+        }
+      })
+    )
+  }
+
+  updatePk(pkObj: IPrimaryKey) {
+    return this.fetch.updatePk(pkObj).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),
@@ -194,8 +253,8 @@ export class DataService {
     )
   }
 
-  dropFk(tableName: string, pos: number) {
-    return this.fetch.removeFk(tableName, pos).pipe(
+  dropFk(tableName: string, fkName: string) {
+    return this.fetch.removeFk(tableName, fkName).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),
@@ -223,7 +282,6 @@ export class DataService {
 
   initiateSession() {
     this.fetch.InitiateSession().subscribe((data: any) => {
-      console.log('get initiate session', data)
       this.currentSessionSub.next(data)
     })
   }
@@ -233,6 +291,8 @@ export class DataService {
       next: (data: any) => {
         this.convSubject.next(data)
         this.snackbar.openSnackBar('Global datatype updated successfully', 'Close', 5)
+        this.getSummary()
+        this.getDdl()
       },
       error: (err: any) => {
         this.snackbar.openSnackBar('Unable to add rule', 'Close')
@@ -254,6 +314,7 @@ export class DataService {
     this.fetch.addIndex(tableName, payload).subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
+        this.getDdl()
         this.snackbar.openSnackBar('Added new index.', 'Close', 5)
       },
       error: (err: any) => {
@@ -261,9 +322,21 @@ export class DataService {
       },
     })
   }
+  updateIndex(tableName: string, payload: ICreateIndex[]) {
+    this.fetch.updateIndex(tableName, payload).subscribe({
+      next: (res: IConv) => {
+        this.convSubject.next(res)
+        this.getDdl()
+        this.snackbar.openSnackBar('Index updated successfully.', 'Close', 5)
+      },
+      error: (err: any) => {
+        this.snackbar.openSnackBar(err.error, 'Close')
+      },
+    })
+  }
 
-  dropIndex(tableName: string, pos: number): Observable<string> {
-    return this.fetch.dropIndex(tableName, pos).pipe(
+  dropIndex(tableName: string, indexName: string): Observable<string> {
+    return this.fetch.dropIndex(tableName, indexName).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),
@@ -274,6 +347,7 @@ export class DataService {
           return data.error
         } else {
           this.convSubject.next(data)
+          this.getDdl()
           this.snackbar.openSnackBar('Index dropped successfully', 'Close', 5)
           return ''
         }

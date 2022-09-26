@@ -18,14 +18,18 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
 // This file contains very basic tests of Conv API functionality.
 // Most of the Conv APIs are also tested in process_test.go (where
 // they are tested using data from schema/data conversion).
-
+func init() {
+	logger.Log = zap.NewNop()
+}
 func TestSetSchemaMode(t *testing.T) {
 	conv := MakeConv()
 	conv.SetSchemaMode()
@@ -218,7 +222,7 @@ func TestAddPrimaryKeys(t *testing.T) {
 					ColDefs: map[string]ddl.ColumnDef{
 						"a":        {Name: "a", T: ddl.Type{Name: ddl.Int64}},
 						"b":        {Name: "b", T: ddl.Type{Name: ddl.Float64}},
-						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					Pks:     []ddl.IndexKey{{Col: "synth_id"}},
 					Indexes: []ddl.CreateIndex{{Name: "", Table: "", Unique: false, Keys: []ddl.IndexKey{{Col: "b"}}}},
@@ -246,7 +250,7 @@ func TestAddPrimaryKeys(t *testing.T) {
 					ColDefs: map[string]ddl.ColumnDef{
 						"a":        {Name: "a", T: ddl.Type{Name: ddl.Int64}},
 						"b":        {Name: "b", T: ddl.Type{Name: ddl.Float64}},
-						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.Int64}},
+						"synth_id": {Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
 					},
 					Pks: []ddl.IndexKey{{Col: "synth_id"}}},
 			},

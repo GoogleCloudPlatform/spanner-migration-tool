@@ -9,3 +9,157 @@ body {
   margin: 0;
   font-family: Roboto, 'Helvetica Neue', sans-serif;
 }
+
+.content-height {
+  height: calc(100vh - 80px);
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+.mat-drawer-container {
+  background-color: white;
+}
+
+.mat-button.mat-primary {
+  color: #3367d6;
+}
+.global-font-color {
+  color: #000000;
+}
+.body-font-size {
+  font-size: 14px;
+}
+.primary-header {
+  font-size: 20px !important;
+}
+.mat-stroked-button.mat-primary {
+  color: #3367d6;
+}
+.mat-raised-button.mat-primary {
+  color: white;
+  background-color: #3367d6;
+}
+.blue-font-color {
+  color: #3367d6;
+}
+
+.gray-out {
+  opacity: 0.6;
+}
+
+.danger {
+  color: #da4236;
+}
+
+.warning {
+  color: #f3b300;
+}
+
+.success {
+  color: green;
+}
+
+.orange {
+  color: rgb(248, 116, 68);
+}
+.dark {
+  color: rgb(77, 75, 75);
+}
+.header {
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #cccccc;
+  padding-bottom: 10px;
+  .header_action {
+    button {
+      border: none;
+      background-color: inherit;
+      color: #1967d2;
+      font-size: 0.8rem;
+    }
+  }
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    .breadcrumb_source {
+      padding-left: 0;
+      color: rgba(0, 0, 0, 0.56);
+      font-weight: 400;
+      font-size: 14px;
+    }
+    .breadcrumb_workspace {
+      font-weight: 400;
+      font-size: 14px;
+    }
+    span {
+      font-size: 1.2rem;
+      color: rgb(143, 143, 143);
+    }
+  }
+}
+
+.prerequisites {
+  padding: 0;
+  width: 600px;
+  .mat-card-title {
+    font-size: 13pt;
+    font-weight: normal;
+    color: #000000;
+  }
+  .mat-card-subtitle {
+    font-size: 9pt;
+    font-weight: normal;
+    color: #000000;
+  }
+  p {
+    color: #000000;
+    .bullet {
+      position: relative;
+      display: inline-block;
+      background-color: #e5e5e5;
+      padding: 0px 5px 10px 5px;
+      margin: 0;
+      border-radius: 12px;
+      font-size: 9px;
+      height: 9px;
+      width: 9px;
+      text-align: center;
+    }
+    span {
+      margin-left: 40px;
+      font-weight: lighter;
+      font-size: 13px;
+    }
+  }
+  hr {
+    border-color: #ffffff;
+    margin-bottom: 20px;
+  }
+}
+
+.connect-load-database-container {
+  padding: 0 20px;
+  h5 {
+    margin-bottom: 20px;
+    color: #5c5c5c;
+  }
+  .mat-form-field {
+    width: 400px;
+    margin-right: 20px;
+  }
+  button {
+    margin-right: 20px;
+  }
+  .form-container {
+    background-color: inherit;
+    padding: 16px;
+  }
+}
+.progress_bar {
+  width: 50%;
+  text-align: center;
+  padding-left: 20vw;
+}

@@ -1,7 +1,7 @@
-<div class="container">
-  <mat-card class="form-container">
+<div class="connect-load-database-container">
+  <div class="form-container">
     <form [formGroup]="connectForm" (ngSubmit)="connectToDb()">
-      <h3>Connect to a Database</h3>
+      <h3 class="primary-header">Connect to a Database</h3>
 
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Database Engine</mat-label>
@@ -12,7 +12,7 @@
         </mat-select>
       </mat-form-field>
 
-      <h3>Connection Detail</h3>
+      <h3 class="primary-header">Connection Detail</h3>
 
       <mat-form-field class="full-width" appearance="outline">
         <mat-label>Hostname</mat-label>
@@ -51,5 +51,5 @@
       </button>
       <button mat-raised-button [routerLink]="'/'">Cancel</button>
     </form>
-  </mat-card>
+  </div>
 </div>

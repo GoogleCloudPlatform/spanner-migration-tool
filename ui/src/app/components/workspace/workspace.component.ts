@@ -8,7 +8,10 @@ import { MatDialog } from '@angular/material/dialog'
 import IFkTabData from 'src/app/model/fk-tab-data'
 import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import ISchemaObjectNode, { FlatNode } from 'src/app/model/schema-object-node'
-import { ObjectExplorerNodeType } from 'src/app/app.constants'
+import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
+import { IUpdateTableArgument } from 'src/app/model/update-table'
+import ConversionRate from 'src/app/model/conversion-rate'
+import { Router } from '@angular/router'
 
 @Component({
   selector: 'app-workspace',
@@ -35,11 +38,16 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   spannerTree: ISchemaObjectNode[] = []
   srcTree: ISchemaObjectNode[] = []
   issuesAndSuggestionsLabel: string = 'ISSUES AND SUGGESTIONS'
+  objectExplorerInitiallyRender: boolean = false
+  srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
+  conversionRatePercentages: ConversionRate = { good: 0, ok: 0, bad: 0 }
+  currentDatabase: string = 'spanner'
   constructor(
     private data: DataService,
     private conversion: ConversionService,
     private dialog: MatDialog,
-    private sidenav: SidenavService
+    private sidenav: SidenavService,
+    private router: Router
   ) {
     this.currentObject = null
   }
@@ -56,24 +64,56 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     })
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
-      const indexAdded = this.isIndexAdded(data)
+      const indexAddedOrRemoved = this.isIndexAddedOrRemoved(data)
+      if (
+        data &&
+        this.conv &&
+        Object.keys(data?.SpSchema).length != Object.keys(this.conv?.SpSchema).length
+      ) {
+        this.conv = data
+        this.reRenderObjectExplorerSpanner()
+        this.reRenderObjectExplorerSrc()
+      }
       this.conv = data
-      if (indexAdded) this.reRenderObjectExplorerSpanner()
+      if (indexAddedOrRemoved && this.conversionRates) this.reRenderObjectExplorerSpanner()
+      if (!this.objectExplorerInitiallyRender && this.conversionRates) {
+        this.reRenderObjectExplorerSpanner()
+        this.reRenderObjectExplorerSrc()
+        this.objectExplorerInitiallyRender = true
+      }
       if (this.currentObject && this.currentObject.type === ObjectExplorerNodeType.Table) {
         this.fkData = this.currentObject
-          ? this.conversion.getFkMapping(this.currentObject.name, data)
+          ? this.conversion.getFkMapping(this.currentObject.id, data)
           : []
 
         this.tableData = this.currentObject
-          ? this.conversion.getColumnMapping(this.currentObject.name, data)
+          ? this.conversion.getColumnMapping(this.currentObject.id, data)
           : []
+      }
+      if (
+        this.currentObject &&
+        this.currentObject?.type === ObjectExplorerNodeType.Index &&
+        !indexAddedOrRemoved
+      ) {
+        this.indexData = this.conversion.getIndexMapping(
+          this.currentObject.parentId,
+          this.conv,
+          this.currentObject.id
+        )
       }
     })
 
     this.converObj = this.data.conversionRate.subscribe((rates: any) => {
       this.conversionRates = rates
-      this.reRenderObjectExplorerSpanner()
-      this.reRenderObjectExplorerSrc()
+      this.updateConversionRatePercentages()
+
+      if (this.conv) {
+        this.reRenderObjectExplorerSpanner()
+        this.reRenderObjectExplorerSrc()
+        this.objectExplorerInitiallyRender = true
+      } else {
+        this.objectExplorerInitiallyRender = false
+      }
     })
 
     this.data.isOffline.subscribe({
@@ -90,6 +130,27 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.ddlsumconvObj.unsubscribe()
   }
 
+  updateConversionRatePercentages() {
+    const conversionRateCount: ConversionRate = { good: 0, ok: 0, bad: 0 }
+    let tableCount: number = Object.keys(this.conversionRates).length
+    for (const rate in this.conversionRates) {
+      if (this.conversionRates[rate] === 'GRAY' || this.conversionRates[rate] === 'GREEN') {
+        conversionRateCount.good += 1
+      } else if (this.conversionRates[rate] === 'BLUE' || this.conversionRates[rate] === 'YELLOW') {
+        conversionRateCount.ok += 1
+      } else {
+        conversionRateCount.bad += 1
+      }
+    }
+    if (tableCount > 0) {
+      for (let key in this.conversionRatePercentages) {
+        this.conversionRatePercentages[key as keyof ConversionRate] = Number(
+          ((conversionRateCount[key as keyof ConversionRate] / tableCount) * 100).toFixed(2)
+        )
+      }
+    }
+  }
+
   reRenderObjectExplorerSpanner() {
     this.spannerTree = this.conversion.createTreeNode(this.conv, this.conversionRates)
   }
@@ -102,20 +163,26 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
 
   changeCurrentObject(object: FlatNode) {
-    if (object.type === ObjectExplorerNodeType.Table) {
+    if (object?.type === ObjectExplorerNodeType.Table) {
       this.currentObject = object
       this.tableData = this.currentObject
-        ? this.conversion.getColumnMapping(this.currentObject.name, this.conv)
+        ? this.conversion.getColumnMapping(this.currentObject.id, this.conv)
         : []
 
       this.fkData = []
       this.fkData = this.currentObject
-        ? this.conversion.getFkMapping(this.currentObject.name, this.conv)
+        ? this.conversion.getFkMapping(this.currentObject.id, this.conv)
         : []
-    } else {
+    } else if (object?.type === ObjectExplorerNodeType.Index) {
       this.currentObject = object
-      this.indexData = this.conversion.getIndexMapping(object.parent, this.conv, object.name)
+      this.indexData = this.conversion.getIndexMapping(object.parentId, this.conv, object.id)
+    } else {
+      this.currentObject = null
     }
+  }
+
+  changeCurrentDatabase(database: string) {
+    this.currentDatabase = database
   }
 
   updateIssuesLabel(count: number) {
@@ -151,14 +218,25 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     a.click()
   }
 
-  searchSpannerTable(text: string) {
-    this.spannerTree = this.conversion.createTreeNode(this.conv, this.conversionRates, text)
+  updateSpannerTable(data: IUpdateTableArgument) {
+    this.spannerTree = this.conversion.createTreeNode(
+      this.conv,
+      this.conversionRates,
+      data.text,
+      data.order
+    )
   }
 
-  searchSrcTable(text: string) {
-    this.srcTree = this.conversion.createTreeNodeForSource(this.conv, this.conversionRates, text)
+  updateSrcTable(data: IUpdateTableArgument) {
+    this.srcTree = this.conversion.createTreeNodeForSource(
+      this.conv,
+      this.conversionRates,
+      data.text,
+      data.order
+    )
   }
-  isIndexAdded(data: IConv) {
+
+  isIndexAddedOrRemoved(data: IConv) {
     if (this.conv) {
       let prevIndexCount = 0
       let curIndexCount = 0
@@ -168,9 +246,12 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
       Object.entries(data.SpSchema).forEach((item) => {
         curIndexCount += item[1].Indexes ? item[1].Indexes.length : 0
       })
-      if (prevIndexCount < curIndexCount) return true
+      if (prevIndexCount !== curIndexCount) return true
       else return false
     }
     return false
+  }
+  prepareMigration() {
+    this.router.navigate(['/prepare-migration'])
   }
 }

@@ -1,27 +1,39 @@
-<div class="prerequisites">
+<div *ngIf="!isDatabaseLoading">
+  <div class="prerequisites">
     <mat-card>
-        <mat-card-title>Prerequisites</mat-card-title>
-        <mat-card-subtitle>Before we begin, please ensure you have done the following:</mat-card-subtitle>
-        <hr />
-        <div>
-            <p>
-                <span class="bullet">1</span>
-                <span>Create and set default Google Cloud project</span>
-            </p>
-            <p>
-                <span class="bullet">2</span>
-                <span>Enable billing</span>
-            </p>
-            <p>
-                <span class="bullet">3</span>
-                <span>Enable the Cloud Spanner API</span>
-            </p>
-            <p>
-                <span class="bullet">4</span>
-                <span>Set up OAuth 2.0 to get authentication credentials to use the Cloud Spanner API</span>
-            </p>
-        </div>
+      <mat-card-title class="primary-header">Prerequisites</mat-card-title>
+      <mat-card-subtitle class="body-font-size"
+        >Before we begin, please ensure you have done the following:</mat-card-subtitle
+      >
+      <hr />
+      <div class="body-font-size">
+        <p>
+          <span class="bullet">1</span>
+          <span>Create and set default Google Cloud project</span>
+        </p>
+        <p>
+          <span class="bullet">2</span>
+          <span>Enable billing</span>
+        </p>
+        <p>
+          <span class="bullet">3</span>
+          <span>Enable the Cloud Spanner API</span>
+        </p>
+        <p>
+          <span class="bullet">4</span>
+          <span>
+            Set up OAuth 2.0 to get authentication credentials to use the Cloud Spanner API
+          </span>
+        </p>
+      </div>
     </mat-card>
     <br />
+  </div>
+  <router-outlet></router-outlet>
 </div>
-<router-outlet></router-outlet>
+<div *ngIf="isDatabaseLoading">
+  <app-database-loader
+    [loaderType]="loaderType"
+    [databaseName]="databaseName"
+  ></app-database-loader>
+</div>

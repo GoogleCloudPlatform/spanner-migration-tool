@@ -5,6 +5,7 @@ import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree'
 import { ConversionService } from '../../services/conversion/conversion.service'
 import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import { SidenavService } from '../../services/sidenav/sidenav.service'
+import { IUpdateTableArgument } from 'src/app/model/update-table'
 
 @Component({
   selector: 'app-object-explorer',
@@ -12,13 +13,18 @@ import { SidenavService } from '../../services/sidenav/sidenav.service'
   styleUrls: ['./object-explorer.component.scss'],
 })
 export class ObjectExplorerComponent implements OnInit {
-  searchText: string = ''
   isLeftColumnCollapse: boolean = false
   srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
   currentSelectedObject: FlatNode | null = null
+  srcSortOrder: string = ''
+  spannerSortOrder: string = ''
+  srcSearchText: string = ''
+  spannerSearchText: string = ''
+  selectedTab: string = 'spanner'
+  @Output() selectedDatabase = new EventEmitter<string>()
   @Output() selectObject = new EventEmitter<FlatNode>()
-  @Output() searchSpannerTable = new EventEmitter<string>()
-  @Output() searchSrcTable = new EventEmitter<string>()
+  @Output() updateSpannerTable = new EventEmitter<IUpdateTableArgument>()
+  @Output() updateSrcTable = new EventEmitter<IUpdateTableArgument>()
   @Output() leftCollaspe: EventEmitter<any> = new EventEmitter()
   @Input() spannerTree: ISchemaObjectNode[] = []
   @Input() srcTree: ISchemaObjectNode[] = []
@@ -33,6 +39,9 @@ export class ObjectExplorerComponent implements OnInit {
       pos: node.pos,
       isSpannerNode: node.isSpannerNode,
       level: level,
+      isDeleted: node.isDeleted ? true : false,
+      id: node.id,
+      parentId: node.parentId,
     }
   }
   treeControl = new FlatTreeControl<FlatNode>(
@@ -76,12 +85,33 @@ export class ObjectExplorerComponent implements OnInit {
     }
   }
 
-  filterSpannerTable(text: string) {
-    this.searchSpannerTable.emit(text)
+  filterSpannerTable() {
+    this.updateSpannerTable.emit({ text: this.spannerSearchText, order: this.spannerSortOrder })
   }
 
-  filterSrcTable(text: string) {
-    this.searchSrcTable.emit(text)
+  filterSrcTable() {
+    this.updateSrcTable.emit({ text: this.srcSearchText, order: this.srcSortOrder })
+  }
+
+  srcTableSort() {
+    if (this.srcSortOrder === '') {
+      this.srcSortOrder = 'asc'
+    } else if (this.srcSortOrder === 'asc') {
+      this.srcSortOrder = 'desc'
+    } else {
+      this.srcSortOrder = ''
+    }
+    this.updateSrcTable.emit({ text: this.srcSearchText, order: this.srcSortOrder })
+  }
+  spannerTableSort() {
+    if (this.spannerSortOrder === '') {
+      this.spannerSortOrder = 'asc'
+    } else if (this.spannerSortOrder === 'asc') {
+      this.spannerSortOrder = 'desc'
+    } else {
+      this.spannerSortOrder = ''
+    }
+    this.updateSpannerTable.emit({ text: this.spannerSearchText, order: this.spannerSortOrder })
   }
 
   objectSelected(data: FlatNode) {
@@ -104,7 +134,8 @@ export class ObjectExplorerComponent implements OnInit {
     return new RegExp('^indexes').test(name)
   }
 
-  openAddIndexForm(): void {
+  openAddIndexForm(tableName: string): void {
+    this.sidenav.setSidenavAddIndexTable(tableName)
     this.sidenav.setSidenavRuleType('addIndex')
     this.sidenav.openSidenav()
     this.sidenav.setSidenavComponent('rule')
@@ -119,5 +150,15 @@ export class ObjectExplorerComponent implements OnInit {
     } else {
       return false
     }
+  }
+  onTabChanged() {
+    if (this.selectedTab == 'spanner') {
+      this.selectedTab = 'source'
+    } else {
+      this.selectedTab = 'spanner'
+    }
+    this.selectedDatabase.emit(this.selectedTab)
+    this.currentSelectedObject = null
+    this.selectObject.emit(undefined)
   }
 }

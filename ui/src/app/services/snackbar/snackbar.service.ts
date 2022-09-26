@@ -11,4 +11,8 @@ export class SnackbarService {
     if (!durationInSeconds) durationInSeconds = 10
     this.snackBar.open(message, action, { duration: durationInSeconds * 1000 })
   }
+
+  openSnackBarWithoutTimeout(message: string, action: string) {
+    this.snackBar.open(message, action)
+  }
 }

@@ -1,5 +1,6 @@
 .no-table-selected {
   height: 90%;
+  background-color: white;
 }
 
 .select-table-message {
@@ -49,28 +50,41 @@
 
 .table {
   height: 100%;
+  background-color: white;
   .mat-tab-group {
+    height: 93%;
+  }
+  .height-on-edit {
     height: 84%;
   }
 }
 
-.add-index-column {
-  margin-left: 50%;
+.add-index-column-container {
+  margin-left: 45%;
   padding: 10px;
   .index-column-list {
+    margin-right: 1rem;
+  }
+}
+.add-pk-column {
+  margin-left: 50%;
+  padding: 10px;
+  .column-list {
     width: 40%;
   }
-  .add-column-button {
-    width: 40%;
+  .index-column-order {
+    margin-right: 1rem;
   }
 }
 
-:host ::ng-deep .mat-tab-body-wrapper {
+.add :host ::ng-deep .mat-tab-body-wrapper {
   height: 100%;
 }
 
 .column-tab-container,
-.fk-tab-container {
+.fk-tab-container,
+.pk-tab-container,
+.index-tab-container {
   height: 84%;
   table {
     width: 100%;
@@ -112,10 +126,9 @@
   .db_name {
     font-size: 16px;
     font-weight: 400;
-    line-height: 24px;
+    line-height: 48px;
     letter-spacing: 0.05px;
     color: black;
-    padding: 15px;
     background-color: white;
   }
 
@@ -148,10 +161,13 @@
   .mat-column-spColName,
   .mat-column-srcDataType,
   .mat-column-spDataType,
-  .mat-column-srcIsNotNull,
-  .mat-column-spIsNotNull,
   .mat-column-spIndexColName,
   .mat-column-srcIndexColName {
+    min-width: 100px;
+  }
+
+  .mat-column-srcIsNotNull,
+  .mat-column-spIsNotNull {
     min-width: 100px;
   }
 
@@ -180,6 +196,27 @@
       cursor: default;
     }
   }
+}
+.index-tab-container {
+  .index-data-row {
+    height: 41px;
+  }
+}
+
+.interleave-tab-container {
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.interleave-tab-container {
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 
 .save-button {

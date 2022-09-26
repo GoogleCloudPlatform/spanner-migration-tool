@@ -15,23 +15,32 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 
+	sp "cloud.google.com/go/spanner"
+	_ "github.com/go-sql-driver/mysql" // The driver should be used via the database/sql package.
+	_ "github.com/lib/pq"
+
+	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	_ "github.com/go-sql-driver/mysql" // The driver should be used via the database/sql package.
-	_ "github.com/lib/pq"
+	"github.com/cloudspannerecosystem/harbourbridge/streaming"
 )
 
 // InfoSchemaImpl is MySQL specific implementation for InfoSchema.
 type InfoSchemaImpl struct {
-	DbName string
-	Db     *sql.DB
+	DbName        string
+	Db            *sql.DB
+	SourceProfile profiles.SourceProfile
+	TargetProfile profiles.TargetProfile
 }
 
 // GetToDdl implement the common.InfoSchema interface.
@@ -325,6 +334,45 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 	}
 	return indexes, nil
 }
+
+// StartChangeDataCapture is used for automatic triggering of Datastream job when
+// performing a streaming migration.
+func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
+	mp := make(map[string]interface{})
+	streamingCfg, err := streaming.StartDatastream(ctx, isi.SourceProfile, isi.TargetProfile)
+	if err != nil {
+		err = fmt.Errorf("error starting datastream: %v", err)
+		return nil, err
+	}
+	mp["streamingCfg"] = streamingCfg
+	return mp, err
+}
+
+// StartStreamingMigration is used for automatic triggering of Dataflow job when
+// performing a streaming migration.
+func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) error {
+	streamingCfg, _ := streamingInfo["streamingCfg"].(streaming.StreamingCfg)
+	convJSON, err := json.MarshalIndent(conv, "", " ")
+	if err != nil {
+		err = fmt.Errorf("can't encode session state to JSON: %v", err)
+		return err
+	}
+	fmt.Printf("Writing session file to GCS...")
+	err = utils.WriteToGCS(streamingCfg.TmpDir, "session.json", string(convJSON))
+	if err != nil {
+		err = fmt.Errorf("error writing session file to GCS: %v", err)
+		return err
+	}
+	fmt.Println("Done")
+
+	err = streaming.StartDataflow(ctx, isi.SourceProfile, isi.TargetProfile, streamingCfg)
+	if err != nil {
+		err = fmt.Errorf("error starting dataflow: %v", err)
+		return err
+	}
+	return nil
+}
+
 func toType(dataType string, columnType string, charLen sql.NullInt64, numericPrecision, numericScale sql.NullInt64) schema.Type {
 	switch {
 	case dataType == "set":

@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -46,9 +47,12 @@ func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
 	spTable := getSpannerID(conv, srcTable)
 	if spTable != srcTable {
 		VerbosePrintf("Mapping source DB table %s to Spanner table %s\n", srcTable, spTable)
+		logger.Log.Debug(fmt.Sprintf("Mapping source DB table %s to Spanner table %s\n", srcTable, spTable))
 	}
 	conv.ToSpanner[srcTable] = NameAndCols{Name: spTable, Cols: make(map[string]string)}
 	conv.ToSource[spTable] = NameAndCols{Name: srcTable, Cols: make(map[string]string)}
+	conv.Audit.ToSpannerFkIdx[srcTable] = FkeyAndIdxs{Name: spTable, ForeignKey: make(map[string]string), Index: make(map[string]string)}
+	conv.Audit.ToSourceFkIdx[spTable] = FkeyAndIdxs{Name: srcTable, ForeignKey: make(map[string]string), Index: make(map[string]string)}
 	return spTable, nil
 }
 
@@ -116,6 +120,7 @@ func GetSpannerCol(conv *Conv, srcTable, srcCol string, mustExist bool) (string,
 	}
 	if spCol != srcCol {
 		VerbosePrintf("Mapping source DB col %s (table %s) to Spanner col %s\n", srcCol, srcTable, spCol)
+		logger.Log.Debug(fmt.Sprintf("Mapping source DB col %s (table %s) to Spanner col %s\n", srcCol, srcTable, spCol))
 	}
 	conv.ToSpanner[srcTable].Cols[srcCol] = spCol
 	conv.ToSource[sp.Name].Cols[spCol] = srcCol
@@ -214,14 +219,17 @@ func resolveFks(conv *Conv, table string, fks []ddl.Foreignkey) []ddl.Foreignkey
 		var err error
 		if fk.Columns, err = resolveColRefs(conv, table, fk.Columns); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't resolve Columns in foreign key constraint: %s", err))
+			delete(conv.UsedNames, fk.Name)
 			continue
 		}
 		if fk.ReferTable, err = resolveTableRef(conv, fk.ReferTable); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't resolve ReferTable in foreign key constraint: %s", err))
+			delete(conv.UsedNames, fk.Name)
 			continue
 		}
 		if fk.ReferColumns, err = resolveColRefs(conv, fk.ReferTable, fk.ReferColumns); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't resolve ReferColumns in foreign key constraint: %s", err))
+			delete(conv.UsedNames, fk.Name)
 			continue
 		}
 		resolved = append(resolved, fk)

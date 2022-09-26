@@ -3,10 +3,11 @@ import { Injectable } from '@angular/core'
 import IDbConfig from 'src/app/model/db-config'
 import ISession, { ISaveSessionPayload } from '../../model/session'
 import IUpdateTable from '../../model/update-table'
-import IConv, { ICreateIndex, IInterleaveStatus } from '../../model/conv'
+import IConv, { ICreateIndex, IInterleaveStatus, IPrimaryKey, ISessionSummary } from '../../model/conv'
 import IDumpConfig from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
+import IMigrationDetails, { IProgress } from 'src/app/model/migrate'
 
 @Injectable({
   providedIn: 'root',
@@ -31,6 +32,9 @@ export class FetchService {
     )
   }
 
+  getLastSessionDetails() {
+    return this.http.get<IConv>(`${this.url}/GetLatestSessionDetails`)
+  }
   getSchemaConversionFromDirectConnect() {
     return this.http.get<IConv>(`${this.url}/convert/infoschema`)
   }
@@ -63,12 +67,25 @@ export class FetchService {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/typemap/table?table=${tableName}`, data)
   }
 
+  restoreTable(tableId: string) {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/restore/table?tableId=${tableId}`, {})
+  }
+  dropTable(tableId: string) {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/table?tableId=${tableId}`, {})
+  }
+
+  updatePk(pkObj: IPrimaryKey) {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/primaryKey`, pkObj)
+  }
+
   updateFk(tableName: string, payload: Record<string, string>): any {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/rename/fks?table=${tableName}`, payload)
   }
 
-  removeFk(tableName: string, pos: number): any {
-    return this.http.get<HttpResponse<IConv>>(`${this.url}/drop/fk?table=${tableName}&pos=${pos}`)
+  removeFk(tableName: string, fkName: string): any {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/fk?table=${tableName}`, {
+      Name: fkName,
+    })
   }
 
   getSessions() {
@@ -113,8 +130,14 @@ export class FetchService {
     return this.http.post<IConv>(`${this.url}/add/indexes?table=${tableName}`, payload)
   }
 
-  dropIndex(tableName: string, idx: number) {
-    return this.http.get<IConv>(`${this.url}/drop/secondaryindex?table=${tableName}&pos=${idx}`)
+  updateIndex(tableName: string, payload: ICreateIndex[]) {
+    return this.http.post<IConv>(`${this.url}/update/indexes?table=${tableName}`, payload)
+  }
+
+  dropIndex(tableName: string, indexName: string) {
+    return this.http.post<IConv>(`${this.url}/drop/secondaryindex?table=${tableName}`, {
+      Name: indexName,
+    })
   }
 
   getInterleaveStatus(tableName: string) {
@@ -123,5 +146,16 @@ export class FetchService {
 
   setInterleave(tableName: string) {
     return this.http.get(`${this.url}/setparent?table=${tableName}&update=true`)
+  }
+
+  getSourceDestinationSummary() {
+    return this.http.get<ISessionSummary>(`${this.url}/GetSourceDestinationSummary`)
+  }
+
+  migrate(payload: IMigrationDetails) {
+    return this.http.post(`${this.url}/Migrate`,payload)
+  }
+  getProgress() {
+    return this.http.get<IProgress>(`${this.url}/GetProgress`)
   }
 }

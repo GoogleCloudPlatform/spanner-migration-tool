@@ -15,15 +15,19 @@
 package dynamodb
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math/big"
 	"sort"
+	"sync"
 
 	sp "cloud.google.com/go/spanner"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
+	"github.com/aws/aws-sdk-go/service/dynamodbstreams/dynamodbstreamsiface"
+
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
@@ -48,8 +52,9 @@ const (
 )
 
 type InfoSchemaImpl struct {
-	DynamoClient dynamodbiface.DynamoDBAPI
-	SampleSize   int64
+	DynamoClient        dynamodbiface.DynamoDBAPI
+	DynamoStreamsClient dynamodbstreamsiface.DynamoDBStreamsAPI
+	SampleSize          int64
 }
 
 func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
@@ -185,6 +190,58 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 	for _, attrsMap := range rows.([]map[string]*dynamodb.AttributeValue) {
 		ProcessDataRow(attrsMap, conv, srcTable, srcSchema, spTable, spCols, spSchema)
 	}
+	return nil
+}
+
+// StartChangeDataCapture initializes the DynamoDB Streams for the source database. It
+// returns the latestStreamArn for all tables in the source database.
+func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
+	fmt.Println("Starting DynamoDB Streams initialization...")
+
+	latestStreamArn := make(map[string]interface{})
+	orderTableNames := ddl.OrderTables(conv.SpSchema)
+
+	for _, spannerTable := range orderTableNames {
+		srcTable, _ := internal.GetSourceTable(conv, spannerTable)
+		streamArn, err := NewDynamoDBStream(isi.DynamoClient, srcTable)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Couldn't initialize DynamoDB Stream for table %s: %s", srcTable, err))
+			continue
+		}
+		latestStreamArn[srcTable] = streamArn
+	}
+
+	fmt.Println("DynamoDB Streams initialized successfully.")
+	return latestStreamArn, nil
+}
+
+// StartStreamingMigration starts the streaming migration process by creating a seperate
+// worker thread/goroutine for each table's DynamoDB Stream. It catches Ctrl+C signal if
+// customer wants to stop the process.
+func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, latestStreamArn map[string]interface{}) error {
+	fmt.Println("Processing of DynamoDB Streams started...")
+	fmt.Println("Use Ctrl+C to stop the process.")
+
+	streamInfo := MakeStreamingInfo()
+	setWriter(streamInfo, client, conv)
+
+	wg := &sync.WaitGroup{}
+
+	wg.Add(2)
+	go catchCtrlC(wg, streamInfo)
+	go cutoverHelper(wg, streamInfo)
+
+	for srcTable, streamArn := range latestStreamArn {
+		streamInfo.makeRecordMaps(srcTable)
+
+		wg.Add(1)
+		go ProcessStream(wg, isi.DynamoStreamsClient, streamInfo, conv, streamArn.(string), srcTable)
+	}
+	wg.Wait()
+
+	fillConvWithStreamingStats(streamInfo, conv)
+
+	fmt.Println("DynamoDB Streams processed successfully.")
 	return nil
 }
 

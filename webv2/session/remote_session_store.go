@@ -21,6 +21,7 @@ import (
 
 	"cloud.google.com/go/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"google.golang.org/api/iterator"
 )
 
@@ -111,6 +112,8 @@ func (st *spannerStore) GetConvWithMetadata(ctx context.Context, versionId strin
 	}
 
 	convm.Conv = conv
+	convm.Conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
+
 	convm.SessionMetadata = SessionMetadata{
 		SessionName:  scs.SessionName,
 		EditorName:   scs.EditorName,

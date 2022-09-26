@@ -15,10 +15,13 @@
 package sqlserver
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
+
+	sp "cloud.google.com/go/spanner"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
@@ -48,6 +51,15 @@ type InfoSchemaImpl struct {
 // GetToDdl function below implement the common.InfoSchema interface.
 func (isi InfoSchemaImpl) GetToDdl() common.ToDdl {
 	return ToDdlImpl{}
+}
+
+// We leave the 2 functions below empty to be able to pass this as an infoSchema interface. We don't need these for now.
+func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
+	return nil, nil
+}
+
+func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) error {
+	return nil
 }
 
 // GetTableName returns table name.
@@ -354,7 +366,8 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			IX.name, 
 			COL_NAME(IX.object_id, IXC.column_id) as [Column Name],
 			IX.is_unique,
-			IXC.is_descending_key 
+			IXC.is_descending_key,
+			IXC.is_included_column
 		FROM sys.indexes IX 
 		INNER JOIN sys.index_columns IXC 
 			ON  IX.object_id = IXC.object_id AND IX.index_id = IXC.index_id
@@ -373,12 +386,12 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 		return nil, err
 	}
 	defer rows.Close()
-	var name, column, isUnique, collation string
+	var name, column, isUnique, collation, isStored string
 	indexMap := make(map[string]schema.Index)
 	var indexNames []string
 	var indexes []schema.Index
 	for rows.Next() {
-		if err := rows.Scan(&name, &column, &isUnique, &collation); err != nil {
+		if err := rows.Scan(&name, &column, &isUnique, &collation, &isStored); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't scan: %v", err))
 			continue
 		}
@@ -388,7 +401,11 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			indexMap[name] = schema.Index{Name: name, Unique: (isUnique == "true")}
 		}
 		index := indexMap[name]
-		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation == "DESC")})
+		if isStored == "false" {
+			index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation == "DESC")})
+		} else {
+			index.StoredColumns = append(index.StoredColumns, column)
+		}
 		indexMap[name] = index
 	}
 	for _, k := range indexNames {

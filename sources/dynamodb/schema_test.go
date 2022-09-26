@@ -15,18 +15,29 @@
 package dynamodb
 
 import (
+	"context"
 	"fmt"
 	"math/big"
+	"reflect"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
+	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/stretchr/testify/assert"
 )
+
+func init() {
+	logger.Log = zap.NewNop()
+}
 
 type mockDynamoClient struct {
 	listTableCallCount     int
@@ -35,6 +46,8 @@ type mockDynamoClient struct {
 	describeTableOutputs   []dynamodb.DescribeTableOutput
 	scanCallCount          int
 	scanOutputs            []dynamodb.ScanOutput
+	updateTableCallCount   int
+	updateTableOutputs     []dynamodb.UpdateTableOutput
 	dynamodbiface.DynamoDBAPI
 }
 
@@ -60,6 +73,14 @@ func (m *mockDynamoClient) Scan(input *dynamodb.ScanInput) (*dynamodb.ScanOutput
 	}
 	m.scanCallCount++
 	return &m.scanOutputs[m.scanCallCount-1], nil
+}
+
+func (m *mockDynamoClient) UpdateTable(input *dynamodb.UpdateTableInput) (*dynamodb.UpdateTableOutput, error) {
+	if m.updateTableCallCount >= len(m.updateTableOutputs) {
+		return nil, fmt.Errorf("unexpected call to UpdateTable: %v", input)
+	}
+	m.updateTableCallCount++
+	return &m.updateTableOutputs[m.updateTableCallCount-1], nil
 }
 
 func TestProcessSchema(t *testing.T) {
@@ -167,7 +188,7 @@ func TestProcessSchema(t *testing.T) {
 	sampleSize := int64(10000)
 
 	conv := internal.MakeConv()
-	err := common.ProcessSchema(conv, InfoSchemaImpl{client, sampleSize})
+	err := common.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize})
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -270,7 +291,7 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 	sampleSize := int64(10000)
 
 	conv := internal.MakeConv()
-	err := common.ProcessSchema(conv, InfoSchemaImpl{client, sampleSize})
+	err := common.ProcessSchema(conv, InfoSchemaImpl{client, nil, sampleSize})
 
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
@@ -353,7 +374,7 @@ func TestProcessData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	common.ProcessData(conv, InfoSchemaImpl{client, 10})
+	common.ProcessData(conv, InfoSchemaImpl{client, nil, 10})
 	assert.Equal(t,
 		[]spannerData{
 			{
@@ -532,7 +553,7 @@ func TestInfoSchemaImpl_GetIndexes(t *testing.T) {
 
 	dySchema := common.SchemaAndName{Name: "test"}
 	conv := internal.MakeConv()
-	isi := InfoSchemaImpl{client, 10}
+	isi := InfoSchemaImpl{client, nil, 10}
 	indexes, err := isi.GetIndexes(conv, dySchema)
 	assert.Nil(t, err)
 
@@ -587,7 +608,7 @@ func TestInfoSchemaImpl_GetConstraints(t *testing.T) {
 
 	dySchema := common.SchemaAndName{Name: "test"}
 	conv := internal.MakeConv()
-	isi := InfoSchemaImpl{client, 10}
+	isi := InfoSchemaImpl{client, nil, 10}
 	primaryKeys, constraints, err := isi.GetConstraints(conv, dySchema)
 	assert.Nil(t, err)
 
@@ -608,7 +629,7 @@ func TestInfoSchemaImpl_GetTables(t *testing.T) {
 	client := &mockDynamoClient{
 		listTableOutputs: listTableOutputs,
 	}
-	isi := InfoSchemaImpl{client, 10}
+	isi := InfoSchemaImpl{client, nil, 10}
 	tables, err := isi.GetTables()
 	assert.Nil(t, err)
 	assert.Equal(t, []common.SchemaAndName{{"", "table-a"}, {"", "table-b"}}, tables)
@@ -618,7 +639,7 @@ func TestInfoSchemaImpl_GetTableName(t *testing.T) {
 	tableNameA := "table-a"
 
 	client := &mockDynamoClient{}
-	isi := InfoSchemaImpl{client, 10}
+	isi := InfoSchemaImpl{client, nil, 10}
 	table := isi.GetTableName("", tableNameA)
 	assert.Equal(t, tableNameA, table)
 }
@@ -662,7 +683,7 @@ func TestInfoSchemaImpl_GetColumns(t *testing.T) {
 	}
 	dySchema := common.SchemaAndName{Name: "test"}
 
-	isi := InfoSchemaImpl{client, 10}
+	isi := InfoSchemaImpl{client, nil, 10}
 
 	colDefs, colNames, err := isi.GetColumns(conv, dySchema, nil, nil)
 	assert.Nil(t, err)
@@ -680,7 +701,7 @@ func TestInfoSchemaImpl_GetForeignKeys(t *testing.T) {
 	dySchema := common.SchemaAndName{Name: "test"}
 	conv := internal.MakeConv()
 	client := &mockDynamoClient{}
-	isi := InfoSchemaImpl{client, 10}
+	isi := InfoSchemaImpl{client, nil, 10}
 	fk, err := isi.GetForeignKeys(conv, dySchema)
 	assert.Nil(t, err)
 	assert.Nil(t, fk)
@@ -703,7 +724,7 @@ func TestInfoSchemaImpl_GetRowCount(t *testing.T) {
 		describeTableOutputs: describeTableOutputs,
 	}
 
-	isi := InfoSchemaImpl{client, 10}
+	isi := InfoSchemaImpl{client, nil, 10}
 	dySchema := common.SchemaAndName{Name: tableNameA}
 
 	rowCount, err := isi.GetRowCount(dySchema)
@@ -735,7 +756,7 @@ func TestInfoSchemaImpl_GetRowsFromTable(t *testing.T) {
 		scanOutputs: scanOutputs,
 	}
 	tableName := "testtable"
-	isi := InfoSchemaImpl{client, 10}
+	isi := InfoSchemaImpl{client, nil, 10}
 
 	rows, err := isi.GetRowsFromTable(conv, tableName)
 	assert.Nil(t, err)
@@ -771,7 +792,7 @@ func TestInfoSchemaImpl_ProcessData(t *testing.T) {
 	client := &mockDynamoClient{
 		scanOutputs: scanOutputs,
 	}
-	isi := InfoSchemaImpl{client, 10}
+	isi := InfoSchemaImpl{client, nil, 10}
 
 	tableName := "testtable"
 	cols := []string{"a", "b", "c", "d"}
@@ -906,8 +927,145 @@ func TestSetRowStats(t *testing.T) {
 		describeTableOutputs: describeTableOutputs,
 	}
 
-	common.SetRowStats(conv, InfoSchemaImpl{client, 10})
+	common.SetRowStats(conv, InfoSchemaImpl{client, nil, 10})
 
 	assert.Equal(t, tableItemCountA, conv.Stats.Rows[tableNameA])
 	assert.Equal(t, tableItemCountB, conv.Stats.Rows[tableNameB])
+}
+
+func TestInfoSchemaImpl_StartChangeDataCapture(t *testing.T) {
+	tableName := "testtable"
+	attrNameA := "a"
+	latestStreamArn := "arn:aws:dynamodb:dydb_endpoint:test_stream"
+
+	cols := []string{attrNameA}
+	spSchema := ddl.CreateTable{
+		Name:     tableName,
+		ColNames: cols,
+		ColDefs: map[string]ddl.ColumnDef{
+			attrNameA: {Name: attrNameA, T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+		},
+		Pks: []ddl.IndexKey{{Col: attrNameA}},
+	}
+	srcTable := schema.Table{
+		Name:     tableName,
+		ColNames: cols,
+		ColDefs: map[string]schema.Column{
+			attrNameA: {Name: attrNameA, Type: schema.Type{Name: typeString}},
+		},
+		PrimaryKeys: []schema.Key{{Column: attrNameA}},
+	}
+	conv := buildConv(spSchema, srcTable)
+	type fields struct {
+		DynamoClient        dynamodbiface.DynamoDBAPI
+		DynamoStreamsClient *dynamodbstreams.DynamoDBStreams
+		SampleSize          int64
+	}
+	type args struct {
+		ctx  context.Context
+		conv *internal.Conv
+	}
+	arguments := args{
+		ctx:  context.Background(),
+		conv: conv,
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    map[string]interface{}
+		wantErr bool
+	}{
+		{
+			name: "test for checking correctness of output when stream exists already",
+			fields: fields{
+				DynamoClient: &mockDynamoClient{
+					describeTableOutputs: []dynamodb.DescribeTableOutput{
+						{
+							Table: &dynamodb.TableDescription{
+								TableName: &tableName,
+								StreamSpecification: &dynamodb.StreamSpecification{
+									StreamEnabled:  aws.Bool(true),
+									StreamViewType: aws.String(dynamodb.StreamViewTypeNewImage),
+								},
+								LatestStreamArn: &latestStreamArn,
+							},
+						},
+					},
+				},
+			},
+			args: arguments,
+			want: map[string]interface{}{
+				tableName: latestStreamArn,
+			},
+			wantErr: false,
+		},
+		{
+			name: "test for checking correctness of output when a new stream is created",
+			fields: fields{
+				DynamoClient: &mockDynamoClient{
+					describeTableOutputs: []dynamodb.DescribeTableOutput{
+						{
+							Table: &dynamodb.TableDescription{
+								TableName: &tableName,
+							},
+						},
+					},
+					updateTableOutputs: []dynamodb.UpdateTableOutput{
+						{
+							TableDescription: &dynamodb.TableDescription{
+								LatestStreamArn: &latestStreamArn,
+								StreamSpecification: &dynamodb.StreamSpecification{
+									StreamEnabled:  aws.Bool(true),
+									StreamViewType: aws.String(dynamodb.StreamViewTypeNewAndOldImages),
+								},
+							},
+						},
+					},
+				},
+			},
+			args: arguments,
+			want: map[string]interface{}{
+				tableName: latestStreamArn,
+			},
+			wantErr: false,
+		},
+		{
+			name: "test for handling api calls failure",
+			fields: fields{
+				DynamoClient: &mockDynamoClient{
+					describeTableOutputs: []dynamodb.DescribeTableOutput{
+						{
+							Table: &dynamodb.TableDescription{
+								TableName: &tableName,
+							},
+						},
+					},
+				},
+			},
+			args:    arguments,
+			want:    map[string]interface{}{},
+			wantErr: false,
+		},
+	}
+	totalUnexpecteds := int64(0)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isi := InfoSchemaImpl{
+				DynamoClient:        tt.fields.DynamoClient,
+				DynamoStreamsClient: tt.fields.DynamoStreamsClient,
+				SampleSize:          tt.fields.SampleSize,
+			}
+			got, err := isi.StartChangeDataCapture(tt.args.ctx, tt.args.conv)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("InfoSchemaImpl.StartChangeDataCapture() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("InfoSchemaImpl.StartChangeDataCapture() = %v, want %v", got, tt.want)
+			}
+			totalUnexpecteds += conv.Unexpecteds()
+		})
+	}
+	assert.Equal(t, int64(1), totalUnexpecteds)
 }

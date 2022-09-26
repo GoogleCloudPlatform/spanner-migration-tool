@@ -22,7 +22,7 @@ export class SummaryComponent implements OnInit {
   filterInput = new FormControl()
   options: string[] = ['read', 'unread', 'warning', 'suggestion', 'note']
   obsFilteredOptions: Observable<string[]> = new Observable<string[]>()
-  searchFilters: string[] = ['unread', 'warning', 'note']
+  searchFilters: string[] = ['unread', 'warning', 'note', 'suggestion']
 
   @Input() currentObject: FlatNode | null = null
   constructor(private data: DataService) {}
@@ -32,12 +32,21 @@ export class SummaryComponent implements OnInit {
       next: (summary: Map<string, ISummary>) => {
         this.summary = summary
         if (this.currentObject) {
-          let s = summary.get(this.currentObject.name)
+          let objectName = this.currentObject.name
+          if (this.currentObject.type == 'indexName') {
+            objectName = this.currentObject.parent
+          }
+          let s = this.summary.get(objectName)
           if (s) {
             this.initiateSummaryCollection(s)
-            this.summaryCount = s.NotesCount + s.WarningsCount
-            this.changeIssuesLabel.emit(s.NotesCount + s.WarningsCount)
+            this.summaryCount = s.NotesCount + s.WarningsCount + s.ErrorsCount + s.SuggestionsCount
+            this.changeIssuesLabel.emit(
+              s.NotesCount + s.WarningsCount + s.ErrorsCount + s.SuggestionsCount
+            )
           }
+        } else {
+          this.summaryCount = 0
+          this.changeIssuesLabel.emit(0)
         }
       },
     })
@@ -49,19 +58,46 @@ export class SummaryComponent implements OnInit {
     this.currentObject = changes?.['currentObject']?.currentValue || this.currentObject
     this.summaryRows = []
     if (this.currentObject) {
-      let s = this.summary.get(this.currentObject.name)
+      let objectName = this.currentObject.name
+      if (this.currentObject.type == 'indexName') {
+        objectName = this.currentObject.parent
+      }
+      let s = this.summary.get(objectName)
       if (s) {
         this.initiateSummaryCollection(s)
-        this.summaryCount = s.NotesCount + s.WarningsCount
-        this.changeIssuesLabel.emit(s.NotesCount + s.WarningsCount)
+        this.summaryCount = s.NotesCount + s.WarningsCount + s.ErrorsCount + s.SuggestionsCount
+        this.changeIssuesLabel.emit(
+          s.NotesCount + s.WarningsCount + s.ErrorsCount + s.SuggestionsCount
+        )
+      } else {
+        this.summaryCount = 0
+        this.changeIssuesLabel.emit(0)
       }
+    } else {
+      this.summaryCount = 0
+      this.changeIssuesLabel.emit(0)
     }
   }
 
   initiateSummaryCollection(summary: ISummary) {
+    this.summaryRows = []
+    summary.Errors.forEach((v) => {
+      this.summaryRows.push({
+        type: 'error',
+        content: v,
+        isRead: false,
+      })
+    })
     summary.Warnings.forEach((v) => {
       this.summaryRows.push({
         type: 'warning',
+        content: v,
+        isRead: false,
+      })
+    })
+    summary.Suggestions.forEach((v) => {
+      this.summaryRows.push({
+        type: 'suggestion',
         content: v,
         isRead: false,
       })
@@ -73,7 +109,7 @@ export class SummaryComponent implements OnInit {
         isRead: false,
       })
     })
-    this.filteredSummaryRows = this.summaryRows
+    this.applyFilters()
   }
 
   applyFilters() {
@@ -92,6 +128,9 @@ export class SummaryComponent implements OnInit {
     }
     if (this.searchFilters.includes('note')) {
       typeFilters.push((s: ISummaryRow) => s.type == 'note')
+    }
+    if (this.searchFilters.includes('suggestion')) {
+      typeFilters.push((s: ISummaryRow) => s.type == 'suggestion')
     }
 
     this.filteredSummaryRows = this.summaryRows.filter(

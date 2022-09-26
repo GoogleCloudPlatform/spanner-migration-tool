@@ -9,6 +9,11 @@
 
 table {
   width: 100%;
+  .table-header-container {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+  }
 }
 
 .sessions-wrapper {
@@ -47,6 +52,25 @@ table {
   }
 }
 
-.notes-wrapper{
+.notes-wrapper {
   margin-top: 10px;
+}
+
+.mat-column-SessionName,
+.mat-column-EditorName,
+.mat-column-DatabaseType,
+.mat-column-DatabaseName {
+  width: 13vw;
+  min-width: 150px;
+}
+
+.mat-column-Action,
+.mat-column-Notes,
+.mat-column-CreateTimestamp {
+  width: 15vw;
+  min-width: 150px;
+}
+
+.mat-form-field {
+  width: 80%;
 }

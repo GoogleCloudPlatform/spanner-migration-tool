@@ -1,0 +1,42 @@
+.header {
+  .breadcrumb {
+    .breadcrumb_workspace {
+      color: rgba(0, 0, 0, 0.56);
+    }
+
+    .breadcrumb_prepare_migration {
+      font-weight: 400;
+      font-size: 14px;
+    }
+  }
+}
+
+.definition-container {
+  max-height: 500px;
+  overflow: auto;
+
+  th {
+    font-size: 13px;
+  }
+}
+
+.body {
+  margin-left: 20px;
+}
+
+table {
+  min-width: 30%;
+  max-width: 50%;
+
+  th {
+    width: 10%;
+  }
+}
+
+.configure {
+  color: #1967d2;
+}
+
+.migrate {
+  margin-top: 10px;
+}

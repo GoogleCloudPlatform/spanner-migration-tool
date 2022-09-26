@@ -30,7 +30,7 @@
 
               <mat-autocomplete #auto="matAutocomplete">
                 <mat-option
-                  (onSelectionChange)="addFilter(option)"
+                  (click)="addFilter(option)"
                   *ngFor="let option of obsFilteredOptions | async"
                   [value]="option"
                 >
@@ -54,12 +54,38 @@
       <section class="summary-row" *ngFor="let item of filteredSummaryRows">
         <div class="columns">
           <div class="left">
-            <span *ngIf="item.type == 'warning'" class="material-icons summary-type error"
-              >error</span
+            <mat-icon
+              matTooltip="Error"
+              matTooltipPosition="above"
+              *ngIf="item.type == 'error'"
+              class="error"
             >
-            <span *ngIf="item.type == 'note'" class="material-icons summary-type warning"
-              >warning</span
+              error
+            </mat-icon>
+            <mat-icon
+              matTooltip="Warning"
+              matTooltipPosition="above"
+              *ngIf="item.type == 'warning'"
+              class="warning"
             >
+              warning
+            </mat-icon>
+            <mat-icon
+              matTooltip="Suggestion"
+              matTooltipPosition="above"
+              *ngIf="item.type == 'suggestion'"
+              class="suggestion"
+            >
+              check_circle
+            </mat-icon>
+            <mat-icon
+              matTooltip="Note"
+              matTooltipPosition="above"
+              *ngIf="item.type == 'note'"
+              class="note"
+            >
+              check_circle
+            </mat-icon>
           </div>
           <div class="middle">{{ item.content }}</div>
           <div class="right">

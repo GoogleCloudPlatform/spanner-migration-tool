@@ -40,6 +40,7 @@ type Table struct {
 	PrimaryKeys []Key
 	ForeignKeys []ForeignKey
 	Indexes     []Index
+	Id          string
 }
 
 // Column represents a database column.
@@ -49,6 +50,7 @@ type Column struct {
 	Type    Type
 	NotNull bool
 	Ignored Ignored
+	Id      string
 }
 
 // ForeignKey represents a foreign key.
@@ -64,12 +66,14 @@ type ForeignKey struct {
 	ReferColumns []string // len(ReferColumns) must be same as len(Columns)
 	OnDelete     string
 	OnUpdate     string
+	Id           string
 }
 
 // Key respresents a primary key or index key.
 type Key struct {
 	Column string
 	Desc   bool // By default, order is ASC. Set to true to specifiy DESC.
+	Order  int
 }
 
 // Index represents a database index.
@@ -85,9 +89,11 @@ type Key struct {
 // to handle lots of cases for the same concept. Our choice of an index representation for unique is largely
 // motivated by the fact that databases typically implement UNIQUE via an index.
 type Index struct {
-	Name   string
-	Unique bool
-	Keys   []Key
+	Name          string
+	Unique        bool
+	Keys          []Key
+	Id            string
+	StoredColumns []string
 }
 
 // Type represents the type of a column.

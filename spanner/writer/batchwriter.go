@@ -25,6 +25,7 @@ import (
 	"unsafe"
 
 	sp "cloud.google.com/go/spanner"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 )
 
 // Parameters used to control building batches to write to Spanner.
@@ -131,6 +132,9 @@ func (bw *BatchWriter) Flush() {
 				fmt.Printf("Starting write of %d rows to Spanner (%d bytes, %d mutations) [%d in progress]\n",
 					len(m), bytes, count, atomic.LoadInt64(&bw.async.writes))
 			}
+			logger.Log.Debug(fmt.Sprintf("Starting write of %d rows to Spanner (%d bytes, %d mutations) [%d in progress]\n",
+				len(m), bytes, count, atomic.LoadInt64(&bw.async.writes)))
+
 			bw.startWrite(m)
 		} else {
 			time.Sleep(10 * time.Millisecond)
@@ -218,7 +222,7 @@ func (bw *BatchWriter) errorStats(rows []*row, err error, retry bool) {
 	if bw.verbose {
 		fmt.Printf("Error while writing %d rows to Spanner: %v\n", len(rows), err)
 	}
-
+	logger.Log.Debug(fmt.Sprintf("Error while writing %d rows to Spanner: %v\n", len(rows), err))
 	bw.async.lock.Lock()
 	defer bw.async.lock.Unlock()
 
@@ -257,6 +261,9 @@ func (bw *BatchWriter) doWriteAndHandleErrors(rows []*row) {
 		if !retry {
 			if hitRetryLimit && bw.verbose {
 				fmt.Printf("Have hit %d retries: will not do any more\n", atomic.LoadInt64(&bw.async.retries))
+			}
+			if hitRetryLimit {
+				logger.Log.Debug(fmt.Sprintf("Have hit %d retries: will not do any more\n", atomic.LoadInt64(&bw.async.retries)))
 			}
 			return
 		}
@@ -306,6 +313,8 @@ func (bw *BatchWriter) writeData() {
 				fmt.Printf("Starting write of %d rows to Spanner (%d bytes, %d mutations) [%d in progress]\n",
 					len(m), bytes, count, atomic.LoadInt64(&bw.async.writes))
 			}
+			logger.Log.Debug(fmt.Sprintf("Starting write of %d rows to Spanner (%d bytes, %d mutations) [%d in progress]\n",
+				len(m), bytes, count, atomic.LoadInt64(&bw.async.writes)))
 			bw.startWrite(m)
 		} else {
 			if bw.rBytes < bw.bytesLimit {

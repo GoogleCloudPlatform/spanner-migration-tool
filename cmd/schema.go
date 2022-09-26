@@ -26,8 +26,11 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/profiles"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/google/subcommands"
+	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 // SchemaCmd struct with flags.
@@ -37,6 +40,8 @@ type SchemaCmd struct {
 	target        string
 	targetProfile string
 	filePrefix    string // TODO: move filePrefix to global flags
+	logLevel      string
+	dryRun        bool
 }
 
 // Name returns the name of operation.
@@ -67,6 +72,8 @@ func (cmd *SchemaCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.target, "target", "Spanner", "Specifies the target DB, defaults to Spanner (accepted values: `Spanner`)")
 	f.StringVar(&cmd.targetProfile, "target-profile", "", "Flag for specifying connection profile for target database e.g., \"dialect=postgresql\"")
 	f.StringVar(&cmd.filePrefix, "prefix", "", "File prefix for generated files")
+	f.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to INFO")
+	f.BoolVar(&cmd.dryRun, "dry-run", false, "Flag for generating DDL and schema conversion report without creating a spanner database")
 }
 
 func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -75,41 +82,24 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 	var err error
 	defer func() {
 		if err != nil {
-			fmt.Printf("FATAL error: %v\n", err)
+			logger.Log.Fatal("FATAL error", zap.Error(err))
 		}
 	}()
-
-	sourceProfile, err := profiles.NewSourceProfile(cmd.sourceProfile, cmd.source)
+	err = logger.InitializeLogger(cmd.logLevel)
 	if err != nil {
-		return subcommands.ExitUsageError
+		fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err)
+		return subcommands.ExitFailure
 	}
-	sourceProfile.Driver, err = sourceProfile.ToLegacyDriver(cmd.source)
-	if err != nil {
-		return subcommands.ExitUsageError
-	}
+	defer logger.Log.Sync()
 
-	targetProfile, err := profiles.NewTargetProfile(cmd.targetProfile)
+	sourceProfile, targetProfile, ioHelper, dbName, err := PrepareMigrationPrerequisites(cmd.sourceProfile, cmd.targetProfile, cmd.source)
 	if err != nil {
+		err = fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 		return subcommands.ExitUsageError
-	}
-	targetProfile.TargetDb = targetProfile.ToLegacyTargetDb()
-
-	dumpFilePath := ""
-	if sourceProfile.Ty == profiles.SourceProfileTypeFile && (sourceProfile.File.Format == "" || sourceProfile.File.Format == "dump") {
-		dumpFilePath = sourceProfile.File.Path
-	}
-	ioHelper := utils.NewIOStreams(sourceProfile.Driver, dumpFilePath)
-	if ioHelper.SeekableIn != nil {
-		defer ioHelper.In.Close()
 	}
 
 	// If filePrefix not explicitly set, use generated dbName.
 	if cmd.filePrefix == "" {
-		dbName, err := utils.GetDatabaseName(sourceProfile.Driver, time.Now())
-		if err != nil {
-			err = fmt.Errorf("can't generate database name for prefix: %v", err)
-			return subcommands.ExitFailure
-		}
 		cmd.filePrefix = dbName + "."
 	}
 
@@ -120,11 +110,25 @@ func (cmd *SchemaCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interfa
 		return subcommands.ExitFailure
 	}
 
-	schemaCoversionEndTime := time.Now()
-	conv.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
-	conversion.WriteSchemaFile(conv, schemaCoversionEndTime, cmd.filePrefix+schemaFile, ioHelper.Out)
+	conversion.WriteSchemaFile(conv, schemaConversionStartTime, cmd.filePrefix+schemaFile, ioHelper.Out)
 	conversion.WriteSessionFile(conv, cmd.filePrefix+sessionFile, ioHelper.Out)
-	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, "", conv, cmd.filePrefix+reportFile, ioHelper.Out)
+
+	// Populate migration request id and migration type in conv object.
+	conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+	conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
+
+	if !cmd.dryRun {
+		_, err = MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, cmd, conv, nil)
+		if err != nil {
+			err = fmt.Errorf("can't finish database migration for db %s: %v", dbName, err)
+			return subcommands.ExitFailure
+		}
+	}
+
+	schemaCoversionEndTime := time.Now()
+	conv.Audit.SchemaConversionDuration = schemaCoversionEndTime.Sub(schemaConversionStartTime)
+	banner := utils.GetBanner(schemaConversionStartTime, dbName)
+	conversion.Report(sourceProfile.Driver, nil, ioHelper.BytesRead, banner, conv, cmd.filePrefix+reportFile, ioHelper.Out)
 	// Cleanup hb tmp data directory.
 	os.RemoveAll(os.TempDir() + constants.HB_TMP_DIR)
 	return subcommands.ExitSuccess

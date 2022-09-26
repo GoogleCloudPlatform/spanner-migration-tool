@@ -1,20 +1,20 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { DropIndexDialogComponent } from './drop-index-dialog.component';
+import { PrepareMigrationComponent } from './prepare-migration.component';
 
-describe('DropIndexDialogComponent', () => {
-  let component: DropIndexDialogComponent;
-  let fixture: ComponentFixture<DropIndexDialogComponent>;
+describe('PrepareMigrationComponent', () => {
+  let component: PrepareMigrationComponent;
+  let fixture: ComponentFixture<PrepareMigrationComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ DropIndexDialogComponent ]
+      declarations: [ PrepareMigrationComponent ]
     })
     .compileComponents();
   });
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(DropIndexDialogComponent);
+    fixture = TestBed.createComponent(PrepareMigrationComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

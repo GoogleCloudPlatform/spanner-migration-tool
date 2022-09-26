@@ -23,6 +23,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/stretchr/testify/assert"
 )
@@ -60,6 +61,9 @@ func TestReport(t *testing.T) {
 	conv.Stats.BadRows = map[string]int64{"bad_schema": 10, "no_pk": 2000}
 	badWrites := map[string]int64{"bad_schema": 50, "no_pk": 0}
 	conv.Stats.Unexpected["Testing unexpected messages"] = 5
+	conv.Audit = internal.Audit{
+		MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum(),
+	}
 	buf := new(bytes.Buffer)
 	w := bufio.NewWriter(buf)
 	internal.GenerateReport(constants.MYSQLDUMP, conv, w, badWrites, true, true)
@@ -74,7 +78,7 @@ func TestReport(t *testing.T) {
 		`----------------------------
 Summary of Conversion
 ----------------------------
-Schema conversion: GOOD (most columns mapped cleanly, but some missing primary keys).
+Schema conversion: GOOD (99.99412% of 17006 columns mapped cleanly) + some missing primary keys.
 Data conversion: POOR (66% of 6000 rows written to Spanner).
 
 The remainder of this report provides stats on the mysqldump statements
@@ -98,6 +102,14 @@ Analysis of statements in mysqldump output, broken down by statement type.
 See https://github.com/pingcap/parser for definitions of statement types
 (pingcap/tidb/parser is the library we use for parsing mysqldump output).
 
+-----------------------------------------------------------------------------------------------------
+Name Changes in Migration
+-----------------------------------------------------------------------------------------------------
+             Source Table          Change                  Old Name                  New Name
+-----------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------
+
+
 ----------------------------
 Table bad_schema
 ----------------------------
@@ -115,7 +127,7 @@ Note
 ----------------------------
 Table default_value
 ----------------------------
-Schema conversion: POOR (many columns did not map cleanly).
+Schema conversion: POOR (50% of 2 columns mapped cleanly).
 Data conversion: NONE (no data rows found).
 
 Warning
@@ -125,13 +137,13 @@ Warning
 ----------------------------
 Table excellent_schema
 ----------------------------
-Schema conversion: EXCELLENT (all columns mapped cleanly).
+Schema conversion: EXCELLENT (all 2 columns mapped cleanly).
 Data conversion: NONE (no data rows found).
 
 ----------------------------
 Table foreign_key
 ----------------------------
-Schema conversion: EXCELLENT (all columns mapped cleanly).
+Schema conversion: EXCELLENT (all 2 columns mapped cleanly).
 Data conversion: NONE (no data rows found).
 
 ----------------------------

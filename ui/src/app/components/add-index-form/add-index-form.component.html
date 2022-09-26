@@ -18,24 +18,36 @@
   </mat-form-field>
   <ng-container formArrayName="ColsArray" class="addcol-form">
     <ng-container *ngFor="let colForm of ColsArray.controls; let i = index">
-      <div [formGroupName]="i">
-        <mat-form-field appearance="outline">
-          <mat-label>Column Name</mat-label>
-          <mat-select matSelect class="input-field" formControlName="columnName" required="true">
-            <mat-option *ngFor="let col of currentColumns" [value]="col">{{ col }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Sort</mat-label>
-          <mat-select class="input-field" formControlName="sort" required="true">
-            <mat-option value="false">Ascending</mat-option>
-            <mat-option value="true">Descending</mat-option>
-          </mat-select>
-        </mat-form-field>
-      </div>
+      <mat-card class="column-form-card">
+        <div [formGroupName]="i">
+          <mat-form-field appearance="outline">
+            <mat-label>Column Name</mat-label>
+            <mat-select
+              (selectionChange)="selectedColumnChange()"
+              matSelect
+              class="input-field"
+              formControlName="columnName"
+              required="true"
+            >
+              <mat-option *ngFor="let col of addColumnsList[i]" [value]="col">{{ col }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Sort</mat-label>
+            <mat-select class="input-field" formControlName="sort" required="true">
+              <mat-option value="false">Ascending</mat-option>
+              <mat-option value="true">Descending</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+        <button mat-button color="primary" (click)="removeColumnForm(i)">
+          <mat-icon>remove</mat-icon>
+          <span>REMOVE COLUMN</span>
+        </button>
+      </mat-card>
     </ng-container>
-    <br />
     <button
+      *ngIf="addColumnsList.length < totalColumns.length"
       mat-button
       color="primary"
       (click)="addNewColumnForm()"
@@ -43,7 +55,7 @@
       type="button"
     >
       <mat-icon>add</mat-icon>
-      ADD COLUMN
+      <span>ADD COLUMN</span>
     </button>
 
     <br />

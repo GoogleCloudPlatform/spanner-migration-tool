@@ -21,10 +21,16 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
+
+func init() {
+	logger.Log = zap.NewNop()
+}
 
 type mockSpec struct {
 	query string
@@ -62,7 +68,7 @@ func TestProcessSchema(t *testing.T) {
 		}, {
 			query: "SELECT (.+) FROM sys.indexes (.+)",
 			args:  []driver.Value{"user", "dbo"},
-			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"dbo", "user"},
@@ -86,7 +92,7 @@ func TestProcessSchema(t *testing.T) {
 		}, {
 			query: "SELECT (.+) FROM sys.indexes (.+)",
 			args:  []driver.Value{"test", "dbo"},
-			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"dbo", "test"},
@@ -150,12 +156,12 @@ func TestProcessSchema(t *testing.T) {
 		}, {
 			query: "SELECT (.+) FROM sys.indexes (.+)",
 			args:  []driver.Value{"cart", "dbo"},
-			cols:  []string{"index_name", "column_name", "is_unique", "order"},
-			rows: [][]driver.Value{{"index1", "userid", "false", "ASC"},
-				{"index2", "userid", "true", "ASC"},
-				{"index2", "productid", "true", "DESC"},
-				{"index3", "productid", "true", "DESC"},
-				{"index3", "userid", "true", "ASC"},
+			cols:  []string{"index_name", "column_name", "is_unique", "order", "is_included_column"},
+			rows: [][]driver.Value{{"index1", "userid", "false", "ASC", "false"},
+				{"index2", "userid", "true", "ASC", "false"},
+				{"index2", "productid", "true", "DESC", "true"},
+				{"index3", "productid", "true", "DESC", "false"},
+				{"index3", "userid", "true", "ASC", "false"},
 			},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
@@ -181,7 +187,7 @@ func TestProcessSchema(t *testing.T) {
 		}, {
 			query: "SELECT (.+) FROM sys.indexes (.+)",
 			args:  []driver.Value{"product", "production"},
-			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"production", "product"},
@@ -207,7 +213,7 @@ func TestProcessSchema(t *testing.T) {
 		}, {
 			query: "SELECT (.+) FROM sys.indexes (.+)",
 			args:  []driver.Value{"test_ref", "dbo"},
-			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
 		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"dbo", "test_ref"},
@@ -295,7 +301,7 @@ func TestProcessSchema(t *testing.T) {
 			Fks: []ddl.Foreignkey{{Name: "fk_test2", Columns: []string{"productid"}, ReferTable: "production_product", ReferColumns: []string{"product_id"}},
 				{Name: "fk_test3", Columns: []string{"userid"}, ReferTable: "user", ReferColumns: []string{"user_id"}}},
 			Indexes: []ddl.CreateIndex{{Name: "index1", Table: "cart", Unique: false, Keys: []ddl.IndexKey{{Col: "userid", Desc: false}}},
-				{Name: "index2", Table: "cart", Unique: true, Keys: []ddl.IndexKey{{Col: "userid", Desc: false}, {Col: "productid", Desc: true}}},
+				{Name: "index2", Table: "cart", Unique: true, Keys: []ddl.IndexKey{{Col: "userid", Desc: false}}, StoredColumns: []string{"productid"}},
 				{Name: "index3", Table: "cart", Unique: true, Keys: []ddl.IndexKey{{Col: "productid", Desc: true}, {Col: "userid", Desc: false}}}}},
 		"production_product": {
 			Name:     "production_product",

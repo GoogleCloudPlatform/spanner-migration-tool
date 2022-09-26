@@ -17,6 +17,7 @@ package dynamodb
 import (
 	"testing"
 
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
@@ -69,6 +70,62 @@ func TestToSpannerType(t *testing.T) {
 			"i": {Name: "i", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength, IsArray: true}},
 			"j": {Name: "j", T: ddl.Type{Name: ddl.Numeric, IsArray: true}},
 			"k": {Name: "k", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}},
+		},
+		Pks: []ddl.IndexKey{{Col: "a"}, {Col: "b"}},
+		Indexes: []ddl.CreateIndex{
+			{Name: "index1", Table: name, Keys: []ddl.IndexKey{{Col: "b"}, {Col: "c"}}},
+			{Name: "test_2", Table: name, Keys: []ddl.IndexKey{{Col: "d"}}},
+		},
+	}
+	assert.Equal(t, expected, actual)
+}
+
+func TestToExperimentalSpannerType(t *testing.T) {
+	conv := internal.MakeConv()
+	conv.SetSchemaMode()
+	conv.TargetDb = constants.TargetExperimentalPostgres
+	name := "test"
+	srcSchema := schema.Table{
+		Name:     name,
+		ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
+		ColDefs: map[string]schema.Column{
+			"a": {Name: "a", Type: schema.Type{Name: typeString}},
+			"b": {Name: "b", Type: schema.Type{Name: typeNumber}},
+			"c": {Name: "c", Type: schema.Type{Name: typeNumberString}},
+			"d": {Name: "d", Type: schema.Type{Name: typeBool}},
+			"e": {Name: "e", Type: schema.Type{Name: typeBinary}},
+			"f": {Name: "f", Type: schema.Type{Name: typeList}},
+			"g": {Name: "g", Type: schema.Type{Name: typeMap}},
+			"h": {Name: "h", Type: schema.Type{Name: typeStringSet}},
+			"i": {Name: "i", Type: schema.Type{Name: typeBinarySet}},
+			"j": {Name: "j", Type: schema.Type{Name: typeNumberSet}},
+			"k": {Name: "k", Type: schema.Type{Name: typeNumberStringSet}},
+		},
+		PrimaryKeys: []schema.Key{{Column: "a"}, {Column: "b"}},
+		Indexes: []schema.Index{
+			{Name: "index1", Keys: []schema.Key{{Column: "b"}, {Column: "c"}}},
+			{Name: "test", Keys: []schema.Key{{Column: "d"}}},
+		},
+	}
+	conv.SrcSchema[name] = srcSchema
+	assert.Nil(t, common.SchemaToSpannerDDL(conv, ToDdlImpl{}))
+	actual := conv.SpSchema[name]
+	dropComments(&actual) // Don't test comment.
+	expected := ddl.CreateTable{
+		Name:     name,
+		ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
+		ColDefs: map[string]ddl.ColumnDef{
+			"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
+			"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
+			"e": {Name: "e", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+			"f": {Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"g": {Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"h": {Name: "h", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"i": {Name: "i", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"j": {Name: "j", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"k": {Name: "k", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		},
 		Pks: []ddl.IndexKey{{Col: "a"}, {Col: "b"}},
 		Indexes: []ddl.CreateIndex{

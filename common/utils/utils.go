@@ -73,7 +73,7 @@ func NewIOStreams(driver string, dumpFile string) IOStreams {
 		fmt.Printf("\nLoading dump file from path: %s\n", dumpFile)
 		var f *os.File
 		var err error
-		if u.Scheme == "gs" {
+		if u.Scheme == constants.GCS_SCHEME {
 			bucketName := u.Host
 			filePath := u.Path[1:] // removes "/" from beginning of path
 			f, err = DownloadFromGCS(bucketName, filePath, "harbourbridge.gcs.data")
@@ -152,7 +152,7 @@ func PreloadGCSFiles(tables []ManifestTable) ([]ManifestTable, error) {
 			if err != nil {
 				return nil, fmt.Errorf("unable parse file path %s for table %s", filePath, table.Table_name)
 			}
-			if u.Scheme == "gs" {
+			if u.Scheme == constants.GCS_SCHEME {
 				bucketName := u.Host
 				filePath := u.Path[1:] // removes "/" from beginning of path
 				tmpFile := strings.ReplaceAll(filePath, "/", ".")
@@ -168,6 +168,52 @@ func PreloadGCSFiles(tables []ManifestTable) ([]ManifestTable, error) {
 		}
 	}
 	return tables, nil
+}
+
+func ParseGCSFilePath(filePath string) (*url.URL, error) {
+	if len(filePath) == 0 {
+		return nil, fmt.Errorf("found empty GCS path")
+	}
+	if filePath[len(filePath)-1] != '/' {
+		filePath = filePath + "/"
+	}
+	u, err := url.Parse(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("parseFilePath: unable to parse file path %s", filePath)
+	}
+	if u.Scheme != constants.GCS_SCHEME {
+		return nil, fmt.Errorf("not a valid GCS path: %s, should start with 'gs'", filePath)
+	}
+	return u, nil
+}
+
+func WriteToGCS(filePath, fileName, data string) error {
+	ctx := context.Background()
+
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		fmt.Printf("Failed to create GCS client")
+		return err
+	}
+	defer client.Close()
+	u, err := ParseGCSFilePath(filePath)
+	if err != nil {
+		return fmt.Errorf("parseFilePath: unable to parse file path: %v", err)
+	}
+	bucketName := u.Host
+	bucket := client.Bucket(bucketName)
+	obj := bucket.Object(u.Path[1:] + fileName)
+
+	w := obj.NewWriter(ctx)
+	if _, err := fmt.Fprint(w, data); err != nil {
+		fmt.Printf("Failed to write to Cloud Storage: %s", filePath)
+		return err
+	}
+	if err := w.Close(); err != nil {
+		fmt.Printf("Failed to close GCS file: %s", filePath)
+		return err
+	}
+	return nil
 }
 
 // GetProject returns the cloud project we should use for accessing Spanner.
@@ -237,6 +283,12 @@ func getInstances(ctx context.Context, project string) ([]string, error) {
 }
 
 func GetPassword() string {
+	calledFromGCloud := os.Getenv("GCLOUD_HB_PLUGIN")
+	if strings.EqualFold(calledFromGCloud, "true") {
+		fmt.Println("\n Please specify password in enviroment variables (recommended) or --source-profile " +
+			"(not recommended) while using HarbourBridge from gCloud CLI.")
+		return ""
+	}
 	fmt.Print("Enter Password: ")
 	bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
 	if err != nil {
@@ -249,10 +301,10 @@ func GetPassword() string {
 
 // GetDatabaseName generates database name with driver_date prefix.
 func GetDatabaseName(driver string, now time.Time) (string, error) {
-	return generateName(fmt.Sprintf("%s_%s", driver, now.Format("2006-01-02")))
+	return GenerateName(fmt.Sprintf("%s_%s", driver, now.Format("2006-01-02")))
 }
 
-func generateName(prefix string) (string, error) {
+func GenerateName(prefix string) (string, error) {
 	b := make([]byte, 4)
 	_, err := rand.Read(b)
 	if err != nil {
@@ -496,6 +548,58 @@ func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Clie
 		spTable := conv.SpSchema[table]
 		spTable.Parent = parent
 		conv.SpSchema[table] = spTable
+	}
+	return nil
+}
+
+// CompareSchema compares the spanner schema of two conv objects and returns specific error if they don't match
+func CompareSchema(conv1, conv2 *internal.Conv) error {
+	if conv1.TargetDb != conv2.TargetDb {
+		return fmt.Errorf("target db don't match")
+	}
+	for spannerTableInd := range conv1.SpSchema {
+		sessionTable := conv1.SpSchema[spannerTableInd]
+		spannerTable := conv2.SpSchema[spannerTableInd]
+		if sessionTable.Name != spannerTable.Name || sessionTable.Parent != spannerTable.Parent ||
+			len(sessionTable.Pks) != len(spannerTable.Pks) || len(sessionTable.ColDefs) != len(spannerTable.ColDefs) ||
+			len(sessionTable.Indexes) != len(spannerTable.Indexes) {
+			return fmt.Errorf("table detail for table %v don't match", sessionTable.Name)
+		}
+		for primaryKeyIndex := range sessionTable.Pks {
+			if sessionTable.Pks[primaryKeyIndex].Col != spannerTable.Pks[primaryKeyIndex].Col || sessionTable.Pks[primaryKeyIndex].Desc != spannerTable.Pks[primaryKeyIndex].Desc {
+				return fmt.Errorf("primary keys for table %v don't match", sessionTable.Name)
+			}
+		}
+		for col := range sessionTable.ColDefs {
+			colDef := sessionTable.ColDefs[col]
+			spannerCol := spannerTable.ColDefs[col]
+			if colDef.Name != spannerCol.Name || colDef.NotNull != spannerCol.NotNull ||
+				colDef.T.IsArray != spannerCol.T.IsArray || colDef.T.Len != spannerCol.T.Len || colDef.T.Name != spannerCol.T.Name {
+				return fmt.Errorf("column detail for table %v don't match", sessionTable.Name)
+			}
+		}
+		for _, sessionTableIndex := range sessionTable.Indexes {
+			found := 0
+			for _, spannerTableIndex := range spannerTable.Indexes {
+				if sessionTableIndex.Name == spannerTableIndex.Name {
+					found = 1
+					if sessionTableIndex.Table != spannerTableIndex.Table || sessionTableIndex.Unique != spannerTableIndex.Unique ||
+						len(sessionTableIndex.Keys) != len(spannerTableIndex.Keys) {
+						return fmt.Errorf("index %v - details don't match", sessionTableIndex.Name)
+					}
+					for keyIndex := range sessionTableIndex.Keys {
+						if sessionTableIndex.Keys[keyIndex].Col != spannerTableIndex.Keys[keyIndex].Col ||
+							sessionTableIndex.Keys[keyIndex].Desc != spannerTableIndex.Keys[keyIndex].Desc {
+							return fmt.Errorf("index %v - keys don't match", sessionTableIndex.Name)
+						}
+					}
+					break
+				}
+			}
+			if found == 0 {
+				return fmt.Errorf("index %v not found in spanner schema", sessionTableIndex.Name)
+			}
+		}
 	}
 	return nil
 }

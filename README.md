@@ -352,6 +352,8 @@ conversion state endcoded as JSON.
 
 `-target-profile` Specifies detailed parameters for the target database. See [Target Profile](#target-profile) for details.
 
+`-dry-run` Controls whether we run the migration in dry run mode or not. Using this mode generates schema and report for schema and/or data conversion without any actual creation of tables.
+
 ### Source Profile
 
 HarbourBridge accepts the following params for --source-profile,
@@ -398,12 +400,13 @@ Details on HarbourBridge schema conversion can be found here:
 - [SQL Server schema conversion](sources/sqlserver/README.md#schema-conversion)
 - [Oracle DB schema conversion](sources/oracle/README.md#schema-conversion)
 
-## Data Conversion
+## Data Migration
 
-HarbourBridge converts PostgreSQL/MySQL/DynamoDB data to Spanner data based on
+### Data Conversion
+
+HarbourBridge converts data from the source to Spanner data based on
 the Spanner schema it constructs. Conversion for most data types is fairly
-straightforward, but several types deserve discussion. Note that HarbourBridge
-is not intended for databases larger than about 100GB. Details on HarbourBridge
+straightforward, but several types deserve discussion. Details on HarbourBridge
 data conversion can be found here:
 
 - [PostgreSQL data conversion](sources/postgres/README.md#data-conversion)
@@ -411,6 +414,12 @@ data conversion can be found here:
 - [DynamoDB data conversion](sources/dynamodb/README.md#data-conversion)
 - [CSV data conversion](sources/csv/README.md#example-csv-usage)
 - [SQL Server data conversion](sources/sqlserver/README.md#data-conversion)
+
+### Data Migration Recommendations
+- We recommend to use this data migration solution only for small databases 
+(smaller than 100GB) without strict downtime requirements. 
+- While using direct connect, it is recommended to use a secondary/read replica
+ to ensure consistency and that and avoid impact from the load on the primary.
 
 ## Troubleshooting Guide
 
@@ -551,3 +560,5 @@ encountered.
 
 If you are having problems with HarbourBridge, please [submit an
 issue](https://github.com/cloudspannerecosystem/harbourbridge/issues).
+
+

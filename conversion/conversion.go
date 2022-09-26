@@ -16,10 +16,11 @@
 // and web APIs.
 
 // TODO:(searce) Organize code in go style format to make this file more readable.
-// 			public constants first
-// 			key public type definitions next (although often it makes sense to put them next to public functions that use them)
-// 			then public functions (and relevant type definitions)
-// 			and helper functions and other non-public definitions last (generally in order of importance)
+//
+//	public constants first
+//	key public type definitions next (although often it makes sense to put them next to public functions that use them)
+//	then public functions (and relevant type definitions)
+//	and helper functions and other non-public definitions last (generally in order of importance)
 package conversion
 
 import (
@@ -43,14 +44,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	dydb "github.com/aws/aws-sdk-go/service/dynamodb"
-	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/protobuf/proto"
-
+	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/metrics"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/csv"
@@ -58,9 +57,14 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/spanner"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/writer"
+	"go.uber.org/zap"
+	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -71,17 +75,8 @@ var (
 	MaxWorkers = 20
 )
 
-const migrationMetadataKey = "cloud-spanner-migration-metadata"
-
 // SchemaConv performs the schema conversion
-// TODO: Pass around cmd.SourceProfile instead of sqlConnectionStr and schemaSampleSize.
-// Doing that requires refactoring since that would introduce a circular dependency between
-// conversion.go and cmd/source_profile.go.
-// The sqlConnectionStr param provides the connection details to use the go SQL library.
-// It is empty in the following cases:
-//  - Driver is DynamoDB or a dump file mode.
-//  - This function is called as part of the legacy global CLI flag mode. (This string is constructed from env variables later on)
-// When using source-profile, the sqlConnectionStr is constructed from the input params.
+// The SourceProfile param provides the connection details to use the go SQL library.
 func SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams) (*internal.Conv, error) {
 	switch sourceProfile.Driver {
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE:
@@ -94,11 +89,7 @@ func SchemaConv(sourceProfile profiles.SourceProfile, targetProfile profiles.Tar
 }
 
 // DataConv performs the data conversion
-// The sqlConnectionStr param provides the connection details to use the go SQL library.
-// It is empty in the following cases:
-//  - Driver is DynamoDB or a dump file mode.
-//  - This function is called as part of the legacy global CLI flag mode. (This string is constructed from env variables later on)
-// When using source-profile, the sqlConnectionStr and schemaSampleSize are constructed from the input params.
+// The SourceProfile param provides the connection details to use the go SQL library.
 func DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, ioHelper *utils.IOStreams, client *sp.Client, conv *internal.Conv, dataOnly bool, writeLimit int64) (*writer.BatchWriter, error) {
 	config := writer.BatchWriterConfig{
 		BytesLimit: 100 * 1000 * 1000,
@@ -108,7 +99,7 @@ func DataConv(ctx context.Context, sourceProfile profiles.SourceProfile, targetP
 	}
 	switch sourceProfile.Driver {
 	case constants.POSTGRES, constants.MYSQL, constants.DYNAMODB, constants.SQLSERVER, constants.ORACLE:
-		return dataFromDatabase(sourceProfile, config, client, conv)
+		return dataFromDatabase(ctx, sourceProfile, targetProfile, config, conv, client)
 	case constants.PGDUMP, constants.MYSQLDUMP:
 		if conv.SpSchema.CheckInterleaved() {
 			return nil, fmt.Errorf("harbourBridge does not currently support data conversion from dump files\nif the schema contains interleaved tables. Suggest using direct access to source database\ni.e. using drivers postgres and mysql")
@@ -177,25 +168,59 @@ func getDbNameFromSQLConnectionStr(driver, sqlConnectionStr string) string {
 func schemaFromDatabase(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (*internal.Conv, error) {
 	conv := internal.MakeConv()
 	conv.TargetDb = targetProfile.TargetDb
-	infoSchema, err := GetInfoSchema(sourceProfile)
+	infoSchema, err := GetInfoSchema(sourceProfile, targetProfile)
 	if err != nil {
 		return conv, err
 	}
 	return conv, common.ProcessSchema(conv, infoSchema)
 }
 
-func dataFromDatabase(sourceProfile profiles.SourceProfile, config writer.BatchWriterConfig, client *sp.Client, conv *internal.Conv) (*writer.BatchWriter, error) {
-	infoSchema, err := GetInfoSchema(sourceProfile)
+func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) *writer.BatchWriter {
+	common.SetRowStats(conv, infoSchema)
+	totalRows := conv.Rows()
+	if !conv.Audit.DryRun {
+		conv.Audit.Progress = *internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
+	}
+	batchWriter := populateDataConv(conv, config, client)
+	common.ProcessData(conv, infoSchema)
+	batchWriter.Flush()
+	return batchWriter
+}
+
+func snapshotMigrationHandler(sourceProfile profiles.SourceProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error) {
+	switch sourceProfile.Driver {
+	// Skip snapshot migration via harbourbridge for mysql and oracle since dataflow job will job will handle this from backfilled data.
+	case constants.MYSQL, constants.ORACLE:
+		return &writer.BatchWriter{}, nil
+	case constants.DYNAMODB:
+		return performSnapshotMigration(config, conv, client, infoSchema), nil
+	default:
+		return &writer.BatchWriter{}, fmt.Errorf("streaming migration not supported for driver %s", sourceProfile.Driver)
+	}
+}
+
+func dataFromDatabase(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client) (*writer.BatchWriter, error) {
+	infoSchema, err := GetInfoSchema(sourceProfile, targetProfile)
 	if err != nil {
 		return nil, err
 	}
-	common.SetRowStats(conv, infoSchema)
-	totalRows := conv.Rows()
-	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
-	batchWriter := populateDataConv(conv, config, client, p)
-	common.ProcessData(conv, infoSchema)
-	batchWriter.Flush()
-	return batchWriter, nil
+	var streamInfo map[string]interface{}
+	if sourceProfile.Conn.Streaming {
+		streamInfo, err = infoSchema.StartChangeDataCapture(ctx, conv)
+		if err != nil {
+			return nil, err
+		}
+		bw, err := snapshotMigrationHandler(sourceProfile, config, conv, client, infoSchema)
+		if err != nil {
+			return nil, err
+		}
+		err = infoSchema.StartStreamingMigration(ctx, client, conv, streamInfo)
+		if err != nil {
+			return nil, err
+		}
+		return bw, nil
+	}
+	return performSnapshotMigration(config, conv, client, infoSchema), nil
 }
 
 func getDynamoDBClientConfig() (*aws.Config, error) {
@@ -252,12 +277,12 @@ func dataFromDump(driver string, config writer.BatchWriterConfig, ioHelper *util
 	}
 	totalRows := conv.Rows()
 
-	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
+	conv.Audit.Progress = *internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
 	r := internal.NewReader(bufio.NewReader(ioHelper.SeekableIn), nil)
-	batchWriter := populateDataConv(conv, config, client, p)
+	batchWriter := populateDataConv(conv, config, client)
 	ProcessDump(driver, conv, r)
 	batchWriter.Flush()
-	p.Done()
+	conv.Audit.Progress.Done()
 
 	return batchWriter, nil
 }
@@ -300,40 +325,43 @@ func dataFromCSV(ctx context.Context, sourceProfile profiles.SourceProfile, targ
 	}
 
 	totalRows := conv.Rows()
-	p := internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
-	batchWriter := populateDataConv(conv, config, client, p)
+	conv.Audit.Progress = *internal.NewProgress(totalRows, "Writing data to Spanner", internal.Verbose(), false)
+	batchWriter := populateDataConv(conv, config, client)
 	err = csv.ProcessCSV(conv, tables, sourceProfile.Csv.NullStr, delimiter)
 	if err != nil {
 		return nil, fmt.Errorf("can't process csv: %v", err)
 	}
 	batchWriter.Flush()
-	p.Done()
+	conv.Audit.Progress.Done()
 	return batchWriter, nil
 }
 
-func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, client *sp.Client, progress *internal.Progress) *writer.BatchWriter {
+func populateDataConv(conv *internal.Conv, config writer.BatchWriterConfig, client *sp.Client) *writer.BatchWriter {
 	rows := int64(0)
 	config.Write = func(m []*sp.Mutation) error {
 		migrationData := metrics.GetMigrationData(conv, "", "", constants.DataConv)
 		serializedMigrationData, _ := proto.Marshal(migrationData)
 		migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
-		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), migrationMetadataKey, migrationMetadataValue), m)
+		_, err := client.Apply(metadata.AppendToOutgoingContext(context.Background(), constants.MigrationMetadataKey, migrationMetadataValue), m)
 		if err != nil {
 			return err
 		}
 		atomic.AddInt64(&rows, int64(len(m)))
-		progress.MaybeReport(atomic.LoadInt64(&rows))
+		conv.Audit.Progress.MaybeReport(atomic.LoadInt64(&rows))
 		return nil
 	}
 	batchWriter := writer.NewBatchWriter(config)
 	conv.SetDataMode()
-	conv.SetDataSink(
-		func(table string, cols []string, vals []interface{}) {
-			batchWriter.AddRow(table, cols, vals)
-		})
-	conv.DataFlush = func() {
-		batchWriter.Flush()
+	if !conv.Audit.DryRun {
+		conv.SetDataSink(
+			func(table string, cols []string, vals []interface{}) {
+				batchWriter.AddRow(table, cols, vals)
+			})
+		conv.DataFlush = func() {
+			batchWriter.Flush()
+		}
 	}
+
 	return batchWriter
 }
 
@@ -379,6 +407,7 @@ func getSeekable(f *os.File) (*os.File, int64, error) {
 		return f, n, err
 	}
 	internal.VerbosePrintln("Creating a tmp file with a copy of stdin because stdin is not seekable.")
+	logger.Log.Debug("Creating a tmp file with a copy of stdin because stdin is not seekable.")
 
 	// Create file in os.TempDir. Its not clear this is a good idea e.g. if the
 	// pg_dump/mysqldump output is large (tens of GBs) and os.TempDir points to a directory
@@ -415,15 +444,47 @@ func VerifyDb(ctx context.Context, adminClient *database.DatabaseAdminClient, db
 }
 
 // CheckExistingDb checks whether the database with dbURI exists or not.
+// If API call doesn't respond then user is informed after every 5 minutes on command line.
 func CheckExistingDb(ctx context.Context, adminClient *database.DatabaseAdminClient, dbURI string) (bool, error) {
-	_, err := adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: dbURI})
-	if err != nil {
-		if utils.ContainsAny(strings.ToLower(err.Error()), []string{"database not found"}) {
-			return false, nil
+	gotResponse := make(chan bool)
+	var err error
+	go func() {
+		_, err = adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{Name: dbURI})
+		gotResponse <- true
+	}()
+	for {
+		select {
+		case <-time.After(5 * time.Minute):
+			fmt.Println("WARNING! API call not responding: make sure that spanner api endpoint is configured properly")
+		case <-gotResponse:
+			if err != nil {
+				if utils.ContainsAny(strings.ToLower(err.Error()), []string{"database not found"}) {
+					return false, nil
+				}
+				return false, fmt.Errorf("can't get database info: %s", err)
+			}
+			return true, nil
 		}
-		return false, fmt.Errorf("can't get database info: %s", err)
 	}
-	return true, nil
+}
+
+// ValidateTables validates that all the tables in the database are empty.
+func ValidateTables(ctx context.Context, client *sp.Client, targetDb string) error {
+	infoSchema := spanner.InfoSchemaImpl{Client: client, Ctx: ctx, TargetDb: targetDb}
+	tables, err := infoSchema.GetTables()
+	if err != nil {
+		return err
+	}
+	for _, table := range tables {
+		count, err := infoSchema.GetRowCount(table)
+		if err != nil {
+			return err
+		}
+		if count != 0 {
+			return fmt.Errorf("table %v should be empty for data migration to take place", table.Name)
+		}
+	}
+	return nil
 }
 
 // ValidateDDL verifies if an existing DB's ddl follows what is supported by harbourbridge. Currently,
@@ -449,7 +510,7 @@ func CreateOrUpdateDatabase(ctx context.Context, adminClient *database.DatabaseA
 	migrationData := metrics.GetMigrationData(conv, driver, targetDb, constants.SchemaConv)
 	serializedMigrationData, _ := proto.Marshal(migrationData)
 	migrationMetadataValue := base64.StdEncoding.EncodeToString(serializedMigrationData)
-	ctx = metadata.AppendToOutgoingContext(ctx, migrationMetadataKey, migrationMetadataValue)
+	ctx = metadata.AppendToOutgoingContext(ctx, constants.MigrationMetadataKey, migrationMetadataValue)
 	if dbExists {
 		err := UpdateDatabase(ctx, adminClient, dbURI, conv, out)
 		if err != nil {
@@ -550,7 +611,7 @@ However, setting it to a very high value might lead to exceeding the admin quota
 Recommended value is between 20-30.`)
 	}
 	msg := fmt.Sprintf("Updating schema of database %s with foreign key constraints ...", dbURI)
-	p := internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose(), true)
+	conv.Audit.Progress = *internal.NewProgress(int64(len(fkStmts)), msg, internal.Verbose(), true)
 
 	workers := make(chan int, MaxWorkers)
 	for i := 1; i <= MaxWorkers; i++ {
@@ -570,11 +631,13 @@ Recommended value is between 20-30.`)
 				// Locking the progress reporting otherwise progress results displayed could be in random order.
 				progressMutex.Lock()
 				progress++
-				p.MaybeReport(progress)
+				conv.Audit.Progress.MaybeReport(progress)
 				progressMutex.Unlock()
 				workers <- workerID
 			}()
 			internal.VerbosePrintf("Submitting new FK create request: %s\n", fkStmt)
+			logger.Log.Debug("Submitting new FK create request", zap.String("fkStmt", fkStmt))
+
 			op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 				Database:   dbURI,
 				Statements: []string{fkStmt},
@@ -590,13 +653,14 @@ Recommended value is between 20-30.`)
 				return
 			}
 			internal.VerbosePrintln("Updated schema with statement: " + fkStmt)
+			logger.Log.Debug("Updated schema with statement", zap.String("fkStmt", fkStmt))
 		}(fkStmt, workerID)
 	}
 	// Wait for all the goroutines to finish.
 	for i := 1; i <= MaxWorkers; i++ {
 		<-workers
 	}
-	p.Done()
+	conv.Audit.Progress.Done()
 	return nil
 }
 
@@ -715,7 +779,13 @@ func ReadSessionFile(conv *internal.Conv, sessionJSON string) error {
 func WriteBadData(bw *writer.BatchWriter, conv *internal.Conv, banner, name string, out *os.File) {
 	badConversions := conv.BadRows()
 	badWrites := utils.SumMapValues(bw.DroppedRowsByTable())
-	if badConversions == 0 && badWrites == 0 {
+
+	badDataStreaming := int64(0)
+	if conv.Audit.StreamingStats.Streaming {
+		badDataStreaming = getBadStreamingDataCount(conv)
+	}
+
+	if badConversions == 0 && badWrites == 0 && badDataStreaming == 0 {
 		os.Remove(name) // Cleanup bad-data file from previous run.
 		return
 	}
@@ -756,7 +826,77 @@ func WriteBadData(bw *writer.BatchWriter, conv *internal.Conv, banner, name stri
 			}
 		}
 	}
+	if badDataStreaming > 0 {
+		err = writeBadStreamingData(conv, f)
+		if err != nil {
+			fmt.Fprintf(out, "Can't write out bad data file: %v\n", err)
+			return
+		}
+	}
+
 	fmt.Fprintf(out, "See file '%s' for details of bad rows\n", name)
+}
+
+// getBadStreamingDataCount returns the total sum of bad and dropped records during
+// streaming migration process.
+func getBadStreamingDataCount(conv *internal.Conv) int64 {
+	badDataCount := int64(0)
+
+	for _, x := range conv.Audit.StreamingStats.BadRecords {
+		badDataCount += utils.SumMapValues(x)
+	}
+	for _, x := range conv.Audit.StreamingStats.DroppedRecords {
+		badDataCount += utils.SumMapValues(x)
+	}
+	return badDataCount
+}
+
+// writeBadStreamingData writes sample of bad records and dropped records during streaming
+// migration process to bad data file.
+func writeBadStreamingData(conv *internal.Conv, f *os.File) error {
+	f.WriteString("\nBad data encountered during streaming migration:\n\n")
+
+	stats := (conv.Audit.StreamingStats)
+
+	badRecords := int64(0)
+	for _, x := range stats.BadRecords {
+		badRecords += utils.SumMapValues(x)
+	}
+	droppedRecords := int64(0)
+	for _, x := range stats.DroppedRecords {
+		droppedRecords += utils.SumMapValues(x)
+	}
+
+	if badRecords > 0 {
+		l := stats.SampleBadRecords
+		if int64(len(l)) < badRecords {
+			f.WriteString("A sample of records that generated conversion errors:\n")
+		} else {
+			f.WriteString("Records that generated conversion errors:\n")
+		}
+		for _, r := range l {
+			_, err := f.WriteString("  " + r + "\n")
+			if err != nil {
+				return err
+			}
+		}
+		f.WriteString("\n")
+	}
+	if droppedRecords > 0 {
+		l := stats.SampleBadWrites
+		if int64(len(l)) < droppedRecords {
+			f.WriteString("A sample of records that successfully converted but couldn't be written to Spanner:\n")
+		} else {
+			f.WriteString("Records that successfully converted but couldn't be written to Spanner:\n")
+		}
+		for _, r := range l {
+			_, err := f.WriteString("  " + r + "\n")
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // ProcessDump invokes process dump function from a sql package based on driver selected.
@@ -771,7 +911,7 @@ func ProcessDump(driver string, conv *internal.Conv, r *internal.Reader) error {
 	}
 }
 
-func GetInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, error) {
+func GetInfoSchema(sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile) (common.InfoSchema, error) {
 	connectionConfig, err := connectionConfig(sourceProfile)
 	if err != nil {
 		return nil, err
@@ -784,7 +924,12 @@ func GetInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, err
 		if err != nil {
 			return nil, err
 		}
-		return mysql.InfoSchemaImpl{DbName: dbName, Db: db}, nil
+		return mysql.InfoSchemaImpl{
+			DbName:        dbName,
+			Db:            db,
+			SourceProfile: sourceProfile,
+			TargetProfile: targetProfile,
+		}, nil
 	case constants.POSTGRES:
 		db, err := sql.Open(driver, connectionConfig.(string))
 		if err != nil {
@@ -794,7 +939,16 @@ func GetInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, err
 	case constants.DYNAMODB:
 		mySession := session.Must(session.NewSession())
 		dydbClient := dydb.New(mySession, connectionConfig.(*aws.Config))
-		return dynamodb.InfoSchemaImpl{DynamoClient: dydbClient, SampleSize: profiles.GetSchemaSampleSize(sourceProfile)}, nil
+		var dydbStreamsClient *dynamodbstreams.DynamoDBStreams
+		if sourceProfile.Conn.Streaming {
+			newSession := session.Must(session.NewSession())
+			dydbStreamsClient = dynamodbstreams.New(newSession, connectionConfig.(*aws.Config))
+		}
+		return dynamodb.InfoSchemaImpl{
+			DynamoClient:        dydbClient,
+			SampleSize:          profiles.GetSchemaSampleSize(sourceProfile),
+			DynamoStreamsClient: dydbStreamsClient,
+		}, nil
 	case constants.SQLSERVER:
 		db, err := sql.Open(driver, connectionConfig.(string))
 		dbName := getDbNameFromSQLConnectionStr(driver, connectionConfig.(string))
@@ -808,7 +962,7 @@ func GetInfoSchema(sourceProfile profiles.SourceProfile) (common.InfoSchema, err
 		if err != nil {
 			return nil, err
 		}
-		return oracle.InfoSchemaImpl{DbName: strings.ToUpper(dbName), Db: db}, nil
+		return oracle.InfoSchemaImpl{DbName: strings.ToUpper(dbName), Db: db, SourceProfile: sourceProfile, TargetProfile: targetProfile}, nil
 	default:
 		return nil, fmt.Errorf("driver %s not supported", driver)
 	}
