@@ -153,8 +153,9 @@ export class ObjectDetailComponent implements OnInit {
       this.setColumnTable()
       this.setFkRows()
       this.setAddPkColumnList()
-      this.setPkRows()
       this.setPkOrder()
+      this.setPkRows()
+
       this.updateSpTableSuggestion()
     } else if (this.currentObject) {
       this.checkIsInterleave()
