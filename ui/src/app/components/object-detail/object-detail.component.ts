@@ -657,6 +657,7 @@ export class ObjectDetailComponent implements OnInit {
   getInterleaveParentFromConv() {
     return this.currentObject?.type === ObjectExplorerNodeType.Table &&
       this.currentObject.isSpannerNode &&
+      !this.currentObject.isDeleted &&
       this.conv.SpSchema[this.currentObject.name].Parent != ''
       ? this.conv.SpSchema[this.currentObject.name].Parent
       : null
