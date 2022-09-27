@@ -5,6 +5,7 @@ import { UpdateSpannerConfigFormComponent } from '../update-spanner-config-form/
 import { DataService } from 'src/app/services/data/data.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
+import { LoaderService } from 'src/app/services/loader/loader.service'
 
 @Component({
   selector: 'app-header',
@@ -18,7 +19,8 @@ export class HeaderComponent implements OnInit {
     private data: DataService,
     private dialog: MatDialog,
     private sidenav: SidenavService,
-    private clickEvent: ClickEventService
+    private clickEvent: ClickEventService,
+    private loaderService: LoaderService
   ) {
     this.spannerConfig = { GCPProjectID: '', SpannerInstanceID: '' }
   }
@@ -60,5 +62,10 @@ export class HeaderComponent implements OnInit {
   openInstructionSidenav() {
     this.sidenav.openSidenav()
     this.sidenav.setSidenavComponent('instruction')
+  }
+  stopLoading() {
+    this.loaderService.stopLoader() 
+    this.clickEvent.closeDatabaseLoader()
+
   }
 }

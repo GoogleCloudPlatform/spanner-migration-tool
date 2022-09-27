@@ -10,8 +10,10 @@ export class InterceptorService implements HttpInterceptor {
   count: number = 0
   constructor(private loader: LoaderService) {}
   intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
-    this.loader.startLoader()
-    this.count++
+    if (req.url.includes('/connect')) {
+      this.loader.startLoader()
+      this.count++
+    }
     return next.handle(req).pipe(
       finalize(() => {
         this.count--
