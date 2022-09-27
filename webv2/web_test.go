@@ -1101,7 +1101,6 @@ func TestSetParentTable(t *testing.T) {
 			name:       "no table name provided",
 			statusCode: http.StatusBadRequest,
 			ct: &internal.Conv{
-				Issues: map[string]map[string][]internal.SchemaIssue{},
 				SpSchema: map[string]ddl.CreateTable{"t1": {
 					Name:     "t1",
 					ColNames: []string{"a", "b", "c"},
@@ -1123,7 +1122,6 @@ func TestSetParentTable(t *testing.T) {
 		{
 			name: "table with synthetic PK",
 			ct: &internal.Conv{
-				Issues: map[string]map[string][]internal.SchemaIssue{},
 				SpSchema: map[string]ddl.CreateTable{"t1": {
 					Name:     "t1",
 					ColNames: []string{"a", "b", "c"},
@@ -1151,7 +1149,6 @@ func TestSetParentTable(t *testing.T) {
 		{
 			name: "no valid prefix 1",
 			ct: &internal.Conv{
-				Issues: map[string]map[string][]internal.SchemaIssue{},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:     "t1",
@@ -1190,7 +1187,6 @@ func TestSetParentTable(t *testing.T) {
 		{
 			name: "no valid prefix 2",
 			ct: &internal.Conv{
-				Issues: map[string]map[string][]internal.SchemaIssue{},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:     "t1",
@@ -1227,7 +1223,6 @@ func TestSetParentTable(t *testing.T) {
 		{
 			name: "no valid prefix 3",
 			ct: &internal.Conv{
-				Issues: map[string]map[string][]internal.SchemaIssue{},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:     "t1",
@@ -1264,7 +1259,6 @@ func TestSetParentTable(t *testing.T) {
 		{
 			name: "successful interleave",
 			ct: &internal.Conv{
-				Issues: map[string]map[string][]internal.SchemaIssue{},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:     "t1",
@@ -1302,7 +1296,6 @@ func TestSetParentTable(t *testing.T) {
 		{
 			name: "successful interleave with same primary key",
 			ct: &internal.Conv{
-				Issues: map[string]map[string][]internal.SchemaIssue{},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:     "t1",
@@ -1340,7 +1333,6 @@ func TestSetParentTable(t *testing.T) {
 		{
 			name: "successful interleave with multiple fks refering multiple tables",
 			ct: &internal.Conv{
-				Issues: map[string]map[string][]internal.SchemaIssue{},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:     "t1",
