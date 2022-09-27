@@ -51,6 +51,7 @@ type SessionState struct {
 	GCPProjectID        string
 	SpannerInstanceID   string
 	SessionMetadata     SessionMetadata
+	Error               error
 	Counter
 }
 

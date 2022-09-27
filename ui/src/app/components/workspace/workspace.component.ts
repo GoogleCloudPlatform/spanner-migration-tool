@@ -65,6 +65,15 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
       const indexAddedOrRemoved = this.isIndexAddedOrRemoved(data)
+      if (
+        data &&
+        this.conv &&
+        Object.keys(data?.SpSchema).length != Object.keys(this.conv?.SpSchema).length
+      ) {
+        this.conv = data
+        this.reRenderObjectExplorerSpanner()
+        this.reRenderObjectExplorerSrc()
+      }
       this.conv = data
       if (indexAddedOrRemoved && this.conversionRates) this.reRenderObjectExplorerSpanner()
       if (!this.objectExplorerInitiallyRender && this.conversionRates) {
@@ -74,11 +83,11 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
       }
       if (this.currentObject && this.currentObject.type === ObjectExplorerNodeType.Table) {
         this.fkData = this.currentObject
-          ? this.conversion.getFkMapping(this.currentObject.name, data)
+          ? this.conversion.getFkMapping(this.currentObject.id, data)
           : []
 
         this.tableData = this.currentObject
-          ? this.conversion.getColumnMapping(this.currentObject.name, data)
+          ? this.conversion.getColumnMapping(this.currentObject.id, data)
           : []
       }
       if (
@@ -87,9 +96,9 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
         !indexAddedOrRemoved
       ) {
         this.indexData = this.conversion.getIndexMapping(
-          this.currentObject.parent,
+          this.currentObject.parentId,
           this.conv,
-          this.currentObject.name
+          this.currentObject.id
         )
       }
     })
@@ -157,16 +166,16 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     if (object?.type === ObjectExplorerNodeType.Table) {
       this.currentObject = object
       this.tableData = this.currentObject
-        ? this.conversion.getColumnMapping(this.currentObject.name, this.conv)
+        ? this.conversion.getColumnMapping(this.currentObject.id, this.conv)
         : []
 
       this.fkData = []
       this.fkData = this.currentObject
-        ? this.conversion.getFkMapping(this.currentObject.name, this.conv)
+        ? this.conversion.getFkMapping(this.currentObject.id, this.conv)
         : []
     } else if (object?.type === ObjectExplorerNodeType.Index) {
       this.currentObject = object
-      this.indexData = this.conversion.getIndexMapping(object.parent, this.conv, object.name)
+      this.indexData = this.conversion.getIndexMapping(object.parentId, this.conv, object.id)
     } else {
       this.currentObject = null
     }

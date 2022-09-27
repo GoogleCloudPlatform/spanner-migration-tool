@@ -44,17 +44,24 @@ body {
   color: #3367d6;
 }
 
+.gray-out {
+  opacity: 0.6;
+}
+
 .danger {
-  color: #eb0000;
+  color: #da4236;
 }
+
 .warning {
-  color: #ff9800;
+  color: #f3b300;
 }
+
 .success {
   color: green;
 }
-.suggestion {
-  color: #f6be00;
+
+.orange {
+  color: rgb(248, 116, 68);
 }
 .dark {
   color: rgb(77, 75, 75);
@@ -165,4 +172,9 @@ body {
     background-color: inherit;
     padding: 16px;
   }
+}
+.progress_bar {
+  width: 50%;
+  text-align: center;
+  padding-left: 20vw;
 }

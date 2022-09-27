@@ -102,8 +102,8 @@ type NameAndCols struct {
 	Cols map[string]string
 }
 
-//FkeyAndIdxs contains the name of a table, its foreign keys and indexes
-//Used to map between source DB and spanner table name, foreign key name and index names.
+// FkeyAndIdxs contains the name of a table, its foreign keys and indexes
+// Used to map between source DB and spanner table name, foreign key name and index names.
 type FkeyAndIdxs struct {
 	Name       string
 	ForeignKey map[string]string
@@ -146,14 +146,15 @@ type statementStat struct {
 // Stores the audit information of conversion.
 // Elements that do not affect the migration functionality but are relevant for the migration metadata.
 type Audit struct {
-	ToSpannerFkIdx           map[string]FkeyAndIdxs                 `json:"-"` // Maps from source-DB table name to Spanner names for table name, foreign key and indexes.
-	ToSourceFkIdx            map[string]FkeyAndIdxs                 `json:"-"` // Maps from Spanner table name to source-DB names for table name, foreign key and indexes.
+	ToSpannerFkIdx           map[string]FkeyAndIdxs                 // Maps from source-DB table name to Spanner names for table name, foreign key and indexes.
+	ToSourceFkIdx            map[string]FkeyAndIdxs                 // Maps from Spanner table name to source-DB names for table name, foreign key and indexes.
 	SchemaConversionDuration time.Duration                          `json:"-"` // Duration of schema conversion.
 	DataConversionDuration   time.Duration                          `json:"-"` // Duration of data conversion.
 	MigrationRequestId       string                                 `json:"-"` // Unique request id generated per migration
 	MigrationType            *migration.MigrationData_MigrationType `json:"-"` // Type of migration: Schema migration, data migration or schema and data migration
 	DryRun                   bool                                   `json:"-"` // Flag to identify if the migration is a dry run.
 	StreamingStats           streamingStats                         `json:"-"` // Stores information related to streaming migration process.
+	Progress                 Progress                               `json:"-"` // Stores information related to progress of the migration progress
 }
 
 // Stores information related to the streaming migration process.
@@ -193,6 +194,16 @@ func MakeConv() *Conv {
 			StreamingStats: streamingStats{},
 			MigrationType:  migration.MigrationData_SCHEMA_ONLY.Enum(),
 		},
+	}
+}
+
+func (conv *Conv) ResetStats() {
+	conv.Stats = stats{
+		Rows:       make(map[string]int64),
+		GoodRows:   make(map[string]int64),
+		BadRows:    make(map[string]int64),
+		Statement:  make(map[string]*statementStat),
+		Unexpected: make(map[string]int64),
 	}
 }
 

@@ -59,7 +59,7 @@ func checkRedundantIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) 
 		indexFirstColumn := index[i].Keys[0].Col
 
 		if primaryKeyFirstColumn == indexFirstColumn {
-			columnname := keys[i].Col
+			columnname := keys[0].Col
 			sessionState := session.GetSessionState()
 			schemaissue := sessionState.Conv.Issues[spannerTable.Name][columnname]
 			schemaissue = append(schemaissue, internal.RedundantIndex)

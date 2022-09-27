@@ -219,6 +219,14 @@
               >
                 error
               </mat-icon>
+              <mat-icon
+                *ngIf="data.status === 'DARK'"
+                class="icon dark"
+                matTooltip="Deleted"
+                matTooltipPosition="above"
+              >
+                delete
+              </mat-icon>
             </td>
           </ng-container>
           <ng-container matColumnDef="name">
@@ -243,7 +251,11 @@
                 >
               </div>
             </th>
-            <td mat-cell *matCellDef="let data" class="sidebar_link">
+            <td
+              mat-cell
+              *matCellDef="let data"
+              [ngClass]="{ sidebar_link: true, 'gray-out': data.isDeleted }"
+            >
               <button
                 mat-icon-button
                 [style.visibility]="!data.expandable ? 'hidden' : ''"

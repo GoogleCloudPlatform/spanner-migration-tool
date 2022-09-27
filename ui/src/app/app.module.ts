@@ -30,9 +30,9 @@ import { AddIndexFormComponent } from './components/add-index-form/add-index-for
 import { EditGlobalDatatypeFormComponent } from './components/edit-global-datatype-form/edit-global-datatype-form.component'
 import { SidenavViewAssessmentComponent } from './components/sidenav-view-assessment/sidenav-view-assessment.component'
 import { SidenavSaveSessionComponent } from './components/sidenav-save-session/sidenav-save-session.component'
-import { DropIndexDialogComponent } from './components/drop-index-dialog/drop-index-dialog.component'
-import { DatabaseLoaderComponent } from './components/database-loader/database-loader.component';
-import { PrepareMigrationComponent } from './components/prepare-migration/prepare-migration.component';
+import { DropIndexOrTableDialogComponent } from './components/drop-index-or-table-dialog/drop-index-or-table-dialog.component'
+import { DatabaseLoaderComponent } from './components/database-loader/database-loader.component'
+import { PrepareMigrationComponent } from './components/prepare-migration/prepare-migration.component'
 import { TargetDetailsFormComponent } from './components/target-details-form/target-details-form.component'
 
 @NgModule({
@@ -60,8 +60,8 @@ import { TargetDetailsFormComponent } from './components/target-details-form/tar
     EditGlobalDatatypeFormComponent,
     SidenavViewAssessmentComponent,
     SidenavSaveSessionComponent,
-    DropIndexDialogComponent,
     DatabaseLoaderComponent,
+    DropIndexOrTableDialogComponent,
     PrepareMigrationComponent,
     TargetDetailsFormComponent,
   ],

@@ -7,13 +7,13 @@ import { InfodialogComponent } from '../infodialog/infodialog.component'
 import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
+import { ObjectDetailNodeType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import FlatNode from 'src/app/model/schema-object-node'
 import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
 import IConv, { ICreateIndex, IPrimaryKey } from 'src/app/model/conv'
-import { DropIndexDialogComponent } from '../drop-index-dialog/drop-index-dialog.component'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
+import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/drop-index-or-table-dialog.component'
 
 @Component({
   selector: 'app-object-detail',
@@ -422,7 +422,7 @@ export class ObjectDetailComponent implements OnInit {
   setPkOrder() {
     if (
       this.currentObject &&
-      this.conv.SpSchema[this.currentObject!.name].Pks.length == this.pkData.length
+      this.conv.SpSchema[this.currentObject!.name]?.Pks.length == this.pkData.length
     ) {
       this.pkData.forEach((pk: IColumnTabData, i: number) => {
         if (this.pkData[i].spColName === this.conv.SpSchema[this.currentObject!.name].Pks[i].Col) {
@@ -436,11 +436,11 @@ export class ObjectDetailComponent implements OnInit {
       })
     } else {
       this.pkData.forEach((pk: IColumnTabData, i: number) => {
-        let index = this.conv.SpSchema[this.currentObject!.name].Pks.map(
+        let index = this.conv.SpSchema[this.currentObject!.name]?.Pks.map(
           (item) => item.Col
         ).indexOf(pk.spColName)
         if (index !== -1) {
-          pk.spOrder = this.conv.SpSchema[this.currentObject!.name].Pks[index].Order
+          pk.spOrder = this.conv.SpSchema[this.currentObject!.name]?.Pks[index].Order
         }
       })
     }
@@ -645,7 +645,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   checkIsInterleave() {
-    if (this.currentObject) {
+    if (!this.currentObject?.isDeleted && this.currentObject?.isSpannerNode) {
       this.data.getInterleaveConversionForATable(this.currentObject!.name)
     }
   }
@@ -759,14 +759,14 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropIndex() {
-    let openDialog = this.dialog.open(DropIndexDialogComponent, {
+    let openDialog = this.dialog.open(DropIndexOrTableDialogComponent, {
       width: '35vw',
       minWidth: '450px',
       maxWidth: '600px',
-      data: this.currentObject?.name,
+      data: { name: this.currentObject?.name, type: ObjectDetailNodeType.Index },
     })
     openDialog.afterClosed().subscribe((res: string) => {
-      if (res) {
+      if (res === ObjectDetailNodeType.Index) {
         this.data
           .dropIndex(this.currentObject!.parent, this.currentObject!.name)
           .pipe(take(1))
@@ -804,9 +804,47 @@ export class ObjectDetailComponent implements OnInit {
       srcDesc: undefined,
       srcOrder: '',
     })
-
     this.setIndexRows()
   }
+
+  restoreSpannerTable() {
+    let tableId = this.currentObject!.id
+    this.data
+      .restoreTable(tableId)
+      .pipe(take(1))
+      .subscribe((res: string) => {
+        if (res === '') {
+          this.isObjectSelected = false
+        }
+      })
+    this.currentObject = null
+  }
+
+  dropTable() {
+    let openDialog = this.dialog.open(DropIndexOrTableDialogComponent, {
+      width: '35vw',
+      minWidth: '450px',
+      maxWidth: '600px',
+      data: { name: this.currentObject?.name, type: ObjectDetailNodeType.Table },
+    })
+    openDialog.afterClosed().subscribe((res: string) => {
+      if (res === ObjectDetailNodeType.Table) {
+        let tableId = this.currentObject!.id
+        this.data
+          .dropTable(tableId)
+          .pipe(take(1))
+          .subscribe((res: string) => {
+            if (res === '') {
+              this.isObjectSelected = false
+              this.updateSidebar.emit(true)
+            }
+          })
+        this.currentObject = null
+      }
+    })
+  }
+
+  selectedColumnChange(tableName: string) {}
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
     this.currentTabIndex = tabChangeEvent.index
