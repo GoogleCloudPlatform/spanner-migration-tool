@@ -1993,6 +1993,6 @@ func init() {
 func App() {
 	addr := ":8080"
 	router := getRoutes()
-	log.Printf("Starting server at port 8080\n")
+	fmt.Println("Server listening on Port", addr)
 	log.Fatal(http.ListenAndServe(addr, handlers.CORS(handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}), handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"}), handlers.AllowedOrigins([]string{"*"}))(router)))
 }
