@@ -29,7 +29,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
-func TestUpdateTableSchemainterleaved(t *testing.T) {
+func TestUpdateTableSchemaInterleaved(t *testing.T) {
 
 	tc := []struct {
 		name         string
