@@ -65,28 +65,20 @@ func removeColumn(table string, colName string, Conv *internal.Conv) {
 
 // removeColumnFromCurrentTableSchema remove given column from current table schema.
 func removeColumnFromCurrentTableSchema(Conv *internal.Conv, sp ddl.CreateTable, table string, colName string) {
-	// step I
 	sp = removeColumnFromSpannerColDefs(sp, colName)
 
-	// step II
 	sp = removeColumnFromSpannerPK(sp, colName)
 
-	// step III
 	sp = removeColumnFromSpannerSecondaryIndex(sp, colName)
 
-	// step IV
 	sp = removeColumnFromSpannerForeignkeyColumns(sp, colName)
 
-	// step V
 	sp = removeColumnFromSpannerForeignkeyReferColumns(sp, colName)
 
-	// step VI
 	sp = removeColumnFromSpannerColNames(sp, colName)
 
-	// step VII
 	removeSpannerSchemaIssue(table, colName, Conv)
 
-	// step VIII
 	removeColumnFromToSpannerToSource(table, colName, Conv)
 
 	Conv.SpSchema[table] = sp
@@ -117,25 +109,18 @@ func removeColumnFromForeignkeyReferTableSchema(Conv *internal.Conv, referTable 
 
 	referTable = removeColumnFromSpannerColDefs(referTable, colName)
 
-	// step II
 	referTable = removeColumnFromSpannerPK(referTable, colName)
 
-	// step III
 	referTable = removeColumnFromSpannerSecondaryIndex(referTable, colName)
 
-	// step IV
 	referTable = removeColumnFromSpannerForeignkeyColumns(referTable, colName)
 
-	// step V
 	referTable = removeColumnFromSpannerForeignkeyReferColumns(referTable, colName)
 
-	// step VI
 	referTable = removeColumnFromSpannerColNames(referTable, colName)
 
-	// step VII
 	removeSpannerSchemaIssue(table, colName, Conv)
 
-	// step VIII
 	removeColumnFromToSpannerToSource(table, colName, Conv)
 
 	Conv.SpSchema[table] = referTable
@@ -183,9 +168,6 @@ func removeColumnFromChildTableSchema(Conv *internal.Conv, childSchemaTable stri
 // removeColumnFromSpannerColNames remove given column from ColNames.
 func removeColumnFromSpannerColNames(sp ddl.CreateTable, colName string) ddl.CreateTable {
 
-	// step VI
-	// remove sp.ColNames
-
 	for i, col := range sp.ColNames {
 		if col == colName {
 			sp.ColNames = utilities.Remove(sp.ColNames, i)
@@ -202,9 +184,6 @@ func removeColumnFromSpannerColNames(sp ddl.CreateTable, colName string) ddl.Cre
 // removeColumnFromSpannerPK remove given column from Primary Key List.
 func removeColumnFromSpannerPK(sp ddl.CreateTable, colName string) ddl.CreateTable {
 
-	// step II
-	// remove sp.Pks
-
 	for i, pk := range sp.Pks {
 		if pk.Col == colName {
 
@@ -220,9 +199,6 @@ func removeColumnFromSpannerPK(sp ddl.CreateTable, colName string) ddl.CreateTab
 // removeColumnFromSpannerColDefs remove given column from Spanner ColDefs List.
 func removeColumnFromSpannerColDefs(sp ddl.CreateTable, colName string) ddl.CreateTable {
 
-	// step I
-	// remove sp.ColDefs
-
 	if _, found := sp.ColDefs[colName]; found {
 
 		delete(sp.ColDefs, colName)
@@ -234,9 +210,6 @@ func removeColumnFromSpannerColDefs(sp ddl.CreateTable, colName string) ddl.Crea
 
 // removeColumnFromSpannerSecondaryIndex remove given column from Spanner SecondaryIndex List.
 func removeColumnFromSpannerSecondaryIndex(sp ddl.CreateTable, colName string) ddl.CreateTable {
-
-	// step III
-	// update sp.Indexes
 
 	for i, index := range sp.Indexes {
 		for j, key := range index.Keys {
@@ -260,11 +233,6 @@ func removeColumnFromSecondaryIndexKey(slice []ddl.IndexKey, s int) []ddl.IndexK
 // removeColumnFromSecondaryIndexKey remove given column from Spanner Secondary Schema Issue List.
 func removeSpannerSchemaIssue(table string, colName string, Conv *internal.Conv) {
 
-	// step VII
-	// remove sessionState.Conv.Issues
-
-	//sessionState := session.GetSessionState()
-
 	if Conv.Issues != nil {
 
 		if Conv.Issues[table] != nil && Conv.Issues[table][colName] != nil {
@@ -280,9 +248,6 @@ func removeSpannerSchemaIssue(table string, colName string, Conv *internal.Conv)
 // removeColumnFromToSpannerToSource remove given column from ToSpanner and ToSource List.
 func removeColumnFromToSpannerToSource(table string, colName string, Conv *internal.Conv) {
 
-	// step VIII
-	// remove ToSpannerToSource
-
 	srcTableName := Conv.ToSource[table].Name
 
 	srcColName := Conv.ToSource[table].Cols[colName]
@@ -293,9 +258,6 @@ func removeColumnFromToSpannerToSource(table string, colName string, Conv *inter
 
 // removeColumnFromSpannerForeignkeyColumns remove given column from Spanner Foreignkey Columns List.
 func removeColumnFromSpannerForeignkeyColumns(sp ddl.CreateTable, colName string) ddl.CreateTable {
-
-	// step IV
-	// update sp.fk.Columns
 
 	for i, fk := range sp.Fks {
 		for j, column := range fk.Columns {
@@ -321,9 +283,6 @@ func removeFkColumns(slice []string, s int) []string {
 
 // removeColumnFromSpannerForeignkeyReferColumns remove given column from Spanner Foreignkey Refer Columns List.
 func removeColumnFromSpannerForeignkeyReferColumns(sp ddl.CreateTable, colName string) ddl.CreateTable {
-
-	// step IV
-	// update sp.fk.ReferColumns
 
 	for i, fk := range sp.Fks {
 		for j, column := range fk.ReferColumns {

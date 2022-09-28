@@ -55,13 +55,9 @@ func UpdateColNameType(newType, table, colName string, Conv *internal.Conv, w ht
 
 		for j := 0; j < len(sp.Fks); j++ {
 			if sp.Fks[j].ReferTable == table {
-
 				UpdateColNameTypeForeignkeyReferTableSchema(Conv, sp, sp.Name, colName, newType, w)
-
 			}
-
 		}
-
 	}
 
 	// update interleave table relation
