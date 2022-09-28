@@ -587,29 +587,6 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	session.UpdateSessionFile()
 	w.WriteHeader(http.StatusOK)
 
-	empJSON, err := json.MarshalIndent(sessionState.Conv.SpSchema[table], "", "  ")
-
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
-
-	fmt.Printf("MarshalIndent funnction output %s\n", string(empJSON))
-
-	fmt.Println("")
-	fmt.Println("")
-	fmt.Println("")
-	fmt.Println("")
-
-	parent := sessionState.Conv.SpSchema[table].Parent
-
-	empJSON, err = json.MarshalIndent(sessionState.Conv.SpSchema[parent], "", "  ")
-
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
-
-	fmt.Printf("MarshalIndent funnction output %s\n", string(empJSON))
-
 	if update {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"tableInterleaveStatus": tableInterleaveStatus,
