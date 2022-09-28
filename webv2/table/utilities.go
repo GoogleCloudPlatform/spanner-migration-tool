@@ -1,4 +1,4 @@
-package updateTableSchema
+package table
 
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"

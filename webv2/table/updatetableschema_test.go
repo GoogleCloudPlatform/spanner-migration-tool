@@ -1,7 +1,8 @@
-package updateTableSchema
+package table
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -16,7 +17,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
-func TestReviewTableSchemachangetype(t *testing.T) {
+func TestUpdateTableSchemaV2(t *testing.T) {
 
 	tc := []struct {
 		name         string
@@ -27,13 +28,12 @@ func TestReviewTableSchemachangetype(t *testing.T) {
 		expectedConv *internal.Conv
 	}{
 		{
-			name:  "Test change type success",
+			name:  "Test remove success",
 			table: "t1",
 			payload: `
     {
       "UpdateCols":{
-		"a": { "ToType": "STRING" },
-		"b": { "ToType": "BYTES" }
+		"c": { "Removed": true }
 	}
     }`,
 			statusCode: http.StatusOK,
@@ -41,35 +41,26 @@ func TestReviewTableSchemachangetype(t *testing.T) {
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:     "t1",
-						ColNames: []string{"a", "b"},
+						ColNames: []string{"a", "b", "c"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
-							"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: 6}},
+							"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c": {Name: "c", T: ddl.Type{Name: ddl.Int64}},
 						},
 						Pks: []ddl.IndexKey{{Col: "a"}},
 					}},
-				SrcSchema: map[string]schema.Table{
+				Issues: map[string]map[string][]internal.SchemaIssue{
 					"t1": {
-						Name:     "t1",
-						ColNames: []string{"a", "b"},
-						ColDefs: map[string]schema.Column{
-							"a": {Name: "a", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
-							"b": {Name: "b", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
-						},
-						PrimaryKeys: []schema.Key{{Column: "a"}},
-					}},
+						"c": {internal.Widened},
+					},
+				},
 				ToSource: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
 				},
 				ToSpanner: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
 				},
-				Issues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
-				},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
-				},
+				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -78,33 +69,70 @@ func TestReviewTableSchemachangetype(t *testing.T) {
 						ColNames: []string{"a", "b"},
 						ColDefs: map[string]ddl.ColumnDef{
 							"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-							"b": {Name: "b", T: ddl.Type{Name: ddl.Bytes, Len: 6}},
+							"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 						},
 						Pks: []ddl.IndexKey{{Col: "a"}},
 					}},
-				SrcSchema: map[string]schema.Table{
-					"t1": {
-						Name:     "t1",
-						ColNames: []string{"a", "b"},
-						ColDefs: map[string]schema.Column{
-							"a": {Name: "a", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
-							"b": {Name: "b", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
-						},
-						PrimaryKeys: []schema.Key{{Column: "a"}},
-					}},
+				Issues: map[string]map[string][]internal.SchemaIssue{
+					"t1": {},
+				},
 				ToSource: map[string]internal.NameAndCols{
 					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
 				},
 				ToSpanner: map[string]internal.NameAndCols{
 					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
 				},
-				Issues: map[string]map[string][]internal.SchemaIssue{
+			},
+		},
+
+		{
+			name:  "Test rename success",
+			table: "t1",
+			payload: `
+		{
+		  "UpdateCols":{
+			"a": { "Rename": "aa" }
+		}
+		}`,
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						"a": {internal.Widened},
-					},
+						Name:     "t1",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c": {Name: "c", T: ddl.Type{Name: ddl.Int64}},
+						},
+						Pks: []ddl.IndexKey{{Col: "a"}},
+					}},
+
+				ToSource: map[string]internal.NameAndCols{
+					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
 				},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				ToSpanner: map[string]internal.NameAndCols{
+					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+				},
+				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:     "t1",
+						ColNames: []string{"aa", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"aa": {Name: "aa", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b":  {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"c":  {Name: "c", T: ddl.Type{Name: ddl.Int64}},
+						},
+						Pks: []ddl.IndexKey{{Col: "aa"}},
+					}},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": {Name: "t1", Cols: map[string]string{"aa": "a", "b": "b", "c": "c"}},
+				},
+				ToSpanner: map[string]internal.NameAndCols{
+					"t1": {Name: "t1", Cols: map[string]string{"a": "aa", "b": "b", "c": "c"}},
 				},
 			},
 		},
@@ -118,7 +146,7 @@ func TestReviewTableSchemachangetype(t *testing.T) {
 
 		payload := tc.payload
 
-		req, err := http.NewRequest("POST", "/typemap/reviewtableschema?table="+tc.table, strings.NewReader(payload))
+		req, err := http.NewRequest("POST", "/typemap/table?table="+tc.table, strings.NewReader(payload))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -127,11 +155,11 @@ func TestReviewTableSchemachangetype(t *testing.T) {
 
 		rr := httptest.NewRecorder()
 
-		handler := http.HandlerFunc(ReviewTableSchema)
+		handler := http.HandlerFunc(UpdateTableSchema)
 
 		handler.ServeHTTP(rr, req)
 
-		res := ReviewTableSchemaResponse{}
+		res := &internal.Conv{}
 
 		json.Unmarshal(rr.Body.Bytes(), &res)
 
@@ -140,15 +168,13 @@ func TestReviewTableSchemachangetype(t *testing.T) {
 				status, tc.statusCode)
 		}
 
-		expectedddl := GetSpannerTableDDL(tc.expectedConv.SpSchema[tc.table])
-
 		if tc.statusCode == http.StatusOK {
-			assert.Equal(t, expectedddl, res.DDL)
+			assert.Equal(t, tc.expectedConv, res)
 		}
 	}
 }
 
-func TestReviewTableSchemaAddsuccess(t *testing.T) {
+func TestAddUpdateTableSchemaV2(t *testing.T) {
 
 	tc := []struct {
 		name         string
@@ -199,9 +225,7 @@ func TestReviewTableSchemaAddsuccess(t *testing.T) {
 				ToSpanner: map[string]internal.NameAndCols{
 					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
 				},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
-				},
+				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -235,9 +259,6 @@ func TestReviewTableSchemaAddsuccess(t *testing.T) {
 				ToSpanner: map[string]internal.NameAndCols{
 					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
 				},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
-				},
 			},
 		},
 	}
@@ -250,7 +271,7 @@ func TestReviewTableSchemaAddsuccess(t *testing.T) {
 
 		payload := tc.payload
 
-		req, err := http.NewRequest("POST", "/typemap/reviewtableschema?table="+tc.table, strings.NewReader(payload))
+		req, err := http.NewRequest("POST", "/typemap/table?table="+tc.table, strings.NewReader(payload))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -259,28 +280,29 @@ func TestReviewTableSchemaAddsuccess(t *testing.T) {
 
 		rr := httptest.NewRecorder()
 
-		handler := http.HandlerFunc(ReviewTableSchema)
+		handler := http.HandlerFunc(UpdateTableSchema)
 
 		handler.ServeHTTP(rr, req)
 
-		res := ReviewTableSchemaResponse{}
+		res := &internal.Conv{}
 
 		json.Unmarshal(rr.Body.Bytes(), &res)
+
+		log.Println("res :", res.SpSchema["t1"])
 
 		if status := rr.Code; int64(status) != tc.statusCode {
 			t.Errorf("handler returned wrong status code: got %v want %v",
 				status, tc.statusCode)
 		}
 
-		expectedddl := GetSpannerTableDDL(tc.expectedConv.SpSchema[tc.table])
-
 		if tc.statusCode == http.StatusOK {
-			assert.Equal(t, expectedddl, res.DDL)
+			assert.Equal(t, tc.expectedConv, res)
 		}
 	}
+
 }
 
-func TestReviewTableSchemaRemove(t *testing.T) {
+func TestChangetypeUpdateTableSchemaV2(t *testing.T) {
 
 	tc := []struct {
 		name         string
@@ -291,12 +313,13 @@ func TestReviewTableSchemaRemove(t *testing.T) {
 		expectedConv *internal.Conv
 	}{
 		{
-			name:  "Test remove success",
+			name:  "Test change type success",
 			table: "t1",
 			payload: `
     {
       "UpdateCols":{
-		"c": { "Removed": true }
+		"a": { "ToType": "STRING" },
+		"b": { "ToType": "BYTES" }
 	}
     }`,
 			statusCode: http.StatusOK,
@@ -304,28 +327,33 @@ func TestReviewTableSchemaRemove(t *testing.T) {
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:     "t1",
-						ColNames: []string{"a", "b", "c"},
+						ColNames: []string{"a", "b"},
 						ColDefs: map[string]ddl.ColumnDef{
-							"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-							"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-							"c": {Name: "c", T: ddl.Type{Name: ddl.Int64}},
+							"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
+							"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: 6}},
 						},
 						Pks: []ddl.IndexKey{{Col: "a"}},
 					}},
-				Issues: map[string]map[string][]internal.SchemaIssue{
+				SrcSchema: map[string]schema.Table{
 					"t1": {
-						"c": {internal.Widened},
-					},
-				},
+						Name:     "t1",
+						ColNames: []string{"a", "b"},
+						ColDefs: map[string]schema.Column{
+							"a": {Name: "a", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"b": {Name: "b", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{Column: "a"}},
+					}},
 				ToSource: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
 				},
 				ToSpanner: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
 				},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				Issues: map[string]map[string][]internal.SchemaIssue{
+					"t1": {},
 				},
+				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -334,82 +362,35 @@ func TestReviewTableSchemaRemove(t *testing.T) {
 						ColNames: []string{"a", "b"},
 						ColDefs: map[string]ddl.ColumnDef{
 							"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-							"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+							"b": {Name: "b", T: ddl.Type{Name: ddl.Bytes, Len: 6}},
 						},
 						Pks: []ddl.IndexKey{{Col: "a"}},
 					}},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:     "t1",
+						ColNames: []string{"a", "b"},
+						ColDefs: map[string]schema.Column{
+							"a": {Name: "a", Type: schema.Type{Name: "bigint", Mods: []int64{}}},
+							"b": {Name: "b", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+						},
+						PrimaryKeys: []schema.Key{{Column: "a"}},
+					}},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+				},
+				ToSpanner: map[string]internal.NameAndCols{
+					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
+				},
 				Issues: map[string]map[string][]internal.SchemaIssue{
-					"t1": {},
-				},
-				ToSource: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
-				},
-				ToSpanner: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
-				},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
-				},
-			},
-		},
-
-		{
-			name:  "Test rename success",
-			table: "t1",
-			payload: `
-    {
-      "UpdateCols":{
-		"a": { "Rename": "aa" }
-	}
-    }`,
-			statusCode: http.StatusOK,
-			conv: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						Name:     "t1",
-						ColNames: []string{"a", "b", "c"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-							"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-							"c": {Name: "c", T: ddl.Type{Name: ddl.Int64}},
-						},
-						Pks: []ddl.IndexKey{{Col: "a"}},
-					}},
-
-				ToSource: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
-				},
-				ToSpanner: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
-				},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
-				},
-			},
-			expectedConv: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
-						Name:     "t1",
-						ColNames: []string{"aa", "b", "c"},
-						ColDefs: map[string]ddl.ColumnDef{
-							"aa": {Name: "aa", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-							"b":  {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-							"c":  {Name: "c", T: ddl.Type{Name: ddl.Int64}},
-						},
-						Pks: []ddl.IndexKey{{Col: "aa"}},
-					}},
-				ToSource: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"aa": "a", "b": "b", "c": "c"}},
-				},
-				ToSpanner: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "aa", "b": "b", "c": "c"}},
-				},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+						"a": {internal.Widened},
+					},
 				},
 			},
 		},
 	}
+
 	for _, tc := range tc {
 
 		sessionState := session.GetSessionState()
@@ -418,7 +399,7 @@ func TestReviewTableSchemaRemove(t *testing.T) {
 
 		payload := tc.payload
 
-		req, err := http.NewRequest("POST", "/typemap/reviewtableschema?table="+tc.table, strings.NewReader(payload))
+		req, err := http.NewRequest("POST", "/typemap/table?table="+tc.table, strings.NewReader(payload))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -427,23 +408,23 @@ func TestReviewTableSchemaRemove(t *testing.T) {
 
 		rr := httptest.NewRecorder()
 
-		handler := http.HandlerFunc(ReviewTableSchema)
+		handler := http.HandlerFunc(UpdateTableSchema)
 
 		handler.ServeHTTP(rr, req)
 
-		res := ReviewTableSchemaResponse{}
+		res := &internal.Conv{}
 
 		json.Unmarshal(rr.Body.Bytes(), &res)
+
+		log.Println("res :", res.SpSchema["t1"])
 
 		if status := rr.Code; int64(status) != tc.statusCode {
 			t.Errorf("handler returned wrong status code: got %v want %v",
 				status, tc.statusCode)
 		}
 
-		expectedddl := GetSpannerTableDDL(tc.expectedConv.SpSchema[tc.table])
-
 		if tc.statusCode == http.StatusOK {
-			assert.Equal(t, expectedddl, res.DDL)
+			assert.Equal(t, tc.expectedConv, res)
 		}
 	}
 }

@@ -1,4 +1,4 @@
-package updateTableSchema
+package table
 
 import (
 	"encoding/json"
@@ -10,11 +10,12 @@ import (
 	"github.com/bmizerany/assert"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
-func TestReviewTableSchemainterleaved(t *testing.T) {
+func TestUpdateTableSchemainterleaved(t *testing.T) {
 
 	tc := []struct {
 		name         string
@@ -67,6 +68,7 @@ func TestReviewTableSchemainterleaved(t *testing.T) {
 					"t1": {Name: "t2", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
 					"t2": {Name: "t2", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
 				},
+				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -112,7 +114,7 @@ func TestReviewTableSchemainterleaved(t *testing.T) {
 
 		payload := tc.payload
 
-		req, err := http.NewRequest("POST", "/typemap/reviewtableschema?table="+tc.table, strings.NewReader(payload))
+		req, err := http.NewRequest("POST", "/typemap/table?table="+tc.table, strings.NewReader(payload))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -121,11 +123,11 @@ func TestReviewTableSchemainterleaved(t *testing.T) {
 
 		rr := httptest.NewRecorder()
 
-		handler := http.HandlerFunc(ReviewTableSchema)
+		handler := http.HandlerFunc(UpdateTableSchema)
 
 		handler.ServeHTTP(rr, req)
 
-		res := ReviewTableSchemaResponse{}
+		res := &internal.Conv{}
 
 		json.Unmarshal(rr.Body.Bytes(), &res)
 
@@ -134,10 +136,8 @@ func TestReviewTableSchemainterleaved(t *testing.T) {
 				status, tc.statusCode)
 		}
 
-		expectedddl := GetSpannerTableDDL(tc.expectedConv.SpSchema[tc.table])
-
 		if tc.statusCode == http.StatusOK {
-			assert.Equal(t, expectedddl, res.DDL)
+			assert.Equal(t, tc.expectedConv, res)
 		}
 	}
 }
