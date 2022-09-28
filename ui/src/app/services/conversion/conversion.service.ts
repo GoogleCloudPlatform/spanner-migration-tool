@@ -152,8 +152,14 @@ export class ConversionService {
         let spColName = data.ToSpanner[srcTableName].Cols[name]
         let srcPks = data.SrcSchema[srcTableName].PrimaryKeys
         let spannerColDef = data.SpSchema[tableName].ColDefs[spColName]
+        let spPkOrder
+        data.SpSchema[tableName].Pks.forEach((col: IIndexKey) => {
+          if (col.Col == name) {
+            spPkOrder = col.Order
+          }
+        })
         return {
-          spOrder: spannerColDef ? i + 1 : '',
+          spOrder: spPkOrder ? Number(spPkOrder) : i + 1,
           srcOrder: i + 1,
           spColName: spannerColDef ? spColName : '',
           spDataType: spannerColDef ? spannerColDef.T.Name : '',
