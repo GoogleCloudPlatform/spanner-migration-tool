@@ -44,6 +44,28 @@ body {
   color: #3367d6;
 }
 
+.gray-out {
+  opacity: 0.6;
+}
+
+.danger {
+  color: #da4236;
+}
+
+.warning {
+  color: #f3b300;
+}
+
+.success {
+  color: green;
+}
+
+.orange {
+  color: rgb(248, 116, 68);
+}
+.dark {
+  color: rgb(77, 75, 75);
+}
 .header {
   padding: 0 20px;
   display: flex;
@@ -135,4 +157,9 @@ body {
     background-color: inherit;
     padding: 16px;
   }
+}
+.progress_bar {
+  width: 50%;
+  text-align: center;
+  padding-left: 20vw;
 }

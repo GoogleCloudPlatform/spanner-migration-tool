@@ -13,6 +13,18 @@ export default interface IConv {
   DatabaseType: string
   DatabaseName: string
   EditorName: string
+  Audit: IAudit
+}
+
+export interface IAudit {
+  ToSpannerFkIdx: Record<string, IFkeyAndIdxs>
+  ToSourceFkIdx: Record<string, IFkeyAndIdxs>
+}
+
+export interface IFkeyAndIdxs {
+  Name: string
+  ForeignKey: Record<string, string>
+  Index: Record<string, string>
 }
 
 export interface IStats {
@@ -31,6 +43,7 @@ export interface NameAndCols {
 // Spanner schema
 export interface ITable {
   Name: string
+  Id: string
   Schema: string
   ColNames: string[]
   ColDefs: Record<string, IColumn>
@@ -44,6 +57,7 @@ export interface IColumn {
   Type: ISpannerType
   NotNull: boolean
   Ignored: IIgnored
+  Id: string
 }
 
 export interface IIgnored {
@@ -65,6 +79,7 @@ export interface IIndex {
   Name: string
   Unique: boolean
   Keys: ISrcIndexKey[]
+  Id: string
 }
 
 export interface ISpannerForeignKey {

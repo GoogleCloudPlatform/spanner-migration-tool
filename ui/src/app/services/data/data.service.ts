@@ -52,34 +52,7 @@ export class DataService {
     private snackbar: SnackbarService,
     private clickEvent: ClickEventService
   ) {
-    let inputType = localStorage.getItem(StorageKeys.Type) as string
-    let config: unknown = localStorage.getItem(StorageKeys.Config)
-
-    switch (inputType) {
-      case InputType.DirectConnect:
-        this.getSchemaConversionFromDb()
-        break
-
-      case InputType.DumpFile:
-        if (config !== null) {
-          this.getSchemaConversionFromDump(config as IDumpConfig)
-        }
-        break
-
-      case InputType.SessionFile:
-        if (config !== null) {
-          this.getSchemaConversionFromSession(config as ISessionConfig)
-        }
-        break
-      case InputType.ResumeSession:
-        if (config !== null) {
-          this.getSchemaConversionFromResumeSession(config as string)
-        }
-        break
-
-      default:
-        console.log('Unable to find input type')
-    }
+    this.getLastSessionDetails()
     this.getConfig()
     this.updateIsOffline()
   }
@@ -113,6 +86,17 @@ export class DataService {
       },
       error: (err: any) => {
         this.snackbar.openSnackBar('Unable to fetch sessions.', 'Close')
+      },
+    })
+  }
+
+  getLastSessionDetails() {
+    this.fetch.getLastSessionDetails().subscribe({
+      next: (res: IConv) => {
+        this.convSubject.next(res)
+      },
+      error: (err: any) => {
+        this.snackbar.openSnackBar(err.error, 'Close')
       },
     })
   }
@@ -197,6 +181,44 @@ export class DataService {
     )
   }
 
+  restoreTable(tableId: string): Observable<string> {
+    return this.fetch.restoreTable(tableId).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data) => {
+        if (data.error) {
+          this.snackbar.openSnackBar(data.error, 'Close')
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          this.snackbar.openSnackBar('Table restored successfully', 'Close', 5)
+          return ''
+        }
+      })
+    )
+  }
+
+  dropTable(tableId: string): Observable<string> {
+    return this.fetch.dropTable(tableId).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data) => {
+        if (data.error) {
+          this.snackbar.openSnackBar(data.error, 'Close')
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          this.snackbar.openSnackBar('Table dropped successfully', 'Close', 5)
+          return ''
+        }
+      })
+    )
+  }
+
   updatePk(pkObj: IPrimaryKey) {
     return this.fetch.updatePk(pkObj).pipe(
       catchError((e: any) => {
@@ -260,7 +282,6 @@ export class DataService {
 
   initiateSession() {
     this.fetch.InitiateSession().subscribe((data: any) => {
-      console.log('get initiate session', data)
       this.currentSessionSub.next(data)
     })
   }

@@ -61,4 +61,7 @@ const (
 
 	// Information passed in metadata while using Cloud Spanner client.
 	MigrationMetadataKey string = "cloud-spanner-migration-metadata"
+
+	// Scheme used for GCS paths
+	GCS_SCHEME string = "gs"
 )
