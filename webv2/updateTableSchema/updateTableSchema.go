@@ -9,7 +9,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/updatesessionfiles"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
@@ -105,7 +104,7 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.Conv = Conv
 
-	updatesessionfiles.UpdateSessionFile()
+	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,

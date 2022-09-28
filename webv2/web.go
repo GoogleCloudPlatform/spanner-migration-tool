@@ -62,8 +62,6 @@ import (
 
 	uniqueid "github.com/cloudspannerecosystem/harbourbridge/webv2/uniqueid"
 
-	updatesessionfiles "github.com/cloudspannerecosystem/harbourbridge/webv2/updatesessionfiles"
-
 	go_ora "github.com/sijms/go-ora/v2"
 )
 
@@ -498,7 +496,7 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	updatesessionfiles.UpdateSessionFile()
+	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -586,7 +584,7 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	tableInterleaveStatus := parentTableHelper(table, update)
 
 	index.IndexSuggestion()
-	updatesessionfiles.UpdateSessionFile()
+	session.UpdateSessionFile()
 	w.WriteHeader(http.StatusOK)
 
 	empJSON, err := json.MarshalIndent(sessionState.Conv.SpSchema[table], "", "  ")
@@ -927,7 +925,7 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	}
 	sp.Fks = utilities.RemoveFk(sp.Fks, position)
 	sessionState.Conv.SpSchema[table] = sp
-	updatesessionfiles.UpdateSessionFile()
+	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -995,7 +993,7 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 	sp.Fks = newFKs
 
 	sessionState.Conv.SpSchema[table] = sp
-	updatesessionfiles.UpdateSessionFile()
+	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -1058,7 +1056,7 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 	sp.Indexes = newIndexes
 
 	sessionState.Conv.SpSchema[table] = sp
-	updatesessionfiles.UpdateSessionFile()
+	session.UpdateSessionFile()
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
 		Conv:            *sessionState.Conv,
@@ -1116,7 +1114,7 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	sp.Indexes = append(sp.Indexes, newIndexes...)
 
 	sessionState.Conv.SpSchema[table] = sp
-	updatesessionfiles.UpdateSessionFile()
+	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -1303,7 +1301,7 @@ func updateIndexes(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.Conv.SrcSchema[table] = st
 
-	updatesessionfiles.UpdateSessionFile()
+	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -1351,7 +1349,7 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 
 	sp.Indexes = utilities.RemoveSecondaryIndex(sp.Indexes, position)
 	sessionState.Conv.SpSchema[table] = sp
-	updatesessionfiles.UpdateSessionFile()
+	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
