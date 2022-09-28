@@ -62,8 +62,6 @@ import (
 
 	uniqueid "github.com/cloudspannerecosystem/harbourbridge/webv2/uniqueid"
 
-	updatesessionfiles "github.com/cloudspannerecosystem/harbourbridge/webv2/updatesessionfiles"
-
 	go_ora "github.com/sijms/go-ora/v2"
 )
 
@@ -178,7 +176,7 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 		Port:           config.Port,
 		User:           config.User,
 		Password:       config.Password,
-		ConnectionType: session.DIRECT_CONNECT_MODE,
+		ConnectionType: helpers.DIRECT_CONNECT_MODE,
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -296,7 +294,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sessionState.SourceDB = nil
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
 		Path:           dc.FilePath,
-		ConnectionType: session.DUMP_MODE,
+		ConnectionType: helpers.DUMP_MODE,
 	}
 
 	convm := session.ConvWithMetadata{
@@ -356,7 +354,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState.SessionFile = s.FilePath
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
 		Path:           s.FilePath,
-		ConnectionType: session.SESSION_FILE_MODE,
+		ConnectionType: helpers.SESSION_FILE_MODE,
 	}
 
 	convm := session.ConvWithMetadata{
@@ -498,7 +496,7 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	updatesessionfiles.UpdateSessionFile()
+	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -586,31 +584,8 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	tableInterleaveStatus := parentTableHelper(table, update)
 
 	index.IndexSuggestion()
-	updatesessionfiles.UpdateSessionFile()
+	session.UpdateSessionFile()
 	w.WriteHeader(http.StatusOK)
-
-	empJSON, err := json.MarshalIndent(sessionState.Conv.SpSchema[table], "", "  ")
-
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
-
-	fmt.Printf("MarshalIndent funnction output %s\n", string(empJSON))
-
-	fmt.Println("")
-	fmt.Println("")
-	fmt.Println("")
-	fmt.Println("")
-
-	parent := sessionState.Conv.SpSchema[table].Parent
-
-	empJSON, err = json.MarshalIndent(sessionState.Conv.SpSchema[parent], "", "  ")
-
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
-
-	fmt.Printf("MarshalIndent funnction output %s\n", string(empJSON))
 
 	if update {
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -927,7 +902,7 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	}
 	sp.Fks = utilities.RemoveFk(sp.Fks, position)
 	sessionState.Conv.SpSchema[table] = sp
-	updatesessionfiles.UpdateSessionFile()
+	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -995,7 +970,7 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 	sp.Fks = newFKs
 
 	sessionState.Conv.SpSchema[table] = sp
-	updatesessionfiles.UpdateSessionFile()
+	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -1058,7 +1033,7 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 	sp.Indexes = newIndexes
 
 	sessionState.Conv.SpSchema[table] = sp
-	updatesessionfiles.UpdateSessionFile()
+	session.UpdateSessionFile()
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
 		Conv:            *sessionState.Conv,
@@ -1116,7 +1091,7 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	sp.Indexes = append(sp.Indexes, newIndexes...)
 
 	sessionState.Conv.SpSchema[table] = sp
-	updatesessionfiles.UpdateSessionFile()
+	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -1195,10 +1170,10 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv.ResetStats()
 	sessionState.Conv.Audit.Progress = internal.Progress{}
 	sessionState.Conv.Audit.Progress.SetProgressMessageAndUpdate("Migration in progress", 0)
-	if details.MigrationMode == session.SCHEMA_ONLY {
+	if details.MigrationMode == helpers.SCHEMA_ONLY {
 		log.Println("Starting schema only migration")
 		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv, &sessionState.Error)
-	} else if details.MigrationMode == session.DATA_ONLY {
+	} else if details.MigrationMode == helpers.DATA_ONLY {
 		dataCmd := &cmd.DataCmd{
 			SkipForeignKeys: false,
 			WriteLimit:      cmd.DefaultWritersLimit,
@@ -1222,7 +1197,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 		sourceProfileString string
 	)
 	sourceDBConnectionDetails := sessionState.SourceDBConnDetails
-	if sourceDBConnectionDetails.ConnectionType == session.DUMP_MODE {
+	if sourceDBConnectionDetails.ConnectionType == helpers.DUMP_MODE {
 		sourceProfileString = fmt.Sprintf("file=%v,format=dump", sourceDBConnectionDetails.Path)
 	} else {
 		sourceProfileString = fmt.Sprintf("host=%v,port=%v,user=%v,password=%v,dbName=%v",
@@ -1239,7 +1214,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while getting source database: %v", err)
 	}
 	sourceProfile, targetProfile, ioHelper, dbName, err := cmd.PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, source)
-	if err != nil && sourceDBConnectionDetails.ConnectionType != session.SESSION_FILE_MODE {
+	if err != nil && sourceDBConnectionDetails.ConnectionType != helpers.SESSION_FILE_MODE {
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 	}
 	sourceProfile.Driver = sessionState.Driver
@@ -1303,7 +1278,7 @@ func updateIndexes(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.Conv.SrcSchema[table] = st
 
-	updatesessionfiles.UpdateSessionFile()
+	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -1351,7 +1326,7 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 
 	sp.Indexes = utilities.RemoveSecondaryIndex(sp.Indexes, position)
 	sessionState.Conv.SpSchema[table] = sp
-	updatesessionfiles.UpdateSessionFile()
+	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,

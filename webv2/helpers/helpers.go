@@ -25,6 +25,14 @@ import (
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
 
+const (
+	DUMP_MODE           = "dumpFile"
+	DIRECT_CONNECT_MODE = "directConnect"
+	SESSION_FILE_MODE   = "sessionFile"
+	SCHEMA_ONLY         = "Schema"
+	DATA_ONLY           = "Data"
+)
+
 const metadataDbName string = "harbourbridge_metadata"
 
 func GetMetadataDbName() string {
