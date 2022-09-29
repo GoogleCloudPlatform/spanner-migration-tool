@@ -6,15 +6,16 @@ import { ConversionService } from '../../services/conversion/conversion.service'
 import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import { SidenavService } from '../../services/sidenav/sidenav.service'
 import { IUpdateTableArgument } from 'src/app/model/update-table'
-
+import { extractSourceDbName } from 'src/app/utils/utils'
+import IConv from '../../model/conv'
 @Component({
   selector: 'app-object-explorer',
   templateUrl: './object-explorer.component.html',
   styleUrls: ['./object-explorer.component.scss'],
 })
 export class ObjectExplorerComponent implements OnInit {
+  conv!: IConv
   isLeftColumnCollapse: boolean = false
-  srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
   currentSelectedObject: FlatNode | null = null
   srcSortOrder: string = ''
   spannerSortOrder: string = ''
@@ -28,6 +29,7 @@ export class ObjectExplorerComponent implements OnInit {
   @Output() leftCollaspe: EventEmitter<any> = new EventEmitter()
   @Input() spannerTree: ISchemaObjectNode[] = []
   @Input() srcTree: ISchemaObjectNode[] = []
+  @Input() srcDbName: string = ''
 
   private transformer = (node: ISchemaObjectNode, level: number) => {
     return {

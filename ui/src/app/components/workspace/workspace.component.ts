@@ -12,6 +12,7 @@ import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import { IUpdateTableArgument } from 'src/app/model/update-table'
 import ConversionRate from 'src/app/model/conversion-rate'
 import { Router } from '@angular/router'
+import { extractSourceDbName } from 'src/app/utils/utils'
 
 @Component({
   selector: 'app-workspace',
@@ -39,7 +40,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   srcTree: ISchemaObjectNode[] = []
   issuesAndSuggestionsLabel: string = 'ISSUES AND SUGGESTIONS'
   objectExplorerInitiallyRender: boolean = false
-  srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
+  srcDbName: string = ''
   conversionRatePercentages: ConversionRate = { good: 0, ok: 0, bad: 0 }
   currentDatabase: string = 'spanner'
   constructor(
@@ -75,6 +76,8 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
         this.reRenderObjectExplorerSrc()
       }
       this.conv = data
+
+      this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
       if (indexAddedOrRemoved && this.conversionRates) this.reRenderObjectExplorerSpanner()
       if (!this.objectExplorerInitiallyRender && this.conversionRates) {
         this.reRenderObjectExplorerSpanner()
