@@ -58,7 +58,7 @@
       </svg>
       <span class="mr10">{{ ' ' + currentObject!.name + ' ' }}</span>
       <span *ngIf="currentObject!.parent != ''"
-        >( PART OF {{ currentObject!.parent | uppercase }} )
+        >( TABLE: {{ currentObject!.parent | uppercase }} )
       </span>
 
       <!-- If come from source tree then hide edit button then this centeral panel should be view only  -->
