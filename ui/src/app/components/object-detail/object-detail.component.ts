@@ -217,8 +217,6 @@ export class ObjectDetailComponent implements OnInit {
   }
   saveColumnTable() {
     this.isEditMode = false
-    console.log(this.isEditMode, this.isFkEditMode, this.isPkEditMode, 'edit')
-
     let updateData: IUpdateTable = { UpdateCols: {} }
     this.rowArray.value.forEach((col: IColumnTabData, i: number) => {
       let oldRow = this.localTableData[i]
@@ -696,7 +694,7 @@ export class ObjectDetailComponent implements OnInit {
   setIndexOrder() {
     this.rowArray.value.forEach((idx: IIndexData) => {
       for (let i = 0; i < this.localIndexData.length; i++) {
-        if (idx.spColName == this.localIndexData[i].spColName) {
+        if (idx.spColName != '' && idx.spColName == this.localIndexData[i].spColName) {
           this.localIndexData[i].spOrder = idx.spOrder
           break
         }
@@ -707,7 +705,7 @@ export class ObjectDetailComponent implements OnInit {
 
   indexOrderValidation() {
     let arr = this.localIndexData.map((item) => Number(item.spOrder))
-    arr.sort()
+    arr.sort((a, b) => a - b)
     if (arr[arr.length - 1] > arr.length) {
       arr.forEach((num: number, i: number) => {
         this.localIndexData.forEach((ind: IIndexData) => {
@@ -715,6 +713,21 @@ export class ObjectDetailComponent implements OnInit {
             ind.spOrder = i + 1
           }
         })
+      })
+    }
+    if (arr[0] == 0 && arr[arr.length - 1] <= arr.length) {
+      let missingOrder: number
+      for (let i = 0; i < arr.length; i++) {
+        if (arr[i] != i) {
+          missingOrder = i
+          break
+        }
+        missingOrder = arr.length
+      }
+      this.localIndexData.forEach((idx: any) => {
+        if (idx.spOrder < missingOrder) {
+          idx.spOrder = Number(idx.spOrder) + 1
+        }
       })
     }
   }
@@ -732,12 +745,13 @@ export class ObjectDetailComponent implements OnInit {
   saveIndex() {
     let payload: ICreateIndex[] = []
     const tableName = this.currentObject?.parent || ''
+    this.setIndexOrder()
     payload.push({
       Name: this.currentObject?.name || '',
       Table: this.currentObject?.parent || '',
       Unique: false,
       Keys: this.localIndexData
-        .filter((idx) => {
+        .filter((idx: any) => {
           if (idx.spColName) return true
           return false
         })
@@ -783,9 +797,9 @@ export class ObjectDetailComponent implements OnInit {
   }
   dropIndexKey(index: number) {
     if (this.localIndexData[index].spColName) {
-      this.localIndexData[index].spColName = undefined
-      this.localIndexData[index].spDesc = undefined
-      this.localIndexData[index].spOrder = undefined
+      this.localIndexData[index].spColName = ''
+      this.localIndexData[index].spDesc = ''
+      this.localIndexData[index].spOrder = ''
     } else {
       this.localIndexData.splice(index, 1)
     }

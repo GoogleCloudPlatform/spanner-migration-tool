@@ -216,6 +216,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv = conv
 
 	primarykey.DetectHotspot()
+	index.AssignInitialOrders()
 	index.IndexSuggestion()
 
 	sessionMetadata := session.SessionMetadata{
@@ -283,6 +284,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	uniqueid.AssignUniqueId(conv)
 	sessionState.Conv = conv
 	primarykey.DetectHotspot()
+	index.AssignInitialOrders()
 	index.IndexSuggestion()
 
 	sessionState.SessionMetadata = sessionMetadata
@@ -362,6 +364,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv = conv
 
 	primarykey.DetectHotspot()
+	index.AssignInitialOrders()
 	index.IndexSuggestion()
 
 	sessionState.SessionMetadata = sessionMetadata
