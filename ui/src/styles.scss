@@ -66,6 +66,17 @@ body {
 .dark {
   color: rgb(77, 75, 75);
 }
+
+.danger-background {
+  background-color: #da4236;
+}
+.warning-background {
+  background-color: #f3b300;
+}
+.success-background {
+  background-color: green;
+}
+
 .header {
   padding: 0 20px;
   display: flex;

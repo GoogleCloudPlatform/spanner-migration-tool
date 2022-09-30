@@ -1,2 +1,132 @@
-<h2>Assessment content coming soon!</h2>
-<button mat-button (click)="closeSidenav()">Close</button>
+<div>
+  <div class="header">
+    <span class="mat-h3 header-title">Assessment report</span>
+    <button class="close-button" mat-icon-button color="primary" (click)="closeSidenav()">
+      <mat-icon class="close-icon">close</mat-icon>
+    </button>
+  </div>
+  <div class="content">
+    <p>
+      Estimation for {{ srcDbType.toUpperCase() }} to for Spanner conversion:
+      {{ conversionRatePercentage.good }}% of tables can be converted automatically,
+      {{ conversionRatePercentage.ok }}% requires minimal conversion changes and
+      {{ conversionRatePercentage.bad }}% requires high complexity conversion changes.
+    </p>
+
+    <p></p>
+    <h3>Source and destination database definitions</h3>
+    <table mat-table [dataSource]="dbDataSource">
+      <ng-container matColumnDef="title">
+        <th mat-header-cell *matHeaderCellDef>Title</th>
+        <td mat-cell *matCellDef="let element">{{ element.title }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="source">
+        <th mat-header-cell *matHeaderCellDef>Source</th>
+        <td mat-cell *matCellDef="let element">{{ element.source }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="destination">
+        <th mat-header-cell *matHeaderCellDef>Destination</th>
+        <td mat-cell *matCellDef="let element">{{ element.destination }}</td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="dbDisplayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: dbDisplayedColumns"></tr>
+    </table>
+    <br />
+    <h3>Conversion status by table</h3>
+    <table mat-table [dataSource]="rateCountDataSource">
+      <ng-container matColumnDef="total">
+        <th mat-header-cell *matHeaderCellDef>Total tables</th>
+        <td mat-cell *matCellDef="let element">{{ element.total }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="bad">
+        <th mat-header-cell *matHeaderCellDef>
+          <mat-icon class="icon danger icon-size"> error </mat-icon>Converted with many issues
+        </th>
+        <td mat-cell *matCellDef="let element">{{ element.bad }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="ok">
+        <th mat-header-cell *matHeaderCellDef>
+          <mat-icon class="icon warning icon-size"> warning</mat-icon>Conversion some warnings &
+          suggestions
+        </th>
+        <td mat-cell *matCellDef="let element">{{ element.ok }}</td>
+      </ng-container>
+      <ng-container matColumnDef="good">
+        <th mat-header-cell *matHeaderCellDef>
+          <mat-icon class="icon success icon-size"> check_circle </mat-icon>100% conversion
+        </th>
+        <td mat-cell *matCellDef="let element">{{ element.good }}</td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="rateCountDisplayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: rateCountDisplayedColumns"></tr>
+    </table>
+    <br />
+    <h3>Conversion status by table percentage</h3>
+    <table mat-table [dataSource]="ratePcDataSource">
+      <ng-container matColumnDef="bad">
+        <th mat-header-cell *matHeaderCellDef>
+          <mat-icon class="icon danger icon-size"> error </mat-icon>Converted with many issues
+        </th>
+        <td mat-cell *matCellDef="let element">{{ element.bad }}%</td>
+      </ng-container>
+
+      <ng-container matColumnDef="ok">
+        <th mat-header-cell *matHeaderCellDef>
+          <mat-icon class="icon warning icon-size"> warning</mat-icon>Conversion some warnings &
+          suggestions
+        </th>
+        <td mat-cell *matCellDef="let element">{{ element.ok }}%</td>
+      </ng-container>
+      <ng-container matColumnDef="good">
+        <th mat-header-cell *matHeaderCellDef>
+          <mat-icon class="icon success icon-size"> check_circle </mat-icon>100% conversion
+        </th>
+        <td mat-cell *matCellDef="let element">{{ element.good }}%</td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="ratePcDisplayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: ratePcDisplayedColumns"></tr>
+    </table>
+    <br />
+    <mat-card>
+      <div class="percentage-bar">
+        <div
+          class="danger-background"
+          [ngStyle]="{ 'width.%': this.conversionRatePercentage.bad }"
+        ></div>
+        <div
+          class="warning-background"
+          [ngStyle]="{ 'width.%': this.conversionRatePercentage.ok }"
+        ></div>
+        <div
+          class="success-background"
+          [ngStyle]="{ 'width.%': this.conversionRatePercentage.good }"
+        ></div>
+      </div>
+      <hr />
+      <div class="percentage-marker">
+        <span>1%</span>
+        <span>50%</span>
+        <span>100%</span>
+      </div>
+      <br />
+      <div class="percentage-indent">
+        <span
+          ><mat-icon class="icon danger"> circle </mat-icon>
+          <span>Not a great conversion</span></span
+        >
+        <span
+          ><mat-icon class="icon warning"> circle </mat-icon>
+          <span>Converted with warnings</span></span
+        >
+        <span><mat-icon class="icon success"> circle </mat-icon> <span>Converteds</span></span>
+      </div>
+    </mat-card>
+  </div>
+</div>
