@@ -765,7 +765,19 @@ export class ObjectDetailComponent implements OnInit {
       Id: '',
     })
 
-    this.data.updateIndex(tableName, payload)
+    this.data.updateIndex(tableName, payload).subscribe({
+      next: (res: string) => {
+        if (res == '') {
+          this.isEditMode = false
+        } else {
+          this.dialog.open(InfodialogComponent, {
+            data: { message: res, type: 'error' },
+            maxWidth: '500px',
+          })
+          this.isIndexEditMode = true
+        }
+      },
+    })
     this.addIndexKeyForm.controls['columnName'].setValue('')
     this.addIndexKeyForm.controls['ascOrDesc'].setValue('')
     this.addIndexKeyForm.markAsUntouched()

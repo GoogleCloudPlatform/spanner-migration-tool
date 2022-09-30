@@ -1361,6 +1361,18 @@ func updateIndexes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	list := []int{}
+	for i := 0; i < len(newIndexes); i++ {
+		for j := 0; j < len(newIndexes[i].Keys); j++ {
+			list = append(list, newIndexes[i].Keys[j].Order)
+		}
+	}
+
+	if utilities.DuplicateInArray(list) != -1 {
+		http.Error(w, fmt.Sprintf("Two Index columns can not have same order"), http.StatusBadRequest)
+		return
+	}
+
 	sessionState := session.GetSessionState()
 	sp := sessionState.Conv.SpSchema[table]
 

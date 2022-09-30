@@ -326,16 +326,21 @@ export class DataService {
     })
   }
   updateIndex(tableName: string, payload: ICreateIndex[]) {
-    this.fetch.updateIndex(tableName, payload).subscribe({
-      next: (res: IConv) => {
-        this.convSubject.next(res)
-        this.getDdl()
-        this.snackbar.openSnackBar('Index updated successfully.', 'Close', 5)
-      },
-      error: (err: any) => {
-        this.snackbar.openSnackBar(err.error, 'Close')
-      },
-    })
+    return this.fetch.updateIndex(tableName, payload).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data: any) => {
+        if (data.error) {
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          this.getDdl()
+          return ''
+        }
+      })
+    )
   }
 
   dropIndex(tableName: string, indexName: string): Observable<string> {
