@@ -106,7 +106,7 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			if typeChange {
 
-				UpdateColNameType(v.ToType, table, colName, Conv, w)
+				UpdateColumnType(v.ToType, table, colName, Conv, w)
 
 			}
 		}

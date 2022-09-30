@@ -15,7 +15,9 @@
 package table
 
 import (
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
 // IsColumnPresentInColNames check column is present in colnames.
@@ -54,12 +56,9 @@ func renameinterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, 
 func isTablePresent(interleaveTableSchema []InterleaveTableSchema, table string) int {
 
 	for i := 0; i < len(interleaveTableSchema); i++ {
-
 		if interleaveTableSchema[i].Table == table {
-
 			return i
 		}
-
 	}
 
 	return -1
@@ -109,7 +108,6 @@ func createInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, tinde
 			ic.UpdateColumnName = newName
 
 			interleaveTableSchema[tindex].InterleaveColumnChanges = append(interleaveTableSchema[tindex].InterleaveColumnChanges, ic)
-
 		}
 	}
 
@@ -119,11 +117,9 @@ func createInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, tinde
 func isColumnPresent(interleaveColumn []InterleaveColumn, columnId string) int {
 
 	for i := 0; i < len(interleaveColumn); i++ {
-
 		if interleaveColumn[i].ColumnId == columnId {
 			return i
 		}
-
 	}
 
 	return -1
@@ -142,9 +138,7 @@ func typeinterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, ta
 func typeInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, table, columnId, colName, previoustype, updateType string) []InterleaveTableSchema {
 
 	tindex := isTablePresent(interleaveTableSchema, table)
-
 	cindex := isColumnPresent(interleaveTableSchema[tindex].InterleaveColumnChanges, columnId)
-
 	interleaveTableSchema = createInterleaveColumntype(interleaveTableSchema, tindex, cindex, columnId, colName, previoustype, updateType)
 
 	if tindex != -1 && cindex != -1 {
@@ -156,22 +150,18 @@ func typeInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, table, 
 	}
 
 	return interleaveTableSchema
-
 }
 
 func createInterleaveColumntype(interleaveTableSchema []InterleaveTableSchema, tindex int, cindex int, columnId string, colName string, previoustype string, updateType string) []InterleaveTableSchema {
 
 	if cindex == -1 {
-
 		if columnId != "" {
-
 			ic := InterleaveColumn{}
 			ic.ColumnId = columnId
 			ic.ColumnName = colName
 			ic.Type = previoustype
 			ic.UpdateType = updateType
 			interleaveTableSchema[tindex].InterleaveColumnChanges = append(interleaveTableSchema[tindex].InterleaveColumnChanges, ic)
-
 		}
 	}
 
@@ -186,4 +176,42 @@ func trimRedundantInterleaveTableSchema(interleaveTableSchema []InterleaveTableS
 		}
 	}
 	return updatedInterleaveTableSchema
+}
+
+func UpdateNotNull(notNullChange, table, colName string, Conv *internal.Conv) {
+
+	sp := Conv.SpSchema[table]
+
+	switch notNullChange {
+	case "ADDED":
+		spColDef := sp.ColDefs[colName]
+		spColDef.NotNull = true
+		sp.ColDefs[colName] = spColDef
+	case "REMOVED":
+		spColDef := sp.ColDefs[colName]
+		spColDef.NotNull = false
+		sp.ColDefs[colName] = spColDef
+	}
+}
+
+func IsParent(table string) (bool, string) {
+	sessionState := session.GetSessionState()
+
+	for _, spSchema := range sessionState.Conv.SpSchema {
+		if spSchema.Parent == table {
+			return true, spSchema.Name
+		}
+	}
+	return false, ""
+}
+
+func IsPartOfPK(col, table string) bool {
+	sessionState := session.GetSessionState()
+
+	for _, pk := range sessionState.Conv.SpSchema[table].Pks {
+		if pk.Col == col {
+			return true
+		}
+	}
+	return false
 }

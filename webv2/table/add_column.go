@@ -32,7 +32,7 @@ func addColumn(table string, colName string, Conv *internal.Conv) {
 		Name: colName,
 	}
 
-	if IsColumnPresentInColNames(sp.ColNames, colName) == false {
+	if !IsColumnPresentInColNames(sp.ColNames, colName) {
 
 		sp.ColNames = append(sp.ColNames, colName)
 

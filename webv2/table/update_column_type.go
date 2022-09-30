@@ -18,100 +18,59 @@ import (
 	"net/http"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
-//UpdateColNameType updates type of given columnname to newType.
-func UpdateColNameType(newType, table, colName string, Conv *internal.Conv, w http.ResponseWriter) {
+//UpdateColumnType updates type of given column to newType.
+func UpdateColumnType(newType, table, colName string, Conv *internal.Conv, w http.ResponseWriter) {
+	sp := Conv.SpSchema[table]
 
-	srcTableName := Conv.ToSource[table].Name
-
-	sp, ty, err := utilities.GetType(Conv, newType, table, colName, srcTableName)
-
+	//update column type for current table
+	err := UpdateColumnTypeChangeTableSchema(Conv, table, colName, newType, w)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	colDef := sp.ColDefs[colName]
-	colDef.T = ty
-
-	sp.ColDefs[colName] = colDef
-
-	Conv.SpSchema[table] = sp
-
-	for i, _ := range sp.Fks {
-
-		err = UpdateColNameTypeForeignkeyTableSchema(Conv, sp, i, colName, newType, w)
-
+	//update column type for refer tables
+	for _, fk := range sp.Fks {
+		err = UpdateColumnTypeChangeTableSchema(Conv, fk.ReferTable, colName, newType, w)
 		if err != nil {
 			return
 		}
 	}
 
+	//update column type for tables referring to the current table
 	for _, sp := range Conv.SpSchema {
-
 		for j := 0; j < len(sp.Fks); j++ {
 			if sp.Fks[j].ReferTable == table {
-				UpdateColNameTypeForeignkeyReferTableSchema(Conv, sp, sp.Name, colName, newType, w)
+				UpdateColumnTypeChangeTableSchema(Conv, sp.Name, colName, newType, w)
 			}
 		}
 	}
 
-	// update interleave table relation
-	isParent, parentschemaTable := IsParent(table)
-
+	// update column type of child table
+	isParent, childTableName := IsParent(table)
 	if isParent {
-
-		err = UpdateColNameTypeParentschemaTable(Conv, parentschemaTable, colName, newType, w)
+		err = UpdateColumnTypeChangeTableSchema(Conv, childTableName, colName, newType, w)
 		if err != nil {
 			return
 		}
 	}
 
-	childSchemaTable := Conv.SpSchema[table].Parent
-
-	if childSchemaTable != "" {
-
-		err = UpdateColNameTypeChildschemaTable(Conv, childSchemaTable, colName, newType, w)
+	// update column type of parent table
+	parentTableName := Conv.SpSchema[table].Parent
+	if parentTableName != "" {
+		err = UpdateColumnTypeChangeTableSchema(Conv, parentTableName, colName, newType, w)
 		if err != nil {
 			return
 		}
 	}
 }
 
-//UpdateColNameTypeForeignkeyTableSchema updates column type to newtype in from Foreignkey Table Schema.
-func UpdateColNameTypeForeignkeyTableSchema(Conv *internal.Conv, sp ddl.CreateTable, index int, colName string, newType string, w http.ResponseWriter) error {
-
-	relationTable := sp.Fks[index].ReferTable
-
-	srcTableName := Conv.ToSource[relationTable].Name
-
-	rsp, ty, err := utilities.GetType(Conv, newType, relationTable, colName, srcTableName)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return err
-	}
-
-	colDef := rsp.ColDefs[colName]
-	colDef.T = ty
-
-	rsp.ColDefs[colName] = colDef
-
-	Conv.SpSchema[relationTable] = rsp
-
-	return nil
-
-}
-
-//UpdateColNameTypeForeignkeyReferTableSchema updates column type to newtype in from Foreignkey Refer Table Schema.
-func UpdateColNameTypeForeignkeyReferTableSchema(Conv *internal.Conv, sp ddl.CreateTable, table string, colName string, newType string, w http.ResponseWriter) error {
+//UpdateColumnTypeTableSchema updates column type to newtype for a column of a table.
+func UpdateColumnTypeChangeTableSchema(Conv *internal.Conv, table string, colName string, newType string, w http.ResponseWriter) error {
 
 	srcTableName := Conv.ToSource[table].Name
-
 	sp, ty, err := utilities.GetType(Conv, newType, table, colName, srcTableName)
 
 	if err != nil {
@@ -121,90 +80,8 @@ func UpdateColNameTypeForeignkeyReferTableSchema(Conv *internal.Conv, sp ddl.Cre
 
 	colDef := sp.ColDefs[colName]
 	colDef.T = ty
-
 	sp.ColDefs[colName] = colDef
+	Conv.SpSchema[table] = sp
 
 	return nil
-}
-
-//UpdateColNameTypeParentschemaTable updates column type to newtype in from Parent Table Schema.
-func UpdateColNameTypeParentschemaTable(Conv *internal.Conv, parentschemaTable string, colName string, newType string, w http.ResponseWriter) error {
-
-	srcTableName := Conv.ToSource[parentschemaTable].Name
-
-	parentSp, ty, err := utilities.GetType(Conv, newType, parentschemaTable, colName, srcTableName)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return err
-	}
-
-	colDef := parentSp.ColDefs[colName]
-	colDef.T = ty
-
-	parentSp.ColDefs[colName] = colDef
-
-	Conv.SpSchema[parentschemaTable] = parentSp
-
-	return nil
-}
-
-//UpdateColNameTypechildschemaTable updates column type to newtype in from child Table Schema.
-func UpdateColNameTypeChildschemaTable(Conv *internal.Conv, childSchemaTable string, colName string, newType string, w http.ResponseWriter) error {
-
-	srcTableName := Conv.ToSource[childSchemaTable].Name
-
-	childSp, ty, err := utilities.GetType(Conv, newType, childSchemaTable, colName, srcTableName)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return err
-	}
-
-	colDef := childSp.ColDefs[colName]
-	colDef.T = ty
-
-	childSp.ColDefs[colName] = colDef
-
-	Conv.SpSchema[childSchemaTable] = childSp
-
-	return nil
-}
-
-func UpdateNotNull(notNullChange, table, colName string, Conv *internal.Conv) {
-
-	sp := Conv.SpSchema[table]
-
-	switch notNullChange {
-	case "ADDED":
-		spColDef := sp.ColDefs[colName]
-		spColDef.NotNull = true
-		sp.ColDefs[colName] = spColDef
-	case "REMOVED":
-		spColDef := sp.ColDefs[colName]
-		spColDef.NotNull = false
-		sp.ColDefs[colName] = spColDef
-	}
-}
-
-func IsParent(table string) (bool, string) {
-	sessionState := session.GetSessionState()
-
-	for _, spSchema := range sessionState.Conv.SpSchema {
-		if spSchema.Parent == table {
-			return true, spSchema.Name
-		}
-	}
-	return false, ""
-}
-
-func IsPartOfPK(col, table string) bool {
-	sessionState := session.GetSessionState()
-
-	for _, pk := range sessionState.Conv.SpSchema[table].Pks {
-		if pk.Col == col {
-			return true
-		}
-	}
-	return false
 }
