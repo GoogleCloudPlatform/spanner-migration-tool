@@ -14,7 +14,6 @@ import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
 import IConv, { ICreateIndex, IPrimaryKey } from 'src/app/model/conv'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
 import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/drop-index-or-table-dialog.component'
-import { extractSourceDbName } from 'src/app/utils/utils'
 
 @Component({
   selector: 'app-object-detail',

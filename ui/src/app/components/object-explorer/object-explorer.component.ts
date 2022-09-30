@@ -6,7 +6,6 @@ import { ConversionService } from '../../services/conversion/conversion.service'
 import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import { SidenavService } from '../../services/sidenav/sidenav.service'
 import { IUpdateTableArgument } from 'src/app/model/update-table'
-import { extractSourceDbName } from 'src/app/utils/utils'
 import IConv from '../../model/conv'
 @Component({
   selector: 'app-object-explorer',
