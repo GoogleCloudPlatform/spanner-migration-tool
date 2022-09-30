@@ -34,6 +34,7 @@ type Config struct {
 type ConfigWithMetadata struct {
 	Config
 	IsMetadataDbCreated bool
+	IsConfigValid       bool
 }
 
 func GetConfig(w http.ResponseWriter, r *http.Request) {
@@ -63,11 +64,12 @@ func SetSpannerConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	SaveSpannerConfig(c)
-	isDbCreated := session.SetSessionStorageConnectionState(c.GCPProjectID, c.SpannerInstanceID)
+	isDbCreated, isConfigValid := session.SetSessionStorageConnectionState(c.GCPProjectID, c.SpannerInstanceID)
 
 	configWithMetadata := ConfigWithMetadata{
 		Config:              Config{c.GCPProjectID, c.SpannerInstanceID},
 		IsMetadataDbCreated: isDbCreated,
+		IsConfigValid:       isConfigValid,
 	}
 
 	if err != nil {
