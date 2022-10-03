@@ -15,19 +15,19 @@
 
     <p></p>
     <h3>Source and destination database definitions</h3>
-    <table mat-table [dataSource]="dbDataSource">
+    <table mat-table [dataSource]="dbDataSource" >
       <ng-container matColumnDef="title">
-        <th mat-header-cell *matHeaderCellDef>Title</th>
+        <th mat-header-cell *matHeaderCellDef class="header-2">Title</th>
         <td mat-cell *matCellDef="let element">{{ element.title }}</td>
       </ng-container>
 
       <ng-container matColumnDef="source">
-        <th mat-header-cell *matHeaderCellDef>Source</th>
+        <th mat-header-cell *matHeaderCellDef class="header-2">Source</th>
         <td mat-cell *matCellDef="let element">{{ element.source }}</td>
       </ng-container>
 
       <ng-container matColumnDef="destination">
-        <th mat-header-cell *matHeaderCellDef>Destination</th>
+        <th mat-header-cell *matHeaderCellDef class="header-2">Destination</th>
         <td mat-cell *matCellDef="let element">{{ element.destination }}</td>
       </ng-container>
 
@@ -36,31 +36,31 @@
     </table>
     <br />
     <h3>Conversion status by table</h3>
-    <table mat-table [dataSource]="rateCountDataSource">
-      <ng-container matColumnDef="total">
+    <table mat-table [dataSource]="rateCountDataSource" class="conversionByTable">
+      <ng-container matColumnDef="total" >
         <th mat-header-cell *matHeaderCellDef>Total tables</th>
-        <td mat-cell *matCellDef="let element">{{ element.total }}</td>
+        <td mat-cell class="cells" *matCellDef="let element">{{ element.total }}</td>
       </ng-container>
 
-      <ng-container matColumnDef="bad">
+      <ng-container matColumnDef="bad" class="bad">
         <th mat-header-cell *matHeaderCellDef>
-          <mat-icon class="icon danger icon-size"> error </mat-icon>Converted with many issues
+          <mat-icon class="icon danger icon-size icons"> error </mat-icon>Converted with many issues
         </th>
-        <td mat-cell *matCellDef="let element">{{ element.bad }}</td>
+        <td mat-cell class="cells" *matCellDef="let element">{{ element.bad }}</td>
       </ng-container>
 
       <ng-container matColumnDef="ok">
         <th mat-header-cell *matHeaderCellDef>
-          <mat-icon class="icon warning icon-size"> warning</mat-icon>Conversion some warnings &
+          <mat-icon class="icon warning icon-size icons"> warning</mat-icon>Conversion some warnings &
           suggestions
         </th>
-        <td mat-cell *matCellDef="let element">{{ element.ok }}</td>
+        <td mat-cell  class="cells" *matCellDef="let element">{{ element.ok }}</td>
       </ng-container>
       <ng-container matColumnDef="good">
         <th mat-header-cell *matHeaderCellDef>
-          <mat-icon class="icon success icon-size"> check_circle </mat-icon>100% conversion
+          <mat-icon class="icon success icon-size icons"> check_circle </mat-icon>100% conversion
         </th>
-        <td mat-cell *matCellDef="let element">{{ element.good }}</td>
+        <td mat-cell  class="cells" *matCellDef="let element">{{ element.good }}</td>
       </ng-container>
 
       <tr mat-header-row *matHeaderRowDef="rateCountDisplayedColumns"></tr>
@@ -68,26 +68,26 @@
     </table>
     <br />
     <h3>Conversion status by table percentage</h3>
-    <table mat-table [dataSource]="ratePcDataSource">
+    <table mat-table [dataSource]="ratePcDataSource" class="conversionByPercentage">
       <ng-container matColumnDef="bad">
         <th mat-header-cell *matHeaderCellDef>
-          <mat-icon class="icon danger icon-size"> error </mat-icon>Converted with many issues
+          <mat-icon class="icon danger icon-size "> error </mat-icon>Converted with many issues
         </th>
-        <td mat-cell *matCellDef="let element">{{ element.bad }}%</td>
+        <td mat-cell class="cells" *matCellDef="let element">{{ element.bad }}%</td>
       </ng-container>
 
       <ng-container matColumnDef="ok">
         <th mat-header-cell *matHeaderCellDef>
-          <mat-icon class="icon warning icon-size"> warning</mat-icon>Conversion some warnings &
+          <mat-icon class="icon warning icon-size icons"> warning</mat-icon>Conversion some warnings &
           suggestions
         </th>
-        <td mat-cell *matCellDef="let element">{{ element.ok }}%</td>
+        <td mat-cell  class="cells" *matCellDef="let element">{{ element.ok }}%</td>
       </ng-container>
       <ng-container matColumnDef="good">
         <th mat-header-cell *matHeaderCellDef>
-          <mat-icon class="icon success icon-size"> check_circle </mat-icon>100% conversion
+          <mat-icon class="icon success icon-size icons"> check_circle </mat-icon>100% conversion
         </th>
-        <td mat-cell *matCellDef="let element">{{ element.good }}%</td>
+        <td mat-cell  class="cells" *matCellDef="let element">{{ element.good }}%</td>
       </ng-container>
 
       <tr mat-header-row *matHeaderRowDef="ratePcDisplayedColumns"></tr>
