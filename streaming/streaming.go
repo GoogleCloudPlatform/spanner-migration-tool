@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -318,7 +318,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	dfJobDetails := fmt.Sprintf("project: %s, location: %s, name: %s, id: %s", project, respDf.Job.Location, respDf.Job.Name, respDf.Job.Id)
 	fmt.Println("\n------------------------------------------\n" +
 		"The Datastream job: " + fullStreamName + "and the Dataflow job: " + dfJobDetails +
-		" will have to be manually cleaned up via he UI. HarbourBridge will not delete them post completion of the migration.")
+		" will have to be manually cleaned up via the UI. HarbourBridge will not delete them post completion of the migration.")
 	return nil
 }
 
