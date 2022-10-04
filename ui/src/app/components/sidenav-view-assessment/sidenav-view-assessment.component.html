@@ -34,7 +34,6 @@
       <tr mat-header-row *matHeaderRowDef="dbDisplayedColumns"></tr>
       <tr mat-row *matRowDef="let row; columns: dbDisplayedColumns"></tr>
     </table>
-    <br />
     <h3>Conversion status by table</h3>
     <table mat-table [dataSource]="rateCountDataSource" class="conversionByTable">
       <ng-container matColumnDef="total" >
@@ -66,7 +65,6 @@
       <tr mat-header-row *matHeaderRowDef="rateCountDisplayedColumns"></tr>
       <tr mat-row *matRowDef="let row; columns: rateCountDisplayedColumns"></tr>
     </table>
-    <br />
     <h3>Conversion status by table percentage</h3>
     <table mat-table [dataSource]="ratePcDataSource" class="conversionByPercentage">
       <ng-container matColumnDef="bad">
