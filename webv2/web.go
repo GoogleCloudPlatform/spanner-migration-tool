@@ -42,6 +42,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
+	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
@@ -50,7 +51,9 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
 	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/profile"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
+	"github.com/google/uuid"
 
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	_ "github.com/go-sql-driver/mysql"
@@ -116,8 +119,30 @@ type migrationDetails struct {
 }
 
 type targetDetails struct {
-	TargetDB     string `json:"TargetDB"`
-	StreamingCfg string `json:"StreamingConfig"`
+	TargetDB                    string `json:"TargetDB"`
+	Region                      string `json:"Region"`
+	SourceConnectionProfileName string `json:"SourceConnProfile"`
+	TargetConnectionProfileName string `json:"TargetConnProfile"`
+}
+type StreamingCfg struct {
+	DatastreamCfg DatastreamCfg `json:"datastreamCfg"`
+	DataflowCfg   DataflowCfg   `json:"dataflowCfg"`
+	TmpDir        string        `json:"tmpDir"`
+}
+type DataflowCfg struct {
+	JobName  string `json:"JobName"`
+	Location string `json:"Location"`
+}
+type ConnectionConfig struct {
+	Name     string `json:"name"`
+	Location string `json:"location"`
+}
+type DatastreamCfg struct {
+	StreamId               string           `json:"streamId"`
+	StreamLocation         string           `json:"streamLocation"`
+	StreamDisplayName      string           `json:"streamDisplayName"`
+	SourceConnectionConfig ConnectionConfig `json:"sourceConnectionConfig"`
+	TargetConnectionConfig ConnectionConfig `json:"destinationConnectionConfig"`
 }
 
 // databaseConnection creates connection with database when using
@@ -1287,6 +1312,8 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sessionState.Error = nil
 	ctx := context.Background()
+	sessionState.Conv.Audit.Progress = internal.Progress{}
+	sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
 	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
 	if err != nil {
 		log.Println("can't get source and target profile")
@@ -1298,6 +1325,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv.Audit.Progress.SetProgressMessageAndUpdate("Migration in progress", 0)
 	if details.MigrationMode == utilities.SCHEMA_ONLY {
 		log.Println("Starting schema only migration")
+		sessionState.Conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
 		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv, &sessionState.Error)
 	} else if details.MigrationMode == utilities.DATA_ONLY {
 		dataCmd := &cmd.DataCmd{
@@ -1305,6 +1333,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 			WriteLimit:      cmd.DefaultWritersLimit,
 		}
 		log.Println("Starting data only migration")
+		sessionState.Conv.Audit.MigrationType = migration.MigrationData_DATA_ONLY.Enum()
 		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, dataCmd, sessionState.Conv, &sessionState.Error)
 	} else {
 		schemaAndDataCmd := &cmd.SchemaAndDataCmd{
@@ -1312,6 +1341,7 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 			WriteLimit:      cmd.DefaultWritersLimit,
 		}
 		log.Println("Starting schema and data migration")
+		sessionState.Conv.Audit.MigrationType = migration.MigrationData_SCHEMA_AND_DATA.Enum()
 		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, schemaAndDataCmd, sessionState.Conv, &sessionState.Error)
 	}
 	w.WriteHeader(http.StatusOK)
@@ -1331,9 +1361,13 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 			sourceDBConnectionDetails.Password, sessionState.DbName)
 	}
 	targetProfileString := fmt.Sprintf("project=%v,instance=%v,dbName=%v", sessionState.GCPProjectID, sessionState.SpannerInstanceID, details.TargetDetails.TargetDB)
-
-	if details.TargetDetails.StreamingCfg != "" {
-		sourceProfileString = sourceProfileString + fmt.Sprintf(",streamingCfg=%v", details.TargetDetails.StreamingCfg)
+	if details.TargetDetails.Region != "" {
+		fileName := sessionState.Conv.Audit.MigrationRequestId + "-streaming.json"
+		err := createStreamingCfgFile(sessionState.GCPProjectID, details.TargetDetails, fileName)
+		if err != nil {
+			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while craeting streaming config file: %v", err)
+		}
+		sourceProfileString = sourceProfileString + fmt.Sprintf(",streamingCfg=%v", fileName)
 	}
 	source, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
 	if err != nil {
@@ -1346,6 +1380,44 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 	sourceProfile.Driver = sessionState.Driver
 	targetProfile.TargetDb = targetProfile.ToLegacyTargetDb()
 	return sourceProfile, targetProfile, ioHelper, dbName, nil
+}
+
+func createStreamingCfgFile(projectId string, targetDetails targetDetails, fileName string) error {
+	bucket, err := profile.GetBucket(projectId, targetDetails.Region, targetDetails.TargetConnectionProfileName)
+	if err != nil {
+		return fmt.Errorf("error while getting bucket details: %v", err)
+	}
+	data := StreamingCfg{
+		DatastreamCfg: DatastreamCfg{
+			StreamId:          "",
+			StreamLocation:    targetDetails.Region,
+			StreamDisplayName: "",
+			SourceConnectionConfig: ConnectionConfig{
+				Name:     targetDetails.SourceConnectionProfileName,
+				Location: targetDetails.Region,
+			},
+			TargetConnectionConfig: ConnectionConfig{
+				Name:     targetDetails.TargetConnectionProfileName,
+				Location: targetDetails.Region,
+			},
+		},
+		DataflowCfg: DataflowCfg{
+			JobName:  "",
+			Location: targetDetails.Region,
+		},
+		TmpDir: bucket,
+	}
+
+	file, err := json.MarshalIndent(data, "", " ")
+	if err != nil {
+		return fmt.Errorf("error while marshalling json: %v", err)
+	}
+
+	err = ioutil.WriteFile(fileName, file, 0644)
+	if err != nil {
+		return fmt.Errorf("error while writing json to file: %v", err)
+	}
+	return nil
 }
 
 func updateIndexes(w http.ResponseWriter, r *http.Request) {
@@ -2041,6 +2113,6 @@ func init() {
 func App() {
 	addr := ":8080"
 	router := getRoutes()
-	log.Printf("Starting server at port 8080\n")
+	fmt.Println("Server listening on Port", addr)
 	log.Fatal(http.ListenAndServe(addr, handlers.CORS(handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}), handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"}), handlers.AllowedOrigins([]string{"*"}))(router)))
 }

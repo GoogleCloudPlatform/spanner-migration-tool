@@ -129,6 +129,7 @@ func main() {
 		panic(fmt.Errorf("error initialising logger"))
 	}
 	defer logger.Log.Sync()
+	
 	// Running HB CLI in global command line mode.
 	setupGlobalFlags()
 	flag.Usage = usage

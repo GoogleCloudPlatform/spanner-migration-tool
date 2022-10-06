@@ -76,6 +76,12 @@ body {
 }
 .hidden {
   display: none !important;
+.failure {
+  color: red;
+}
+.copy {
+  color:cornflowerblue;
+  margin-left: 40%;
 }
 
 .header {
