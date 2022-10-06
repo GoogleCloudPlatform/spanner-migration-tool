@@ -21,24 +21,24 @@ import (
 )
 
 // removeColumn remove given column from schema.
-func removeColumn(table string, colName string, Conv *internal.Conv) {
+func removeColumn(table string, colName string, conv *internal.Conv) {
 
-	sp := Conv.SpSchema[table]
+	sp := conv.SpSchema[table]
 
-	removeColumnFromTableSchema(Conv, table, colName)
+	removeColumnFromTableSchema(conv, table, colName)
 
 	// update foreignKey relationship Table column names
 	for _, fk := range sp.Fks {
 
-		removeColumnFromTableSchema(Conv, fk.ReferTable, colName)
+		removeColumnFromTableSchema(conv, fk.ReferTable, colName)
 
 	}
 
-	for _, sp := range Conv.SpSchema {
+	for _, sp := range conv.SpSchema {
 
 		for j := 0; j < len(sp.Fks); j++ {
 			if sp.Fks[j].ReferTable == table {
-				removeColumnFromTableSchema(Conv, sp.Name, colName)
+				removeColumnFromTableSchema(conv, sp.Name, colName)
 			}
 
 		}
@@ -49,19 +49,19 @@ func removeColumn(table string, colName string, Conv *internal.Conv) {
 
 	if isParent {
 
-		removeColumnFromTableSchema(Conv, childTableName, colName)
+		removeColumnFromTableSchema(conv, childTableName, colName)
 
 	}
 
-	if Conv.SpSchema[table].Parent != "" {
+	if conv.SpSchema[table].Parent != "" {
 
-		removeColumnFromTableSchema(Conv, Conv.SpSchema[table].Parent, colName)
+		removeColumnFromTableSchema(conv, conv.SpSchema[table].Parent, colName)
 	}
 }
 
 // removeColumnFromCurrentTableSchema remove given column from table schema.
-func removeColumnFromTableSchema(Conv *internal.Conv, table string, colName string) {
-	sp := Conv.SpSchema[table]
+func removeColumnFromTableSchema(conv *internal.Conv, table string, colName string) {
+	sp := conv.SpSchema[table]
 
 	sp = removeColumnFromSpannerColDefs(sp, colName)
 
@@ -75,11 +75,11 @@ func removeColumnFromTableSchema(Conv *internal.Conv, table string, colName stri
 
 	sp = removeColumnFromSpannerColNames(sp, colName)
 
-	removeSpannerSchemaIssue(table, colName, Conv)
+	removeSpannerSchemaIssue(table, colName, conv)
 
-	removeColumnFromToSpannerToSource(table, colName, Conv)
+	removeColumnFromToSpannerToSource(table, colName, conv)
 
-	Conv.SpSchema[table] = sp
+	conv.SpSchema[table] = sp
 }
 
 // removeColumnFromSpannerColNames remove given column from ColNames.
@@ -133,22 +133,22 @@ func removeColumnFromSecondaryIndexKey(slice []ddl.IndexKey, s int) []ddl.IndexK
 }
 
 // removeColumnFromSecondaryIndexKey remove given column from Spanner Secondary Schema Issue List.
-func removeSpannerSchemaIssue(table string, colName string, Conv *internal.Conv) {
-	if Conv.Issues != nil {
-		if Conv.Issues[table] != nil && Conv.Issues[table][colName] != nil {
-			delete(Conv.Issues[table], colName)
+func removeSpannerSchemaIssue(table string, colName string, conv *internal.Conv) {
+	if conv.Issues != nil {
+		if conv.Issues[table] != nil && conv.Issues[table][colName] != nil {
+			delete(conv.Issues[table], colName)
 		}
 	}
 }
 
 // removeColumnFromToSpannerToSource remove given column from ToSpanner and ToSource List.
-func removeColumnFromToSpannerToSource(table string, colName string, Conv *internal.Conv) {
+func removeColumnFromToSpannerToSource(table string, colName string, conv *internal.Conv) {
 
-	srcTableName := Conv.ToSource[table].Name
+	srcTableName := conv.ToSource[table].Name
 
-	srcColName := Conv.ToSource[table].Cols[colName]
-	delete(Conv.ToSource[table].Cols, colName)
-	delete(Conv.ToSpanner[srcTableName].Cols, srcColName)
+	srcColName := conv.ToSource[table].Cols[colName]
+	delete(conv.ToSource[table].Cols, colName)
+	delete(conv.ToSpanner[srcTableName].Cols, srcColName)
 }
 
 // removeColumnFromSpannerForeignkeyColumns remove given column from Spanner Foreignkey Columns List.

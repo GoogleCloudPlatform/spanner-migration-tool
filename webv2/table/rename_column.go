@@ -20,21 +20,21 @@ import (
 )
 
 // renameColumn renames given column to newname and update in schema.
-func renameColumn(newName, table, colName string, Conv *internal.Conv) {
+func renameColumn(newName, table, colName string, conv *internal.Conv) {
 
-	sp := Conv.SpSchema[table]
+	sp := conv.SpSchema[table]
 
-	renameColumnNameTableSchema(Conv, table, colName, newName)
+	renameColumnNameTableSchema(conv, table, colName, newName)
 
 	// update foreignKey relationship Table
 	for _, fk := range sp.Fks {
-		renameColumnNameTableSchema(Conv, fk.ReferTable, colName, newName)
+		renameColumnNameTableSchema(conv, fk.ReferTable, colName, newName)
 	}
 
-	for _, sp := range Conv.SpSchema {
+	for _, sp := range conv.SpSchema {
 		for j := 0; j < len(sp.Fks); j++ {
 			if sp.Fks[j].ReferTable == table {
-				renameColumnNameTableSchema(Conv, sp.Name, colName, newName)
+				renameColumnNameTableSchema(conv, sp.Name, colName, newName)
 			}
 		}
 	}
@@ -43,17 +43,17 @@ func renameColumn(newName, table, colName string, Conv *internal.Conv) {
 	isParent, childTableName := IsParent(table)
 
 	if isParent {
-		renameColumnNameTableSchema(Conv, childTableName, colName, newName)
+		renameColumnNameTableSchema(conv, childTableName, colName, newName)
 	}
 
-	if Conv.SpSchema[table].Parent != "" {
-		renameColumnNameTableSchema(Conv, Conv.SpSchema[table].Parent, colName, newName)
+	if conv.SpSchema[table].Parent != "" {
+		renameColumnNameTableSchema(conv, conv.SpSchema[table].Parent, colName, newName)
 	}
 }
 
 // renameColumnNameInCurrentTableSchema renames given column in Table Schema.
-func renameColumnNameTableSchema(Conv *internal.Conv, table string, colName string, newName string) {
-	sp := Conv.SpSchema[table]
+func renameColumnNameTableSchema(conv *internal.Conv, table string, colName string, newName string) {
+	sp := conv.SpSchema[table]
 
 	sp = renameColumnNameInSpannerColDefs(sp, colName, newName)
 
@@ -67,11 +67,11 @@ func renameColumnNameTableSchema(Conv *internal.Conv, table string, colName stri
 
 	sp = renameColumnNameInSpannerColNames(sp, colName, newName)
 
-	renameColumnNameInSpannerSchemaIssue(table, colName, newName, Conv)
+	renameColumnNameInSpannerSchemaIssue(table, colName, newName, conv)
 
-	renameColumnNameInToSpannerToSource(table, colName, newName, Conv)
+	renameColumnNameInToSpannerToSource(table, colName, newName, conv)
 
-	Conv.SpSchema[table] = sp
+	conv.SpSchema[table] = sp
 }
 
 // renameColumnNameInSpannerColNames renames given column in ColNames.
@@ -149,26 +149,26 @@ func renameColumnNameInSpannerForeignkeyReferColumns(sp ddl.CreateTable, colName
 }
 
 // renameColumnNameInToSpannerToSource renames given column in ToSpanner and ToSource List.
-func renameColumnNameInToSpannerToSource(table string, colName string, newName string, Conv *internal.Conv) {
-	srcTableName := Conv.ToSource[table].Name
+func renameColumnNameInToSpannerToSource(table string, colName string, newName string, conv *internal.Conv) {
+	srcTableName := conv.ToSource[table].Name
 
-	srcColName := Conv.ToSource[table].Cols[colName]
+	srcColName := conv.ToSource[table].Cols[colName]
 
-	Conv.ToSpanner[srcTableName].Cols[srcColName] = newName
-	Conv.ToSource[table].Cols[newName] = srcColName
-	delete(Conv.ToSource[table].Cols, colName)
+	conv.ToSpanner[srcTableName].Cols[srcColName] = newName
+	conv.ToSource[table].Cols[newName] = srcColName
+	delete(conv.ToSource[table].Cols, colName)
 }
 
 // renameColumnNameInSpannerSchemaIssue renames given column in ToSpanner and ToSource List.
-func renameColumnNameInSpannerSchemaIssue(table string, colName string, newName string, Conv *internal.Conv) {
-	if Conv.Issues != nil {
-		if Conv.Issues[table] != nil && Conv.Issues[table][colName] != nil {
-			schemaissue := Conv.Issues[table][colName]
+func renameColumnNameInSpannerSchemaIssue(table string, colName string, newName string, conv *internal.Conv) {
+	if conv.Issues != nil {
+		if conv.Issues[table] != nil && conv.Issues[table][colName] != nil {
+			schemaissue := conv.Issues[table][colName]
 			s := map[string][]internal.SchemaIssue{
 				newName: schemaissue,
 			}
-			Conv.Issues[table] = s
+			conv.Issues[table] = s
 		}
 	}
-	delete(Conv.Issues[table], colName)
+	delete(conv.Issues[table], colName)
 }

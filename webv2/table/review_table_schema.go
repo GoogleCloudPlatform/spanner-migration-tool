@@ -63,15 +63,15 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	sessionState := session.GetSessionState()
 
-	var Conv *internal.Conv
+	var conv *internal.Conv
 
 	convByte, err := json.Marshal(sessionState.Conv)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Conversion object parse error : %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("conversion object parse error : %v", err), http.StatusInternalServerError)
 		return
 	}
-	if err := json.Unmarshal(convByte, &Conv); err != nil {
-		http.Error(w, fmt.Sprintf("Conversion object parse error : %v", err), http.StatusInternalServerError)
+	if err := json.Unmarshal(convByte, &conv); err != nil {
+		http.Error(w, fmt.Sprintf("conversion object parse error : %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -81,33 +81,33 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 		if v.Add {
 
-			addColumn(table, colName, Conv)
+			addColumn(table, colName, conv)
 
 		}
 
 		if v.Removed {
 
-			removeColumn(table, colName, Conv)
+			removeColumn(table, colName, conv)
 
 		}
 
 		if v.Rename != "" && v.Rename != colName {
 
-			for _, c := range Conv.SpSchema[table].ColNames {
+			for _, c := range conv.SpSchema[table].ColNames {
 				if c == v.Rename {
 					http.Error(w, fmt.Sprintf("Multiple columns with similar name cannot exist for column : %v", v.Rename), http.StatusBadRequest)
 					return
 				}
 			}
 
-			interleaveTableSchema = reviewRenameColumn(v.Rename, table, colName, Conv, interleaveTableSchema)
+			interleaveTableSchema = reviewRenameColumn(v.Rename, table, colName, conv, interleaveTableSchema)
 
 			colName = v.Rename
 		}
 
 		if v.ToType != "" {
 
-			typeChange, err := utilities.IsTypeChanged(v.ToType, table, colName, Conv)
+			typeChange, err := utilities.IsTypeChanged(v.ToType, table, colName, conv)
 
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -116,7 +116,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			if typeChange {
 
-				interleaveTableSchema, err = ReviewColumnNameType(v.ToType, table, colName, Conv, interleaveTableSchema, w)
+				interleaveTableSchema, err = ReviewColumnNameType(v.ToType, table, colName, conv, interleaveTableSchema, w)
 				if err != nil {
 					return
 				}
@@ -124,11 +124,11 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if v.NotNull != "" {
-			UpdateNotNull(v.NotNull, table, colName, Conv)
+			UpdateNotNull(v.NotNull, table, colName, conv)
 		}
 	}
 
-	ddl := GetSpannerTableDDL(Conv.SpSchema[table])
+	ddl := GetSpannerTableDDL(conv.SpSchema[table])
 
 	interleaveTableSchema = trimRedundantInterleaveTableSchema(interleaveTableSchema)
 

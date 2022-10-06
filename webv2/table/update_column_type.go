@@ -22,28 +22,28 @@ import (
 )
 
 //UpdateColumnType updates type of given column to newType.
-func UpdateColumnType(newType, table, colName string, Conv *internal.Conv, w http.ResponseWriter) {
-	sp := Conv.SpSchema[table]
+func UpdateColumnType(newType, table, colName string, conv *internal.Conv, w http.ResponseWriter) {
+	sp := conv.SpSchema[table]
 
 	//update column type for current table
-	err := UpdateColumnTypeChangeTableSchema(Conv, table, colName, newType, w)
+	err := UpdateColumnTypeChangeTableSchema(conv, table, colName, newType, w)
 	if err != nil {
 		return
 	}
 
 	//update column type for refer tables
 	for _, fk := range sp.Fks {
-		err = UpdateColumnTypeChangeTableSchema(Conv, fk.ReferTable, colName, newType, w)
+		err = UpdateColumnTypeChangeTableSchema(conv, fk.ReferTable, colName, newType, w)
 		if err != nil {
 			return
 		}
 	}
 
 	//update column type for tables referring to the current table
-	for _, sp := range Conv.SpSchema {
+	for _, sp := range conv.SpSchema {
 		for j := 0; j < len(sp.Fks); j++ {
 			if sp.Fks[j].ReferTable == table {
-				UpdateColumnTypeChangeTableSchema(Conv, sp.Name, colName, newType, w)
+				UpdateColumnTypeChangeTableSchema(conv, sp.Name, colName, newType, w)
 			}
 		}
 	}
@@ -51,16 +51,16 @@ func UpdateColumnType(newType, table, colName string, Conv *internal.Conv, w htt
 	// update column type of child table
 	isParent, childTableName := IsParent(table)
 	if isParent {
-		err = UpdateColumnTypeChangeTableSchema(Conv, childTableName, colName, newType, w)
+		err = UpdateColumnTypeChangeTableSchema(conv, childTableName, colName, newType, w)
 		if err != nil {
 			return
 		}
 	}
 
 	// update column type of parent table
-	parentTableName := Conv.SpSchema[table].Parent
+	parentTableName := conv.SpSchema[table].Parent
 	if parentTableName != "" {
-		err = UpdateColumnTypeChangeTableSchema(Conv, parentTableName, colName, newType, w)
+		err = UpdateColumnTypeChangeTableSchema(conv, parentTableName, colName, newType, w)
 		if err != nil {
 			return
 		}
@@ -68,10 +68,10 @@ func UpdateColumnType(newType, table, colName string, Conv *internal.Conv, w htt
 }
 
 //UpdateColumnTypeTableSchema updates column type to newtype for a column of a table.
-func UpdateColumnTypeChangeTableSchema(Conv *internal.Conv, table string, colName string, newType string, w http.ResponseWriter) error {
+func UpdateColumnTypeChangeTableSchema(conv *internal.Conv, table string, colName string, newType string, w http.ResponseWriter) error {
 
-	srcTableName := Conv.ToSource[table].Name
-	sp, ty, err := utilities.GetType(Conv, newType, table, colName, srcTableName)
+	srcTableName := conv.ToSource[table].Name
+	sp, ty, err := utilities.GetType(conv, newType, table, colName, srcTableName)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -81,7 +81,7 @@ func UpdateColumnTypeChangeTableSchema(Conv *internal.Conv, table string, colNam
 	colDef := sp.ColDefs[colName]
 	colDef.T = ty
 	sp.ColDefs[colName] = colDef
-	Conv.SpSchema[table] = sp
+	conv.SpSchema[table] = sp
 
 	return nil
 }

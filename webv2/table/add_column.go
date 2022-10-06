@@ -20,10 +20,10 @@ import (
 )
 
 // addColumn add given column into spannerTable.
-func addColumn(table string, colName string, Conv *internal.Conv) {
+func addColumn(table string, colName string, conv *internal.Conv) {
 
-	sp := Conv.SpSchema[table]
-	src := Conv.SrcSchema[table]
+	sp := conv.SpSchema[table]
+	src := conv.SrcSchema[table]
 
 	srcColumnId := src.ColDefs[colName].Id
 
@@ -38,11 +38,11 @@ func addColumn(table string, colName string, Conv *internal.Conv) {
 
 	}
 
-	Conv.SpSchema[table] = sp
+	conv.SpSchema[table] = sp
 
-	srcTableName := Conv.ToSource[table].Name
+	srcTableName := conv.ToSource[table].Name
 	srcColName := src.ColDefs[colName].Name
 
-	Conv.ToSpanner[srcTableName].Cols[srcColName] = colName
-	Conv.ToSource[table].Cols[colName] = srcColName
+	conv.ToSpanner[srcTableName].Cols[srcColName] = colName
+	conv.ToSource[table].Cols[colName] = srcColName
 }

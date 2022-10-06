@@ -178,9 +178,9 @@ func trimRedundantInterleaveTableSchema(interleaveTableSchema []InterleaveTableS
 	return updatedInterleaveTableSchema
 }
 
-func UpdateNotNull(notNullChange, table, colName string, Conv *internal.Conv) {
+func UpdateNotNull(notNullChange, table, colName string, conv *internal.Conv) {
 
-	sp := Conv.SpSchema[table]
+	sp := conv.SpSchema[table]
 
 	switch notNullChange {
 	case "ADDED":
