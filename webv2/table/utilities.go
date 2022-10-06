@@ -204,14 +204,3 @@ func IsParent(table string) (bool, string) {
 	}
 	return false, ""
 }
-
-func IsPartOfPK(col, table string) bool {
-	sessionState := session.GetSessionState()
-
-	for _, pk := range sessionState.Conv.SpSchema[table].Pks {
-		if pk.Col == col {
-			return true
-		}
-	}
-	return false
-}

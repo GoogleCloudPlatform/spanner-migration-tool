@@ -142,13 +142,11 @@ func RemoveIndex(Pks []ddl.IndexKey, index int) []ddl.IndexKey {
 	return list
 }
 
-func IsTypeChanged(newType, table, colName string, Conv *internal.Conv) (bool, error) {
+func IsTypeChanged(newType, table, colName string, conv *internal.Conv) (bool, error) {
 
-	//sessionState := session.GetSessionState()
+	srcTableName := conv.ToSource[table].Name
 
-	srcTableName := Conv.ToSource[table].Name
-
-	sp, ty, err := GetType(Conv, newType, table, colName, srcTableName)
+	sp, ty, err := GetType(conv, newType, table, colName, srcTableName)
 	if err != nil {
 		return false, err
 	}
@@ -193,9 +191,6 @@ func IsPartOfFK(col, table string) bool {
 	return false
 }
 
-// TODO: create a map to store referenced column to get
-// this information in O(1).
-// TODO:(searce) can have foreign key constraints between columns of the same table, as well as between same column on a given table.
 func IsReferencedByFK(col, table string) (bool, string) {
 	sessionState := session.GetSessionState()
 
@@ -245,32 +240,9 @@ func CheckSpannerNamesValidity(input []string) (bool, []string) {
 
 func CanRename(names []string, table string) (bool, error) {
 	sessionState := session.GetSessionState()
-
-	namesMap := map[string]bool{}
-	// Check that this name isn't already used by another table.
 	for _, name := range names {
-		namesMap[name] = true
-		if _, ok := sessionState.Conv.SpSchema[name]; ok {
-			return false, fmt.Errorf("new name : '%s' is used by another table", name)
-		}
-	}
-
-	// Check that this name isn't already used by another foreign key.
-	for _, sp := range sessionState.Conv.SpSchema {
-		for _, foreignKey := range sp.Fks {
-			if _, ok := namesMap[foreignKey.Name]; ok {
-				return false, fmt.Errorf("new name : '%s' is used by another foreign key in table : '%s'", foreignKey.Name, sp.Name)
-			}
-
-		}
-	}
-
-	// Check that this name isn't already used by another secondary index.
-	for _, sp := range sessionState.Conv.SpSchema {
-		for _, index := range sp.Indexes {
-			if _, ok := namesMap[index.Name]; ok {
-				return false, fmt.Errorf("new name : '%s' is used by another index in table : '%s'", index.Name, sp.Name)
-			}
+		if _, ok := sessionState.Conv.UsedNames[name]; !ok {
+			return false, fmt.Errorf("new name : '%s' is used by another entity", name)
 		}
 	}
 	return true, nil
@@ -284,29 +256,6 @@ func GetPrimaryKeyIndexFromOrder(pk []ddl.IndexKey, order int) int {
 		}
 	}
 	return -1
-}
-
-func IsUniqueName(name string) bool {
-	sessionState := session.GetSessionState()
-
-	for table := range sessionState.Conv.SpSchema {
-		if table == name {
-			return false
-		}
-	}
-	for _, spSchema := range sessionState.Conv.SpSchema {
-		for _, fk := range spSchema.Fks {
-			if fk.Name == name {
-				return false
-			}
-		}
-		for _, index := range spSchema.Indexes {
-			if index.Name == name {
-				return false
-			}
-		}
-	}
-	return true
 }
 
 func GetFilePrefix(now time.Time) (string, error) {
