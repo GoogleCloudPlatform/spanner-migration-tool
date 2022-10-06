@@ -30,7 +30,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestReviewTableSchemaChangeType(t *testing.T) {
+func TestReviewTableSchema(t *testing.T) {
 
 	tc := []struct {
 		name         string
@@ -122,56 +122,6 @@ func TestReviewTableSchemaChangeType(t *testing.T) {
 				},
 			},
 		},
-	}
-
-	for _, tc := range tc {
-
-		sessionState := session.GetSessionState()
-		sessionState.Conv = tc.conv
-		sessionState.Driver = constants.MYSQL
-
-		payload := tc.payload
-
-		req, err := http.NewRequest("POST", "/typemap/reviewtableschema?table="+tc.table, strings.NewReader(payload))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-
-		rr := httptest.NewRecorder()
-
-		handler := http.HandlerFunc(ReviewTableSchema)
-
-		handler.ServeHTTP(rr, req)
-
-		res := ReviewTableSchemaResponse{}
-
-		json.Unmarshal(rr.Body.Bytes(), &res)
-
-		if status := rr.Code; int64(status) != tc.statusCode {
-			t.Errorf("handler returned wrong status code: got %v want %v",
-				status, tc.statusCode)
-		}
-
-		expectedddl := GetSpannerTableDDL(tc.expectedConv.SpSchema[tc.table])
-
-		if tc.statusCode == http.StatusOK {
-			assert.Equal(t, expectedddl, res.DDL)
-		}
-	}
-}
-
-func TestReviewTableSchemaAddSuccess(t *testing.T) {
-
-	tc := []struct {
-		name         string
-		table        string
-		payload      string
-		statusCode   int64
-		conv         *internal.Conv
-		expectedConv *internal.Conv
-	}{
 		{
 			name:  "Test Add success",
 			table: "t1",
@@ -254,56 +204,6 @@ func TestReviewTableSchemaAddSuccess(t *testing.T) {
 				},
 			},
 		},
-	}
-
-	for _, tc := range tc {
-
-		sessionState := session.GetSessionState()
-		sessionState.Conv = tc.conv
-		sessionState.Driver = constants.MYSQL
-
-		payload := tc.payload
-
-		req, err := http.NewRequest("POST", "/typemap/reviewtableschema?table="+tc.table, strings.NewReader(payload))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-
-		rr := httptest.NewRecorder()
-
-		handler := http.HandlerFunc(ReviewTableSchema)
-
-		handler.ServeHTTP(rr, req)
-
-		res := ReviewTableSchemaResponse{}
-
-		json.Unmarshal(rr.Body.Bytes(), &res)
-
-		if status := rr.Code; int64(status) != tc.statusCode {
-			t.Errorf("handler returned wrong status code: got %v want %v",
-				status, tc.statusCode)
-		}
-
-		expectedddl := GetSpannerTableDDL(tc.expectedConv.SpSchema[tc.table])
-
-		if tc.statusCode == http.StatusOK {
-			assert.Equal(t, expectedddl, res.DDL)
-		}
-	}
-}
-
-func TestReviewTableSchemaRemove(t *testing.T) {
-
-	tc := []struct {
-		name         string
-		table        string
-		payload      string
-		statusCode   int64
-		conv         *internal.Conv
-		expectedConv *internal.Conv
-	}{
 		{
 			name:  "Test remove success",
 			table: "t1",
@@ -423,58 +323,8 @@ func TestReviewTableSchemaRemove(t *testing.T) {
 				},
 			},
 		},
-	}
-	for _, tc := range tc {
-
-		sessionState := session.GetSessionState()
-		sessionState.Conv = tc.conv
-		sessionState.Driver = constants.MYSQL
-
-		payload := tc.payload
-
-		req, err := http.NewRequest("POST", "/typemap/reviewtableschema?table="+tc.table, strings.NewReader(payload))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-
-		rr := httptest.NewRecorder()
-
-		handler := http.HandlerFunc(ReviewTableSchema)
-
-		handler.ServeHTTP(rr, req)
-
-		res := ReviewTableSchemaResponse{}
-
-		json.Unmarshal(rr.Body.Bytes(), &res)
-
-		if status := rr.Code; int64(status) != tc.statusCode {
-			t.Errorf("handler returned wrong status code: got %v want %v",
-				status, tc.statusCode)
-		}
-
-		expectedddl := GetSpannerTableDDL(tc.expectedConv.SpSchema[tc.table])
-
-		if tc.statusCode == http.StatusOK {
-			assert.Equal(t, expectedddl, res.DDL)
-		}
-	}
-}
-
-func TestReviewTableSchemaInterleaved(t *testing.T) {
-
-	tc := []struct {
-		name         string
-		table        string
-		payload      string
-		statusCode   int64
-		conv         *internal.Conv
-		expectedConv *internal.Conv
-	}{
-
 		{
-			name:  "Test rename success",
+			name:  "Test rename success for interleaved table",
 			table: "t1",
 			payload: `
     {
