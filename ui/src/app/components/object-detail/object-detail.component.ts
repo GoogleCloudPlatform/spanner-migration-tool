@@ -57,7 +57,6 @@ export class ObjectDetailComponent implements OnInit {
     'srcDataType',
     'srcIsPk',
     'srcIsNotNull',
-    'spOrder',
     'spColName',
     'spDataType',
     'spIsPk',
