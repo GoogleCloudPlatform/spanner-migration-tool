@@ -150,10 +150,21 @@ func removeColumnFromToSpannerToSource(table string, colName string, conv *inter
 func removeColumnFromSpannerForeignkeyColumns(sp ddl.CreateTable, colName string) ddl.CreateTable {
 
 	for i, fk := range sp.Fks {
-		for j, column := range fk.Columns {
+		j := 0
+		for _, column := range fk.Columns {
 			if column == colName {
 				sp.Fks[i].Columns = utilities.RemoveFkColumn(fk.Columns, j)
+			} else {
+				j = j + 1
 			}
+		}
+	}
+
+	//drop foreing key if the foreign key doesn't have any column left after the update
+	i := 0
+	for _, fk := range sp.Fks {
+		if len(fk.Columns) <= 0 {
+			sp.Fks = append(sp.Fks[:i], sp.Fks[i+1:]...)
 		}
 	}
 	return sp
@@ -163,16 +174,22 @@ func removeColumnFromSpannerForeignkeyColumns(sp ddl.CreateTable, colName string
 func removeColumnFromSpannerForeignkeyReferColumns(sp ddl.CreateTable, colName string) ddl.CreateTable {
 
 	for i, fk := range sp.Fks {
-		for j, column := range fk.ReferColumns {
+		j := 0
+		for _, column := range fk.ReferColumns {
 			if column == colName {
-				sp.Fks[i].ReferColumns = removeFkReferColumns(sp.Fks[i].ReferColumns, j)
+				sp.Fks[i].ReferColumns = utilities.RemoveFkReferColumns(sp.Fks[i].ReferColumns, j)
+			} else {
+				j = j + 1
 			}
 		}
 	}
-	return sp
-}
 
-// removeFkReferColumns remove given column from Spanner FkReferColumns Columns List.
-func removeFkReferColumns(slice []string, s int) []string {
-	return append(slice[:s], slice[s+1:]...)
+	//drop foreing key if the foreign key doesn't have any refer-column left after the update
+	i := 0
+	for _, fk := range sp.Fks {
+		if len(fk.ReferColumns) <= 0 {
+			sp.Fks = append(sp.Fks[:i], sp.Fks[i+1:]...)
+		}
+	}
+	return sp
 }

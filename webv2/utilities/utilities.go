@@ -142,6 +142,11 @@ func RemoveIndex(Pks []ddl.IndexKey, index int) []ddl.IndexKey {
 	return list
 }
 
+// removeFkReferColumns remove given column from Spanner FkReferColumns Columns List.
+func RemoveFkReferColumns(slice []string, s int) []string {
+	return append(slice[:s], slice[s+1:]...)
+}
+
 func IsTypeChanged(newType, table, colName string, conv *internal.Conv) (bool, error) {
 
 	srcTableName := conv.ToSource[table].Name
