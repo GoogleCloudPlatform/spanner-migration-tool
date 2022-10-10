@@ -8,12 +8,13 @@ import { MatDialog } from '@angular/material/dialog'
 import IFkTabData from 'src/app/model/fk-tab-data'
 import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import ISchemaObjectNode, { FlatNode } from 'src/app/model/schema-object-node'
-import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
+import { InputType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import { IUpdateTableArgument } from 'src/app/model/update-table'
 import ConversionRate from 'src/app/model/conversion-rate'
 import { Router } from '@angular/router'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 import IViewAssesmentData from 'src/app/model/view-assesment'
+import IDbConfig from 'src/app/model/db-config'
 
 @Component({
   selector: 'app-workspace',
@@ -205,9 +206,19 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   openAssessment() {
     this.sidenav.openSidenav()
     this.sidenav.setSidenavComponent('assessment')
+    let connectionDetail: string = ''
+    let inputType = localStorage.getItem(StorageKeys.Type) as string
+    if (inputType == InputType.DirectConnect) {
+      let config: IDbConfig = JSON.parse(localStorage.getItem(StorageKeys.Config)!)
+      connectionDetail = config?.hostName + ' : ' + config?.port
+    } else {
+      {
+        connectionDetail = this.conv.DatabaseName
+      }
+    }
     let viewAssesmentData: IViewAssesmentData = {
       srcDbType: this.srcDbName,
-      connectionDetail: '',
+      connectionDetail: connectionDetail,
       conversionRates: this.conversionRateCount,
     }
     this.clickEvent.setViewAssesmentData(viewAssesmentData)
