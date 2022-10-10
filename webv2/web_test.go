@@ -973,12 +973,14 @@ func TestRenameIndexes(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "idx": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Indexes: []ddl.CreateIndex{{Name: "idx_new", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "idx": true},
 			},
 		},
 		{
@@ -998,6 +1000,7 @@ func TestRenameIndexes(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "idx_1": true, "idx_2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1005,6 +1008,7 @@ func TestRenameIndexes(t *testing.T) {
 						Indexes: []ddl.CreateIndex{{Name: "idx_new_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 							{Name: "idx_new_2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "idx_1": true, "idx_2": true},
 			},
 		},
 		{
@@ -1023,6 +1027,7 @@ func TestRenameIndexes(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "idx_1": true, "idx_2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1030,6 +1035,7 @@ func TestRenameIndexes(t *testing.T) {
 						Indexes: []ddl.CreateIndex{{Name: "idx_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 							{Name: "idx_2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "idx_1": true, "idx_2": true},
 			},
 		},
 		{
@@ -1048,6 +1054,7 @@ func TestRenameIndexes(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "idx_1": true, "idx_2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1055,6 +1062,7 @@ func TestRenameIndexes(t *testing.T) {
 						Indexes: []ddl.CreateIndex{{Name: "idx_new_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 							{Name: "idx_new_2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "idx_1": true, "idx_2": true},
 			},
 		},
 		{
@@ -1075,6 +1083,7 @@ func TestRenameIndexes(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "idx_1": true, "idx_2": true, "fk1": true, "fk2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1082,6 +1091,7 @@ func TestRenameIndexes(t *testing.T) {
 						Indexes: []ddl.CreateIndex{{Name: "idx_new_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 							{Name: "idx_new_2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "idx_1": true, "idx_2": true, "fk1": true, "fk2": true},
 			},
 		},
 		{
@@ -1099,12 +1109,14 @@ func TestRenameIndexes(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "idx": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Indexes: []ddl.CreateIndex{{Name: "idx", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "idx": true},
 			},
 		},
 		{
@@ -1124,6 +1136,7 @@ func TestRenameIndexes(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1131,6 +1144,7 @@ func TestRenameIndexes(t *testing.T) {
 						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
 		},
 		{
@@ -1146,12 +1160,14 @@ func TestRenameIndexes(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "idx": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Indexes: []ddl.CreateIndex{{Name: "idx", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "idx": true},
 			},
 		},
 		{
@@ -1167,12 +1183,14 @@ func TestRenameIndexes(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "idx": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Indexes: []ddl.CreateIndex{{Name: "idx", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "idx": true},
 			},
 		},
 	}
@@ -1234,6 +1252,7 @@ func TestRenameForeignKeys(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1241,6 +1260,7 @@ func TestRenameForeignKeys(t *testing.T) {
 						Fks: []ddl.Foreignkey{{Name: "foreignkey1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
 							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
 		},
 		{
@@ -1260,6 +1280,7 @@ func TestRenameForeignKeys(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1267,6 +1288,7 @@ func TestRenameForeignKeys(t *testing.T) {
 						Fks: []ddl.Foreignkey{{Name: "foreignkey1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
 							{Name: "foreignkey2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
 		},
 		{
@@ -1285,6 +1307,7 @@ func TestRenameForeignKeys(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1292,6 +1315,7 @@ func TestRenameForeignKeys(t *testing.T) {
 						Fks: []ddl.Foreignkey{{Name: "foreignkey1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
 							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
 		},
 		{
@@ -1310,6 +1334,7 @@ func TestRenameForeignKeys(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1317,6 +1342,7 @@ func TestRenameForeignKeys(t *testing.T) {
 						Fks: []ddl.Foreignkey{{Name: "foreignkey1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
 							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
 		},
 		{
@@ -1337,6 +1363,7 @@ func TestRenameForeignKeys(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "idx_1": true, "idx_2": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1344,6 +1371,7 @@ func TestRenameForeignKeys(t *testing.T) {
 						Indexes: []ddl.CreateIndex{{Name: "idx_new_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 							{Name: "idx_new_2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "idx_1": true, "idx_2": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
 		},
 		{
@@ -1363,6 +1391,7 @@ func TestRenameForeignKeys(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1370,6 +1399,7 @@ func TestRenameForeignKeys(t *testing.T) {
 						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
 		},
 		{
@@ -1388,6 +1418,7 @@ func TestRenameForeignKeys(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1395,6 +1426,7 @@ func TestRenameForeignKeys(t *testing.T) {
 						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
 							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
 		},
 		{
@@ -1411,6 +1443,7 @@ func TestRenameForeignKeys(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1418,6 +1451,7 @@ func TestRenameForeignKeys(t *testing.T) {
 						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
 							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
 		},
 		{
@@ -1434,6 +1468,7 @@ func TestRenameForeignKeys(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1441,6 +1476,7 @@ func TestRenameForeignKeys(t *testing.T) {
 						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
 							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
 		},
 		{
@@ -1461,6 +1497,7 @@ func TestRenameForeignKeys(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "t2": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true, "t2_fk1": true, "t2_fk2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1472,6 +1509,7 @@ func TestRenameForeignKeys(t *testing.T) {
 						Fks: []ddl.Foreignkey{{Name: "t2_fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
 							{Name: "t2_fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "t2": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true, "t2_fk1": true, "t2_fk2": true},
 			},
 		},
 	}
@@ -1530,6 +1568,7 @@ func TestAddIndexes(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1537,6 +1576,7 @@ func TestAddIndexes(t *testing.T) {
 						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
 		},
 		{
@@ -1556,6 +1596,7 @@ func TestAddIndexes(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1566,6 +1607,7 @@ func TestAddIndexes(t *testing.T) {
 							{Id: "i1", Name: "idx3", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 						},
 					}},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
 		},
 		{
@@ -1585,6 +1627,7 @@ func TestAddIndexes(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1595,6 +1638,7 @@ func TestAddIndexes(t *testing.T) {
 							{Id: "i3", Name: "idx4", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 						},
 					}},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
 		}, {
 			name:  "New name conflicts with an existing table",
@@ -1613,7 +1657,9 @@ func TestAddIndexes(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
+
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
@@ -1623,6 +1669,7 @@ func TestAddIndexes(t *testing.T) {
 							{Name: "idx4", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 						},
 					}},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
 		}, {
 			name:  "New name conflicts with an existing index",
@@ -1640,6 +1687,7 @@ func TestAddIndexes(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1650,6 +1698,7 @@ func TestAddIndexes(t *testing.T) {
 							{Name: "idx4", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 						},
 					}},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
 		}, {
 			name:  "Conflicts within new name array",
@@ -1668,6 +1717,7 @@ func TestAddIndexes(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1675,6 +1725,7 @@ func TestAddIndexes(t *testing.T) {
 						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
 					}},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
 		},
 		{
@@ -1693,6 +1744,7 @@ func TestAddIndexes(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1701,6 +1753,7 @@ func TestAddIndexes(t *testing.T) {
 							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}},
 						},
 					}},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
 		},
 		{
@@ -1717,6 +1770,7 @@ func TestAddIndexes(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
@@ -1725,6 +1779,7 @@ func TestAddIndexes(t *testing.T) {
 							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}},
 						},
 					}},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
 			},
 		},
 	}
