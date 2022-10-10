@@ -8,11 +8,14 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	datastream "cloud.google.com/go/datastream/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/google/uuid"
 	"google.golang.org/api/iterator"
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
 )
@@ -126,6 +129,7 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer dsClient.Close()
 	sessionState := session.GetSessionState()
+	sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
 	databaseType, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error while getting source database: %v", err), http.StatusBadRequest)
@@ -140,7 +144,14 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 		},
 		ValidateOnly: details.ValidateOnly,
 	}
-	setConnectionProfile(details.IsSource, *sessionState, req, databaseType, details.Bucket)
+	if !details.IsSource {
+		err = utils.CreateGCSBucket(strings.ToLower(sessionState.Conv.Audit.MigrationRequestId), sessionState.GCPProjectID)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error while creating bucket: %v", err), http.StatusBadRequest)
+			return
+		}
+	}
+	setConnectionProfile(details.IsSource, *sessionState, req, databaseType)
 	op, err := dsClient.CreateConnectionProfile(ctx, req)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error while creating connection profile: %v", err), http.StatusBadRequest)
@@ -154,7 +165,7 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func setConnectionProfile(isSource bool, sessionState session.SessionState, req *datastreampb.CreateConnectionProfileRequest, databaseType, bucket string) {
+func setConnectionProfile(isSource bool, sessionState session.SessionState, req *datastreampb.CreateConnectionProfileRequest, databaseType string) {
 	if isSource {
 		port, _ := strconv.ParseInt((sessionState.SourceDBConnDetails.Port), 10, 32)
 		if databaseType == constants.MYSQL {
@@ -179,7 +190,7 @@ func setConnectionProfile(isSource bool, sessionState session.SessionState, req 
 	} else {
 		req.ConnectionProfile.Profile = &datastreampb.ConnectionProfile_GcsProfile{
 			GcsProfile: &datastreampb.GcsProfile{
-				Bucket:   bucket,
+				Bucket:   strings.ToLower(sessionState.Conv.Audit.MigrationRequestId),
 				RootPath: "/",
 			},
 		}
@@ -192,7 +203,6 @@ type connectionProfileReq struct {
 	Region       string
 	ValidateOnly bool
 	IsSource     bool
-	Bucket       string
 }
 
 type connectionProfile struct {

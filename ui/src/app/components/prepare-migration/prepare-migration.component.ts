@@ -5,7 +5,7 @@ import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
 import { ISessionSummary } from 'src/app/model/conv'
-import IMigrationDetails, { IProgress } from 'src/app/model/migrate'
+import IMigrationDetails, { IGeneratedResources, IProgress } from 'src/app/model/migrate'
 import { InputType, MigrationDetails, MigrationModes, MigrationTypes, SourceDbNames, TargetDetails } from 'src/app/app.constants'
 import { interval, Subscription } from 'rxjs'
 import { DataService } from 'src/app/services/data/data.service'
@@ -40,11 +40,22 @@ export class PrepareMigrationComponent implements OnInit {
   connectionType: string = InputType.DirectConnect
   selectedMigrationType: string = MigrationTypes.bulkMigration
   isMigrationInProgress: boolean = false
+  isResourceGenerated: boolean = false
   errorMessage: string = ''
   schemaProgressMessage: string = 'Schema migration in progress...'
   dataProgressMessage: string = 'Data migration in progress...'
   dataMigrationProgress: number = 0
   schemaMigrationProgress: number = 0
+  resourcesGenerated: IGeneratedResources = {
+    DatabaseName: '',
+    DatabaseUrl: '',
+    BucketName: '',
+    BucketUrl: '',
+    DataStreamJobName: '',
+    DataStreamJobUrl: '',
+    DataflowJobName: '',
+    DataflowJobUrl: ''
+  }
 
   targetDetails: ITargetDetails = {
     TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
@@ -229,6 +240,7 @@ export class PrepareMigrationComponent implements OnInit {
 
 
   subscribeMigrationProgress() {
+    var displayStreamingMsg = false
     this.subscription = interval(5000).subscribe((x => {
       this.fetch.getProgress().subscribe({
         next: (res: IProgress) => {
@@ -237,9 +249,18 @@ export class PrepareMigrationComponent implements OnInit {
             if (res.Message.startsWith('Schema migration complete')) {
               localStorage.setItem(MigrationDetails.SchemaMigrationProgress, "100")
               this.schemaMigrationProgress = parseInt(localStorage.getItem(MigrationDetails.SchemaMigrationProgress) as string)
-              if (this.selectedMigrationMode == MigrationModes.schemaOnly || this.selectedMigrationType == MigrationTypes.lowDowntimeMigration) {
+              if (this.selectedMigrationMode == MigrationModes.schemaOnly) {
                 this.markMigrationComplete()
+              } else if (this.selectedMigrationType == MigrationTypes.lowDowntimeMigration && !displayStreamingMsg) {
+                this.markSchemaMigrationComplete()
+                this.hasDataMigrationStarted = false
+                localStorage.setItem(MigrationDetails.HasDataMigrationStarted, this.hasDataMigrationStarted.toString())
+                this.snack.openSnackBarWithoutTimeout('Setting up dataflow and datastream jobs', 'Close')
+                displayStreamingMsg = true
               }
+            }
+            else if (res.Message.startsWith('Data migration complete')) {
+              this.markMigrationComplete()
             }
             // Checking for data migration in progree
             else if (res.Message.startsWith('Writing data to Spanner')) {
@@ -297,6 +318,15 @@ export class PrepareMigrationComponent implements OnInit {
     this.isMigrationInProgress = !this.isMigrationInProgress
     this.dataProgressMessage = "Data migration completed successfully!"
     this.schemaProgressMessage = "Schema migration completed successfully!"
+    this.fetch.getGeneratedResources().subscribe({
+      next: (res: IGeneratedResources) => {
+        this.isResourceGenerated = true
+        this.resourcesGenerated = res
+      },
+      error: (err: any) => {
+        this.snack.openSnackBar(err.error, 'Close')
+      },
+    })
     this.clearLocalStorage()
   }
   resetValues() {

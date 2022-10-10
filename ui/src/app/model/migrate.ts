@@ -11,3 +11,14 @@ export interface IProgress {
     ErrorMessage: string
     Message: string
 }
+
+export interface IGeneratedResources {
+    DatabaseName: string
+    DatabaseUrl: string
+    BucketName: string
+    BucketUrl: string
+    DataStreamJobName: string
+    DataStreamJobUrl: string
+    DataflowJobName: string
+    DataflowJobUrl: string
+}

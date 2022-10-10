@@ -50,7 +50,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
 	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/profile"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 	"github.com/google/uuid"
 
@@ -1187,7 +1186,15 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	sessionState.Error = nil
 	ctx := context.Background()
 	sessionState.Conv.Audit.Progress = internal.Progress{}
-	sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+	if sessionState.Conv.Audit.MigrationRequestId == "" {
+		sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+	}
+	err = writeSessionFile(sessionState)
+	if err != nil {
+		log.Println("can't write session file")
+		http.Error(w, fmt.Sprintf("Can't write session file to GCS: %v", err), http.StatusBadRequest)
+		return
+	}
 	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
 	if err != nil {
 		log.Println("can't get source and target profile")
@@ -1222,6 +1229,25 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	log.Println("migration completed", "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
 }
 
+func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
+	var generatedResources GeneratedResources
+	sessionState := session.GetSessionState()
+	generatedResources.DatabaseName = sessionState.SpannerDatabaseName
+	generatedResources.DatabaseUrl = fmt.Sprintf("https://pantheon.corp.google.com/spanner/instances/%v/databases/%v/details/tables?project=%v", sessionState.SpannerInstanceID, sessionState.SpannerDatabaseName, sessionState.GCPProjectID)
+	generatedResources.BucketName = "gs://" + strings.ToLower(sessionState.Conv.Audit.MigrationRequestId) + "/"
+	generatedResources.BucketUrl = fmt.Sprintf("https://pantheon.corp.google.com/storage/browser/%v", strings.ToLower(sessionState.Conv.Audit.MigrationRequestId))
+	if sessionState.Conv.Audit.StreamingStats.DataStreamName != "" {
+		generatedResources.DataStreamJobName = sessionState.Conv.Audit.StreamingStats.DataStreamName
+		generatedResources.DataStreamJobUrl = fmt.Sprintf("https://pantheon.corp.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataStreamName, sessionState.GCPProjectID)
+	}
+	if sessionState.Conv.Audit.StreamingStats.DataflowJobId != "" {
+		generatedResources.DataflowJobName = sessionState.Conv.Audit.StreamingStats.DataflowJobId
+		generatedResources.DataflowJobUrl = fmt.Sprintf("https://pantheon.corp.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataflowJobId, sessionState.GCPProjectID)
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(generatedResources)
+}
+
 func getSourceAndTargetProfiles(sessionState *session.SessionState, details migrationDetails) (profiles.SourceProfile, profiles.TargetProfile, utils.IOStreams, string, error) {
 	var (
 		sourceProfileString string
@@ -1234,10 +1260,12 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 			sourceDBConnectionDetails.Host, sourceDBConnectionDetails.Port, sourceDBConnectionDetails.User,
 			sourceDBConnectionDetails.Password, sessionState.DbName)
 	}
+	sessionState.SpannerDatabaseName = details.TargetDetails.TargetDB
 	targetProfileString := fmt.Sprintf("project=%v,instance=%v,dbName=%v", sessionState.GCPProjectID, sessionState.SpannerInstanceID, details.TargetDetails.TargetDB)
 	if details.TargetDetails.Region != "" {
+		sessionState.Region = details.TargetDetails.Region
 		fileName := sessionState.Conv.Audit.MigrationRequestId + "-streaming.json"
-		err := createStreamingCfgFile(sessionState.GCPProjectID, details.TargetDetails, fileName)
+		err := createStreamingCfgFile(sessionState.GCPProjectID, details.TargetDetails, fileName, sessionState.Conv.Audit.MigrationRequestId)
 		if err != nil {
 			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while craeting streaming config file: %v", err)
 		}
@@ -1256,11 +1284,26 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 	return sourceProfile, targetProfile, ioHelper, dbName, nil
 }
 
-func createStreamingCfgFile(projectId string, targetDetails targetDetails, fileName string) error {
-	bucket, err := profile.GetBucket(projectId, targetDetails.Region, targetDetails.TargetConnectionProfileName)
+func writeSessionFile(sessionState *session.SessionState) error {
+
+	err := utils.CreateGCSBucket(strings.ToLower(sessionState.Conv.Audit.MigrationRequestId), sessionState.GCPProjectID)
 	if err != nil {
-		return fmt.Errorf("error while getting bucket details: %v", err)
+		return fmt.Errorf("error while creating bucket: %v", err)
 	}
+	convJSON, err := json.MarshalIndent(sessionState.Conv, "", " ")
+	if err != nil {
+		return fmt.Errorf("can't encode session state to JSON: %v", err)
+	}
+	bucket := "gs://" + strings.ToLower(sessionState.Conv.Audit.MigrationRequestId) + "/"
+	err = utils.WriteToGCS(bucket, "session.json", string(convJSON))
+	if err != nil {
+		return fmt.Errorf("error while writing to GCS: %v", err)
+	}
+	return nil
+}
+
+func createStreamingCfgFile(projectId string, targetDetails targetDetails, fileName, migrationRequestId string) error {
+	bucket := "gs://" + strings.ToLower(migrationRequestId) + "/"
 	data := StreamingCfg{
 		DatastreamCfg: DatastreamCfg{
 			StreamId:          "",
@@ -1528,6 +1571,17 @@ type SessionState struct {
 type typeIssue struct {
 	T     string
 	Brief string
+}
+
+type GeneratedResources struct {
+	DatabaseName      string
+	DatabaseUrl       string
+	BucketName        string
+	BucketUrl         string
+	DataStreamJobName string
+	DataStreamJobUrl  string
+	DataflowJobName   string
+	DataflowJobUrl    string
 }
 
 func addTypeToList(convertedType string, spType string, issues []internal.SchemaIssue, l []typeIssue) []typeIssue {

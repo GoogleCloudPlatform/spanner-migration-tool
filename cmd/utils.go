@@ -182,5 +182,6 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 			return bw, err
 		}
 	}
+	conv.Audit.Progress.SetProgressMessageAndUpdate("Data migration complete.", completionPercentage)
 	return bw, nil
 }
