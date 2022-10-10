@@ -22,7 +22,7 @@ import (
 )
 
 // ReviewColumnNameType review update of colum type to given newType.
-func ReviewColumnNameType(newType, table, colName string, conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema, w http.ResponseWriter) (_ []InterleaveTableSchema, err error) {
+func ReviewColumnType(newType, table, colName string, conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema, w http.ResponseWriter) (_ []InterleaveTableSchema, err error) {
 	sp := conv.SpSchema[table]
 
 	//review update of column type for refer table

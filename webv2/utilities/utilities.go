@@ -226,6 +226,16 @@ func RemoveSecondaryIndex(slice []ddl.CreateIndex, s int) []ddl.CreateIndex {
 	return append(slice[:s], slice[s+1:]...)
 }
 
+// RemoveFkColumn remove given column from Spanner Foreignkey Columns List.
+func RemoveFkColumn(slice []string, s int) []string {
+	return append(slice[:s], slice[s+1:]...)
+}
+
+// RemoveColumnFromSecondaryIndexKey remove given column from SpannerSecondary Index Key List.
+func RemoveColumnFromSecondaryIndexKey(slice []ddl.IndexKey, s int) []ddl.IndexKey {
+	return append(slice[:s], slice[s+1:]...)
+}
+
 func CheckSpannerNamesValidity(input []string) (bool, []string) {
 	status := true
 	var invalidNewNames []string

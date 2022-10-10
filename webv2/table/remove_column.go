@@ -119,17 +119,12 @@ func removeColumnFromSpannerSecondaryIndex(sp ddl.CreateTable, colName string) d
 	for i, index := range sp.Indexes {
 		for j, key := range index.Keys {
 			if key.Col == colName {
-				sp.Indexes[i].Keys = removeColumnFromSecondaryIndexKey(sp.Indexes[i].Keys, j)
+				sp.Indexes[i].Keys = utilities.RemoveColumnFromSecondaryIndexKey(sp.Indexes[i].Keys, j)
 				break
 			}
 		}
 	}
 	return sp
-}
-
-// removeColumnFromSecondaryIndexKey remove given column from SpannerSecondary Index Key List.
-func removeColumnFromSecondaryIndexKey(slice []ddl.IndexKey, s int) []ddl.IndexKey {
-	return append(slice[:s], slice[s+1:]...)
 }
 
 // removeColumnFromSecondaryIndexKey remove given column from Spanner Secondary Schema Issue List.
@@ -157,16 +152,11 @@ func removeColumnFromSpannerForeignkeyColumns(sp ddl.CreateTable, colName string
 	for i, fk := range sp.Fks {
 		for j, column := range fk.Columns {
 			if column == colName {
-				sp.Fks[i].Columns = removeFkColumns(fk.Columns, j)
+				sp.Fks[i].Columns = utilities.RemoveFkColumn(fk.Columns, j)
 			}
 		}
 	}
 	return sp
-}
-
-// removeFkColumns remove given column from Spanner Foreignkey Columns List.
-func removeFkColumns(slice []string, s int) []string {
-	return append(slice[:s], slice[s+1:]...)
 }
 
 // removeColumnFromSpannerForeignkeyReferColumns remove given column from Spanner Foreignkey Refer Columns List.

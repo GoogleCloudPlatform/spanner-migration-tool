@@ -116,7 +116,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 			if typeChange {
 
-				interleaveTableSchema, err = ReviewColumnNameType(v.ToType, table, colName, conv, interleaveTableSchema, w)
+				interleaveTableSchema, err = ReviewColumnType(v.ToType, table, colName, conv, interleaveTableSchema, w)
 				if err != nil {
 					return
 				}
