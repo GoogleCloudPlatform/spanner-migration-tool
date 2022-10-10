@@ -178,6 +178,24 @@ func trimRedundantInterleaveTableSchema(interleaveTableSchema []InterleaveTableS
 	return updatedInterleaveTableSchema
 }
 
+func updatedInterleaveTableSchema(conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema) []InterleaveTableSchema {
+	for k, v := range interleaveTableSchema {
+		table := v.Table
+		for ind, col := range v.InterleaveColumnChanges {
+			if col.UpdateColumnName == "" {
+				interleaveTableSchema[k].InterleaveColumnChanges[ind].UpdateColumnName = col.ColumnName
+			}
+			if col.Type == "" {
+				interleaveTableSchema[k].InterleaveColumnChanges[ind].Type = conv.SpSchema[table].ColDefs[col.UpdateColumnName].T.Name
+			}
+			if col.UpdateType == "" {
+				interleaveTableSchema[k].InterleaveColumnChanges[ind].UpdateType = conv.SpSchema[table].ColDefs[col.UpdateColumnName].T.Name
+			}
+		}
+	}
+	return interleaveTableSchema
+}
+
 func UpdateNotNull(notNullChange, table, colName string, conv *internal.Conv) {
 
 	sp := conv.SpSchema[table]
