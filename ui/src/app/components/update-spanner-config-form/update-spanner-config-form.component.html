@@ -7,17 +7,25 @@
       <input matInput placeholder="project id" type="text" formControlName="GCPProjectID" />
     </mat-form-field>
     <br />
-    <mat-form-field class="full-width"  
-    hintLabel="Min. 2 characters and Max. 64 characters" 
-    appearance="outline">
+    <mat-form-field
+      class="full-width"
+      hintLabel="Min. 4 characters and Max. 30 characters"
+      appearance="outline"
+    >
       <mat-label>Instance ID</mat-label>
-      <input matInput placeholder="instance id" type="text" 
-      required minlength="2"
-      required maxlength="64"
-      required pattern=^[a-z0-9\-]+[a-z0-9]$
-      
-      formControlName="SpannerInstanceID" />
-      <mat-hint align="end">{{ updateConfigForm.value.SpannerInstanceID?.length || 0 }}/64</mat-hint>
+      <input
+        matInput
+        placeholder="instance id"
+        type="text"
+        required
+        minlength="4"
+        maxlength="30"
+        pattern="^[a-z]([-a-z0-9]*[a-z0-9])?"
+        formControlName="SpannerInstanceID"
+      />
+      <mat-hint align="end"
+        >{{ updateConfigForm.value.SpannerInstanceID?.length || 0 }}/30</mat-hint
+      >
     </mat-form-field>
   </form>
 </div>
