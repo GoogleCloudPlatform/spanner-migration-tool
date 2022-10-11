@@ -58,7 +58,7 @@
       </svg>
       <span class="mr10">{{ ' ' + currentObject!.name + ' ' }}</span>
       <span *ngIf="currentObject!.parent != ''"
-        >( PART OF {{ currentObject!.parent | uppercase }} )
+        >( TABLE: {{ currentObject!.parent | uppercase }} )
       </span>
 
       <!-- If come from source tree then hide edit button then this centeral panel should be view only  -->
@@ -325,16 +325,18 @@
           </ng-container>
 
           <ng-container matColumnDef="spDatabase">
-            <th mat-header-cell *matHeaderCellDef class="db_name" colspan="5">
+            <th mat-header-cell *matHeaderCellDef class="db_name" colspan="6">
               <div class="spanner_edit-button">
                 <span>Spanner</span>
-                <div *ngIf="!isPkEditMode && !currentObject.isDeleted">
-                  <button
-                    mat-stroked-button
-                    color="primary"
-                    (click)="togglePkEdit()"
-                    *ngIf="currentObject!.isSpannerNode"
-                  >
+                <div
+                  *ngIf="
+                    !isPkEditMode &&
+                    pkDataSource.length > 0 &&
+                    currentObject!.isSpannerNode &&
+                    !currentObject.isDeleted
+                  "
+                >
+                  <button mat-stroked-button color="primary" (click)="togglePkEdit()">
                     <mat-icon class="edit-icon">edit</mat-icon>
                     EDIT
                   </button>

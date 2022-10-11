@@ -753,7 +753,9 @@ export class ObjectDetailComponent implements OnInit {
         if (res === '') {
           this.isObjectSelected = false
         }
+        this.data.getConversionRate()
       })
+
     this.currentObject = null
   }
 

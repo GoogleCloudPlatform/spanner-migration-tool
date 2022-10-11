@@ -136,6 +136,12 @@ export class DataService {
     })
   }
 
+  getConversionRate() {
+    this.fetch.getConversionRate().subscribe((res) => {
+      this.conversionRateSub.next(res)
+    })
+  }
+
   getRateTypemapAndSummary() {
     return forkJoin({
       rates: this.fetch.getConversionRate(),
