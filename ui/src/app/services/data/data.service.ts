@@ -366,4 +366,10 @@ export class DataService {
       this.getDdl()
     })
   }
+  uploadDumpFile(file: File) {
+    console.log(file)
+  }
+  uploadSessionFile(file: File) {
+    console.log(file)
+  }
 }

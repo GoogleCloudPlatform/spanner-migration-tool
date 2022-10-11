@@ -26,6 +26,7 @@ export class LoadDumpComponent implements OnInit {
     { value: 'mysqldump', displayName: 'MYSQL' },
     { value: 'pg_dump', displayName: 'PostgreSQL' },
   ]
+  fileToUpload: File | null = null
 
   ngOnInit(): void {}
 
@@ -45,5 +46,15 @@ export class LoadDumpComponent implements OnInit {
       this.clickEvent.closeDatabaseLoader()
       this.router.navigate(['/workspace'])
     })
+  }
+  handleFileInput(e: Event) {
+    let files: FileList | null = (e.target as HTMLInputElement).files
+    if (files) {
+      this.fileToUpload = files.item(0)
+      this.connectForm.patchValue({ filePath: this.fileToUpload?.name })
+      if (this.fileToUpload) {
+        this.data.uploadDumpFile(this.fileToUpload)
+      }
+    }
   }
 }

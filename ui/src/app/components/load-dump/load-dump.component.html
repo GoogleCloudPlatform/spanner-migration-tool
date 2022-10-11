@@ -22,8 +22,14 @@
           name="filePath"
           type="text"
           formControlName="filePath"
+          readonly
+          (click)="file.click()"
         />
+        <mat-icon matSuffix class="success">check_circle</mat-icon>
+        <mat-icon matSuffix class="danger" style="display: none">cancel</mat-icon>
       </mat-form-field>
+      <button mat-stroked-button type="button" (click)="file.click()">Choose File</button>
+      <input #file type="file" (change)="handleFileInput($event)" hidden />
       <br />
       <button mat-raised-button type="submit" color="primary" [disabled]="!connectForm.valid">
         Convert
