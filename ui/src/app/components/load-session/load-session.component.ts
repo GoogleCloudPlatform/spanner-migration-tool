@@ -30,6 +30,7 @@ export class LoadSessionComponent implements OnInit {
     { value: 'oracle', displayName: 'ORACLE' },
     { value: 'postgres', displayName: 'PostgreSQL' },
   ]
+  fileToUpload: File | null = null
 
   ngOnInit(): void {}
 
@@ -49,5 +50,15 @@ export class LoadSessionComponent implements OnInit {
       this.clickEvent.closeDatabaseLoader()
       this.router.navigate(['/workspace'])
     })
+  }
+  handleFileInput(e: Event) {
+    let files: FileList | null = (e.target as HTMLInputElement).files
+    if (files) {
+      this.fileToUpload = files.item(0)
+      this.connectForm.patchValue({ filePath: this.fileToUpload?.name })
+      if (this.fileToUpload) {
+        this.data.uploadSessionFile(this.fileToUpload)
+      }
+    }
   }
 }
