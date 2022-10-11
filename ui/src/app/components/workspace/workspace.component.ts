@@ -65,6 +65,9 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     })
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
+      if (Object.keys(data.SrcSchema).length <= 0) {
+        this.router.navigate(['/'])
+      }
       const indexAddedOrRemoved = this.isIndexAddedOrRemoved(data)
       if (
         data &&
