@@ -131,7 +131,7 @@ func migrateSchema(ctx context.Context, targetProfile profiles.TargetProfile, so
 		err = fmt.Errorf("can't create/update database: %v", err)
 		return err
 	}
-	conv.Audit.Progress.SetProgressMessageAndUpdate("Schema migration complete.", completionPercentage)
+	conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
 	return nil
 }
 
@@ -169,7 +169,7 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 		err = fmt.Errorf("can't create/update database: %v", err)
 		return nil, err
 	}
-	conv.Audit.Progress.SetProgressMessageAndUpdate("Schema migration complete.", completionPercentage)
+	conv.Audit.Progress.UpdateProgress("Schema migration complete.", completionPercentage, internal.SchemaMigrationComplete)
 	bw, err := conversion.DataConv(ctx, sourceProfile, targetProfile, ioHelper, client, conv, true, cmd.WriteLimit)
 	if err != nil {
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
@@ -182,6 +182,6 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 			return bw, err
 		}
 	}
-	conv.Audit.Progress.SetProgressMessageAndUpdate("Data migration complete.", completionPercentage)
+	conv.Audit.Progress.UpdateProgress("Data migration complete.", completionPercentage, internal.DataMigrationComplete)
 	return bw, nil
 }

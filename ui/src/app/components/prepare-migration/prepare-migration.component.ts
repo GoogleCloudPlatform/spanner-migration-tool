@@ -6,7 +6,7 @@ import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
 import { ISessionSummary } from 'src/app/model/conv'
 import IMigrationDetails, { IGeneratedResources, IProgress } from 'src/app/model/migrate'
-import { InputType, MigrationDetails, MigrationModes, MigrationTypes, SourceDbNames, TargetDetails } from 'src/app/app.constants'
+import { InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressStatus, SourceDbNames, TargetDetails } from 'src/app/app.constants'
 import { interval, Subscription } from 'rxjs'
 import { DataService } from 'src/app/services/data/data.service'
 import { ThisReceiver } from '@angular/compiler'
@@ -246,7 +246,7 @@ export class PrepareMigrationComponent implements OnInit {
         next: (res: IProgress) => {
           if (res.ErrorMessage == '') {
             // Checking for completion of schema migration
-            if (res.Message.startsWith('Schema migration complete')) {
+            if (res.ProgressStatus == ProgressStatus.SchemaMigrationComplete) {
               localStorage.setItem(MigrationDetails.SchemaMigrationProgress, "100")
               this.schemaMigrationProgress = parseInt(localStorage.getItem(MigrationDetails.SchemaMigrationProgress) as string)
               if (this.selectedMigrationMode == MigrationModes.schemaOnly) {
@@ -259,11 +259,11 @@ export class PrepareMigrationComponent implements OnInit {
                 displayStreamingMsg = true
               }
             }
-            else if (res.Message.startsWith('Data migration complete')) {
+            else if (res.ProgressStatus == ProgressStatus.DataMigrationComplete) {
               this.markMigrationComplete()
             }
             // Checking for data migration in progree
-            else if (res.Message.startsWith('Writing data to Spanner')) {
+            else if (res.ProgressStatus == ProgressStatus.DataWriteInProgress) {
               this.markSchemaMigrationComplete()
               localStorage.setItem(MigrationDetails.DataMigrationProgress, res.Progress.toString())
               this.dataMigrationProgress = parseInt(localStorage.getItem(MigrationDetails.DataMigrationProgress) as string)
@@ -277,7 +277,7 @@ export class PrepareMigrationComponent implements OnInit {
               }
             }
             // Checking for foreign key update in progress
-            else if (res.Message.startsWith('Updating schema of database')) {
+            else if (res.ProgressStatus == ProgressStatus.ForeignKeyUpdateInProgress) {
               this.markSchemaMigrationComplete()
               this.dataMigrationProgress = 100
               localStorage.setItem(MigrationDetails.DataMigrationProgress, this.dataMigrationProgress.toString())
@@ -328,6 +328,7 @@ export class PrepareMigrationComponent implements OnInit {
       },
     })
     this.clearLocalStorage()
+    this.refreshPrerequisites()
   }
   resetValues() {
     this.isMigrationInProgress = !this.isMigrationInProgress
@@ -338,6 +339,17 @@ export class PrepareMigrationComponent implements OnInit {
     this.schemaMigrationProgress = 0
     this.schemaProgressMessage = "Schema migration in progress..."
     this.dataProgressMessage = "Data migration in progress..."
+    this.isResourceGenerated = false
+    this.resourcesGenerated = {
+      DatabaseName: '',
+      DatabaseUrl: '',
+      BucketName: '',
+      BucketUrl: '',
+      DataStreamJobName: '',
+      DataStreamJobUrl: '',
+      DataflowJobName: '',
+      DataflowJobUrl: ''
+    }
     this.initializeLocalStorage()
   }
   initializeLocalStorage() {

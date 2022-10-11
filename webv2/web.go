@@ -50,6 +50,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
 	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/profile"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 	"github.com/google/uuid"
 
@@ -107,9 +108,9 @@ type sessionSummary struct {
 }
 
 type progressDetails struct {
-	Progress     int
-	ErrorMessage string
-	Message      string
+	Progress       int
+	ErrorMessage   string
+	ProgressStatus int
 }
 
 type migrationDetails struct {
@@ -1159,7 +1160,7 @@ func updateProgress(w http.ResponseWriter, r *http.Request) {
 		detail.ErrorMessage = sessionState.Error.Error()
 	} else {
 		detail.ErrorMessage = ""
-		detail.Progress, detail.Message = sessionState.Conv.Audit.Progress.ReportProgress()
+		detail.Progress, detail.ProgressStatus = sessionState.Conv.Audit.Progress.ReportProgress()
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(detail)
@@ -1186,8 +1187,11 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	sessionState.Error = nil
 	ctx := context.Background()
 	sessionState.Conv.Audit.Progress = internal.Progress{}
-	if sessionState.Conv.Audit.MigrationRequestId == "" {
-		sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
+	if err != nil {
+		log.Println("can't get source and target profile")
+		http.Error(w, fmt.Sprintf("Can't get source and target profiles: %v", err), http.StatusBadRequest)
+		return
 	}
 	err = writeSessionFile(sessionState)
 	if err != nil {
@@ -1195,16 +1199,9 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Can't write session file to GCS: %v", err), http.StatusBadRequest)
 		return
 	}
-	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
-	if err != nil {
-		log.Println("can't get source and target profile")
-		http.Error(w, fmt.Sprintf("Can't get source and target profiles: %v", err), http.StatusBadRequest)
-		return
-	}
 	sessionState.Conv.ResetStats()
 	sessionState.Conv.Audit.Progress = internal.Progress{}
-	sessionState.Conv.Audit.Progress.SetProgressMessageAndUpdate("Migration in progress", 0)
-	if details.MigrationMode == helpers.SCHEMA_ONLY {
+	if details.MigrationMode == utilities.SCHEMA_ONLY {
 		log.Println("Starting schema only migration")
 		sessionState.Conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
 		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv, &sessionState.Error)
@@ -1234,8 +1231,8 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	generatedResources.DatabaseName = sessionState.SpannerDatabaseName
 	generatedResources.DatabaseUrl = fmt.Sprintf("https://pantheon.corp.google.com/spanner/instances/%v/databases/%v/details/tables?project=%v", sessionState.SpannerInstanceID, sessionState.SpannerDatabaseName, sessionState.GCPProjectID)
-	generatedResources.BucketName = "gs://" + strings.ToLower(sessionState.Conv.Audit.MigrationRequestId) + "/"
-	generatedResources.BucketUrl = fmt.Sprintf("https://pantheon.corp.google.com/storage/browser/%v", strings.ToLower(sessionState.Conv.Audit.MigrationRequestId))
+	generatedResources.BucketName = sessionState.Bucket
+	generatedResources.BucketUrl = fmt.Sprintf("https://pantheon.corp.google.com/storage/browser/%v", sessionState.Bucket)
 	if sessionState.Conv.Audit.StreamingStats.DataStreamName != "" {
 		generatedResources.DataStreamJobName = sessionState.Conv.Audit.StreamingStats.DataStreamName
 		generatedResources.DataStreamJobUrl = fmt.Sprintf("https://pantheon.corp.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataStreamName, sessionState.GCPProjectID)
@@ -1251,6 +1248,7 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 func getSourceAndTargetProfiles(sessionState *session.SessionState, details migrationDetails) (profiles.SourceProfile, profiles.TargetProfile, utils.IOStreams, string, error) {
 	var (
 		sourceProfileString string
+		err                 error
 	)
 	sourceDBConnectionDetails := sessionState.SourceDBConnDetails
 	if sourceDBConnectionDetails.ConnectionType == helpers.DUMP_MODE {
@@ -1265,11 +1263,18 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 	if details.TargetDetails.Region != "" {
 		sessionState.Region = details.TargetDetails.Region
 		fileName := sessionState.Conv.Audit.MigrationRequestId + "-streaming.json"
-		err := createStreamingCfgFile(sessionState.GCPProjectID, details.TargetDetails, fileName, sessionState.Conv.Audit.MigrationRequestId)
+		sessionState.Bucket, err = profile.GetBucket(sessionState.GCPProjectID, sessionState.Region, details.TargetDetails.TargetConnectionProfileName)
 		if err != nil {
-			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while craeting streaming config file: %v", err)
+			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while getting target bucket: %v", err)
+		}
+		err = createStreamingCfgFile(sessionState.GCPProjectID, details.TargetDetails, fileName, sessionState.Bucket)
+		if err != nil {
+			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while creating streaming config file: %v", err)
 		}
 		sourceProfileString = sourceProfileString + fmt.Sprintf(",streamingCfg=%v", fileName)
+	} else {
+		sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+		sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId) + "/"
 	}
 	source, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
 	if err != nil {
@@ -1286,24 +1291,23 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 
 func writeSessionFile(sessionState *session.SessionState) error {
 
-	err := utils.CreateGCSBucket(strings.ToLower(sessionState.Conv.Audit.MigrationRequestId), sessionState.GCPProjectID)
+	err := utils.CreateGCSBucket(strings.ToLower(sessionState.Bucket[:len(sessionState.Bucket)-1]), sessionState.GCPProjectID)
 	if err != nil {
 		return fmt.Errorf("error while creating bucket: %v", err)
 	}
+
 	convJSON, err := json.MarshalIndent(sessionState.Conv, "", " ")
 	if err != nil {
 		return fmt.Errorf("can't encode session state to JSON: %v", err)
 	}
-	bucket := "gs://" + strings.ToLower(sessionState.Conv.Audit.MigrationRequestId) + "/"
-	err = utils.WriteToGCS(bucket, "session.json", string(convJSON))
+	err = utils.WriteToGCS("gs://"+sessionState.Bucket, "session.json", string(convJSON))
 	if err != nil {
 		return fmt.Errorf("error while writing to GCS: %v", err)
 	}
 	return nil
 }
 
-func createStreamingCfgFile(projectId string, targetDetails targetDetails, fileName, migrationRequestId string) error {
-	bucket := "gs://" + strings.ToLower(migrationRequestId) + "/"
+func createStreamingCfgFile(projectId string, targetDetails targetDetails, fileName, bucket string) error {
 	data := StreamingCfg{
 		DatastreamCfg: DatastreamCfg{
 			StreamId:          "",
@@ -1322,7 +1326,7 @@ func createStreamingCfgFile(projectId string, targetDetails targetDetails, fileN
 			JobName:  "",
 			Location: targetDetails.Region,
 		},
-		TmpDir: bucket,
+		TmpDir: "gs://" + bucket,
 	}
 
 	file, err := json.MarshalIndent(data, "", " ")

@@ -34,7 +34,7 @@ func GetBucket(project, location, profileName string) (string, error) {
 		return "", fmt.Errorf("could not get connection profile: %v", err)
 	}
 	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
-	return "gs://" + gcsProfile.GetBucket() + gcsProfile.GetRootPath(), nil
+	return gcsProfile.GetBucket() + gcsProfile.GetRootPath(), nil
 }
 
 func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
@@ -47,6 +47,10 @@ func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	region := r.FormValue("region")
 	source := r.FormValue("source") == "true"
+	if !source {
+		sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+		sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId) + "/"
+	}
 	databaseType, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error while getting source database: %v", err), http.StatusBadRequest)
@@ -129,7 +133,6 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer dsClient.Close()
 	sessionState := session.GetSessionState()
-	sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
 	databaseType, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error while getting source database: %v", err), http.StatusBadRequest)

@@ -237,6 +237,7 @@ func CreateGCSBucket(bucketName, projectID string) error {
 			if err := bucket.Create(ctx, projectID, nil); err != nil {
 				return fmt.Errorf("failed to create bucket: %v", err)
 			}
+			fmt.Printf("Created new GCS bucket: %v\n", bucketName)
 			return nil
 		}
 		if err != nil {

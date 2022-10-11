@@ -9,7 +9,7 @@ export default interface IMigrationDetails {
 export interface IProgress {
     Progress: number
     ErrorMessage: string
-    Message: string
+    ProgressStatus: number
 }
 
 export interface IGeneratedResources {

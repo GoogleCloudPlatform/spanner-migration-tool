@@ -78,3 +78,11 @@ export const Profile = {
   NewConnProfile: 'new',
   ExistingConnProfile: 'existing',
 }
+
+export enum ProgressStatus {
+	SchemaMigrationComplete = 1,
+	SchemaCreationInProgress = 2,
+	DataMigrationComplete = 3,
+	DataWriteInProgress = 4,
+	ForeignKeyUpdateInProgress = 5
+}
