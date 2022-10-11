@@ -266,6 +266,31 @@ type dumpConfig struct {
 	FilePath string `json:"Path"`
 }
 
+//   file, _ , err := r.FormFile("File")
+// if err != nil {
+// 	fmt.Println("Error Retrieving the File")
+// 	fmt.Println(err)
+// 	return
+// }
+// defer file.Close()
+
+// // Create a temporary file within our temp-images directory that follows
+// // a particular naming pattern
+// f, err := ioutil.TempFile("temp_dump", "upload-*.json")
+// if err != nil {
+// 	fmt.Println(err)
+// }
+// defer f.Close()
+
+// // read all of the contents of our uploaded file into a
+// // byte array
+// fileBytes, err := ioutil.ReadAll(file)
+// if err != nil {
+// 	fmt.Println(err)
+// }
+// // write this byte array to our temporary file
+// f.Write(fileBytes)
+
 // convertSchemaDump converts schema from dump file to Spanner schema for
 // mysqldump and pg_dump driver.
 func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
