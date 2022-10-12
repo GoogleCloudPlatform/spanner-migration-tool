@@ -132,7 +132,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	interleaveTableSchema = trimRedundantInterleaveTableSchema(interleaveTableSchema)
 	// update interleaveTableSchema by filling the missing fields.
-	interleaveTableSchema = updatedInterleaveTableSchema(conv, interleaveTableSchema)
+	interleaveTableSchema = updateInterleaveTableSchema(conv, interleaveTableSchema)
 
 	resp := ReviewTableSchemaResponse{
 		DDL:     ddl,

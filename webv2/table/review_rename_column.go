@@ -46,7 +46,7 @@ func reviewRenameColumn(newName, table, colName string, conv *internal.Conv, int
 		reviewRenameColumnNameTableSchema(conv, childTableName, colName, newName)
 		if _, ok := conv.SpSchema[childTableName].ColDefs[colName]; ok {
 			childColumnId := conv.SpSchema[childTableName].ColDefs[colName].Id
-			interleaveTableSchema = renameinterleaveTableSchema(interleaveTableSchema, childTableName, childColumnId, colName, newName)
+			interleaveTableSchema = renameInterleaveTableSchema(interleaveTableSchema, childTableName, childColumnId, colName, newName)
 		}
 	}
 
@@ -57,13 +57,13 @@ func reviewRenameColumn(newName, table, colName string, conv *internal.Conv, int
 		reviewRenameColumnNameTableSchema(conv, parentTableName, colName, newName)
 		if _, ok := conv.SpSchema[parentTableName].ColDefs[colName]; ok {
 			parentColumnId := conv.SpSchema[parentTableName].ColDefs[colName].Id
-			interleaveTableSchema = renameinterleaveTableSchema(interleaveTableSchema, parentTableName, parentColumnId, colName, newName)
+			interleaveTableSchema = renameInterleaveTableSchema(interleaveTableSchema, parentTableName, parentColumnId, colName, newName)
 		}
 	}
 
 	reviewRenameColumnNameTableSchema(conv, table, colName, newName)
 	if childTableName != "" || parentTableName != "" {
-		interleaveTableSchema = renameinterleaveTableSchema(interleaveTableSchema, table, columnId, colName, newName)
+		interleaveTableSchema = renameInterleaveTableSchema(interleaveTableSchema, table, columnId, colName, newName)
 	}
 
 	return interleaveTableSchema

@@ -53,13 +53,13 @@ func ReviewColumnType(newType, table, colName string, conv *internal.Conv, inter
 	if isParent {
 		columnId := conv.SpSchema[childTableName].ColDefs[colName].Id
 
-		previoustype := conv.SpSchema[childTableName].ColDefs[colName].T.Name
+		previousType := conv.SpSchema[childTableName].ColDefs[colName].T.Name
 		err = reviewColumnTypeChangeTableSchema(conv, childTableName, colName, newType)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return interleaveTableSchema, err
 		}
-		interleaveTableSchema = typeinterleaveTableSchema(interleaveTableSchema, childTableName, columnId, colName, previoustype, newType)
+		interleaveTableSchema = updateTypeOfInterleaveTableSchema(interleaveTableSchema, childTableName, columnId, colName, previousType, newType)
 	}
 
 	// review update of column type for parent table.
@@ -67,18 +67,18 @@ func ReviewColumnType(newType, table, colName string, conv *internal.Conv, inter
 	if parentTableName != "" {
 		columnId := conv.SpSchema[parentTableName].ColDefs[colName].Id
 
-		previoustype := conv.SpSchema[parentTableName].ColDefs[colName].T.Name
+		previousType := conv.SpSchema[parentTableName].ColDefs[colName].T.Name
 		err = reviewColumnTypeChangeTableSchema(conv, parentTableName, colName, newType)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return interleaveTableSchema, err
 		}
-		interleaveTableSchema = typeinterleaveTableSchema(interleaveTableSchema, parentTableName, columnId, colName, previoustype, newType)
+		interleaveTableSchema = updateTypeOfInterleaveTableSchema(interleaveTableSchema, parentTableName, columnId, colName, previousType, newType)
 	}
 
 	// review update of column type for curren table.
 	columnId := conv.SpSchema[table].ColDefs[colName].Id
-	previoustype := conv.SpSchema[table].ColDefs[colName].T.Name
+	previousType := conv.SpSchema[table].ColDefs[colName].T.Name
 	err = reviewColumnTypeChangeTableSchema(conv, table, colName, newType)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -86,7 +86,7 @@ func ReviewColumnType(newType, table, colName string, conv *internal.Conv, inter
 	}
 
 	if childTableName != "" || parentTableName != "" {
-		interleaveTableSchema = typeinterleaveTableSchema(interleaveTableSchema, table, columnId, colName, previoustype, newType)
+		interleaveTableSchema = updateTypeOfInterleaveTableSchema(interleaveTableSchema, table, columnId, colName, previousType, newType)
 	}
 
 	return interleaveTableSchema, nil

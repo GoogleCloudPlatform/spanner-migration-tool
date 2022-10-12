@@ -47,11 +47,11 @@ func GetSpannerTableDDL(spannerTable ddl.CreateTable) string {
 	return ddl
 }
 
-func renameinterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, table string, columnId string, colName string, newName string) []InterleaveTableSchema {
+func renameInterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, table string, columnId string, colName string, newName string) []InterleaveTableSchema {
 
 	tableIndex := isTablePresent(interleaveTableSchema, table)
 
-	interleaveTableSchema = createinterleaveTableSchema(interleaveTableSchema, table, tableIndex)
+	interleaveTableSchema = createInterleaveTableSchema(interleaveTableSchema, table, tableIndex)
 
 	interleaveTableSchema = renameInterleaveColumn(interleaveTableSchema, table, columnId, colName, newName)
 
@@ -69,7 +69,7 @@ func isTablePresent(interleaveTableSchema []InterleaveTableSchema, table string)
 	return -1
 }
 
-func createinterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, table string, tableIndex int) []InterleaveTableSchema {
+func createInterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, table string, tableIndex int) []InterleaveTableSchema {
 
 	if tableIndex == -1 {
 		itc := InterleaveTableSchema{}
@@ -130,34 +130,33 @@ func isColumnPresent(interleaveColumn []InterleaveColumn, columnId string) int {
 	return -1
 }
 
-func typeinterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, table string, columnId string, colName string, previousType string, updateType string) []InterleaveTableSchema {
+func updateTypeOfInterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, table string, columnId string, colName string, previousType string, updateType string) []InterleaveTableSchema {
 
 	tableIndex := isTablePresent(interleaveTableSchema, table)
 
-	interleaveTableSchema = createinterleaveTableSchema(interleaveTableSchema, table, tableIndex)
+	interleaveTableSchema = createInterleaveTableSchema(interleaveTableSchema, table, tableIndex)
 
-	interleaveTableSchema = typeInterleaveColumn(interleaveTableSchema, table, columnId, colName, previousType, updateType)
+	interleaveTableSchema = updateTypeOfInterleaveColumn(interleaveTableSchema, table, columnId, colName, previousType, updateType)
 	return interleaveTableSchema
 }
 
-func typeInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, table, columnId, colName, previousType, updateType string) []InterleaveTableSchema {
+func updateTypeOfInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, table, columnId, colName, previousType, updateType string) []InterleaveTableSchema {
 
 	tableIndex := isTablePresent(interleaveTableSchema, table)
 	colIndex := isColumnPresent(interleaveTableSchema[tableIndex].InterleaveColumnChanges, columnId)
-	interleaveTableSchema = createInterleaveColumntype(interleaveTableSchema, tableIndex, colIndex, columnId, colName, previousType, updateType)
+	interleaveTableSchema = createInterleaveColumnType(interleaveTableSchema, tableIndex, colIndex, columnId, colName, previousType, updateType)
 
 	if tableIndex != -1 && colIndex != -1 {
 		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].ColumnId = columnId
 		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].ColumnName = colName
 		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].Type = previousType
 		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].UpdateType = updateType
-
 	}
 
 	return interleaveTableSchema
 }
 
-func createInterleaveColumntype(interleaveTableSchema []InterleaveTableSchema, tableIndex int, colIndex int, columnId string, colName string, previousType string, updateType string) []InterleaveTableSchema {
+func createInterleaveColumnType(interleaveTableSchema []InterleaveTableSchema, tableIndex int, colIndex int, columnId string, colName string, previousType string, updateType string) []InterleaveTableSchema {
 
 	if colIndex == -1 {
 		if columnId != "" {
@@ -183,7 +182,7 @@ func trimRedundantInterleaveTableSchema(interleaveTableSchema []InterleaveTableS
 	return updatedInterleaveTableSchema
 }
 
-func updatedInterleaveTableSchema(conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema) []InterleaveTableSchema {
+func updateInterleaveTableSchema(conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema) []InterleaveTableSchema {
 	for k, v := range interleaveTableSchema {
 		table := v.Table
 		for ind, col := range v.InterleaveColumnChanges {
