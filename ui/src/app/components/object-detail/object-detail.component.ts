@@ -807,7 +807,7 @@ export class ObjectDetailComponent implements OnInit {
     })
   }
   dropIndexKey(index: number) {
-    if (this.localIndexData[index].spColName) {
+    if (this.localIndexData[index].srcColName) {
       this.localIndexData[index].spColName = ''
       this.localIndexData[index].spDesc = ''
       this.localIndexData[index].spOrder = ''
