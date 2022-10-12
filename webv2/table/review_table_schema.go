@@ -43,7 +43,7 @@ type InterleaveColumn struct {
 	ColumnId         string
 }
 
-//ReviewTableSchema review Spanner Table Schema.
+// ReviewTableSchema review Spanner Table Schema.
 func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -131,7 +131,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 	ddl := GetSpannerTableDDL(conv.SpSchema[table])
 
 	interleaveTableSchema = trimRedundantInterleaveTableSchema(interleaveTableSchema)
-	//update interleaveTableSchema by filling the missing fields
+	// update interleaveTableSchema by filling the missing fields.
 	interleaveTableSchema = updatedInterleaveTableSchema(conv, interleaveTableSchema)
 
 	resp := ReviewTableSchemaResponse{

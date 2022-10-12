@@ -27,11 +27,11 @@ import (
 )
 
 // Actions to be performed on a column.
-// (1) Add : Add column if true
-// (2) Removed: Remove column if true
-// (3) Rename: New name or empty string
-// (4) NotNull: "ADDED", "REMOVED" or ""
-// (5) ToType: New type or empty string
+// (1) Add : Add column if true.
+// (2) Removed: Remove column if true.
+// (3) Rename: New name or empty string.
+// (4) NotNull: "ADDED", "REMOVED" or "".
+// (5) ToType: New type or empty string.
 type updateCol struct {
 	Add     bool   `json:"Add"`
 	Removed bool   `json:"Removed"`
@@ -46,11 +46,11 @@ type updateTable struct {
 
 // updateTableSchema updates the Spanner schema.
 // Following actions can be performed on a specified table:
-// (1) Add column
-// (2) Remove column
-// (3) Rename column
-// (4) Add or Remove NotNull constraint
-// (5) Update Spanner type
+// (1) Add column.
+// (2) Remove column.
+// (3) Rename column.
+// (4) Add or Remove NotNull constraint.
+// (5) Update Spanner type.
 func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 	reqBody, err := ioutil.ReadAll(r.Body)

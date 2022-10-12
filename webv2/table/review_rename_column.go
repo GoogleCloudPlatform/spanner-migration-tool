@@ -25,12 +25,12 @@ func reviewRenameColumn(newName, table, colName string, conv *internal.Conv, int
 
 	columnId := sp.ColDefs[colName].Id
 
-	// update column name for refer tables
+	// update column name for refer tables.
 	for _, fk := range sp.Fks {
 		reviewRenameColumnNameTableSchema(conv, fk.ReferTable, colName, newName)
 	}
 
-	// update column name for table which are referring to the current table
+	// update column name for table which are referring to the current table.
 	for _, sp := range conv.SpSchema {
 		for j := 0; j < len(sp.Fks); j++ {
 			if sp.Fks[j].ReferTable == table {
@@ -39,7 +39,7 @@ func reviewRenameColumn(newName, table, colName string, conv *internal.Conv, int
 		}
 	}
 
-	// review column name update for interleaved child
+	// review column name update for interleaved child.
 	isParent, childTableName := IsParent(table)
 
 	if isParent {
@@ -50,7 +50,7 @@ func reviewRenameColumn(newName, table, colName string, conv *internal.Conv, int
 		}
 	}
 
-	// review column name update for interleaved parent
+	// review column name update for interleaved parent.
 	parentTableName := conv.SpSchema[table].Parent
 
 	if parentTableName != "" {

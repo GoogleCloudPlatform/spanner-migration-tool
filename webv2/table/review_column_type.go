@@ -25,7 +25,7 @@ import (
 func ReviewColumnType(newType, table, colName string, conv *internal.Conv, interleaveTableSchema []InterleaveTableSchema, w http.ResponseWriter) (_ []InterleaveTableSchema, err error) {
 	sp := conv.SpSchema[table]
 
-	//review update of column type for refer table
+	// review update of column type for refer table.
 	for _, fk := range sp.Fks {
 		err := reviewColumnTypeChangeTableSchema(conv, fk.ReferTable, colName, newType)
 		if err != nil {
@@ -34,7 +34,7 @@ func ReviewColumnType(newType, table, colName string, conv *internal.Conv, inter
 		}
 	}
 
-	//review update of column type for table referring to the current table
+	// review update of column type for table referring to the current table.
 	for _, sp := range conv.SpSchema {
 		for j := 0; j < len(sp.Fks); j++ {
 			if sp.Fks[j].ReferTable == table {
@@ -48,7 +48,7 @@ func ReviewColumnType(newType, table, colName string, conv *internal.Conv, inter
 		}
 	}
 
-	// review update of column type for child talbe
+	// review update of column type for child talbe.
 	isParent, childTableName := IsParent(table)
 	if isParent {
 		columnId := conv.SpSchema[childTableName].ColDefs[colName].Id
@@ -62,7 +62,7 @@ func ReviewColumnType(newType, table, colName string, conv *internal.Conv, inter
 		interleaveTableSchema = typeinterleaveTableSchema(interleaveTableSchema, childTableName, columnId, colName, previoustype, newType)
 	}
 
-	//review update of column type for parent table
+	// review update of column type for parent table.
 	parentTableName := conv.SpSchema[table].Parent
 	if parentTableName != "" {
 		columnId := conv.SpSchema[parentTableName].ColDefs[colName].Id
@@ -76,7 +76,7 @@ func ReviewColumnType(newType, table, colName string, conv *internal.Conv, inter
 		interleaveTableSchema = typeinterleaveTableSchema(interleaveTableSchema, parentTableName, columnId, colName, previoustype, newType)
 	}
 
-	// review update of column type for curren table
+	// review update of column type for curren table.
 	columnId := conv.SpSchema[table].ColDefs[colName].Id
 	previoustype := conv.SpSchema[table].ColDefs[colName].T.Name
 	err = reviewColumnTypeChangeTableSchema(conv, table, colName, newType)

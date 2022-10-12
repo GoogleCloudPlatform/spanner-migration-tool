@@ -26,7 +26,7 @@ func renameColumn(newName, table, colName string, conv *internal.Conv) {
 
 	renameColumnNameTableSchema(conv, table, colName, newName)
 
-	// update foreignKey relationship Table
+	// update foreignKey relationship Table.
 	for _, fk := range sp.Fks {
 		renameColumnNameTableSchema(conv, fk.ReferTable, colName, newName)
 	}
@@ -39,7 +39,7 @@ func renameColumn(newName, table, colName string, conv *internal.Conv) {
 		}
 	}
 
-	// update interleave table relation
+	// update interleave table relation.
 	isParent, childTableName := IsParent(table)
 
 	if isParent {

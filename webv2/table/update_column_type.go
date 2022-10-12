@@ -21,17 +21,17 @@ import (
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
 
-//UpdateColumnType updates type of given column to newType.
+// UpdateColumnType updates type of given column to newType.
 func UpdateColumnType(newType, table, colName string, conv *internal.Conv, w http.ResponseWriter) {
 	sp := conv.SpSchema[table]
 
-	//update column type for current table
+	// update column type for current table.
 	err := UpdateColumnTypeChangeTableSchema(conv, table, colName, newType, w)
 	if err != nil {
 		return
 	}
 
-	//update column type for refer tables
+	// update column type for refer tables.
 	for _, fk := range sp.Fks {
 		err = UpdateColumnTypeChangeTableSchema(conv, fk.ReferTable, colName, newType, w)
 		if err != nil {
@@ -39,7 +39,7 @@ func UpdateColumnType(newType, table, colName string, conv *internal.Conv, w htt
 		}
 	}
 
-	//update column type for tables referring to the current table
+	// update column type for tables referring to the current table.
 	for _, sp := range conv.SpSchema {
 		for j := 0; j < len(sp.Fks); j++ {
 			if sp.Fks[j].ReferTable == table {
@@ -48,7 +48,7 @@ func UpdateColumnType(newType, table, colName string, conv *internal.Conv, w htt
 		}
 	}
 
-	// update column type of child table
+	// update column type of child table.
 	isParent, childTableName := IsParent(table)
 	if isParent {
 		err = UpdateColumnTypeChangeTableSchema(conv, childTableName, colName, newType, w)
@@ -57,7 +57,7 @@ func UpdateColumnType(newType, table, colName string, conv *internal.Conv, w htt
 		}
 	}
 
-	// update column type of parent table
+	// update column type of parent table.
 	parentTableName := conv.SpSchema[table].Parent
 	if parentTableName != "" {
 		err = UpdateColumnTypeChangeTableSchema(conv, parentTableName, colName, newType, w)
@@ -67,7 +67,7 @@ func UpdateColumnType(newType, table, colName string, conv *internal.Conv, w htt
 	}
 }
 
-//UpdateColumnTypeTableSchema updates column type to newtype for a column of a table.
+// UpdateColumnTypeTableSchema updates column type to newtype for a column of a table.
 func UpdateColumnTypeChangeTableSchema(conv *internal.Conv, table string, colName string, newType string, w http.ResponseWriter) error {
 
 	srcTableName := conv.ToSource[table].Name

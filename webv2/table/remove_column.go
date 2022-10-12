@@ -27,7 +27,7 @@ func removeColumn(table string, colName string, conv *internal.Conv) {
 
 	removeColumnFromTableSchema(conv, table, colName)
 
-	// update foreignKey relationship Table column names
+	// update foreignKey relationship Table column names.
 	for _, fk := range sp.Fks {
 
 		removeColumnFromTableSchema(conv, fk.ReferTable, colName)
@@ -160,7 +160,7 @@ func removeColumnFromSpannerForeignkeyColumns(sp ddl.CreateTable, colName string
 		}
 	}
 
-	//drop foreing key if the foreign key doesn't have any column left after the update
+	// drop foreing key if the foreign key doesn't have any column left after the update.
 	i := 0
 	for _, fk := range sp.Fks {
 		if len(fk.Columns) <= 0 {
@@ -183,8 +183,7 @@ func removeColumnFromSpannerForeignkeyReferColumns(sp ddl.CreateTable, colName s
 			}
 		}
 	}
-
-	//drop foreing key if the foreign key doesn't have any refer-column left after the update
+	// drop foreign key if the foreign key doesn't have any refer-column left after the update.
 	i := 0
 	for _, fk := range sp.Fks {
 		if len(fk.ReferColumns) <= 0 {

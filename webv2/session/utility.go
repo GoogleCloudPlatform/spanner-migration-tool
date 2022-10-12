@@ -33,7 +33,7 @@ func UpdateSessionFile() error {
 	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
 	_, err := conversion.WriteConvGeneratedFiles(sessionState.Conv, sessionState.DbName, sessionState.Driver, ioHelper.BytesRead, ioHelper.Out)
 	if err != nil {
-		return fmt.Errorf("Error encountered while updating session session file %w", err)
+		return fmt.Errorf("Error encountered while updating session file %w", err)
 	}
 	return nil
 }
