@@ -20,6 +20,11 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
 
+const (
+	NotNullAdded   string = "ADDED"
+	NotNullRemoved string = "REMOVED"
+)
+
 // IsColumnPresentInColNames check column is present in colnames.
 func IsColumnPresentInColNames(colNames []string, columnName string) bool {
 
@@ -44,9 +49,9 @@ func GetSpannerTableDDL(spannerTable ddl.CreateTable) string {
 
 func renameinterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, table string, columnId string, colName string, newName string) []InterleaveTableSchema {
 
-	tindex := isTablePresent(interleaveTableSchema, table)
+	tableIndex := isTablePresent(interleaveTableSchema, table)
 
-	interleaveTableSchema = createinterleaveTableSchema(interleaveTableSchema, table, tindex)
+	interleaveTableSchema = createinterleaveTableSchema(interleaveTableSchema, table, tableIndex)
 
 	interleaveTableSchema = renameInterleaveColumn(interleaveTableSchema, table, columnId, colName, newName)
 
@@ -64,9 +69,9 @@ func isTablePresent(interleaveTableSchema []InterleaveTableSchema, table string)
 	return -1
 }
 
-func createinterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, table string, tindex int) []InterleaveTableSchema {
+func createinterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, table string, tableIndex int) []InterleaveTableSchema {
 
-	if tindex == -1 {
+	if tableIndex == -1 {
 		itc := InterleaveTableSchema{}
 		itc.Table = table
 		itc.InterleaveColumnChanges = []InterleaveColumn{}
@@ -79,16 +84,16 @@ func createinterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, 
 
 func renameInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, table, columnId, colName, newName string) []InterleaveTableSchema {
 
-	tindex := isTablePresent(interleaveTableSchema, table)
+	tableIndex := isTablePresent(interleaveTableSchema, table)
 
-	cindex := isColumnPresent(interleaveTableSchema[tindex].InterleaveColumnChanges, columnId)
+	colIndex := isColumnPresent(interleaveTableSchema[tableIndex].InterleaveColumnChanges, columnId)
 
-	interleaveTableSchema = createInterleaveColumn(interleaveTableSchema, tindex, cindex, columnId, colName, newName)
+	interleaveTableSchema = createInterleaveColumn(interleaveTableSchema, tableIndex, colIndex, columnId, colName, newName)
 
-	if tindex != -1 && cindex != -1 {
-		interleaveTableSchema[tindex].InterleaveColumnChanges[cindex].ColumnId = columnId
-		interleaveTableSchema[tindex].InterleaveColumnChanges[cindex].ColumnName = colName
-		interleaveTableSchema[tindex].InterleaveColumnChanges[cindex].UpdateColumnName = newName
+	if tableIndex != -1 && colIndex != -1 {
+		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].ColumnId = columnId
+		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].ColumnName = colName
+		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].UpdateColumnName = newName
 
 	}
 
@@ -96,18 +101,18 @@ func renameInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, table
 
 }
 
-func createInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, tindex int, cindex int, columnId string, colName string, newName string) []InterleaveTableSchema {
+func createInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, tableIndex int, colIndex int, columnId string, colName string, newName string) []InterleaveTableSchema {
 
-	if cindex == -1 {
+	if colIndex == -1 {
 
 		if columnId != "" {
 
-			ic := InterleaveColumn{}
-			ic.ColumnId = columnId
-			ic.ColumnName = colName
-			ic.UpdateColumnName = newName
+			interleaveColumn := InterleaveColumn{}
+			interleaveColumn.ColumnId = columnId
+			interleaveColumn.ColumnName = colName
+			interleaveColumn.UpdateColumnName = newName
 
-			interleaveTableSchema[tindex].InterleaveColumnChanges = append(interleaveTableSchema[tindex].InterleaveColumnChanges, ic)
+			interleaveTableSchema[tableIndex].InterleaveColumnChanges = append(interleaveTableSchema[tableIndex].InterleaveColumnChanges, interleaveColumn)
 		}
 	}
 
@@ -125,43 +130,43 @@ func isColumnPresent(interleaveColumn []InterleaveColumn, columnId string) int {
 	return -1
 }
 
-func typeinterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, table string, columnId string, colName string, previoustype string, updateType string) []InterleaveTableSchema {
+func typeinterleaveTableSchema(interleaveTableSchema []InterleaveTableSchema, table string, columnId string, colName string, previousType string, updateType string) []InterleaveTableSchema {
 
-	tindex := isTablePresent(interleaveTableSchema, table)
+	tableIndex := isTablePresent(interleaveTableSchema, table)
 
-	interleaveTableSchema = createinterleaveTableSchema(interleaveTableSchema, table, tindex)
+	interleaveTableSchema = createinterleaveTableSchema(interleaveTableSchema, table, tableIndex)
 
-	interleaveTableSchema = typeInterleaveColumn(interleaveTableSchema, table, columnId, colName, previoustype, updateType)
+	interleaveTableSchema = typeInterleaveColumn(interleaveTableSchema, table, columnId, colName, previousType, updateType)
 	return interleaveTableSchema
 }
 
-func typeInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, table, columnId, colName, previoustype, updateType string) []InterleaveTableSchema {
+func typeInterleaveColumn(interleaveTableSchema []InterleaveTableSchema, table, columnId, colName, previousType, updateType string) []InterleaveTableSchema {
 
-	tindex := isTablePresent(interleaveTableSchema, table)
-	cindex := isColumnPresent(interleaveTableSchema[tindex].InterleaveColumnChanges, columnId)
-	interleaveTableSchema = createInterleaveColumntype(interleaveTableSchema, tindex, cindex, columnId, colName, previoustype, updateType)
+	tableIndex := isTablePresent(interleaveTableSchema, table)
+	colIndex := isColumnPresent(interleaveTableSchema[tableIndex].InterleaveColumnChanges, columnId)
+	interleaveTableSchema = createInterleaveColumntype(interleaveTableSchema, tableIndex, colIndex, columnId, colName, previousType, updateType)
 
-	if tindex != -1 && cindex != -1 {
-		interleaveTableSchema[tindex].InterleaveColumnChanges[cindex].ColumnId = columnId
-		interleaveTableSchema[tindex].InterleaveColumnChanges[cindex].ColumnName = colName
-		interleaveTableSchema[tindex].InterleaveColumnChanges[cindex].Type = previoustype
-		interleaveTableSchema[tindex].InterleaveColumnChanges[cindex].UpdateType = updateType
+	if tableIndex != -1 && colIndex != -1 {
+		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].ColumnId = columnId
+		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].ColumnName = colName
+		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].Type = previousType
+		interleaveTableSchema[tableIndex].InterleaveColumnChanges[colIndex].UpdateType = updateType
 
 	}
 
 	return interleaveTableSchema
 }
 
-func createInterleaveColumntype(interleaveTableSchema []InterleaveTableSchema, tindex int, cindex int, columnId string, colName string, previoustype string, updateType string) []InterleaveTableSchema {
+func createInterleaveColumntype(interleaveTableSchema []InterleaveTableSchema, tableIndex int, colIndex int, columnId string, colName string, previousType string, updateType string) []InterleaveTableSchema {
 
-	if cindex == -1 {
+	if colIndex == -1 {
 		if columnId != "" {
-			ic := InterleaveColumn{}
-			ic.ColumnId = columnId
-			ic.ColumnName = colName
-			ic.Type = previoustype
-			ic.UpdateType = updateType
-			interleaveTableSchema[tindex].InterleaveColumnChanges = append(interleaveTableSchema[tindex].InterleaveColumnChanges, ic)
+			interleaveColumn := InterleaveColumn{}
+			interleaveColumn.ColumnId = columnId
+			interleaveColumn.ColumnName = colName
+			interleaveColumn.Type = previousType
+			interleaveColumn.UpdateType = updateType
+			interleaveTableSchema[tableIndex].InterleaveColumnChanges = append(interleaveTableSchema[tableIndex].InterleaveColumnChanges, interleaveColumn)
 		}
 	}
 
@@ -201,11 +206,11 @@ func UpdateNotNull(notNullChange, table, colName string, conv *internal.Conv) {
 	sp := conv.SpSchema[table]
 
 	switch notNullChange {
-	case "ADDED":
+	case NotNullAdded:
 		spColDef := sp.ColDefs[colName]
 		spColDef.NotNull = true
 		sp.ColDefs[colName] = spColDef
-	case "REMOVED":
+	case NotNullRemoved:
 		spColDef := sp.ColDefs[colName]
 		spColDef.NotNull = false
 		sp.ColDefs[colName] = spColDef
