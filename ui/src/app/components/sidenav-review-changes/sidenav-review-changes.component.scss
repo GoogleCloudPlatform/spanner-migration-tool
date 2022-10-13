@@ -1,0 +1,33 @@
+.container {
+  height: 100%;
+  padding: 8px 1rem;
+  box-sizing: border-box;
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    .header-title {
+      font-size: 1.2rem;
+      letter-spacing: 0.05px;
+    }
+  }
+  .content {
+    height: 85%;
+    .ddl-display {
+      height: 90%;
+      background-color: rgb(218, 218, 218);
+      padding: 10px;
+      overflow: auto;
+    }
+    .table-changes-display {
+      height: 90%;
+      overflow: auto;
+    }
+  }
+  .footer {
+    padding-top: 1rem;
+    display: flex;
+    justify-content: flex-end;
+  }
+}
