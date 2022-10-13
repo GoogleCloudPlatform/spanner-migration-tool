@@ -1,9 +1,5 @@
 import { Component, OnInit } from '@angular/core'
-import IUpdateTable, {
-  IReviewInterleaveTableChanges,
-  IReviewUpdateTable,
-  ITableColumnChanges,
-} from 'src/app/model/update-table'
+import IUpdateTable, { IReviewInterleaveTableChanges } from 'src/app/model/update-table'
 import { DataService } from 'src/app/services/data/data.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
