@@ -7,12 +7,12 @@ import { catchError, filter, map, tap } from 'rxjs/operators'
 import IUpdateTable from 'src/app/model/update-table'
 import IDumpConfig from 'src/app/model/dump-config'
 import ISessionConfig from '../../model/session-config'
-import { InputType, StorageKeys } from 'src/app/app.constants'
 import ISession from 'src/app/model/session'
 import ISpannerConfig from '../../model/spanner-config'
 import { SnackbarService } from '../snackbar/snackbar.service'
 import ISummary from 'src/app/model/summary'
 import { ClickEventService } from '../click-event/click-event.service'
+import { TableUpdatePubSubService } from '../table-update-pub-sub/table-update-pub-sub.service'
 
 @Injectable({
   providedIn: 'root',
@@ -50,7 +50,8 @@ export class DataService {
   constructor(
     private fetch: FetchService,
     private snackbar: SnackbarService,
-    private clickEvent: ClickEventService
+    private clickEvent: ClickEventService,
+    private tableUpdatePubSub: TableUpdatePubSubService
   ) {
     this.getLastSessionDetails()
     this.getConfig()
@@ -161,6 +162,24 @@ export class DataService {
         this.summarySub.next(new Map<string, ISummary>(Object.entries(summary)))
       },
     })
+  }
+
+  reviewTableUpdate(tableName: string, data: IUpdateTable): Observable<string> {
+    return this.fetch.reviewTableUpdate(tableName, data).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data: any) => {
+        if (data.error) {
+          return data.error
+        } else {
+          this.tableUpdatePubSub.setTableReviewChanges(data)
+          console.log(data, 'review')
+          return ''
+        }
+      })
+    )
   }
 
   updateTable(tableName: string, data: IUpdateTable): Observable<string> {

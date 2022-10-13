@@ -1,6 +1,12 @@
 import { Injectable } from '@angular/core'
 import ISchemaObjectNode from 'src/app/model/schema-object-node'
-import IConv, { ICreateIndex, IIndexKey, IIndex, ISpannerForeignKey } from '../../model/conv'
+import IConv, {
+  ICreateIndex,
+  IIndexKey,
+  IIndex,
+  ISpannerForeignKey,
+  IColumnDef,
+} from '../../model/conv'
 import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import IFkTabData from 'src/app/model/fk-tab-data'
 import { ObjectExplorerNodeType } from 'src/app/app.constants'
@@ -356,6 +362,16 @@ export class ConversionService {
         }
       })
     }
+    return res
+  }
+
+  getSpannerColDefFromId(tableName: string, id: string, data: IConv): IColumnDef | null {
+    let res: IColumnDef | null = null
+    Object.keys(data.SpSchema[tableName].ColDefs).forEach((colName) => {
+      if (data.SpSchema[tableName].ColDefs[colName].Id == id) {
+        res = data.SpSchema[tableName].ColDefs[colName]
+      }
+    })
     return res
   }
 
