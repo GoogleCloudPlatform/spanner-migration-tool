@@ -65,5 +65,37 @@
       <tr mat-header-row *matHeaderRowDef="rateCountDisplayedColumns"></tr>
       <tr mat-row *matRowDef="let row; columns: rateCountDisplayedColumns"></tr>
     </table>
+
+    <br>
+    <mat-card>
+      <div class="percentage-bar">
+        <div
+          class="danger-background"
+          [ngStyle]="{ 'width.%': this.conversionRatePercentage.bad }"
+        ></div>
+        <div
+          class="warning-background"
+          [ngStyle]="{ 'width.%': this.conversionRatePercentage.ok }"
+        ></div>
+        <div
+          class="success-background"
+          [ngStyle]="{ 'width.%': this.conversionRatePercentage.good }"
+        ></div>
+      </div>
+      <hr />
+      <br />
+      <div class="percentage-indent">
+        <span
+          ><mat-icon class="icon danger"> circle </mat-icon>
+          <span>Not a great conversion</span></span
+        >
+        <span
+          ><mat-icon class="icon warning"> circle </mat-icon>
+          <span>Converted with warnings</span></span
+        >
+        <span><mat-icon class="icon success"> circle </mat-icon> <span>Converted automatically</span></span>
+      </div>
+    </mat-card>
+
   </div>
 </div>
