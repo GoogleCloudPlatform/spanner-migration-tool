@@ -94,17 +94,17 @@ body {
     align-items: center;
     .breadcrumb_source {
       padding-left: 0;
-      color: rgba(0, 0, 0, 0.56);
+      color:  rgb(143, 143, 143);
       font-weight: 400;
       font-size: 14px;
     }
     .breadcrumb_workspace {
       font-weight: 400;
       font-size: 14px;
-    }
+      color :#000000;
+    }  
     span {
       font-size: 1.2rem;
-      color: rgb(143, 143, 143);
     }
   }
 }

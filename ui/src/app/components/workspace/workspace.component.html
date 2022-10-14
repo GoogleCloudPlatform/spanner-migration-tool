@@ -3,7 +3,7 @@
     <div class="breadcrumb">
       <a class="breadcrumb_source" mat-button [routerLink]="'/'">Select Source</a>
       <span>></span>
-      <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'">Configure Schema</a>
+      <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'"><b>Configure Schema</b></a>
     </div>
     <div class="header_action">
       <button mat-button (click)="prepareMigration()">PREPARE MIGRATION</button>
@@ -15,12 +15,14 @@
     </div>
   </div>
   <div class="container">
-    <h2>Configure schema</h2>
     <div class="summary">
       Estimation for {{ srcDbName.toUpperCase() }} to for Spanner conversion:
       {{ conversionRatePercentages.good }}% of tables can be converted automatically,
       {{ conversionRatePercentages.ok }}% requires minimal conversion changes and
       {{ conversionRatePercentages.bad }}% requires high complexity conversion changes.
+    </div>
+    <div class="summary">
+      To make conversion changes go to Spanner tree panel.
     </div>
   </div>
   <div class="columns">
@@ -68,11 +70,11 @@
       }"
     >
       <mat-tab-group mat-dialog-close="">
-        <mat-tab [label]="issuesAndSuggestionsLabel">
-          <app-summary
+        <mat-tab [ngClass]="{ 'blue-font-color': [updateIssuesLabel]}" [label]="issuesAndSuggestionsLabel">
+          <app-summary 
             [currentObject]="currentObject"
             (changeIssuesLabel)="updateIssuesLabel($event)"
-          ></app-summary>
+            ></app-summary>
         </mat-tab>
         <mat-tab label="RULES(0)">
           <app-rule></app-rule>
