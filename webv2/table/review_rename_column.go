@@ -55,8 +55,8 @@ func reviewRenameColumn(newName, table, colName string, conv *internal.Conv, int
 
 	if parentTableName != "" {
 		reviewRenameColumnNameTableSchema(conv, parentTableName, colName, newName)
-		if _, ok := conv.SpSchema[parentTableName].ColDefs[colName]; ok {
-			parentColumnId := conv.SpSchema[parentTableName].ColDefs[colName].Id
+		if _, ok := conv.SpSchema[parentTableName].ColDefs[newName]; ok {
+			parentColumnId := conv.SpSchema[parentTableName].ColDefs[newName].Id
 			interleaveTableSchema = renameInterleaveTableSchema(interleaveTableSchema, parentTableName, parentColumnId, colName, newName)
 		}
 	}
