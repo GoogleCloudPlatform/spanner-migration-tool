@@ -56,7 +56,6 @@ export enum MigrationDetails {
   IsMigrationDetailSet = "isMigrationDetailSet",
   IsMigrationInProgress ='isMigrationInProgress',
   HasDataMigrationStarted ='hasDataMigrationStarted',
-  HasDataMigrationCompleted = 'hasDataMigrationCompleted',
   HasSchemaMigrationStarted = 'hasSchemaMigrationStarted',
   SchemaProgressMessage = 'schemaProgressMessage',
   DataProgressMessage = 'dataProgressMessage',
