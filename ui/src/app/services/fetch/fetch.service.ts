@@ -57,18 +57,16 @@ export class FetchService {
     return this.http.get<Record<string, string>>(`${this.url}/conversion`)
   }
 
-  getConnectionProfiles(region: string, isSource: boolean) {
-    return this.http.get<IConnectionProfile[]>(
-      `${this.url}/GetConnectionProfiles?region=${region}&source=${isSource}`
-    )
+  getConnectionProfiles(isSource: boolean) {
+    return this.http.get<IConnectionProfile[]>(`${this.url}/GetConnectionProfiles?source=${isSource}`)
   }
 
   getGeneratedResources() {
     return this.http.get<IGeneratedResources>(`${this.url}/GetGeneratedResources`)
   }
 
-  getStaticIps(region: string) {
-    return this.http.get<string[]>(`${this.url}/GetStaticIps?region=${region}`)
+  getStaticIps() {
+    return this.http.get<string[]>(`${this.url}/GetStaticIps`)
   }
 
   createConnectionProfile(payload: ICreateConnectionProfile) {

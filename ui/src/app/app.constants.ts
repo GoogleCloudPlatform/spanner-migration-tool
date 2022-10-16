@@ -66,7 +66,6 @@ export enum MigrationDetails {
 export enum TargetDetails {
   TargetDB = 'targetDb',
   Dialect = 'dialect',
-  Region = 'region',
   SourceConnProfile = 'sourceConnProfile',
   TargetConnProfile = 'targetConnProfile'
 }

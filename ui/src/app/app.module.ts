@@ -7,6 +7,7 @@ import { ClipboardModule } from '@angular/cdk/clipboard'
 import { AppRoutingModule } from './app-routing.module'
 import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http'
 import { FormsModule } from '@angular/forms'
+import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
 
 import { AppComponent } from './app.component'
 import { HeaderComponent } from './components/header/header.component'
@@ -84,6 +85,7 @@ import { EndMigrationComponent } from './components/end-migration/end-migration.
     FormsModule,
     MatRadioModule,
     ClipboardModule,
+    MatProgressSpinnerModule,
   ],
   providers: [
     {

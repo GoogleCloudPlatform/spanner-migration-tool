@@ -46,7 +46,6 @@ func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 	}
 	defer dsClient.Close()
 	sessionState := session.GetSessionState()
-	region := r.FormValue("region")
 	source := r.FormValue("source") == "true"
 	if !source {
 		sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
@@ -58,9 +57,11 @@ func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var connectionProfileList []connectionProfile
+	fmt.Println(sessionState.Region)
 	req := &datastreampb.ListConnectionProfilesRequest{
-		Parent: fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, region),
+		Parent: fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, sessionState.Region),
 	}
+	fmt.Println(req)
 	it := dsClient.ListConnectionProfiles(ctx, req)
 	for {
 		resp, err := it.Next()
@@ -91,9 +92,8 @@ func GetStaticIps(w http.ResponseWriter, r *http.Request) {
 	}
 	defer dsClient.Close()
 	sessionState := session.GetSessionState()
-	region := r.FormValue("region")
 	req := &datastreampb.FetchStaticIpsRequest{
-		Name: fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, region),
+		Name: fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, sessionState.Region),
 	}
 	it := dsClient.FetchStaticIps(ctx, req)
 	var staticIpList []string
@@ -140,7 +140,7 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req := &datastreampb.CreateConnectionProfileRequest{
-		Parent:              fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, details.Region),
+		Parent:              fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, sessionState.Region),
 		ConnectionProfileId: details.Id,
 		ConnectionProfile: &datastreampb.ConnectionProfile{
 			DisplayName:  details.Id,
@@ -213,7 +213,6 @@ func CleanUpStreamingJobs(w http.ResponseWriter, r *http.Request) {
 
 type connectionProfileReq struct {
 	Id           string
-	Region       string
 	ValidateOnly bool
 	IsSource     bool
 }

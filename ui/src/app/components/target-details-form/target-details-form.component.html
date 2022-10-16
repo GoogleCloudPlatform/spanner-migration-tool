@@ -2,26 +2,24 @@
   <form [formGroup]="targetDetailsForm" class="target-detail-form">
     <h2>Target Details</h2>
     <mat-form-field class="full-width" appearance="outline">
-      <mat-label>Target Database</mat-label>
+      <mat-label>Spanner Database</mat-label>
       <input matInput placeholder="Target Database" type="text" formControlName="targetDb"
         ng-value="targetDetails.TargetDB" />
     </mat-form-field>
     <br>
     <mat-form-field appearance="outline">
-      <mat-label>Target Dialect</mat-label>
+      <mat-label>Spanner Dialect</mat-label>
       <mat-select class="input-field" formControlName="dialect" required="true">
         <mat-option value="google_standard_sql">Google Standard SQL</mat-option>
       </mat-select>
     </mat-form-field>
     <br>
-    <mat-form-field class="full-width" appearance="outline">
-      <mat-label>Select region</mat-label>
-      <mat-select class="input-field" formControlName="region" required="true" ng-value="selectedRegion">
-        <mat-option *ngFor="let region of regionList" [value]="region">
-          {{region}}
-        </mat-option>
-      </mat-select>
-    </mat-form-field>
+    <b>Region:</b>
+    {{region}}
+    <br>
+    <br>
+    <b>Spanner Instance:</b>
+    {{spannerInstance}}
   </form>
   <div mat-dialog-actions class="buttons-container">
     <button mat-button color="primary" mat-dialog-close>Cancel</button>

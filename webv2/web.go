@@ -35,6 +35,7 @@ import (
 	"strings"
 	"time"
 
+	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/cmd"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
@@ -53,6 +54,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/profile"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 	"github.com/google/uuid"
+	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/typemap"
@@ -106,6 +108,10 @@ type sessionSummary struct {
 	SpannerIndexCount  int
 	ConnectionType     string
 	SourceDatabaseName string
+	Region             string
+	NodeCount          int
+	ProcessingUnits    int
+	Instance           string
 }
 
 type progressDetails struct {
@@ -1200,6 +1206,34 @@ func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionSummary.SourceIndexCount = sourceIndexCount
 	sessionSummary.SpannerIndexCount = spannerIndexCount
+	ctx := context.Background()
+	instanceClient, err := instance.NewInstanceAdminClient(ctx)
+	if err != nil {
+		log.Println("instance admin client creation error")
+		http.Error(w, fmt.Sprintf("Error while creating instance admin client : %v", err), http.StatusBadRequest)
+		return
+	}
+	instanceInfo, err := instanceClient.GetInstance(ctx, &instancepb.GetInstanceRequest{Name: fmt.Sprintf("projects/%s/instances/%s", sessionState.GCPProjectID, sessionState.SpannerInstanceID)})
+	if err != nil {
+		log.Println("get instance error")
+		http.Error(w, fmt.Sprintf("Error while getting instance information : %v", err), http.StatusBadRequest)
+		return
+	}
+	instanceConfig, err := instanceClient.GetInstanceConfig(ctx, &instancepb.GetInstanceConfigRequest{Name: instanceInfo.Config})
+	if err != nil {
+		log.Println("get instance config error")
+		http.Error(w, fmt.Sprintf("Error while getting instance config : %v", err), http.StatusBadRequest)
+		return
+	}
+	for _, replica := range instanceConfig.Replicas {
+		if replica.DefaultLeaderLocation {
+			sessionSummary.Region = replica.Location
+		}
+	}
+	sessionState.Region = sessionSummary.Region
+	sessionSummary.NodeCount = int(instanceInfo.NodeCount)
+	sessionSummary.ProcessingUnits = int(instanceInfo.ProcessingUnits)
+	sessionSummary.Instance = sessionState.SpannerInstanceID
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(sessionSummary)
 }
@@ -1312,8 +1346,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 	}
 	sessionState.SpannerDatabaseName = details.TargetDetails.TargetDB
 	targetProfileString := fmt.Sprintf("project=%v,instance=%v,dbName=%v", sessionState.GCPProjectID, sessionState.SpannerInstanceID, details.TargetDetails.TargetDB)
-	if details.TargetDetails.Region != "" {
-		sessionState.Region = details.TargetDetails.Region
+	if details.MigrationType == helpers.LOW_DOWNTIME_MIGRATION {
 		fileName := sessionState.Conv.Audit.MigrationRequestId + "-streaming.json"
 		sessionState.Bucket, err = profile.GetBucket(sessionState.GCPProjectID, sessionState.Region, details.TargetDetails.TargetConnectionProfileName)
 		if err != nil {

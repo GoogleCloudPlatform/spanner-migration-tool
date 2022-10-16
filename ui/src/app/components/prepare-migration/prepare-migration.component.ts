@@ -4,7 +4,7 @@ import { TargetDetailsFormComponent } from '../target-details-form/target-detail
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
-import { ISessionSummary } from 'src/app/model/conv'
+import { ISessionSummary, ISpannerDetails } from 'src/app/model/conv'
 import IMigrationDetails, { IGeneratedResources, IProgress, ISourceAndTargetDetails } from 'src/app/model/migrate'
 import { InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressStatus, SourceDbNames, TargetDetails } from 'src/app/app.constants'
 import { interval, Subscription } from 'rxjs'
@@ -20,6 +20,7 @@ export class PrepareMigrationComponent implements OnInit {
   displayedColumns = ['Title', 'Source', 'Destination']
   dataSource: any = []
   migrationModes: any = []
+  migrationTypes: any = []
   subscription!: Subscription
   constructor(
     private dialog: MatDialog,
@@ -41,6 +42,7 @@ export class PrepareMigrationComponent implements OnInit {
   isMigrationInProgress: boolean = false
   isLowDtMigrationRunning: boolean = false
   isResourceGenerated: boolean = false
+  generatingResources: boolean = false
   errorMessage: string = ''
   schemaProgressMessage: string = 'Schema migration in progress...'
   dataProgressMessage: string = 'Data migration in progress...'
@@ -58,19 +60,46 @@ export class PrepareMigrationComponent implements OnInit {
     DataflowJobName: '',
     DataflowJobUrl: ''
   }
+  region: string = ''
+  instance: string = ''
+  nodeCount: number = 0
+  processingUnits: number = 0
 
   targetDetails: ITargetDetails = {
     TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
     Dialect: localStorage.getItem(TargetDetails.Dialect) as string,
-    Region: localStorage.getItem(TargetDetails.Region) as string,
     SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
     TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string
+  }
+
+  refreshMigrationMode() {
+    if (!(this.selectedMigrationMode === MigrationModes.schemaOnly) && this.isStreamingSupported && !(this.connectionType === InputType.DumpFile)) {
+      this.migrationTypes = [
+        {
+          name: 'Bulk Migration',
+          value: MigrationTypes.bulkMigration
+        },
+        {
+          name: 'Low downtime Migration',
+          value: MigrationTypes.lowDowntimeMigration
+        },
+      ]
+    } else {
+      this.selectedMigrationType = MigrationTypes.bulkMigration
+      this.migrationTypes = [
+        {
+          name: 'Bulk Migration',
+          value: MigrationTypes.bulkMigration
+        }
+      ]
+    }
   }
 
   refreshPrerequisites() {
     this.isSourceConnectionProfileSet = false
     this.isTargetConnectionProfileSet = false
     this.isTargetDetailSet = false
+    this.refreshMigrationMode()
   }
 
   ngOnInit(): void {
@@ -90,6 +119,16 @@ export class PrepareMigrationComponent implements OnInit {
             source: res.SourceIndexCount,
             target: res.SpannerIndexCount,
           },
+        ]
+        this.region = res.Region
+        this.instance = res.Instance
+        this.processingUnits = res.ProcessingUnits
+        this.nodeCount = res.NodeCount
+        this.migrationTypes = [
+          {
+            name: 'Bulk Migration',
+            value: MigrationTypes.bulkMigration
+          }
         ]
         this.sourceDatabaseType = res.DatabaseType
         this.sourceDatabaseName = res.SourceDatabaseName
@@ -172,7 +211,6 @@ export class PrepareMigrationComponent implements OnInit {
       this.targetDetails = {
         TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
         Dialect: localStorage.getItem(TargetDetails.Dialect) as string,
-        Region: localStorage.getItem(TargetDetails.Region) as string,
         SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
         TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string
       }
@@ -203,17 +241,20 @@ export class PrepareMigrationComponent implements OnInit {
   }
 
   openTargetDetailsForm() {
+    let spannerDetails: ISpannerDetails = {
+      Region: this.region,
+      Instance: this.instance
+    }
     let dialogRef = this.dialog.open(TargetDetailsFormComponent, {
       width: '30vw',
       minWidth: '400px',
       maxWidth: '500px',
-      data: this.selectedMigrationType == MigrationTypes.lowDowntimeMigration,
+      data: spannerDetails
     })
     dialogRef.afterClosed().subscribe(() => {
       this.targetDetails = {
         TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
         Dialect: localStorage.getItem(TargetDetails.Dialect) as string,
-        Region: localStorage.getItem(TargetDetails.Region) as string,
         SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
         TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string
       }
@@ -271,6 +312,7 @@ export class PrepareMigrationComponent implements OnInit {
                 this.markSchemaMigrationComplete()
                 this.hasDataMigrationStarted = false
                 localStorage.setItem(MigrationDetails.HasDataMigrationStarted, this.hasDataMigrationStarted.toString())
+                this.generatingResources = true
                 if (!displayStreamingMsg) {
                   this.snack.openSnackBarWithoutTimeout('Setting up dataflow and datastream jobs', 'Close')
                   displayStreamingMsg = true
@@ -280,6 +322,7 @@ export class PrepareMigrationComponent implements OnInit {
               }
             }
             else if (res.ProgressStatus == ProgressStatus.DataMigrationComplete) {
+              this.generatingResources = false
               this.markMigrationComplete()
             }
             // Checking for data migration in progree
