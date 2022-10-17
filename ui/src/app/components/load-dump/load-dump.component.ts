@@ -52,9 +52,17 @@ export class LoadDumpComponent implements OnInit {
     if (files) {
       this.fileToUpload = files.item(0)
       this.connectForm.patchValue({ filePath: this.fileToUpload?.name })
-      if (this.fileToUpload) {
-        this.data.uploadDumpFile(this.fileToUpload)
-      }
+      // if (this.fileToUpload) {
+      //   this.data.uploadFile(this.fileToUpload)
+      // }
+    }
+  }
+  uploadFile() {
+    console.log(this.fileToUpload, 'file')
+    if (this.fileToUpload) {
+      const uploadFormData = new FormData()
+      uploadFormData.append('myFile', this.fileToUpload, 'uploadfile.out')
+      this.data.uploadFile(uploadFormData)
     }
   }
 }

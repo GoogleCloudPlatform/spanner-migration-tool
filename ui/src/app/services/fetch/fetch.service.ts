@@ -3,13 +3,17 @@ import { Injectable } from '@angular/core'
 import IDbConfig from 'src/app/model/db-config'
 import ISession, { ISaveSessionPayload } from '../../model/session'
 import IUpdateTable from '../../model/update-table'
-import IConv, { ICreateIndex, IInterleaveStatus, IPrimaryKey, ISessionSummary } from '../../model/conv'
+import IConv, {
+  ICreateIndex,
+  IInterleaveStatus,
+  IPrimaryKey,
+  ISessionSummary,
+} from '../../model/conv'
 import IDumpConfig from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
 import IMigrationDetails, { IProgress } from 'src/app/model/migrate'
 import IConnectionProfile, { ICreateConnectionProfile } from 'src/app/model/profile'
-
 
 @Injectable({
   providedIn: 'root',
@@ -54,10 +58,12 @@ export class FetchService {
   }
 
   getConnectionProfiles(region: string, isSource: boolean) {
-    return this.http.get<IConnectionProfile[]>(`${this.url}/GetConnectionProfiles?region=${region}&source=${isSource}`)
+    return this.http.get<IConnectionProfile[]>(
+      `${this.url}/GetConnectionProfiles?region=${region}&source=${isSource}`
+    )
   }
 
-  getStaticIps(region:string) {
+  getStaticIps(region: string) {
     return this.http.get<string[]>(`${this.url}/GetStaticIps?region=${region}`)
   }
 
@@ -167,9 +173,12 @@ export class FetchService {
   }
 
   migrate(payload: IMigrationDetails) {
-    return this.http.post(`${this.url}/Migrate`,payload)
+    return this.http.post(`${this.url}/Migrate`, payload)
   }
   getProgress() {
     return this.http.get<IProgress>(`${this.url}/GetProgress`)
+  }
+  uploadFile(payload: FormData) {
+    return this.http.post(`${this.url}/uploadFile`, payload)
   }
 }

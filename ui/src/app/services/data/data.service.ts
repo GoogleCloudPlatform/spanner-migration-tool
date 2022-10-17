@@ -372,4 +372,10 @@ export class DataService {
   uploadSessionFile(file: File) {
     console.log(file)
   }
+  uploadFile(file: FormData) {
+    console.log(file)
+    this.fetch.uploadFile(file).subscribe((res: any) => {
+      console.log(res, 'res')
+    })
+  }
 }

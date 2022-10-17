@@ -39,6 +39,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/typemap/global", setTypeMapGlobal).Methods("POST")
 	router.HandleFunc("/typemap/table", updateTableSchema).Methods("POST")
 	router.HandleFunc("/setparent", setParentTable).Methods("GET")
+	router.HandleFunc("/uploadFile", uploadFile).Methods("POST")
 
 	// TODO:(searce) take constraint names themselves which are guaranteed to be unique for Spanner.
 	router.HandleFunc("/drop/fk", dropForeignKey).Methods("POST")
