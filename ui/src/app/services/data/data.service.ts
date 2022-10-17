@@ -175,7 +175,6 @@ export class DataService {
           return data.error
         } else {
           this.tableUpdatePubSub.setTableReviewChanges(data)
-          console.log(data, 'review')
           return ''
         }
       })
