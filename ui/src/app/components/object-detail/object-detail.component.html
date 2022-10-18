@@ -196,15 +196,16 @@
           <ng-container matColumnDef="spColName">
             <th mat-header-cell class="table_header" *matHeaderCellDef>Name</th>
             <td mat-cell *matCellDef="let element">
-              <div *ngIf="isEditMode && element.get('spOrder').value !== ''">
-                <input
-                  matInput
-                  class="name_input"
-                  type="text"
-                  [formControl]="element.get('spColName')"
-                  onkeypress="return /[0-9a-zA-Z\_]/i.test(event.key)"
-                />
-              </div>
+                <div *ngIf="isEditMode && element.get('spOrder').value !== ''">
+                  <input
+                    matInput
+                    class="name_input"
+                    type="text"
+                    [formControl]="element.get('spColName')"
+                    matTooltip="Must follow the required pattern [a-zA-Z0-9/_]" 
+                    [matTooltipDisabled]="!element.get('spColName')?.hasError('pattern') || !element.get('spColName')?.hasError('required') "
+                  />
+                </div>
               <p *ngIf="!isEditMode">{{ element.get('spColName').value }}</p>
             </td>
           </ng-container>
@@ -403,6 +404,8 @@
                   class="order_input"
                   type="text"
                   [formControl]="element.get('spOrder')"
+                  matTooltip="Must follow the required pattern [0-9]" 
+                  [matTooltipDisabled]="!element.get('spOrder')?.hasError('pattern')"
                 />
               </div>
               <p *ngIf="!isPkEditMode">{{ element.get('spOrder').value }}</p>
@@ -591,6 +594,8 @@
                   class="name_input"
                   type="text"
                   [formControl]="element.get('spName')"
+                  matTooltip="Must follow the required pattern [a-zA-Z0-9/_]" 
+                  [matTooltipDisabled]="!element.get('spName')?.hasError('pattern')"
                 />
               </div>
 
@@ -854,13 +859,13 @@
   <div class="save-edits">
     <mat-divider *ngIf="isEditMode || isPkEditMode || isFkEditMode"></mat-divider>
     <div class="save-button" *ngIf="isEditMode && currentTabIndex === 0">
-      <button mat-raised-button color="primary" (click)="toggleEdit()">SAVE & CONVERT</button>
+      <button mat-raised-button color="primary" (click)="toggleEdit()" [disabled]="!rowArray.valid">SAVE & CONVERT</button>
     </div>
     <div class="save-button" *ngIf="isPkEditMode && currentTabIndex === 1">
-      <button mat-raised-button color="primary" (click)="togglePkEdit()">SAVE & CONVERT</button>
+      <button mat-raised-button color="primary" (click)="togglePkEdit()" [disabled]="!pkArray.valid">SAVE & CONVERT</button>
     </div>
     <div class="save-button" *ngIf="isFkEditMode && currentTabIndex === 2">
-      <button mat-raised-button color="primary" (click)="toggleFkEdit()">SAVE & CONVERT</button>
+      <button mat-raised-button color="primary" (click)="toggleFkEdit()" [disabled]="!fkArray.valid">SAVE & CONVERT</button>
     </div>
     <div class="save-button" *ngIf="isIndexEditMode && currentTabIndex === -1">
       <button mat-raised-button color="primary" (click)="toggleIndexEdit()">SAVE & CONVERT</button>
