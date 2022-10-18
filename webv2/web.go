@@ -631,7 +631,7 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	if tableInterleaveStatus.Possible {
 
 		childPks := sessionState.Conv.SpSchema[table].Pks
-		childindex := getPrimaryKeyIndexFromOrder(childPks, 1)
+		childindex := utilities.GetPrimaryKeyIndexFromOrder(childPks, 1)
 		sessionState := session.GetSessionState()
 		schemaissue := []internal.SchemaIssue{}
 
