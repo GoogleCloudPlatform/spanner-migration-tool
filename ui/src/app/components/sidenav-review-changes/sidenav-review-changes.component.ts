@@ -8,7 +8,7 @@ import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/
 @Component({
   selector: 'app-sidenav-review-changes',
   templateUrl: './sidenav-review-changes.component.html',
-  styleUrls: ['./sidenav-review-changes.component.scss'],
+  styleUrls: ['../../../styles.scss'],
 })
 export class SidenavReviewChangesComponent implements OnInit {
   ddl: string = ''
