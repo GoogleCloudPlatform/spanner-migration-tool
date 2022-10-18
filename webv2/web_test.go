@@ -554,17 +554,19 @@ func TestSetParentTable(t *testing.T) {
 			name:       "no table name provided",
 			statusCode: http.StatusBadRequest,
 			ct: &internal.Conv{
-				Issues: map[string]map[string][]internal.SchemaIssue{},
 				SpSchema: map[string]ddl.CreateTable{"t1": {
 					Name:     "t1",
 					ColNames: []string{"a", "b", "c"},
 					ColDefs: map[string]ddl.ColumnDef{"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 						"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true}},
-					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false}},
+					Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a", Desc: false, Order: 1}},
 					Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"a"}, ReferTable: "ref_t1", ReferColumns: []string{"ref_c1"}},
 						ddl.Foreignkey{Name: "fk2", Columns: []string{"c"}, ReferTable: "ref_t2", ReferColumns: []string{"ref_c2"}}},
 				}},
+				Issues: map[string]map[string][]internal.SchemaIssue{
+					"t1": {},
+				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
@@ -573,7 +575,6 @@ func TestSetParentTable(t *testing.T) {
 		{
 			name: "table with synthetic PK",
 			ct: &internal.Conv{
-				Issues: map[string]map[string][]internal.SchemaIssue{},
 				SpSchema: map[string]ddl.CreateTable{"t1": {
 					Name:     "t1",
 					ColNames: []string{"a", "b", "c"},
@@ -590,6 +591,9 @@ func TestSetParentTable(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
+				Issues: map[string]map[string][]internal.SchemaIssue{
+					"t1": {},
+				},
 			},
 			table:            "t1",
 			statusCode:       http.StatusOK,
@@ -598,7 +602,6 @@ func TestSetParentTable(t *testing.T) {
 		{
 			name: "no valid prefix 1",
 			ct: &internal.Conv{
-				Issues: map[string]map[string][]internal.SchemaIssue{},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:     "t1",
@@ -607,7 +610,7 @@ func TestSetParentTable(t *testing.T) {
 							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}},
+						Pks: []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}},
 						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}}},
 					},
 					"t2": {
@@ -622,6 +625,9 @@ func TestSetParentTable(t *testing.T) {
 					},
 				},
 				SyntheticPKeys: map[string]internal.SyntheticPKey{"t2": internal.SyntheticPKey{Col: "synth_id"}},
+				Issues: map[string]map[string][]internal.SchemaIssue{
+					"t1": {},
+				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
@@ -634,7 +640,6 @@ func TestSetParentTable(t *testing.T) {
 		{
 			name: "no valid prefix 2",
 			ct: &internal.Conv{
-				Issues: map[string]map[string][]internal.SchemaIssue{},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:     "t1",
@@ -643,7 +648,7 @@ func TestSetParentTable(t *testing.T) {
 							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}},
+						Pks: []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}},
 						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}}},
 					},
 					"t2": {
@@ -653,8 +658,11 @@ func TestSetParentTable(t *testing.T) {
 							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}, {Col: "b", Desc: false}},
+						Pks: []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}, {Col: "b", Desc: false}},
 					},
+				},
+				Issues: map[string]map[string][]internal.SchemaIssue{
+					"t1": {},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -668,7 +676,6 @@ func TestSetParentTable(t *testing.T) {
 		{
 			name: "no valid prefix 3",
 			ct: &internal.Conv{
-				Issues: map[string]map[string][]internal.SchemaIssue{},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:     "t1",
@@ -677,7 +684,7 @@ func TestSetParentTable(t *testing.T) {
 							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}, {Col: "b", Desc: false}},
+						Pks: []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}, {Col: "b", Desc: false, Order: 2}},
 						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"c"}, ReferTable: "t2", ReferColumns: []string{"c"}}},
 					},
 					"t2": {
@@ -687,8 +694,11 @@ func TestSetParentTable(t *testing.T) {
 							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}},
+						Pks: []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}},
 					},
+				},
+				Issues: map[string]map[string][]internal.SchemaIssue{
+					"t1": {},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -702,7 +712,6 @@ func TestSetParentTable(t *testing.T) {
 		{
 			name: "successful interleave",
 			ct: &internal.Conv{
-				Issues: map[string]map[string][]internal.SchemaIssue{},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:     "t1",
@@ -711,7 +720,7 @@ func TestSetParentTable(t *testing.T) {
 							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}, {Col: "b", Desc: false}},
+						Pks: []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}, {Col: "b", Desc: false, Order: 2}},
 						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}}},
 					},
 					"t2": {
@@ -721,8 +730,11 @@ func TestSetParentTable(t *testing.T) {
 							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}},
+						Pks: []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}},
 					},
+				},
+				Issues: map[string]map[string][]internal.SchemaIssue{
+					"t1": {},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -737,7 +749,6 @@ func TestSetParentTable(t *testing.T) {
 		{
 			name: "successful interleave with same primary key",
 			ct: &internal.Conv{
-				Issues: map[string]map[string][]internal.SchemaIssue{},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:     "t1",
@@ -746,7 +757,7 @@ func TestSetParentTable(t *testing.T) {
 							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}, {Col: "b", Desc: false}},
+						Pks: []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}, {Col: "b", Desc: false, Order: 2}},
 						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"a", "b"}, ReferTable: "t2", ReferColumns: []string{"a", "b"}}},
 					},
 					"t2": {
@@ -756,8 +767,11 @@ func TestSetParentTable(t *testing.T) {
 							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}, {Col: "b", Desc: false}},
+						Pks: []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}, {Col: "b", Desc: false, Order: 2}},
 					},
+				},
+				Issues: map[string]map[string][]internal.SchemaIssue{
+					"t1": {},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -772,7 +786,6 @@ func TestSetParentTable(t *testing.T) {
 		{
 			name: "successful interleave with multiple fks refering multiple tables",
 			ct: &internal.Conv{
-				Issues: map[string]map[string][]internal.SchemaIssue{},
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Name:     "t1",
@@ -781,7 +794,7 @@ func TestSetParentTable(t *testing.T) {
 							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}, {Col: "b", Desc: false}},
+						Pks: []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}, {Col: "b", Desc: false, Order: 2}},
 						Fks: []ddl.Foreignkey{
 							{Name: "fk1", Columns: []string{"c"}, ReferTable: "t3", ReferColumns: []string{"c"}},
 							{Name: "fk1", Columns: []string{"a", "b"}, ReferTable: "t2", ReferColumns: []string{"a", "b"}}},
@@ -793,7 +806,7 @@ func TestSetParentTable(t *testing.T) {
 							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "a", Desc: false}, {Col: "b", Desc: false}},
+						Pks: []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}, {Col: "b", Desc: false, Order: 2}},
 					},
 					"t3": {
 						Name:     "t3",
@@ -802,8 +815,11 @@ func TestSetParentTable(t *testing.T) {
 							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 						},
-						Pks: []ddl.IndexKey{{Col: "c", Desc: false}},
+						Pks: []ddl.IndexKey{{Col: "c", Desc: false, Order: 1}},
 					},
+				},
+				Issues: map[string]map[string][]internal.SchemaIssue{
+					"t1": {},
 				},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),

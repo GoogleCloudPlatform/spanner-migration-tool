@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/spanner"
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
@@ -181,6 +182,7 @@ func SaveRemoteSession(w http.ResponseWriter, r *http.Request) {
 
 	var sm SessionMetadata
 	err = json.Unmarshal(reqBody, &sm)
+
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
@@ -204,7 +206,16 @@ func SaveRemoteSession(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: To compute few metadata fields if empty
 	t := time.Now()
-	sm.DatabaseType = sessionState.Driver
+
+	switch sessionState.Driver {
+	case constants.MYSQLDUMP:
+		sm.DatabaseType = constants.MYSQL
+	case constants.PGDUMP:
+		sm.DatabaseType = constants.POSTGRES
+	default:
+		sm.DatabaseType = sessionState.Driver
+	}
+
 	scs := SchemaConversionSession{
 		VersionId:              uuid.New().String(),
 		PreviousVersionId:      []string{},
