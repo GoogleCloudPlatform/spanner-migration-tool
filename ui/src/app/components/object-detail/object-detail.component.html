@@ -110,7 +110,10 @@
     *ngIf="currentObject!.type === 'tableName'"
     (selectedTabChange)="tabChanged($event)"
   >
-    <mat-tab label="COLUMNS">
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <span [ngClass]="{ 'blue-font-color': currentTabIndex ===0}">COLUMNS </span>
+      </ng-template>
       <div class="column-tab-container">
         <table mat-table [dataSource]="dataSource">
           <ng-container matColumnDef="srcDatabase">
@@ -317,7 +320,10 @@
       </div>
     </mat-tab>
 
-    <mat-tab label="PRIMARY KEY">
+    <mat-tab >
+      <ng-template mat-tab-label>
+        <span [ngClass]="{ 'blue-font-color': currentTabIndex ===1}">PRIMARY KEY </span>
+      </ng-template>
       <div class="pk-tab-container">
         <table mat-table [dataSource]="pkDataSource">
           <ng-container matColumnDef="srcDatabase">
@@ -526,7 +532,10 @@
       </div>
     </mat-tab>
 
-    <mat-tab label="FOREIGN KEY">
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <span [ngClass]="{ 'blue-font-color': currentTabIndex ===2}">FOREIGN KEY</span>
+      </ng-template>
       <div class="fk-tab-container">
         <table mat-table [dataSource]="fkDataSource">
           <ng-container matColumnDef="srcDatabase">
@@ -721,7 +730,11 @@
       </div>
     </mat-tab>
 
-    <mat-tab label="SQL" *ngIf="currentObject!.isSpannerNode && !currentObject!.isDeleted">
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <span  *ngIf="currentObject!.isSpannerNode && !currentObject!.isDeleted" [ngClass]="{ 'blue-font-color': currentTabIndex ===3}">SQL</span>
+      </ng-template>
+      
       <div class="ddl_container">
         <pre><code>{{ddlStmts[currentObject!.name]}}</code></pre>
       </div>
