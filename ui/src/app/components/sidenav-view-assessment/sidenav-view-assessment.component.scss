@@ -1,43 +1,5 @@
-.header {
-  padding: 5px 20px;
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid rgb(208, 204, 204);
-  height:25px ;
-  .header-title {
-    margin: 0;
-  }
-}
-.content {
-  padding: 10px 20px;
-}
 table.mat-table {
   width: 100%;
-}
-.percentage-bar {
-  height: 0.8rem;
-  display: flex;
-  flex-direction: row;
-  border: 5px;
-  div {
-    height: 0.8rem;
-  }
-}
-
-.percentage-marker {
-  display: flex;
-  justify-content: space-between;
-}
-
-.percentage-indent {
-  display: flex;
-  span {
-    display: flex;
-    align-items: center;
-    padding-right: 0.5rem;
-  }
 }
 
 .icon-size {
@@ -48,21 +10,9 @@ table.mat-table {
   vertical-align: inherit;
 }
 
-.conversionByTable{
-  box-shadow: 0px 2px 1px -1px rgb(0 0 0 / 20%), 0px 1px 1px 0px rgb(0 0 0 / 14%), 0px 1px 3px 0px rgb(0 0 0 / 12%);
-}
-
-.conversionByPercentage{
-  box-shadow: 0px 2px 1px -1px rgb(0 0 0 / 20%), 0px 1px 1px 0px rgb(0 0 0 / 14%), 0px 1px 3px 0px rgb(0 0 0 / 12%);
-}
-
 .mat-header-cell{
   border-style: none;
  
-}
-.header-2{
-  border-bottom-width: 1px;
-  border-bottom-style: solid;
 }
 
 .icons{
@@ -73,10 +23,5 @@ table.mat-table {
 .cells{
   text-align: center;
 }
-h3{
-  margin-top :10px;
-  margin-bottom: 0px;
-}
-
 
 
