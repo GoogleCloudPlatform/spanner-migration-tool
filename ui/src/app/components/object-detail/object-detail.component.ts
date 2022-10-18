@@ -703,12 +703,16 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   indexOrderValidation() {
-    let arr = this.localIndexData.map((item) => Number(item.spOrder))
+    let arr = this.localIndexData
+      .filter((idx) => {
+        return idx.spColName != ''
+      })
+      .map((item) => Number(item.spOrder))
     arr.sort((a, b) => a - b)
     if (arr[arr.length - 1] > arr.length) {
       arr.forEach((num: number, i: number) => {
         this.localIndexData.forEach((ind: IIndexData) => {
-          if (ind.spOrder == num) {
+          if (ind.spColName != '' && ind.spOrder == num) {
             ind.spOrder = i + 1
           }
         })
