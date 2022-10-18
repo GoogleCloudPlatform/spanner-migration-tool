@@ -27,7 +27,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
-	common "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
+	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
@@ -166,7 +166,7 @@ func ResumeSession(w http.ResponseWriter, r *http.Request) {
 	sessionState.Driver = convm.DatabaseType
 	sessionState.DbName = convm.DatabaseName
 	sessionState.SourceDBConnDetails = SourceDBConnDetails{
-		ConnectionType: common.SESSION_FILE_MODE,
+		ConnectionType: helpers.SESSION_FILE_MODE,
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -292,5 +292,5 @@ func getMetadataDbUri() string {
 	if sessionState.GCPProjectID == "" || sessionState.SpannerInstanceID == "" {
 		return ""
 	}
-	return common.GetSpannerUri(sessionState.GCPProjectID, sessionState.SpannerInstanceID)
+	return helpers.GetSpannerUri(sessionState.GCPProjectID, sessionState.SpannerInstanceID)
 }

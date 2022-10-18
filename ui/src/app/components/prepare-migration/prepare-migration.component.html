@@ -115,6 +115,19 @@
         <mat-progress-bar mode="determinate" [value]="dataMigrationProgress"></mat-progress-bar>
         <span> {{this.dataProgressMessage}}</span>
     </div>
+    <div *ngIf="isResourceGenerated">
+        <h3> Generated Resources:</h3>
+        <li>Spanner database: <a [href]="resourcesGenerated.DatabaseUrl">{{resourcesGenerated.DatabaseName}}</a></li>
+        <li>GCS bucket: <a [href]="resourcesGenerated.BucketUrl">{{resourcesGenerated.BucketName}}</a></li>
+        <span *ngIf="resourcesGenerated.DataStreamJobName!==''">
+            <li> Datastream job: <a
+                    [href]="resourcesGenerated.DataStreamJobUrl">{{resourcesGenerated.DataStreamJobName}}</a></li>
+        </span>
+        <span *ngIf="resourcesGenerated.DataflowJobName!==''">
+            <li>Dataflow job: <a [href]="resourcesGenerated.DataflowJobUrl">{{resourcesGenerated.DataflowJobName}}</a>
+            </li>
+        </span>
+    </div>
     <button mat-raised-button type="submit" color="primary" (click)="migrate()" class="migrate"
         [disabled]="!((isTargetDetailSet && (selectedMigrationType ==='lowdt') && isSourceConnectionProfileSet && isTargetConnectionProfileSet) || (isTargetDetailSet && (selectedMigrationType ==='bulk'))) || isMigrationInProgress">Migrate</button>
 </div>

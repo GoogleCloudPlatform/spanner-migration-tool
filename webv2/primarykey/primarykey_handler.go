@@ -22,7 +22,6 @@ import (
 	"net/http"
 
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
-	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/index"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 
@@ -119,7 +118,7 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	RemoveInterleave(sessionState.Conv, spannerTable)
-	helpers.UpdateSessionFile()
+	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,

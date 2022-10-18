@@ -8,5 +8,4 @@ export interface ICreateConnectionProfile{
     Region: string
     ValidateOnly: boolean
     IsSource: boolean
-    Bucket: string
 }

@@ -210,5 +210,4 @@ func removeColumnIssue(schemaissue []internal.SchemaIssue) []internal.SchemaIssu
 	}
 
 	return schemaissue
-
 }
