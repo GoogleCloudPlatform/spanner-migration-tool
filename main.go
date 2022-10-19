@@ -146,10 +146,10 @@ func main() {
 	}
 
 	// Note: the web interface does not use any commandline flags.
-	// if webapiv2 {
-	// 	webv2.App()
-	// 	return
-	// }
+	if webapiv2 {
+		webv2.App()
+		return
+	}
 
 	if didSetVerboseTwice() {
 		panic(fmt.Errorf("cannot set both -v and -verbose flags"))
