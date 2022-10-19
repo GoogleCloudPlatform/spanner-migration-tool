@@ -190,9 +190,10 @@
     flex-direction: row;
     justify-content: left;
     align-items: center;
-    .note{
-      color:  #1966D2;
+    .suggestion{
+      color:  #f6be00;
       font-size: 18px;
+      transform: rotate(180deg)
     }
 
     .sp-datatype-suggestion-icon {
