@@ -321,6 +321,10 @@ dropped.txt file. This subcommand requires users to pass the session file (which
 
 This subcommand will generate a schema as well as perform data migration and report on the quality of both schema migration and data migration. This subcommand can be used to do a quick evaluation for the migration and get started quickly on Spanner.
 
+#### harbourbridge `web`
+
+This subcommand will run the Harbourbridge UI locally. The UI can be used to perform assisted schema and data migration.
+
 ### Command line flags
 
 This section describes the flags common across all the subcommands. For flags
