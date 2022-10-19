@@ -206,9 +206,17 @@ export class ConversionService {
       (name: string, i: number) => {
         let spColName = data.ToSpanner[srcTableName]?.Cols[name]
         let srcPks = data.SrcSchema[srcTableName].PrimaryKeys
+        let spPkOrder
+        if (spTableName) {
+          data.SpSchema[spTableName].Pks.forEach((col: IIndexKey) => {
+            if (col.Col == name) {
+              spPkOrder = col.Order
+            }
+          })
+        }
         let spannerColDef = spTableName ? data.SpSchema[spTableName]?.ColDefs[spColName] : null
         return {
-          spOrder: spannerColDef ? i + 1 : '',
+          spOrder: spPkOrder ? Number(spPkOrder) : i + 1,
           srcOrder: i + 1,
           spColName: spannerColDef ? spColName : '',
           spDataType: spannerColDef ? spannerColDef.T.Name : '',
@@ -342,7 +350,7 @@ export class ConversionService {
                 ? srcIndexs[0].Keys[i].Desc
                 : undefined,
             spColName: idx.Col,
-            spOrder: i + 1,
+            spOrder: idx.Order,
             spDesc: idx.Desc,
           }
         })
@@ -355,9 +363,9 @@ export class ConversionService {
             srcColName: idx.Column,
             srcOrder: index + 1,
             srcDesc: idx.Desc,
-            spColName: undefined,
-            spOrder: undefined,
-            spDesc: undefined,
+            spColName: '',
+            spOrder: '',
+            spDesc: '',
           })
         }
       })

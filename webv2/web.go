@@ -243,6 +243,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv = conv
 
 	primarykey.DetectHotspot()
+	index.AssignInitialOrders()
 	index.IndexSuggestion()
 
 	sessionMetadata := session.SessionMetadata{
@@ -310,6 +311,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	uniqueid.AssignUniqueId(conv)
 	sessionState.Conv = conv
 	primarykey.DetectHotspot()
+	index.AssignInitialOrders()
 	index.IndexSuggestion()
 
 	sessionState.SessionMetadata = sessionMetadata
@@ -348,6 +350,19 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	conv := internal.MakeConv()
+	metadata := session.SessionMetadata{}
+
+	err = session.ReadSessionFileForSessionMetadata(&metadata, s.FilePath)
+	if err != nil {
+		switch err.(type) {
+		case *fs.PathError:
+			http.Error(w, fmt.Sprintf("Failed to open session file : %v, no such file or directory", s.FilePath), http.StatusNotFound)
+		default:
+			http.Error(w, fmt.Sprintf("Failed to parse session file : %v", err), http.StatusBadRequest)
+		}
+		return
+	}
+
 	err = conversion.ReadSessionFile(conv, s.FilePath)
 	if err != nil {
 		switch err.(type) {
@@ -362,7 +377,11 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionMetadata := session.SessionMetadata{
 		SessionName:  "NewSession",
 		DatabaseType: s.Driver,
-		DatabaseName: strings.TrimRight(filepath.Base(s.FilePath), filepath.Ext(s.FilePath)),
+		DatabaseName: metadata.DatabaseName,
+	}
+
+	if sessionMetadata.DatabaseName == "" {
+		sessionMetadata.DatabaseName = strings.TrimRight(filepath.Base(s.FilePath), filepath.Ext(s.FilePath))
 	}
 
 	sessionState.Conv = conv
@@ -372,6 +391,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv = conv
 
 	primarykey.DetectHotspot()
+	index.AssignInitialOrders()
 	index.IndexSuggestion()
 
 	sessionState.SessionMetadata = sessionMetadata
@@ -608,6 +628,24 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	}
 	tableInterleaveStatus := parentTableHelper(table, update)
 
+	if tableInterleaveStatus.Possible {
+
+		childPks := sessionState.Conv.SpSchema[table].Pks
+		childindex := utilities.GetPrimaryKeyIndexFromOrder(childPks, 1)
+		sessionState := session.GetSessionState()
+		schemaissue := []internal.SchemaIssue{}
+
+		column := childPks[childindex].Col
+		schemaissue = sessionState.Conv.Issues[table][column]
+		if update {
+			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
+		} else {
+			schemaissue = append(schemaissue, internal.InterleavedOrder)
+		}
+
+		sessionState.Conv.Issues[table][column] = schemaissue
+	}
+
 	index.IndexSuggestion()
 	session.UpdateSessionFile()
 	w.WriteHeader(http.StatusOK)
@@ -683,8 +721,6 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-
-				schemaissue = append(schemaissue, internal.InterleavedOrder)
 
 				sessionState.Conv.Issues[table][column] = schemaissue
 				tableInterleaveStatus.Possible = true
@@ -1351,6 +1387,18 @@ func updateIndexes(w http.ResponseWriter, r *http.Request) {
 	newIndexes := []ddl.CreateIndex{}
 	if err = json.Unmarshal(reqBody, &newIndexes); err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+
+	list := []int{}
+	for i := 0; i < len(newIndexes); i++ {
+		for j := 0; j < len(newIndexes[i].Keys); j++ {
+			list = append(list, newIndexes[i].Keys[j].Order)
+		}
+	}
+
+	if utilities.DuplicateInArray(list) != -1 {
+		http.Error(w, fmt.Sprintf("Two Index columns can not have same order"), http.StatusBadRequest)
 		return
 	}
 

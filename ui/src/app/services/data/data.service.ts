@@ -37,7 +37,7 @@ export class DataService {
     .asObservable()
     .pipe(filter((res) => Object.keys(res).length !== 0))
   typeMap = this.typeMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
-  summary = this.summarySub.asObservable().pipe(filter((res) => res.size > 0))
+  summary = this.summarySub.asObservable().pipe(filter((res) => res.size >= 0))
   ddl = this.ddlSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   tableInterleaveStatus = this.tableInterleaveStatusSub.asObservable()
   sessions = this.sessionsSub.asObservable()
@@ -248,6 +248,7 @@ export class DataService {
           return data.error
         } else {
           this.convSubject.next(data)
+          this.getDdl()
           return ''
         }
       })
@@ -265,6 +266,7 @@ export class DataService {
           return data.error
         } else {
           this.convSubject.next(data)
+          this.getDdl()
           return ''
         }
       })
@@ -282,6 +284,7 @@ export class DataService {
           return data.error
         } else {
           this.convSubject.next(data)
+          this.getDdl()
           return ''
         }
       })
@@ -341,16 +344,21 @@ export class DataService {
     })
   }
   updateIndex(tableName: string, payload: ICreateIndex[]) {
-    this.fetch.updateIndex(tableName, payload).subscribe({
-      next: (res: IConv) => {
-        this.convSubject.next(res)
-        this.getDdl()
-        this.snackbar.openSnackBar('Index updated successfully.', 'Close', 5)
-      },
-      error: (err: any) => {
-        this.snackbar.openSnackBar(err.error, 'Close')
-      },
-    })
+    return this.fetch.updateIndex(tableName, payload).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data: any) => {
+        if (data.error) {
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          this.getDdl()
+          return ''
+        }
+      })
+    )
   }
 
   dropIndex(tableName: string, indexName: string): Observable<string> {
@@ -382,6 +390,9 @@ export class DataService {
   setInterleave(tableName: string) {
     this.fetch.setInterleave(tableName).subscribe((res: any) => {
       this.getDdl()
+      if (res.sessionState) {
+        this.convSubject.next(res.sessionState as IConv)
+      }
     })
   }
 }
