@@ -190,11 +190,11 @@
     flex-direction: row;
     justify-content: left;
     align-items: center;
-    .suggestion{
-      color:  #f6be00;
+    .warning{
+      color: #ff9800;
       font-size: 18px;
-      transform: rotate(180deg)
     }
+    
 
     .sp-datatype-suggestion-icon {
       margin-right: 5px;
