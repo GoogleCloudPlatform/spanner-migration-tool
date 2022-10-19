@@ -10,6 +10,7 @@ import { InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressSt
 import { interval, Subscription } from 'rxjs'
 import { DataService } from 'src/app/services/data/data.service'
 import { ConnectionProfileFormComponent } from '../connection-profile-form/connection-profile-form.component'
+import { SourceDetailsFormComponent } from '../source-details-form/source-details-form.component'
 import { EndMigrationComponent } from '../end-migration/end-migration.component'
 @Component({
   selector: 'app-prepare-migration',
@@ -238,6 +239,14 @@ export class PrepareMigrationComponent implements OnInit {
       data :payload
     })
     dialogRef.afterClosed().subscribe()
+  }
+
+  openSourceDetailsForm() {
+    let dialogRef = this.dialog.open(SourceDetailsFormComponent, {
+      width: '30vw',
+      minWidth: '400px',
+      maxWidth: '500px',
+    })
   }
 
   openTargetDetailsForm() {

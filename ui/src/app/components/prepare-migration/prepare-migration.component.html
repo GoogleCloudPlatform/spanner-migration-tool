@@ -56,7 +56,19 @@
             <mat-card-title>Prerequisites</mat-card-title>
             <mat-card-subtitle>Before we begin, please ensure you have done the following:</mat-card-subtitle>
             <hr />
+            <div *ngIf="(connectionType ==='sessionFile')">
+                <h3>Source database details:</h3>
+                <p class="point">
+                <span class="bullet">1</span>
+                <span>Setup Source database details</span><span><button mat-button class="configure"
+                        (click)="openSourceDetailsForm()" [disabled]="isMigrationInProgress">
+                        Configure
+                        <mat-icon>edit</mat-icon>
+                    </button></span>
+                    </p>
+            </div>
             <div>
+                <h3>Target database details:</h3>
                 <p class="point">
                     <span class="bullet">1</span>
                     <span>Setup Target details</span><span><button mat-button class="configure"

@@ -128,7 +128,6 @@ type migrationDetails struct {
 
 type targetDetails struct {
 	TargetDB                    string `json:"TargetDB"`
-	Region                      string `json:"Region"`
 	SourceConnectionProfileName string `json:"SourceConnProfile"`
 	TargetConnectionProfileName string `json:"TargetConnProfile"`
 }
@@ -1352,7 +1351,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 		if err != nil {
 			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while getting target bucket: %v", err)
 		}
-		err = createStreamingCfgFile(sessionState.GCPProjectID, details.TargetDetails, fileName, sessionState.Bucket)
+		err = createStreamingCfgFile(sessionState, details.TargetDetails, fileName)
 		if err != nil {
 			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while creating streaming config file: %v", err)
 		}
@@ -1392,26 +1391,26 @@ func writeSessionFile(sessionState *session.SessionState) error {
 	return nil
 }
 
-func createStreamingCfgFile(projectId string, targetDetails targetDetails, fileName, bucket string) error {
+func createStreamingCfgFile(sessionState *session.SessionState, targetDetails targetDetails, fileName string) error {
 	data := StreamingCfg{
 		DatastreamCfg: DatastreamCfg{
 			StreamId:          "",
-			StreamLocation:    targetDetails.Region,
+			StreamLocation:    sessionState.Region,
 			StreamDisplayName: "",
 			SourceConnectionConfig: ConnectionConfig{
 				Name:     targetDetails.SourceConnectionProfileName,
-				Location: targetDetails.Region,
+				Location: sessionState.Region,
 			},
 			TargetConnectionConfig: ConnectionConfig{
 				Name:     targetDetails.TargetConnectionProfileName,
-				Location: targetDetails.Region,
+				Location: sessionState.Region,
 			},
 		},
 		DataflowCfg: DataflowCfg{
 			JobName:  "",
-			Location: targetDetails.Region,
+			Location: sessionState.Region,
 		},
-		TmpDir: "gs://" + bucket,
+		TmpDir: "gs://" + sessionState.Bucket,
 	}
 
 	file, err := json.MarshalIndent(data, "", " ")

@@ -1,0 +1,81 @@
+<div class="radio-button-container">
+    <mat-radio-group [(ngModel)]="selectedOption" class="radio-button-group">
+        <mat-radio-button *ngFor="let option of inputOptions" [value]="option.value"
+            (change)="onItemChange(option.value)">
+            {{option.display}}</mat-radio-button>
+    </mat-radio-group>
+</div>
+
+<div class="connect-load-database-container">
+    <div class="form-container">
+
+        <form [formGroup]="connectForm" (ngSubmit)="setSourceProfile()">
+            <div *ngIf="(selectedOption === 'dumpFile')">
+                <h4>Load from database dump</h4>
+
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>Database Engine</mat-label>
+                    <mat-select matSelect name="dbEngine" formControlName="dbEngine" appearance="outline">
+                        <mat-option *ngFor="let element of dbEngineList" [value]="element.value">
+                            {{ element.displayName }}
+                        </mat-option>
+                    </mat-select>
+                </mat-form-field>
+
+                Dump File
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>File path</mat-label>
+                    <input matInput placeholder="File path" name="filePath" type="text" formControlName="filePath" />
+                </mat-form-field>
+                <br />
+                <button mat-raised-button type="submit" color="primary" [disabled]="!connectForm.valid">
+                    Convert
+                </button>
+                <button mat-button color="primary" mat-dialog-close>Cancel</button>
+            </div>
+            <div *ngIf="(selectedOption === 'directConnect')">
+                <h4>Connect to Source Database</h4>
+
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>Database Engine</mat-label>
+                    <mat-select matSelect name="dbEngine" formControlName="dbEngine" appearance="outline">
+                        <mat-option *ngFor="let element of dbEngineList" [value]="element.value">
+                            {{ element.displayName }}
+                        </mat-option>
+                    </mat-select>
+                </mat-form-field>
+                Connection Detail
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>Hostname</mat-label>
+                    <input matInput placeholder="127.0.0.1" name="hostName" type="text" formControlName="hostName" />
+                </mat-form-field>
+
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>Port</mat-label>
+                    <input matInput placeholder="3306" name="port" type="text" formControlName="port" />
+                    <mat-error> Only numbers are allowed. </mat-error>
+                </mat-form-field>
+                <br />
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>User name</mat-label>
+                    <input matInput placeholder="root" name="userName" type="text" formControlName="userName" />
+                </mat-form-field>
+
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>Password</mat-label>
+                    <input matInput name="password" type="password" formControlName="password" />
+                </mat-form-field>
+                <br />
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>Database Name</mat-label>
+                    <input matInput name="dbname" type="text" formControlName="dbName" />
+                </mat-form-field>
+                <br />
+                <button mat-raised-button type="submit" color="primary" [disabled]="!connectForm.valid">
+                    Convert
+                </button>
+                <button mat-button color="primary" mat-dialog-close>Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
