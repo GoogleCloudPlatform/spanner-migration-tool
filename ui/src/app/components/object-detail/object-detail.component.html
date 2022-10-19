@@ -203,7 +203,7 @@
                     type="text"
                     [formControl]="element.get('spColName')"
                     matTooltip="Must follow the required pattern [a-zA-Z0-9/_]" 
-                    [matTooltipDisabled]="!element.get('spColName')?.hasError('pattern') || !element.get('spColName')?.hasError('required') "
+                    [matTooltipDisabled]="!element.get('spColName')?.hasError('pattern')"
                   />
                 </div>
               <p *ngIf="!isEditMode">{{ element.get('spColName').value }}</p>
