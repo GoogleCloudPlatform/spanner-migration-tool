@@ -59,6 +59,11 @@
   }
 }
 
+.columns-tab {
+  display: flex;
+  flex-direction: row;
+}
+
 .add-index-column-container {
   margin-left: 45%;
   padding: 10px;

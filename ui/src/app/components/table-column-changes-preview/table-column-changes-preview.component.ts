@@ -4,7 +4,7 @@ import { IReviewInterleaveTableChanges, ITableColumnChanges } from 'src/app/mode
 @Component({
   selector: 'app-table-column-changes-preview',
   templateUrl: './table-column-changes-preview.component.html',
-  styleUrls: ['../../../styles.scss'],
+  styleUrls: ['./table-column-changes-preview.component.scss'],
 })
 export class TableColumnChangesPreviewComponent implements OnInit {
   @Input() tableChange: IReviewInterleaveTableChanges = { InterleaveColumnChanges: [], Table: '' }
