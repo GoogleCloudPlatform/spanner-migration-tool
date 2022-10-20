@@ -177,6 +177,7 @@ export class ObjectDetailComponent implements OnInit {
 
   setSpTableRows() {
     this.spRowArray = new FormArray([])
+    console.log(this.localTableData, 'localTableData')
 
     this.localTableData.forEach((row) => {
       if (row.spOrder) {
@@ -346,7 +347,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropColumnFromUI(colName: string) {
-    this.tableData.forEach((col: IColumnTabData, i: number) => {
+    this.localTableData.forEach((col: IColumnTabData, i: number) => {
       if (colName == col.srcColName) {
         col.spColName = col.spColName
         col.spDataType = ''
@@ -549,9 +550,7 @@ export class ObjectDetailComponent implements OnInit {
         })
       })
     }
-    if (arr.length > 0) {
-      this.pkData[0].spOrder = 1
-    }
+
     if (arr[0] == 0 && arr[arr.length - 1] <= arr.length) {
       let missingOrder: number
       for (let i = 0; i < arr.length; i++) {

@@ -216,7 +216,7 @@ export class ConversionService {
         }
         let spannerColDef = spTableName ? data.SpSchema[spTableName]?.ColDefs[spColName] : null
         return {
-          spOrder: spPkOrder ? Number(spPkOrder) : i + 1,
+          spOrder: spannerColDef ? i + 1 : '',
           srcOrder: i + 1,
           spColName: spannerColDef ? spColName : '',
           spDataType: spannerColDef ? spannerColDef.T.Name : '',
