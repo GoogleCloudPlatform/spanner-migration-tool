@@ -78,7 +78,7 @@ func TestReport(t *testing.T) {
 		`----------------------------
 Summary of Conversion
 ----------------------------
-Schema conversion: GOOD (99.99412% of 17006 columns mapped cleanly) + some missing primary keys.
+Schema conversion: POOR (65% of 17006 columns mapped cleanly) + some missing primary keys.
 Data conversion: POOR (66% of 6000 rows written to Spanner).
 
 The remainder of this report provides stats on the mysqldump statements
@@ -113,15 +113,13 @@ Name Changes in Migration
 ----------------------------
 Table bad_schema
 ----------------------------
-Schema conversion: GOOD (all columns mapped cleanly, but missing primary key).
+Schema conversion: POOR (50% of 2 columns mapped cleanly) + missing primary key.
 Data conversion: OK (94% of 1000 rows written to Spanner).
 
-Warning
+Warnings
 1) Column 'synth_id' was added because this table didn't have a primary key.
    Spanner requires a primary key for every table.
-
-Note
-1) Some columns will consume more storage in Spanner e.g. for column 'a', source
+2) Some columns will consume more storage in Spanner e.g. for column 'a', source
    DB type float is mapped to Spanner type float64.
 
 ----------------------------
@@ -149,15 +147,13 @@ Data conversion: NONE (no data rows found).
 ----------------------------
 Table no_pk
 ----------------------------
-Schema conversion: GOOD (all columns mapped cleanly, but missing primary key).
+Schema conversion: POOR (67% of 3 columns mapped cleanly) + missing primary key.
 Data conversion: POOR (60% of 5000 rows written to Spanner).
 
-Warning
+Warnings
 1) Column 'synth_id' was added because this table didn't have a primary key.
    Spanner requires a primary key for every table.
-
-Note
-1) Some columns will consume more storage in Spanner e.g. for column 'b', source
+2) Some columns will consume more storage in Spanner e.g. for column 'b', source
    DB type int(11) is mapped to Spanner type int64.
 
 ----------------------------
