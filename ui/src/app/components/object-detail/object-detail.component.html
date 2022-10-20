@@ -58,7 +58,7 @@
       </svg>
       <span class="mr10">{{ ' ' + currentObject!.name + ' ' }}</span>
       <span *ngIf="currentObject!.parent != ''"
-        >( PART OF {{ currentObject!.parent | uppercase }} )
+        >( TABLE: {{ currentObject!.parent | uppercase }} )
       </span>
 
       <!-- If come from source tree then hide edit button then this centeral panel should be view only  -->
@@ -186,13 +186,6 @@
             </td>
           </ng-container>
 
-          <ng-container matColumnDef="spOrder">
-            <th class="table_header" mat-header-cell *matHeaderCellDef>Order</th>
-            <td mat-cell *matCellDef="let element">
-              {{ element.get('spOrder').value }}
-            </td>
-          </ng-container>
-
           <ng-container matColumnDef="spColName">
             <th mat-header-cell class="table_header" *matHeaderCellDef>Name</th>
             <td mat-cell *matCellDef="let element">
@@ -202,7 +195,7 @@
                     class="name_input"
                     type="text"
                     [formControl]="element.get('spColName')"
-                    matTooltip="Must follow the required pattern [a-zA-Z0-9/_]" 
+                    matTooltip="No special characters allowed except underscore." 
                     [matTooltipDisabled]="!element.get('spColName')?.hasError('pattern')"
                   />
                 </div>
@@ -327,16 +320,18 @@
           </ng-container>
 
           <ng-container matColumnDef="spDatabase">
-            <th mat-header-cell *matHeaderCellDef class="db_name" colspan="5">
+            <th mat-header-cell *matHeaderCellDef class="db_name" colspan="6">
               <div class="spanner_edit-button">
                 <span>Spanner</span>
-                <div *ngIf="!isPkEditMode && !currentObject.isDeleted">
-                  <button
-                    mat-stroked-button
-                    color="primary"
-                    (click)="togglePkEdit()"
-                    *ngIf="currentObject!.isSpannerNode"
-                  >
+                <div
+                  *ngIf="
+                    !isPkEditMode &&
+                    pkDataSource.length > 0 &&
+                    currentObject!.isSpannerNode &&
+                    !currentObject.isDeleted
+                  "
+                >
+                  <button mat-stroked-button color="primary" (click)="togglePkEdit()">
                     <mat-icon class="edit-icon">edit</mat-icon>
                     EDIT
                   </button>
@@ -404,7 +399,7 @@
                   class="order_input"
                   type="text"
                   [formControl]="element.get('spOrder')"
-                  matTooltip="Must follow the required pattern [0-9]" 
+                  matTooltip="Must have a value greater than 0." 
                   [matTooltipDisabled]="!element.get('spOrder')?.hasError('pattern')"
                 />
               </div>
@@ -594,7 +589,7 @@
                   class="name_input"
                   type="text"
                   [formControl]="element.get('spName')"
-                  matTooltip="Must follow the required pattern [a-zA-Z0-9/_]" 
+                  matTooltip="No special characters allowed except underscore." 
                   [matTooltipDisabled]="!element.get('spName')?.hasError('pattern')"
                 />
               </div>
@@ -789,13 +784,12 @@
       <ng-container matColumnDef="spIndexOrder">
         <th class="table_header" mat-header-cell *matHeaderCellDef>Column Order</th>
         <td mat-cell *matCellDef="let element">
-          <div *ngIf="isIndexEditMode && element.get('spOrder').value">
+          <div *ngIf="isIndexEditMode && element.get('spColName').value">
             <input
               matInput
               class="order_input"
-              type="text"
+              type="number"
               [formControl]="element.get('spOrder')"
-              readonly
             />
           </div>
           <p *ngIf="!isIndexEditMode">{{ element.get('spOrder').value }}</p>
@@ -858,17 +852,54 @@
 
   <div class="save-edits">
     <mat-divider *ngIf="isEditMode || isPkEditMode || isFkEditMode"></mat-divider>
+
     <div class="save-button" *ngIf="isEditMode && currentTabIndex === 0">
-      <button mat-raised-button color="primary" (click)="toggleEdit()" [disabled]="!rowArray.valid">SAVE & CONVERT</button>
+      <button mat-raised-button color="primary" (click)="saveColumnTable()" [disabled]="!rowArray.valid">SAVE & CONVERT</button>
+      <button
+        class="cancel-button"
+        mat-raised-button
+        color="primary"
+        (click)="toggleEdit()"
+        *ngIf="currentObject!.isSpannerNode"
+      >
+        CANCEL
+      </button>
     </div>
     <div class="save-button" *ngIf="isPkEditMode && currentTabIndex === 1">
-      <button mat-raised-button color="primary" (click)="togglePkEdit()" [disabled]="!pkArray.valid">SAVE & CONVERT</button>
+      <button mat-raised-button color="primary" (click)="savePk()" [disabled]="!pkArray.valid">SAVE & CONVERT</button>
+      <button
+        class="cancel-button"
+        mat-raised-button
+        color="primary"
+        (click)="togglePkEdit()"
+        *ngIf="currentObject!.isSpannerNode"
+      >
+        CANCEL
+      </button>
     </div>
     <div class="save-button" *ngIf="isFkEditMode && currentTabIndex === 2">
-      <button mat-raised-button color="primary" (click)="toggleFkEdit()" [disabled]="!fkArray.valid">SAVE & CONVERT</button>
+      <button mat-raised-button color="primary" (click)="saveFk()" [disabled]="!fkArray.valid">SAVE & CONVERT</button>
+      <button
+        class="cancel-button"
+        mat-raised-button
+        color="primary"
+        (click)="toggleFkEdit()"
+        *ngIf="currentObject!.isSpannerNode"
+      >
+        CANCEL
+      </button>
     </div>
     <div class="save-button" *ngIf="isIndexEditMode && currentTabIndex === -1">
-      <button mat-raised-button color="primary" (click)="toggleIndexEdit()">SAVE & CONVERT</button>
+      <button mat-raised-button color="primary" (click)="saveIndex()">SAVE & CONVERT</button>
+      <button
+        class="cancel-button"
+        mat-raised-button
+        color="primary"
+        (click)="toggleIndexEdit()"
+        *ngIf="currentObject!.isSpannerNode"
+      >
+        CANCEL
+      </button>
     </div>
   </div>
 </div>

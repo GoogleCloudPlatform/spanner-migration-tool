@@ -190,8 +190,7 @@
     flex-direction: row;
     justify-content: left;
     align-items: center;
-    .warning{
-      color: #ff9800;
+    .material-icons {
       font-size: 18px;
     }
     
@@ -251,13 +250,6 @@
 
 p {
   margin: 0;
-}
-
-.visible {
-  visibility: visible;
-}
-.hidden {
-  visibility: hidden;
 }
 
 .mr10 {

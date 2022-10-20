@@ -5,11 +5,12 @@ import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
 import { ISessionSummary } from 'src/app/model/conv'
-import IMigrationDetails, { IProgress } from 'src/app/model/migrate'
-import { InputType, MigrationDetails, MigrationModes, MigrationTypes, SourceDbNames, TargetDetails } from 'src/app/app.constants'
+import IMigrationDetails, { IGeneratedResources, IProgress } from 'src/app/model/migrate'
+import { InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressStatus, SourceDbNames, TargetDetails } from 'src/app/app.constants'
 import { interval, Subscription } from 'rxjs'
 import { DataService } from 'src/app/services/data/data.service'
 import { ThisReceiver } from '@angular/compiler'
+import { ConnectionProfileFormComponent } from '../connection-profile-form/connection-profile-form.component'
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
@@ -27,25 +28,46 @@ export class PrepareMigrationComponent implements OnInit {
     private data: DataService
   ) { }
 
+  isSourceConnectionProfileSet: boolean = false
+  isTargetConnectionProfileSet: boolean = false
+  isTargetDetailSet: boolean = false
+  isMigrationDetailSet: boolean = false
   isStreamingSupported: boolean = false
+  hasDataMigrationStarted: boolean = false
+  hasSchemaMigrationStarted: boolean = false
   selectedMigrationMode: string = MigrationModes.schemaOnly
   connectionType: string = InputType.DirectConnect
   selectedMigrationType: string = MigrationTypes.bulkMigration
   isMigrationInProgress: boolean = false
-  isTargetDetailSet: boolean = false
+  isResourceGenerated: boolean = false
   errorMessage: string = ''
-  hasDataMigrationStarted: boolean = false
-  hasDataMigrationCompleted: boolean = false
-  hasSchemaMigrationStarted: boolean = false
   schemaProgressMessage: string = 'Schema migration in progress...'
   dataProgressMessage: string = 'Data migration in progress...'
   dataMigrationProgress: number = 0
   schemaMigrationProgress: number = 0
+  resourcesGenerated: IGeneratedResources = {
+    DatabaseName: '',
+    DatabaseUrl: '',
+    BucketName: '',
+    BucketUrl: '',
+    DataStreamJobName: '',
+    DataStreamJobUrl: '',
+    DataflowJobName: '',
+    DataflowJobUrl: ''
+  }
 
   targetDetails: ITargetDetails = {
     TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
     Dialect: localStorage.getItem(TargetDetails.Dialect) as string,
-    StreamingConfig: localStorage.getItem(TargetDetails.StreamingConfig) as string
+    Region: localStorage.getItem(TargetDetails.Region) as string,
+    SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
+    TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string
+  }
+
+  refreshPrerequisites() {
+    this.isSourceConnectionProfileSet = false
+    this.isTargetConnectionProfileSet = false
+    this.isTargetDetailSet = false
   }
 
   ngOnInit(): void {
@@ -94,17 +116,17 @@ export class PrepareMigrationComponent implements OnInit {
       this.isMigrationInProgress = (localStorage.getItem(MigrationDetails.IsMigrationInProgress) as string === 'true')
       this.subscribeMigrationProgress()
     }
-    if (localStorage.getItem(MigrationDetails.IsTargetDetailSet) != null) {
-      this.isTargetDetailSet = (localStorage.getItem(MigrationDetails.IsTargetDetailSet) as string === 'true')
+    localStorage.removeItem(MigrationDetails.IsTargetDetailSet)
+    localStorage.removeItem(MigrationDetails.IsSourceConnectionProfileSet)
+    localStorage.removeItem(MigrationDetails.IsTargetConnectionProfileSet)
+    if (localStorage.getItem(MigrationDetails.IsMigrationDetailSet) != null) {
+      this.isMigrationDetailSet = (localStorage.getItem(MigrationDetails.IsMigrationDetailSet) as string === 'true')
     }
     if (localStorage.getItem(MigrationDetails.HasSchemaMigrationStarted) != null) {
       this.hasSchemaMigrationStarted = (localStorage.getItem(MigrationDetails.HasSchemaMigrationStarted) as string === 'true')
     }
     if (localStorage.getItem(MigrationDetails.HasDataMigrationStarted) != null) {
       this.hasDataMigrationStarted = (localStorage.getItem(MigrationDetails.HasDataMigrationStarted) as string === 'true')
-    }
-    if (localStorage.getItem(MigrationDetails.HasDataMigrationCompleted) != null) {
-      this.hasDataMigrationCompleted = (localStorage.getItem(MigrationDetails.HasDataMigrationCompleted) as string === 'true')
     }
     if (localStorage.getItem(MigrationDetails.DataMigrationProgress) != null) {
       this.dataMigrationProgress = parseInt(localStorage.getItem(MigrationDetails.DataMigrationProgress) as string)
@@ -124,14 +146,39 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.MigrationMode)
     localStorage.removeItem(MigrationDetails.MigrationType)
     localStorage.removeItem(MigrationDetails.IsTargetDetailSet)
+    localStorage.removeItem(MigrationDetails.IsSourceConnectionProfileSet)
+    localStorage.removeItem(MigrationDetails.IsTargetConnectionProfileSet)
     localStorage.removeItem(MigrationDetails.IsMigrationInProgress)
     localStorage.removeItem(MigrationDetails.HasSchemaMigrationStarted)
     localStorage.removeItem(MigrationDetails.HasDataMigrationStarted)
-    localStorage.removeItem(MigrationDetails.HasDataMigrationCompleted)
     localStorage.removeItem(MigrationDetails.DataMigrationProgress)
     localStorage.removeItem(MigrationDetails.SchemaMigrationProgress)
     localStorage.removeItem(MigrationDetails.DataProgressMessage)
     localStorage.removeItem(MigrationDetails.SchemaProgressMessage)
+  }
+  openConnectionProfileForm(isSource: boolean) {
+    let dialogRef = this.dialog.open(ConnectionProfileFormComponent, {
+      width: '30vw',
+      minWidth: '400px',
+      maxWidth: '500px',
+      data: isSource,
+    })
+    dialogRef.afterClosed().subscribe(() => {
+      this.targetDetails = {
+        TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
+        Dialect: localStorage.getItem(TargetDetails.Dialect) as string,
+        Region: localStorage.getItem(TargetDetails.Region) as string,
+        SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
+        TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string
+      }
+      this.isSourceConnectionProfileSet = localStorage.getItem(MigrationDetails.IsSourceConnectionProfileSet) as string === 'true'
+      this.isTargetConnectionProfileSet = localStorage.getItem(MigrationDetails.IsTargetConnectionProfileSet) as string === 'true'
+      if (this.isTargetDetailSet && this.isSourceConnectionProfileSet && this.isTargetConnectionProfileSet) {
+        localStorage.setItem(MigrationDetails.IsMigrationDetailSet, "true")
+        this.isMigrationDetailSet = true
+      }
+    }
+    )
   }
 
   openTargetDetailsForm() {
@@ -145,10 +192,14 @@ export class PrepareMigrationComponent implements OnInit {
       this.targetDetails = {
         TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
         Dialect: localStorage.getItem(TargetDetails.Dialect) as string,
-        StreamingConfig: localStorage.getItem(TargetDetails.StreamingConfig) as string
+        Region: localStorage.getItem(TargetDetails.Region) as string,
+        SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
+        TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string
       }
-      if (this.targetDetails.TargetDB != '' || (this.selectedMigrationType == MigrationTypes.lowDowntimeMigration && this.targetDetails.StreamingConfig != '')) {
-        this.isTargetDetailSet = true
+      this.isTargetDetailSet = localStorage.getItem(MigrationDetails.IsTargetDetailSet) as string === 'true'
+      if (this.isTargetDetailSet && this.selectedMigrationType == MigrationTypes.bulkMigration) {
+        localStorage.setItem(MigrationDetails.IsMigrationDetailSet, "true")
+        this.isMigrationDetailSet = true
       }
     })
   }
@@ -182,42 +233,45 @@ export class PrepareMigrationComponent implements OnInit {
     })
   }
 
-  subscribeMigrationProgress() {
-    this.subscription = interval(5000).subscribe((x => {
 
+  subscribeMigrationProgress() {
+    var displayStreamingMsg = false
+    this.subscription = interval(5000).subscribe((x => {
       this.fetch.getProgress().subscribe({
         next: (res: IProgress) => {
           if (res.ErrorMessage == '') {
             // Checking for completion of schema migration
-            if (res.Message.startsWith('Schema migration complete')) {
+            if (res.ProgressStatus == ProgressStatus.SchemaMigrationComplete) {
               localStorage.setItem(MigrationDetails.SchemaMigrationProgress, "100")
               this.schemaMigrationProgress = parseInt(localStorage.getItem(MigrationDetails.SchemaMigrationProgress) as string)
-              if (this.selectedMigrationMode == MigrationModes.schemaOnly || this.selectedMigrationType == MigrationTypes.lowDowntimeMigration) {
+              if (this.selectedMigrationMode == MigrationModes.schemaOnly) {
                 this.markMigrationComplete()
+              } else if (this.selectedMigrationType == MigrationTypes.lowDowntimeMigration) {
+                this.markSchemaMigrationComplete()
+                this.hasDataMigrationStarted = false
+                localStorage.setItem(MigrationDetails.HasDataMigrationStarted, this.hasDataMigrationStarted.toString())
+                if (!displayStreamingMsg) {
+                  this.snack.openSnackBarWithoutTimeout('Setting up dataflow and datastream jobs', 'Close')
+                  displayStreamingMsg = true
+                }
+              } else {
+                this.markSchemaMigrationComplete()
               }
             }
+            else if (res.ProgressStatus == ProgressStatus.DataMigrationComplete) {
+              this.markMigrationComplete()
+            }
             // Checking for data migration in progree
-            else if (res.Message.startsWith('Writing data to Spanner')) {
+            else if (res.ProgressStatus == ProgressStatus.DataWriteInProgress) {
               this.markSchemaMigrationComplete()
               localStorage.setItem(MigrationDetails.DataMigrationProgress, res.Progress.toString())
               this.dataMigrationProgress = parseInt(localStorage.getItem(MigrationDetails.DataMigrationProgress) as string)
-              if (this.hasDataMigrationCompleted) {
-                this.markMigrationComplete()
-              }
-              if (res.Progress == 100) {
-                localStorage.setItem(MigrationDetails.HasDataMigrationCompleted, "true")
-                this.hasDataMigrationCompleted = localStorage.getItem(MigrationDetails.HasDataMigrationCompleted) as string === 'true'
-
-              }
             }
             // Checking for foreign key update in progress
-            else if (res.Message.startsWith('Updating schema of database')) {
+            else if (res.ProgressStatus == ProgressStatus.ForeignKeyUpdateInProgress) {
               this.markSchemaMigrationComplete()
               this.dataMigrationProgress = 100
               localStorage.setItem(MigrationDetails.DataMigrationProgress, this.dataMigrationProgress.toString())
-              if (res.Progress == 100) {
-                this.markMigrationComplete()
-              }
             }
           } else {
             this.errorMessage = res.ErrorMessage;
@@ -252,17 +306,39 @@ export class PrepareMigrationComponent implements OnInit {
     this.isMigrationInProgress = !this.isMigrationInProgress
     this.dataProgressMessage = "Data migration completed successfully!"
     this.schemaProgressMessage = "Schema migration completed successfully!"
+    this.schemaMigrationProgress = 100
+    this.dataMigrationProgress = 100
+    this.fetch.getGeneratedResources().subscribe({
+      next: (res: IGeneratedResources) => {
+        this.isResourceGenerated = true
+        this.resourcesGenerated = res
+      },
+      error: (err: any) => {
+        this.snack.openSnackBar(err.error, 'Close')
+      },
+    })
     this.clearLocalStorage()
+    this.refreshPrerequisites()
   }
   resetValues() {
     this.isMigrationInProgress = !this.isMigrationInProgress
     this.hasSchemaMigrationStarted = false
     this.hasDataMigrationStarted = false
-    this.hasDataMigrationCompleted = false
     this.dataMigrationProgress = 0
     this.schemaMigrationProgress = 0
     this.schemaProgressMessage = "Schema migration in progress..."
     this.dataProgressMessage = "Data migration in progress..."
+    this.isResourceGenerated = false
+    this.resourcesGenerated = {
+      DatabaseName: '',
+      DatabaseUrl: '',
+      BucketName: '',
+      BucketUrl: '',
+      DataStreamJobName: '',
+      DataStreamJobUrl: '',
+      DataflowJobName: '',
+      DataflowJobUrl: ''
+    }
     this.initializeLocalStorage()
   }
   initializeLocalStorage() {
@@ -271,7 +347,6 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.setItem(MigrationDetails.IsMigrationInProgress, this.isMigrationInProgress.toString())
     localStorage.setItem(MigrationDetails.HasSchemaMigrationStarted, this.hasSchemaMigrationStarted.toString())
     localStorage.setItem(MigrationDetails.HasDataMigrationStarted, this.hasDataMigrationStarted.toString())
-    localStorage.setItem(MigrationDetails.HasDataMigrationCompleted, this.hasDataMigrationCompleted.toString())
     localStorage.setItem(MigrationDetails.DataMigrationProgress, this.dataMigrationProgress.toString())
     localStorage.setItem(MigrationDetails.SchemaMigrationProgress, this.schemaMigrationProgress.toString())
     localStorage.setItem(MigrationDetails.SchemaProgressMessage, this.schemaProgressMessage)

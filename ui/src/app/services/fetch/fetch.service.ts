@@ -7,7 +7,9 @@ import IConv, { ICreateIndex, IInterleaveStatus, IPrimaryKey, ISessionSummary } 
 import IDumpConfig from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
-import IMigrationDetails, { IProgress } from 'src/app/model/migrate'
+import IMigrationDetails, { IGeneratedResources, IProgress } from 'src/app/model/migrate'
+import IConnectionProfile, { ICreateConnectionProfile } from 'src/app/model/profile'
+
 
 @Injectable({
   providedIn: 'root',
@@ -49,6 +51,22 @@ export class FetchService {
 
   getConversionRate() {
     return this.http.get<Record<string, string>>(`${this.url}/conversion`)
+  }
+
+  getConnectionProfiles(region: string, isSource: boolean) {
+    return this.http.get<IConnectionProfile[]>(`${this.url}/GetConnectionProfiles?region=${region}&source=${isSource}`)
+  }
+
+  getGeneratedResources() {
+    return this.http.get<IGeneratedResources>(`${this.url}/GetGeneratedResources`)
+  }
+
+  getStaticIps(region:string) {
+    return this.http.get<string[]>(`${this.url}/GetStaticIps?region=${region}`)
+  }
+
+  createConnectionProfile(payload: ICreateConnectionProfile) {
+    return this.http.post(`${this.url}/CreateConnectionProfile`, payload)
   }
 
   getSummary() {

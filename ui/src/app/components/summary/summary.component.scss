@@ -148,21 +148,7 @@ h3 {
       order: 3;
       cursor: pointer;
     }
-    .error {
-      color: #eb0000;
-      font-size: 18px;
-    }
-    .warning {
-      color: #ff9800;
-      font-size: 18px;
-    }
-    .suggestion {
-      color: #f6be00;
-      font-size: 18px;
-      transform: rotate(180deg)
-    }
-    .note {
-      color: #1966D2;
+    .mat-icon {
       font-size: 18px;
     }
   }
