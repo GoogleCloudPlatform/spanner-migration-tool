@@ -177,8 +177,6 @@ export class ObjectDetailComponent implements OnInit {
 
   setSpTableRows() {
     this.spRowArray = new FormArray([])
-    console.log(this.localTableData, 'localTableData')
-
     this.localTableData.forEach((row) => {
       if (row.spOrder) {
         this.spRowArray.push(
