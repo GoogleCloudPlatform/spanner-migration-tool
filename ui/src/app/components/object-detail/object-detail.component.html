@@ -112,7 +112,7 @@
   >
     <mat-tab>
       <ng-template mat-tab-label>
-        <span [ngClass]="{ 'blue-font-color': currentTabIndex ===0}">COLUMNS </span>
+        <span>COLUMNS </span>
       </ng-template>
       <div class="column-tab-container">
         <table mat-table [dataSource]="dataSource">
@@ -322,7 +322,7 @@
 
     <mat-tab >
       <ng-template mat-tab-label>
-        <span [ngClass]="{ 'blue-font-color': currentTabIndex ===1}">PRIMARY KEY </span>
+        <span>PRIMARY KEY </span>
       </ng-template>
       <div class="pk-tab-container">
         <table mat-table [dataSource]="pkDataSource">
@@ -534,7 +534,7 @@
 
     <mat-tab>
       <ng-template mat-tab-label>
-        <span [ngClass]="{ 'blue-font-color': currentTabIndex ===2}">FOREIGN KEY</span>
+        <span>FOREIGN KEY</span>
       </ng-template>
       <div class="fk-tab-container">
         <table mat-table [dataSource]="fkDataSource">
@@ -732,7 +732,7 @@
 
     <mat-tab>
       <ng-template mat-tab-label>
-        <span  *ngIf="currentObject!.isSpannerNode && !currentObject!.isDeleted" [ngClass]="{ 'blue-font-color': currentTabIndex ===3}">SQL</span>
+        <span  *ngIf="currentObject!.isSpannerNode && !currentObject!.isDeleted">SQL</span>
       </ng-template>
       
       <div class="ddl_container">
