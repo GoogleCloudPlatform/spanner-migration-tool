@@ -17,5 +17,5 @@ export interface IIndexData {
   srcDesc: boolean | undefined
   srcOrder: number | string
   spOrder: number | string | undefined
-  spDesc: boolean | undefined
+  spDesc: boolean | undefined | string
 }
