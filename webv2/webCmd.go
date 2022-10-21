@@ -49,9 +49,6 @@ func (cmd *WebCmd) Usage() string {
 func (cmd *WebCmd) SetFlags(f *flag.FlagSet) {
 }
 
-// Note: The dist/ui directory is mounted inside the binary using the embed library.
-// After making any changes to the UI, please perform an `ng build` to update the dist/ui
-// directory with the new artifacts for changes to get reflected.
 func (cmd *WebCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	os.RemoveAll(os.TempDir() + constants.HB_TMP_DIR)
 	FrontendDir = cmd.DistDir
