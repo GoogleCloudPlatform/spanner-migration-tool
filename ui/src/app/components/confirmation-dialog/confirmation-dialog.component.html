@@ -5,7 +5,9 @@
       {{ data.message }}
     </p>
   </div>
+
   <div mat-dialog-actions class="dialog-action">
-    <button mat-button color="primary" mat-dialog-close>CANCEL</button>
+    <button mat-button (click)="onDismiss()">Cancel</button>
+    <button mat-raised-button color="primary" (click)="onConfirm()">Continue</button>
   </div>
 </div>

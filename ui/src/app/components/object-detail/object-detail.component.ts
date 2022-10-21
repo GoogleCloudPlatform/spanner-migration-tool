@@ -11,11 +11,12 @@ import { ObjectDetailNodeType, ObjectExplorerNodeType, StorageKeys } from 'src/a
 import FlatNode from 'src/app/model/schema-object-node'
 import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
-import IConv, { ICreateIndex, IPrimaryKey } from 'src/app/model/conv'
+import IConv, { ICreateIndex, IIndexKey, IPkColumnDefs, IPrimaryKey } from 'src/app/model/conv'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
 import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/drop-index-or-table-dialog.component'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/table-update-pub-sub.service'
+import { ConfirmationDialogComponent } from '../confirmation-dialog/confirmation-dialog.component'
 
 @Component({
   selector: 'app-object-detail',
@@ -595,6 +596,7 @@ export class ObjectDetailComponent implements OnInit {
       this.localTableData = JSON.parse(JSON.stringify(this.tableData))
       this.pkData = this.conversion.getPkMapping(this.tableData)
       this.setAddPkColumnList()
+      this.setPkOrder()
       this.setPkRows()
       this.isPkEditMode = false
     } else {
@@ -619,7 +621,33 @@ export class ObjectDetailComponent implements OnInit {
         data: { message: 'Add columns to the primary key for saving', type: 'error' },
         maxWidth: '500px',
       })
+    } else {
+      let interleaveTable = this.tableInterleaveWith(this.currentObject?.name!)
+      if (interleaveTable != '' && this.isPKFirstOrderModified(this.currentObject?.name!)) {
+        const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
+          data: {
+            message:
+              'Proceeding the update will removed interleaving between ' +
+              this.currentObject?.name +
+              ' and ' +
+              interleaveTable +
+              ' tables.',
+            title: 'Confirm Update',
+          },
+          maxWidth: '500px',
+        })
+        dialogRef.afterClosed().subscribe((dialogResult) => {
+          if (dialogResult) {
+            this.updatePk()
+          }
+        })
+      } else {
+        this.updatePk()
+      }
     }
+  }
+
+  updatePk() {
     this.isPkEditMode = false
     this.data.updatePk(this.pkObj).subscribe({
       next: (res: string) => {
@@ -985,5 +1013,36 @@ export class ObjectDetailComponent implements OnInit {
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
     this.currentTabIndex = tabChangeEvent.index
+  }
+
+  tableInterleaveWith(table: string): string {
+    if (this.conv.SpSchema[table].Parent != '') {
+      return this.conv.SpSchema[table].Parent
+    }
+    let interleaveTable = ''
+    Object.keys(this.conv.SpSchema).forEach((tableName: string) => {
+      if (
+        this.conv.SpSchema[tableName].Parent != '' &&
+        this.conv.SpSchema[tableName].Parent == table
+      ) {
+        interleaveTable = tableName
+      }
+    })
+
+    return interleaveTable
+  }
+
+  isPKFirstOrderModified(table: string): boolean {
+    let firstOrderPk = this.conv.SpSchema[table].Pks.filter((pk: IIndexKey) => {
+      if (pk.Order == 1) return true
+      return false
+    })[0]
+    if (this.pkObj.Columns.length < 1) return true
+    let updatedFirstOrderPk = this.pkObj.Columns.filter((pk: IPkColumnDefs) => {
+      if (pk.Order == 1) return true
+      return false
+    })[0]
+    if (firstOrderPk.Col != updatedFirstOrderPk.ColName) return true
+    return false
   }
 }

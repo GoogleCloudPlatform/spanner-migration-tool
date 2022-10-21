@@ -81,7 +81,7 @@ body {
   color: red;
 }
 .copy {
-  color:cornflowerblue;
+  color: cornflowerblue;
   margin-left: 40%;
 }
 
@@ -183,11 +183,25 @@ body {
   padding-left: 20vw;
 }
 
-.object-display-flex{
+.object-display-flex {
   display: flex;
   flex-direction: row;
 }
 
-.object-full-width{
+.object-full-width {
   width: 100%;
+}
+
+.dialog-container {
+  .dialog-message {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .dialog-action {
+    display: flex;
+    justify-content: flex-end;
+  }
 }
