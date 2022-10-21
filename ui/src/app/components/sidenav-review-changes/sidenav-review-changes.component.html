@@ -1,16 +1,15 @@
-<div class="sidenav-container">
-  <div class="header">
+<div class="sidenav">
+  <div class="sidenav-header">
     <span class="header-title">Review changes to your schema</span>
     <button class="close-button" mat-icon-button color="primary" (click)="closeSidenav()">
       <mat-icon class="close-icon">close</mat-icon>
     </button>
   </div>
   <mat-divider></mat-divider>
-  <br>
-  <div class="content">
+  <div class="sidenav-content">
     <p *ngIf="showDdl">Review the DDL changes below.</p>
     <p *ngIf="!showDdl">
-      Changing an interleaved table will have an impact on the following tables : 
+      Changing an interleaved table will have an impact on the following tables :
       <b>{{ tableList }}</b>
     </p>
     <div *ngIf="showDdl" class="ddl-display">
@@ -24,7 +23,7 @@
     </div>
   </div>
   <mat-divider></mat-divider>
-  <div class="footer">
+  <div class="sidenav-footer">
     <button (click)="updateTable()" mat-raised-button color="primary">Confirm Conversion</button>
   </div>
 </div>
