@@ -63,7 +63,7 @@
               error
             </mat-icon>
             <mat-icon
-              matTooltip="Warning"
+              matTooltip="Warning : Changes need to be made."
               matTooltipPosition="above"
               *ngIf="item.type == 'warning'"
               class="warning"
@@ -71,7 +71,7 @@
               warning
             </mat-icon>
             <mat-icon
-              matTooltip="Suggestion"
+              matTooltip="Suggestion : We highly recommend you make these changes or else it will impact your DB performance."
               matTooltipPosition="above"
               *ngIf="item.type == 'suggestion'"
               class="suggestion"
@@ -79,7 +79,7 @@
               check_circle
             </mat-icon>
             <mat-icon
-              matTooltip="Note"
+              matTooltip="Note : This is informational and you dont need to do anything."
               matTooltipPosition="above"
               *ngIf="item.type == 'note'"
               class="success"
