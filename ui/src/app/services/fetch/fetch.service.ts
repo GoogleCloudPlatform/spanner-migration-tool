@@ -15,7 +15,7 @@ import IConnectionProfile, { ICreateConnectionProfile } from 'src/app/model/prof
   providedIn: 'root',
 })
 export class FetchService {
-  private url: string = 'http://localhost:4200'
+  private url: string = 'http://localhost:8080'
   constructor(private http: HttpClient) {}
 
   connectTodb(payload: IDbConfig) {

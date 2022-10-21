@@ -1657,7 +1657,7 @@ func init() {
 
 // App connects to the web app v2.
 func App() {
-	addr := ":4200"
+	addr := ":8080"
 	router := getRoutes()
 	fmt.Println("Harbourbridge UI started at:", fmt.Sprintf("http://localhost%s", addr))
 	log.Fatal(http.ListenAndServe(addr, handlers.CORS(handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}), handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"}), handlers.AllowedOrigins([]string{"*"}))(router)))
