@@ -4,7 +4,6 @@
   <div class="right_container">
     <div
       class="spanner_config"
-      [ngClass]="!showWarning() && !isOfflineStatus ? 'success-border' : 'warning-border'"
     >
       <mat-icon
         *ngIf="isOfflineStatus && !showWarning()"
