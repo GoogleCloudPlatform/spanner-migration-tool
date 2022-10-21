@@ -51,9 +51,6 @@ export class ObjectDetailComponent implements OnInit {
         this.conv = res
       },
     })
-    this.userAddressValidations = this.formBuilder.group({
-      // firstName: ['', [Validators.required, Validators.pattern('[a-zA-Z0-9/_]+')]],
-    })
   }
 
   displayedColumns = [
