@@ -644,6 +644,18 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 		}
 
 		sessionState.Conv.Issues[table][column] = schemaissue
+	} else {
+		// Remove "Table cart can be converted as Interleaved Table" suggestion from columns
+		// of the table if interleaving is not possible.
+		for _, column := range sessionState.Conv.SpSchema[table].ColNames {
+			schemaIssue := []internal.SchemaIssue{}
+			for _, v := range sessionState.Conv.Issues[table][column] {
+				if v != internal.InterleavedOrder {
+					schemaIssue = append(schemaIssue, v)
+				}
+			}
+			sessionState.Conv.Issues[table][column] = schemaIssue
+		}
 	}
 
 	index.IndexSuggestion()
