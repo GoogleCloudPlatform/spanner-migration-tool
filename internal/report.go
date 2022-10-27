@@ -491,18 +491,18 @@ var IssueDB = map[SchemaIssue]struct {
 	AutoIncrement:         {Brief: "Spanner does not support auto_increment attribute", severity: warning},
 	Timestamp:             {Brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: suggestion, batch: true},
 	Datetime:              {Brief: "Spanner timestamp is closer to MySQL timestamp", severity: suggestion, batch: true},
-	Time:                  {Brief: "Spanner does not support time/year types", severity: note, batch: true},
-	Widened:               {Brief: "Some columns will consume more storage in Spanner", severity: note, batch: true},
+	Time:                  {Brief: "Spanner does not support time/year types", severity: warning, batch: true},
+	Widened:               {Brief: "Some columns will consume more storage in Spanner", severity: warning, batch: true},
 	StringOverflow:        {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
-	HotspotTimestamp:      {Brief: "Timestamp Hotspot Occured", severity: note},
+	HotspotTimestamp:      {Brief: "Timestamp Hotspot Occured", severity: warning},
 	HotspotAutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: warning},
 	InterleavedOrder:      {Brief: "can be converted as Interleaved Table", severity: suggestion},
 	RedundantIndex:        {Brief: "Redundant Index", severity: warning},
 	AutoIncrementIndex:    {Brief: "Auto increment column in Index can create a Hotspot", severity: warning},
 	InterleaveIndex:       {Brief: "can be converted to an Interleave Index", severity: suggestion},
 	InterleavedNotInOrder: {Brief: "Can be converted to interleaved table if primary key order parameter is changed for the table", severity: suggestion},
-	InterleavedAddColumn:  {Brief: "Candidate for Interleaved Table", severity: note},
-	IllegalName:           {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: note},
+	InterleavedAddColumn:  {Brief: "Candidate for Interleaved Table", severity: suggestion},
+	IllegalName:           {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: warning},
 }
 
 type severity int
