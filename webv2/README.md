@@ -22,29 +22,10 @@ using mysql or postgres dump or direct connection.
 To start HarbourBridge web server, run:
 
 ```sh
-harbourbridge --webv2
+harbourbridge web
 ```
 
-To launch the client you need to perform these steps.
-
-_In the future release these steps will be automated and application can be be launched using the command above._
-
-- Make sure that you have the stable version of `node` installed.
-- Open another terminal instance and go to the directory `ui`.
-- Install the dependencies using the command below. This step needs to be performed only once.
-
-  ```sh
-  npm install
-  ```
-
-- Run the command below to launch the client.
-  ```sh
-  npm start
-  ```
-
-The tool will be available on port 4200 and you can go to `<base-url>/` to visit the UI of the tool.
-
-    eg: localhost:4200/
+The UI will launched at http://localhost:8080/.
 
 For more details on how to use the UI, click on the `help` button on the top right corner of the page.
 

@@ -186,24 +186,19 @@
             </td>
           </ng-container>
 
-          <ng-container matColumnDef="spOrder">
-            <th class="table_header" mat-header-cell *matHeaderCellDef>Order</th>
-            <td mat-cell *matCellDef="let element">
-              {{ element.get('spOrder').value }}
-            </td>
-          </ng-container>
-
           <ng-container matColumnDef="spColName">
             <th mat-header-cell class="table_header" *matHeaderCellDef>Name</th>
             <td mat-cell *matCellDef="let element">
-              <div *ngIf="isEditMode && element.get('spOrder').value !== ''">
-                <input
-                  matInput
-                  class="name_input"
-                  type="text"
-                  [formControl]="element.get('spColName')"
-                />
-              </div>
+                <div *ngIf="isEditMode && element.get('spOrder').value !== ''">
+                  <input
+                    matInput
+                    class="name_input"
+                    type="text"
+                    [formControl]="element.get('spColName')"
+                    matTooltip="No special characters allowed except underscore." 
+                    [matTooltipDisabled]="!element.get('spColName')?.hasError('pattern')"
+                  />
+                </div>
               <p *ngIf="!isEditMode">{{ element.get('spColName').value }}</p>
             </td>
           </ng-container>
@@ -214,10 +209,10 @@
               <div class="sp-datatype-data-cells">
                 <span
                   *ngIf="isSpTableSuggesstionDisplay[i] && element.get('spOrder').value !== ''"
-                  class="material-icons summary-type note sp-datatype-suggestion-icon"
+                  class="material-icons summary-type warning sp-datatype-suggestion-icon"
                   [matTooltip]="spTableSuggestion[i]"
                   matTooltipPosition="above"
-                  >error</span
+                  >warning</span
                 >
 
                 <mat-form-field
@@ -404,6 +399,8 @@
                   class="order_input"
                   type="text"
                   [formControl]="element.get('spOrder')"
+                  matTooltip="Must have a value greater than 0." 
+                  [matTooltipDisabled]="!element.get('spOrder')?.hasError('pattern')"
                 />
               </div>
               <p *ngIf="!isPkEditMode">{{ element.get('spOrder').value }}</p>
@@ -423,10 +420,10 @@
               <div class="sp-datatype-data-cells">
                 <span
                   *ngIf="isSpTableSuggesstionDisplay[i] && element.get('spColName').value !== ''"
-                  class="material-icons summary-type note sp-datatype-suggestion-icon"
+                  class="material-icons summary-type warning sp-datatype-suggestion-icon"
                   [matTooltip]="spTableSuggestion[i]"
                   matTooltipPosition="above"
-                  >error</span
+                  >warning</span
                 >
                 <p>{{ element.get('spDataType').value }}</p>
               </div>
@@ -592,6 +589,8 @@
                   class="name_input"
                   type="text"
                   [formControl]="element.get('spName')"
+                  matTooltip="No special characters allowed except underscore." 
+                  [matTooltipDisabled]="!element.get('spName')?.hasError('pattern')"
                 />
               </div>
 
@@ -785,13 +784,12 @@
       <ng-container matColumnDef="spIndexOrder">
         <th class="table_header" mat-header-cell *matHeaderCellDef>Column Order</th>
         <td mat-cell *matCellDef="let element">
-          <div *ngIf="isIndexEditMode && element.get('spOrder').value">
+          <div *ngIf="isIndexEditMode && element.get('spColName').value">
             <input
               matInput
               class="order_input"
-              type="text"
+              type="number"
               [formControl]="element.get('spOrder')"
-              readonly
             />
           </div>
           <p *ngIf="!isIndexEditMode">{{ element.get('spOrder').value }}</p>
@@ -854,17 +852,54 @@
 
   <div class="save-edits">
     <mat-divider *ngIf="isEditMode || isPkEditMode || isFkEditMode"></mat-divider>
+
     <div class="save-button" *ngIf="isEditMode && currentTabIndex === 0">
-      <button mat-raised-button color="primary" (click)="toggleEdit()">SAVE & CONVERT</button>
+      <button mat-raised-button color="primary" (click)="saveColumnTable()" [disabled]="!rowArray.valid">SAVE & CONVERT</button>
+      <button
+        class="cancel-button"
+        mat-raised-button
+        color="primary"
+        (click)="toggleEdit()"
+        *ngIf="currentObject!.isSpannerNode"
+      >
+        CANCEL
+      </button>
     </div>
     <div class="save-button" *ngIf="isPkEditMode && currentTabIndex === 1">
-      <button mat-raised-button color="primary" (click)="togglePkEdit()">SAVE & CONVERT</button>
+      <button mat-raised-button color="primary" (click)="savePk()" [disabled]="!pkArray.valid">SAVE & CONVERT</button>
+      <button
+        class="cancel-button"
+        mat-raised-button
+        color="primary"
+        (click)="togglePkEdit()"
+        *ngIf="currentObject!.isSpannerNode"
+      >
+        CANCEL
+      </button>
     </div>
     <div class="save-button" *ngIf="isFkEditMode && currentTabIndex === 2">
-      <button mat-raised-button color="primary" (click)="toggleFkEdit()">SAVE & CONVERT</button>
+      <button mat-raised-button color="primary" (click)="saveFk()" [disabled]="!fkArray.valid">SAVE & CONVERT</button>
+      <button
+        class="cancel-button"
+        mat-raised-button
+        color="primary"
+        (click)="toggleFkEdit()"
+        *ngIf="currentObject!.isSpannerNode"
+      >
+        CANCEL
+      </button>
     </div>
     <div class="save-button" *ngIf="isIndexEditMode && currentTabIndex === -1">
-      <button mat-raised-button color="primary" (click)="toggleIndexEdit()">SAVE & CONVERT</button>
+      <button mat-raised-button color="primary" (click)="saveIndex()">SAVE & CONVERT</button>
+      <button
+        class="cancel-button"
+        mat-raised-button
+        color="primary"
+        (click)="toggleIndexEdit()"
+        *ngIf="currentObject!.isSpannerNode"
+      >
+        CANCEL
+      </button>
     </div>
   </div>
 </div>

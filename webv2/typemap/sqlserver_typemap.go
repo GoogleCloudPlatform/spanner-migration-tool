@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package webv2
+package typemap
 
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -33,7 +33,7 @@ import (
 // dynamodb/toddl.go, mysql/toddl.go, sqlserver/toddl.go and postgres/toddl.go).
 // Consider some refactoring to reduce code duplication (although note
 // that this type remapping has to preserve all previous changes done via the UI!)
-func toSpannerTypeSQLserver(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
+func ToSpannerTypeSQLserver(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
 	switch srcType {
 	case "tinyint", "smallint", "int", "bigint":
 		switch spType {

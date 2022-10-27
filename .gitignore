@@ -8,7 +8,6 @@ harbour_bridge_output/
 
 # angular ui development
 ui/.angular
-ui/dist
 ui/node_modules
 
 # webv2 config

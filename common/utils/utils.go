@@ -216,6 +216,39 @@ func WriteToGCS(filePath, fileName, data string) error {
 	return nil
 }
 
+func CreateGCSBucket(bucketName, projectID string) error {
+	ctx := context.Background()
+
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create GCS client: %v", err)
+	}
+	defer client.Close()
+	bucket := client.Bucket(bucketName)
+	buckets := client.Buckets(ctx, projectID)
+	for {
+		if bucketName == "" {
+			return fmt.Errorf("bucketName entered is empty %v", bucketName)
+		}
+		attrs, err := buckets.Next()
+		// Assume bucket not found if at Iterator end and create
+		if err == iterator.Done {
+			// Create bucket
+			if err := bucket.Create(ctx, projectID, nil); err != nil {
+				return fmt.Errorf("failed to create bucket: %v", err)
+			}
+			fmt.Printf("Created new GCS bucket: %v\n", bucketName)
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("issues setting up Bucket(%q).Objects(): %v. Double check project id", attrs.Name, err)
+		}
+		if attrs.Name == bucketName {
+			return nil
+		}
+	}
+}
+
 // GetProject returns the cloud project we should use for accessing Spanner.
 // Use environment variable GCLOUD_PROJECT if it is set.
 // Otherwise, use the default project returned from gcloud.

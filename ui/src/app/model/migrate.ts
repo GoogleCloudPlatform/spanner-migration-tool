@@ -9,5 +9,16 @@ export default interface IMigrationDetails {
 export interface IProgress {
     Progress: number
     ErrorMessage: string
-    Message: string
+    ProgressStatus: number
+}
+
+export interface IGeneratedResources {
+    DatabaseName: string
+    DatabaseUrl: string
+    BucketName: string
+    BucketUrl: string
+    DataStreamJobName: string
+    DataStreamJobUrl: string
+    DataflowJobName: string
+    DataflowJobUrl: string
 }

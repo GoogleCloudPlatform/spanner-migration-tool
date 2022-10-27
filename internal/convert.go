@@ -165,6 +165,8 @@ type streamingStats struct {
 	DroppedRecords   map[string]map[string]int64 // Tablewise count of records successfully converted but failed to written on Spanner, broken down by record type.
 	SampleBadRecords []string                    // Records that generated errors during conversion.
 	SampleBadWrites  []string                    // Records that faced errors while writing to Cloud Spanner.
+	DataStreamName   string
+	DataflowJobId    string
 }
 
 // MakeConv returns a default-configured Conv.

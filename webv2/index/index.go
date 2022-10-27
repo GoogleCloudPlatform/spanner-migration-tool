@@ -31,6 +31,24 @@ func IndexSuggestion() {
 	}
 }
 
+func AssignInitialOrders() {
+	sessionState := session.GetSessionState()
+	conv := sessionState.Conv
+
+	for _, spannerTable := range conv.SpSchema {
+		for _, index := range spannerTable.Indexes {
+			order := 1
+			for i, key := range index.Keys {
+				key.Order = order
+				index.Keys[i] = key
+				order = order + 1
+
+			}
+		}
+	}
+	sessionState.Conv = conv
+}
+
 // Helper method for checking Index Suggestion.
 func CheckIndexSuggestion(index []ddl.CreateIndex, spannerTable ddl.CreateTable) {
 
@@ -192,5 +210,4 @@ func removeColumnIssue(schemaissue []internal.SchemaIssue) []internal.SchemaIssu
 	}
 
 	return schemaissue
-
 }

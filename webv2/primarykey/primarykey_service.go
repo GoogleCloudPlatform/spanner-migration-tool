@@ -15,6 +15,7 @@
 package primarykey
 
 import (
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
@@ -100,6 +101,27 @@ func isValidColumnIds(pkRequest PrimaryKeyRequest, spannertable ddl.CreateTable)
 		return false
 	}
 	return true
+}
+
+func RemoveInterleave(conv *internal.Conv, spannertable ddl.CreateTable) {
+	if spannertable.Parent != "" {
+		var childPkFirstColumn string
+		var parentPkFirstColumn string
+		for i := 0; i < len(spannertable.Pks); i++ {
+			if spannertable.Pks[i].Order == 1 {
+				childPkFirstColumn = spannertable.Pks[i].Col
+			}
+		}
+		for i := 0; i < len(conv.SpSchema[spannertable.Parent].Pks); i++ {
+			if conv.SpSchema[spannertable.Parent].Pks[i].Order == 1 {
+				parentPkFirstColumn = conv.SpSchema[spannertable.Parent].Pks[i].Col
+			}
+		}
+		if childPkFirstColumn != parentPkFirstColumn {
+			spannertable.Parent = ""
+			conv.SpSchema[spannertable.Name] = spannertable
+		}
+	}
 }
 
 // isValidColumnOrder make sure two primary key column can not have same order.
