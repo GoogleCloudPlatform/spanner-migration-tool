@@ -56,7 +56,7 @@
             <mat-card-title>Prerequisites</mat-card-title>
             <mat-card-subtitle>Before we begin, please ensure you have done the following:</mat-card-subtitle>
             <hr />
-            <div *ngIf="(connectionType ==='sessionFile')">
+            <div *ngIf="(connectionType ==='sessionFile') && !(selectedMigrationMode ==='Schema')">
                 <h3>Source database details:</h3>
                 <p class="point">
                 <span class="bullet">1</span>

@@ -49,6 +49,22 @@ export class FetchService {
     return this.http.post<IConv>(`${this.url}/convert/dump`, payload)
   }
 
+  setSourceDBDetailsForDump(payload: IDumpConfig) {
+    return this.http.post(`${this.url}/SetSourceDBDetailsForDump`, payload)
+  }
+
+  setSourceDBDetailsForDirectConnect(payload: IDbConfig) {
+    const { dbEngine, hostName, port, dbName, userName, password } = payload
+    return this.http.post(`${this.url}/SetSourceDBDetailsForDirectConnect`, {
+      Driver: dbEngine,
+      Host: hostName,
+      Port: port,
+      Database: dbName,
+      User: userName,
+      Password: password,
+    },)
+  }
+
   getSchemaConversionFromSessionFile(payload: ISessionConfig) {
     return this.http.post<IConv>(`${this.url}/convert/session`, payload)
   }

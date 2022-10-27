@@ -97,5 +97,8 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/CleanUpStreamingJobs", profile.CleanUpStreamingJobs).Methods("POST")
 
 	router.PathPrefix("/").Handler(frontendStatic)
+
+	router.HandleFunc("/SetSourceDBDetailsForDump", setSourceDBDetailsForDump).Methods("POST")
+	router.HandleFunc("/SetSourceDBDetailsForDirectConnect", setSourceDBDetailsForDirectConnect).Methods("POST")
 	return router
 }

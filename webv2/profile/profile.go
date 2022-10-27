@@ -21,21 +21,21 @@ import (
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
 )
 
-func GetBucket(project, location, profileName string) (string, error) {
+func GetBucket(project, location, profileName string) (string, string, error) {
 	ctx := context.Background()
 	dsClient, err := datastream.NewClient(ctx)
 	if err != nil {
-		return "", fmt.Errorf("datastream client can not be created: %v", err)
+		return "", "", fmt.Errorf("datastream client can not be created: %v", err)
 	}
 	defer dsClient.Close()
 	// Fetch the GCS path from the destination connection profile.
 	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", project, location, profileName)
 	res, err := dsClient.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: dstProf})
 	if err != nil {
-		return "", fmt.Errorf("could not get connection profile: %v", err)
+		return "", "", fmt.Errorf("could not get connection profile: %v", err)
 	}
 	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
-	return gcsProfile.GetBucket() + gcsProfile.GetRootPath(), nil
+	return gcsProfile.GetBucket(), gcsProfile.GetRootPath(), nil
 }
 
 func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {

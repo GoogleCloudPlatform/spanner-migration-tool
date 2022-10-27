@@ -8,42 +8,24 @@
 
 <div class="connect-load-database-container">
     <div class="form-container">
-
-        <form [formGroup]="connectForm" (ngSubmit)="setSourceProfile()">
-            <div *ngIf="(selectedOption === 'dumpFile')">
+        <div *ngIf="(selectedOption === 'dumpFile')">
+            <form [formGroup]="dumpFileForm" (ngSubmit)="setSourceDBDetailsForDump()">
                 <h4>Load from database dump</h4>
-
-                <mat-form-field class="full-width" appearance="outline">
-                    <mat-label>Database Engine</mat-label>
-                    <mat-select matSelect name="dbEngine" formControlName="dbEngine" appearance="outline">
-                        <mat-option *ngFor="let element of dbEngineList" [value]="element.value">
-                            {{ element.displayName }}
-                        </mat-option>
-                    </mat-select>
-                </mat-form-field>
-
                 Dump File
                 <mat-form-field class="full-width" appearance="outline">
                     <mat-label>File path</mat-label>
                     <input matInput placeholder="File path" name="filePath" type="text" formControlName="filePath" />
                 </mat-form-field>
                 <br />
-                <button mat-raised-button type="submit" color="primary" [disabled]="!connectForm.valid">
-                    Convert
+                <button mat-raised-button type="submit" color="primary" [disabled]="!dumpFileForm.valid">
+                    Save
                 </button>
                 <button mat-button color="primary" mat-dialog-close>Cancel</button>
-            </div>
-            <div *ngIf="(selectedOption === 'directConnect')">
+            </form>
+        </div>
+        <div *ngIf="(selectedOption === 'directConnect')">
+            <form [formGroup]="directConnectForm" (ngSubmit)="setSourceDBDetailsForDirectConnect()">
                 <h4>Connect to Source Database</h4>
-
-                <mat-form-field class="full-width" appearance="outline">
-                    <mat-label>Database Engine</mat-label>
-                    <mat-select matSelect name="dbEngine" formControlName="dbEngine" appearance="outline">
-                        <mat-option *ngFor="let element of dbEngineList" [value]="element.value">
-                            {{ element.displayName }}
-                        </mat-option>
-                    </mat-select>
-                </mat-form-field>
                 Connection Detail
                 <mat-form-field class="full-width" appearance="outline">
                     <mat-label>Hostname</mat-label>
@@ -71,11 +53,11 @@
                     <input matInput name="dbname" type="text" formControlName="dbName" />
                 </mat-form-field>
                 <br />
-                <button mat-raised-button type="submit" color="primary" [disabled]="!connectForm.valid">
-                    Convert
+                <button mat-raised-button type="submit" color="primary" [disabled]="!directConnectForm.valid">
+                    Save
                 </button>
                 <button mat-button color="primary" mat-dialog-close>Cancel</button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
 </div>

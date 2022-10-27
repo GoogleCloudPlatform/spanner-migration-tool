@@ -121,6 +121,7 @@ export class PrepareMigrationComponent implements OnInit {
             target: res.SpannerIndexCount,
           },
         ]
+        this.sourceDatabaseType = res.DatabaseType
         this.region = res.Region
         this.instance = res.Instance
         this.processingUnits = res.ProcessingUnits
@@ -133,13 +134,7 @@ export class PrepareMigrationComponent implements OnInit {
         ]
         this.sourceDatabaseType = res.DatabaseType
         this.sourceDatabaseName = res.SourceDatabaseName
-        if (res.ConnectionType == InputType.DumpFile) {
-          this.migrationModes = [MigrationModes.schemaOnly, MigrationModes.dataOnly, MigrationModes.schemaAndData]
-        } else if (res.ConnectionType == InputType.SessionFile) {
-          this.migrationModes = [MigrationModes.schemaOnly]
-        } else {
-          this.migrationModes = [MigrationModes.schemaOnly, MigrationModes.dataOnly, MigrationModes.schemaAndData]
-        }
+        this.migrationModes = [MigrationModes.schemaOnly, MigrationModes.dataOnly, MigrationModes.schemaAndData]
         if (res.DatabaseType == SourceDbNames.MySQL.toLowerCase() || res.DatabaseType == SourceDbNames.Oracle.toLowerCase()) {
           this.isStreamingSupported = true
         }
@@ -246,7 +241,11 @@ export class PrepareMigrationComponent implements OnInit {
       width: '30vw',
       minWidth: '400px',
       maxWidth: '500px',
+      data: this.sourceDatabaseType
     })
+    dialogRef.afterClosed().subscribe(() => {
+    }
+    )
   }
 
   openTargetDetailsForm() {
