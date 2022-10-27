@@ -197,14 +197,14 @@
               </th>
             </ng-container>
 
-            <ng-container matColumnDef="srcDataType">
+            <!-- <ng-container matColumnDef="srcDataType">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Type</th>
               <td mat-cell *matCellDef="let element">
                 {{ element.get('srcDataType').value }}
               </td>
-            </ng-container>
+            </ng-container> -->
 
-            <ng-container matColumnDef="srcIsPk">
+            <!-- <ng-container matColumnDef="srcIsPk">
               <th class="table_header" mat-header-cell *matHeaderCellDef>Pk</th>
               <td mat-cell *matCellDef="let element">
                 <div *ngIf="element.get('srcIsPk').value">
@@ -224,15 +224,37 @@
                   </svg>
                 </div>
               </td>
-            </ng-container>
+            </ng-container> -->
 
-            <ng-container matColumnDef="srcIsNotNull">
+            <!-- <ng-container matColumnDef="srcIsNotNull">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Nullable</th>
               <td mat-cell *matCellDef="let element">
                 {{ element.get('srcIsNotNull').value ? 'Not Null' : '' }}
               </td>
             </ng-container>
             -->
+
+            <!-- <ng-container matColumnDef="spColName">
+              <th mat-header-cell class="table_header" *matHeaderCellDef>Name</th>
+              <td mat-cell *matCellDef="let element">
+                <div *ngIf="isEditMode && element.get('spOrder').value !== ''">
+                  <input
+                    matInput
+                    class="name_input"
+                    type="text"
+                    [formControl]="element.get('spColName')"
+                  />
+                </svg>
+              </div>
+            </td>
+          </ng-container> -->
+
+            <!-- <ng-container matColumnDef="srcIsNotNull">
+            <th mat-header-cell class="table_header" *matHeaderCellDef>Nullable</th>
+            <td mat-cell *matCellDef="let element">
+              {{ element.get('srcIsNotNull').value ? 'Not Null' : '' }}
+            </td>
+          </ng-container> -->
 
             <ng-container matColumnDef="spColName">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Name</th>
@@ -243,6 +265,8 @@
                     class="name_input"
                     type="text"
                     [formControl]="element.get('spColName')"
+                    matTooltip="No special characters allowed except underscore."
+                    [matTooltipDisabled]="!element.get('spColName')?.hasError('pattern')"
                   />
                 </div>
                 <p *ngIf="!isEditMode">{{ element.get('spColName').value }}</p>
@@ -255,10 +279,10 @@
                 <div class="sp-datatype-data-cells">
                   <span
                     *ngIf="isSpTableSuggesstionDisplay[i] && element.get('spOrder').value !== ''"
-                    class="material-icons summary-type error sp-datatype-suggestion-icon"
+                    class="material-icons summary-type warning sp-datatype-suggestion-icon"
                     [matTooltip]="spTableSuggestion[i]"
                     matTooltipPosition="above"
-                    >error</span
+                    >warning</span
                   >
 
                   <mat-form-field
@@ -474,6 +498,8 @@
                   class="order_input"
                   type="text"
                   [formControl]="element.get('spOrder')"
+                  matTooltip="Must have a value greater than 0."
+                  [matTooltipDisabled]="!element.get('spOrder')?.hasError('pattern')"
                 />
               </div>
               <p *ngIf="!isPkEditMode">{{ element.get('spOrder').value }}</p>
@@ -493,10 +519,10 @@
               <div class="sp-datatype-data-cells">
                 <span
                   *ngIf="isSpTableSuggesstionDisplay[i] && element.get('spColName').value !== ''"
-                  class="material-icons summary-type danger sp-datatype-suggestion-icon"
+                  class="material-icons summary-type warning sp-datatype-suggestion-icon"
                   [matTooltip]="spTableSuggestion[i]"
                   matTooltipPosition="above"
-                  >error</span
+                  >warning</span
                 >
                 <p>{{ element.get('spDataType').value }}</p>
               </div>
@@ -662,6 +688,8 @@
                   class="name_input"
                   type="text"
                   [formControl]="element.get('spName')"
+                  matTooltip="No special characters allowed except underscore."
+                  [matTooltipDisabled]="!element.get('spName')?.hasError('pattern')"
                 />
               </div>
 
@@ -925,7 +953,14 @@
     <mat-divider *ngIf="isEditMode || isPkEditMode || isFkEditMode"></mat-divider>
 
     <div class="save-button" *ngIf="isEditMode && currentTabIndex === 0">
-      <button mat-raised-button color="primary" (click)="saveColumnTable()">SAVE & CONVERT</button>
+      <button
+        mat-raised-button
+        color="primary"
+        (click)="saveColumnTable()"
+        [disabled]="!spRowArray.valid"
+      >
+        SAVE & CONVERT
+      </button>
       <button
         class="cancel-button"
         mat-raised-button
@@ -937,7 +972,9 @@
       </button>
     </div>
     <div class="save-button" *ngIf="isPkEditMode && currentTabIndex === 1">
-      <button mat-raised-button color="primary" (click)="savePk()">SAVE & CONVERT</button>
+      <button mat-raised-button color="primary" (click)="savePk()" [disabled]="!pkArray.valid">
+        SAVE & CONVERT
+      </button>
       <button
         class="cancel-button"
         mat-raised-button
@@ -949,7 +986,9 @@
       </button>
     </div>
     <div class="save-button" *ngIf="isFkEditMode && currentTabIndex === 2">
-      <button mat-raised-button color="primary" (click)="saveFk()">SAVE & CONVERT</button>
+      <button mat-raised-button color="primary" (click)="saveFk()" [disabled]="!fkArray.valid">
+        SAVE & CONVERT
+      </button>
       <button
         class="cancel-button"
         mat-raised-button

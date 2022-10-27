@@ -23,6 +23,7 @@ import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/
   styleUrls: ['./object-detail.component.scss'],
 })
 export class ObjectDetailComponent implements OnInit {
+  userAddressValidations!: FormGroup
   constructor(
     private data: DataService,
     private dialog: MatDialog,
@@ -187,7 +188,10 @@ export class ObjectDetailComponent implements OnInit {
             srcIsPk: new FormControl(row.srcIsPk),
             srcIsNotNull: new FormControl(row.srcIsNotNull),
             spOrder: new FormControl(row.srcOrder),
-            spColName: new FormControl(row.spColName),
+            spColName: new FormControl(row.spColName, [
+              Validators.required,
+              Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?'),
+            ]),
             spDataType: new FormControl(row.spDataType),
             spIsPk: new FormControl(row.spIsPk),
             spIsNotNull: new FormControl(row.spIsNotNull),
@@ -419,7 +423,10 @@ export class ObjectDetailComponent implements OnInit {
           srcDataType: new FormControl(srcArr[i].srcDataType),
           srcIsPk: new FormControl(srcArr[i].srcIsPk),
           srcIsNotNull: new FormControl(srcArr[i].srcIsNotNull),
-          spOrder: new FormControl(spArr[i].spOrder),
+          spOrder: new FormControl(spArr[i].spOrder, [
+            Validators.required,
+            Validators.pattern('^[1-9][0-9]*$'),
+          ]),
           spColName: new FormControl(spArr[i].spColName),
           spDataType: new FormControl(spArr[i].spDataType),
           spIsPk: new FormControl(spArr[i].spIsPk),
@@ -694,7 +701,10 @@ export class ObjectDetailComponent implements OnInit {
     this.fkData.forEach((fk) => {
       this.fkArray.push(
         new FormGroup({
-          spName: new FormControl(fk.spName),
+          spName: new FormControl(fk.spName, [
+            Validators.required,
+            Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?'),
+          ]),
           srcName: new FormControl(fk.srcName),
           spColumns: new FormControl(fk.spColumns),
           srcColumns: new FormControl(fk.srcColumns),
@@ -817,7 +827,10 @@ export class ObjectDetailComponent implements OnInit {
           srcColName: new FormControl(row.srcColName),
           srcDesc: new FormControl(row.srcDesc),
           spOrder: new FormControl(row.spOrder),
-          spColName: new FormControl(row.spColName),
+          spColName: new FormControl(row.spColName, [
+            Validators.required,
+            Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?'),
+          ]),
           spDesc: new FormControl(row.spDesc),
         })
       )
