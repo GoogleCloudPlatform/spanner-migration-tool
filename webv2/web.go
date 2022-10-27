@@ -1538,6 +1538,11 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 	childPks := sessionState.Conv.SpSchema[table].Pks
 	parentPks := sessionState.Conv.SpSchema[refTable].Pks
 
+	childPkCols := []string{}
+	for _, k := range childPks {
+		childPkCols = append(childPkCols, k.Col)
+	}
+
 	interleaved := []ddl.IndexKey{}
 
 	for i := 0; i < len(parentPks); i++ {
@@ -1577,9 +1582,14 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 	caninterleaved := []string{}
 	for i := 0; i < len(diff); i++ {
 
-		str := utilities.IsColumnPresent(fk.ReferColumns, diff[i].Col)
-
-		caninterleaved = append(caninterleaved, str)
+		parentColIndex := utilities.IsColumnPresent(fk.ReferColumns, diff[i].Col)
+		if parentColIndex == -1 {
+			continue
+		}
+		childColIndex := utilities.IsColumnPresent(childPkCols, fk.Columns[parentColIndex])
+		if childColIndex == -1 {
+			caninterleaved = append(caninterleaved, fk.Columns[parentColIndex])
+		}
 	}
 
 	if len(caninterleaved) > 0 {

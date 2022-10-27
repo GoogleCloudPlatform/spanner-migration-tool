@@ -71,14 +71,14 @@ func Difference(listone, listtwo []string) []string {
 }
 
 // IsColumnPresent check string is present in given list.
-func IsColumnPresent(columns []string, col string) string {
+func IsColumnPresent(columns []string, col string) int {
 
-	for _, c := range columns {
+	for i, c := range columns {
 		if c == col {
-			return col
+			return i
 		}
 	}
-	return ""
+	return -1
 }
 
 // RemoveSchemaIssue removes issue from the given list.
