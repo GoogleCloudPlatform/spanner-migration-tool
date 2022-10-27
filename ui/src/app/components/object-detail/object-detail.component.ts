@@ -627,7 +627,7 @@ export class ObjectDetailComponent implements OnInit {
         const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
           data: {
             message:
-              'Proceeding the update will removed interleaving between ' +
+              'Proceeding the update will remove interleaving between ' +
               this.currentObject?.name +
               ' and ' +
               interleaveTable +
