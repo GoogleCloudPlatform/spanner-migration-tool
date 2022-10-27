@@ -16,7 +16,6 @@ import { ConversionService } from 'src/app/services/conversion/conversion.servic
 import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/drop-index-or-table-dialog.component'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/table-update-pub-sub.service'
-import { ConfirmationDialogComponent } from '../confirmation-dialog/confirmation-dialog.component'
 
 @Component({
   selector: 'app-object-detail',
@@ -624,7 +623,7 @@ export class ObjectDetailComponent implements OnInit {
     } else {
       let interleaveTable = this.tableInterleaveWith(this.currentObject?.name!)
       if (interleaveTable != '' && this.isPKFirstOrderModified(this.currentObject?.name!)) {
-        const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
+        const dialogRef = this.dialog.open(InfodialogComponent, {
           data: {
             message:
               'Proceeding the update will remove interleaving between ' +
@@ -633,6 +632,7 @@ export class ObjectDetailComponent implements OnInit {
               interleaveTable +
               ' tables.',
             title: 'Confirm Update',
+            type: 'warning',
           },
           maxWidth: '500px',
         })

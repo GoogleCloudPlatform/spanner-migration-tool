@@ -38,8 +38,7 @@ import { PrepareMigrationComponent } from './components/prepare-migration/prepar
 import { TargetDetailsFormComponent } from './components/target-details-form/target-details-form.component'
 import { ConnectionProfileFormComponent } from './components/connection-profile-form/connection-profile-form.component'
 import { SidenavReviewChangesComponent } from './components/sidenav-review-changes/sidenav-review-changes.component'
-import { TableColumnChangesPreviewComponent } from './components/table-column-changes-preview/table-column-changes-preview.component';
-import { ConfirmationDialogComponent } from './components/confirmation-dialog/confirmation-dialog.component'
+import { TableColumnChangesPreviewComponent } from './components/table-column-changes-preview/table-column-changes-preview.component'
 
 @NgModule({
   declarations: [
@@ -73,7 +72,6 @@ import { ConfirmationDialogComponent } from './components/confirmation-dialog/co
     ConnectionProfileFormComponent,
     SidenavReviewChangesComponent,
     TableColumnChangesPreviewComponent,
-    ConfirmationDialogComponent,
   ],
   imports: [
     BrowserModule,
