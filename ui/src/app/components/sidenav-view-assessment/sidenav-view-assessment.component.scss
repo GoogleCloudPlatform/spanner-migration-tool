@@ -24,4 +24,20 @@ table.mat-table {
   text-align: center;
 }
 
+.sidenav-view-assessment-container{
+  .sidenav-view-assessment-header{
+    padding:5px 20px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgb(208, 204, 204);
+    .header-title{
+        margin:0;
+    }
+  }
 
+  .content{
+    padding-left: 15px;
+  }
+}

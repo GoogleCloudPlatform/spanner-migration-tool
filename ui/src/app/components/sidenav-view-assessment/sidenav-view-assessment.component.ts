@@ -42,7 +42,6 @@ export class SidenavViewAssessmentComponent implements OnInit {
       if (this.srcDbType != '') this.setDbDataSource()
       if (tableCount > 0) {
         this.setRateCountDataSource(tableCount)
-        this.setRatePcDataSource()
       }
     })
   }
@@ -70,14 +69,6 @@ export class SidenavViewAssessmentComponent implements OnInit {
       bad: this.conversionRateCount.bad,
       ok: this.conversionRateCount.ok,
       good: this.conversionRateCount.good,
-    })
-  }
-  setRatePcDataSource() {
-    this.ratePcDataSource = []
-    this.ratePcDataSource.push({
-      bad: this.conversionRatePercentage.bad,
-      ok: this.conversionRatePercentage.ok,
-      good: this.conversionRatePercentage.good,
     })
   }
 }
