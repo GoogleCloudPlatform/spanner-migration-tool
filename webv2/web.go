@@ -1581,8 +1581,8 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 
 	}
 
-	caninterleaved := []string{}
-	canInterleavedByRename := []string{}
+	canInterleavedOnAdd := []string{}
+	canInterleavedOnRename := []string{}
 	for i := 0; i < len(diff); i++ {
 
 		parentColIndex := utilities.IsColumnPresent(fk.ReferColumns, diff[i].Col)
@@ -1591,76 +1591,16 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 		}
 		childColIndex := utilities.IsColumnPresent(childPkCols, fk.Columns[parentColIndex])
 		if childColIndex == -1 {
-			caninterleaved = append(caninterleaved, fk.Columns[parentColIndex])
+			canInterleavedOnAdd = append(canInterleavedOnAdd, fk.Columns[parentColIndex])
 		} else {
-			canInterleavedByRename = append(canInterleavedByRename, fk.Columns[parentColIndex])
+			canInterleavedOnRename = append(canInterleavedOnRename, fk.Columns[parentColIndex])
 		}
 	}
 
-	if len(canInterleavedByRename) > 0 {
-
-		for i := 0; i < len(canInterleavedByRename); i++ {
-
-			sessionState := session.GetSessionState()
-
-			schemaissue := []internal.SchemaIssue{}
-
-			schemaissue = sessionState.Conv.Issues[table][canInterleavedByRename[i]]
-
-			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
-			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
-			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
-
-			schemaissue = append(schemaissue, internal.InterleavedRenameColumn)
-
-			if len(schemaissue) > 0 {
-
-				if sessionState.Conv.Issues[table] == nil {
-
-					s := map[string][]internal.SchemaIssue{
-						canInterleavedByRename[i]: schemaissue,
-					}
-					sessionState.Conv.Issues[table] = s
-				} else {
-					sessionState.Conv.Issues[table][canInterleavedByRename[i]] = schemaissue
-				}
-
-			}
-
-		}
-	} else if len(caninterleaved) > 0 {
-
-		for i := 0; i < len(caninterleaved); i++ {
-
-			sessionState := session.GetSessionState()
-
-			schemaissue := []internal.SchemaIssue{}
-
-			schemaissue = sessionState.Conv.Issues[table][caninterleaved[i]]
-
-			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
-			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
-			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
-
-			schemaissue = append(schemaissue, internal.InterleavedAddColumn)
-
-			if len(schemaissue) > 0 {
-
-				if sessionState.Conv.Issues[table] == nil {
-
-					s := map[string][]internal.SchemaIssue{
-						caninterleaved[i]: schemaissue,
-					}
-					sessionState.Conv.Issues[table] = s
-				} else {
-					sessionState.Conv.Issues[table][caninterleaved[i]] = schemaissue
-				}
-
-			}
-
-		}
+	if len(canInterleavedOnRename) > 0 {
+		updateInterleaveSuggestion(canInterleavedOnRename, table, internal.InterleavedRenameColumn)
+	} else if len(canInterleavedOnAdd) > 0 {
+		updateInterleaveSuggestion(canInterleavedOnAdd, table, internal.InterleavedAddColumn)
 	}
 
 	if len(interleaved) > 0 {
@@ -1668,6 +1608,37 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 	}
 
 	return false
+}
+
+func updateInterleaveSuggestion(columns []string, table string, issue internal.SchemaIssue) {
+	for i := 0; i < len(columns); i++ {
+
+		sessionState := session.GetSessionState()
+
+		schemaissue := []internal.SchemaIssue{}
+
+		schemaissue = sessionState.Conv.Issues[table][columns[i]]
+
+		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
+		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
+		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
+
+		schemaissue = append(schemaissue, issue)
+
+		if len(schemaissue) > 0 {
+
+			if sessionState.Conv.Issues[table] == nil {
+
+				s := map[string][]internal.SchemaIssue{
+					columns[i]: schemaissue,
+				}
+				sessionState.Conv.Issues[table] = s
+			} else {
+				sessionState.Conv.Issues[table][columns[i]] = schemaissue
+			}
+		}
+	}
 }
 
 // SessionState stores information for the current migration session.
