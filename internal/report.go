@@ -408,7 +408,8 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 						l = append(l, str)
 					}
 				case InterleavedRenameColumn:
-					str := fmt.Sprintf(" %s rename %s primary key in table %s to match the foreign key refer column", IssueDB[i].Brief, srcCol, spSchema.Name)
+					fkName, referCol := getFkAndReferColumn(spSchema, srcCol)
+					str := fmt.Sprintf(" %s rename %s primary key in table %s to match the foreign key %s refer column %s", IssueDB[i].Brief, srcCol, spSchema.Name, fkName, referCol)
 
 					if !contains(l, str) {
 						l = append(l, str)
@@ -453,6 +454,17 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 		body = append(body, tableReportBody{Heading: heading, Lines: l})
 	}
 	return body
+}
+
+func getFkAndReferColumn(spSchema ddl.CreateTable, col string) (fkName string, referCol string) {
+	for _, fk := range spSchema.Fks {
+		for k, v := range fk.Columns {
+			if col == v {
+				return fk.Name, fk.ReferColumns[k]
+			}
+		}
+	}
+	return fkName, referCol
 }
 
 func fillRowStats(conv *Conv, srcTable string, badWrites map[string]int64, tr *tableReport) {
