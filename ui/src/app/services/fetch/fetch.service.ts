@@ -2,14 +2,18 @@ import { HttpClient, HttpResponse } from '@angular/common/http'
 import { Injectable } from '@angular/core'
 import IDbConfig from 'src/app/model/db-config'
 import ISession, { ISaveSessionPayload } from '../../model/session'
-import IUpdateTable from '../../model/update-table'
-import IConv, { ICreateIndex, IInterleaveStatus, IPrimaryKey, ISessionSummary } from '../../model/conv'
+import IUpdateTable, { IReviewUpdateTable } from '../../model/update-table'
+import IConv, {
+  ICreateIndex,
+  IInterleaveStatus,
+  IPrimaryKey,
+  ISessionSummary,
+} from '../../model/conv'
 import IDumpConfig from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
 import IMigrationDetails, { IGeneratedResources, IProgress } from 'src/app/model/migrate'
 import IConnectionProfile, { ICreateConnectionProfile } from 'src/app/model/profile'
-
 
 @Injectable({
   providedIn: 'root',
@@ -54,14 +58,16 @@ export class FetchService {
   }
 
   getConnectionProfiles(region: string, isSource: boolean) {
-    return this.http.get<IConnectionProfile[]>(`${this.url}/GetConnectionProfiles?region=${region}&source=${isSource}`)
+    return this.http.get<IConnectionProfile[]>(
+      `${this.url}/GetConnectionProfiles?region=${region}&source=${isSource}`
+    )
   }
 
   getGeneratedResources() {
     return this.http.get<IGeneratedResources>(`${this.url}/GetGeneratedResources`)
   }
 
-  getStaticIps(region:string) {
+  getStaticIps(region: string) {
     return this.http.get<string[]>(`${this.url}/GetStaticIps?region=${region}`)
   }
 
@@ -79,6 +85,13 @@ export class FetchService {
 
   getTypeMap() {
     return this.http.get(`${this.url}/typemap`)
+  }
+
+  reviewTableUpdate(tableName: string, data: IUpdateTable): any {
+    return this.http.post<HttpResponse<IReviewUpdateTable>>(
+      `${this.url}/typemap/reviewTableSchema?table=${tableName}`,
+      data
+    )
   }
 
   updateTable(tableName: string, data: IUpdateTable): any {
@@ -171,7 +184,7 @@ export class FetchService {
   }
 
   migrate(payload: IMigrationDetails) {
-    return this.http.post(`${this.url}/Migrate`,payload)
+    return this.http.post(`${this.url}/Migrate`, payload)
   }
   getProgress() {
     return this.http.get<IProgress>(`${this.url}/GetProgress`)

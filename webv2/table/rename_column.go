@@ -22,19 +22,12 @@ import (
 // renameColumn renames given column to newname and update in schema.
 func renameColumn(newName, table, colName string, conv *internal.Conv) {
 
-	sp := conv.SpSchema[table]
-
 	renameColumnNameTableSchema(conv, table, colName, newName)
 
-	// update foreignKey relationship Table.
-	for _, fk := range sp.Fks {
-		renameColumnNameTableSchema(conv, fk.ReferTable, colName, newName)
-	}
-
-	for _, sp := range conv.SpSchema {
+	for k, sp := range conv.SpSchema {
 		for j := 0; j < len(sp.Fks); j++ {
 			if sp.Fks[j].ReferTable == table {
-				renameColumnNameTableSchema(conv, sp.Name, colName, newName)
+				renameColumnNameInSpannerForeignkeyReferColumns(conv.SpSchema[k], colName, newName)
 			}
 		}
 	}
@@ -62,8 +55,6 @@ func renameColumnNameTableSchema(conv *internal.Conv, table string, colName stri
 	sp = renameColumnNameInSpannerSecondaryIndex(sp, colName, newName)
 
 	sp = renameColumnNameInSpannerForeignkeyColumns(sp, colName, newName)
-
-	sp = renameColumnNameInSpannerForeignkeyReferColumns(sp, colName, newName)
 
 	sp = renameColumnNameInSpannerColNames(sp, colName, newName)
 
