@@ -732,6 +732,7 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 
 				sessionState.Conv.Issues[table][column] = schemaissue
@@ -753,6 +754,7 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
 
 				schemaissue = append(schemaissue, internal.InterleavedNotInOrder)
 
@@ -1580,6 +1582,7 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 	}
 
 	caninterleaved := []string{}
+	canInterleavedByRename := []string{}
 	for i := 0; i < len(diff); i++ {
 
 		parentColIndex := utilities.IsColumnPresent(fk.ReferColumns, diff[i].Col)
@@ -1589,10 +1592,44 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 		childColIndex := utilities.IsColumnPresent(childPkCols, fk.Columns[parentColIndex])
 		if childColIndex == -1 {
 			caninterleaved = append(caninterleaved, fk.Columns[parentColIndex])
+		} else {
+			canInterleavedByRename = append(canInterleavedByRename, fk.Columns[parentColIndex])
 		}
 	}
 
-	if len(caninterleaved) > 0 {
+	if len(canInterleavedByRename) > 0 {
+
+		for i := 0; i < len(canInterleavedByRename); i++ {
+
+			sessionState := session.GetSessionState()
+
+			schemaissue := []internal.SchemaIssue{}
+
+			schemaissue = sessionState.Conv.Issues[table][canInterleavedByRename[i]]
+
+			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
+			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
+			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
+
+			schemaissue = append(schemaissue, internal.InterleavedRenameColumn)
+
+			if len(schemaissue) > 0 {
+
+				if sessionState.Conv.Issues[table] == nil {
+
+					s := map[string][]internal.SchemaIssue{
+						canInterleavedByRename[i]: schemaissue,
+					}
+					sessionState.Conv.Issues[table] = s
+				} else {
+					sessionState.Conv.Issues[table][canInterleavedByRename[i]] = schemaissue
+				}
+
+			}
+
+		}
+	} else if len(caninterleaved) > 0 {
 
 		for i := 0; i < len(caninterleaved); i++ {
 
@@ -1605,6 +1642,7 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
 			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
 
 			schemaissue = append(schemaissue, internal.InterleavedAddColumn)
 

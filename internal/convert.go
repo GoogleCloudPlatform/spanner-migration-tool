@@ -93,6 +93,7 @@ const (
 	InterleavedOrder
 	InterleavedAddColumn
 	IllegalName
+	InterleavedRenameColumn
 )
 
 // NameAndCols contains the name of a table and its columns.

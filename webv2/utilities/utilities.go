@@ -129,6 +129,10 @@ func RemoveSchemaIssues(schemaissue []internal.SchemaIssue) []internal.SchemaIss
 
 	case IsSchemaIssuePresent(schemaissue, internal.InterleavedAddColumn):
 		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+		fallthrough
+
+	case IsSchemaIssuePresent(schemaissue, internal.InterleavedRenameColumn):
+		schemaissue = RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
 	}
 
 	return schemaissue
