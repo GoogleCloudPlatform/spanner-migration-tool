@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	dataflow "cloud.google.com/go/dataflow/apiv1beta3"
+	"cloud.google.com/go/dataflow/apiv1beta3/dataflowpb"
 	datastream "cloud.google.com/go/datastream/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
@@ -199,6 +201,57 @@ func setConnectionProfile(isSource bool, sessionState session.SessionState, req 
 		}
 	}
 
+}
+
+func CleanUpStreamingJobs(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	dsClient, err := datastream.NewClient(ctx)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("datastream client can not be created: %v", err), http.StatusBadRequest)
+	}
+	defer dsClient.Close()
+	sessionState := session.GetSessionState()
+	req := &datastreampb.DeleteStreamRequest{
+		Name: fmt.Sprintf("projects/%s/locations/%s/streams/%s", sessionState.GCPProjectID, sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataStreamName),
+	}
+	op, err := dsClient.DeleteStream(ctx, req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error while deleting datastream job: %v", err), http.StatusBadRequest)
+		return
+	}
+	err = op.Wait(ctx)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error while deleting datastream job: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	c, err := dataflow.NewJobsV1Beta3Client(ctx)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("could not create job client: %v", err), http.StatusBadRequest)
+	}
+	defer c.Close()
+	fmt.Println("Created dataflow job client...")
+	dfGetJobReq := &dataflowpb.GetJobRequest{
+		ProjectId: sessionState.GCPProjectID,
+		JobId:     sessionState.Conv.Audit.StreamingStats.DataflowJobId,
+		Location:  sessionState.Region,
+		View:      dataflowpb.JobView_JOB_VIEW_ALL,
+	}
+	job, err := c.GetJob(ctx, dfGetJobReq)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error while getting dataflow job: %v", err), http.StatusBadRequest)
+	}
+	job.RequestedState = dataflowpb.JobState_JOB_STATE_CANCELLED
+	dfReq := &dataflowpb.UpdateJobRequest{
+		ProjectId: sessionState.GCPProjectID,
+		JobId:     sessionState.Conv.Audit.StreamingStats.DataflowJobId,
+		Location:  sessionState.Region,
+		Job:       job,
+	}
+	_, err = c.UpdateJob(ctx, dfReq)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error while cancelling dataflow job: %v", err), http.StatusBadRequest)
+	}
 }
 
 type connectionProfileReq struct {

@@ -1,0 +1,25 @@
+<h2>End Migration</h2>
+<div>
+    <b>Source database:</b>  {{sourceAndTargetDetails.SourceDatabaseName}}({{sourceAndTargetDetails.SourceDatabaseType}})
+    <br>
+    <b>Spanner database:</b>  <a [href]="sourceAndTargetDetails.SpannerDatabaseUrl">{{sourceAndTargetDetails.SpannerDatabaseName}}</a>
+</div>
+<br>
+<div>
+    <b>Please follow these steps to complete the migration:</b>
+    <ol>
+        <li>Validate that the schema has been created on Spanner as per the configuration</li>
+        <li>Validate the data has been copied from the Source to Spanner. You can use the <a href="https://github.com/GoogleCloudPlatform/professional-services-data-validator">Data Validation Tool</a> to help with this
+            process.</li>
+        <li>Stop the writes to the source database. This will initiate a period of downtime.</li>
+        <li>Wait for any incremental writes on source since the validation started on Spanner to catch up with the source. This can be done by periodically checking the Spanner Database for the most recent updates on source.</li>
+        <li>Once the Source and Spanner are in sync, start the application with Spanner as the Database.</li>
+        <li>Perform smoke tests on your application to ensure it is working properly on Spanner</li>
+        <li>Cutover the traffic to the application with Spanner as the Database. This marks the end of the period of downtime</li>
+        <li>Cleanup the migration jobs by clicking the button below.</li>
+    </ol>
+</div>
+<div mat-dialog-actions class="buttons-container">
+    <button mat-button color="primary" mat-dialog-close>Cancel</button>
+    <button mat-raised-button color="primary" (click)="cleanUpJobs()">Clean Up</button>
+  </div>

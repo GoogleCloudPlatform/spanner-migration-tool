@@ -42,6 +42,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/spanner"
 	"golang.org/x/crypto/ssh/terminal"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
@@ -225,28 +226,18 @@ func CreateGCSBucket(bucketName, projectID string) error {
 	}
 	defer client.Close()
 	bucket := client.Bucket(bucketName)
-	buckets := client.Buckets(ctx, projectID)
-	for {
-		if bucketName == "" {
-			return fmt.Errorf("bucketName entered is empty %v", bucketName)
-		}
-		attrs, err := buckets.Next()
-		// Assume bucket not found if at Iterator end and create
-		if err == iterator.Done {
-			// Create bucket
-			if err := bucket.Create(ctx, projectID, nil); err != nil {
+	if err := bucket.Create(ctx, projectID, nil); err != nil {
+		if e, ok := err.(*googleapi.Error); ok {
+			// Ignoring the bucket already exists error.
+			if e.Code != 409 {
 				return fmt.Errorf("failed to create bucket: %v", err)
 			}
-			fmt.Printf("Created new GCS bucket: %v\n", bucketName)
-			return nil
 		}
-		if err != nil {
-			return fmt.Errorf("issues setting up Bucket(%q).Objects(): %v. Double check project id", attrs.Name, err)
-		}
-		if attrs.Name == bucketName {
-			return nil
-		}
+
+	} else {
+		fmt.Printf("Created new GCS bucket: %v\n", bucketName)
 	}
+	return nil
 }
 
 // GetProject returns the cloud project we should use for accessing Spanner.

@@ -5,12 +5,12 @@ import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import ITargetDetails from 'src/app/model/target-details'
 import { ISessionSummary } from 'src/app/model/conv'
-import IMigrationDetails, { IGeneratedResources, IProgress } from 'src/app/model/migrate'
+import IMigrationDetails, { IGeneratedResources, IProgress, ISourceAndTargetDetails } from 'src/app/model/migrate'
 import { InputType, MigrationDetails, MigrationModes, MigrationTypes, ProgressStatus, SourceDbNames, TargetDetails } from 'src/app/app.constants'
 import { interval, Subscription } from 'rxjs'
 import { DataService } from 'src/app/services/data/data.service'
-import { ThisReceiver } from '@angular/compiler'
 import { ConnectionProfileFormComponent } from '../connection-profile-form/connection-profile-form.component'
+import { EndMigrationComponent } from '../end-migration/end-migration.component'
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
@@ -39,12 +39,15 @@ export class PrepareMigrationComponent implements OnInit {
   connectionType: string = InputType.DirectConnect
   selectedMigrationType: string = MigrationTypes.bulkMigration
   isMigrationInProgress: boolean = false
+  isLowDtMigrationComplete: boolean = false
   isResourceGenerated: boolean = false
   errorMessage: string = ''
   schemaProgressMessage: string = 'Schema migration in progress...'
   dataProgressMessage: string = 'Data migration in progress...'
   dataMigrationProgress: number = 0
   schemaMigrationProgress: number = 0
+  sourceDatabaseName: string = ''
+  sourceDatabaseType: string = ''
   resourcesGenerated: IGeneratedResources = {
     DatabaseName: '',
     DatabaseUrl: '',
@@ -88,6 +91,8 @@ export class PrepareMigrationComponent implements OnInit {
             target: res.SpannerIndexCount,
           },
         ]
+        this.sourceDatabaseType = res.DatabaseType
+        this.sourceDatabaseName = res.SourceDatabaseName
         if (res.ConnectionType == InputType.DumpFile) {
           this.migrationModes = [MigrationModes.schemaOnly, MigrationModes.dataOnly, MigrationModes.schemaAndData]
         } else if (res.ConnectionType == InputType.SessionFile) {
@@ -179,6 +184,22 @@ export class PrepareMigrationComponent implements OnInit {
       }
     }
     )
+  }
+
+  endMigration() {
+    let payload: ISourceAndTargetDetails = {
+      SpannerDatabaseName : this.resourcesGenerated.DatabaseName,
+      SpannerDatabaseUrl: this.resourcesGenerated.DatabaseUrl,
+      SourceDatabaseType: this.sourceDatabaseType,
+      SourceDatabaseName: this.sourceDatabaseName
+    }
+    let dialogRef = this.dialog.open(EndMigrationComponent, {
+      width: '30vw',
+      minWidth: '400px',
+      maxWidth: '500px',
+      data :payload
+    })
+    dialogRef.afterClosed().subscribe()
   }
 
   openTargetDetailsForm() {
@@ -317,6 +338,9 @@ export class PrepareMigrationComponent implements OnInit {
         this.snack.openSnackBar(err.error, 'Close')
       },
     })
+    if (this.selectedMigrationType === MigrationTypes.lowDowntimeMigration) {
+      this.isLowDtMigrationComplete = true
+    }
     this.clearLocalStorage()
     this.refreshPrerequisites()
   }

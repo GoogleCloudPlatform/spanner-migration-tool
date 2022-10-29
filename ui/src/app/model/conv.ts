@@ -180,4 +180,5 @@ export interface ISessionSummary {
   SourceIndexCount: number
   SpannerIndexCount: number
   ConnectionType: string
+  SourceDatabaseName: string
 }

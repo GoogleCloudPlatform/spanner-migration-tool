@@ -189,4 +189,8 @@ export class FetchService {
   getProgress() {
     return this.http.get<IProgress>(`${this.url}/GetProgress`)
   }
+
+  cleanUpStreamingJobs() {
+    return this.http.post(`${this.url}/CleanUpStreamingJobs`, {})
+  }
 }

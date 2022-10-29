@@ -98,13 +98,14 @@ type driverConfig struct {
 }
 
 type sessionSummary struct {
-	DatabaseType      string
-	ConnectionDetail  string
-	SourceTableCount  int
-	SpannerTableCount int
-	SourceIndexCount  int
-	SpannerIndexCount int
-	ConnectionType    string
+	DatabaseType       string
+	ConnectionDetail   string
+	SourceTableCount   int
+	SpannerTableCount  int
+	SourceIndexCount   int
+	SpannerIndexCount  int
+	ConnectionType     string
+	SourceDatabaseName string
 }
 
 type progressDetails struct {
@@ -1185,6 +1186,7 @@ func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sessionSummary.DatabaseType = databaseType
+	sessionSummary.SourceDatabaseName = sessionState.DbName
 	sessionSummary.ConnectionType = sessionState.SourceDBConnDetails.ConnectionType
 	sessionSummary.SourceTableCount = len(sessionState.Conv.SrcSchema)
 	sessionSummary.SpannerTableCount = len(sessionState.Conv.SpSchema)
