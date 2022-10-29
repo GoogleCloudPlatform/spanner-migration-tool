@@ -7,18 +7,18 @@ migration, using data from an existing PostgreSQL, MySQL, SQL Server, Oracle or 
 The tool ingests schema and data from either a pg_dump/mysqldump file or directly
 from the source database, and supports both schema and data migration. For schema
 migration, HarbourBridge automatically builds a Spanner schema from the schema
-of the source database. This schema can be customized using the HarbourBridge
-schema assistant. For data migration, HarbourBridge creates a new Spanner
-database using the Spanner schema built during schema migration, and populates
-it with data from the source database.
+of the source database and creates a new Spanner database using the Spanner schema built. This schema can be customized using the HarbourBridge schema assistant. For data migration, HarbourBridge populates
+the spanner database with data from the source database.
 
 For more details on schema customization and use of the schema assistant, see
-[web/README](web/README.md). The rest of this README describes the command-line
+[web/README](webv2/README.md). The rest of this README describes the command-line
 capabilities of HarbourBridge.
 
-HarbourBridge is designed to simplify Spanner evaluation and migration, and in
-particular for migrating moderate-size datasets to Spanner
-(up to about 100GB). Certain features of relational databases, especially those that don't
+HarbourBridge is designed to simplify Spanner evaluation and migration.
+It supports two types of migrations - bulk migration and streaming migration.
+In bulk migration harbourbridge performs end to end migration and is suggested for
+migrating moderate-size datasets to Spanner(up to about 100GB). In case of streaming migration harbourbridge orchestrates datastream and dataflow job to perform the migration and is suggested for larger databases.
+Certain features of relational databases, especially those that don't
 map directly to Spanner features, are ignored, e.g. stored functions and
 procedures, and sequences. Types such as integers, floats, char/text, bools,
 timestamps, and (some) array types, map fairly directly to Spanner, but many
@@ -356,7 +356,7 @@ conversion state endcoded as JSON.
 
 `-target-profile` Specifies detailed parameters for the target database. See [Target Profile](#target-profile) for details.
 
-`-dry-run` Controls whether we run the migration in dry run mode or not. Using this mode generates schema and report for schema and/or data conversion without any actual creation of tables.
+`-dry-run` Controls whether we run the migration in dry run mode or not. Using this mode generates schema and report for schema and/or data conversion without any actual creation of database.
 
 ### Source Profile
 
@@ -374,6 +374,29 @@ have read pemissions to the GCS bucket you would like to use.
 `format` Specifies the format of the file. This param is also optional, and
 defaults to `dump`. This may be extended in future to support other formats
 such as `csv`, `avro` etc.
+
+`host` Specifies the host name for the source database.
+If not specified in case of direct connection to the source database, HarbourBridge
+fetches it from the environment variables.
+
+`user` Specifies the user for the source database.
+If not specified in case of direct connection to the source database, HarbourBridge
+fetches it from the environment variables.
+
+`dbName` Specifies the name of the source database.
+If not specified in case of direct connection to the source database, HarbourBridge
+fetches it from the environment variables.
+
+`port` Specifies the port for the source database.
+If not specified in case of direct connection to the source database, HarbourBridge
+fetches it from the environment variables.
+
+`password` Specifies the password for the source database.
+If not specified in case of direct connection to the source database, HarbourBridge
+fetches it from the environment variables.
+
+`streamingCfg` Optional flag. Specifies the file path for streaming config.
+Please note that streaming migration is only supported for MySQL and Oracle databases currently.
 
 ### Target Profile
 

@@ -15,7 +15,7 @@ in the [Installing HarbourBridge](https://github.com/cloudspannerecosystem/harbo
 
 ### Using HarbourBridge with mysqldump
 
-The tool can used to migrate schema from an existing mysqldump file:
+The tool can be used to migrate schema from an existing mysqldump file:
 
 ```sh
 harbourbridge schema -source=mysql < my_mysqldump_file
@@ -23,17 +23,10 @@ harbourbridge schema -source=mysql < my_mysqldump_file
 
 This will generate a session file with `session.json` suffix. This file contains
 schema mapping from source to destination. You will need to specify this file
-during data migration. You can also specify a particular Spanner instance to use
+during data migration. You also need to specify a particular Spanner instance and database to use
 during data migration.
 
 For example, run
-
-```sh
-harbourbridge data -session=mydb.session.json -source=mysql -target-profile="instance=my-spanner-instance" < my_mysqldump_file
-```
-
-By default, HarbourBridge will generate a new Spanner database name to populate.
-You can override this and specify the database name to use by:
 
 ```sh
 harbourbridge data -session=mydb.session.json -source=mysql -target-profile="instance=my-spanner-instance,dbName=my-spanner-database-name" < my_mysqldump_file
@@ -71,7 +64,7 @@ In this case, HarbourBridge connects directly to the MySQL database to retrieve
 table schema and data. Set the `-source=mysql` and corresponding source profile
 connection parameters `host`, `port`, `user`, `dbName` and `password`.
 
-For example to perform schema conversion, run
+For example to perform schema migration, run
 
 ```sh
 harbourbridge schema -source=mysql -source-profile="host=<>,port=<>,user=<>,dbName=<>"

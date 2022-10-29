@@ -30,7 +30,7 @@ can also pass corresponding source profile connection parameters `aws-access-key
 , `aws-secret-access-key`, `aws-region`. Custom endpoint can be specified using
 `dydb-endpoint` param.
 
-For example, to convert schema run
+For example, to migrate schema run
 
 ```sh
 harbourbridge schema -source=dynamodb -source-profile="aws-access-key-id=<>,aws-secret-access-key=<>,aws-region=<>"
@@ -38,20 +38,13 @@ harbourbridge schema -source=dynamodb -source-profile="aws-access-key-id=<>,aws-
 
 This will generate a session file with `session.json` suffix. This file contains
 schema mapping from source to destination. You will need to specify this file
-during data migration. You can also specify a particular Spanner instance to use
+during data migration. You also need to specify a particular Spanner instance and database to use
 during data migration.
 
 For example, run
 
 ```sh
-harbourbridge data -session=mydb.session.json -source=dynamodb -source-profile="aws-access-key-id=<>,..." -target-profile="instance=my-spanner-instance"
-```
-
-By default, HarbourBridge will generate a new Spanner database name to populate.
-You can override this and specify the database name to use by:
-
-```sh
-harbourbridge data -session=mydb.session.json -source=dynamodb -source-profile="aws-access-key-id=<>,..." -target-profile="instance=my-spanner-instance,..."
+harbourbridge data -session=mydb.session.json -source=dynamodb -source-profile="aws-access-key-id=<>,..." -target-profile="instance=my-spanner-instance,,dbName=my-spanner-database-name"
 ```
 
 You can also run HarbourBridge in a schema-and-data mode, where it will perform both
