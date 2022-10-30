@@ -1003,30 +1003,30 @@ func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Index Id is empty"), http.StatusBadRequest)
 	}
 
-	srcTable := ""
+	srcTableName := ""
 	for _, value := range sessionState.Conv.SrcSchema {
 		if value.Id == tableId {
-			srcTable = value.Name
+			srcTableName = value.Name
 			break
 		}
 	}
-	if srcTable == "" {
+	if srcTableName == "" {
 		http.Error(w, fmt.Sprintf("Source Table not found"), http.StatusBadRequest)
 	}
 
-	spTable := ""
+	spTableName := ""
 	for _, value := range sessionState.Conv.SpSchema {
 		if value.Id == tableId {
-			spTable = value.Name
+			spTableName = value.Name
 			break
 		}
 	}
-	if spTable == "" {
+	if spTableName == "" {
 		http.Error(w, fmt.Sprintf("Spanner Table not found"), http.StatusBadRequest)
 	}
 
-	srcIndex := schema.Index{}
-	for _, index := range sessionState.Conv.SrcSchema[srcTable].Indexes {
+	var srcIndex schema.Index
+	for _, index := range sessionState.Conv.SrcSchema[srcTableName].Indexes {
 		if index.Id == indexId {
 			srcIndex = index
 			break
@@ -1035,13 +1035,14 @@ func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 
 	conv := sessionState.Conv
 
-	spIndex := common.CvtIndexHelper(conv, spTable, srcTable, srcIndex)
-	spIndexes := conv.SpSchema[spTable].Indexes
+	spIndex := common.CvtIndexHelper(conv, spTableName, srcTableName, srcIndex)
+	spIndexes := conv.SpSchema[spTableName].Indexes
 	spIndexes = append(spIndexes, spIndex)
-	// conv.AddPrimaryKeys()
-	for _, spTable := range conv.SpSchema {
-		uniqueid.CopyUniqueIdToSpannerTable(conv, spTable.Name)
-	}
+	spTable := conv.SpSchema[spTableName]
+	spTable.Indexes = spIndexes
+	conv.SpSchema[spTableName] = spTable
+
+	uniqueid.CopyUniqueIdToSpannerTable(conv, spTable.Name)
 	sessionState.Conv = conv
 	primarykey.DetectHotspot()
 
@@ -1570,6 +1571,8 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	usedNames := sessionState.Conv.UsedNames
+	delete(usedNames, sp.Indexes[position].Name)
 	index.RemoveIndexIssues(table, sp.Indexes[position])
 
 	sp.Indexes = utilities.RemoveSecondaryIndex(sp.Indexes, position)
