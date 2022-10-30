@@ -42,6 +42,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
@@ -985,6 +986,72 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
+}
+
+func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
+	tableId := r.FormValue("tableId")
+	indexId := r.FormValue("indexId")
+	sessionState := session.GetSessionState()
+	if sessionState.Conv == nil || sessionState.Driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
+		return
+	}
+	if tableId == "" {
+		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
+	}
+	if indexId == "" {
+		http.Error(w, fmt.Sprintf("Index Id is empty"), http.StatusBadRequest)
+	}
+
+	srcTable := ""
+	for _, value := range sessionState.Conv.SrcSchema {
+		if value.Id == tableId {
+			srcTable = value.Name
+			break
+		}
+	}
+	if srcTable == "" {
+		http.Error(w, fmt.Sprintf("Source Table not found"), http.StatusBadRequest)
+	}
+
+	spTable := ""
+	for _, value := range sessionState.Conv.SpSchema {
+		if value.Id == tableId {
+			spTable = value.Name
+			break
+		}
+	}
+	if spTable == "" {
+		http.Error(w, fmt.Sprintf("Spanner Table not found"), http.StatusBadRequest)
+	}
+
+	srcIndex := schema.Index{}
+	for _, index := range sessionState.Conv.SrcSchema[srcTable].Indexes {
+		if index.Id == indexId {
+			srcIndex = index
+			break
+		}
+	}
+
+	conv := sessionState.Conv
+
+	spIndex := common.CvtIndexHelper(conv, spTable, srcTable, srcIndex)
+	spIndexes := conv.SpSchema[spTable].Indexes
+	spIndexes = append(spIndexes, spIndex)
+	// conv.AddPrimaryKeys()
+	for _, spTable := range conv.SpSchema {
+		uniqueid.CopyUniqueIdToSpannerTable(conv, spTable.Name)
+	}
+	sessionState.Conv = conv
+	primarykey.DetectHotspot()
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+
 }
 
 // renameForeignKeys checks the new names for spanner name validity, ensures the new names are already not used by existing tables
