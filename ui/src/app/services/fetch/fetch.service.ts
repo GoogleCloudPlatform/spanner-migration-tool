@@ -98,6 +98,10 @@ export class FetchService {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/typemap/table?table=${tableName}`, data)
   }
 
+  removeInterleave(tableId: string) {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/removeParent?tableId=${tableId}`, {})
+  }
+
   restoreTable(tableId: string) {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/restore/table?tableId=${tableId}`, {})
   }

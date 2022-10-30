@@ -783,8 +783,21 @@ export class ObjectDetailComponent implements OnInit {
     })
     return ind
   }
-  convertToFk() {
-    alert('Feature comming soon!')
+
+  removeInterleave() {
+    let tableId = this.currentObject!.id
+    this.data
+      .removeInterleave(tableId)
+      .pipe(take(1))
+      .subscribe((res: string) => {
+        if (res === '') {
+          this.snackbar.openSnackBar(
+            'Interleave removed and foreign key restored successfully',
+            'Close',
+            5
+          )
+        }
+      })
   }
 
   checkIsInterleave() {
