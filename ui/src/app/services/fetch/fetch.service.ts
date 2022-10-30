@@ -171,6 +171,13 @@ export class FetchService {
     })
   }
 
+  restoreIndex(tableId: string, indexId: string) {
+    return this.http.post<HttpResponse<IConv>>(
+      `${this.url}/restore/secondaryIndex?tableId=${tableId}&indexId=${indexId}`,
+      {}
+    )
+  }
+
   getInterleaveStatus(tableName: string) {
     return this.http.get<IInterleaveStatus>(`${this.url}/setparent?table=${tableName}`)
   }

@@ -381,6 +381,25 @@ export class DataService {
     )
   }
 
+  restoreIndex(tableId: string, indexId: string): Observable<string> {
+    return this.fetch.restoreIndex(tableId, indexId).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data) => {
+        if (data.error) {
+          this.snackbar.openSnackBar(data.error, 'Close')
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          this.snackbar.openSnackBar('Index restored successfully', 'Close', 5)
+          return ''
+        }
+      })
+    )
+  }
+
   getInterleaveConversionForATable(tableName: string) {
     this.fetch.getInterleaveStatus(tableName).subscribe((res: IInterleaveStatus) => {
       this.tableInterleaveStatusSub.next(res)
