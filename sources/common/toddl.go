@@ -138,7 +138,7 @@ func cvtPrimaryKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Key) 
 func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTable string, srcKeys []schema.ForeignKey, isRestore bool) []ddl.Foreignkey {
 	var spKeys []ddl.Foreignkey
 	for _, key := range srcKeys {
-		spKey, err := cvtForeignKeysHelper(conv, spTableName, srcTable, key, isRestore)
+		spKey, err := CvtForeignKeysHelper(conv, spTableName, srcTable, key, isRestore)
 		if err != nil {
 			continue
 		}
@@ -147,7 +147,7 @@ func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTable string, sr
 	return spKeys
 }
 
-func cvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTable string, srcKey schema.ForeignKey, isRestore bool) (ddl.Foreignkey, error) {
+func CvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTable string, srcKey schema.ForeignKey, isRestore bool) (ddl.Foreignkey, error) {
 	if len(srcKey.Columns) != len(srcKey.ReferColumns) {
 		conv.Unexpected(fmt.Sprintf("ConvertForeignKeys: columns and referColumns don't have the same lengths: len(columns)=%d, len(referColumns)=%d for source table: %s, referenced table: %s", len(srcKey.Columns), len(srcKey.ReferColumns), srcTable, srcKey.ReferTable))
 		return ddl.Foreignkey{}, fmt.Errorf("ConvertForeignKeys: columns and referColumns don't have the same lengths")
@@ -254,7 +254,7 @@ func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Tabl
 func cvtForeignKeysForAReferenceTable(conv *internal.Conv, spTableName string, srcTable string, referTable string, srcKeys []schema.ForeignKey, spKeys []ddl.Foreignkey) []ddl.Foreignkey {
 	for _, key := range srcKeys {
 		if key.ReferTable == referTable {
-			spKey, err := cvtForeignKeysHelper(conv, spTableName, srcTable, key, true)
+			spKey, err := CvtForeignKeysHelper(conv, spTableName, srcTable, key, true)
 			if err != nil {
 				continue
 			}

@@ -42,6 +42,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
@@ -767,6 +768,96 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 	}
 
 	return tableInterleaveStatus
+}
+
+func removeParentTable(w http.ResponseWriter, r *http.Request) {
+	tableId := r.FormValue("tableId")
+	sessionState := session.GetSessionState()
+	if sessionState.Conv == nil || sessionState.Driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
+		return
+	}
+	if tableId == "" {
+		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
+	}
+
+	spTableName := ""
+	for _, value := range sessionState.Conv.SpSchema {
+		if value.Id == tableId {
+			spTableName = value.Name
+			break
+		}
+	}
+	if spTableName == "" {
+		http.Error(w, fmt.Sprintf("Spanner table not found"), http.StatusBadRequest)
+	}
+
+	srcTableName := ""
+	for _, value := range sessionState.Conv.SrcSchema {
+		if value.Id == tableId {
+			srcTableName = value.Name
+			break
+		}
+	}
+	if srcTableName == "" {
+		http.Error(w, fmt.Sprintf("Table not found"), http.StatusBadRequest)
+	}
+
+	conv := sessionState.Conv
+	spTable := conv.SpSchema[spTableName]
+
+	var firstOrderPk ddl.IndexKey
+
+	for _, pk := range spTable.Pks {
+		if pk.Order == 1 {
+			firstOrderPk = pk
+			break
+		}
+	}
+
+	spColId := conv.SpSchema[spTableName].ColDefs[firstOrderPk.Col].Id
+	var srcCol schema.Column
+	for _, col := range conv.SrcSchema[srcTableName].ColDefs {
+		if col.Id == spColId {
+			srcCol = col
+		}
+	}
+	interleavedFk := getInterleavedFk(conv, srcTableName, srcCol.Name)
+
+	spFk, err := common.CvtForeignKeysHelper(conv, spTableName, srcTableName, interleavedFk, true)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Foreign key conversion fail"), http.StatusBadRequest)
+	}
+
+	spFks := spTable.Fks
+	spFks = append(spFks, spFk)
+	spTable.Fks = spFks
+	spTable.Parent = ""
+	conv.SpSchema[spTableName] = spTable
+
+	uniqueid.CopyUniqueIdToSpannerTable(conv, spTableName)
+
+	sessionState.Conv = conv
+	primarykey.DetectHotspot()
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+
+}
+
+func getInterleavedFk(conv *internal.Conv, srcTableName string, srcCol string) schema.ForeignKey {
+	for _, fk := range conv.SrcSchema[srcTableName].ForeignKeys {
+		for _, col := range fk.Columns {
+			if srcCol == col {
+				return fk
+			}
+		}
+	}
+	return schema.ForeignKey{}
 }
 
 type DropDetail struct {
