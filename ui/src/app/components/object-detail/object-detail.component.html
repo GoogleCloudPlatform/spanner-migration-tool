@@ -700,17 +700,6 @@
                   >
                     <span>Convert to interleave</span>
                   </button>
-                  <button
-                    *ngIf="
-                      interleaveStatus.tableInterleaveStatus &&
-                      !interleaveStatus.tableInterleaveStatus.Possible
-                    "
-                    [disabled]="element.get('spName').value === ''"
-                    mat-menu-item
-                    (click)="removeInterleave()"
-                  >
-                    <span>Convert to Foreign Key</span>
-                  </button>
                 </mat-menu>
               </div>
             </td>

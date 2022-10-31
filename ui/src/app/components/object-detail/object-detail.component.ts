@@ -645,7 +645,12 @@ export class ObjectDetailComponent implements OnInit {
         })
         dialogRef.afterClosed().subscribe((dialogResult) => {
           if (dialogResult) {
-            this.updatePk()
+            this.data
+              .removeInterleave(this.currentObject!.id)
+              .pipe(take(1))
+              .subscribe((res: string) => {
+                this.updatePk()
+              })
           }
         })
       } else {
