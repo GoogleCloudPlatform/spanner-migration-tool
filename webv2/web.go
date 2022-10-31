@@ -276,6 +276,10 @@ type dumpConfig struct {
 }
 
 func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	if sessionState.Driver != constants.MYSQLDUMP && sessionState.Driver != constants.PGDUMP {
+		http.Error(w, "Connect via direct connect", http.StatusBadRequest)
+	}
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
@@ -287,7 +291,12 @@ func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	sessionState := session.GetSessionState()
+
+	_, err = os.Open(dc.FilePath)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to open dump file : %v, no such file or directory", dc.FilePath), http.StatusNotFound)
+		return
+	}
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
 		Path:           dc.FilePath,
 		ConnectionType: helpers.DUMP_MODE,
@@ -296,6 +305,10 @@ func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
 }
 
 func setSourceDBDetailsForDirectConnect(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	if sessionState.Driver == constants.MYSQLDUMP || sessionState.Driver == constants.PGDUMP {
+		http.Error(w, "Connect via dump file", http.StatusBadRequest)
+	}
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
@@ -307,7 +320,34 @@ func setSourceDBDetailsForDirectConnect(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	sessionState := session.GetSessionState()
+
+	var dataSourceName string
+	switch config.Driver {
+	case constants.POSTGRES:
+		dataSourceName = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", config.Host, config.Port, config.User, config.Password, config.Database)
+	case constants.MYSQL:
+		dataSourceName = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", config.User, config.Password, config.Host, config.Port, config.Database)
+	case constants.SQLSERVER:
+		dataSourceName = fmt.Sprintf(`sqlserver://%s:%s@%s:%s?database=%s`, config.User, config.Password, config.Host, config.Port, config.Database)
+	case constants.ORACLE:
+		portNumber, _ := strconv.Atoi(config.Port)
+		dataSourceName = go_ora.BuildUrl(config.Host, portNumber, config.Database, config.User, config.Password, nil)
+	default:
+		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", config.Driver), http.StatusBadRequest)
+		return
+	}
+	sourceDB, err := sql.Open(config.Driver, dataSourceName)
+	if err != nil {
+		http.Error(w, "Database connection error, check connection properties.", http.StatusInternalServerError)
+		return
+	}
+	// Open doesn't open a connection. Validate database connection.
+	err = sourceDB.Ping()
+	if err != nil {
+		http.Error(w, "Database connection error, check connection properties.", http.StatusInternalServerError)
+		return
+	}
+
 	sessionState.DbName = config.Database
 	// schema and user is same in oracle.
 	if config.Driver == constants.ORACLE {

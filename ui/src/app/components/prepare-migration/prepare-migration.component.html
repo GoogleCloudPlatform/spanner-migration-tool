@@ -59,13 +59,17 @@
             <div *ngIf="(connectionType ==='sessionFile') && !(selectedMigrationMode ==='Schema')">
                 <h3>Source database details:</h3>
                 <p class="point">
-                <span class="bullet">1</span>
-                <span>Setup Source database details</span><span><button mat-button class="configure"
-                        (click)="openSourceDetailsForm()" [disabled]="isMigrationInProgress">
-                        Configure
-                        <mat-icon>edit</mat-icon>
-                    </button></span>
-                    </p>
+                    <span class="bullet">1</span>
+                    <span>Setup Source database details</span><span><button mat-button class="configure"
+                            (click)="openSourceDetailsForm()" [disabled]="isMigrationInProgress">
+                            Configure
+                            <mat-icon>edit</mat-icon>
+                            <mat-icon *ngIf="isSourceDetailsSet" class="success" matTooltip="Source details configured"
+                                matTooltipPosition="above">
+                                check_circle
+                            </mat-icon>
+                        </button></span>
+                </p>
             </div>
             <div>
                 <h3>Target database details:</h3>
@@ -116,7 +120,8 @@
         <span><b>Spanner Database:</b>{{ targetDetails.TargetDB }}</span><br />
         <span><b>Spanner Dialect:</b>{{ targetDetails.Dialect }}</span><br />
         <span><b>Region:</b>{{ region }}</span><br />
-        <span><b>Spanner Instance:</b>{{ instance }} (Nodes: {{nodeCount}}, Processing Units: {{processingUnits}})</span><br />
+        <span><b>Spanner Instance:</b>{{ instance }} (Nodes: {{nodeCount}}, Processing Units:
+            {{processingUnits}})</span><br />
     </div>
     <div *ngIf="hasSchemaMigrationStarted" class="progress_bar">
         <br>

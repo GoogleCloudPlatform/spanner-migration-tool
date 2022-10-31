@@ -1,7 +1,7 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { FormGroup, FormControl, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { InputType } from 'src/app/app.constants';
+import { InputType, MigrationDetails } from 'src/app/app.constants';
 import IDbConfig from 'src/app/model/db-config';
 import IDumpConfig from 'src/app/model/dump-config';
 import { FetchService } from 'src/app/services/fetch/fetch.service';
@@ -19,6 +19,7 @@ export class SourceDetailsFormComponent implements OnInit {
   ]
   selectedOption: string = InputType.DirectConnect
   sourceDatabaseEngine: string = ''
+  errorMsg = ''
   constructor(
     private fetch: FetchService,
     private snack: SnackbarService,
@@ -41,17 +42,20 @@ export class SourceDetailsFormComponent implements OnInit {
   ngOnInit(): void {
   }
   setSourceDBDetailsForDump() {
-    const {filePath} = this.dumpFileForm.value
+    const { filePath } = this.dumpFileForm.value
     let payload: IDumpConfig = {
       Driver: this.sourceDatabaseEngine,
       Path: filePath,
     }
     this.fetch.setSourceDBDetailsForDump(payload).subscribe({
+      next: () => {
+        localStorage.setItem(MigrationDetails.IsSourceDetailsSet, "true")
+        this.dialogRef.close()
+      },
       error: (err: any) => {
-        this.snack.openSnackBar(err.error, 'Close')
+        this.errorMsg = err.error
       }
     })
-    this.dialogRef.close()
   }
 
   setSourceDBDetailsForDirectConnect() {
@@ -65,14 +69,19 @@ export class SourceDetailsFormComponent implements OnInit {
       dbName: dbName
     }
     this.fetch.setSourceDBDetailsForDirectConnect(payload).subscribe({
+      next: () => {
+        localStorage.setItem(MigrationDetails.IsSourceDetailsSet, "true")
+        this.dialogRef.close()
+      },
       error: (err: any) => {
-        this.snack.openSnackBar(err.error, 'Close')
+        this.errorMsg = err.error
       }
     })
-    this.dialogRef.close()
+
   }
 
   onItemChange(optionValue: string) {
     this.selectedOption = optionValue
+    this.errorMsg = ''
   }
 }

@@ -32,6 +32,7 @@ export class PrepareMigrationComponent implements OnInit {
 
   isSourceConnectionProfileSet: boolean = false
   isTargetConnectionProfileSet: boolean = false
+  isSourceDetailsSet: boolean = false
   isTargetDetailSet: boolean = false
   isMigrationDetailSet: boolean = false
   isStreamingSupported: boolean = false
@@ -159,6 +160,7 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.IsTargetDetailSet)
     localStorage.removeItem(MigrationDetails.IsSourceConnectionProfileSet)
     localStorage.removeItem(MigrationDetails.IsTargetConnectionProfileSet)
+    localStorage.removeItem(MigrationDetails.IsSourceDetailsSet)
     if (localStorage.getItem(MigrationDetails.IsMigrationDetailSet) != null) {
       this.isMigrationDetailSet = (localStorage.getItem(MigrationDetails.IsMigrationDetailSet) as string === 'true')
     }
@@ -188,6 +190,7 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.IsTargetDetailSet)
     localStorage.removeItem(MigrationDetails.IsSourceConnectionProfileSet)
     localStorage.removeItem(MigrationDetails.IsTargetConnectionProfileSet)
+    localStorage.removeItem(MigrationDetails.IsSourceDetailsSet)
     localStorage.removeItem(MigrationDetails.IsMigrationInProgress)
     localStorage.removeItem(MigrationDetails.HasSchemaMigrationStarted)
     localStorage.removeItem(MigrationDetails.HasDataMigrationStarted)
@@ -244,6 +247,7 @@ export class PrepareMigrationComponent implements OnInit {
       data: this.sourceDatabaseType
     })
     dialogRef.afterClosed().subscribe(() => {
+      this.isSourceDetailsSet = localStorage.getItem(MigrationDetails.IsSourceDetailsSet) as string === 'true' 
     }
     )
   }

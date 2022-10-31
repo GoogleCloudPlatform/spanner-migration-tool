@@ -52,6 +52,7 @@ export enum MigrationDetails {
   MigrationType = 'migrationType',
   IsTargetDetailSet = 'isTargetDetailSet',
   IsSourceConnectionProfileSet = 'isSourceConnectionProfileSet',
+  IsSourceDetailsSet = 'isSourceDetailsSet',
   IsTargetConnectionProfileSet = 'isTargetConnectionProfileSet',
   IsMigrationDetailSet = "isMigrationDetailSet",
   IsMigrationInProgress ='isMigrationInProgress',
