@@ -644,6 +644,18 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 		}
 
 		sessionState.Conv.Issues[table][column] = schemaissue
+	} else {
+		// Remove "Table cart can be converted as Interleaved Table" suggestion from columns
+		// of the table if interleaving is not possible.
+		for _, column := range sessionState.Conv.SpSchema[table].ColNames {
+			schemaIssue := []internal.SchemaIssue{}
+			for _, v := range sessionState.Conv.Issues[table][column] {
+				if v != internal.InterleavedOrder {
+					schemaIssue = append(schemaIssue, v)
+				}
+			}
+			sessionState.Conv.Issues[table][column] = schemaIssue
+		}
 	}
 
 	index.IndexSuggestion()
@@ -720,6 +732,7 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 
 				sessionState.Conv.Issues[table][column] = schemaissue
@@ -741,6 +754,7 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
 
 				schemaissue = append(schemaissue, internal.InterleavedNotInOrder)
 
@@ -1526,6 +1540,11 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 	childPks := sessionState.Conv.SpSchema[table].Pks
 	parentPks := sessionState.Conv.SpSchema[refTable].Pks
 
+	childPkCols := []string{}
+	for _, k := range childPks {
+		childPkCols = append(childPkCols, k.Col)
+	}
+
 	interleaved := []ddl.IndexKey{}
 
 	for i := 0; i < len(parentPks); i++ {
@@ -1562,45 +1581,26 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 
 	}
 
-	caninterleaved := []string{}
+	canInterleavedOnAdd := []string{}
+	canInterleavedOnRename := []string{}
 	for i := 0; i < len(diff); i++ {
 
-		str := utilities.IsColumnPresent(fk.ReferColumns, diff[i].Col)
-
-		caninterleaved = append(caninterleaved, str)
+		parentColIndex := utilities.IsColumnPresent(fk.ReferColumns, diff[i].Col)
+		if parentColIndex == -1 {
+			continue
+		}
+		childColIndex := utilities.IsColumnPresent(childPkCols, fk.Columns[parentColIndex])
+		if childColIndex == -1 {
+			canInterleavedOnAdd = append(canInterleavedOnAdd, fk.Columns[parentColIndex])
+		} else {
+			canInterleavedOnRename = append(canInterleavedOnRename, fk.Columns[parentColIndex])
+		}
 	}
 
-	if len(caninterleaved) > 0 {
-
-		for i := 0; i < len(caninterleaved); i++ {
-
-			sessionState := session.GetSessionState()
-
-			schemaissue := []internal.SchemaIssue{}
-
-			schemaissue = sessionState.Conv.Issues[table][caninterleaved[i]]
-
-			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
-			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
-
-			schemaissue = append(schemaissue, internal.InterleavedAddColumn)
-
-			if len(schemaissue) > 0 {
-
-				if sessionState.Conv.Issues[table] == nil {
-
-					s := map[string][]internal.SchemaIssue{
-						caninterleaved[i]: schemaissue,
-					}
-					sessionState.Conv.Issues[table] = s
-				} else {
-					sessionState.Conv.Issues[table][caninterleaved[i]] = schemaissue
-				}
-
-			}
-
-		}
+	if len(canInterleavedOnRename) > 0 {
+		updateInterleaveSuggestion(canInterleavedOnRename, table, internal.InterleavedRenameColumn)
+	} else if len(canInterleavedOnAdd) > 0 {
+		updateInterleaveSuggestion(canInterleavedOnAdd, table, internal.InterleavedAddColumn)
 	}
 
 	if len(interleaved) > 0 {
@@ -1608,6 +1608,37 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 	}
 
 	return false
+}
+
+func updateInterleaveSuggestion(columns []string, table string, issue internal.SchemaIssue) {
+	for i := 0; i < len(columns); i++ {
+
+		sessionState := session.GetSessionState()
+
+		schemaissue := []internal.SchemaIssue{}
+
+		schemaissue = sessionState.Conv.Issues[table][columns[i]]
+
+		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
+		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
+		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
+
+		schemaissue = append(schemaissue, issue)
+
+		if len(schemaissue) > 0 {
+
+			if sessionState.Conv.Issues[table] == nil {
+
+				s := map[string][]internal.SchemaIssue{
+					columns[i]: schemaissue,
+				}
+				sessionState.Conv.Issues[table] = s
+			} else {
+				sessionState.Conv.Issues[table][columns[i]] = schemaissue
+			}
+		}
+	}
 }
 
 // SessionState stores information for the current migration session.
@@ -1707,6 +1738,6 @@ func init() {
 func App() {
 	addr := ":8080"
 	router := getRoutes()
-	fmt.Println("Server listening on Port", addr)
+	fmt.Println("Harbourbridge UI started at:", fmt.Sprintf("http://localhost%s", addr))
 	log.Fatal(http.ListenAndServe(addr, handlers.CORS(handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}), handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"}), handlers.AllowedOrigins([]string{"*"}))(router)))
 }

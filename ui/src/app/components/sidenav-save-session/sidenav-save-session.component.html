@@ -1,11 +1,11 @@
-<div class="container">
-  <div class="header">
-    <span class="mat-h3 header-title">Save Session</span>
+<div class="sidenav">
+  <div class="sidenav-header">
+    <span class="header-title">Save Session</span>
     <button class="close-button" mat-icon-button color="primary" (click)="closeSidenav()">
       <mat-icon class="close-icon">close</mat-icon>
     </button>
   </div>
-  <div class="form-container">
+  <div class="sidenav-content">
     <h3>Session Details</h3>
     <form [formGroup]="saveSessionForm" class="save-session-form">
       <mat-form-field
@@ -52,7 +52,7 @@
     </form>
   </div>
 
-  <div class="save-button-container">
+  <div class="sidenav-footer">
     <button
       mat-raised-button
       (click)="saveSession()"

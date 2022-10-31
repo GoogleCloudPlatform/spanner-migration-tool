@@ -32,7 +32,7 @@
                         connections
                         from them.</b><a href="https://cloud.google.com/datastream/docs/network-connectivity-options#ipallowlists">Learn More</a></div>
                 <br>
-                <li *ngFor="let ip of ipList" class="container">
+                <li *ngFor="let ip of ipList" class="connection-form-container">
                     <span class="left-text">{{ip}}</span>
                     <span>
                         <mat-icon class="icon copy" [cdkCopyToClipboard]="ip" matTooltip="Copy">file_copy</mat-icon>
