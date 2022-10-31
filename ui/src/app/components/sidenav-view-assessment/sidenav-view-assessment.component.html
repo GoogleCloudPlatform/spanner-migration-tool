@@ -15,7 +15,7 @@
 
     <p></p>
     <h3 class="sidenav-title">Source and destination database definitions</h3>
-    <table mat-table [dataSource]="dbDataSource" >
+    <table mat-table [dataSource]="dbDataSource"  class = "sidenav-databaseDefinitions">
       <ng-container matColumnDef="title">
         <th mat-header-cell *matHeaderCellDef class="sidenav-header-border">Title</th>
         <td mat-cell *matCellDef="let element">{{ element.title }}</td>
