@@ -13,6 +13,7 @@ import (
 	datastream "cloud.google.com/go/datastream/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	"github.com/cloudspannerecosystem/harbourbridge/streaming"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	"github.com/google/uuid"
@@ -199,6 +200,15 @@ func setConnectionProfile(isSource bool, sessionState session.SessionState, req 
 		}
 	}
 
+}
+
+func CleanUpStreamingJobs(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	sessionState := session.GetSessionState()
+	err := streaming.CleanUpStreamingJobs(ctx, sessionState.Conv, sessionState.GCPProjectID, sessionState.Region)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error while cleaning up streaming jobs: %v", err), http.StatusBadRequest)
+	}
 }
 
 type connectionProfileReq struct {
