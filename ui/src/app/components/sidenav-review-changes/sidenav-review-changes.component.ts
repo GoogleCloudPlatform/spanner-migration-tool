@@ -61,7 +61,11 @@ export class SidenavReviewChangesComponent implements OnInit {
       .subscribe({
         next: (res: string) => {
           if (res == '') {
-            this.snackbar.openSnackBar('Table updated successfully', 'Close', 5)
+            this.snackbar.openSnackBar(
+              `Schema changes to table ${this.tableUpdateData.tableName} saved successfully`,
+              'Close',
+              5
+            )
             this.closeSidenav()
           } else {
             this.snackbar.openSnackBar(res, 'Close', 5)
