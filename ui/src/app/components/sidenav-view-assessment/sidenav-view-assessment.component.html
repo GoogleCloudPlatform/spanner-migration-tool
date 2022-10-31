@@ -7,7 +7,7 @@
   </div>
   <div class="content">
     <p>
-      Estimation for {{ srcDbType.toUpperCase() }} to for Spanner conversion:
+      Estimation for {{ srcDbType.toUpperCase() }} to Spanner conversion:
       {{ conversionRatePercentage.good }}% of tables can be converted automatically,
       {{ conversionRatePercentage.ok }}% requires minimal conversion changes and
       {{ conversionRatePercentage.bad }}% requires high complexity conversion changes.
@@ -34,6 +34,7 @@
       <tr mat-header-row *matHeaderRowDef="dbDisplayedColumns"></tr>
       <tr mat-row *matRowDef="let row; columns: dbDisplayedColumns"></tr>
     </table>
+    <br>
     <h3 class="sidenav-title">Conversion status by table</h3>
     <table mat-table [dataSource]="rateCountDataSource" class="sidenav-conversionByTable">
       <ng-container matColumnDef="total" >
