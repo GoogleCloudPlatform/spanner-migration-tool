@@ -231,7 +231,11 @@ func CreateGCSBucket(bucketName, projectID string) error {
 			// Ignoring the bucket already exists error.
 			if e.Code != 409 {
 				return fmt.Errorf("failed to create bucket: %v", err)
+			} else {
+				fmt.Printf("Using the existing bucket: %v \n", bucketName)
 			}
+		} else {
+			return fmt.Errorf("failed to create bucket: %v", err)
 		}
 
 	} else {

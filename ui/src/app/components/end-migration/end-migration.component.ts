@@ -36,15 +36,15 @@ export class EndMigrationComponent implements OnInit {
   }
 
   cleanUpJobs() {
-    this.snack.openSnackBar('Cleaning up dataflow and datastream jobs', 'Close')
     this.fetch.cleanUpStreamingJobs().subscribe({
       next: () => {
-        this.snack.openSnackBar('Datastream job deleted and dataflow job stopped successfully', 'Close')
+        this.snack.openSnackBar('Dataflow and datastream jobs will be cleaned up', 'Close')
+        this.dialogRef.close()
       },
       error: (err: any) => {
         this.snack.openSnackBar(err.error, 'Close')
       }
     })
-    this.dialogRef.close()
+    
   }
 }

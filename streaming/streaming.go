@@ -256,6 +256,46 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, pro
 	return nil
 }
 
+func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, region string) error {
+	c, err := dataflow.NewJobsV1Beta3Client(ctx)
+	if err != nil {
+		return fmt.Errorf("could not create job client: %v", err)
+	}
+	defer c.Close()
+	fmt.Println("Created dataflow job client...")
+
+	job := &dataflowpb.Job{
+		Id:             conv.Audit.StreamingStats.DataflowJobId,
+		ProjectId:      projectID,
+		RequestedState: dataflowpb.JobState_JOB_STATE_CANCELLED,
+	}
+
+	dfReq := &dataflowpb.UpdateJobRequest{
+		ProjectId: projectID,
+		JobId:     conv.Audit.StreamingStats.DataflowJobId,
+		Location:  region,
+		Job:       job,
+	}
+	_, err = c.UpdateJob(ctx, dfReq)
+	if err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("error while cancelling dataflow job: %v", err)
+	}
+	dsClient, err := datastream.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("datastream client can not be created: %v", err)
+	}
+	defer dsClient.Close()
+	req := &datastreampb.DeleteStreamRequest{
+		Name: fmt.Sprintf("projects/%s/locations/%s/streams/%s", projectID, region, conv.Audit.StreamingStats.DataStreamName),
+	}
+	_, err = dsClient.DeleteStream(ctx, req)
+	if err != nil {
+		return fmt.Errorf("error while deleting datastream job: %v", err)
+	}
+	return nil
+}
+
 // LaunchDataflowJob populates the parameters from the streaming config and triggers a Dataflow job.
 func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) error {
 	project, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil)

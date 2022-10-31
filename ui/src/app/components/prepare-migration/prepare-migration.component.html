@@ -129,11 +129,11 @@
         </span>
     </div>
     <div class="migrate">
-        <span *ngIf="!isLowDtMigrationComplete">
+        <span *ngIf="!isLowDtMigrationRunning">
             <button mat-raised-button type="submit" color="primary" (click)="migrate()"
                 [disabled]="!((isTargetDetailSet && (selectedMigrationType ==='lowdt') && isSourceConnectionProfileSet && isTargetConnectionProfileSet) || (isTargetDetailSet && (selectedMigrationType ==='bulk'))) || isMigrationInProgress">Migrate</button>
         </span>
-        <span *ngIf="isLowDtMigrationComplete">
+        <span *ngIf="isLowDtMigrationRunning">
             <button mat-raised-button color="primary" (click)="endMigration()">End Migration</button>
         </span>
     </div>

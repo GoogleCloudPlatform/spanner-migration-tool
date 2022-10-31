@@ -39,7 +39,7 @@ export class PrepareMigrationComponent implements OnInit {
   connectionType: string = InputType.DirectConnect
   selectedMigrationType: string = MigrationTypes.bulkMigration
   isMigrationInProgress: boolean = false
-  isLowDtMigrationComplete: boolean = false
+  isLowDtMigrationRunning: boolean = false
   isResourceGenerated: boolean = false
   errorMessage: string = ''
   schemaProgressMessage: string = 'Schema migration in progress...'
@@ -339,7 +339,7 @@ export class PrepareMigrationComponent implements OnInit {
       },
     })
     if (this.selectedMigrationType === MigrationTypes.lowDowntimeMigration) {
-      this.isLowDtMigrationComplete = true
+      this.isLowDtMigrationRunning = true
     }
     this.clearLocalStorage()
     this.refreshPrerequisites()
