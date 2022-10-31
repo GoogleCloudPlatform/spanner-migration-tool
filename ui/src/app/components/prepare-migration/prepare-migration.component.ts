@@ -247,7 +247,7 @@ export class PrepareMigrationComponent implements OnInit {
       data: this.sourceDatabaseType
     })
     dialogRef.afterClosed().subscribe(() => {
-      this.isSourceDetailsSet = localStorage.getItem(MigrationDetails.IsSourceDetailsSet) as string === 'true' 
+      this.isSourceDetailsSet = localStorage.getItem(MigrationDetails.IsSourceDetailsSet) as string === 'true'
     }
     )
   }
@@ -271,7 +271,13 @@ export class PrepareMigrationComponent implements OnInit {
         TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string
       }
       this.isTargetDetailSet = localStorage.getItem(MigrationDetails.IsTargetDetailSet) as string === 'true'
-      if (this.isTargetDetailSet && this.selectedMigrationType == MigrationTypes.bulkMigration) {
+      if (this.isSourceDetailsSet && this.isTargetDetailSet && this.connectionType === InputType.SessionFile && this.selectedMigrationMode !== MigrationModes.schemaOnly) {
+        localStorage.setItem(MigrationDetails.IsMigrationDetailSet, "true")
+        this.isMigrationDetailSet = true
+      } else if (this.isTargetDetailSet && this.selectedMigrationType == MigrationTypes.bulkMigration && this.connectionType !== InputType.SessionFile) {
+        localStorage.setItem(MigrationDetails.IsMigrationDetailSet, "true")
+        this.isMigrationDetailSet = true
+      } else if (this.isTargetDetailSet && this.selectedMigrationType == MigrationTypes.bulkMigration && this.connectionType === InputType.SessionFile && this.selectedMigrationMode === MigrationModes.schemaOnly) {
         localStorage.setItem(MigrationDetails.IsMigrationDetailSet, "true")
         this.isMigrationDetailSet = true
       }
