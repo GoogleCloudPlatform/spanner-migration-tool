@@ -23,7 +23,9 @@ import (
 	"path"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/google/subcommands"
+	"go.uber.org/zap"
 )
 
 var FrontendDir embed.FS
@@ -52,6 +54,18 @@ func (cmd *WebCmd) SetFlags(f *flag.FlagSet) {
 func (cmd *WebCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	os.RemoveAll(os.TempDir() + constants.HB_TMP_DIR)
 	FrontendDir = cmd.DistDir
+	var err error
+	defer func() {
+		if err != nil {
+			logger.Log.Fatal("FATAL error", zap.Error(err))
+		}
+	}()
+	err = logger.InitializeLogger("INFO")
+	if err != nil {
+		fmt.Println("Error initialising logger: ", err)
+		return subcommands.ExitFailure
+	}
+	defer logger.Log.Sync()
 	App()
 	return subcommands.ExitSuccess
 }
