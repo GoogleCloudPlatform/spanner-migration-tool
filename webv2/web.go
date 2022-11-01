@@ -806,6 +806,10 @@ func removeParentTable(w http.ResponseWriter, r *http.Request) {
 	}
 
 	conv := sessionState.Conv
+
+	if conv.SpSchema[spTableName].Parent == "" {
+		http.Error(w, fmt.Sprintf("Table is not interleaved"), http.StatusBadRequest)
+	}
 	spTable := conv.SpSchema[spTableName]
 
 	var firstOrderPk ddl.IndexKey
@@ -822,6 +826,7 @@ func removeParentTable(w http.ResponseWriter, r *http.Request) {
 	for _, col := range conv.SrcSchema[srcTableName].ColDefs {
 		if col.Id == spColId {
 			srcCol = col
+			break
 		}
 	}
 	interleavedFk := getInterleavedFk(conv, srcTableName, srcCol.Name)
