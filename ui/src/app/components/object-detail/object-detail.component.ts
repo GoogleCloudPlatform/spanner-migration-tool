@@ -324,6 +324,7 @@ export class ObjectDetailComponent implements OnInit {
     let addedRowIndex = this.droppedColumns
       .map((item) => item.srcColName)
       .indexOf(this.addedColumnName)
+
     this.tableData[index].spColName = this.droppedColumns[addedRowIndex].spColName
     this.tableData[index].spDataType = this.droppedColumns[addedRowIndex].spDataType
     this.tableData[index].spOrder = -1
@@ -645,8 +646,12 @@ export class ObjectDetailComponent implements OnInit {
         })
         dialogRef.afterClosed().subscribe((dialogResult) => {
           if (dialogResult) {
+            let interleavedChildId: string =
+              this.conv.SpSchema[this.currentObject!.name].Parent != ''
+                ? this.currentObject!.id
+                : this.conv.SpSchema[interleaveTable].Id
             this.data
-              .removeInterleave(this.currentObject!.id)
+              .removeInterleave(interleavedChildId)
               .pipe(take(1))
               .subscribe((res: string) => {
                 this.updatePk()
