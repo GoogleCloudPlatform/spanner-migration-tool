@@ -1026,11 +1026,16 @@ func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var srcIndex schema.Index
+	srcIndexFound := false
 	for _, index := range sessionState.Conv.SrcSchema[srcTableName].Indexes {
 		if index.Id == indexId {
 			srcIndex = index
+			srcIndexFound = true
 			break
 		}
+	}
+	if !srcIndexFound {
+		http.Error(w, fmt.Sprintf("Source index not found"), http.StatusBadRequest)
 	}
 
 	conv := sessionState.Conv
@@ -1044,7 +1049,8 @@ func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 
 	uniqueid.CopyUniqueIdToSpannerTable(conv, spTable.Name)
 	sessionState.Conv = conv
-	primarykey.DetectHotspot()
+	index.AssignInitialOrders()
+	index.IndexSuggestion()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
