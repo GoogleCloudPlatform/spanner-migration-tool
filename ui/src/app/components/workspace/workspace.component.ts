@@ -8,10 +8,13 @@ import { MatDialog } from '@angular/material/dialog'
 import IFkTabData from 'src/app/model/fk-tab-data'
 import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import ISchemaObjectNode, { FlatNode } from 'src/app/model/schema-object-node'
-import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
+import { InputType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import { IUpdateTableArgument } from 'src/app/model/update-table'
 import ConversionRate from 'src/app/model/conversion-rate'
 import { Router } from '@angular/router'
+import { ClickEventService } from 'src/app/services/click-event/click-event.service'
+import IViewAssesmentData from 'src/app/model/view-assesment'
+import IDbConfig from 'src/app/model/db-config'
 
 @Component({
   selector: 'app-workspace',
@@ -40,6 +43,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   issuesAndSuggestionsLabel: string = 'ISSUES AND SUGGESTIONS'
   objectExplorerInitiallyRender: boolean = false
   srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
+  conversionRateCount: ConversionRate = { good: 0, ok: 0, bad: 0 }
   conversionRatePercentages: ConversionRate = { good: 0, ok: 0, bad: 0 }
   currentDatabase: string = 'spanner'
   constructor(
@@ -47,7 +51,8 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     private conversion: ConversionService,
     private dialog: MatDialog,
     private sidenav: SidenavService,
-    private router: Router
+    private router: Router,
+    private clickEvent: ClickEventService
   ) {
     this.currentObject = null
   }
@@ -131,21 +136,20 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
 
   updateConversionRatePercentages() {
-    const conversionRateCount: ConversionRate = { good: 0, ok: 0, bad: 0 }
     let tableCount: number = Object.keys(this.conversionRates).length
     for (const rate in this.conversionRates) {
       if (this.conversionRates[rate] === 'GRAY' || this.conversionRates[rate] === 'GREEN') {
-        conversionRateCount.good += 1
+        this.conversionRateCount.good += 1
       } else if (this.conversionRates[rate] === 'BLUE' || this.conversionRates[rate] === 'YELLOW') {
-        conversionRateCount.ok += 1
+        this.conversionRateCount.ok += 1
       } else {
-        conversionRateCount.bad += 1
+        this.conversionRateCount.bad += 1
       }
     }
     if (tableCount > 0) {
       for (let key in this.conversionRatePercentages) {
         this.conversionRatePercentages[key as keyof ConversionRate] = Number(
-          ((conversionRateCount[key as keyof ConversionRate] / tableCount) * 100).toFixed(2)
+          ((this.conversionRateCount[key as keyof ConversionRate] / tableCount) * 100).toFixed(2)
         )
       }
     }
@@ -202,6 +206,22 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   openAssessment() {
     this.sidenav.openSidenav()
     this.sidenav.setSidenavComponent('assessment')
+    let connectionDetail: string = ''
+    let inputType = localStorage.getItem(StorageKeys.Type) as string
+    if (inputType == InputType.DirectConnect) {
+      let config: IDbConfig = JSON.parse(localStorage.getItem(StorageKeys.Config)!)
+      connectionDetail = config?.hostName + ' : ' + config?.port
+    } else {
+      {
+        connectionDetail = this.conv.DatabaseName
+      }
+    }
+    let viewAssesmentData: IViewAssesmentData = {
+      srcDbType: this.srcDbName,
+      connectionDetail: connectionDetail,
+      conversionRates: this.conversionRateCount,
+    }
+    this.clickEvent.setViewAssesmentData(viewAssesmentData)
   }
   openSaveSessionSidenav() {
     this.sidenav.openSidenav()
