@@ -998,9 +998,11 @@ func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	if tableId == "" {
 		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
+		return
 	}
 	if indexId == "" {
 		http.Error(w, fmt.Sprintf("Index Id is empty"), http.StatusBadRequest)
+		return
 	}
 
 	srcTableName := ""
@@ -1012,6 +1014,7 @@ func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	if srcTableName == "" {
 		http.Error(w, fmt.Sprintf("Source Table not found"), http.StatusBadRequest)
+		return
 	}
 
 	spTableName := ""
@@ -1023,6 +1026,7 @@ func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	if spTableName == "" {
 		http.Error(w, fmt.Sprintf("Spanner Table not found"), http.StatusBadRequest)
+		return
 	}
 
 	var srcIndex schema.Index
@@ -1036,6 +1040,7 @@ func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	if !srcIndexFound {
 		http.Error(w, fmt.Sprintf("Source index not found"), http.StatusBadRequest)
+		return
 	}
 
 	conv := sessionState.Conv
