@@ -31,7 +31,8 @@ import (
 var FrontendDir embed.FS
 
 type WebCmd struct {
-	DistDir embed.FS
+	DistDir 	embed.FS
+	logLevel 	string
 }
 
 // Name returns the name of operation.
@@ -49,6 +50,7 @@ func (cmd *WebCmd) Usage() string {
 }
 
 func (cmd *WebCmd) SetFlags(f *flag.FlagSet) {
+	f.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to INFO")
 }
 
 func (cmd *WebCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -60,9 +62,9 @@ func (cmd *WebCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{
 			logger.Log.Fatal("FATAL error", zap.Error(err))
 		}
 	}()
-	err = logger.InitializeLogger("INFO")
+	err = logger.InitializeLogger(cmd.logLevel)
 	if err != nil {
-		fmt.Println("Error initialising logger: ", err)
+		fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err)
 		return subcommands.ExitFailure
 	}
 	defer logger.Log.Sync()
