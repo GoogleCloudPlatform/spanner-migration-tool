@@ -781,6 +781,7 @@ func removeParentTable(w http.ResponseWriter, r *http.Request) {
 	}
 	if tableId == "" {
 		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
+		return
 	}
 
 	spTableName := ""
@@ -792,6 +793,7 @@ func removeParentTable(w http.ResponseWriter, r *http.Request) {
 	}
 	if spTableName == "" {
 		http.Error(w, fmt.Sprintf("Spanner table not found"), http.StatusBadRequest)
+		return
 	}
 
 	srcTableName := ""
@@ -803,12 +805,14 @@ func removeParentTable(w http.ResponseWriter, r *http.Request) {
 	}
 	if srcTableName == "" {
 		http.Error(w, fmt.Sprintf("Table not found"), http.StatusBadRequest)
+		return
 	}
 
 	conv := sessionState.Conv
 
 	if conv.SpSchema[spTableName].Parent == "" {
 		http.Error(w, fmt.Sprintf("Table is not interleaved"), http.StatusBadRequest)
+		return
 	}
 	spTable := conv.SpSchema[spTableName]
 
@@ -829,11 +833,16 @@ func removeParentTable(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	interleavedFk := getInterleavedFk(conv, srcTableName, srcCol.Name)
+	interleavedFk, err := utilities.GetInterleavedFk(conv, srcTableName, srcCol.Name)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("%v", err), http.StatusBadRequest)
+		return
+	}
 
 	spFk, err := common.CvtForeignKeysHelper(conv, spTableName, srcTableName, interleavedFk, true)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Foreign key conversion fail"), http.StatusBadRequest)
+		return
 	}
 
 	spFks := spTable.Fks
@@ -845,7 +854,6 @@ func removeParentTable(w http.ResponseWriter, r *http.Request) {
 	uniqueid.CopyUniqueIdToSpannerTable(conv, spTableName)
 
 	sessionState.Conv = conv
-	primarykey.DetectHotspot()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -854,17 +862,6 @@ func removeParentTable(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 
-}
-
-func getInterleavedFk(conv *internal.Conv, srcTableName string, srcCol string) schema.ForeignKey {
-	for _, fk := range conv.SrcSchema[srcTableName].ForeignKeys {
-		for _, col := range fk.Columns {
-			if srcCol == col {
-				return fk
-			}
-		}
-	}
-	return schema.ForeignKey{}
 }
 
 type DropDetail struct {
