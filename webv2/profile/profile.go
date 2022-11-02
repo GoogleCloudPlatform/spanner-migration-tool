@@ -57,11 +57,9 @@ func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var connectionProfileList []connectionProfile
-	fmt.Println(sessionState.Region)
 	req := &datastreampb.ListConnectionProfilesRequest{
 		Parent: fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, sessionState.Region),
 	}
-	fmt.Println(req)
 	it := dsClient.ListConnectionProfiles(ctx, req)
 	for {
 		resp, err := it.Next()
@@ -69,7 +67,6 @@ func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		if err != nil {
-			fmt.Println(err)
 			http.Error(w, fmt.Sprintf("Error while getting list of connection profiles: %v", err), http.StatusBadRequest)
 			return
 		}
@@ -97,7 +94,6 @@ func GetStaticIps(w http.ResponseWriter, r *http.Request) {
 		Name: fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, sessionState.Region),
 	}
 	it := dsClient.FetchStaticIps(ctx, req)
-	fmt.Println(req)
 	var staticIpList []string
 	for {
 		resp, err := it.Next()
@@ -105,7 +101,6 @@ func GetStaticIps(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		if err != nil {
-			fmt.Println(err)
 			http.Error(w, fmt.Sprintf("Error while fetching static Ips: %v", err), http.StatusBadRequest)
 			return
 		}
