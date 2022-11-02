@@ -61,7 +61,11 @@ export enum MigrationDetails {
   SchemaProgressMessage = 'schemaProgressMessage',
   DataProgressMessage = 'dataProgressMessage',
   DataMigrationProgress = 'dataMigrationProgress',
-  SchemaMigrationProgress = 'schemaMigrationProgress'
+  SchemaMigrationProgress = 'schemaMigrationProgress',
+  HasForeignKeyUpdateStarted = 'hasForeignKeyUpdateStarted',
+  ForeignKeyProgressMessage = 'foreignKeyProgressMessage',
+  ForeignKeyUpdateProgress = 'foreignKeyUpdateProgress',
+  GeneratingResources = 'generatingResources'
 }
 
 export enum TargetDetails {
@@ -83,5 +87,6 @@ export enum ProgressStatus {
 	SchemaCreationInProgress = 2,
 	DataMigrationComplete = 3,
 	DataWriteInProgress = 4,
-	ForeignKeyUpdateInProgress = 5
+	ForeignKeyUpdateInProgress = 5,
+  ForeignKeyUpdateComplete = 6
 }

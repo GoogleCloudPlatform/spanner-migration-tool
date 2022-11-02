@@ -133,6 +133,11 @@
         <mat-progress-bar mode="determinate" [value]="dataMigrationProgress"></mat-progress-bar>
         <span> {{this.dataProgressMessage}}</span>
     </div>
+    <div *ngIf="hasForeignKeyUpdateStarted" class="progress_bar">
+        <br>
+        <mat-progress-bar mode="determinate" [value]="foreignKeyUpdateProgress"></mat-progress-bar>
+        <span> {{this.foreignKeyProgressMessage}}</span>
+    </div>
     <div *ngIf="generatingResources">
         <br>
         <span class="spinner">
