@@ -49,35 +49,34 @@ body {
 }
 
 .danger {
-  color: #eb0000;
+  color: #da4236;
 }
+
 .warning {
-  color: #ff9800;
+  color: #f3b300;
 }
+
 .success {
   color: green;
 }
-.suggestion {
-  color: #f6be00;
-  transform: rotate(180deg);
+
+.orange {
+  color: rgb(248, 116, 68);
 }
 .dark {
   color: rgb(77, 75, 75);
 }
 
-.success-border {
-  border: 1px solid #008000;
+.danger-background {
+  background-color: #da4236;
 }
-.warning-border {
-  border: 1px solid #f3b300;
+.warning-background {
+  background-color: #f3b300;
+}
+.success-background {
+  background-color: green;
 }
 
-.display {
-  display: block !important;
-}
-.hidden {
-  display: none !important;
-}
 .failure {
   color: red;
 }
@@ -212,6 +211,7 @@ body {
   height: 100%;
   .sidenav-header {
     display: flex;
+    flex-direction: row;
     justify-content: space-between;
     align-items: center;
     height: 48px;
@@ -242,4 +242,52 @@ body {
     display: flex;
     justify-content: flex-end;
   }
+}
+
+.sidenav-header-border{
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+}
+
+
+.sidenav-percentage-bar {
+  height: 0.8rem;
+  display: flex;
+  flex-direction: row;
+  border: 5px;
+  div {
+    height: 0.8rem;
+  }
+}
+
+.sidenav-percentage-marker {
+  display: flex;
+  justify-content: space-between;
+}
+
+.sidenav-percentage-indent {
+  display: flex;
+  span {
+    display: flex;
+    align-items: center;
+    padding-right: 0.5rem;
+  }
+}
+
+.sidenav-conversionByTable{
+  box-shadow: 0px 2px 1px -1px rgb(0 0 0 / 20%), 0px 1px 1px 0px rgb(0 0 0 / 14%), 0px 1px 3px 0px rgb(0 0 0 / 12%);
+}
+
+.sidenav-conversionByPercentage{
+  box-shadow: 0px 2px 1px -1px rgb(0 0 0 / 20%), 0px 1px 1px 0px rgb(0 0 0 / 14%), 0px 1px 3px 0px rgb(0 0 0 / 12%);
+}
+
+.sidenav-databaseDefinitions{
+  box-shadow: 0px 2px 1px -1px rgb(0 0 0 / 20%), 0px 1px 1px 0px rgb(0 0 0 / 14%), 0px 1px 3px 0px rgb(0 0 0 / 12%);
+}
+
+
+.sidenav-title{
+  margin-top :10px;
+  margin-bottom: 0px;
 }

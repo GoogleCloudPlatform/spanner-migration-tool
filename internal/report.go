@@ -329,6 +329,9 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					l = append(l, fmt.Sprintf("%s, Index '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcIdxName, spIdxName))
 				}
 			}
+			if spSchema.Name != srcSchema.Name {
+				l = append(l, fmt.Sprintf("%s, Table '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcSchema.Name, spSchema.Name))
+			}
 		}
 
 		issueBatcher := make(map[SchemaIssue]bool)
