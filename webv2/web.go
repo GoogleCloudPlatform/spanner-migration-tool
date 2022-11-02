@@ -1362,14 +1362,12 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	sessionState.Conv.Audit.Progress = internal.Progress{}
 	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
-	fmt.Println("Reaching here 1")
 	if err != nil {
 		log.Println("can't get source and target profile")
 		http.Error(w, fmt.Sprintf("Can't get source and target profiles: %v", err), http.StatusBadRequest)
 		return
 	}
 	err = writeSessionFile(sessionState)
-	fmt.Println("Reaching here 2")
 	if err != nil {
 		log.Println("can't write session file")
 		http.Error(w, fmt.Sprintf("Can't write session file to GCS: %v", err), http.StatusBadRequest)
@@ -1467,9 +1465,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 
 func writeSessionFile(sessionState *session.SessionState) error {
 
-	fmt.Println(sessionState.Bucket, sessionState.GCPProjectID)
 	err := utils.CreateGCSBucket(sessionState.Bucket, sessionState.GCPProjectID)
-	fmt.Println("Reaching here 4")
 	if err != nil {
 		return fmt.Errorf("error while creating bucket: %v", err)
 	}

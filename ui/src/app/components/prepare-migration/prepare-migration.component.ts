@@ -343,7 +343,7 @@ export class PrepareMigrationComponent implements OnInit {
               this.generatingResources = false
               this.markMigrationComplete()
             }
-            // Checking for data migration in progree
+            // Checking for data migration in progress
             else if (res.ProgressStatus == ProgressStatus.DataWriteInProgress) {
               this.markSchemaMigrationComplete()
               localStorage.setItem(MigrationDetails.DataMigrationProgress, res.Progress.toString())

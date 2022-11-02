@@ -143,14 +143,14 @@
     </div>
     <div *ngIf="isResourceGenerated">
         <h3> Generated Resources:</h3>
-        <li>Spanner database: <a [href]="resourcesGenerated.DatabaseUrl">{{resourcesGenerated.DatabaseName}}</a></li>
-        <li>GCS bucket: <a [href]="resourcesGenerated.BucketUrl">{{resourcesGenerated.BucketName}}</a></li>
+        <li>Spanner database: <a [href]="resourcesGenerated.DatabaseUrl" target="_blank">{{resourcesGenerated.DatabaseName}}</a></li>
+        <li>GCS bucket: <a [href]="resourcesGenerated.BucketUrl" target="_blank">{{resourcesGenerated.BucketName}}</a></li>
         <span *ngIf="resourcesGenerated.DataStreamJobName!==''">
             <li> Datastream job: <a
-                    [href]="resourcesGenerated.DataStreamJobUrl">{{resourcesGenerated.DataStreamJobName}}</a></li>
+                    [href]="resourcesGenerated.DataStreamJobUrl" target="_blank">{{resourcesGenerated.DataStreamJobName}}</a></li>
         </span>
         <span *ngIf="resourcesGenerated.DataflowJobName!==''">
-            <li>Dataflow job: <a [href]="resourcesGenerated.DataflowJobUrl">{{resourcesGenerated.DataflowJobName}}</a>
+            <li>Dataflow job: <a [href]="resourcesGenerated.DataflowJobUrl" target="_blank">{{resourcesGenerated.DataflowJobName}}</a>
             </li>
         </span>
     </div>
