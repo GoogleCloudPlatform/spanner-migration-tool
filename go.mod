@@ -5,7 +5,7 @@ go 1.16
 require (
 	cloud.google.com/go v0.104.0
 	cloud.google.com/go/dataflow v0.7.0
-	cloud.google.com/go/datastream v1.3.0
+	cloud.google.com/go/datastream v1.2.0
 	cloud.google.com/go/spanner v1.30.0
 	cloud.google.com/go/storage v1.23.0
 	github.com/BurntSushi/toml v0.4.1 // indirect
@@ -33,8 +33,8 @@ require (
 	golang.org/x/crypto v0.0.0-20220214200702-86341886e292
 	golang.org/x/net v0.0.0-20220909164309-bea034e7d591
 	golang.org/x/tools v0.1.11-0.20220316014157-77aa08bb151a // indirect
-	google.golang.org/api v0.98.0
-	google.golang.org/genproto v0.0.0-20221018160656-63c7b68cfc55
-	google.golang.org/grpc v1.50.1
+	google.golang.org/api v0.96.0
+	google.golang.org/genproto v0.0.0-20220920201722-2b89144ce006
+	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
 )

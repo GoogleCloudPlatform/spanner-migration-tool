@@ -431,6 +431,8 @@ export class PrepareMigrationComponent implements OnInit {
             this.schemaProgressMessage = "Schema migration cancelled!"
             this.dataProgressMessage = "Data migration cancelled!"
             this.foreignKeyProgressMessage = "Foreign key update cancelled!"
+            this.generatingResources = false
+            this.isLowDtMigrationRunning = false
             this.clearLocalStorage()
           }
         },
