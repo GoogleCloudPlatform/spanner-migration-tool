@@ -5,6 +5,7 @@ import { ISaveSessionPayload } from 'src/app/model/session'
 import { DataService } from 'src/app/services/data/data.service'
 import { SnackbarService } from '../../services/snackbar/snackbar.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
+import IConv from 'src/app/model/conv'
 
 @Component({
   selector: 'app-sidenav-save-session',
@@ -55,7 +56,13 @@ export class SidenavSaveSessionComponent implements OnInit {
     this.closeSidenav()
   }
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.sidenav.sidenavDatabaseName.subscribe({
+      next: (res: string) => {
+        this.saveSessionForm.controls['DatabaseName'].setValue(res)
+      },
+    })
+  }
   closeSidenav(): void {
     this.sidenav.closeSidenav()
   }
