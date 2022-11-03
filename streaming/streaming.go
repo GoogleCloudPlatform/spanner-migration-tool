@@ -35,8 +35,8 @@ import (
 )
 
 const (
-	numWorkers int32 = 50
-	maxWorkers int32 = 50
+	numWorkers int32 = 10
+	maxWorkers int32 = 10
 )
 
 type SrcConnCfg struct {

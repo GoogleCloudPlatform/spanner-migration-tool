@@ -10,7 +10,7 @@
 <br />
 <div class="body">
     <div class="definition-container">
-        <h2>Source and destination Database definitions</h2>
+        <h2>Source and Target Database definitions</h2>
         <div class="summary">
             <table mat-table [dataSource]="dataSource">
                 <ng-container matColumnDef="Title">
@@ -41,23 +41,38 @@
             </mat-option>
         </mat-select>
     </mat-form-field>
-
-    <div *ngIf="!(selectedMigrationMode ==='Schema') && isStreamingSupported && !(connectionType ==='dumpFile')">
-        <mat-form-field appearance="outline">
-            <mat-label>Migration Type:</mat-label>
-            <mat-select [(ngModel)]="selectedMigrationType" (selectionChange)="refreshPrerequisites()">
-                <mat-option value="bulk">Bulk Migration</mat-option>
-                <mat-option value="lowdt">Low downtime migration</mat-option>
-            </mat-select>
-        </mat-form-field>
-    </div>
+    <br>
+    <mat-form-field appearance="outline">
+        <mat-label>Migration Type:</mat-label>
+        <mat-select [(ngModel)]="selectedMigrationType" (selectionChange)="refreshPrerequisites()">
+            <mat-option *ngFor="let type of migrationTypes" [value]="type.value">
+                {{type.name}}
+            </mat-option>
+        </mat-select>
+    </mat-form-field>
     <br />
     <div class="prerequisites">
         <mat-card>
             <mat-card-title>Prerequisites</mat-card-title>
             <mat-card-subtitle>Before we begin, please ensure you have done the following:</mat-card-subtitle>
             <hr />
+            <div *ngIf="(connectionType ==='sessionFile') && !(selectedMigrationMode ==='Schema')">
+                <h3>Source database details:</h3>
+                <p class="point">
+                    <span class="bullet">1</span>
+                    <span>Setup Source database details</span><span><button mat-button class="configure"
+                            (click)="openSourceDetailsForm()" [disabled]="isMigrationInProgress">
+                            Configure
+                            <mat-icon>edit</mat-icon>
+                            <mat-icon *ngIf="isSourceDetailsSet" class="success" matTooltip="Source details configured"
+                                matTooltipPosition="above">
+                                check_circle
+                            </mat-icon>
+                        </button></span>
+                </p>
+            </div>
             <div>
+                <h3>Target database details:</h3>
                 <p class="point">
                     <span class="bullet">1</span>
                     <span>Setup Target details</span><span><button mat-button class="configure"
@@ -102,29 +117,45 @@
     </div>
     <div *ngIf="isTargetDetailSet">
         <h3>Target Details</h3>
-        <span><b>Target Database:</b>{{ targetDetails.TargetDB }}</span><br />
+        <span><b>Spanner Database:</b>{{ targetDetails.TargetDB }}</span><br />
         <span><b>Spanner Dialect:</b>{{ targetDetails.Dialect }}</span><br />
-        <span *ngIf="(selectedMigrationType === 'lowdt')"><b>Region:</b>{{ targetDetails.Region
-            }}</span><br />
+        <span><b>Region:</b>{{ region }}</span><br />
+        <span><b>Spanner Instance:</b>{{ instance }} (Nodes: {{nodeCount}}, Processing Units:
+            {{processingUnits}})</span><br />
     </div>
     <div *ngIf="hasSchemaMigrationStarted" class="progress_bar">
+        <br>
         <mat-progress-bar mode="determinate" [value]="schemaMigrationProgress"></mat-progress-bar>
         <span> {{this.schemaProgressMessage}}</span>
     </div>
     <div *ngIf="hasDataMigrationStarted" class="progress_bar">
+        <br>
         <mat-progress-bar mode="determinate" [value]="dataMigrationProgress"></mat-progress-bar>
         <span> {{this.dataProgressMessage}}</span>
     </div>
+    <div *ngIf="hasForeignKeyUpdateStarted" class="progress_bar">
+        <br>
+        <mat-progress-bar mode="determinate" [value]="foreignKeyUpdateProgress"></mat-progress-bar>
+        <span> {{this.foreignKeyProgressMessage}}</span>
+    </div>
+    <div *ngIf="generatingResources">
+        <br>
+        <span class="spinner">
+            <mat-spinner [diameter]="20">
+            </mat-spinner>
+        </span>
+        <span class="spinner-text">Generating Resources</span>
+    </div>
     <div *ngIf="isResourceGenerated">
         <h3> Generated Resources:</h3>
-        <li>Spanner database: <a [href]="resourcesGenerated.DatabaseUrl">{{resourcesGenerated.DatabaseName}}</a></li>
-        <li>GCS bucket: <a [href]="resourcesGenerated.BucketUrl">{{resourcesGenerated.BucketName}}</a></li>
+        <li>Spanner database: <a [href]="resourcesGenerated.DatabaseUrl" target="_blank">{{resourcesGenerated.DatabaseName}}</a></li>
+        <li>GCS bucket: <a [href]="resourcesGenerated.BucketUrl" target="_blank">{{resourcesGenerated.BucketName}}</a></li>
         <span *ngIf="resourcesGenerated.DataStreamJobName!==''">
             <li> Datastream job: <a
-                    [href]="resourcesGenerated.DataStreamJobUrl">{{resourcesGenerated.DataStreamJobName}}</a></li>
+                    [href]="resourcesGenerated.DataStreamJobUrl" target="_blank">{{resourcesGenerated.DataStreamJobName}}</a></li>
         </span>
         <span *ngIf="resourcesGenerated.DataflowJobName!==''">
-            <li>Dataflow job: <a [href]="resourcesGenerated.DataflowJobUrl">{{resourcesGenerated.DataflowJobName}}</a>
+            <li>Dataflow job: <a [href]="resourcesGenerated.DataflowJobUrl" target="_blank">{{resourcesGenerated.DataflowJobName}}</a>
             </li>
         </span>
     </div>

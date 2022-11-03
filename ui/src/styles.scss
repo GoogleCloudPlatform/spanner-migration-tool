@@ -291,3 +291,23 @@ body {
   margin-top :10px;
   margin-bottom: 0px;
 }
+.radio-button-container mat-radio-button:hover {
+  color: #1967d2;
+  ;
+}
+
+.radio-button-group {
+  display: flex; flex-direction: column;
+}
+
+.spinner {
+  position: relative;
+  display: inline-block;
+}
+
+.spinner-text {
+  position: relative;
+  display: inline-block;
+  font-size: 20px;
+  margin-left: 10px;
+}
