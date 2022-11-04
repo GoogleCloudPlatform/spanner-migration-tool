@@ -22,3 +22,10 @@ export interface IGeneratedResources {
     DataflowJobName: string
     DataflowJobUrl: string
 }
+
+export interface ISourceAndTargetDetails {
+    SpannerDatabaseName: string
+    SpannerDatabaseUrl: string
+    SourceDatabaseName: string
+    SourceDatabaseType: string
+}

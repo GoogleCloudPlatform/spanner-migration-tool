@@ -49,6 +49,7 @@ const (
 	DataMigrationComplete
 	DataWriteInProgress
 	ForeignKeyUpdateInProgress
+	ForeignKeyUpdateComplete
 )
 
 // NewProgress creates and returns a Progress instance.

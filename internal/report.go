@@ -329,6 +329,9 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					l = append(l, fmt.Sprintf("%s, Index '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcIdxName, spIdxName))
 				}
 			}
+			if spSchema.Name != srcSchema.Name {
+				l = append(l, fmt.Sprintf("%s, Table '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcSchema.Name, spSchema.Name))
+			}
 		}
 
 		issueBatcher := make(map[SchemaIssue]bool)
@@ -407,6 +410,13 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					if !contains(l, str) {
 						l = append(l, str)
 					}
+				case InterleavedRenameColumn:
+					fkName, referCol := getFkAndReferColumn(spSchema, srcCol)
+					str := fmt.Sprintf(" %s rename %s primary key in table %s to match the foreign key %s refer column %s", IssueDB[i].Brief, srcCol, spSchema.Name, fkName, referCol)
+
+					if !contains(l, str) {
+						l = append(l, str)
+					}
 
 				case RedundantIndex:
 					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, srcCol)
@@ -449,6 +459,17 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 	return body
 }
 
+func getFkAndReferColumn(spSchema ddl.CreateTable, col string) (fkName string, referCol string) {
+	for _, fk := range spSchema.Fks {
+		for k, v := range fk.Columns {
+			if col == v {
+				return fk.Name, fk.ReferColumns[k]
+			}
+		}
+	}
+	return fkName, referCol
+}
+
 func fillRowStats(conv *Conv, srcTable string, badWrites map[string]int64, tr *tableReport) {
 	rows := conv.Stats.Rows[srcTable]
 	goodConvRows := conv.Stats.GoodRows[srcTable]
@@ -479,30 +500,31 @@ var IssueDB = map[SchemaIssue]struct {
 	severity severity
 	batch    bool // Whether multiple instances of this issue are combined.
 }{
-	DefaultValue:          {Brief: "Some columns have default values which Spanner does not support", severity: warning, batch: true},
-	ForeignKey:            {Brief: "Spanner does not support foreign keys", severity: warning},
-	MultiDimensionalArray: {Brief: "Spanner doesn't support multi-dimensional arrays", severity: warning},
-	NoGoodType:            {Brief: "No appropriate Spanner type", severity: warning},
-	Numeric:               {Brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", severity: warning},
-	NumericThatFits:       {Brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", severity: suggestion},
-	Decimal:               {Brief: "Spanner does not support decimal. This type mapping could lose precision and is not recommended for production use", severity: warning},
-	DecimalThatFits:       {Brief: "Spanner does not support decimal, but this type mapping preserves the decimal's specified precision", severity: suggestion},
-	Serial:                {Brief: "Spanner does not support autoincrementing types", severity: warning},
-	AutoIncrement:         {Brief: "Spanner does not support auto_increment attribute", severity: warning},
-	Timestamp:             {Brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: suggestion, batch: true},
-	Datetime:              {Brief: "Spanner timestamp is closer to MySQL timestamp", severity: suggestion, batch: true},
-	Time:                  {Brief: "Spanner does not support time/year types", severity: warning, batch: true},
-	Widened:               {Brief: "Some columns will consume more storage in Spanner", severity: warning, batch: true},
-	StringOverflow:        {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
-	HotspotTimestamp:      {Brief: "Timestamp Hotspot Occured", severity: warning},
-	HotspotAutoIncrement:  {Brief: "Autoincrement Hotspot Occured", severity: warning},
-	InterleavedOrder:      {Brief: "can be converted as Interleaved Table", severity: suggestion},
-	RedundantIndex:        {Brief: "Redundant Index", severity: warning},
-	AutoIncrementIndex:    {Brief: "Auto increment column in Index can create a Hotspot", severity: warning},
-	InterleaveIndex:       {Brief: "can be converted to an Interleave Index", severity: suggestion},
-	InterleavedNotInOrder: {Brief: "Can be converted to interleaved table if primary key order parameter is changed for the table", severity: suggestion},
-	InterleavedAddColumn:  {Brief: "Candidate for Interleaved Table", severity: suggestion},
-	IllegalName:           {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: warning},
+	DefaultValue:            {Brief: "Some columns have default values which Spanner does not support", severity: warning, batch: true},
+	ForeignKey:              {Brief: "Spanner does not support foreign keys", severity: warning},
+	MultiDimensionalArray:   {Brief: "Spanner doesn't support multi-dimensional arrays", severity: warning},
+	NoGoodType:              {Brief: "No appropriate Spanner type", severity: warning},
+	Numeric:                 {Brief: "Spanner does not support numeric. This type mapping could lose precision and is not recommended for production use", severity: warning},
+	NumericThatFits:         {Brief: "Spanner does not support numeric, but this type mapping preserves the numeric's specified precision", severity: suggestion},
+	Decimal:                 {Brief: "Spanner does not support decimal. This type mapping could lose precision and is not recommended for production use", severity: warning},
+	DecimalThatFits:         {Brief: "Spanner does not support decimal, but this type mapping preserves the decimal's specified precision", severity: suggestion},
+	Serial:                  {Brief: "Spanner does not support autoincrementing types", severity: warning},
+	AutoIncrement:           {Brief: "Spanner does not support auto_increment attribute", severity: warning},
+	Timestamp:               {Brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: suggestion, batch: true},
+	Datetime:                {Brief: "Spanner timestamp is closer to MySQL timestamp", severity: suggestion, batch: true},
+	Time:                    {Brief: "Spanner does not support time/year types", severity: warning, batch: true},
+	Widened:                 {Brief: "Some columns will consume more storage in Spanner", severity: warning, batch: true},
+	StringOverflow:          {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
+	HotspotTimestamp:        {Brief: "Timestamp Hotspot Occured", severity: warning},
+	HotspotAutoIncrement:    {Brief: "Autoincrement Hotspot Occured", severity: warning},
+	InterleavedOrder:        {Brief: "can be converted as Interleaved Table", severity: suggestion},
+	RedundantIndex:          {Brief: "Redundant Index", severity: warning},
+	AutoIncrementIndex:      {Brief: "Auto increment column in Index can create a Hotspot", severity: warning},
+	InterleaveIndex:         {Brief: "can be converted to an Interleave Index", severity: suggestion},
+	InterleavedNotInOrder:   {Brief: "Can be converted to interleaved table if primary key order parameter is changed for the table", severity: suggestion},
+	InterleavedAddColumn:    {Brief: "Candidate for Interleaved Table", severity: suggestion},
+	IllegalName:             {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: warning},
+	InterleavedRenameColumn: {Brief: "Candidate for Interleaved Table", severity: suggestion},
 }
 
 type severity int

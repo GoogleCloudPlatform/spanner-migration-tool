@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core'
 import { BehaviorSubject } from 'rxjs'
+import IViewAssesmentData from 'src/app/model/view-assesment'
 
 @Injectable({
   providedIn: 'root',
@@ -10,9 +11,15 @@ export class ClickEventService {
     type: '',
     databaseName: '',
   })
+  private viewAssesmentSub = new BehaviorSubject<IViewAssesmentData>({
+    srcDbType: '',
+    connectionDetail: '',
+    conversionRates: { good: 0, ok: 0, bad: 0 },
+  })
   constructor() {}
   spannerConfig = this.spannerConfigSub.asObservable()
   databaseLoader = this.datebaseLoaderSub.asObservable()
+  viewAssesment = this.viewAssesmentSub.asObservable()
 
   openSpannerConfig() {
     this.spannerConfigSub.next(true)
@@ -22,5 +29,8 @@ export class ClickEventService {
   }
   closeDatabaseLoader() {
     this.datebaseLoaderSub.next({ type: '', databaseName: '' })
+  }
+  setViewAssesmentData(data: IViewAssesmentData) {
+    this.viewAssesmentSub.next(data)
   }
 }

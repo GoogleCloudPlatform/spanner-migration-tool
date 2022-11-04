@@ -7,6 +7,7 @@ import { ClipboardModule } from '@angular/cdk/clipboard'
 import { AppRoutingModule } from './app-routing.module'
 import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http'
 import { FormsModule } from '@angular/forms'
+import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
 
 import { AppComponent } from './app.component'
 import { HeaderComponent } from './components/header/header.component'
@@ -33,10 +34,14 @@ import { EditGlobalDatatypeFormComponent } from './components/edit-global-dataty
 import { SidenavViewAssessmentComponent } from './components/sidenav-view-assessment/sidenav-view-assessment.component'
 import { SidenavSaveSessionComponent } from './components/sidenav-save-session/sidenav-save-session.component'
 import { DropIndexOrTableDialogComponent } from './components/drop-index-or-table-dialog/drop-index-or-table-dialog.component'
-import { DatabaseLoaderComponent } from './components/database-loader/database-loader.component';
-import { PrepareMigrationComponent } from './components/prepare-migration/prepare-migration.component';
-import { TargetDetailsFormComponent } from './components/target-details-form/target-details-form.component';
-import { ConnectionProfileFormComponent } from './components/connection-profile-form/connection-profile-form.component'
+import { DatabaseLoaderComponent } from './components/database-loader/database-loader.component'
+import { PrepareMigrationComponent } from './components/prepare-migration/prepare-migration.component'
+import { TargetDetailsFormComponent } from './components/target-details-form/target-details-form.component'
+import { ConnectionProfileFormComponent } from './components/connection-profile-form/connection-profile-form.component';
+import { SourceDetailsFormComponent } from './components/source-details-form/source-details-form.component'
+import { SidenavReviewChangesComponent } from './components/sidenav-review-changes/sidenav-review-changes.component'
+import { TableColumnChangesPreviewComponent } from './components/table-column-changes-preview/table-column-changes-preview.component';
+import { EndMigrationComponent } from './components/end-migration/end-migration.component'
 
 @NgModule({
   declarations: [
@@ -68,6 +73,10 @@ import { ConnectionProfileFormComponent } from './components/connection-profile-
     PrepareMigrationComponent,
     TargetDetailsFormComponent,
     ConnectionProfileFormComponent,
+    SidenavReviewChangesComponent,
+    TableColumnChangesPreviewComponent,
+    EndMigrationComponent,
+    SourceDetailsFormComponent,
   ],
   imports: [
     BrowserModule,
@@ -77,7 +86,8 @@ import { ConnectionProfileFormComponent } from './components/connection-profile-
     HttpClientModule,
     FormsModule,
     MatRadioModule,
-    ClipboardModule
+    ClipboardModule,
+    MatProgressSpinnerModule,
   ],
   providers: [
     {
@@ -88,4 +98,4 @@ import { ConnectionProfileFormComponent } from './components/connection-profile-
   ],
   bootstrap: [AppComponent],
 })
-export class AppModule { }
+export class AppModule {}

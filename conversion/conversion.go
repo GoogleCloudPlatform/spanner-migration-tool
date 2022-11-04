@@ -660,6 +660,7 @@ Recommended value is between 20-30.`)
 	for i := 1; i <= MaxWorkers; i++ {
 		<-workers
 	}
+	conv.Audit.Progress.UpdateProgress("Foreign key update complete.", 100, internal.ForeignKeyUpdateComplete)
 	conv.Audit.Progress.Done()
 	return nil
 }

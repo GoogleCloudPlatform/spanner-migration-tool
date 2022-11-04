@@ -13,6 +13,7 @@ import (
 	datastream "cloud.google.com/go/datastream/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	"github.com/cloudspannerecosystem/harbourbridge/streaming"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	"github.com/google/uuid"
@@ -20,21 +21,21 @@ import (
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
 )
 
-func GetBucket(project, location, profileName string) (string, error) {
+func GetBucket(project, location, profileName string) (string, string, error) {
 	ctx := context.Background()
 	dsClient, err := datastream.NewClient(ctx)
 	if err != nil {
-		return "", fmt.Errorf("datastream client can not be created: %v", err)
+		return "", "", fmt.Errorf("datastream client can not be created: %v", err)
 	}
 	defer dsClient.Close()
 	// Fetch the GCS path from the destination connection profile.
 	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", project, location, profileName)
 	res, err := dsClient.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: dstProf})
 	if err != nil {
-		return "", fmt.Errorf("could not get connection profile: %v", err)
+		return "", "", fmt.Errorf("could not get connection profile: %v", err)
 	}
 	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
-	return gcsProfile.GetBucket() + gcsProfile.GetRootPath(), nil
+	return gcsProfile.GetBucket(), gcsProfile.GetRootPath(), nil
 }
 
 func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
@@ -45,7 +46,6 @@ func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 	}
 	defer dsClient.Close()
 	sessionState := session.GetSessionState()
-	region := r.FormValue("region")
 	source := r.FormValue("source") == "true"
 	if !source {
 		sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
@@ -58,7 +58,7 @@ func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 	}
 	var connectionProfileList []connectionProfile
 	req := &datastreampb.ListConnectionProfilesRequest{
-		Parent: fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, region),
+		Parent: fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, sessionState.Region),
 	}
 	it := dsClient.ListConnectionProfiles(ctx, req)
 	for {
@@ -90,9 +90,8 @@ func GetStaticIps(w http.ResponseWriter, r *http.Request) {
 	}
 	defer dsClient.Close()
 	sessionState := session.GetSessionState()
-	region := r.FormValue("region")
 	req := &datastreampb.FetchStaticIpsRequest{
-		Name: fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, region),
+		Name: fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, sessionState.Region),
 	}
 	it := dsClient.FetchStaticIps(ctx, req)
 	var staticIpList []string
@@ -139,7 +138,7 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req := &datastreampb.CreateConnectionProfileRequest{
-		Parent:              fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, details.Region),
+		Parent:              fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, sessionState.Region),
 		ConnectionProfileId: details.Id,
 		ConnectionProfile: &datastreampb.ConnectionProfile{
 			DisplayName:  details.Id,
@@ -201,9 +200,17 @@ func setConnectionProfile(isSource bool, sessionState session.SessionState, req 
 
 }
 
+func CleanUpStreamingJobs(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	sessionState := session.GetSessionState()
+	err := streaming.CleanUpStreamingJobs(ctx, sessionState.Conv, sessionState.GCPProjectID, sessionState.Region)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error while cleaning up streaming jobs: %v", err), http.StatusBadRequest)
+	}
+}
+
 type connectionProfileReq struct {
 	Id           string
-	Region       string
 	ValidateOnly bool
 	IsSource     bool
 }
