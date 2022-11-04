@@ -1,0 +1,75 @@
+<div class="radio-button-container">
+    <mat-radio-group [(ngModel)]="selectedOption" class="radio-button-group">
+        <mat-radio-button *ngFor="let option of inputOptions" [value]="option.value"
+            (change)="onItemChange(option.value)">
+            {{option.display}}</mat-radio-button>
+    </mat-radio-group>
+</div>
+
+<div class="connect-load-database-container">
+    <div class="form-container">
+        <div *ngIf="(selectedOption === 'dumpFile')">
+            <form [formGroup]="dumpFileForm" (ngSubmit)="setSourceDBDetailsForDump()">
+                <h4>Load from database dump</h4>
+                Dump File
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>File path</mat-label>
+                    <input matInput placeholder="File path" name="filePath" type="text" formControlName="filePath" />
+                </mat-form-field>
+                <br />
+                <button mat-button color="primary" mat-dialog-close>CANCEL</button>
+                <button mat-raised-button type="submit" color="primary" [disabled]="!dumpFileForm.valid">
+                    SAVE
+                </button>
+                <div *ngIf="errorMsg!=''" class="failure">
+                    <span class="left-text">Source database connection failed</span>
+                    <mat-icon class="icon error" [matTooltip]="errorMsg" matTooltipPosition="above">
+                        error
+                    </mat-icon>
+                </div>
+            </form>
+        </div>
+        <div *ngIf="(selectedOption === 'directConnect')">
+            <form [formGroup]="directConnectForm" (ngSubmit)="setSourceDBDetailsForDirectConnect()">
+                <h4>Connect to Source Database</h4>
+                Connection Detail
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>Hostname</mat-label>
+                    <input matInput placeholder="127.0.0.1" name="hostName" type="text" formControlName="hostName" />
+                </mat-form-field>
+
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>Port</mat-label>
+                    <input matInput placeholder="3306" name="port" type="text" formControlName="port" />
+                    <mat-error> Only numbers are allowed. </mat-error>
+                </mat-form-field>
+                <br />
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>User name</mat-label>
+                    <input matInput placeholder="root" name="userName" type="text" formControlName="userName" />
+                </mat-form-field>
+
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>Password</mat-label>
+                    <input matInput name="password" type="password" formControlName="password" />
+                </mat-form-field>
+                <br />
+                <mat-form-field class="full-width" appearance="outline">
+                    <mat-label>Database Name</mat-label>
+                    <input matInput name="dbname" type="text" formControlName="dbName" />
+                </mat-form-field>
+                <br />
+                <button mat-button color="primary" mat-dialog-close>CANCEL</button>
+                <button mat-raised-button type="submit" color="primary" [disabled]="!directConnectForm.valid">
+                    SAVE
+                </button>
+                <div *ngIf="errorMsg!=''" class="failure">
+                    <span class="left-text">Source database connection failed</span>
+                    <mat-icon class="icon error" [matTooltip]="errorMsg" matTooltipPosition="above">
+                        error
+                    </mat-icon>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

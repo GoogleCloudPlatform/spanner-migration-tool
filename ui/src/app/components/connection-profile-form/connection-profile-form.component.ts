@@ -13,7 +13,6 @@ import { SnackbarService } from 'src/app/services/snackbar/snackbar.service';
 })
 export class ConnectionProfileFormComponent implements OnInit {
   connectionProfileForm: FormGroup
-  selectedRegion: string = localStorage.getItem(TargetDetails.Region) as string
   selectedProfile: string = ''
   profileType: string = Profile.SourceProfileType
   profileList: IConnectionProfile[] = []
@@ -43,9 +42,7 @@ export class ConnectionProfileFormComponent implements OnInit {
       newProfile: [],
       existingProfile: [],
     })
-    if (this.selectedRegion != '') {
-      this.getConnectionProfilesAndIps(localStorage.getItem(TargetDetails.Region) as string)
-    }
+    this.getConnectionProfilesAndIps()
   }
 
   onItemChange(optionValue: string) {
@@ -66,7 +63,6 @@ export class ConnectionProfileFormComponent implements OnInit {
     let formValue = this.connectionProfileForm.value
     let payload: ICreateConnectionProfile = {
       Id: formValue.newProfile,
-      Region: this.selectedRegion,
       IsSource: this.isSource,
       ValidateOnly: true
     }
@@ -86,7 +82,6 @@ export class ConnectionProfileFormComponent implements OnInit {
     if (this.selectedOption === Profile.NewConnProfile) {
       let payload: ICreateConnectionProfile = {
         Id: formValue.newProfile,
-        Region: this.selectedRegion,
         IsSource: this.isSource,
         ValidateOnly: false
       }
@@ -119,8 +114,8 @@ export class ConnectionProfileFormComponent implements OnInit {
   }
   ngOnInit(): void { }
 
-  getConnectionProfilesAndIps(selectedRegion: string) {
-    this.fetch.getConnectionProfiles(selectedRegion, this.isSource).subscribe({
+  getConnectionProfilesAndIps() {
+    this.fetch.getConnectionProfiles(this.isSource).subscribe({
       next: (res: IConnectionProfile[]) => {
         this.profileList = res
       },
@@ -129,7 +124,7 @@ export class ConnectionProfileFormComponent implements OnInit {
       },
     })
     if (this.isSource) {
-      this.fetch.getStaticIps(selectedRegion).subscribe({
+      this.fetch.getStaticIps().subscribe({
         next: (res: string[]) => {
           this.ipList = res
         },

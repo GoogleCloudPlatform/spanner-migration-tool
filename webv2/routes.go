@@ -93,6 +93,12 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/GetStaticIps", profile.GetStaticIps).Methods("GET")
 	router.HandleFunc("/CreateConnectionProfile", profile.CreateConnectionProfile).Methods("POST")
 
+	// Clean up datastream and data flow jobs
+	router.HandleFunc("/CleanUpStreamingJobs", profile.CleanUpStreamingJobs).Methods("POST")
+
+	router.HandleFunc("/SetSourceDBDetailsForDump", setSourceDBDetailsForDump).Methods("POST")
+	router.HandleFunc("/SetSourceDBDetailsForDirectConnect", setSourceDBDetailsForDirectConnect).Methods("POST")
+
 	router.PathPrefix("/").Handler(frontendStatic)
 	return router
 }

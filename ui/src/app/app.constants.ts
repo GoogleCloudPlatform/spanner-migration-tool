@@ -52,6 +52,7 @@ export enum MigrationDetails {
   MigrationType = 'migrationType',
   IsTargetDetailSet = 'isTargetDetailSet',
   IsSourceConnectionProfileSet = 'isSourceConnectionProfileSet',
+  IsSourceDetailsSet = 'isSourceDetailsSet',
   IsTargetConnectionProfileSet = 'isTargetConnectionProfileSet',
   IsMigrationDetailSet = "isMigrationDetailSet",
   IsMigrationInProgress ='isMigrationInProgress',
@@ -60,13 +61,16 @@ export enum MigrationDetails {
   SchemaProgressMessage = 'schemaProgressMessage',
   DataProgressMessage = 'dataProgressMessage',
   DataMigrationProgress = 'dataMigrationProgress',
-  SchemaMigrationProgress = 'schemaMigrationProgress'
+  SchemaMigrationProgress = 'schemaMigrationProgress',
+  HasForeignKeyUpdateStarted = 'hasForeignKeyUpdateStarted',
+  ForeignKeyProgressMessage = 'foreignKeyProgressMessage',
+  ForeignKeyUpdateProgress = 'foreignKeyUpdateProgress',
+  GeneratingResources = 'generatingResources'
 }
 
 export enum TargetDetails {
   TargetDB = 'targetDb',
   Dialect = 'dialect',
-  Region = 'region',
   SourceConnProfile = 'sourceConnProfile',
   TargetConnProfile = 'targetConnProfile'
 }
@@ -83,5 +87,6 @@ export enum ProgressStatus {
 	SchemaCreationInProgress = 2,
 	DataMigrationComplete = 3,
 	DataWriteInProgress = 4,
-	ForeignKeyUpdateInProgress = 5
+	ForeignKeyUpdateInProgress = 5,
+  ForeignKeyUpdateComplete = 6
 }

@@ -6,7 +6,9 @@
       <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'">Configure Schema</a>
     </div>
     <div class="header_action">
-      <button mat-button (click)="prepareMigration()">PREPARE MIGRATION</button>
+      <span matTooltip="Connect to a spanner instance to run migration" [matTooltipDisabled]="!isOfflineStatus">
+      <button mat-button (click)="prepareMigration()" [disabled]="isOfflineStatus">PREPARE MIGRATION</button>
+      </span>
       <button mat-button (click)="openAssessment()">VIEW ASSESSMENT</button>
       <button mat-button (click)="openSaveSessionSidenav()" *ngIf="!isOfflineStatus">
         SAVE SESSION
@@ -17,7 +19,7 @@
   <div class="container">
     <h2 class="vertical-center">Configure schema</h2>
     <div class="summary">
-      Estimation for {{ srcDbName.toUpperCase() }} to for Spanner conversion:
+      Estimation for {{ srcDbName.toUpperCase() }} to Spanner conversion:
       {{ conversionRatePercentages.good }}% of tables can be converted automatically,
       {{ conversionRatePercentages.ok }}% requires minimal conversion changes and
       {{ conversionRatePercentages.bad }}% requires high complexity conversion changes.

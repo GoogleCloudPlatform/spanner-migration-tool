@@ -153,6 +153,7 @@ func migrateData(ctx context.Context, targetProfile profiles.TargetProfile, sour
 		err = fmt.Errorf("can't finish data conversion for db %s: %v", dbURI, err)
 		return nil, err
 	}
+	conv.Audit.Progress.UpdateProgress("Data migration complete.", completionPercentage, internal.DataMigrationComplete)
 	if !cmd.SkipForeignKeys {
 		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
 			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
@@ -176,12 +177,12 @@ func migrateSchemaAndData(ctx context.Context, targetProfile profiles.TargetProf
 		return nil, err
 	}
 
+	conv.Audit.Progress.UpdateProgress("Data migration complete.", completionPercentage, internal.DataMigrationComplete)
 	if !cmd.SkipForeignKeys {
 		if err = conversion.UpdateDDLForeignKeys(ctx, adminClient, dbURI, conv, ioHelper.Out); err != nil {
 			err = fmt.Errorf("can't perform update schema on db %s with foreign keys: %v", dbURI, err)
 			return bw, err
 		}
 	}
-	conv.Audit.Progress.UpdateProgress("Data migration complete.", completionPercentage, internal.DataMigrationComplete)
 	return bw, nil
 }
