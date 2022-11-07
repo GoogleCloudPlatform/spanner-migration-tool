@@ -52,10 +52,16 @@ func TestReport(t *testing.T) {
 	conv.SetSchemaMode()
 	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), DbDumpImpl{})
 	conv.SetDataMode()
-	conv.Stats.Rows = map[string]int64{"bad_schema": 1000, "no_pk": 5000}
-	conv.Stats.GoodRows = map[string]int64{"bad_schema": 990, "no_pk": 3000}
-	conv.Stats.BadRows = map[string]int64{"bad_schema": 10, "no_pk": 2000}
-	badWrites := map[string]int64{"bad_schema": 50, "no_pk": 0}
+
+	badSchemaTableId := common.GetSpTableIdFromName(conv, "bad_schema")
+	assert.NotEqual(t, "", badSchemaTableId)
+	noPkTableId := common.GetSpTableIdFromName(conv, "no_pk")
+	assert.NotEqual(t, "", noPkTableId)
+
+	conv.Stats.Rows = map[string]int64{badSchemaTableId: 1000, noPkTableId: 5000}
+	conv.Stats.GoodRows = map[string]int64{badSchemaTableId: 990, noPkTableId: 3000}
+	conv.Stats.BadRows = map[string]int64{badSchemaTableId: 10, noPkTableId: 2000}
+	badWrites := map[string]int64{badSchemaTableId: 50, noPkTableId: 0}
 	conv.Stats.Unexpected["Testing unexpected messages"] = 5
 	conv.Audit = internal.Audit{
 		MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum(),

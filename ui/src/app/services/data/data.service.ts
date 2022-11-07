@@ -37,7 +37,7 @@ export class DataService {
     .asObservable()
     .pipe(filter((res) => Object.keys(res).length !== 0))
   typeMap = this.typeMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
-  summary = this.summarySub.asObservable().pipe(filter((res) => res.size >= 0))
+  summary = this.summarySub.asObservable()
   ddl = this.ddlSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   tableInterleaveStatus = this.tableInterleaveStatusSub.asObservable()
   sessions = this.sessionsSub.asObservable()
@@ -164,8 +164,8 @@ export class DataService {
     })
   }
 
-  reviewTableUpdate(tableName: string, data: IUpdateTable): Observable<string> {
-    return this.fetch.reviewTableUpdate(tableName, data).pipe(
+  reviewTableUpdate(tableId: string, data: IUpdateTable): Observable<string> {
+    return this.fetch.reviewTableUpdate(tableId, data).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),
@@ -181,8 +181,8 @@ export class DataService {
     )
   }
 
-  updateTable(tableName: string, data: IUpdateTable): Observable<string> {
-    return this.fetch.updateTable(tableName, data).pipe(
+  updateTable(tableId: string, data: IUpdateTable): Observable<string> {
+    return this.fetch.updateTable(tableId, data).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),
@@ -255,8 +255,8 @@ export class DataService {
     )
   }
 
-  updateFkNames(tableName: string, updatedFkNames: Record<string, string>): Observable<string> {
-    return this.fetch.updateFk(tableName, updatedFkNames).pipe(
+  updateFkNames(tableId: string, updatedFkNames: Record<string, string>): Observable<string> {
+    return this.fetch.updateFk(tableId, updatedFkNames).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),
@@ -273,8 +273,8 @@ export class DataService {
     )
   }
 
-  dropFk(tableName: string, fkName: string) {
-    return this.fetch.removeFk(tableName, fkName).pipe(
+  dropFk(tableId: string, fkId: string) {
+    return this.fetch.removeFk(tableId, fkId).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),
@@ -331,8 +331,8 @@ export class DataService {
     })
   }
 
-  addIndex(tableName: string, payload: ICreateIndex[]) {
-    this.fetch.addIndex(tableName, payload).subscribe({
+  addIndex(tableId: string, payload: ICreateIndex[]) {
+    this.fetch.addIndex(tableId, payload).subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
         this.getDdl()
@@ -343,8 +343,8 @@ export class DataService {
       },
     })
   }
-  updateIndex(tableName: string, payload: ICreateIndex[]) {
-    return this.fetch.updateIndex(tableName, payload).pipe(
+  updateIndex(tableId: string, payload: ICreateIndex[]) {
+    return this.fetch.updateIndex(tableId, payload).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),
@@ -361,8 +361,8 @@ export class DataService {
     )
   }
 
-  dropIndex(tableName: string, indexName: string): Observable<string> {
-    return this.fetch.dropIndex(tableName, indexName).pipe(
+  dropIndex(tableId: string, indexId: string): Observable<string> {
+    return this.fetch.dropIndex(tableId, indexId).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),
@@ -381,14 +381,15 @@ export class DataService {
     )
   }
 
-  getInterleaveConversionForATable(tableName: string) {
-    this.fetch.getInterleaveStatus(tableName).subscribe((res: IInterleaveStatus) => {
+  getInterleaveConversionForATable(tableId: string) {
+    this.fetch.getInterleaveStatus(tableId).subscribe((res: IInterleaveStatus) => {
       this.tableInterleaveStatusSub.next(res)
     })
   }
 
-  setInterleave(tableName: string) {
-    this.fetch.setInterleave(tableName).subscribe((res: any) => {
+  setInterleave(tableId: string) {
+    this.fetch.setInterleave(tableId).subscribe((res: any) => {
+      this.convSubject.next(res.sessionState)
       this.getDdl()
       if (res.sessionState) {
         this.convSubject.next(res.sessionState as IConv)

@@ -64,8 +64,10 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 		if vals[i] == "<nil>" || vals[i] == "NULL" {
 			continue
 		}
-		spColDef, ok1 := spSchema.ColDefs[spCol]
-		srcColDef, ok2 := srcSchema.ColDefs[srcCol]
+		tableId, _ := internal.GetTableIdFromName(conv, srcTable)
+		columnId, _ := internal.GetColumnIdFromName(conv, tableId, srcCol)
+		spColDef, ok1 := spSchema.ColDefs[columnId]
+		srcColDef, ok2 := srcSchema.ColDefs[columnId]
 		if !ok1 || !ok2 {
 			return "", []string{}, []interface{}{}, fmt.Errorf("can't find Spanner and source-db schema for col %s", spCol)
 		}
@@ -83,7 +85,7 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 		c = append(c, spCol)
 	}
 	if aux, ok := conv.SyntheticPKeys[spTable]; ok {
-		c = append(c, aux.Col)
+		c = append(c, aux.ColId)
 		v = append(v, fmt.Sprintf("%d", int64(bits.Reverse64(uint64(aux.Sequence)))))
 		aux.Sequence++
 		conv.SyntheticPKeys[spTable] = aux

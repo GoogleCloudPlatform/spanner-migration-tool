@@ -66,7 +66,7 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string)
 	// PostgreSQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but PostgreSQL doesn't support this. So we quote it instead.
-	q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, conv.SrcSchema[srcTable].Schema, srcTable)
+	q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, conv.SrcSchema[srcTable].Schema, conv.SrcSchema[srcTable].Name)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err
@@ -108,17 +108,17 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
 			// Scan failed, so we don't have any data to add to bad rows.
-			conv.StatsAddBadRow(srcTable, conv.DataMode())
+			conv.StatsAddBadRow(conv.SrcSchema[srcTable].Name, conv.DataMode())
 			continue
 		}
 		cvtCols, cvtVals, err := convertSQLRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, v)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
-			conv.StatsAddBadRow(srcTable, conv.DataMode())
-			conv.CollectBadRow(srcTable, srcCols, valsToStrings(v))
+			conv.StatsAddBadRow(conv.SrcSchema[srcTable].Name, conv.DataMode())
+			conv.CollectBadRow(conv.SrcSchema[srcTable].Name, srcCols, valsToStrings(v))
 			continue
 		}
-		conv.WriteRow(srcTable, spTable, cvtCols, cvtVals)
+		conv.WriteRow(conv.SrcSchema[srcTable].Name, spTable, cvtCols, cvtVals)
 	}
 	return nil
 }
@@ -133,8 +133,9 @@ func convertSQLRow(conv *internal.Conv, srcTable string, srcCols []string, srcSc
 	var vs []interface{}
 	var cs []string
 	for i := range srcCols {
-		srcCd, ok1 := srcSchema.ColDefs[srcCols[i]]
-		spCd, ok2 := spSchema.ColDefs[spCols[i]]
+		columnId, _ := internal.GetColumnIdFromName(conv, srcTable, srcCols[i])
+		srcCd, ok1 := srcSchema.ColDefs[columnId]
+		spCd, ok2 := spSchema.ColDefs[columnId]
 		if !ok1 || !ok2 {
 			return nil, nil, fmt.Errorf("data conversion: can't find schema for column %s of table %s", srcCols[i], srcTable)
 		}
@@ -155,7 +156,7 @@ func convertSQLRow(conv *internal.Conv, srcTable string, srcCols []string, srcSc
 		cs = append(cs, srcCols[i])
 	}
 	if aux, ok := conv.SyntheticPKeys[spTable]; ok {
-		cs = append(cs, aux.Col)
+		cs = append(cs, aux.ColId)
 		vs = append(vs, fmt.Sprintf("%d", int64(bits.Reverse64(uint64(aux.Sequence)))))
 		aux.Sequence++
 		conv.SyntheticPKeys[spTable] = aux
@@ -352,10 +353,10 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 	for _, k := range keyNames {
 		foreignKeys = append(foreignKeys,
 			schema.ForeignKey{
-				Name:         fKeys[k].Name,
-				Columns:      fKeys[k].Cols,
-				ReferTable:   fKeys[k].Table,
-				ReferColumns: fKeys[k].Refcols})
+				Name:           fKeys[k].Name,
+				ColIds:         fKeys[k].Cols,
+				ReferTableId:   fKeys[k].Table,
+				ReferColumnIds: fKeys[k].Refcols})
 	}
 	return foreignKeys, nil
 }
@@ -413,7 +414,7 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			indexMap[name] = schema.Index{Name: name, Unique: (isUnique == "true")}
 		}
 		index := indexMap[name]
-		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation == "DESC")})
+		index.Keys = append(index.Keys, schema.Key{ColId: column, Desc: (collation == "DESC")})
 		indexMap[name] = index
 	}
 	for _, k := range indexNames {
@@ -455,12 +456,13 @@ func cvtSQLArray(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, v
 // messages. Note that the caller is responsible for handling nil
 // values (used to represent NULL). We handle each of the remaining
 // cases of values returned by the database/sql library:
-//    bool
-//    []byte
-//    int64
-//    float64
-//    string
-//    time.Time
+//
+//	bool
+//	[]byte
+//	int64
+//	float64
+//	string
+//	time.Time
 func cvtSQLScalar(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, val interface{}) (interface{}, error) {
 	switch spCd.T.Name {
 	case ddl.Bool:

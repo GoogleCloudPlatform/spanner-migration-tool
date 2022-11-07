@@ -52,28 +52,28 @@ func TestProcessDataRow(t *testing.T) {
 	tableName := "testtable"
 	cols := []string{"a", "b", "c", "d"}
 	spSchema := ddl.CreateTable{
-		Name:     tableName,
-		ColNames: cols,
+		Name:   tableName,
+		ColIds: cols,
 		ColDefs: map[string]ddl.ColumnDef{
 			"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
 			"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
 		},
-		Pks: []ddl.IndexKey{{Col: "a"}},
+		PrimaryKeys: []ddl.IndexKey{{ColId: "a"}},
 	}
 	conv := buildConv(
 		spSchema,
 		schema.Table{
-			Name:     tableName,
-			ColNames: cols,
+			Name:   tableName,
+			ColIds: cols,
 			ColDefs: map[string]schema.Column{
 				"a": {Name: "a", Type: schema.Type{Name: typeString}},
 				"b": {Name: "b", Type: schema.Type{Name: typeNumber}},
 				"c": {Name: "c", Type: schema.Type{Name: typeNumberString}},
 				"d": {Name: "d", Type: schema.Type{Name: typeBool}},
 			},
-			PrimaryKeys: []schema.Key{{Column: "a"}},
+			PrimaryKeys: []schema.Key{{ColId: "a"}},
 		},
 	)
 	conv.SetDataMode()
@@ -101,16 +101,16 @@ func TestCvtRowWithError(t *testing.T) {
 	tableName := "testtable"
 	cols := []string{"a"}
 	spSchema := ddl.CreateTable{
-		Name:     tableName,
-		ColNames: cols,
+		Name:   tableName,
+		ColIds: cols,
 		ColDefs: map[string]ddl.ColumnDef{
 			// Give a wrong target type.
 			"a": {Name: "a", T: ddl.Type{Name: ddl.Float64}},
 		},
 	}
 	srcSchema := schema.Table{
-		Name:     tableName,
-		ColNames: cols,
+		Name:   tableName,
+		ColIds: cols,
 		ColDefs: map[string]schema.Column{
 			"a": {Name: "a", Type: schema.Type{Name: typeString}},
 		},
@@ -257,9 +257,9 @@ func buildConv(spTable ddl.CreateTable, srcTable schema.Table) *internal.Conv {
 	conv.SrcSchema[srcTable.Name] = srcTable
 	conv.ToSource[spTable.Name] = internal.NameAndCols{Name: srcTable.Name, Cols: make(map[string]string)}
 	conv.ToSpanner[srcTable.Name] = internal.NameAndCols{Name: spTable.Name, Cols: make(map[string]string)}
-	for i := range spTable.ColNames {
-		conv.ToSource[spTable.Name].Cols[spTable.ColNames[i]] = srcTable.ColNames[i]
-		conv.ToSpanner[srcTable.Name].Cols[srcTable.ColNames[i]] = spTable.ColNames[i]
+	for i := range spTable.ColIds {
+		conv.ToSource[spTable.Name].Cols[spTable.ColIds[i]] = srcTable.ColIds[i]
+		conv.ToSpanner[srcTable.Name].Cols[srcTable.ColIds[i]] = spTable.ColIds[i]
 	}
 	return conv
 }

@@ -574,7 +574,7 @@ func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Clie
 	// Assign parents if any.
 	for table, parent := range parentTables {
 		spTable := conv.SpSchema[table]
-		spTable.Parent = parent
+		spTable.ParentId = parent
 		conv.SpSchema[table] = spTable
 	}
 	return nil
@@ -588,13 +588,13 @@ func CompareSchema(conv1, conv2 *internal.Conv) error {
 	for spannerTableInd := range conv1.SpSchema {
 		sessionTable := conv1.SpSchema[spannerTableInd]
 		spannerTable := conv2.SpSchema[spannerTableInd]
-		if sessionTable.Name != spannerTable.Name || sessionTable.Parent != spannerTable.Parent ||
-			len(sessionTable.Pks) != len(spannerTable.Pks) || len(sessionTable.ColDefs) != len(spannerTable.ColDefs) ||
+		if sessionTable.Name != spannerTable.Name || sessionTable.ParentId != spannerTable.ParentId ||
+			len(sessionTable.PrimaryKeys) != len(spannerTable.PrimaryKeys) || len(sessionTable.ColDefs) != len(spannerTable.ColDefs) ||
 			len(sessionTable.Indexes) != len(spannerTable.Indexes) {
 			return fmt.Errorf("table detail for table %v don't match", sessionTable.Name)
 		}
-		for primaryKeyIndex := range sessionTable.Pks {
-			if sessionTable.Pks[primaryKeyIndex].Col != spannerTable.Pks[primaryKeyIndex].Col || sessionTable.Pks[primaryKeyIndex].Desc != spannerTable.Pks[primaryKeyIndex].Desc {
+		for primaryKeyIndex := range sessionTable.PrimaryKeys {
+			if sessionTable.PrimaryKeys[primaryKeyIndex].ColId != spannerTable.PrimaryKeys[primaryKeyIndex].ColId || sessionTable.PrimaryKeys[primaryKeyIndex].Desc != spannerTable.PrimaryKeys[primaryKeyIndex].Desc {
 				return fmt.Errorf("primary keys for table %v don't match", sessionTable.Name)
 			}
 		}
@@ -611,12 +611,12 @@ func CompareSchema(conv1, conv2 *internal.Conv) error {
 			for _, spannerTableIndex := range spannerTable.Indexes {
 				if sessionTableIndex.Name == spannerTableIndex.Name {
 					found = 1
-					if sessionTableIndex.Table != spannerTableIndex.Table || sessionTableIndex.Unique != spannerTableIndex.Unique ||
+					if sessionTableIndex.TableId != spannerTableIndex.TableId || sessionTableIndex.Unique != spannerTableIndex.Unique ||
 						len(sessionTableIndex.Keys) != len(spannerTableIndex.Keys) {
 						return fmt.Errorf("index %v - details don't match", sessionTableIndex.Name)
 					}
 					for keyIndex := range sessionTableIndex.Keys {
-						if sessionTableIndex.Keys[keyIndex].Col != spannerTableIndex.Keys[keyIndex].Col ||
+						if sessionTableIndex.Keys[keyIndex].ColId != spannerTableIndex.Keys[keyIndex].ColId ||
 							sessionTableIndex.Keys[keyIndex].Desc != spannerTableIndex.Keys[keyIndex].Desc {
 							return fmt.Errorf("index %v - keys don't match", sessionTableIndex.Name)
 						}

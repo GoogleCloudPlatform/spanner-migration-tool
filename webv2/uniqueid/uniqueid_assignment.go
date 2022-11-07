@@ -70,7 +70,7 @@ func AssignUniqueId(conv *internal.Conv) {
 
 				for sourceforeignkeyindex, sourceforeignkey := range sourcetable.ForeignKeys {
 
-					for spannerforeignkeyindex, spannerforeignkey := range spannertable.Fks {
+					for spannerforeignkeyindex, spannerforeignkey := range spannertable.ForeignKeys {
 
 						if validSpannerFkName, _ := internal.FixName(sourceforeignkey.Name); validSpannerFkName == spannerforeignkey.Name {
 
@@ -80,7 +80,7 @@ func AssignUniqueId(conv *internal.Conv) {
 							spannerforeignkey.Id = foreignkeyid
 
 							conv.SrcSchema[sourcetable.Name].ForeignKeys[sourceforeignkeyindex] = sourceforeignkey
-							conv.SpSchema[spannertable.Name].Fks[spannerforeignkeyindex] = spannerforeignkey
+							conv.SpSchema[spannertable.Name].ForeignKeys[spannerforeignkeyindex] = spannerforeignkey
 						}
 
 					}
@@ -123,12 +123,12 @@ func AssignUniqueId(conv *internal.Conv) {
 // updateSpannerTableIndexKeyOrder Update Primary Key Order as columnId.
 func updateSpannerTableIndexKeyOrder(spannertable ddl.CreateTable) {
 
-	for i := 0; i < len(spannertable.Pks); i++ {
+	for i := 0; i < len(spannertable.PrimaryKeys); i++ {
 		for spannercolumnname := range spannertable.ColDefs {
-			if spannertable.Pks[i].Col == spannercolumnname {
+			if spannertable.PrimaryKeys[i].ColId == spannercolumnname {
 
 				o := getSpannerColumnIndex(spannertable, spannercolumnname)
-				spannertable.Pks[i].Order = o
+				spannertable.PrimaryKeys[i].Order = o
 
 			}
 		}
@@ -140,7 +140,7 @@ func updateSourceTableIndexKeyOrder(sourcetable schema.Table) {
 
 	for i := 0; i < len(sourcetable.PrimaryKeys); i++ {
 		for sourcecolumnname := range sourcetable.ColDefs {
-			if sourcetable.PrimaryKeys[i].Column == sourcecolumnname {
+			if sourcetable.PrimaryKeys[i].ColId == sourcecolumnname {
 
 				o := getSourceColumnIndex(sourcetable, sourcecolumnname)
 				sourcetable.PrimaryKeys[i].Order = o
@@ -157,7 +157,7 @@ func updateSpannerTableSecondaryIndexKeyOrder(spannertable ddl.CreateTable) {
 		for j := 0; j < len(spannertable.Indexes[i].Keys); j++ {
 
 			for spannercolumnname := range spannertable.ColDefs {
-				if spannertable.Indexes[i].Keys[j].Col == spannercolumnname {
+				if spannertable.Indexes[i].Keys[j].ColId == spannercolumnname {
 
 					o := getSpannerColumnIndex(spannertable, spannercolumnname)
 					spannertable.Indexes[i].Keys[j].Order = o
@@ -176,7 +176,7 @@ func updateSourceTableSecondaryIndexKeyOrder(sourcetable schema.Table) {
 		for j := 0; j < len(sourcetable.Indexes[i].Keys); j++ {
 
 			for spannercolumnname := range sourcetable.ColDefs {
-				if sourcetable.Indexes[i].Keys[j].Column == spannercolumnname {
+				if sourcetable.Indexes[i].Keys[j].ColId == spannercolumnname {
 
 					o := getSourceColumnIndex(sourcetable, spannercolumnname)
 					sourcetable.Indexes[i].Keys[j].Order = o
@@ -190,8 +190,8 @@ func updateSourceTableSecondaryIndexKeyOrder(sourcetable schema.Table) {
 // getSpannerColumnIndex return columnn index as Inserted Order.
 func getSpannerColumnIndex(spannertable ddl.CreateTable, columnName string) int {
 
-	for i := 0; i < len(spannertable.ColNames); i++ {
-		if spannertable.ColNames[i] == columnName {
+	for i := 0; i < len(spannertable.ColIds); i++ {
+		if spannertable.ColIds[i] == columnName {
 			return i + 1
 		}
 	}
@@ -201,8 +201,8 @@ func getSpannerColumnIndex(spannertable ddl.CreateTable, columnName string) int 
 // getColumnIndex return columnn index as Inserted Order.
 func getSourceColumnIndex(sourcetable schema.Table, columnName string) int {
 
-	for i := 0; i < len(sourcetable.ColNames); i++ {
-		if sourcetable.ColNames[i] == columnName {
+	for i := 0; i < len(sourcetable.ColIds); i++ {
+		if sourcetable.ColIds[i] == columnName {
 			return i + 1
 		}
 	}
@@ -259,7 +259,7 @@ func InitObjectId() {
 	sessionState.Counter.ObjectId = "0"
 }
 
-//CopyUniqueIdToSpannerTable copy ids from source table to spanner table content
+// CopyUniqueIdToSpannerTable copy ids from source table to spanner table content
 func CopyUniqueIdToSpannerTable(conv *internal.Conv, spannertablename string) {
 	sourcetablename := conv.ToSource[spannertablename].Name
 	spannertable := conv.SpSchema[spannertablename]
@@ -285,10 +285,10 @@ func CopyUniqueIdToSpannerTable(conv *internal.Conv, spannertablename string) {
 	}
 
 	for _, sourceforeignkey := range sourcetable.ForeignKeys {
-		for spannerforeignkeyindex, spannerforeignkey := range spannertable.Fks {
+		for spannerforeignkeyindex, spannerforeignkey := range spannertable.ForeignKeys {
 			if validSpannerFkName, _ := internal.FixName(sourceforeignkey.Name); validSpannerFkName == spannerforeignkey.Name {
 				spannerforeignkey.Id = sourceforeignkey.Id
-				spannertable.Fks[spannerforeignkeyindex] = spannerforeignkey
+				spannertable.ForeignKeys[spannerforeignkeyindex] = spannerforeignkey
 			}
 		}
 	}

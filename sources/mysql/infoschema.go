@@ -54,7 +54,7 @@ func (isi InfoSchemaImpl) GetTableName(dbName string, tableName string) string {
 // GetRowsFromTable returns a sql Rows object for a table.
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
 	srcSchema := conv.SrcSchema[srcTable]
-	srcCols := srcSchema.ColNames
+	srcCols := srcSchema.ColIds
 	if len(srcCols) == 0 {
 		conv.Unexpected(fmt.Sprintf("Couldn't get source columns for table %s ", srcTable))
 		return nil, nil
@@ -63,7 +63,7 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string)
 	// Ideally we would pass schema/name as a query parameter,
 	// but MySQL doesn't support this. So we quote it instead.
 	colNameList := buildColNameList(srcSchema, srcCols)
-	q := fmt.Sprintf("SELECT %s FROM `%s`.`%s`;", colNameList, conv.SrcSchema[srcTable].Schema, srcTable)
+	q := fmt.Sprintf("SELECT %s FROM `%s`.`%s`;", colNameList, conv.SrcSchema[srcTable].Schema, conv.SrcSchema[srcTable].Name)
 	rows, err := isi.Db.Query(q)
 	return rows, err
 }
@@ -109,7 +109,7 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 			continue
 		}
 		values := valsToStrings(v)
-		ProcessDataRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, values)
+		ProcessDataRow(conv, conv.SrcSchema[srcTable].Name, srcCols, srcSchema, spTable, spCols, spSchema, values)
 	}
 	return nil
 }
@@ -288,10 +288,10 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 	for _, k := range keyNames {
 		foreignKeys = append(foreignKeys,
 			schema.ForeignKey{
-				Name:         fKeys[k].Name,
-				Columns:      fKeys[k].Cols,
-				ReferTable:   fKeys[k].Table,
-				ReferColumns: fKeys[k].Refcols})
+				Name:           fKeys[k].Name,
+				ColIds:         fKeys[k].Cols,
+				ReferTableId:   fKeys[k].Table,
+				ReferColumnIds: fKeys[k].Refcols})
 	}
 	return foreignKeys, nil
 }
@@ -324,7 +324,7 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			indexMap[name] = schema.Index{Name: name, Unique: (nonUnique == "0")}
 		}
 		index := indexMap[name]
-		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation.Valid && collation.String == "D")})
+		index.Keys = append(index.Keys, schema.Key{ColId: column, Desc: (collation.Valid && collation.String == "D")})
 		indexMap[name] = index
 	}
 	for _, k := range indexNames {

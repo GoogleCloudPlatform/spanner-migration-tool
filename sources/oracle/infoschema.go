@@ -51,12 +51,12 @@ func (isi InfoSchemaImpl) GetTableName(dbName string, tableName string) string {
 // GetRowsFromTable returns a sql Rows object for a table.
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
 	tbl := conv.SrcSchema[srcTable]
-	srcCols := tbl.ColNames
+	srcCols := tbl.ColIds
 	if len(srcCols) == 0 {
 		conv.Unexpected(fmt.Sprintf("Couldn't get source columns for table %s ", srcTable))
 		return nil, nil
 	}
-	q := getSelectQuery(isi.DbName, tbl.Schema, tbl.Name, tbl.ColNames, tbl.ColDefs)
+	q := getSelectQuery(isi.DbName, tbl.Schema, tbl.Name, tbl.ColIds, tbl.ColDefs)
 	rows, err := isi.Db.Query(q)
 	return rows, err
 }
@@ -322,10 +322,10 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 	for _, k := range keyNames {
 		foreignKeys = append(foreignKeys,
 			schema.ForeignKey{
-				Name:         fKeys[k].Name,
-				Columns:      fKeys[k].Cols,
-				ReferTable:   fKeys[k].Table,
-				ReferColumns: fKeys[k].Refcols})
+				Name:           fKeys[k].Name,
+				ColIds:         fKeys[k].Cols,
+				ReferTableId:   fKeys[k].Table,
+				ReferColumnIds: fKeys[k].Refcols})
 	}
 	return foreignKeys, nil
 }
@@ -391,7 +391,7 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			indexMap[name] = schema.Index{Name: name, Unique: (Unique == "UNIQUE")}
 		}
 		index := indexMap[name]
-		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation.Valid && collation.String == "DESC")})
+		index.Keys = append(index.Keys, schema.Key{ColId: column, Desc: (collation.Valid && collation.String == "DESC")})
 		indexMap[name] = index
 	}
 	for _, k := range indexNames {

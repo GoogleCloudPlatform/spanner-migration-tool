@@ -31,15 +31,15 @@ type Conv struct {
 	SpSchema       ddl.Schema                          // Maps Spanner table name to Spanner schema.
 	SyntheticPKeys map[string]SyntheticPKey            // Maps Spanner table name to synthetic primary key (if needed).
 	SrcSchema      map[string]schema.Table             // Maps source-DB table name to schema information.
-	Issues         map[string]map[string][]SchemaIssue // Maps source-DB table/col to list of schema conversion issues.
-	ToSpanner      map[string]NameAndCols              // Maps from source-DB table name to Spanner name and column mapping.
-	ToSource       map[string]NameAndCols              // Maps from Spanner table name to source-DB table name and column mapping.
-	UsedNames      map[string]bool                     // Map storing the names that are already assigned to tables, indices or foreign key contraints.
+	SchemaIssues   map[string]map[string][]SchemaIssue // Maps source-DB table/col to list of schema conversion issues.
+	ToSpanner      map[string]NameAndCols              `json:"-"` // Maps from source-DB table name to Spanner name and column mapping.
+	ToSource       map[string]NameAndCols              `json:"-"` // Maps from Spanner table name to source-DB table name and column mapping.
+	UsedNames      map[string]bool                     `json:"-"` // Map storing the names that are already assigned to tables, indices or foreign key contraints.
 	dataSink       func(table string, cols []string, values []interface{})
-	DataFlush      func()         `json:"-"` // Data flush is used to flush out remaining writes and wait for them to complete.
-	Location       *time.Location // Timezone (for timestamp conversion).
-	sampleBadRows  rowSamples     // Rows that generated errors during conversion.
-	Stats          stats
+	DataFlush      func()              `json:"-"` // Data flush is used to flush out remaining writes and wait for them to complete.
+	Location       *time.Location      // Timezone (for timestamp conversion).
+	sampleBadRows  rowSamples          // Rows that generated errors during conversion.
+	Stats          stats               `json:"-"`
 	TimezoneOffset string              // Timezone offset for timestamp conversion.
 	TargetDb       string              // The target database to which HarbourBridge is writing.
 	UniquePKey     map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
@@ -57,7 +57,7 @@ const (
 // count for a table, if needed. We use a synthetic primary key when
 // the source DB table has no primary key.
 type SyntheticPKey struct {
-	Col      string
+	ColId    string
 	Sequence int64
 }
 
@@ -176,7 +176,7 @@ func MakeConv() *Conv {
 		SpSchema:       ddl.NewSchema(),
 		SyntheticPKeys: make(map[string]SyntheticPKey),
 		SrcSchema:      make(map[string]schema.Table),
-		Issues:         make(map[string]map[string][]SchemaIssue),
+		SchemaIssues:   make(map[string]map[string][]SchemaIssue),
 		ToSpanner:      make(map[string]NameAndCols),
 		ToSource:       make(map[string]NameAndCols),
 		UsedNames:      make(map[string]bool),
@@ -326,7 +326,7 @@ func (conv *Conv) SampleBadRows(n int) []string {
 // keys for any tables that don't have primary key.
 func (conv *Conv) AddPrimaryKeys() {
 	for t, ct := range conv.SpSchema {
-		if len(ct.Pks) == 0 {
+		if len(ct.PrimaryKeys) == 0 {
 			primaryKeyPopulated := false
 			// Populating column with unique constraint as primary key in case
 			// table doesn't have primary key and removing the unique index.
@@ -334,8 +334,8 @@ func (conv *Conv) AddPrimaryKeys() {
 				for i, index := range ct.Indexes {
 					if index.Unique {
 						for _, indexKey := range index.Keys {
-							ct.Pks = append(ct.Pks, ddl.IndexKey{Col: indexKey.Col, Desc: indexKey.Desc})
-							conv.UniquePKey[t] = append(conv.UniquePKey[t], indexKey.Col)
+							ct.PrimaryKeys = append(ct.PrimaryKeys, ddl.IndexKey{ColId: indexKey.ColId, Desc: indexKey.Desc})
+							conv.UniquePKey[t] = append(conv.UniquePKey[t], indexKey.ColId)
 						}
 						primaryKeyPopulated = true
 						ct.Indexes = append(ct.Indexes[:i], ct.Indexes[i+1:]...)
@@ -345,9 +345,9 @@ func (conv *Conv) AddPrimaryKeys() {
 			}
 			if !primaryKeyPopulated {
 				k := conv.buildPrimaryKey(t)
-				ct.ColNames = append(ct.ColNames, k)
+				ct.ColIds = append(ct.ColIds, k)
 				ct.ColDefs[k] = ddl.ColumnDef{Name: k, T: ddl.Type{Name: ddl.String, Len: 50}}
-				ct.Pks = []ddl.IndexKey{{Col: k}}
+				ct.PrimaryKeys = []ddl.IndexKey{{ColId: k}}
 				conv.SyntheticPKeys[t] = SyntheticPKey{k, 0}
 			}
 			conv.SpSchema[t] = ct
@@ -360,17 +360,24 @@ func (conv *Conv) SetLocation(loc *time.Location) {
 	conv.Location = loc
 }
 
-func (conv *Conv) buildPrimaryKey(spTable string) string {
+func (conv *Conv) buildPrimaryKey(tableId string) string {
 	base := "synth_id"
-	if _, ok := conv.ToSource[spTable]; !ok {
-		conv.Unexpected(fmt.Sprintf("ToSource lookup fails for table %s: ", spTable))
+	if _, ok := conv.SpSchema[tableId]; !ok {
+		conv.Unexpected(fmt.Sprintf("Table doesn't exist for tableId %s: ", tableId))
 		return base
 	}
 	count := 0
 	key := base
 	for {
 		// Check key isn't already a column in the table.
-		if _, ok := conv.ToSource[spTable].Cols[key]; !ok {
+		ok := true
+		for _, column := range conv.SpSchema[tableId].ColDefs {
+			if column.Name == key {
+				ok = false
+				break
+			}
+		}
+		if ok {
 			return key
 		}
 		key = fmt.Sprintf("%s%d", base, count)

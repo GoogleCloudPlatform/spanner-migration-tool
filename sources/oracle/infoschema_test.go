@@ -157,33 +157,33 @@ func TestProcessSchemaOracle(t *testing.T) {
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"USER": {
-			Name:     "USER",
-			ColNames: []string{"USER_ID", "NAME", "REF"},
-			ColDefs:  map[string]ddl.ColumnDef{"USER_ID": {Name: "USER_ID", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}, NotNull: true}, "NAME": {Name: "NAME", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}, NotNull: true}, "REF": {Name: "REF", T: ddl.Type{Name: ddl.Numeric}}},
-			Pks:      []ddl.IndexKey{{Col: "USER_ID"}},
-			Fks:      []ddl.Foreignkey{{Name: "fk_test", Columns: []string{"REF"}, ReferTable: "TEST", ReferColumns: []string{"ID"}}},
+			Name:        "USER",
+			ColIds:      []string{"USER_ID", "NAME", "REF"},
+			ColDefs:     map[string]ddl.ColumnDef{"USER_ID": {Name: "USER_ID", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}, NotNull: true}, "NAME": {Name: "NAME", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}, NotNull: true}, "REF": {Name: "REF", T: ddl.Type{Name: ddl.Numeric}}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "USER_ID"}},
+			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"REF"}, ReferTableId: "TEST", ReferColumnIds: []string{"ID"}}},
 			Indexes: []ddl.CreateIndex{{
-				Name:   "INDEX1_LAST",
-				Table:  "USER",
-				Unique: false,
-				Keys:   []ddl.IndexKey{{Col: "NAME", Desc: true}},
+				Name:    "INDEX1_LAST",
+				TableId: "USER",
+				Unique:  false,
+				Keys:    []ddl.IndexKey{{ColId: "NAME", Desc: true}},
 			}, {
-				Name:   "INDEX_TEST_2",
-				Table:  "USER",
-				Unique: false,
-				Keys:   []ddl.IndexKey{{Col: "NAME", Desc: true}, {Col: "USER_ID", Desc: true}},
+				Name:    "INDEX_TEST_2",
+				TableId: "USER",
+				Unique:  false,
+				Keys:    []ddl.IndexKey{{ColId: "NAME", Desc: true}, {ColId: "USER_ID", Desc: true}},
 			}},
 		},
 		"TEST": {
-			Name:     "TEST",
-			ColNames: []string{"ID"},
+			Name:   "TEST",
+			ColIds: []string{"ID"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"ID": {Name: "ID", T: ddl.Type{Name: ddl.Numeric}, NotNull: true}},
-			Pks: []ddl.IndexKey{{Col: "ID"}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "ID"}},
 		},
 		"TEST2": {
-			Name:     "TEST2",
-			ColNames: []string{"ID", "JSON", "REALJSON", "ARRAY_NUM", "ARRAY_FLOAT", "ARRAY_STRING", "ARRAY_DATE", "ARRAY_INT", "OBJECT"},
+			Name:   "TEST2",
+			ColIds: []string{"ID", "JSON", "REALJSON", "ARRAY_NUM", "ARRAY_FLOAT", "ARRAY_STRING", "ARRAY_DATE", "ARRAY_INT", "OBJECT"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"ID":           {Name: "ID", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
 				"JSON":         {Name: "JSON", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
@@ -195,13 +195,20 @@ func TestProcessSchemaOracle(t *testing.T) {
 				"ARRAY_INT":    {Name: "ARRAY_INT", T: ddl.Type{Name: ddl.Int64, IsArray: true}, NotNull: true},
 				"OBJECT":       {Name: "OBJECT", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
 			},
-			Pks: []ddl.IndexKey{{Col: "ID"}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "ID"}},
 		},
 	}
-	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
-	assert.Equal(t, len(conv.Issues["USER"]), 0)
-	assert.Equal(t, len(conv.Issues["TEST"]), 0)
-	assert.Equal(t, len(conv.Issues["TEST2"]), 0)
+	common.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
+	userTableId := common.GetSpTableIdFromName(conv, "USER")
+	testTableId := common.GetSpTableIdFromName(conv, "TEST")
+	test2TableId := common.GetSpTableIdFromName(conv, "TEST2")
+	assert.NotEqual(t, "", userTableId)
+	assert.NotEqual(t, "", testTableId)
+	assert.NotEqual(t, "", testTableId)
+
+	assert.Equal(t, len(conv.SchemaIssues[userTableId]), 0)
+	assert.Equal(t, len(conv.SchemaIssues[testTableId]), 0)
+	assert.Equal(t, len(conv.SchemaIssues[test2TableId]), 0)
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 

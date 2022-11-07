@@ -16,16 +16,16 @@
 Package common creates an outline for common functionality across the multiple
 source databases we support.
 While adding new methods or code here
-1.  Ensure that the changes do not adversely impact any source that uses the
-	common code
-2.	Test cases might not sufficiently cover all cases, so integration and
-	manual testing should be done ensure no functionality is breaking. Most of
-	the test cases that cover the code in this package will lie in the
-	implementing source databases, so it might not be required to have unit
-	tests for each method here.
-3.	Any functions added here should be used by two or more databases
-4.	If it looks like the code is getting more complex due to refactoring,
-	it is probably better off leaving the functionality out of common
+ 1. Ensure that the changes do not adversely impact any source that uses the
+    common code
+ 2. Test cases might not sufficiently cover all cases, so integration and
+    manual testing should be done ensure no functionality is breaking. Most of
+    the test cases that cover the code in this package will lie in the
+    implementing source databases, so it might not be required to have unit
+    tests for each method here.
+ 3. Any functions added here should be used by two or more databases
+ 4. If it looks like the code is getting more complex due to refactoring,
+    it is probably better off leaving the functionality out of common
 */
 package common
 
@@ -51,7 +51,9 @@ type ToDdl interface {
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
 func SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error {
-	for _, srcTable := range conv.SrcSchema {
+	tableIds := internal.GetSortedTableIds(conv)
+	for _, tableId := range tableIds {
+		srcTable := conv.SrcSchema[tableId]
 		SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
 	}
 	internal.ResolveRefs(conv)
@@ -64,18 +66,18 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 		conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
 		return err
 	}
-	var spColNames []string
+	var spColIds []string
 	spColDef := make(map[string]ddl.ColumnDef)
-	conv.Issues[srcTable.Name] = make(map[string][]internal.SchemaIssue)
+	conv.SchemaIssues[srcTable.Id] = make(map[string][]internal.SchemaIssue)
 	// Iterate over columns using ColNames order.
-	for _, srcColName := range srcTable.ColNames {
-		srcCol := srcTable.ColDefs[srcColName]
+	for _, srcColId := range srcTable.ColIds {
+		srcCol := srcTable.ColDefs[srcColId]
 		colName, err := internal.GetSpannerCol(conv, srcTable.Name, srcCol.Name, false)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't map source column %s of table %s to Spanner: %s", srcTable.Name, srcCol.Name, err))
 			continue
 		}
-		spColNames = append(spColNames, colName)
+		spColIds = append(spColIds, srcColId)
 		ty, issues := toddl.ToSpannerType(conv, srcCol.Type)
 		// TODO(hengfeng): add issues for all elements of srcCol.Ignored.
 		if srcCol.Ignored.ForeignKey {
@@ -91,24 +93,26 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 			issues = append(issues, internal.AutoIncrement)
 		}
 		if len(issues) > 0 {
-			conv.Issues[srcTable.Name][srcCol.Name] = issues
+			conv.SchemaIssues[srcTable.Id][srcColId] = issues
 		}
-		spColDef[colName] = ddl.ColumnDef{
+		spColDef[srcColId] = ddl.ColumnDef{
 			Name:    colName,
 			T:       ty,
 			NotNull: srcCol.NotNull,
 			Comment: "From: " + quoteIfNeeded(srcCol.Name) + " " + srcCol.Type.Print(),
+			Id:      srcColId,
 		}
 	}
 	comment := "Spanner schema for source table " + quoteIfNeeded(srcTable.Name)
-	conv.SpSchema[spTableName] = ddl.CreateTable{
-		Name:     spTableName,
-		ColNames: spColNames,
-		ColDefs:  spColDef,
-		Pks:      cvtPrimaryKeys(conv, srcTable.Name, srcTable.PrimaryKeys),
-		Fks:      cvtForeignKeys(conv, spTableName, srcTable.Name, srcTable.ForeignKeys, isRestore),
-		Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes),
-		Comment:  comment}
+	conv.SpSchema[srcTable.Id] = ddl.CreateTable{
+		Name:        spTableName,
+		ColIds:      spColIds,
+		ColDefs:     spColDef,
+		PrimaryKeys: cvtPrimaryKeys(conv, srcTable.Id, srcTable.PrimaryKeys),
+		ForeignKeys: cvtForeignKeys(conv, spTableName, srcTable.Id, srcTable.ForeignKeys, isRestore),
+		Indexes:     cvtIndexes(conv, spTableName, srcTable.Id, srcTable.Indexes, spColIds),
+		Comment:     comment,
+		Id:          srcTable.Id}
 	return nil
 }
 
@@ -122,108 +126,118 @@ func quoteIfNeeded(s string) string {
 	return s
 }
 
-func cvtPrimaryKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Key) []ddl.IndexKey {
+func cvtPrimaryKeys(conv *internal.Conv, srcTableId string, srcKeys []schema.Key) []ddl.IndexKey {
 	var spKeys []ddl.IndexKey
 	for _, k := range srcKeys {
-		spCol, err := internal.GetSpannerCol(conv, srcTable, k.Column, true)
-		if err != nil {
-			conv.Unexpected(fmt.Sprintf("Can't map key for table %s", srcTable))
-			continue
-		}
-		spKeys = append(spKeys, ddl.IndexKey{Col: spCol, Desc: k.Desc})
+		spKeys = append(spKeys, ddl.IndexKey{ColId: k.ColId, Desc: k.Desc})
 	}
 	return spKeys
 }
 
-func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTable string, srcKeys []schema.ForeignKey, isRestore bool) []ddl.Foreignkey {
+func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTableId string, srcKeys []schema.ForeignKey, isRestore bool) []ddl.Foreignkey {
 	var spKeys []ddl.Foreignkey
 	for _, key := range srcKeys {
-		spKey, err := cvtForeignKeysHelper(conv, spTableName, srcTable, key, isRestore)
+		spKey, err := cvtForeignKeysHelper(conv, spTableName, srcTableId, key, isRestore)
 		if err != nil {
 			continue
 		}
+		spKey.Id = key.Id
 		spKeys = append(spKeys, spKey)
 	}
 	return spKeys
 }
 
-func cvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTable string, srcKey schema.ForeignKey, isRestore bool) (ddl.Foreignkey, error) {
-	if len(srcKey.Columns) != len(srcKey.ReferColumns) {
-		conv.Unexpected(fmt.Sprintf("ConvertForeignKeys: columns and referColumns don't have the same lengths: len(columns)=%d, len(referColumns)=%d for source table: %s, referenced table: %s", len(srcKey.Columns), len(srcKey.ReferColumns), srcTable, srcKey.ReferTable))
+// todo handle for case when the refer table is dropped
+func cvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTableId string, srcKey schema.ForeignKey, isRestore bool) (ddl.Foreignkey, error) {
+	if len(srcKey.ColIds) != len(srcKey.ReferColumnIds) {
+		conv.Unexpected(fmt.Sprintf("ConvertForeignKeys: ColIds and referColumns don't have the same lengths: len(columns)=%d, len(referColumns)=%d for source tableId: %s, referenced table: %s", len(srcKey.ColIds), len(srcKey.ReferColumnIds), srcTableId, srcKey.ReferTableId))
 		return ddl.Foreignkey{}, fmt.Errorf("ConvertForeignKeys: columns and referColumns don't have the same lengths")
 	}
-	_, isPresent := conv.UsedNames[srcKey.ReferTable]
+
+	// check whether spanner refer table exist or not.
+	_, isPresent := conv.SpSchema[srcKey.ReferTableId]
 	if !isPresent && isRestore {
 		return ddl.Foreignkey{}, nil
 	}
-	spReferTable, err := internal.GetSpannerTable(conv, srcKey.ReferTable)
 
-	if err != nil {
-		conv.Unexpected(fmt.Sprintf("Can't map foreign key for source table: %s, referenced table: %s", srcTable, srcKey.ReferTable))
-		return ddl.Foreignkey{}, err
+	// check whether source refer table exist or not.
+	_, isPresent = conv.SrcSchema[srcKey.ReferTableId]
+	if !isPresent {
+		conv.Unexpected(fmt.Sprintf("Can't map foreign key for source tableId: %s, referenced tableId: %s", srcTableId, srcKey.ReferTableId))
+		return ddl.Foreignkey{}, fmt.Errorf("reference table not found")
 	}
-	var spCols, spReferCols []string
-	for i, col := range srcKey.Columns {
-		spCol, err1 := internal.GetSpannerCol(conv, srcTable, col, false)
-		spReferCol, err2 := internal.GetSpannerCol(conv, srcKey.ReferTable, srcKey.ReferColumns[i], false)
-		if err1 != nil || err2 != nil {
-			conv.Unexpected(fmt.Sprintf("Can't map foreign key for table: %s, referenced table: %s, column: %s", srcTable, srcKey.ReferTable, col))
-			continue
-		}
-		spCols = append(spCols, spCol)
-		spReferCols = append(spReferCols, spReferCol)
+	var spColIds, spReferColIds []string
+	for i, colId := range srcKey.ColIds {
+		spColIds = append(spColIds, colId)
+		spReferColIds = append(spReferColIds, srcKey.ReferColumnIds[i])
 	}
 	spKeyName := internal.ToSpannerForeignKey(conv, srcKey.Name)
 
 	spKey := ddl.Foreignkey{
-		Name:         spKeyName,
-		Columns:      spCols,
-		ReferTable:   spReferTable,
-		ReferColumns: spReferCols}
-	conv.Audit.ToSpannerFkIdx[srcTable].ForeignKey[srcKey.Name] = spKeyName
-	conv.Audit.ToSourceFkIdx[spTableName].ForeignKey[spKeyName] = srcKey.Name
+		Name:           spKeyName,
+		ColIds:         spColIds,
+		ReferTableId:   srcKey.ReferTableId,
+		ReferColumnIds: spReferColIds,
+	}
+	conv.Audit.ToSpannerFkIdx[srcTableId].ForeignKey[srcKey.Id] = spKeyName
+	conv.Audit.ToSourceFkIdx[srcTableId].ForeignKey[srcKey.Id] = srcKey.Name
 
 	return spKey, nil
 }
 
-func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcIndexes []schema.Index) []ddl.CreateIndex {
+func cvtIndexes(conv *internal.Conv, spTableName string, srcTableId string, srcIndexes []schema.Index, spColIds []string) []ddl.CreateIndex {
 	var spIndexes []ddl.CreateIndex
 	for _, srcIndex := range srcIndexes {
 		var spKeys []ddl.IndexKey
 		var spStoredColumns []string
 
 		for _, k := range srcIndex.Keys {
-			spCol, err := internal.GetSpannerCol(conv, srcTable, k.Column, true)
-			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Can't map index key column name for table %s column %s", srcTable, k.Column))
+			isPresent := false
+			for _, v := range spColIds {
+				if v == k.ColId {
+					isPresent = true
+					break
+				}
+			}
+			if !isPresent {
+				conv.Unexpected(fmt.Sprintf("Can't map index key column for tableId %s columnId %s", srcTableId, k.ColId))
 				continue
 			}
-			spKeys = append(spKeys, ddl.IndexKey{Col: spCol, Desc: k.Desc})
+			spKeys = append(spKeys, ddl.IndexKey{ColId: k.ColId, Desc: k.Desc})
 		}
-		for _, k := range srcIndex.StoredColumns {
-			spCol, err := internal.GetSpannerCol(conv, srcTable, k, true)
-			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Can't map index column name for table %s column %s", srcTable, k))
+
+		for _, colId := range srcIndex.StoredColumnIds {
+			isPresent := false
+			for _, v := range spColIds {
+				if v == colId {
+					isPresent = true
+					break
+				}
+			}
+			if !isPresent {
+				conv.Unexpected(fmt.Sprintf("Can't map index column for tableId %s columnId %s", srcTableId, colId))
 				continue
 			}
-			spStoredColumns = append(spStoredColumns, spCol)
+			spStoredColumns = append(spStoredColumns, colId)
 		}
+
 		if srcIndex.Name == "" {
 			// Generate a name if index name is empty in MySQL.
 			// Collision of index name will be handled by ToSpannerIndexName.
-			srcIndex.Name = fmt.Sprintf("Index_%s", srcTable)
+			srcIndex.Name = fmt.Sprintf("Index_%s", conv.SrcSchema[srcTableId].Name)
 		}
 		spIndexName := internal.ToSpannerIndexName(conv, srcIndex.Name)
 		spIndex := ddl.CreateIndex{
-			Name:          spIndexName,
-			Table:         spTableName,
-			Unique:        srcIndex.Unique,
-			Keys:          spKeys,
-			StoredColumns: spStoredColumns,
+			Name:            spIndexName,
+			TableId:         srcTableId,
+			Unique:          srcIndex.Unique,
+			Keys:            spKeys,
+			StoredColumnIds: spStoredColumns,
+			Id:              srcIndex.Id,
 		}
 		spIndexes = append(spIndexes, spIndex)
-		conv.Audit.ToSpannerFkIdx[srcTable].Index[srcIndex.Name] = spIndexName
-		conv.Audit.ToSourceFkIdx[spTableName].Index[spIndexName] = srcIndex.Name
+		conv.Audit.ToSpannerFkIdx[srcTableId].Index[srcIndex.Id] = spIndexName
+		conv.Audit.ToSourceFkIdx[srcTableId].Index[srcIndex.Id] = srcIndex.Name
 	}
 	return spIndexes
 }
@@ -233,31 +247,28 @@ func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Tabl
 	if err != nil {
 		return err
 	}
-	for srcTableName, sourceTable := range conv.SrcSchema {
-		if _, isPresent := conv.ToSpanner[srcTableName]; !isPresent {
+	for tableId, sourceTable := range conv.SrcSchema {
+		if _, isPresent := conv.SpSchema[tableId]; !isPresent {
 			continue
 		}
-		spTableName := conv.ToSpanner[srcTableName].Name
-		if _, isPresent := conv.SpSchema[spTableName]; !isPresent {
-			continue
-		}
-		spTable := conv.SpSchema[spTableName]
-		if sourceTable.Name != srcTable.Name {
-			spTable.Fks = cvtForeignKeysForAReferenceTable(conv, spTableName, srcTableName, srcTable.Name, sourceTable.ForeignKeys, spTable.Fks)
-			conv.SpSchema[spTableName] = spTable
+		spTable := conv.SpSchema[tableId]
+		if tableId != srcTable.Id {
+			spTable.ForeignKeys = cvtForeignKeysForAReferenceTable(conv, tableId, srcTable.Id, sourceTable.ForeignKeys, spTable.ForeignKeys)
+			conv.SpSchema[tableId] = spTable
 		}
 	}
 	internal.ResolveRefs(conv)
 	return nil
 }
 
-func cvtForeignKeysForAReferenceTable(conv *internal.Conv, spTableName string, srcTable string, referTable string, srcKeys []schema.ForeignKey, spKeys []ddl.Foreignkey) []ddl.Foreignkey {
+func cvtForeignKeysForAReferenceTable(conv *internal.Conv, tableId string, referTableId string, srcKeys []schema.ForeignKey, spKeys []ddl.Foreignkey) []ddl.Foreignkey {
 	for _, key := range srcKeys {
-		if key.ReferTable == referTable {
-			spKey, err := cvtForeignKeysHelper(conv, spTableName, srcTable, key, true)
+		if key.ReferTableId == referTableId {
+			spKey, err := cvtForeignKeysHelper(conv, conv.SpSchema[tableId].Name, tableId, key, true)
 			if err != nil {
 				continue
 			}
+			spKey.Id = key.Id
 			spKeys = append(spKeys, spKey)
 		}
 	}

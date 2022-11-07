@@ -41,16 +41,16 @@ func TestProcessDataRow(t *testing.T) {
 	cols := []string{"a", "b", "c"}
 	conv := buildConv(
 		ddl.CreateTable{
-			Name:     tableName,
-			ColNames: cols,
+			Name:   tableName,
+			ColIds: cols,
 			ColDefs: map[string]ddl.ColumnDef{
 				"a": {Name: "a", T: ddl.Type{Name: ddl.Float64}},
 				"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}},
 				"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			}},
 		schema.Table{
-			Name:     tableName,
-			ColNames: cols,
+			Name:   tableName,
+			ColIds: cols,
 			ColDefs: map[string]schema.Column{
 				"a": {Name: "a", Type: schema.Type{Name: "float"}},
 				"b": {Name: "b", Type: schema.Type{Name: "int"}},
@@ -95,11 +95,11 @@ func TestConvertData(t *testing.T) {
 		col := "a"
 		conv := buildConv(
 			ddl.CreateTable{
-				Name:     tableName,
-				ColNames: []string{col},
-				ColDefs:  map[string]ddl.ColumnDef{col: {Name: col, T: tc.ty, NotNull: false}},
-				Pks:      []ddl.IndexKey{}},
-			schema.Table{Name: tableName, ColNames: []string{col}, ColDefs: map[string]schema.Column{col: {Type: schema.Type{Name: tc.srcTy}}}})
+				Name:        tableName,
+				ColIds:      []string{col},
+				ColDefs:     map[string]ddl.ColumnDef{col: {Name: col, T: tc.ty, NotNull: false}},
+				PrimaryKeys: []ddl.IndexKey{}},
+			schema.Table{Name: tableName, ColIds: []string{col}, ColDefs: map[string]schema.Column{col: {Type: schema.Type{Name: tc.srcTy}}}})
 		conv.TimezoneOffset = "+05:30"
 		t.Run(tc.in, func(t *testing.T) {
 			at, ac, av, err := ConvertData(conv, tableName, []string{col}, conv.SrcSchema[tableName], tableName, []string{col}, conv.SpSchema[tableName], []string{tc.in})
@@ -147,16 +147,16 @@ func TestConvertMultiColData(t *testing.T) {
 	}
 	tableName := "testtable"
 	spTable := ddl.CreateTable{
-		Name:     tableName,
-		ColNames: []string{"a", "b", "c"},
+		Name:   tableName,
+		ColIds: []string{"a", "b", "c"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
 			"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
 			"c": {Name: "c", T: ddl.Type{Name: ddl.Bool}},
 		}}
 	srcTable := schema.Table{
-		Name:     tableName,
-		ColNames: []string{"a", "b", "c"},
+		Name:   tableName,
+		ColIds: []string{"a", "b", "c"},
 		ColDefs: map[string]schema.Column{
 			"a": {Type: schema.Type{Name: "int"}},
 			"b": {Type: schema.Type{Name: "float"}},
@@ -200,20 +200,20 @@ func TestConvertError(t *testing.T) {
 	}
 	tableName := "testtable"
 	spTable := ddl.CreateTable{
-		Name:     tableName,
-		ColNames: []string{"a", "b", "c"},
+		Name:   tableName,
+		ColIds: []string{"a", "b", "c"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
 			"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
 			"c": {Name: "c", T: ddl.Type{Name: ddl.Bool}},
 		}}
 	srcTable := schema.Table{
-		Name:     tableName,
-		ColNames: []string{"a", "b", "c"},
+		Name:   tableName,
+		ColIds: []string{"c1", "c2", "c3"},
 		ColDefs: map[string]schema.Column{
-			"a": {Type: schema.Type{Name: "int"}},
-			"b": {Type: schema.Type{Name: "float"}},
-			"c": {Type: schema.Type{Name: "bool"}},
+			"c1": {Type: schema.Type{Name: "int"}},
+			"c2": {Type: schema.Type{Name: "float"}},
+			"c3": {Type: schema.Type{Name: "bool"}},
 		}}
 	for _, tc := range errorTests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -249,23 +249,23 @@ func TestConvertsyntheticPKey(t *testing.T) {
 	}
 	tableName := "testtable"
 	spTable := ddl.CreateTable{
-		Name:     tableName,
-		ColNames: []string{"a", "b", "c"},
+		Name:   tableName,
+		ColIds: []string{"a", "b", "c"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
 			"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
 			"c": {Name: "c", T: ddl.Type{Name: ddl.Bool}},
 		}}
 	srcTable := schema.Table{
-		Name:     tableName,
-		ColNames: []string{"a", "b", "c"},
+		Name:   tableName,
+		ColIds: []string{"a", "b", "c"},
 		ColDefs: map[string]schema.Column{
 			"a": {Type: schema.Type{Name: "int"}},
 			"b": {Type: schema.Type{Name: "float"}},
 			"c": {Type: schema.Type{Name: "bool"}},
 		}}
 	conv := buildConv(spTable, srcTable)
-	conv.SyntheticPKeys[spTable.Name] = internal.SyntheticPKey{Col: "synth_id", Sequence: 0}
+	conv.SyntheticPKeys[spTable.Name] = internal.SyntheticPKey{ColId: "synth_id", Sequence: 0}
 	for _, tc := range syntheticPKeyTests {
 		t.Run(tc.name, func(t *testing.T) {
 			atable, acols, avals, err := ConvertData(conv, srcTable.Name, tc.cols, conv.SrcSchema[tableName], spTable.Name, tc.cols, conv.SpSchema[tableName], tc.vals)

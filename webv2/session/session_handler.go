@@ -27,6 +27,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -168,6 +169,9 @@ func ResumeSession(w http.ResponseWriter, r *http.Request) {
 	sessionState.SourceDBConnDetails = SourceDBConnDetails{
 		ConnectionType: helpers.SESSION_FILE_MODE,
 	}
+	sessionState.Conv.UsedNames = internal.ComputeUsedNames(sessionState.Conv)
+	sessionState.Conv.ToSource = internal.ComputeToSource(sessionState.Conv)
+	sessionState.Conv.ToSpanner = internal.ComputeToSpanner(sessionState.Conv)
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)

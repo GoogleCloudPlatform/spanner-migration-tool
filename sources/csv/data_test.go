@@ -211,7 +211,7 @@ func getCreateTable() []ddl.CreateTable {
 	return []ddl.CreateTable{
 		{
 			Name:     ALL_TYPES_TABLE,
-			ColNames: []string{"bool_col", "byte_col", "date_col", "float_col", "int_col", "numeric_col", "string_col", "timestamp_col", "json_col"},
+			ColIds: []string{"bool_col", "byte_col", "date_col", "float_col", "int_col", "numeric_col", "string_col", "timestamp_col", "json_col"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"bool_col":      {Name: "bool_col", T: ddl.Type{Name: ddl.Bool}},
 				"byte_col":      {Name: "byte_col", T: ddl.Type{Name: ddl.Bytes}},
@@ -226,7 +226,7 @@ func getCreateTable() []ddl.CreateTable {
 		},
 		{
 			Name:     SINGERS_TABLE,
-			ColNames: []string{"SingerId", "FirstName", "LastName"},
+			ColIds: []string{"SingerId", "FirstName", "LastName"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"SingerId":  {Name: "SingerId", T: ddl.Type{Name: ddl.Int64}},
 				"FirstName": {Name: "FirstName", T: ddl.Type{Name: ddl.String}},

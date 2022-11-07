@@ -46,21 +46,20 @@ func getMigrationDataSchemaPatterns(conv *internal.Conv, migrationData *migratio
 		if len(srcSchema.PrimaryKeys) == 0 {
 			numMissingPrimaryKey++
 		}
-		spTable, _ := internal.GetSpannerTable(conv, srcTable)
-		_, cols, warnings := internal.AnalyzeCols(conv, srcTable, spTable)
+		_, cols, warnings := internal.AnalyzeCols(conv, srcTable)
 		numColumns += int32(cols)
 		numWarnings += int32(warnings)
 	}
 
 	for _, table := range conv.SpSchema {
-		numForeignKey += int32(len(table.Fks))
+		numForeignKey += int32(len(table.ForeignKeys))
 		numIndexes += int32(len(table.Indexes))
 		depth := 0
 		tableName := table.Name
-		for conv.SpSchema[tableName].Parent != "" {
+		for conv.SpSchema[tableName].ParentId != "" {
 			numInterleaves++
 			depth++
-			tableName = conv.SpSchema[tableName].Parent
+			tableName = conv.SpSchema[tableName].ParentId
 		}
 		maxInterleaveDepth = int32(math.Max(float64(maxInterleaveDepth), float64(depth)))
 	}

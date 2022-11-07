@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -363,7 +363,7 @@ func ProcessRecord(conv *internal.Conv, streamInfo *StreamingInfo, record *dynam
 		writeRecord(streamInfo, srcTable, spTable, eventName, spCols, spVals, srcSchema)
 	} else {
 		streamInfo.StatsAddBadRecord(srcTable, eventName)
-		streamInfo.CollectBadRecord(eventName, srcTable, srcSchema.ColNames, srcStrVals)
+		streamInfo.CollectBadRecord(eventName, srcTable, srcSchema.ColIds, srcStrVals)
 	}
 	streamInfo.StatsAddRecordProcessed()
 }
@@ -408,11 +408,11 @@ func removeMutation(srcSchema schema.Table, spTable, srcTable string, spVals []i
 		if spVals[i] == nil {
 			continue
 		}
-		srcKeys = append(srcKeys, srcSchema.ColNames[i])
+		srcKeys = append(srcKeys, srcSchema.ColIds[i])
 		reqSpVals = append(reqSpVals, spVals[i])
 	}
 	primaryKeys := srcSchema.PrimaryKeys
-	if primaryKeys[0].Column != srcKeys[0] {
+	if primaryKeys[0].ColId != srcKeys[0] {
 		reqSpVals[0], reqSpVals[1] = reqSpVals[1], reqSpVals[0]
 	}
 	if len(reqSpVals) == 1 {

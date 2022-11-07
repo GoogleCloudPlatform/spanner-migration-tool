@@ -37,6 +37,7 @@ import (
 // to send to Spanner.  ProcessDataRow is only called in DataMode.
 func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols, vals []string) {
 	spTable, spCols, spVals, err := ConvertData(conv, srcTable, srcCols, vals)
+	spTable = conv.SpSchema[spTable].Name
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
 		conv.StatsAddBadRow(srcTable, conv.DataMode())
@@ -56,7 +57,7 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, vals []
 	// repeated for every row converted. If this becomes a
 	// performance issue, we could consider moving this block of
 	// code to the callers of ConverData to avoid the redundancy.
-	spTable, err := internal.GetSpannerTable(conv, srcTable)
+	tableId, err := internal.GetTableIdFromName(conv, srcTable)
 	if err != nil {
 		return "", []string{}, []interface{}{}, fmt.Errorf("can't map source table %s", srcTable)
 	}
@@ -64,10 +65,10 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, vals []
 	if err != nil {
 		return "", []string{}, []interface{}{}, fmt.Errorf("can't map source columns %v", srcCols)
 	}
-	spSchema, ok1 := conv.SpSchema[spTable]
-	srcSchema, ok2 := conv.SrcSchema[srcTable]
+	spSchema, ok1 := conv.SpSchema[tableId]
+	srcSchema, ok2 := conv.SrcSchema[tableId]
 	if !ok1 || !ok2 {
-		return "", []string{}, []interface{}{}, fmt.Errorf("can't find table %s in schema", spTable)
+		return "", []string{}, []interface{}{}, fmt.Errorf("can't find table %s in schema", conv.SpSchema[tableId].Name)
 	}
 	var c []string
 	var v []interface{}
@@ -82,8 +83,9 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, vals []
 		if vals[i] == "\\N" || vals[i] == "NULL" {
 			continue
 		}
-		spColDef, ok1 := spSchema.ColDefs[spCol]
-		srcColDef, ok2 := srcSchema.ColDefs[srcCol]
+		colId, _ := internal.GetColumnIdFromName(conv, tableId, srcCol)
+		spColDef, ok1 := spSchema.ColDefs[colId]
+		srcColDef, ok2 := srcSchema.ColDefs[colId]
 		if !ok1 || !ok2 {
 			return "", []string{}, []interface{}{}, fmt.Errorf("can't find Spanner and source-db schema for col %s", spCol)
 		}
@@ -100,13 +102,13 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, vals []
 		v = append(v, x)
 		c = append(c, spCol)
 	}
-	if aux, ok := conv.SyntheticPKeys[spTable]; ok {
-		c = append(c, aux.Col)
+	if aux, ok := conv.SyntheticPKeys[tableId]; ok {
+		c = append(c, aux.ColId)
 		v = append(v, fmt.Sprintf("%d", int64(bits.Reverse64(uint64(aux.Sequence)))))
 		aux.Sequence++
-		conv.SyntheticPKeys[spTable] = aux
+		conv.SyntheticPKeys[tableId] = aux
 	}
-	return spTable, c, v, nil
+	return conv.SpSchema[tableId].Id, c, v, nil
 }
 
 // convScalar converts a source database string value to an

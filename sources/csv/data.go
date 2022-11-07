@@ -128,7 +128,7 @@ func SetRowStats(conv *internal.Conv, tables []utils.ManifestTable, delimiter ru
 			}
 			r := csvReader.NewReader(csvFile)
 			r.Comma = delimiter
-			count, err := getCSVDataRowCount(r, conv.SpSchema[table.Table_name].ColNames)
+			count, err := getCSVDataRowCount(r, conv.SpSchema[table.Table_name].ColIds)
 			if err != nil {
 				return fmt.Errorf("error reading file %s for table %s: %v", filePath, table.Table_name, err)
 			}
@@ -195,7 +195,7 @@ func ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, nullStr strin
 			r.Comma = delimiter
 
 			// Default column order is same as in Spanner schema.
-			colNames := conv.SpSchema[table.Table_name].ColNames
+			colNames := conv.SpSchema[table.Table_name].ColIds
 			srcCols, err := r.Read()
 			if err == io.EOF {
 				conv.Unexpected(fmt.Sprintf("error processing table %s: file %s is empty.", table.Table_name, filePath))

@@ -117,25 +117,25 @@ func BuildConv(t *testing.T, numCols, numFks int, makeEmpty bool) *internal.Conv
 	var foreignKeys []ddl.Foreignkey
 	for i := 1; i <= numFks; i++ {
 		foreignKey := ddl.Foreignkey{
-			Name:         fmt.Sprintf("fk_%d", i),
-			Columns:      []string{fmt.Sprintf("col%d", i)},
-			ReferTable:   "table_b",
-			ReferColumns: []string{fmt.Sprintf("col%d", i)}}
+			Name:           fmt.Sprintf("fk_%d", i),
+			ColIds:         []string{fmt.Sprintf("col%d", i)},
+			ReferTableId:   "table_b",
+			ReferColumnIds: []string{fmt.Sprintf("col%d", i)}}
 		foreignKeys = append(foreignKeys, foreignKey)
 	}
 
 	conv.SpSchema["table_a"] = ddl.CreateTable{
-		Name:     "table_a",
-		ColNames: colNames,
-		ColDefs:  colDefs,
-		Pks:      []ddl.IndexKey{ddl.IndexKey{Col: "col1"}},
-		Fks:      foreignKeys,
+		Name:        "table_a",
+		ColIds:      colNames,
+		ColDefs:     colDefs,
+		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "col1"}},
+		ForeignKeys: foreignKeys,
 	}
 	conv.SpSchema["table_b"] = ddl.CreateTable{
-		Name:     "table_b",
-		ColNames: colNames,
-		ColDefs:  colDefs,
-		Pks:      []ddl.IndexKey{ddl.IndexKey{Col: "col1"}},
+		Name:        "table_b",
+		ColIds:      colNames,
+		ColDefs:     colDefs,
+		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "col1"}},
 	}
 	return conv
 }

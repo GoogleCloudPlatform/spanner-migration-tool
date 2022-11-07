@@ -197,89 +197,53 @@ func TestProcessSchemaMYSQL(t *testing.T) {
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()
 	isi := InfoSchemaImpl{"test", db, profiles.SourceProfile{}, profiles.TargetProfile{}}
-	err := common.ProcessSchema(conv, isi)
+	err := common.GenerateSrcSchema(conv, isi)
 	assert.Nil(t, err)
-	expectedSchema := map[string]ddl.CreateTable{
-		"user": ddl.CreateTable{
-			Name:     "user",
-			ColNames: []string{"user_id", "name", "ref"},
-			ColDefs: map[string]ddl.ColumnDef{
-				"user_id": ddl.ColumnDef{Name: "user_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"name":    ddl.ColumnDef{Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"ref":     ddl.ColumnDef{Name: "ref", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-			},
-			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "user_id"}},
-			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"ref"}, ReferTable: "test", ReferColumns: []string{"id"}}}},
-		"cart": ddl.CreateTable{
-			Name:     "cart",
-			ColNames: []string{"productid", "userid", "quantity"},
-			ColDefs: map[string]ddl.ColumnDef{
-				"productid": ddl.ColumnDef{Name: "productid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"userid":    ddl.ColumnDef{Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
-			},
-			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "productid"}, ddl.IndexKey{Col: "userid"}},
-			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test2", Columns: []string{"productid"}, ReferTable: "product", ReferColumns: []string{"product_id"}},
-				ddl.Foreignkey{Name: "fk_test3", Columns: []string{"userid"}, ReferTable: "user", ReferColumns: []string{"user_id"}}},
-			Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", Table: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "userid", Desc: false}}},
-				ddl.CreateIndex{Name: "index2", Table: "cart", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "userid", Desc: false}, ddl.IndexKey{Col: "productid", Desc: true}}},
-				ddl.CreateIndex{Name: "index3", Table: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "productid", Desc: false}, ddl.IndexKey{Col: "userid", Desc: true}}}}},
-		"product": ddl.CreateTable{
-			Name:     "product",
-			ColNames: []string{"product_id", "product_name"},
-			ColDefs: map[string]ddl.ColumnDef{
-				"product_id":   ddl.ColumnDef{Name: "product_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"product_name": ddl.ColumnDef{Name: "product_name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-			},
-			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "product_id"}}},
-		"test": ddl.CreateTable{
-			Name:     "test",
-			ColNames: []string{"id", "s", "txt", "b", "bs", "bl", "c", "c8", "d", "dec", "f8", "f4", "i8", "i4", "i2", "si", "ts", "tz", "vc", "vc6"},
-			ColDefs: map[string]ddl.ColumnDef{
-				"id":  ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-				"s":   ddl.ColumnDef{Name: "s", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}},
-				"txt": ddl.ColumnDef{Name: "txt", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"b":   ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Bool}},
-				"bs":  ddl.ColumnDef{Name: "bs", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-				"bl":  ddl.ColumnDef{Name: "bl", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
-				"c":   ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
-				"c8":  ddl.ColumnDef{Name: "c8", T: ddl.Type{Name: ddl.String, Len: int64(8)}},
-				"d":   ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Date}},
-				"dec": ddl.ColumnDef{Name: "dec", T: ddl.Type{Name: ddl.Numeric}},
-				"f8":  ddl.ColumnDef{Name: "f8", T: ddl.Type{Name: ddl.Float64}},
-				"f4":  ddl.ColumnDef{Name: "f4", T: ddl.Type{Name: ddl.Float64}},
-				"i8":  ddl.ColumnDef{Name: "i8", T: ddl.Type{Name: ddl.Int64}},
-				"i4":  ddl.ColumnDef{Name: "i4", T: ddl.Type{Name: ddl.Int64}},
-				"i2":  ddl.ColumnDef{Name: "i2", T: ddl.Type{Name: ddl.Int64}},
-				"si":  ddl.ColumnDef{Name: "si", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-				"ts":  ddl.ColumnDef{Name: "ts", T: ddl.Type{Name: ddl.Timestamp}},
-				"tz":  ddl.ColumnDef{Name: "tz", T: ddl.Type{Name: ddl.Timestamp}},
-				"vc":  ddl.ColumnDef{Name: "vc", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-				"vc6": ddl.ColumnDef{Name: "vc6", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
-			},
-			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "id"}},
-			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test4", Columns: []string{"id", "txt"}, ReferTable: "test_ref", ReferColumns: []string{"ref_id", "ref_txt"}}}},
-		"test_ref": ddl.CreateTable{
-			Name:     "test_ref",
-			ColNames: []string{"ref_id", "ref_txt", "abc"},
-			ColDefs: map[string]ddl.ColumnDef{
-				"ref_id":  ddl.ColumnDef{Name: "ref_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
-				"ref_txt": ddl.ColumnDef{Name: "ref_txt", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"abc":     ddl.ColumnDef{Name: "abc", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-			},
-			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "ref_id"}, ddl.IndexKey{Col: "ref_txt"}}},
-	}
-	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
-	assert.Equal(t, len(conv.Issues["cart"]), 0)
-	expectedIssues := map[string][]internal.SchemaIssue{
-		"bs": []internal.SchemaIssue{internal.DefaultValue},
-		"f4": []internal.SchemaIssue{internal.Widened},
-		"i4": []internal.SchemaIssue{internal.Widened, internal.AutoIncrement},
-		"i2": []internal.SchemaIssue{internal.Widened},
-		"si": []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
-		"ts": []internal.SchemaIssue{internal.Datetime},
-	}
-	assert.Equal(t, expectedIssues, conv.Issues["test"])
+	expectedSchema := map[string]schema.Table{
+		"cart": schema.Table{Name: "cart", Schema: "test", ColIds: []string{"productid", "userid", "quantity"}, ColDefs: map[string]schema.Column{
+			"productid": schema.Column{Name: "productid", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"quantity":  schema.Column{Name: "quantity", Type: schema.Type{Name: "bigint", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"userid":    schema.Column{Name: "userid", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""}},
+			PrimaryKeys: []schema.Key{schema.Key{ColId: "productid", Desc: false, Order: 0}, schema.Key{ColId: "userid", Desc: false, Order: 0}},
+			ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test2", ColIds: []string{"productid"}, ReferTableId: "product", ReferColumnIds: []string{"product_id"}, OnDelete: "", OnUpdate: "", Id: ""}, schema.ForeignKey{Name: "fk_test3", ColIds: []string{"userid"}, ReferTableId: "user", ReferColumnIds: []string{"user_id"}, OnDelete: "", OnUpdate: "", Id: ""}},
+			Indexes:     []schema.Index{schema.Index{Name: "index1", Unique: true, Keys: []schema.Key{schema.Key{ColId: "userid", Desc: false, Order: 0}}, Id: "", StoredColumnIds: []string(nil)}, schema.Index{Name: "index2", Unique: false, Keys: []schema.Key{schema.Key{ColId: "userid", Desc: false, Order: 0}, schema.Key{ColId: "productid", Desc: true, Order: 0}}, Id: "", StoredColumnIds: []string(nil)}, schema.Index{Name: "index3", Unique: true, Keys: []schema.Key{schema.Key{ColId: "productid", Desc: false, Order: 0}, schema.Key{ColId: "userid", Desc: true, Order: 0}}, Id: "", StoredColumnIds: []string(nil)}}, Id: ""},
+		"product": schema.Table{Name: "product", Schema: "test", ColIds: []string{"product_id", "product_name"}, ColDefs: map[string]schema.Column{
+			"product_id":   schema.Column{Name: "product_id", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"product_name": schema.Column{Name: "product_name", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""}},
+			PrimaryKeys: []schema.Key{schema.Key{ColId: "product_id", Desc: false, Order: 0}}, ForeignKeys: []schema.ForeignKey(nil), Indexes: []schema.Index(nil), Id: ""},
+		"test": schema.Table{Name: "test", Schema: "test", ColIds: []string{"id", "s", "txt", "b", "bs", "bl", "c", "c8", "d", "dec", "f8", "f4", "i8", "i4", "i2", "si", "ts", "tz", "vc", "vc6"}, ColDefs: map[string]schema.Column{
+			"b":   schema.Column{Name: "b", Type: schema.Type{Name: "boolean", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"bl":  schema.Column{Name: "bl", Type: schema.Type{Name: "blob", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"bs":  schema.Column{Name: "bs", Type: schema.Type{Name: "bigint", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"c":   schema.Column{Name: "c", Type: schema.Type{Name: "char", Mods: []int64{1}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"c8":  schema.Column{Name: "c8", Type: schema.Type{Name: "char", Mods: []int64{8}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"d":   schema.Column{Name: "d", Type: schema.Type{Name: "date", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"dec": schema.Column{Name: "dec", Type: schema.Type{Name: "decimal", Mods: []int64{20, 5}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"f4":  schema.Column{Name: "f4", Type: schema.Type{Name: "float", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"f8":  schema.Column{Name: "f8", Type: schema.Type{Name: "double", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"i2":  schema.Column{Name: "i2", Type: schema.Type{Name: "smallint", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"i4":  schema.Column{Name: "i4", Type: schema.Type{Name: "integer", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: true}, Id: ""},
+			"i8":  schema.Column{Name: "i8", Type: schema.Type{Name: "bigint", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"id":  schema.Column{Name: "id", Type: schema.Type{Name: "bigint", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"s":   schema.Column{Name: "s", Type: schema.Type{Name: "set", Mods: []int64(nil), ArrayBounds: []int64{-1}}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"si":  schema.Column{Name: "si", Type: schema.Type{Name: "integer", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: true, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"ts":  schema.Column{Name: "ts", Type: schema.Type{Name: "datetime", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"txt": schema.Column{Name: "txt", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"tz":  schema.Column{Name: "tz", Type: schema.Type{Name: "timestamp", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"vc":  schema.Column{Name: "vc", Type: schema.Type{Name: "varchar", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"vc6": schema.Column{Name: "vc6", Type: schema.Type{Name: "varchar", Mods: []int64{6}, ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""}},
+			PrimaryKeys: []schema.Key{schema.Key{ColId: "id", Desc: false, Order: 0}}, ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test4", ColIds: []string{"id", "txt"}, ReferTableId: "test_ref", ReferColumnIds: []string{"ref_id", "ref_txt"}, OnDelete: "", OnUpdate: "", Id: ""}}, Indexes: []schema.Index(nil), Id: ""},
+		"test_ref": schema.Table{Name: "test_ref", Schema: "test", ColIds: []string{"ref_id", "ref_txt", "abc"}, ColDefs: map[string]schema.Column{
+			"abc":     schema.Column{Name: "abc", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"ref_id":  schema.Column{Name: "ref_id", Type: schema.Type{Name: "bigint", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"ref_txt": schema.Column{Name: "ref_txt", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""}},
+			PrimaryKeys: []schema.Key{schema.Key{ColId: "ref_id", Desc: false, Order: 0}, schema.Key{ColId: "ref_txt", Desc: false, Order: 0}}, ForeignKeys: []schema.ForeignKey(nil), Indexes: []schema.Index(nil), Id: ""},
+		"user": schema.Table{Name: "user", Schema: "test", ColIds: []string{"user_id", "name", "ref"}, ColDefs: map[string]schema.Column{
+			"name":    schema.Column{Name: "name", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"ref":     schema.Column{Name: "ref", Type: schema.Type{Name: "bigint", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""},
+			"user_id": schema.Column{Name: "user_id", Type: schema.Type{Name: "text", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: ""}},
+			PrimaryKeys: []schema.Key{schema.Key{ColId: "user_id", Desc: false, Order: 0}}, ForeignKeys: []schema.ForeignKey{schema.ForeignKey{Name: "fk_test", ColIds: []string{"ref"}, ReferTableId: "test", ReferColumnIds: []string{"id"}, OnDelete: "", OnUpdate: "", Id: ""}}, Indexes: []schema.Index(nil), Id: ""}}
+	assert.Equal(t, expectedSchema, conv.SrcSchema)
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 
@@ -297,21 +261,23 @@ func TestProcessData(t *testing.T) {
 	db := mkMockDB(t, ms)
 	conv := buildConv(
 		ddl.CreateTable{
-			Name:     "te_st",
-			ColNames: []string{"a a", " b", " c "},
+			Name:   "te_st",
+			Id:     "t1",
+			ColIds: []string{"a a", " b", " c "},
 			ColDefs: map[string]ddl.ColumnDef{
-				"a_a": ddl.ColumnDef{Name: "a_a", T: ddl.Type{Name: ddl.Float64}},
-				"Ab":  ddl.ColumnDef{Name: "Ab", T: ddl.Type{Name: ddl.Int64}},
-				"Ac_": ddl.ColumnDef{Name: "Ac_", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"c1": ddl.ColumnDef{Name: "a_a", Id: "c1", T: ddl.Type{Name: ddl.Float64}},
+				"c2": ddl.ColumnDef{Name: "Ab", Id: "c2", T: ddl.Type{Name: ddl.Int64}},
+				"c3": ddl.ColumnDef{Name: "Ac_", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			}},
 		schema.Table{
-			Name:     "te st",
-			Schema:   "test",
-			ColNames: []string{"a_a", "_b", "_c_"},
+			Name:   "te st",
+			Id:     "t1",
+			Schema: "test",
+			ColIds: []string{"c1", "c2", "c3"},
 			ColDefs: map[string]schema.Column{
-				"a a": schema.Column{Name: "a a", Type: schema.Type{Name: "float"}},
-				" b":  schema.Column{Name: " b", Type: schema.Type{Name: "int"}},
-				" c ": schema.Column{Name: " c ", Type: schema.Type{Name: "text"}},
+				"c1": schema.Column{Name: "a a", Id: "c1", Type: schema.Type{Name: "float"}},
+				"c2": schema.Column{Name: " b", Id: "c2", Type: schema.Type{Name: "int"}},
+				"c3": schema.Column{Name: " c ", Id: "c3", Type: schema.Type{Name: "text"}},
 			}})
 
 	conv.SetDataMode()
@@ -324,8 +290,8 @@ func TestProcessData(t *testing.T) {
 	common.ProcessData(conv, isi)
 	assert.Equal(t,
 		[]spannerData{
-			spannerData{table: "te_st", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(42.3), int64(3), "cat"}},
-			spannerData{table: "te_st", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(6.6), int64(22), "dog"}},
+			spannerData{table: "t1", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(42.3), int64(3), "cat"}},
+			spannerData{table: "t1", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(6.6), int64(22), "dog"}},
 		},
 		rows)
 	assert.Equal(t, conv.BadRows(), int64(1))
@@ -381,20 +347,19 @@ func TestProcessData_MultiCol(t *testing.T) {
 	err := common.ProcessSchema(conv, isi)
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
-		"test": ddl.CreateTable{
-			Name:     "test",
-			ColNames: []string{"a", "b", "c", "synth_id"},
+		"t1": ddl.CreateTable{
+			Name:   "test",
+			ColIds: []string{"c2", "c3", "c4", "synth_id"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-				"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
-				"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
-			},
-			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "synth_id"}}},
-	}
+				"c2":       ddl.ColumnDef{Name: "a", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: true, Comment: "", Id: "c2"},
+				"c3":       ddl.ColumnDef{Name: "b", T: ddl.Type{Name: "FLOAT64", Len: 0, IsArray: false}, NotNull: false, Comment: "", Id: "c3"},
+				"c4":       ddl.ColumnDef{Name: "c", T: ddl.Type{Name: "INT64", Len: 0, IsArray: false}, NotNull: false, Comment: "", Id: "c4"},
+				"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: "STRING", Len: 50, IsArray: false}, NotNull: false, Comment: "", Id: ""}},
+			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Desc: false, Order: 0}},
+			Id:          "t1"}}
 	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	expectedIssues := map[string][]internal.SchemaIssue{}
-	assert.Equal(t, expectedIssues, conv.Issues["test"])
+	assert.Equal(t, expectedIssues, conv.SchemaIssues["t1"])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 	conv.SetDataMode()
 	var rows []spannerData
@@ -404,8 +369,8 @@ func TestProcessData_MultiCol(t *testing.T) {
 		})
 	common.ProcessData(conv, isi)
 	assert.Equal(t, []spannerData{
-		{table: "test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), "0"}},
-		{table: "test", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), "-9223372036854775808"}}},
+		{table: "t1", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), "0"}},
+		{table: "t1", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), "-9223372036854775808"}}},
 		rows)
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }

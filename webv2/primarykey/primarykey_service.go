@@ -16,6 +16,7 @@ package primarykey
 
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
@@ -73,9 +74,8 @@ func getColumnIdListFromPrimaryKeyRequest(pkRequest PrimaryKeyRequest) []string 
 func getColumnIdListOfSpannerTablePrimaryKey(spannerTable ddl.CreateTable) []string {
 	cidlist := []string{}
 
-	for i := 0; i < len(spannerTable.Pks); i++ {
-		cid := getColumnId(spannerTable, spannerTable.Pks[i].Col)
-		cidlist = append(cidlist, cid)
+	for i := 0; i < len(spannerTable.PrimaryKeys); i++ {
+		cidlist = append(cidlist, spannerTable.PrimaryKeys[i].ColId)
 	}
 	return cidlist
 }
@@ -104,21 +104,21 @@ func isValidColumnIds(pkRequest PrimaryKeyRequest, spannertable ddl.CreateTable)
 }
 
 func RemoveInterleave(conv *internal.Conv, spannertable ddl.CreateTable) {
-	if spannertable.Parent != "" {
+	if spannertable.ParentId != "" {
 		var childPkFirstColumn string
 		var parentPkFirstColumn string
-		for i := 0; i < len(spannertable.Pks); i++ {
-			if spannertable.Pks[i].Order == 1 {
-				childPkFirstColumn = spannertable.Pks[i].Col
+		for i := 0; i < len(spannertable.PrimaryKeys); i++ {
+			if spannertable.PrimaryKeys[i].Order == 1 {
+				childPkFirstColumn = spannertable.PrimaryKeys[i].ColId
 			}
 		}
-		for i := 0; i < len(conv.SpSchema[spannertable.Parent].Pks); i++ {
-			if conv.SpSchema[spannertable.Parent].Pks[i].Order == 1 {
-				parentPkFirstColumn = conv.SpSchema[spannertable.Parent].Pks[i].Col
+		for i := 0; i < len(conv.SpSchema[spannertable.ParentId].PrimaryKeys); i++ {
+			if conv.SpSchema[spannertable.ParentId].PrimaryKeys[i].Order == 1 {
+				parentPkFirstColumn = conv.SpSchema[spannertable.ParentId].PrimaryKeys[i].ColId
 			}
 		}
 		if childPkFirstColumn != parentPkFirstColumn {
-			spannertable.Parent = ""
+			spannertable.ParentId = ""
 			conv.SpSchema[spannertable.Name] = spannertable
 		}
 	}
@@ -138,4 +138,60 @@ func isValidColumnOrder(pkRequest PrimaryKeyRequest) bool {
 	}
 
 	return true
+}
+
+// updateSpannerTableIndexKeyOrder Update Primary Key Order as columnId.
+func UpdateSpannerTableIndexKeyOrder(conv *internal.Conv) {
+
+	for _, spannerTable := range conv.SpSchema {
+		for i := 0; i < len(spannerTable.PrimaryKeys); i++ {
+			for spannercolumnid, _ := range spannerTable.ColDefs {
+				if spannerTable.PrimaryKeys[i].ColId == spannercolumnid {
+
+					o := getSpannerColumnIndex(spannerTable, spannercolumnid)
+					spannerTable.PrimaryKeys[i].Order = o
+
+				}
+			}
+		}
+	}
+}
+
+// updateSourceTableIndexKeyOrder Update Primary Key Order as columnId.
+func UpdateSourceTableIndexKeyOrder(conv *internal.Conv) {
+
+	for _, sourceTable := range conv.SrcSchema {
+
+		for i := 0; i < len(sourceTable.PrimaryKeys); i++ {
+			for sourcecolumnid, _ := range sourceTable.ColDefs {
+				if sourceTable.PrimaryKeys[i].ColId == sourcecolumnid {
+
+					o := getSourceColumnIndex(sourceTable, sourcecolumnid)
+					sourceTable.PrimaryKeys[i].Order = o
+				}
+			}
+		}
+	}
+}
+
+// getSpannerColumnIndex return columnn index as Inserted Order.
+func getSpannerColumnIndex(spannertable ddl.CreateTable, columnId string) int {
+
+	for i := 0; i < len(spannertable.ColIds); i++ {
+		if spannertable.ColIds[i] == columnId {
+			return i + 1
+		}
+	}
+	return 0
+}
+
+// getColumnIndex return columnn index as Inserted Order.
+func getSourceColumnIndex(sourcetable schema.Table, columnId string) int {
+
+	for i := 0; i < len(sourcetable.ColIds); i++ {
+		if sourcetable.ColIds[i] == columnId {
+			return i + 1
+		}
+	}
+	return 0
 }

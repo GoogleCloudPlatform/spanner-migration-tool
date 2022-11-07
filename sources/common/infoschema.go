@@ -59,6 +59,15 @@ type FkConstraint struct {
 // 'db'. Information schema tables are a broadly supported ANSI standard,
 // and we use them to obtain source database's schema information.
 func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema) error {
+
+	GenerateSrcSchema(conv, infoSchema)
+	conv.AssignIdToSourceSchema()
+	SchemaToSpannerDDL(conv, infoSchema.GetToDdl())
+	conv.AddPrimaryKeys()
+	return nil
+}
+
+func GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema) error {
 	tables, err := infoSchema.GetTables()
 	if err != nil {
 		return err
@@ -68,9 +77,7 @@ func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema) error {
 			return err
 		}
 	}
-	SchemaToSpannerDDL(conv, infoSchema.GetToDdl())
-	conv.AddPrimaryKeys()
-	return nil
+	return err
 }
 
 // ProcessData performs data conversion for source database
@@ -81,21 +88,23 @@ func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema) error {
 func ProcessData(conv *internal.Conv, infoSchema InfoSchema) {
 	// Tables are ordered in alphabetical order with one exception: interleaved
 	// tables appear after the population of their parent table.
-	orderTableNames := ddl.OrderTables(conv.SpSchema)
+	orderTableIds := ddl.OrderTables(conv.SpSchema)
 
-	for _, spannerTable := range orderTableNames {
-		srcTable, _ := internal.GetSourceTable(conv, spannerTable)
+	for _, spannerTable := range orderTableIds {
+		srcTable := spannerTable
 		srcSchema := conv.SrcSchema[srcTable]
-		spTable, err1 := internal.GetSpannerTable(conv, srcTable)
-		spCols, err2 := internal.GetSpannerCols(conv, srcTable, srcSchema.ColNames)
-		spSchema, ok := conv.SpSchema[spTable]
-		if err1 != nil || err2 != nil || !ok {
-			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
-			conv.Unexpected(fmt.Sprintf("Can't get cols and schemas for table %s: err1=%s, err2=%s, ok=%t",
-				srcTable, err1, err2, ok))
+		var spCols []string
+		for _, spColId := range srcSchema.ColIds {
+			spCols = append(spCols, conv.SpSchema[spannerTable].ColDefs[spColId].Name)
+		}
+		spSchema, ok := conv.SpSchema[spannerTable]
+		if !ok {
+			conv.Stats.BadRows[conv.SrcSchema[srcTable].Name] += conv.Stats.Rows[conv.SrcSchema[srcTable].Name]
+			conv.Unexpected(fmt.Sprintf("Can't get cols and schemas for table %s:ok=%t",
+				srcTable, ok))
 			continue
 		}
-		err := infoSchema.ProcessData(conv, srcTable, srcSchema, spTable, spCols, spSchema)
+		err := infoSchema.ProcessData(conv, srcTable, srcSchema, spannerTable, spCols, spSchema)
 		if err != nil {
 			return
 		}
@@ -143,12 +152,12 @@ func processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchem
 	name := infoSchema.GetTableName(table.Schema, table.Name)
 	var schemaPKeys []schema.Key
 	for _, k := range primaryKeys {
-		schemaPKeys = append(schemaPKeys, schema.Key{Column: k})
+		schemaPKeys = append(schemaPKeys, schema.Key{ColId: k})
 	}
 	conv.SrcSchema[name] = schema.Table{
 		Name:        name,
 		Schema:      table.Schema,
-		ColNames:    colNames,
+		ColIds:      colNames,
 		ColDefs:     colDefs,
 		PrimaryKeys: schemaPKeys,
 		Indexes:     indexes,

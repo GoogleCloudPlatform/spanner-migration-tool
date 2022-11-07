@@ -115,7 +115,7 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string)
 	//To get only the table name by removing the schema name prefix
 	tblName := strings.Replace(srcTable, tbl.Schema+".", "", 1)
 
-	q := getSelectQuery(isi.DbName, tbl.Schema, tblName, tbl.ColNames, tbl.ColDefs)
+	q := getSelectQuery(isi.DbName, tbl.Schema, tblName, tbl.ColIds, tbl.ColDefs)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err
@@ -351,10 +351,10 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 	for _, k := range keyNames {
 		foreignKeys = append(foreignKeys,
 			schema.ForeignKey{
-				Name:         fKeys[k].Name,
-				Columns:      fKeys[k].Cols,
-				ReferTable:   fKeys[k].Table,
-				ReferColumns: fKeys[k].Refcols})
+				Name:           fKeys[k].Name,
+				ColIds:         fKeys[k].Cols,
+				ReferTableId:   fKeys[k].Table,
+				ReferColumnIds: fKeys[k].Refcols})
 	}
 	return foreignKeys, nil
 }
@@ -402,9 +402,9 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 		}
 		index := indexMap[name]
 		if isStored == "false" {
-			index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (collation == "DESC")})
+			index.Keys = append(index.Keys, schema.Key{ColId: column, Desc: (collation == "DESC")})
 		} else {
-			index.StoredColumns = append(index.StoredColumns, column)
+			index.StoredColumnIds = append(index.StoredColumnIds, column)
 		}
 		indexMap[name] = index
 	}

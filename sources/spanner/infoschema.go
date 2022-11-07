@@ -302,10 +302,10 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 		}
 		foreignKeys = append(foreignKeys,
 			schema.ForeignKey{
-				Name:         fKeys[k].Name,
-				Columns:      cols,
-				ReferTable:   fKeys[k].Table,
-				ReferColumns: refcols})
+				Name:           fKeys[k].Name,
+				ColIds:         cols,
+				ReferTableId:   fKeys[k].Table,
+				ReferColumnIds: refcols})
 	}
 	return foreignKeys, nil
 }
@@ -357,7 +357,7 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 			indexMap[name] = schema.Index{Name: name, Unique: isUnique}
 		}
 		index := indexMap[name]
-		index.Keys = append(index.Keys, schema.Key{Column: column, Desc: (ordering == "DESC")})
+		index.Keys = append(index.Keys, schema.Key{ColId: column, Desc: (ordering == "DESC")})
 		indexMap[name] = index
 	}
 	for _, k := range indexNames {

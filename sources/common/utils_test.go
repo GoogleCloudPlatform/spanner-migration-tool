@@ -43,24 +43,24 @@ func TestGetColsAndSchemas(t *testing.T) {
 	tableName := "testtable"
 	cols := []string{"a", "b", "c"}
 	spSchema := ddl.CreateTable{
-		Name:     tableName,
-		ColNames: cols,
+		Name:   tableName,
+		ColIds: cols,
 		ColDefs: map[string]ddl.ColumnDef{
 			"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
 			"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		},
-		Pks: []ddl.IndexKey{{Col: "a"}},
+		PrimaryKeys: []ddl.IndexKey{{ColId: "a"}},
 	}
 	srcSchema := schema.Table{
-		Name:     tableName,
-		ColNames: cols,
+		Name:   tableName,
+		ColIds: cols,
 		ColDefs: map[string]schema.Column{
 			"a": {Name: "a", Type: schema.Type{Name: "String"}},
 			"b": {Name: "b", Type: schema.Type{Name: "Number"}},
 			"c": {Name: "c", Type: schema.Type{Name: "NumberString"}},
 		},
-		PrimaryKeys: []schema.Key{{Column: "a"}},
+		PrimaryKeys: []schema.Key{{ColId: "a"}},
 	}
 
 	conv := internal.MakeConv()
@@ -68,9 +68,9 @@ func TestGetColsAndSchemas(t *testing.T) {
 	conv.SrcSchema[srcSchema.Name] = srcSchema
 	conv.ToSource[spSchema.Name] = internal.NameAndCols{Name: srcSchema.Name, Cols: make(map[string]string)}
 	conv.ToSpanner[srcSchema.Name] = internal.NameAndCols{Name: spSchema.Name, Cols: make(map[string]string)}
-	for i := range spSchema.ColNames {
-		conv.ToSource[spSchema.Name].Cols[spSchema.ColNames[i]] = srcSchema.ColNames[i]
-		conv.ToSpanner[srcSchema.Name].Cols[srcSchema.ColNames[i]] = spSchema.ColNames[i]
+	for i := range spSchema.ColIds {
+		conv.ToSource[spSchema.Name].Cols[spSchema.ColIds[i]] = srcSchema.ColIds[i]
+		conv.ToSpanner[srcSchema.Name].Cols[srcSchema.ColIds[i]] = spSchema.ColIds[i]
 	}
 
 	type args struct {

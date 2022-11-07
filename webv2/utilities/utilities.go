@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+
 	"time"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
@@ -139,9 +140,9 @@ func RemoveSchemaIssues(schemaissue []internal.SchemaIssue) []internal.SchemaIss
 }
 
 // RemoveIndex removes Primary Key from the given Primary Key list.
-func RemoveIndex(Pks []ddl.IndexKey, index int) []ddl.IndexKey {
+func RemoveIndex(PrimaryKeys []ddl.IndexKey, index int) []ddl.IndexKey {
 
-	list := append(Pks[:index], Pks[index+1:]...)
+	list := append(PrimaryKeys[:index], PrimaryKeys[index+1:]...)
 
 	return list
 }
@@ -151,23 +152,21 @@ func RemoveFkReferColumns(slice []string, s int) []string {
 	return append(slice[:s], slice[s+1:]...)
 }
 
-func IsTypeChanged(newType, table, colName string, conv *internal.Conv) (bool, error) {
+func IsTypeChanged(newType, tableId, colId string, conv *internal.Conv) (bool, error) {
 
-	srcTableName := conv.ToSource[table].Name
-
-	sp, ty, err := GetType(conv, newType, table, colName, srcTableName)
+	sp, ty, err := GetType(conv, newType, tableId, colId)
 	if err != nil {
 		return false, err
 	}
-	colDef := sp.ColDefs[colName]
+	colDef := sp.ColDefs[colId]
 	return !reflect.DeepEqual(colDef.T, ty), nil
 }
 
 func IsPartOfPK(col, table string) bool {
 	sessionState := session.GetSessionState()
 
-	for _, pk := range sessionState.Conv.SpSchema[table].Pks {
-		if pk.Col == col {
+	for _, pk := range sessionState.Conv.SpSchema[table].PrimaryKeys {
+		if pk.ColId == col {
 			return true
 		}
 	}
@@ -179,7 +178,7 @@ func IsPartOfSecondaryIndex(col, table string) (bool, string) {
 
 	for _, index := range sessionState.Conv.SpSchema[table].Indexes {
 		for _, key := range index.Keys {
-			if key.Col == col {
+			if key.ColId == col {
 				return true, index.Name
 			}
 		}
@@ -190,8 +189,8 @@ func IsPartOfSecondaryIndex(col, table string) (bool, string) {
 func IsPartOfFK(col, table string) bool {
 	sessionState := session.GetSessionState()
 
-	for _, fk := range sessionState.Conv.SpSchema[table].Fks {
-		for _, column := range fk.Columns {
+	for _, fk := range sessionState.Conv.SpSchema[table].ForeignKeys {
+		for _, column := range fk.ColIds {
 			if column == col {
 				return true
 			}
@@ -205,9 +204,9 @@ func IsReferencedByFK(col, table string) (bool, string) {
 
 	for _, spSchema := range sessionState.Conv.SpSchema {
 		if table != spSchema.Name {
-			for _, fk := range spSchema.Fks {
-				if fk.ReferTable == table {
-					for _, column := range fk.ReferColumns {
+			for _, fk := range spSchema.ForeignKeys {
+				if fk.ReferTableId == table {
+					for _, column := range fk.ReferColumnIds {
 						if column == col {
 							return true, spSchema.Name
 						}
@@ -292,7 +291,7 @@ func GetFilePrefix(now time.Time) (string, error) {
 }
 
 func UpdateType(conv *internal.Conv, newType, table, colName, srcTableName string, w http.ResponseWriter) {
-	sp, ty, err := GetType(conv, newType, table, colName, srcTableName)
+	sp, ty, err := GetType(conv, newType, table, colName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

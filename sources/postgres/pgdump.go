@@ -75,15 +75,19 @@ func processPgDump(conv *internal.Conv, r *internal.Reader) error {
 		if ci != nil {
 			switch ci.stmt {
 			case copyFrom:
-				processCopyBlock(conv, ci.table, ci.cols, r)
+				processCopyBlock(conv, conv.SrcSchema[ci.table].Name, ci.cols, r)
 			case insert:
 				for _, vals := range ci.rows {
 					// Handle INSERT statements where columns are not
 					// specified i.e. an insert for all table columns.
 					if len(ci.cols) == 0 {
-						ProcessDataRow(conv, ci.table, conv.SrcSchema[ci.table].ColNames, vals)
+						var colNames []string
+						for _, col := range conv.SrcSchema[ci.table].ColIds {
+							colNames = append(colNames, conv.SrcSchema[ci.table].ColDefs[col].Name)
+						}
+						ProcessDataRow(conv, conv.SrcSchema[ci.table].Name, colNames, vals)
 					} else {
-						ProcessDataRow(conv, ci.table, ci.cols, vals)
+						ProcessDataRow(conv, conv.SrcSchema[ci.table].Name, ci.cols, vals)
 					}
 				}
 			}
@@ -321,9 +325,9 @@ func processCreateStmt(conv *internal.Conv, n *pg_query.CreateStmt) {
 	}
 	conv.SchemaStatement(printNodeType(n))
 	conv.SrcSchema[table] = schema.Table{
-		Name:     table,
-		ColNames: colNames,
-		ColDefs:  colDef}
+		Name:    table,
+		ColIds:  colNames,
+		ColDefs: colDef}
 	// Note: constraints contains all info about primary keys, not-null keys
 	// and foreign keys.
 	updateSchema(conv, table, constraints, "CREATE TABLE")
@@ -356,7 +360,8 @@ func processInsertStmt(conv *internal.Conv, n *pg_query.InsertStmt) *copyOrInser
 		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
 		return nil
 	}
-	if _, ok := conv.SrcSchema[table]; !ok {
+	tableId, _ := internal.GetTableIdFromName(conv, table)
+	if _, ok := conv.SrcSchema[tableId]; !ok {
 		// If we don't have schema information for a table, we drop all insert
 		// statements for it. The most likely reason we don't have schema information
 		// for a table is that it is an inherited table - we skip all inherited tables.
@@ -366,7 +371,7 @@ func processInsertStmt(conv *internal.Conv, n *pg_query.InsertStmt) *copyOrInser
 
 		return nil
 	}
-	conv.StatsAddRow(table, conv.SchemaMode())
+	conv.StatsAddRow(tableId, conv.SchemaMode())
 	colNames, err := getCols(conv, table, n.Cols)
 	if err != nil {
 		logStmtError(conv, n, fmt.Errorf("can't get col name: %w", err))
@@ -379,7 +384,7 @@ func processInsertStmt(conv *internal.Conv, n *pg_query.InsertStmt) *copyOrInser
 		rows := getRows(conv, sel.SelectStmt.ValuesLists, n)
 		conv.DataStatement(printNodeType(sel))
 		if conv.DataMode() {
-			return &copyOrInsert{stmt: insert, table: table, cols: colNames, rows: rows}
+			return &copyOrInsert{stmt: insert, table: tableId, cols: colNames, rows: rows}
 		}
 	default:
 		conv.Unexpected(fmt.Sprintf("Found %s node while processing InsertStmt SelectStmt", printNodeType(sel)))
@@ -402,6 +407,10 @@ func processCopyStmt(conv *internal.Conv, n *pg_query.CopyStmt) *copyOrInsert {
 	} else {
 		logStmtError(conv, n, fmt.Errorf("relation is nil"))
 	}
+	if !conv.SchemaMode() {
+		table, _ = internal.GetTableIdFromName(conv, table)
+	}
+
 	if _, ok := conv.SrcSchema[table]; !ok {
 		// If we don't have schema information for a table, we drop all copy
 		// statements for it. The most likely reason we don't have schema information
@@ -674,7 +683,7 @@ func toSchemaKeys(conv *internal.Conv, table string, s []string) (l []schema.Key
 	for _, k := range s {
 		// PostgreSQL primary keys have no notation of ascending/descending.
 		// We map them all into ascending primarary keys.
-		l = append(l, schema.Key{Column: k})
+		l = append(l, schema.Key{ColId: k})
 	}
 	return l
 }
@@ -692,7 +701,7 @@ func toIndexKeys(conv *internal.Conv, idxName string, s []*pg_query.Node) (l []s
 			if e.IndexElem.Ordering == pg_query.SortByDir_SORTBY_DESC {
 				desc = true
 			}
-			l = append(l, schema.Key{Column: e.IndexElem.Name, Desc: desc})
+			l = append(l, schema.Key{ColId: e.IndexElem.Name, Desc: desc})
 		}
 	}
 	return
@@ -702,10 +711,10 @@ func toIndexKeys(conv *internal.Conv, idxName string, s []*pg_query.Node) (l []s
 // foreign keys.
 func toForeignKeys(fk constraint) (fkey schema.ForeignKey) {
 	fkey = schema.ForeignKey{
-		Name:         fk.name,
-		Columns:      fk.cols,
-		ReferTable:   fk.referTable,
-		ReferColumns: fk.referCols}
+		Name:           fk.name,
+		ColIds:         fk.cols,
+		ReferTableId:   fk.referTable,
+		ReferColumnIds: fk.referCols}
 	return fkey
 }
 

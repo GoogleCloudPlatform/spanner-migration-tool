@@ -40,8 +40,12 @@ func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
 	if srcTable == "" {
 		return "", fmt.Errorf("bad parameter: table string is empty")
 	}
-	// Once computed, return cached result.
-	if sp, found := conv.ToSpanner[srcTable]; found {
+
+	tableId, err := GetTableIdFromName(conv, srcTable)
+	if err != nil {
+		return "", err
+	}
+	if sp, found := conv.SpSchema[tableId]; found {
 		return sp.Name, nil
 	}
 	spTable := getSpannerID(conv, srcTable)
@@ -51,8 +55,8 @@ func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
 	}
 	conv.ToSpanner[srcTable] = NameAndCols{Name: spTable, Cols: make(map[string]string)}
 	conv.ToSource[spTable] = NameAndCols{Name: srcTable, Cols: make(map[string]string)}
-	conv.Audit.ToSpannerFkIdx[srcTable] = FkeyAndIdxs{Name: spTable, ForeignKey: make(map[string]string), Index: make(map[string]string)}
-	conv.Audit.ToSourceFkIdx[spTable] = FkeyAndIdxs{Name: srcTable, ForeignKey: make(map[string]string), Index: make(map[string]string)}
+	conv.Audit.ToSpannerFkIdx[tableId] = FkeyAndIdxs{Name: spTable, ForeignKey: make(map[string]string), Index: make(map[string]string)}
+	conv.Audit.ToSourceFkIdx[tableId] = FkeyAndIdxs{Name: srcTable, ForeignKey: make(map[string]string), Index: make(map[string]string)}
 	return spTable, nil
 }
 
@@ -149,7 +153,9 @@ func GetSpannerCols(conv *Conv, srcTable string, srcCols []string) ([]string, er
 // of the following things:
 // a) the new foreign key name is legal
 // b) the new foreign key name doesn't clash with other Spanner
-//    foreign key names
+//
+//	foreign key names
+//
 // Note that foreign key constraint names in Spanner have to be globally unique
 // (across the database). But in some source databases, such as PostgreSQL,
 // they only have to be unique for a table. Hence we must map each source
@@ -165,7 +171,9 @@ func ToSpannerForeignKey(conv *Conv, srcID string) string {
 // We need to make sure of the following things:
 // a) the new index name is legal
 // b) the new index name doesn't clash with other Spanner
-//    index names
+//
+//	index names
+//
 // Note that index key constraint names in Spanner have to be globally unique
 // (across the database). But in some source databases, such as MySQL,
 // they only have to be unique for a table. Hence we must map each source
@@ -206,7 +214,7 @@ func getSpannerID(conv *Conv, srcID string) string {
 // TODO: Expand ResolveRefs to primary keys and indexes.
 func ResolveRefs(conv *Conv) {
 	for table, spTable := range conv.SpSchema {
-		spTable.Fks = resolveFks(conv, table, spTable.Fks)
+		spTable.ForeignKeys = resolveFks(conv, table, spTable.ForeignKeys)
 		conv.SpSchema[table] = spTable
 	}
 }
@@ -217,18 +225,18 @@ func resolveFks(conv *Conv, table string, fks []ddl.Foreignkey) []ddl.Foreignkey
 	var resolved []ddl.Foreignkey
 	for _, fk := range fks {
 		var err error
-		if fk.Columns, err = resolveColRefs(conv, table, fk.Columns); err != nil {
+		if fk.ColIds, err = resolveColRefs(conv, table, fk.ColIds); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't resolve Columns in foreign key constraint: %s", err))
 			delete(conv.UsedNames, fk.Name)
 			continue
 		}
-		if fk.ReferTable, err = resolveTableRef(conv, fk.ReferTable); err != nil {
+		if fk.ReferTableId, err = resolveTableRef(conv, fk.ReferTableId); err != nil {
 			conv.Unexpected(fmt.Sprintf("Can't resolve ReferTable in foreign key constraint: %s", err))
 			delete(conv.UsedNames, fk.Name)
 			continue
 		}
-		if fk.ReferColumns, err = resolveColRefs(conv, fk.ReferTable, fk.ReferColumns); err != nil {
-			conv.Unexpected(fmt.Sprintf("Can't resolve ReferColumns in foreign key constraint: %s", err))
+		if fk.ReferColumnIds, err = resolveColRefs(conv, fk.ReferTableId, fk.ReferColumnIds); err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't resolve ReferColumnIds in foreign key constraint: %s", err))
 			delete(conv.UsedNames, fk.Name)
 			continue
 		}
@@ -262,7 +270,7 @@ func resolveColRefs(conv *Conv, tableRef string, colRefs []string) ([]string, er
 		}
 		// Do case-insensitive search for colRef.
 		cr := strings.ToLower(colRef)
-		for _, c := range conv.SpSchema[table].ColNames {
+		for _, c := range conv.SpSchema[table].ColIds {
 			if strings.ToLower(c) == cr {
 				return c, nil
 			}

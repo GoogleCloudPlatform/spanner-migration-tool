@@ -249,9 +249,9 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 		colNames = append(colNames, colname)
 		colDef[colname] = col
 		if constraint.isPk {
-			keys = append(keys, schema.Key{Column: colname})
+			keys = append(keys, schema.Key{ColId: colname})
 		}
-		if constraint.fk.Columns != nil {
+		if constraint.fk.ColIds != nil {
 			fkeys = append(fkeys, constraint.fk)
 		}
 		if constraint.isUniqueKey {
@@ -260,13 +260,13 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 			// TODO: Avoid Spanner-specific schema transformations in this file -- they should only
 			// appear in toddl.go. This file should focus on generic transformation from source
 			// database schemas into schema.go.
-			index = append(index, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{Column: colname, Desc: false}}})
+			index = append(index, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{ColId: colname, Desc: false}}})
 		}
 	}
 	conv.SchemaStatement(NodeType(stmt))
 	conv.SrcSchema[tableName] = schema.Table{
 		Name:        tableName,
-		ColNames:    colNames,
+		ColIds:      colNames,
 		ColDefs:     colDef,
 		PrimaryKeys: keys,
 		ForeignKeys: fkeys,
@@ -312,7 +312,7 @@ func processConstraint(conv *internal.Conv, table string, constraint *ast.Constr
 // TODO: Resolve ordering issue for non-primary keys.
 func toSchemaKeys(columns []*ast.IndexPartSpecification) (keys []schema.Key) {
 	for _, colname := range columns {
-		keys = append(keys, schema.Key{Column: colname.Column.Name.String()})
+		keys = append(keys, schema.Key{ColId: colname.Column.Name.String()})
 	}
 	return keys
 }
@@ -333,12 +333,12 @@ func toForeignKeys(conv *internal.Conv, fk *ast.Constraint) (fkey schema.Foreign
 		referColNames = append(referColNames, referColumns[i].Column.Name.String())
 	}
 	fkey = schema.ForeignKey{
-		Name:         fk.Name,
-		Columns:      colNames,
-		ReferTable:   referTable,
-		ReferColumns: referColNames,
-		OnDelete:     fk.Refer.OnDelete.ReferOpt.String(),
-		OnUpdate:     fk.Refer.OnUpdate.ReferOpt.String()}
+		Name:           fk.Name,
+		ColIds:         colNames,
+		ReferTableId:   referTable,
+		ReferColumnIds: referColNames,
+		OnDelete:       fk.Refer.OnDelete.ReferOpt.String(),
+		OnUpdate:       fk.Refer.OnUpdate.ReferOpt.String()}
 	return fkey
 }
 
@@ -382,10 +382,10 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 				if constraint.isPk {
 					ctable := conv.SrcSchema[tableName]
 					checkEmpty(conv, ctable.PrimaryKeys, "ALTER TABLE")
-					ctable.PrimaryKeys = []schema.Key{{Column: colname}}
+					ctable.PrimaryKeys = []schema.Key{{ColId: colname}}
 					conv.SrcSchema[tableName] = ctable
 				}
-				if constraint.fk.Columns != nil {
+				if constraint.fk.ColIds != nil {
 					ctable := conv.SrcSchema[tableName]
 					ctable.ForeignKeys = append(ctable.ForeignKeys, constraint.fk)
 					conv.SrcSchema[tableName] = ctable
@@ -394,7 +394,7 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 					// Convert unique column constraint in mysql to a corresponding unique index in schema
 					// Note that schema represents all unique constraints as indexes.
 					ctable := conv.SrcSchema[tableName]
-					ctable.Indexes = append(ctable.Indexes, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{Column: colname, Desc: false}}})
+					ctable.Indexes = append(ctable.Indexes, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{ColId: colname, Desc: false}}})
 					conv.SrcSchema[tableName] = ctable
 				}
 				conv.SchemaStatement(NodeType(stmt))
@@ -410,13 +410,17 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 // getTableName extracts the table name from *ast.TableName table, and returns
 // the raw extracted name (the MySQL table name).
 // *ast.TableName is used to represent table names. It consists of two components:
-//  Schema: schemas in MySQL db often unspecified;
-//  Name: name of the table
+//
+//	Schema: schemas in MySQL db often unspecified;
+//	Name: name of the table
+//
 // We build a table name from these components as follows:
 // a) nil components are dropped.
 // b) if more than one component is specified, they are joined using "."
-//    (Note that Spanner doesn't allow "." in table names, so this
-//    will eventually get re-mapped when we construct the Spanner table name).
+//
+//	(Note that Spanner doesn't allow "." in table names, so this
+//	will eventually get re-mapped when we construct the Spanner table name).
+//
 // c) return error if Table is nil or "".
 func getTableName(table *ast.TableName) (string, error) {
 	var l []string
@@ -495,11 +499,11 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 			// Note that foreign key constraints that are part of a column definition
 			// have no name, so we leave fkey.Name as the empty string.
 			fkey := schema.ForeignKey{
-				Columns:      []string{column},
-				ReferTable:   referTable,
-				ReferColumns: []string{referColumn},
-				OnDelete:     elem.Refer.OnDelete.ReferOpt.String(),
-				OnUpdate:     elem.Refer.OnUpdate.ReferOpt.String()}
+				ColIds:         []string{column},
+				ReferTableId:   referTable,
+				ReferColumnIds: []string{referColumn},
+				OnDelete:       elem.Refer.OnDelete.ReferOpt.String(),
+				OnUpdate:       elem.Refer.OnUpdate.ReferOpt.String()}
 			cc.fk = fkey
 		}
 	}
@@ -589,8 +593,10 @@ func handleParseError(conv *internal.Conv, chunk string, err error, l [][]byte) 
 
 // handleInsertStatement handles error in parsing the insert statement.
 // Likely causes of failing to parse Insert statement:
-// 	a) Due to some invalid value.
-// 	b) chunk size is more than what pingcap parser could handle (more than 40MB in size).
+//
+//	a) Due to some invalid value.
+//	b) chunk size is more than what pingcap parser could handle (more than 40MB in size).
+//
 // We deal with this cases by extracting all rows and creating
 // extended insert statements. Then we parse one Insert statement
 // at a time, ensuring no size issue and skipping only invalid entries.
@@ -676,38 +682,35 @@ func processInsertStmt(conv *internal.Conv, stmt *ast.InsertStmt) {
 		logStmtError(conv, stmt, fmt.Errorf("can't get source table name: %w", err))
 		return
 	}
+	tableId, _ := internal.GetTableIdFromName(conv, srcTable)
 	if conv.SchemaMode() {
-		conv.Stats.Rows[srcTable] += int64(len(stmt.Lists))
+		conv.Stats.Rows[tableId] += int64(len(stmt.Lists))
 		conv.DataStatement(NodeType(stmt))
 		return
 	}
-	spTable, err1 := internal.GetSpannerTable(conv, srcTable)
-	if err1 != nil {
-		logStmtError(conv, stmt, fmt.Errorf("can't get spanner table name for source table '%s' : err=%w", srcTable, err1))
-		return
-	}
-	spSchema, ok1 := conv.SpSchema[spTable]
-	srcSchema, ok2 := conv.SrcSchema[srcTable]
+
+	spSchema, ok1 := conv.SpSchema[tableId]
+	srcSchema, ok2 := conv.SrcSchema[tableId]
 	if !ok1 || !ok2 {
-		conv.Unexpected(fmt.Sprintf("Can't get schemas for table %s", srcTable))
-		conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
+		conv.Unexpected(fmt.Sprintf("Can't get schemas for table %s", conv.SrcSchema[tableId].Name))
+		conv.Stats.BadRows[tableId] += conv.Stats.Rows[tableId]
 		return
 	}
 	srcCols, err2 := getCols(stmt)
 	if err2 != nil {
 		// In MySQL, column names might not be specified in insert statement so instead of
 		// throwing error we will try to retrieve columns from source schema.
-		srcCols = conv.SrcSchema[srcTable].ColNames
+		srcCols = conv.SrcSchema[tableId].ColIds
 		if len(srcCols) == 0 {
 			conv.Unexpected(fmt.Sprintf("Can't get columns for table %s", srcTable))
-			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
+			conv.Stats.BadRows[tableId] += conv.Stats.Rows[tableId]
 			return
 		}
 	}
 	spCols, err3 := internal.GetSpannerCols(conv, srcTable, srcCols)
 	if err3 != nil {
 		conv.Unexpected(fmt.Sprintf("Can't get spanner columns for table %s: err=%s", srcTable, err3))
-		conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
+		conv.Stats.BadRows[tableId] += conv.Stats.Rows[tableId]
 		return
 	}
 	var values []string
@@ -717,7 +720,7 @@ func processInsertStmt(conv *internal.Conv, stmt *ast.InsertStmt) {
 	}
 	for _, row := range stmt.Lists {
 		values, err = getVals(row)
-		ProcessDataRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, values)
+		ProcessDataRow(conv, conv.SrcSchema[tableId].Name, srcCols, srcSchema, tableId, spCols, spSchema, values)
 	}
 }
 

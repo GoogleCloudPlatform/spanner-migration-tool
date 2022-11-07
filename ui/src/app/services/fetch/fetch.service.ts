@@ -113,23 +113,23 @@ export class FetchService {
   }
 
   restoreTable(tableId: string) {
-    return this.http.post<HttpResponse<IConv>>(`${this.url}/restore/table?tableId=${tableId}`, {})
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/restore/table?table=${tableId}`, {})
   }
   dropTable(tableId: string) {
-    return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/table?tableId=${tableId}`, {})
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/table?table=${tableId}`, {})
   }
 
   updatePk(pkObj: IPrimaryKey) {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/primaryKey`, pkObj)
   }
 
-  updateFk(tableName: string, payload: Record<string, string>): any {
-    return this.http.post<HttpResponse<IConv>>(`${this.url}/rename/fks?table=${tableName}`, payload)
+  updateFk(tableId: string, payload: Record<string, string>): any {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/rename/fks?table=${tableId}`, payload)
   }
 
-  removeFk(tableName: string, fkName: string): any {
-    return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/fk?table=${tableName}`, {
-      Name: fkName,
+  removeFk(tableId: string, fkId: string): any {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/fk?table=${tableId}`, {
+      Id: fkId,
     })
   }
 
@@ -171,26 +171,26 @@ export class FetchService {
     return this.http.get<boolean>(`${this.url}/IsOffline`)
   }
 
-  addIndex(tableName: string, payload: ICreateIndex[]) {
-    return this.http.post<IConv>(`${this.url}/add/indexes?table=${tableName}`, payload)
+  addIndex(tableId: string, payload: ICreateIndex[]) {
+    return this.http.post<IConv>(`${this.url}/add/indexes?table=${tableId}`, payload)
   }
 
-  updateIndex(tableName: string, payload: ICreateIndex[]) {
-    return this.http.post<IConv>(`${this.url}/update/indexes?table=${tableName}`, payload)
+  updateIndex(tableId: string, payload: ICreateIndex[]) {
+    return this.http.post<IConv>(`${this.url}/update/indexes?table=${tableId}`, payload)
   }
 
-  dropIndex(tableName: string, indexName: string) {
-    return this.http.post<IConv>(`${this.url}/drop/secondaryindex?table=${tableName}`, {
-      Name: indexName,
+  dropIndex(tableId: string, indexName: string) {
+    return this.http.post<IConv>(`${this.url}/drop/secondaryindex?table=${tableId}`, {
+      Id: indexName,
     })
   }
 
-  getInterleaveStatus(tableName: string) {
-    return this.http.get<IInterleaveStatus>(`${this.url}/setparent?table=${tableName}`)
+  getInterleaveStatus(tableId: string) {
+    return this.http.get<IInterleaveStatus>(`${this.url}/setparent?table=${tableId}&update=false`)
   }
 
-  setInterleave(tableName: string) {
-    return this.http.get(`${this.url}/setparent?table=${tableName}&update=true`)
+  setInterleave(tableId: string) {
+    return this.http.get(`${this.url}/setparent?table=${tableId}&update=true`)
   }
 
   getSourceDestinationSummary() {

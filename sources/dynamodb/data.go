@@ -32,7 +32,7 @@ func ProcessDataRow(m map[string]*dynamodb.AttributeValue, conv *internal.Conv, 
 	} else {
 		conv.Unexpected(fmt.Sprintf("Data conversion error for table %s in column(s) %s\n", srcTable, badCols))
 		conv.StatsAddBadRow(srcTable, conv.DataMode())
-		conv.CollectBadRow(srcTable, srcSchema.ColNames, srcStrVals)
+		conv.CollectBadRow(srcTable, srcSchema.ColIds, srcStrVals)
 	}
 }
 
@@ -41,7 +41,7 @@ func cvtRow(attrsMap map[string]*dynamodb.AttributeValue, srcSchema schema.Table
 	var srcStrVals []string
 	var spVals []interface{}
 	var badCols []string
-	for i, srcCol := range srcSchema.ColNames {
+	for i, srcCol := range srcSchema.ColIds {
 		var spVal interface{}
 		var srcStrVal string
 		if attrsMap[srcCol] == nil {

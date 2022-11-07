@@ -193,27 +193,24 @@ func TestProcessSchema(t *testing.T) {
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"test_a": {
-			Name:     "test_a",
-			ColNames: []string{"a", "b"},
+			Name:   "test_a",
+			ColIds: []string{"a", "b"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			},
-			Pks: []ddl.IndexKey{{Col: "a"}},
+				"a": {Name: "a", T: ddl.Type{Name: "STRING", Len: ddl.MaxLength, IsArray: false}, NotNull: true, Comment: ""},
+				"b": {Name: "b", T: ddl.Type{Name: "STRING", Len: ddl.MaxLength, IsArray: false}, NotNull: false, Comment: ""}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "a", Desc: false}},
 		},
 		"test_b": {
-			Name:     "test_b",
-			ColNames: []string{"a", "b", "c", "d"},
+			Name:   "test_b",
+			ColIds: []string{"a", "b", "c", "d"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
-				"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-				"d": {Name: "d", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			},
-			Pks: []ddl.IndexKey{{Col: "a"}, {Col: "b"}},
-		},
-	}
-	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
+				"a": {Name: "a", T: ddl.Type{Name: "STRING", Len: ddl.MaxLength, IsArray: false}, NotNull: true, Comment: ""},
+				"b": {Name: "b", T: ddl.Type{Name: "STRING", Len: ddl.MaxLength, IsArray: false}, NotNull: true, Comment: ""},
+				"c": {Name: "c", T: ddl.Type{Name: "STRING", Len: ddl.MaxLength, IsArray: false}, NotNull: false, Comment: ""},
+				"d": {Name: "d", T: ddl.Type{Name: "STRING", Len: ddl.MaxLength, IsArray: false}, NotNull: false, Comment: ""}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "a", Desc: false}, {ColId: "b", Desc: false}},
+		}}
+	common.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 
@@ -296,8 +293,8 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"test_a": {
-			Name:     "test_a",
-			ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
+			Name:   "test_a",
+			ColIds: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}, NotNull: true},
@@ -311,10 +308,10 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 				"j": {Name: "j", T: ddl.Type{Name: ddl.Numeric, IsArray: true}},
 				"k": {Name: "k", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}},
 			},
-			Pks: []ddl.IndexKey{{Col: "a"}, {Col: "b"}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "a"}, {ColId: "b"}},
 		},
 	}
-	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
+	common.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 
@@ -346,26 +343,26 @@ func TestProcessData(t *testing.T) {
 	cols := []string{"a", "b", "c", "d"}
 	conv := buildConv(
 		ddl.CreateTable{
-			Name:     tableName,
-			ColNames: cols,
+			Name:   tableName,
+			ColIds: cols,
 			ColDefs: map[string]ddl.ColumnDef{
 				"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 				"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
 				"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 				"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
 			},
-			Pks: []ddl.IndexKey{{Col: "a"}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "a"}},
 		},
 		schema.Table{
-			Name:     tableName,
-			ColNames: cols,
+			Name:   tableName,
+			ColIds: cols,
 			ColDefs: map[string]schema.Column{
 				"a": {Name: "a", Type: schema.Type{Name: typeString}},
 				"b": {Name: "b", Type: schema.Type{Name: typeNumber}},
 				"c": {Name: "c", Type: schema.Type{Name: typeNumberString}},
 				"d": {Name: "d", Type: schema.Type{Name: typeBool}},
 			},
-			PrimaryKeys: []schema.Key{{Column: "a"}},
+			PrimaryKeys: []schema.Key{{ColId: "a"}},
 		},
 	)
 	conv.SetDataMode()
@@ -558,8 +555,8 @@ func TestInfoSchemaImpl_GetIndexes(t *testing.T) {
 	assert.Nil(t, err)
 
 	secIndexes := []schema.Index{
-		{Name: "secondary_index_c", Keys: []schema.Key{{Column: "c"}}},
-		{Name: "secondary_index_d", Keys: []schema.Key{{Column: "d"}}},
+		{Name: "secondary_index_c", Keys: []schema.Key{{ColId: "c"}}},
+		{Name: "secondary_index_d", Keys: []schema.Key{{ColId: "d"}}},
 	}
 	assert.Equal(t, secIndexes, indexes)
 }
@@ -780,10 +777,10 @@ func TestInfoSchemaImpl_ProcessData(t *testing.T) {
 		{
 			Items: []map[string]*dynamodb.AttributeValue{
 				{
-					"a": {S: &strA},
-					"b": {N: &numStr1},
-					"c": {N: &numStr2},
-					"d": {BOOL: &boolVal},
+					"c1": {S: &strA},
+					"c2": {N: &numStr1},
+					"c3": {N: &numStr2},
+					"c4": {BOOL: &boolVal},
 				},
 			},
 		},
@@ -794,31 +791,32 @@ func TestInfoSchemaImpl_ProcessData(t *testing.T) {
 	}
 	isi := InfoSchemaImpl{client, nil, 10}
 
-	tableName := "testtable"
-	cols := []string{"a", "b", "c", "d"}
+	tableName := "t1"
+	cols := []string{"c1", "c2", "c3", "c4"}
 	spSchema := ddl.CreateTable{
-		Name:     tableName,
-		ColNames: cols,
+		Name:   tableName,
+		ColIds: cols,
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
-			"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
+			"c1": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"c2": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
+			"c3": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"c4": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
 		},
-		Pks: []ddl.IndexKey{{Col: "a"}},
+		Id:          "t1",
+		PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 	}
 	conv := buildConv(
 		spSchema,
 		schema.Table{
-			Name:     tableName,
-			ColNames: cols,
+			Name:   tableName,
+			ColIds: cols,
 			ColDefs: map[string]schema.Column{
-				"a": {Name: "a", Type: schema.Type{Name: typeString}},
-				"b": {Name: "b", Type: schema.Type{Name: typeNumber}},
-				"c": {Name: "c", Type: schema.Type{Name: typeNumberString}},
-				"d": {Name: "d", Type: schema.Type{Name: typeBool}},
+				"c1": {Name: "a", Type: schema.Type{Name: typeString}},
+				"c2": {Name: "b", Type: schema.Type{Name: typeNumber}},
+				"c3": {Name: "c", Type: schema.Type{Name: typeNumberString}},
+				"c4": {Name: "d", Type: schema.Type{Name: typeBool}},
 			},
-			PrimaryKeys: []schema.Key{{Column: "a"}},
+			PrimaryKeys: []schema.Key{{ColId: "c1"}},
 		},
 	)
 
@@ -940,20 +938,20 @@ func TestInfoSchemaImpl_StartChangeDataCapture(t *testing.T) {
 
 	cols := []string{attrNameA}
 	spSchema := ddl.CreateTable{
-		Name:     tableName,
-		ColNames: cols,
+		Name:   tableName,
+		ColIds: cols,
 		ColDefs: map[string]ddl.ColumnDef{
 			attrNameA: {Name: attrNameA, T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		},
-		Pks: []ddl.IndexKey{{Col: attrNameA}},
+		PrimaryKeys: []ddl.IndexKey{{ColId: attrNameA}},
 	}
 	srcTable := schema.Table{
-		Name:     tableName,
-		ColNames: cols,
+		Name:   tableName,
+		ColIds: cols,
 		ColDefs: map[string]schema.Column{
 			attrNameA: {Name: attrNameA, Type: schema.Type{Name: typeString}},
 		},
-		PrimaryKeys: []schema.Key{{Column: attrNameA}},
+		PrimaryKeys: []schema.Key{{ColId: attrNameA}},
 	}
 	conv := buildConv(spSchema, srcTable)
 	type fields struct {

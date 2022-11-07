@@ -195,14 +195,23 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 //	key_part:
 //	   column_name [{ ASC | DESC }]
 type IndexKey struct {
-	Col   string
+	ColId string
 	Desc  bool // Default order is ascending i.e. Desc = false.
 	Order int
 }
 
 // PrintIndexKey unparses the index keys.
 func (pk IndexKey) PrintIndexKey(c Config) string {
-	col := c.quote(pk.Col)
+	col := c.quote(pk.ColId)
+	if pk.Desc {
+		return fmt.Sprintf("%s DESC", col)
+	}
+	// Don't print out ASC -- that's the default.
+	return col
+}
+
+func (pk IndexKey) PrintPkKey(ct CreateTable, c Config) string {
+	col := c.quote(ct.ColDefs[pk.ColId].Name)
 	if pk.Desc {
 		return fmt.Sprintf("%s DESC", col)
 	}
@@ -215,54 +224,55 @@ func (pk IndexKey) PrintIndexKey(c Config) string {
 //	   [ CONSTRAINT constraint_name ]
 //		  FOREIGN KEY ( column_name [, ... ] ) REFERENCES ref_table ( ref_column [, ... ] ) }
 type Foreignkey struct {
-	Name         string
-	Columns      []string
-	ReferTable   string
-	ReferColumns []string
-	Id           string
+	Name           string
+	ColIds         []string
+	ReferTableId   string
+	ReferColumnIds []string
+	Id             string
 }
 
 // PrintForeignKey unparses the foreign keys.
 func (k Foreignkey) PrintForeignKey(c Config) string {
 	var cols, referCols []string
-	for i, col := range k.Columns {
+	for i, col := range k.ColIds {
 		cols = append(cols, c.quote(col))
-		referCols = append(referCols, c.quote(k.ReferColumns[i]))
+		referCols = append(referCols, c.quote(k.ReferColumnIds[i]))
 	}
 	var s string
 	if k.Name != "" {
 		s = fmt.Sprintf("CONSTRAINT %s ", c.quote(k.Name))
 	}
-	return s + fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s (%s)", strings.Join(cols, ", "), c.quote(k.ReferTable), strings.Join(referCols, ", "))
+	return s + fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s (%s)", strings.Join(cols, ", "), c.quote(k.ReferTableId), strings.Join(referCols, ", "))
 }
 
 // CreateTable encodes the following DDL definition:
 //
 //	create_table: CREATE TABLE table_name ([column_def, ...] ) primary_key [, cluster]
 type CreateTable struct {
-	Name     string
-	ColNames []string             // Provides names and order of columns
-	ColDefs  map[string]ColumnDef // Provides definition of columns (a map for simpler/faster lookup during type processing)
-	Pks      []IndexKey
-	Fks      []Foreignkey
-	Indexes  []CreateIndex
-	Parent   string //if not empty, this table will be interleaved
-	Comment  string
-	Id       string
+	Name        string
+	ColIds      []string             // Provides names and order of columns
+	ColDefs     map[string]ColumnDef // Provides definition of columns (a map for simpler/faster lookup during type processing)
+	PrimaryKeys []IndexKey
+	ForeignKeys []Foreignkey
+	Indexes     []CreateIndex
+	ParentId    string //if not empty, this table will be interleaved
+	Comment     string
+	Id          string
 }
 
 // PrintCreateTable unparses a CREATE TABLE statement.
-func (ct CreateTable) PrintCreateTable(config Config) string {
+func (ct CreateTable) PrintCreateTable(s Schema, config Config) string {
 	var col []string
 	var colComment []string
 	var keys []string
-	for _, cn := range ct.ColNames {
-		s, c := ct.ColDefs[cn].PrintColumnDef(config)
+	for _, cn := range ct.ColDefs {
+		s, c := cn.PrintColumnDef(config)
 		s = "\t" + s + ","
 		col = append(col, s)
 		colComment = append(colComment, c)
 	}
 
+	sort.Strings(col)
 	n := maxStringLength(col)
 	var cols string
 	for i, c := range col {
@@ -273,8 +283,8 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 		cols += "\n"
 	}
 
-	for _, p := range ct.Pks {
-		keys = append(keys, p.PrintIndexKey(config))
+	for _, p := range ct.PrimaryKeys {
+		keys = append(keys, p.PrintPkKey(ct, config))
 	}
 	var tableComment string
 	if config.Comments && len(ct.Comment) > 0 {
@@ -282,13 +292,14 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 	}
 
 	var interleave string
-	if ct.Parent != "" {
+	if ct.ParentId != "" {
+		parent := s[ct.ParentId].Name
 		if config.TargetDb == constants.TargetExperimentalPostgres {
 			// PG spanner only supports PRIMARY KEY() inside the CREATE TABLE()
 			// and thus INTERLEAVE follows immediately after closing brace.
-			interleave = " INTERLEAVE IN PARENT " + config.quote(ct.Parent)
+			interleave = " INTERLEAVE IN PARENT " + config.quote(parent)
 		} else {
-			interleave = ",\nINTERLEAVE IN PARENT " + config.quote(ct.Parent)
+			interleave = ",\nINTERLEAVE IN PARENT " + config.quote(parent)
 		}
 	}
 
@@ -302,12 +313,12 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 //
 //	create index: CREATE [UNIQUE] [NULL_FILTERED] INDEX index_name ON table_name ( key_part [, ...] ) [ storing_clause ] [ , interleave_clause ]
 type CreateIndex struct {
-	Name          string
-	Table         string
-	Unique        bool
-	Keys          []IndexKey
-	Id            string
-	StoredColumns []string
+	Name            string
+	TableId         string `json:"TableId"`
+	Unique          bool
+	Keys            []IndexKey
+	Id              string
+	StoredColumnIds []string
 	// We have no requirements for null-filtered option and
 	// interleaving clauses yet, so we omit them for now.
 }
@@ -327,24 +338,24 @@ func (ci CreateIndex) PrintCreateIndex(c Config) string {
 	} else {
 		stored = "STORING"
 	}
-	if ci.StoredColumns != nil {
-		storingClause = fmt.Sprintf(" %s (%s)", stored, strings.Join(ci.StoredColumns, ", "))
+	if ci.StoredColumnIds != nil {
+		storingClause = fmt.Sprintf(" %s (%s)", stored, strings.Join(ci.StoredColumnIds, ", "))
 	}
-	return fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)%s", unique, c.quote(ci.Name), c.quote(ci.Table), strings.Join(keys, ", "), storingClause)
+	return fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)%s", unique, c.quote(ci.Name), c.quote(ci.TableId), strings.Join(keys, ", "), storingClause)
 }
 
 // PrintForeignKeyAlterTable unparses the foreign keys using ALTER TABLE.
 func (k Foreignkey) PrintForeignKeyAlterTable(c Config, tableName string) string {
 	var cols, referCols []string
-	for i, col := range k.Columns {
+	for i, col := range k.ColIds {
 		cols = append(cols, c.quote(col))
-		referCols = append(referCols, c.quote(k.ReferColumns[i]))
+		referCols = append(referCols, c.quote(k.ReferColumnIds[i]))
 	}
 	var s string
 	if k.Name != "" {
 		s = fmt.Sprintf("CONSTRAINT %s ", c.quote(k.Name))
 	}
-	return fmt.Sprintf("ALTER TABLE %s ADD %sFOREIGN KEY (%s) REFERENCES %s (%s)", c.quote(tableName), s, strings.Join(cols, ", "), c.quote(k.ReferTable), strings.Join(referCols, ", "))
+	return fmt.Sprintf("ALTER TABLE %s ADD %sFOREIGN KEY (%s) REFERENCES %s (%s)", c.quote(tableName), s, strings.Join(cols, ", "), c.quote(k.ReferTableId), strings.Join(referCols, ", "))
 }
 
 // Schema stores a map of table names and Tables.
@@ -375,7 +386,7 @@ func OrderTables(s Schema) []string {
 		// Add table t if either:
 		// a) t is not interleaved in another table, or
 		// b) t is interleaved in another table and that table has already been added to the list.
-		if table.Parent == "" || tableAdded[table.Parent] {
+		if table.ParentId == "" || tableAdded[table.ParentId] {
 			sortedTableNames = append(sortedTableNames, tableName)
 			tableAdded[tableName] = true
 		} else {
@@ -397,12 +408,12 @@ func OrderTables(s Schema) []string {
 // definition of their parent table.
 func (s Schema) GetDDL(c Config) []string {
 	var ddl []string
-	sortedTableNames := OrderTables(s)
+	sortedTableIds := OrderTables(s)
 
 	if c.Tables {
-		for _, tableName := range sortedTableNames {
-			ddl = append(ddl, s[tableName].PrintCreateTable(c))
-			for _, index := range s[tableName].Indexes {
+		for _, tableId := range sortedTableIds {
+			ddl = append(ddl, s[tableId].PrintCreateTable(s, c))
+			for _, index := range s[tableId].Indexes {
 				ddl = append(ddl, index.PrintCreateIndex(c))
 			}
 		}
@@ -414,8 +425,8 @@ func (s Schema) GetDDL(c Config) []string {
 	// before they are referenced by foreign key constraints) and the possibility
 	// of circular foreign keys definitions. We opt for simplicity.
 	if c.ForeignKeys {
-		for _, t := range sortedTableNames {
-			for _, fk := range s[t].Fks {
+		for _, t := range sortedTableIds {
+			for _, fk := range s[t].ForeignKeys {
 				ddl = append(ddl, fk.PrintForeignKeyAlterTable(c, t))
 			}
 		}
@@ -426,7 +437,7 @@ func (s Schema) GetDDL(c Config) []string {
 // CheckInterleaved checks if schema contains interleaved tables.
 func (s Schema) CheckInterleaved() bool {
 	for _, table := range s {
-		if table.Parent != "" {
+		if table.ParentId != "" {
 			return true
 		}
 	}

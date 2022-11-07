@@ -160,7 +160,7 @@ func TestProcessSchema(t *testing.T) {
 				{"bs", "bigint", nil, "NO", "nextval('test11_bs_seq'::regclass)", nil, 64, 0},
 				{"by", "bytea", nil, "YES", nil, nil, nil, nil},
 				{"c", "character", nil, "YES", nil, 1, nil, nil},
-				{"c8", "character", nil, "YES", nil, 8, nil, nil},
+				{"c_8", "character", nil, "YES", nil, 8, nil, nil},
 				{"d", "date", nil, "YES", nil, nil, nil, nil},
 				{"f8", "double precision", nil, "YES", nil, nil, 53, nil},
 				{"f4", "real", nil, "YES", nil, nil, 24, nil},
@@ -205,40 +205,40 @@ func TestProcessSchema(t *testing.T) {
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"user": ddl.CreateTable{
-			Name:     "user",
-			ColNames: []string{"user_id", "name", "ref"},
+			Name:   "user",
+			ColIds: []string{"user_id", "name", "ref"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"user_id": ddl.ColumnDef{Name: "user_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"name":    ddl.ColumnDef{Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"ref":     ddl.ColumnDef{Name: "ref", T: ddl.Type{Name: ddl.Int64}},
 			},
-			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "user_id"}},
-			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"ref"}, ReferTable: "test", ReferColumns: []string{"id"}}}},
+			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "user_id"}},
+			ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"ref"}, ReferTableId: "test", ReferColumnIds: []string{"id"}}}},
 		"cart": ddl.CreateTable{
-			Name:     "cart",
-			ColNames: []string{"productid", "userid", "quantity"},
+			Name:   "cart",
+			ColIds: []string{"productid", "userid", "quantity"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"productid": ddl.ColumnDef{Name: "productid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"userid":    ddl.ColumnDef{Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
 			},
-			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "productid"}, ddl.IndexKey{Col: "userid"}},
-			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test2", Columns: []string{"productid"}, ReferTable: "product", ReferColumns: []string{"product_id"}},
-				ddl.Foreignkey{Name: "fk_test3", Columns: []string{"userid"}, ReferTable: "user", ReferColumns: []string{"user_id"}}},
-			Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", Table: "cart", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "userid", Desc: false}}},
-				ddl.CreateIndex{Name: "index2", Table: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "userid", Desc: false}, ddl.IndexKey{Col: "productid", Desc: true}}},
-				ddl.CreateIndex{Name: "index3", Table: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{Col: "productid", Desc: true}, ddl.IndexKey{Col: "userid", Desc: false}}}}},
+			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "productid"}, ddl.IndexKey{ColId: "userid"}},
+			ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"productid"}, ReferTableId: "product", ReferColumnIds: []string{"product_id"}},
+				ddl.Foreignkey{Name: "fk_test3", ColIds: []string{"userid"}, ReferTableId: "user", ReferColumnIds: []string{"user_id"}}},
+			Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", TableId: "cart", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "userid", Desc: false}}},
+				ddl.CreateIndex{Name: "index2", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "userid", Desc: false}, ddl.IndexKey{ColId: "productid", Desc: true}}},
+				ddl.CreateIndex{Name: "index3", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "productid", Desc: true}, ddl.IndexKey{ColId: "userid", Desc: false}}}}},
 		"product": ddl.CreateTable{
-			Name:     "product",
-			ColNames: []string{"product_id", "product_name"},
+			Name:   "product",
+			ColIds: []string{"product_id", "product_name"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"product_id":   ddl.ColumnDef{Name: "product_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"product_name": ddl.ColumnDef{Name: "product_name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 			},
-			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "product_id"}}},
+			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "product_id"}}},
 		"test": ddl.CreateTable{
-			Name:     "test",
-			ColNames: []string{"id", "aint", "atext", "b", "bs", "by", "c", "c8", "d", "f8", "f4", "i8", "i4", "i2", "num", "s", "ts", "tz", "txt", "vc", "vc6"},
+			Name:   "test",
+			ColIds: []string{"id", "aint", "atext", "b", "bs", "by", "c", "c_8", "d", "f8", "f4", "i8", "i4", "i2", "num", "s", "ts", "tz", "txt", "vc", "vc6"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"id":    ddl.ColumnDef{Name: "id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 				"aint":  ddl.ColumnDef{Name: "aint", T: ddl.Type{Name: ddl.Int64, IsArray: true}},
@@ -247,7 +247,7 @@ func TestProcessSchema(t *testing.T) {
 				"bs":    ddl.ColumnDef{Name: "bs", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 				"by":    ddl.ColumnDef{Name: "by", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
 				"c":     ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
-				"c8":    ddl.ColumnDef{Name: "c8", T: ddl.Type{Name: ddl.String, Len: int64(8)}},
+				"c_8":   ddl.ColumnDef{Name: "c_8", T: ddl.Type{Name: ddl.String, Len: int64(8)}},
 				"d":     ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.Date}},
 				"f8":    ddl.ColumnDef{Name: "f8", T: ddl.Type{Name: ddl.Float64}},
 				"f4":    ddl.ColumnDef{Name: "f4", T: ddl.Type{Name: ddl.Float64}},
@@ -262,20 +262,21 @@ func TestProcessSchema(t *testing.T) {
 				"vc":    ddl.ColumnDef{Name: "vc", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 				"vc6":   ddl.ColumnDef{Name: "vc6", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
 			},
-			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "id"}},
-			Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test4", Columns: []string{"id", "txt"}, ReferTable: "test_ref", ReferColumns: []string{"ref_id", "ref_txt"}}}},
+			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id"}},
+			ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test4", ColIds: []string{"id", "txt"}, ReferTableId: "test_ref", ReferColumnIds: []string{"ref_id", "ref_txt"}}}},
 		"test_ref": ddl.CreateTable{
-			Name:     "test_ref",
-			ColNames: []string{"ref_id", "ref_txt", "abc"},
+			Name:   "test_ref",
+			ColIds: []string{"ref_id", "ref_txt", "abc"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"ref_id":  ddl.ColumnDef{Name: "ref_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 				"ref_txt": ddl.ColumnDef{Name: "ref_txt", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"abc":     ddl.ColumnDef{Name: "abc", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 			},
-			Pks: []ddl.IndexKey{ddl.IndexKey{Col: "ref_id"}, ddl.IndexKey{Col: "ref_txt"}}},
+			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "ref_id"}, ddl.IndexKey{ColId: "ref_txt"}}},
 	}
-	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
-	assert.Equal(t, len(conv.Issues["cart"]), 0)
+	common.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
+	cartTableId := common.GetSpTableIdFromName(conv, "cart")
+	assert.Equal(t, len(conv.SchemaIssues[cartTableId]), 0)
 	expectedIssues := map[string][]internal.SchemaIssue{
 		"aint": []internal.SchemaIssue{internal.Widened},
 		"bs":   []internal.SchemaIssue{internal.DefaultValue},
@@ -285,7 +286,8 @@ func TestProcessSchema(t *testing.T) {
 		"s":    []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
 		"ts":   []internal.SchemaIssue{internal.Timestamp},
 	}
-	assert.Equal(t, expectedIssues, conv.Issues["test"])
+	testTableId := common.GetSpTableIdFromName(conv, "test")
+	common.AssertTableIssues(conv, t, testTableId, expectedIssues, conv.SchemaIssues[testTableId])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 
@@ -307,21 +309,23 @@ func TestProcessData(t *testing.T) {
 	db := mkMockDB(t, ms)
 	conv := buildConv(
 		ddl.CreateTable{
-			Name:     "te_st",
-			ColNames: []string{"a a", " b", " c "},
+			Name:   "te_st",
+			Id:     "t1",
+			ColIds: []string{"c1", "c2", "c3"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"a_a": ddl.ColumnDef{Name: "a_a", T: ddl.Type{Name: ddl.Float64}},
-				"Ab":  ddl.ColumnDef{Name: "Ab", T: ddl.Type{Name: ddl.Int64}},
-				"Ac_": ddl.ColumnDef{Name: "Ac_", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"c1": ddl.ColumnDef{Name: "a_a", Id: "c1", T: ddl.Type{Name: ddl.Float64}},
+				"c2": ddl.ColumnDef{Name: "Ab", Id: "c2", T: ddl.Type{Name: ddl.Int64}},
+				"c3": ddl.ColumnDef{Name: "Ac_", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			}},
 		schema.Table{
-			Name:     "te st",
-			Schema:   "public",
-			ColNames: []string{"a_a", "_b", "_c_"},
+			Name:   "te st",
+			Id:     "t1",
+			Schema: "public",
+			ColIds: []string{"c1", "c2", "c3"},
 			ColDefs: map[string]schema.Column{
-				"a a": schema.Column{Name: "a a", Type: schema.Type{Name: "float4"}},
-				" b":  schema.Column{Name: " b", Type: schema.Type{Name: "int8"}},
-				" c ": schema.Column{Name: " c ", Type: schema.Type{Name: "text"}},
+				"c1": schema.Column{Name: "a a", Id: "c1", Type: schema.Type{Name: "float4"}},
+				"c2": schema.Column{Name: " b", Id: "c2", Type: schema.Type{Name: "int8"}},
+				"c3": schema.Column{Name: " c ", Id: "c3", Type: schema.Type{Name: "text"}},
 			}})
 	conv.SetDataMode()
 	var rows []spannerData
@@ -331,7 +335,7 @@ func TestProcessData(t *testing.T) {
 		})
 	common.ProcessData(conv, InfoSchemaImpl{db})
 
-	assert.Equal(t,
+	assertSpannerData(conv, t,
 		[]spannerData{
 			spannerData{table: "te_st", cols: []string{"a a", " b", " c "}, vals: []interface{}{float64(42.3), int64(3), "cat"}},
 			spannerData{table: "te_st", cols: []string{"a a", " b", " c "}, vals: []interface{}{float64(6.6), int64(22), "dog"}},
@@ -396,17 +400,27 @@ func TestConvertSqlRow_SingleCol(t *testing.T) {
 				spanner.NullTime{Valid: false}}},
 	}
 	tableName := "testtable"
+	tableId := "t1"
+	columnId := "c1"
 	for _, tc := range tc {
 		col := "a"
-		conv := internal.MakeConv()
-		conv.SetLocation(time.UTC)
 		cols := []string{col}
-		srcSchema := schema.Table{Name: tableName, ColNames: []string{col}, ColDefs: map[string]schema.Column{col: schema.Column{Type: tc.srcType}}}
+
+		conv := buildConv(ddl.CreateTable{
+			Name:    tableName,
+			Id:      tableId,
+			ColIds:  []string{columnId},
+			ColDefs: map[string]ddl.ColumnDef{columnId: ddl.ColumnDef{Name: col, Id: columnId, T: tc.spType}}},
+			schema.Table{Name: tableName, Id: tableId, ColIds: []string{columnId}, ColDefs: map[string]schema.Column{columnId: schema.Column{Type: tc.srcType, Name: col, Id: columnId}}},
+		)
+		conv.SetLocation(time.UTC)
+		srcSchema := schema.Table{Name: tableName, Id: tableId, ColIds: []string{columnId}, ColDefs: map[string]schema.Column{columnId: schema.Column{Type: tc.srcType, Name: col, Id: columnId}}}
 		spSchema := ddl.CreateTable{
-			Name:     tableName,
-			ColNames: []string{col},
-			ColDefs:  map[string]ddl.ColumnDef{col: ddl.ColumnDef{Name: col, T: tc.spType}}}
-		ac, av, err := convertSQLRow(conv, tableName, cols, srcSchema, tableName, cols, spSchema, []interface{}{tc.in})
+			Name:    tableName,
+			Id:      tableId,
+			ColIds:  []string{columnId},
+			ColDefs: map[string]ddl.ColumnDef{columnId: ddl.ColumnDef{Name: col, Id: columnId, T: tc.spType}}}
+		ac, av, err := convertSQLRow(conv, tableId, cols, srcSchema, tableId, cols, spSchema, []interface{}{tc.in})
 		assert.Equal(t, cols, ac)
 		assert.Equal(t, []interface{}{tc.e}, av)
 		assert.Nil(t, err)
@@ -415,7 +429,7 @@ func TestConvertSqlRow_SingleCol(t *testing.T) {
 
 func TestConvertSqlRow_MultiCol(t *testing.T) {
 	// Tests multi-column behavior of ConvertSqlRow (including
-	// handling of null columns and synthetic keys). Also tests
+	// handling of null ColIds and synthetic keys). Also tests
 	// the combination of ProcessInfoSchema and ConvertSqlRow
 	// i.e. ConvertSqlRow uses the schemas built by
 	// ProcessInfoSchema.
@@ -466,7 +480,7 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
 	common.ProcessData(conv, InfoSchemaImpl{db})
-	assert.Equal(t, []spannerData{
+	assertSpannerData(conv, t, []spannerData{
 		{table: "test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), "0"}},
 		{table: "test", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), "-9223372036854775808"}}},
 		rows)
@@ -514,4 +528,13 @@ func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
 
 	}
 	return db
+}
+
+func assertSpannerData(conv *internal.Conv, t *testing.T, expectedData, actualData []spannerData) {
+	assert.Equal(t, len(expectedData), len(actualData))
+	for i, data := range actualData {
+		tableName := conv.SpSchema[data.table].Name
+		actualData[i].table = tableName
+	}
+	assert.Equal(t, expectedData, actualData)
 }

@@ -88,7 +88,7 @@ func TestProcessSchema(t *testing.T) {
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
 			args:  []driver.Value{"dbo.test"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
-			rows:  [][]driver.Value{{"dbo", "test_ref", "id", "ref_id", "fk_test4"}},
+			rows:  [][]driver.Value{{"dbo", "test_ref", "Id", "ref_id", "fk_test4"}},
 		}, {
 			query: "SELECT (.+) FROM sys.indexes (.+)",
 			args:  []driver.Value{"test", "dbo"},
@@ -231,18 +231,18 @@ func TestProcessSchema(t *testing.T) {
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
 		"user": {
-			Name:     "user",
-			ColNames: []string{"user_id", "name", "ref"},
+			Name:   "user",
+			ColIds: []string{"user_id", "name", "ref"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"user_id": {Name: "user_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"name":    {Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"ref":     {Name: "ref", T: ddl.Type{Name: ddl.Int64}},
 			},
-			Pks: []ddl.IndexKey{{Col: "user_id"}},
-			Fks: []ddl.Foreignkey{{Name: "fk_test", Columns: []string{"ref"}, ReferTable: "test", ReferColumns: []string{"Id"}}}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "user_id"}},
+			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"ref"}, ReferTableId: "test", ReferColumnIds: []string{"Id"}}}},
 		"test": {
 			Name: "test",
-			ColNames: []string{"Id", "BigInt", "Binary", "Bit", "Char", "Date", "DateTime",
+			ColIds: []string{"Id", "BigInt", "Binary", "Bit", "Char", "Date", "DateTime",
 				"DateTime2", "DateTimeOffset", "Decimal", "Float", "Geography", "Geometry", "HierarchyId",
 				"Image", "Int", "Money", "NChar", "NText", "Numeric", "NVarChar", "NVarCharMax", "Real", "SmallDateTime",
 				"SmallInt", "SmallMoney", "SQLVariant", "Text", "Time", "TimeStamp",
@@ -286,44 +286,49 @@ func TestProcessSchema(t *testing.T) {
 				"VarCharMax":       {Name: "VarCharMax", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Xml":              {Name: "Xml", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 			},
-			Pks: []ddl.IndexKey{{Col: "Id"}},
-			Fks: []ddl.Foreignkey{{Name: "fk_test4", Columns: []string{"Id"}, ReferTable: "test_ref", ReferColumns: []string{"ref_id"}}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "Id"}},
+			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test4", ColIds: []string{"Id"}, ReferTableId: "test_ref", ReferColumnIds: []string{"ref_id"}}},
 		},
 		"cart": {
-			Name:     "cart",
-			ColNames: []string{"productid", "userid", "quantity"},
+			Name:   "cart",
+			ColIds: []string{"productid", "userid", "quantity"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"productid": {Name: "productid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"userid":    {Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"quantity":  {Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
 			},
-			Pks: []ddl.IndexKey{{Col: "productid"}, {Col: "userid"}},
-			Fks: []ddl.Foreignkey{{Name: "fk_test2", Columns: []string{"productid"}, ReferTable: "production_product", ReferColumns: []string{"product_id"}},
-				{Name: "fk_test3", Columns: []string{"userid"}, ReferTable: "user", ReferColumns: []string{"user_id"}}},
-			Indexes: []ddl.CreateIndex{{Name: "index1", Table: "cart", Unique: false, Keys: []ddl.IndexKey{{Col: "userid", Desc: false}}},
-				{Name: "index2", Table: "cart", Unique: true, Keys: []ddl.IndexKey{{Col: "userid", Desc: false}}, StoredColumns: []string{"productid"}},
-				{Name: "index3", Table: "cart", Unique: true, Keys: []ddl.IndexKey{{Col: "productid", Desc: true}, {Col: "userid", Desc: false}}}}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "productid"}, {ColId: "userid"}},
+			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test2", ColIds: []string{"productid"}, ReferTableId: "production_product", ReferColumnIds: []string{"product_id"}},
+				{Name: "fk_test3", ColIds: []string{"userid"}, ReferTableId: "user", ReferColumnIds: []string{"user_id"}}},
+			Indexes: []ddl.CreateIndex{{Name: "index1", TableId: "cart", Unique: false, Keys: []ddl.IndexKey{{ColId: "userid", Desc: false}}},
+				{Name: "index2", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{{ColId: "userid", Desc: false}}, StoredColumnIds: []string{"productid"}},
+				{Name: "index3", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{{ColId: "productid", Desc: true}, {ColId: "userid", Desc: false}}}}},
 		"production_product": {
-			Name:     "production_product",
-			ColNames: []string{"product_id", "product_name"},
+			Name:   "production_product",
+			ColIds: []string{"product_id", "product_name"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"product_id":   {Name: "product_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"product_name": {Name: "product_name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 			},
-			Pks: []ddl.IndexKey{{Col: "product_id"}}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "product_id"}}},
 		"test_ref": {
-			Name:     "test_ref",
-			ColNames: []string{"ref_id", "ref_txt", "abc"},
+			Name:   "test_ref",
+			ColIds: []string{"ref_id", "ref_txt", "abc"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"ref_id":  {Name: "ref_id", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
 				"ref_txt": {Name: "ref_txt", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"abc":     {Name: "abc", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 			},
-			Pks: []ddl.IndexKey{{Col: "ref_id"}, {Col: "ref_txt"}}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "ref_id"}, {ColId: "ref_txt"}}},
 	}
-	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
-	assert.Equal(t, len(conv.Issues["cart"]), 0)
-	assert.Equal(t, len(conv.Issues["test"]), 17)
+	common.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
+
+	cartTableId := common.GetSpTableIdFromName(conv, "cart")
+	assert.NotEqual(t, cartTableId, "")
+	testTableId := common.GetSpTableIdFromName(conv, "test")
+	assert.NotEqual(t, testTableId, "")
+	assert.Equal(t, len(conv.SchemaIssues[cartTableId]), 0)
+	assert.Equal(t, len(conv.SchemaIssues[testTableId]), 17)
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 
 }

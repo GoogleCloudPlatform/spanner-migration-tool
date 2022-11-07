@@ -40,8 +40,8 @@ func TestProcessDataRow(t *testing.T) {
 	cols := []string{"a", "b", "c", "d"}
 	conv := buildConv(
 		ddl.CreateTable{
-			Name:     tableName,
-			ColNames: cols,
+			Name:   tableName,
+			ColIds: cols,
 			ColDefs: map[string]ddl.ColumnDef{
 				"a": {Name: "a", T: ddl.Type{Name: ddl.Float64}},
 				"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}},
@@ -49,8 +49,8 @@ func TestProcessDataRow(t *testing.T) {
 				"d": {Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
 			}},
 		schema.Table{
-			Name:     tableName,
-			ColNames: cols,
+			Name:   tableName,
+			ColIds: cols,
 			ColDefs: map[string]schema.Column{
 				"a": {Name: "a", Type: schema.Type{Name: "FLOAT"}},
 				"b": {Name: "b", Type: schema.Type{Name: "NUMER"}},
@@ -99,11 +99,11 @@ func TestConvertData(t *testing.T) {
 		col := "a"
 		conv := buildConv(
 			ddl.CreateTable{
-				Name:     tableName,
-				ColNames: []string{col},
-				ColDefs:  map[string]ddl.ColumnDef{col: {Name: col, T: tc.ty, NotNull: false}},
-				Pks:      []ddl.IndexKey{}},
-			schema.Table{Name: tableName, ColNames: []string{col}, ColDefs: map[string]schema.Column{col: {Type: schema.Type{Name: tc.srcTy}}}})
+				Name:        tableName,
+				ColIds:      []string{col},
+				ColDefs:     map[string]ddl.ColumnDef{col: {Name: col, T: tc.ty, NotNull: false}},
+				PrimaryKeys: []ddl.IndexKey{}},
+			schema.Table{Name: tableName, ColIds: []string{col}, ColDefs: map[string]schema.Column{col: {Type: schema.Type{Name: tc.srcTy}}}})
 		conv.TimezoneOffset = "+05:30"
 		t.Run(tc.in, func(t *testing.T) {
 			at, ac, av, err := convertData(conv, tableName, []string{col}, conv.SrcSchema[tableName], tableName, []string{col}, conv.SpSchema[tableName], []string{tc.in})
@@ -144,23 +144,23 @@ func TestConvertsyntheticPKey(t *testing.T) {
 	}
 	tableName := "testtable"
 	spTable := ddl.CreateTable{
-		Name:     tableName,
-		ColNames: []string{"a", "b", "c"},
+		Name:   tableName,
+		ColIds: []string{"a", "b", "c"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
 			"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
 			"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
 		}}
 	srcTable := schema.Table{
-		Name:     tableName,
-		ColNames: []string{"a", "b", "c"},
+		Name:   tableName,
+		ColIds: []string{"a", "b", "c"},
 		ColDefs: map[string]schema.Column{
 			"a": {Type: schema.Type{Name: "NUMBER"}},
 			"b": {Type: schema.Type{Name: "FLOAT"}},
 			"c": {Type: schema.Type{Name: "CHAR", Mods: []int64{1}}},
 		}}
 	conv := buildConv(spTable, srcTable)
-	conv.SyntheticPKeys[spTable.Name] = internal.SyntheticPKey{Col: "synth_id", Sequence: 0}
+	conv.SyntheticPKeys[spTable.Name] = internal.SyntheticPKey{ColId: "synth_id", Sequence: 0}
 	for _, tc := range syntheticPKeyTests {
 		t.Run(tc.name, func(t *testing.T) {
 			atable, acols, avals, err := convertData(conv, srcTable.Name, tc.cols, conv.SrcSchema[tableName], spTable.Name, tc.cols, conv.SpSchema[tableName], tc.vals)
@@ -208,16 +208,16 @@ func TestConvertMultiColData(t *testing.T) {
 	}
 	tableName := "testtable"
 	spTable := ddl.CreateTable{
-		Name:     tableName,
-		ColNames: []string{"a", "b", "c"},
+		Name:   tableName,
+		ColIds: []string{"a", "b", "c"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
 			"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
 			"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
 		}}
 	srcTable := schema.Table{
-		Name:     tableName,
-		ColNames: []string{"a", "b", "c"},
+		Name:   tableName,
+		ColIds: []string{"a", "b", "c"},
 		ColDefs: map[string]schema.Column{
 			"a": {Type: schema.Type{Name: "NUMBER", Mods: []int64{5}}},
 			"b": {Type: schema.Type{Name: "FLOAT"}},
@@ -256,16 +256,16 @@ func TestConvertError(t *testing.T) {
 	}
 	tableName := "testtable"
 	spTable := ddl.CreateTable{
-		Name:     tableName,
-		ColNames: []string{"a", "b", "c"},
+		Name:   tableName,
+		ColIds: []string{"a", "b", "c"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
 			"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
 			"c": {Name: "c", T: ddl.Type{Name: ddl.Timestamp}},
 		}}
 	srcTable := schema.Table{
-		Name:     tableName,
-		ColNames: []string{"a", "b", "c"},
+		Name:   tableName,
+		ColIds: []string{"a", "b", "c"},
 		ColDefs: map[string]schema.Column{
 			"a": {Type: schema.Type{Name: "NUMBER"}},
 			"b": {Type: schema.Type{Name: "FLOAT"}},

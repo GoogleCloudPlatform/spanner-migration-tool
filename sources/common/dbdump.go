@@ -34,6 +34,7 @@ func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump) error
 		return err
 	}
 	if conv.SchemaMode() {
+		conv.AssignIdToSourceSchema()
 		SchemaToSpannerDDL(conv, dbDump.GetToDdl())
 		conv.AddPrimaryKeys()
 	}

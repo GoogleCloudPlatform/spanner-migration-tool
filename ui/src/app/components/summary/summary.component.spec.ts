@@ -30,10 +30,12 @@ fdescribe('SummaryComponent', () => {
       isSpannerNode: true,
       level: 2,
       name: 'cart',
-      parent: '',
+      parentId: '',
       pos: -1,
       status: 'GREEN',
       type: ObjectExplorerNodeType.Table,
+      id : "",
+      isDeleted: true ,
     }
     component.summaryRows = [
       {

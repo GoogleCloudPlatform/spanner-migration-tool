@@ -248,7 +248,7 @@ func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *s
 func getSchemaIndexStruct(indexName string, keySchema []*dynamodb.KeySchemaElement) schema.Index {
 	var keys []schema.Key
 	for _, j := range keySchema {
-		keys = append(keys, schema.Key{Column: *j.AttributeName})
+		keys = append(keys, schema.Key{ColId: *j.AttributeName})
 	}
 	return schema.Index{Name: indexName, Keys: keys}
 }

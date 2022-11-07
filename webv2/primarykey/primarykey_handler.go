@@ -45,7 +45,6 @@ type PrimaryKeyResponse struct {
 // Column represents  SpannerTables Column.
 type Column struct {
 	ColumnId string `json:"ColumnId"`
-	ColName  string `json:"ColName"`
 	Desc     bool   `json:"Desc"`
 	Order    int    `json:"Order"`
 }
@@ -110,9 +109,9 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 	//update spannerTable into sessionState.Conv.SpSchema.
 	for _, table := range sessionState.Conv.SpSchema {
 		if pkRequest.TableId == table.Id {
-			sessionState.Conv.SpSchema[table.Name] = spannerTable
+			sessionState.Conv.SpSchema[table.Id] = spannerTable
 			for _, ind := range spannerTable.Indexes {
-				index.RemoveIndexIssues(spannerTable.Name, ind)
+				index.RemoveIndexIssues(spannerTable.Id, ind)
 			}
 		}
 	}
@@ -141,20 +140,18 @@ func prepareResponse(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) 
 
 	var isSynthPrimaryKey bool
 
-	for i := 0; i < len(spannerTable.ColNames); i++ {
-		if spannerTable.ColNames[i] == "synth_id" {
+	for i := 0; i < len(spannerTable.ColIds); i++ {
+		if spannerTable.ColIds[i] == "synth_id" {
 			isSynthPrimaryKey = true
 		}
 	}
 
 	pKeyResponse.Synth = isSynthPrimaryKey
 
-	for _, indexkey := range spannerTable.Pks {
+	for _, indexkey := range spannerTable.PrimaryKeys {
 
 		responseColumn := Column{}
-		id := getColumnId(spannerTable, indexkey.Col)
-		responseColumn.ColumnId = id
-		responseColumn.ColName = indexkey.Col
+		responseColumn.ColumnId = indexkey.ColId
 		responseColumn.Desc = indexkey.Desc
 		responseColumn.Order = indexkey.Order
 		pKeyResponse.Columns = append(pKeyResponse.Columns, responseColumn)
