@@ -38,9 +38,12 @@
 .selected-row {
   background-color: #61b3ff4a;
 }
+
 .explorer-table {
   height: calc(100vh - 320px);
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .mat-table {
