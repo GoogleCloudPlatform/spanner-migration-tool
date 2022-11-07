@@ -3,7 +3,6 @@ import { FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms'
 import IConv, { ICreateIndex } from 'src/app/model/conv'
 import { DataService } from 'src/app/services/data/data.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
-import { ConversionService } from 'src/app/services/conversion/conversion.service'
 
 @Component({
   selector: 'app-add-index-form',
@@ -19,12 +18,7 @@ export class AddIndexFormComponent implements OnInit {
   addColumnsList: string[][] = []
   commonColumns: string[] = []
   conv: IConv = {} as IConv
-  constructor(
-    private fb: FormBuilder,
-    private data: DataService,
-    private sidenav: SidenavService,
-    private conversion: ConversionService
-  ) {
+  constructor(private fb: FormBuilder, private data: DataService, private sidenav: SidenavService) {
     this.addIndexForm = this.fb.group({
       tableName: ['', Validators.required],
       indexName: ['', [Validators.required, Validators.pattern('^[a-zA-Z].{0,59}$')]],
@@ -36,9 +30,7 @@ export class AddIndexFormComponent implements OnInit {
     this.data.conv.subscribe({
       next: (res: IConv) => {
         this.conv = res
-        this.tableNames = Object.keys(res.SpSchema).map(
-          (talbeId: string) => res.SpSchema[talbeId].Name
-        )
+        this.tableNames = Object.keys(res.SpSchema)
       },
     })
     this.sidenav.sidenavAddIndexTable.subscribe({
@@ -54,13 +46,7 @@ export class AddIndexFormComponent implements OnInit {
   }
 
   selectedTableChange(tableName: string) {
-    let tableId = this.conversion.getTableIdFromSpName(tableName, this.conv)
-    if (tableId) {
-      let spTableData = this.conv.SpSchema[tableId]
-      this.totalColumns = this.conv.SpSchema[tableId].ColIds.map(
-        (colId: string) => spTableData.ColDefs[colId].Name
-      )
-    }
+    this.totalColumns = this.conv.SpSchema[tableName].ColNames
     this.ColsArray.clear()
     this.commonColumns = []
     this.addColumnsList = []
@@ -108,26 +94,19 @@ export class AddIndexFormComponent implements OnInit {
   addIndex() {
     let idxData = this.addIndexForm.value
     let payload: ICreateIndex[] = []
-    let tableId = this.conversion.getTableIdFromSpName(idxData.tableName, this.conv)
     payload.push({
       Name: idxData.indexName,
-      TableId: tableId,
+      Table: idxData.tableName,
       Unique: false,
-      Keys: idxData.ColsArray.map((col: any, i: number) => {
-        let colId: string = this.conversion.getColIdFromSpannerColName(
-          col.columnName,
-          tableId,
-          this.conv
-        )
+      Keys: idxData.ColsArray.map((col: any) => {
         return {
-          ColId: colId,
+          Col: col.columnName,
           Desc: col.sort === 'true',
-          Order: i + 1,
         }
       }),
       Id: '',
     })
-    this.data.addIndex(tableId, payload)
+    this.data.addIndex(idxData.tableName, payload)
     this.resetRuleType.emit('')
     this.sidenav.setSidenavAddIndexTable('')
     this.sidenav.closeSidenav()

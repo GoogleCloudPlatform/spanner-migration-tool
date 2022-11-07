@@ -437,7 +437,7 @@
                 <input
                   matInput
                   class="order_input"
-                  type="number"
+                  type="text"
                   [formControl]="element.get('spOrder')"
                   matTooltip="Must have a value greater than 0."
                   [matTooltipDisabled]="!element.get('spOrder')?.hasError('pattern')"
@@ -737,7 +737,7 @@
           *ngIf="
             interleaveStatus.tableInterleaveStatus &&
             interleaveStatus.tableInterleaveStatus.Possible &&
-            this.interleaveParentName == null
+            this.interleaveParentName === null
           "
           mat-raised-button
           color="primary"
@@ -749,7 +749,7 @@
           *ngIf="
             (interleaveStatus.tableInterleaveStatus &&
               !interleaveStatus.tableInterleaveStatus.Possible) ||
-            this.interleaveParentName != null
+            this.interleaveParentName !== null
           "
           mat-raised-button
           color="primary"
@@ -762,7 +762,7 @@
 
     <mat-tab label="SQL" *ngIf="currentObject!.isSpannerNode && !currentObject!.isDeleted">
       <div class="ddl_container">
-        <pre><code>{{ddlStmts[currentObject!.id]}}</code></pre>
+        <pre><code>{{ddlStmts[currentObject!.name]}}</code></pre>
       </div>
     </mat-tab>
   </mat-tab-group>

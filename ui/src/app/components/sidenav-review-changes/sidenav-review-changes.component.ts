@@ -13,8 +13,8 @@ import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/
 export class SidenavReviewChangesComponent implements OnInit {
   ddl: string = ''
   showDdl: boolean = true
-  tableUpdateData: { tableId: string; updateDetail: IUpdateTable } = {
-    tableId: '',
+  tableUpdateData: { tableName: string; updateDetail: IUpdateTable } = {
+    tableName: '',
     updateDetail: { UpdateCols: {} },
   }
   tableChanges: IReviewInterleaveTableChanges[] = []
@@ -57,7 +57,7 @@ export class SidenavReviewChangesComponent implements OnInit {
 
   updateTable() {
     this.data
-      .updateTable(this.tableUpdateData.tableId, this.tableUpdateData.updateDetail)
+      .updateTable(this.tableUpdateData.tableName, this.tableUpdateData.updateDetail)
       .subscribe({
         next: (res: string) => {
           if (res == '') {
