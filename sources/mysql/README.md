@@ -64,7 +64,7 @@ In this case, HarbourBridge connects directly to the MySQL database to retrieve
 table schema and data. Set the `-source=mysql` and corresponding source profile
 connection parameters `host`, `port`, `user`, `dbName` and `password`.
 
-For example to perform schema migration, run
+For example, to perform schema migration, run
 
 ```sh
 harbourbridge schema -source=mysql -source-profile="host=<>,port=<>,user=<>,dbName=<>"

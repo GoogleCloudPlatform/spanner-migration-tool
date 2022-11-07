@@ -19,7 +19,7 @@ alias harbourbridge="go run github.com/cloudspannerecosystem/harbourbridge"
 HarbourBridge's Web API feature can be used with all the driver modes available,
 using mysql or postgres dump or direct connection.
 
-To generate the HarbourBridge, run:
+To generate the HarbourBridge binary, run:
 
 ```sh
 make build

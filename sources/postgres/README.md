@@ -68,7 +68,7 @@ retrieve table schema and data. Set the `-source=postgres` and corresponding
 source profile connection parameters `host`, `port`, `user`, `dbName` and
 `password`.
 
-For example to perform schema migration, run
+For example, to perform schema migration, run
 
 ```sh
 harbourbridge schema -source=postgres -source-profile="host=<>,port=<>,user=<>,dbName=<>"
