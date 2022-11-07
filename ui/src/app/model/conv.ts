@@ -2,7 +2,7 @@ export default interface IConv {
   SpSchema: Record<string, ICreateTable>
   SyntheticPKeys: Record<string, ISyntheticPKey>
   SrcSchema: Record<string, ITable>
-  SchemaIssues: Record<string, number>[]
+  Issues: Record<string, number>[]
   ToSpanner: Record<string, NameAndCols>
   ToSource: Record<string, NameAndCols>
   UsedNames: Record<string, boolean>
@@ -45,7 +45,7 @@ export interface ITable {
   Name: string
   Id: string
   Schema: string
-  ColIds: string[]
+  ColNames: string[]
   ColDefs: Record<string, IColumn>
   PrimaryKeys: ISrcIndexKey[]
   ForeignKeys: ISpannerForeignKey[]
@@ -84,30 +84,29 @@ export interface IIndex {
 
 export interface ISpannerForeignKey {
   Name: string
-  ColIds: string[]
-  ReferTableId: string
-  ReferColumnIds: string[]
+  Columns: string[]
+  ReferTable: string
+  ReferColumns: string[]
   OnDelete: string
   OnUpdate: string
-  Id: string
 }
 
 // source schema
 export interface ICreateTable {
   Name: string
-  ColIds: string[]
+  ColNames: string[]
   ColDefs: Record<string, IColumnDef>
-  PrimaryKeys: IIndexKey[]
-  ForeignKeys: IForeignKey[]
+  Pks: IIndexKey[]
+  Fks: IForeignKey[]
   Indexes: ICreateIndex[]
-  ParentId: string
+  Parent: string
   Comment: string
   Id: string
 }
 
 export interface ICreateIndex {
   Name: string
-  TableId: string
+  Table: string
   Unique: boolean
   Keys: IIndexKey[]
   Id: string
@@ -115,20 +114,20 @@ export interface ICreateIndex {
 
 export interface IForeignKey {
   Name: string
-  ColIds: string[]
-  ReferTableId: string
-  ReferColumnIds: string[]
+  Columns: string[]
+  ReferTable: string
+  ReferColumns: string[]
   Id: string
 }
 
 export interface IIndexKey {
-  ColId: string
+  Col: string
   Desc: boolean
   Order: number
 }
 
 export interface ISrcIndexKey {
-  ColId: string
+  Column: string
   Desc: boolean
   Order: number
 }
@@ -148,7 +147,7 @@ export interface IType {
 }
 
 export interface ISyntheticPKey {
-  ColId: string
+  Col: string
   Sequence: Number
 }
 export interface ITableInterleaveStatus {
@@ -168,6 +167,7 @@ export interface IPrimaryKey {
 
 export interface IPkColumnDefs {
   ColumnId: string
+  ColName: string
   Desc: boolean
   Order: number
 }

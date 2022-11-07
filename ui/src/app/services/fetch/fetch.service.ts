@@ -62,7 +62,7 @@ export class FetchService {
       Database: dbName,
       User: userName,
       Password: password,
-    },)
+    })
   }
 
   getSchemaConversionFromSessionFile(payload: ISessionConfig) {
@@ -74,7 +74,9 @@ export class FetchService {
   }
 
   getConnectionProfiles(isSource: boolean) {
-    return this.http.get<IConnectionProfile[]>(`${this.url}/GetConnectionProfiles?source=${isSource}`)
+    return this.http.get<IConnectionProfile[]>(
+      `${this.url}/GetConnectionProfiles?source=${isSource}`
+    )
   }
 
   getGeneratedResources() {
@@ -113,23 +115,23 @@ export class FetchService {
   }
 
   restoreTable(tableId: string) {
-    return this.http.post<HttpResponse<IConv>>(`${this.url}/restore/table?table=${tableId}`, {})
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/restore/table?tableId=${tableId}`, {})
   }
   dropTable(tableId: string) {
-    return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/table?table=${tableId}`, {})
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/table?tableId=${tableId}`, {})
   }
 
   updatePk(pkObj: IPrimaryKey) {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/primaryKey`, pkObj)
   }
 
-  updateFk(tableId: string, payload: Record<string, string>): any {
-    return this.http.post<HttpResponse<IConv>>(`${this.url}/rename/fks?table=${tableId}`, payload)
+  updateFk(tableName: string, payload: Record<string, string>): any {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/rename/fks?table=${tableName}`, payload)
   }
 
-  removeFk(tableId: string, fkId: string): any {
-    return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/fk?table=${tableId}`, {
-      Id: fkId,
+  removeFk(tableName: string, fkName: string): any {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/drop/fk?table=${tableName}`, {
+      Name: fkName,
     })
   }
 
@@ -171,26 +173,26 @@ export class FetchService {
     return this.http.get<boolean>(`${this.url}/IsOffline`)
   }
 
-  addIndex(tableId: string, payload: ICreateIndex[]) {
-    return this.http.post<IConv>(`${this.url}/add/indexes?table=${tableId}`, payload)
+  addIndex(tableName: string, payload: ICreateIndex[]) {
+    return this.http.post<IConv>(`${this.url}/add/indexes?table=${tableName}`, payload)
   }
 
-  updateIndex(tableId: string, payload: ICreateIndex[]) {
-    return this.http.post<IConv>(`${this.url}/update/indexes?table=${tableId}`, payload)
+  updateIndex(tableName: string, payload: ICreateIndex[]) {
+    return this.http.post<IConv>(`${this.url}/update/indexes?table=${tableName}`, payload)
   }
 
-  dropIndex(tableId: string, indexName: string) {
-    return this.http.post<IConv>(`${this.url}/drop/secondaryindex?table=${tableId}`, {
-      Id: indexName,
+  dropIndex(tableName: string, indexName: string) {
+    return this.http.post<IConv>(`${this.url}/drop/secondaryindex?table=${tableName}`, {
+      Name: indexName,
     })
   }
 
-  getInterleaveStatus(tableId: string) {
-    return this.http.get<IInterleaveStatus>(`${this.url}/setparent?table=${tableId}&update=false`)
+  getInterleaveStatus(tableName: string) {
+    return this.http.get<IInterleaveStatus>(`${this.url}/setparent?table=${tableName}`)
   }
 
-  setInterleave(tableId: string) {
-    return this.http.get(`${this.url}/setparent?table=${tableId}&update=true`)
+  setInterleave(tableName: string) {
+    return this.http.get(`${this.url}/setparent?table=${tableName}&update=true`)
   }
 
   getSourceDestinationSummary() {

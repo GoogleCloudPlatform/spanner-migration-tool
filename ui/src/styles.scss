@@ -10,9 +10,6 @@ body {
   font-family: Roboto, 'Helvetica Neue', sans-serif;
 }
 
-.gray-out {
-  opacity: 0.6;
-}
 .content-height {
   height: calc(100vh - 80px);
 }
@@ -247,11 +244,10 @@ body {
   }
 }
 
-.sidenav-header-border{
+.sidenav-header-border {
   border-bottom-width: 1px;
   border-bottom-style: solid;
 }
-
 
 .sidenav-percentage-bar {
   height: 0.8rem;
@@ -277,30 +273,32 @@ body {
   }
 }
 
-.sidenav-conversionByTable{
-  box-shadow: 0px 2px 1px -1px rgb(0 0 0 / 20%), 0px 1px 1px 0px rgb(0 0 0 / 14%), 0px 1px 3px 0px rgb(0 0 0 / 12%);
+.sidenav-conversionByTable {
+  box-shadow: 0px 2px 1px -1px rgb(0 0 0 / 20%), 0px 1px 1px 0px rgb(0 0 0 / 14%),
+    0px 1px 3px 0px rgb(0 0 0 / 12%);
 }
 
-.sidenav-conversionByPercentage{
-  box-shadow: 0px 2px 1px -1px rgb(0 0 0 / 20%), 0px 1px 1px 0px rgb(0 0 0 / 14%), 0px 1px 3px 0px rgb(0 0 0 / 12%);
+.sidenav-conversionByPercentage {
+  box-shadow: 0px 2px 1px -1px rgb(0 0 0 / 20%), 0px 1px 1px 0px rgb(0 0 0 / 14%),
+    0px 1px 3px 0px rgb(0 0 0 / 12%);
 }
 
-.sidenav-databaseDefinitions{
-  box-shadow: 0px 2px 1px -1px rgb(0 0 0 / 20%), 0px 1px 1px 0px rgb(0 0 0 / 14%), 0px 1px 3px 0px rgb(0 0 0 / 12%);
+.sidenav-databaseDefinitions {
+  box-shadow: 0px 2px 1px -1px rgb(0 0 0 / 20%), 0px 1px 1px 0px rgb(0 0 0 / 14%),
+    0px 1px 3px 0px rgb(0 0 0 / 12%);
 }
 
-
-.sidenav-title{
-  margin-top :10px;
+.sidenav-title {
+  margin-top: 10px;
   margin-bottom: 0px;
 }
 .radio-button-container mat-radio-button:hover {
   color: #1967d2;
-  ;
 }
 
 .radio-button-group {
-  display: flex; flex-direction: column;
+  display: flex;
+  flex-direction: column;
 }
 
 .spinner {

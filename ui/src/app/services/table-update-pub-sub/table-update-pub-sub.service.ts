@@ -8,9 +8,9 @@ import IUpdateTable, { IReviewUpdateTable } from 'src/app/model/update-table'
 export class TableUpdatePubSubService {
   private reviewTableChangesSub = new BehaviorSubject<IReviewUpdateTable>({ Changes: [], DDL: '' })
   private tableUpdateDetailSub = new BehaviorSubject<{
-    tableId: string
+    tableName: string
     updateDetail: IUpdateTable
-  }>({ tableId: '', updateDetail: { UpdateCols: {} } })
+  }>({ tableName: '', updateDetail: { UpdateCols: {} } })
 
   constructor() {}
   reviewTableChanges = this.reviewTableChangesSub.asObservable()
@@ -19,7 +19,7 @@ export class TableUpdatePubSubService {
   setTableReviewChanges(data: IReviewUpdateTable) {
     this.reviewTableChangesSub.next(data)
   }
-  setTableUpdateDetail(data: { tableId: string; updateDetail: IUpdateTable }) {
+  setTableUpdateDetail(data: { tableName: string; updateDetail: IUpdateTable }) {
     this.tableUpdateDetailSub.next(data)
   }
 }

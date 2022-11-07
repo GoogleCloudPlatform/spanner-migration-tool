@@ -1,6 +1,4 @@
 export default interface IFkTabData {
-  srcFkId: string | undefined
-  spFkId: string | undefined
   spName: string
   srcName: string
   spColumns: string[]

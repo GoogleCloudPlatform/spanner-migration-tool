@@ -5,11 +5,11 @@ export default interface ISchemaObjectNode {
   status?: string
   type: ObjectExplorerNodeType
   children?: ISchemaObjectNode[]
+  parent: string
   pos: number
   isSpannerNode: boolean
   isDeleted?: boolean
   id: string
-  parent: string
   parentId: string
 }
 
@@ -18,11 +18,11 @@ export interface FlatNode {
   name: string
   status: string | undefined
   type: ObjectExplorerNodeType
+  parent: string
   pos: number
   level: number
   isSpannerNode: boolean
   isDeleted: boolean
   id: string
-  parent: string
   parentId: string
 }
