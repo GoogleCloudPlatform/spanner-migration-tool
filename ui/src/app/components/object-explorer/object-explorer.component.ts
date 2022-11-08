@@ -6,6 +6,7 @@ import { ConversionService } from '../../services/conversion/conversion.service'
 import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import { SidenavService } from '../../services/sidenav/sidenav.service'
 import { IUpdateTableArgument } from 'src/app/model/update-table'
+import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 
 @Component({
   selector: 'app-object-explorer',
@@ -66,9 +67,19 @@ export class ObjectExplorerComponent implements OnInit {
 
   displayedColumns: string[] = ['status', 'name']
 
-  constructor(private conversion: ConversionService, private sidenav: SidenavService) {}
+  constructor(
+    private conversion: ConversionService,
+    private sidenav: SidenavService,
+    private clickEvent: ClickEventService
+  ) {}
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.clickEvent.tabToSpanner.subscribe({
+      next: (res: boolean) => {
+        this.setSpannerTab()
+      },
+    })
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     let newSpannerTree = changes?.['spannerTree']?.currentValue
