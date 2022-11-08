@@ -28,6 +28,7 @@ export class ObjectExplorerComponent implements OnInit {
   @Output() leftCollaspe: EventEmitter<any> = new EventEmitter()
   @Input() spannerTree: ISchemaObjectNode[] = []
   @Input() srcTree: ISchemaObjectNode[] = []
+  selectedIndex: number = 1
 
   private transformer = (node: ISchemaObjectNode, level: number) => {
     return {
@@ -154,11 +155,16 @@ export class ObjectExplorerComponent implements OnInit {
   onTabChanged() {
     if (this.selectedTab == 'spanner') {
       this.selectedTab = 'source'
+      this.selectedIndex = 0
     } else {
       this.selectedTab = 'spanner'
+      this.selectedIndex = 1
     }
     this.selectedDatabase.emit(this.selectedTab)
     this.currentSelectedObject = null
     this.selectObject.emit(undefined)
+  }
+  setSpannerTab() {
+    this.selectedIndex = 1
   }
 }

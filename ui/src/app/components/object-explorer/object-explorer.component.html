@@ -1,7 +1,8 @@
 <div class="container">
+  <button mat-raised-button (click)="setSpannerTab()">spanlink</button>
   <mat-tab-group
     [ngClass]="[isLeftColumnCollapse ? 'hidden' : 'display']"
-    selectedIndex="1"
+    [selectedIndex]="selectedIndex"
     (selectedTabChange)="onTabChanged()"
   >
     <mat-tab>
