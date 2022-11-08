@@ -1,5 +1,5 @@
 import { Component, OnInit, Inject } from '@angular/core'
-import { MAT_DIALOG_DATA } from '@angular/material/dialog'
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog'
 interface IDialogProps {
   message: string
   type: 'warning' | 'error' | 'success'
@@ -11,13 +11,26 @@ interface IDialogProps {
   styleUrls: ['./infodialog.component.scss'],
 })
 export class InfodialogComponent implements OnInit {
-  constructor(@Inject(MAT_DIALOG_DATA) public data: IDialogProps) {
+  constructor(
+    public dialogRef: MatDialogRef<InfodialogComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: IDialogProps
+  ) {
     if (data.title === undefined) {
-      data.title = "Update can not be saved"
+      data.title = 'Update can not be saved'
     }
   }
 
   ngOnInit(): void {}
+
+  onConfirm(): void {
+    // Close the dialog, return true
+    this.dialogRef.close(true)
+  }
+
+  onDismiss(): void {
+    // Close the dialog, return false
+    this.dialogRef.close(false)
+  }
 
   getIconFromMessageType() {
     switch (this.data.type) {

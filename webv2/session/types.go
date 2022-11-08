@@ -50,6 +50,10 @@ type SessionState struct {
 	IsOffline           bool                // True if the connection to remote metadata database is invalid
 	GCPProjectID        string
 	SpannerInstanceID   string
+	Region              string
+	SpannerDatabaseName string
+	Bucket              string
+	RootPath            string
 	SessionMetadata     SessionMetadata
 	Error               error
 	Counter

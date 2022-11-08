@@ -51,18 +51,42 @@ export enum MigrationDetails {
   MigrationMode = 'migrationMode',
   MigrationType = 'migrationType',
   IsTargetDetailSet = 'isTargetDetailSet',
+  IsSourceConnectionProfileSet = 'isSourceConnectionProfileSet',
+  IsSourceDetailsSet = 'isSourceDetailsSet',
+  IsTargetConnectionProfileSet = 'isTargetConnectionProfileSet',
+  IsMigrationDetailSet = "isMigrationDetailSet",
   IsMigrationInProgress ='isMigrationInProgress',
   HasDataMigrationStarted ='hasDataMigrationStarted',
-  HasDataMigrationCompleted = 'hasDataMigrationCompleted',
   HasSchemaMigrationStarted = 'hasSchemaMigrationStarted',
   SchemaProgressMessage = 'schemaProgressMessage',
   DataProgressMessage = 'dataProgressMessage',
   DataMigrationProgress = 'dataMigrationProgress',
-  SchemaMigrationProgress = 'schemaMigrationProgress'
+  SchemaMigrationProgress = 'schemaMigrationProgress',
+  HasForeignKeyUpdateStarted = 'hasForeignKeyUpdateStarted',
+  ForeignKeyProgressMessage = 'foreignKeyProgressMessage',
+  ForeignKeyUpdateProgress = 'foreignKeyUpdateProgress',
+  GeneratingResources = 'generatingResources'
 }
 
 export enum TargetDetails {
   TargetDB = 'targetDb',
   Dialect = 'dialect',
-  StreamingConfig = 'streamingConfig'
+  SourceConnProfile = 'sourceConnProfile',
+  TargetConnProfile = 'targetConnProfile'
+}
+
+export const Profile = {
+  SourceProfileType : 'Source',
+  TargetProfileType : 'Target',
+  NewConnProfile: 'new',
+  ExistingConnProfile: 'existing',
+}
+
+export enum ProgressStatus {
+	SchemaMigrationComplete = 1,
+	SchemaCreationInProgress = 2,
+	DataMigrationComplete = 3,
+	DataWriteInProgress = 4,
+	ForeignKeyUpdateInProgress = 5,
+  ForeignKeyUpdateComplete = 6
 }

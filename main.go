@@ -44,6 +44,9 @@ import (
 //go:embed frontend/*
 var frontendDir embed.FS
 
+//go:embed ui/dist/ui/*
+var distDir embed.FS
+
 var (
 	dbNameOverride   string
 	instanceOverride string
@@ -107,7 +110,6 @@ func main() {
 		panic(fmt.Errorf("can't set up log file"))
 	}
 	defer utils.Close(lf)
-
 	// TODO: Remove this check and always run HB in subcommands mode once
 	// global command line mode is deprecated. We can also enable support for
 	// top-level flags in subcommand then.
@@ -118,6 +120,7 @@ func main() {
 		subcommands.Register(&cmd.SchemaCmd{}, "")
 		subcommands.Register(&cmd.DataCmd{}, "")
 		subcommands.Register(&cmd.SchemaAndDataCmd{}, "")
+		subcommands.Register(&webv2.WebCmd{DistDir: distDir}, "")
 		flag.Parse()
 		os.Exit(int(subcommands.Execute(ctx)))
 	}
@@ -129,6 +132,7 @@ func main() {
 		panic(fmt.Errorf("error initialising logger"))
 	}
 	defer logger.Log.Sync()
+
 	// Running HB CLI in global command line mode.
 	setupGlobalFlags()
 	flag.Usage = usage

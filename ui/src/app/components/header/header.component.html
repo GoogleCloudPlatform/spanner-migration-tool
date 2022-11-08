@@ -1,5 +1,5 @@
 <mat-toolbar color="secondry" class="header-container">
-  <span class="pointer" [routerLink]="'/'"> HarbourBridge</span>
+  <span class="pointer" [routerLink]="'/'" (click)="stopLoading()"> HarbourBridge</span>
   <span class="menu-spacer"></span>
   <div class="right_container">
     <div
@@ -11,7 +11,7 @@
         class="icon warning"
         matTooltip="Invalid spanner configuration. Working in offline mode"
       >
-        circle
+        warning
       </mat-icon>
 
       <mat-icon
@@ -19,7 +19,7 @@
         class="icon success"
         matTooltip="Valid spanner configuration."
       >
-        circle
+        check_circle
       </mat-icon>
 
       <mat-icon
@@ -38,7 +38,9 @@
         <span class="iid"><b>Spanner Instance Id: </b>{{ spannerConfig.SpannerInstanceID }}</span>
       </div>
 
-      <mat-icon (click)="openEditForm()" class="pointer" matTooltip="Edit Settings">edit</mat-icon>
+      <mat-icon (click)="openEditForm()" class="cursor-pointer" matTooltip="Edit Settings"
+        >edit</mat-icon
+      >
     </div>
     <button
       mat-icon-button

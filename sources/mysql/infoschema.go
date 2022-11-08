@@ -17,7 +17,6 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -26,7 +25,6 @@ import (
 	_ "github.com/go-sql-driver/mysql" // The driver should be used via the database/sql package.
 	_ "github.com/lib/pq"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
@@ -352,20 +350,8 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 // performing a streaming migration.
 func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) error {
 	streamingCfg, _ := streamingInfo["streamingCfg"].(streaming.StreamingCfg)
-	convJSON, err := json.MarshalIndent(conv, "", " ")
-	if err != nil {
-		err = fmt.Errorf("can't encode session state to JSON: %v", err)
-		return err
-	}
-	fmt.Printf("Writing session file to GCS...")
-	err = utils.WriteToGCS(streamingCfg.TmpDir, "session.json", string(convJSON))
-	if err != nil {
-		err = fmt.Errorf("error writing session file to GCS: %v", err)
-		return err
-	}
-	fmt.Println("Done")
 
-	err = streaming.StartDataflow(ctx, isi.SourceProfile, isi.TargetProfile, streamingCfg)
+	err := streaming.StartDataflow(ctx, isi.SourceProfile, isi.TargetProfile, streamingCfg, conv)
 	if err != nil {
 		err = fmt.Errorf("error starting dataflow: %v", err)
 		return err
@@ -383,6 +369,15 @@ func toType(dataType string, columnType string, charLen sql.NullInt64, numericPr
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64, numericScale.Int64}}
 	case dataType == "decimal" && numericPrecision.Valid:
 		return schema.Type{Name: dataType, Mods: []int64{numericPrecision.Int64}}
+	// We only want to parse the length for tinyints when it is present, in the form tinyint(12). columnType can also be just 'tinyint',
+	// in which case we skip this parsing.
+	case dataType == "tinyint" && len(columnType) > len("tinyint"):
+		var length int64
+		_, err := fmt.Sscanf(columnType, "tinyint(%d)", &length)
+		if err != nil {
+			return schema.Type{Name: dataType}
+		}
+		return schema.Type{Name: dataType, Mods: []int64{length}}
 	default:
 		return schema.Type{Name: dataType}
 	}

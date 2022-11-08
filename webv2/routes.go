@@ -15,16 +15,23 @@
 package webv2
 
 import (
+	"io/fs"
+	"net/http"
+
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/profile"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/summary"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/table"
 
 	"github.com/gorilla/mux"
 )
 
 func getRoutes() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
+	frontendRoot, _ := fs.Sub(FrontendDir, "ui/dist/ui")
+	frontendStatic := http.FileServer(http.FS(frontendRoot))
 	router.HandleFunc("/connect", databaseConnection).Methods("POST")
 	router.HandleFunc("/convert/infoschema", convertSchemaSQL).Methods("GET")
 	router.HandleFunc("/convert/dump", convertSchemaDump).Methods("POST")
@@ -36,7 +43,9 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/report", getReportFile).Methods("GET")
 	router.HandleFunc("/schema", getSchemaFile).Methods("GET")
 	router.HandleFunc("/typemap/global", setTypeMapGlobal).Methods("POST")
-	router.HandleFunc("/typemap/table", updateTableSchema).Methods("POST")
+	router.HandleFunc("/typemap/table", table.UpdateTableSchema).Methods("POST")
+	router.HandleFunc("/typemap/reviewTableSchema", table.ReviewTableSchema).Methods("POST")
+
 	router.HandleFunc("/setparent", setParentTable).Methods("GET")
 
 	// TODO:(searce) take constraint names themselves which are guaranteed to be unique for Spanner.
@@ -77,6 +86,19 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/GetSourceDestinationSummary", getSourceDestinationSummary).Methods("GET")
 	router.HandleFunc("/GetProgress", updateProgress).Methods("GET")
 	router.HandleFunc("/GetLatestSessionDetails", fetchLastLoadedSessionDetails).Methods("GET")
+	router.HandleFunc("/GetGeneratedResources", getGeneratedResources).Methods("GET")
 
+	// Connection profiles
+	router.HandleFunc("/GetConnectionProfiles", profile.ListConnectionProfiles).Methods("GET")
+	router.HandleFunc("/GetStaticIps", profile.GetStaticIps).Methods("GET")
+	router.HandleFunc("/CreateConnectionProfile", profile.CreateConnectionProfile).Methods("POST")
+
+	// Clean up datastream and data flow jobs
+	router.HandleFunc("/CleanUpStreamingJobs", profile.CleanUpStreamingJobs).Methods("POST")
+
+	router.HandleFunc("/SetSourceDBDetailsForDump", setSourceDBDetailsForDump).Methods("POST")
+	router.HandleFunc("/SetSourceDBDetailsForDirectConnect", setSourceDBDetailsForDirectConnect).Methods("POST")
+
+	router.PathPrefix("/").Handler(frontendStatic)
 	return router
 }
