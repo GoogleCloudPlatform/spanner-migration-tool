@@ -11,9 +11,11 @@ import { ObjectDetailNodeType, ObjectExplorerNodeType, StorageKeys } from 'src/a
 import FlatNode from 'src/app/model/schema-object-node'
 import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
-import IConv, { ICreateIndex, IPrimaryKey } from 'src/app/model/conv'
+import IConv, { ICreateIndex, IIndexKey, IPkColumnDefs, IPrimaryKey } from 'src/app/model/conv'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
 import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/drop-index-or-table-dialog.component'
+import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
+import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/table-update-pub-sub.service'
 
 @Component({
   selector: 'app-object-detail',
@@ -21,11 +23,14 @@ import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/d
   styleUrls: ['./object-detail.component.scss'],
 })
 export class ObjectDetailComponent implements OnInit {
+  userAddressValidations!: FormGroup
   constructor(
     private data: DataService,
     private dialog: MatDialog,
     private snackbar: SnackbarService,
-    private conversion: ConversionService
+    private conversion: ConversionService,
+    private sidenav: SidenavService,
+    private tableUpdatePubSub: TableUpdatePubSubService
   ) {}
 
   @Input() currentObject: FlatNode | null = null
@@ -51,18 +56,9 @@ export class ObjectDetailComponent implements OnInit {
     })
   }
 
-  displayedColumns = [
-    'srcOrder',
-    'srcColName',
-    'srcDataType',
-    'srcIsPk',
-    'srcIsNotNull',
-    'spColName',
-    'spDataType',
-    'spIsPk',
-    'spIsNotNull',
-    'dropButton',
-  ]
+  srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcIsPk', 'srcIsNotNull']
+
+  spDisplayedColumns = ['spColName', 'spDataType', 'spIsPk', 'spIsNotNull', 'dropButton']
   displayedFkColumns = [
     'srcName',
     'srcColumns',
@@ -97,7 +93,8 @@ export class ObjectDetailComponent implements OnInit {
     'spIndexOrder',
     'dropButton',
   ]
-  dataSource: any = []
+  spDataSource: any = []
+  srcDataSource: any = []
   fkDataSource: any = []
   pkDataSource: any = []
   pkData: IColumnTabData[] = []
@@ -106,20 +103,26 @@ export class ObjectDetailComponent implements OnInit {
   isFkEditMode: boolean = false
   isIndexEditMode: boolean = false
   isObjectSelected: boolean = false
-  rowArray: FormArray = new FormArray([])
+  srcRowArray: FormArray = new FormArray([])
+  spRowArray: FormArray = new FormArray([])
   pkArray: FormArray = new FormArray([])
   fkArray: FormArray = new FormArray([])
   srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
   isSpTableSuggesstionDisplay: boolean[] = []
   spTableSuggestion: string[] = []
   currentTabIndex: number = 0
+  addedColumnName: string = ''
+  droppedColumns: IColumnTabData[] = []
+  pkColumnNames: string[] = []
   indexColumnNames: string[] = []
+  addColumnForm = new FormGroup({
+    columnName: new FormControl('', [Validators.required]),
+  })
   addIndexKeyForm = new FormGroup({
     columnName: new FormControl('', [Validators.required]),
     ascOrDesc: new FormControl('', [Validators.required]),
   })
   addedPkColumnName: string = ''
-  pkColumnNames: string[] = []
   addPkColumnForm = new FormGroup({
     columnName: new FormControl('', [Validators.required]),
   })
@@ -140,97 +143,169 @@ export class ObjectDetailComponent implements OnInit {
     this.isFkEditMode = false
     this.isIndexEditMode = false
     this.isPkEditMode = false
+    this.srcRowArray = new FormArray([])
+    this.spRowArray = new FormArray([])
+    this.droppedColumns = []
+    this.pkColumnNames = []
+    this.interleaveParentName = this.getInterleaveParentFromConv()
 
     this.localTableData = JSON.parse(JSON.stringify(this.tableData))
     this.localIndexData = JSON.parse(JSON.stringify(this.indexData))
 
     if (this.currentObject?.type === ObjectExplorerNodeType.Table) {
       this.checkIsInterleave()
+
       this.interleaveObj = this.data.tableInterleaveStatus.subscribe((res) => {
         this.interleaveStatus = res
       })
-      this.setColumnTable()
-      this.setFkRows()
+
+      this.setSrcTableRows()
+      this.setSpTableRows()
+      this.setColumnsToAdd()
       this.setAddPkColumnList()
       this.setPkOrder()
       this.setPkRows()
-
+      this.setFkRows()
       this.updateSpTableSuggestion()
-    } else if (this.currentObject) {
+    } else if (this.currentObject?.type === ObjectExplorerNodeType.Index) {
       this.checkIsInterleave()
       this.indexOrderValidation()
       this.setIndexRows()
     }
+
     this.data.getSummary()
   }
 
-  setColumnTable() {
-    this.rowArray = new FormArray([])
+  setSpTableRows() {
+    this.spRowArray = new FormArray([])
     this.localTableData.forEach((row) => {
-      this.rowArray.push(
-        new FormGroup({
-          srcOrder: new FormControl(row.srcOrder),
-          srcColName: new FormControl(row.srcColName),
-          srcDataType: new FormControl(row.srcDataType),
-          srcIsPk: new FormControl(row.srcIsPk),
-          srcIsNotNull: new FormControl(row.srcIsNotNull),
-          spOrder: new FormControl(row.spOrder),
-          spColName: new FormControl(row.spColName),
-          spDataType: new FormControl(row.spDataType),
-          spIsPk: new FormControl(row.spIsPk),
-          spIsNotNull: new FormControl(row.spIsNotNull),
-        })
-      )
+      if (row.spOrder) {
+        this.spRowArray.push(
+          new FormGroup({
+            srcOrder: new FormControl(row.srcOrder),
+            srcColName: new FormControl(row.srcColName),
+            srcDataType: new FormControl(row.srcDataType),
+            srcIsPk: new FormControl(row.srcIsPk),
+            srcIsNotNull: new FormControl(row.srcIsNotNull),
+            spOrder: new FormControl(row.srcOrder),
+            spColName: new FormControl(row.spColName, [
+              Validators.required,
+              Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?'),
+            ]),
+            spDataType: new FormControl(row.spDataType),
+            spIsPk: new FormControl(row.spIsPk),
+            spIsNotNull: new FormControl(row.spIsNotNull),
+          })
+        )
+      }
     })
-    this.dataSource = this.rowArray.controls
+    this.spDataSource = this.spRowArray.controls
   }
 
-  setFkRows() {
-    this.fkArray = new FormArray([])
-    this.fkData.forEach((fk) => {
-      this.fkArray.push(
-        new FormGroup({
-          spName: new FormControl(fk.spName),
-          srcName: new FormControl(fk.srcName),
-          spColumns: new FormControl(fk.spColumns),
-          srcColumns: new FormControl(fk.srcColumns),
-          spReferTable: new FormControl(fk.spReferTable),
-          srcReferTable: new FormControl(fk.srcReferTable),
-          spReferColumns: new FormControl(fk.spReferColumns),
-          srcReferColumns: new FormControl(fk.srcReferColumns),
-        })
-      )
+  setSrcTableRows() {
+    this.srcRowArray = new FormArray([])
+
+    this.localTableData.forEach((col: IColumnTabData) => {
+      if (col.spColName != '') {
+        this.srcRowArray.push(
+          new FormGroup({
+            srcOrder: new FormControl(col.srcOrder),
+            srcColName: new FormControl(col.srcColName),
+            srcDataType: new FormControl(col.srcDataType),
+            srcIsPk: new FormControl(col.srcIsPk),
+            srcIsNotNull: new FormControl(col.srcIsNotNull),
+            spOrder: new FormControl(col.spOrder),
+            spColName: new FormControl(col.spColName),
+            spDataType: new FormControl(col.spDataType),
+            spIsPk: new FormControl(col.spIsPk),
+            spIsNotNull: new FormControl(col.spIsNotNull),
+          })
+        )
+      } else {
+        this.srcRowArray.push(
+          new FormGroup({
+            srcOrder: new FormControl(col.srcOrder),
+            srcColName: new FormControl(col.srcColName),
+            srcDataType: new FormControl(col.srcDataType),
+            srcIsPk: new FormControl(col.srcIsPk),
+            srcIsNotNull: new FormControl(col.srcIsNotNull),
+            spOrder: new FormControl(col.srcOrder),
+            spColName: new FormControl(col.srcColName),
+            spDataType: new FormControl(this.typeMap[col.srcDataType][0].T),
+            spIsPk: new FormControl(col.srcIsPk),
+            spIsNotNull: new FormControl(col.srcIsNotNull),
+          })
+        )
+      }
     })
-    this.fkDataSource = this.fkArray.controls
+
+    this.srcDataSource = this.srcRowArray.controls
+  }
+
+  setColumnsToAdd() {
+    this.localTableData.forEach((col) => {
+      if (!col.spColName) {
+        this.srcRowArray.value.forEach((element: IColumnTabData) => {
+          if (col.srcColName == element.srcColName) {
+            this.droppedColumns.push(element)
+          }
+        })
+      }
+    })
   }
 
   toggleEdit() {
     this.currentTabIndex = 0
     if (this.isEditMode) {
       this.localTableData = JSON.parse(JSON.stringify(this.tableData))
-      this.setColumnTable()
+      this.setSpTableRows()
       this.isEditMode = false
     } else {
       this.isEditMode = true
+      // this.spRowArray.value[-1].spOrder = 4
+      console.log(this.spRowArray.value)
     }
   }
   saveColumnTable() {
     this.isEditMode = false
     let updateData: IUpdateTable = { UpdateCols: {} }
-    this.rowArray.value.forEach((col: IColumnTabData, i: number) => {
-      let oldRow = this.localTableData[i]
-      updateData.UpdateCols[this.localTableData[i].spColName] = {
-        Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
-        NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
-        PK: '',
-        Removed: false,
-        ToType: oldRow.spDataType !== col.spDataType ? col.spDataType : '',
+
+    this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
+      for (let j = 0; j < this.localTableData.length; j++) {
+        if (col.srcColName == this.localTableData[j].srcColName) {
+          let oldRow = this.localTableData[j]
+          updateData.UpdateCols[this.localTableData[j].spColName] = {
+            Add: this.localTableData[j].spOrder == -1,
+            Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
+            NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
+            Removed: false,
+            ToType: col.spDataType,
+          }
+          break
+        }
       }
     })
-    this.data.updateTable(this.currentObject!.name, updateData).subscribe({
+
+    this.droppedColumns.forEach((col: IColumnTabData) => {
+      updateData.UpdateCols[col.spColName] = {
+        Add: false,
+        Rename: '',
+        NotNull: '',
+        Removed: true,
+        ToType: '',
+      }
+    })
+
+    this.data.reviewTableUpdate(this.currentObject!.name, updateData).subscribe({
       next: (res: string) => {
         if (res == '') {
-          this.isEditMode = false
+          this.sidenav.openSidenav()
+          this.sidenav.setSidenavComponent('reviewChanges')
+          this.tableUpdatePubSub.setTableUpdateDetail({
+            tableName: this.currentObject!.name,
+            updateDetail: updateData,
+          })
+          this.isEditMode = true
         } else {
           this.dialog.open(InfodialogComponent, {
             data: { message: res, type: 'error' },
@@ -241,31 +316,51 @@ export class ObjectDetailComponent implements OnInit {
     })
   }
 
+  setColumn(columnName: string) {
+    this.addedColumnName = columnName
+  }
+
+  addColumn() {
+    let index = this.tableData.map((item) => item.srcColName).indexOf(this.addedColumnName)
+
+    let addedRowIndex = this.droppedColumns
+      .map((item) => item.srcColName)
+      .indexOf(this.addedColumnName)
+    this.tableData[index].spColName = this.droppedColumns[addedRowIndex].spColName
+    this.tableData[index].spDataType = this.droppedColumns[addedRowIndex].spDataType
+    this.tableData[index].spOrder = -1
+    this.tableData[index].spIsPk = this.droppedColumns[addedRowIndex].spIsPk
+    this.tableData[index].spIsNotNull = this.droppedColumns[addedRowIndex].spIsNotNull
+    let ind = this.droppedColumns
+      .map((col: IColumnTabData) => col.spColName)
+      .indexOf(this.addedColumnName)
+    if (ind > -1) {
+      this.droppedColumns.splice(ind, 1)
+    }
+    this.setSpTableRows()
+  }
+
   dropColumn(element: any) {
-    let colName = element.get('spColName').value
-    let updateData: IUpdateTable = { UpdateCols: {} }
-    this.rowArray.value.forEach((col: IColumnTabData, i: number) => {
-      updateData.UpdateCols[this.localTableData[i].spColName] = {
-        Rename: '',
-        NotNull: '',
-        PK: '',
-        Removed: col.spColName === colName ? true : false,
-        ToType: '',
+    let colName = element.get('srcColName').value
+    this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
+      if (col.srcColName === colName) {
+        this.droppedColumns.push(col)
       }
     })
-    this.data.updateTable(this.currentObject!.name, updateData).subscribe({
-      next: (res: string) => {
-        if (res == '') {
-          this.data.getDdl()
-          this.snackbar.openSnackBar(`${colName} column dropped successfully`, 'Close', 5)
-        } else {
-          this.dialog.open(InfodialogComponent, {
-            data: { message: res, type: 'error' },
-            maxWidth: '500px',
-          })
-        }
-      },
+    this.dropColumnFromUI(colName)
+  }
+
+  dropColumnFromUI(colName: string) {
+    this.localTableData.forEach((col: IColumnTabData, i: number) => {
+      if (colName == col.srcColName) {
+        col.spColName = col.spColName
+        col.spDataType = ''
+        col.spIsNotNull = false
+        col.spIsPk = false
+        col.spOrder = ''
+      }
     })
+    this.setSpTableRows()
   }
 
   updateSpTableSuggestion() {
@@ -330,7 +425,10 @@ export class ObjectDetailComponent implements OnInit {
           srcDataType: new FormControl(srcArr[i].srcDataType),
           srcIsPk: new FormControl(srcArr[i].srcIsPk),
           srcIsNotNull: new FormControl(srcArr[i].srcIsNotNull),
-          spOrder: new FormControl(spArr[i].spOrder),
+          spOrder: new FormControl(spArr[i].spOrder, [
+            Validators.required,
+            Validators.pattern('^[1-9][0-9]*$'),
+          ]),
           spColName: new FormControl(spArr[i].spColName),
           spDataType: new FormControl(spArr[i].spDataType),
           spIsPk: new FormControl(spArr[i].spIsPk),
@@ -428,7 +526,7 @@ export class ObjectDetailComponent implements OnInit {
           let index = this.conv.SpSchema[this.currentObject!.name].Pks.map(
             (item) => item.Col
           ).indexOf(pk.spColName)
-          pk.spOrder = this.conv.SpSchema[this.currentObject!.name].Pks[index].Order
+          pk.spOrder = this.conv.SpSchema[this.currentObject!.name].Pks[index]?.Order
         }
       })
     } else {
@@ -459,6 +557,7 @@ export class ObjectDetailComponent implements OnInit {
         })
       })
     }
+
     if (arr[0] == 0 && arr[arr.length - 1] <= arr.length) {
       let missingOrder: number
       for (let i = 0; i < arr.length; i++) {
@@ -505,6 +604,7 @@ export class ObjectDetailComponent implements OnInit {
       this.localTableData = JSON.parse(JSON.stringify(this.tableData))
       this.pkData = this.conversion.getPkMapping(this.tableData)
       this.setAddPkColumnList()
+      this.setPkOrder()
       this.setPkRows()
       this.isPkEditMode = false
     } else {
@@ -529,8 +629,34 @@ export class ObjectDetailComponent implements OnInit {
         data: { message: 'Add columns to the primary key for saving', type: 'error' },
         maxWidth: '500px',
       })
+    } else {
+      let interleaveTable = this.tableInterleaveWith(this.currentObject?.name!)
+      if (interleaveTable != '' && this.isPKFirstOrderModified(this.currentObject?.name!)) {
+        const dialogRef = this.dialog.open(InfodialogComponent, {
+          data: {
+            message:
+              'Proceeding the update will remove interleaving between ' +
+              this.currentObject?.name +
+              ' and ' +
+              interleaveTable +
+              ' tables.',
+            title: 'Confirm Update',
+            type: 'warning',
+          },
+          maxWidth: '500px',
+        })
+        dialogRef.afterClosed().subscribe((dialogResult) => {
+          if (dialogResult) {
+            this.updatePk()
+          }
+        })
+      } else {
+        this.updatePk()
+      }
     }
+  }
 
+  updatePk() {
     this.isPkEditMode = false
     this.data.updatePk(this.pkObj).subscribe({
       next: (res: string) => {
@@ -570,6 +696,28 @@ export class ObjectDetailComponent implements OnInit {
 
     this.setAddPkColumnList()
     this.setPkRows()
+  }
+
+  setFkRows() {
+    this.fkArray = new FormArray([])
+    this.fkData.forEach((fk) => {
+      this.fkArray.push(
+        new FormGroup({
+          spName: new FormControl(fk.spName, [
+            Validators.required,
+            Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?'),
+          ]),
+          srcName: new FormControl(fk.srcName),
+          spColumns: new FormControl(fk.spColumns),
+          srcColumns: new FormControl(fk.srcColumns),
+          spReferTable: new FormControl(fk.spReferTable),
+          srcReferTable: new FormControl(fk.srcReferTable),
+          spReferColumns: new FormControl(fk.spReferColumns),
+          srcReferColumns: new FormControl(fk.srcReferColumns),
+        })
+      )
+    })
+    this.fkDataSource = this.fkArray.controls
   }
 
   toggleFkEdit() {
@@ -661,7 +809,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   setIndexRows() {
-    this.rowArray = new FormArray([])
+    this.spRowArray = new FormArray([])
     const addedIndexColumns: string[] = this.localIndexData
       .map((data) => (data.spColName ? data.spColName : ''))
       .filter((name) => name != '')
@@ -674,24 +822,26 @@ export class ObjectDetailComponent implements OnInit {
         }
       }
     )
-
     this.localIndexData.forEach((row: IIndexData) => {
-      this.rowArray.push(
+      this.spRowArray.push(
         new FormGroup({
           srcOrder: new FormControl(row.srcOrder),
           srcColName: new FormControl(row.srcColName),
           srcDesc: new FormControl(row.srcDesc),
           spOrder: new FormControl(row.spOrder),
-          spColName: new FormControl(row.spColName),
+          spColName: new FormControl(row.spColName, [
+            Validators.required,
+            Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?'),
+          ]),
           spDesc: new FormControl(row.spDesc),
         })
       )
     })
-    this.dataSource = this.rowArray.controls
+    this.spDataSource = this.spRowArray.controls
   }
 
   setIndexOrder() {
-    this.rowArray.value.forEach((idx: IIndexData) => {
+    this.spRowArray.value.forEach((idx: IIndexData) => {
       for (let i = 0; i < this.localIndexData.length; i++) {
         if (idx.spColName != '' && idx.spColName == this.localIndexData[i].spColName) {
           this.localIndexData[i].spOrder = idx.spOrder
@@ -878,5 +1028,36 @@ export class ObjectDetailComponent implements OnInit {
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
     this.currentTabIndex = tabChangeEvent.index
+  }
+
+  tableInterleaveWith(table: string): string {
+    if (this.conv.SpSchema[table].Parent != '') {
+      return this.conv.SpSchema[table].Parent
+    }
+    let interleaveTable = ''
+    Object.keys(this.conv.SpSchema).forEach((tableName: string) => {
+      if (
+        this.conv.SpSchema[tableName].Parent != '' &&
+        this.conv.SpSchema[tableName].Parent == table
+      ) {
+        interleaveTable = tableName
+      }
+    })
+
+    return interleaveTable
+  }
+
+  isPKFirstOrderModified(table: string): boolean {
+    let firstOrderPk = this.conv.SpSchema[table].Pks.filter((pk: IIndexKey) => {
+      if (pk.Order == 1) return true
+      return false
+    })[0]
+    if (this.pkObj.Columns.length < 1) return true
+    let updatedFirstOrderPk = this.pkObj.Columns.filter((pk: IPkColumnDefs) => {
+      if (pk.Order == 1) return true
+      return false
+    })[0]
+    if (firstOrderPk.Col != updatedFirstOrderPk.ColName) return true
+    return false
   }
 }

@@ -1,5 +1,5 @@
 <div mat-dialog-content>
-  <form [formGroup]="updateConfigForm" class="save-session-form">
+  <form [formGroup]="updateConfigForm"  class="save-session-form">
     <h2>Connect to Spanner</h2>
 
     <mat-form-field class="full-width" appearance="outline">
@@ -27,6 +27,7 @@
         >{{ updateConfigForm.value.SpannerInstanceID?.length || 0 }}/30</mat-hint
       >
     </mat-form-field>
+
   </form>
 </div>
 <div mat-dialog-actions class="buttons-container">

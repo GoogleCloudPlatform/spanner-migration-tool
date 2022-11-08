@@ -1,2 +1,102 @@
-<h2>Assessment content coming soon!</h2>
-<button mat-button (click)="closeSidenav()">Close</button>
+<div class="sidenav-view-assessment-container">
+  <div class="sidenav-view-assessment-header">
+    <span class="mat-h2 header-title">Assessment report</span>
+    <button class="close-button" mat-icon-button color="primary" (click)="closeSidenav()">
+      <mat-icon class="close-icon">close</mat-icon>
+    </button>
+  </div>
+  <div class="content">
+    <p>
+      Estimation for {{ srcDbType.toUpperCase() }} to Spanner conversion:
+      {{ conversionRatePercentage.good }}% of tables can be converted automatically,
+      {{ conversionRatePercentage.ok }}% requires minimal conversion changes and
+      {{ conversionRatePercentage.bad }}% requires high complexity conversion changes.
+    </p>
+
+    <p></p>
+    <h3 class="sidenav-title">Source and destination database definitions</h3>
+    <table mat-table [dataSource]="dbDataSource"  class = "sidenav-databaseDefinitions">
+      <ng-container matColumnDef="title">
+        <th mat-header-cell *matHeaderCellDef class="sidenav-header-border">Title</th>
+        <td mat-cell *matCellDef="let element">{{ element.title }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="source">
+        <th mat-header-cell *matHeaderCellDef class="sidenav-header-border">Source</th>
+        <td mat-cell *matCellDef="let element">{{ element.source }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="destination">
+        <th mat-header-cell *matHeaderCellDef class="sidenav-header-border">Destination</th>
+        <td mat-cell *matCellDef="let element">{{ element.destination }}</td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="dbDisplayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: dbDisplayedColumns"></tr>
+    </table>
+    <br>
+    <h3 class="sidenav-title">Conversion status by table</h3>
+    <table mat-table [dataSource]="rateCountDataSource" class="sidenav-conversionByTable">
+      <ng-container matColumnDef="total" >
+        <th mat-header-cell *matHeaderCellDef>Total tables</th>
+        <td mat-cell class="cells" *matCellDef="let element">{{ element.total }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="bad" class="bad">
+        <th mat-header-cell *matHeaderCellDef>
+          <mat-icon class="icon danger icon-size icons"> error </mat-icon>Converted with many issues
+        </th>
+        <td mat-cell class="cells" *matCellDef="let element">{{ element.bad }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="ok">
+        <th mat-header-cell *matHeaderCellDef>
+          <mat-icon class="icon warning icon-size icons"> warning</mat-icon>Conversion some warnings &
+          suggestions
+        </th>
+        <td mat-cell  class="cells" *matCellDef="let element">{{ element.ok }}</td>
+      </ng-container>
+      <ng-container matColumnDef="good">
+        <th mat-header-cell *matHeaderCellDef>
+          <mat-icon class="icon success icon-size icons"> check_circle </mat-icon>100% conversion
+        </th>
+        <td mat-cell  class="cells" *matCellDef="let element">{{ element.good }}</td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="rateCountDisplayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: rateCountDisplayedColumns"></tr>
+    </table>
+
+    <br>
+    <mat-card>
+      <div class="sidenav-percentage-bar">
+        <div
+          class="danger-background"
+          [ngStyle]="{ 'width.%': this.conversionRatePercentage.bad }"
+        ></div>
+        <div
+          class="warning-background"
+          [ngStyle]="{ 'width.%': this.conversionRatePercentage.ok }"
+        ></div>
+        <div
+          class="success-background"
+          [ngStyle]="{ 'width.%': this.conversionRatePercentage.good }"
+        ></div>
+      </div>
+      <hr />
+      <br />
+      <div class="sidenav-percentage-indent">
+        <span
+          ><mat-icon class="icon danger"> circle </mat-icon>
+          <span>Not a great conversion</span></span
+        >
+        <span
+          ><mat-icon class="icon warning"> circle </mat-icon>
+          <span>Converted with warnings</span></span
+        >
+        <span><mat-icon class="icon success"> circle </mat-icon> <span>Converted automatically</span></span>
+      </div>
+    </mat-card>
+
+  </div>
+</div>

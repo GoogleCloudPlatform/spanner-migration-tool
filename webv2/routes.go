@@ -15,6 +15,9 @@
 package webv2
 
 import (
+	"io/fs"
+	"net/http"
+
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/config"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/profile"
@@ -27,6 +30,8 @@ import (
 
 func getRoutes() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
+	frontendRoot, _ := fs.Sub(FrontendDir, "ui/dist/ui")
+	frontendStatic := http.FileServer(http.FS(frontendRoot))
 	router.HandleFunc("/connect", databaseConnection).Methods("POST")
 	router.HandleFunc("/convert/infoschema", convertSchemaSQL).Methods("GET")
 	router.HandleFunc("/convert/dump", convertSchemaDump).Methods("POST")
@@ -87,5 +92,13 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/GetConnectionProfiles", profile.ListConnectionProfiles).Methods("GET")
 	router.HandleFunc("/GetStaticIps", profile.GetStaticIps).Methods("GET")
 	router.HandleFunc("/CreateConnectionProfile", profile.CreateConnectionProfile).Methods("POST")
+
+	// Clean up datastream and data flow jobs
+	router.HandleFunc("/CleanUpStreamingJobs", profile.CleanUpStreamingJobs).Methods("POST")
+
+	router.HandleFunc("/SetSourceDBDetailsForDump", setSourceDBDetailsForDump).Methods("POST")
+	router.HandleFunc("/SetSourceDBDetailsForDirectConnect", setSourceDBDetailsForDirectConnect).Methods("POST")
+
+	router.PathPrefix("/").Handler(frontendStatic)
 	return router
 }
