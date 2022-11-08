@@ -33,6 +33,9 @@
     align-items: center;
     justify-content: flex-end;
   }
+  .mat-cell{
+    padding-right: 0px !important;
+  }
 }
 
 .selected-row {
@@ -41,9 +44,8 @@
 
 .explorer-table {
   height: calc(100vh - 320px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  box-sizing: border-box;
+  width: 100%;
+  overflow: auto;
 }
 
 .mat-table {
