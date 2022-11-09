@@ -30,7 +30,7 @@ can also pass corresponding source profile connection parameters `aws-access-key
 , `aws-secret-access-key`, `aws-region`. Custom endpoint can be specified using
 `dydb-endpoint` param.
 
-For example, to perform schema migration, run
+For example, to perform schema conversion, run
 
 ```sh
 harbourbridge schema -source=dynamodb -source-profile="aws-access-key-id=<>,aws-secret-access-key=<>,aws-region=<>"
