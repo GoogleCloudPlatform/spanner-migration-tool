@@ -262,8 +262,6 @@ export class ObjectDetailComponent implements OnInit {
       this.isEditMode = false
     } else {
       this.isEditMode = true
-      // this.spRowArray.value[-1].spOrder = 4
-      console.log(this.spRowArray.value)
     }
   }
   saveColumnTable() {

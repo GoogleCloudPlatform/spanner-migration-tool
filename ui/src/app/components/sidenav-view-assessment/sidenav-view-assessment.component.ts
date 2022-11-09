@@ -37,7 +37,6 @@ export class SidenavViewAssessmentComponent implements OnInit {
             ((this.conversionRateCount[key as keyof ConversionRate] / tableCount) * 100).toFixed(2)
           )
         }
-        console.log(this.conversionRatePercentage)
       }
       if (this.srcDbType != '') this.setDbDataSource()
       if (tableCount > 0) {

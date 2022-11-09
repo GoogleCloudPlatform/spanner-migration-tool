@@ -29,7 +29,7 @@ CREATE TABLE `cart` (
   `user_id` varchar(20) NOT NULL,
   `product_id` varchar(20) NOT NULL,
   `quantity` bigint DEFAULT NULL,
-  
+  PRIMARY KEY (`user_id`,`product_id`),
   CONSTRAINT `user_cart` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
