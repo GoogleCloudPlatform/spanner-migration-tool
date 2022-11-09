@@ -5,8 +5,6 @@ export default interface IConnectionProfile{
 
 export interface ICreateConnectionProfile{
     Id: string
-    Region: string
     ValidateOnly: boolean
     IsSource: boolean
-    Bucket: string
 }

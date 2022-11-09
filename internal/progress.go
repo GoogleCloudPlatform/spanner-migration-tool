@@ -35,11 +35,26 @@ type Progress struct {
 	message    string // Name of task being monitored.
 	verbose    bool   // If true, print detailed info about each progress step.
 	fractional bool   // If true, report progress in fractions instead of percentages.
+	ProgressStatus
 }
 
+// ProgressStatus specifies a stage of migration.
+type ProgressStatus int
+
+// Defines the progress statuses that we track
+const (
+	DefaultStatus ProgressStatus = iota
+	SchemaMigrationComplete
+	SchemaCreationInProgress
+	DataMigrationComplete
+	DataWriteInProgress
+	ForeignKeyUpdateInProgress
+	ForeignKeyUpdateComplete
+)
+
 // NewProgress creates and returns a Progress instance.
-func NewProgress(total int64, message string, verbose, fractional bool) *Progress {
-	p := &Progress{total, 0, 0, message, verbose, fractional}
+func NewProgress(total int64, message string, verbose, fractional bool, progressStatus int) *Progress {
+	p := &Progress{total, 0, 0, message, verbose, fractional, ProgressStatus(progressStatus)}
 	if total == 0 {
 		p.pct = 100
 	}
@@ -120,11 +135,12 @@ func (p *Progress) reportFraction(firstCall bool) {
 	}
 }
 
-func (p *Progress) ReportProgress() (int, string) {
-	return int(p.pct), p.message
+func (p *Progress) ReportProgress() (int, int) {
+	return int(p.pct), int(p.ProgressStatus)
 }
 
-func (p *Progress) SetProgressMessageAndUpdate(message string, pct int) {
+func (p *Progress) UpdateProgress(message string, pct int, progressStatus ProgressStatus) {
 	p.message = message
 	p.pct = pct
+	p.ProgressStatus = progressStatus
 }

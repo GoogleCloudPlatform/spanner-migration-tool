@@ -8,30 +8,34 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	datastream "cloud.google.com/go/datastream/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	"github.com/cloudspannerecosystem/harbourbridge/streaming"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/google/uuid"
 	"google.golang.org/api/iterator"
 	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
 )
 
-func GetBucket(project, location, profileName string) (string, error) {
+func GetBucket(project, location, profileName string) (string, string, error) {
 	ctx := context.Background()
 	dsClient, err := datastream.NewClient(ctx)
 	if err != nil {
-		return "", fmt.Errorf("datastream client can not be created: %v", err)
+		return "", "", fmt.Errorf("datastream client can not be created: %v", err)
 	}
 	defer dsClient.Close()
 	// Fetch the GCS path from the destination connection profile.
 	dstProf := fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", project, location, profileName)
 	res, err := dsClient.GetConnectionProfile(ctx, &datastreampb.GetConnectionProfileRequest{Name: dstProf})
 	if err != nil {
-		return "", fmt.Errorf("could not get connection profile: %v", err)
+		return "", "", fmt.Errorf("could not get connection profile: %v", err)
 	}
 	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
-	return "gs://" + gcsProfile.GetBucket() + gcsProfile.GetRootPath(), nil
+	return gcsProfile.GetBucket(), gcsProfile.GetRootPath(), nil
 }
 
 func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
@@ -42,8 +46,11 @@ func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 	}
 	defer dsClient.Close()
 	sessionState := session.GetSessionState()
-	region := r.FormValue("region")
 	source := r.FormValue("source") == "true"
+	if !source {
+		sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+		sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId) + "/"
+	}
 	databaseType, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error while getting source database: %v", err), http.StatusBadRequest)
@@ -51,7 +58,7 @@ func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 	}
 	var connectionProfileList []connectionProfile
 	req := &datastreampb.ListConnectionProfilesRequest{
-		Parent: fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, region),
+		Parent: fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, sessionState.Region),
 	}
 	it := dsClient.ListConnectionProfiles(ctx, req)
 	for {
@@ -83,9 +90,8 @@ func GetStaticIps(w http.ResponseWriter, r *http.Request) {
 	}
 	defer dsClient.Close()
 	sessionState := session.GetSessionState()
-	region := r.FormValue("region")
 	req := &datastreampb.FetchStaticIpsRequest{
-		Name: fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, region),
+		Name: fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, sessionState.Region),
 	}
 	it := dsClient.FetchStaticIps(ctx, req)
 	var staticIpList []string
@@ -132,7 +138,7 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req := &datastreampb.CreateConnectionProfileRequest{
-		Parent:              fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, details.Region),
+		Parent:              fmt.Sprintf("projects/%s/locations/%s", sessionState.GCPProjectID, sessionState.Region),
 		ConnectionProfileId: details.Id,
 		ConnectionProfile: &datastreampb.ConnectionProfile{
 			DisplayName:  details.Id,
@@ -140,7 +146,14 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 		},
 		ValidateOnly: details.ValidateOnly,
 	}
-	setConnectionProfile(details.IsSource, *sessionState, req, databaseType, details.Bucket)
+	if !details.IsSource {
+		err = utils.CreateGCSBucket(strings.ToLower(sessionState.Conv.Audit.MigrationRequestId), sessionState.GCPProjectID)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error while creating bucket: %v", err), http.StatusBadRequest)
+			return
+		}
+	}
+	setConnectionProfile(details.IsSource, *sessionState, req, databaseType)
 	op, err := dsClient.CreateConnectionProfile(ctx, req)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error while creating connection profile: %v", err), http.StatusBadRequest)
@@ -154,7 +167,7 @@ func CreateConnectionProfile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func setConnectionProfile(isSource bool, sessionState session.SessionState, req *datastreampb.CreateConnectionProfileRequest, databaseType, bucket string) {
+func setConnectionProfile(isSource bool, sessionState session.SessionState, req *datastreampb.CreateConnectionProfileRequest, databaseType string) {
 	if isSource {
 		port, _ := strconv.ParseInt((sessionState.SourceDBConnDetails.Port), 10, 32)
 		if databaseType == constants.MYSQL {
@@ -179,7 +192,7 @@ func setConnectionProfile(isSource bool, sessionState session.SessionState, req 
 	} else {
 		req.ConnectionProfile.Profile = &datastreampb.ConnectionProfile_GcsProfile{
 			GcsProfile: &datastreampb.GcsProfile{
-				Bucket:   bucket,
+				Bucket:   strings.ToLower(sessionState.Conv.Audit.MigrationRequestId),
 				RootPath: "/",
 			},
 		}
@@ -187,12 +200,19 @@ func setConnectionProfile(isSource bool, sessionState session.SessionState, req 
 
 }
 
+func CleanUpStreamingJobs(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	sessionState := session.GetSessionState()
+	err := streaming.CleanUpStreamingJobs(ctx, sessionState.Conv, sessionState.GCPProjectID, sessionState.Region)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error while cleaning up streaming jobs: %v", err), http.StatusBadRequest)
+	}
+}
+
 type connectionProfileReq struct {
 	Id           string
-	Region       string
 	ValidateOnly bool
 	IsSource     bool
-	Bucket       string
 }
 
 type connectionProfile struct {

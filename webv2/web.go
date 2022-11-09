@@ -30,12 +30,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/cmd"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
@@ -54,8 +54,11 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/profile"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 	"github.com/google/uuid"
+	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/typemap"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
 
@@ -97,19 +100,24 @@ type driverConfig struct {
 }
 
 type sessionSummary struct {
-	DatabaseType      string
-	ConnectionDetail  string
-	SourceTableCount  int
-	SpannerTableCount int
-	SourceIndexCount  int
-	SpannerIndexCount int
-	ConnectionType    string
+	DatabaseType       string
+	ConnectionDetail   string
+	SourceTableCount   int
+	SpannerTableCount  int
+	SourceIndexCount   int
+	SpannerIndexCount  int
+	ConnectionType     string
+	SourceDatabaseName string
+	Region             string
+	NodeCount          int
+	ProcessingUnits    int
+	Instance           string
 }
 
 type progressDetails struct {
-	Progress     int
-	ErrorMessage string
-	Message      string
+	Progress       int
+	ErrorMessage   string
+	ProgressStatus int
 }
 
 type migrationDetails struct {
@@ -120,7 +128,6 @@ type migrationDetails struct {
 
 type targetDetails struct {
 	TargetDB                    string `json:"TargetDB"`
-	Region                      string `json:"Region"`
 	SourceConnectionProfileName string `json:"SourceConnProfile"`
 	TargetConnectionProfileName string `json:"TargetConnProfile"`
 }
@@ -189,7 +196,7 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sessionState.SourceDB = sourceDB
 	sessionState.DbName = config.Database
-	// schema and user is same in oralce.
+	// schema and user is same in oracle.
 	if config.Driver == constants.ORACLE {
 		sessionState.DbName = config.User
 	}
@@ -200,7 +207,7 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 		Port:           config.Port,
 		User:           config.User,
 		Password:       config.Password,
-		ConnectionType: utilities.DIRECT_CONNECT_MODE,
+		ConnectionType: helpers.DIRECT_CONNECT_MODE,
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -214,6 +221,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	conv := internal.MakeConv()
+
 	// Setting target db to spanner by default.
 	conv.TargetDb = constants.TargetSpanner
 	var err error
@@ -241,6 +249,7 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv = conv
 
 	primarykey.DetectHotspot()
+	index.AssignInitialOrders()
 	index.IndexSuggestion()
 
 	sessionMetadata := session.SessionMetadata{
@@ -264,6 +273,95 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 type dumpConfig struct {
 	Driver   string `json:"Driver"`
 	FilePath string `json:"Path"`
+}
+
+func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	if sessionState.Driver != constants.MYSQLDUMP && sessionState.Driver != constants.PGDUMP {
+		http.Error(w, "Connect via direct connect", http.StatusBadRequest)
+	}
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var dc dumpConfig
+	err = json.Unmarshal(reqBody, &dc)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+
+	_, err = os.Open(dc.FilePath)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to open dump file : %v, no such file or directory", dc.FilePath), http.StatusNotFound)
+		return
+	}
+	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
+		Path:           dc.FilePath,
+		ConnectionType: helpers.DUMP_MODE,
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func setSourceDBDetailsForDirectConnect(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	if sessionState.Driver == constants.MYSQLDUMP || sessionState.Driver == constants.PGDUMP {
+		http.Error(w, "Connect via dump file", http.StatusBadRequest)
+	}
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var config driverConfig
+	err = json.Unmarshal(reqBody, &config)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+
+	var dataSourceName string
+	switch config.Driver {
+	case constants.POSTGRES:
+		dataSourceName = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", config.Host, config.Port, config.User, config.Password, config.Database)
+	case constants.MYSQL:
+		dataSourceName = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", config.User, config.Password, config.Host, config.Port, config.Database)
+	case constants.SQLSERVER:
+		dataSourceName = fmt.Sprintf(`sqlserver://%s:%s@%s:%s?database=%s`, config.User, config.Password, config.Host, config.Port, config.Database)
+	case constants.ORACLE:
+		portNumber, _ := strconv.Atoi(config.Port)
+		dataSourceName = go_ora.BuildUrl(config.Host, portNumber, config.Database, config.User, config.Password, nil)
+	default:
+		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", config.Driver), http.StatusBadRequest)
+		return
+	}
+	sourceDB, err := sql.Open(config.Driver, dataSourceName)
+	if err != nil {
+		http.Error(w, "Database connection error, check connection properties.", http.StatusInternalServerError)
+		return
+	}
+	// Open doesn't open a connection. Validate database connection.
+	err = sourceDB.Ping()
+	if err != nil {
+		http.Error(w, "Database connection error, check connection properties.", http.StatusInternalServerError)
+		return
+	}
+
+	sessionState.DbName = config.Database
+	// schema and user is same in oracle.
+	if config.Driver == constants.ORACLE {
+		sessionState.DbName = config.User
+	}
+	sessionState.SessionFile = ""
+	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
+		Host:           config.Host,
+		Port:           config.Port,
+		User:           config.User,
+		Password:       config.Password,
+		ConnectionType: helpers.DIRECT_CONNECT_MODE,
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 // convertSchemaDump converts schema from dump file to Spanner schema for
@@ -308,6 +406,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	uniqueid.AssignUniqueId(conv)
 	sessionState.Conv = conv
 	primarykey.DetectHotspot()
+	index.AssignInitialOrders()
 	index.IndexSuggestion()
 
 	sessionState.SessionMetadata = sessionMetadata
@@ -317,7 +416,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sessionState.SourceDB = nil
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
 		Path:           dc.FilePath,
-		ConnectionType: utilities.DUMP_MODE,
+		ConnectionType: helpers.DUMP_MODE,
 	}
 
 	convm := session.ConvWithMetadata{
@@ -346,6 +445,19 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	conv := internal.MakeConv()
+	metadata := session.SessionMetadata{}
+
+	err = session.ReadSessionFileForSessionMetadata(&metadata, s.FilePath)
+	if err != nil {
+		switch err.(type) {
+		case *fs.PathError:
+			http.Error(w, fmt.Sprintf("Failed to open session file : %v, no such file or directory", s.FilePath), http.StatusNotFound)
+		default:
+			http.Error(w, fmt.Sprintf("Failed to parse session file : %v", err), http.StatusBadRequest)
+		}
+		return
+	}
+
 	err = conversion.ReadSessionFile(conv, s.FilePath)
 	if err != nil {
 		switch err.(type) {
@@ -360,7 +472,11 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionMetadata := session.SessionMetadata{
 		SessionName:  "NewSession",
 		DatabaseType: s.Driver,
-		DatabaseName: strings.TrimRight(filepath.Base(s.FilePath), filepath.Ext(s.FilePath)),
+		DatabaseName: metadata.DatabaseName,
+	}
+
+	if sessionMetadata.DatabaseName == "" {
+		sessionMetadata.DatabaseName = strings.TrimRight(filepath.Base(s.FilePath), filepath.Ext(s.FilePath))
 	}
 
 	sessionState.Conv = conv
@@ -370,6 +486,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState.Conv = conv
 
 	primarykey.DetectHotspot()
+	index.AssignInitialOrders()
 	index.IndexSuggestion()
 
 	sessionState.SessionMetadata = sessionMetadata
@@ -377,7 +494,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState.SessionFile = s.FilePath
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
 		Path:           s.FilePath,
-		ConnectionType: utilities.SESSION_FILE_MODE,
+		ConnectionType: helpers.SESSION_FILE_MODE,
 	}
 
 	convm := session.ConvWithMetadata{
@@ -490,6 +607,8 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var typeMap map[string]string
+	fmt.Println("typeMap:", typeMap)
+
 	err = json.Unmarshal(reqBody, &typeMap)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
@@ -513,105 +632,12 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 			// column as is. Note that per-column type overrides could be lost in
 			// this process -- the mapping in typeMap always takes precendence.
 			if _, found := typeMap[srcColDef.Type.Name]; found {
-				updateType(typeMap[srcColDef.Type.Name], t, col, srcTable, w)
+				utilities.UpdateType(sessionState.Conv, typeMap[srcColDef.Type.Name], t, col, srcTable, w)
 			}
 		}
 	}
-	helpers.UpdateSessionFile()
+	session.UpdateSessionFile()
 
-	convm := session.ConvWithMetadata{
-		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
-	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(convm)
-}
-
-// Actions to be performed on a column.
-// (1) Removed: true/false
-// (2) Rename: New name or empty string
-// (3) PK: "ADDED", "REMOVED" or ""
-// (4) NotNull: "ADDED", "REMOVED" or ""
-// (5) ToType: New type or empty string
-type updateCol struct {
-	Removed bool   `json:"Removed"`
-	Rename  string `json:"Rename"`
-	PK      string `json:"PK"`
-	NotNull string `json:"NotNull"`
-	ToType  string `json:"ToType"`
-}
-
-type updateTable struct {
-	UpdateCols map[string]updateCol `json:"UpdateCols"`
-}
-
-// updateTableSchema updates the Spanner schema.
-// Following actions can be performed on a specified table:
-// (1) Remove column
-// (2) Rename column
-// (3) Add or Remove Primary Key
-// (4) Add or Remove NotNull constraint
-// (5) Update Spanner type
-func updateTableSchema(w http.ResponseWriter, r *http.Request) {
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-		return
-	}
-	var t updateTable
-
-	table := r.FormValue("table")
-
-	err = json.Unmarshal(reqBody, &t)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
-		return
-	}
-	sessionState := session.GetSessionState()
-	srcTableName := sessionState.Conv.ToSource[table].Name
-	for colName, v := range t.UpdateCols {
-		if v.Removed {
-			status, err := canRemoveColumn(colName, table)
-			if err != nil {
-				http.Error(w, fmt.Sprintf("%v", err), status)
-				return
-			}
-			removeColumn(table, colName, srcTableName)
-			continue
-		}
-		if v.Rename != "" && v.Rename != colName {
-			if status, err := canRenameOrChangeType(colName, table); err != nil {
-				http.Error(w, fmt.Sprintf("%v", err), status)
-				return
-			}
-			renameColumn(v.Rename, table, colName, srcTableName)
-			colName = v.Rename
-		}
-		if v.PK != "" {
-			http.Error(w, "HarbourBridge currently doesn't support editing primary keys", http.StatusNotImplemented)
-			return
-		}
-
-		if v.ToType != "" {
-			typeChange, err := isTypeChanged(v.ToType, table, colName, srcTableName)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-
-			if typeChange {
-				if status, err := canRenameOrChangeType(colName, table); err != nil {
-					http.Error(w, fmt.Sprintf("%v", err), status)
-					return
-				}
-				updateType(v.ToType, table, colName, srcTableName, w)
-			}
-		}
-		if v.NotNull != "" {
-			updateNotNull(v.NotNull, table, colName)
-		}
-	}
-	helpers.UpdateSessionFile()
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
 		Conv:            *sessionState.Conv,
@@ -626,7 +652,7 @@ func getConversionRate(w http.ResponseWriter, r *http.Request) {
 	reports := internal.AnalyzeTables(sessionState.Conv, nil)
 	rate := make(map[string]string)
 	for _, t := range reports {
-		rate[t.SpTable] = rateSchema(t.Cols, t.Warnings, t.SyntheticPKey != "")
+		rate[t.SpTable] = utilities.RateSchema(t.Cols, t.Warnings, t.SyntheticPKey != "")
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(rate)
@@ -637,7 +663,7 @@ func getSchemaFile(w http.ResponseWriter, r *http.Request) {
 	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
 	var err error
 	now := time.Now()
-	filePrefix, err := getFilePrefix(now)
+	filePrefix, err := utilities.GetFilePrefix(now)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Can not get file prefix : %v", err), http.StatusInternalServerError)
 	}
@@ -658,7 +684,7 @@ func getReportFile(w http.ResponseWriter, r *http.Request) {
 	ioHelper := &utils.IOStreams{In: os.Stdin, Out: os.Stdout}
 	var err error
 	now := time.Now()
-	filePrefix, err := getFilePrefix(now)
+	filePrefix, err := utilities.GetFilePrefix(now)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Can not get file prefix : %v", err), http.StatusInternalServerError)
 	}
@@ -697,8 +723,38 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	}
 	tableInterleaveStatus := parentTableHelper(table, update)
 
+	if tableInterleaveStatus.Possible {
+
+		childPks := sessionState.Conv.SpSchema[table].Pks
+		childindex := utilities.GetPrimaryKeyIndexFromOrder(childPks, 1)
+		sessionState := session.GetSessionState()
+		schemaissue := []internal.SchemaIssue{}
+
+		column := childPks[childindex].Col
+		schemaissue = sessionState.Conv.Issues[table][column]
+		if update {
+			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
+		} else {
+			schemaissue = append(schemaissue, internal.InterleavedOrder)
+		}
+
+		sessionState.Conv.Issues[table][column] = schemaissue
+	} else {
+		// Remove "Table cart can be converted as Interleaved Table" suggestion from columns
+		// of the table if interleaving is not possible.
+		for _, column := range sessionState.Conv.SpSchema[table].ColNames {
+			schemaIssue := []internal.SchemaIssue{}
+			for _, v := range sessionState.Conv.Issues[table][column] {
+				if v != internal.InterleavedOrder {
+					schemaIssue = append(schemaIssue, v)
+				}
+			}
+			sessionState.Conv.Issues[table][column] = schemaIssue
+		}
+	}
+
 	index.IndexSuggestion()
-	helpers.UpdateSessionFile()
+	session.UpdateSessionFile()
 	w.WriteHeader(http.StatusOK)
 
 	if update {
@@ -735,10 +791,9 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 
 				tableInterleaveStatus.Parent = refTable
 				sp := sessionState.Conv.SpSchema[table]
-
 				if update {
 					sp.Parent = refTable
-					sp.Fks = removeFk(sp.Fks, i)
+					sp.Fks = utilities.RemoveFk(sp.Fks, i)
 				}
 				sessionState.Conv.SpSchema[table] = sp
 				break
@@ -756,9 +811,9 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 
 	if len(parentpks) >= 1 {
 
-		parentindex := getPrimaryKeyIndexFromOrder(parentpks, 1)
+		parentindex := utilities.GetPrimaryKeyIndexFromOrder(parentpks, 1)
 
-		childindex := getPrimaryKeyIndexFromOrder(childPks, 1)
+		childindex := utilities.GetPrimaryKeyIndexFromOrder(childPks, 1)
 
 		if parentindex != -1 && childindex != -1 {
 
@@ -772,9 +827,8 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-
-				schemaissue = append(schemaissue, internal.InterleavedOrder)
 
 				sessionState.Conv.Issues[table][column] = schemaissue
 				tableInterleaveStatus.Possible = true
@@ -795,6 +849,7 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
 
 				schemaissue = append(schemaissue, internal.InterleavedNotInOrder)
 
@@ -1015,9 +1070,9 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("No foreign key found at position %d", position), http.StatusBadRequest)
 		return
 	}
-	sp.Fks = removeFk(sp.Fks, position)
+	sp.Fks = utilities.RemoveFk(sp.Fks, position)
 	sessionState.Conv.SpSchema[table] = sp
-	helpers.UpdateSessionFile()
+	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -1061,13 +1116,13 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ok, invalidNames := checkSpannerNamesValidity(newNames); !ok {
+	if ok, invalidNames := utilities.CheckSpannerNamesValidity(newNames); !ok {
 		http.Error(w, fmt.Sprintf("Following names are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
 		return
 	}
 
 	// Check that the new names are not already used by existing tables, secondary indexes or foreign key constraints.
-	if ok, err := canRename(newNames, table); !ok {
+	if ok, err := utilities.CanRename(newNames, table); !ok {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -1085,7 +1140,7 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 	sp.Fks = newFKs
 
 	sessionState.Conv.SpSchema[table] = sp
-	helpers.UpdateSessionFile()
+	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -1123,13 +1178,13 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ok, invalidNames := checkSpannerNamesValidity(newNames); !ok {
+	if ok, invalidNames := utilities.CheckSpannerNamesValidity(newNames); !ok {
 		http.Error(w, fmt.Sprintf("Following names are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
 		return
 	}
 
 	// Check that the new names are not already used by existing tables, secondary indexes or foreign key constraints.
-	if ok, err := canRename(newNames, table); !ok {
+	if ok, err := utilities.CanRename(newNames, table); !ok {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -1148,7 +1203,7 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 	sp.Indexes = newIndexes
 
 	sessionState.Conv.SpSchema[table] = sp
-	helpers.UpdateSessionFile()
+	session.UpdateSessionFile()
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
 		Conv:            *sessionState.Conv,
@@ -1184,13 +1239,13 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Found duplicate names in input : %s", strings.Join(newNames, ",")), http.StatusBadRequest)
 		return
 	}
-	if ok, invalidNames := checkSpannerNamesValidity(newNames); !ok {
+	if ok, invalidNames := utilities.CheckSpannerNamesValidity(newNames); !ok {
 		http.Error(w, fmt.Sprintf("Following names are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
 		return
 	}
 
 	// Check that the new names are not already used by existing tables, secondary indexes or foreign key constraints.
-	if ok, err := canRename(newNames, table); !ok {
+	if ok, err := utilities.CanRename(newNames, table); !ok {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -1206,7 +1261,7 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	sp.Indexes = append(sp.Indexes, newIndexes...)
 
 	sessionState.Conv.SpSchema[table] = sp
-	helpers.UpdateSessionFile()
+	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -1225,6 +1280,7 @@ func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sessionSummary.DatabaseType = databaseType
+	sessionSummary.SourceDatabaseName = sessionState.DbName
 	sessionSummary.ConnectionType = sessionState.SourceDBConnDetails.ConnectionType
 	sessionSummary.SourceTableCount = len(sessionState.Conv.SrcSchema)
 	sessionSummary.SpannerTableCount = len(sessionState.Conv.SpSchema)
@@ -1238,6 +1294,34 @@ func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionSummary.SourceIndexCount = sourceIndexCount
 	sessionSummary.SpannerIndexCount = spannerIndexCount
+	ctx := context.Background()
+	instanceClient, err := instance.NewInstanceAdminClient(ctx)
+	if err != nil {
+		log.Println("instance admin client creation error")
+		http.Error(w, fmt.Sprintf("Error while creating instance admin client : %v", err), http.StatusBadRequest)
+		return
+	}
+	instanceInfo, err := instanceClient.GetInstance(ctx, &instancepb.GetInstanceRequest{Name: fmt.Sprintf("projects/%s/instances/%s", sessionState.GCPProjectID, sessionState.SpannerInstanceID)})
+	if err != nil {
+		log.Println("get instance error")
+		http.Error(w, fmt.Sprintf("Error while getting instance information : %v", err), http.StatusBadRequest)
+		return
+	}
+	instanceConfig, err := instanceClient.GetInstanceConfig(ctx, &instancepb.GetInstanceConfigRequest{Name: instanceInfo.Config})
+	if err != nil {
+		log.Println("get instance config error")
+		http.Error(w, fmt.Sprintf("Error while getting instance config : %v", err), http.StatusBadRequest)
+		return
+	}
+	for _, replica := range instanceConfig.Replicas {
+		if replica.DefaultLeaderLocation {
+			sessionSummary.Region = replica.Location
+		}
+	}
+	sessionState.Region = sessionSummary.Region
+	sessionSummary.NodeCount = int(instanceInfo.NodeCount)
+	sessionSummary.ProcessingUnits = int(instanceInfo.ProcessingUnits)
+	sessionSummary.Instance = sessionState.SpannerInstanceID
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(sessionSummary)
 }
@@ -1250,7 +1334,7 @@ func updateProgress(w http.ResponseWriter, r *http.Request) {
 		detail.ErrorMessage = sessionState.Error.Error()
 	} else {
 		detail.ErrorMessage = ""
-		detail.Progress, detail.Message = sessionState.Conv.Audit.Progress.ReportProgress()
+		detail.Progress, detail.ProgressStatus = sessionState.Conv.Audit.Progress.ReportProgress()
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(detail)
@@ -1277,21 +1361,25 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	sessionState.Error = nil
 	ctx := context.Background()
 	sessionState.Conv.Audit.Progress = internal.Progress{}
-	sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
 	sourceProfile, targetProfile, ioHelper, dbName, err := getSourceAndTargetProfiles(sessionState, details)
 	if err != nil {
 		log.Println("can't get source and target profile")
 		http.Error(w, fmt.Sprintf("Can't get source and target profiles: %v", err), http.StatusBadRequest)
 		return
 	}
+	err = writeSessionFile(sessionState)
+	if err != nil {
+		log.Println("can't write session file")
+		http.Error(w, fmt.Sprintf("Can't write session file to GCS: %v", err), http.StatusBadRequest)
+		return
+	}
 	sessionState.Conv.ResetStats()
 	sessionState.Conv.Audit.Progress = internal.Progress{}
-	sessionState.Conv.Audit.Progress.SetProgressMessageAndUpdate("Migration in progress", 0)
-	if details.MigrationMode == utilities.SCHEMA_ONLY {
+	if details.MigrationMode == helpers.SCHEMA_ONLY {
 		log.Println("Starting schema only migration")
 		sessionState.Conv.Audit.MigrationType = migration.MigrationData_SCHEMA_ONLY.Enum()
 		go cmd.MigrateDatabase(ctx, targetProfile, sourceProfile, dbName, &ioHelper, &cmd.SchemaCmd{}, sessionState.Conv, &sessionState.Error)
-	} else if details.MigrationMode == utilities.DATA_ONLY {
+	} else if details.MigrationMode == helpers.DATA_ONLY {
 		dataCmd := &cmd.DataCmd{
 			SkipForeignKeys: false,
 			WriteLimit:      cmd.DefaultWritersLimit,
@@ -1312,33 +1400,62 @@ func migrate(w http.ResponseWriter, r *http.Request) {
 	log.Println("migration completed", "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
 }
 
+func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
+	var generatedResources GeneratedResources
+	sessionState := session.GetSessionState()
+	generatedResources.DatabaseName = sessionState.SpannerDatabaseName
+	generatedResources.DatabaseUrl = fmt.Sprintf("https://pantheon.corp.google.com/spanner/instances/%v/databases/%v/details/tables?project=%v", sessionState.SpannerInstanceID, sessionState.SpannerDatabaseName, sessionState.GCPProjectID)
+	generatedResources.BucketName = sessionState.Bucket + sessionState.RootPath
+	generatedResources.BucketUrl = fmt.Sprintf("https://pantheon.corp.google.com/storage/browser/%v", sessionState.Bucket+sessionState.RootPath)
+	if sessionState.Conv.Audit.StreamingStats.DataStreamName != "" {
+		generatedResources.DataStreamJobName = sessionState.Conv.Audit.StreamingStats.DataStreamName
+		generatedResources.DataStreamJobUrl = fmt.Sprintf("https://pantheon.corp.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataStreamName, sessionState.GCPProjectID)
+	}
+	if sessionState.Conv.Audit.StreamingStats.DataflowJobId != "" {
+		generatedResources.DataflowJobName = sessionState.Conv.Audit.StreamingStats.DataflowJobId
+		generatedResources.DataflowJobUrl = fmt.Sprintf("https://pantheon.corp.google.com/dataflow/jobs/%v/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataflowJobId, sessionState.GCPProjectID)
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(generatedResources)
+}
+
 func getSourceAndTargetProfiles(sessionState *session.SessionState, details migrationDetails) (profiles.SourceProfile, profiles.TargetProfile, utils.IOStreams, string, error) {
 	var (
 		sourceProfileString string
+		err                 error
 	)
 	sourceDBConnectionDetails := sessionState.SourceDBConnDetails
-	if sourceDBConnectionDetails.ConnectionType == utilities.DUMP_MODE {
+	if sourceDBConnectionDetails.ConnectionType == helpers.DUMP_MODE {
 		sourceProfileString = fmt.Sprintf("file=%v,format=dump", sourceDBConnectionDetails.Path)
 	} else {
 		sourceProfileString = fmt.Sprintf("host=%v,port=%v,user=%v,password=%v,dbName=%v",
 			sourceDBConnectionDetails.Host, sourceDBConnectionDetails.Port, sourceDBConnectionDetails.User,
 			sourceDBConnectionDetails.Password, sessionState.DbName)
 	}
+	sessionState.SpannerDatabaseName = details.TargetDetails.TargetDB
 	targetProfileString := fmt.Sprintf("project=%v,instance=%v,dbName=%v", sessionState.GCPProjectID, sessionState.SpannerInstanceID, details.TargetDetails.TargetDB)
-	if details.TargetDetails.Region != "" {
+	if details.MigrationType == helpers.LOW_DOWNTIME_MIGRATION {
 		fileName := sessionState.Conv.Audit.MigrationRequestId + "-streaming.json"
-		err := createStreamingCfgFile(sessionState.GCPProjectID, details.TargetDetails, fileName)
+		sessionState.Bucket, sessionState.RootPath, err = profile.GetBucket(sessionState.GCPProjectID, sessionState.Region, details.TargetDetails.TargetConnectionProfileName)
 		if err != nil {
-			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while craeting streaming config file: %v", err)
+			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while getting target bucket: %v", err)
+		}
+		err = createStreamingCfgFile(sessionState, details.TargetDetails, fileName)
+		if err != nil {
+			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while creating streaming config file: %v", err)
 		}
 		sourceProfileString = sourceProfileString + fmt.Sprintf(",streamingCfg=%v", fileName)
+	} else {
+		sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
+		sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId)
+		sessionState.RootPath = "/"
 	}
 	source, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
 	if err != nil {
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while getting source database: %v", err)
 	}
 	sourceProfile, targetProfile, ioHelper, dbName, err := cmd.PrepareMigrationPrerequisites(sourceProfileString, targetProfileString, source)
-	if err != nil && sourceDBConnectionDetails.ConnectionType != utilities.SESSION_FILE_MODE {
+	if err != nil && sourceDBConnectionDetails.ConnectionType != helpers.SESSION_FILE_MODE {
 		return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while preparing prerequisites for migration: %v", err)
 	}
 	sourceProfile.Driver = sessionState.Driver
@@ -1346,30 +1463,44 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 	return sourceProfile, targetProfile, ioHelper, dbName, nil
 }
 
-func createStreamingCfgFile(projectId string, targetDetails targetDetails, fileName string) error {
-	bucket, err := profile.GetBucket(projectId, targetDetails.Region, targetDetails.TargetConnectionProfileName)
+func writeSessionFile(sessionState *session.SessionState) error {
+
+	err := utils.CreateGCSBucket(sessionState.Bucket, sessionState.GCPProjectID)
 	if err != nil {
-		return fmt.Errorf("error while getting bucket details: %v", err)
+		return fmt.Errorf("error while creating bucket: %v", err)
 	}
+
+	convJSON, err := json.MarshalIndent(sessionState.Conv, "", " ")
+	if err != nil {
+		return fmt.Errorf("can't encode session state to JSON: %v", err)
+	}
+	err = utils.WriteToGCS("gs://"+sessionState.Bucket+sessionState.RootPath, "session.json", string(convJSON))
+	if err != nil {
+		return fmt.Errorf("error while writing to GCS: %v", err)
+	}
+	return nil
+}
+
+func createStreamingCfgFile(sessionState *session.SessionState, targetDetails targetDetails, fileName string) error {
 	data := StreamingCfg{
 		DatastreamCfg: DatastreamCfg{
 			StreamId:          "",
-			StreamLocation:    targetDetails.Region,
+			StreamLocation:    sessionState.Region,
 			StreamDisplayName: "",
 			SourceConnectionConfig: ConnectionConfig{
 				Name:     targetDetails.SourceConnectionProfileName,
-				Location: targetDetails.Region,
+				Location: sessionState.Region,
 			},
 			TargetConnectionConfig: ConnectionConfig{
 				Name:     targetDetails.TargetConnectionProfileName,
-				Location: targetDetails.Region,
+				Location: sessionState.Region,
 			},
 		},
 		DataflowCfg: DataflowCfg{
 			JobName:  "",
-			Location: targetDetails.Region,
+			Location: sessionState.Region,
 		},
-		TmpDir: bucket,
+		TmpDir: "gs://" + sessionState.Bucket + sessionState.RootPath,
 	}
 
 	file, err := json.MarshalIndent(data, "", " ")
@@ -1394,6 +1525,18 @@ func updateIndexes(w http.ResponseWriter, r *http.Request) {
 	newIndexes := []ddl.CreateIndex{}
 	if err = json.Unmarshal(reqBody, &newIndexes); err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+
+	list := []int{}
+	for i := 0; i < len(newIndexes); i++ {
+		for j := 0; j < len(newIndexes[i].Keys); j++ {
+			list = append(list, newIndexes[i].Keys[j].Order)
+		}
+	}
+
+	if utilities.DuplicateInArray(list) != -1 {
+		http.Error(w, fmt.Sprintf("Two Index columns can not have same order"), http.StatusBadRequest)
 		return
 	}
 
@@ -1440,7 +1583,7 @@ func updateIndexes(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.Conv.SrcSchema[table] = st
 
-	helpers.UpdateSessionFile()
+	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -1448,51 +1591,6 @@ func updateIndexes(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
-}
-
-func checkSpannerNamesValidity(input []string) (bool, []string) {
-	status := true
-	var invalidNewNames []string
-	for _, changed := range input {
-		if _, status := internal.FixName(changed); status {
-			status = false
-			invalidNewNames = append(invalidNewNames, changed)
-		}
-	}
-	return status, invalidNewNames
-}
-
-func canRename(names []string, table string) (bool, error) {
-	sessionState := session.GetSessionState()
-
-	namesMap := map[string]bool{}
-	// Check that this name isn't already used by another table.
-	for _, name := range names {
-		namesMap[name] = true
-		if _, ok := sessionState.Conv.SpSchema[name]; ok {
-			return false, fmt.Errorf("new name : '%s' is used by another table", name)
-		}
-	}
-
-	// Check that this name isn't already used by another foreign key.
-	for _, sp := range sessionState.Conv.SpSchema {
-		for _, foreignKey := range sp.Fks {
-			if _, ok := namesMap[foreignKey.Name]; ok {
-				return false, fmt.Errorf("new name : '%s' is used by another foreign key in table : '%s'", foreignKey.Name, sp.Name)
-			}
-
-		}
-	}
-
-	// Check that this name isn't already used by another secondary index.
-	for _, sp := range sessionState.Conv.SpSchema {
-		for _, index := range sp.Indexes {
-			if _, ok := namesMap[index.Name]; ok {
-				return false, fmt.Errorf("new name : '%s' is used by another index in table : '%s'", index.Name, sp.Name)
-			}
-		}
-	}
-	return true, nil
 }
 
 func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
@@ -1531,9 +1629,9 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 
 	index.RemoveIndexIssues(table, sp.Indexes[position])
 
-	sp.Indexes = removeSecondaryIndex(sp.Indexes, position)
+	sp.Indexes = utilities.RemoveSecondaryIndex(sp.Indexes, position)
 	sessionState.Conv.SpSchema[table] = sp
-	helpers.UpdateSessionFile()
+	session.UpdateSessionFile()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -1560,122 +1658,16 @@ func rollback(err error) error {
 	return err
 }
 
-func isPartOfPK(col, table string) bool {
-	sessionState := session.GetSessionState()
-
-	for _, pk := range sessionState.Conv.SpSchema[table].Pks {
-		if pk.Col == col {
-			return true
-		}
-	}
-	return false
-}
-
-func isParent(table string) (bool, string) {
-	sessionState := session.GetSessionState()
-
-	for _, spSchema := range sessionState.Conv.SpSchema {
-		if spSchema.Parent == table {
-			return true, spSchema.Name
-		}
-	}
-	return false, ""
-}
-
-func isPartOfSecondaryIndex(col, table string) (bool, string) {
-	sessionState := session.GetSessionState()
-
-	for _, index := range sessionState.Conv.SpSchema[table].Indexes {
-		for _, key := range index.Keys {
-			if key.Col == col {
-				return true, index.Name
-			}
-		}
-	}
-	return false, ""
-}
-
-func isPartOfFK(col, table string) bool {
-	sessionState := session.GetSessionState()
-
-	for _, fk := range sessionState.Conv.SpSchema[table].Fks {
-		for _, column := range fk.Columns {
-			if column == col {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// TODO: create a map to store referenced column to get
-// this information in O(1).
-// TODO:(searce) can have foreign key constraints between columns of the same table, as well as between same column on a given table.
-func isReferencedByFK(col, table string) (bool, string) {
-	sessionState := session.GetSessionState()
-
-	for _, spSchema := range sessionState.Conv.SpSchema {
-		if table != spSchema.Name {
-			for _, fk := range spSchema.Fks {
-				if fk.ReferTable == table {
-					for _, column := range fk.ReferColumns {
-						if column == col {
-							return true, spSchema.Name
-						}
-					}
-				}
-			}
-		}
-	}
-	return false, ""
-}
-
-func canRemoveColumn(colName, table string) (int, error) {
-	if isPartOfPK := isPartOfPK(colName, table); isPartOfPK {
-		return http.StatusBadRequest, fmt.Errorf("column is part of primary key")
-	}
-	if isPartOfSecondaryIndex, _ := isPartOfSecondaryIndex(colName, table); isPartOfSecondaryIndex {
-		return http.StatusPreconditionFailed, fmt.Errorf("column is part of secondary index, remove secondary index before making the update")
-	}
-	isPartOfFK := isPartOfFK(colName, table)
-	isReferencedByFK, _ := isReferencedByFK(colName, table)
-	if isPartOfFK || isReferencedByFK {
-		return http.StatusPreconditionFailed, fmt.Errorf("column is part of foreign key relation, remove foreign key constraint before making the update")
-	}
-	return http.StatusOK, nil
-}
-
-func canRenameOrChangeType(colName, table string) (int, error) {
-	sessionState := session.GetSessionState()
-
-	isPartOfPK := isPartOfPK(colName, table)
-	isParent, childSchema := isParent(table)
-	isChild := sessionState.Conv.SpSchema[table].Parent != ""
-	if isPartOfPK && (isParent || isChild) {
-		return http.StatusBadRequest, fmt.Errorf("column : '%s' in table : '%s' is part of parent-child relation with schema : '%s'", colName, table, childSchema)
-	}
-	if isPartOfSecondaryIndex, indexName := isPartOfSecondaryIndex(colName, table); isPartOfSecondaryIndex {
-		return http.StatusPreconditionFailed, fmt.Errorf("column : '%s' in table : '%s' is part of secondary index : '%s', remove secondary index before making the update",
-			colName, table, indexName)
-	}
-	isPartOfFK := isPartOfFK(colName, table)
-	isReferencedByFK, relationTable := isReferencedByFK(colName, table)
-	if isPartOfFK || isReferencedByFK {
-		if isReferencedByFK {
-			return http.StatusPreconditionFailed, fmt.Errorf("column : '%s' in table : '%s' is part of foreign key relation with table : '%s', remove foreign key constraint before making the update",
-				colName, table, relationTable)
-		}
-		return http.StatusPreconditionFailed, fmt.Errorf("column : '%s' in table : '%s' is part of foreign keys, remove foreign key constraint before making the update",
-			colName, table)
-	}
-	return http.StatusOK, nil
-}
-
 func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tableInterleaveStatus *TableInterleaveStatus) bool {
 
 	sessionState := session.GetSessionState()
 	childPks := sessionState.Conv.SpSchema[table].Pks
 	parentPks := sessionState.Conv.SpSchema[refTable].Pks
+
+	childPkCols := []string{}
+	for _, k := range childPks {
+		childPkCols = append(childPkCols, k.Col)
+	}
 
 	interleaved := []ddl.IndexKey{}
 
@@ -1713,45 +1705,26 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 
 	}
 
-	caninterleaved := []string{}
+	canInterleavedOnAdd := []string{}
+	canInterleavedOnRename := []string{}
 	for i := 0; i < len(diff); i++ {
 
-		str := utilities.IsColumnPresent(fk.ReferColumns, diff[i].Col)
-
-		caninterleaved = append(caninterleaved, str)
+		parentColIndex := utilities.IsColumnPresent(fk.ReferColumns, diff[i].Col)
+		if parentColIndex == -1 {
+			continue
+		}
+		childColIndex := utilities.IsColumnPresent(childPkCols, fk.Columns[parentColIndex])
+		if childColIndex == -1 {
+			canInterleavedOnAdd = append(canInterleavedOnAdd, fk.Columns[parentColIndex])
+		} else {
+			canInterleavedOnRename = append(canInterleavedOnRename, fk.Columns[parentColIndex])
+		}
 	}
 
-	if len(caninterleaved) > 0 {
-
-		for i := 0; i < len(caninterleaved); i++ {
-
-			sessionState := session.GetSessionState()
-
-			schemaissue := []internal.SchemaIssue{}
-
-			schemaissue = sessionState.Conv.Issues[table][caninterleaved[i]]
-
-			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
-			schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
-
-			schemaissue = append(schemaissue, internal.InterleavedAddColumn)
-
-			if len(schemaissue) > 0 {
-
-				if sessionState.Conv.Issues[table] == nil {
-
-					s := map[string][]internal.SchemaIssue{
-						caninterleaved[i]: schemaissue,
-					}
-					sessionState.Conv.Issues[table] = s
-				} else {
-					sessionState.Conv.Issues[table][caninterleaved[i]] = schemaissue
-				}
-
-			}
-
-		}
+	if len(canInterleavedOnRename) > 0 {
+		updateInterleaveSuggestion(canInterleavedOnRename, table, internal.InterleavedRenameColumn)
+	} else if len(canInterleavedOnAdd) > 0 {
+		updateInterleaveSuggestion(canInterleavedOnAdd, table, internal.InterleavedAddColumn)
 	}
 
 	if len(interleaved) > 0 {
@@ -1761,222 +1734,35 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 	return false
 }
 
-func getPrimaryKeyIndexFromOrder(pk []ddl.IndexKey, order int) int {
+func updateInterleaveSuggestion(columns []string, table string, issue internal.SchemaIssue) {
+	for i := 0; i < len(columns); i++ {
 
-	for i := 0; i < len(pk); i++ {
-		if pk[i].Order == order {
-			return i
-		}
-	}
-	return -1
-}
+		sessionState := session.GetSessionState()
 
-func isUniqueName(name string) bool {
-	sessionState := session.GetSessionState()
+		schemaissue := []internal.SchemaIssue{}
 
-	for table := range sessionState.Conv.SpSchema {
-		if table == name {
-			return false
-		}
-	}
-	for _, spSchema := range sessionState.Conv.SpSchema {
-		for _, fk := range spSchema.Fks {
-			if fk.Name == name {
-				return false
+		schemaissue = sessionState.Conv.Issues[table][columns[i]]
+
+		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
+		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
+		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
+
+		schemaissue = append(schemaissue, issue)
+
+		if len(schemaissue) > 0 {
+
+			if sessionState.Conv.Issues[table] == nil {
+
+				s := map[string][]internal.SchemaIssue{
+					columns[i]: schemaissue,
+				}
+				sessionState.Conv.Issues[table] = s
+			} else {
+				sessionState.Conv.Issues[table][columns[i]] = schemaissue
 			}
 		}
-		for _, index := range spSchema.Indexes {
-			if index.Name == name {
-				return false
-			}
-		}
 	}
-	return true
-}
-
-func remove(slice []string, s int) []string {
-	return append(slice[:s], slice[s+1:]...)
-}
-
-func removePk(slice []ddl.IndexKey, s int) []ddl.IndexKey {
-	return append(slice[:s], slice[s+1:]...)
-}
-
-func removeFk(slice []ddl.Foreignkey, s int) []ddl.Foreignkey {
-	return append(slice[:s], slice[s+1:]...)
-}
-
-func removeSecondaryIndex(slice []ddl.CreateIndex, s int) []ddl.CreateIndex {
-	return append(slice[:s], slice[s+1:]...)
-}
-
-func removeColumn(table string, colName string, srcTableName string) {
-	sessionState := session.GetSessionState()
-
-	sp := sessionState.Conv.SpSchema[table]
-	for i, col := range sp.ColNames {
-		if col == colName {
-			sp.ColNames = remove(sp.ColNames, i)
-			break
-		}
-	}
-	delete(sp.ColDefs, colName)
-	for i, pk := range sp.Pks {
-		if pk.Col == colName {
-			sp.Pks = removePk(sp.Pks, i)
-			break
-		}
-	}
-	srcColName := sessionState.Conv.ToSource[table].Cols[colName]
-	delete(sessionState.Conv.ToSource[table].Cols, colName)
-	delete(sessionState.Conv.ToSpanner[srcTableName].Cols, srcColName)
-	delete(sessionState.Conv.Issues[srcTableName], srcColName)
-	sessionState.Conv.SpSchema[table] = sp
-}
-
-func renameColumn(newName, table, colName, srcTableName string) {
-	sessionState := session.GetSessionState()
-
-	sp := sessionState.Conv.SpSchema[table]
-	for i, col := range sp.ColNames {
-		if col == colName {
-			sp.ColNames[i] = newName
-			break
-		}
-	}
-	if _, found := sp.ColDefs[colName]; found {
-		sp.ColDefs[newName] = ddl.ColumnDef{
-			Name:    newName,
-			T:       sp.ColDefs[colName].T,
-			NotNull: sp.ColDefs[colName].NotNull,
-			Comment: sp.ColDefs[colName].Comment,
-			Id:      sp.ColDefs[colName].Id,
-		}
-		delete(sp.ColDefs, colName)
-	}
-	for i, pk := range sp.Pks {
-		if pk.Col == colName {
-			sp.Pks[i].Col = newName
-			break
-		}
-	}
-	srcColName := sessionState.Conv.ToSource[table].Cols[colName]
-	sessionState.Conv.ToSpanner[srcTableName].Cols[srcColName] = newName
-	sessionState.Conv.ToSource[table].Cols[newName] = srcColName
-	delete(sessionState.Conv.ToSource[table].Cols, colName)
-	sessionState.Conv.SpSchema[table] = sp
-}
-
-func updateType(newType, table, colName, srcTableName string, w http.ResponseWriter) {
-	sp, ty, err := getType(newType, table, colName, srcTableName)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	colDef := sp.ColDefs[colName]
-	colDef.T = ty
-	sp.ColDefs[colName] = colDef
-}
-
-func isTypeChanged(newType, table, colName, srcTableName string) (bool, error) {
-	sp, ty, err := getType(newType, table, colName, srcTableName)
-	if err != nil {
-		return false, err
-	}
-	colDef := sp.ColDefs[colName]
-	return !reflect.DeepEqual(colDef.T, ty), nil
-}
-
-func getType(newType, table, colName string, srcTableName string) (ddl.CreateTable, ddl.Type, error) {
-	sessionState := session.GetSessionState()
-
-	sp := sessionState.Conv.SpSchema[table]
-	srcColName := sessionState.Conv.ToSource[table].Cols[colName]
-	srcCol := sessionState.Conv.SrcSchema[srcTableName].ColDefs[srcColName]
-	var ty ddl.Type
-	var issues []internal.SchemaIssue
-	switch sessionState.Driver {
-	case constants.MYSQL, constants.MYSQLDUMP:
-		ty, issues = toSpannerTypeMySQL(srcCol.Type.Name, newType, srcCol.Type.Mods)
-	case constants.PGDUMP, constants.POSTGRES:
-		ty, issues = toSpannerTypePostgres(srcCol.Type.Name, newType, srcCol.Type.Mods)
-	case constants.SQLSERVER:
-		ty, issues = toSpannerTypeSQLserver(srcCol.Type.Name, newType, srcCol.Type.Mods)
-	case constants.ORACLE:
-		ty, issues = oracle.ToSpannerTypeWeb(sessionState.Conv, newType, srcCol.Type.Name, srcCol.Type.Mods)
-	default:
-		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.Driver)
-	}
-	if len(srcCol.Type.ArrayBounds) > 1 {
-		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-		issues = append(issues, internal.MultiDimensionalArray)
-	}
-	if srcCol.Ignored.Default {
-		issues = append(issues, internal.DefaultValue)
-	}
-	if srcCol.Ignored.AutoIncrement {
-		issues = append(issues, internal.AutoIncrement)
-	}
-	if sessionState.Conv.Issues != nil && len(issues) > 0 {
-		sessionState.Conv.Issues[srcTableName][srcCol.Name] = issues
-	}
-	ty.IsArray = len(srcCol.Type.ArrayBounds) == 1
-	return sp, ty, nil
-}
-
-func updateNotNull(notNullChange, table, colName string) {
-	sessionState := session.GetSessionState()
-
-	sp := sessionState.Conv.SpSchema[table]
-	switch notNullChange {
-	case "ADDED":
-		spColDef := sp.ColDefs[colName]
-		spColDef.NotNull = true
-		sp.ColDefs[colName] = spColDef
-	case "REMOVED":
-		spColDef := sp.ColDefs[colName]
-		spColDef.NotNull = false
-		sp.ColDefs[colName] = spColDef
-	}
-}
-
-func rateSchema(cols, warnings int64, missingPKey bool) string {
-	good := func(total, badCount int64) bool { return badCount < total/20 }
-	ok := func(total, badCount int64) bool { return badCount < total/3 }
-	switch {
-	case cols == 0:
-		return "GRAY"
-	case warnings == 0 && !missingPKey:
-		return "GREEN"
-	case warnings == 0 && missingPKey:
-		return "BLUE"
-	case good(cols, warnings) && !missingPKey:
-		return "BLUE"
-	case good(cols, warnings) && missingPKey:
-		return "BLUE"
-	case ok(cols, warnings) && !missingPKey:
-		return "YELLOW"
-	case ok(cols, warnings) && missingPKey:
-		return "YELLOW"
-	case !missingPKey:
-		return "ORANGE"
-	default:
-		return "ORANGE"
-	}
-}
-
-func getFilePrefix(now time.Time) (string, error) {
-	sessionState := session.GetSessionState()
-
-	dbName := sessionState.DbName
-	var err error
-	if dbName == "" {
-		dbName, err = utils.GetDatabaseName(sessionState.Driver, now)
-		if err != nil {
-			return "", fmt.Errorf("Can not create database name : %v", err)
-		}
-	}
-	return dbName + ".", nil
 }
 
 // SessionState stores information for the current migration session.
@@ -1992,6 +1778,17 @@ type SessionState struct {
 type typeIssue struct {
 	T     string
 	Brief string
+}
+
+type GeneratedResources struct {
+	DatabaseName      string
+	DatabaseUrl       string
+	BucketName        string
+	BucketUrl         string
+	DataStreamJobName string
+	DataStreamJobUrl  string
+	DataflowJobName   string
+	DataflowJobUrl    string
 }
 
 func addTypeToList(convertedType string, spType string, issues []internal.SchemaIssue, l []typeIssue) []typeIssue {
@@ -2018,7 +1815,7 @@ func init() {
 	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
-			ty, issues := toSpannerTypeMySQL(srcType, spType, []int64{})
+			ty, issues := typemap.ToSpannerTypeMySQL(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		if srcType == "tinyint" {
@@ -2030,7 +1827,7 @@ func init() {
 	for _, srcType := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
-			ty, issues := toSpannerTypePostgres(srcType, spType, []int64{})
+			ty, issues := typemap.ToSpannerTypePostgres(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		postgresTypeMap[srcType] = l
@@ -2040,7 +1837,7 @@ func init() {
 	for _, srcType := range []string{"int", "tinyint", "smallint", "bigint", "bit", "float", "real", "numeric", "decimal", "money", "smallmoney", "char", "nchar", "varchar", "nvarchar", "text", "ntext", "date", "datetime", "datetime2", "smalldatetime", "datetimeoffset", "time", "timestamp", "rowversion", "binary", "varbinary", "image", "xml", "geography", "geometry", "uniqueidentifier", "sql_variant", "hierarchyid"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
-			ty, issues := toSpannerTypeSQLserver(srcType, spType, []int64{})
+			ty, issues := typemap.ToSpannerTypeSQLserver(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		sqlserverTypeMap[srcType] = l
@@ -2065,6 +1862,6 @@ func init() {
 func App() {
 	addr := ":8080"
 	router := getRoutes()
-	fmt.Println("Server listening on Port", addr)
+	fmt.Println("Harbourbridge UI started at:", fmt.Sprintf("http://localhost%s", addr))
 	log.Fatal(http.ListenAndServe(addr, handlers.CORS(handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}), handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"}), handlers.AllowedOrigins([]string{"*"}))(router)))
 }

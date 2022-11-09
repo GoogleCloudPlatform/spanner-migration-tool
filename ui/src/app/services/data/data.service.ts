@@ -7,12 +7,12 @@ import { catchError, filter, map, tap } from 'rxjs/operators'
 import IUpdateTable from 'src/app/model/update-table'
 import IDumpConfig from 'src/app/model/dump-config'
 import ISessionConfig from '../../model/session-config'
-import { InputType, StorageKeys } from 'src/app/app.constants'
 import ISession from 'src/app/model/session'
 import ISpannerConfig from '../../model/spanner-config'
 import { SnackbarService } from '../snackbar/snackbar.service'
 import ISummary from 'src/app/model/summary'
 import { ClickEventService } from '../click-event/click-event.service'
+import { TableUpdatePubSubService } from '../table-update-pub-sub/table-update-pub-sub.service'
 
 @Injectable({
   providedIn: 'root',
@@ -37,7 +37,7 @@ export class DataService {
     .asObservable()
     .pipe(filter((res) => Object.keys(res).length !== 0))
   typeMap = this.typeMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
-  summary = this.summarySub.asObservable().pipe(filter((res) => res.size > 0))
+  summary = this.summarySub.asObservable().pipe(filter((res) => res.size >= 0))
   ddl = this.ddlSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   tableInterleaveStatus = this.tableInterleaveStatusSub.asObservable()
   sessions = this.sessionsSub.asObservable()
@@ -50,7 +50,8 @@ export class DataService {
   constructor(
     private fetch: FetchService,
     private snackbar: SnackbarService,
-    private clickEvent: ClickEventService
+    private clickEvent: ClickEventService,
+    private tableUpdatePubSub: TableUpdatePubSubService
   ) {
     this.getLastSessionDetails()
     this.getConfig()
@@ -169,6 +170,23 @@ export class DataService {
     })
   }
 
+  reviewTableUpdate(tableName: string, data: IUpdateTable): Observable<string> {
+    return this.fetch.reviewTableUpdate(tableName, data).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data: any) => {
+        if (data.error) {
+          return data.error
+        } else {
+          this.tableUpdatePubSub.setTableReviewChanges(data)
+          return ''
+        }
+      })
+    )
+  }
+
   updateTable(tableName: string, data: IUpdateTable): Observable<string> {
     return this.fetch.updateTable(tableName, data).pipe(
       catchError((e: any) => {
@@ -236,6 +254,7 @@ export class DataService {
           return data.error
         } else {
           this.convSubject.next(data)
+          this.getDdl()
           return ''
         }
       })
@@ -253,6 +272,7 @@ export class DataService {
           return data.error
         } else {
           this.convSubject.next(data)
+          this.getDdl()
           return ''
         }
       })
@@ -270,6 +290,7 @@ export class DataService {
           return data.error
         } else {
           this.convSubject.next(data)
+          this.getDdl()
           return ''
         }
       })
@@ -329,16 +350,21 @@ export class DataService {
     })
   }
   updateIndex(tableName: string, payload: ICreateIndex[]) {
-    this.fetch.updateIndex(tableName, payload).subscribe({
-      next: (res: IConv) => {
-        this.convSubject.next(res)
-        this.getDdl()
-        this.snackbar.openSnackBar('Index updated successfully.', 'Close', 5)
-      },
-      error: (err: any) => {
-        this.snackbar.openSnackBar(err.error, 'Close')
-      },
-    })
+    return this.fetch.updateIndex(tableName, payload).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data: any) => {
+        if (data.error) {
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          this.getDdl()
+          return ''
+        }
+      })
+    )
   }
 
   dropIndex(tableName: string, indexName: string): Observable<string> {
@@ -370,6 +396,9 @@ export class DataService {
   setInterleave(tableName: string) {
     this.fetch.setInterleave(tableName).subscribe((res: any) => {
       this.getDdl()
+      if (res.sessionState) {
+        this.convSubject.next(res.sessionState as IConv)
+      }
     })
   }
 }

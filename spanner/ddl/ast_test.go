@@ -88,7 +88,7 @@ func TestPrintColumnDefPG(t *testing.T) {
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}}, expected: "col1 VARCHAR(2621440)"},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}, NotNull: true}, expected: "col1 INT8 NOT NULL"},
 		{in: ColumnDef{Name: "col1", T: Type{Name: Int64, IsArray: true}, NotNull: true}, expected: "col1 VARCHAR(2621440) NOT NULL"},
-		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, protectIds: true, expected: "\"col1\" INT8"},
+		{in: ColumnDef{Name: "col1", T: Type{Name: Int64}}, protectIds: true, expected: "col1 INT8"},
 	}
 	for _, tc := range tests {
 		s, _ := tc.in.PrintColumnDef(Config{ProtectIds: tc.protectIds, TargetDb: constants.TargetExperimentalPostgres})
@@ -106,7 +106,7 @@ func TestPrintIndexKey(t *testing.T) {
 		{in: IndexKey{Col: "col1"}, expected: "col1"},
 		{in: IndexKey{Col: "col1", Desc: true}, expected: "col1 DESC"},
 		{in: IndexKey{Col: "col1"}, protectIds: true, expected: "`col1`"},
-		{in: IndexKey{Col: "col1"}, protectIds: true, targetDb: constants.TargetExperimentalPostgres, expected: "\"col1\""},
+		{in: IndexKey{Col: "col1"}, protectIds: true, targetDb: constants.TargetExperimentalPostgres, expected: "col1"},
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.in.PrintIndexKey(Config{ProtectIds: tc.protectIds, TargetDb: tc.targetDb}))
@@ -231,11 +231,11 @@ func TestPrintCreateTablePG(t *testing.T) {
 			"quote",
 			true,
 			t1,
-			"CREATE TABLE \"mytable\" (\n" +
-				"	\"col1\" INT8 NOT NULL,\n" +
-				"	\"col2\" VARCHAR(2621440),\n" +
-				"	\"col3\" BYTEA,\n" +
-				"	PRIMARY KEY (\"col1\" DESC)\n" +
+			"CREATE TABLE mytable (\n" +
+				"	col1 INT8 NOT NULL,\n" +
+				"	col2 VARCHAR(2621440),\n" +
+				"	col3 BYTEA,\n" +
+				"	PRIMARY KEY (col1 DESC)\n" +
 				")",
 		},
 		{
@@ -283,8 +283,8 @@ func TestPrintCreateIndex(t *testing.T) {
 		{"no quote non unique", false, "", ci[0], "CREATE INDEX myindex ON mytable (col1 DESC, col2)"},
 		{"quote non unique", true, "", ci[0], "CREATE INDEX `myindex` ON `mytable` (`col1` DESC, `col2`)"},
 		{"unique key", true, "", ci[1], "CREATE UNIQUE INDEX `myindex2` ON `mytable` (`col1` DESC, `col2`)"},
-		{"quote non unique PG", true, constants.TargetExperimentalPostgres, ci[0], "CREATE INDEX \"myindex\" ON \"mytable\" (\"col1\" DESC, \"col2\")"},
-		{"unique key PG", true, constants.TargetExperimentalPostgres, ci[1], "CREATE UNIQUE INDEX \"myindex2\" ON \"mytable\" (\"col1\" DESC, \"col2\")"},
+		{"quote non unique PG", true, constants.TargetExperimentalPostgres, ci[0], "CREATE INDEX myindex ON mytable (col1 DESC, col2)"},
+		{"unique key PG", true, constants.TargetExperimentalPostgres, ci[1], "CREATE UNIQUE INDEX myindex2 ON mytable (col1 DESC, col2)"},
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.index.PrintCreateIndex(Config{ProtectIds: tc.protectIds, TargetDb: tc.targetDb}))
@@ -318,7 +318,7 @@ func TestPrintForeignKey(t *testing.T) {
 		{"no quote", false, "", "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2)", fk[0]},
 		{"quote", true, "", "CONSTRAINT `fk_test` FOREIGN KEY (`c1`, `c2`) REFERENCES `ref_table` (`ref_c1`, `ref_c2`)", fk[0]},
 		{"no constraint name", false, "", "FOREIGN KEY (c1) REFERENCES ref_table (ref_c1)", fk[1]},
-		{"quote PG", true, constants.TargetExperimentalPostgres, "CONSTRAINT \"fk_test\" FOREIGN KEY (\"c1\", \"c2\") REFERENCES \"ref_table\" (\"ref_c1\", \"ref_c2\")", fk[0]},
+		{"quote PG", true, constants.TargetExperimentalPostgres, "CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2)", fk[0]},
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.fk.PrintForeignKey(Config{ProtectIds: tc.protectIds, TargetDb: tc.targetDb}))
@@ -353,7 +353,7 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 		{"no quote", "table1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2)", fk[0]},
 		{"quote", "table1", true, "", "ALTER TABLE `table1` ADD CONSTRAINT `fk_test` FOREIGN KEY (`c1`, `c2`) REFERENCES `ref_table` (`ref_c1`, `ref_c2`)", fk[0]},
 		{"no constraint name", "table1", false, "", "ALTER TABLE table1 ADD FOREIGN KEY (c1) REFERENCES ref_table (ref_c1)", fk[1]},
-		{"quote PG", "table1", true, constants.TargetExperimentalPostgres, "ALTER TABLE \"table1\" ADD CONSTRAINT \"fk_test\" FOREIGN KEY (\"c1\", \"c2\") REFERENCES \"ref_table\" (\"ref_c1\", \"ref_c2\")", fk[0]},
+		{"quote PG", "table1", true, constants.TargetExperimentalPostgres, "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2)", fk[0]},
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, tc.fk.PrintForeignKeyAlterTable(Config{ProtectIds: tc.protectIds, TargetDb: tc.targetDb}, tc.table))

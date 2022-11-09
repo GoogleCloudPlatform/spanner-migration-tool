@@ -30,12 +30,13 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 )
 
 const (
-	numWorkers int32 = 50
-	maxWorkers int32 = 50
+	numWorkers int32 = 10
+	maxWorkers int32 = 10
 )
 
 type SrcConnCfg struct {
@@ -255,8 +256,48 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, pro
 	return nil
 }
 
+func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, region string) error {
+	c, err := dataflow.NewJobsV1Beta3Client(ctx)
+	if err != nil {
+		return fmt.Errorf("could not create job client: %v", err)
+	}
+	defer c.Close()
+	fmt.Println("Created dataflow job client...")
+
+	job := &dataflowpb.Job{
+		Id:             conv.Audit.StreamingStats.DataflowJobId,
+		ProjectId:      projectID,
+		RequestedState: dataflowpb.JobState_JOB_STATE_CANCELLED,
+	}
+
+	dfReq := &dataflowpb.UpdateJobRequest{
+		ProjectId: projectID,
+		JobId:     conv.Audit.StreamingStats.DataflowJobId,
+		Location:  region,
+		Job:       job,
+	}
+	_, err = c.UpdateJob(ctx, dfReq)
+	if err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("error while cancelling dataflow job: %v", err)
+	}
+	dsClient, err := datastream.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("datastream client can not be created: %v", err)
+	}
+	defer dsClient.Close()
+	req := &datastreampb.DeleteStreamRequest{
+		Name: fmt.Sprintf("projects/%s/locations/%s/streams/%s", projectID, region, conv.Audit.StreamingStats.DataStreamName),
+	}
+	_, err = dsClient.DeleteStream(ctx, req)
+	if err != nil {
+		return fmt.Errorf("error while deleting datastream job: %v", err)
+	}
+	return nil
+}
+
 // LaunchDataflowJob populates the parameters from the streaming config and triggers a Dataflow job.
-func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg) error {
+func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) error {
 	project, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil)
 	dataflowCfg := streamingCfg.DataflowCfg
 	datastreamCfg := streamingCfg.DatastreamCfg
@@ -314,6 +355,8 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		fmt.Printf("flexTemplateRequest: %+v\n", req)
 		return fmt.Errorf("unable to launch template: %v", err)
 	}
+	conv.Audit.StreamingStats.DataStreamName = datastreamCfg.StreamId
+	conv.Audit.StreamingStats.DataflowJobId = respDf.Job.Id
 	fullStreamName := fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
 	dfJobDetails := fmt.Sprintf("project: %s, location: %s, name: %s, id: %s", project, respDf.Job.Location, respDf.Job.Name, respDf.Job.Id)
 	fmt.Println("\n------------------------------------------\n" +
@@ -346,8 +389,8 @@ func StartDatastream(ctx context.Context, sourceProfile profiles.SourceProfile, 
 	return streamingCfg, nil
 }
 
-func StartDataflow(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg) error {
-	err := LaunchDataflowJob(ctx, targetProfile, streamingCfg)
+func StartDataflow(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) error {
+	err := LaunchDataflowJob(ctx, targetProfile, streamingCfg, conv)
 	if err != nil {
 		return fmt.Errorf("error launching dataflow: %v", err)
 	}

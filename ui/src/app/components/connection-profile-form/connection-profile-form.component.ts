@@ -13,7 +13,6 @@ import { SnackbarService } from 'src/app/services/snackbar/snackbar.service';
 })
 export class ConnectionProfileFormComponent implements OnInit {
   connectionProfileForm: FormGroup
-  selectedRegion: string = localStorage.getItem(TargetDetails.Region) as string
   selectedProfile: string = ''
   profileType: string = Profile.SourceProfileType
   profileList: IConnectionProfile[] = []
@@ -42,11 +41,8 @@ export class ConnectionProfileFormComponent implements OnInit {
       profileOption: ['', Validators.required],
       newProfile: [],
       existingProfile: [],
-      bucket: [],
     })
-    if (this.selectedRegion != '') {
-      this.getConnectionProfilesAndIps(localStorage.getItem(TargetDetails.Region) as string)
-    }
+    this.getConnectionProfilesAndIps()
   }
 
   onItemChange(optionValue: string) {
@@ -54,15 +50,11 @@ export class ConnectionProfileFormComponent implements OnInit {
     if (this.selectedOption == Profile.NewConnProfile) {
       this.connectionProfileForm.get('newProfile')?.setValidators([Validators.required])
       this.connectionProfileForm.controls['existingProfile'].clearValidators()
-      this.connectionProfileForm.get('bucket')?.setValidators([Validators.required])
-      this.connectionProfileForm.controls['bucket'].updateValueAndValidity()
       this.connectionProfileForm.controls['newProfile'].updateValueAndValidity()
       this.connectionProfileForm.controls['existingProfile'].updateValueAndValidity()
     } else {
       this.connectionProfileForm.controls['newProfile'].clearValidators()
       this.connectionProfileForm.get('existingProfile')?.addValidators([Validators.required])
-      this.connectionProfileForm.get('bucket')?.clearValidators()
-      this.connectionProfileForm.controls['bucket'].updateValueAndValidity()
       this.connectionProfileForm.controls['newProfile'].updateValueAndValidity()
       this.connectionProfileForm.controls['existingProfile'].updateValueAndValidity()
     }
@@ -71,10 +63,8 @@ export class ConnectionProfileFormComponent implements OnInit {
     let formValue = this.connectionProfileForm.value
     let payload: ICreateConnectionProfile = {
       Id: formValue.newProfile,
-      Region: this.selectedRegion,
       IsSource: this.isSource,
-      ValidateOnly: true,
-      Bucket: formValue.bucket
+      ValidateOnly: true
     }
     this.fetch.createConnectionProfile(payload).subscribe({
       next: () => {
@@ -82,6 +72,7 @@ export class ConnectionProfileFormComponent implements OnInit {
       },
       error: (err: any) => {
         this.testSuccess = false
+        console.log(err)
         this.errorMsg = err
       },
     })
@@ -91,10 +82,8 @@ export class ConnectionProfileFormComponent implements OnInit {
     if (this.selectedOption === Profile.NewConnProfile) {
       let payload: ICreateConnectionProfile = {
         Id: formValue.newProfile,
-        Region: this.selectedRegion,
         IsSource: this.isSource,
-        ValidateOnly: false,
-        Bucket: formValue.bucket
+        ValidateOnly: false
       }
       this.fetch.createConnectionProfile(payload).subscribe({
         next: () => {
@@ -125,8 +114,8 @@ export class ConnectionProfileFormComponent implements OnInit {
   }
   ngOnInit(): void { }
 
-  getConnectionProfilesAndIps(selectedRegion: string) {
-    this.fetch.getConnectionProfiles(selectedRegion, this.isSource).subscribe({
+  getConnectionProfilesAndIps() {
+    this.fetch.getConnectionProfiles(this.isSource).subscribe({
       next: (res: IConnectionProfile[]) => {
         this.profileList = res
       },
@@ -135,7 +124,7 @@ export class ConnectionProfileFormComponent implements OnInit {
       },
     })
     if (this.isSource) {
-      this.fetch.getStaticIps(selectedRegion).subscribe({
+      this.fetch.getStaticIps().subscribe({
         next: (res: string[]) => {
           this.ipList = res
         },
