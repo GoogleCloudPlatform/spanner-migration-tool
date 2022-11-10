@@ -507,9 +507,13 @@ export class ObjectDetailComponent implements OnInit {
       }
     })
     for (let i = 0; i < this.localTableData.length; i++) {
-      if (!currentPkColumns.includes(this.localTableData[i].spColName))
+      if (
+        !currentPkColumns.includes(this.localTableData[i].spColName) &&
+        this.localTableData[i].spColName !== ''
+      )
         this.pkColumnNames.push(this.localTableData[i].spColName)
     }
+    console.log(this.pkColumnNames)
   }
 
   setPkOrder() {
