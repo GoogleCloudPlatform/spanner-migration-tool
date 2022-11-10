@@ -269,11 +269,15 @@ export class ObjectDetailComponent implements OnInit {
     let updateData: IUpdateTable = { UpdateCols: {} }
 
     this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
-      for (let j = 0; j < this.localTableData.length; j++) {
-        if (col.srcColName == this.localTableData[j].srcColName) {
-          let oldRow = this.localTableData[j]
-          updateData.UpdateCols[this.localTableData[j].spColName] = {
-            Add: this.localTableData[j].spOrder == -1,
+      for (let j = 0; j < this.tableData.length; j++) {
+        if (col.srcColName == this.tableData[j].srcColName) {
+          let oldRow = this.tableData[j]
+          let columnName =
+            this.tableData[j].spColName == ''
+              ? this.tableData[j].srcColName
+              : this.tableData[j].spColName
+          updateData.UpdateCols[columnName] = {
+            Add: this.tableData[j].spColName == '',
             Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
             NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
             Removed: false,
@@ -319,16 +323,16 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   addColumn() {
-    let index = this.tableData.map((item) => item.srcColName).indexOf(this.addedColumnName)
+    let index = this.localTableData.map((item) => item.srcColName).indexOf(this.addedColumnName)
 
     let addedRowIndex = this.droppedColumns
       .map((item) => item.srcColName)
       .indexOf(this.addedColumnName)
-    this.tableData[index].spColName = this.droppedColumns[addedRowIndex].spColName
-    this.tableData[index].spDataType = this.droppedColumns[addedRowIndex].spDataType
-    this.tableData[index].spOrder = -1
-    this.tableData[index].spIsPk = this.droppedColumns[addedRowIndex].spIsPk
-    this.tableData[index].spIsNotNull = this.droppedColumns[addedRowIndex].spIsNotNull
+    this.localTableData[index].spColName = this.droppedColumns[addedRowIndex].spColName
+    this.localTableData[index].spDataType = this.droppedColumns[addedRowIndex].spDataType
+    this.localTableData[index].spOrder = 3
+    this.localTableData[index].spIsPk = this.droppedColumns[addedRowIndex].spIsPk
+    this.localTableData[index].spIsNotNull = this.droppedColumns[addedRowIndex].spIsNotNull
     let ind = this.droppedColumns
       .map((col: IColumnTabData) => col.spColName)
       .indexOf(this.addedColumnName)
