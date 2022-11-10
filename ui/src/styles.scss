@@ -63,6 +63,7 @@ body {
 .orange {
   color: rgb(248, 116, 68);
 }
+
 .dark {
   color: rgb(77, 75, 75);
 }
@@ -316,4 +317,16 @@ body {
   display: inline-block;
   font-size: 20px;
   margin-left: 10px;
+}
+
+.display {
+  display: block !important;
+}
+
+.hidden {
+  display: none !important;
+}
+.spanner-tab-link {
+  color: #1967d2;
+  font-weight: 400;
 }
