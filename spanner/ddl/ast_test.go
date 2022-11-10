@@ -97,28 +97,19 @@ func TestPrintColumnDefPG(t *testing.T) {
 }
 
 func TestPrintIndexKey(t *testing.T) {
-	ct := CreateTable{
-		Name:   "table1",
-		Id:     "t1",
-		ColIds: []string{"c1", "c2"},
-		ColDefs: map[string]ColumnDef{
-			"c1": {Name: "col1", Id: "c1"},
-			"c2": {Name: "col2", Id: "c2"},
-		},
-	}
 	tests := []struct {
 		in         IndexKey
 		protectIds bool
 		targetDb   string
 		expected   string
 	}{
-		{in: IndexKey{ColId: "c1"}, expected: "col1"},
-		{in: IndexKey{ColId: "c1", Desc: true}, expected: "col1 DESC"},
-		{in: IndexKey{ColId: "c1"}, protectIds: true, expected: "`col1`"},
-		{in: IndexKey{ColId: "c1"}, protectIds: true, targetDb: constants.TargetExperimentalPostgres, expected: "col1"},
+		{in: IndexKey{ColId: "col1"}, expected: "col1"},
+		{in: IndexKey{ColId: "col1", Desc: true}, expected: "col1 DESC"},
+		{in: IndexKey{ColId: "col1"}, protectIds: true, expected: "`col1`"},
+		{in: IndexKey{ColId: "col1"}, protectIds: true, targetDb: constants.TargetExperimentalPostgres, expected: "col1"},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.in.PrintIndexKey(ct, Config{ProtectIds: tc.protectIds, TargetDb: tc.targetDb}))
+		assert.Equal(t, tc.expected, tc.in.PrintIndexKey(Config{ProtectIds: tc.protectIds, TargetDb: tc.targetDb}))
 	}
 }
 
@@ -265,30 +256,21 @@ func TestPrintCreateTablePG(t *testing.T) {
 }
 
 func TestPrintCreateIndex(t *testing.T) {
-	ct := CreateTable{
-		Name:   "mytable",
-		Id:     "t1",
-		ColIds: []string{"c1", "c2"},
-		ColDefs: map[string]ColumnDef{
-			"c1": {Name: "col1", Id: "c1"},
-			"c2": {Name: "col2", Id: "c2"},
-		},
-	}
 	ci := []CreateIndex{
 		{
 			"myindex",
-			"t1",
+			"mytable",
 			/*Unique =*/ false,
-			[]IndexKey{{ColId: "c1", Desc: true}, {ColId: "c2"}},
-			"i1",
+			[]IndexKey{{ColId: "col1", Desc: true}, {ColId: "col2"}},
+			"1",
 			nil,
 		},
 		{
 			"myindex2",
-			"t1",
+			"mytable",
 			/*Unique =*/ true,
-			[]IndexKey{{ColId: "c1", Desc: true}, {ColId: "c2"}},
-			"i2",
+			[]IndexKey{{ColId: "col1", Desc: true}, {ColId: "col2"}},
+			"1",
 			nil,
 		}}
 	tests := []struct {
@@ -305,7 +287,7 @@ func TestPrintCreateIndex(t *testing.T) {
 		{"unique key PG", true, constants.TargetExperimentalPostgres, ci[1], "CREATE UNIQUE INDEX myindex2 ON mytable (col1 DESC, col2)"},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.index.PrintCreateIndex(ct, Config{ProtectIds: tc.protectIds, TargetDb: tc.targetDb}))
+		assert.Equal(t, tc.expected, tc.index.PrintCreateIndex(Config{ProtectIds: tc.protectIds, TargetDb: tc.targetDb}))
 	}
 }
 
@@ -344,42 +326,22 @@ func TestPrintForeignKey(t *testing.T) {
 }
 
 func TestPrintForeignKeyAlterTable(t *testing.T) {
-	spannerSchema := map[string]CreateTable{
-		"t1": CreateTable{
-			Name:   "table1",
-			ColIds: []string{"c1", "c2", "c3"},
-			ColDefs: map[string]ColumnDef{
-				"c1": ColumnDef{Name: "productid", T: Type{Name: String, Len: MaxLength}},
-				"c2": ColumnDef{Name: "userid", T: Type{Name: String, Len: MaxLength}},
-				"c3": ColumnDef{Name: "quantity", T: Type{Name: Int64}},
-			},
-			ForeignKeys: []Foreignkey{
-				{
-					"fk_test",
-					[]string{"c1", "c2"},
-					"t2",
-					[]string{"c4", "c5"},
-					"f1",
-				},
-				{
-					"",
-					[]string{"c1"},
-					"t2",
-					[]string{"c4"},
-					"f2",
-				},
-			},
+	fk := []Foreignkey{
+		{
+			"fk_test",
+			[]string{"c1", "c2"},
+			"ref_table",
+			[]string{"ref_c1", "ref_c2"},
+			"1",
 		},
-
-		"t2": CreateTable{
-			Name:   "table2",
-			ColIds: []string{"c4", "c5"},
-			ColDefs: map[string]ColumnDef{
-				"c4": ColumnDef{Name: "productid", T: Type{Name: String, Len: MaxLength}},
-				"c5": ColumnDef{Name: "userid", T: Type{Name: String, Len: MaxLength}},
-			},
-		}}
-
+		{
+			"",
+			[]string{"c1"},
+			"ref_table",
+			[]string{"ref_c1"},
+			"1",
+		},
+	}
 	tests := []struct {
 		name       string
 		table      string
@@ -388,52 +350,52 @@ func TestPrintForeignKeyAlterTable(t *testing.T) {
 		expected   string
 		fk         Foreignkey
 	}{
-		{"no quote", "t1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid)", spannerSchema["t1"].ForeignKeys[0]},
-		{"quote", "t1", true, "", "ALTER TABLE `table1` ADD CONSTRAINT `fk_test` FOREIGN KEY (productid, userid) REFERENCES `table2` (productid, userid)", spannerSchema["t1"].ForeignKeys[0]},
-		{"no constraint name", "t1", false, "", "ALTER TABLE table1 ADD FOREIGN KEY (productid) REFERENCES table2 (productid)", spannerSchema["t1"].ForeignKeys[1]},
-		{"quote PG", "t1", true, constants.TargetExperimentalPostgres, "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (productid, userid) REFERENCES table2 (productid, userid)", spannerSchema["t1"].ForeignKeys[0]},
+		{"no quote", "table1", false, "", "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2)", fk[0]},
+		{"quote", "table1", true, "", "ALTER TABLE `table1` ADD CONSTRAINT `fk_test` FOREIGN KEY (`c1`, `c2`) REFERENCES `ref_table` (`ref_c1`, `ref_c2`)", fk[0]},
+		{"no constraint name", "table1", false, "", "ALTER TABLE table1 ADD FOREIGN KEY (c1) REFERENCES ref_table (ref_c1)", fk[1]},
+		{"quote PG", "table1", true, constants.TargetExperimentalPostgres, "ALTER TABLE table1 ADD CONSTRAINT fk_test FOREIGN KEY (c1, c2) REFERENCES ref_table (ref_c1, ref_c2)", fk[0]},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.fk.PrintForeignKeyAlterTable(spannerSchema, Config{ProtectIds: tc.protectIds, TargetDb: tc.targetDb}, tc.table))
+		assert.Equal(t, tc.expected, tc.fk.PrintForeignKeyAlterTable(Config{ProtectIds: tc.protectIds, TargetDb: tc.targetDb}, tc.table))
 	}
 }
 
 func TestGetDDL(t *testing.T) {
-	s := Schema{
-		"t1": CreateTable{
-			Name:   "table1",
-			ColIds: []string{"c1", "c2"},
-			ColDefs: map[string]ColumnDef{
-				"c1": {Name: "a", T: Type{Name: Int64}},
-				"c2": {Name: "b", T: Type{Name: Int64}},
-			},
-			PrimaryKeys: []IndexKey{{ColId: "c1"}},
-			ForeignKeys: []Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c5"}}},
-			Indexes:     []CreateIndex{{Name: "index1", TableId: "t1", Unique: false, Keys: []IndexKey{{ColId: "c2", Desc: false}}}},
+	s := NewSchema()
+	s["table1"] = CreateTable{
+		Name:   "table1",
+		ColIds: []string{"a", "b"},
+		ColDefs: map[string]ColumnDef{
+			"a": {Name: "a", T: Type{Name: Int64}},
+			"b": {Name: "b", T: Type{Name: Int64}},
 		},
-		"t2": CreateTable{
-			Name:   "table2",
-			ColIds: []string{"c4", "c5", "c6"},
-			ColDefs: map[string]ColumnDef{
-				"c4": {Name: "a", T: Type{Name: Int64}},
-				"c5": {Name: "b", T: Type{Name: Int64}},
-				"c6": {Name: "c", T: Type{Name: Int64}},
-			},
-			PrimaryKeys: []IndexKey{{ColId: "c4"}},
-			ForeignKeys: []Foreignkey{{Name: "fk2", ColIds: []string{"c5", "c6"}, ReferTableId: "t3", ReferColumnIds: []string{"c8", "c9"}}},
-			Indexes:     []CreateIndex{{Name: "index2", TableId: "t2", Unique: true, Keys: []IndexKey{{ColId: "c5", Desc: true}, {ColId: "c6", Desc: false}}}},
+		PrimaryKeys: []IndexKey{{ColId: "a"}},
+		ForeignKeys: []Foreignkey{{Name: "fk1", ColIds: []string{"b"}, ReferTableId: "ref_table1", ReferColumnIds: []string{"ref_b"}}},
+		Indexes:     []CreateIndex{{Name: "index1", TableId: "table1", Unique: false, Keys: []IndexKey{{ColId: "b", Desc: false}}}},
+	}
+	s["table2"] = CreateTable{
+		Name:   "table2",
+		ColIds: []string{"a", "b", "c"},
+		ColDefs: map[string]ColumnDef{
+			"a": {Name: "a", T: Type{Name: Int64}},
+			"b": {Name: "b", T: Type{Name: Int64}},
+			"c": {Name: "c", T: Type{Name: Int64}},
 		},
-		"t3": CreateTable{
-			Name:   "table3",
-			ColIds: []string{"c7", "c8", "c9"},
-			ColDefs: map[string]ColumnDef{
-				"c7": {Name: "a", T: Type{Name: Int64}},
-				"c8": {Name: "b", T: Type{Name: Int64}},
-				"c9": {Name: "c", T: Type{Name: Int64}},
-			},
-			PrimaryKeys: []IndexKey{{ColId: "c7"}, {ColId: "c8"}},
-			ParentId:    "t1",
+		PrimaryKeys: []IndexKey{{ColId: "a"}},
+		ForeignKeys: []Foreignkey{{Name: "fk2", ColIds: []string{"b", "c"}, ReferTableId: "ref_table2", ReferColumnIds: []string{"ref_b", "ref_c"}}},
+		Indexes:     []CreateIndex{{Name: "index2", TableId: "table2", Unique: true, Keys: []IndexKey{{ColId: "b", Desc: true}, {ColId: "c", Desc: false}}}},
+	}
+	s["table3"] = CreateTable{
+		Name:   "table3",
+		ColIds: []string{"a", "b", "c"},
+		ColDefs: map[string]ColumnDef{
+			"a": {Name: "a", T: Type{Name: Int64}},
+			"b": {Name: "b", T: Type{Name: Int64}},
+			"c": {Name: "c", T: Type{Name: Int64}},
 		},
+		PrimaryKeys: []IndexKey{{ColId: "a"}, {ColId: "b"}},
+		ForeignKeys: []Foreignkey{{Name: "fk3", ColIds: []string{"c"}, ReferTableId: "ref_table3", ReferColumnIds: []string{"ref_c"}}},
+		ParentId:    "table1",
 	}
 	tablesOnly := s.GetDDL(Config{Tables: true, ForeignKeys: false})
 	e := []string{
@@ -459,8 +421,9 @@ func TestGetDDL(t *testing.T) {
 
 	fksOnly := s.GetDDL(Config{Tables: false, ForeignKeys: true})
 	e2 := []string{
-		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b)",
-		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c)",
+		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_b)",
+		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES ref_table2 (ref_b, ref_c)",
+		"ALTER TABLE table3 ADD CONSTRAINT fk3 FOREIGN KEY (c) REFERENCES ref_table3 (ref_c)",
 	}
 	assert.ElementsMatch(t, e2, fksOnly)
 
@@ -483,51 +446,49 @@ func TestGetDDL(t *testing.T) {
 			"	c INT64,\n" +
 			") PRIMARY KEY (a, b),\n" +
 			"INTERLEAVE IN PARENT table1",
-		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b)",
-		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c)",
+		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_b)",
+		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES ref_table2 (ref_b, ref_c)",
+		"ALTER TABLE table3 ADD CONSTRAINT fk3 FOREIGN KEY (c) REFERENCES ref_table3 (ref_c)",
 	}
 	assert.ElementsMatch(t, e3, tablesAndFks)
 }
 
 func TestGetPGDDL(t *testing.T) {
-	s := Schema{
-		"t1": CreateTable{
-			Name:   "table1",
-			Id:     "t1",
-			ColIds: []string{"c1", "c2"},
-			ColDefs: map[string]ColumnDef{
-				"c1": {Name: "a", T: Type{Name: Int64}},
-				"c2": {Name: "b", T: Type{Name: Int64}},
-			},
-			PrimaryKeys: []IndexKey{{ColId: "c1"}},
-			ForeignKeys: []Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}}},
-			Indexes:     []CreateIndex{{Name: "index1", TableId: "t1", Unique: false, Keys: []IndexKey{{ColId: "c2", Desc: false}}}},
+	s := NewSchema()
+	s["table1"] = CreateTable{
+		Name:   "table1",
+		ColIds: []string{"a", "b"},
+		ColDefs: map[string]ColumnDef{
+			"a": {Name: "a", T: Type{Name: Int64}},
+			"b": {Name: "b", T: Type{Name: Int64}},
 		},
-		"t2": CreateTable{
-			Name:   "table2",
-			Id:     "t2",
-			ColIds: []string{"c3", "c4", "c5"},
-			ColDefs: map[string]ColumnDef{
-				"c3": {Name: "a", T: Type{Name: Int64}},
-				"c4": {Name: "b", T: Type{Name: Int64}},
-				"c5": {Name: "c", T: Type{Name: Int64}},
-			},
-			PrimaryKeys: []IndexKey{{ColId: "c3"}},
-			ForeignKeys: []Foreignkey{{Name: "fk2", ColIds: []string{"c4", "c5"}, ReferTableId: "t3", ReferColumnIds: []string{"c7", "c8"}}},
-			Indexes:     []CreateIndex{{Name: "index2", TableId: "t2", Unique: true, Keys: []IndexKey{{ColId: "c4", Desc: true}, {ColId: "c5", Desc: false}}}},
+		PrimaryKeys: []IndexKey{{ColId: "a"}},
+		ForeignKeys: []Foreignkey{{Name: "fk1", ColIds: []string{"b"}, ReferTableId: "ref_table1", ReferColumnIds: []string{"ref_b"}}},
+		Indexes:     []CreateIndex{{Name: "index1", TableId: "table1", Unique: false, Keys: []IndexKey{{ColId: "b", Desc: false}}}},
+	}
+	s["table2"] = CreateTable{
+		Name:   "table2",
+		ColIds: []string{"a", "b", "c"},
+		ColDefs: map[string]ColumnDef{
+			"a": {Name: "a", T: Type{Name: Int64}},
+			"b": {Name: "b", T: Type{Name: Int64}},
+			"c": {Name: "c", T: Type{Name: Int64}},
 		},
-		"t3": CreateTable{
-			Name:   "table3",
-			Id:     "t3",
-			ColIds: []string{"c6", "c7", "c8"},
-			ColDefs: map[string]ColumnDef{
-				"c6": {Name: "a", T: Type{Name: Int64}},
-				"c7": {Name: "b", T: Type{Name: Int64}},
-				"c8": {Name: "c", T: Type{Name: Int64}},
-			},
-			PrimaryKeys: []IndexKey{{ColId: "c6"}, {ColId: "c7"}},
-			ParentId:    "t1",
+		PrimaryKeys: []IndexKey{{ColId: "a"}},
+		ForeignKeys: []Foreignkey{{Name: "fk2", ColIds: []string{"b", "c"}, ReferTableId: "ref_table2", ReferColumnIds: []string{"ref_b", "ref_c"}}},
+		Indexes:     []CreateIndex{{Name: "index2", TableId: "table2", Unique: true, Keys: []IndexKey{{ColId: "b", Desc: true}, {ColId: "c", Desc: false}}}},
+	}
+	s["table3"] = CreateTable{
+		Name:   "table3",
+		ColIds: []string{"a", "b", "c"},
+		ColDefs: map[string]ColumnDef{
+			"a": {Name: "a", T: Type{Name: Int64}},
+			"b": {Name: "b", T: Type{Name: Int64}},
+			"c": {Name: "c", T: Type{Name: Int64}},
 		},
+		PrimaryKeys: []IndexKey{{ColId: "a"}, {ColId: "b"}},
+		ForeignKeys: []Foreignkey{{Name: "fk3", ColIds: []string{"c"}, ReferTableId: "ref_table3", ReferColumnIds: []string{"ref_c"}}},
+		ParentId:    "table1",
 	}
 	tablesOnly := s.GetDDL(Config{Tables: true, ForeignKeys: false, TargetDb: constants.TargetExperimentalPostgres})
 	e := []string{
@@ -555,8 +516,9 @@ func TestGetPGDDL(t *testing.T) {
 
 	fksOnly := s.GetDDL(Config{Tables: false, ForeignKeys: true, TargetDb: constants.TargetExperimentalPostgres})
 	e2 := []string{
-		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b)",
-		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c)",
+		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_b)",
+		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES ref_table2 (ref_b, ref_c)",
+		"ALTER TABLE table3 ADD CONSTRAINT fk3 FOREIGN KEY (c) REFERENCES ref_table3 (ref_c)",
 	}
 	assert.ElementsMatch(t, e2, fksOnly)
 
@@ -581,8 +543,9 @@ func TestGetPGDDL(t *testing.T) {
 			"	c INT8,\n" +
 			"	PRIMARY KEY (a, b)\n" +
 			") INTERLEAVE IN PARENT table1",
-		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES table2 (b)",
-		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES table3 (b, c)",
+		"ALTER TABLE table1 ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES ref_table1 (ref_b)",
+		"ALTER TABLE table2 ADD CONSTRAINT fk2 FOREIGN KEY (b, c) REFERENCES ref_table2 (ref_b, ref_c)",
+		"ALTER TABLE table3 ADD CONSTRAINT fk3 FOREIGN KEY (c) REFERENCES ref_table3 (ref_c)",
 	}
 	assert.ElementsMatch(t, e3, tablesAndFks)
 }

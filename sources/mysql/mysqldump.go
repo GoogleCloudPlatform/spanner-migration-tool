@@ -700,10 +700,7 @@ func processInsertStmt(conv *internal.Conv, stmt *ast.InsertStmt) {
 	if err2 != nil {
 		// In MySQL, column names might not be specified in insert statement so instead of
 		// throwing error we will try to retrieve columns from source schema.
-		for _, srcColId := range conv.SrcSchema[tableId].ColIds {
-			srcCols = append(srcCols, conv.SrcSchema[tableId].ColDefs[srcColId].Name)
-		}
-
+		srcCols = conv.SrcSchema[tableId].ColIds
 		if len(srcCols) == 0 {
 			conv.Unexpected(fmt.Sprintf("Can't get columns for table %s", srcTable))
 			conv.Stats.BadRows[tableId] += conv.Stats.Rows[tableId]
@@ -723,7 +720,7 @@ func processInsertStmt(conv *internal.Conv, stmt *ast.InsertStmt) {
 	}
 	for _, row := range stmt.Lists {
 		values, err = getVals(row)
-		ProcessDataRow(conv, conv.SrcSchema[tableId].Name, srcCols, srcSchema, conv.SpSchema[tableId].Name, spCols, spSchema, values)
+		ProcessDataRow(conv, conv.SrcSchema[tableId].Name, srcCols, srcSchema, tableId, spCols, spSchema, values)
 	}
 }
 

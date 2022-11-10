@@ -972,7 +972,7 @@ func bitReverse(i int64) int64 {
 func assertSpannerData(conv *internal.Conv, t *testing.T, expectedData, actualData []spannerData) {
 	assert.Equal(t, len(expectedData), len(actualData))
 	for i, data := range actualData {
-		tableName := data.table
+		tableName := conv.SpSchema[data.table].Name
 		actualData[i].table = tableName
 	}
 	assert.Equal(t, expectedData, actualData)

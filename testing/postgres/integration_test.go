@@ -106,7 +106,6 @@ func prepareIntegrationTest(t *testing.T) string {
 }
 
 func TestIntegration_PGDUMP_Command(t *testing.T) {
-	onlyRunForEmulatorTest(t)
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)
@@ -131,7 +130,6 @@ func TestIntegration_PGDUMP_Command(t *testing.T) {
 }
 
 func TestIntegration_PGDUMP_SchemaAndDataSubcommand(t *testing.T) {
-	onlyRunForEmulatorTest(t)
 	t.Parallel()
 
 	tmpdir := prepareIntegrationTest(t)

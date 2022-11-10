@@ -33,19 +33,14 @@
     align-items: center;
     justify-content: flex-end;
   }
-  .mat-cell{
-    padding-right: 0px !important;
-  }
 }
 
 .selected-row {
   background-color: #61b3ff4a;
 }
-
 .explorer-table {
   height: calc(100vh - 320px);
-  width: 100%;
-  overflow: auto;
+  overflow-y: auto;
 }
 
 .mat-table {

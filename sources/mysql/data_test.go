@@ -46,12 +46,11 @@ type spannerData struct {
 func TestProcessDataRow(t *testing.T) {
 	tableName := "testtable"
 	cols := []string{"a", "b", "c"}
-	colIds := []string{"c1", "c2", "c3"}
 	conv := buildConv(
 		ddl.CreateTable{
 			Name:   tableName,
 			Id:     "t1",
-			ColIds: colIds,
+			ColIds: cols,
 			ColDefs: map[string]ddl.ColumnDef{
 				"c1": ddl.ColumnDef{Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Float64}},
 				"c2": ddl.ColumnDef{Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}},
@@ -60,7 +59,7 @@ func TestProcessDataRow(t *testing.T) {
 		schema.Table{
 			Name:   tableName,
 			Id:     "t1",
-			ColIds: colIds,
+			ColIds: cols,
 			ColDefs: map[string]schema.Column{
 				"c1": schema.Column{Name: "a", Id: "c1", Type: schema.Type{Name: "float"}},
 				"c2": schema.Column{Name: "b", Id: "c2", Type: schema.Type{Name: "int"}},
@@ -330,7 +329,7 @@ func TestConvertsyntheticPKey(t *testing.T) {
 			"c3": schema.Column{Name: "c", Id: "c3", Type: schema.Type{Name: "bool"}},
 		}}
 	conv := buildConv(spTable, srcTable)
-	conv.SyntheticPKeys[spTable.Id] = internal.SyntheticPKey{ColId: "synth_id", Sequence: 0}
+	conv.SyntheticPKeys[spTable.Name] = internal.SyntheticPKey{ColId: "synth_id", Sequence: 0}
 	for _, tc := range syntheticPKeyTests {
 		t.Run(tc.name, func(t *testing.T) {
 			atable, acols, avals, err := ConvertData(conv, srcTable.Name, tc.cols, conv.SrcSchema[tableId], spTable.Name, tc.cols, conv.SpSchema[tableId], tc.vals)

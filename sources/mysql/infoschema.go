@@ -54,11 +54,7 @@ func (isi InfoSchemaImpl) GetTableName(dbName string, tableName string) string {
 // GetRowsFromTable returns a sql Rows object for a table.
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
 	srcSchema := conv.SrcSchema[srcTable]
-	srcCols := []string{}
-
-	for _, srcColId := range srcSchema.ColIds {
-		srcCols = append(srcCols, conv.SrcSchema[srcTable].ColDefs[srcColId].Name)
-	}
+	srcCols := srcSchema.ColIds
 	if len(srcCols) == 0 {
 		conv.Unexpected(fmt.Sprintf("Couldn't get source columns for table %s ", srcTable))
 		return nil, nil
@@ -113,7 +109,7 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 			continue
 		}
 		values := valsToStrings(v)
-		ProcessDataRow(conv, conv.SrcSchema[srcTable].Name, srcCols, srcSchema, conv.SpSchema[spTable].Name, spCols, spSchema, values)
+		ProcessDataRow(conv, conv.SrcSchema[srcTable].Name, srcCols, srcSchema, spTable, spCols, spSchema, values)
 	}
 	return nil
 }
