@@ -1,6 +1,6 @@
 <div>
   <div class="header">
-    <div class="breadcrumb">
+    <div class="breadcrumb vertical-center">
       <a class="breadcrumb_source" mat-button [routerLink]="'/'">Select Source</a>
       <span>></span>
       <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'">Configure Schema</a>
@@ -17,12 +17,14 @@
     </div>
   </div>
   <div class="container">
-    <h2>Configure schema</h2>
+    <h2 class="vertical-center">Configure schema</h2>
     <div class="summary">
       Estimation for {{ srcDbName.toUpperCase() }} to Spanner conversion:
       {{ conversionRatePercentages.good }}% of tables can be converted automatically,
       {{ conversionRatePercentages.ok }}% requires minimal conversion changes and
       {{ conversionRatePercentages.bad }}% requires high complexity conversion changes.
+      <br>
+      To make schema changes go to <a class="spanner-tab-link" (click)="spannerTab()">Spanner Draft</a> pane.
     </div>
   </div>
   <div class="columns">
