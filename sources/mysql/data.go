@@ -55,6 +55,7 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 	if len(spCols) != len(srcCols) || len(spCols) != len(vals) {
 		return "", []string{}, []interface{}{}, fmt.Errorf("ConvertData: spCols, srcCols and vals don't all have the same lengths: len(spCols)=%d, len(srcCols)=%d, len(vals)=%d", len(spCols), len(srcCols), len(vals))
 	}
+	tableId, _ := internal.GetTableIdFromName(conv, srcTable)
 	for i, spCol := range spCols {
 		srcCol := srcCols[i]
 		// Skip columns with 'NULL' values. When processing data rows from mysqldump, these values
@@ -64,7 +65,7 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 		if vals[i] == "<nil>" || vals[i] == "NULL" {
 			continue
 		}
-		tableId, _ := internal.GetTableIdFromName(conv, srcTable)
+
 		columnId, _ := internal.GetColumnIdFromName(conv, tableId, srcCol)
 		spColDef, ok1 := spSchema.ColDefs[columnId]
 		srcColDef, ok2 := srcSchema.ColDefs[columnId]
@@ -84,11 +85,11 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 		v = append(v, x)
 		c = append(c, spCol)
 	}
-	if aux, ok := conv.SyntheticPKeys[spTable]; ok {
+	if aux, ok := conv.SyntheticPKeys[tableId]; ok {
 		c = append(c, aux.ColId)
 		v = append(v, fmt.Sprintf("%d", int64(bits.Reverse64(uint64(aux.Sequence)))))
 		aux.Sequence++
-		conv.SyntheticPKeys[spTable] = aux
+		conv.SyntheticPKeys[tableId] = aux
 	}
 	return spTable, c, v, nil
 }

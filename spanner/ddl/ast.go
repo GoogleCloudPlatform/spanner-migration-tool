@@ -201,9 +201,9 @@ type IndexKey struct {
 }
 
 // PrintIndexKey unparses the index keys.
-func (pk IndexKey) PrintIndexKey(c Config) string {
-	col := c.quote(pk.ColId)
-	if pk.Desc {
+func (idx IndexKey) PrintIndexKey(ct CreateTable, c Config) string {
+	col := c.quote(ct.ColDefs[idx.ColId].Name)
+	if idx.Desc {
 		return fmt.Sprintf("%s DESC", col)
 	}
 	// Don't print out ASC -- that's the default.
@@ -324,10 +324,10 @@ type CreateIndex struct {
 }
 
 // PrintCreateIndex unparses a CREATE INDEX statement.
-func (ci CreateIndex) PrintCreateIndex(c Config) string {
+func (ci CreateIndex) PrintCreateIndex(ct CreateTable, c Config) string {
 	var keys []string
 	for _, p := range ci.Keys {
-		keys = append(keys, p.PrintIndexKey(c))
+		keys = append(keys, p.PrintIndexKey(ct, c))
 	}
 	var unique, stored, storingClause string
 	if ci.Unique {
@@ -339,23 +339,27 @@ func (ci CreateIndex) PrintCreateIndex(c Config) string {
 		stored = "STORING"
 	}
 	if ci.StoredColumnIds != nil {
+		storedColumns := []string{}
+		for _, colId := range ci.StoredColumnIds {
+			storedColumns = append(storedColumns, ct.ColDefs[colId].Name)
+		}
 		storingClause = fmt.Sprintf(" %s (%s)", stored, strings.Join(ci.StoredColumnIds, ", "))
 	}
-	return fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)%s", unique, c.quote(ci.Name), c.quote(ci.TableId), strings.Join(keys, ", "), storingClause)
+	return fmt.Sprintf("CREATE %sINDEX %s ON %s (%s)%s", unique, c.quote(ci.Name), c.quote(ct.Name), strings.Join(keys, ", "), storingClause)
 }
 
 // PrintForeignKeyAlterTable unparses the foreign keys using ALTER TABLE.
-func (k Foreignkey) PrintForeignKeyAlterTable(c Config, tableName string) string {
+func (k Foreignkey) PrintForeignKeyAlterTable(spannerSchema Schema, c Config, tableId string) string {
 	var cols, referCols []string
 	for i, col := range k.ColIds {
-		cols = append(cols, c.quote(col))
-		referCols = append(referCols, c.quote(k.ReferColumnIds[i]))
+		cols = append(cols, spannerSchema[tableId].ColDefs[col].Name)
+		referCols = append(referCols, spannerSchema[k.ReferTableId].ColDefs[k.ReferColumnIds[i]].Name)
 	}
 	var s string
 	if k.Name != "" {
 		s = fmt.Sprintf("CONSTRAINT %s ", c.quote(k.Name))
 	}
-	return fmt.Sprintf("ALTER TABLE %s ADD %sFOREIGN KEY (%s) REFERENCES %s (%s)", c.quote(tableName), s, strings.Join(cols, ", "), c.quote(k.ReferTableId), strings.Join(referCols, ", "))
+	return fmt.Sprintf("ALTER TABLE %s ADD %sFOREIGN KEY (%s) REFERENCES %s (%s)", c.quote(spannerSchema[tableId].Name), s, strings.Join(cols, ", "), c.quote(spannerSchema[k.ReferTableId].Name), strings.Join(referCols, ", "))
 }
 
 // Schema stores a map of table names and Tables.
@@ -414,7 +418,7 @@ func (s Schema) GetDDL(c Config) []string {
 		for _, tableId := range sortedTableIds {
 			ddl = append(ddl, s[tableId].PrintCreateTable(s, c))
 			for _, index := range s[tableId].Indexes {
-				ddl = append(ddl, index.PrintCreateIndex(c))
+				ddl = append(ddl, index.PrintCreateIndex(s[tableId], c))
 			}
 		}
 	}
@@ -427,7 +431,7 @@ func (s Schema) GetDDL(c Config) []string {
 	if c.ForeignKeys {
 		for _, t := range sortedTableIds {
 			for _, fk := range s[t].ForeignKeys {
-				ddl = append(ddl, fk.PrintForeignKeyAlterTable(c, t))
+				ddl = append(ddl, fk.PrintForeignKeyAlterTable(s, c, t))
 			}
 		}
 	}

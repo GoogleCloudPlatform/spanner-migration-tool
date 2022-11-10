@@ -13,7 +13,8 @@
         appearance="outline"
       >
         <mat-label>Session Name</mat-label>
-        <input matInput placeholder="mysession" type="text" formControlName="SessionName" />
+        <input matInput placeholder="mysession" type="text" formControlName="SessionName"  matTooltip="User can view saved sessions under session history section" matTooltipPosition="above"/>
+        
         <mat-hint align="end">{{ saveSessionForm.value.SessionName?.length || 0 }}/60</mat-hint>
       </mat-form-field>
       <br />

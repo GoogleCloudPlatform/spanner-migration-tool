@@ -290,8 +290,8 @@ func TestProcessData(t *testing.T) {
 	common.ProcessData(conv, isi)
 	assert.Equal(t,
 		[]spannerData{
-			spannerData{table: "t1", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(42.3), int64(3), "cat"}},
-			spannerData{table: "t1", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(6.6), int64(22), "dog"}},
+			spannerData{table: "te_st", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(42.3), int64(3), "cat"}},
+			spannerData{table: "te_st", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(6.6), int64(22), "dog"}},
 		},
 		rows)
 	assert.Equal(t, conv.BadRows(), int64(1))
@@ -369,8 +369,8 @@ func TestProcessData_MultiCol(t *testing.T) {
 		})
 	common.ProcessData(conv, isi)
 	assert.Equal(t, []spannerData{
-		{table: "t1", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), "0"}},
-		{table: "t1", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), "-9223372036854775808"}}},
+		{table: "test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), "0"}},
+		{table: "test", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), "-9223372036854775808"}}},
 		rows)
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
