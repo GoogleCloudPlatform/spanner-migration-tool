@@ -281,4 +281,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   prepareMigration() {
     this.router.navigate(['/prepare-migration'])
   }
+  spannerTab() {
+    this.clickEvent.setTabToSpanner()
+  }
 }

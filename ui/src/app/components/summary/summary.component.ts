@@ -5,6 +5,7 @@ import { FlatNode } from 'src/app/model/schema-object-node'
 import { Observable, of } from 'rxjs'
 import { map, startWith } from 'rxjs/operators'
 import { FormControl } from '@angular/forms'
+import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 
 @Component({
   selector: 'app-summary',
@@ -25,7 +26,7 @@ export class SummaryComponent implements OnInit {
   searchFilters: string[] = ['unread', 'warning', 'note', 'suggestion']
 
   @Input() currentObject: FlatNode | null = null
-  constructor(private data: DataService) {}
+  constructor(private data: DataService, private clickEvent: ClickEventService) {}
 
   ngOnInit(): void {
     this.data.summary.subscribe({
@@ -173,5 +174,8 @@ export class SummaryComponent implements OnInit {
 
   autoCompleteOnChangeFilter(value: string): string[] {
     return this.options.filter((option) => option.toLowerCase().includes(value))
+  }
+  spannerTab() {
+    this.clickEvent.setTabToSpanner()
   }
 }

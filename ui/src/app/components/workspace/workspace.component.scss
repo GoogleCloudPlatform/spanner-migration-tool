@@ -2,6 +2,11 @@ app-object-detail {
   height: 100%;
 }
 
+.vertical-center{
+  display: flex;
+  align-items: center;
+}
+
 .columns {
   display: flex;
   flex-direction: row;

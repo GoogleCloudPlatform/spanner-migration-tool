@@ -7,6 +7,8 @@ import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import { SidenavService } from '../../services/sidenav/sidenav.service'
 import { IUpdateTableArgument } from 'src/app/model/update-table'
 import IConv from '../../model/conv'
+import { ClickEventService } from 'src/app/services/click-event/click-event.service'
+
 @Component({
   selector: 'app-object-explorer',
   templateUrl: './object-explorer.component.html',
@@ -29,6 +31,7 @@ export class ObjectExplorerComponent implements OnInit {
   @Input() spannerTree: ISchemaObjectNode[] = []
   @Input() srcTree: ISchemaObjectNode[] = []
   @Input() srcDbName: string = ''
+  selectedIndex: number = 1
 
   private transformer = (node: ISchemaObjectNode, level: number) => {
     return {
@@ -66,9 +69,19 @@ export class ObjectExplorerComponent implements OnInit {
 
   displayedColumns: string[] = ['status', 'name']
 
-  constructor(private conversion: ConversionService, private sidenav: SidenavService) {}
+  constructor(
+    private conversion: ConversionService,
+    private sidenav: SidenavService,
+    private clickEvent: ClickEventService
+  ) {}
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.clickEvent.tabToSpanner.subscribe({
+      next: (res: boolean) => {
+        this.setSpannerTab()
+      },
+    })
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     let newSpannerTree = changes?.['spannerTree']?.currentValue
@@ -155,11 +168,16 @@ export class ObjectExplorerComponent implements OnInit {
   onTabChanged() {
     if (this.selectedTab == 'spanner') {
       this.selectedTab = 'source'
+      this.selectedIndex = 0
     } else {
       this.selectedTab = 'spanner'
+      this.selectedIndex = 1
     }
     this.selectedDatabase.emit(this.selectedTab)
     this.currentSelectedObject = null
     this.selectObject.emit(undefined)
+  }
+  setSpannerTab() {
+    this.selectedIndex = 1
   }
 }
