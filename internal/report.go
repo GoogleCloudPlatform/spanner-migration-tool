@@ -319,7 +319,7 @@ func buildTableReportBody(conv *Conv, tableId string, issues map[string][]Schema
 			}
 		}
 
-		if p.severity == note {
+		if p.severity == warning {
 			for fkId, spKeyName := range conv.Audit.ToSpannerFkIdx[tableId].ForeignKey {
 				fk, err := GetSourceFkFromId(conv, tableId, fkId)
 				if err != nil {

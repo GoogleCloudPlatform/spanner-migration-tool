@@ -226,6 +226,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   openSaveSessionSidenav() {
     this.sidenav.openSidenav()
     this.sidenav.setSidenavComponent('saveSession')
+    this.sidenav.setSidenavDatabaseName(this.conv.DatabaseName)
   }
   downloadSession() {
     var a = document.createElement('a')
@@ -273,5 +274,8 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
   prepareMigration() {
     this.router.navigate(['/prepare-migration'])
+  }
+  spannerTab() {
+    this.clickEvent.setTabToSpanner()
   }
 }

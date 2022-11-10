@@ -63,7 +63,7 @@
               error
             </mat-icon>
             <mat-icon
-              matTooltip="Warning"
+              matTooltip="Warning : Changes made because of differences in source and spanner capabilities."
               matTooltipPosition="above"
               *ngIf="item.type == 'warning'"
               class="warning"
@@ -71,7 +71,7 @@
               warning
             </mat-icon>
             <mat-icon
-              matTooltip="Suggestion"
+              matTooltip="Suggestion : We highly recommend you make these changes or else it will impact your DB performance."
               matTooltipPosition="above"
               *ngIf="item.type == 'suggestion'"
               class="suggestion"
@@ -79,7 +79,7 @@
             wb_incandescent
             </mat-icon>
             <mat-icon
-              matTooltip="Note"
+              matTooltip="Note : This is informational and you dont need to do anything."
               matTooltipPosition="above"
               *ngIf="item.type == 'note'"
               class="success"
@@ -140,7 +140,7 @@
       </svg>
     </div>
     <div class="no-object-message">
-      Click on a converted object name on the Spanner tree panel to view its conversion issues.
+      Click on a converted object name on the <a class="spanner-tab-link" (click)="spannerTab()">Spanner tree panel</a> to view its conversion issues.
     </div>
   </div>
 </div>
