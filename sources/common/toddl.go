@@ -30,6 +30,7 @@ While adding new methods or code here
 package common
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"unicode"
@@ -110,6 +111,8 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 		Fks:      cvtForeignKeys(conv, spTableName, srcTable.Name, srcTable.ForeignKeys, isRestore),
 		Indexes:  cvtIndexes(conv, spTableName, srcTable.Name, srcTable.Indexes),
 		Comment:  comment}
+	schema_json, _ := json.Marshal(conv.SpSchema[spTableName])
+	fmt.Println(string(schema_json))
 	return nil
 }
 

@@ -17,6 +17,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"math/bits"
 	"reflect"
@@ -133,6 +134,10 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 			continue
 		}
 		cvtCols, cvtVals, err := convertSQLRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, v)
+		cvtCols_json, _ := json.Marshal(cvtCols)
+		fmt.Println(string(cvtCols_json))
+		cvtVals_json, _ := json.Marshal(cvtVals)
+		fmt.Println(string(cvtVals_json))
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
 			conv.StatsAddBadRow(srcTable, conv.DataMode())
@@ -560,6 +565,13 @@ func cvtSQLScalar(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, 
 			return v, nil
 		}
 	case ddl.JSON:
+		switch v := val.(type) {
+		case string:
+			return string(v), nil
+		case []uint8:
+			return string(v), nil
+		}
+	case ddl.JSONB:
 		switch v := val.(type) {
 		case string:
 			return string(v), nil
