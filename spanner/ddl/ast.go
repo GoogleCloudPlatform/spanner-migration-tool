@@ -292,6 +292,9 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 		}
 	}
 
+	if len(keys) == 0 {
+		return fmt.Sprintf("%sCREATE TABLE %s (\n%s) %s", tableComment, config.quote(ct.Name), cols, interleave)
+	}
 	if config.TargetDb == constants.TargetExperimentalPostgres {
 		return fmt.Sprintf("%sCREATE TABLE %s (\n%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 	}
