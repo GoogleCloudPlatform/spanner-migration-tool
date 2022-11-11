@@ -200,7 +200,7 @@
             <ng-container matColumnDef="spColName">
               <th mat-header-cell class="table_header" *matHeaderCellDef>Name</th>
               <td mat-cell *matCellDef="let element">
-                <div *ngIf="isEditMode && element.get('spOrder').value !== ''">
+                <div *ngIf="isEditMode && element.get('spDataType').value !== ''">
                   <input
                     matInput
                     class="name_input"
@@ -219,7 +219,7 @@
               <td mat-cell *matCellDef="let element; let i = index">
                 <div class="sp-datatype-data-cells">
                   <span
-                    *ngIf="isSpTableSuggesstionDisplay[i] && element.get('spOrder').value !== ''"
+                    *ngIf="isSpTableSuggesstionDisplay[i] && element.get('spDataType').value !== ''"
                     class="material-icons summary-type warning sp-datatype-suggestion-icon"
                     [matTooltip]="spTableSuggestion[i]"
                     matTooltipPosition="above"
@@ -229,7 +229,7 @@
                   <mat-form-field
                     appearance="legacy"
                     class="w-100"
-                    *ngIf="isEditMode && element.get('spOrder').value !== ''"
+                    *ngIf="isEditMode && element.get('spDataType').value !== ''"
                   >
                     <mat-select
                       #matSelectspDataType
@@ -242,6 +242,9 @@
                         [value]="t.T"
                       >
                         {{ t.T }}
+                      </mat-option>
+                      <mat-option *ngIf="element.get('srcDataType').value==''" value="STRING">
+                        STRING
                       </mat-option>
                     </mat-select>
                   </mat-form-field>
@@ -278,7 +281,7 @@
               </th>
               <td mat-cell *matCellDef="let element">
                 <div class="notNullContent">
-                  <div *ngIf="isEditMode && element.get('spOrder').value !== ''">
+                  <div *ngIf="isEditMode && element.get('spDataType').value !== ''">
                     <mat-checkbox
                       color="primary"
                       [formControl]="element.get('spIsNotNull')"
@@ -303,7 +306,7 @@
                   *ngIf="
                     isEditMode &&
                     currentObject!.isSpannerNode &&
-                    !(element.get('spOrder').value === '')
+                    !(element.get('spDataType').value === '')
                   "
                 >
                   <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
