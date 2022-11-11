@@ -152,6 +152,13 @@ func ToSpannerTypePostgres(srcType string, spType string, mods []int64) (ddl.Typ
 		default:
 			return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Timestamp}
 		}
+	case "json":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.JSON, Len: ddl.MaxLength}, nil
+		}
 	case "varchar", "character varying":
 		switch spType {
 		case ddl.Bytes:
