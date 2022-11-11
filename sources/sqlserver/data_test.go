@@ -38,30 +38,34 @@ type spannerData struct {
 // (ConvertData) is tested in TestConvertData.
 func TestProcessDataRow(t *testing.T) {
 	tableName := "testtable"
+	tableId := "t1"
 	cols := []string{"a", "b", "c"}
+	colIds := []string{"c1", "c2", "c3"}
 	conv := buildConv(
 		ddl.CreateTable{
 			Name:   tableName,
-			ColIds: cols,
+			Id:     tableId,
+			ColIds: colIds,
 			ColDefs: map[string]ddl.ColumnDef{
-				"a": {Name: "a", T: ddl.Type{Name: ddl.Float64}},
-				"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}},
-				"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Float64}},
+				"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}},
+				"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			}},
 		schema.Table{
 			Name:   tableName,
-			ColIds: cols,
+			Id:     tableId,
+			ColIds: colIds,
 			ColDefs: map[string]schema.Column{
-				"a": {Name: "a", Type: schema.Type{Name: "float"}},
-				"b": {Name: "b", Type: schema.Type{Name: "int"}},
-				"c": {Name: "c", Type: schema.Type{Name: "text"}},
+				"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "float"}},
+				"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "int"}},
+				"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "text"}},
 			}})
 	conv.SetDataMode()
 	var rows []spannerData
 	conv.SetDataSink(func(table string, cols []string, vals []interface{}) {
 		rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 	})
-	ProcessDataRow(conv, tableName, cols, conv.SrcSchema[tableName], tableName, cols, conv.SpSchema[tableName], []string{"4.2", "6", "prisoner zero"})
+	ProcessDataRow(conv, tableId, cols, conv.SrcSchema[tableId], tableId, cols, conv.SpSchema[tableId], []string{"4.2", "6", "prisoner zero"})
 	assert.Equal(t, []spannerData{{table: tableName, cols: cols, vals: []interface{}{float64(4.2), int64(6), "prisoner zero"}}}, rows)
 }
 
@@ -91,18 +95,25 @@ func TestConvertData(t *testing.T) {
 		{"numeric", ddl.Type{Name: ddl.Numeric}, "numeric", numStr, numVal},
 	}
 	tableName := "testtable"
+	tableId := "t1"
 	for _, tc := range singleColTests {
 		col := "a"
+		colId := "c1"
 		conv := buildConv(
 			ddl.CreateTable{
 				Name:        tableName,
-				ColIds:      []string{col},
-				ColDefs:     map[string]ddl.ColumnDef{col: {Name: col, T: tc.ty, NotNull: false}},
+				Id:          tableId,
+				ColIds:      []string{colId},
+				ColDefs:     map[string]ddl.ColumnDef{colId: {Name: col, Id: colId, T: tc.ty, NotNull: false}},
 				PrimaryKeys: []ddl.IndexKey{}},
-			schema.Table{Name: tableName, ColIds: []string{col}, ColDefs: map[string]schema.Column{col: {Type: schema.Type{Name: tc.srcTy}}}})
+			schema.Table{
+				Name:    tableName,
+				Id:      tableId,
+				ColIds:  []string{colId},
+				ColDefs: map[string]schema.Column{colId: {Name: col, Id: colId, Type: schema.Type{Name: tc.srcTy}}}})
 		conv.TimezoneOffset = "+05:30"
 		t.Run(tc.in, func(t *testing.T) {
-			at, ac, av, err := ConvertData(conv, tableName, []string{col}, conv.SrcSchema[tableName], tableName, []string{col}, conv.SpSchema[tableName], []string{tc.in})
+			at, ac, av, err := ConvertData(conv, tableId, []string{col}, conv.SrcSchema[tableId], tableId, []string{col}, conv.SpSchema[tableId], []string{tc.in})
 			checkResults(t, at, ac, av, err, tableName, []string{col}, []interface{}{tc.e}, tc.name)
 		})
 	}
@@ -146,26 +157,30 @@ func TestConvertMultiColData(t *testing.T) {
 		},
 	}
 	tableName := "testtable"
+	tableId := "t1"
+	colIds := []string{"c1", "c2", "c3"}
 	spTable := ddl.CreateTable{
 		Name:   tableName,
-		ColIds: []string{"a", "b", "c"},
+		Id:     tableId,
+		ColIds: colIds,
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
-			"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
-			"c": {Name: "c", T: ddl.Type{Name: ddl.Bool}},
+			"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+			"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
+			"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Bool}},
 		}}
 	srcTable := schema.Table{
 		Name:   tableName,
-		ColIds: []string{"a", "b", "c"},
+		Id:     tableId,
+		ColIds: colIds,
 		ColDefs: map[string]schema.Column{
-			"a": {Type: schema.Type{Name: "int"}},
-			"b": {Type: schema.Type{Name: "float"}},
-			"c": {Type: schema.Type{Name: "bool"}},
+			"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "int"}},
+			"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "float"}},
+			"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bool"}},
 		}}
 	for _, tc := range multiColTests {
 		t.Run(tc.name, func(t *testing.T) {
 			conv := buildConv(spTable, srcTable)
-			atable, acols, avals, err := ConvertData(conv, srcTable.Name, tc.cols, conv.SrcSchema[tableName], spTable.Name, tc.cols, conv.SpSchema[tableName], tc.vals)
+			atable, acols, avals, err := ConvertData(conv, tableId, tc.cols, conv.SrcSchema[tableId], tableId, tc.cols, conv.SpSchema[tableId], tc.vals)
 			checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
 		})
 	}
@@ -248,27 +263,31 @@ func TestConvertsyntheticPKey(t *testing.T) {
 		},
 	}
 	tableName := "testtable"
+	tableId := "t1"
+	colIds := []string{"c1", "c2", "c3"}
 	spTable := ddl.CreateTable{
 		Name:   tableName,
-		ColIds: []string{"a", "b", "c"},
+		Id:     tableId,
+		ColIds: colIds,
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
-			"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
-			"c": {Name: "c", T: ddl.Type{Name: ddl.Bool}},
+			"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+			"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
+			"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Bool}},
 		}}
 	srcTable := schema.Table{
 		Name:   tableName,
-		ColIds: []string{"a", "b", "c"},
+		Id:     tableId,
+		ColIds: colIds,
 		ColDefs: map[string]schema.Column{
-			"a": {Type: schema.Type{Name: "int"}},
-			"b": {Type: schema.Type{Name: "float"}},
-			"c": {Type: schema.Type{Name: "bool"}},
+			"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "int"}},
+			"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "float"}},
+			"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "bool"}},
 		}}
 	conv := buildConv(spTable, srcTable)
-	conv.SyntheticPKeys[spTable.Name] = internal.SyntheticPKey{ColId: "synth_id", Sequence: 0}
+	conv.SyntheticPKeys[spTable.Id] = internal.SyntheticPKey{ColId: "synth_id", Sequence: 0}
 	for _, tc := range syntheticPKeyTests {
 		t.Run(tc.name, func(t *testing.T) {
-			atable, acols, avals, err := ConvertData(conv, srcTable.Name, tc.cols, conv.SrcSchema[tableName], spTable.Name, tc.cols, conv.SpSchema[tableName], tc.vals)
+			atable, acols, avals, err := ConvertData(conv, tableId, tc.cols, conv.SrcSchema[tableId], tableId, tc.cols, conv.SpSchema[tableId], tc.vals)
 			checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
 		})
 	}
@@ -276,8 +295,8 @@ func TestConvertsyntheticPKey(t *testing.T) {
 
 func buildConv(spTable ddl.CreateTable, srcTable schema.Table) *internal.Conv {
 	conv := internal.MakeConv()
-	conv.SpSchema[spTable.Name] = spTable
-	conv.SrcSchema[srcTable.Name] = srcTable
+	conv.SpSchema[spTable.Id] = spTable
+	conv.SrcSchema[srcTable.Id] = srcTable
 	return conv
 }
 

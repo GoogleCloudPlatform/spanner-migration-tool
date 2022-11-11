@@ -339,26 +339,30 @@ func TestProcessRecord(t *testing.T) {
 	numVal := big.NewRat(101, 10)
 
 	tableName := "testtable"
+	tableId := "t1"
 	cols := []string{"a", "b"}
+	colIds := []string{"c1", "c2"}
 	spSchema := ddl.CreateTable{
 		Name:   tableName,
-		ColIds: cols,
+		Id:     tableId,
+		ColIds: colIds,
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
+			"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Numeric}},
 		},
-		PrimaryKeys: []ddl.IndexKey{{ColId: "a"}},
+		PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 	}
 	conv := buildConv(
 		spSchema,
 		schema.Table{
 			Name:   tableName,
-			ColIds: cols,
+			Id:     tableId,
+			ColIds: colIds,
 			ColDefs: map[string]schema.Column{
-				"a": {Name: "a", Type: schema.Type{Name: typeString}},
-				"b": {Name: "b", Type: schema.Type{Name: typeNumber}},
+				"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: typeString}},
+				"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: typeNumber}},
 			},
-			PrimaryKeys: []schema.Key{{ColId: "a"}},
+			PrimaryKeys: []schema.Key{{ColId: "c1"}},
 		},
 	)
 
@@ -377,7 +381,7 @@ func TestProcessRecord(t *testing.T) {
 	writes := 0
 	streamInfo.write = func(m *sp.Mutation) error {
 		writes++
-		assert.Equal(t, m, sp.Insert(tableName, []string{"a", "b"}, []interface{}{valA, *numVal}))
+		assert.Equal(t, m, sp.Insert(tableName, cols, []interface{}{valA, *numVal}))
 		return nil
 	}
 	ProcessRecord(conv, streamInfo, record, tableName)

@@ -113,7 +113,7 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
 	tbl := conv.SrcSchema[srcTable]
 	//To get only the table name by removing the schema name prefix
-	tblName := strings.Replace(srcTable, tbl.Schema+".", "", 1)
+	tblName := strings.Replace(tbl.Name, tbl.Schema+".", "", 1)
 
 	q := getSelectQuery(isi.DbName, tbl.Schema, tblName, tbl.ColIds, tbl.ColDefs)
 	rows, err := isi.Db.Query(q)
@@ -123,12 +123,13 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string)
 	return rows, err
 }
 
-func getSelectQuery(srcDb string, schemaName string, tableName string, colNames []string, colDefs map[string]schema.Column) string {
-	var selects = make([]string, len(colNames))
+func getSelectQuery(srcDb string, schemaName string, tableName string, colIds []string, colDefs map[string]schema.Column) string {
+	var selects = make([]string, len(colIds))
 
-	for i, cn := range colNames {
+	for i, colId := range colIds {
+		cn := colDefs[colId].Name
 		var s string
-		switch colDefs[cn].Type.Name {
+		switch colDefs[colId].Type.Name {
 		case geometryType, geographyType:
 			s = fmt.Sprintf("[%s].STAsText() AS %s", cn, cn)
 		case uuidType:

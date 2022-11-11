@@ -61,18 +61,19 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string)
 	return rows, err
 }
 
-func getSelectQuery(srcDb string, schemaName string, tableName string, colNames []string, colDefs map[string]schema.Column) string {
-	var selects = make([]string, len(colNames))
+func getSelectQuery(srcDb string, schemaName string, tableName string, colIds []string, colDefs map[string]schema.Column) string {
+	var selects = make([]string, len(colIds))
 
-	for i, cn := range colNames {
+	for i, colId := range colIds {
+		cn := colDefs[colId].Name
 		var s string
-		if TimestampReg.MatchString(colDefs[cn].Type.Name) {
+		if TimestampReg.MatchString(colDefs[colId].Type.Name) {
 			s = fmt.Sprintf(`SYS_EXTRACT_UTC("%s") AS "%s"`, cn, cn)
-		} else if len(colDefs[cn].Type.ArrayBounds) == 1 {
+		} else if len(colDefs[colId].Type.ArrayBounds) == 1 {
 			s = fmt.Sprintf(`(SELECT JSON_ARRAYAGG(COLUMN_VALUE RETURNING VARCHAR2(4000)) 
 				FROM TABLE ("%s"."%s")) AS "%s"`, tableName, cn, cn)
 		} else {
-			switch colDefs[cn].Type.Name {
+			switch colDefs[colId].Type.Name {
 			case "NUMBER":
 				s = fmt.Sprintf(`TO_CHAR("%s") AS "%s"`, cn, cn)
 			case "XMLTYPE":

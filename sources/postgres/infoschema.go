@@ -118,7 +118,7 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 			conv.CollectBadRow(conv.SrcSchema[srcTable].Name, srcCols, valsToStrings(v))
 			continue
 		}
-		conv.WriteRow(conv.SrcSchema[srcTable].Name, spTable, cvtCols, cvtVals)
+		conv.WriteRow(conv.SrcSchema[srcTable].Name, conv.SpSchema[spTable].Name, cvtCols, cvtVals)
 	}
 	return nil
 }

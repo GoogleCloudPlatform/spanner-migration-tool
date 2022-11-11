@@ -857,7 +857,7 @@ func TestProcessMySQLDump_GetDDL(t *testing.T) {
 func TestProcessMySQLDump_Rows(t *testing.T) {
 	conv, _ := runProcessMySQLDump("CREATE TABLE cart (a text, n bigint);\n" +
 		"INSERT INTO cart (a, n) VALUES ('a42', 2);")
-	assert.Equal(t, int64(0), conv.Rows())
+	assert.Equal(t, int64(1), conv.Rows())
 }
 
 func TestProcessMySQLDump_BadRows(t *testing.T) {

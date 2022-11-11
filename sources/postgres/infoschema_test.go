@@ -335,7 +335,7 @@ func TestProcessData(t *testing.T) {
 		})
 	common.ProcessData(conv, InfoSchemaImpl{db})
 
-	assertSpannerData(conv, t,
+	assert.Equal(t,
 		[]spannerData{
 			spannerData{table: "te_st", cols: []string{"a a", " b", " c "}, vals: []interface{}{float64(42.3), int64(3), "cat"}},
 			spannerData{table: "te_st", cols: []string{"a a", " b", " c "}, vals: []interface{}{float64(6.6), int64(22), "dog"}},
@@ -480,7 +480,7 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
 	common.ProcessData(conv, InfoSchemaImpl{db})
-	assertSpannerData(conv, t, []spannerData{
+	assert.Equal(t, []spannerData{
 		{table: "test", cols: []string{"a", "b", "synth_id"}, vals: []interface{}{"cat", float64(42.3), "0"}},
 		{table: "test", cols: []string{"a", "c", "synth_id"}, vals: []interface{}{"dog", int64(22), "-9223372036854775808"}}},
 		rows)
@@ -528,13 +528,4 @@ func mkMockDB(t *testing.T, ms []mockSpec) *sql.DB {
 
 	}
 	return db
-}
-
-func assertSpannerData(conv *internal.Conv, t *testing.T, expectedData, actualData []spannerData) {
-	assert.Equal(t, len(expectedData), len(actualData))
-	for i, data := range actualData {
-		tableName := conv.SpSchema[data.table].Name
-		actualData[i].table = tableName
-	}
-	assert.Equal(t, expectedData, actualData)
 }

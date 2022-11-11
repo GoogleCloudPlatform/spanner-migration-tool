@@ -93,11 +93,12 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 }
 
 func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
+	srcTableName := conv.SrcSchema[srcTable].Name
 	var lastEvaluatedKey map[string]*dynamodb.AttributeValue
 	for {
 		// Build the query input parameters.
 		params := &dynamodb.ScanInput{
-			TableName: aws.String(srcTable),
+			TableName: aws.String(srcTableName),
 		}
 		if lastEvaluatedKey != nil {
 			params.ExclusiveStartKey = lastEvaluatedKey
@@ -106,7 +107,7 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string)
 		// Make the DynamoDB Query API call.
 		result, err := isi.DynamoClient.Scan(params)
 		if err != nil {
-			return nil, fmt.Errorf("failed to make Query API call for table %v: %v", srcTable, err)
+			return nil, fmt.Errorf("failed to make Query API call for table %v: %v", srcTableName, err)
 		}
 
 		if result.LastEvaluatedKey == nil {
@@ -199,10 +200,10 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 	fmt.Println("Starting DynamoDB Streams initialization...")
 
 	latestStreamArn := make(map[string]interface{})
-	orderTableNames := ddl.OrderTables(conv.SpSchema)
+	orderTableIds := ddl.OrderTables(conv.SpSchema)
 
-	for _, spannerTable := range orderTableNames {
-		srcTable, _ := internal.GetSourceTable(conv, spannerTable)
+	for _, tableId := range orderTableIds {
+		srcTable := conv.SrcSchema[tableId].Name
 		streamArn, err := NewDynamoDBStream(isi.DynamoClient, srcTable)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't initialize DynamoDB Stream for table %s: %s", srcTable, err))

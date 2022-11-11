@@ -50,30 +50,34 @@ func TestProcessDataRow(t *testing.T) {
 	}
 
 	tableName := "testtable"
+	tableId := "t1"
 	cols := []string{"a", "b", "c", "d"}
+	colIds := []string{"c1", "c2", "c3", "c4"}
 	spSchema := ddl.CreateTable{
 		Name:   tableName,
-		ColIds: cols,
+		Id:     tableId,
+		ColIds: colIds,
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
-			"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
+			"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Numeric}},
+			"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"c4": {Name: "d", Id: "c4", T: ddl.Type{Name: ddl.Bool}},
 		},
-		PrimaryKeys: []ddl.IndexKey{{ColId: "a"}},
+		PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 	}
 	conv := buildConv(
 		spSchema,
 		schema.Table{
 			Name:   tableName,
-			ColIds: cols,
+			Id:     tableId,
+			ColIds: colIds,
 			ColDefs: map[string]schema.Column{
-				"a": {Name: "a", Type: schema.Type{Name: typeString}},
-				"b": {Name: "b", Type: schema.Type{Name: typeNumber}},
-				"c": {Name: "c", Type: schema.Type{Name: typeNumberString}},
-				"d": {Name: "d", Type: schema.Type{Name: typeBool}},
+				"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: typeString}},
+				"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: typeNumber}},
+				"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: typeNumberString}},
+				"c4": {Name: "d", Id: "c4", Type: schema.Type{Name: typeBool}},
 			},
-			PrimaryKeys: []schema.Key{{ColId: "a"}},
+			PrimaryKeys: []schema.Key{{ColId: "c1"}},
 		},
 	)
 	conv.SetDataMode()
@@ -83,7 +87,7 @@ func TestProcessDataRow(t *testing.T) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
 	for _, attrsMap := range items {
-		ProcessDataRow(attrsMap, conv, tableName, conv.SrcSchema[tableName], tableName, cols, spSchema)
+		ProcessDataRow(attrsMap, conv, tableId, conv.SrcSchema[tableId], tableId, cols, spSchema)
 	}
 	assert.Equal(t,
 		[]spannerData{
@@ -253,13 +257,15 @@ func TestStripNull(t *testing.T) {
 
 func buildConv(spTable ddl.CreateTable, srcTable schema.Table) *internal.Conv {
 	conv := internal.MakeConv()
-	conv.SpSchema[spTable.Name] = spTable
-	conv.SrcSchema[srcTable.Name] = srcTable
+	conv.SpSchema[spTable.Id] = spTable
+	conv.SrcSchema[srcTable.Id] = srcTable
 	conv.ToSource[spTable.Name] = internal.NameAndCols{Name: srcTable.Name, Cols: make(map[string]string)}
 	conv.ToSpanner[srcTable.Name] = internal.NameAndCols{Name: spTable.Name, Cols: make(map[string]string)}
-	for i := range spTable.ColIds {
-		conv.ToSource[spTable.Name].Cols[spTable.ColIds[i]] = srcTable.ColIds[i]
-		conv.ToSpanner[srcTable.Name].Cols[srcTable.ColIds[i]] = spTable.ColIds[i]
+	for _, colId := range spTable.ColIds {
+		srcColName := srcTable.ColDefs[colId].Name
+		spColName := spTable.ColDefs[colId].Name
+		conv.ToSource[spTable.Name].Cols[spColName] = srcColName
+		conv.ToSpanner[srcTable.Name].Cols[srcColName] = spColName
 	}
 	return conv
 }

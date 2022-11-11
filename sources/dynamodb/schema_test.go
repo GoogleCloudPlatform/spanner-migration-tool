@@ -777,10 +777,10 @@ func TestInfoSchemaImpl_ProcessData(t *testing.T) {
 		{
 			Items: []map[string]*dynamodb.AttributeValue{
 				{
-					"c1": {S: &strA},
-					"c2": {N: &numStr1},
-					"c3": {N: &numStr2},
-					"c4": {BOOL: &boolVal},
+					"a": {S: &strA},
+					"b": {N: &numStr1},
+					"c": {N: &numStr2},
+					"d": {BOOL: &boolVal},
 				},
 			},
 		},
@@ -791,25 +791,28 @@ func TestInfoSchemaImpl_ProcessData(t *testing.T) {
 	}
 	isi := InfoSchemaImpl{client, nil, 10}
 
-	tableName := "t1"
-	cols := []string{"c1", "c2", "c3", "c4"}
+	tableName := "cart"
+	tableId := "t1"
+	cols := []string{"a", "b", "c", "d"}
+	colIds := []string{"c1", "c2", "c3", "c4"}
 	spSchema := ddl.CreateTable{
 		Name:   tableName,
-		ColIds: cols,
+		Id:     tableId,
+		ColIds: colIds,
 		ColDefs: map[string]ddl.ColumnDef{
 			"c1": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			"c2": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
 			"c3": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			"c4": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
 		},
-		Id:          "t1",
 		PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 	}
 	conv := buildConv(
 		spSchema,
 		schema.Table{
 			Name:   tableName,
-			ColIds: cols,
+			Id:     tableId,
+			ColIds: colIds,
 			ColDefs: map[string]schema.Column{
 				"c1": {Name: "a", Type: schema.Type{Name: typeString}},
 				"c2": {Name: "b", Type: schema.Type{Name: typeNumber}},
@@ -825,7 +828,7 @@ func TestInfoSchemaImpl_ProcessData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	err := isi.ProcessData(conv, tableName, conv.SrcSchema[tableName], tableName,
+	err := isi.ProcessData(conv, tableId, conv.SrcSchema[tableId], tableId,
 		cols, spSchema)
 	assert.Nil(t, err)
 	assert.Equal(t,

@@ -38,7 +38,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/metrics"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 )
 
 const (
@@ -345,10 +344,20 @@ func ProcessRecord(conv *internal.Conv, streamInfo *StreamingInfo, record *dynam
 	eventName := *record.EventName
 	streamInfo.StatsAddRecord(srcTable, eventName)
 
-	srcSchema, spTable, spCols, spSchema, err := common.GetColsAndSchemas(conv, srcTable)
-	if err != nil {
-		streamInfo.Unexpected(fmt.Sprintf("Can't get cols and schemas for table %s: %v", srcTable, err))
+	// todo - write a function that will compute schemas and colums and return
+	tableId, err := internal.GetTableIdFromName(conv, srcTable)
+	srcSchema, ok1 := conv.SrcSchema[tableId]
+	spSchema, ok2 := conv.SpSchema[tableId]
+	if err != nil || !ok1 || !ok2 {
+		streamInfo.Unexpected(fmt.Sprintf("Can't get tableId and schemas for table %s: %v", srcTable, err))
 		return
+	}
+	spTable := spSchema.Name
+	spCols := []string{}
+	srcCols := []string{}
+	for _, colId := range spSchema.ColIds {
+		spCols = append(spCols, spSchema.ColDefs[colId].Name)
+		srcCols = append(srcCols, srcSchema.ColDefs[colId].Name)
 	}
 
 	var srcImage map[string]*dynamodb.AttributeValue
@@ -363,7 +372,7 @@ func ProcessRecord(conv *internal.Conv, streamInfo *StreamingInfo, record *dynam
 		writeRecord(streamInfo, srcTable, spTable, eventName, spCols, spVals, srcSchema)
 	} else {
 		streamInfo.StatsAddBadRecord(srcTable, eventName)
-		streamInfo.CollectBadRecord(eventName, srcTable, srcSchema.ColIds, srcStrVals)
+		streamInfo.CollectBadRecord(eventName, srcTable, srcCols, srcStrVals)
 	}
 	streamInfo.StatsAddRecordProcessed()
 }

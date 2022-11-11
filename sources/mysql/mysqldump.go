@@ -684,16 +684,15 @@ func processInsertStmt(conv *internal.Conv, stmt *ast.InsertStmt) {
 	}
 	tableId, _ := internal.GetTableIdFromName(conv, srcTable)
 	if conv.SchemaMode() {
-		conv.Stats.Rows[tableId] += int64(len(stmt.Lists))
+		conv.Stats.Rows[srcTable] += int64(len(stmt.Lists))
 		conv.DataStatement(NodeType(stmt))
 		return
 	}
 
-	spSchema, ok1 := conv.SpSchema[tableId]
 	srcSchema, ok2 := conv.SrcSchema[tableId]
-	if !ok1 || !ok2 {
+	if !ok2 {
 		conv.Unexpected(fmt.Sprintf("Can't get schemas for table %s", conv.SrcSchema[tableId].Name))
-		conv.Stats.BadRows[tableId] += conv.Stats.Rows[tableId]
+		conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
 		return
 	}
 	srcCols, err2 := getCols(stmt)
@@ -705,14 +704,18 @@ func processInsertStmt(conv *internal.Conv, stmt *ast.InsertStmt) {
 		}
 		if len(srcCols) == 0 {
 			conv.Unexpected(fmt.Sprintf("Can't get columns for table %s", srcTable))
-			conv.Stats.BadRows[tableId] += conv.Stats.Rows[tableId]
+			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
 			return
 		}
 	}
+
+	conv.ToSpanner = internal.ComputeToSpanner(conv)
+	conv.ToSource = internal.ComputeToSource(conv)
+
 	spCols, err3 := internal.GetSpannerCols(conv, srcTable, srcCols)
 	if err3 != nil {
 		conv.Unexpected(fmt.Sprintf("Can't get spanner columns for table %s: err=%s", srcTable, err3))
-		conv.Stats.BadRows[tableId] += conv.Stats.Rows[tableId]
+		conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
 		return
 	}
 	var values []string
@@ -720,9 +723,11 @@ func processInsertStmt(conv *internal.Conv, stmt *ast.InsertStmt) {
 		logStmtError(conv, stmt, fmt.Errorf("Can't get column values"))
 		return
 	}
+
+	spSchema := conv.SpSchema[tableId]
 	for _, row := range stmt.Lists {
 		values, err = getVals(row)
-		ProcessDataRow(conv, conv.SrcSchema[tableId].Name, srcCols, srcSchema, conv.SpSchema[tableId].Name, spCols, spSchema, values)
+		ProcessDataRow(conv, srcTable, srcCols, srcSchema, srcTable, spCols, spSchema, values)
 	}
 }
 

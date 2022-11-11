@@ -17,6 +17,7 @@ package internal
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 )
@@ -135,10 +136,10 @@ func ComputeToSource(conv *Conv) map[string]NameAndCols {
 			colMap := make(map[string]string)
 			for colId, spCol := range spTable.ColDefs {
 				if srcCol, ok := srcTable.ColDefs[colId]; ok {
-					colMap[spCol.Name] = srcCol.Name
+					colMap[strings.ToLower(spCol.Name)] = strings.ToLower(srcCol.Name)
 				}
 			}
-			toSource[spTable.Name] = NameAndCols{Name: srcTable.Name, Cols: colMap}
+			toSource[strings.ToLower(spTable.Name)] = NameAndCols{Name: strings.ToLower(srcTable.Name), Cols: colMap}
 		}
 	}
 	return toSource
@@ -151,10 +152,10 @@ func ComputeToSpanner(conv *Conv) map[string]NameAndCols {
 			colMap := make(map[string]string)
 			for colId, srcCol := range srcTable.ColDefs {
 				if spCol, ok := srcTable.ColDefs[colId]; ok {
-					colMap[srcCol.Name] = spCol.Name
+					colMap[strings.ToLower(srcCol.Name)] = strings.ToLower(spCol.Name)
 				}
 			}
-			toSpanner[spTable.Name] = NameAndCols{Name: spTable.Name, Cols: colMap}
+			toSpanner[strings.ToLower(spTable.Name)] = NameAndCols{Name: strings.ToLower(spTable.Name), Cols: colMap}
 		}
 	}
 	return toSpanner

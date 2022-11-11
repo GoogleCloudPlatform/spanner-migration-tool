@@ -27,12 +27,19 @@ import (
 
 func ProcessDataRow(m map[string]*dynamodb.AttributeValue, conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) {
 	spVals, badCols, srcStrVals := cvtRow(m, srcSchema, spSchema, spCols)
+	srcTableName := conv.SrcSchema[srcTable].Name
+	spTableName := conv.SpSchema[spTable].Name
+	spColNames := spCols
+	srcColNames := []string{}
+	for _, colId := range conv.SrcSchema[srcTable].ColIds {
+		srcColNames = append(srcColNames, conv.SrcSchema[srcTable].ColDefs[colId].Name)
+	}
 	if len(badCols) == 0 {
-		conv.WriteRow(srcTable, spTable, spCols, spVals)
+		conv.WriteRow(srcTableName, spTableName, spColNames, spVals)
 	} else {
-		conv.Unexpected(fmt.Sprintf("Data conversion error for table %s in column(s) %s\n", srcTable, badCols))
-		conv.StatsAddBadRow(srcTable, conv.DataMode())
-		conv.CollectBadRow(srcTable, srcSchema.ColIds, srcStrVals)
+		conv.Unexpected(fmt.Sprintf("Data conversion error for table %s in column(s) %s\n", srcTableName, badCols))
+		conv.StatsAddBadRow(srcTableName, conv.DataMode())
+		conv.CollectBadRow(srcTableName, srcColNames, srcStrVals)
 	}
 }
 
@@ -41,26 +48,27 @@ func cvtRow(attrsMap map[string]*dynamodb.AttributeValue, srcSchema schema.Table
 	var srcStrVals []string
 	var spVals []interface{}
 	var badCols []string
-	for i, srcCol := range srcSchema.ColIds {
+	for _, colId := range srcSchema.ColIds {
+		srcColName := srcSchema.ColDefs[colId].Name
 		var spVal interface{}
 		var srcStrVal string
-		if attrsMap[srcCol] == nil {
+		if attrsMap[srcColName] == nil {
 			spVal = nil
 			srcStrVal = "null"
 		} else {
 			// Convert data to the target type.
-			spCol := spCols[i]
-			spColDef := spSchema.ColDefs[spCol]
-			srcColDef := srcSchema.ColDefs[srcCol]
+			// spCols := spCols[i]
+			spColDef := spSchema.ColDefs[colId]
+			srcColDef := srcSchema.ColDefs[colId]
 			if spColDef.T.IsArray {
-				spVal, err = convArray(attrsMap[srcCol], srcColDef.Type.Name, spColDef.T.Name)
+				spVal, err = convArray(attrsMap[srcColName], srcColDef.Type.Name, spColDef.T.Name)
 			} else {
-				spVal, err = convScalar(attrsMap[srcCol], srcColDef.Type.Name, spColDef.T.Name)
+				spVal, err = convScalar(attrsMap[srcColName], srcColDef.Type.Name, spColDef.T.Name)
 			}
 			if err != nil {
-				badCols = append(badCols, srcCol)
+				badCols = append(badCols, srcColName)
 			}
-			srcStrVal = attrsMap[srcCol].GoString()
+			srcStrVal = attrsMap[srcColName].GoString()
 		}
 		srcStrVals = append(srcStrVals, srcStrVal)
 		spVals = append(spVals, spVal)
