@@ -597,6 +597,7 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(filteredTypeMap)
 }
 
+// ToDo : To Remove once Rules Component updated
 // setTypeMapGlobal allows to change Spanner type globally.
 // It takes a map from source type to Spanner type and updates
 // the Spanner schema accordingly.
@@ -644,6 +645,124 @@ func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
+}
+
+// applyRule allows to add rules that changes the schema
+// currently it supports two types of operations viz. SetGlobalDataType and AddIndex
+func applyRule(w http.ResponseWriter, r *http.Request) {
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var rule internal.Rule
+	err = json.Unmarshal(reqBody, &rule)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if rule.Type == constants.GlobalDataTypeChange {
+		d, err := json.Marshal(rule.Data)
+		if err != nil {
+			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+			return
+		}
+		typeMap := map[string]string{}
+		err = json.Unmarshal(d, &typeMap)
+		if err != nil {
+			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+			return
+		}
+		setGlobalDataType(typeMap)
+	} else if rule.Type == constants.AddIndex {
+		d, err := json.Marshal(rule.Data)
+		if err != nil {
+			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+			return
+		}
+		newIdx := ddl.CreateIndex{}
+		err = json.Unmarshal(d, &newIdx)
+		if err != nil {
+			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+			return
+		}
+		err = addIndex(newIdx)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		http.Error(w, "Invalid rule type", http.StatusInternalServerError)
+		return
+	}
+
+	sessionState := session.GetSessionState()
+	sessionState.Conv.Rules = append(sessionState.Conv.Rules, rule)
+	session.UpdateSessionFile()
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+}
+
+// setGlobalDataType allows to change Spanner type globally.
+// It takes a map from source type to Spanner type and updates
+// the Spanner schema accordingly.
+func setGlobalDataType(typeMap map[string]string) {
+	sessionState := session.GetSessionState()
+
+	// Redo source-to-Spanner typeMap using t (the mapping specified in the http request).
+	// We drive this process by iterating over the Spanner schema because we want to preserve all
+	// other customizations that have been performed via the UI (dropping columns, renaming columns
+	// etc). In particular, note that we can't just blindly redo schema conversion (using an appropriate
+	// version of 'toDDL' with the new typeMap).
+	for t, spSchema := range sessionState.Conv.SpSchema {
+		for col := range spSchema.ColDefs {
+			srcTable := sessionState.Conv.ToSource[t].Name
+			srcCol := sessionState.Conv.ToSource[t].Cols[col]
+			srcColDef := sessionState.Conv.SrcSchema[srcTable].ColDefs[srcCol]
+			// If the srcCol's type is in the map, then recalculate the Spanner type
+			// for this column using the map. Otherwise, leave the ColDef for this
+			// column as is. Note that per-column type overrides could be lost in
+			// this process -- the mapping in typeMap always takes precendence.
+			if _, found := typeMap[srcColDef.Type.Name]; found {
+				utilities.UpdateDataType(sessionState.Conv, typeMap[srcColDef.Type.Name], t, col, srcTable)
+			}
+		}
+	}
+}
+
+// addIndex checks the new name for spanner name validity, ensures the new name is already not used by existing tables
+// secondary indexes or foreign key constraints. If above checks passed then new indexes are added to the schema else appropriate
+// error thrown.
+func addIndex(newIndex ddl.CreateIndex) error {
+	// Check new name for spanner name validity.
+	newNames := []string{}
+	newNames = append(newNames, newIndex.Name)
+
+	if ok, invalidNames := utilities.CheckSpannerNamesValidity(newNames); !ok {
+		return fmt.Errorf("following names are not valid Spanner identifiers: %s", strings.Join(invalidNames, ","))
+	}
+	// Check that the new names are not already used by existing tables, secondary indexes or foreign key constraints.
+	if ok, err := utilities.CanRename(newNames, newIndex.Table); !ok {
+		return err
+	}
+
+	sessionState := session.GetSessionState()
+	sp := sessionState.Conv.SpSchema[newIndex.Table]
+
+	newIndexes := []ddl.CreateIndex{newIndex}
+	index.CheckIndexSuggestion(newIndexes, sp)
+	for i := 0; i < len(newIndexes); i++ {
+		newIndexes[i].Id = uniqueid.GenerateIndexesId()
+	}
+
+	sp.Indexes = append(sp.Indexes, newIndexes...)
+	sessionState.Conv.SpSchema[newIndex.Table] = sp
+	return nil
 }
 
 // getConversionRate returns table wise color coded conversion rate.
@@ -1212,6 +1331,7 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
+// ToDo : To Remove once Rules Component updated
 // addIndexes checks the new names for spanner name validity, ensures the new names are already not used by existing tables
 // secondary indexes or foreign key constraints. If above checks passed then new indexes are added to the schema else appropriate
 // error thrown.

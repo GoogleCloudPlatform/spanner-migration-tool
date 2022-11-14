@@ -42,7 +42,9 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/typemap", getTypeMap).Methods("GET")
 	router.HandleFunc("/report", getReportFile).Methods("GET")
 	router.HandleFunc("/schema", getSchemaFile).Methods("GET")
+	// ToDo : To Remove once Rules Component updated
 	router.HandleFunc("/typemap/global", setTypeMapGlobal).Methods("POST")
+	router.HandleFunc("/applyrule", applyRule).Methods("POST")
 	router.HandleFunc("/typemap/table", table.UpdateTableSchema).Methods("POST")
 	router.HandleFunc("/typemap/reviewTableSchema", table.ReviewTableSchema).Methods("POST")
 
@@ -59,6 +61,7 @@ func getRoutes() *mux.Router {
 
 	router.HandleFunc("/rename/fks", renameForeignKeys).Methods("POST")
 	router.HandleFunc("/rename/indexes", renameIndexes).Methods("POST")
+	// ToDo : To Remove once Rules Component updated
 	router.HandleFunc("/add/indexes", addIndexes).Methods("POST")
 	router.HandleFunc("/update/indexes", updateIndexes).Methods("POST")
 

@@ -23,6 +23,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"go.uber.org/zap"
+	"google.golang.org/genproto/googleapis/type/datetime"
 )
 
 // Conv contains all schema and data conversion state.
@@ -44,6 +45,7 @@ type Conv struct {
 	TargetDb       string              // The target database to which HarbourBridge is writing.
 	UniquePKey     map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
 	Audit          Audit               // Stores the audit information for the database conversion
+	Rules          []Rule              // Stores applied rules during schema conversion
 }
 
 type mode int
@@ -170,6 +172,17 @@ type streamingStats struct {
 	DataflowJobId    string
 }
 
+// Stores information related to rules during schema conversion
+type Rule struct {
+	Name              string
+	Type              string
+	ObjectType        string
+	AssociatedObjects string
+	Enabled           bool
+	Data              interface{}
+	AddedOn           datetime.DateTime
+}
+
 // MakeConv returns a default-configured Conv.
 func MakeConv() *Conv {
 	return &Conv{
@@ -197,6 +210,7 @@ func MakeConv() *Conv {
 			StreamingStats: streamingStats{},
 			MigrationType:  migration.MigrationData_SCHEMA_ONLY.Enum(),
 		},
+		Rules: []Rule{},
 	}
 }
 

@@ -64,4 +64,8 @@ const (
 
 	// Scheme used for GCS paths
 	GCS_SCHEME string = "gs"
+
+	// Rule types
+	GlobalDataTypeChange = "global_datatype_change"
+	AddIndex             = "add_index"
 )
