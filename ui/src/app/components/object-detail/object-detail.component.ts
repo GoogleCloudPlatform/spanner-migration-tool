@@ -330,7 +330,7 @@ export class ObjectDetailComponent implements OnInit {
       .indexOf(this.addedColumnName)
     this.localTableData[index].spColName = this.droppedColumns[addedRowIndex].spColName
     this.localTableData[index].spDataType = this.droppedColumns[addedRowIndex].spDataType
-    this.localTableData[index].spOrder = 3
+    this.localTableData[index].spOrder = -1
     this.localTableData[index].spIsPk = this.droppedColumns[addedRowIndex].spIsPk
     this.localTableData[index].spIsNotNull = this.droppedColumns[addedRowIndex].spIsNotNull
     let ind = this.droppedColumns
@@ -517,7 +517,6 @@ export class ObjectDetailComponent implements OnInit {
       )
         this.pkColumnNames.push(this.localTableData[i].spColName)
     }
-    console.log(this.pkColumnNames)
   }
 
   setPkOrder() {
