@@ -16,6 +16,7 @@ import { ConversionService } from 'src/app/services/conversion/conversion.servic
 import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/drop-index-or-table-dialog.component'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/table-update-pub-sub.service'
+import { extractSourceDbName } from 'src/app/utils/utils'
 
 @Component({
   selector: 'app-object-detail',
@@ -55,6 +56,7 @@ export class ObjectDetailComponent implements OnInit {
         this.conv = res
       },
     })
+    this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
   }
 
   srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcIsPk', 'srcIsNotNull']
