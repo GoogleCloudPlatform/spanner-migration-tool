@@ -16,6 +16,7 @@ import { ConversionService } from 'src/app/services/conversion/conversion.servic
 import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/drop-index-or-table-dialog.component'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/table-update-pub-sub.service'
+import { extractSourceDbName } from 'src/app/utils/utils'
 
 @Component({
   selector: 'app-object-detail',
@@ -40,6 +41,7 @@ export class ObjectDetailComponent implements OnInit {
   @Input() tableData: IColumnTabData[] = []
   @Input() currentDatabase: string = 'spanner'
   @Input() indexData: IIndexData[] = []
+  @Input() srcDbName: String = ''
   @Output() updateSidebar = new EventEmitter<boolean>()
   ObjectExplorerNodeType = ObjectExplorerNodeType
   conv: IConv = {} as IConv
@@ -54,6 +56,7 @@ export class ObjectDetailComponent implements OnInit {
         this.conv = res
       },
     })
+    this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
   }
 
   srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcIsPk', 'srcIsNotNull']
@@ -107,7 +110,6 @@ export class ObjectDetailComponent implements OnInit {
   spRowArray: FormArray = new FormArray([])
   pkArray: FormArray = new FormArray([])
   fkArray: FormArray = new FormArray([])
-  srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
   isSpTableSuggesstionDisplay: boolean[] = []
   spTableSuggestion: string[] = []
   currentTabIndex: number = 0
@@ -994,7 +996,9 @@ export class ObjectDetailComponent implements OnInit {
         if (res === '') {
           this.isObjectSelected = false
         }
+        this.data.getConversionRate()
       })
+
     this.currentObject = null
   }
 
