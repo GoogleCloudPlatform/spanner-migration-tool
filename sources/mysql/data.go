@@ -86,7 +86,7 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 		c = append(c, spCol)
 	}
 	if aux, ok := conv.SyntheticPKeys[tableId]; ok {
-		c = append(c, aux.ColId)
+		c = append(c, conv.SpSchema[tableId].ColDefs[aux.ColId].Name)
 		v = append(v, fmt.Sprintf("%d", int64(bits.Reverse64(uint64(aux.Sequence)))))
 		aux.Sequence++
 		conv.SyntheticPKeys[tableId] = aux

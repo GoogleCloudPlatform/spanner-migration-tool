@@ -98,123 +98,132 @@ func TestAddPrimaryKeys(t *testing.T) {
 		{
 			name: "primary key already exists",
 			inputSchema: map[string]ddl.CreateTable{
-				"table": {
+				"t1": {
 					Name:   "table",
-					ColIds: []string{"a", "b"},
+					Id:     "t1",
+					ColIds: []string{"c1", "c2"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
+						"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+						"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
 					},
-					PrimaryKeys: []ddl.IndexKey{{ColId: "a"}}}},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}}}},
 
 			expectedSchema: map[string]ddl.CreateTable{
-				"table": {
+				"t1": {
 					Name:   "table",
-					ColIds: []string{"a", "b"},
+					Id:     "t1",
+					ColIds: []string{"c1", "c2"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
+						"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+						"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
 					},
-					PrimaryKeys: []ddl.IndexKey{{ColId: "a"}},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 				},
 			},
 		},
 		{
 			name: "single unique key as primary key",
 			inputSchema: map[string]ddl.CreateTable{
-				"table": {
+				"t1": {
 					Name:   "table",
-					ColIds: []string{"a", "b"},
+					Id:     "t1",
+					ColIds: []string{"c1", "c2"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
+						"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+						"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
 					},
 					PrimaryKeys: []ddl.IndexKey{},
-					Indexes:     []ddl.CreateIndex{{Name: "", TableId: "", Unique: true, Keys: []ddl.IndexKey{{ColId: "b"}}}},
+					Indexes:     []ddl.CreateIndex{{Name: "", TableId: "", Unique: true, Keys: []ddl.IndexKey{{ColId: "c2"}}}},
 				},
 			},
 			expectedSchema: map[string]ddl.CreateTable{
-				"table": {
+				"t1": {
 					Name:   "table",
-					ColIds: []string{"a", "b"},
+					Id:     "t1",
+					ColIds: []string{"c1", "c2"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
+						"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+						"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
 					},
-					PrimaryKeys: []ddl.IndexKey{{ColId: "b"}},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "c2"}},
 					Indexes:     []ddl.CreateIndex{}},
 			},
-			uniqueKey: []string{"b"},
+			uniqueKey: []string{"c2"},
 		},
 		{
 			name: "multiple unique key as primary key",
 			inputSchema: map[string]ddl.CreateTable{
-				"table": {
+				"t1": {
 					Name:   "table",
-					ColIds: []string{"a", "b"},
+					Id:     "t1",
+					ColIds: []string{"c1", "c2"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
+						"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+						"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
 					},
 					PrimaryKeys: []ddl.IndexKey{},
-					Indexes:     []ddl.CreateIndex{{Name: "", TableId: "", Unique: true, Keys: []ddl.IndexKey{{ColId: "a"}, {ColId: "b"}}}},
+					Indexes:     []ddl.CreateIndex{{Name: "", TableId: "", Unique: true, Keys: []ddl.IndexKey{{ColId: "c1"}, {ColId: "c2"}}}},
 				},
 			},
 			expectedSchema: map[string]ddl.CreateTable{
-				"table": {
+				"t1": {
 					Name:   "table",
-					ColIds: []string{"a", "b"},
+					Id:     "t1",
+					ColIds: []string{"c1", "c2"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
+						"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+						"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
 					},
-					PrimaryKeys: []ddl.IndexKey{{ColId: "a"}, {ColId: "b"}},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}, {ColId: "c2"}},
 					Indexes:     []ddl.CreateIndex{}},
 			},
-			uniqueKey: []string{"a", "b"},
+			uniqueKey: []string{"c1", "c2"},
 		},
 		{
 			name: "in case two unique keys are present first one is taken as primary key",
 			inputSchema: map[string]ddl.CreateTable{
-				"table": {
+				"t1": {
 					Name:   "table",
-					ColIds: []string{"a", "b"},
+					ColIds: []string{"c1", "c2"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
+						"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+						"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
 					},
 					PrimaryKeys: []ddl.IndexKey{},
-					Indexes:     []ddl.CreateIndex{{Name: "", TableId: "", Unique: true, Keys: []ddl.IndexKey{{ColId: "a"}}}, {Name: "", TableId: "", Unique: true, Keys: []ddl.IndexKey{{ColId: "b"}}}},
+					Indexes:     []ddl.CreateIndex{{Name: "", TableId: "", Unique: true, Keys: []ddl.IndexKey{{ColId: "c1"}}}, {Name: "", TableId: "", Unique: true, Keys: []ddl.IndexKey{{ColId: "c2"}}}},
 				},
 			},
 			expectedSchema: map[string]ddl.CreateTable{
-				"table": {
+				"t1": {
 					Name:   "table",
-					ColIds: []string{"a", "b"},
+					ColIds: []string{"c1", "c2"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
+						"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+						"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
 					},
-					PrimaryKeys: []ddl.IndexKey{{ColId: "a"}},
-					Indexes:     []ddl.CreateIndex{{Name: "", TableId: "", Unique: true, Keys: []ddl.IndexKey{{ColId: "b"}}}},
+					PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
+					Indexes:     []ddl.CreateIndex{{Name: "", TableId: "", Unique: true, Keys: []ddl.IndexKey{{ColId: "c2"}}}},
 				},
 			},
-			uniqueKey: []string{"a"},
+			uniqueKey: []string{"c1"},
 		},
 		{
 			name: "unique index doesn't exist so synthetic primary key created",
 			inputSchema: map[string]ddl.CreateTable{
-				"table": {
+				"t1": {
 					Name:   "table",
-					ColIds: []string{"a", "b"},
+					Id:     "t1",
+					ColIds: []string{"c11111", "c22222"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
+						"c11111": {Name: "a", Id: "c11111", T: ddl.Type{Name: ddl.Int64}},
+						"c22222": {Name: "b", Id: "c22222", T: ddl.Type{Name: ddl.Float64}},
 					},
 					PrimaryKeys: []ddl.IndexKey{},
-					Indexes:     []ddl.CreateIndex{{Name: "", TableId: "", Unique: false, Keys: []ddl.IndexKey{{ColId: "b"}}}},
+					Indexes:     []ddl.CreateIndex{{Name: "", TableId: "", Unique: false, Keys: []ddl.IndexKey{{ColId: "c22222"}}}},
 				},
 			},
+			// Since we have synthetic-id column id generated randomly,
+			// to compare expected schema we will use AssertSpSchema function to test it.
 			expectedSchema: map[string]ddl.CreateTable{
 				"table": {
 					Name:   "table",
@@ -233,16 +242,18 @@ func TestAddPrimaryKeys(t *testing.T) {
 		{
 			name: "synthetic key as primary key",
 			inputSchema: map[string]ddl.CreateTable{
-				"table": {
+				"t1": {
 					Name:   "table",
-					ColIds: []string{"a", "b"},
+					ColIds: []string{"c11111", "c22222"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
-						"b": {Name: "b", T: ddl.Type{Name: ddl.Float64}},
+						"c11111": {Name: "a", Id: "c11111", T: ddl.Type{Name: ddl.Int64}},
+						"c22222": {Name: "b", Id: "c22222", T: ddl.Type{Name: ddl.Float64}},
 					},
 					PrimaryKeys: []ddl.IndexKey{},
 				},
 			},
+			// Since we have synthetic-id column id generated randomly,
+			// to compare expected schema we will use AssertSpSchema function to test it.
 			expectedSchema: map[string]ddl.CreateTable{
 				"table": {
 					Name:   "table",
@@ -261,14 +272,15 @@ func TestAddPrimaryKeys(t *testing.T) {
 		conv := MakeConv()
 		conv.SpSchema = tc.inputSchema
 		conv.AddPrimaryKeys()
-		if tc.expectedSchema != nil {
-			assert.Equal(t, tc.expectedSchema["table"], conv.SpSchema["table"])
+		if tc.expectedSchema != nil && tc.syntheticKey == "" {
+			assert.Equal(t, tc.expectedSchema["t1"], conv.SpSchema["t1"])
 		}
 		if tc.uniqueKey != nil {
-			assert.Equal(t, tc.uniqueKey, conv.UniquePKey["table"])
+			assert.Equal(t, tc.uniqueKey, conv.UniquePKey["t1"])
 		}
 		if tc.syntheticKey != "" {
-			assert.Equal(t, tc.syntheticKey, conv.SyntheticPKeys["table"].ColId)
+			AssertSpSchema(conv, t, tc.expectedSchema, conv.SpSchema)
+			assert.Equal(t, tc.syntheticKey, conv.SpSchema["t1"].ColDefs[conv.SyntheticPKeys["t1"].ColId].Name)
 		}
 	}
 }

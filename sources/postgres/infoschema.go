@@ -156,7 +156,7 @@ func convertSQLRow(conv *internal.Conv, srcTable string, srcCols []string, srcSc
 		cs = append(cs, srcCols[i])
 	}
 	if aux, ok := conv.SyntheticPKeys[spTable]; ok {
-		cs = append(cs, aux.ColId)
+		cs = append(cs, conv.SpSchema[srcTable].ColDefs[aux.ColId].Name)
 		vs = append(vs, fmt.Sprintf("%d", int64(bits.Reverse64(uint64(aux.Sequence)))))
 		aux.Sequence++
 		conv.SyntheticPKeys[spTable] = aux

@@ -153,9 +153,7 @@ func GetSpannerCols(conv *Conv, srcTable string, srcCols []string) ([]string, er
 // of the following things:
 // a) the new foreign key name is legal
 // b) the new foreign key name doesn't clash with other Spanner
-//
 //	foreign key names
-//
 // Note that foreign key constraint names in Spanner have to be globally unique
 // (across the database). But in some source databases, such as PostgreSQL,
 // they only have to be unique for a table. Hence we must map each source
@@ -171,9 +169,7 @@ func ToSpannerForeignKey(conv *Conv, srcID string) string {
 // We need to make sure of the following things:
 // a) the new index name is legal
 // b) the new index name doesn't clash with other Spanner
-//
 //	index names
-//
 // Note that index key constraint names in Spanner have to be globally unique
 // (across the database). But in some source databases, such as MySQL,
 // they only have to be unique for a table. Hence we must map each source

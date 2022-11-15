@@ -198,10 +198,10 @@ func TestProcessSchemaOracle(t *testing.T) {
 			PrimaryKeys: []ddl.IndexKey{{ColId: "ID"}},
 		},
 	}
-	common.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
-	userTableId := common.GetSpTableIdFromName(conv, "USER")
-	testTableId := common.GetSpTableIdFromName(conv, "TEST")
-	test2TableId := common.GetSpTableIdFromName(conv, "TEST2")
+	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
+	userTableId := internal.GetSpTableIdFromName(conv, "USER")
+	testTableId := internal.GetSpTableIdFromName(conv, "TEST")
+	test2TableId := internal.GetSpTableIdFromName(conv, "TEST2")
 	assert.NotEqual(t, "", userTableId)
 	assert.NotEqual(t, "", testTableId)
 	assert.NotEqual(t, "", testTableId)

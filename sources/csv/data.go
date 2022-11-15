@@ -32,7 +32,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -131,7 +130,7 @@ func SetRowStats(conv *internal.Conv, tables []utils.ManifestTable, delimiter ru
 			r := csvReader.NewReader(csvFile)
 			r.Comma = delimiter
 
-			tableId := common.GetSpTableIdFromName(conv, table.Table_name)
+			tableId := internal.GetSpTableIdFromName(conv, table.Table_name)
 			if tableId == "" {
 				return fmt.Errorf("table Id not found for spanner table %v", table.Table_name)
 			}
@@ -206,7 +205,7 @@ func ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, nullStr strin
 			r.Comma = delimiter
 
 			// Default column order is same as in Spanner schema.
-			tableId := common.GetSpTableIdFromName(conv, table.Table_name)
+			tableId := internal.GetSpTableIdFromName(conv, table.Table_name)
 			if tableId == "" {
 				return fmt.Errorf("table Id not found for spanner table %v", table.Table_name)
 			}
@@ -268,7 +267,7 @@ func convertData(conv *internal.Conv, nullStr, tableName string, srcCols []strin
 	var v []interface{}
 	var cvtCols []string
 
-	tableId := common.GetSpTableIdFromName(conv, tableName)
+	tableId := internal.GetSpTableIdFromName(conv, tableName)
 	if tableId == "" {
 		return cvtCols, v, fmt.Errorf("table Id not found for spanner table %v", tableName)
 	}
@@ -279,7 +278,7 @@ func convertData(conv *internal.Conv, nullStr, tableName string, srcCols []strin
 			continue
 		}
 		colName := srcCols[i]
-		colId := common.GetSpColIdFromName(conv, tableId, colName)
+		colId := internal.GetSpColIdFromName(conv, tableId, colName)
 		if colId == "" {
 			return cvtCols, v, fmt.Errorf("column Id not found for spanner table %v column %v", tableName, colName)
 		}

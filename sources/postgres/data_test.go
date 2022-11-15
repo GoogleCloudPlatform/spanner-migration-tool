@@ -123,7 +123,10 @@ func TestConvertData(t *testing.T) {
 				ColIds:      []string{colId},
 				ColDefs:     map[string]ddl.ColumnDef{colId: ddl.ColumnDef{Name: col, Id: colId, T: tc.ty, NotNull: false}},
 				PrimaryKeys: []ddl.IndexKey{}},
-			schema.Table{Name: tableName, Id: tableId, ColIds: []string{colId}, ColDefs: map[string]schema.Column{colId: schema.Column{Name: col, Id: colId, Type: schema.Type{Name: tc.srcTy}}}})
+			schema.Table{Name: tableName,
+				Id:      tableId,
+				ColIds:  []string{colId},
+				ColDefs: map[string]schema.Column{colId: schema.Column{Name: col, Id: colId, Type: schema.Type{Name: tc.srcTy}}}})
 		conv.SetLocation(time.UTC)
 		at, ac, av, err := ConvertData(conv, tableName, []string{col}, []string{tc.in})
 		checkResults(t, at, ac, av, err, tableId, []string{col}, []interface{}{tc.e}, tc.name)
@@ -279,8 +282,9 @@ func TestConvertData(t *testing.T) {
 			evals: []interface{}{int64(7), fmt.Sprintf("%d", int64(bits.Reverse64(1)))},
 		},
 	}
+	spTable.ColDefs["c4"] = ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50, IsArray: false}}
 	conv := buildConv(spTable, srcTable)
-	conv.SyntheticPKeys[spTable.Id] = internal.SyntheticPKey{ColId: "synth_id", Sequence: 0}
+	conv.SyntheticPKeys[spTable.Id] = internal.SyntheticPKey{ColId: "c4", Sequence: 0}
 	for _, tc := range syntheticPKeyTests {
 		atable, acols, avals, err := ConvertData(conv, spTable.Name, tc.cols, tc.vals)
 		checkResults(t, atable, acols, avals, err, tableId, tc.ecols, tc.evals, tc.name)

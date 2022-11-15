@@ -87,8 +87,8 @@ func TestProcessMySQLDump_SingleCol(t *testing.T) {
 			v := fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty)
 			conv, _ := runProcessMySQLDump(v)
 			noIssues(conv, t, "Not null: "+tc.ty)
-			tableId := common.GetSpTableIdFromName(conv, "t")
-			colId := common.GetSpColIdFromName(conv, tableId, "a")
+			tableId := internal.GetSpTableIdFromName(conv, "t")
+			colId := internal.GetSpColIdFromName(conv, tableId, "a")
 			cd := conv.SpSchema[tableId].ColDefs[colId]
 			cd.Comment = ""
 			cd.Id = ""
@@ -776,7 +776,7 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 				noIssues(conv, t, tc.name)
 			}
 			if tc.expectedSchema != nil {
-				common.AssertSpSchema(conv, t, tc.expectedSchema, stripSchemaComments(conv.SpSchema))
+				internal.AssertSpSchema(conv, t, tc.expectedSchema, stripSchemaComments(conv.SpSchema))
 			}
 			if tc.expectedData != nil {
 				// assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
@@ -914,7 +914,7 @@ func TestProcessMySQLDump_AddPrimaryKeys(t *testing.T) {
 			conv, _ := runProcessMySQLDump(tc.input)
 			conv.AddPrimaryKeys()
 			if tc.expectedSchema != nil {
-				common.AssertSpSchema(conv, t, tc.expectedSchema, stripSchemaComments(conv.SpSchema))
+				internal.AssertSpSchema(conv, t, tc.expectedSchema, stripSchemaComments(conv.SpSchema))
 			}
 		})
 	}
