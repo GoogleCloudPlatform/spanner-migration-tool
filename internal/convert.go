@@ -345,10 +345,11 @@ func (conv *Conv) AddPrimaryKeys() {
 			}
 			if !primaryKeyPopulated {
 				k := conv.buildPrimaryKey(t)
-				ct.ColIds = append(ct.ColIds, k)
-				ct.ColDefs[k] = ddl.ColumnDef{Name: k, T: ddl.Type{Name: ddl.String, Len: 50}}
-				ct.PrimaryKeys = []ddl.IndexKey{{ColId: k}}
-				conv.SyntheticPKeys[t] = SyntheticPKey{k, 0}
+				columnId := GenerateColumnId()
+				ct.ColIds = append(ct.ColIds, columnId)
+				ct.ColDefs[columnId] = ddl.ColumnDef{Name: k, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}}
+				ct.PrimaryKeys = []ddl.IndexKey{{ColId: columnId}}
+				conv.SyntheticPKeys[t] = SyntheticPKey{columnId, 0}
 			}
 			conv.SpSchema[t] = ct
 		}

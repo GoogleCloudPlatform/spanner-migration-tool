@@ -274,8 +274,8 @@ func TestProcessSchema(t *testing.T) {
 			},
 			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "ref_id"}, ddl.IndexKey{ColId: "ref_txt"}}},
 	}
-	common.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
-	cartTableId := common.GetSpTableIdFromName(conv, "cart")
+	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
+	cartTableId := internal.GetSpTableIdFromName(conv, "cart")
 	assert.Equal(t, len(conv.SchemaIssues[cartTableId]), 0)
 	expectedIssues := map[string][]internal.SchemaIssue{
 		"aint": []internal.SchemaIssue{internal.Widened},
@@ -286,8 +286,8 @@ func TestProcessSchema(t *testing.T) {
 		"s":    []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
 		"ts":   []internal.SchemaIssue{internal.Timestamp},
 	}
-	testTableId := common.GetSpTableIdFromName(conv, "test")
-	common.AssertTableIssues(conv, t, testTableId, expectedIssues, conv.SchemaIssues[testTableId])
+	testTableId := internal.GetSpTableIdFromName(conv, "test")
+	internal.AssertTableIssues(conv, t, testTableId, expectedIssues, conv.SchemaIssues[testTableId])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
 

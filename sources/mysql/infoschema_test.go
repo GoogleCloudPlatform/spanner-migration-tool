@@ -347,19 +347,22 @@ func TestProcessData_MultiCol(t *testing.T) {
 	err := common.ProcessSchema(conv, isi)
 	assert.Nil(t, err)
 	expectedSchema := map[string]ddl.CreateTable{
-		"t1": ddl.CreateTable{
+		"test": ddl.CreateTable{
 			Name:   "test",
-			ColIds: []string{"c2", "c3", "c4", "synth_id"},
+			ColIds: []string{"a", "b", "c", "synth_id"},
 			ColDefs: map[string]ddl.ColumnDef{
-				"c2":       ddl.ColumnDef{Name: "a", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: true, Comment: "", Id: "c2"},
-				"c3":       ddl.ColumnDef{Name: "b", T: ddl.Type{Name: "FLOAT64", Len: 0, IsArray: false}, NotNull: false, Comment: "", Id: "c3"},
-				"c4":       ddl.ColumnDef{Name: "c", T: ddl.Type{Name: "INT64", Len: 0, IsArray: false}, NotNull: false, Comment: "", Id: "c4"},
-				"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: "STRING", Len: 50, IsArray: false}, NotNull: false, Comment: "", Id: ""}},
-			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id", Desc: false, Order: 0}},
-			Id:          "t1"}}
-	assert.Equal(t, expectedSchema, stripSchemaComments(conv.SpSchema))
+				"a":        ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				"b":        ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
+				"c":        ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Int64}},
+				"synth_id": ddl.ColumnDef{Name: "synth_id", T: ddl.Type{Name: ddl.String, Len: 50}},
+			},
+			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "synth_id"}}},
+	}
+	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	expectedIssues := map[string][]internal.SchemaIssue{}
-	assert.Equal(t, expectedIssues, conv.SchemaIssues["t1"])
+	tableId := internal.GetSpTableIdFromName(conv, "test")
+	assert.NotEqual(t, tableId, "")
+	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 	conv.SetDataMode()
 	var rows []spannerData

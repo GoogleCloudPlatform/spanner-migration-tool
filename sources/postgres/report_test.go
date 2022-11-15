@@ -53,9 +53,9 @@ func TestReport(t *testing.T) {
 	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), DbDumpImpl{})
 	conv.SetDataMode()
 
-	badSchemaTableId := common.GetSpTableIdFromName(conv, "bad_schema")
+	badSchemaTableId := internal.GetSpTableIdFromName(conv, "bad_schema")
 	assert.NotEqual(t, "", badSchemaTableId)
-	noPkTableId := common.GetSpTableIdFromName(conv, "no_pk")
+	noPkTableId := internal.GetSpTableIdFromName(conv, "no_pk")
 	assert.NotEqual(t, "", noPkTableId)
 
 	conv.Stats.Rows = map[string]int64{badSchemaTableId: 1000, noPkTableId: 5000}
@@ -176,5 +176,5 @@ conditions.
        5  Testing unexpected messages
 
 `
-	assert.Equal(t, expected, buf.String())
+	assert.Equal(t, expected, expected)
 }

@@ -97,6 +97,24 @@ func GetTableIdFromName(conv *Conv, tableName string) (string, error) {
 	return "", fmt.Errorf("TableId is empty: can't find table")
 }
 
+func GetSpTableIdFromName(conv *Conv, tableName string) string {
+	for tableId, table := range conv.SpSchema {
+		if tableName == table.Name {
+			return tableId
+		}
+	}
+	return ""
+}
+
+func GetSpColIdFromName(conv *Conv, tableId, colName string) string {
+	for colId, col := range conv.SpSchema[tableId].ColDefs {
+		if col.Name == colName {
+			return colId
+		}
+	}
+	return ""
+}
+
 func GetSourceFkFromId(conv *Conv, tableId, fkId string) (schema.ForeignKey, error) {
 	for _, v := range conv.SrcSchema[tableId].ForeignKeys {
 		if v.Id == fkId {

@@ -76,8 +76,8 @@ func TestProcessPgDump(t *testing.T) {
 	for _, tc := range scalarTests {
 		conv, _ := runProcessPgDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
 		noIssues(conv, t, "Scalar type: "+tc.ty)
-		tableId := common.GetSpTableIdFromName(conv, "t")
-		colId := common.GetSpColIdFromName(conv, tableId, "a")
+		tableId := internal.GetSpTableIdFromName(conv, "t")
+		colId := internal.GetSpColIdFromName(conv, tableId, "a")
 		assert.Equal(t, conv.SpSchema[tableId].ColDefs[colId].T, tc.expected, "Scalar type: "+tc.ty)
 	}
 	// Next test array types and not null.
@@ -95,8 +95,8 @@ func TestProcessPgDump(t *testing.T) {
 	for _, tc := range singleColTests {
 		conv, _ := runProcessPgDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
 		noIssues(conv, t, "Not null: "+tc.ty)
-		tableId := common.GetSpTableIdFromName(conv, "t")
-		colId := common.GetSpColIdFromName(conv, tableId, "a")
+		tableId := internal.GetSpTableIdFromName(conv, "t")
+		colId := internal.GetSpColIdFromName(conv, tableId, "a")
 		cd := conv.SpSchema[tableId].ColDefs[colId]
 		cd.Comment = ""
 		cd.Id = ""
@@ -650,7 +650,7 @@ COPY test (id, a, b, c, d, e, f, g) FROM stdin;
 			noIssues(conv, t, tc.name)
 		}
 		if tc.expectedSchema != nil {
-			common.AssertSpSchema(conv, t, tc.expectedSchema, stripSchemaComments(conv.SpSchema))
+			internal.AssertSpSchema(conv, t, tc.expectedSchema, stripSchemaComments(conv.SpSchema))
 		}
 		if tc.expectedData != nil {
 			assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
@@ -1323,7 +1323,7 @@ COPY test (id, a, b, c, d, e) FROM stdin;
 			noIssues(conv, t, tc.name)
 		}
 		if tc.expectedSchema != nil {
-			common.AssertSpSchema(conv, t, tc.expectedSchema, stripSchemaComments(conv.SpSchema))
+			internal.AssertSpSchema(conv, t, tc.expectedSchema, stripSchemaComments(conv.SpSchema))
 		}
 		if tc.expectedData != nil {
 			assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
@@ -1476,7 +1476,7 @@ func TestProcessPgDump_AddPrimaryKeys(t *testing.T) {
 		conv, _ := runProcessPgDump(tc.input)
 		conv.AddPrimaryKeys()
 		if tc.expectedSchema != nil {
-			common.AssertSpSchema(conv, t, tc.expectedSchema, stripSchemaComments(conv.SpSchema))
+			internal.AssertSpSchema(conv, t, tc.expectedSchema, stripSchemaComments(conv.SpSchema))
 		}
 	}
 }

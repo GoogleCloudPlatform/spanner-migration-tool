@@ -340,162 +340,78 @@ func TestResolveRefs(t *testing.T) {
 		unexpecteds      int64      // Expected unexpected conditions
 	}{
 		{
-			name: "Table name case mismatch",
+			name: "Refer column Id not found",
 			spSchema: map[string]ddl.CreateTable{
-				"a": {
-					Name:   "a",
-					ColIds: []string{"acol1", "acol2"},
-					ColDefs: map[string]ddl.ColumnDef{
-						"acol1": {Name: "acol1", T: ddl.Type{Name: ddl.Int64}},
-						"acol2": {Name: "acol2", T: ddl.Type{Name: ddl.Int64}},
-					},
-					ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"acol1"}, ReferTableId: "bB", ReferColumnIds: []string{"bcol1"}}},
-				},
-				"bb": {
-					Name:   "bb",
-					ColIds: []string{"bcol1", "bcol2", "bcol3"},
-					ColDefs: map[string]ddl.ColumnDef{
-						"bcol1": {Name: "bcol1", T: ddl.Type{Name: ddl.Int64}},
-						"bcol2": {Name: "bcol2", T: ddl.Type{Name: ddl.Int64}},
-						"bcol3": {Name: "bcol3", T: ddl.Type{Name: ddl.Int64}},
-					},
-				},
-			},
-			expectedSpSchema: map[string]ddl.CreateTable{
-				"a": {
-					Name:   "a",
-					ColIds: []string{"acol1", "acol2"},
-					ColDefs: map[string]ddl.ColumnDef{
-						"acol1": {Name: "acol1", T: ddl.Type{Name: ddl.Int64}},
-						"acol2": {Name: "acol2", T: ddl.Type{Name: ddl.Int64}},
-					},
-					ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"acol1"}, ReferTableId: "bb", ReferColumnIds: []string{"bcol1"}}},
-				},
-				"bb": {
-					Name:   "bb",
-					ColIds: []string{"bcol1", "bcol2", "bcol3"},
-					ColDefs: map[string]ddl.ColumnDef{
-						"bcol1": {Name: "bcol1", T: ddl.Type{Name: ddl.Int64}},
-						"bcol2": {Name: "bcol2", T: ddl.Type{Name: ddl.Int64}},
-						"bcol3": {Name: "bcol3", T: ddl.Type{Name: ddl.Int64}},
-					},
-				},
-			},
-			unexpecteds: 0,
-		},
-		{
-			name: "Column name case mismatch",
-			spSchema: map[string]ddl.CreateTable{
-				"bb": {
-					Name:   "bb",
-					ColIds: []string{"bcol1", "bcol2", "bcol3"},
-					ColDefs: map[string]ddl.ColumnDef{
-						"bcol1": {Name: "bcol1", T: ddl.Type{Name: ddl.Int64}},
-						"bcol2": {Name: "bcol2", T: ddl.Type{Name: ddl.Int64}},
-						"bcol3": {Name: "bcol3", T: ddl.Type{Name: ddl.Int64}},
-					},
-					ForeignKeys: []ddl.Foreignkey{{Name: "fk_test2", ColIds: []string{"bcol2", "bcol3"}, ReferTableId: "cc", ReferColumnIds: []string{"cCol1", "ccol2"}}},
-				},
-				"cc": {
+				"t1": {
 					Name:   "cc",
-					ColIds: []string{"ccol1", "ccol2", "ccol3"},
+					Id:     "t1",
+					ColIds: []string{"c1", "c2", "c3"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"ccol1": {Name: "ccol1", T: ddl.Type{Name: ddl.Int64}},
-						"ccol2": {Name: "ccol2", T: ddl.Type{Name: ddl.Int64}},
-						"ccol3": {Name: "ccol3", T: ddl.Type{Name: ddl.Int64}},
+						"c1": {Name: "ccol1", T: ddl.Type{Name: ddl.Int64}},
+						"c2": {Name: "ccol2", T: ddl.Type{Name: ddl.Int64}},
+						"c3": {Name: "ccol3", T: ddl.Type{Name: ddl.Int64}},
 					},
+					ForeignKeys: []ddl.Foreignkey{{Name: "fk_test3", ColIds: []string{"c2", "c3"}, ReferTableId: "t2", ReferColumnIds: []string{"c4", "c9"}}},
 				},
-			},
-			expectedSpSchema: map[string]ddl.CreateTable{
-				"bb": {
-					Name:   "bb",
-					ColIds: []string{"bcol1", "bcol2", "bcol3"},
-					ColDefs: map[string]ddl.ColumnDef{
-						"bcol1": {Name: "bcol1", T: ddl.Type{Name: ddl.Int64}},
-						"bcol2": {Name: "bcol2", T: ddl.Type{Name: ddl.Int64}},
-						"bcol3": {Name: "bcol3", T: ddl.Type{Name: ddl.Int64}},
-					},
-					ForeignKeys: []ddl.Foreignkey{{Name: "fk_test2", ColIds: []string{"bcol2", "bcol3"}, ReferTableId: "cc", ReferColumnIds: []string{"ccol1", "ccol2"}}},
-				},
-				"cc": {
-					Name:   "cc",
-					ColIds: []string{"ccol1", "ccol2", "ccol3"},
-					ColDefs: map[string]ddl.ColumnDef{
-						"ccol1": {Name: "ccol1", T: ddl.Type{Name: ddl.Int64}},
-						"ccol2": {Name: "ccol2", T: ddl.Type{Name: ddl.Int64}},
-						"ccol3": {Name: "ccol3", T: ddl.Type{Name: ddl.Int64}},
-					},
-				},
-			},
-			unexpecteds: 0,
-		},
-		{
-			name: "Column name not found after lower case check",
-			spSchema: map[string]ddl.CreateTable{
-				"cc": {
-					Name:   "cc",
-					ColIds: []string{"ccol1", "ccol2", "ccol3"},
-					ColDefs: map[string]ddl.ColumnDef{
-						"ccol1": {Name: "ccol1", T: ddl.Type{Name: ddl.Int64}},
-						"ccol2": {Name: "ccol2", T: ddl.Type{Name: ddl.Int64}},
-						"ccol3": {Name: "ccol3", T: ddl.Type{Name: ddl.Int64}},
-					},
-					ForeignKeys: []ddl.Foreignkey{{Name: "fk_test3", ColIds: []string{"ccol2", "ccol3"}, ReferTableId: "dd", ReferColumnIds: []string{"dcol1", "dcol2"}}},
-				},
-				"dd": {
+				"t2": {
 					Name:   "dd",
-					ColIds: []string{"dcol1", "ddcol2", "dcol3"},
+					Id:     "t2",
+					ColIds: []string{"c4", "c5", "c6"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"dcol1":  {Name: "dcol1", T: ddl.Type{Name: ddl.Int64}},
-						"ddcol2": {Name: "ddcol2", T: ddl.Type{Name: ddl.Int64}},
-						"dcol3":  {Name: "dcol3", T: ddl.Type{Name: ddl.Int64}},
+						"c4": {Name: "dcol1", T: ddl.Type{Name: ddl.Int64}},
+						"c5": {Name: "ddcol2", T: ddl.Type{Name: ddl.Int64}},
+						"c6": {Name: "dcol3", T: ddl.Type{Name: ddl.Int64}},
 					},
 				},
 			},
 			expectedSpSchema: map[string]ddl.CreateTable{
-				"cc": {
+				"t1": {
 					Name:   "cc",
-					ColIds: []string{"ccol1", "ccol2", "ccol3"},
+					Id:     "t1",
+					ColIds: []string{"c1", "c2", "c3"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"ccol1": {Name: "ccol1", T: ddl.Type{Name: ddl.Int64}},
-						"ccol2": {Name: "ccol2", T: ddl.Type{Name: ddl.Int64}},
-						"ccol3": {Name: "ccol3", T: ddl.Type{Name: ddl.Int64}},
+						"c1": {Name: "ccol1", T: ddl.Type{Name: ddl.Int64}},
+						"c2": {Name: "ccol2", T: ddl.Type{Name: ddl.Int64}},
+						"c3": {Name: "ccol3", T: ddl.Type{Name: ddl.Int64}},
 					},
 				},
-				"dd": {
+				"t2": {
 					Name:   "dd",
-					ColIds: []string{"dcol1", "ddcol2", "dcol3"},
+					Id:     "t2",
+					ColIds: []string{"c4", "c5", "c6"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"dcol1":  {Name: "dcol1", T: ddl.Type{Name: ddl.Int64}},
-						"ddcol2": {Name: "ddcol2", T: ddl.Type{Name: ddl.Int64}},
-						"dcol3":  {Name: "dcol3", T: ddl.Type{Name: ddl.Int64}},
+						"c4": {Name: "dcol1", T: ddl.Type{Name: ddl.Int64}},
+						"c5": {Name: "ddcol2", T: ddl.Type{Name: ddl.Int64}},
+						"c6": {Name: "dcol3", T: ddl.Type{Name: ddl.Int64}},
 					},
 				},
 			},
 			unexpecteds: 1,
 		},
 		{
-			name: "Table name not found after lower case check",
+			name: "Refer table Id not found",
 			spSchema: map[string]ddl.CreateTable{
-				"dd": {
+				"t1": {
 					Name:   "dd",
-					ColIds: []string{"dcol1", "ddcol2", "dcol3"},
+					Id:     "t1",
+					ColIds: []string{"c1", "c2", "c3"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"dcol1":  {Name: "dcol1", T: ddl.Type{Name: ddl.Int64}},
-						"ddcol2": {Name: "ddcol2", T: ddl.Type{Name: ddl.Int64}},
-						"dcol3":  {Name: "dcol3", T: ddl.Type{Name: ddl.Int64}},
+						"c1": {Name: "dcol1", T: ddl.Type{Name: ddl.Int64}},
+						"c2": {Name: "ddcol2", T: ddl.Type{Name: ddl.Int64}},
+						"c3": {Name: "dcol3", T: ddl.Type{Name: ddl.Int64}},
 					},
-					ForeignKeys: []ddl.Foreignkey{{Name: "fk_test4", ColIds: []string{"dcol3"}, ReferTableId: "ee", ReferColumnIds: []string{"ecol1"}}},
+					ForeignKeys: []ddl.Foreignkey{{Name: "fk_test4", ColIds: []string{"c3"}, ReferTableId: "t3", ReferColumnIds: []string{"c6"}}},
 				},
 			},
 			expectedSpSchema: map[string]ddl.CreateTable{
-				"dd": {
+				"t1": {
 					Name:   "dd",
-					ColIds: []string{"dcol1", "ddcol2", "dcol3"},
+					Id:     "t1",
+					ColIds: []string{"c1", "c2", "c3"},
 					ColDefs: map[string]ddl.ColumnDef{
-						"dcol1":  {Name: "dcol1", T: ddl.Type{Name: ddl.Int64}},
-						"ddcol2": {Name: "ddcol2", T: ddl.Type{Name: ddl.Int64}},
-						"dcol3":  {Name: "dcol3", T: ddl.Type{Name: ddl.Int64}},
+						"c1": {Name: "dcol1", T: ddl.Type{Name: ddl.Int64}},
+						"c2": {Name: "ddcol2", T: ddl.Type{Name: ddl.Int64}},
+						"c3": {Name: "dcol3", T: ddl.Type{Name: ddl.Int64}},
 					},
 				},
 			},

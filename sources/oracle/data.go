@@ -29,7 +29,6 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
-	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -62,7 +61,7 @@ func convertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 			continue
 		}
 
-		spColId := common.GetSpColIdFromName(conv, spTable, spCol)
+		spColId := internal.GetSpColIdFromName(conv, spTable, spCol)
 		srcColId, _ := internal.GetColumnIdFromName(conv, srcTable, srcCol)
 
 		spColDef, ok1 := spSchema.ColDefs[spColId]

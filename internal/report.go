@@ -255,7 +255,6 @@ func AnalyzeTables(conv *Conv, badWrites map[string]int64) (r []tableReport) {
 }
 
 func buildTableReport(conv *Conv, tableId string, badWrites map[string]int64) tableReport {
-	// spTable, err := GetSpannerTable(conv, srcTable)
 	srcSchema, ok1 := conv.SrcSchema[tableId]
 	spSchema, ok2 := conv.SpSchema[tableId]
 	tr := tableReport{SrcTable: tableId, SpTable: tableId}
@@ -271,7 +270,8 @@ func buildTableReport(conv *Conv, tableId string, badWrites map[string]int64) ta
 		tr.Warnings = warnings
 		if pk, ok := conv.SyntheticPKeys[tableId]; ok {
 			tr.SyntheticPKey = pk.ColId
-			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, &pk.ColId, nil)
+			synthColName := conv.SpSchema[tableId].ColDefs[pk.ColId].Name
+			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, &synthColName, nil)
 		} else if pk, ok := conv.UniquePKey[tableId]; ok {
 			tr.Body = buildTableReportBody(conv, tableId, issues, spSchema, srcSchema, nil, pk)
 		} else {
@@ -364,10 +364,10 @@ func buildTableReportBody(conv *Conv, tableId string, issues map[string][]Schema
 					}
 					issueBatcher[i] = true
 				}
-				srcType := srcSchema.ColDefs[colId].Type.Print()
-				spType := spSchema.ColDefs[colId].T.PrintColumnDefType()
-				srcName := srcSchema.ColDefs[colId].Name
-				spName := spSchema.ColDefs[colId].Name
+				srcColType := srcSchema.ColDefs[colId].Type.Print()
+				spColType := spSchema.ColDefs[colId].T.PrintColumnDefType()
+				srcColName := srcSchema.ColDefs[colId].Name
+				spColName := spSchema.ColDefs[colId].Name
 
 				// A note on case: Spanner types are case insensitive, but
 				// default to upper case. In particular, the Spanner AST uses
@@ -377,35 +377,35 @@ func buildTableReportBody(conv *Conv, tableId string, issues map[string][]Schema
 				// Hence we switch to lower-case for Spanner types here.
 				// TODO: add logic to choose case for Spanner types based
 				// on case of srcType.
-				spType = strings.ToLower(spType)
+				spColType = strings.ToLower(spColType)
 				switch i {
 				case DefaultValue:
-					l = append(l, fmt.Sprintf("%s e.g. column '%s'", IssueDB[i].Brief, spName))
+					l = append(l, fmt.Sprintf("%s e.g. column '%s'", IssueDB[i].Brief, spColName))
 				case ForeignKey:
-					l = append(l, fmt.Sprintf("Column '%s' uses foreign keys which HarbourBridge does not support yet", spName))
+					l = append(l, fmt.Sprintf("Column '%s' uses foreign keys which HarbourBridge does not support yet", spColName))
 				case AutoIncrement:
-					l = append(l, fmt.Sprintf("Column '%s' is an autoincrement column. %s", spName, IssueDB[i].Brief))
+					l = append(l, fmt.Sprintf("Column '%s' is an autoincrement column. %s", spColName, IssueDB[i].Brief))
 				case Timestamp:
 					// Avoid the confusing "timestamp is mapped to timestamp" message.
-					l = append(l, fmt.Sprintf("Some columns have source DB type 'timestamp without timezone' which is mapped to Spanner type timestamp e.g. column '%s'. %s", spName, IssueDB[i].Brief))
+					l = append(l, fmt.Sprintf("Some columns have source DB type 'timestamp without timezone' which is mapped to Spanner type timestamp e.g. column '%s'. %s", spColName, IssueDB[i].Brief))
 				case Datetime:
-					l = append(l, fmt.Sprintf("Some columns have source DB type 'datetime' which is mapped to Spanner type timestamp e.g. column '%s'. %s", spName, IssueDB[i].Brief))
+					l = append(l, fmt.Sprintf("Some columns have source DB type 'datetime' which is mapped to Spanner type timestamp e.g. column '%s'. %s", spColName, IssueDB[i].Brief))
 				case Widened:
-					l = append(l, fmt.Sprintf("%s e.g. for column '%s', source DB type %s is mapped to Spanner type %s", IssueDB[i].Brief, spName, srcType, spType))
+					l = append(l, fmt.Sprintf("%s e.g. for column '%s', source DB type %s is mapped to Spanner type %s", IssueDB[i].Brief, spColName, srcColType, spColType))
 				case HotspotTimestamp:
-					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spName)
+					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 				case HotspotAutoIncrement:
-					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spName)
+					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 				case InterleavedNotInOrder:
-					str := fmt.Sprintf(" Table %s  %s and Column %s", IssueDB[i].Brief, spSchema.Name, spName)
+					str := fmt.Sprintf(" Table %s  %s and Column %s", IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !contains(l, str) {
 						l = append(l, str)
@@ -417,44 +417,44 @@ func buildTableReportBody(conv *Conv, tableId string, issues map[string][]Schema
 						l = append(l, str)
 					}
 				case InterleavedAddColumn:
-					str := fmt.Sprintf(" %s add %s as a primary key in table %s", IssueDB[i].Brief, spName, spSchema.Name)
+					str := fmt.Sprintf(" %s add %s as a primary key in table %s", IssueDB[i].Brief, spColName, spSchema.Name)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 				case InterleavedRenameColumn:
-					fkName, referCol := getFkAndReferColumn(spSchema, srcName)
-					str := fmt.Sprintf(" %s rename %s primary key in table %s to match the foreign key %s refer column %s", IssueDB[i].Brief, srcName, spSchema.Name, fkName, referCol)
+					fkName, referCol := getFkAndReferColumn(spSchema, srcColName)
+					str := fmt.Sprintf(" %s rename %s primary key in table %s to match the foreign key %s refer column %s", IssueDB[i].Brief, srcColName, spSchema.Name, fkName, referCol)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 
 				case RedundantIndex:
-					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spName)
+					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 
 				case AutoIncrementIndex:
-					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spName)
+					str := fmt.Sprintf(" %s for Table %s and Column  %s", IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 
 				case InterleaveIndex:
-					str := fmt.Sprintf("Column %s of Table %s %s", spName, spSchema.Name, IssueDB[i].Brief)
+					str := fmt.Sprintf("Column %s of Table %s %s", spColName, spSchema.Name, IssueDB[i].Brief)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 
 				case IllegalName:
-					l = append(l, fmt.Sprintf("%s, Column '%s' is mapped to '%s'", IssueDB[i].Brief, srcName, spName))
+					l = append(l, fmt.Sprintf("%s, Column '%s' is mapped to '%s'", IssueDB[i].Brief, srcColName, spColName))
 				default:
-					l = append(l, fmt.Sprintf("Column '%s': type %s is mapped to %s. %s", spName, srcType, spType, IssueDB[i].Brief))
+					l = append(l, fmt.Sprintf("Column '%s': type %s is mapped to %s. %s", spColName, srcColType, spColType, IssueDB[i].Brief))
 				}
 			}
 		}

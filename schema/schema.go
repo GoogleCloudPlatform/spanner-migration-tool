@@ -35,7 +35,7 @@ import (
 type Table struct {
 	Name        string
 	Schema      string
-	ColIds      []string          // List of column names (for predictable iteration order e.g. printing).
+	ColIds      []string          // List of column Ids (for predictable iteration order e.g. printing).
 	ColDefs     map[string]Column // Details of columns.
 	PrimaryKeys []Key
 	ForeignKeys []ForeignKey
