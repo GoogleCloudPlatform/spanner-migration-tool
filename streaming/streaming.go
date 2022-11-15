@@ -121,6 +121,8 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string) error {
 	if err != nil {
 		return fmt.Errorf("parseFilePath: unable to parse file path: %v", err)
 	}
+	// We update the TmpDir in case any '/' were added in ParseGCSFilePath().
+	streamingCfg.TmpDir = u.String()
 	bucketName := u.Host
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
@@ -180,7 +182,8 @@ func getSourceStreamConfig(srcCfg *datastreampb.SourceConfig, sourceProfile prof
 		srcCfg.SourceStreamConfig = getMysqlSourceStreamConfig(sourceProfile.Conn.Mysql.Db)
 		return nil
 	case constants.ORACLE:
-		srcCfg.SourceStreamConfig = getOracleSourceStreamConfig(sourceProfile.Conn.Oracle.Db)
+		// For Oracle, the User name denotes the name of the schema while the dbName parameter has the SID.
+		srcCfg.SourceStreamConfig = getOracleSourceStreamConfig(sourceProfile.Conn.Oracle.User)
 		return nil
 	default:
 		return fmt.Errorf("only MySQL and Oracle are supported as source streams")
@@ -325,17 +328,21 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	}
 	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
 	inputFilePattern := "gs://" + gcsProfile.BucketName + gcsProfile.RootPath + datastreamCfg.DestinationConnectionConfig.Prefix
+	if inputFilePattern[len(inputFilePattern)-1] != '/' {
+		inputFilePattern = inputFilePattern + "/"
+	}
 	fmt.Println("Reading files from datastream destination ", inputFilePattern)
 
 	launchParameter := &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner"},
 		Parameters: map[string]string{
-			"inputFilePattern": inputFilePattern,
-			"streamName":       fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
-			"instanceId":       instance,
-			"databaseId":       dbName,
-			"sessionFilePath":  streamingCfg.TmpDir + "session.json",
+			"inputFilePattern":         inputFilePattern,
+			"streamName":               fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
+			"instanceId":               instance,
+			"databaseId":               dbName,
+			"sessionFilePath":          streamingCfg.TmpDir + "session.json",
+			"deadLetterQueueDirectory": inputFilePattern + "dlq",
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 			NumWorkers: numWorkers,
@@ -390,7 +397,16 @@ func StartDatastream(ctx context.Context, sourceProfile profiles.SourceProfile, 
 }
 
 func StartDataflow(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) error {
-	err := LaunchDataflowJob(ctx, targetProfile, streamingCfg, conv)
+
+	convJSON, err := json.MarshalIndent(conv, "", " ")
+	if err != nil {
+		return fmt.Errorf("can't encode session state to JSON: %v", err)
+	}
+	err = utils.WriteToGCS(streamingCfg.TmpDir, "session.json", string(convJSON))
+	if err != nil {
+		return fmt.Errorf("error while writing to GCS: %v", err)
+	}
+	err = LaunchDataflowJob(ctx, targetProfile, streamingCfg, conv)
 	if err != nil {
 		return fmt.Errorf("error launching dataflow: %v", err)
 	}

@@ -6,6 +6,7 @@ import { ConversionService } from '../../services/conversion/conversion.service'
 import { ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import { SidenavService } from '../../services/sidenav/sidenav.service'
 import { IUpdateTableArgument } from 'src/app/model/update-table'
+import IConv from '../../model/conv'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 
 @Component({
@@ -14,8 +15,8 @@ import { ClickEventService } from 'src/app/services/click-event/click-event.serv
   styleUrls: ['./object-explorer.component.scss'],
 })
 export class ObjectExplorerComponent implements OnInit {
+  conv!: IConv
   isLeftColumnCollapse: boolean = false
-  srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
   currentSelectedObject: FlatNode | null = null
   srcSortOrder: string = ''
   spannerSortOrder: string = ''
@@ -29,6 +30,7 @@ export class ObjectExplorerComponent implements OnInit {
   @Output() leftCollaspe: EventEmitter<any> = new EventEmitter()
   @Input() spannerTree: ISchemaObjectNode[] = []
   @Input() srcTree: ISchemaObjectNode[] = []
+  @Input() srcDbName: string = ''
   selectedIndex: number = 1
 
   private transformer = (node: ISchemaObjectNode, level: number) => {
