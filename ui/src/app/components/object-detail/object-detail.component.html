@@ -692,28 +692,6 @@
                   >
                     <span>Drop Foreign Key</span>
                   </button>
-                  <button
-                    *ngIf="
-                      interleaveStatus.tableInterleaveStatus &&
-                      interleaveStatus.tableInterleaveStatus.Possible
-                    "
-                    [disabled]="element.get('spName').value === ''"
-                    mat-menu-item
-                    (click)="setInterleave()"
-                  >
-                    <span>Convert to interleave</span>
-                  </button>
-                  <button
-                    *ngIf="
-                      interleaveStatus.tableInterleaveStatus &&
-                      !interleaveStatus.tableInterleaveStatus.Possible
-                    "
-                    [disabled]="element.get('spName').value === ''"
-                    mat-menu-item
-                    (click)="convertToFk()"
-                  >
-                    <span>Convert to Foreign Key</span>
-                  </button>
                 </mat-menu>
               </div>
             </td>
