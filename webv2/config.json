@@ -1,4 +1,4 @@
 {
-    "GCPProjectID": "",
-    "SpannerInstanceID": ""
+ "GCPProjectID": "harbourbridge-phase2",
+ "SpannerInstanceID": "harbour-bridge"
 }

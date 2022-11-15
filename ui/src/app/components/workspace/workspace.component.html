@@ -17,7 +17,6 @@
     </div>
   </div>
   <div class="container">
-    <h2 class="vertical-center">Configure schema</h2>
     <div class="summary">
       Estimation for {{ srcDbName.toUpperCase() }} to Spanner conversion:
       {{ conversionRatePercentages.good }}% of tables can be converted automatically,
@@ -25,9 +24,6 @@
       {{ conversionRatePercentages.bad }}% requires high complexity conversion changes.
       <br>
       To make schema changes go to <a class="spanner-tab-link" (click)="spannerTab()">Spanner Draft</a> pane.
-    </div>
-    <div class="summary">
-      To make conversion changes go to Spanner tree panel.
     </div>
   </div>
   <div class="columns">
