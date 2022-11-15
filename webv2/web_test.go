@@ -329,8 +329,8 @@ func TestGetTypeMapMySQL(t *testing.T) {
 		"enum": {
 			{T: ddl.String}},
 		"json": {
-			{T: ddl.Bytes},
-			{T: ddl.String}},
+			{T: ddl.String},
+			{T: ddl.JSON}},
 		"binary": {
 			{T: ddl.Bytes},
 			{T: ddl.String}},
@@ -407,7 +407,7 @@ func TestSetTypeMapGlobalLevelMySQL(t *testing.T) {
 					"d": {Name: "d", T: ddl.Type{Name: ddl.Bytes, Len: 6}},
 					"e": {Name: "e", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"f": {Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-					"g": {Name: "g", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+					"g": {Name: "g", T: ddl.Type{Name: ddl.JSON, Len: ddl.MaxLength}},
 					"h": {Name: "h", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"i": {Name: "i", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 					"j": {Name: "j", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
