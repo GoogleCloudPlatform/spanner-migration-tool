@@ -66,6 +66,13 @@ export class SidenavReviewChangesComponent implements OnInit {
               'Close',
               5
             )
+            if (this.showDdl == false && this.tableNames.length != 1) {
+              this.snackbar.openSnackBar(
+                `Schema changes to tables ${this.tableNames[0]} and  ${this.tableNames[1]}  saved successfully`,
+                'Close',
+                5
+              )
+            }
             this.closeSidenav()
           } else {
             this.snackbar.openSnackBar(res, 'Close', 5)
