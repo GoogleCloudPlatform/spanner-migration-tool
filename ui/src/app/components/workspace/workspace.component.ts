@@ -84,8 +84,10 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
         this.reRenderObjectExplorerSrc()
       }
       this.conv = data
+      if (this.conv.DatabaseType) {
+        this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
+      }
 
-      this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
       if (indexAddedOrRemoved && this.conversionRates) this.reRenderObjectExplorerSpanner()
       if (!this.objectExplorerInitiallyRender && this.conversionRates) {
         this.reRenderObjectExplorerSpanner()
