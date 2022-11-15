@@ -230,6 +230,14 @@ func SaveRemoteSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sessionMetaData := GetSessionState().SessionMetadata
+	
+	sessionMetaData.DatabaseName = sm.DatabaseName
+	sessionMetaData.DatabaseType = sm.DatabaseType
+	sessionMetaData.SessionName = sm.SessionName
+
+	GetSessionState().SessionMetadata = sessionMetaData
+
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode("Save successful, VersionId : " + scs.VersionId)
 }
