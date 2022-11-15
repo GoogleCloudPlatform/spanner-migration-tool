@@ -133,7 +133,7 @@ func convertSQLRow(conv *internal.Conv, srcTable string, srcCols []string, srcSc
 	var vs []interface{}
 	var cs []string
 	for i := range srcCols {
-		columnId, _ := internal.GetColumnIdFromName(conv, srcTable, srcCols[i])
+		columnId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[srcTable].ColDefs, srcCols[i])
 		srcCd, ok1 := srcSchema.ColDefs[columnId]
 		spCd, ok2 := spSchema.ColDefs[columnId]
 		if !ok1 || !ok2 {

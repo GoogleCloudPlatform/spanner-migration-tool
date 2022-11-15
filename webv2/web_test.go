@@ -2054,20 +2054,6 @@ func TestRestoreTable(t *testing.T) {
 
 		Audit: internal.Audit{
 			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
-			ToSourceFkIdx: map[string]internal.FkeyAndIdxs{
-				"t1": {
-					Name:       "tn1",
-					ForeignKey: map[string]string{},
-					Index:      map[string]string{},
-				},
-			},
-			ToSpannerFkIdx: map[string]internal.FkeyAndIdxs{
-				"t1": {
-					Name:       "tn1",
-					ForeignKey: map[string]string{},
-					Index:      map[string]string{},
-				},
-			},
 		},
 
 		SchemaIssues: map[string]map[string][]internal.SchemaIssue{},

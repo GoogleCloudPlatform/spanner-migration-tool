@@ -320,22 +320,22 @@ func buildTableReportBody(conv *Conv, tableId string, issues map[string][]Schema
 		}
 
 		if p.severity == warning {
-			for fkId, spKeyName := range conv.Audit.ToSpannerFkIdx[tableId].ForeignKey {
-				fk, err := GetSourceFkFromId(conv, tableId, fkId)
+			for _, spFk := range conv.SpSchema[tableId].ForeignKeys {
+				srcFk, err := GetSourceFkFromId(conv, tableId, spFk.Id)
 				if err != nil {
 					continue
 				}
-				if fk.Name != spKeyName {
-					l = append(l, fmt.Sprintf("%s, Foreign Key '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, fk.Name, spKeyName))
+				if srcFk.Name != spFk.Name {
+					l = append(l, fmt.Sprintf("%s, Foreign Key '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcFk.Name, spFk.Name))
 				}
 			}
-			for indexId, spIdxName := range conv.Audit.ToSpannerFkIdx[tableId].Index {
-				index, err := GetSourceIndexFromId(conv, tableId, indexId)
+			for _, spIdx := range conv.SpSchema[tableId].Indexes {
+				srcIdx, err := GetSourceIndexFromId(conv, tableId, spIdx.Id)
 				if err != nil {
 					continue
 				}
-				if index.Name != spIdxName {
-					l = append(l, fmt.Sprintf("%s, Index '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, index.Name, spIdxName))
+				if srcIdx.Name != spIdx.Name {
+					l = append(l, fmt.Sprintf("%s, Index '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcIdx.Name, spIdx.Name))
 				}
 			}
 
@@ -713,23 +713,36 @@ func reportNameChanges(conv *Conv, w *bufio.Writer) {
 	fmt.Fprintf(w, "%25s %15s %25s %25s\n", "Source Table", "Change", "Old Name", "New Name")
 	w.WriteString("-----------------------------------------------------------------------------------------------------\n")
 
-	for srcTableName, spTable := range conv.ToSpanner {
-		if srcTableName != spTable.Name {
-			fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Table Name", srcTableName, spTable.Name)
+	for tableId, spTable := range conv.SpSchema {
+		srcTable := conv.SrcSchema[tableId]
+		if srcTable.Name != spTable.Name {
+			fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTable.Name, "Table Name", srcTable.Name, spTable.Name)
 		}
-		for srcColName, spColName := range spTable.Cols {
-			if srcColName != spColName {
-				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Column Name", srcColName, spColName)
+		for colId, spCol := range spTable.ColDefs {
+			srcCol, ok := srcTable.ColDefs[colId]
+			if !ok {
+				continue
+			}
+			if srcCol.Name != spCol.Name {
+				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTable.Name, "Column Name", srcCol.Name, spCol.Name)
 			}
 		}
-		for srcFkName, spFkName := range conv.Audit.ToSpannerFkIdx[srcTableName].ForeignKey {
-			if srcFkName != spFkName {
-				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Foreign Key", srcFkName, spFkName)
+		for _, spFk := range conv.SpSchema[tableId].ForeignKeys {
+			srcFk, err := GetSourceFkFromId(conv, tableId, spFk.Id)
+			if err != nil {
+				continue
+			}
+			if srcFk.Name != spFk.Name {
+				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTable.Name, "Foreign Key", srcFk.Name, spFk.Name)
 			}
 		}
-		for srcIdxName, spIdxName := range conv.Audit.ToSpannerFkIdx[srcTableName].Index {
-			if srcIdxName != spIdxName {
-				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTableName, "Index", srcIdxName, spIdxName)
+		for _, spIdx := range conv.SpSchema[tableId].Indexes {
+			srcIdx, err := GetSourceIndexFromId(conv, tableId, spIdx.Id)
+			if err != nil {
+				continue
+			}
+			if srcIdx.Name != spIdx.Name {
+				fmt.Fprintf(w, "%25s %15s %25s %25s\n", srcTable.Name, "Index", srcIdx.Name, spIdx.Name)
 			}
 		}
 	}

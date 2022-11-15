@@ -38,7 +38,7 @@ func contains(l []string, str string) bool {
 	return false
 }
 
-func GenerateId() string {
+func GenerateIdSuffix() string {
 
 	counter, _ := strconv.Atoi(Cntr.ObjectId)
 
@@ -48,40 +48,30 @@ func GenerateId() string {
 	return Cntr.ObjectId
 }
 
+func GenerateId(idPrefix string) string {
+	idSuffix := GenerateIdSuffix()
+	id := idPrefix + idSuffix
+	return id
+}
+
 func GenerateTableId() string {
-	tablePrefix := "t"
-	id := GenerateId()
-	tableId := tablePrefix + id
-	return tableId
+	return GenerateId("t")
 }
 
 func GenerateColumnId() string {
-
-	columnPrefix := "c"
-	id := GenerateId()
-	columnId := columnPrefix + id
-	return columnId
+	return GenerateId("c")
 }
 
 func GenerateForeignkeyId() string {
-
-	foreignKeyPrefix := "f"
-	id := GenerateId()
-	foreignKeyId := foreignKeyPrefix + id
-	return foreignKeyId
+	return GenerateId("f")
 }
 
 func GenerateIndexesId() string {
-
-	indexesPrefix := "i"
-	id := GenerateId()
-
-	indexesId := indexesPrefix + id
-	return indexesId
+	return GenerateId("i")
 }
 
-func GetColumnIdFromName(conv *Conv, tableId string, columnName string) (string, error) {
-	for _, v := range conv.SrcSchema[tableId].ColDefs {
+func GetColIdFromSrcName(srcColDef map[string]schema.Column, columnName string) (string, error) {
+	for _, v := range srcColDef {
 		if v.Name == columnName {
 			return v.Id, nil
 		}

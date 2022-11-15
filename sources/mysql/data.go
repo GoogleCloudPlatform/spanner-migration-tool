@@ -66,7 +66,7 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 			continue
 		}
 
-		columnId, _ := internal.GetColumnIdFromName(conv, tableId, srcCol)
+		columnId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, srcCol)
 		spColDef, ok1 := spSchema.ColDefs[columnId]
 		srcColDef, ok2 := srcSchema.ColDefs[columnId]
 		if !ok1 || !ok2 {

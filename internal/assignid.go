@@ -68,7 +68,7 @@ func (conv *Conv) AssignColumnId() {
 			delete(table.ColDefs, columnName)
 		}
 		for k, v := range conv.SrcSchema[tableId].ColIds {
-			columnId, _ := GetColumnIdFromName(conv, tableId, v)
+			columnId, _ := GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, v)
 			conv.SrcSchema[tableId].ColIds[k] = columnId
 		}
 	}
@@ -79,7 +79,7 @@ func (conv *Conv) AssignPkId() {
 	for _, tableId := range tableIds {
 		table := conv.SrcSchema[tableId]
 		for i, pk := range table.PrimaryKeys {
-			columnId, err := GetColumnIdFromName(conv, tableId, pk.ColId)
+			columnId, err := GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, pk.ColId)
 			if err != nil {
 				fmt.Println("ColumnId doesn't exist.")
 				continue
@@ -96,7 +96,7 @@ func (conv *Conv) AssignIndexId() {
 		for i, index := range table.Indexes {
 			indexId := GenerateIndexesId()
 			for k, v := range index.Keys {
-				columnId, err := GetColumnIdFromName(conv, tableId, v.ColId)
+				columnId, err := GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, v.ColId)
 				if err != nil {
 					fmt.Println("ColumnId doesn't exist.")
 					continue
@@ -105,7 +105,7 @@ func (conv *Conv) AssignIndexId() {
 			}
 			var storedColumnIds []string
 			for _, v := range index.StoredColumnIds {
-				storedColumnId, err := GetColumnIdFromName(conv, tableId, v)
+				storedColumnId, err := GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, v)
 				if err != nil {
 					fmt.Println("StoreColumnId doesn't exist.")
 					continue
@@ -126,7 +126,7 @@ func (conv *Conv) AssginFkId() {
 			fkId := GenerateForeignkeyId()
 			var columnIds []string
 			for _, columnName := range fk.ColIds {
-				columnId, err := GetColumnIdFromName(conv, tableId, columnName)
+				columnId, err := GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, columnName)
 				if err != nil {
 					fmt.Println("ReferColumnId doesn't exist.")
 					continue
@@ -141,7 +141,7 @@ func (conv *Conv) AssginFkId() {
 			}
 			var referColumnIds []string
 			for _, referColumnName := range fk.ReferColumnIds {
-				referColumnId, err := GetColumnIdFromName(conv, referTableId, referColumnName)
+				referColumnId, err := GetColIdFromSrcName(conv.SrcSchema[referTableId].ColDefs, referColumnName)
 				if err != nil {
 					fmt.Println("ReferColumnId doesn't exist.")
 					continue

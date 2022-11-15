@@ -55,20 +55,6 @@ func TestToSpannerType(t *testing.T) {
 	}
 	audit := internal.Audit{
 		MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
-		ToSourceFkIdx: map[string]internal.FkeyAndIdxs{
-			"t1": {
-				Name:       "t1",
-				ForeignKey: map[string]string{},
-				Index:      map[string]string{},
-			},
-		},
-		ToSpannerFkIdx: map[string]internal.FkeyAndIdxs{
-			"t1": {
-				Name:       "t1",
-				ForeignKey: map[string]string{},
-				Index:      map[string]string{},
-			},
-		},
 	}
 	conv.SrcSchema[name] = srcSchema
 	conv.Audit = audit
@@ -130,20 +116,6 @@ func TestToExperimentalSpannerType(t *testing.T) {
 	}
 	audit := internal.Audit{
 		MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
-		ToSourceFkIdx: map[string]internal.FkeyAndIdxs{
-			"t1": {
-				Name:       "t1",
-				ForeignKey: map[string]string{},
-				Index:      map[string]string{},
-			},
-		},
-		ToSpannerFkIdx: map[string]internal.FkeyAndIdxs{
-			"t1": {
-				Name:       "t1",
-				ForeignKey: map[string]string{},
-				Index:      map[string]string{},
-			},
-		},
 	}
 	conv.SrcSchema["t1"] = srcSchema
 	conv.Audit = audit

@@ -65,7 +65,7 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 		t.Run(tc.ty, func(t *testing.T) {
 			conv, _ := runProcessMySQLDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
 			tableId, _ := internal.GetTableIdFromName(conv, "t")
-			columnId, _ := internal.GetColumnIdFromName(conv, tableId, "a")
+			columnId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, "a")
 			noIssues(conv, t, "Scalar type: "+tc.ty)
 			assert.Equal(t, conv.SpSchema[tableId].ColDefs[columnId].T, tc.expected, "Scalar type: "+tc.ty)
 		})

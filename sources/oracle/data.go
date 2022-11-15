@@ -62,7 +62,7 @@ func convertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 		}
 
 		spColId := internal.GetSpColIdFromName(conv, spTable, spCol)
-		srcColId, _ := internal.GetColumnIdFromName(conv, srcTable, srcCol)
+		srcColId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[srcTable].ColDefs, srcCol)
 
 		spColDef, ok1 := spSchema.ColDefs[spColId]
 		srcColDef, ok2 := srcSchema.ColDefs[srcColId]

@@ -751,7 +751,7 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 		conv, _ := runProcessPgDumpPGTarget(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
 		noIssues(conv, t, "Scalar type: "+tc.ty)
 		tableId, _ := internal.GetTableIdFromName(conv, "t")
-		columnId, _ := internal.GetColumnIdFromName(conv, tableId, "a")
+		columnId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, "a")
 		assert.Equal(t, conv.SpSchema[tableId].ColDefs[columnId].T, tc.expected, "Scalar type: "+tc.ty)
 	}
 	// Next test array types and not null. For PG Spanner, all array types mapped to string.
@@ -770,7 +770,7 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 		conv, _ := runProcessPgDumpPGTarget(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
 		noIssues(conv, t, "Not null: "+tc.ty)
 		tableId, _ := internal.GetTableIdFromName(conv, "t")
-		columnId, _ := internal.GetColumnIdFromName(conv, tableId, "a")
+		columnId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, "a")
 		cd := conv.SpSchema[tableId].ColDefs[columnId]
 		cd.Comment = ""
 		cd.Id = ""

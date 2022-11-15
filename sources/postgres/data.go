@@ -83,7 +83,7 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, vals []
 		if vals[i] == "\\N" || vals[i] == "NULL" {
 			continue
 		}
-		colId, _ := internal.GetColumnIdFromName(conv, tableId, srcCol)
+		colId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, srcCol)
 		spColDef, ok1 := spSchema.ColDefs[colId]
 		srcColDef, ok2 := srcSchema.ColDefs[colId]
 		if !ok1 || !ok2 {

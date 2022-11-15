@@ -925,8 +925,6 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 	spSchema := sessionState.Conv.SpSchema
 	issues := sessionState.Conv.SchemaIssues
 	syntheticPkey := sessionState.Conv.SyntheticPKeys
-	toSourceFkIdx := sessionState.Conv.Audit.ToSourceFkIdx
-	toSpannerFkIdx := sessionState.Conv.Audit.ToSpannerFkIdx
 	toSource := sessionState.Conv.ToSource
 	toSpanner := sessionState.Conv.ToSpanner
 
@@ -943,8 +941,6 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 	delete(spSchema, tableId)
 	issues[tableId] = map[string][]internal.SchemaIssue{}
 	delete(syntheticPkey, tableId)
-	delete(toSourceFkIdx, tableId)
-	delete(toSpannerFkIdx, tableId)
 	delete(toSource, sessionState.Conv.SpSchema[tableId].Name)
 	delete(toSpanner, sessionState.Conv.SrcSchema[tableId].Name)
 
@@ -1225,7 +1221,7 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 
 	index.CheckIndexSuggestion(newIndexes, sp)
 	for i := 0; i < len(newIndexes); i++ {
-		newIndexes[i].Id = uniqueid.GenerateIndexesId()
+		newIndexes[i].Id = internal.GenerateIndexesId()
 	}
 
 	sp.Indexes = append(sp.Indexes, newIndexes...)
