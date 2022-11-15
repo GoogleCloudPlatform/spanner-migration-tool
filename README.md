@@ -8,7 +8,7 @@ The tool ingests schema and data from either a pg_dump/mysqldump file or directl
 from the source database, and supports both schema and data migration. For schema
 migration, HarbourBridge automatically builds a Spanner schema from the schema
 of the source database. This schema can be customized using the HarbourBridge schema assistant and
-new Spanner database is created using the Spanner schema built.
+a new Spanner database is created using the Spanner schema built.
 
 For more details on schema customization and use of the schema assistant, see
 [web/README](webv2/README.md). The rest of this README describes the command-line
@@ -32,9 +32,9 @@ produces.
 
 HarbourBridge supports two types of data migrations:
 
-* Bulk Migration -  HarbourBridge reads data from source database and writes it to the database created in Cloud Spanner. Changes which happen to the source database during the bulk migration may or may not be written to Spanner. To achieve consistent version of data, stop writes on the source while migration is in progress. While there is no technical limit on the size of the database, it is recommended for migrating moderate-size datasets to Spanner(up to about 100GB).
+* Streaming migration - A streaming migration consists of two components, migration of existing data from the database and the stream of changes (writes and updates) that are made to the source database during migration, referred to as change database capture (CDC). Using HarbourBridge, the entire process where Datastream reads data from the source database and writes to a GCS bucket and data flow reads data from GCS bucket and writes to spanner database can be orchestrated using a unified interface. Performing schema changes on the source database during the migration is not supported. This is the suggested mode of migration for most databases.
 
-* Streaming migration - A streaming migration consists of two components, migration of existing data from the database and the stream of changes (writes and updates) that are made to the source database during migration, referred to as change database capture (CDC). Using HarbourBridge, the entire process where Datastream reads data from the source database and writes to a GCS bucket and data flow reads data from GCS bucket and writes to spanner database can be orchestrated using a unified interface. It is suggested for databases that require low downtime and for larger databases(> 100GB).
+* Bulk Migration -  HarbourBridge reads data from source database and writes it to the database created in Cloud Spanner. Changes which happen to the source database during the bulk migration may or may not be written to Spanner. To achieve consistent version of data, stop writes on the source while migration is in progress, or use a read replica. Performing schema changes on the source database during the migration is not supported. While there is no technical limit on the size of the database, it is recommended for migrating moderate-size datasets to Spanner(up to about 100GB).
 
 For some quick starter examples on how to run HarbourBridge, take a look at
 [Quickstart Guide](#quickstart-guide).
@@ -313,7 +313,7 @@ This will print the usage pattern, a few examples, and a list of all available s
 
 #### harbourbridge `schema`
 
-This subcommand can be used to perform schema conversion and report on the quality of the conversion. Generated schema mapping file (session.json) can be then further edited using the HarbourBridge web UI to make custom edits to the destination schema. This session file
+This subcommand can be used to perform schema conversion and report on the quality of the conversion. The generated schema mapping file (session.json) can be then further edited using the HarbourBridge web UI to make custom edits to the destination schema. This session file
 is then passed to the data subcommand to perform data migration while honoring the defined
 schema mapping. HarbourBridge also generates Spanner schema which users can modify manually and use directly as well.
 
