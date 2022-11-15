@@ -318,7 +318,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 			}
 		}
 
-		if p.severity == note {
+		if p.severity == warning {
 			for srcKeyName, spKeyName := range conv.Audit.ToSpannerFkIdx[srcTable].ForeignKey {
 				if srcKeyName != spKeyName {
 					l = append(l, fmt.Sprintf("%s, Foreign Key '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcKeyName, spKeyName))
@@ -328,6 +328,9 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 				if srcIdxName != spIdxName {
 					l = append(l, fmt.Sprintf("%s, Index '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcIdxName, spIdxName))
 				}
+			}
+			if spSchema.Name != srcSchema.Name {
+				l = append(l, fmt.Sprintf("%s, Table '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcSchema.Name, spSchema.Name))
 			}
 		}
 

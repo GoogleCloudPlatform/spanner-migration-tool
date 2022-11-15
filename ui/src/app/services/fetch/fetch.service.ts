@@ -49,6 +49,22 @@ export class FetchService {
     return this.http.post<IConv>(`${this.url}/convert/dump`, payload)
   }
 
+  setSourceDBDetailsForDump(payload: IDumpConfig) {
+    return this.http.post(`${this.url}/SetSourceDBDetailsForDump`, payload)
+  }
+
+  setSourceDBDetailsForDirectConnect(payload: IDbConfig) {
+    const { dbEngine, hostName, port, dbName, userName, password } = payload
+    return this.http.post(`${this.url}/SetSourceDBDetailsForDirectConnect`, {
+      Driver: dbEngine,
+      Host: hostName,
+      Port: port,
+      Database: dbName,
+      User: userName,
+      Password: password,
+    },)
+  }
+
   getSchemaConversionFromSessionFile(payload: ISessionConfig) {
     return this.http.post<IConv>(`${this.url}/convert/session`, payload)
   }
@@ -57,18 +73,16 @@ export class FetchService {
     return this.http.get<Record<string, string>>(`${this.url}/conversion`)
   }
 
-  getConnectionProfiles(region: string, isSource: boolean) {
-    return this.http.get<IConnectionProfile[]>(
-      `${this.url}/GetConnectionProfiles?region=${region}&source=${isSource}`
-    )
+  getConnectionProfiles(isSource: boolean) {
+    return this.http.get<IConnectionProfile[]>(`${this.url}/GetConnectionProfiles?source=${isSource}`)
   }
 
   getGeneratedResources() {
     return this.http.get<IGeneratedResources>(`${this.url}/GetGeneratedResources`)
   }
 
-  getStaticIps(region: string) {
-    return this.http.get<string[]>(`${this.url}/GetStaticIps?region=${region}`)
+  getStaticIps() {
+    return this.http.get<string[]>(`${this.url}/GetStaticIps`)
   }
 
   createConnectionProfile(payload: ICreateConnectionProfile) {
@@ -188,5 +202,9 @@ export class FetchService {
   }
   getProgress() {
     return this.http.get<IProgress>(`${this.url}/GetProgress`)
+  }
+
+  cleanUpStreamingJobs() {
+    return this.http.post(`${this.url}/CleanUpStreamingJobs`, {})
   }
 }
