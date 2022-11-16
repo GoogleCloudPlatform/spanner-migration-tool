@@ -58,12 +58,7 @@ export class ConversionService {
           parentId: '',
           children: [
             {
-              name: `Indexes (${
-                spannerTable.Indexes
-                  ? spannerTable.Indexes.length +
-                    (deletedIndexes[spannerTable.Id] ? deletedIndexes[spannerTable.Id].length : 0)
-                  : 0
-              })`,
+              name: `Indexes (${spannerTable.Indexes ? spannerTable.Indexes.length : 0})`,
               status: '',
               type: ObjectExplorerNodeType.Indexes,
               parent: name,

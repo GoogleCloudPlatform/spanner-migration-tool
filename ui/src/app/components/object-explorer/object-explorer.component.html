@@ -220,7 +220,7 @@
                 error
               </mat-icon>
               <mat-icon
-                *ngIf="data.status === 'DARK'"
+                *ngIf="data.status === 'DARK' || data.isDeleted==true"
                 class="icon dark"
                 matTooltip="Deleted"
                 matTooltipPosition="above"
