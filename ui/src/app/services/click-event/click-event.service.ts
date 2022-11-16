@@ -16,11 +16,12 @@ export class ClickEventService {
     connectionDetail: '',
     conversionRates: { good: 0, ok: 0, bad: 0 },
   })
+  private tabToSpannerSub = new BehaviorSubject<boolean>(false)
   constructor() {}
   spannerConfig = this.spannerConfigSub.asObservable()
   databaseLoader = this.datebaseLoaderSub.asObservable()
   viewAssesment = this.viewAssesmentSub.asObservable()
-
+  tabToSpanner = this.tabToSpannerSub.asObservable()
   openSpannerConfig() {
     this.spannerConfigSub.next(true)
   }
@@ -32,5 +33,8 @@ export class ClickEventService {
   }
   setViewAssesmentData(data: IViewAssesmentData) {
     this.viewAssesmentSub.next(data)
+  }
+  setTabToSpanner() {
+    this.tabToSpannerSub.next(true)
   }
 }

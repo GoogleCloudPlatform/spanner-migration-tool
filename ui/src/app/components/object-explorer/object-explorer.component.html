@@ -1,7 +1,7 @@
 <div class="container">
   <mat-tab-group
     [ngClass]="[isLeftColumnCollapse ? 'hidden' : 'display']"
-    selectedIndex="1"
+    [selectedIndex]="selectedIndex"
     (selectedTabChange)="onTabChanged()"
   >
     <mat-tab>

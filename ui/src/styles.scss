@@ -68,8 +68,14 @@ body {
 .orange {
   color: rgb(248, 116, 68);
 }
+
 .dark {
   color: rgb(77, 75, 75);
+}
+
+.suggestion {
+  color: #f6be00;
+  transform: rotate(180deg);
 }
 
 .danger-background {
@@ -297,3 +303,38 @@ body {
   margin-top: 10px;
   margin-bottom: 0px;
 }
+<<<<<<< HEAD
+=======
+.radio-button-container mat-radio-button:hover {
+  color: #1967d2;
+  ;
+}
+
+.radio-button-group {
+  display: flex; flex-direction: column;
+}
+
+.spinner {
+  position: relative;
+  display: inline-block;
+}
+
+.spinner-text {
+  position: relative;
+  display: inline-block;
+  font-size: 20px;
+  margin-left: 10px;
+}
+
+.display{
+  display: block !important;
+}
+
+.hidden{
+  display: none !important;
+}
+.spanner-tab-link{
+  color:  #1967d2;
+  font-weight: 400;
+}
+>>>>>>> 82e8887854052af248d3bcd0186401167f772778

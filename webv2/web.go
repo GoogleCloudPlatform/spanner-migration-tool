@@ -35,6 +35,7 @@ import (
 	"strings"
 	"time"
 
+	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	"github.com/cloudspannerecosystem/harbourbridge/cmd"
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
@@ -54,6 +55,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/profile"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 	"github.com/google/uuid"
+	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/typemap"
@@ -107,6 +109,10 @@ type sessionSummary struct {
 	SpannerIndexCount  int
 	ConnectionType     string
 	SourceDatabaseName string
+	Region             string
+	NodeCount          int
+	ProcessingUnits    int
+	Instance           string
 }
 
 type progressDetails struct {
@@ -123,7 +129,6 @@ type migrationDetails struct {
 
 type targetDetails struct {
 	TargetDB                    string `json:"TargetDB"`
-	Region                      string `json:"Region"`
 	SourceConnectionProfileName string `json:"SourceConnProfile"`
 	TargetConnectionProfileName string `json:"TargetConnProfile"`
 }
@@ -192,7 +197,7 @@ func databaseConnection(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	sessionState.SourceDB = sourceDB
 	sessionState.DbName = config.Database
-	// schema and user is same in oralce.
+	// schema and user is same in oracle.
 	if config.Driver == constants.ORACLE {
 		sessionState.DbName = config.User
 	}
@@ -269,6 +274,95 @@ func convertSchemaSQL(w http.ResponseWriter, r *http.Request) {
 type dumpConfig struct {
 	Driver   string `json:"Driver"`
 	FilePath string `json:"Path"`
+}
+
+func setSourceDBDetailsForDump(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	if sessionState.Driver != constants.MYSQLDUMP && sessionState.Driver != constants.PGDUMP {
+		http.Error(w, "Connect via direct connect", http.StatusBadRequest)
+	}
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var dc dumpConfig
+	err = json.Unmarshal(reqBody, &dc)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+
+	_, err = os.Open(dc.FilePath)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to open dump file : %v, no such file or directory", dc.FilePath), http.StatusNotFound)
+		return
+	}
+	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
+		Path:           dc.FilePath,
+		ConnectionType: helpers.DUMP_MODE,
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func setSourceDBDetailsForDirectConnect(w http.ResponseWriter, r *http.Request) {
+	sessionState := session.GetSessionState()
+	if sessionState.Driver == constants.MYSQLDUMP || sessionState.Driver == constants.PGDUMP {
+		http.Error(w, "Connect via dump file", http.StatusBadRequest)
+	}
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
+		return
+	}
+	var config driverConfig
+	err = json.Unmarshal(reqBody, &config)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
+		return
+	}
+
+	var dataSourceName string
+	switch config.Driver {
+	case constants.POSTGRES:
+		dataSourceName = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", config.Host, config.Port, config.User, config.Password, config.Database)
+	case constants.MYSQL:
+		dataSourceName = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", config.User, config.Password, config.Host, config.Port, config.Database)
+	case constants.SQLSERVER:
+		dataSourceName = fmt.Sprintf(`sqlserver://%s:%s@%s:%s?database=%s`, config.User, config.Password, config.Host, config.Port, config.Database)
+	case constants.ORACLE:
+		portNumber, _ := strconv.Atoi(config.Port)
+		dataSourceName = go_ora.BuildUrl(config.Host, portNumber, config.Database, config.User, config.Password, nil)
+	default:
+		http.Error(w, fmt.Sprintf("Driver : '%s' is not supported", config.Driver), http.StatusBadRequest)
+		return
+	}
+	sourceDB, err := sql.Open(config.Driver, dataSourceName)
+	if err != nil {
+		http.Error(w, "Database connection error, check connection properties.", http.StatusInternalServerError)
+		return
+	}
+	// Open doesn't open a connection. Validate database connection.
+	err = sourceDB.Ping()
+	if err != nil {
+		http.Error(w, "Database connection error, check connection properties.", http.StatusInternalServerError)
+		return
+	}
+
+	sessionState.DbName = config.Database
+	// schema and user is same in oracle.
+	if config.Driver == constants.ORACLE {
+		sessionState.DbName = config.User
+	}
+	sessionState.SessionFile = ""
+	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
+		Host:           config.Host,
+		Port:           config.Port,
+		User:           config.User,
+		Password:       config.Password,
+		ConnectionType: helpers.DIRECT_CONNECT_MODE,
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 // convertSchemaDump converts schema from dump file to Spanner schema for
@@ -1279,6 +1373,34 @@ func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionSummary.SourceIndexCount = sourceIndexCount
 	sessionSummary.SpannerIndexCount = spannerIndexCount
+	ctx := context.Background()
+	instanceClient, err := instance.NewInstanceAdminClient(ctx)
+	if err != nil {
+		log.Println("instance admin client creation error")
+		http.Error(w, fmt.Sprintf("Error while creating instance admin client : %v", err), http.StatusBadRequest)
+		return
+	}
+	instanceInfo, err := instanceClient.GetInstance(ctx, &instancepb.GetInstanceRequest{Name: fmt.Sprintf("projects/%s/instances/%s", sessionState.GCPProjectID, sessionState.SpannerInstanceID)})
+	if err != nil {
+		log.Println("get instance error")
+		http.Error(w, fmt.Sprintf("Error while getting instance information : %v", err), http.StatusBadRequest)
+		return
+	}
+	instanceConfig, err := instanceClient.GetInstanceConfig(ctx, &instancepb.GetInstanceConfigRequest{Name: instanceInfo.Config})
+	if err != nil {
+		log.Println("get instance config error")
+		http.Error(w, fmt.Sprintf("Error while getting instance config : %v", err), http.StatusBadRequest)
+		return
+	}
+	for _, replica := range instanceConfig.Replicas {
+		if replica.DefaultLeaderLocation {
+			sessionSummary.Region = replica.Location
+		}
+	}
+	sessionState.Region = sessionSummary.Region
+	sessionSummary.NodeCount = int(instanceInfo.NodeCount)
+	sessionSummary.ProcessingUnits = int(instanceInfo.ProcessingUnits)
+	sessionSummary.Instance = sessionState.SpannerInstanceID
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(sessionSummary)
 }
@@ -1362,8 +1484,8 @@ func getGeneratedResources(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	generatedResources.DatabaseName = sessionState.SpannerDatabaseName
 	generatedResources.DatabaseUrl = fmt.Sprintf("https://pantheon.corp.google.com/spanner/instances/%v/databases/%v/details/tables?project=%v", sessionState.SpannerInstanceID, sessionState.SpannerDatabaseName, sessionState.GCPProjectID)
-	generatedResources.BucketName = sessionState.Bucket
-	generatedResources.BucketUrl = fmt.Sprintf("https://pantheon.corp.google.com/storage/browser/%v", sessionState.Bucket)
+	generatedResources.BucketName = sessionState.Bucket + sessionState.RootPath
+	generatedResources.BucketUrl = fmt.Sprintf("https://pantheon.corp.google.com/storage/browser/%v", sessionState.Bucket+sessionState.RootPath)
 	if sessionState.Conv.Audit.StreamingStats.DataStreamName != "" {
 		generatedResources.DataStreamJobName = sessionState.Conv.Audit.StreamingStats.DataStreamName
 		generatedResources.DataStreamJobUrl = fmt.Sprintf("https://pantheon.corp.google.com/datastream/streams/locations/%v/instances/%v?project=%v", sessionState.Region, sessionState.Conv.Audit.StreamingStats.DataStreamName, sessionState.GCPProjectID)
@@ -1391,21 +1513,21 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 	}
 	sessionState.SpannerDatabaseName = details.TargetDetails.TargetDB
 	targetProfileString := fmt.Sprintf("project=%v,instance=%v,dbName=%v", sessionState.GCPProjectID, sessionState.SpannerInstanceID, details.TargetDetails.TargetDB)
-	if details.TargetDetails.Region != "" {
-		sessionState.Region = details.TargetDetails.Region
+	if details.MigrationType == helpers.LOW_DOWNTIME_MIGRATION {
 		fileName := sessionState.Conv.Audit.MigrationRequestId + "-streaming.json"
-		sessionState.Bucket, err = profile.GetBucket(sessionState.GCPProjectID, sessionState.Region, details.TargetDetails.TargetConnectionProfileName)
+		sessionState.Bucket, sessionState.RootPath, err = profile.GetBucket(sessionState.GCPProjectID, sessionState.Region, details.TargetDetails.TargetConnectionProfileName)
 		if err != nil {
 			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while getting target bucket: %v", err)
 		}
-		err = createStreamingCfgFile(sessionState.GCPProjectID, details.TargetDetails, fileName, sessionState.Bucket)
+		err = createStreamingCfgFile(sessionState, details.TargetDetails, fileName)
 		if err != nil {
 			return profiles.SourceProfile{}, profiles.TargetProfile{}, utils.IOStreams{}, "", fmt.Errorf("error while creating streaming config file: %v", err)
 		}
 		sourceProfileString = sourceProfileString + fmt.Sprintf(",streamingCfg=%v", fileName)
 	} else {
 		sessionState.Conv.Audit.MigrationRequestId = "HB-" + uuid.New().String()
-		sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId) + "/"
+		sessionState.Bucket = strings.ToLower(sessionState.Conv.Audit.MigrationRequestId)
+		sessionState.RootPath = "/"
 	}
 	source, err := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
 	if err != nil {
@@ -1422,7 +1544,7 @@ func getSourceAndTargetProfiles(sessionState *session.SessionState, details migr
 
 func writeSessionFile(sessionState *session.SessionState) error {
 
-	err := utils.CreateGCSBucket(strings.ToLower(sessionState.Bucket[:len(sessionState.Bucket)-1]), sessionState.GCPProjectID)
+	err := utils.CreateGCSBucket(sessionState.Bucket, sessionState.GCPProjectID)
 	if err != nil {
 		return fmt.Errorf("error while creating bucket: %v", err)
 	}
@@ -1431,33 +1553,33 @@ func writeSessionFile(sessionState *session.SessionState) error {
 	if err != nil {
 		return fmt.Errorf("can't encode session state to JSON: %v", err)
 	}
-	err = utils.WriteToGCS("gs://"+sessionState.Bucket, "session.json", string(convJSON))
+	err = utils.WriteToGCS("gs://"+sessionState.Bucket+sessionState.RootPath, "session.json", string(convJSON))
 	if err != nil {
 		return fmt.Errorf("error while writing to GCS: %v", err)
 	}
 	return nil
 }
 
-func createStreamingCfgFile(projectId string, targetDetails targetDetails, fileName, bucket string) error {
+func createStreamingCfgFile(sessionState *session.SessionState, targetDetails targetDetails, fileName string) error {
 	data := StreamingCfg{
 		DatastreamCfg: DatastreamCfg{
 			StreamId:          "",
-			StreamLocation:    targetDetails.Region,
+			StreamLocation:    sessionState.Region,
 			StreamDisplayName: "",
 			SourceConnectionConfig: ConnectionConfig{
 				Name:     targetDetails.SourceConnectionProfileName,
-				Location: targetDetails.Region,
+				Location: sessionState.Region,
 			},
 			TargetConnectionConfig: ConnectionConfig{
 				Name:     targetDetails.TargetConnectionProfileName,
-				Location: targetDetails.Region,
+				Location: sessionState.Region,
 			},
 		},
 		DataflowCfg: DataflowCfg{
 			JobName:  "",
-			Location: targetDetails.Region,
+			Location: sessionState.Region,
 		},
-		TmpDir: "gs://" + bucket,
+		TmpDir: "gs://" + sessionState.Bucket + sessionState.RootPath,
 	}
 
 	file, err := json.MarshalIndent(data, "", " ")

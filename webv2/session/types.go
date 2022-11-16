@@ -53,6 +53,7 @@ type SessionState struct {
 	Region              string
 	SpannerDatabaseName string
 	Bucket              string
+	RootPath            string
 	SessionMetadata     SessionMetadata
 	Error               error
 	Counter

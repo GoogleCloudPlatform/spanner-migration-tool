@@ -26,11 +26,12 @@ import (
 )
 
 const (
-	DUMP_MODE           = "dumpFile"
-	DIRECT_CONNECT_MODE = "directConnect"
-	SESSION_FILE_MODE   = "sessionFile"
-	SCHEMA_ONLY         = "Schema"
-	DATA_ONLY           = "Data"
+	DUMP_MODE              = "dumpFile"
+	DIRECT_CONNECT_MODE    = "directConnect"
+	SESSION_FILE_MODE      = "sessionFile"
+	SCHEMA_ONLY            = "Schema"
+	DATA_ONLY              = "Data"
+	LOW_DOWNTIME_MIGRATION = "lowdt"
 )
 
 const metadataDbName string = "harbourbridge_metadata"
