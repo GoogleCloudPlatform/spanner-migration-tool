@@ -34,14 +34,15 @@ import (
 // srcTable and srcCols are the source table and columns respectively,
 // and vals contains string data to be converted to appropriate types
 // to send to Spanner. ProcessDataRow is only called in DataMode.
-func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, vals []string) {
-	spTable, cvtCols, cvtVals, err := ConvertData(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, vals)
+func ProcessDataRow(conv *internal.Conv, tableId string, srcCols []string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable, vals []string) {
+	srcTableName := conv.SrcSchema[tableId].Name
+	spTableName, cvtCols, cvtVals, err := ConvertData(conv, tableId, srcCols, srcSchema, spCols, spSchema, vals)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
-		conv.StatsAddBadRow(srcTable, conv.DataMode())
-		conv.CollectBadRow(srcTable, srcCols, vals)
+		conv.StatsAddBadRow(srcTableName, conv.DataMode())
+		conv.CollectBadRow(srcTableName, srcCols, vals)
 	} else {
-		conv.WriteRow(srcTable, spTable, cvtCols, cvtVals)
+		conv.WriteRow(srcTableName, spTableName, cvtCols, cvtVals)
 	}
 }
 
@@ -49,13 +50,12 @@ func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols []string, srcS
 // based on the Spanner and source DB schemas. Note that since entries
 // in vals may be empty, we also return the list of columns (empty
 // cols are dropped).
-func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, vals []string) (string, []string, []interface{}, error) {
+func ConvertData(conv *internal.Conv, tableId string, srcCols []string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable, vals []string) (string, []string, []interface{}, error) {
 	var c []string
 	var v []interface{}
 	if len(spCols) != len(srcCols) || len(spCols) != len(vals) {
 		return "", []string{}, []interface{}{}, fmt.Errorf("ConvertData: spCols, srcCols and vals don't all have the same lengths: len(spCols)=%d, len(srcCols)=%d, len(vals)=%d", len(spCols), len(srcCols), len(vals))
 	}
-	tableId, _ := internal.GetTableIdFromName(conv, srcTable)
 	for i, spCol := range spCols {
 		srcCol := srcCols[i]
 		// Skip columns with 'NULL' values. When processing data rows from mysqldump, these values
@@ -91,7 +91,7 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 		aux.Sequence++
 		conv.SyntheticPKeys[tableId] = aux
 	}
-	return spTable, c, v, nil
+	return conv.SpSchema[tableId].Name, c, v, nil
 }
 
 // convScalar converts a source database string value to an

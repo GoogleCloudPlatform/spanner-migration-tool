@@ -27,7 +27,6 @@ func (conv *Conv) AssignIdToSourceSchema() {
 	conv.AssignPkId()
 	conv.AssignIndexId()
 	conv.AssginFkId()
-	conv.AssignStatsId()
 }
 
 func (conv *Conv) AssignTableId() {
@@ -134,7 +133,7 @@ func (conv *Conv) AssginFkId() {
 				columnIds = append(columnIds, columnId)
 			}
 
-			referTableId, err := GetTableIdFromName(conv, fk.ReferTableId)
+			referTableId, err := GetTableIdFromSrcName(conv.SrcSchema, fk.ReferTableId)
 			if err != nil {
 				fmt.Println("TableId doesn't exist.")
 				continue
@@ -154,41 +153,6 @@ func (conv *Conv) AssginFkId() {
 			conv.SrcSchema[tableId].ForeignKeys[i].ReferColumnIds = referColumnIds
 		}
 	}
-}
-func (conv *Conv) AssignStatsId() {
-	rows := map[string]int64{}
-	for k, v := range conv.Stats.Rows {
-		tableId, err := GetTableIdFromName(conv, k)
-		if err != nil {
-			continue
-		}
-		rows[tableId] = v
-	}
-	conv.Stats.Rows = nil
-	conv.Stats.Rows = rows
-
-	goodRows := map[string]int64{}
-	for k, v := range conv.Stats.GoodRows {
-		tableId, err := GetTableIdFromName(conv, k)
-		if err != nil {
-			continue
-		}
-		goodRows[tableId] = v
-	}
-	conv.Stats.GoodRows = nil
-	conv.Stats.GoodRows = goodRows
-
-	badRows := map[string]int64{}
-	for k, v := range conv.Stats.BadRows {
-		tableId, err := GetTableIdFromName(conv, k)
-		if err != nil {
-			continue
-		}
-		badRows[tableId] = v
-	}
-	conv.Stats.BadRows = nil
-	conv.Stats.BadRows = badRows
-
 }
 
 func GetSortedTableIds(conv *Conv) []string {

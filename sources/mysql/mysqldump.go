@@ -682,7 +682,7 @@ func processInsertStmt(conv *internal.Conv, stmt *ast.InsertStmt) {
 		logStmtError(conv, stmt, fmt.Errorf("can't get source table name: %w", err))
 		return
 	}
-	tableId, _ := internal.GetTableIdFromName(conv, srcTable)
+	tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, srcTable)
 	if conv.SchemaMode() {
 		conv.Stats.Rows[srcTable] += int64(len(stmt.Lists))
 		conv.DataStatement(NodeType(stmt))
@@ -727,7 +727,7 @@ func processInsertStmt(conv *internal.Conv, stmt *ast.InsertStmt) {
 	spSchema := conv.SpSchema[tableId]
 	for _, row := range stmt.Lists {
 		values, err = getVals(row)
-		ProcessDataRow(conv, srcTable, srcCols, srcSchema, srcTable, spCols, spSchema, values)
+		ProcessDataRow(conv, tableId, srcCols, srcSchema, spCols, spSchema, values)
 	}
 }
 

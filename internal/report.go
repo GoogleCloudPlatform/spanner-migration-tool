@@ -241,12 +241,16 @@ type tableReportBody struct {
 func AnalyzeTables(conv *Conv, badWrites map[string]int64) (r []tableReport) {
 	// Process tables in alphabetical order. This ensures that tables
 	// appear in alphabetical order in report.txt.
-	var tableIds []string
-	for tableId := range conv.SrcSchema {
-		tableIds = append(tableIds, tableId)
+	var tableNames []string
+	for _, srcTable := range conv.SrcSchema {
+		tableNames = append(tableNames, srcTable.Name)
 	}
-	sort.Strings(tableIds)
-	for _, tableId := range tableIds {
+	sort.Strings(tableNames)
+	for _, tableName := range tableNames {
+		tableId, err := GetTableIdFromSrcName(conv.SrcSchema, tableName)
+		if err != nil {
+			continue
+		}
 		if _, isPresent := conv.SpSchema[tableId]; isPresent {
 			r = append(r, buildTableReport(conv, tableId, badWrites))
 		}
@@ -321,7 +325,7 @@ func buildTableReportBody(conv *Conv, tableId string, issues map[string][]Schema
 
 		if p.severity == warning {
 			for _, spFk := range conv.SpSchema[tableId].ForeignKeys {
-				srcFk, err := GetSourceFkFromId(conv, tableId, spFk.Id)
+				srcFk, err := GetSrcFkFromId(conv.SrcSchema[tableId].ForeignKeys, spFk.Id)
 				if err != nil {
 					continue
 				}
@@ -330,7 +334,7 @@ func buildTableReportBody(conv *Conv, tableId string, issues map[string][]Schema
 				}
 			}
 			for _, spIdx := range conv.SpSchema[tableId].Indexes {
-				srcIdx, err := GetSourceIndexFromId(conv, tableId, spIdx.Id)
+				srcIdx, err := GetSrcIndexFromId(conv.SrcSchema[tableId].Indexes, spIdx.Id)
 				if err != nil {
 					continue
 				}
@@ -728,7 +732,7 @@ func reportNameChanges(conv *Conv, w *bufio.Writer) {
 			}
 		}
 		for _, spFk := range conv.SpSchema[tableId].ForeignKeys {
-			srcFk, err := GetSourceFkFromId(conv, tableId, spFk.Id)
+			srcFk, err := GetSrcFkFromId(conv.SrcSchema[tableId].ForeignKeys, spFk.Id)
 			if err != nil {
 				continue
 			}
@@ -737,7 +741,7 @@ func reportNameChanges(conv *Conv, w *bufio.Writer) {
 			}
 		}
 		for _, spIdx := range conv.SpSchema[tableId].Indexes {
-			srcIdx, err := GetSourceIndexFromId(conv, tableId, spIdx.Id)
+			srcIdx, err := GetSrcIndexFromId(conv.SrcSchema[tableId].Indexes, spIdx.Id)
 			if err != nil {
 				continue
 			}

@@ -76,8 +76,8 @@ func TestProcessPgDump(t *testing.T) {
 	for _, tc := range scalarTests {
 		conv, _ := runProcessPgDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
 		noIssues(conv, t, "Scalar type: "+tc.ty)
-		tableId := internal.GetSpTableIdFromName(conv, "t")
-		colId := internal.GetSpColIdFromName(conv, tableId, "a")
+		tableId := internal.GetTableIdFromSpName(conv.SpSchema, "t")
+		colId := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, "a")
 		assert.Equal(t, conv.SpSchema[tableId].ColDefs[colId].T, tc.expected, "Scalar type: "+tc.ty)
 	}
 	// Next test array types and not null.
@@ -95,8 +95,8 @@ func TestProcessPgDump(t *testing.T) {
 	for _, tc := range singleColTests {
 		conv, _ := runProcessPgDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
 		noIssues(conv, t, "Not null: "+tc.ty)
-		tableId := internal.GetSpTableIdFromName(conv, "t")
-		colId := internal.GetSpColIdFromName(conv, tableId, "a")
+		tableId := internal.GetTableIdFromSpName(conv.SpSchema, "t")
+		colId := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, "a")
 		cd := conv.SpSchema[tableId].ColDefs[colId]
 		cd.Comment = ""
 		cd.Id = ""
@@ -750,7 +750,7 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 	for _, tc := range scalarTests {
 		conv, _ := runProcessPgDumpPGTarget(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
 		noIssues(conv, t, "Scalar type: "+tc.ty)
-		tableId, _ := internal.GetTableIdFromName(conv, "t")
+		tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, "t")
 		columnId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, "a")
 		assert.Equal(t, conv.SpSchema[tableId].ColDefs[columnId].T, tc.expected, "Scalar type: "+tc.ty)
 	}
@@ -769,7 +769,7 @@ func TestProcessPgDumpPGTarget(t *testing.T) {
 	for _, tc := range singleColTests {
 		conv, _ := runProcessPgDumpPGTarget(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
 		noIssues(conv, t, "Not null: "+tc.ty)
-		tableId, _ := internal.GetTableIdFromName(conv, "t")
+		tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, "t")
 		columnId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, "a")
 		cd := conv.SpSchema[tableId].ColDefs[columnId]
 		cd.Comment = ""

@@ -64,7 +64,7 @@ func TestProcessMySQLDump_Scalar(t *testing.T) {
 	for _, tc := range scalarTests {
 		t.Run(tc.ty, func(t *testing.T) {
 			conv, _ := runProcessMySQLDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
-			tableId, _ := internal.GetTableIdFromName(conv, "t")
+			tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, "t")
 			columnId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, "a")
 			noIssues(conv, t, "Scalar type: "+tc.ty)
 			assert.Equal(t, conv.SpSchema[tableId].ColDefs[columnId].T, tc.expected, "Scalar type: "+tc.ty)
@@ -87,8 +87,8 @@ func TestProcessMySQLDump_SingleCol(t *testing.T) {
 			v := fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty)
 			conv, _ := runProcessMySQLDump(v)
 			noIssues(conv, t, "Not null: "+tc.ty)
-			tableId := internal.GetSpTableIdFromName(conv, "t")
-			colId := internal.GetSpColIdFromName(conv, tableId, "a")
+			tableId := internal.GetTableIdFromSpName(conv.SpSchema, "t")
+			colId := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, "a")
 			cd := conv.SpSchema[tableId].ColDefs[colId]
 			cd.Comment = ""
 			cd.Id = ""
@@ -517,27 +517,27 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 		{
 			name: "Create table with function, trigger and procedure",
 			input: `
-DELIMITER ;;
-CREATE PROCEDURE test_procedure( x INT )
-    DETERMINISTIC
-BEGIN
-  SELECT concat(x, ' is a nice number');
-END ;;
-DELIMITER ;
+		DELIMITER ;;
+		CREATE PROCEDURE test_procedure( x INT )
+		    DETERMINISTIC
+		BEGIN
+		  SELECT concat(x, ' is a nice number');
+		END ;;
+		DELIMITER ;
 
-DELIMITER ;;
-CREATE FUNCTION test_function( x INT ) RETURNS int(11)
-    DETERMINISTIC
-BEGIN
-  RETURN x + 42;
-END ;;
-DELIMITER ;
+		DELIMITER ;;
+		CREATE FUNCTION test_function( x INT ) RETURNS int(11)
+		    DETERMINISTIC
+		BEGIN
+		  RETURN x + 42;
+		END ;;
+		DELIMITER ;
 
-DELIMITER ;;
-/*!50003 CREATE TRIGGER test_trigger BEFORE INSERT ON MyTable FOR EACH ROW If NEW.id < 0 THEN SET NEW.id = -NEW.id; END IF */;;
-DELIMITER ;
+		DELIMITER ;;
+		/*!50003 CREATE TRIGGER test_trigger BEFORE INSERT ON MyTable FOR EACH ROW If NEW.id < 0 THEN SET NEW.id = -NEW.id; END IF */;;
+		DELIMITER ;
 
-CREATE TABLE test (a text PRIMARY KEY, b text);`,
+		CREATE TABLE test (a text PRIMARY KEY, b text);`,
 			expectedSchema: map[string]ddl.CreateTable{
 				"test": ddl.CreateTable{
 					Name:   "test",
@@ -600,8 +600,8 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 				"INSERT INTO _test (_a, b, n) VALUES ('a1','b1',42),\n" +
 				"('a22','b99', 6);",
 			expectedData: []spannerData{
-				spannerData{table: "test", cols: []string{"Aa", "b", "n"}, vals: []interface{}{"a1", "b1", int64(42)}},
-				spannerData{table: "test", cols: []string{"Aa", "b", "n"}, vals: []interface{}{"a22", "b99", int64(6)}}},
+				spannerData{table: "Atest", cols: []string{"Aa", "b", "n"}, vals: []interface{}{"a1", "b1", int64(42)}},
+				spannerData{table: "Atest", cols: []string{"Aa", "b", "n"}, vals: []interface{}{"a22", "b99", int64(6)}}},
 		},
 		{
 			name: "INSERT INTO with CRLF",
@@ -721,35 +721,35 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 		{
 			name: "Data conversion: bool, bigint, char, blob",
 			input: `
-	CREATE TABLE test (id integer PRIMARY KEY, a bool, b bigint, c char(1),d blob);
-	INSERT INTO test (id, a, b, c, d) VALUES (1, 1, 42, 'x',_binary '` + string([]byte{137, 80}) + `');`,
+		CREATE TABLE test (id integer PRIMARY KEY, a bool, b bigint, c char(1),d blob);
+		INSERT INTO test (id, a, b, c, d) VALUES (1, 1, 42, 'x',_binary '` + string([]byte{137, 80}) + `');`,
 			expectedData: []spannerData{
 				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), true, int64(42), "x", []byte{0x89, 0x50}}}},
 		},
 		{
 			name: "Data conversion: date, float, decimal, mediumint",
 			input: `
-	CREATE TABLE test (id integer PRIMARY KEY, a date, b float, c decimal(3,5));
-	INSERT INTO test (id, a, b, c) VALUES (1,'2019-10-29',4.444,5.44444);
-	`,
+		CREATE TABLE test (id integer PRIMARY KEY, a date, b float, c decimal(3,5));
+		INSERT INTO test (id, a, b, c) VALUES (1,'2019-10-29',4.444,5.44444);
+		`,
 			expectedData: []spannerData{
 				spannerData{table: "test", cols: []string{"id", "a", "b", "c"}, vals: []interface{}{int64(1), getDate("2019-10-29"), float64(4.444), big.NewRat(136111, 25000)}}},
 		},
 		{
 			name: "Data conversion: smallint, mediumint, bigint, double",
 			input: `
-	CREATE TABLE test (id integer PRIMARY KEY, a smallint, b mediumint, c bigint, d double);
-	INSERT INTO test (id, a, b, c, d) VALUES (1, 88, 44, 22, 444.9876);
-	`,
+		CREATE TABLE test (id integer PRIMARY KEY, a smallint, b mediumint, c bigint, d double);
+		INSERT INTO test (id, a, b, c, d) VALUES (1, 88, 44, 22, 444.9876);
+		`,
 			expectedData: []spannerData{
 				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), int64(88), int64(44), int64(22), float64(444.9876)}}},
 		},
 		{
 			name: "Data conversion: negative values for smallint, mediumint, bigint, double",
 			input: `
-	CREATE TABLE test (id integer PRIMARY KEY, a smallint, b mediumint, c bigint, d double);
-	INSERT INTO test (id, a, b, c, d) VALUES (-1, -88, -44, -22, -444.9876);
-	`,
+		CREATE TABLE test (id integer PRIMARY KEY, a smallint, b mediumint, c bigint, d double);
+		INSERT INTO test (id, a, b, c, d) VALUES (-1, -88, -44, -22, -444.9876);
+		`,
 			expectedData: []spannerData{
 				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(-1), int64(-88), int64(-44), int64(-22), float64(-444.9876)}}},
 		},
@@ -757,18 +757,15 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 		{
 			name: "Data conversion:  text, timestamp, datetime, varchar",
 			input: `
-	SET TIME_ZONE='+02:30';
-	CREATE TABLE test (id integer PRIMARY KEY, a text, b timestamp, c datetime, d varchar(15));
-	INSERT INTO test (id, a, b, c, d) VALUES (1, 'my text', '2019-10-29 05:30:00', '2019-10-29 05:30:00', 'my varchar');
-	`,
+		SET TIME_ZONE='+02:30';
+		CREATE TABLE test (id integer PRIMARY KEY, a text, b timestamp, c datetime, d varchar(15));
+		INSERT INTO test (id, a, b, c, d) VALUES (1, 'my text', '2019-10-29 05:30:00', '2019-10-29 05:30:00', 'my varchar');
+		`,
 			expectedData: []spannerData{
 				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), "my text", getTime(t, "2019-10-29T05:30:00+02:30"), getTimeWithoutTimezone(t, "2019-10-29 05:30:00"), "my varchar"}}},
 		},
 	}
-	for i, tc := range multiColTests {
-		if i+1 != len(multiColTests) {
-			continue
-		}
+	for _, tc := range multiColTests {
 
 		t.Run(tc.name, func(t *testing.T) {
 			conv, rows := runProcessMySQLDump(tc.input)
@@ -779,8 +776,7 @@ CREATE TABLE test (a text PRIMARY KEY, b text);`,
 				internal.AssertSpSchema(conv, t, tc.expectedSchema, stripSchemaComments(conv.SpSchema))
 			}
 			if tc.expectedData != nil {
-				// assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
-				assertSpannerData(conv, t, tc.expectedData, rows)
+				assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
 			}
 		})
 	}
@@ -832,10 +828,12 @@ func TestProcessMySQLDump_DataError(t *testing.T) {
 			},
 		},
 	}
-	for _, tc := range dataErrorTests {
+	for i, tc := range dataErrorTests {
+		if i != 0 {
+			continue
+		}
 		conv, rows := runProcessMySQLDump(tc.input)
-		// assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
-		assertSpannerData(conv, t, tc.expectedData, rows)
+		assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
 		assert.Equal(t, conv.BadRows(), int64(5), tc.name+": Error count did not match")
 	}
 }
@@ -967,13 +965,4 @@ func stripSchemaComments(spSchema map[string]ddl.CreateTable) map[string]ddl.Cre
 
 func bitReverse(i int64) int64 {
 	return int64(bits.Reverse64(uint64(i)))
-}
-
-func assertSpannerData(conv *internal.Conv, t *testing.T, expectedData, actualData []spannerData) {
-	assert.Equal(t, len(expectedData), len(actualData))
-	for i, data := range actualData {
-		tableName := data.table
-		actualData[i].table = tableName
-	}
-	assert.Equal(t, expectedData, actualData)
 }

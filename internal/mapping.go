@@ -41,7 +41,7 @@ func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
 		return "", fmt.Errorf("bad parameter: table string is empty")
 	}
 
-	tableId, err := GetTableIdFromName(conv, srcTable)
+	tableId, err := GetTableIdFromSrcName(conv.SrcSchema, srcTable)
 	if err != nil {
 		return "", err
 	}

@@ -84,10 +84,11 @@ func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 // We choose to do all type conversions explicitly ourselves so that
 // we can generate more targeted error messages: hence we pass
 // *interface{} parameters to row.Scan.
-func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) error {
-	rowsInterface, err := isi.GetRowsFromTable(conv, srcTable)
+func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable) error {
+	srcTableName := conv.SrcSchema[tableId].Name
+	rowsInterface, err := isi.GetRowsFromTable(conv, tableId)
 	if err != nil {
-		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTable, err))
+		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTableName, err))
 		return err
 	}
 	rows := rowsInterface.(*sql.Rows)
@@ -100,18 +101,18 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
 			// Scan failed, so we don't have any data to add to bad rows.
-			conv.StatsAddBadRow(srcTable, conv.DataMode())
+			conv.StatsAddBadRow(srcTableName, conv.DataMode())
 			continue
 		}
 		values := valsToStrings(v)
-		ProcessDataRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, values)
+		ProcessDataRow(conv, tableId, srcCols, srcSchema, spCols, spSchema, values)
 	}
 	return nil
 }
 
 // GetRowsFromTable returns a sql Rows object for a table.
-func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
-	tbl := conv.SrcSchema[srcTable]
+func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, tableId string) (interface{}, error) {
+	tbl := conv.SrcSchema[tableId]
 	//To get only the table name by removing the schema name prefix
 	tblName := strings.Replace(tbl.Name, tbl.Schema+".", "", 1)
 

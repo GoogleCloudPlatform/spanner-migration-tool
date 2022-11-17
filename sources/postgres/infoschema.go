@@ -62,11 +62,11 @@ func (isi InfoSchemaImpl) GetTableName(schema string, tableName string) string {
 }
 
 // GetRowsFromTable returns a sql Rows object for a table.
-func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
+func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, tableId string) (interface{}, error) {
 	// PostgreSQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but PostgreSQL doesn't support this. So we quote it instead.
-	q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, conv.SrcSchema[srcTable].Schema, conv.SrcSchema[srcTable].Name)
+	q := fmt.Sprintf(`SELECT * FROM "%s"."%s";`, conv.SrcSchema[tableId].Schema, conv.SrcSchema[tableId].Name)
 	rows, err := isi.Db.Query(q)
 	if err != nil {
 		return nil, err
@@ -93,10 +93,11 @@ func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string)
 // We choose to do all type conversions explicitly ourselves so that
 // we can generate more targeted error messages: hence we pass
 // *interface{} parameters to row.Scan.
-func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) error {
-	rowsInterface, err := isi.GetRowsFromTable(conv, srcTable)
+func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable) error {
+	srcTableName := conv.SrcSchema[tableId].Name
+	rowsInterface, err := isi.GetRowsFromTable(conv, tableId)
 	if err != nil {
-		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTable, err))
+		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTableName, err))
 		return err
 	}
 	rows := rowsInterface.(*sql.Rows)
@@ -108,17 +109,17 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
 			// Scan failed, so we don't have any data to add to bad rows.
-			conv.StatsAddBadRow(conv.SrcSchema[srcTable].Name, conv.DataMode())
+			conv.StatsAddBadRow(srcTableName, conv.DataMode())
 			continue
 		}
-		cvtCols, cvtVals, err := convertSQLRow(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, v)
+		cvtCols, cvtVals, err := convertSQLRow(conv, tableId, srcCols, srcSchema, spCols, spSchema, v)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
-			conv.StatsAddBadRow(conv.SrcSchema[srcTable].Name, conv.DataMode())
-			conv.CollectBadRow(conv.SrcSchema[srcTable].Name, srcCols, valsToStrings(v))
+			conv.StatsAddBadRow(srcTableName, conv.DataMode())
+			conv.CollectBadRow(srcTableName, srcCols, valsToStrings(v))
 			continue
 		}
-		conv.WriteRow(conv.SrcSchema[srcTable].Name, conv.SpSchema[spTable].Name, cvtCols, cvtVals)
+		conv.WriteRow(srcTableName, conv.SpSchema[tableId].Name, cvtCols, cvtVals)
 	}
 	return nil
 }
@@ -129,15 +130,15 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 // ConvertSQLRow returns cols as well as converted values. This is
 // because cols can change when we add a column (synthetic primary
 // key) or because we drop columns (handling of NULL values).
-func convertSQLRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, srcVals []interface{}) ([]string, []interface{}, error) {
+func convertSQLRow(conv *internal.Conv, tableId string, srcCols []string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable, srcVals []interface{}) ([]string, []interface{}, error) {
 	var vs []interface{}
 	var cs []string
 	for i := range srcCols {
-		columnId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[srcTable].ColDefs, srcCols[i])
+		columnId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, srcCols[i])
 		srcCd, ok1 := srcSchema.ColDefs[columnId]
 		spCd, ok2 := spSchema.ColDefs[columnId]
 		if !ok1 || !ok2 {
-			return nil, nil, fmt.Errorf("data conversion: can't find schema for column %s of table %s", srcCols[i], srcTable)
+			return nil, nil, fmt.Errorf("data conversion: can't find schema for column %s of table %s", srcCols[i], conv.SrcSchema[tableId].Name)
 		}
 		if srcVals[i] == nil {
 			continue // Skip NULL values (nil is used by database/sql to represent NULL values).
@@ -150,16 +151,16 @@ func convertSQLRow(conv *internal.Conv, srcTable string, srcCols []string, srcSc
 			spVal, err = cvtSQLScalar(conv, srcCd, spCd, srcVals[i])
 		}
 		if err != nil { // Skip entire row if we hit error.
-			return nil, nil, fmt.Errorf("can't convert sql data for column %s of table %s: %w", srcCols[i], srcTable, err)
+			return nil, nil, fmt.Errorf("can't convert sql data for column %s of table %s: %w", srcCols[i], conv.SrcSchema[tableId].Name, err)
 		}
 		vs = append(vs, spVal)
 		cs = append(cs, srcCols[i])
 	}
-	if aux, ok := conv.SyntheticPKeys[spTable]; ok {
-		cs = append(cs, conv.SpSchema[srcTable].ColDefs[aux.ColId].Name)
+	if aux, ok := conv.SyntheticPKeys[tableId]; ok {
+		cs = append(cs, conv.SpSchema[tableId].ColDefs[aux.ColId].Name)
 		vs = append(vs, fmt.Sprintf("%d", int64(bits.Reverse64(uint64(aux.Sequence)))))
 		aux.Sequence++
-		conv.SyntheticPKeys[spTable] = aux
+		conv.SyntheticPKeys[tableId] = aux
 	}
 	return cs, vs, nil
 }

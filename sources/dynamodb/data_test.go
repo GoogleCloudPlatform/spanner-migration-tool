@@ -87,7 +87,7 @@ func TestProcessDataRow(t *testing.T) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
 	for _, attrsMap := range items {
-		ProcessDataRow(attrsMap, conv, tableId, conv.SrcSchema[tableId], tableId, cols, spSchema)
+		ProcessDataRow(attrsMap, conv, tableId, conv.SrcSchema[tableId], cols, spSchema)
 	}
 	assert.Equal(t,
 		[]spannerData{

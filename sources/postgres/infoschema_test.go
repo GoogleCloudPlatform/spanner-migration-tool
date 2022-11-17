@@ -275,7 +275,7 @@ func TestProcessSchema(t *testing.T) {
 			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "ref_id"}, ddl.IndexKey{ColId: "ref_txt"}}},
 	}
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
-	cartTableId := internal.GetSpTableIdFromName(conv, "cart")
+	cartTableId := internal.GetTableIdFromSpName(conv.SpSchema, "cart")
 	assert.Equal(t, len(conv.SchemaIssues[cartTableId]), 0)
 	expectedIssues := map[string][]internal.SchemaIssue{
 		"aint": []internal.SchemaIssue{internal.Widened},
@@ -286,7 +286,7 @@ func TestProcessSchema(t *testing.T) {
 		"s":    []internal.SchemaIssue{internal.Widened, internal.DefaultValue},
 		"ts":   []internal.SchemaIssue{internal.Timestamp},
 	}
-	testTableId := internal.GetSpTableIdFromName(conv, "test")
+	testTableId := internal.GetTableIdFromSpName(conv.SpSchema, "test")
 	internal.AssertTableIssues(conv, t, testTableId, expectedIssues, conv.SchemaIssues[testTableId])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 }
@@ -420,7 +420,7 @@ func TestConvertSqlRow_SingleCol(t *testing.T) {
 			Id:      tableId,
 			ColIds:  []string{columnId},
 			ColDefs: map[string]ddl.ColumnDef{columnId: ddl.ColumnDef{Name: col, Id: columnId, T: tc.spType}}}
-		ac, av, err := convertSQLRow(conv, tableId, cols, srcSchema, tableId, cols, spSchema, []interface{}{tc.in})
+		ac, av, err := convertSQLRow(conv, tableId, cols, srcSchema, cols, spSchema, []interface{}{tc.in})
 		assert.Equal(t, cols, ac)
 		assert.Equal(t, []interface{}{tc.e}, av)
 		assert.Nil(t, err)

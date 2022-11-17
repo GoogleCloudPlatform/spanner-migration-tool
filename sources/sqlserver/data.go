@@ -34,14 +34,15 @@ import (
 // srcTable and srcCols are the source table and columns respectively,
 // and vals contains string data to be converted to appropriate types
 // to send to Spanner.  ProcessDataRow is only called in DataMode.
-func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, vals []string) {
-	spTable, cvtCols, cvtVals, err := ConvertData(conv, srcTable, srcCols, srcSchema, spTable, spCols, spSchema, vals)
+func ProcessDataRow(conv *internal.Conv, tableId string, srcCols []string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable, vals []string) {
+	spTableName, cvtCols, cvtVals, err := ConvertData(conv, tableId, srcCols, srcSchema, spCols, spSchema, vals)
+	srcTableName := conv.SrcSchema[tableId].Name
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
-		conv.StatsAddBadRow(srcTable, conv.DataMode())
-		conv.CollectBadRow(srcTable, srcCols, vals)
+		conv.StatsAddBadRow(srcTableName, conv.DataMode())
+		conv.CollectBadRow(srcTableName, srcCols, vals)
 	} else {
-		conv.WriteRow(srcTable, spTable, cvtCols, cvtVals)
+		conv.WriteRow(srcTableName, spTableName, cvtCols, cvtVals)
 	}
 }
 
@@ -49,7 +50,7 @@ func ProcessDataRow(conv *internal.Conv, srcTable string, srcCols []string, srcS
 // based on the Spanner and source DB schemas. Note that since entries
 // in vals may be empty, we also return the list of columns (empty
 // cols are dropped).
-func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable, vals []string) (string, []string, []interface{}, error) {
+func ConvertData(conv *internal.Conv, tableId string, srcCols []string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable, vals []string) (string, []string, []interface{}, error) {
 	var c []string
 	var v []interface{}
 	if len(spCols) != len(srcCols) || len(spCols) != len(vals) {
@@ -62,8 +63,8 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 			continue
 		}
 
-		spColId := internal.GetSpColIdFromName(conv, spTable, spCol)
-		srcColId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[srcTable].ColDefs, srcCol)
+		spColId := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, spCol)
+		srcColId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, srcCol)
 
 		spColDef, ok1 := spSchema.ColDefs[spColId]
 		srcColDef, ok2 := srcSchema.ColDefs[srcColId]
@@ -79,11 +80,11 @@ func ConvertData(conv *internal.Conv, srcTable string, srcCols []string, srcSche
 		v = append(v, x)
 		c = append(c, spCol)
 	}
-	if aux, ok := conv.SyntheticPKeys[spTable]; ok {
+	if aux, ok := conv.SyntheticPKeys[tableId]; ok {
 		c = append(c, aux.ColId)
 		v = append(v, fmt.Sprintf("%d", int64(bits.Reverse64(uint64(aux.Sequence)))))
 		aux.Sequence++
-		conv.SyntheticPKeys[spTable] = aux
+		conv.SyntheticPKeys[tableId] = aux
 	}
 	return spSchema.Name, c, v, nil
 }

@@ -108,7 +108,7 @@ func VerifyManifest(conv *internal.Conv, tables []utils.ManifestTable) error {
 		if name == "" {
 			return fmt.Errorf("table number %d (0-indexed) does not have a name", i)
 		}
-		_, err := internal.GetTableIdFromName(conv, name)
+		_, err := internal.GetTableIdFromSrcName(conv.SrcSchema, name)
 		if err != nil {
 			return fmt.Errorf("table %s provided in manifest does not exist in spanner", name)
 		}
@@ -130,7 +130,7 @@ func SetRowStats(conv *internal.Conv, tables []utils.ManifestTable, delimiter ru
 			r := csvReader.NewReader(csvFile)
 			r.Comma = delimiter
 
-			tableId := internal.GetSpTableIdFromName(conv, table.Table_name)
+			tableId := internal.GetTableIdFromSpName(conv.SpSchema, table.Table_name)
 			if tableId == "" {
 				return fmt.Errorf("table Id not found for spanner table %v", table.Table_name)
 			}
@@ -205,7 +205,7 @@ func ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, nullStr strin
 			r.Comma = delimiter
 
 			// Default column order is same as in Spanner schema.
-			tableId := internal.GetSpTableIdFromName(conv, table.Table_name)
+			tableId := internal.GetTableIdFromSpName(conv.SpSchema, table.Table_name)
 			if tableId == "" {
 				return fmt.Errorf("table Id not found for spanner table %v", table.Table_name)
 			}
@@ -267,7 +267,7 @@ func convertData(conv *internal.Conv, nullStr, tableName string, srcCols []strin
 	var v []interface{}
 	var cvtCols []string
 
-	tableId := internal.GetSpTableIdFromName(conv, tableName)
+	tableId := internal.GetTableIdFromSpName(conv.SpSchema, tableName)
 	if tableId == "" {
 		return cvtCols, v, fmt.Errorf("table Id not found for spanner table %v", tableName)
 	}
@@ -278,7 +278,7 @@ func convertData(conv *internal.Conv, nullStr, tableName string, srcCols []strin
 			continue
 		}
 		colName := srcCols[i]
-		colId := internal.GetSpColIdFromName(conv, tableId, colName)
+		colId := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, colName)
 		if colId == "" {
 			return cvtCols, v, fmt.Errorf("column Id not found for spanner table %v column %v", tableName, colName)
 		}

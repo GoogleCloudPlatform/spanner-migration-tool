@@ -828,7 +828,7 @@ func TestInfoSchemaImpl_ProcessData(t *testing.T) {
 		func(table string, cols []string, vals []interface{}) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
-	err := isi.ProcessData(conv, tableId, conv.SrcSchema[tableId], tableId,
+	err := isi.ProcessData(conv, tableId, conv.SrcSchema[tableId],
 		cols, spSchema)
 	assert.Nil(t, err)
 	assert.Equal(t,

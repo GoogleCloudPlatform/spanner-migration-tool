@@ -36,7 +36,7 @@ type InfoSchema interface {
 	GetConstraints(conv *internal.Conv, table SchemaAndName) ([]string, map[string][]string, error)
 	GetForeignKeys(conv *internal.Conv, table SchemaAndName) (foreignKeys []schema.ForeignKey, err error)
 	GetIndexes(conv *internal.Conv, table SchemaAndName) ([]schema.Index, error)
-	ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) error
+	ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable) error
 	StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error)
 	StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamInfo map[string]interface{}) error
 }
@@ -90,21 +90,20 @@ func ProcessData(conv *internal.Conv, infoSchema InfoSchema) {
 	// tables appear after the population of their parent table.
 	orderTableIds := ddl.OrderTables(conv.SpSchema)
 
-	for _, spannerTable := range orderTableIds {
-		srcTable := spannerTable
-		srcSchema := conv.SrcSchema[srcTable]
+	for _, tableId := range orderTableIds {
+		srcSchema := conv.SrcSchema[tableId]
 		var spCols []string
 		for _, spColId := range srcSchema.ColIds {
-			spCols = append(spCols, conv.SpSchema[spannerTable].ColDefs[spColId].Name)
+			spCols = append(spCols, conv.SpSchema[tableId].ColDefs[spColId].Name)
 		}
-		spSchema, ok := conv.SpSchema[spannerTable]
+		spSchema, ok := conv.SpSchema[tableId]
 		if !ok {
-			conv.Stats.BadRows[conv.SrcSchema[srcTable].Name] += conv.Stats.Rows[conv.SrcSchema[srcTable].Name]
+			conv.Stats.BadRows[srcSchema.Name] += conv.Stats.Rows[srcSchema.Name]
 			conv.Unexpected(fmt.Sprintf("Can't get cols and schemas for table %s:ok=%t",
-				srcTable, ok))
+				srcSchema.Name, ok))
 			continue
 		}
-		err := infoSchema.ProcessData(conv, srcTable, srcSchema, spannerTable, spCols, spSchema)
+		err := infoSchema.ProcessData(conv, tableId, srcSchema, spCols, spSchema)
 		if err != nil {
 			return
 		}

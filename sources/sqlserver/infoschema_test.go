@@ -323,9 +323,9 @@ func TestProcessSchema(t *testing.T) {
 	}
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
 
-	cartTableId := internal.GetSpTableIdFromName(conv, "cart")
+	cartTableId := internal.GetTableIdFromSpName(conv.SpSchema, "cart")
 	assert.NotEqual(t, cartTableId, "")
-	testTableId := internal.GetSpTableIdFromName(conv, "test")
+	testTableId := internal.GetTableIdFromSpName(conv.SpSchema, "test")
 	assert.NotEqual(t, testTableId, "")
 	assert.Equal(t, len(conv.SchemaIssues[cartTableId]), 0)
 	assert.Equal(t, len(conv.SchemaIssues[testTableId]), 17)

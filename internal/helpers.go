@@ -17,9 +17,9 @@ package internal
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
 type Counter struct {
@@ -78,8 +78,8 @@ func GetColIdFromSrcName(srcColDef map[string]schema.Column, columnName string) 
 	}
 	return "", fmt.Errorf("ColumnId is empty: can't find column")
 }
-func GetTableIdFromName(conv *Conv, tableName string) (string, error) {
-	for _, v := range conv.SrcSchema {
+func GetTableIdFromSrcName(srcSchema map[string]schema.Table, tableName string) (string, error) {
+	for _, v := range srcSchema {
 		if v.Name == tableName {
 			return v.Id, nil
 		}
@@ -87,8 +87,8 @@ func GetTableIdFromName(conv *Conv, tableName string) (string, error) {
 	return "", fmt.Errorf("TableId is empty: can't find table")
 }
 
-func GetSpTableIdFromName(conv *Conv, tableName string) string {
-	for tableId, table := range conv.SpSchema {
+func GetTableIdFromSpName(spSchema ddl.Schema, tableName string) string {
+	for tableId, table := range spSchema {
 		if tableName == table.Name {
 			return tableId
 		}
@@ -96,8 +96,8 @@ func GetSpTableIdFromName(conv *Conv, tableName string) string {
 	return ""
 }
 
-func GetSpColIdFromName(conv *Conv, tableId, colName string) string {
-	for colId, col := range conv.SpSchema[tableId].ColDefs {
+func GetColIdFromSpName(colDefs map[string]ddl.ColumnDef, colName string) string {
+	for colId, col := range colDefs {
 		if col.Name == colName {
 			return colId
 		}
@@ -105,8 +105,8 @@ func GetSpColIdFromName(conv *Conv, tableId, colName string) string {
 	return ""
 }
 
-func GetSourceFkFromId(conv *Conv, tableId, fkId string) (schema.ForeignKey, error) {
-	for _, v := range conv.SrcSchema[tableId].ForeignKeys {
+func GetSrcFkFromId(fks []schema.ForeignKey, fkId string) (schema.ForeignKey, error) {
+	for _, v := range fks {
 		if v.Id == fkId {
 			return v, nil
 		}
@@ -114,8 +114,8 @@ func GetSourceFkFromId(conv *Conv, tableId, fkId string) (schema.ForeignKey, err
 	return schema.ForeignKey{}, fmt.Errorf("foreign key not found")
 }
 
-func GetSourceIndexFromId(conv *Conv, tableId, indexId string) (schema.Index, error) {
-	for _, v := range conv.SrcSchema[tableId].Indexes {
+func GetSrcIndexFromId(indexes []schema.Index, indexId string) (schema.Index, error) {
+	for _, v := range indexes {
 		if v.Id == indexId {
 			return v, nil
 		}
@@ -144,10 +144,10 @@ func ComputeToSource(conv *Conv) map[string]NameAndCols {
 			colMap := make(map[string]string)
 			for colId, spCol := range spTable.ColDefs {
 				if srcCol, ok := srcTable.ColDefs[colId]; ok {
-					colMap[strings.ToLower(spCol.Name)] = strings.ToLower(srcCol.Name)
+					colMap[spCol.Name] = srcCol.Name
 				}
 			}
-			toSource[strings.ToLower(spTable.Name)] = NameAndCols{Name: strings.ToLower(srcTable.Name), Cols: colMap}
+			toSource[spTable.Name] = NameAndCols{Name: srcTable.Name, Cols: colMap}
 		}
 	}
 	return toSource
@@ -159,11 +159,11 @@ func ComputeToSpanner(conv *Conv) map[string]NameAndCols {
 		if spTable, ok := conv.SpSchema[id]; ok {
 			colMap := make(map[string]string)
 			for colId, srcCol := range srcTable.ColDefs {
-				if spCol, ok := srcTable.ColDefs[colId]; ok {
-					colMap[strings.ToLower(srcCol.Name)] = strings.ToLower(spCol.Name)
+				if spCol, ok := spTable.ColDefs[colId]; ok {
+					colMap[srcCol.Name] = spCol.Name
 				}
 			}
-			toSpanner[strings.ToLower(spTable.Name)] = NameAndCols{Name: strings.ToLower(spTable.Name), Cols: colMap}
+			toSpanner[srcTable.Name] = NameAndCols{Name: spTable.Name, Cols: colMap}
 		}
 	}
 	return toSpanner

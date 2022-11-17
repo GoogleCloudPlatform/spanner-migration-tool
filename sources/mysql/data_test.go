@@ -66,13 +66,13 @@ func TestProcessDataRow(t *testing.T) {
 				"c2": schema.Column{Name: "b", Id: "c2", Type: schema.Type{Name: "int"}},
 				"c3": schema.Column{Name: "c", Id: "c3", Type: schema.Type{Name: "text"}},
 			}})
-	tableId, _ := internal.GetTableIdFromName(conv, tableName)
+	tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, tableName)
 	conv.SetDataMode()
 	var rows []spannerData
 	conv.SetDataSink(func(table string, cols []string, vals []interface{}) {
 		rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 	})
-	ProcessDataRow(conv, tableName, cols, conv.SrcSchema[tableId], tableName, cols, conv.SpSchema[tableId], []string{"4.2", "6", "prisoner zero"})
+	ProcessDataRow(conv, tableId, cols, conv.SrcSchema[tableId], cols, conv.SpSchema[tableId], []string{"4.2", "6", "prisoner zero"})
 	assert.Equal(t, []spannerData{spannerData{table: tableName, cols: cols, vals: []interface{}{float64(4.2), int64(6), "prisoner zero"}}}, rows)
 }
 
@@ -120,7 +120,7 @@ func TestConvertData(t *testing.T) {
 			schema.Table{Name: tableName, Id: tableId, ColIds: []string{col}, ColDefs: map[string]schema.Column{colId: schema.Column{Name: col, Id: colId, Type: schema.Type{Name: tc.srcTy}}}})
 		conv.TimezoneOffset = "+05:30"
 		t.Run(tc.in, func(t *testing.T) {
-			at, ac, av, err := ConvertData(conv, tableName, []string{col}, conv.SrcSchema["t1"], tableName, []string{col}, conv.SpSchema["t1"], []string{tc.in})
+			at, ac, av, err := ConvertData(conv, tableId, []string{col}, conv.SrcSchema["t1"], []string{col}, conv.SpSchema["t1"], []string{tc.in})
 			checkResults(t, at, ac, av, err, tableName, []string{col}, []interface{}{tc.e}, tc.name)
 		})
 	}
@@ -154,7 +154,7 @@ func TestConvertTimestampData(t *testing.T) {
 				ColDefs: map[string]schema.Column{colId: schema.Column{Name: col, Id: colId, Type: schema.Type{Name: tc.srcTy}}}})
 		conv.TimezoneOffset = "+10:00" // Set offset so test is robust i.e. doesn't depent on local timezone.
 		t.Run(tc.in, func(t *testing.T) {
-			atable, ac, av, err := ConvertData(conv, tableName, []string{col}, conv.SrcSchema[tableId], tableName, []string{col}, conv.SpSchema[tableId], []string{tc.in})
+			atable, ac, av, err := ConvertData(conv, tableId, []string{col}, conv.SrcSchema[tableId], []string{col}, conv.SpSchema[tableId], []string{tc.in})
 			assert.Nil(t, err, tc.name)
 			assert.Equal(t, atable, tableName, tc.name+": table mismatch")
 			assert.Equal(t, []string{col}, ac, tc.name+": column mismatch")
@@ -227,7 +227,7 @@ func TestConvertMultiColData(t *testing.T) {
 	for _, tc := range multiColTests {
 		t.Run(tc.name, func(t *testing.T) {
 			conv := buildConv(spTable, srcTable)
-			atable, acols, avals, err := ConvertData(conv, srcTable.Name, tc.cols, conv.SrcSchema[tableId], spTable.Name, tc.cols, conv.SpSchema[tableId], tc.vals)
+			atable, acols, avals, err := ConvertData(conv, srcTable.Id, tc.cols, conv.SrcSchema[tableId], tc.cols, conv.SpSchema[tableId], tc.vals)
 			checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
 		})
 	}
@@ -263,6 +263,7 @@ func TestConvertError(t *testing.T) {
 	tableName := "testtable"
 	spTable := ddl.CreateTable{
 		Name:   tableName,
+		Id:     "t1",
 		ColIds: []string{"a", "b", "c"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
@@ -271,6 +272,7 @@ func TestConvertError(t *testing.T) {
 		}}
 	srcTable := schema.Table{
 		Name:   tableName,
+		Id:     "t1",
 		ColIds: []string{"a", "b", "c"},
 		ColDefs: map[string]schema.Column{
 			"a": schema.Column{Type: schema.Type{Name: "int"}},
@@ -280,7 +282,7 @@ func TestConvertError(t *testing.T) {
 	for _, tc := range errorTests {
 		t.Run(tc.name, func(t *testing.T) {
 			conv := buildConv(spTable, srcTable)
-			_, _, _, err := ConvertData(conv, srcTable.Name, tc.cols, conv.SrcSchema[tableName], spTable.Name, tc.cols, conv.SpSchema[tableName], tc.vals)
+			_, _, _, err := ConvertData(conv, srcTable.Id, tc.cols, conv.SrcSchema[tableName], tc.cols, conv.SpSchema[tableName], tc.vals)
 			assert.NotNil(t, err, tc.name)
 		})
 	}
@@ -335,7 +337,7 @@ func TestConvertsyntheticPKey(t *testing.T) {
 	conv.SyntheticPKeys[spTable.Id] = internal.SyntheticPKey{ColId: "c4", Sequence: 0}
 	for _, tc := range syntheticPKeyTests {
 		t.Run(tc.name, func(t *testing.T) {
-			atable, acols, avals, err := ConvertData(conv, srcTable.Name, tc.cols, conv.SrcSchema[tableId], spTable.Name, tc.cols, conv.SpSchema[tableId], tc.vals)
+			atable, acols, avals, err := ConvertData(conv, srcTable.Id, tc.cols, conv.SrcSchema[tableId], tc.cols, conv.SpSchema[tableId], tc.vals)
 			checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
 		})
 	}

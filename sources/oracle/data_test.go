@@ -66,7 +66,7 @@ func TestProcessDataRow(t *testing.T) {
 	conv.SetDataSink(func(table string, cols []string, vals []interface{}) {
 		rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 	})
-	ProcessDataRow(conv, tableId, cols, conv.SrcSchema[tableId], tableId, cols, conv.SpSchema[tableId], []string{"4.2", "6", "2022-01-19T09:34:06.47Z", "p"})
+	ProcessDataRow(conv, tableId, cols, conv.SrcSchema[tableId], cols, conv.SpSchema[tableId], []string{"4.2", "6", "2022-01-19T09:34:06.47Z", "p"})
 	assert.Equal(t, []spannerData{{table: tableName, cols: cols, vals: []interface{}{float64(4.2), int64(6), getTime("2022-01-19T09:34:06.47Z"), "p"}}}, rows)
 }
 
@@ -117,7 +117,7 @@ func TestConvertData(t *testing.T) {
 				ColDefs: map[string]schema.Column{colId: {Name: col, Id: colId, Type: schema.Type{Name: tc.srcTy}}}})
 		conv.TimezoneOffset = "+05:30"
 		t.Run(tc.in, func(t *testing.T) {
-			at, ac, av, err := convertData(conv, tableId, []string{col}, conv.SrcSchema[tableId], tableId, []string{col}, conv.SpSchema[tableId], []string{tc.in})
+			at, ac, av, err := convertData(conv, tableId, []string{col}, conv.SrcSchema[tableId], []string{col}, conv.SpSchema[tableId], []string{tc.in})
 			if tc.srcTy == "OBJECT" {
 				assert.Nil(t, err, tc.name)
 				assert.Equal(t, at, tableName, tc.name+": table mismatch")
@@ -178,7 +178,7 @@ func TestConvertsyntheticPKey(t *testing.T) {
 	conv.SyntheticPKeys[tableId] = internal.SyntheticPKey{ColId: "synth_id", Sequence: 0}
 	for _, tc := range syntheticPKeyTests {
 		t.Run(tc.name, func(t *testing.T) {
-			atable, acols, avals, err := convertData(conv, tableId, tc.cols, conv.SrcSchema[tableId], tableId, tc.cols, conv.SpSchema[tableId], tc.vals)
+			atable, acols, avals, err := convertData(conv, tableId, tc.cols, conv.SrcSchema[tableId], tc.cols, conv.SpSchema[tableId], tc.vals)
 			checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
 		})
 	}
@@ -245,7 +245,7 @@ func TestConvertMultiColData(t *testing.T) {
 	for _, tc := range multiColTests {
 		t.Run(tc.name, func(t *testing.T) {
 			conv := buildConv(spTable, srcTable)
-			atable, acols, avals, err := convertData(conv, tableId, tc.cols, conv.SrcSchema[tableId], tableId, tc.cols, conv.SpSchema[tableId], tc.vals)
+			atable, acols, avals, err := convertData(conv, tableId, tc.cols, conv.SrcSchema[tableId], tc.cols, conv.SpSchema[tableId], tc.vals)
 			checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
 		})
 	}
@@ -297,7 +297,7 @@ func TestConvertError(t *testing.T) {
 	for _, tc := range errorTests {
 		t.Run(tc.name, func(t *testing.T) {
 			conv := buildConv(spTable, srcTable)
-			_, _, _, err := convertData(conv, tableId, tc.cols, conv.SrcSchema[tableId], tableId, tc.cols, conv.SpSchema[tableId], tc.vals)
+			_, _, _, err := convertData(conv, tableId, tc.cols, conv.SrcSchema[tableId], tc.cols, conv.SpSchema[tableId], tc.vals)
 			assert.NotNil(t, err, tc.name)
 		})
 	}

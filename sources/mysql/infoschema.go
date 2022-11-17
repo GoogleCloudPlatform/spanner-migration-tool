@@ -52,22 +52,22 @@ func (isi InfoSchemaImpl) GetTableName(dbName string, tableName string) string {
 }
 
 // GetRowsFromTable returns a sql Rows object for a table.
-func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, srcTable string) (interface{}, error) {
-	srcSchema := conv.SrcSchema[srcTable]
+func (isi InfoSchemaImpl) GetRowsFromTable(conv *internal.Conv, tableId string) (interface{}, error) {
+	srcSchema := conv.SrcSchema[tableId]
 	srcCols := []string{}
 
 	for _, srcColId := range srcSchema.ColIds {
-		srcCols = append(srcCols, conv.SrcSchema[srcTable].ColDefs[srcColId].Name)
+		srcCols = append(srcCols, conv.SrcSchema[tableId].ColDefs[srcColId].Name)
 	}
 	if len(srcCols) == 0 {
-		conv.Unexpected(fmt.Sprintf("Couldn't get source columns for table %s ", srcTable))
+		conv.Unexpected(fmt.Sprintf("Couldn't get source columns for table %s ", srcSchema.Name))
 		return nil, nil
 	}
 	// MySQL schema and name can be arbitrary strings.
 	// Ideally we would pass schema/name as a query parameter,
 	// but MySQL doesn't support this. So we quote it instead.
 	colNameList := buildColNameList(srcSchema, srcCols)
-	q := fmt.Sprintf("SELECT %s FROM `%s`.`%s`;", colNameList, conv.SrcSchema[srcTable].Schema, conv.SrcSchema[srcTable].Name)
+	q := fmt.Sprintf("SELECT %s FROM `%s`.`%s`;", colNameList, srcSchema.Schema, srcSchema.Name)
 	rows, err := isi.Db.Query(q)
 	return rows, err
 }
@@ -93,10 +93,11 @@ func buildColNameList(srcSchema schema.Table, srcColName []string) string {
 }
 
 // ProcessData performs data conversion for source database.
-func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcSchema schema.Table, spTable string, spCols []string, spSchema ddl.CreateTable) error {
-	rowsInterface, err := isi.GetRowsFromTable(conv, srcTable)
+func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable) error {
+	srcTableName := conv.SrcSchema[tableId].Name
+	rowsInterface, err := isi.GetRowsFromTable(conv, tableId)
 	if err != nil {
-		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTable, err))
+		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", srcTableName, err))
 		return err
 	}
 	rows := rowsInterface.(*sql.Rows)
@@ -109,11 +110,11 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, srcTable string, srcS
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
 			// Scan failed, so we don't have any data to add to bad rows.
-			conv.StatsAddBadRow(srcTable, conv.DataMode())
+			conv.StatsAddBadRow(srcTableName, conv.DataMode())
 			continue
 		}
 		values := valsToStrings(v)
-		ProcessDataRow(conv, conv.SrcSchema[srcTable].Name, srcCols, srcSchema, conv.SpSchema[spTable].Name, spCols, spSchema, values)
+		ProcessDataRow(conv, tableId, srcCols, srcSchema, spCols, spSchema, values)
 	}
 	return nil
 }

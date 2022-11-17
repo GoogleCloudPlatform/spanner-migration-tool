@@ -75,7 +75,7 @@ func processPgDump(conv *internal.Conv, r *internal.Reader) error {
 		if ci != nil {
 			switch ci.stmt {
 			case copyFrom:
-				processCopyBlock(conv, conv.SrcSchema[ci.table].Name, ci.cols, r)
+				processCopyBlock(conv, ci.table, ci.cols, r)
 			case insert:
 				for _, vals := range ci.rows {
 					// Handle INSERT statements where columns are not
@@ -85,9 +85,9 @@ func processPgDump(conv *internal.Conv, r *internal.Reader) error {
 						for _, col := range conv.SrcSchema[ci.table].ColIds {
 							colNames = append(colNames, conv.SrcSchema[ci.table].ColDefs[col].Name)
 						}
-						ProcessDataRow(conv, conv.SrcSchema[ci.table].Name, colNames, vals)
+						ProcessDataRow(conv, ci.table, colNames, vals)
 					} else {
-						ProcessDataRow(conv, conv.SrcSchema[ci.table].Name, ci.cols, vals)
+						ProcessDataRow(conv, ci.table, ci.cols, vals)
 					}
 				}
 			}
@@ -135,7 +135,8 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []*pg_q
 	}
 }
 
-func processCopyBlock(conv *internal.Conv, srcTable string, srcCols []string, r *internal.Reader) {
+func processCopyBlock(conv *internal.Conv, tableId string, srcCols []string, r *internal.Reader) {
+	srcTableName := conv.SrcSchema[tableId].Name
 	internal.VerbosePrintf("Parsing COPY-FROM stdin block starting at line=%d/fpos=%d\n", r.LineNumber, r.Offset)
 	logger.Log.Debug(fmt.Sprintf("Parsing COPY-FROM stdin block starting at line=%d/fpos=%d\n", r.LineNumber, r.Offset))
 	for {
@@ -149,7 +150,7 @@ func processCopyBlock(conv *internal.Conv, srcTable string, srcCols []string, r 
 			conv.Unexpected("Reached eof while parsing copy-block")
 			return
 		}
-		conv.StatsAddRow(srcTable, conv.SchemaMode())
+		conv.StatsAddRow(srcTableName, conv.SchemaMode())
 		// We have to read the copy-block data so that we can process the remaining
 		// pg_dump content. However, if we don't want the data, stop here.
 		// In particular, avoid the strings.Split and ProcessDataRow calls below, which
@@ -165,7 +166,7 @@ func processCopyBlock(conv *internal.Conv, srcTable string, srcCols []string, r 
 		// COPY-FROM blocks use tabs to separate data items. Note that space within data
 		// items is significant e.g. if a table row contains data items "a ", " b "
 		// it will be shown in the COPY-FROM block as "a \t b ".
-		ProcessDataRow(conv, srcTable, srcCols, strings.Split(strings.Trim(s, "\r\n"), "\t"))
+		ProcessDataRow(conv, tableId, srcCols, strings.Split(strings.Trim(s, "\r\n"), "\t"))
 	}
 }
 
@@ -360,7 +361,7 @@ func processInsertStmt(conv *internal.Conv, n *pg_query.InsertStmt) *copyOrInser
 		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
 		return nil
 	}
-	tableId, _ := internal.GetTableIdFromName(conv, table)
+	tableId, _ := internal.GetTableIdFromSrcName(conv.SrcSchema, table)
 	if _, ok := conv.SrcSchema[tableId]; !ok {
 		// If we don't have schema information for a table, we drop all insert
 		// statements for it. The most likely reason we don't have schema information
@@ -408,7 +409,7 @@ func processCopyStmt(conv *internal.Conv, n *pg_query.CopyStmt) *copyOrInsert {
 		logStmtError(conv, n, fmt.Errorf("relation is nil"))
 	}
 	if !conv.SchemaMode() {
-		table, _ = internal.GetTableIdFromName(conv, table)
+		table, _ = internal.GetTableIdFromSrcName(conv.SrcSchema, table)
 	}
 
 	if _, ok := conv.SrcSchema[table]; !ok {

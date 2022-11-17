@@ -57,9 +57,9 @@ func TestReport(t *testing.T) {
 	common.ProcessDbDump(conv, internal.NewReader(bufio.NewReader(strings.NewReader(s)), nil), DbDumpImpl{})
 	conv.SetDataMode()
 
-	badSchemaTableId := internal.GetSpTableIdFromName(conv, "bad_schema")
+	badSchemaTableId := internal.GetTableIdFromSpName(conv.SpSchema, "bad_schema")
 	assert.NotEqual(t, "", badSchemaTableId)
-	noPkTableId := internal.GetSpTableIdFromName(conv, "no_pk")
+	noPkTableId := internal.GetTableIdFromSpName(conv.SpSchema, "no_pk")
 	assert.NotEqual(t, "", noPkTableId)
 
 	conv.Stats.Rows = map[string]int64{badSchemaTableId: 1000, noPkTableId: 5000}

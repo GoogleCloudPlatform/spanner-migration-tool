@@ -345,7 +345,7 @@ func ProcessRecord(conv *internal.Conv, streamInfo *StreamingInfo, record *dynam
 	streamInfo.StatsAddRecord(srcTable, eventName)
 
 	// todo - write a function that will compute schemas and colums and return
-	tableId, err := internal.GetTableIdFromName(conv, srcTable)
+	tableId, err := internal.GetTableIdFromSrcName(conv.SrcSchema, srcTable)
 	srcSchema, ok1 := conv.SrcSchema[tableId]
 	spSchema, ok2 := conv.SpSchema[tableId]
 	if err != nil || !ok1 || !ok2 {
