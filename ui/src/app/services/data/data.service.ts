@@ -206,6 +206,7 @@ export class DataService {
       }),
       tap(console.log),
       map((data) => {
+        this.getDdl()
         if (data.error) {
           this.snackbar.openSnackBar(data.error, 'Close')
           return data.error
