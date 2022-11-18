@@ -200,9 +200,9 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 	fmt.Println("Starting DynamoDB Streams initialization...")
 
 	latestStreamArn := make(map[string]interface{})
-	orderTableIds := ddl.OrderTables(conv.SpSchema)
+	tableIds := ddl.GetSortedTableIdsBySpName(conv.SpSchema)
 
-	for _, tableId := range orderTableIds {
+	for _, tableId := range tableIds {
 		srcTable := conv.SrcSchema[tableId].Name
 		streamArn, err := NewDynamoDBStream(isi.DynamoClient, srcTable)
 		if err != nil {

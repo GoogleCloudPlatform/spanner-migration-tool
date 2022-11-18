@@ -1396,8 +1396,8 @@ func TestProcessPgDump_GetDDL(t *testing.T) {
 	expected :=
 		"CREATE TABLE cart (\n" +
 			"	productid STRING(MAX) NOT NULL,\n" +
-			"	quantity INT64,\n" +
 			"	userid STRING(MAX) NOT NULL,\n" +
+			"	quantity INT64,\n" +
 			") PRIMARY KEY (productid, userid)"
 	c := ddl.Config{Tables: true}
 	assert.Equal(t, expected, strings.Join(conv.SpSchema.GetDDL(c), " "))
@@ -1409,8 +1409,8 @@ func TestProcessPgDump_GetPGDDL(t *testing.T) {
 	expected :=
 		"CREATE TABLE cart (\n" +
 			"	productid VARCHAR(2621440) NOT NULL,\n" +
-			"	quantity INT8,\n" +
 			"	userid VARCHAR(2621440) NOT NULL,\n" +
+			"	quantity INT8,\n" +
 			"	PRIMARY KEY (productid, userid)\n" +
 			")"
 	c := ddl.Config{Tables: true, TargetDb: conv.TargetDb}

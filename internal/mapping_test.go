@@ -28,10 +28,6 @@ func TestGetSpannerTable(t *testing.T) {
 	conv = &Conv{
 
 		SrcSchema: map[string]schema.Table{
-			"t1": {
-				Name: "",
-				Id:   "t1",
-			},
 			"t2": {
 				Name: "table",
 				Id:   "t2",
@@ -83,10 +79,6 @@ func TestGetSpannerTable(t *testing.T) {
 		},
 
 		SpSchema: map[string]ddl.CreateTable{
-			"t1": {
-				Name: "",
-				Id:   "t1",
-			},
 			"t2": {
 				Name: "table",
 				Id:   "t2",
@@ -157,14 +149,15 @@ func TestGetSpannerTable(t *testing.T) {
 		{"Illegal differing only in case", "TAB\nLE_5", false, "TAB_LE_5_11"},
 	}
 	for _, tc := range basicTests {
-		spTable, err := GetSpannerTable(conv, tc.srcTable)
+		tableId, _ := GetTableIdFromSrcName(conv.SrcSchema, tc.srcTable)
+		spTable, err := GetSpannerTable(conv, tableId)
 		if tc.error {
 			assert.NotNil(t, err, tc.name)
 			continue
 		}
 		assert.Equal(t, tc.spTable, spTable, tc.name)
 		// Run again to check we get same result.
-		s2, err := GetSpannerTable(conv, tc.srcTable)
+		s2, err := GetSpannerTable(conv, tableId)
 		assert.Nil(t, err, tc.name)
 		assert.Equal(t, spTable, s2, tc.name)
 	}
@@ -173,10 +166,6 @@ func TestGetSpannerTable(t *testing.T) {
 func TestGetSpannerCol(t *testing.T) {
 	conv := MakeConv()
 	conv.SrcSchema = map[string]schema.Table{
-		"t1": {
-			Name: "",
-			Id:   "t1",
-		},
 		"t2": {
 			Name: "table",
 			Id:   "t2",
@@ -195,10 +184,6 @@ func TestGetSpannerCol(t *testing.T) {
 		},
 	}
 	conv.SpSchema = map[string]ddl.CreateTable{
-		"t1": {
-			Name: "",
-			Id:   "t1",
-		},
 		"t2": {
 			Name: "table",
 			Id:   "t2",
@@ -274,7 +259,8 @@ func TestGetSpannerCol(t *testing.T) {
 		{"table1 collision 3", "table1", "c?ol", false, "c_ol_8"},
 	}
 	for _, tc := range basicTests {
-		_, err1 := GetSpannerTable(conv, tc.srcTable) // Ensure table is known.
+		tableId, _ := GetTableIdFromSrcName(conv.SrcSchema, tc.srcTable)
+		_, err1 := GetSpannerTable(conv, tableId) // Ensure table is known.
 		spCol, err2 := GetSpannerCol(conv, tc.srcTable, tc.srcCol, false)
 		if tc.error {
 			assert.True(t, err1 != nil || err2 != nil, tc.name)

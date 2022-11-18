@@ -36,26 +36,23 @@ import (
 // and indexes. We use this to ensure we generate unique names when
 // we map from source dbs to Spanner since Spanner requires all these names to be
 // distinct and should not differ only in case.
-func GetSpannerTable(conv *Conv, srcTable string) (string, error) {
-	if srcTable == "" {
-		return "", fmt.Errorf("bad parameter: table string is empty")
+func GetSpannerTable(conv *Conv, tableId string) (string, error) {
+	if tableId == "" {
+		return "", fmt.Errorf("bad parameter: table-id string is empty")
 	}
 
-	tableId, err := GetTableIdFromSrcName(conv.SrcSchema, srcTable)
-	if err != nil {
-		return "", err
-	}
 	if sp, found := conv.SpSchema[tableId]; found {
 		return sp.Name, nil
 	}
-	spTable := getSpannerID(conv, srcTable)
-	if spTable != srcTable {
-		VerbosePrintf("Mapping source DB table %s to Spanner table %s\n", srcTable, spTable)
-		logger.Log.Debug(fmt.Sprintf("Mapping source DB table %s to Spanner table %s\n", srcTable, spTable))
+	srcTableName := conv.SrcSchema[tableId].Name
+	spTableName := getSpannerID(conv, srcTableName)
+	if spTableName != srcTableName {
+		VerbosePrintf("Mapping source DB table %s to Spanner table %s\n", srcTableName, spTableName)
+		logger.Log.Debug(fmt.Sprintf("Mapping source DB table %s to Spanner table %s\n", srcTableName, spTableName))
 	}
-	conv.ToSpanner[srcTable] = NameAndCols{Name: spTable, Cols: make(map[string]string)}
-	conv.ToSource[spTable] = NameAndCols{Name: srcTable, Cols: make(map[string]string)}
-	return spTable, nil
+	conv.ToSpanner[srcTableName] = NameAndCols{Name: spTableName, Cols: make(map[string]string)}
+	conv.ToSource[spTableName] = NameAndCols{Name: srcTableName, Cols: make(map[string]string)}
+	return spTableName, nil
 }
 
 // GetSourceTable maps a spanner table name into a legal source DB table

@@ -16,6 +16,7 @@ package common
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
@@ -45,4 +46,18 @@ func GetColsAndSchemas(conv *internal.Conv, srcTable string) (schema.Table, stri
 		err = fmt.Errorf(fmt.Sprintf("err1=%s, err2=%s, ok=%t", err1, err2, ok))
 	}
 	return srcSchema, spTable, spCols, spSchema, err
+}
+
+func GetSortedTableIdsBySrcName(srcSchema map[string]schema.Table) []string {
+	tableNameIdMap := map[string]string{}
+	var tableNames, sortedTableIds []string
+	for id, srcTable := range srcSchema {
+		tableNames = append(tableNames, srcTable.Name)
+		tableNameIdMap[srcTable.Name] = id
+	}
+	sort.Strings(tableNames)
+	for _, name := range tableNames {
+		sortedTableIds = append(sortedTableIds, tableNameIdMap[name])
+	}
+	return sortedTableIds
 }

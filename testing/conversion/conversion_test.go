@@ -130,12 +130,14 @@ func BuildConv(t *testing.T, numCols, numFks int, makeEmpty bool) *internal.Conv
 		ColDefs:     colDefs,
 		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "col1"}},
 		ForeignKeys: foreignKeys,
+		Id:          "table_a",
 	}
 	conv.SpSchema["table_b"] = ddl.CreateTable{
 		Name:        "table_b",
 		ColIds:      colNames,
 		ColDefs:     colDefs,
 		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "col1"}},
+		Id:          "table_b",
 	}
 	return conv
 }

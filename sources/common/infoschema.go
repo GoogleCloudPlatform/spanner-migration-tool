@@ -88,9 +88,9 @@ func GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema) error {
 func ProcessData(conv *internal.Conv, infoSchema InfoSchema) {
 	// Tables are ordered in alphabetical order with one exception: interleaved
 	// tables appear after the population of their parent table.
-	orderTableIds := ddl.OrderTables(conv.SpSchema)
+	tableIds := ddl.GetSortedTableIdsBySpName(conv.SpSchema)
 
-	for _, tableId := range orderTableIds {
+	for _, tableId := range tableIds {
 		srcSchema := conv.SrcSchema[tableId]
 		var spCols []string
 		for _, spColId := range srcSchema.ColIds {

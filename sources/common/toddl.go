@@ -51,7 +51,7 @@ type ToDdl interface {
 // Spanner. It uses the source schema in conv.SrcSchema, and writes
 // the Spanner schema to conv.SpSchema.
 func SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error {
-	tableIds := internal.GetSortedTableIds(conv)
+	tableIds := GetSortedTableIdsBySrcName(conv.SrcSchema)
 	for _, tableId := range tableIds {
 		srcTable := conv.SrcSchema[tableId]
 		SchemaToSpannerDDLHelper(conv, toddl, srcTable, false)
@@ -61,7 +61,7 @@ func SchemaToSpannerDDL(conv *internal.Conv, toddl ToDdl) error {
 }
 
 func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.Table, isRestore bool) error {
-	spTableName, err := internal.GetSpannerTable(conv, srcTable.Name)
+	spTableName, err := internal.GetSpannerTable(conv, srcTable.Id)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't map source table %s to Spanner: %s", srcTable.Name, err))
 		return err

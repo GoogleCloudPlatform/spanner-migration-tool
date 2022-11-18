@@ -185,13 +185,13 @@ func getCSVDataRowCount(r *csvReader.Reader, colNames []string) (int64, error) {
 // ProcessCSV writes data across the tables provided in the manifest file. Each table's data can be provided
 // across multiple CSV files hence, the manifest accepts a list of file paths in the input.
 func ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, nullStr string, delimiter rune) error {
-	orderedTableIds := ddl.OrderTables(conv.SpSchema)
+	tableIds := ddl.GetSortedTableIdsBySpName(conv.SpSchema)
 	nameToFiles := map[string][]string{}
 	for _, table := range tables {
 		nameToFiles[table.Table_name] = table.File_patterns
 	}
 	orderedTables := []utils.ManifestTable{}
-	for _, id := range orderedTableIds {
+	for _, id := range tableIds {
 		orderedTables = append(orderedTables, utils.ManifestTable{conv.SpSchema[id].Name, nameToFiles[conv.SpSchema[id].Name]})
 	}
 

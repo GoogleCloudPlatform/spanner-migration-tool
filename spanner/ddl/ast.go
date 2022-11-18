@@ -265,14 +265,14 @@ func (ct CreateTable) PrintCreateTable(s Schema, config Config) string {
 	var col []string
 	var colComment []string
 	var keys []string
-	for _, cn := range ct.ColDefs {
-		s, c := cn.PrintColumnDef(config)
+	for _, colId := range ct.ColIds {
+
+		s, c := ct.ColDefs[colId].PrintColumnDef(config)
 		s = "\t" + s + ","
 		col = append(col, s)
 		colComment = append(colComment, c)
 	}
 
-	sort.Strings(col)
 	n := maxStringLength(col)
 	var cols string
 	for i, c := range col {
@@ -374,23 +374,25 @@ func NewSchema() Schema {
 // tables appear after the definition of their parent table.
 // TODO: Move this method to mapping.go and preserve the table names in sorted
 // order in conv so that we don't need to order the table names multiple times.
-func OrderTables(s Schema) []string {
-	var tableNames, sortedTableNames []string
-	for t := range s {
-		tableNames = append(tableNames, t)
+func GetSortedTableIdsBySpName(s Schema) []string {
+	var tableNames, sortedTableNames, sortedTableIds []string
+	tableNameIdMap := map[string]string{}
+	for _, t := range s {
+		tableNames = append(tableNames, t.Name)
+		tableNameIdMap[t.Name] = t.Id
 	}
 	sort.Strings(tableNames)
 	tableQueue := tableNames
 	tableAdded := make(map[string]bool)
 	for len(tableQueue) > 0 {
 		tableName := tableQueue[0]
-		table := s[tableName]
+		table := s[tableNameIdMap[tableName]]
 		tableQueue = tableQueue[1:]
 
 		// Add table t if either:
 		// a) t is not interleaved in another table, or
 		// b) t is interleaved in another table and that table has already been added to the list.
-		if table.ParentId == "" || tableAdded[table.ParentId] {
+		if table.ParentId == "" || tableAdded[s[table.ParentId].Name] {
 			sortedTableNames = append(sortedTableNames, tableName)
 			tableAdded[tableName] = true
 		} else {
@@ -403,7 +405,10 @@ func OrderTables(s Schema) []string {
 			tableQueue = append(tableQueue, tableName)
 		}
 	}
-	return sortedTableNames
+	for _, tableName := range sortedTableNames {
+		sortedTableIds = append(sortedTableIds, tableNameIdMap[tableName])
+	}
+	return sortedTableIds
 }
 
 // GetDDL returns the string representation of Spanner schema represented by Schema struct.
@@ -412,10 +417,10 @@ func OrderTables(s Schema) []string {
 // definition of their parent table.
 func (s Schema) GetDDL(c Config) []string {
 	var ddl []string
-	sortedTableIds := OrderTables(s)
+	tableIds := GetSortedTableIdsBySpName(s)
 
 	if c.Tables {
-		for _, tableId := range sortedTableIds {
+		for _, tableId := range tableIds {
 			ddl = append(ddl, s[tableId].PrintCreateTable(s, c))
 			for _, index := range s[tableId].Indexes {
 				ddl = append(ddl, index.PrintCreateIndex(s[tableId], c))
@@ -429,7 +434,7 @@ func (s Schema) GetDDL(c Config) []string {
 	// before they are referenced by foreign key constraints) and the possibility
 	// of circular foreign keys definitions. We opt for simplicity.
 	if c.ForeignKeys {
-		for _, t := range sortedTableIds {
+		for _, t := range tableIds {
 			for _, fk := range s[t].ForeignKeys {
 				ddl = append(ddl, fk.PrintForeignKeyAlterTable(s, c, t))
 			}

@@ -402,10 +402,11 @@ func TestGetDDL(t *testing.T) {
 	s := Schema{
 		"t1": CreateTable{
 			Name:   "table1",
+			Id:     "t1",
 			ColIds: []string{"c1", "c2"},
 			ColDefs: map[string]ColumnDef{
-				"c1": {Name: "a", T: Type{Name: Int64}},
-				"c2": {Name: "b", T: Type{Name: Int64}},
+				"c1": {Name: "a", Id: "c1", T: Type{Name: Int64}},
+				"c2": {Name: "b", Id: "c2", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c1"}},
 			ForeignKeys: []Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c5"}}},
@@ -413,11 +414,12 @@ func TestGetDDL(t *testing.T) {
 		},
 		"t2": CreateTable{
 			Name:   "table2",
+			Id:     "t2",
 			ColIds: []string{"c4", "c5", "c6"},
 			ColDefs: map[string]ColumnDef{
-				"c4": {Name: "a", T: Type{Name: Int64}},
-				"c5": {Name: "b", T: Type{Name: Int64}},
-				"c6": {Name: "c", T: Type{Name: Int64}},
+				"c4": {Name: "a", Id: "c4", T: Type{Name: Int64}},
+				"c5": {Name: "b", Id: "c5", T: Type{Name: Int64}},
+				"c6": {Name: "c", Id: "c6", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c4"}},
 			ForeignKeys: []Foreignkey{{Name: "fk2", ColIds: []string{"c5", "c6"}, ReferTableId: "t3", ReferColumnIds: []string{"c8", "c9"}}},
@@ -425,11 +427,12 @@ func TestGetDDL(t *testing.T) {
 		},
 		"t3": CreateTable{
 			Name:   "table3",
+			Id:     "t3",
 			ColIds: []string{"c7", "c8", "c9"},
 			ColDefs: map[string]ColumnDef{
-				"c7": {Name: "a", T: Type{Name: Int64}},
-				"c8": {Name: "b", T: Type{Name: Int64}},
-				"c9": {Name: "c", T: Type{Name: Int64}},
+				"c7": {Name: "a", Id: "c7", T: Type{Name: Int64}},
+				"c8": {Name: "b", Id: "c8", T: Type{Name: Int64}},
+				"c9": {Name: "c", Id: "c9", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c7"}, {ColId: "c8"}},
 			ParentId:    "t1",
@@ -496,8 +499,8 @@ func TestGetPGDDL(t *testing.T) {
 			Id:     "t1",
 			ColIds: []string{"c1", "c2"},
 			ColDefs: map[string]ColumnDef{
-				"c1": {Name: "a", T: Type{Name: Int64}},
-				"c2": {Name: "b", T: Type{Name: Int64}},
+				"c1": {Name: "a", Id: "c1", T: Type{Name: Int64}},
+				"c2": {Name: "b", Id: "c2", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c1"}},
 			ForeignKeys: []Foreignkey{{Name: "fk1", ColIds: []string{"c2"}, ReferTableId: "t2", ReferColumnIds: []string{"c4"}}},
@@ -508,9 +511,9 @@ func TestGetPGDDL(t *testing.T) {
 			Id:     "t2",
 			ColIds: []string{"c3", "c4", "c5"},
 			ColDefs: map[string]ColumnDef{
-				"c3": {Name: "a", T: Type{Name: Int64}},
-				"c4": {Name: "b", T: Type{Name: Int64}},
-				"c5": {Name: "c", T: Type{Name: Int64}},
+				"c3": {Name: "a", Id: "c3", T: Type{Name: Int64}},
+				"c4": {Name: "b", Id: "c4", T: Type{Name: Int64}},
+				"c5": {Name: "c", Id: "c5", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c3"}},
 			ForeignKeys: []Foreignkey{{Name: "fk2", ColIds: []string{"c4", "c5"}, ReferTableId: "t3", ReferColumnIds: []string{"c7", "c8"}}},
@@ -521,9 +524,9 @@ func TestGetPGDDL(t *testing.T) {
 			Id:     "t3",
 			ColIds: []string{"c6", "c7", "c8"},
 			ColDefs: map[string]ColumnDef{
-				"c6": {Name: "a", T: Type{Name: Int64}},
-				"c7": {Name: "b", T: Type{Name: Int64}},
-				"c8": {Name: "c", T: Type{Name: Int64}},
+				"c6": {Name: "a", Id: "c6", T: Type{Name: Int64}},
+				"c7": {Name: "b", Id: "c7", T: Type{Name: Int64}},
+				"c8": {Name: "c", Id: "c8", T: Type{Name: Int64}},
 			},
 			PrimaryKeys: []IndexKey{{ColId: "c6"}, {ColId: "c7"}},
 			ParentId:    "t1",

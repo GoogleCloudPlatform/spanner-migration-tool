@@ -42,6 +42,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/spanner"
+	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"golang.org/x/crypto/ssh/terminal"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
@@ -582,7 +583,7 @@ func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Clie
 }
 
 // CompareSchema compares the spanner schema of two conv objects and returns specific error if they don't match
-func CompareSchema(conv1, conv2 *internal.Conv) error {
+func CompareSchemaOld(conv1, conv2 *internal.Conv) error {
 	if conv1.TargetDb != conv2.TargetDb {
 		return fmt.Errorf("target db don't match")
 	}
@@ -631,6 +632,93 @@ func CompareSchema(conv1, conv2 *internal.Conv) error {
 		}
 	}
 	return nil
+}
+
+// CompareSchema compares the spanner schema of two conv objects and returns specific error if they don't match
+func CompareSchema(conv1, conv2 *internal.Conv) error {
+	if conv1.TargetDb != conv2.TargetDb {
+		return fmt.Errorf("target db don't match")
+	}
+	for _, sessionTable := range conv1.SpSchema {
+		//sessionTable := conv1.SpSchema[key]
+		spannerTableId := internal.GetTableIdFromSpName(conv2.SpSchema, sessionTable.Name)
+		spannerTable := conv2.SpSchema[spannerTableId]
+
+		sessionTableParentName := conv1.SpSchema[sessionTable.ParentId].Name
+		spannerTableParentName := conv2.SpSchema[spannerTable.ParentId].Name
+
+		if sessionTable.Name != spannerTable.Name || sessionTableParentName != spannerTableParentName ||
+			len(sessionTable.PrimaryKeys) != len(spannerTable.PrimaryKeys) || len(sessionTable.ColDefs) != len(spannerTable.ColDefs) ||
+			len(sessionTable.Indexes) != len(spannerTable.Indexes) {
+			return fmt.Errorf("table detail for table %v don't match", sessionTable.Name)
+		}
+
+		// Sorts both primary key slices based on primary key order
+		sortKeysByOrder(sessionTable.PrimaryKeys)
+		sortKeysByOrder(spannerTable.PrimaryKeys)
+
+		for idx, sessionPk := range sessionTable.PrimaryKeys {
+			sessionTablePkCol := sessionTable.ColDefs[sessionPk.ColId]
+			correspondingSpColId := internal.GetColIdFromSpName(spannerTable.ColDefs, sessionTablePkCol.Name)
+			spannerTablePkCol := spannerTable.ColDefs[correspondingSpColId]
+
+			if sessionTablePkCol.Name != spannerTablePkCol.Name || sessionTable.PrimaryKeys[idx].Desc != spannerTable.PrimaryKeys[idx].Desc {
+				return fmt.Errorf("primary keys for table %v don't match", sessionTable.Name)
+			}
+		}
+
+		for _, sessionColDef := range sessionTable.ColDefs {
+			correspondingSpColId := internal.GetColIdFromSpName(spannerTable.ColDefs, sessionColDef.Name)
+			spannerColDef := spannerTable.ColDefs[correspondingSpColId]
+
+			if sessionColDef.Name != spannerColDef.Name || sessionColDef.NotNull != spannerColDef.NotNull ||
+				sessionColDef.T.IsArray != spannerColDef.T.IsArray || sessionColDef.T.Len != spannerColDef.T.Len || sessionColDef.T.Name != spannerColDef.T.Name {
+				return fmt.Errorf("column detail for table %v don't match", sessionTable.Name)
+			}
+		}
+		for _, sessionTableIndex := range sessionTable.Indexes {
+			found := 0
+			for _, spannerTableIndex := range spannerTable.Indexes {
+				if sessionTableIndex.Name == spannerTableIndex.Name {
+					found = 1
+
+					sessionTableName := conv1.SpSchema[sessionTableIndex.TableId].Name
+					spannerTableName := conv2.SpSchema[spannerTableIndex.TableId].Name
+
+					// Sorts both primary key slices based on index key order
+					sortKeysByOrder(sessionTableIndex.Keys)
+					sortKeysByOrder(spannerTableIndex.Keys)
+
+					if sessionTableName != spannerTableName || sessionTableIndex.Unique != spannerTableIndex.Unique ||
+						len(sessionTableIndex.Keys) != len(spannerTableIndex.Keys) {
+						return fmt.Errorf("index %v - details don't match", sessionTableIndex.Name)
+					}
+
+					for idx, indexKey := range sessionTableIndex.Keys {
+						sessionIndexColumn := sessionTable.ColDefs[indexKey.ColId]
+						spannerIndexColumnId := internal.GetColIdFromSpName(spannerTable.ColDefs, sessionIndexColumn.Name)
+						spannerIndexColumn := spannerTable.ColDefs[spannerIndexColumnId]
+
+						if sessionIndexColumn.Name != spannerIndexColumn.Name ||
+							sessionTableIndex.Keys[idx].Desc != spannerTableIndex.Keys[idx].Desc {
+							return fmt.Errorf("index %v - keys don't match", sessionTableIndex.Name)
+						}
+					}
+					break
+				}
+			}
+			if found == 0 {
+				return fmt.Errorf("index %v not found in spanner schema", sessionTableIndex.Name)
+			}
+		}
+	}
+	return nil
+}
+
+func sortKeysByOrder(pks []ddl.IndexKey) {
+	sort.Slice(pks, func(i int, j int) bool {
+		return pks[i].Order < pks[j].Order
+	})
 }
 
 func DialectToTarget(dialect string) string {

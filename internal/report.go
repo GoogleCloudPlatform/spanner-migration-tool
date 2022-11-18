@@ -142,9 +142,9 @@ func writeStreamingMigrationReport(driverName string, conv *Conv, w *bufio.Write
 
 	stats := conv.Audit.StreamingStats
 
-	orderTableNames := ddl.OrderTables(conv.SpSchema)
+	tableIds := ddl.GetSortedTableIdsBySpName(conv.SpSchema)
 
-	w.WriteString(fmt.Sprintf("Processed %d out of %d %s successfully.\n", len(stats.TotalRecords), len(orderTableNames), streamName))
+	w.WriteString(fmt.Sprintf("Processed %d out of %d %s successfully.\n", len(stats.TotalRecords), len(tableIds), streamName))
 
 	totalReadRecords := sumNestedMapValues(stats.TotalRecords)
 	w.WriteString(fmt.Sprintf("\nCount of records read from %s: %s\n", streamName, strconv.FormatInt(totalReadRecords, 10)))
@@ -301,11 +301,11 @@ func buildTableReportBody(conv *Conv, tableId string, issues map[string][]Schema
 		{"Error", errors},
 	} {
 		// Print out issues is alphabetical column order.
-		var colIds []string
-		for t := range issues {
-			colIds = append(colIds, t)
+		var colNames []string
+		for colId := range issues {
+			colNames = append(colNames, conv.SpSchema[tableId].ColDefs[colId].Name)
 		}
-		sort.Strings(colIds)
+		sort.Strings(colNames)
 		var l []string
 		if syntheticPK != nil {
 			// Warnings about synthetic primary keys must be handled as a special case
@@ -355,7 +355,8 @@ func buildTableReportBody(conv *Conv, tableId string, issues map[string][]Schema
 		}
 
 		issueBatcher := make(map[SchemaIssue]bool)
-		for _, colId := range colIds {
+		for _, colName := range colNames {
+			colId := GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, colName)
 			for _, i := range issues[colId] {
 				if IssueDB[i].severity != p.severity {
 					continue

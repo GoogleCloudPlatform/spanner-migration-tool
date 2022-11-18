@@ -845,8 +845,8 @@ func TestProcessMySQLDump_GetDDL(t *testing.T) {
 	expected :=
 		"CREATE TABLE cart (\n" +
 			"	productid STRING(MAX) NOT NULL,\n" +
-			"	quantity INT64,\n" +
 			"	userid STRING(MAX) NOT NULL,\n" +
+			"	quantity INT64,\n" +
 			") PRIMARY KEY (productid, userid)"
 	c := ddl.Config{Tables: true}
 	assert.Equal(t, expected, strings.Join(conv.SpSchema.GetDDL(c), " "))

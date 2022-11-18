@@ -16,7 +16,6 @@ package internal
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 )
@@ -31,15 +30,10 @@ func (conv *Conv) AssignIdToSourceSchema() {
 
 func (conv *Conv) AssignTableId() {
 	srcSchema := map[string]schema.Table{}
-	keys := make([]string, 0, len(conv.SrcSchema))
-	for key := range conv.SrcSchema {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
 
-	for _, v := range keys {
+	for _, v := range conv.SrcSchema {
 		tableId := GenerateTableId()
-		srcTable := conv.SrcSchema[v]
+		srcTable := v
 		srcTable.Id = tableId
 		srcSchema[tableId] = srcTable
 	}
@@ -49,17 +43,14 @@ func (conv *Conv) AssignTableId() {
 }
 
 func (conv *Conv) AssignColumnId() {
-	tableIds := GetSortedTableIds(conv)
-	for _, tableId := range tableIds {
-		table := conv.SrcSchema[tableId]
+	for tableId, table := range conv.SrcSchema {
 
-		keys := make([]string, 0, len(table.ColDefs))
-		for key := range table.ColDefs {
-			keys = append(keys, key)
+		colNames := make([]string, 0, len(table.ColDefs))
+		for colName := range table.ColDefs {
+			colNames = append(colNames, colName)
 		}
-		sort.Strings(keys)
 
-		for _, columnName := range keys {
+		for _, columnName := range colNames {
 			columnId := GenerateColumnId()
 			column := table.ColDefs[columnName]
 			column.Id = columnId
@@ -74,9 +65,7 @@ func (conv *Conv) AssignColumnId() {
 }
 
 func (conv *Conv) AssignPkId() {
-	tableIds := GetSortedTableIds(conv)
-	for _, tableId := range tableIds {
-		table := conv.SrcSchema[tableId]
+	for tableId, table := range conv.SrcSchema {
 		for i, pk := range table.PrimaryKeys {
 			columnId, err := GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, pk.ColId)
 			if err != nil {
@@ -89,9 +78,7 @@ func (conv *Conv) AssignPkId() {
 }
 
 func (conv *Conv) AssignIndexId() {
-	tableIds := GetSortedTableIds(conv)
-	for _, tableId := range tableIds {
-		table := conv.SrcSchema[tableId]
+	for tableId, table := range conv.SrcSchema {
 		for i, index := range table.Indexes {
 			indexId := GenerateIndexesId()
 			for k, v := range index.Keys {
@@ -118,9 +105,7 @@ func (conv *Conv) AssignIndexId() {
 }
 
 func (conv *Conv) AssginFkId() {
-	tableIds := GetSortedTableIds(conv)
-	for _, tableId := range tableIds {
-		table := conv.SrcSchema[tableId]
+	for tableId, table := range conv.SrcSchema {
 		for i, fk := range table.ForeignKeys {
 			fkId := GenerateForeignkeyId()
 			var columnIds []string
@@ -153,13 +138,4 @@ func (conv *Conv) AssginFkId() {
 			conv.SrcSchema[tableId].ForeignKeys[i].ReferColumnIds = referColumnIds
 		}
 	}
-}
-
-func GetSortedTableIds(conv *Conv) []string {
-	tableIds := []string{}
-	for tableId, _ := range conv.SrcSchema {
-		tableIds = append(tableIds, tableId)
-	}
-	sort.Strings(tableIds)
-	return tableIds
 }
