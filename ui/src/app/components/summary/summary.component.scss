@@ -11,9 +11,10 @@
     justify-content: center;
     align-items: center;
     .no-object-icon-container {
-      padding: 15px;
+      padding: 10px;
       background-color: rgba(51, 103, 214, 0.12);
       border-radius: 3px;
+      margin:20px;
     }
     .no-object-message {
       width: 80%;
@@ -32,6 +33,7 @@
       padding: 10px;
       background-color: rgba(51, 103, 214, 0.12);
       border-radius: 3px;
+      margin : 20px;
     }
     .no-issue-message {
       width: 80%;
