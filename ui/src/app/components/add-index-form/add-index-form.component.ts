@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core'
 import { FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms'
 import IConv, { ICreateIndex } from 'src/app/model/conv'
+import { IRule } from 'src/app/model/rule'
 import { DataService } from 'src/app/services/data/data.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 
@@ -11,6 +12,8 @@ import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 })
 export class AddIndexFormComponent implements OnInit {
   @Input() ruleNameValid: boolean = false
+  @Input() ruleName: string = ''
+  @Input() ruleType: string = ''
   @Output() resetRuleType: EventEmitter<any> = new EventEmitter<any>()
   addIndexForm: FormGroup
   tableNames: string[] = []
@@ -106,9 +109,24 @@ export class AddIndexFormComponent implements OnInit {
       }),
       Id: '',
     })
+
     this.data.addIndex(idxData.tableName, payload)
+    this.applyRule(payload)
     this.resetRuleType.emit('')
     this.sidenav.setSidenavAddIndexTable('')
     this.sidenav.closeSidenav()
+  }
+
+  applyRule(data: any) {
+    let idxData = this.addIndexForm.value
+    let payload: IRule = {
+      name: this.ruleName,
+      type: 'add_index',
+      objectType: 'Column',
+      associatedObject: idxData.tableName,
+      enabled: true,
+      data: data[0],
+    }
+    this.data.applyRule(payload)
   }
 }

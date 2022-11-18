@@ -1,7 +1,7 @@
 import { Component, OnInit, SimpleChanges } from '@angular/core'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { DataService } from 'src/app/services/data/data.service'
-import IRuleContent from 'src/app/model/rule'
+import IRuleContent, { IRule } from 'src/app/model/rule'
 
 @Component({
   selector: 'app-rule',
@@ -9,16 +9,15 @@ import IRuleContent from 'src/app/model/rule'
   styleUrls: ['./rule.component.scss'],
 })
 export class RuleComponent implements OnInit {
-  dataSource: IRuleContent[] = []
+  dataSource: any = []
   displayedColumns = ['order', 'name', 'type', 'objectType', 'associatedObject', 'enabled']
 
   constructor(private sidenavService: SidenavService, private data: DataService) {}
 
   ngOnInit(): void {
     this.data.rule.subscribe({
-      next: (data: IRuleContent) => {
-        const newData = [...this.dataSource, data]
-        this.dataSource = newData
+      next: (data: any) => {
+        this.dataSource = data
       },
     })
   }

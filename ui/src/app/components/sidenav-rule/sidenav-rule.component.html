@@ -38,12 +38,16 @@
       <app-edit-global-datatype-form
         [ruleNameValid]="ruleForm.valid"
         (resetRuleType)="resetRuleType()"
+        [ruleName]="rulename"
+        [ruleType]="ruletype"
       ></app-edit-global-datatype-form>
     </div>
     <div *ngIf="ruleType.value === 'addIndex'">
       <app-add-index-form
         [ruleNameValid]="ruleForm.valid"
         (resetRuleType)="resetRuleType()"
+        [ruleName]="rulename"
+        [ruleType]="ruletype"
       ></app-add-index-form>
     </div>
   </div>

@@ -14,6 +14,7 @@ import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
 import IMigrationDetails, { IGeneratedResources, IProgress } from 'src/app/model/migrate'
 import IConnectionProfile, { ICreateConnectionProfile } from 'src/app/model/profile'
+import IRule from 'src/app/model/rule'
 
 @Injectable({
   providedIn: 'root',
@@ -62,7 +63,7 @@ export class FetchService {
       Database: dbName,
       User: userName,
       Password: password,
-    },)
+    })
   }
 
   getSchemaConversionFromSessionFile(payload: ISessionConfig) {
@@ -74,7 +75,9 @@ export class FetchService {
   }
 
   getConnectionProfiles(isSource: boolean) {
-    return this.http.get<IConnectionProfile[]>(`${this.url}/GetConnectionProfiles?source=${isSource}`)
+    return this.http.get<IConnectionProfile[]>(
+      `${this.url}/GetConnectionProfiles?source=${isSource}`
+    )
   }
 
   getGeneratedResources() {
@@ -206,5 +209,9 @@ export class FetchService {
 
   cleanUpStreamingJobs() {
     return this.http.post(`${this.url}/CleanUpStreamingJobs`, {})
+  }
+
+  applyRule(payload: IRule) {
+    return this.http.post(`${this.url}/applyrule`, payload)
   }
 }

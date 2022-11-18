@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core'
 import { FetchService } from '../fetch/fetch.service'
 import IConv, { ICreateIndex, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
-import IRuleContent from 'src/app/model/rule'
+import IRuleContent, { IRule } from 'src/app/model/rule'
 import { BehaviorSubject, forkJoin, Observable, of } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
 import IUpdateTable from 'src/app/model/update-table'
@@ -29,7 +29,7 @@ export class DataService {
   // currentSessionSub not using any where
   private currentSessionSub = new BehaviorSubject({} as ISession)
   private isOfflineSub = new BehaviorSubject<boolean>(false)
-  private ruleMapSub = new BehaviorSubject<IRuleContent>({})
+  private ruleMapSub = new BehaviorSubject<IRule>({})
 
   rule = this.ruleMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   conv = this.convSubject.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
@@ -349,6 +349,19 @@ export class DataService {
       },
     })
   }
+
+  applyRule(payload: IRule) {
+    this.fetch.applyRule(payload).subscribe({
+      next: (res: any) => {
+        this.ruleMapSub.next(res?.Rules)
+        this.snackbar.openSnackBar('Added new rule.', 'Close', 5)
+      },
+      error: (err: any) => {
+        this.snackbar.openSnackBar(err.error, 'Close')
+      },
+    })
+  }
+
   updateIndex(tableName: string, payload: ICreateIndex[]) {
     return this.fetch.updateIndex(tableName, payload).pipe(
       catchError((e: any) => {

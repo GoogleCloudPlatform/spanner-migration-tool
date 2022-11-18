@@ -1,5 +1,6 @@
 import { Component, Input, OnInit, Output, EventEmitter } from '@angular/core'
 import { FormBuilder, FormGroup, Validators } from '@angular/forms'
+import { IRule } from 'src/app/model/rule'
 import { DataService } from 'src/app/services/data/data.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 
@@ -15,6 +16,8 @@ interface IConvSourceType {
 })
 export class EditGlobalDatatypeFormComponent implements OnInit {
   @Input() ruleNameValid: boolean = false
+  @Input() ruleType: string = ''
+  @Input() ruleName: string = ''
   @Output() resetRuleType: EventEmitter<any> = new EventEmitter<any>()
   addGlobalDataTypeForm: FormGroup
   conversionType: Record<string, IConvSourceType[]> = {}
@@ -44,6 +47,7 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
     const payload: Record<string, string> = {}
     payload[source] = ruleValue.destinationType
     this.data.updateGlobalType(payload)
+    this.applyRule()
     this.resetRuleType.emit('')
     this.sidenav.closeSidenav()
   }
@@ -56,5 +60,17 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
       desType.push(item.T)
     })
     this.destinationType = desType
+  }
+
+  applyRule() {
+    let payload: IRule = {
+      name: this.ruleName,
+      type: 'global_datatype_change',
+      objectType: 'Column',
+      associatedObject: 'All Columns',
+      enabled: true,
+    }
+
+    this.data.applyRule(payload)
   }
 }

@@ -15,12 +15,19 @@ export class SidenavRuleComponent implements OnInit {
     ruleName: new FormControl('', [Validators.required, Validators.pattern('^[a-zA-Z].{0,59}$')]),
     ruleType: new FormControl('', [Validators.required]),
   })
+  rulename: string = ''
+  ruletype: string = ''
 
   ngOnInit(): void {
     this.sidenav.sidenavRuleType.subscribe((res) => {
       if (res === 'addIndex') {
         this.ruleForm.controls['ruleType'].setValue('addIndex')
       }
+    })
+
+    this.ruleForm.valueChanges.subscribe((val) => {
+      this.rulename = this.ruleForm.controls['ruleName']?.value
+      this.ruletype = this.ruleForm.controls['ruleType']?.value
     })
   }
   closeSidenav(): void {
