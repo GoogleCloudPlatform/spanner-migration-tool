@@ -54,6 +54,7 @@ func getRoutes() *mux.Router {
 
 	// TODO:(searce) take constraint names themselves which are guaranteed to be unique for Spanner.
 	router.HandleFunc("/drop/secondaryindex", dropSecondaryIndex).Methods("POST")
+	router.HandleFunc("/restore/secondaryIndex", restoreSecondaryIndex).Methods("POST")
 
 	router.HandleFunc("/restore/table", restoreTable).Methods("POST")
 	router.HandleFunc("/drop/table", dropTable).Methods("POST")
@@ -96,6 +97,9 @@ func getRoutes() *mux.Router {
 
 	// Clean up datastream and data flow jobs
 	router.HandleFunc("/CleanUpStreamingJobs", profile.CleanUpStreamingJobs).Methods("POST")
+
+	router.HandleFunc("/SetSourceDBDetailsForDump", setSourceDBDetailsForDump).Methods("POST")
+	router.HandleFunc("/SetSourceDBDetailsForDirectConnect", setSourceDBDetailsForDirectConnect).Methods("POST")
 
 	router.PathPrefix("/").Handler(frontendStatic)
 	return router

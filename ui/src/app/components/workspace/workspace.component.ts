@@ -12,6 +12,7 @@ import { InputType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.cons
 import { IUpdateTableArgument } from 'src/app/model/update-table'
 import ConversionRate from 'src/app/model/conversion-rate'
 import { Router } from '@angular/router'
+import { extractSourceDbName } from 'src/app/utils/utils'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
 import IViewAssesmentData from 'src/app/model/view-assesment'
 import IDbConfig from 'src/app/model/db-config'
@@ -69,6 +70,9 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     })
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
+      if (Object.keys(data.SrcSchema).length <= 0) {
+        this.router.navigate(['/'])
+      }
       const indexAddedOrRemoved = this.isIndexAddedOrRemoved(data)
       if (
         data &&
@@ -80,6 +84,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
         this.reRenderObjectExplorerSrc()
       }
       this.conv = data
+
       if (indexAddedOrRemoved && this.conversionRates) this.reRenderObjectExplorerSpanner()
       if (!this.objectExplorerInitiallyRender && this.conversionRates) {
         this.reRenderObjectExplorerSpanner()
@@ -226,6 +231,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   openSaveSessionSidenav() {
     this.sidenav.openSidenav()
     this.sidenav.setSidenavComponent('saveSession')
+    this.sidenav.setSidenavDatabaseName(this.conv.DatabaseName)
   }
   downloadSession() {
     var a = document.createElement('a')
@@ -273,5 +279,8 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
   prepareMigration() {
     this.router.navigate(['/prepare-migration'])
+  }
+  spannerTab() {
+    this.clickEvent.setTabToSpanner()
   }
 }

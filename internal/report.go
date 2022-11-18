@@ -318,7 +318,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 			}
 		}
 
-		if p.severity == note {
+		if p.severity == warning {
 			for srcKeyName, spKeyName := range conv.Audit.ToSpannerFkIdx[srcTable].ForeignKey {
 				if srcKeyName != spKeyName {
 					l = append(l, fmt.Sprintf("%s, Foreign Key '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcKeyName, spKeyName))
