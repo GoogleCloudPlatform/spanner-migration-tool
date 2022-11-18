@@ -43,6 +43,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
@@ -792,6 +793,8 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				tableInterleaveStatus.Parent = refTable
 				sp := sessionState.Conv.SpSchema[table]
 				if update {
+					usedNames := sessionState.Conv.UsedNames
+					delete(usedNames, sp.Fks[i].Name)
 					sp.Parent = refTable
 					sp.Fks = utilities.RemoveFk(sp.Fks, i)
 				}
@@ -862,6 +865,98 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 	}
 
 	return tableInterleaveStatus
+}
+
+func removeParentTable(w http.ResponseWriter, r *http.Request) {
+	tableId := r.FormValue("tableId")
+	sessionState := session.GetSessionState()
+	if sessionState.Conv == nil || sessionState.Driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
+		return
+	}
+	if tableId == "" {
+		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
+		return
+	}
+
+	spTableName := ""
+	for _, value := range sessionState.Conv.SpSchema {
+		if value.Id == tableId {
+			spTableName = value.Name
+			break
+		}
+	}
+	if spTableName == "" {
+		http.Error(w, fmt.Sprintf("Spanner table not found"), http.StatusBadRequest)
+		return
+	}
+
+	srcTableName := ""
+	for _, value := range sessionState.Conv.SrcSchema {
+		if value.Id == tableId {
+			srcTableName = value.Name
+			break
+		}
+	}
+	if srcTableName == "" {
+		http.Error(w, fmt.Sprintf("Table not found"), http.StatusBadRequest)
+		return
+	}
+
+	conv := sessionState.Conv
+
+	if conv.SpSchema[spTableName].Parent == "" {
+		http.Error(w, fmt.Sprintf("Table is not interleaved"), http.StatusBadRequest)
+		return
+	}
+	spTable := conv.SpSchema[spTableName]
+
+	var firstOrderPk ddl.IndexKey
+
+	for _, pk := range spTable.Pks {
+		if pk.Order == 1 {
+			firstOrderPk = pk
+			break
+		}
+	}
+
+	spColId := conv.SpSchema[spTableName].ColDefs[firstOrderPk.Col].Id
+	var srcCol schema.Column
+	for _, col := range conv.SrcSchema[srcTableName].ColDefs {
+		if col.Id == spColId {
+			srcCol = col
+			break
+		}
+	}
+	interleavedFk, err := utilities.GetInterleavedFk(conv, srcTableName, srcCol.Name)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("%v", err), http.StatusBadRequest)
+		return
+	}
+
+	spFk, err := common.CvtForeignKeysHelper(conv, spTableName, srcTableName, interleavedFk, true)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Foreign key conversion fail"), http.StatusBadRequest)
+		return
+	}
+
+	spFks := spTable.Fks
+	spFks = append(spFks, spFk)
+	spTable.Fks = spFks
+	spTable.Parent = ""
+	conv.SpSchema[spTableName] = spTable
+
+	uniqueid.CopyUniqueIdToSpannerTable(conv, spTableName)
+
+	sessionState.Conv = conv
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+
 }
 
 type DropDetail struct {
@@ -1080,6 +1175,84 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
+}
+
+func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
+	tableId := r.FormValue("tableId")
+	indexId := r.FormValue("indexId")
+	sessionState := session.GetSessionState()
+	if sessionState.Conv == nil || sessionState.Driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
+		return
+	}
+	if tableId == "" {
+		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
+		return
+	}
+	if indexId == "" {
+		http.Error(w, fmt.Sprintf("Index Id is empty"), http.StatusBadRequest)
+		return
+	}
+
+	srcTableName := ""
+	for _, value := range sessionState.Conv.SrcSchema {
+		if value.Id == tableId {
+			srcTableName = value.Name
+			break
+		}
+	}
+	if srcTableName == "" {
+		http.Error(w, fmt.Sprintf("Source Table not found"), http.StatusBadRequest)
+		return
+	}
+
+	spTableName := ""
+	for _, value := range sessionState.Conv.SpSchema {
+		if value.Id == tableId {
+			spTableName = value.Name
+			break
+		}
+	}
+	if spTableName == "" {
+		http.Error(w, fmt.Sprintf("Spanner Table not found"), http.StatusBadRequest)
+		return
+	}
+
+	var srcIndex schema.Index
+	srcIndexFound := false
+	for _, index := range sessionState.Conv.SrcSchema[srcTableName].Indexes {
+		if index.Id == indexId {
+			srcIndex = index
+			srcIndexFound = true
+			break
+		}
+	}
+	if !srcIndexFound {
+		http.Error(w, fmt.Sprintf("Source index not found"), http.StatusBadRequest)
+		return
+	}
+
+	conv := sessionState.Conv
+
+	spIndex := common.CvtIndexHelper(conv, spTableName, srcTableName, srcIndex)
+	spIndexes := conv.SpSchema[spTableName].Indexes
+	spIndexes = append(spIndexes, spIndex)
+	spTable := conv.SpSchema[spTableName]
+	spTable.Indexes = spIndexes
+	conv.SpSchema[spTableName] = spTable
+
+	uniqueid.CopyUniqueIdToSpannerTable(conv, spTable.Name)
+	sessionState.Conv = conv
+	index.AssignInitialOrders()
+	index.IndexSuggestion()
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+
 }
 
 // renameForeignKeys checks the new names for spanner name validity, ensures the new names are already not used by existing tables
@@ -1627,6 +1800,8 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	usedNames := sessionState.Conv.UsedNames
+	delete(usedNames, sp.Indexes[position].Name)
 	index.RemoveIndexIssues(table, sp.Indexes[position])
 
 	sp.Indexes = utilities.RemoveSecondaryIndex(sp.Indexes, position)

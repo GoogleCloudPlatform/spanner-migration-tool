@@ -67,10 +67,28 @@
         color="primary"
         class="icon drop"
         (click)="dropIndex()"
-        *ngIf="currentObject!.isSpannerNode && currentObject!.type === 'indexName'"
+        *ngIf="
+          currentObject!.isSpannerNode &&
+          !currentObject!.isDeleted &&
+          currentObject!.type === 'indexName'
+        "
       >
         <mat-icon>delete</mat-icon>
         <span>DROP INDEX</span>
+      </button>
+      <button
+        mat-button
+        color="primary"
+        class="icon drop"
+        (click)="restoreIndex()"
+        *ngIf="
+          currentObject!.isSpannerNode &&
+          currentObject!.isDeleted &&
+          currentObject!.type == ObjectExplorerNodeType.Index
+        "
+      >
+        <mat-icon>undo</mat-icon>
+        <span> RESTORE INDEX</span>
       </button>
       <button
         mat-button
@@ -91,7 +109,11 @@
         color="primary"
         class="icon drop"
         (click)="restoreSpannerTable()"
-        *ngIf="currentObject!.isSpannerNode && currentObject!.isDeleted"
+        *ngIf="
+          currentObject!.isSpannerNode &&
+          currentObject!.isDeleted &&
+          currentObject!.type == ObjectExplorerNodeType.Table
+        "
       >
         <mat-icon>undo</mat-icon>
         <span> RESTORE TABLE</span>
@@ -110,7 +132,10 @@
     *ngIf="currentObject!.type === 'tableName'"
     (selectedTabChange)="tabChanged($event)"
   >
-    <mat-tab label="COLUMNS">
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <span>COLUMNS </span>
+      </ng-template>
       <div class="column-tab-container">
         <div class="column-table-container">
           <table mat-table [dataSource]="srcDataSource">
@@ -355,7 +380,10 @@
       </div>
     </mat-tab>
 
-    <mat-tab label="PRIMARY KEY">
+    <mat-tab >
+      <ng-template mat-tab-label>
+        <span>PRIMARY KEY </span>
+      </ng-template>
       <div class="pk-tab-container">
         <table mat-table [dataSource]="pkDataSource">
           <ng-container matColumnDef="srcDatabase">
@@ -566,7 +594,10 @@
       </div>
     </mat-tab>
 
-    <mat-tab label="FOREIGN KEY">
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <span>FOREIGN KEY</span>
+      </ng-template>
       <div class="fk-tab-container">
         <table mat-table [dataSource]="fkDataSource">
           <ng-container matColumnDef="srcDatabase">
@@ -692,6 +723,17 @@
                   >
                     <span>Drop Foreign Key</span>
                   </button>
+                  <button
+                    *ngIf="
+                      interleaveStatus.tableInterleaveStatus &&
+                      interleaveStatus.tableInterleaveStatus.Possible
+                    "
+                    [disabled]="element.get('spName').value === ''"
+                    mat-menu-item
+                    (click)="setInterleave()"
+                  >
+                    <span>Convert to interleave</span>
+                  </button>
                 </mat-menu>
               </div>
             </td>
@@ -734,14 +776,18 @@
           "
           mat-raised-button
           color="primary"
-          (click)="convertToFk()"
+          (click)="removeInterleave()"
         >
           Convert Back to Foreign Key
         </button>
       </div>
     </mat-tab>
 
-    <mat-tab label="SQL" *ngIf="currentObject!.isSpannerNode && !currentObject!.isDeleted">
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <span  *ngIf="currentObject!.isSpannerNode && !currentObject!.isDeleted">SQL</span>
+      </ng-template>
+      
       <div class="ddl_container">
         <pre><code>{{ddlStmts[currentObject!.name]}}</code></pre>
       </div>
@@ -759,7 +805,9 @@
           <div class="spanner_edit-button">
             <span>Spanner</span>
 
-            <div *ngIf="!isIndexEditMode && currentObject!.isSpannerNode">
+            <div
+              *ngIf="!isIndexEditMode && !currentObject!.isDeleted && currentObject!.isSpannerNode"
+            >
               <button mat-stroked-button color="primary" (click)="toggleIndexEdit()">
                 <mat-icon class="edit-icon">edit</mat-icon>
                 EDIT

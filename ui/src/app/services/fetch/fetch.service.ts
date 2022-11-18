@@ -112,6 +112,10 @@ export class FetchService {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/typemap/table?table=${tableName}`, data)
   }
 
+  removeInterleave(tableId: string) {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/removeParent?tableId=${tableId}`, {})
+  }
+
   restoreTable(tableId: string) {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/restore/table?tableId=${tableId}`, {})
   }
@@ -183,6 +187,13 @@ export class FetchService {
     return this.http.post<IConv>(`${this.url}/drop/secondaryindex?table=${tableName}`, {
       Name: indexName,
     })
+  }
+
+  restoreIndex(tableId: string, indexId: string) {
+    return this.http.post<HttpResponse<IConv>>(
+      `${this.url}/restore/secondaryIndex?tableId=${tableId}&indexId=${indexId}`,
+      {}
+    )
   }
 
   getInterleaveStatus(tableName: string) {

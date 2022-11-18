@@ -41,7 +41,7 @@ export class ObjectDetailComponent implements OnInit {
   @Input() tableData: IColumnTabData[] = []
   @Input() currentDatabase: string = 'spanner'
   @Input() indexData: IIndexData[] = []
-  @Input() srcDbName: String = ''
+  @Input() srcDbName: String = localStorage.getItem(StorageKeys.SourceDbName) as string
   @Output() updateSidebar = new EventEmitter<boolean>()
   ObjectExplorerNodeType = ObjectExplorerNodeType
   conv: IConv = {} as IConv
@@ -56,7 +56,6 @@ export class ObjectDetailComponent implements OnInit {
         this.conv = res
       },
     })
-    this.srcDbName = extractSourceDbName(this.conv.DatabaseType)
   }
 
   srcDisplayedColumns = ['srcOrder', 'srcColName', 'srcDataType', 'srcIsPk', 'srcIsNotNull']
@@ -654,7 +653,16 @@ export class ObjectDetailComponent implements OnInit {
         })
         dialogRef.afterClosed().subscribe((dialogResult) => {
           if (dialogResult) {
-            this.updatePk()
+            let interleavedChildId: string =
+              this.conv.SpSchema[this.currentObject!.name].Parent != ''
+                ? this.currentObject!.id
+                : this.conv.SpSchema[interleaveTable].Id
+            this.data
+              .removeInterleave(interleavedChildId)
+              .pipe(take(1))
+              .subscribe((res: string) => {
+                this.updatePk()
+              })
           }
         })
       } else {
@@ -792,8 +800,21 @@ export class ObjectDetailComponent implements OnInit {
     })
     return ind
   }
-  convertToFk() {
-    alert('Feature comming soon!')
+
+  removeInterleave() {
+    let tableId = this.currentObject!.id
+    this.data
+      .removeInterleave(tableId)
+      .pipe(take(1))
+      .subscribe((res: string) => {
+        if (res === '') {
+          this.snackbar.openSnackBar(
+            'Interleave removed and foreign key restored successfully',
+            'Close',
+            5
+          )
+        }
+      })
   }
 
   checkIsInterleave() {
@@ -967,6 +988,21 @@ export class ObjectDetailComponent implements OnInit {
       }
     })
   }
+
+  restoreIndex() {
+    let tableId = this.currentObject!.parentId
+    let indexId = this.currentObject!.id
+    this.data
+      .restoreIndex(tableId, indexId)
+      .pipe(take(1))
+      .subscribe((res: string) => {
+        if (res === '') {
+          this.isObjectSelected = false
+        }
+      })
+    this.currentObject = null
+  }
+
   dropIndexKey(index: number) {
     if (this.localIndexData[index].srcColName) {
       this.localIndexData[index].spColName = ''
