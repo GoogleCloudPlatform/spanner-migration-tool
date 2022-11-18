@@ -3,7 +3,7 @@
     <div class="breadcrumb vertical-center">
       <a class="breadcrumb_source" mat-button [routerLink]="'/'">Select Source</a>
       <span>></span>
-      <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'">Configure Schema</a>
+      <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'"><b>Configure Schema</b></a>
     </div>
     <div class="header_action">
       <span matTooltip="Connect to a spanner instance to run migration" [matTooltipDisabled]="!isOfflineStatus">
@@ -17,7 +17,6 @@
     </div>
   </div>
   <div class="container">
-    <h2 class="vertical-center">Configure schema</h2>
     <div class="summary">
       Estimation for {{ srcDbName.toUpperCase() }} to Spanner conversion:
       {{ conversionRatePercentages.good }}% of tables can be converted automatically,
@@ -73,11 +72,11 @@
       }"
     >
       <mat-tab-group mat-dialog-close="">
-        <mat-tab [label]="issuesAndSuggestionsLabel">
-          <app-summary
+        <mat-tab [ngClass]="{ 'blue-font-color': [updateIssuesLabel]}" [label]="issuesAndSuggestionsLabel">
+          <app-summary 
             [currentObject]="currentObject"
             (changeIssuesLabel)="updateIssuesLabel($event)"
-          ></app-summary>
+            ></app-summary>
         </mat-tab>
         <mat-tab label="RULES(0)">
           <app-rule></app-rule>

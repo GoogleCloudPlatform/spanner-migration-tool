@@ -22,6 +22,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
@@ -303,13 +304,13 @@ func UpdateType(conv *internal.Conv, newType, table, colName, srcTableName strin
 	sp.ColDefs[colName] = colDef
 }
 
-func UpdateDataType(conv *internal.Conv, newType, table, colName, srcTableName string) error {
-	sp, ty, err := GetType(conv, newType, table, colName, srcTableName)
-	if err != nil {
-		return err
+func GetInterleavedFk(conv *internal.Conv, srcTableName string, srcCol string) (schema.ForeignKey, error) {
+	for _, fk := range conv.SrcSchema[srcTableName].ForeignKeys {
+		for _, col := range fk.Columns {
+			if srcCol == col {
+				return fk, nil
+			}
+		}
 	}
-	colDef := sp.ColDefs[colName]
-	colDef.T = ty
-	sp.ColDefs[colName] = colDef
-	return nil
+	return schema.ForeignKey{}, fmt.Errorf("interleaved Foreign key not found")
 }

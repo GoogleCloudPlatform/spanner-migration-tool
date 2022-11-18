@@ -7,18 +7,15 @@ migration, using data from an existing PostgreSQL, MySQL, SQL Server, Oracle or 
 The tool ingests schema and data from either a pg_dump/mysqldump file or directly
 from the source database, and supports both schema and data migration. For schema
 migration, HarbourBridge automatically builds a Spanner schema from the schema
-of the source database. This schema can be customized using the HarbourBridge
-schema assistant. For data migration, HarbourBridge creates a new Spanner
-database using the Spanner schema built during schema migration, and populates
-it with data from the source database.
+of the source database. This schema can be customized using the HarbourBridge schema assistant and
+a new Spanner database is created using the Spanner schema built.
 
 For more details on schema customization and use of the schema assistant, see
-[web/README](web/README.md). The rest of this README describes the command-line
+[web/README](webv2/README.md). The rest of this README describes the command-line
 capabilities of HarbourBridge.
 
-HarbourBridge is designed to simplify Spanner evaluation and migration, and in
-particular for migrating moderate-size datasets to Spanner
-(up to about 100GB). Certain features of relational databases, especially those that don't
+HarbourBridge is designed to simplify Spanner evaluation and migration.
+Certain features of relational databases, especially those that don't
 map directly to Spanner features, are ignored, e.g. stored functions and
 procedures, and sequences. Types such as integers, floats, char/text, bools,
 timestamps, and (some) array types, map fairly directly to Spanner, but many
@@ -30,6 +27,14 @@ View HarbourBridge as a way to get up and running fast, so you can focus on
 critical things like tuning performance and getting the most out of
 Spanner. Expect that you'll need to tweak and enhance what HarbourBridge
 produces.
+
+## Data Migration
+
+HarbourBridge supports two types of data migrations:
+
+* Streaming migration - A streaming migration consists of two components, migration of existing data from the database and the stream of changes (writes and updates) that are made to the source database during migration, referred to as change database capture (CDC). Using HarbourBridge, the entire process where Datastream reads data from the source database and writes to a GCS bucket and data flow reads data from GCS bucket and writes to spanner database can be orchestrated using a unified interface. Performing schema changes on the source database during the migration is not supported. This is the suggested mode of migration for most databases.
+
+* Bulk Migration -  HarbourBridge reads data from source database and writes it to the database created in Cloud Spanner. Changes which happen to the source database during the bulk migration may or may not be written to Spanner. To achieve consistent version of data, stop writes on the source while migration is in progress, or use a read replica. Performing schema changes on the source database during the migration is not supported. While there is no technical limit on the size of the database, it is recommended for migrating moderate-size datasets to Spanner(up to about 100GB).
 
 For some quick starter examples on how to run HarbourBridge, take a look at
 [Quickstart Guide](#quickstart-guide).
@@ -308,7 +313,7 @@ This will print the usage pattern, a few examples, and a list of all available s
 
 #### harbourbridge `schema`
 
-This subcommand can be used to perform schema migration and report on the quality of the migration. Generated schema mapping file (session.json) can be then further edited using the HarbourBridge web UI to make custom edits to the destination schema. This session file
+This subcommand can be used to perform schema conversion and report on the quality of the conversion. The generated schema mapping file (session.json) can be then further edited using the HarbourBridge web UI to make custom edits to the destination schema. This session file
 is then passed to the data subcommand to perform data migration while honoring the defined
 schema mapping. HarbourBridge also generates Spanner schema which users can modify manually and use directly as well.
 
@@ -356,7 +361,7 @@ conversion state endcoded as JSON.
 
 `-target-profile` Specifies detailed parameters for the target database. See [Target Profile](#target-profile) for details.
 
-`-dry-run` Controls whether we run the migration in dry run mode or not. Using this mode generates schema and report for schema and/or data conversion without any actual creation of tables.
+`-dry-run` Controls whether we run the migration in dry run mode or not. Using this mode generates session file, schema and report for schema and/or data conversion without actually creating the Spanner database.
 
 ### Source Profile
 
@@ -374,6 +379,29 @@ have read pemissions to the GCS bucket you would like to use.
 `format` Specifies the format of the file. This param is also optional, and
 defaults to `dump`. This may be extended in future to support other formats
 such as `csv`, `avro` etc.
+
+`host` Specifies the host name for the source database.
+If not specified in case of direct connection to the source database, HarbourBridge
+fetches it from the environment variables([Example usage](#21-generating-pgdump-file)).
+
+`user` Specifies the user for the source database.
+If not specified in case of direct connection to the source database, HarbourBridge
+fetches it from the environment variables([Example usage](#21-generating-pgdump-file)).
+
+`dbName` Specifies the name of the source database.
+If not specified in case of direct connection to the source database, HarbourBridge
+fetches it from the environment variables([Example usage](#21-generating-pgdump-file)).
+
+`port` Specifies the port for the source database.
+If not specified in case of direct connection to the source database, HarbourBridge
+fetches it from the environment variables([Example usage](#21-generating-pgdump-file)).
+
+`password` Specifies the password for the source database.
+If not specified in case of direct connection to the source database, HarbourBridge
+fetches it from the environment variables([Example usage](#21-generating-pgdump-file)).
+
+`streamingCfg` Optional flag. Specifies the file path for streaming config.
+Please note that streaming migration is only supported for MySQL and Oracle databases currently.
 
 ### Target Profile
 
