@@ -2277,6 +2277,250 @@ func TestRestoreTable(t *testing.T) {
 
 }
 
+func TestRemoveParentTable(t *testing.T) {
+	tc := []struct {
+		name             string
+		tableId          string
+		statusCode       int64
+		conv             *internal.Conv
+		expectedSpSchema ddl.Schema
+	}{{
+		name:       "Remove interleaving with valid table id",
+		tableId:    "t1",
+		statusCode: http.StatusOK,
+		conv: &internal.Conv{
+			Issues: map[string]map[string][]internal.SchemaIssue{
+				"t1": {},
+				"t2": {},
+			},
+			SrcSchema: map[string]schema.Table{
+				"t1": {
+					Name:     "t1",
+					ColNames: []string{"a", "b", "c"},
+					ColDefs: map[string]schema.Column{
+						"a": {Name: "a", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c1"},
+						"b": {Name: "b", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c2"},
+						"c": {Name: "c", Type: schema.Type{Name: "varchar"}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c3"},
+					},
+					PrimaryKeys: []schema.Key{{Column: "a", Desc: false, Order: 1}, {Column: "b", Desc: false, Order: 2}},
+					ForeignKeys: []schema.ForeignKey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}, Id: "f1"}},
+					Id:          "t1",
+				},
+
+				"t2": {
+					Name:     "t2",
+					ColNames: []string{"a", "d"},
+					ColDefs: map[string]schema.Column{
+						"a": {Name: "a", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: true, AutoIncrement: false}, Id: "c4"},
+						"d": {Name: "d", Type: schema.Type{Name: "varchar"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c5"},
+					},
+					Id:          "t2",
+					PrimaryKeys: []schema.Key{{Column: "a", Desc: false, Order: 1}},
+				},
+			},
+			SpSchema: map[string]ddl.CreateTable{
+				"t1": {
+					Name:     "t1",
+					ColNames: []string{"a", "b", "c"},
+					ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"c": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+					},
+					Pks:    []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}, {Col: "b", Desc: false, Order: 2}},
+					Id:     "t1",
+					Parent: "t2",
+				},
+				"t2": {
+					Name:     "t2",
+					ColNames: []string{"a", "d"},
+					ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"d": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+					},
+					Pks: []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}},
+					Id:  "t2",
+				}},
+			Audit: internal.Audit{
+				MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				ToSourceFkIdx: map[string]internal.FkeyAndIdxs{
+					"t1": {
+						Name:       "t1",
+						ForeignKey: map[string]string{"fk1": "fk1"},
+						Index:      map[string]string{},
+					},
+					"t2": {
+						Name:       "t2",
+						ForeignKey: map[string]string{},
+						Index:      map[string]string{},
+					},
+				},
+				ToSpannerFkIdx: map[string]internal.FkeyAndIdxs{
+					"t1": {
+						Name:       "t1",
+						ForeignKey: map[string]string{"fk1": "fk1"},
+						Index:      map[string]string{},
+					},
+					"t2": {
+						Name:       "t2",
+						ForeignKey: map[string]string{},
+						Index:      map[string]string{},
+					},
+				},
+			},
+			UsedNames: map[string]bool{"t1": true, "t2": true},
+			ToSource: map[string]internal.NameAndCols{
+				"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+				"t2": {Name: "t2", Cols: map[string]string{"a": "a", "d": "d"}},
+			},
+			ToSpanner: map[string]internal.NameAndCols{
+				"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+				"t2": {Name: "t2", Cols: map[string]string{"a": "a", "d": "d"}},
+			},
+		},
+		expectedSpSchema: ddl.Schema{
+			"t1": {
+				Name:     "t1",
+				ColNames: []string{"a", "b", "c"},
+				ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+					"b": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+					"c": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				},
+				Pks:    []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}, {Col: "b", Desc: false, Order: 2}},
+				Fks:    []ddl.Foreignkey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}, Id: "f1"}},
+				Id:     "t1",
+				Parent: "",
+			},
+			"t2": {
+				Name:     "t2",
+				ColNames: []string{"a", "d"},
+				ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+					"d": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				},
+				Pks: []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}},
+				Id:  "t2",
+			},
+		},
+	},
+		{name: "Remove interleaving with invalid table id",
+			tableId:    "A",
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				Issues: map[string]map[string][]internal.SchemaIssue{
+					"t1": {},
+					"t2": {},
+				},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:     "t1",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]schema.Column{
+							"a": {Name: "a", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c1"},
+							"b": {Name: "b", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c2"},
+							"c": {Name: "c", Type: schema.Type{Name: "varchar"}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c3"},
+						},
+						PrimaryKeys: []schema.Key{{Column: "a", Desc: false, Order: 1}, {Column: "b", Desc: false, Order: 2}},
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}, Id: "f1"}},
+						Id:          "t1",
+					},
+
+					"t2": {
+						Name:     "t2",
+						ColNames: []string{"a", "d"},
+						ColDefs: map[string]schema.Column{
+							"a": {Name: "a", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: true, AutoIncrement: false}, Id: "c4"},
+							"d": {Name: "d", Type: schema.Type{Name: "varchar"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c5"},
+						},
+						Id:          "t2",
+						PrimaryKeys: []schema.Key{{Column: "a", Desc: false, Order: 1}},
+					},
+				},
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:     "t1",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						Pks:    []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}, {Col: "b", Desc: false, Order: 2}},
+						Id:     "t1",
+						Parent: "t2",
+					},
+					"t2": {
+						Name:     "t2",
+						ColNames: []string{"a", "d"},
+						ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"d": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						Pks: []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}},
+						Id:  "t2",
+					}},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+					ToSourceFkIdx: map[string]internal.FkeyAndIdxs{
+						"t1": {
+							Name:       "t1",
+							ForeignKey: map[string]string{"fk1": "fk1"},
+							Index:      map[string]string{},
+						},
+						"t2": {
+							Name:       "t2",
+							ForeignKey: map[string]string{},
+							Index:      map[string]string{},
+						},
+					},
+					ToSpannerFkIdx: map[string]internal.FkeyAndIdxs{
+						"t1": {
+							Name:       "t1",
+							ForeignKey: map[string]string{"fk1": "fk1"},
+							Index:      map[string]string{},
+						},
+						"t2": {
+							Name:       "t2",
+							ForeignKey: map[string]string{},
+							Index:      map[string]string{},
+						},
+					},
+				},
+				UsedNames: map[string]bool{"t1": true, "t2": true},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+					"t2": {Name: "t2", Cols: map[string]string{"a": "a", "d": "d"}},
+				},
+				ToSpanner: map[string]internal.NameAndCols{
+					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+					"t2": {Name: "t2", Cols: map[string]string{"a": "a", "d": "d"}},
+				},
+			},
+			expectedSpSchema: ddl.Schema{},
+		},
+	}
+
+	for _, tc := range tc {
+		sessionState := session.GetSessionState()
+		sessionState.Driver = constants.MYSQL
+
+		sessionState.Conv = tc.conv
+		payload := `{}`
+		req, err := http.NewRequest("POST", "/drop/removeParent?tableId="+tc.tableId, strings.NewReader(payload))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(removeParentTable)
+		handler.ServeHTTP(rr, req)
+		var res *internal.Conv
+		json.Unmarshal(rr.Body.Bytes(), &res)
+		if status := rr.Code; int64(status) != tc.statusCode {
+			t.Errorf("handler returned wrong status code: got %v want %v",
+				status, tc.statusCode)
+		}
+		if tc.statusCode == http.StatusOK {
+			assert.Equal(t, tc.expectedSpSchema, res.SpSchema)
+		}
+	}
+}
+
 func buildConvMySQL(conv *internal.Conv) {
 	conv.SrcSchema = map[string]schema.Table{
 		"t1": {

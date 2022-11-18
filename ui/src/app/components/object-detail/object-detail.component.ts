@@ -653,7 +653,16 @@ export class ObjectDetailComponent implements OnInit {
         })
         dialogRef.afterClosed().subscribe((dialogResult) => {
           if (dialogResult) {
-            this.updatePk()
+            let interleavedChildId: string =
+              this.conv.SpSchema[this.currentObject!.name].Parent != ''
+                ? this.currentObject!.id
+                : this.conv.SpSchema[interleaveTable].Id
+            this.data
+              .removeInterleave(interleavedChildId)
+              .pipe(take(1))
+              .subscribe((res: string) => {
+                this.updatePk()
+              })
           }
         })
       } else {
@@ -791,8 +800,21 @@ export class ObjectDetailComponent implements OnInit {
     })
     return ind
   }
-  convertToFk() {
-    alert('Feature comming soon!')
+
+  removeInterleave() {
+    let tableId = this.currentObject!.id
+    this.data
+      .removeInterleave(tableId)
+      .pipe(take(1))
+      .subscribe((res: string) => {
+        if (res === '') {
+          this.snackbar.openSnackBar(
+            'Interleave removed and foreign key restored successfully',
+            'Close',
+            5
+          )
+        }
+      })
   }
 
   checkIsInterleave() {
