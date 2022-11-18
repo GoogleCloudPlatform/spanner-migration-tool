@@ -67,10 +67,28 @@
         color="primary"
         class="icon drop"
         (click)="dropIndex()"
-        *ngIf="currentObject!.isSpannerNode && currentObject!.type === 'indexName'"
+        *ngIf="
+          currentObject!.isSpannerNode &&
+          !currentObject!.isDeleted &&
+          currentObject!.type === 'indexName'
+        "
       >
         <mat-icon>delete</mat-icon>
         <span>DROP INDEX</span>
+      </button>
+      <button
+        mat-button
+        color="primary"
+        class="icon drop"
+        (click)="restoreIndex()"
+        *ngIf="
+          currentObject!.isSpannerNode &&
+          currentObject!.isDeleted &&
+          currentObject!.type == ObjectExplorerNodeType.Index
+        "
+      >
+        <mat-icon>undo</mat-icon>
+        <span> RESTORE INDEX</span>
       </button>
       <button
         mat-button
@@ -91,7 +109,11 @@
         color="primary"
         class="icon drop"
         (click)="restoreSpannerTable()"
-        *ngIf="currentObject!.isSpannerNode && currentObject!.isDeleted"
+        *ngIf="
+          currentObject!.isSpannerNode &&
+          currentObject!.isDeleted &&
+          currentObject!.type == ObjectExplorerNodeType.Table
+        "
       >
         <mat-icon>undo</mat-icon>
         <span> RESTORE TABLE</span>
@@ -756,7 +778,9 @@
           <div class="spanner_edit-button">
             <span>Spanner</span>
 
-            <div *ngIf="!isIndexEditMode && currentObject!.isSpannerNode">
+            <div
+              *ngIf="!isIndexEditMode && !currentObject!.isDeleted && currentObject!.isSpannerNode"
+            >
               <button mat-stroked-button color="primary" (click)="toggleIndexEdit()">
                 <mat-icon class="edit-icon">edit</mat-icon>
                 EDIT

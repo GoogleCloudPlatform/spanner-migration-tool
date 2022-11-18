@@ -967,6 +967,21 @@ export class ObjectDetailComponent implements OnInit {
       }
     })
   }
+
+  restoreIndex() {
+    let tableId = this.currentObject!.parentId
+    let indexId = this.currentObject!.id
+    this.data
+      .restoreIndex(tableId, indexId)
+      .pipe(take(1))
+      .subscribe((res: string) => {
+        if (res === '') {
+          this.isObjectSelected = false
+        }
+      })
+    this.currentObject = null
+  }
+
   dropIndexKey(index: number) {
     if (this.localIndexData[index].srcColName) {
       this.localIndexData[index].spColName = ''

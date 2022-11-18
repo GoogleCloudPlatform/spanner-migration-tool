@@ -43,6 +43,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
@@ -1082,6 +1083,84 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
+func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
+	tableId := r.FormValue("tableId")
+	indexId := r.FormValue("indexId")
+	sessionState := session.GetSessionState()
+	if sessionState.Conv == nil || sessionState.Driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
+		return
+	}
+	if tableId == "" {
+		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
+		return
+	}
+	if indexId == "" {
+		http.Error(w, fmt.Sprintf("Index Id is empty"), http.StatusBadRequest)
+		return
+	}
+
+	srcTableName := ""
+	for _, value := range sessionState.Conv.SrcSchema {
+		if value.Id == tableId {
+			srcTableName = value.Name
+			break
+		}
+	}
+	if srcTableName == "" {
+		http.Error(w, fmt.Sprintf("Source Table not found"), http.StatusBadRequest)
+		return
+	}
+
+	spTableName := ""
+	for _, value := range sessionState.Conv.SpSchema {
+		if value.Id == tableId {
+			spTableName = value.Name
+			break
+		}
+	}
+	if spTableName == "" {
+		http.Error(w, fmt.Sprintf("Spanner Table not found"), http.StatusBadRequest)
+		return
+	}
+
+	var srcIndex schema.Index
+	srcIndexFound := false
+	for _, index := range sessionState.Conv.SrcSchema[srcTableName].Indexes {
+		if index.Id == indexId {
+			srcIndex = index
+			srcIndexFound = true
+			break
+		}
+	}
+	if !srcIndexFound {
+		http.Error(w, fmt.Sprintf("Source index not found"), http.StatusBadRequest)
+		return
+	}
+
+	conv := sessionState.Conv
+
+	spIndex := common.CvtIndexHelper(conv, spTableName, srcTableName, srcIndex)
+	spIndexes := conv.SpSchema[spTableName].Indexes
+	spIndexes = append(spIndexes, spIndex)
+	spTable := conv.SpSchema[spTableName]
+	spTable.Indexes = spIndexes
+	conv.SpSchema[spTableName] = spTable
+
+	uniqueid.CopyUniqueIdToSpannerTable(conv, spTable.Name)
+	sessionState.Conv = conv
+	index.AssignInitialOrders()
+	index.IndexSuggestion()
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+
+}
+
 // renameForeignKeys checks the new names for spanner name validity, ensures the new names are already not used by existing tables
 // secondary indexes or foreign key constraints. If above checks passed then foreignKey renaming reflected in the schema else appropriate
 // error thrown.
@@ -1627,6 +1706,8 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	usedNames := sessionState.Conv.UsedNames
+	delete(usedNames, sp.Indexes[position].Name)
 	index.RemoveIndexIssues(table, sp.Indexes[position])
 
 	sp.Indexes = utilities.RemoveSecondaryIndex(sp.Indexes, position)
