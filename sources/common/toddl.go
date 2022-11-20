@@ -110,7 +110,7 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 		ColDefs:     spColDef,
 		PrimaryKeys: cvtPrimaryKeys(conv, srcTable.Id, srcTable.PrimaryKeys),
 		ForeignKeys: cvtForeignKeys(conv, spTableName, srcTable.Id, srcTable.ForeignKeys, isRestore),
-		Indexes:     cvtIndexes(conv, spTableName, srcTable.Id, srcTable.Indexes, spColIds),
+		Indexes:     cvtIndexes(conv, srcTable.Id, srcTable.Indexes, spColIds),
 		Comment:     comment,
 		Id:          srcTable.Id}
 	return nil
@@ -137,18 +137,17 @@ func cvtPrimaryKeys(conv *internal.Conv, srcTableId string, srcKeys []schema.Key
 func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTableId string, srcKeys []schema.ForeignKey, isRestore bool) []ddl.Foreignkey {
 	var spKeys []ddl.Foreignkey
 	for _, key := range srcKeys {
-		spKey, err := cvtForeignKeysHelper(conv, spTableName, srcTableId, key, isRestore)
+		spKey, err := CvtForeignKeysHelper(conv, spTableName, srcTableId, key, isRestore)
 		if err != nil {
 			continue
 		}
-		spKey.Id = key.Id
 		spKeys = append(spKeys, spKey)
 	}
 	return spKeys
 }
 
 // todo handle for case when the refer table is dropped
-func cvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTableId string, srcKey schema.ForeignKey, isRestore bool) (ddl.Foreignkey, error) {
+func CvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTableId string, srcKey schema.ForeignKey, isRestore bool) (ddl.Foreignkey, error) {
 	if len(srcKey.ColIds) != len(srcKey.ReferColumnIds) {
 		conv.Unexpected(fmt.Sprintf("ConvertForeignKeys: ColIds and referColumns don't have the same lengths: len(columns)=%d, len(referColumns)=%d for source tableId: %s, referenced table: %s", len(srcKey.ColIds), len(srcKey.ReferColumnIds), srcTableId, srcKey.ReferTableId))
 		return ddl.Foreignkey{}, fmt.Errorf("ConvertForeignKeys: columns and referColumns don't have the same lengths")
@@ -178,60 +177,15 @@ func cvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTableId st
 		ColIds:         spColIds,
 		ReferTableId:   srcKey.ReferTableId,
 		ReferColumnIds: spReferColIds,
+		Id:             srcKey.Id,
 	}
 	return spKey, nil
 }
 
-func cvtIndexes(conv *internal.Conv, spTableName string, srcTableId string, srcIndexes []schema.Index, spColIds []string) []ddl.CreateIndex {
+func cvtIndexes(conv *internal.Conv, tableId string, srcIndexes []schema.Index, spColIds []string) []ddl.CreateIndex {
 	var spIndexes []ddl.CreateIndex
 	for _, srcIndex := range srcIndexes {
-		var spKeys []ddl.IndexKey
-		var spStoredColumns []string
-
-		for _, k := range srcIndex.Keys {
-			isPresent := false
-			for _, v := range spColIds {
-				if v == k.ColId {
-					isPresent = true
-					break
-				}
-			}
-			if !isPresent {
-				conv.Unexpected(fmt.Sprintf("Can't map index key column for tableId %s columnId %s", srcTableId, k.ColId))
-				continue
-			}
-			spKeys = append(spKeys, ddl.IndexKey{ColId: k.ColId, Desc: k.Desc})
-		}
-
-		for _, colId := range srcIndex.StoredColumnIds {
-			isPresent := false
-			for _, v := range spColIds {
-				if v == colId {
-					isPresent = true
-					break
-				}
-			}
-			if !isPresent {
-				conv.Unexpected(fmt.Sprintf("Can't map index column for tableId %s columnId %s", srcTableId, colId))
-				continue
-			}
-			spStoredColumns = append(spStoredColumns, colId)
-		}
-
-		if srcIndex.Name == "" {
-			// Generate a name if index name is empty in MySQL.
-			// Collision of index name will be handled by ToSpannerIndexName.
-			srcIndex.Name = fmt.Sprintf("Index_%s", conv.SrcSchema[srcTableId].Name)
-		}
-		spIndexName := internal.ToSpannerIndexName(conv, srcIndex.Name)
-		spIndex := ddl.CreateIndex{
-			Name:            spIndexName,
-			TableId:         srcTableId,
-			Unique:          srcIndex.Unique,
-			Keys:            spKeys,
-			StoredColumnIds: spStoredColumns,
-			Id:              srcIndex.Id,
-		}
+		spIndex := CvtIndexHelper(conv, tableId, srcIndex, spColIds)
 		spIndexes = append(spIndexes, spIndex)
 	}
 	return spIndexes
@@ -259,7 +213,7 @@ func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Tabl
 func cvtForeignKeysForAReferenceTable(conv *internal.Conv, tableId string, referTableId string, srcKeys []schema.ForeignKey, spKeys []ddl.Foreignkey) []ddl.Foreignkey {
 	for _, key := range srcKeys {
 		if key.ReferTableId == referTableId {
-			spKey, err := cvtForeignKeysHelper(conv, conv.SpSchema[tableId].Name, tableId, key, true)
+			spKey, err := CvtForeignKeysHelper(conv, conv.SpSchema[tableId].Name, tableId, key, true)
 			if err != nil {
 				continue
 			}
@@ -268,4 +222,53 @@ func cvtForeignKeysForAReferenceTable(conv *internal.Conv, tableId string, refer
 		}
 	}
 	return spKeys
+}
+
+func CvtIndexHelper(conv *internal.Conv, tableId string, srcIndex schema.Index, spColIds []string) ddl.CreateIndex {
+	var spKeys []ddl.IndexKey
+	var spStoredColIds []string
+
+	for _, k := range srcIndex.Keys {
+		isPresent := false
+		for _, v := range spColIds {
+			if v == k.ColId {
+				isPresent = true
+				break
+			}
+		}
+		if !isPresent {
+			conv.Unexpected(fmt.Sprintf("Can't map index key column for tableId %s columnId %s", tableId, k.ColId))
+			continue
+		}
+		spKeys = append(spKeys, ddl.IndexKey{ColId: k.ColId, Desc: k.Desc})
+	}
+	for _, colId := range srcIndex.StoredColumnIds {
+		isPresent := false
+		for _, v := range spColIds {
+			if v == colId {
+				isPresent = true
+				break
+			}
+		}
+		if !isPresent {
+			conv.Unexpected(fmt.Sprintf("Can't map index column for tableId %s columnId %s", tableId, colId))
+			continue
+		}
+		spStoredColIds = append(spStoredColIds, colId)
+	}
+	if srcIndex.Name == "" {
+		// Generate a name if index name is empty in MySQL.
+		// Collision of index name will be handled by ToSpannerIndexName.
+		srcIndex.Name = fmt.Sprintf("Index_%s", conv.SrcSchema[tableId].Name)
+	}
+	spIndexName := internal.ToSpannerIndexName(conv, srcIndex.Name)
+	spIndex := ddl.CreateIndex{
+		Name:            spIndexName,
+		TableId:         tableId,
+		Unique:          srcIndex.Unique,
+		Keys:            spKeys,
+		StoredColumnIds: spStoredColIds,
+		Id:              srcIndex.Id,
+	}
+	return spIndex
 }

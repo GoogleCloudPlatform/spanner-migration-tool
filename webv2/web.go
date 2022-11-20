@@ -43,6 +43,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
@@ -787,6 +788,9 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				tableInterleaveStatus.Parent = refTable
 				sp := sessionState.Conv.SpSchema[table]
 				if update {
+
+					usedNames := sessionState.Conv.UsedNames
+					delete(usedNames, sp.ForeignKeys[i].Name)
 					sp.ParentId = refTable
 					sp.ForeignKeys = utilities.RemoveFk(sp.ForeignKeys, i)
 				}
@@ -857,6 +861,66 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 	}
 
 	return tableInterleaveStatus
+}
+
+func removeParentTable(w http.ResponseWriter, r *http.Request) {
+	tableId := r.FormValue("tableId")
+	sessionState := session.GetSessionState()
+	if sessionState.Conv == nil || sessionState.Driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
+		return
+	}
+	if tableId == "" {
+		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
+		return
+	}
+
+	conv := sessionState.Conv
+
+	if conv.SpSchema[tableId].ParentId == "" {
+		http.Error(w, fmt.Sprintf("Table is not interleaved"), http.StatusBadRequest)
+		return
+	}
+	spTable := conv.SpSchema[tableId]
+
+	var firstOrderPk ddl.IndexKey
+
+	for _, pk := range spTable.PrimaryKeys {
+		if pk.Order == 1 {
+			firstOrderPk = pk
+			break
+		}
+	}
+
+	spColId := conv.SpSchema[tableId].ColDefs[firstOrderPk.ColId].Id
+	srcCol := conv.SrcSchema[tableId].ColDefs[spColId]
+	interleavedFk, err := utilities.GetInterleavedFk(conv, tableId, srcCol.Id)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("%v", err), http.StatusBadRequest)
+		return
+	}
+
+	spFk, err := common.CvtForeignKeysHelper(conv, conv.SpSchema[tableId].Name, tableId, interleavedFk, true)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Foreign key conversion fail"), http.StatusBadRequest)
+		return
+	}
+
+	spFks := spTable.ForeignKeys
+	spFks = append(spFks, spFk)
+	spTable.ForeignKeys = spFks
+	spTable.ParentId = ""
+	conv.SpSchema[tableId] = spTable
+
+	sessionState.Conv = conv
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+
 }
 
 type DropDetail struct {
@@ -1044,6 +1108,59 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
+}
+
+func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
+	tableId := r.FormValue("tableId")
+	indexId := r.FormValue("indexId")
+	sessionState := session.GetSessionState()
+	if sessionState.Conv == nil || sessionState.Driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
+		return
+	}
+	if tableId == "" {
+		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
+		return
+	}
+	if indexId == "" {
+		http.Error(w, fmt.Sprintf("Index Id is empty"), http.StatusBadRequest)
+		return
+	}
+
+	var srcIndex schema.Index
+	srcIndexFound := false
+	for _, index := range sessionState.Conv.SrcSchema[tableId].Indexes {
+		if index.Id == indexId {
+			srcIndex = index
+			srcIndexFound = true
+			break
+		}
+	}
+	if !srcIndexFound {
+		http.Error(w, fmt.Sprintf("Source index not found"), http.StatusBadRequest)
+		return
+	}
+
+	conv := sessionState.Conv
+
+	spIndex := common.CvtIndexHelper(conv, tableId, srcIndex, conv.SpSchema[tableId].ColIds)
+	spIndexes := conv.SpSchema[tableId].Indexes
+	spIndexes = append(spIndexes, spIndex)
+	spTable := conv.SpSchema[tableId]
+	spTable.Indexes = spIndexes
+	conv.SpSchema[tableId] = spTable
+
+	sessionState.Conv = conv
+	index.AssignInitialOrders()
+	index.IndexSuggestion()
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+
 }
 
 // renameForeignKeys checks the new names for spanner name validity, ensures the new names are already not used by existing tables
@@ -1594,6 +1711,8 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	usedNames := sessionState.Conv.UsedNames
+	delete(usedNames, sp.Indexes[position].Name)
 	index.RemoveIndexIssues(table, sp.Indexes[position])
 
 	sp.Indexes = utilities.RemoveSecondaryIndex(sp.Indexes, position)

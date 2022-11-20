@@ -44,6 +44,10 @@ body {
   color: #3367d6;
 }
 
+.mat-tab-label{
+  opacity: 1 !important;
+}
+
 .gray-out {
   opacity: 0.6;
 }
@@ -53,11 +57,16 @@ body {
 }
 
 .warning {
-  color: #f3b300;
+  color: #ff9800;
 }
 
 .success {
   color: green;
+}
+
+.suggestion {
+  color: #f6be00;
+  transform: rotate(180deg);
 }
 
 .orange {
@@ -111,17 +120,17 @@ body {
     align-items: center;
     .breadcrumb_source {
       padding-left: 0;
-      color: rgba(0, 0, 0, 0.56);
+      color:  rgb(143, 143, 143);
       font-weight: 400;
       font-size: 14px;
     }
     .breadcrumb_workspace {
       font-weight: 400;
       font-size: 14px;
-    }
+      color :#000000;
+    }  
     span {
       font-size: 1.2rem;
-      color: rgb(143, 143, 143);
     }
   }
 }
@@ -189,6 +198,9 @@ body {
   padding-left: 20vw;
 }
 
+.mat-tab-label-active{
+  color: #3367d6 !important;
+}
 .object-display-flex {
   display: flex;
   flex-direction: row;

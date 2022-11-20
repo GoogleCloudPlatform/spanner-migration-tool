@@ -205,6 +205,25 @@ export class DataService {
     )
   }
 
+  removeInterleave(tableId: string): Observable<string> {
+    return this.fetch.removeInterleave(tableId).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data) => {
+        this.getDdl()
+        if (data.error) {
+          this.snackbar.openSnackBar(data.error, 'Close')
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          return ''
+        }
+      })
+    )
+  }
+
   restoreTable(tableId: string): Observable<string> {
     return this.fetch.restoreTable(tableId).pipe(
       catchError((e: any) => {
@@ -381,6 +400,25 @@ export class DataService {
           this.convSubject.next(data)
           this.getDdl()
           this.snackbar.openSnackBar('Index dropped successfully', 'Close', 5)
+          return ''
+        }
+      })
+    )
+  }
+
+  restoreIndex(tableId: string, indexId: string): Observable<string> {
+    return this.fetch.restoreIndex(tableId, indexId).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data) => {
+        if (data.error) {
+          this.snackbar.openSnackBar(data.error, 'Close')
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          this.snackbar.openSnackBar('Index restored successfully', 'Close', 5)
           return ''
         }
       })
