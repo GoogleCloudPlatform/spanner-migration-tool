@@ -47,7 +47,7 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
     const payload: Record<string, string> = {}
     payload[source] = ruleValue.destinationType
     this.data.updateGlobalType(payload)
-    this.applyRule()
+    this.applyRule(payload)
     this.resetRuleType.emit('')
     this.sidenav.closeSidenav()
   }
@@ -62,13 +62,14 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
     this.destinationType = desType
   }
 
-  applyRule() {
+  applyRule(data: Record<string, string>) {
     let payload: IRule = {
       name: this.ruleName,
       type: 'global_datatype_change',
       objectType: 'Column',
-      associatedObjects: 'AllTable, All Columns',
+      associatedObjects: 'All Columns',
       enabled: true,
+      data: data,
     }
 
     this.data.applyRule(payload)

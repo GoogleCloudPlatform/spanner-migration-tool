@@ -20,7 +20,9 @@
 
       <ng-container matColumnDef="type">
         <th mat-header-cell *matHeaderCellDef class="table-header">Rule type</th>
-        <td mat-cell *matCellDef="let element">{{ element.Type }}</td>
+        <td mat-cell *matCellDef="let element">
+          {{ element.Type === 'add_index' ? 'Add Index' : 'Global Datatype Change' }}
+        </td>
       </ng-container>
 
       <ng-container matColumnDef="objectType">
@@ -29,13 +31,13 @@
       </ng-container>
 
       <ng-container matColumnDef="associatedObject">
-        <th mat-header-cell *matHeaderCellDef class="table-header">Associated objects</th>
+        <th mat-header-cell *matHeaderCellDef class="table-header">Associated object</th>
         <td mat-cell *matCellDef="let element">{{ element.AssociatedObjects }}</td>
       </ng-container>
 
       <ng-container matColumnDef="enabled">
         <th mat-header-cell *matHeaderCellDef class="table-header">Enabled</th>
-        <td mat-cell *matCellDef="let element">{{ element.Enabled }}</td>
+        <td mat-cell *matCellDef="let element">{{ element.Enabled && 'Yes' }}</td>
       </ng-container>
       <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
       <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>

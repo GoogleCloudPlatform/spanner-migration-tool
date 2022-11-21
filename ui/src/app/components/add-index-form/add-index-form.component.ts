@@ -111,21 +111,21 @@ export class AddIndexFormComponent implements OnInit {
     })
 
     this.data.addIndex(idxData.tableName, payload)
-    this.applyRule(payload)
+    this.applyRule(payload[0])
     this.resetRuleType.emit('')
     this.sidenav.setSidenavAddIndexTable('')
     this.sidenav.closeSidenav()
   }
 
-  applyRule(data: any) {
+  applyRule(data: ICreateIndex) {
     let idxData = this.addIndexForm.value
     let payload: IRule = {
       name: this.ruleName,
       type: 'add_index',
-      objectType: 'Column',
+      objectType: 'Table', //hardcoded
       associatedObjects: idxData.tableName,
       enabled: true,
-      data: data[0],
+      data: data,
     }
     this.data.applyRule(payload)
   }
