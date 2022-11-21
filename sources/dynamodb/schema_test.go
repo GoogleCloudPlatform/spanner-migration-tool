@@ -198,7 +198,7 @@ func TestProcessSchema(t *testing.T) {
 			ColDefs: map[string]ddl.ColumnDef{
 				"a": {Name: "a", T: ddl.Type{Name: "STRING", Len: ddl.MaxLength, IsArray: false}, NotNull: true, Comment: ""},
 				"b": {Name: "b", T: ddl.Type{Name: "STRING", Len: ddl.MaxLength, IsArray: false}, NotNull: false, Comment: ""}},
-			PrimaryKeys: []ddl.IndexKey{{ColId: "a", Desc: false}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "a", Desc: false, Order: 1}},
 		},
 		"test_b": {
 			Name:   "test_b",
@@ -208,7 +208,7 @@ func TestProcessSchema(t *testing.T) {
 				"b": {Name: "b", T: ddl.Type{Name: "STRING", Len: ddl.MaxLength, IsArray: false}, NotNull: true, Comment: ""},
 				"c": {Name: "c", T: ddl.Type{Name: "STRING", Len: ddl.MaxLength, IsArray: false}, NotNull: false, Comment: ""},
 				"d": {Name: "d", T: ddl.Type{Name: "STRING", Len: ddl.MaxLength, IsArray: false}, NotNull: false, Comment: ""}},
-			PrimaryKeys: []ddl.IndexKey{{ColId: "a", Desc: false}, {ColId: "b", Desc: false}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "a", Desc: false, Order: 1}, {ColId: "b", Desc: false, Order: 2}},
 		}}
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	assert.Equal(t, int64(0), conv.Unexpecteds())
@@ -308,7 +308,7 @@ func TestProcessSchema_FullDataTypes(t *testing.T) {
 				"j": {Name: "j", T: ddl.Type{Name: ddl.Numeric, IsArray: true}},
 				"k": {Name: "k", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: true}},
 			},
-			PrimaryKeys: []ddl.IndexKey{{ColId: "a"}, {ColId: "b"}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "a", Order: 1}, {ColId: "b", Order: 2}},
 		},
 	}
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
@@ -351,7 +351,7 @@ func TestProcessData(t *testing.T) {
 				"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 				"d": {Name: "d", T: ddl.Type{Name: ddl.Bool}},
 			},
-			PrimaryKeys: []ddl.IndexKey{{ColId: "a"}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "a", Order: 1}},
 		},
 		schema.Table{
 			Name:   tableName,
@@ -362,7 +362,7 @@ func TestProcessData(t *testing.T) {
 				"c": {Name: "c", Type: schema.Type{Name: typeNumberString}},
 				"d": {Name: "d", Type: schema.Type{Name: typeBool}},
 			},
-			PrimaryKeys: []schema.Key{{ColId: "a"}},
+			PrimaryKeys: []schema.Key{{ColId: "a", Order: 1}},
 		},
 	)
 	conv.SetDataMode()

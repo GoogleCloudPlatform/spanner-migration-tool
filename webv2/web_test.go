@@ -2231,7 +2231,7 @@ func TestRestoreTable(t *testing.T) {
 					"c4": {Name: "cn4", T: ddl.Type{Name: "STRING", Len: 9223372036854775807, IsArray: false}, NotNull: true, Comment: "From: cn4 varchar", Id: "c4"},
 					"c5": {Name: "cn5", T: ddl.Type{Name: "INT64", Len: 0, IsArray: false}, NotNull: false, Comment: "From: cn5 bigint", Id: "c5"},
 				},
-				PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 0}},
+				PrimaryKeys: []ddl.IndexKey{{ColId: "c3", Desc: false, Order: 1}},
 				Id:          "t2",
 				Comment:     "Spanner schema for source table tn2",
 			},

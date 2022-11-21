@@ -238,7 +238,7 @@ func TestProcessSchema(t *testing.T) {
 				"name":    {Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"ref":     {Name: "ref", T: ddl.Type{Name: ddl.Int64}},
 			},
-			PrimaryKeys: []ddl.IndexKey{{ColId: "user_id"}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "user_id", Order: 1}},
 			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"ref"}, ReferTableId: "test", ReferColumnIds: []string{"Id"}}}},
 		"test": {
 			Name: "test",
@@ -286,7 +286,7 @@ func TestProcessSchema(t *testing.T) {
 				"VarCharMax":       {Name: "VarCharMax", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 				"Xml":              {Name: "Xml", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: false},
 			},
-			PrimaryKeys: []ddl.IndexKey{{ColId: "Id"}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "Id", Order: 1}},
 			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test4", ColIds: []string{"Id"}, ReferTableId: "test_ref", ReferColumnIds: []string{"ref_id"}}},
 		},
 		"cart": {
@@ -297,12 +297,12 @@ func TestProcessSchema(t *testing.T) {
 				"userid":    {Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"quantity":  {Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
 			},
-			PrimaryKeys: []ddl.IndexKey{{ColId: "productid"}, {ColId: "userid"}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "productid", Order: 1}, {ColId: "userid", Order: 2}},
 			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test2", ColIds: []string{"productid"}, ReferTableId: "production_product", ReferColumnIds: []string{"product_id"}},
 				{Name: "fk_test3", ColIds: []string{"userid"}, ReferTableId: "user", ReferColumnIds: []string{"user_id"}}},
-			Indexes: []ddl.CreateIndex{{Name: "index1", TableId: "cart", Unique: false, Keys: []ddl.IndexKey{{ColId: "userid", Desc: false}}},
-				{Name: "index2", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{{ColId: "userid", Desc: false}}, StoredColumnIds: []string{"productid"}},
-				{Name: "index3", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{{ColId: "productid", Desc: true}, {ColId: "userid", Desc: false}}}}},
+			Indexes: []ddl.CreateIndex{{Name: "index1", TableId: "cart", Unique: false, Keys: []ddl.IndexKey{{ColId: "userid", Desc: false, Order: 1}}},
+				{Name: "index2", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{{ColId: "userid", Desc: false, Order: 1}}, StoredColumnIds: []string{"productid"}},
+				{Name: "index3", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{{ColId: "productid", Desc: true, Order: 1}, {ColId: "userid", Desc: false, Order: 2}}}}},
 		"production_product": {
 			Name:   "production_product",
 			ColIds: []string{"product_id", "product_name"},
@@ -310,7 +310,7 @@ func TestProcessSchema(t *testing.T) {
 				"product_id":   {Name: "product_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"product_name": {Name: "product_name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 			},
-			PrimaryKeys: []ddl.IndexKey{{ColId: "product_id"}}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "product_id", Order: 1}}},
 		"test_ref": {
 			Name:   "test_ref",
 			ColIds: []string{"ref_id", "ref_txt", "abc"},
@@ -319,7 +319,7 @@ func TestProcessSchema(t *testing.T) {
 				"ref_txt": {Name: "ref_txt", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"abc":     {Name: "abc", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 			},
-			PrimaryKeys: []ddl.IndexKey{{ColId: "ref_id"}, {ColId: "ref_txt"}}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "ref_id", Order: 1}, {ColId: "ref_txt", Order: 2}}},
 	}
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
 

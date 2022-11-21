@@ -212,7 +212,7 @@ func TestProcessSchema(t *testing.T) {
 				"name":    ddl.ColumnDef{Name: "name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"ref":     ddl.ColumnDef{Name: "ref", T: ddl.Type{Name: ddl.Int64}},
 			},
-			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "user_id"}},
+			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "user_id", Order: 1}},
 			ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", ColIds: []string{"ref"}, ReferTableId: "test", ReferColumnIds: []string{"id"}}}},
 		"cart": ddl.CreateTable{
 			Name:   "cart",
@@ -222,12 +222,12 @@ func TestProcessSchema(t *testing.T) {
 				"userid":    ddl.ColumnDef{Name: "userid", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"quantity":  ddl.ColumnDef{Name: "quantity", T: ddl.Type{Name: ddl.Int64}},
 			},
-			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "productid"}, ddl.IndexKey{ColId: "userid"}},
+			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "productid", Order: 1}, ddl.IndexKey{ColId: "userid", Order: 2}},
 			ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test2", ColIds: []string{"productid"}, ReferTableId: "product", ReferColumnIds: []string{"product_id"}},
 				ddl.Foreignkey{Name: "fk_test3", ColIds: []string{"userid"}, ReferTableId: "user", ReferColumnIds: []string{"user_id"}}},
-			Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", TableId: "cart", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "userid", Desc: false}}},
-				ddl.CreateIndex{Name: "index2", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "userid", Desc: false}, ddl.IndexKey{ColId: "productid", Desc: true}}},
-				ddl.CreateIndex{Name: "index3", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "productid", Desc: true}, ddl.IndexKey{ColId: "userid", Desc: false}}}}},
+			Indexes: []ddl.CreateIndex{ddl.CreateIndex{Name: "index1", TableId: "cart", Unique: false, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "userid", Desc: false, Order: 1}}},
+				ddl.CreateIndex{Name: "index2", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "userid", Desc: false, Order: 1}, ddl.IndexKey{ColId: "productid", Desc: true, Order: 2}}},
+				ddl.CreateIndex{Name: "index3", TableId: "cart", Unique: true, Keys: []ddl.IndexKey{ddl.IndexKey{ColId: "productid", Desc: true, Order: 1}, ddl.IndexKey{ColId: "userid", Desc: false, Order: 2}}}}},
 		"product": ddl.CreateTable{
 			Name:   "product",
 			ColIds: []string{"product_id", "product_name"},
@@ -235,7 +235,7 @@ func TestProcessSchema(t *testing.T) {
 				"product_id":   ddl.ColumnDef{Name: "product_id", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"product_name": ddl.ColumnDef{Name: "product_name", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 			},
-			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "product_id"}}},
+			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "product_id", Order: 1}}},
 		"test": ddl.CreateTable{
 			Name:   "test",
 			ColIds: []string{"id", "aint", "atext", "b", "bs", "by", "c", "c_8", "d", "f8", "f4", "i8", "i4", "i2", "num", "s", "ts", "tz", "txt", "vc", "vc6"},
@@ -262,7 +262,7 @@ func TestProcessSchema(t *testing.T) {
 				"vc":    ddl.ColumnDef{Name: "vc", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 				"vc6":   ddl.ColumnDef{Name: "vc6", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
 			},
-			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id"}},
+			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "id", Order: 1}},
 			ForeignKeys: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test4", ColIds: []string{"id", "txt"}, ReferTableId: "test_ref", ReferColumnIds: []string{"ref_id", "ref_txt"}}}},
 		"test_ref": ddl.CreateTable{
 			Name:   "test_ref",
@@ -272,7 +272,7 @@ func TestProcessSchema(t *testing.T) {
 				"ref_txt": ddl.ColumnDef{Name: "ref_txt", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 				"abc":     ddl.ColumnDef{Name: "abc", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
 			},
-			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "ref_id"}, ddl.IndexKey{ColId: "ref_txt"}}},
+			PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "ref_id", Order: 1}, ddl.IndexKey{ColId: "ref_txt", Order: 2}}},
 	}
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	cartTableId := internal.GetTableIdFromSpName(conv.SpSchema, "cart")

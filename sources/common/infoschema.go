@@ -61,6 +61,8 @@ type FkConstraint struct {
 func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema) error {
 
 	GenerateSrcSchema(conv, infoSchema)
+	initPrimaryKeyOrder(conv)
+	initIndexOrder(conv)
 	conv.AssignIdToSourceSchema()
 	SchemaToSpannerDDL(conv, infoSchema.GetToDdl())
 	conv.AddPrimaryKeys()

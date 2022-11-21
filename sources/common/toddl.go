@@ -129,7 +129,7 @@ func quoteIfNeeded(s string) string {
 func cvtPrimaryKeys(conv *internal.Conv, srcTableId string, srcKeys []schema.Key) []ddl.IndexKey {
 	var spKeys []ddl.IndexKey
 	for _, k := range srcKeys {
-		spKeys = append(spKeys, ddl.IndexKey{ColId: k.ColId, Desc: k.Desc})
+		spKeys = append(spKeys, ddl.IndexKey{ColId: k.ColId, Desc: k.Desc, Order: k.Order})
 	}
 	return spKeys
 }
@@ -240,7 +240,7 @@ func CvtIndexHelper(conv *internal.Conv, tableId string, srcIndex schema.Index, 
 			conv.Unexpected(fmt.Sprintf("Can't map index key column for tableId %s columnId %s", tableId, k.ColId))
 			continue
 		}
-		spKeys = append(spKeys, ddl.IndexKey{ColId: k.ColId, Desc: k.Desc})
+		spKeys = append(spKeys, ddl.IndexKey{ColId: k.ColId, Desc: k.Desc, Order: k.Order})
 	}
 	for _, colId := range srcIndex.StoredColumnIds {
 		isPresent := false

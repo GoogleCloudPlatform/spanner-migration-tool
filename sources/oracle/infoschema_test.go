@@ -160,18 +160,18 @@ func TestProcessSchemaOracle(t *testing.T) {
 			Name:        "USER",
 			ColIds:      []string{"USER_ID", "NAME", "REF"},
 			ColDefs:     map[string]ddl.ColumnDef{"USER_ID": {Name: "USER_ID", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}, NotNull: true}, "NAME": {Name: "NAME", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength, IsArray: false}, NotNull: true}, "REF": {Name: "REF", T: ddl.Type{Name: ddl.Numeric}}},
-			PrimaryKeys: []ddl.IndexKey{{ColId: "USER_ID"}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "USER_ID", Order: 1}},
 			ForeignKeys: []ddl.Foreignkey{{Name: "fk_test", ColIds: []string{"REF"}, ReferTableId: "TEST", ReferColumnIds: []string{"ID"}}},
 			Indexes: []ddl.CreateIndex{{
 				Name:    "INDEX1_LAST",
 				TableId: "USER",
 				Unique:  false,
-				Keys:    []ddl.IndexKey{{ColId: "NAME", Desc: true}},
+				Keys:    []ddl.IndexKey{{ColId: "NAME", Desc: true, Order: 1}},
 			}, {
 				Name:    "INDEX_TEST_2",
 				TableId: "USER",
 				Unique:  false,
-				Keys:    []ddl.IndexKey{{ColId: "NAME", Desc: true}, {ColId: "USER_ID", Desc: true}},
+				Keys:    []ddl.IndexKey{{ColId: "NAME", Desc: true, Order: 1}, {ColId: "USER_ID", Desc: true, Order: 2}},
 			}},
 		},
 		"TEST": {
@@ -179,7 +179,7 @@ func TestProcessSchemaOracle(t *testing.T) {
 			ColIds: []string{"ID"},
 			ColDefs: map[string]ddl.ColumnDef{
 				"ID": {Name: "ID", T: ddl.Type{Name: ddl.Numeric}, NotNull: true}},
-			PrimaryKeys: []ddl.IndexKey{{ColId: "ID"}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "ID", Order: 1}},
 		},
 		"TEST2": {
 			Name:   "TEST2",
@@ -195,7 +195,7 @@ func TestProcessSchemaOracle(t *testing.T) {
 				"ARRAY_INT":    {Name: "ARRAY_INT", T: ddl.Type{Name: ddl.Int64, IsArray: true}, NotNull: true},
 				"OBJECT":       {Name: "OBJECT", T: ddl.Type{Name: ddl.JSON}, NotNull: true},
 			},
-			PrimaryKeys: []ddl.IndexKey{{ColId: "ID"}},
+			PrimaryKeys: []ddl.IndexKey{{ColId: "ID", Order: 1}},
 		},
 	}
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))

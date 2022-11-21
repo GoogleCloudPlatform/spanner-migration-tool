@@ -61,3 +61,21 @@ func GetSortedTableIdsBySrcName(srcSchema map[string]schema.Table) []string {
 	}
 	return sortedTableIds
 }
+
+func initPrimaryKeyOrder(conv *internal.Conv) {
+	for k, table := range conv.SrcSchema {
+		for i := range table.PrimaryKeys {
+			conv.SrcSchema[k].PrimaryKeys[i].Order = i + 1
+		}
+	}
+}
+
+func initIndexOrder(conv *internal.Conv) {
+	for k, table := range conv.SrcSchema {
+		for i, index := range table.Indexes {
+			for j := range index.Keys {
+				conv.SrcSchema[k].Indexes[i].Keys[j].Order = j + 1
+			}
+		}
+	}
+}

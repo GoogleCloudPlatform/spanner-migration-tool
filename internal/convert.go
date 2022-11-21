@@ -330,7 +330,7 @@ func (conv *Conv) AddPrimaryKeys() {
 				for i, index := range ct.Indexes {
 					if index.Unique {
 						for _, indexKey := range index.Keys {
-							ct.PrimaryKeys = append(ct.PrimaryKeys, ddl.IndexKey{ColId: indexKey.ColId, Desc: indexKey.Desc})
+							ct.PrimaryKeys = append(ct.PrimaryKeys, ddl.IndexKey{ColId: indexKey.ColId, Desc: indexKey.Desc, Order: indexKey.Order})
 							conv.UniquePKey[t] = append(conv.UniquePKey[t], indexKey.ColId)
 						}
 						primaryKeyPopulated = true
@@ -344,7 +344,7 @@ func (conv *Conv) AddPrimaryKeys() {
 				columnId := GenerateColumnId()
 				ct.ColIds = append(ct.ColIds, columnId)
 				ct.ColDefs[columnId] = ddl.ColumnDef{Name: k, Id: columnId, T: ddl.Type{Name: ddl.String, Len: 50}}
-				ct.PrimaryKeys = []ddl.IndexKey{{ColId: columnId}}
+				ct.PrimaryKeys = []ddl.IndexKey{{ColId: columnId, Order: 1}}
 				conv.SyntheticPKeys[t] = SyntheticPKey{columnId, 0}
 			}
 			conv.SpSchema[t] = ct
