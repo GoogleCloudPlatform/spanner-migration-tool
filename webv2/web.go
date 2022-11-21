@@ -2038,7 +2038,7 @@ func init() {
 func App(logLevel string) {
 	err := logger.InitializeLogger(logLevel)
 	if err != nil {
-		log.Fatal("Cannot boot up the webApp!")
+		log.Fatal("Error initialising webapp, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]")
 	}
 	addr := ":8080"
 	router := getRoutes()
