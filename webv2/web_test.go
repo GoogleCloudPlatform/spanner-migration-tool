@@ -535,7 +535,7 @@ func TestGetConversionMySQL(t *testing.T) {
 	assert.Contains(t, result, "t2")
 }
 
-//todo update SetParentTable with case III suggest interleve table column.
+// todo update SetParentTable with case III suggest interleve table column.
 func TestSetParentTable(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -1623,7 +1623,7 @@ func TestAddIndexes(t *testing.T) {
 							{Id: "i1", Name: "idx3", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 						},
 					}},
-				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true, "idx3": true},
 			},
 		},
 		{
@@ -1654,7 +1654,7 @@ func TestAddIndexes(t *testing.T) {
 							{Id: "i3", Name: "idx4", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 						},
 					}},
-				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true, "idx3": true, "idx4": true},
 			},
 		}, {
 			name:  "New name conflicts with an existing table",

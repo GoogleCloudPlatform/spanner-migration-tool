@@ -1425,17 +1425,16 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 
 	sp := sessionState.Conv.SpSchema[table]
-
+	usedNames := sessionState.Conv.UsedNames
 	index.CheckIndexSuggestion(newIndexes, sp)
 	for i := 0; i < len(newIndexes); i++ {
 		newIndexes[i].Id = uniqueid.GenerateIndexesId()
+		usedNames[newIndexes[i].Name] = true
 	}
 
 	sp.Indexes = append(sp.Indexes, newIndexes...)
-
 	sessionState.Conv.SpSchema[table] = sp
 	session.UpdateSessionFile()
-
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
 		Conv:            *sessionState.Conv,
@@ -1443,7 +1442,6 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 }
-
 func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	var sessionSummary sessionSummary
