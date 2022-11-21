@@ -9,7 +9,7 @@ export interface IRule {
   name?: string
   type?: string
   objectType?: string
-  associatedObject?: string
+  associatedObjects?: string
   enabled?: boolean
   data?: any
   addedOn?: any

@@ -67,7 +67,7 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
       name: this.ruleName,
       type: 'global_datatype_change',
       objectType: 'Column',
-      associatedObject: 'All Columns',
+      associatedObjects: 'AllTable, All Columns',
       enabled: true,
     }
 

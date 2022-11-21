@@ -123,7 +123,7 @@ export class AddIndexFormComponent implements OnInit {
       name: this.ruleName,
       type: 'add_index',
       objectType: 'Column',
-      associatedObject: idxData.tableName,
+      associatedObjects: idxData.tableName,
       enabled: true,
       data: data[0],
     }
