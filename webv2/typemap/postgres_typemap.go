@@ -152,7 +152,7 @@ func ToSpannerTypePostgres(srcType string, spType string, mods []int64) (ddl.Typ
 		default:
 			return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Timestamp}
 		}
-	case "json":
+	case "json", "jsonb":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
