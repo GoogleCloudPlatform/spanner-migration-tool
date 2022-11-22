@@ -169,7 +169,6 @@ export class ObjectDetailComponent implements OnInit {
       this.setFkRows()
       this.updateSpTableSuggestion()
     } else if (this.currentObject?.type === ObjectExplorerNodeType.Index) {
-      this.checkIsInterleave()
       this.indexOrderValidation()
       this.setIndexRows()
     }
@@ -196,6 +195,8 @@ export class ObjectDetailComponent implements OnInit {
             spDataType: new FormControl(row.spDataType),
             spIsPk: new FormControl(row.spIsPk),
             spIsNotNull: new FormControl(row.spIsNotNull),
+            spId: new FormControl(row.spId),
+            srcId: new FormControl(row.srcId),
           })
         )
       }
@@ -220,6 +221,8 @@ export class ObjectDetailComponent implements OnInit {
             spDataType: new FormControl(col.spDataType),
             spIsPk: new FormControl(col.spIsPk),
             spIsNotNull: new FormControl(col.spIsNotNull),
+            spId: new FormControl(col.spId),
+            srcId: new FormControl(col.srcId),
           })
         )
       } else {
@@ -273,12 +276,8 @@ export class ObjectDetailComponent implements OnInit {
       for (let j = 0; j < this.tableData.length; j++) {
         if (col.srcColName == this.tableData[j].srcColName) {
           let oldRow = this.tableData[j]
-          let columnName =
-            this.tableData[j].spColName == ''
-              ? this.tableData[j].srcColName
-              : this.tableData[j].spColName
-          updateData.UpdateCols[columnName] = {
-            Add: this.tableData[j].spColName == '',
+          updateData.UpdateCols[this.tableData[j].srcId] = {
+            Add: this.localTableData[j].spOrder == -1,
             Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
             NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
             Removed: false,
@@ -289,8 +288,10 @@ export class ObjectDetailComponent implements OnInit {
       }
     })
 
+    console.log(this.droppedColumns, 'drop column')
+
     this.droppedColumns.forEach((col: IColumnTabData) => {
-      updateData.UpdateCols[col.spColName] = {
+      updateData.UpdateCols[col.srcId] = {
         Add: false,
         Rename: '',
         NotNull: '',
@@ -299,13 +300,14 @@ export class ObjectDetailComponent implements OnInit {
       }
     })
 
-    this.data.reviewTableUpdate(this.currentObject!.name, updateData).subscribe({
+    this.data.reviewTableUpdate(this.currentObject!.id, updateData).subscribe({
       next: (res: string) => {
         if (res == '') {
           this.sidenav.openSidenav()
           this.sidenav.setSidenavComponent('reviewChanges')
           this.tableUpdatePubSub.setTableUpdateDetail({
             tableName: this.currentObject!.name,
+            tableId: this.currentObject!.id,
             updateDetail: updateData,
           })
           this.isEditMode = true
@@ -324,7 +326,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   addColumn() {
-    let index = this.localTableData.map((item) => item.srcColName).indexOf(this.addedColumnName)
+    let index = this.tableData.map((item) => item.srcColName).indexOf(this.addedColumnName)
 
     let addedRowIndex = this.droppedColumns
       .map((item) => item.srcColName)
@@ -403,6 +405,7 @@ export class ObjectDetailComponent implements OnInit {
           srcIsNotNull: row.srcIsNotNull,
           srcIsPk: row.srcIsPk,
           srcOrder: row.srcOrder,
+          srcId: row.srcId,
         })
       }
       if (row.spIsPk) {
@@ -412,6 +415,7 @@ export class ObjectDetailComponent implements OnInit {
           spIsNotNull: row.spIsNotNull,
           spIsPk: row.spIsPk,
           spOrder: row.spOrder,
+          spId: row.spId,
         })
       }
     })
@@ -436,6 +440,7 @@ export class ObjectDetailComponent implements OnInit {
           spDataType: new FormControl(spArr[i].spDataType),
           spIsPk: new FormControl(spArr[i].spIsPk),
           spIsNotNull: new FormControl(spArr[i].spIsNotNull),
+          spId: new FormControl(spArr[i].spId),
         })
       )
     }
@@ -448,11 +453,13 @@ export class ObjectDetailComponent implements OnInit {
             srcDataType: new FormControl(srcArr[i].srcDataType),
             srcIsPk: new FormControl(srcArr[i].srcIsPk),
             srcIsNotNull: new FormControl(srcArr[i].srcIsNotNull),
+            srcId: new FormControl(srcArr[i].srcId),
             spOrder: new FormControl(''),
             spColName: new FormControl(''),
             spDataType: new FormControl(''),
             spIsPk: new FormControl(false),
             spIsNotNull: new FormControl(false),
+            spId: new FormControl(''),
           })
         )
       }
@@ -465,11 +472,13 @@ export class ObjectDetailComponent implements OnInit {
             srcDataType: new FormControl(''),
             srcIsPk: new FormControl(false),
             srcIsNotNull: new FormControl(false),
+            srcId: new FormControl(''),
             spOrder: new FormControl(spArr[i].spOrder),
             spColName: new FormControl(spArr[i].spColName),
             spDataType: new FormControl(spArr[i].spDataType),
             spIsPk: new FormControl(spArr[i].spIsPk),
             spIsNotNull: new FormControl(spArr[i].spIsNotNull),
+            spId: new FormControl(spArr[i].spId),
           })
         )
       }
@@ -492,7 +501,7 @@ export class ObjectDetailComponent implements OnInit {
         newColumnOrder = newColumnOrder + 1
       }
       for (let i = 0; i < this.pkData.length; i++) {
-        if (this.pkData[i].spColName == pk.spColName) {
+        if (this.pkData[i].spId == pk.spId) {
           this.pkData[i].spOrder = pk.spOrder
           break
         }
@@ -523,25 +532,27 @@ export class ObjectDetailComponent implements OnInit {
   setPkOrder() {
     if (
       this.currentObject &&
-      this.conv.SpSchema[this.currentObject!.name]?.Pks.length == this.pkData.length
+      this.conv.SpSchema[this.currentObject!.id]?.PrimaryKeys.length == this.pkData.length
     ) {
       this.pkData.forEach((pk: IColumnTabData, i: number) => {
-        if (this.pkData[i].spColName === this.conv.SpSchema[this.currentObject!.name].Pks[i].Col) {
-          this.pkData[i].spOrder = this.conv.SpSchema[this.currentObject!.name].Pks[i].Order
+        if (
+          this.pkData[i].spId === this.conv.SpSchema[this.currentObject!.id].PrimaryKeys[i].ColId
+        ) {
+          this.pkData[i].spOrder = this.conv.SpSchema[this.currentObject!.id].PrimaryKeys[i].Order
         } else {
-          let index = this.conv.SpSchema[this.currentObject!.name].Pks.map(
-            (item) => item.Col
-          ).indexOf(pk.spColName)
-          pk.spOrder = this.conv.SpSchema[this.currentObject!.name].Pks[index]?.Order
+          let index = this.conv.SpSchema[this.currentObject!.id].PrimaryKeys.map(
+            (item) => item.ColId
+          ).indexOf(pk.spId)
+          pk.spOrder = this.conv.SpSchema[this.currentObject!.id].PrimaryKeys[index]?.Order
         }
       })
     } else {
       this.pkData.forEach((pk: IColumnTabData, i: number) => {
-        let index = this.conv.SpSchema[this.currentObject!.name]?.Pks.map(
-          (item) => item.Col
-        ).indexOf(pk.spColName)
+        let index = this.conv.SpSchema[this.currentObject!.id]?.PrimaryKeys.map(
+          (item) => item.ColId
+        ).indexOf(pk.spId)
         if (index !== -1) {
-          pk.spOrder = this.conv.SpSchema[this.currentObject!.name]?.Pks[index].Order
+          pk.spOrder = this.conv.SpSchema[this.currentObject!.id]?.PrimaryKeys[index].Order
         }
       })
     }
@@ -582,19 +593,18 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   getPkRequestObj() {
-    let tableId: string = this.conv.SpSchema[this.currentObject!.name].Id
-    let Columns: { ColumnId: string; ColName: string; Desc: boolean; Order: number }[] = []
+    let tableId: string = this.conv.SpSchema[this.currentObject!.id].Id
+    let Columns: { ColumnId: string; Desc: boolean; Order: number }[] = []
     this.pkData.forEach((row: IColumnTabData) => {
       if (row.spIsPk)
         Columns.push({
-          ColumnId: this.conv.SpSchema[this.currentObject!.name].ColDefs[row.spColName].Id,
-          ColName: row.spColName,
+          ColumnId: row.spId,
           Desc:
-            typeof this.conv.SpSchema[this.currentObject!.name].Pks.find(
-              ({ Col }) => Col === row.spColName
+            typeof this.conv.SpSchema[this.currentObject!.id].PrimaryKeys.find(
+              ({ ColId }) => ColId === row.spId
             ) !== 'undefined'
-              ? this.conv.SpSchema[this.currentObject!.name].Pks.find(
-                  ({ Col }) => Col === row.spColName
+              ? this.conv.SpSchema[this.currentObject!.id].PrimaryKeys.find(
+                  ({ ColId }) => ColId === row.spId
                 )!.Desc
               : false,
           Order: parseInt(row.spOrder as string),
@@ -636,15 +646,15 @@ export class ObjectDetailComponent implements OnInit {
         maxWidth: '500px',
       })
     } else {
-      let interleaveTable = this.tableInterleaveWith(this.currentObject?.name!)
-      if (interleaveTable != '' && this.isPKFirstOrderModified(this.currentObject?.name!)) {
+      let interleaveTableId = this.tableInterleaveWith(this.currentObject?.id!)
+      if (interleaveTableId != '' && this.isPKFirstOrderModified(this.currentObject?.id!)) {
         const dialogRef = this.dialog.open(InfodialogComponent, {
           data: {
             message:
               'Proceeding the update will remove interleaving between ' +
               this.currentObject?.name +
               ' and ' +
-              interleaveTable +
+              this.conv.SpSchema[interleaveTableId].Name +
               ' tables.',
             title: 'Confirm Update',
             type: 'warning',
@@ -654,9 +664,9 @@ export class ObjectDetailComponent implements OnInit {
         dialogRef.afterClosed().subscribe((dialogResult) => {
           if (dialogResult) {
             let interleavedChildId: string =
-              this.conv.SpSchema[this.currentObject!.name].Parent != ''
+              this.conv.SpSchema[this.currentObject!.id].ParentId != ''
                 ? this.currentObject!.id
-                : this.conv.SpSchema[interleaveTable].Id
+                : this.conv.SpSchema[interleaveTableId].Id
             this.data
               .removeInterleave(interleavedChildId)
               .pipe(take(1))
@@ -696,7 +706,7 @@ export class ObjectDetailComponent implements OnInit {
     this.pkData = this.conversion.getPkMapping(this.localTableData)
     this.pkArray.value.forEach((pk: IColumnTabData) => {
       for (let i = 0; i < this.pkData.length; i++) {
-        if (pk.spColName == this.pkData[i].spColName) {
+        if (pk.spId == this.pkData[i].spId) {
           this.pkData[i].spOrder = pk.spOrder
           break
         }
@@ -718,6 +728,8 @@ export class ObjectDetailComponent implements OnInit {
     this.fkData.forEach((fk) => {
       this.fkArray.push(
         new FormGroup({
+          srFkId: new FormControl(fk.srcFkId),
+          spFkId: new FormControl(fk.spFkId),
           spName: new FormControl(fk.spName, [
             Validators.required,
             Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?'),
@@ -751,12 +763,12 @@ export class ObjectDetailComponent implements OnInit {
 
     this.fkArray.value.forEach((fk: IFkTabData, i: number) => {
       let oldFk = this.fkData[i]
-      if (oldFk.spName !== fk.spName) {
-        updatedFkNames[oldFk.spName] = fk.spName
+      if (oldFk.spFkId && oldFk.spName !== fk.spName) {
+        updatedFkNames[oldFk.spFkId] = fk.spName
       }
     })
 
-    this.data.updateFkNames(this.currentObject!.name, updatedFkNames).subscribe({
+    this.data.updateFkNames(this.currentObject!.id, updatedFkNames).subscribe({
       next: (res: string) => {
         if (res == '') {
           this.isFkEditMode = false
@@ -771,7 +783,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropFk(element: any) {
-    this.data.dropFk(this.currentObject!.name, element.get('spName').value).subscribe({
+    this.data.dropFk(this.currentObject!.id, element.get('spFkId').value).subscribe({
       next: (res: string) => {
         if (res == '') {
           this.data.getDdl()
@@ -818,21 +830,21 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   checkIsInterleave() {
-    if (!this.currentObject?.isDeleted && this.currentObject?.isSpannerNode) {
-      this.data.getInterleaveConversionForATable(this.currentObject!.name)
+    if (this.currentObject && !this.currentObject?.isDeleted && this.currentObject?.isSpannerNode) {
+      this.data.getInterleaveConversionForATable(this.currentObject!.id)
     }
   }
 
   setInterleave() {
-    this.data.setInterleave(this.currentObject!.name)
+    this.data.setInterleave(this.currentObject!.id)
   }
 
   getInterleaveParentFromConv() {
     return this.currentObject?.type === ObjectExplorerNodeType.Table &&
       this.currentObject.isSpannerNode &&
       !this.currentObject.isDeleted &&
-      this.conv.SpSchema[this.currentObject.name].Parent != ''
-      ? this.conv.SpSchema[this.currentObject.name].Parent
+      this.conv.SpSchema[this.currentObject.id].ParentId != ''
+      ? this.conv.SpSchema[this.conv.SpSchema[this.currentObject.id].ParentId]?.Name
       : null
   }
 
@@ -841,15 +853,20 @@ export class ObjectDetailComponent implements OnInit {
     const addedIndexColumns: string[] = this.localIndexData
       .map((data) => (data.spColName ? data.spColName : ''))
       .filter((name) => name != '')
-    this.indexColumnNames = this.conv.SpSchema[this.currentObject!.parent]?.ColNames.filter(
-      (columnName) => {
-        if (addedIndexColumns.includes(columnName)) {
+    this.indexColumnNames = this.conv.SpSchema[this.currentObject!.parentId]?.ColIds?.filter(
+      (colId) => {
+        if (
+          addedIndexColumns.includes(
+            this.conv.SpSchema[this.currentObject!.parentId]?.ColDefs[colId]?.Name
+          )
+        ) {
           return false
         } else {
           return true
         }
       }
-    )
+    ).map((colId: string) => this.conv.SpSchema[this.currentObject!.parentId]?.ColDefs[colId]?.Name)
+
     this.localIndexData.forEach((row: IIndexData) => {
       this.spRowArray.push(
         new FormGroup({
@@ -925,28 +942,29 @@ export class ObjectDetailComponent implements OnInit {
 
   saveIndex() {
     let payload: ICreateIndex[] = []
-    const tableName = this.currentObject?.parent || ''
     this.setIndexOrder()
+    console.log(this.localIndexData, 'localIndex data')
+
     payload.push({
       Name: this.currentObject?.name || '',
-      Table: this.currentObject?.parent || '',
+      TableId: this.currentObject?.parentId || '',
       Unique: false,
       Keys: this.localIndexData
-        .filter((idx: any) => {
-          if (idx.spColName) return true
+        .filter((idx: IIndexData) => {
+          if (idx.spColId) return true
           return false
         })
         .map((col: any) => {
           return {
-            Col: col.spColName,
+            ColId: col.spColId,
             Desc: col.spDesc,
             Order: col.spOrder,
           }
         }),
-      Id: '',
+      Id: this.currentObject!.id,
     })
 
-    this.data.updateIndex(tableName, payload).subscribe({
+    this.data.updateIndex(this.currentObject?.parentId!, payload).subscribe({
       next: (res: string) => {
         if (res == '') {
           this.isEditMode = false
@@ -976,7 +994,7 @@ export class ObjectDetailComponent implements OnInit {
     openDialog.afterClosed().subscribe((res: string) => {
       if (res === ObjectDetailNodeType.Index) {
         this.data
-          .dropIndex(this.currentObject!.parent, this.currentObject!.name)
+          .dropIndex(this.currentObject!.parentId, this.currentObject!.id)
           .pipe(take(1))
           .subscribe((res: string) => {
             if (res === '') {
@@ -1006,6 +1024,7 @@ export class ObjectDetailComponent implements OnInit {
   dropIndexKey(index: number) {
     if (this.localIndexData[index].srcColName) {
       this.localIndexData[index].spColName = ''
+      this.localIndexData[index].spColId = ''
       this.localIndexData[index].spDesc = ''
       this.localIndexData[index].spOrder = ''
     } else {
@@ -1026,14 +1045,21 @@ export class ObjectDetailComponent implements OnInit {
       srcColName: '',
       srcDesc: undefined,
       srcOrder: '',
+      srcColId: undefined,
+      spColId: this.currentObject
+        ? this.conversion.getColIdFromSpannerColName(
+            this.addIndexKeyForm.value.columnName,
+            this.currentObject.parentId,
+            this.conv
+          )
+        : '',
     })
     this.setIndexRows()
   }
 
   restoreSpannerTable() {
-    let tableId = this.currentObject!.id
     this.data
-      .restoreTable(tableId)
+      .restoreTable(this.currentObject!.id)
       .pipe(take(1))
       .subscribe((res: string) => {
         if (res === '') {
@@ -1041,7 +1067,6 @@ export class ObjectDetailComponent implements OnInit {
         }
         this.data.getConversionRate()
       })
-
     this.currentObject = null
   }
 
@@ -1056,7 +1081,7 @@ export class ObjectDetailComponent implements OnInit {
       if (res === ObjectDetailNodeType.Table) {
         let tableId = this.currentObject!.id
         this.data
-          .dropTable(tableId)
+          .dropTable(this.currentObject!.id)
           .pipe(take(1))
           .subscribe((res: string) => {
             if (res === '') {
@@ -1069,21 +1094,21 @@ export class ObjectDetailComponent implements OnInit {
     })
   }
 
-  selectedColumnChange(tableName: string) {}
+  selectedColumnChange(tableId: string) {}
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
     this.currentTabIndex = tabChangeEvent.index
   }
 
   tableInterleaveWith(table: string): string {
-    if (this.conv.SpSchema[table].Parent != '') {
-      return this.conv.SpSchema[table].Parent
+    if (this.conv.SpSchema[table].ParentId != '') {
+      return this.conv.SpSchema[table].ParentId
     }
     let interleaveTable = ''
     Object.keys(this.conv.SpSchema).forEach((tableName: string) => {
       if (
-        this.conv.SpSchema[tableName].Parent != '' &&
-        this.conv.SpSchema[tableName].Parent == table
+        this.conv.SpSchema[tableName].ParentId != '' &&
+        this.conv.SpSchema[tableName].ParentId == table
       ) {
         interleaveTable = tableName
       }
@@ -1093,7 +1118,7 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   isPKFirstOrderModified(table: string): boolean {
-    let firstOrderPk = this.conv.SpSchema[table].Pks.filter((pk: IIndexKey) => {
+    let firstOrderPk = this.conv.SpSchema[table]?.PrimaryKeys?.filter((pk: IIndexKey) => {
       if (pk.Order == 1) return true
       return false
     })[0]
@@ -1102,7 +1127,7 @@ export class ObjectDetailComponent implements OnInit {
       if (pk.Order == 1) return true
       return false
     })[0]
-    if (firstOrderPk.Col != updatedFirstOrderPk.ColName) return true
+    if (firstOrderPk && firstOrderPk.ColId != updatedFirstOrderPk.ColumnId) return true
     return false
   }
 }

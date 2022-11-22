@@ -377,7 +377,7 @@
       </div>
     </mat-tab>
 
-    <mat-tab >
+    <mat-tab>
       <ng-template mat-tab-label>
         <span>PRIMARY KEY </span>
       </ng-template>
@@ -465,7 +465,7 @@
                 <input
                   matInput
                   class="order_input"
-                  type="text"
+                  type="number"
                   [formControl]="element.get('spOrder')"
                   matTooltip="Must have a value greater than 0."
                   [matTooltipDisabled]="!element.get('spOrder')?.hasError('pattern')"
@@ -782,11 +782,10 @@
 
     <mat-tab>
       <ng-template mat-tab-label>
-        <span  *ngIf="currentObject!.isSpannerNode && !currentObject!.isDeleted">SQL</span>
+        <span *ngIf="currentObject!.isSpannerNode && !currentObject!.isDeleted">SQL</span>
       </ng-template>
-      
       <div class="ddl_container">
-        <pre><code>{{ddlStmts[currentObject!.name]}}</code></pre>
+        <pre><code>{{ddlStmts[currentObject!.id]}}</code></pre>
       </div>
     </mat-tab>
   </mat-tab-group>
