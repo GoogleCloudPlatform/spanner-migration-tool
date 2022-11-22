@@ -713,10 +713,7 @@
                 <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
                 <mat-menu #menu="matMenu" xPosition="before">
                   <button
-                    *ngIf="
-                      interleaveStatus.tableInterleaveStatus &&
-                      interleaveStatus.tableInterleaveStatus.Possible
-                    "
+
                     [disabled]="element.get('spName').value === ''"
                     mat-menu-item
                     (click)="dropFk(element)"
