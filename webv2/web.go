@@ -41,6 +41,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
@@ -2034,7 +2035,11 @@ func init() {
 }
 
 // App connects to the web app v2.
-func App() {
+func App(logLevel string) {
+	err := logger.InitializeLogger(logLevel)
+	if err != nil {
+		log.Fatal("Error initialising webapp, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]")
+	}
 	addr := ":8080"
 	router := getRoutes()
 	fmt.Println("Harbourbridge UI started at:", fmt.Sprintf("http://localhost%s", addr))
