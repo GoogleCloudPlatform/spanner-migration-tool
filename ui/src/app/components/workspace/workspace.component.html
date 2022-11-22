@@ -78,8 +78,10 @@
             (changeIssuesLabel)="updateIssuesLabel($event)"
             ></app-summary>
         </mat-tab>
-        <mat-tab label="RULES(0)">
-          <app-rule></app-rule>
+        <mat-tab [ngClass]="{ 'blue-font-color': [updateRulesLabel]}" [label]="rulesLabel" >
+          <app-rule    
+          (lengthOfRules)="updateRulesLabel($event)"
+          > </app-rule>
         </mat-tab>
       </mat-tab-group>
       <button id="right-column-toggle-button" (click)="rightColumnToggle()">

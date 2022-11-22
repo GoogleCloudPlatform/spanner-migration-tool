@@ -42,6 +42,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   spannerTree: ISchemaObjectNode[] = []
   srcTree: ISchemaObjectNode[] = []
   issuesAndSuggestionsLabel: string = 'ISSUES AND SUGGESTIONS'
+  rulesLabel: string = 'RULES (0)'
   objectExplorerInitiallyRender: boolean = false
   srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
   conversionRateCount: ConversionRate = { good: 0, ok: 0, bad: 0 }
@@ -199,7 +200,11 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
       this.issuesAndSuggestionsLabel = `ISSUES AND SUGGESTIONS (${count})`
     })
   }
-
+  updateRulesLabel(count: number) {
+    setTimeout(() => {
+      this.rulesLabel = `RULES (${count})`
+    })
+  }
   leftColumnToggle() {
     this.isLeftColumnCollapse = !this.isLeftColumnCollapse
   }
