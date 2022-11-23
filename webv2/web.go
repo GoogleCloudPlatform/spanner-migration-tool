@@ -1175,7 +1175,7 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	column := sp.Fks[position].Columns[0]
 	schemaIssue := []internal.SchemaIssue{}
 	for _, v := range sessionState.Conv.Issues[table][column] {
-		if v != internal.InterleavedAddColumn && v != internal.InterleavedRenameColumn {
+		if v != internal.InterleavedAddColumn && v != internal.InterleavedRenameColumn && v != internal.InterleavedNotInOrder {
 			schemaIssue = append(schemaIssue, v)
 		}
 	}
