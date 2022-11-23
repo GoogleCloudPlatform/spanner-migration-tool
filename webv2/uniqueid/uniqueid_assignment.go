@@ -124,14 +124,7 @@ func AssignUniqueId(conv *internal.Conv) {
 func updateSpannerTableIndexKeyOrder(spannertable ddl.CreateTable) {
 
 	for i := 0; i < len(spannertable.Pks); i++ {
-		for spannercolumnname := range spannertable.ColDefs {
-			if spannertable.Pks[i].Col == spannercolumnname {
-
-				o := getSpannerColumnIndex(spannertable, spannercolumnname)
-				spannertable.Pks[i].Order = o
-
-			}
-		}
+		spannertable.Pks[i].Order = i + 1
 	}
 }
 
@@ -139,13 +132,7 @@ func updateSpannerTableIndexKeyOrder(spannertable ddl.CreateTable) {
 func updateSourceTableIndexKeyOrder(sourcetable schema.Table) {
 
 	for i := 0; i < len(sourcetable.PrimaryKeys); i++ {
-		for sourcecolumnname := range sourcetable.ColDefs {
-			if sourcetable.PrimaryKeys[i].Column == sourcecolumnname {
-
-				o := getSourceColumnIndex(sourcetable, sourcecolumnname)
-				sourcetable.PrimaryKeys[i].Order = o
-			}
-		}
+		sourcetable.PrimaryKeys[i].Order = i + 1
 	}
 }
 
@@ -156,14 +143,7 @@ func updateSpannerTableSecondaryIndexKeyOrder(spannertable ddl.CreateTable) {
 
 		for j := 0; j < len(spannertable.Indexes[i].Keys); j++ {
 
-			for spannercolumnname := range spannertable.ColDefs {
-				if spannertable.Indexes[i].Keys[j].Col == spannercolumnname {
-
-					o := getSpannerColumnIndex(spannertable, spannercolumnname)
-					spannertable.Indexes[i].Keys[j].Order = o
-
-				}
-			}
+			spannertable.Indexes[i].Keys[j].Order = j + 1
 		}
 	}
 }
@@ -175,38 +155,9 @@ func updateSourceTableSecondaryIndexKeyOrder(sourcetable schema.Table) {
 
 		for j := 0; j < len(sourcetable.Indexes[i].Keys); j++ {
 
-			for spannercolumnname := range sourcetable.ColDefs {
-				if sourcetable.Indexes[i].Keys[j].Column == spannercolumnname {
-
-					o := getSourceColumnIndex(sourcetable, spannercolumnname)
-					sourcetable.Indexes[i].Keys[j].Order = o
-
-				}
-			}
+			sourcetable.Indexes[i].Keys[j].Order = j + 1
 		}
 	}
-}
-
-// getSpannerColumnIndex return columnn index as Inserted Order.
-func getSpannerColumnIndex(spannertable ddl.CreateTable, columnName string) int {
-
-	for i := 0; i < len(spannertable.ColNames); i++ {
-		if spannertable.ColNames[i] == columnName {
-			return i + 1
-		}
-	}
-	return 0
-}
-
-// getColumnIndex return columnn index as Inserted Order.
-func getSourceColumnIndex(sourcetable schema.Table, columnName string) int {
-
-	for i := 0; i < len(sourcetable.ColNames); i++ {
-		if sourcetable.ColNames[i] == columnName {
-			return i + 1
-		}
-	}
-	return 0
 }
 
 func GenerateId() string {
