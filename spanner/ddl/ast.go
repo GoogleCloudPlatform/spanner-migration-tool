@@ -273,7 +273,13 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 		cols += "\n"
 	}
 
-	for _, p := range ct.Pks {
+	orderedPks := []IndexKey{}
+	orderedPks = append(orderedPks, ct.Pks...)
+	sort.Slice(orderedPks, func(i, j int) bool {
+		return orderedPks[i].Order < orderedPks[j].Order
+	})
+
+	for _, p := range orderedPks {
 		keys = append(keys, p.PrintIndexKey(config))
 	}
 	var tableComment string
@@ -318,7 +324,14 @@ type CreateIndex struct {
 // PrintCreateIndex unparses a CREATE INDEX statement.
 func (ci CreateIndex) PrintCreateIndex(c Config) string {
 	var keys []string
-	for _, p := range ci.Keys {
+
+	orderedKeys := []IndexKey{}
+	orderedKeys = append(orderedKeys, ci.Keys...)
+	sort.Slice(orderedKeys, func(i, j int) bool {
+		return orderedKeys[i].Order < orderedKeys[j].Order
+	})
+
+	for _, p := range orderedKeys {
 		keys = append(keys, p.PrintIndexKey(c))
 	}
 	var unique, stored, storingClause string
