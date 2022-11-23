@@ -139,6 +139,13 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 		Changes: interleaveTableSchema,
 	}
 
+	sessionMetaData := session.GetSessionState().SessionMetadata
+	if sessionMetaData.DatabaseName == "" || sessionMetaData.DatabaseType == "" || sessionMetaData.SessionName == "" {
+		sessionMetaData.DatabaseName = sessionState.DbName
+		sessionMetaData.DatabaseType = sessionState.Driver
+		sessionMetaData.SessionName = "NewSession"
+	}
+	session.GetSessionState().SessionMetadata = sessionMetaData
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(resp)
 }
