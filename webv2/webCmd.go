@@ -63,12 +63,7 @@ func (cmd *WebCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{
 			logger.Log.Fatal("FATAL error", zap.Error(err))
 		}
 	}()
-	err = logger.InitializeLogger(cmd.logLevel)
-	if err != nil {
-		fmt.Println("Error initialising logger, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]", err)
-		return subcommands.ExitFailure
-	}
 	defer logger.Log.Sync()
-	App()
+	App(cmd.logLevel)
 	return subcommands.ExitSuccess
 }
