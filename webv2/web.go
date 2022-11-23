@@ -760,9 +760,13 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	if update {
+		convm := session.ConvWithMetadata{
+			SessionMetadata: sessionState.SessionMetadata,
+			Conv:            *sessionState.Conv,
+		}
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"tableInterleaveStatus": tableInterleaveStatus,
-			"sessionState":          sessionState.Conv})
+			"sessionState":          convm})
 	} else {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"tableInterleaveStatus": tableInterleaveStatus,
