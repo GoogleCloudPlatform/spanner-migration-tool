@@ -1170,6 +1170,19 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("No foreign key found at position %d", position), http.StatusBadRequest)
 		return
 	}
+
+	// To remove the interleavable suggestions if they exist on dropping fk
+	column := sp.Fks[position].Columns[0]
+	schemaIssue := []internal.SchemaIssue{}
+	for _, v := range sessionState.Conv.Issues[table][column] {
+		if v != internal.InterleavedOrder && v != internal.InterleavedNotInOrder && v != internal.InterleavedAddColumn && v != internal.InterleavedRenameColumn {
+			schemaIssue = append(schemaIssue, v)
+		}
+	}
+	if _, ok := sessionState.Conv.Issues[table]; ok {
+		sessionState.Conv.Issues[table][column] = schemaIssue
+	}
+
 	sp.Fks = utilities.RemoveFk(sp.Fks, position)
 	sessionState.Conv.SpSchema[table] = sp
 	session.UpdateSessionFile()
