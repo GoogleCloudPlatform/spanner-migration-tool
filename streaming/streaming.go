@@ -342,6 +342,8 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 			"databaseId":               dbName,
 			"sessionFilePath":          streamingCfg.TmpDir + "session.json",
 			"deadLetterQueueDirectory": inputFilePattern + "dlq",
+			"dlqRetryMinutes":          "10",
+			"dlqMaxRetryCount":         "500",
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
 			MaxWorkers:            maxWorkers,
