@@ -32,7 +32,7 @@ produces.
 
 HarbourBridge supports two types of data migrations:
 
-* Streaming migration - A streaming migration consists of two components, migration of existing data from the database and the stream of changes (writes and updates) that are made to the source database during migration, referred to as change database capture (CDC). Using HarbourBridge, the entire process where Datastream reads data from the source database and writes to a GCS bucket and data flow reads data from GCS bucket and writes to spanner database can be orchestrated using a unified interface. Performing schema changes on the source database during the migration is not supported. This is the suggested mode of migration for most databases.
+* Minimal Downtime migration - A minimal downtime migration consists of two components, migration of existing data from the database and the stream of changes (writes and updates) that are made to the source database during migration, referred to as change database capture (CDC). Using HarbourBridge, the entire process where Datastream reads data from the source database and writes to a GCS bucket and data flow reads data from GCS bucket and writes to spanner database can be orchestrated using a unified interface. Performing schema changes on the source database during the migration is not supported. This is the suggested mode of migration for most databases.
 
 * Bulk Migration -  HarbourBridge reads data from source database and writes it to the database created in Cloud Spanner. Changes which happen to the source database during the bulk migration may or may not be written to Spanner. To achieve consistent version of data, stop writes on the source while migration is in progress, or use a read replica. Performing schema changes on the source database during the migration is not supported. While there is no technical limit on the size of the database, it is recommended for migrating moderate-size datasets to Spanner(up to about 100GB).
 
@@ -448,8 +448,6 @@ data conversion can be found here:
 - [SQL Server data conversion](sources/sqlserver/README.md#data-conversion)
 
 ### Data Migration Recommendations
-- We recommend to use this data migration solution only for small databases 
-(smaller than 100GB) without strict downtime requirements. 
 - While using direct connect, it is recommended to use a secondary/read replica
  to ensure consistency and that and avoid impact from the load on the primary.
 
@@ -590,7 +588,34 @@ encountered.
 
 ### 5. Reporting Issues
 
-If you are having problems with HarbourBridge, please [submit an
-issue](https://github.com/cloudspannerecosystem/harbourbridge/issues).
+## Known Issues
+Please refer to the [issues section](https://github.com/cloudspannerecosystem/harbourbridge/issues)
+ on Github for a full list of known issues.
+
+### Schema Conversion
+
+- Loading dump files from SQL Server and DynamoDB is not supported
+- Schema Only Mode does not create foreign keys
+- Migration of constraints, functions and views is not supported
+- Schema recommendations are based on static analysis of the schema only
+- PG Spanner dialect support is limited, and is not currently available on the UI
+
+### Minimal Downtime Data Migrations
+
+- Minimal downtime migrations for SQL Server and DynamoDB are not supported
+- Requires a direct connection to the database to run and hence will not be
+ available while reading from Dump files.
+- Expected downtime will be in the order of a few minutes while the pipeline gets
+ flushed.
+- This flow depends on Datastream, and all the [constraints of Datastream](https://cloud.google.com/datastream/docs/faq#behavior-and-limitations)
+ apply to these migrations
+- Migration from sharded databases is not natively supported
+- Edits to primary keys and unique indexes are supported, but the user will 
+need to ensure that the new primary key/unique indexes retain uniqueness in
+the data. This is not verified during updation of the keys
+- Interleaved rows and rows with foreign key constraints are retried 500 times.
+ Exhaustion of retries results in these rows being pushed into a dead letter queue.
+- Conversion to Spanner ARRAY type is currently not supported
+- MySQL types BIT and TIME are not converted correctly
 
 

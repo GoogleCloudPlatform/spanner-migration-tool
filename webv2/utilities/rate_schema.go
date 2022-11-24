@@ -16,7 +16,7 @@ package utilities
 
 func RateSchema(cols, warnings int64, missingPKey bool) string {
 	good := func(total, badCount int64) bool { return badCount < total/20 }
-	ok := func(total, badCount int64) bool { return badCount < total/3 }
+	ok := func(total, badCount int64) bool { return badCount < total/2 }
 	switch {
 	case cols == 0:
 		return "GRAY"
