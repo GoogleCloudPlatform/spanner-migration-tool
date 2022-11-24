@@ -80,6 +80,7 @@
         </mat-tab>
         <mat-tab [ngClass]="{ 'blue-font-color': [updateRulesLabel]}" [label]="rulesLabel" >
           <app-rule    
+          [currentObject]="currentObject"
           (lengthOfRules)="updateRulesLabel($event)"
           > </app-rule>
         </mat-tab>
