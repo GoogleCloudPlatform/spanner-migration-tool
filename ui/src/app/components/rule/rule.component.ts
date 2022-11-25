@@ -9,6 +9,7 @@ import { DataService } from 'src/app/services/data/data.service'
 })
 export class RuleComponent implements OnInit {
   dataSource: any = []
+  currentDataSource: any = []
   displayedColumns = ['order', 'name', 'type', 'objectType', 'associatedObject', 'enabled']
   @Input() currentObject: any = {}
   @Output() lengthOfRules: EventEmitter<number> = new EventEmitter<number>()
@@ -17,28 +18,39 @@ export class RuleComponent implements OnInit {
 
   ngOnInit(): void {
     this.dataSource = []
-  }
-
-  ngOnChanges(changes: SimpleChanges): void {
-    let currentData: any = []
-
     this.data.rule.subscribe({
       next: (data: any) => {
-        this.dataSource = data
+        this.currentDataSource = data
+        this.updateRules()
       },
     })
+  }
 
-    if (this.currentObject.type === 'tableName' || this.currentObject.type === 'indexName') {
-      currentData = this.dataSource.filter(
+  ngOnChanges(): void {
+    this.updateRules()
+  }
+
+  updateRules(): void {
+    let globalData: any = []
+    let currentData: any = []
+
+    globalData = this.currentDataSource.filter(
+      (index: any) => index.Type === 'global_datatype_change'
+    )
+
+    if (
+      this.currentObject &&
+      (this.currentObject?.type === 'tableName' || this.currentObject?.type === 'indexName')
+    ) {
+      currentData = this.currentDataSource.filter(
         (index: any) =>
           index.AssociatedObjects === this.currentObject.name ||
-          index.AssociatedObjects === this.currentObject.parent ||
-          index.Type === 'global_datatype_change'
+          index.AssociatedObjects === this.currentObject.parent
       )
     }
 
-    this.dataSource = currentData
-    this.lengthOfRules.emit(currentData.length)
+    this.dataSource = [...globalData, ...currentData]
+    this.lengthOfRules.emit(this.dataSource.length)
   }
 
   openSidenav(): void {
