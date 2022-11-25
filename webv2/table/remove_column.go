@@ -25,51 +25,44 @@ func removeColumn(tableId string, colId string, conv *internal.Conv) {
 
 	sp := conv.SpSchema[tableId]
 
-	removeColumnFromTableSchema(conv, tableId, colId)
-
-	// update foreignKey relationship Table column names.
-	for _, fk := range sp.ForeignKeys {
-		fkReferColPosition := getFkColumnPosition(fk.ColIds, colId)
-		if fkReferColPosition == -1 {
-			continue
-		}
-
-		removeColumnFromTableSchema(conv, fk.ReferTableId, fk.ReferColumnIds[fkReferColPosition])
-
-	}
-
-	for _, sp := range conv.SpSchema {
-
-		for j := 0; j < len(sp.ForeignKeys); j++ {
-			if sp.ForeignKeys[j].ReferTableId == tableId {
-				fkColPosition := getFkColumnPosition(sp.ForeignKeys[j].ReferColumnIds, colId)
-				if fkColPosition == -1 {
-					continue
-				}
-				removeColumnFromTableSchema(conv, sp.Id, sp.ForeignKeys[j].ColIds[fkColPosition])
-			}
-
-		}
-
-	}
-
+	// remove interleaving if the column to be removed is used in interleaving.
 	isParent, childTableId := IsParent(tableId)
-
 	if isParent {
-		childColId, err := getColIdFromSpannerName(conv, childTableId, sp.ColDefs[colId].Name)
-		if err == nil {
-			removeColumnFromTableSchema(conv, childTableId, childColId)
+		if isColFistOderPk(conv.SpSchema[tableId].PrimaryKeys, colId) {
+			childSp := conv.SpSchema[childTableId]
+			childSp.ParentId = ""
+			conv.SpSchema[childTableId] = childSp
 		}
 	}
 
 	if conv.SpSchema[tableId].ParentId != "" {
-		parentTableId := conv.SpSchema[tableId].ParentId
-		parentColId, err := getColIdFromSpannerName(conv, parentTableId, sp.ColDefs[colId].Name)
-		if err == nil {
-			removeColumnFromTableSchema(conv, parentTableId, parentColId)
+		if isColFistOderPk(conv.SpSchema[tableId].PrimaryKeys, colId) {
+			sp.ParentId = ""
+			conv.SpSchema[tableId] = sp
+		}
+	}
+
+	// remove foreign keys from refer tables.
+	for id, sp := range conv.SpSchema {
+		var updatedFks []ddl.Foreignkey
+		for j := 0; j < len(sp.ForeignKeys); j++ {
+			if sp.ForeignKeys[j].ReferTableId == tableId {
+				fkColPosition := getFkColumnPosition(sp.ForeignKeys[j].ReferColumnIds, colId)
+				if fkColPosition == -1 {
+					updatedFks = append(updatedFks, sp.ForeignKeys[j])
+				} else {
+					delete(conv.UsedNames, sp.ForeignKeys[j].Name)
+				}
+			}
 		}
 
+		sp.ForeignKeys = updatedFks
+		conv.SpSchema[id] = sp
 	}
+
+	//remove column from the table.
+	removeColumnFromTableSchema(conv, tableId, colId)
+
 }
 
 // removeColumnFromCurrentTableSchema remove given column from table schema.

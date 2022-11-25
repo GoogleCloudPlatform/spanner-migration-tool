@@ -356,7 +356,7 @@ func buildTableReportBody(conv *Conv, tableId string, issues map[string][]Schema
 
 		issueBatcher := make(map[SchemaIssue]bool)
 		for _, colName := range colNames {
-			colId := GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, colName)
+			colId, _ := GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, colName)
 			for _, i := range issues[colId] {
 				if IssueDB[i].severity != p.severity {
 					continue

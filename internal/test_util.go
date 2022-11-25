@@ -43,8 +43,8 @@ func getSpIndexFromSpName(indexes []ddl.CreateIndex, indexName string) (ddl.Crea
 func AssertSpSchema(conv *Conv, t *testing.T, expectedSchema, actualSchema map[string]ddl.CreateTable) {
 	assert.Equal(t, len(expectedSchema), len(actualSchema))
 	for tableName, expectedTable := range expectedSchema {
-		tableId := GetTableIdFromSpName(conv.SpSchema, tableName)
-		assert.NotEqual(t, tableId, "")
+		tableId, err := GetTableIdFromSpName(conv.SpSchema, tableName)
+		assert.Equal(t, nil, err)
 		assertSpColDef(conv, t, tableId, expectedTable.ColDefs, actualSchema[tableId].ColDefs)
 		assertSpPk(conv, t, tableId, expectedTable.PrimaryKeys, actualSchema[tableId].PrimaryKeys)
 		assertSpFk(conv, t, tableId, expectedTable.ForeignKeys, actualSchema[tableId].ForeignKeys)
@@ -55,8 +55,8 @@ func AssertSpSchema(conv *Conv, t *testing.T, expectedSchema, actualSchema map[s
 func assertSpColDef(conv *Conv, t *testing.T, tableId string, expectedColDef, actualColDef map[string]ddl.ColumnDef) {
 	assert.Equal(t, len(expectedColDef), len(actualColDef))
 	for colName, col := range expectedColDef {
-		colId := GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, colName)
-		assert.NotEqual(t, colId, "")
+		colId, err := GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, colName)
+		assert.Equal(t, nil, err)
 		actualCol := actualColDef[colId]
 		actualCol.Id = ""
 		actualCol.Comment = ""
@@ -67,8 +67,8 @@ func assertSpColDef(conv *Conv, t *testing.T, tableId string, expectedColDef, ac
 func assertSpPk(conv *Conv, t *testing.T, tableId string, expectedPks, actualPks []ddl.IndexKey) {
 	assert.Equal(t, len(expectedPks), len(actualPks))
 	for i, pk := range expectedPks {
-		colId := GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, pk.ColId)
-		assert.NotEqual(t, colId, "")
+		colId, err := GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, pk.ColId)
+		assert.Equal(t, nil, err)
 		expectedPks[i].ColId = colId
 	}
 	assert.ElementsMatch(t, expectedPks, actualPks)
@@ -79,17 +79,17 @@ func assertSpFk(conv *Conv, t *testing.T, tableId string, expectedFks, actualFks
 		fkId := getFkIdFromSpName(conv.SpSchema[tableId].ForeignKeys, fk.Name)
 		assert.NotEqual(t, fkId, "")
 		expectedFks[i].Id = fkId
-		referTableId := GetTableIdFromSpName(conv.SpSchema, fk.ReferTableId)
-		assert.NotEqual(t, referTableId, "")
+		referTableId, err := GetTableIdFromSpName(conv.SpSchema, fk.ReferTableId)
+		assert.Equal(t, nil, err)
 		expectedFks[i].ReferTableId = referTableId
 		for j, col := range fk.ColIds {
-			colId := GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, col)
-			assert.NotEqual(t, colId, "")
+			colId, err := GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, col)
+			assert.Equal(t, nil, err)
 			expectedFks[i].ColIds[j] = colId
 		}
 		for j, col := range fk.ReferColumnIds {
-			colId := GetColIdFromSpName(conv.SpSchema[referTableId].ColDefs, col)
-			assert.NotEqual(t, colId, "")
+			colId, err := GetColIdFromSpName(conv.SpSchema[referTableId].ColDefs, col)
+			assert.Equal(t, nil, err)
 			expectedFks[i].ReferColumnIds[j] = colId
 		}
 	}
@@ -102,18 +102,21 @@ func assertSpIndexes(conv *Conv, t *testing.T, tableId string, expectedIndexes, 
 		actualIndex, err := getSpIndexFromSpName(conv.SpSchema[tableId].Indexes, index.Name)
 		assert.Equal(t, err, nil)
 		if index.TableId != "" {
-			indexTableId := GetTableIdFromSpName(conv.SpSchema, index.TableId)
+			indexTableId, err := GetTableIdFromSpName(conv.SpSchema, index.TableId)
+			assert.Equal(t, nil, err)
 			assert.Equal(t, indexTableId, actualIndex.TableId)
 		}
 		assert.Equal(t, index.Unique, actualIndex.Unique)
 		assert.Equal(t, len(index.Keys), len(actualIndex.Keys))
 		for j, indexKey := range index.Keys {
-			colId := GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, indexKey.ColId)
+			colId, err := GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, indexKey.ColId)
+			assert.Equal(t, nil, err)
 			index.Keys[j].ColId = colId
 		}
 		assert.ElementsMatch(t, index.Keys, actualIndex.Keys)
 		for j, storedColumn := range index.StoredColumnIds {
-			colId := GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, storedColumn)
+			colId, err := GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, storedColumn)
+			assert.Equal(t, nil, err)
 			index.StoredColumnIds[j] = colId
 		}
 		assert.ElementsMatch(t, index.StoredColumnIds, actualIndex.StoredColumnIds)
@@ -123,7 +126,8 @@ func assertSpIndexes(conv *Conv, t *testing.T, tableId string, expectedIndexes, 
 func AssertTableIssues(conv *Conv, t *testing.T, tableId string, expectedIssues, actualIssues map[string][]SchemaIssue) {
 	assert.Equal(t, len(expectedIssues), len(actualIssues))
 	for col, issues := range expectedIssues {
-		colId := GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, col)
+		colId, err := GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, col)
+		assert.Equal(t, nil, err)
 		assert.ElementsMatch(t, issues, actualIssues[colId])
 	}
 }

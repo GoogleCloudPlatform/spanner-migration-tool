@@ -199,12 +199,12 @@ func TestProcessSchemaOracle(t *testing.T) {
 		},
 	}
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
-	userTableId := internal.GetTableIdFromSpName(conv.SpSchema, "USER")
-	testTableId := internal.GetTableIdFromSpName(conv.SpSchema, "TEST")
-	test2TableId := internal.GetTableIdFromSpName(conv.SpSchema, "TEST2")
-	assert.NotEqual(t, "", userTableId)
-	assert.NotEqual(t, "", testTableId)
-	assert.NotEqual(t, "", testTableId)
+	userTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "USER")
+	assert.Equal(t, nil, err)
+	testTableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "TEST")
+	assert.Equal(t, nil, err)
+	test2TableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "TEST2")
+	assert.Equal(t, nil, err)
 
 	assert.Equal(t, len(conv.SchemaIssues[userTableId]), 0)
 	assert.Equal(t, len(conv.SchemaIssues[testTableId]), 0)

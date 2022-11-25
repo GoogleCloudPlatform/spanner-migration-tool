@@ -30,6 +30,12 @@ import (
 
 const metadataDbName string = "harbourbridge_metadata"
 
+func InitObjectId() {
+
+	sessionState := session.GetSessionState()
+	sessionState.Counter.ObjectId = "0"
+}
+
 func GetMetadataDbName() string {
 	return metadataDbName
 }

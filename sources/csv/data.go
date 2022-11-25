@@ -130,8 +130,8 @@ func SetRowStats(conv *internal.Conv, tables []utils.ManifestTable, delimiter ru
 			r := csvReader.NewReader(csvFile)
 			r.Comma = delimiter
 
-			tableId := internal.GetTableIdFromSpName(conv.SpSchema, table.Table_name)
-			if tableId == "" {
+			tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, table.Table_name)
+			if err != nil {
 				return fmt.Errorf("table Id not found for spanner table %v", table.Table_name)
 			}
 			colNames := []string{}
@@ -205,8 +205,8 @@ func ProcessCSV(conv *internal.Conv, tables []utils.ManifestTable, nullStr strin
 			r.Comma = delimiter
 
 			// Default column order is same as in Spanner schema.
-			tableId := internal.GetTableIdFromSpName(conv.SpSchema, table.Table_name)
-			if tableId == "" {
+			tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, table.Table_name)
+			if err != nil {
 				return fmt.Errorf("table Id not found for spanner table %v", table.Table_name)
 			}
 
@@ -267,8 +267,8 @@ func convertData(conv *internal.Conv, nullStr, tableName string, srcCols []strin
 	var v []interface{}
 	var cvtCols []string
 
-	tableId := internal.GetTableIdFromSpName(conv.SpSchema, tableName)
-	if tableId == "" {
+	tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, tableName)
+	if err != nil {
 		return cvtCols, v, fmt.Errorf("table Id not found for spanner table %v", tableName)
 	}
 
@@ -278,14 +278,13 @@ func convertData(conv *internal.Conv, nullStr, tableName string, srcCols []strin
 			continue
 		}
 		colName := srcCols[i]
-		colId := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, colName)
-		if colId == "" {
+		colId, err := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, colName)
+		if err != nil {
 			return cvtCols, v, fmt.Errorf("column Id not found for spanner table %v column %v", tableName, colName)
 		}
 		spColDef := colDefs[colId]
 
 		var x interface{}
-		var err error
 		if spColDef.T.IsArray {
 			x, err = convArray(spColDef.T, val)
 		} else {

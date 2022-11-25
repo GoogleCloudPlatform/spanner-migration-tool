@@ -21,7 +21,6 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/index"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 
@@ -128,33 +127,4 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 
 	log.Println("request completed", "traceid", id.String(), "method", r.Method, "path", r.URL.Path, "remoteaddr", r.RemoteAddr)
-}
-
-// PrimaryKeyResponse represents primary key API response.
-// Synth is true for tables in which primary key is not present and is generated.
-func prepareResponse(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) PrimaryKeyResponse {
-
-	var pKeyResponse PrimaryKeyResponse
-
-	pKeyResponse.TableId = pkRequest.TableId
-
-	var isSynthPrimaryKey bool
-
-	for i := 0; i < len(spannerTable.ColIds); i++ {
-		if spannerTable.ColIds[i] == "synth_id" {
-			isSynthPrimaryKey = true
-		}
-	}
-
-	pKeyResponse.Synth = isSynthPrimaryKey
-
-	for _, indexkey := range spannerTable.PrimaryKeys {
-
-		responseColumn := Column{}
-		responseColumn.ColumnId = indexkey.ColId
-		responseColumn.Desc = indexkey.Desc
-		responseColumn.Order = indexkey.Order
-		pKeyResponse.Columns = append(pKeyResponse.Columns, responseColumn)
-	}
-	return pKeyResponse
 }

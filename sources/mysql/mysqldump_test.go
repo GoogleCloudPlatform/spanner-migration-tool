@@ -87,8 +87,10 @@ func TestProcessMySQLDump_SingleCol(t *testing.T) {
 			v := fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty)
 			conv, _ := runProcessMySQLDump(v)
 			noIssues(conv, t, "Not null: "+tc.ty)
-			tableId := internal.GetTableIdFromSpName(conv.SpSchema, "t")
-			colId := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, "a")
+			tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "t")
+			assert.Equal(t, nil, err)
+			colId, err := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, "a")
+			assert.Equal(t, nil, err)
 			cd := conv.SpSchema[tableId].ColDefs[colId]
 			cd.Comment = ""
 			cd.Id = ""

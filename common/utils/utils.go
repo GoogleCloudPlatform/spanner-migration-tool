@@ -588,8 +588,7 @@ func CompareSchema(conv1, conv2 *internal.Conv) error {
 		return fmt.Errorf("target db don't match")
 	}
 	for _, sessionTable := range conv1.SpSchema {
-		//sessionTable := conv1.SpSchema[key]
-		spannerTableId := internal.GetTableIdFromSpName(conv2.SpSchema, sessionTable.Name)
+		spannerTableId, _ := internal.GetTableIdFromSpName(conv2.SpSchema, sessionTable.Name)
 		spannerTable := conv2.SpSchema[spannerTableId]
 
 		sessionTableParentName := conv1.SpSchema[sessionTable.ParentId].Name
@@ -607,7 +606,7 @@ func CompareSchema(conv1, conv2 *internal.Conv) error {
 
 		for idx, sessionPk := range sessionTable.PrimaryKeys {
 			sessionTablePkCol := sessionTable.ColDefs[sessionPk.ColId]
-			correspondingSpColId := internal.GetColIdFromSpName(spannerTable.ColDefs, sessionTablePkCol.Name)
+			correspondingSpColId, _ := internal.GetColIdFromSpName(spannerTable.ColDefs, sessionTablePkCol.Name)
 			spannerTablePkCol := spannerTable.ColDefs[correspondingSpColId]
 
 			if sessionTablePkCol.Name != spannerTablePkCol.Name || sessionTable.PrimaryKeys[idx].Desc != spannerTable.PrimaryKeys[idx].Desc {
@@ -616,7 +615,7 @@ func CompareSchema(conv1, conv2 *internal.Conv) error {
 		}
 
 		for _, sessionColDef := range sessionTable.ColDefs {
-			correspondingSpColId := internal.GetColIdFromSpName(spannerTable.ColDefs, sessionColDef.Name)
+			correspondingSpColId, _ := internal.GetColIdFromSpName(spannerTable.ColDefs, sessionColDef.Name)
 			spannerColDef := spannerTable.ColDefs[correspondingSpColId]
 
 			if sessionColDef.Name != spannerColDef.Name || sessionColDef.NotNull != spannerColDef.NotNull ||
@@ -644,7 +643,7 @@ func CompareSchema(conv1, conv2 *internal.Conv) error {
 
 					for idx, indexKey := range sessionTableIndex.Keys {
 						sessionIndexColumn := sessionTable.ColDefs[indexKey.ColId]
-						spannerIndexColumnId := internal.GetColIdFromSpName(spannerTable.ColDefs, sessionIndexColumn.Name)
+						spannerIndexColumnId, _ := internal.GetColIdFromSpName(spannerTable.ColDefs, sessionIndexColumn.Name)
 						spannerIndexColumn := spannerTable.ColDefs[spannerIndexColumnId]
 
 						if sessionIndexColumn.Name != spannerIndexColumn.Name ||

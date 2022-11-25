@@ -245,3 +245,12 @@ func getFkColumnPosition(colIds []string, colId string) int {
 	}
 	return -1
 }
+
+func isColFistOderPk(pks []ddl.IndexKey, colId string) bool {
+	for _, pk := range pks {
+		if pk.ColId == colId && pk.Order == 1 {
+			return true
+		}
+	}
+	return false
+}

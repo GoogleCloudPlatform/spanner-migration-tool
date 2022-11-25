@@ -67,8 +67,6 @@ import (
 	index "github.com/cloudspannerecosystem/harbourbridge/webv2/index"
 	primarykey "github.com/cloudspannerecosystem/harbourbridge/webv2/primarykey"
 
-	uniqueid "github.com/cloudspannerecosystem/harbourbridge/webv2/uniqueid"
-
 	go_ora "github.com/sijms/go-ora/v2"
 )
 
@@ -426,7 +424,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 func loadSession(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 
-	uniqueid.InitObjectId()
+	utilities.InitObjectId()
 
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1891,7 +1889,7 @@ func addTypeToList(convertedType string, spType string, issues []internal.Schema
 func init() {
 	sessionState := session.GetSessionState()
 
-	uniqueid.InitObjectId()
+	utilities.InitObjectId()
 
 	// Initialize mysqlTypeMap.
 	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {

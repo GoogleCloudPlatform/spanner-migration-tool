@@ -63,7 +63,10 @@ func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema) error {
 	GenerateSrcSchema(conv, infoSchema)
 	initPrimaryKeyOrder(conv)
 	initIndexOrder(conv)
-	conv.AssignIdToSourceSchema()
+	err := conv.AssignIdToSourceSchema()
+	if err != nil {
+		return fmt.Errorf("error while assigning id to source schema")
+	}
 	SchemaToSpannerDDL(conv, infoSchema.GetToDdl())
 	conv.AddPrimaryKeys()
 	return nil

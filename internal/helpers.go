@@ -76,7 +76,7 @@ func GetColIdFromSrcName(srcColDef map[string]schema.Column, columnName string) 
 			return v.Id, nil
 		}
 	}
-	return "", fmt.Errorf("ColumnId is empty: can't find column")
+	return "", fmt.Errorf("column id not found for source-db column %s", columnName)
 }
 func GetTableIdFromSrcName(srcSchema map[string]schema.Table, tableName string) (string, error) {
 	for _, v := range srcSchema {
@@ -84,25 +84,25 @@ func GetTableIdFromSrcName(srcSchema map[string]schema.Table, tableName string) 
 			return v.Id, nil
 		}
 	}
-	return "", fmt.Errorf("TableId is empty: can't find table")
+	return "", fmt.Errorf("table id not found for source-db table %s", tableName)
 }
 
-func GetTableIdFromSpName(spSchema ddl.Schema, tableName string) string {
+func GetTableIdFromSpName(spSchema ddl.Schema, tableName string) (string, error) {
 	for tableId, table := range spSchema {
 		if tableName == table.Name {
-			return tableId
+			return tableId, nil
 		}
 	}
-	return ""
+	return "", fmt.Errorf("table id not found for spanner table %s", tableName)
 }
 
-func GetColIdFromSpName(colDefs map[string]ddl.ColumnDef, colName string) string {
+func GetColIdFromSpName(colDefs map[string]ddl.ColumnDef, colName string) (string, error) {
 	for colId, col := range colDefs {
 		if col.Name == colName {
-			return colId
+			return colId, nil
 		}
 	}
-	return ""
+	return "", fmt.Errorf("column id not found for spanner column %s", colName)
 }
 
 func GetSrcFkFromId(fks []schema.ForeignKey, fkId string) (schema.ForeignKey, error) {

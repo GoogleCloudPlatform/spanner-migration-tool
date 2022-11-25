@@ -62,13 +62,13 @@ func convertData(conv *internal.Conv, tableId string, srcCols []string, srcSchem
 			continue
 		}
 
-		spColId := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, spCol)
-		srcColId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, srcCol)
+		spColId, err1 := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, spCol)
+		srcColId, err2 := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, srcCol)
 
-		spColDef, ok1 := spSchema.ColDefs[spColId]
-		srcColDef, ok2 := srcSchema.ColDefs[srcColId]
+		spColDef := spSchema.ColDefs[spColId]
+		srcColDef := srcSchema.ColDefs[srcColId]
 
-		if !ok1 || !ok2 {
+		if err1 != nil || err2 != nil {
 			return "", []string{}, []interface{}{}, fmt.Errorf("can't find Spanner and source-db schema for col %s", spCol)
 		}
 		var x interface{}

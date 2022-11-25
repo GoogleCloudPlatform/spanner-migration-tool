@@ -20,12 +20,19 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 )
 
-func (conv *Conv) AssignIdToSourceSchema() {
+func (conv *Conv) AssignIdToSourceSchema() error {
 	conv.AssignTableId()
 	conv.AssignColumnId()
-	conv.AssignPkId()
-	conv.AssignIndexId()
-	conv.AssginFkId()
+	err := conv.AssignPkId()
+	if err != nil {
+		return err
+	}
+	err = conv.AssignIndexId()
+	if err != nil {
+		return err
+	}
+	conv.AssignFkId()
+	return nil
 }
 
 func (conv *Conv) AssignTableId() {
@@ -37,55 +44,44 @@ func (conv *Conv) AssignTableId() {
 		srcTable.Id = tableId
 		srcSchema[tableId] = srcTable
 	}
-	conv.SrcSchema = nil
 	conv.SrcSchema = srcSchema
 
 }
 
 func (conv *Conv) AssignColumnId() {
 	for tableId, table := range conv.SrcSchema {
-
-		colNames := make([]string, 0, len(table.ColDefs))
-		for colName := range table.ColDefs {
-			colNames = append(colNames, colName)
-		}
-
-		for _, columnName := range colNames {
+		for k, columnName := range table.ColIds {
 			columnId := GenerateColumnId()
 			column := table.ColDefs[columnName]
 			column.Id = columnId
 			conv.SrcSchema[tableId].ColDefs[columnId] = column
-			delete(table.ColDefs, columnName)
-		}
-		for k, v := range conv.SrcSchema[tableId].ColIds {
-			columnId, _ := GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, v)
 			conv.SrcSchema[tableId].ColIds[k] = columnId
+			delete(table.ColDefs, columnName)
 		}
 	}
 }
 
-func (conv *Conv) AssignPkId() {
+func (conv *Conv) AssignPkId() error {
 	for tableId, table := range conv.SrcSchema {
 		for i, pk := range table.PrimaryKeys {
 			columnId, err := GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, pk.ColId)
 			if err != nil {
-				fmt.Println("ColumnId doesn't exist.")
-				continue
+				return fmt.Errorf("column id not found for table %s and column %s", table.Name, pk.ColId)
 			}
 			conv.SrcSchema[tableId].PrimaryKeys[i].ColId = columnId
 		}
 	}
+	return nil
 }
 
-func (conv *Conv) AssignIndexId() {
+func (conv *Conv) AssignIndexId() error {
 	for tableId, table := range conv.SrcSchema {
 		for i, index := range table.Indexes {
 			indexId := GenerateIndexesId()
 			for k, v := range index.Keys {
 				columnId, err := GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, v.ColId)
 				if err != nil {
-					fmt.Println("ColumnId doesn't exist.")
-					continue
+					return fmt.Errorf("column id not found for table %s and column %s", table.Name, v.ColId)
 				}
 				conv.SrcSchema[tableId].Indexes[i].Keys[k].ColId = columnId
 			}
@@ -93,8 +89,7 @@ func (conv *Conv) AssignIndexId() {
 			for _, v := range index.StoredColumnIds {
 				storedColumnId, err := GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, v)
 				if err != nil {
-					fmt.Println("StoreColumnId doesn't exist.")
-					continue
+					return fmt.Errorf("stored column id not found for table %s and column %s", table.Name, v)
 				}
 				storedColumnIds = append(storedColumnIds, storedColumnId)
 			}
@@ -102,9 +97,10 @@ func (conv *Conv) AssignIndexId() {
 			conv.SrcSchema[tableId].Indexes[i].Id = indexId
 		}
 	}
+	return nil
 }
 
-func (conv *Conv) AssginFkId() {
+func (conv *Conv) AssignFkId() {
 	for tableId, table := range conv.SrcSchema {
 		for i, fk := range table.ForeignKeys {
 			fkId := GenerateForeignkeyId()
@@ -112,7 +108,6 @@ func (conv *Conv) AssginFkId() {
 			for _, columnName := range fk.ColIds {
 				columnId, err := GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, columnName)
 				if err != nil {
-					fmt.Println("ReferColumnId doesn't exist.")
 					continue
 				}
 				columnIds = append(columnIds, columnId)
@@ -120,14 +115,12 @@ func (conv *Conv) AssginFkId() {
 
 			referTableId, err := GetTableIdFromSrcName(conv.SrcSchema, fk.ReferTableId)
 			if err != nil {
-				fmt.Println("TableId doesn't exist.")
 				continue
 			}
 			var referColumnIds []string
 			for _, referColumnName := range fk.ReferColumnIds {
 				referColumnId, err := GetColIdFromSrcName(conv.SrcSchema[referTableId].ColDefs, referColumnName)
 				if err != nil {
-					fmt.Println("ReferColumnId doesn't exist.")
 					continue
 				}
 				referColumnIds = append(referColumnIds, referColumnId)

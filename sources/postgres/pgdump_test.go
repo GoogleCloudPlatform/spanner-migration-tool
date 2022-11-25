@@ -76,8 +76,10 @@ func TestProcessPgDump(t *testing.T) {
 	for _, tc := range scalarTests {
 		conv, _ := runProcessPgDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
 		noIssues(conv, t, "Scalar type: "+tc.ty)
-		tableId := internal.GetTableIdFromSpName(conv.SpSchema, "t")
-		colId := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, "a")
+		tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "t")
+		assert.Equal(t, nil, err)
+		colId, err := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, "a")
+		assert.Equal(t, nil, err)
 		assert.Equal(t, conv.SpSchema[tableId].ColDefs[colId].T, tc.expected, "Scalar type: "+tc.ty)
 	}
 	// Next test array types and not null.
@@ -95,8 +97,10 @@ func TestProcessPgDump(t *testing.T) {
 	for _, tc := range singleColTests {
 		conv, _ := runProcessPgDump(fmt.Sprintf("CREATE TABLE t (a %s);", tc.ty))
 		noIssues(conv, t, "Not null: "+tc.ty)
-		tableId := internal.GetTableIdFromSpName(conv.SpSchema, "t")
-		colId := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, "a")
+		tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "t")
+		assert.Equal(t, nil, err)
+		colId, err := internal.GetColIdFromSpName(conv.SpSchema[tableId].ColDefs, "a")
+		assert.Equal(t, nil, err)
 		cd := conv.SpSchema[tableId].ColDefs[colId]
 		cd.Comment = ""
 		cd.Id = ""

@@ -264,20 +264,20 @@ func TestConvertError(t *testing.T) {
 	spTable := ddl.CreateTable{
 		Name:   tableName,
 		Id:     "t1",
-		ColIds: []string{"a", "b", "c"},
+		ColIds: []string{"c1", "c2", "c3"},
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": ddl.ColumnDef{Name: "a", T: ddl.Type{Name: ddl.Int64}},
-			"b": ddl.ColumnDef{Name: "b", T: ddl.Type{Name: ddl.Float64}},
-			"c": ddl.ColumnDef{Name: "c", T: ddl.Type{Name: ddl.Bool}},
+			"c1": ddl.ColumnDef{Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
+			"c2": ddl.ColumnDef{Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
+			"c3": ddl.ColumnDef{Name: "c", Id: "c3", T: ddl.Type{Name: ddl.Bool}},
 		}}
 	srcTable := schema.Table{
 		Name:   tableName,
 		Id:     "t1",
-		ColIds: []string{"a", "b", "c"},
+		ColIds: []string{"c1", "c2", "c3"},
 		ColDefs: map[string]schema.Column{
-			"a": schema.Column{Type: schema.Type{Name: "int"}},
-			"b": schema.Column{Type: schema.Type{Name: "float"}},
-			"c": schema.Column{Type: schema.Type{Name: "bool"}},
+			"c1": schema.Column{Name: "a", Id: "c1", Type: schema.Type{Name: "int"}},
+			"c2": schema.Column{Name: "b", Id: "c2", Type: schema.Type{Name: "float"}},
+			"c3": schema.Column{Name: "c", Id: "c3", Type: schema.Type{Name: "bool"}},
 		}}
 	for _, tc := range errorTests {
 		t.Run(tc.name, func(t *testing.T) {

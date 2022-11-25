@@ -360,8 +360,8 @@ func TestProcessData_MultiCol(t *testing.T) {
 	}
 	internal.AssertSpSchema(conv, t, expectedSchema, stripSchemaComments(conv.SpSchema))
 	expectedIssues := map[string][]internal.SchemaIssue{}
-	tableId := internal.GetTableIdFromSpName(conv.SpSchema, "test")
-	assert.NotEqual(t, tableId, "")
+	tableId, err := internal.GetTableIdFromSpName(conv.SpSchema, "test")
+	assert.Equal(t, nil, err)
 	assert.Equal(t, expectedIssues, conv.SchemaIssues[tableId])
 	assert.Equal(t, int64(0), conv.Unexpecteds())
 	conv.SetDataMode()
