@@ -128,7 +128,7 @@ func ToSpannerTypeMySQL(srcType string, spType string, mods []int64) (ddl.Type, 
 		case ddl.Bytes:
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		default:
-			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+			return ddl.Type{Name: ddl.JSON, Len: ddl.MaxLength}, nil
 		}
 	case "binary", "varbinary":
 		switch spType {

@@ -35,8 +35,7 @@ import (
 )
 
 const (
-	numWorkers int32 = 10
-	maxWorkers int32 = 10
+	maxWorkers int32 = 50
 )
 
 type SrcConnCfg struct {
@@ -345,8 +344,9 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 			"deadLetterQueueDirectory": inputFilePattern + "dlq",
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
-			NumWorkers: numWorkers,
-			MaxWorkers: maxWorkers,
+			MaxWorkers:            maxWorkers,
+			AutoscalingAlgorithm:  2, // 2 corresponds to AUTOSCALING_ALGORITHM_BASIC
+			EnableStreamingEngine: true,
 		},
 	}
 
