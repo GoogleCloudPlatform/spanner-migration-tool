@@ -332,7 +332,7 @@ func TestGetTypeMapMySQL(t *testing.T) {
 			{T: ddl.String}},
 		"json": {
 			{T: ddl.Bytes},
-			{T: ddl.String}},
+			{T: ddl.JSON}},
 		"binary": {
 			{T: ddl.Bytes},
 			{T: ddl.String}},

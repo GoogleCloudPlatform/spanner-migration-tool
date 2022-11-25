@@ -748,9 +748,13 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	if update {
+		convm := session.ConvWithMetadata{
+			SessionMetadata: sessionState.SessionMetadata,
+			Conv:            *sessionState.Conv,
+		}
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"tableInterleaveStatus": tableInterleaveStatus,
-			"sessionState":          sessionState.Conv})
+			"sessionState":          convm})
 	} else {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"tableInterleaveStatus": tableInterleaveStatus,
@@ -1092,6 +1096,18 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	usedNames := sessionState.Conv.UsedNames
 	delete(usedNames, sp.ForeignKeys[position].Name)
 
+	// To remove the interleavable suggestions if they exist on dropping fk
+	column := sp.ForeignKeys[position].ColIds[0]
+	schemaIssue := []internal.SchemaIssue{}
+	for _, v := range sessionState.Conv.SchemaIssues[table][column] {
+		if v != internal.InterleavedAddColumn && v != internal.InterleavedRenameColumn && v != internal.InterleavedNotInOrder {
+			schemaIssue = append(schemaIssue, v)
+		}
+	}
+	if _, ok := sessionState.Conv.SchemaIssues[table]; ok {
+		sessionState.Conv.SchemaIssues[table][column] = schemaIssue
+	}
+
 	sp.ForeignKeys = utilities.RemoveFk(sp.ForeignKeys, position)
 	sessionState.Conv.SpSchema[table] = sp
 	session.UpdateSessionFile()
@@ -1329,17 +1345,16 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 
 	sp := sessionState.Conv.SpSchema[table]
-
+	usedNames := sessionState.Conv.UsedNames
 	index.CheckIndexSuggestion(newIndexes, sp)
 	for i := 0; i < len(newIndexes); i++ {
 		newIndexes[i].Id = internal.GenerateIndexesId()
+		usedNames[newIndexes[i].Name] = true
 	}
 
 	sp.Indexes = append(sp.Indexes, newIndexes...)
-
 	sessionState.Conv.SpSchema[table] = sp
 	session.UpdateSessionFile()
-
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
 		Conv:            *sessionState.Conv,
@@ -1347,7 +1362,6 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 }
-
 func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	var sessionSummary sessionSummary
@@ -1894,7 +1908,7 @@ func init() {
 	// Initialize mysqlTypeMap.
 	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
 		var l []typeIssue
-		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
 			ty, issues := typemap.ToSpannerTypeMySQL(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
@@ -1906,7 +1920,7 @@ func init() {
 	// Initialize postgresTypeMap.
 	for _, srcType := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying"} {
 		var l []typeIssue
-		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
 			ty, issues := typemap.ToSpannerTypePostgres(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
@@ -1916,7 +1930,7 @@ func init() {
 	// Initialize sqlserverTypeMap.
 	for _, srcType := range []string{"int", "tinyint", "smallint", "bigint", "bit", "float", "real", "numeric", "decimal", "money", "smallmoney", "char", "nchar", "varchar", "nvarchar", "text", "ntext", "date", "datetime", "datetime2", "smalldatetime", "datetimeoffset", "time", "timestamp", "rowversion", "binary", "varbinary", "image", "xml", "geography", "geometry", "uniqueidentifier", "sql_variant", "hierarchyid"} {
 		var l []typeIssue
-		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
 			ty, issues := typemap.ToSpannerTypeSQLserver(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
@@ -1926,7 +1940,7 @@ func init() {
 	// Initialize oracleTypeMap.
 	for _, srcType := range []string{"NUMBER", "BFILE", "BLOB", "CHAR", "CLOB", "DATE", "BINARY_DOUBLE", "BINARY_FLOAT", "FLOAT", "LONG", "RAW", "LONG RAW", "NCHAR", "NVARCHAR2", "VARCHAR", "VARCHAR2", "NCLOB", "ROWID", "UROWID", "XMLTYPE", "TIMESTAMP", "INTERVAL", "SDO_GEOMETRY"} {
 		var l []typeIssue
-		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
 			ty, issues := oracle.ToSpannerTypeWeb(sessionState.Conv, spType, srcType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}

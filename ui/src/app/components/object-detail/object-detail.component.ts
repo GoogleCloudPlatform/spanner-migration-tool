@@ -316,6 +316,7 @@ export class ObjectDetailComponent implements OnInit {
             data: { message: res, type: 'error' },
             maxWidth: '500px',
           })
+          this.isEditMode = true
         }
       },
     })
