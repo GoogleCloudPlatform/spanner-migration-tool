@@ -645,7 +645,7 @@ func good(total, badCount int64) bool {
 }
 
 func ok(total, badCount int64) bool {
-	return float64(badCount) < float64(total)/3
+	return float64(badCount) < (float64(total))/3
 }
 
 func rateConversion(rows, badRows, cols, warnings int64, missingPKey, summary bool, schemaOnly bool, migrationType migration.MigrationData_MigrationType, dryRun bool) string {
