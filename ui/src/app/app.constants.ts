@@ -72,7 +72,9 @@ export enum TargetDetails {
   TargetDB = 'targetDb',
   Dialect = 'dialect',
   SourceConnProfile = 'sourceConnProfile',
-  TargetConnProfile = 'targetConnProfile'
+  TargetConnProfile = 'targetConnProfile',
+  ReplicationSlot = 'replicationSlot',
+  Publication = 'publication'
 }
 
 export const Profile = {

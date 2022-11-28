@@ -74,6 +74,8 @@ func ListConnectionProfiles(w http.ResponseWriter, r *http.Request) {
 			connectionProfileList = append(connectionProfileList, connectionProfile{Name: resp.GetName(), DisplayName: resp.GetDisplayName()})
 		} else if source && databaseType == constants.ORACLE && resp.GetOracleProfile().GetHostname() != "" {
 			connectionProfileList = append(connectionProfileList, connectionProfile{Name: resp.GetName(), DisplayName: resp.GetDisplayName()})
+		} else if source && databaseType == constants.POSTGRES && resp.GetPostgresqlProfile().GetHostname() != "" {
+			connectionProfileList = append(connectionProfileList, connectionProfile{Name: resp.GetName(), DisplayName: resp.GetDisplayName()})
 		} else if !source && resp.GetGcsProfile().GetBucket() != "" {
 			connectionProfileList = append(connectionProfileList, connectionProfile{Name: resp.GetName(), DisplayName: resp.GetDisplayName()})
 		}
@@ -188,6 +190,17 @@ func setConnectionProfile(isSource bool, sessionState session.SessionState, req 
 					Password: sessionState.SourceDBConnDetails.Password,
 				},
 			}
+		} else if databaseType == constants.POSTGRES {
+			req.ConnectionProfile.Profile = &datastreampb.ConnectionProfile_PostgresqlProfile{
+				PostgresqlProfile: &datastreampb.PostgresqlProfile{
+					Hostname: sessionState.SourceDBConnDetails.Host,
+					Port:     int32(port),
+					Username: sessionState.SourceDBConnDetails.User,
+					Password: sessionState.SourceDBConnDetails.Password,
+					Database: sessionState.DbName,
+				},
+			}
+
 		}
 	} else {
 		req.ConnectionProfile.Profile = &datastreampb.ConnectionProfile_GcsProfile{

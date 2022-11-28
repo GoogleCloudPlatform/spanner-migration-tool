@@ -12,6 +12,7 @@ import { DataService } from 'src/app/services/data/data.service'
 import { ConnectionProfileFormComponent } from '../connection-profile-form/connection-profile-form.component'
 import { SourceDetailsFormComponent } from '../source-details-form/source-details-form.component'
 import { EndMigrationComponent } from '../end-migration/end-migration.component'
+import { ISetUpConnectionProfile } from 'src/app/model/profile'
 @Component({
   selector: 'app-prepare-migration',
   templateUrl: './prepare-migration.component.html',
@@ -74,7 +75,9 @@ export class PrepareMigrationComponent implements OnInit {
     TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
     Dialect: localStorage.getItem(TargetDetails.Dialect) as string,
     SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
-    TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string
+    TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string,
+    ReplicationSlot: localStorage.getItem(TargetDetails.ReplicationSlot) as string,
+    Publication: localStorage.getItem(TargetDetails.Publication) as string
   }
 
   refreshMigrationMode() {
@@ -149,10 +152,9 @@ export class PrepareMigrationComponent implements OnInit {
             },
           ]
         }
-        this.sourceDatabaseType = res.DatabaseType
         this.sourceDatabaseName = res.SourceDatabaseName
         this.migrationModes = [MigrationModes.schemaOnly, MigrationModes.dataOnly, MigrationModes.schemaAndData]
-        if (res.DatabaseType == SourceDbNames.MySQL.toLowerCase() || res.DatabaseType == SourceDbNames.Oracle.toLowerCase()) {
+        if (res.DatabaseType == SourceDbNames.MySQL.toLowerCase() || res.DatabaseType == SourceDbNames.Oracle.toLowerCase() || res.DatabaseType == SourceDbNames.Postgres.toLowerCase()) {
           this.isStreamingSupported = true
         }
       },
@@ -240,18 +242,24 @@ export class PrepareMigrationComponent implements OnInit {
     localStorage.removeItem(MigrationDetails.GeneratingResources)
   }
   openConnectionProfileForm(isSource: boolean) {
+    let payload: ISetUpConnectionProfile = {
+      IsSource: isSource,
+      SourceDatabaseType: this.sourceDatabaseType
+    }
     let dialogRef = this.dialog.open(ConnectionProfileFormComponent, {
       width: '30vw',
       minWidth: '400px',
       maxWidth: '500px',
-      data: isSource,
+      data: payload,
     })
     dialogRef.afterClosed().subscribe(() => {
       this.targetDetails = {
         TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
         Dialect: localStorage.getItem(TargetDetails.Dialect) as string,
         SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
-        TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string
+        TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string,
+        ReplicationSlot: localStorage.getItem(TargetDetails.ReplicationSlot) as string,
+        Publication: localStorage.getItem(TargetDetails.Publication) as string
       }
       this.isSourceConnectionProfileSet = localStorage.getItem(MigrationDetails.IsSourceConnectionProfileSet) as string === 'true'
       this.isTargetConnectionProfileSet = localStorage.getItem(MigrationDetails.IsTargetConnectionProfileSet) as string === 'true'
@@ -308,7 +316,9 @@ export class PrepareMigrationComponent implements OnInit {
         TargetDB: localStorage.getItem(TargetDetails.TargetDB) as string,
         Dialect: localStorage.getItem(TargetDetails.Dialect) as string,
         SourceConnProfile: localStorage.getItem(TargetDetails.SourceConnProfile) as string,
-        TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string
+        TargetConnProfile: localStorage.getItem(TargetDetails.TargetConnProfile) as string,
+        ReplicationSlot: localStorage.getItem(TargetDetails.ReplicationSlot) as string,
+        Publication: localStorage.getItem(TargetDetails.Publication) as string
       }
       this.isTargetDetailSet = localStorage.getItem(MigrationDetails.IsTargetDetailSet) as string === 'true'
       if (this.isSourceDetailsSet && this.isTargetDetailSet && this.connectionType === InputType.SessionFile && this.selectedMigrationMode !== MigrationModes.schemaOnly) {
