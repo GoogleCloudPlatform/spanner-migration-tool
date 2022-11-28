@@ -594,9 +594,9 @@ Please refer to the [issues section](https://github.com/cloudspannerecosystem/ha
 
 ### Schema Conversion
 
-- Loading dump files from SQL Server and DynamoDB is not supported
+- Loading dump files from SQL Server, Oracle and DynamoDB is not supported
 - Schema Only Mode does not create foreign keys
-- Migration of constraints, functions and views is not supported
+- Migration of check constraints, functions and views is not supported
 - Schema recommendations are based on static analysis of the schema only
 - PG Spanner dialect support is limited, and is not currently available on the UI
 
