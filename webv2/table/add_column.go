@@ -23,12 +23,8 @@ import (
 func addColumn(tableId string, colId string, conv *internal.Conv) {
 
 	sp := conv.SpSchema[tableId]
-	src := conv.SrcSchema[tableId]
 
-	srcTableName := conv.SrcSchema[tableId].Name
-	spTableName := conv.SpSchema[tableId].Name
-	srcColName := src.ColDefs[colId].Name
-	spColName, _ := internal.GetSpannerCol(conv, srcTableName, srcColName, false)
+	spColName, _ := internal.GetSpannerCol(conv, tableId, colId, conv.SpSchema[tableId].ColDefs, false)
 
 	sp.ColDefs[colId] = ddl.ColumnDef{
 		Id:   colId,
@@ -42,7 +38,4 @@ func addColumn(tableId string, colId string, conv *internal.Conv) {
 	}
 
 	conv.SpSchema[tableId] = sp
-
-	conv.ToSpanner[srcTableName].Cols[srcColName] = srcColName
-	conv.ToSource[spTableName].Cols[spColName] = srcColName
 }

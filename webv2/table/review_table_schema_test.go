@@ -140,7 +140,7 @@ func TestReviewTableSchema(t *testing.T) {
 						ColDefs: map[string]schema.Column{
 							"c1": {Id: "c1", Name: "a", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
 							"c2": {Id: "c2", Name: "b", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
-							"c3": {Id: "cc3", Name: "c", Type: schema.Type{Name: "varchar", Mods: []int64{}}},
+							"c3": {Id: "c3", Name: "c", Type: schema.Type{Name: "varchar", Mods: []int64{}}},
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
 					}},

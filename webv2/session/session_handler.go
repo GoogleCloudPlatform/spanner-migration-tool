@@ -170,8 +170,6 @@ func ResumeSession(w http.ResponseWriter, r *http.Request) {
 		ConnectionType: helpers.SESSION_FILE_MODE,
 	}
 	sessionState.Conv.UsedNames = internal.ComputeUsedNames(sessionState.Conv)
-	sessionState.Conv.ToSource = internal.ComputeToSource(sessionState.Conv)
-	sessionState.Conv.ToSpanner = internal.ComputeToSpanner(sessionState.Conv)
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
@@ -235,7 +233,7 @@ func SaveRemoteSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionMetaData := GetSessionState().SessionMetadata
-	
+
 	sessionMetaData.DatabaseName = sm.DatabaseName
 	sessionMetaData.DatabaseType = sm.DatabaseType
 	sessionMetaData.SessionName = sm.SessionName

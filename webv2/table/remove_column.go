@@ -83,8 +83,6 @@ func removeColumnFromTableSchema(conv *internal.Conv, tableId string, colId stri
 
 	removeSpannerSchemaIssue(tableId, colId, conv)
 
-	removeColumnFromToSpannerToSource(tableId, colId, conv)
-
 	conv.SpSchema[tableId] = sp
 }
 
@@ -140,17 +138,6 @@ func removeSpannerSchemaIssue(tableId string, colId string, conv *internal.Conv)
 			delete(conv.SchemaIssues[tableId], colId)
 		}
 	}
-}
-
-// removeColumnFromToSpannerToSource remove given column from ToSpanner and ToSource List.
-func removeColumnFromToSpannerToSource(tableId string, colId string, conv *internal.Conv) {
-	srcTableName := conv.SrcSchema[tableId].Name
-	spTableName := conv.SpSchema[tableId].Name
-	srcColName := conv.SrcSchema[tableId].ColDefs[colId].Name
-	spColName := conv.SpSchema[tableId].ColDefs[colId].Name
-
-	delete(conv.ToSource[spTableName].Cols, spColName)
-	delete(conv.ToSpanner[srcTableName].Cols, srcColName)
 }
 
 // removeColumnFromSpannerForeignkeyColumns remove given column from Spanner Foreignkey Columns List.

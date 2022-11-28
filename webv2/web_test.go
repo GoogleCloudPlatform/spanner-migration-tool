@@ -1942,12 +1942,6 @@ func TestRestoreSecondaryIndex(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
-				ToSource: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
-				},
-				ToSpanner: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
-				},
 				UsedNames: map[string]bool{"t1": true, "idx2": true},
 			},
 			expectedConv: &internal.Conv{
@@ -2176,13 +2170,6 @@ func TestRestoreTable(t *testing.T) {
 			"t1": true,
 		},
 
-		ToSource: map[string]internal.NameAndCols{
-			"t1": {Name: "tn1", Cols: map[string]string{"cn1": "cn1", "cn2": "cn2"}},
-		},
-		ToSpanner: map[string]internal.NameAndCols{
-			"t1": {Name: "tn1", Cols: map[string]string{"cn1": "cn1", "cn2": "cn2"}},
-		},
-
 		Audit: internal.Audit{
 			MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 		},
@@ -2310,14 +2297,6 @@ func TestRemoveParentTable(t *testing.T) {
 					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 				},
 				UsedNames: map[string]bool{"table1": true, "table2": true},
-				ToSource: map[string]internal.NameAndCols{
-					"table1": {Name: "table1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
-					"table2": {Name: "table2", Cols: map[string]string{"a": "a", "d": "d"}},
-				},
-				ToSpanner: map[string]internal.NameAndCols{
-					"table1": {Name: "table1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
-					"table2": {Name: "table2", Cols: map[string]string{"a": "a", "d": "d"}},
-				},
 			},
 			expectedSpSchema: ddl.Schema{
 				"t1": {
@@ -2406,14 +2385,6 @@ func TestRemoveParentTable(t *testing.T) {
 					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
 				},
 				UsedNames: map[string]bool{"table1": true, "table2": true},
-				ToSource: map[string]internal.NameAndCols{
-					"table1": {Name: "table1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
-					"table2": {Name: "table2", Cols: map[string]string{"a": "a", "d": "d"}},
-				},
-				ToSpanner: map[string]internal.NameAndCols{
-					"table1": {Name: "table1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
-					"table2": {Name: "table2", Cols: map[string]string{"a": "a", "d": "d"}},
-				},
 			},
 			expectedSpSchema: ddl.Schema{},
 		},
@@ -2517,30 +2488,7 @@ func buildConvMySQL(conv *internal.Conv) {
 			PrimaryKeys: []ddl.IndexKey{{ColId: "c20"}},
 		},
 	}
-	conv.ToSource = map[string]internal.NameAndCols{
-		"table1": {
-			Name: "table1",
-			Cols: map[string]string{
-				"a": "a", "b": "b", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-			}},
-		"table2": {
-			Name: "table2",
-			Cols: map[string]string{
-				"a": "a", "b": "b", "c": "c",
-			}},
-	}
-	conv.ToSpanner = map[string]internal.NameAndCols{
-		"table1": {
-			Name: "table1",
-			Cols: map[string]string{
-				"a": "a", "b": "b", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-			}},
-		"table2": {
-			Name: "table2",
-			Cols: map[string]string{
-				"a": "a", "b": "b", "c": "c",
-			}},
-	}
+
 	conv.SchemaIssues = map[string]map[string][]internal.SchemaIssue{
 		"t1": {
 			"c10": {internal.Widened},
@@ -2628,30 +2576,7 @@ func buildConvPostgres(conv *internal.Conv) {
 			PrimaryKeys: []ddl.IndexKey{{ColId: "c20"}},
 		},
 	}
-	conv.ToSource = map[string]internal.NameAndCols{
-		"table1": {
-			Name: "table1",
-			Cols: map[string]string{
-				"a": "a", "b": "b", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-			}},
-		"table2": {
-			Name: "table2",
-			Cols: map[string]string{
-				"a": "a", "b": "b", "c": "c",
-			}},
-	}
-	conv.ToSpanner = map[string]internal.NameAndCols{
-		"table1": {
-			Name: "table1",
-			Cols: map[string]string{
-				"a": "a", "b": "b", "c": "c", "d": "d", "e": "e", "f": "f", "g": "g", "h": "h", "i": "i", "j": "j", "k": "k", "l": "l", "m": "m", "n": "n", "o": "o", "p": "p",
-			}},
-		"table2": {
-			Name: "table2",
-			Cols: map[string]string{
-				"a": "a", "b": "b", "c": "c",
-			}},
-	}
+
 	conv.SchemaIssues = map[string]map[string][]internal.SchemaIssue{
 		"t1": {
 			"c2":  {internal.Widened},   //b

@@ -76,8 +76,6 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 	}
 
 	conv.UsedNames = internal.ComputeUsedNames(conv)
-	conv.ToSource = internal.ComputeToSource(conv)
-	conv.ToSpanner = internal.ComputeToSpanner(conv)
 
 	interleaveTableSchema := []InterleaveTableSchema{}
 

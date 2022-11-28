@@ -478,8 +478,6 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	index.IndexSuggestion()
 
 	sessionState.Conv.UsedNames = internal.ComputeUsedNames(sessionState.Conv)
-	sessionState.Conv.ToSource = internal.ComputeToSource(sessionState.Conv)
-	sessionState.Conv.ToSpanner = internal.ComputeToSpanner(sessionState.Conv)
 
 	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = s.Driver
@@ -987,8 +985,6 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 	spSchema := sessionState.Conv.SpSchema
 	issues := sessionState.Conv.SchemaIssues
 	syntheticPkey := sessionState.Conv.SyntheticPKeys
-	toSource := sessionState.Conv.ToSource
-	toSpanner := sessionState.Conv.ToSpanner
 
 	//remove deleted name from usedName
 	usedNames := sessionState.Conv.UsedNames
@@ -1003,8 +999,6 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 	delete(spSchema, tableId)
 	issues[tableId] = map[string][]internal.SchemaIssue{}
 	delete(syntheticPkey, tableId)
-	delete(toSource, sessionState.Conv.SpSchema[tableId].Name)
-	delete(toSpanner, sessionState.Conv.SrcSchema[tableId].Name)
 
 	//drop reference foreign key
 	for tableName, spTable := range spSchema {

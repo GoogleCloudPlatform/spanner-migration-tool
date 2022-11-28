@@ -72,7 +72,7 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 	// Iterate over columns using ColNames order.
 	for _, srcColId := range srcTable.ColIds {
 		srcCol := srcTable.ColDefs[srcColId]
-		colName, err := internal.GetSpannerCol(conv, srcTable.Name, srcCol.Name, false)
+		colName, err := internal.GetSpannerCol(conv, srcTable.Id, srcCol.Id, spColDef, false)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't map source column %s of table %s to Spanner: %s", srcTable.Name, srcCol.Name, err))
 			continue

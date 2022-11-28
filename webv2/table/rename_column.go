@@ -51,24 +51,10 @@ func renameColumnNameTableSchema(conv *internal.Conv, tableId string, colId stri
 
 	if ok {
 
-		renameColumnNameInToSpannerToSource(tableId, colId, newName, conv)
 		column.Name = newName
 
 		sp.ColDefs[colId] = column
 		conv.SpSchema[tableId] = sp
 
 	}
-}
-
-// renameColumnNameInToSpannerToSource renames given column in ToSpanner and ToSource List.
-func renameColumnNameInToSpannerToSource(tableId string, colId string, newName string, conv *internal.Conv) {
-	srcTableName := conv.SrcSchema[tableId].Name
-	spTableName := conv.SpSchema[tableId].Name
-
-	srcColName := conv.SrcSchema[tableId].ColDefs[colId].Name
-	oldSpColName := conv.SpSchema[tableId].ColDefs[colId].Name
-
-	conv.ToSpanner[srcTableName].Cols[srcColName] = newName
-	conv.ToSource[spTableName].Cols[newName] = srcColName
-	delete(conv.ToSource[spTableName].Cols, oldSpColName)
 }

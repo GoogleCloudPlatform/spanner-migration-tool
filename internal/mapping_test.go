@@ -167,20 +167,43 @@ func TestGetSpannerCol(t *testing.T) {
 	conv := MakeConv()
 	conv.SrcSchema = map[string]schema.Table{
 		"t2": {
-			Name: "table",
-			Id:   "t2",
+			Name:   "table",
+			Id:     "t2",
+			ColIds: []string{"c1", "c2"},
+			ColDefs: map[string]schema.Column{
+				"c1": {Name: "col", Id: "c1"},
+				"c2": {Name: "c\nol", Id: "c2"},
+			},
 		},
 		"t3": {
-			Name: "ta.b\nle",
-			Id:   "t3",
+			Name:   "ta.b\nle",
+			Id:     "t3",
+			ColIds: []string{"c3"},
+			ColDefs: map[string]schema.Column{
+				"c3": {Name: "col", Id: "c3"},
+			},
 		},
 		"t4": {
-			Name: "t.able",
-			Id:   "t4",
+			Name:   "t.able",
+			Id:     "t4",
+			ColIds: []string{"c4"},
+			ColDefs: map[string]schema.Column{
+				"c4": {Name: "c\no\nl", Id: "c4"},
+			},
 		},
 		"t5": {
-			Name: "table1",
-			Id:   "t5",
+			Name:   "table1",
+			Id:     "t5",
+			ColIds: []string{"c5", "c6", "c7"},
+			ColDefs: map[string]schema.Column{
+				"c1": {Name: "col", Id: "c1"},
+				"c2": {Name: "c_ol", Id: "c2"},
+				"c3": {Name: "c_ol_5", Id: "c3"},
+				"c4": {Name: "c_ol_6", Id: "c4"},
+				"c5": {Name: "c\tol", Id: "c5"},
+				"c6": {Name: "c\nol", Id: "c6"},
+				"c7": {Name: "c?ol", Id: "c7"},
+			},
 		},
 	}
 	conv.SpSchema = map[string]ddl.CreateTable{
@@ -201,42 +224,6 @@ func TestGetSpannerCol(t *testing.T) {
 			Id:   "t5",
 		},
 	}
-	conv.ToSource = map[string]NameAndCols{
-		"table": {
-			Name: "table",
-			Cols: map[string]string{},
-		},
-		"ta_b_le": {
-			Name: "ta.b\nle",
-			Cols: map[string]string{},
-		},
-		"t_able": {
-			Name: "t.able",
-			Cols: map[string]string{},
-		},
-		"table1": {
-			Name: "table1",
-			Cols: map[string]string{},
-		},
-	}
-	conv.ToSpanner = map[string]NameAndCols{
-		"table": {
-			Name: "table",
-			Cols: map[string]string{},
-		},
-		"ta.b\nle": {
-			Name: "ta_b_le",
-			Cols: map[string]string{},
-		},
-		"t.able": {
-			Name: "t_able",
-			Cols: map[string]string{},
-		},
-		"table1": {
-			Name: "table1",
-			Cols: map[string]string{},
-		},
-	}
 	basicTests := []struct {
 		name     string // Name of test.
 		srcTable string // Source DB table name to test.
@@ -254,23 +241,54 @@ func TestGetSpannerCol(t *testing.T) {
 		{"table1 good name 2", "table1", "c_ol", false, "c_ol"},
 		{"table1 good name 3", "table1", "c_ol_5", false, "c_ol_5"},
 		{"table1 good name 4", "table1", "c_ol_6", false, "c_ol_6"},
-		{"table1 collision 1", "table1", "c\tol", false, "c_ol_4"},
-		{"table1 collision 2", "table1", "c\nol", false, "c_ol_7"}, // Skip c_ol_5 and c_ol_6.
-		{"table1 collision 3", "table1", "c?ol", false, "c_ol_8"},
 	}
 	for _, tc := range basicTests {
 		tableId, _ := GetTableIdFromSrcName(conv.SrcSchema, tc.srcTable)
 		_, err1 := GetSpannerTable(conv, tableId) // Ensure table is known.
-		spCol, err2 := GetSpannerCol(conv, tc.srcTable, tc.srcCol, false)
+		colId, _ := GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, tc.srcCol)
+		spCol, err2 := GetSpannerCol(conv, tableId, colId, conv.SpSchema[tableId].ColDefs, false)
 		if tc.error {
 			assert.True(t, err1 != nil || err2 != nil, tc.name)
 			continue
 		}
 		assert.Equal(t, tc.spCol, spCol, tc.name)
-		// Run again to check we get same result.
-		spCol2, err := GetSpannerCol(conv, tc.srcTable, tc.srcCol, false)
-		assert.Nil(t, err, tc.name)
-		assert.Equal(t, spCol, spCol2, tc.name)
+	}
+
+	//Column name collision test
+	conv.SpSchema["t5"] = ddl.CreateTable{
+		Name:   "table1",
+		Id:     "t5",
+		ColIds: []string{"c5", "c6", "c7"},
+		ColDefs: map[string]ddl.ColumnDef{
+			"c1": {Name: "col", Id: "c1"},
+			"c2": {Name: "c_ol", Id: "c2"},
+			"c3": {Name: "c_ol_5", Id: "c3"},
+			"c4": {Name: "c_ol_6", Id: "c4"},
+		},
+	}
+
+	collisionTests := []struct {
+		name     string // Name of test.
+		srcTable string // Source DB table name to test.
+		srcCol   string // Source DB col name to test.
+		error    bool   // Whether an error is expected.
+		spCol    string // Expected Spanner column name.
+	}{
+		{"table1 collision 1", "table1", "c\tol", false, "c_ol_4"},
+		{"table1 collision 2", "table1", "c\nol", false, "c_ol_7"}, // Skip c_ol_5 and c_ol_6.
+		{"table1 collision 3", "table1", "c?ol", false, "c_ol_8"},
+	}
+	for _, tc := range collisionTests {
+		tableId, _ := GetTableIdFromSrcName(conv.SrcSchema, tc.srcTable)
+		_, err1 := GetSpannerTable(conv, tableId) // Ensure table is known.
+		colId, _ := GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, tc.srcCol)
+		spCol, err2 := GetSpannerCol(conv, tableId, colId, conv.SpSchema[tableId].ColDefs, false)
+		if tc.error {
+			assert.True(t, err1 != nil || err2 != nil, tc.name)
+			continue
+		}
+		assert.Equal(t, tc.spCol, spCol, tc.name)
+		conv.SpSchema[tableId].ColDefs[colId] = ddl.ColumnDef{Name: spCol, Id: colId}
 	}
 }
 

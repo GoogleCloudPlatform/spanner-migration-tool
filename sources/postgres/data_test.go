@@ -295,8 +295,6 @@ func buildConv(spTable ddl.CreateTable, srcTable schema.Table) *internal.Conv {
 	conv := internal.MakeConv()
 	conv.SpSchema[spTable.Id] = spTable
 	conv.SrcSchema[srcTable.Id] = srcTable
-	conv.ToSource[spTable.Name] = internal.NameAndCols{Name: srcTable.Name, Cols: make(map[string]string)}
-	conv.ToSpanner[srcTable.Name] = internal.NameAndCols{Name: spTable.Name, Cols: make(map[string]string)}
 	return conv
 }
 

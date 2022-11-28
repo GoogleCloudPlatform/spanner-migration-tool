@@ -709,10 +709,7 @@ func processInsertStmt(conv *internal.Conv, stmt *ast.InsertStmt) {
 		}
 	}
 
-	conv.ToSpanner = internal.ComputeToSpanner(conv)
-	conv.ToSource = internal.ComputeToSource(conv)
-
-	spCols, err3 := internal.GetSpannerCols(conv, srcTable, srcCols)
+	spCols, err3 := internal.GetSpannerCols(conv, tableId, srcCols)
 	if err3 != nil {
 		conv.Unexpected(fmt.Sprintf("Can't get spanner columns for table %s: err=%s", srcTable, err3))
 		conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]

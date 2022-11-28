@@ -62,7 +62,7 @@ func ConvertData(conv *internal.Conv, tableId string, srcCols []string, vals []s
 	if !ok1 || !ok2 {
 		return "", []string{}, []interface{}{}, fmt.Errorf("can't find table %s in schema", conv.SpSchema[tableId].Name)
 	}
-	spCols, err := internal.GetSpannerCols(conv, srcSchema.Name, srcCols)
+	spCols, err := internal.GetSpannerCols(conv, tableId, srcCols)
 	if err != nil {
 		return "", []string{}, []interface{}{}, fmt.Errorf("can't map source columns %v", srcCols)
 	}

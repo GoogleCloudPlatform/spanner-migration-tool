@@ -63,9 +63,9 @@ func TestToSpannerType(t *testing.T) {
 		Id:     "t2",
 		ColIds: []string{"c16", "c17", "c18"},
 		ColDefs: map[string]schema.Column{
-			"c16": {Name: "dref", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
-			"c17": {Name: "b", Type: schema.Type{Name: "float"}},
-			"c18": {Name: "c", Type: schema.Type{Name: "bool"}},
+			"c16": {Name: "dref", Id: "c16", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+			"c17": {Name: "b", Id: "c17", Type: schema.Type{Name: "float"}},
+			"c18": {Name: "c", Id: "c18", Type: schema.Type{Name: "bool"}},
 		},
 		PrimaryKeys: []schema.Key{{ColId: "c16"}},
 	}
@@ -74,9 +74,9 @@ func TestToSpannerType(t *testing.T) {
 		Id:     "t3",
 		ColIds: []string{"c19", "c20", "c21"},
 		ColDefs: map[string]schema.Column{
-			"c19": {Name: "aref", Type: schema.Type{Name: "int"}},
-			"c20": {Name: "b", Type: schema.Type{Name: "float"}},
-			"c21": {Name: "c", Type: schema.Type{Name: "bool"}},
+			"c19": {Name: "aref", Id: "c19", Type: schema.Type{Name: "int"}},
+			"c20": {Name: "b", Id: "c20", Type: schema.Type{Name: "float"}},
+			"c21": {Name: "c", Id: "c21", Type: schema.Type{Name: "bool"}},
 		},
 		PrimaryKeys: []schema.Key{{ColId: "c19"}},
 	}
@@ -161,9 +161,9 @@ func TestToExperimentalSpannerType(t *testing.T) {
 		Id:     "t2",
 		ColIds: []string{"c16", "c17", "c18"},
 		ColDefs: map[string]schema.Column{
-			"c16": {Name: "dref", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
-			"c17": {Name: "b", Type: schema.Type{Name: "float"}},
-			"c18": {Name: "c", Type: schema.Type{Name: "bool"}},
+			"c16": {Name: "dref", Id: "c16", Type: schema.Type{Name: "varchar", Mods: []int64{6}}},
+			"c17": {Name: "b", Id: "c17", Type: schema.Type{Name: "float"}},
+			"c18": {Name: "c", Id: "c18", Type: schema.Type{Name: "bool"}},
 		},
 		PrimaryKeys: []schema.Key{{ColId: "c16"}},
 	}
@@ -172,9 +172,9 @@ func TestToExperimentalSpannerType(t *testing.T) {
 		Id:     "t3",
 		ColIds: []string{"c19", "c20", "c21"},
 		ColDefs: map[string]schema.Column{
-			"c19": {Name: "aref", Type: schema.Type{Name: "int"}},
-			"c20": {Name: "b", Type: schema.Type{Name: "float"}},
-			"c21": {Name: "c", Type: schema.Type{Name: "bool"}},
+			"c19": {Name: "aref", Id: "c19", Type: schema.Type{Name: "int"}},
+			"c20": {Name: "b", Id: "c20", Type: schema.Type{Name: "float"}},
+			"c21": {Name: "c", Id: "c21", Type: schema.Type{Name: "bool"}},
 		},
 		PrimaryKeys: []schema.Key{{ColId: "c19"}},
 	}

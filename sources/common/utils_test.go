@@ -41,41 +41,39 @@ func TestToNotNull(t *testing.T) {
 
 func TestGetColsAndSchemas(t *testing.T) {
 	tableName := "testtable"
+	tableId := "t1"
 	cols := []string{"a", "b", "c"}
+	colIds := []string{"c1", "c2", "c3"}
 	spSchema := ddl.CreateTable{
 		Name:   tableName,
-		ColIds: cols,
+		Id:     tableId,
+		ColIds: colIds,
 		ColDefs: map[string]ddl.ColumnDef{
-			"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			"b": {Name: "b", T: ddl.Type{Name: ddl.Numeric}},
-			"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Numeric}},
+			"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		},
-		PrimaryKeys: []ddl.IndexKey{{ColId: "a"}},
+		PrimaryKeys: []ddl.IndexKey{{ColId: "c1"}},
 	}
 	srcSchema := schema.Table{
 		Name:   tableName,
-		ColIds: cols,
+		Id:     tableId,
+		ColIds: colIds,
 		ColDefs: map[string]schema.Column{
-			"a": {Name: "a", Type: schema.Type{Name: "String"}},
-			"b": {Name: "b", Type: schema.Type{Name: "Number"}},
-			"c": {Name: "c", Type: schema.Type{Name: "NumberString"}},
+			"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "String"}},
+			"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "Number"}},
+			"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "NumberString"}},
 		},
-		PrimaryKeys: []schema.Key{{ColId: "a"}},
+		PrimaryKeys: []schema.Key{{ColId: "c1"}},
 	}
 
 	conv := internal.MakeConv()
-	conv.SpSchema[spSchema.Name] = spSchema
-	conv.SrcSchema[srcSchema.Name] = srcSchema
-	conv.ToSource[spSchema.Name] = internal.NameAndCols{Name: srcSchema.Name, Cols: make(map[string]string)}
-	conv.ToSpanner[srcSchema.Name] = internal.NameAndCols{Name: spSchema.Name, Cols: make(map[string]string)}
-	for i := range spSchema.ColIds {
-		conv.ToSource[spSchema.Name].Cols[spSchema.ColIds[i]] = srcSchema.ColIds[i]
-		conv.ToSpanner[srcSchema.Name].Cols[srcSchema.ColIds[i]] = spSchema.ColIds[i]
-	}
+	conv.SpSchema[spSchema.Id] = spSchema
+	conv.SrcSchema[srcSchema.Id] = srcSchema
 
 	type args struct {
-		conv     *internal.Conv
-		srcTable string
+		conv    *internal.Conv
+		tableId string
 	}
 	tests := []struct {
 		name    string
@@ -89,8 +87,8 @@ func TestGetColsAndSchemas(t *testing.T) {
 		{
 			name: "test for checking correctness of output",
 			args: args{
-				conv:     conv,
-				srcTable: tableName,
+				conv:    conv,
+				tableId: tableId,
 			},
 			want:    srcSchema,
 			want1:   tableName,
@@ -101,7 +99,7 @@ func TestGetColsAndSchemas(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, got2, got3, err := GetColsAndSchemas(tt.args.conv, tt.args.srcTable)
+			got, got1, got2, got3, err := GetColsAndSchemas(tt.args.conv, tt.args.tableId)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getColsAndSchemas() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -67,12 +67,6 @@ func TestUpdateTableSchema(t *testing.T) {
 						"c3": {internal.Widened},
 					},
 				},
-				ToSource: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
-				},
-				ToSpanner: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
-				},
 				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
 			},
 			expectedConv: &internal.Conv{
@@ -126,12 +120,6 @@ func TestUpdateTableSchema(t *testing.T) {
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
 					}},
 
-				ToSource: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
-				},
-				ToSpanner: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
-				},
 				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
 			},
 			expectedConv: &internal.Conv{
@@ -195,12 +183,6 @@ func TestUpdateTableSchema(t *testing.T) {
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
 					}},
 
-				ToSource: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
-				},
-				ToSpanner: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
-				},
 				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
 			},
 			expectedConv: &internal.Conv{
@@ -260,12 +242,6 @@ func TestUpdateTableSchema(t *testing.T) {
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c1"}},
 					}},
-				ToSource: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
-				},
-				ToSpanner: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b"}},
-				},
 				SchemaIssues: map[string]map[string][]internal.SchemaIssue{
 					"t1": {},
 				},
@@ -355,14 +331,6 @@ func TestUpdateTableSchema(t *testing.T) {
 						},
 						PrimaryKeys: []schema.Key{{ColId: "c4", Desc: false}},
 					},
-				},
-				ToSource: map[string]internal.NameAndCols{
-					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
-					"t2": {Name: "t2", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
-				},
-				ToSpanner: map[string]internal.NameAndCols{
-					"t1": {Name: "t2", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
-					"t2": {Name: "t2", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
 				},
 				Audit: internal.Audit{MigrationType: migration.MigrationData_SCHEMA_AND_DATA.Enum()},
 			},

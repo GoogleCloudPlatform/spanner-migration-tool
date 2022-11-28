@@ -36,16 +36,20 @@ func ToNotNull(conv *internal.Conv, isNullable string) bool {
 }
 
 // GetColsAndSchemas provides information about columns and schema for a table.
-func GetColsAndSchemas(conv *internal.Conv, srcTable string) (schema.Table, string, []string, ddl.CreateTable, error) {
-	srcSchema := conv.SrcSchema[srcTable]
-	spTable, err1 := internal.GetSpannerTable(conv, srcTable)
-	spCols, err2 := internal.GetSpannerCols(conv, srcTable, srcSchema.ColIds)
-	spSchema, ok := conv.SpSchema[spTable]
+func GetColsAndSchemas(conv *internal.Conv, tableId string) (schema.Table, string, []string, ddl.CreateTable, error) {
+	srcSchema := conv.SrcSchema[tableId]
+	spTableName, err1 := internal.GetSpannerTable(conv, tableId)
+	srcCols := []string{}
+	for _, colId := range srcSchema.ColIds {
+		srcCols = append(srcCols, srcSchema.ColDefs[colId].Name)
+	}
+	spCols, err2 := internal.GetSpannerCols(conv, tableId, srcCols)
+	spSchema, ok := conv.SpSchema[tableId]
 	var err error
 	if err1 != nil || err2 != nil || !ok {
 		err = fmt.Errorf(fmt.Sprintf("err1=%s, err2=%s, ok=%t", err1, err2, ok))
 	}
-	return srcSchema, spTable, spCols, spSchema, err
+	return srcSchema, spTableName, spCols, spSchema, err
 }
 
 func GetSortedTableIdsBySrcName(srcSchema map[string]schema.Table) []string {
