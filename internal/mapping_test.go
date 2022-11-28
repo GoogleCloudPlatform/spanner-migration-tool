@@ -166,34 +166,34 @@ func TestGetSpannerTable(t *testing.T) {
 func TestGetSpannerCol(t *testing.T) {
 	conv := MakeConv()
 	conv.SrcSchema = map[string]schema.Table{
-		"t2": {
+		"t1": {
 			Name:   "table",
-			Id:     "t2",
+			Id:     "t1",
 			ColIds: []string{"c1", "c2"},
 			ColDefs: map[string]schema.Column{
 				"c1": {Name: "col", Id: "c1"},
 				"c2": {Name: "c\nol", Id: "c2"},
 			},
 		},
-		"t3": {
+		"t2": {
 			Name:   "ta.b\nle",
-			Id:     "t3",
+			Id:     "t2",
 			ColIds: []string{"c3"},
 			ColDefs: map[string]schema.Column{
 				"c3": {Name: "col", Id: "c3"},
 			},
 		},
-		"t4": {
+		"t3": {
 			Name:   "t.able",
-			Id:     "t4",
+			Id:     "t3",
 			ColIds: []string{"c4"},
 			ColDefs: map[string]schema.Column{
 				"c4": {Name: "c\no\nl", Id: "c4"},
 			},
 		},
-		"t5": {
+		"t4": {
 			Name:   "table1",
-			Id:     "t5",
+			Id:     "t4",
 			ColIds: []string{"c5", "c6", "c7"},
 			ColDefs: map[string]schema.Column{
 				"c1": {Name: "col", Id: "c1"},
@@ -207,21 +207,21 @@ func TestGetSpannerCol(t *testing.T) {
 		},
 	}
 	conv.SpSchema = map[string]ddl.CreateTable{
-		"t2": {
+		"t1": {
 			Name: "table",
+			Id:   "t1",
+		},
+		"t2": {
+			Name: "ta_b_le",
 			Id:   "t2",
 		},
 		"t3": {
-			Name: "ta_b_le",
+			Name: "t_able",
 			Id:   "t3",
 		},
 		"t4": {
-			Name: "t_able",
-			Id:   "t4",
-		},
-		"t5": {
 			Name: "table1",
-			Id:   "t5",
+			Id:   "t4",
 		},
 	}
 	basicTests := []struct {
@@ -255,9 +255,9 @@ func TestGetSpannerCol(t *testing.T) {
 	}
 
 	//Column name collision test
-	conv.SpSchema["t5"] = ddl.CreateTable{
+	conv.SpSchema["t4"] = ddl.CreateTable{
 		Name:   "table1",
-		Id:     "t5",
+		Id:     "t4",
 		ColIds: []string{"c5", "c6", "c7"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"c1": {Name: "col", Id: "c1"},
