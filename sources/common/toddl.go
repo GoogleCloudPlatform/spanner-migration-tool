@@ -16,16 +16,16 @@
 Package common creates an outline for common functionality across the multiple
 source databases we support.
 While adding new methods or code here
-1.  Ensure that the changes do not adversely impact any source that uses the
-	common code
-2.	Test cases might not sufficiently cover all cases, so integration and
-	manual testing should be done ensure no functionality is breaking. Most of
-	the test cases that cover the code in this package will lie in the
-	implementing source databases, so it might not be required to have unit
-	tests for each method here.
-3.	Any functions added here should be used by two or more databases
-4.	If it looks like the code is getting more complex due to refactoring,
-	it is probably better off leaving the functionality out of common
+ 1. Ensure that the changes do not adversely impact any source that uses the
+    common code
+ 2. Test cases might not sufficiently cover all cases, so integration and
+    manual testing should be done ensure no functionality is breaking. Most of
+    the test cases that cover the code in this package will lie in the
+    implementing source databases, so it might not be required to have unit
+    tests for each method here.
+ 3. Any functions added here should be used by two or more databases
+ 4. If it looks like the code is getting more complex due to refactoring,
+    it is probably better off leaving the functionality out of common
 */
 package common
 
@@ -81,7 +81,8 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 		if srcCol.Ignored.ForeignKey {
 			issues = append(issues, internal.ForeignKey)
 		}
-		if srcCol.Name != colName {
+		_, isChanged := internal.FixName(srcCol.Name)
+		if isChanged && (srcCol.Name != colName) {
 			issues = append(issues, internal.IllegalName)
 		}
 		if srcCol.Ignored.Default {
