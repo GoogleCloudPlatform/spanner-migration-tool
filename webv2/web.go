@@ -599,56 +599,6 @@ func getTypeMap(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(filteredTypeMap)
 }
 
-// ToDo : To Remove once Rules Component updated
-// setTypeMapGlobal allows to change Spanner type globally.
-// It takes a map from source type to Spanner type and updates
-// the Spanner schema accordingly.
-func setTypeMapGlobal(w http.ResponseWriter, r *http.Request) {
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-		return
-	}
-	var typeMap map[string]string
-	fmt.Println("typeMap:", typeMap)
-
-	err = json.Unmarshal(reqBody, &typeMap)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
-		return
-	}
-
-	sessionState := session.GetSessionState()
-
-	// Redo source-to-Spanner typeMap using t (the mapping specified in the http request).
-	// We drive this process by iterating over the Spanner schema because we want to preserve all
-	// other customizations that have been performed via the UI (dropping columns, renaming columns
-	// etc). In particular, note that we can't just blindly redo schema conversion (using an appropriate
-	// version of 'toDDL' with the new typeMap).
-	for t, spSchema := range sessionState.Conv.SpSchema {
-		for col := range spSchema.ColDefs {
-			srcTable := sessionState.Conv.ToSource[t].Name
-			srcCol := sessionState.Conv.ToSource[t].Cols[col]
-			srcColDef := sessionState.Conv.SrcSchema[srcTable].ColDefs[srcCol]
-			// If the srcCol's type is in the map, then recalculate the Spanner type
-			// for this column using the map. Otherwise, leave the ColDef for this
-			// column as is. Note that per-column type overrides could be lost in
-			// this process -- the mapping in typeMap always takes precendence.
-			if _, found := typeMap[srcColDef.Type.Name]; found {
-				utilities.UpdateType(sessionState.Conv, typeMap[srcColDef.Type.Name], t, col, srcTable, w)
-			}
-		}
-	}
-	session.UpdateSessionFile()
-
-	convm := session.ConvWithMetadata{
-		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
-	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(convm)
-}
-
 // applyRule allows to add rules that changes the schema
 // currently it supports two types of operations viz. SetGlobalDataType and AddIndex
 func applyRule(w http.ResponseWriter, r *http.Request) {

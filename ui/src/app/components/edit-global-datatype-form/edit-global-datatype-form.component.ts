@@ -46,7 +46,6 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
     const source = ruleValue.sourceType
     const payload: Record<string, string> = {}
     payload[source] = ruleValue.destinationType
-    this.data.updateGlobalType(payload)
     this.applyRule(payload)
     this.resetRuleType.emit('')
     this.sidenav.closeSidenav()

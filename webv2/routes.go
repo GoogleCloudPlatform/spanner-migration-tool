@@ -42,8 +42,6 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/typemap", getTypeMap).Methods("GET")
 	router.HandleFunc("/report", getReportFile).Methods("GET")
 	router.HandleFunc("/schema", getSchemaFile).Methods("GET")
-	// ToDo : To Remove once Rules Component updated
-	router.HandleFunc("/typemap/global", setTypeMapGlobal).Methods("POST")
 	router.HandleFunc("/applyrule", applyRule).Methods("POST")
 	router.HandleFunc("/typemap/table", table.UpdateTableSchema).Methods("POST")
 	router.HandleFunc("/typemap/reviewTableSchema", table.ReviewTableSchema).Methods("POST")

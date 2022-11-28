@@ -336,20 +336,6 @@ export class DataService {
     })
   }
 
-  updateGlobalType(types: Record<string, string>): void {
-    this.fetch.updateGlobalType(types).subscribe({
-      next: (data: any) => {
-        this.convSubject.next(data)
-        this.snackbar.openSnackBar('Global datatype updated successfully', 'Close', 5)
-        this.getSummary()
-        this.getDdl()
-      },
-      error: (err: any) => {
-        this.snackbar.openSnackBar('Unable to add rule', 'Close')
-      },
-    })
-  }
-
   updateIsOffline() {
     this.fetch.getIsOffline().subscribe((res: boolean) => {
       this.isOfflineSub.next(res)

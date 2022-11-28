@@ -170,10 +170,6 @@ export class FetchService {
     return this.http.post<ISession>(`${this.url}/InitiateSession`, {})
   }
 
-  updateGlobalType(types: Record<string, string>): any {
-    return this.http.post<HttpResponse<IConv>>(`${this.url}/typemap/global`, types)
-  }
-
   getIsOffline() {
     return this.http.get<boolean>(`${this.url}/IsOffline`)
   }
