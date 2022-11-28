@@ -85,7 +85,7 @@ export class PrepareMigrationComponent implements OnInit {
           value: MigrationTypes.bulkMigration
         },
         {
-          name: 'Low downtime Migration',
+          name: 'Minimal downtime Migration',
           value: MigrationTypes.lowDowntimeMigration
         },
       ]
@@ -136,7 +136,7 @@ export class PrepareMigrationComponent implements OnInit {
             value: MigrationTypes.bulkMigration
           },
           {
-            name: 'Low downtime Migration',
+            name: 'Minimal downtime Migration',
             value: MigrationTypes.lowDowntimeMigration
           },
         ]
