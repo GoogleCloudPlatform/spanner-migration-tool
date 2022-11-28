@@ -63,8 +63,6 @@ func getRoutes() *mux.Router {
 
 	router.HandleFunc("/rename/fks", renameForeignKeys).Methods("POST")
 	router.HandleFunc("/rename/indexes", renameIndexes).Methods("POST")
-	// ToDo : To Remove once Rules Component updated
-	router.HandleFunc("/add/indexes", addIndexes).Methods("POST")
 	router.HandleFunc("/update/indexes", updateIndexes).Methods("POST")
 
 	// Session Management

@@ -356,19 +356,6 @@ export class DataService {
     })
   }
 
-  addIndex(tableName: string, payload: ICreateIndex[]) {
-    this.fetch.addIndex(tableName, payload).subscribe({
-      next: (res: IConv) => {
-        this.convSubject.next(res)
-        this.getDdl()
-        this.snackbar.openSnackBar('Added new index.', 'Close', 5)
-      },
-      error: (err: any) => {
-        this.snackbar.openSnackBar(err.error, 'Close')
-      },
-    })
-  }
-
   applyRule(payload: IRule) {
     this.fetch.applyRule(payload).subscribe({
       next: (res: any) => {

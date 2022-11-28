@@ -1526,60 +1526,6 @@ func renameIndexes(w http.ResponseWriter, r *http.Request) {
 // addIndexes checks the new names for spanner name validity, ensures the new names are already not used by existing tables
 // secondary indexes or foreign key constraints. If above checks passed then new indexes are added to the schema else appropriate
 // error thrown.
-func addIndexes(w http.ResponseWriter, r *http.Request) {
-	table := r.FormValue("table")
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-	}
-
-	newIndexes := []ddl.CreateIndex{}
-	if err = json.Unmarshal(reqBody, &newIndexes); err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
-		return
-	}
-
-	// Check new name for spanner name validity.
-	newNames := []string{}
-	newNamesMap := map[string]bool{}
-	for _, value := range newIndexes {
-		newNames = append(newNames, value.Name)
-		newNamesMap[strings.ToLower(value.Name)] = true
-	}
-	if len(newNames) != len(newNamesMap) {
-		http.Error(w, fmt.Sprintf("Found duplicate names in input : %s", strings.Join(newNames, ",")), http.StatusBadRequest)
-		return
-	}
-	if ok, invalidNames := utilities.CheckSpannerNamesValidity(newNames); !ok {
-		http.Error(w, fmt.Sprintf("Following names are not valid Spanner identifiers: %s", strings.Join(invalidNames, ",")), http.StatusBadRequest)
-		return
-	}
-
-	// Check that the new names are not already used by existing tables, secondary indexes or foreign key constraints.
-	if ok, err := utilities.CanRename(newNames, table); !ok {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	sessionState := session.GetSessionState()
-
-	sp := sessionState.Conv.SpSchema[table]
-	usedNames := sessionState.Conv.UsedNames
-	index.CheckIndexSuggestion(newIndexes, sp)
-	for i := 0; i < len(newIndexes); i++ {
-		newIndexes[i].Id = uniqueid.GenerateIndexesId()
-		usedNames[newIndexes[i].Name] = true
-	}
-
-	sp.Indexes = append(sp.Indexes, newIndexes...)
-	sessionState.Conv.SpSchema[table] = sp
-	session.UpdateSessionFile()
-	convm := session.ConvWithMetadata{
-		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
-	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(convm)
-}
 func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	var sessionSummary sessionSummary

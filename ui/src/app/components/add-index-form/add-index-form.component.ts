@@ -110,7 +110,6 @@ export class AddIndexFormComponent implements OnInit {
       Id: '',
     })
 
-    // this.data.addIndex(idxData.tableName, payload)
     this.applyRule(payload[0])
     this.resetRuleType.emit('')
     this.sidenav.setSidenavAddIndexTable('')
