@@ -19,6 +19,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
@@ -35,7 +36,7 @@ func GetType(conv *internal.Conv, newType, table, colName string, srcTableName s
 	var issues []internal.SchemaIssue
 	switch sessionState.Driver {
 	case constants.MYSQL, constants.MYSQLDUMP:
-		ty, issues = typemap.ToSpannerTypeMySQL(srcCol.Type.Name, newType, srcCol.Type.Mods)
+		ty, issues = mysql.ToSpannerTypeWeb(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	case constants.PGDUMP, constants.POSTGRES:
 		ty, issues = typemap.ToSpannerTypePostgres(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	case constants.SQLSERVER:
