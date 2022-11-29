@@ -28,6 +28,10 @@ export class LoadDumpComponent implements OnInit {
   ]
   fileToUpload: File | null = null
 
+  uploadStart: boolean = false
+  uploadSuccess: boolean = false
+  uploadFail: boolean = false
+
   ngOnInit(): void {}
 
   convertFromDump() {
@@ -52,17 +56,25 @@ export class LoadDumpComponent implements OnInit {
     if (files) {
       this.fileToUpload = files.item(0)
       this.connectForm.patchValue({ filePath: this.fileToUpload?.name })
-      // if (this.fileToUpload) {
-      //   this.data.uploadFile(this.fileToUpload)
-      // }
+      if (this.fileToUpload) {
+        this.uploadFile()
+      }
     }
   }
   uploadFile() {
-    console.log(this.fileToUpload, 'file')
     if (this.fileToUpload) {
+      this.uploadStart = true
+      this.uploadFail = false
+      this.uploadSuccess = false
       const uploadFormData = new FormData()
-      uploadFormData.append('myFile', this.fileToUpload, 'uploadfile.out')
-      this.data.uploadFile(uploadFormData)
+      uploadFormData.append('myFile', this.fileToUpload, this.fileToUpload?.name)
+      this.data.uploadFile(uploadFormData).subscribe((res: string) => {
+        if (res == '') {
+          this.uploadSuccess = true
+        } else {
+          this.uploadFail = true
+        }
+      })
     }
   }
 }
