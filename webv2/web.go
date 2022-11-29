@@ -2018,7 +2018,7 @@ func init() {
 	for _, srcType := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			ty, issues := typemap.ToSpannerTypePostgres(srcType, spType, []int64{})
+			ty, issues := postgres.ToSpannerTypeWeb(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		postgresTypeMap[srcType] = l
