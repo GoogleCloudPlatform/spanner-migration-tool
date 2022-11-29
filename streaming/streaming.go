@@ -176,23 +176,38 @@ func getOracleSourceStreamConfig(dbName string) *datastreampb.SourceConfig_Oracl
 	return &datastreampb.SourceConfig_OracleSourceConfig{OracleSourceConfig: oracleSrcCfg}
 }
 
-func getPostgreSQLSourceStreamConfig(dbName, properties string) (*datastreampb.SourceConfig_PostgresqlSourceConfig, error) {
-	postgresdb := &datastreampb.PostgresqlSchema{
-		Schema: dbName,
-	}
+func getPostgreSQLSourceStreamConfig(properties string) (*datastreampb.SourceConfig_PostgresqlSourceConfig, error) {
 	params, err := profiles.ParseMap(properties)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse properties: %v", err)
 	}
-	_, replicationSlotExists := params["replicationSlot"]
-	_, publicationExists := params["publication"]
+	infoschemadb := &datastreampb.PostgresqlSchema{
+		Schema: "infoschema",
+	}
+	pgcatalogdb := &datastreampb.PostgresqlSchema{
+		Schema: "pg_catalog",
+	}
+	pg_toast := &datastreampb.PostgresqlSchema{
+		Schema: "pg_toast",
+	}
+	postgres := &datastreampb.PostgresqlSchema{
+		Schema: "postgres",
+	}
+	pg_temp_1 := &datastreampb.PostgresqlSchema{
+		Schema: "pg_temp_1",
+	}
+	pg_toast_temp_1 := &datastreampb.PostgresqlSchema{
+		Schema: "pg_toast_temp_1",
+	}
+	replicationSlot, replicationSlotExists := params["replicationSlot"]
+	publication, publicationExists := params["publication"]
 	if !replicationSlotExists || !publicationExists {
 		return nil, fmt.Errorf("replication slot or publication not specified")
 	}
 	postgresSrcCfg := &datastreampb.PostgresqlSourceConfig{
-		IncludeObjects:  &datastreampb.PostgresqlRdbms{PostgresqlSchemas: []*datastreampb.PostgresqlSchema{postgresdb}},
-		ReplicationSlot: params["replicationSlot"],
-		Publication:     params["publication"],
+		ExcludeObjects:  &datastreampb.PostgresqlRdbms{PostgresqlSchemas: []*datastreampb.PostgresqlSchema{infoschemadb, pgcatalogdb, pg_toast, postgres, pg_temp_1, pg_toast_temp_1}},
+		ReplicationSlot: replicationSlot,
+		Publication:     publication,
 	}
 	return &datastreampb.SourceConfig_PostgresqlSourceConfig{PostgresqlSourceConfig: postgresSrcCfg}, nil
 }
@@ -207,7 +222,7 @@ func getSourceStreamConfig(srcCfg *datastreampb.SourceConfig, sourceProfile prof
 		srcCfg.SourceStreamConfig = getOracleSourceStreamConfig(sourceProfile.Conn.Oracle.User)
 		return nil
 	case constants.POSTGRES:
-		sourceStreamConfig, err := getPostgreSQLSourceStreamConfig(sourceProfile.Conn.Pg.Db, datastreamCfg.Properties)
+		sourceStreamConfig, err := getPostgreSQLSourceStreamConfig(datastreamCfg.Properties)
 		if err == nil {
 			srcCfg.SourceStreamConfig = sourceStreamConfig
 		}
