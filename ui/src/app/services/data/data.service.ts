@@ -439,12 +439,7 @@ export class DataService {
       }
     })
   }
-  uploadDumpFile(file: File) {
-    console.log(file)
-  }
-  uploadSessionFile(file: File) {
-    console.log(file)
-  }
+
   uploadFile(file: FormData): Observable<string> {
     return this.fetch.uploadFile(file).pipe(
       catchError((e: any) => {

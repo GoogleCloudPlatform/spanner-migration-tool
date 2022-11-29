@@ -1832,6 +1832,52 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
+func uploadFile(w http.ResponseWriter, r *http.Request) {
+
+	r.ParseMultipartForm(10 << 20)
+	// FormFile returns the first file for the given key `myFile`
+	// it also returns the FileHeader so we can get the Filename,
+	// the Header and the size of the file
+	file, handlers, err := r.FormFile("myFile")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error retrieving the file"), http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// Remove the existing files
+	err = os.RemoveAll("upload-file/")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error removing existing files"), http.StatusBadRequest)
+		return
+	}
+
+	err = os.MkdirAll("upload-file", os.ModePerm)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error while creating directory"), http.StatusBadRequest)
+		return
+	}
+
+	f, err := os.Create("upload-file/" + handlers.Filename)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("not able to create file"), http.StatusBadRequest)
+		return
+	}
+
+	// read all of the contents of our uploaded file into a byte array
+	fileBytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error reading the file"), http.StatusBadRequest)
+		return
+	}
+	if _, err := f.Write(fileBytes); err != nil {
+		http.Error(w, fmt.Sprintf("error writing the file"), http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode("file uploaded successfully")
+}
+
 // rollback is used to get previous state of conversion in case
 // some unexpected error occurs during update operations.
 func rollback(err error) error {
@@ -2059,51 +2105,4 @@ func App(logLevel string) {
 	router := getRoutes()
 	fmt.Println("Harbourbridge UI started at:", fmt.Sprintf("http://localhost%s", addr))
 	log.Fatal(http.ListenAndServe(addr, handlers.CORS(handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}), handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"}), handlers.AllowedOrigins([]string{"*"}))(router)))
-}
-
-func uploadFile(w http.ResponseWriter, r *http.Request) {
-
-	r.ParseMultipartForm(10 << 20)
-	// FormFile returns the first file for the given key `myFile`
-	// it also returns the FileHeader so we can get the Filename,
-	// the Header and the size of the file
-	file, handlers, err := r.FormFile("myFile")
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error retrieving the file"), http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
-
-	err = os.RemoveAll("upload-file/")
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error removing existing files"), http.StatusBadRequest)
-		return
-	}
-	err = os.MkdirAll("upload-file", os.ModePerm)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error while creating directory"), http.StatusBadRequest)
-		return
-	}
-
-	// Create a temporary file within our temp-images directory that follows
-	// a particular naming pattern
-	f, err := os.Create("upload-file/" + handlers.Filename)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("not able to create file"), http.StatusBadRequest)
-		return
-	}
-
-	// read all of the contents of our uploaded file into a
-	// byte array
-	fileBytes, err := ioutil.ReadAll(file)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error reading the file"), http.StatusBadRequest)
-		return
-	}
-	if _, err := f.Write(fileBytes); err != nil {
-		http.Error(w, fmt.Sprintf("error writing the file"), http.StatusBadRequest)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode("file uploaded successfully")
 }
