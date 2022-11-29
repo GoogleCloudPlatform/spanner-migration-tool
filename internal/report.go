@@ -511,7 +511,7 @@ var IssueDB = map[SchemaIssue]struct {
 	Serial:                  {Brief: "Spanner does not support autoincrementing types", severity: warning},
 	AutoIncrement:           {Brief: "Spanner does not support auto_increment attribute", severity: warning},
 	Timestamp:               {Brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: suggestion, batch: true},
-	Datetime:                {Brief: "Spanner timestamp is closer to MySQL timestamp", severity: suggestion, batch: true},
+	Datetime:                {Brief: "Spanner timestamp is closer to MySQL timestamp", severity: warning, batch: true},
 	Time:                    {Brief: "Spanner does not support time/year types", severity: warning, batch: true},
 	Widened:                 {Brief: "Some columns will consume more storage in Spanner", severity: warning, batch: true},
 	StringOverflow:          {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
