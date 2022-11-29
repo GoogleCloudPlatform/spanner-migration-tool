@@ -190,7 +190,7 @@ func performSnapshotMigration(config writer.BatchWriterConfig, conv *internal.Co
 func snapshotMigrationHandler(sourceProfile profiles.SourceProfile, config writer.BatchWriterConfig, conv *internal.Conv, client *sp.Client, infoSchema common.InfoSchema) (*writer.BatchWriter, error) {
 	switch sourceProfile.Driver {
 	// Skip snapshot migration via harbourbridge for mysql and oracle since dataflow job will job will handle this from backfilled data.
-	case constants.MYSQL, constants.ORACLE:
+	case constants.MYSQL, constants.ORACLE, constants.POSTGRES:
 		return &writer.BatchWriter{}, nil
 	case constants.DYNAMODB:
 		return performSnapshotMigration(config, conv, client, infoSchema), nil
