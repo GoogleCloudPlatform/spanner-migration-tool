@@ -1956,6 +1956,169 @@ func TestRemoveParentTable(t *testing.T) {
 }
 
 func TestApplyRule(t *testing.T) {
+	tcAddIndex := []struct {
+		name         string
+		input        internal.Rule
+		statusCode   int64
+		conv         *internal.Conv
+		expectedConv *internal.Conv
+	}{
+		{
+			name: "Add Index with unique name",
+			input: internal.Rule{
+				Name:              "rule-index1",
+				ObjectType:        "Table",
+				AssociatedObjects: "t1",
+				Enabled:           true,
+				Type:              constants.AddIndex,
+				Data: map[string]interface{}{
+					"Name":   "idx3",
+					"Table":  "t1",
+					"Unique": false,
+					"Keys":   []interface{}{map[string]interface{}{"Col": "b", "Desc": false}},
+				},
+			},
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{
+							{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}}},
+					}},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{
+							{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}},
+							{Id: "i1", Name: "idx3", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+						},
+					}},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true, "idx3": true},
+			},
+		},
+		{
+			name: "New name conflicts with an existing table",
+			input: internal.Rule{
+				Name:              "rule-index1",
+				ObjectType:        "Table",
+				AssociatedObjects: "t1",
+				Enabled:           true,
+				Type:              constants.AddIndex,
+				Data: map[string]interface{}{
+					"Name":   "t1",
+					"Table":  "t1",
+					"Unique": false,
+					"Keys":   []interface{}{map[string]interface{}{"Col": "b", "Desc": false}},
+				},
+			},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}}},
+					}},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
+			},
+		},
+		{
+			name: "New name conflicts with an existing index",
+			input: internal.Rule{
+				Name:              "rule-index1",
+				ObjectType:        "Table",
+				AssociatedObjects: "t1",
+				Enabled:           true,
+				Type:              constants.AddIndex,
+				Data: map[string]interface{}{
+					"Name":   "idx2",
+					"Table":  "t1",
+					"Unique": false,
+					"Keys":   []interface{}{map[string]interface{}{"Col": "b", "Desc": false}},
+				},
+			},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}}},
+					}},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
+			},
+		},
+		{
+			name: "Invalid input",
+			input: internal.Rule{
+				Name:              "rule-index1",
+				ObjectType:        "Table",
+				AssociatedObjects: "t1",
+				Enabled:           true,
+				Type:              constants.AddIndex,
+				Data:              []string{"test1"},
+			},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}}},
+					}},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
+			},
+		},
+	}
+	for i, tc := range tcAddIndex {
+		if i != 0 {
+			continue
+		}
+		sessionState := session.GetSessionState()
+
+		sessionState.Driver = constants.MYSQL
+		sessionState.Conv = tc.conv
+
+		inputBytes, err := json.Marshal(tc.input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		buffer := bytes.NewBuffer(inputBytes)
+
+		req, err := http.NewRequest("POST", "/applyrule", buffer)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(applyRule)
+		handler.ServeHTTP(rr, req)
+		var res *internal.Conv
+		json.Unmarshal(rr.Body.Bytes(), &res)
+		if status := rr.Code; int64(status) != tc.statusCode {
+			t.Errorf("%s : handler returned wrong status code: got %v want %v",
+				tc.name, status, tc.statusCode)
+		}
+		if tc.statusCode == http.StatusOK {
+			tc.expectedConv.Rules = internal.MakeConv().Rules
+			tc.expectedConv.Rules = append(tc.expectedConv.Rules, tc.input)
+			assert.Equal(t, tc.expectedConv, res)
+		}
+	}
+
 	tcSetGlobalDataTypePostgres := []struct {
 		name           string
 		payload        string

@@ -712,6 +712,7 @@ func addIndex(newIndex ddl.CreateIndex) error {
 		newIndexes[i].Id = uniqueid.GenerateIndexesId()
 	}
 
+	sessionState.Conv.UsedNames[newIndex.Name] = true
 	sp.Indexes = append(sp.Indexes, newIndexes...)
 	sessionState.Conv.SpSchema[newIndex.Table] = sp
 	return nil
