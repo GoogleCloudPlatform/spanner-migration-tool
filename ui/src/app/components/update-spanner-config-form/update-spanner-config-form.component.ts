@@ -43,8 +43,11 @@ export class UpdateSpannerConfigFormComponent implements OnInit {
             'Close',
             5
           )
-        } else {
+        }
+        if (res.IsConfigValid) {
           this.snack.openSnackBar('Spanner Config updated successfully', 'Close', 5)
+        } else {
+          this.snack.openSnackBar('Invalid Spanner Configuration', 'Close', 5)
         }
         this.dialogRef.close({ ...res })
         this.dataService.updateIsOffline()

@@ -12,5 +12,5 @@ export interface ISaveSessionPayload {
   SessionName: string
   EditorName: string
   DatabaseName: string
-  Notes: string[]
+  Notes?: string[]
 }

@@ -1,6 +1,12 @@
 import { Injectable } from '@angular/core'
 import ISchemaObjectNode from 'src/app/model/schema-object-node'
-import IConv, { ICreateIndex, IIndexKey, IIndex, ISpannerForeignKey } from '../../model/conv'
+import IConv, {
+  ICreateIndex,
+  IIndexKey,
+  IIndex,
+  ISpannerForeignKey,
+  IColumnDef,
+} from '../../model/conv'
 import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import IFkTabData from 'src/app/model/fk-tab-data'
 import { ObjectExplorerNodeType } from 'src/app/app.constants'
@@ -29,6 +35,8 @@ export class ConversionService {
       }
       return true
     })
+    let deletedIndexes = this.getDeletedIndexes(conv)
+
     let parentNode: ISchemaObjectNode = {
       name: `Tables (${srcTableNames.length})`,
       type: ObjectExplorerNodeType.Tables,
@@ -96,6 +104,25 @@ export class ConversionService {
         parentId: '',
       })
     })
+
+    // add deleted indexes
+    parentNode.children?.forEach((tableNode: ISchemaObjectNode, i: number) => {
+      if (deletedIndexes[tableNode.id]) {
+        deletedIndexes[tableNode.id].forEach((index: IIndex) => {
+          parentNode.children![i].children![0].children?.push({
+            name: index.Name.replace(/[^A-Za-z0-9_]/g, '_'),
+            type: ObjectExplorerNodeType.Index,
+            parent: conv.SpSchema[tableNode.name]?.Name,
+            pos: i,
+            isSpannerNode: true,
+            isDeleted: true,
+            id: index.Id,
+            parentId: tableNode.id,
+          })
+        })
+      }
+    })
+
     return [
       {
         name: conv.DatabaseName,
@@ -200,6 +227,14 @@ export class ConversionService {
       (name: string, i: number) => {
         let spColName = data.ToSpanner[srcTableName]?.Cols[name]
         let srcPks = data.SrcSchema[srcTableName].PrimaryKeys
+        let spPkOrder
+        if (spTableName) {
+          data.SpSchema[spTableName].Pks.forEach((col: IIndexKey) => {
+            if (col.Col == name) {
+              spPkOrder = col.Order
+            }
+          })
+        }
         let spannerColDef = spTableName ? data.SpSchema[spTableName]?.ColDefs[spColName] : null
         return {
           spOrder: spannerColDef ? i + 1 : '',
@@ -246,7 +281,6 @@ export class ConversionService {
         }
       })
     }
-
     return res
   }
 
@@ -336,7 +370,7 @@ export class ConversionService {
                 ? srcIndexs[0].Keys[i].Desc
                 : undefined,
             spColName: idx.Col,
-            spOrder: i + 1,
+            spOrder: idx.Order,
             spDesc: idx.Desc,
           }
         })
@@ -349,13 +383,46 @@ export class ConversionService {
             srcColName: idx.Column,
             srcOrder: index + 1,
             srcDesc: idx.Desc,
-            spColName: undefined,
-            spOrder: undefined,
-            spDesc: undefined,
+            spColName: '',
+            spOrder: '',
+            spDesc: '',
           })
         }
       })
     }
+    return res
+  }
+
+  getDeletedIndexes(conv: IConv): Record<string, IIndex[]> {
+    let deletedIndexes: Record<string, IIndex[]> = {}
+    Object.keys(conv.SpSchema).map((spTableName: string) => {
+      let spTable = conv.SpSchema[spTableName]
+      let srcTableName = this.getSourceTableNameFromId(spTable.Id, conv)
+      let srcTable = conv.SrcSchema[srcTableName]
+      let spIndexIds = spTable.Indexes?.map((index: ICreateIndex) => {
+        return index.Id
+      })
+      let tableDeletedIndexes = srcTable.Indexes?.filter((index: IIndex) => {
+        if (!spIndexIds.includes(index.Id)) {
+          return true
+        }
+        return false
+      })
+      if (tableDeletedIndexes && tableDeletedIndexes.length > 0) {
+        deletedIndexes[spTable.Id] = tableDeletedIndexes
+      }
+    })
+
+    return deletedIndexes
+  }
+
+  getSpannerColDefFromId(tableName: string, id: string, data: IConv): IColumnDef | null {
+    let res: IColumnDef | null = null
+    Object.keys(data.SpSchema[tableName].ColDefs).forEach((colName) => {
+      if (data.SpSchema[tableName].ColDefs[colName].Id == id) {
+        res = data.SpSchema[tableName].ColDefs[colName]
+      }
+    })
     return res
   }
 

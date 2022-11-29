@@ -2,7 +2,7 @@ import { HttpClient, HttpResponse } from '@angular/common/http'
 import { Injectable } from '@angular/core'
 import IDbConfig from 'src/app/model/db-config'
 import ISession, { ISaveSessionPayload } from '../../model/session'
-import IUpdateTable from '../../model/update-table'
+import IUpdateTable, { IReviewUpdateTable } from '../../model/update-table'
 import IConv, {
   ICreateIndex,
   IInterleaveStatus,
@@ -12,7 +12,7 @@ import IConv, {
 import IDumpConfig from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
-import IMigrationDetails, { IProgress } from 'src/app/model/migrate'
+import IMigrationDetails, { IGeneratedResources, IProgress } from 'src/app/model/migrate'
 import IConnectionProfile, { ICreateConnectionProfile } from 'src/app/model/profile'
 
 @Injectable({
@@ -49,6 +49,22 @@ export class FetchService {
     return this.http.post<IConv>(`${this.url}/convert/dump`, payload)
   }
 
+  setSourceDBDetailsForDump(payload: IDumpConfig) {
+    return this.http.post(`${this.url}/SetSourceDBDetailsForDump`, payload)
+  }
+
+  setSourceDBDetailsForDirectConnect(payload: IDbConfig) {
+    const { dbEngine, hostName, port, dbName, userName, password } = payload
+    return this.http.post(`${this.url}/SetSourceDBDetailsForDirectConnect`, {
+      Driver: dbEngine,
+      Host: hostName,
+      Port: port,
+      Database: dbName,
+      User: userName,
+      Password: password,
+    })
+  }
+
   getSchemaConversionFromSessionFile(payload: ISessionConfig) {
     return this.http.post<IConv>(`${this.url}/convert/session`, payload)
   }
@@ -57,14 +73,18 @@ export class FetchService {
     return this.http.get<Record<string, string>>(`${this.url}/conversion`)
   }
 
-  getConnectionProfiles(region: string, isSource: boolean) {
+  getConnectionProfiles(isSource: boolean) {
     return this.http.get<IConnectionProfile[]>(
-      `${this.url}/GetConnectionProfiles?region=${region}&source=${isSource}`
+      `${this.url}/GetConnectionProfiles?source=${isSource}`
     )
   }
 
-  getStaticIps(region: string) {
-    return this.http.get<string[]>(`${this.url}/GetStaticIps?region=${region}`)
+  getGeneratedResources() {
+    return this.http.get<IGeneratedResources>(`${this.url}/GetGeneratedResources`)
+  }
+
+  getStaticIps() {
+    return this.http.get<string[]>(`${this.url}/GetStaticIps`)
   }
 
   createConnectionProfile(payload: ICreateConnectionProfile) {
@@ -83,8 +103,19 @@ export class FetchService {
     return this.http.get(`${this.url}/typemap`)
   }
 
+  reviewTableUpdate(tableName: string, data: IUpdateTable): any {
+    return this.http.post<HttpResponse<IReviewUpdateTable>>(
+      `${this.url}/typemap/reviewTableSchema?table=${tableName}`,
+      data
+    )
+  }
+
   updateTable(tableName: string, data: IUpdateTable): any {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/typemap/table?table=${tableName}`, data)
+  }
+
+  removeInterleave(tableId: string) {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/removeParent?tableId=${tableId}`, {})
   }
 
   restoreTable(tableId: string) {
@@ -160,6 +191,13 @@ export class FetchService {
     })
   }
 
+  restoreIndex(tableId: string, indexId: string) {
+    return this.http.post<HttpResponse<IConv>>(
+      `${this.url}/restore/secondaryIndex?tableId=${tableId}&indexId=${indexId}`,
+      {}
+    )
+  }
+
   getInterleaveStatus(tableName: string) {
     return this.http.get<IInterleaveStatus>(`${this.url}/setparent?table=${tableName}`)
   }
@@ -180,5 +218,8 @@ export class FetchService {
   }
   uploadFile(payload: FormData) {
     return this.http.post(`${this.url}/uploadFile`, payload)
+  }
+  cleanUpStreamingJobs() {
+    return this.http.post(`${this.url}/CleanUpStreamingJobs`, {})
   }
 }

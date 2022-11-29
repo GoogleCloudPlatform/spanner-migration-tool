@@ -24,9 +24,10 @@ import (
 	"time"
 
 	"cloud.google.com/go/spanner"
+	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
-	common "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
+	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
@@ -165,7 +166,7 @@ func ResumeSession(w http.ResponseWriter, r *http.Request) {
 	sessionState.Driver = convm.DatabaseType
 	sessionState.DbName = convm.DatabaseName
 	sessionState.SourceDBConnDetails = SourceDBConnDetails{
-		ConnectionType: common.SESSION_FILE_MODE,
+		ConnectionType: helpers.SESSION_FILE_MODE,
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -181,6 +182,7 @@ func SaveRemoteSession(w http.ResponseWriter, r *http.Request) {
 
 	var sm SessionMetadata
 	err = json.Unmarshal(reqBody, &sm)
+
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
@@ -204,7 +206,16 @@ func SaveRemoteSession(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: To compute few metadata fields if empty
 	t := time.Now()
-	sm.DatabaseType = sessionState.Driver
+
+	switch sessionState.Driver {
+	case constants.MYSQLDUMP:
+		sm.DatabaseType = constants.MYSQL
+	case constants.PGDUMP:
+		sm.DatabaseType = constants.POSTGRES
+	default:
+		sm.DatabaseType = sessionState.Driver
+	}
+
 	scs := SchemaConversionSession{
 		VersionId:              uuid.New().String(),
 		PreviousVersionId:      []string{},
@@ -218,6 +229,14 @@ func SaveRemoteSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Spanner Transaction error : %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	sessionMetaData := GetSessionState().SessionMetadata
+	
+	sessionMetaData.DatabaseName = sm.DatabaseName
+	sessionMetaData.DatabaseType = sm.DatabaseType
+	sessionMetaData.SessionName = sm.SessionName
+
+	GetSessionState().SessionMetadata = sessionMetaData
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode("Save successful, VersionId : " + scs.VersionId)
@@ -281,5 +300,5 @@ func getMetadataDbUri() string {
 	if sessionState.GCPProjectID == "" || sessionState.SpannerInstanceID == "" {
 		return ""
 	}
-	return common.GetSpannerUri(sessionState.GCPProjectID, sessionState.SpannerInstanceID)
+	return helpers.GetSpannerUri(sessionState.GCPProjectID, sessionState.SpannerInstanceID)
 }

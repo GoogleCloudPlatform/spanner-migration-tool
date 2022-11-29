@@ -23,7 +23,7 @@ retrieve table schema and data. Set the `-source=sqlserver` and corresponding
 source profile connection parameters `host`, `port`, `user`, `dbName` and
 `password`.
 
-For example to perform schema conversion, run
+For example, to perform schema conversion, run
 
 ```sh
 harbourbridge schema -source=sqlserver -source-profile="host=<>,port=<>,user=<>,dbName=<>"

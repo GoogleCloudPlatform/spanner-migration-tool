@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package webv2
+package typemap
 
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
@@ -33,7 +33,7 @@ import (
 // dynamodb/toddl.go, mysql/toddl.go and postgres/toddl.go).
 // Consider some refactoring to reduce code duplication (although note
 // that this type remapping has to preserve all previous changes done via the UI!)
-func toSpannerTypePostgres(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
+func ToSpannerTypePostgres(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
 	switch srcType {
 	case "bool", "boolean":
 		switch spType {
@@ -151,6 +151,13 @@ func toSpannerTypePostgres(srcType string, spType string, mods []int64) (ddl.Typ
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
 		default:
 			return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Timestamp}
+		}
+	case "json", "jsonb":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.JSON, Len: ddl.MaxLength}, nil
 		}
 	case "varchar", "character varying":
 		switch spType {

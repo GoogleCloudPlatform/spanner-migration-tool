@@ -72,8 +72,9 @@ const (
 )
 
 // Type represents the type of a column.
-//     type:
-//        { BOOL | INT64 | FLOAT64 | STRING( length ) | BYTES( length ) | DATE | TIMESTAMP | NUMERIC }
+//
+//	type:
+//	   { BOOL | INT64 | FLOAT64 | STRING( length ) | BYTES( length ) | DATE | TIMESTAMP | NUMERIC }
 type Type struct {
 	Name string
 	// Len encodes the following Spanner DDL definition:
@@ -140,8 +141,9 @@ func (ty Type) PGPrintColumnDefType() string {
 }
 
 // ColumnDef encodes the following DDL definition:
-//     column_def:
-//       column_name type [NOT NULL] [options_def]
+//
+//	column_def:
+//	  column_name type [NOT NULL] [options_def]
 type ColumnDef struct {
 	Name    string
 	T       Type
@@ -162,7 +164,7 @@ type Config struct {
 func (c Config) quote(s string) string {
 	if c.ProtectIds {
 		if c.TargetDb == constants.TargetExperimentalPostgres {
-			return "\"" + s + "\""
+			return s
 		} else {
 			return "`" + s + "`"
 		}
@@ -187,10 +189,11 @@ func (cd ColumnDef) PrintColumnDef(c Config) (string, string) {
 }
 
 // IndexKey encodes the following DDL definition:
-//     primary_key:
-//       PRIMARY KEY ( [key_part, ...] )
-//     key_part:
-//        column_name [{ ASC | DESC }]
+//
+//	primary_key:
+//	  PRIMARY KEY ( [key_part, ...] )
+//	key_part:
+//	   column_name [{ ASC | DESC }]
 type IndexKey struct {
 	Col   string
 	Desc  bool // Default order is ascending i.e. Desc = false.
@@ -208,8 +211,9 @@ func (pk IndexKey) PrintIndexKey(c Config) string {
 }
 
 // Foreignkey encodes the following DDL definition:
-//    [ CONSTRAINT constraint_name ]
-// 	  FOREIGN KEY ( column_name [, ... ] ) REFERENCES ref_table ( ref_column [, ... ] ) }
+//
+//	   [ CONSTRAINT constraint_name ]
+//		  FOREIGN KEY ( column_name [, ... ] ) REFERENCES ref_table ( ref_column [, ... ] ) }
 type Foreignkey struct {
 	Name         string
 	Columns      []string
@@ -233,7 +237,8 @@ func (k Foreignkey) PrintForeignKey(c Config) string {
 }
 
 // CreateTable encodes the following DDL definition:
-//     create_table: CREATE TABLE table_name ([column_def, ...] ) primary_key [, cluster]
+//
+//	create_table: CREATE TABLE table_name ([column_def, ...] ) primary_key [, cluster]
 type CreateTable struct {
 	Name     string
 	ColNames []string             // Provides names and order of columns
@@ -268,7 +273,13 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 		cols += "\n"
 	}
 
-	for _, p := range ct.Pks {
+	orderedPks := []IndexKey{}
+	orderedPks = append(orderedPks, ct.Pks...)
+	sort.Slice(orderedPks, func(i, j int) bool {
+		return orderedPks[i].Order < orderedPks[j].Order
+	})
+
+	for _, p := range orderedPks {
 		keys = append(keys, p.PrintIndexKey(config))
 	}
 	var tableComment string
@@ -287,6 +298,9 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 		}
 	}
 
+	if len(keys) == 0 {
+		return fmt.Sprintf("%sCREATE TABLE %s (\n%s) %s", tableComment, config.quote(ct.Name), cols, interleave)
+	}
 	if config.TargetDb == constants.TargetExperimentalPostgres {
 		return fmt.Sprintf("%sCREATE TABLE %s (\n%s\tPRIMARY KEY (%s)\n)%s", tableComment, config.quote(ct.Name), cols, strings.Join(keys, ", "), interleave)
 	}
@@ -294,7 +308,8 @@ func (ct CreateTable) PrintCreateTable(config Config) string {
 }
 
 // CreateIndex encodes the following DDL definition:
-//     create index: CREATE [UNIQUE] [NULL_FILTERED] INDEX index_name ON table_name ( key_part [, ...] ) [ storing_clause ] [ , interleave_clause ]
+//
+//	create index: CREATE [UNIQUE] [NULL_FILTERED] INDEX index_name ON table_name ( key_part [, ...] ) [ storing_clause ] [ , interleave_clause ]
 type CreateIndex struct {
 	Name          string
 	Table         string
@@ -309,7 +324,14 @@ type CreateIndex struct {
 // PrintCreateIndex unparses a CREATE INDEX statement.
 func (ci CreateIndex) PrintCreateIndex(c Config) string {
 	var keys []string
-	for _, p := range ci.Keys {
+
+	orderedKeys := []IndexKey{}
+	orderedKeys = append(orderedKeys, ci.Keys...)
+	sort.Slice(orderedKeys, func(i, j int) bool {
+		return orderedKeys[i].Order < orderedKeys[j].Order
+	})
+
+	for _, p := range orderedKeys {
 		keys = append(keys, p.PrintIndexKey(c))
 	}
 	var unique, stored, storingClause string

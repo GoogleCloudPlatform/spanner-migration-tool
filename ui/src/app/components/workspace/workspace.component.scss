@@ -2,6 +2,11 @@ app-object-detail {
   height: 100%;
 }
 
+.vertical-center{
+  display: flex;
+  align-items: center;
+}
+
 .columns {
   display: flex;
   flex-direction: row;
@@ -71,13 +76,6 @@ app-object-detail {
 }
 #right-column-toggle-button:hover {
   cursor: pointer;
-}
-
-.display {
-  display: block;
-}
-.hidden {
-  display: none;
 }
 
 ::ng-deep .column-right .mat-tab-label .mat-tab-label-content {

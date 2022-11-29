@@ -420,7 +420,7 @@ func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *inte
 // performing a streaming migration.
 func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) error {
 	streamingCfg, _ := streamingInfo["streamingCfg"].(streaming.StreamingCfg)
-	err := streaming.StartDataflow(ctx, isi.SourceProfile, isi.TargetProfile, streamingCfg)
+	err := streaming.StartDataflow(ctx, isi.SourceProfile, isi.TargetProfile, streamingCfg, conv)
 	if err != nil {
 		return err
 	}

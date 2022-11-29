@@ -30,11 +30,11 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
+	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 )
 
 const (
-	numWorkers int32 = 50
 	maxWorkers int32 = 50
 )
 
@@ -120,6 +120,8 @@ func VerifyAndUpdateCfg(streamingCfg *StreamingCfg, dbName string) error {
 	if err != nil {
 		return fmt.Errorf("parseFilePath: unable to parse file path: %v", err)
 	}
+	// We update the TmpDir in case any '/' were added in ParseGCSFilePath().
+	streamingCfg.TmpDir = u.String()
 	bucketName := u.Host
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
@@ -179,7 +181,8 @@ func getSourceStreamConfig(srcCfg *datastreampb.SourceConfig, sourceProfile prof
 		srcCfg.SourceStreamConfig = getMysqlSourceStreamConfig(sourceProfile.Conn.Mysql.Db)
 		return nil
 	case constants.ORACLE:
-		srcCfg.SourceStreamConfig = getOracleSourceStreamConfig(sourceProfile.Conn.Oracle.Db)
+		// For Oracle, the User name denotes the name of the schema while the dbName parameter has the SID.
+		srcCfg.SourceStreamConfig = getOracleSourceStreamConfig(sourceProfile.Conn.Oracle.User)
 		return nil
 	default:
 		return fmt.Errorf("only MySQL and Oracle are supported as source streams")
@@ -255,8 +258,48 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, pro
 	return nil
 }
 
+func CleanUpStreamingJobs(ctx context.Context, conv *internal.Conv, projectID, region string) error {
+	c, err := dataflow.NewJobsV1Beta3Client(ctx)
+	if err != nil {
+		return fmt.Errorf("could not create job client: %v", err)
+	}
+	defer c.Close()
+	fmt.Println("Created dataflow job client...")
+
+	job := &dataflowpb.Job{
+		Id:             conv.Audit.StreamingStats.DataflowJobId,
+		ProjectId:      projectID,
+		RequestedState: dataflowpb.JobState_JOB_STATE_CANCELLED,
+	}
+
+	dfReq := &dataflowpb.UpdateJobRequest{
+		ProjectId: projectID,
+		JobId:     conv.Audit.StreamingStats.DataflowJobId,
+		Location:  region,
+		Job:       job,
+	}
+	_, err = c.UpdateJob(ctx, dfReq)
+	if err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("error while cancelling dataflow job: %v", err)
+	}
+	dsClient, err := datastream.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("datastream client can not be created: %v", err)
+	}
+	defer dsClient.Close()
+	req := &datastreampb.DeleteStreamRequest{
+		Name: fmt.Sprintf("projects/%s/locations/%s/streams/%s", projectID, region, conv.Audit.StreamingStats.DataStreamName),
+	}
+	_, err = dsClient.DeleteStream(ctx, req)
+	if err != nil {
+		return fmt.Errorf("error while deleting datastream job: %v", err)
+	}
+	return nil
+}
+
 // LaunchDataflowJob populates the parameters from the streaming config and triggers a Dataflow job.
-func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg) error {
+func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) error {
 	project, instance, dbName, _ := targetProfile.GetResourceIds(ctx, time.Now(), "", nil)
 	dataflowCfg := streamingCfg.DataflowCfg
 	datastreamCfg := streamingCfg.DatastreamCfg
@@ -284,21 +327,26 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 	}
 	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
 	inputFilePattern := "gs://" + gcsProfile.BucketName + gcsProfile.RootPath + datastreamCfg.DestinationConnectionConfig.Prefix
+	if inputFilePattern[len(inputFilePattern)-1] != '/' {
+		inputFilePattern = inputFilePattern + "/"
+	}
 	fmt.Println("Reading files from datastream destination ", inputFilePattern)
 
 	launchParameter := &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
 		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner"},
 		Parameters: map[string]string{
-			"inputFilePattern": inputFilePattern,
-			"streamName":       fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
-			"instanceId":       instance,
-			"databaseId":       dbName,
-			"sessionFilePath":  streamingCfg.TmpDir + "session.json",
+			"inputFilePattern":         inputFilePattern,
+			"streamName":               fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
+			"instanceId":               instance,
+			"databaseId":               dbName,
+			"sessionFilePath":          streamingCfg.TmpDir + "session.json",
+			"deadLetterQueueDirectory": inputFilePattern + "dlq",
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
-			NumWorkers: numWorkers,
-			MaxWorkers: maxWorkers,
+			MaxWorkers:            maxWorkers,
+			AutoscalingAlgorithm:  2, // 2 corresponds to AUTOSCALING_ALGORITHM_BASIC
+			EnableStreamingEngine: true,
 		},
 	}
 
@@ -314,6 +362,8 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		fmt.Printf("flexTemplateRequest: %+v\n", req)
 		return fmt.Errorf("unable to launch template: %v", err)
 	}
+	conv.Audit.StreamingStats.DataStreamName = datastreamCfg.StreamId
+	conv.Audit.StreamingStats.DataflowJobId = respDf.Job.Id
 	fullStreamName := fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId)
 	dfJobDetails := fmt.Sprintf("project: %s, location: %s, name: %s, id: %s", project, respDf.Job.Location, respDf.Job.Name, respDf.Job.Id)
 	fmt.Println("\n------------------------------------------\n" +
@@ -346,8 +396,17 @@ func StartDatastream(ctx context.Context, sourceProfile profiles.SourceProfile, 
 	return streamingCfg, nil
 }
 
-func StartDataflow(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg) error {
-	err := LaunchDataflowJob(ctx, targetProfile, streamingCfg)
+func StartDataflow(ctx context.Context, sourceProfile profiles.SourceProfile, targetProfile profiles.TargetProfile, streamingCfg StreamingCfg, conv *internal.Conv) error {
+
+	convJSON, err := json.MarshalIndent(conv, "", " ")
+	if err != nil {
+		return fmt.Errorf("can't encode session state to JSON: %v", err)
+	}
+	err = utils.WriteToGCS(streamingCfg.TmpDir, "session.json", string(convJSON))
+	if err != nil {
+		return fmt.Errorf("error while writing to GCS: %v", err)
+	}
+	err = LaunchDataflowJob(ctx, targetProfile, streamingCfg, conv)
 	if err != nil {
 		return fmt.Errorf("error launching dataflow: %v", err)
 	}

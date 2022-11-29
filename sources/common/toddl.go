@@ -138,7 +138,7 @@ func cvtPrimaryKeys(conv *internal.Conv, srcTable string, srcKeys []schema.Key) 
 func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTable string, srcKeys []schema.ForeignKey, isRestore bool) []ddl.Foreignkey {
 	var spKeys []ddl.Foreignkey
 	for _, key := range srcKeys {
-		spKey, err := cvtForeignKeysHelper(conv, spTableName, srcTable, key, isRestore)
+		spKey, err := CvtForeignKeysHelper(conv, spTableName, srcTable, key, isRestore)
 		if err != nil {
 			continue
 		}
@@ -147,7 +147,7 @@ func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTable string, sr
 	return spKeys
 }
 
-func cvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTable string, srcKey schema.ForeignKey, isRestore bool) (ddl.Foreignkey, error) {
+func CvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTable string, srcKey schema.ForeignKey, isRestore bool) (ddl.Foreignkey, error) {
 	if len(srcKey.Columns) != len(srcKey.ReferColumns) {
 		conv.Unexpected(fmt.Sprintf("ConvertForeignKeys: columns and referColumns don't have the same lengths: len(columns)=%d, len(referColumns)=%d for source table: %s, referenced table: %s", len(srcKey.Columns), len(srcKey.ReferColumns), srcTable, srcKey.ReferTable))
 		return ddl.Foreignkey{}, fmt.Errorf("ConvertForeignKeys: columns and referColumns don't have the same lengths")
@@ -189,41 +189,8 @@ func cvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTable stri
 func cvtIndexes(conv *internal.Conv, spTableName string, srcTable string, srcIndexes []schema.Index) []ddl.CreateIndex {
 	var spIndexes []ddl.CreateIndex
 	for _, srcIndex := range srcIndexes {
-		var spKeys []ddl.IndexKey
-		var spStoredColumns []string
-
-		for _, k := range srcIndex.Keys {
-			spCol, err := internal.GetSpannerCol(conv, srcTable, k.Column, true)
-			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Can't map index key column name for table %s column %s", srcTable, k.Column))
-				continue
-			}
-			spKeys = append(spKeys, ddl.IndexKey{Col: spCol, Desc: k.Desc})
-		}
-		for _, k := range srcIndex.StoredColumns {
-			spCol, err := internal.GetSpannerCol(conv, srcTable, k, true)
-			if err != nil {
-				conv.Unexpected(fmt.Sprintf("Can't map index column name for table %s column %s", srcTable, k))
-				continue
-			}
-			spStoredColumns = append(spStoredColumns, spCol)
-		}
-		if srcIndex.Name == "" {
-			// Generate a name if index name is empty in MySQL.
-			// Collision of index name will be handled by ToSpannerIndexName.
-			srcIndex.Name = fmt.Sprintf("Index_%s", srcTable)
-		}
-		spIndexName := internal.ToSpannerIndexName(conv, srcIndex.Name)
-		spIndex := ddl.CreateIndex{
-			Name:          spIndexName,
-			Table:         spTableName,
-			Unique:        srcIndex.Unique,
-			Keys:          spKeys,
-			StoredColumns: spStoredColumns,
-		}
+		spIndex := CvtIndexHelper(conv, spTableName, srcTable, srcIndex)
 		spIndexes = append(spIndexes, spIndex)
-		conv.Audit.ToSpannerFkIdx[srcTable].Index[srcIndex.Name] = spIndexName
-		conv.Audit.ToSourceFkIdx[spTableName].Index[spIndexName] = srcIndex.Name
 	}
 	return spIndexes
 }
@@ -254,7 +221,7 @@ func SrcTableToSpannerDDL(conv *internal.Conv, toddl ToDdl, srcTable schema.Tabl
 func cvtForeignKeysForAReferenceTable(conv *internal.Conv, spTableName string, srcTable string, referTable string, srcKeys []schema.ForeignKey, spKeys []ddl.Foreignkey) []ddl.Foreignkey {
 	for _, key := range srcKeys {
 		if key.ReferTable == referTable {
-			spKey, err := cvtForeignKeysHelper(conv, spTableName, srcTable, key, true)
+			spKey, err := CvtForeignKeysHelper(conv, spTableName, srcTable, key, true)
 			if err != nil {
 				continue
 			}
@@ -262,4 +229,42 @@ func cvtForeignKeysForAReferenceTable(conv *internal.Conv, spTableName string, s
 		}
 	}
 	return spKeys
+}
+
+func CvtIndexHelper(conv *internal.Conv, spTableName string, srcTable string, srcIndex schema.Index) ddl.CreateIndex {
+	var spKeys []ddl.IndexKey
+	var spStoredColumns []string
+
+	for _, k := range srcIndex.Keys {
+		spCol, err := internal.GetSpannerCol(conv, srcTable, k.Column, true)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't map index key column name for table %s column %s", srcTable, k.Column))
+			continue
+		}
+		spKeys = append(spKeys, ddl.IndexKey{Col: spCol, Desc: k.Desc})
+	}
+	for _, k := range srcIndex.StoredColumns {
+		spCol, err := internal.GetSpannerCol(conv, srcTable, k, true)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Can't map index column name for table %s column %s", srcTable, k))
+			continue
+		}
+		spStoredColumns = append(spStoredColumns, spCol)
+	}
+	if srcIndex.Name == "" {
+		// Generate a name if index name is empty in MySQL.
+		// Collision of index name will be handled by ToSpannerIndexName.
+		srcIndex.Name = fmt.Sprintf("Index_%s", srcTable)
+	}
+	spIndexName := internal.ToSpannerIndexName(conv, srcIndex.Name)
+	spIndex := ddl.CreateIndex{
+		Name:          spIndexName,
+		Table:         spTableName,
+		Unique:        srcIndex.Unique,
+		Keys:          spKeys,
+		StoredColumns: spStoredColumns,
+	}
+	conv.Audit.ToSpannerFkIdx[srcTable].Index[srcIndex.Name] = spIndexName
+	conv.Audit.ToSourceFkIdx[spTableName].Index[spIndexName] = srcIndex.Name
+	return spIndex
 }

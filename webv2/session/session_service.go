@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
+	helpers "github.com/cloudspannerecosystem/harbourbridge/webv2/helpers"
 )
 
 type SessionService struct {
@@ -50,20 +50,21 @@ func (ss *SessionService) GetConvWithMetadata(versionId string) (ConvWithMetadat
 	return ss.store.GetConvWithMetadata(ss.context, versionId)
 }
 
-func SetSessionStorageConnectionState(projectId string, spInstanceId string) bool {
+func SetSessionStorageConnectionState(projectId string, spInstanceId string) (bool, bool) {
 	sessionState := GetSessionState()
 	sessionState.GCPProjectID = projectId
 	sessionState.SpannerInstanceID = spInstanceId
 	if projectId == "" || spInstanceId == "" {
 		sessionState.IsOffline = true
-		return false
+		return false, false
 	} else {
-		if isExist, isDbCreated := utilities.CheckOrCreateMetadataDb(projectId, spInstanceId); isExist {
+		if isExist, isDbCreated := helpers.CheckOrCreateMetadataDb(projectId, spInstanceId); isExist {
 			sessionState.IsOffline = false
-			return isDbCreated
+			isConfigValid := isExist || isDbCreated
+			return isDbCreated, isConfigValid
 		} else {
 			sessionState.IsOffline = true
-			return false
+			return false, false
 		}
 	}
 }

@@ -180,4 +180,14 @@ export interface ISessionSummary {
   SourceIndexCount: number
   SpannerIndexCount: number
   ConnectionType: string
+  SourceDatabaseName: string
+  Region: string
+  NodeCount: number
+  ProcessingUnits: number
+  Instance: string
+}
+
+export interface ISpannerDetails {
+  Region: string
+  Instance: string
 }

@@ -27,6 +27,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -42,6 +43,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/spanner"
 	"golang.org/x/crypto/ssh/terminal"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
@@ -110,7 +112,7 @@ func DownloadFromGCS(bucketName, filePath, tmpFile string) (*os.File, error) {
 	defer rc.Close()
 	r := bufio.NewReader(rc)
 
-	tmpDir := os.TempDir() + constants.HB_TMP_DIR
+	tmpDir := filepath.Join(os.TempDir(), constants.HB_TMP_DIR)
 	os.MkdirAll(tmpDir, os.ModePerm)
 	tmpfile, err := os.Create(tmpDir + "/" + tmpFile)
 	if err != nil {
@@ -157,7 +159,7 @@ func PreloadGCSFiles(tables []ManifestTable) ([]ManifestTable, error) {
 				filePath := u.Path[1:] // removes "/" from beginning of path
 				tmpFile := strings.ReplaceAll(filePath, "/", ".")
 				// Files get downloaded to tmp dir.
-				fileLoc := os.TempDir() + constants.HB_TMP_DIR + "/" + tmpFile
+				fileLoc := filepath.Join(os.TempDir(), constants.HB_TMP_DIR, tmpFile)
 				_, err = DownloadFromGCS(bucketName, filePath, tmpFile)
 				if err != nil {
 					return nil, fmt.Errorf("cannot download gcs file: %s for table %s", filePath, table.Table_name)
@@ -212,6 +214,33 @@ func WriteToGCS(filePath, fileName, data string) error {
 	if err := w.Close(); err != nil {
 		fmt.Printf("Failed to close GCS file: %s", filePath)
 		return err
+	}
+	return nil
+}
+
+func CreateGCSBucket(bucketName, projectID string) error {
+	ctx := context.Background()
+
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create GCS client: %v", err)
+	}
+	defer client.Close()
+	bucket := client.Bucket(bucketName)
+	if err := bucket.Create(ctx, projectID, nil); err != nil {
+		if e, ok := err.(*googleapi.Error); ok {
+			// Ignoring the bucket already exists error.
+			if e.Code != 409 {
+				return fmt.Errorf("failed to create bucket: %v", err)
+			} else {
+				fmt.Printf("Using the existing bucket: %v \n", bucketName)
+			}
+		} else {
+			return fmt.Errorf("failed to create bucket: %v", err)
+		}
+
+	} else {
+		fmt.Printf("Created new GCS bucket: %v\n", bucketName)
 	}
 	return nil
 }
