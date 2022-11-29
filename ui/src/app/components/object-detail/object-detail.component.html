@@ -777,6 +777,14 @@
         >
           Convert Back to Foreign Key
         </button>
+        <br>
+        <div           
+        *ngIf="
+        (interleaveStatus.tableInterleaveStatus &&
+          !interleaveStatus.tableInterleaveStatus.Possible) ||
+        this.interleaveParentName !== null">
+          This table is interleaved with <span class="interleave-parent-table">{{ interleaveParentName }}</span>. Click on the above button to convert back to foreign key.
+        </div>
       </div>
     </mat-tab>
 
