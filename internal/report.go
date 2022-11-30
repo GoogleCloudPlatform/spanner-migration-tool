@@ -412,7 +412,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					}
 				case InterleavedRenameColumn:
 					fkName, referCol := getFkAndReferColumn(spSchema, srcCol)
-					str := fmt.Sprintf(" %s rename %s primary key in table %s to match the foreign key %s refer column %s", IssueDB[i].Brief, srcCol, spSchema.Name, fkName, referCol)
+					str := fmt.Sprintf(" %s rename %s primary key in table %s to match the foreign key %s refer column \"%s\"", IssueDB[i].Brief, srcCol, spSchema.Name, fkName, referCol)
 
 					if !contains(l, str) {
 						l = append(l, str)
