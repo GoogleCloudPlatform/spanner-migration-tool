@@ -181,23 +181,11 @@ func getPostgreSQLSourceStreamConfig(properties string) (*datastreampb.SourceCon
 	if err != nil {
 		return nil, fmt.Errorf("could not parse properties: %v", err)
 	}
-	infoschemadb := &datastreampb.PostgresqlSchema{
-		Schema: "infoschema",
-	}
-	pgcatalogdb := &datastreampb.PostgresqlSchema{
-		Schema: "pg_catalog",
-	}
-	pg_toast := &datastreampb.PostgresqlSchema{
-		Schema: "pg_toast",
-	}
-	postgres := &datastreampb.PostgresqlSchema{
-		Schema: "postgres",
-	}
-	pg_temp_1 := &datastreampb.PostgresqlSchema{
-		Schema: "pg_temp_1",
-	}
-	pg_toast_temp_1 := &datastreampb.PostgresqlSchema{
-		Schema: "pg_toast_temp_1",
+	var excludeObjects []*datastreampb.PostgresqlSchema
+	for _, s := range []string{"information_schema", "postgres", "pg_catalog", "pg_temp_1", "pg_toast", "pg_toast_temp_1"} {
+		excludeObjects = append(excludeObjects, &datastreampb.PostgresqlSchema{
+			Schema: s,
+		})
 	}
 	replicationSlot, replicationSlotExists := params["replicationSlot"]
 	publication, publicationExists := params["publication"]
@@ -205,7 +193,7 @@ func getPostgreSQLSourceStreamConfig(properties string) (*datastreampb.SourceCon
 		return nil, fmt.Errorf("replication slot or publication not specified")
 	}
 	postgresSrcCfg := &datastreampb.PostgresqlSourceConfig{
-		ExcludeObjects:  &datastreampb.PostgresqlRdbms{PostgresqlSchemas: []*datastreampb.PostgresqlSchema{infoschemadb, pgcatalogdb, pg_toast, postgres, pg_temp_1, pg_toast_temp_1}},
+		ExcludeObjects:  &datastreampb.PostgresqlRdbms{PostgresqlSchemas: excludeObjects},
 		ReplicationSlot: replicationSlot,
 		Publication:     publication,
 	}
