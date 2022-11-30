@@ -780,12 +780,11 @@
       </div>
     </mat-tab>
 
-    <mat-tab>
+    <mat-tab *ngIf="currentObject!.isSpannerNode && !currentObject!.isDeleted">
       <ng-template mat-tab-label>
-        <span  *ngIf="currentObject!.isSpannerNode && !currentObject!.isDeleted">SQL</span>
+        <span >SQL</span>
       </ng-template>
-      
-      <div class="ddl_container">
+       <div class="ddl_container">
         <pre><code>{{ddlStmts[currentObject!.name]}}</code></pre>
       </div>
     </mat-tab>
