@@ -33,14 +33,17 @@
         <mat-icon matSuffix *ngIf="uploadStart && uploadSuccess" class="success"
           >check_circle</mat-icon
         >
-        <mat-icon matSuffix *ngIf="uploadStart && uploadFail" class="danger" style="display: none"
-          >cancel</mat-icon
-        >
+        <mat-icon matSuffix *ngIf="uploadStart && uploadFail" class="danger">cancel</mat-icon>
       </mat-form-field>
       <button mat-stroked-button type="button" (click)="file.click()">Upload File</button>
       <input hidden #file type="file" (change)="handleFileInput($event)" />
       <br />
-      <button mat-raised-button type="submit" color="primary" [disabled]="!connectForm.valid">
+      <button
+        mat-raised-button
+        type="submit"
+        color="primary"
+        [disabled]="!connectForm.valid || !uploadSuccess"
+      >
         Convert
       </button>
       <button mat-raised-button [routerLink]="'/'">Cancel</button>
