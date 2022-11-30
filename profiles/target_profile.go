@@ -146,9 +146,8 @@ func (targetProfile *TargetProfile) GetResourceIds(ctx context.Context, now time
 //
 // Example: -target-profile="instance=my-instance1,dbName=my-new-db1"
 // Example: -target-profile="instance=my-instance1,dbName=my-new-db1,dialect=PostgreSQL"
-//
 func NewTargetProfile(s string) (TargetProfile, error) {
-	params, err := parseProfile(s)
+	params, err := ParseMap(s)
 	if err != nil {
 		return TargetProfile{}, fmt.Errorf("could not parse target profile, error = %v", err)
 	}

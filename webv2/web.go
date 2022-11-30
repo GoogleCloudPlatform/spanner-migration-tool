@@ -132,6 +132,8 @@ type targetDetails struct {
 	TargetDB                    string `json:"TargetDB"`
 	SourceConnectionProfileName string `json:"SourceConnProfile"`
 	TargetConnectionProfileName string `json:"TargetConnProfile"`
+	ReplicationSlot             string `json:"ReplicationSlot"`
+	Publication                 string `json:"Publication"`
 }
 type StreamingCfg struct {
 	DatastreamCfg DatastreamCfg `json:"datastreamCfg"`
@@ -152,6 +154,7 @@ type DatastreamCfg struct {
 	StreamDisplayName      string           `json:"streamDisplayName"`
 	SourceConnectionConfig ConnectionConfig `json:"sourceConnectionConfig"`
 	TargetConnectionConfig ConnectionConfig `json:"destinationConnectionConfig"`
+	Properties             string           `json:properties`
 }
 
 // databaseConnection creates connection with database when using
@@ -1692,6 +1695,10 @@ func createStreamingCfgFile(sessionState *session.SessionState, targetDetails ta
 		TmpDir: "gs://" + sessionState.Bucket + sessionState.RootPath,
 	}
 
+	databaseType, _ := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
+	if databaseType == constants.POSTGRES {
+		data.DatastreamCfg.Properties = fmt.Sprintf("replicationSlot=%v,publication=%v", targetDetails.ReplicationSlot, targetDetails.Publication)
+	}
 	file, err := json.MarshalIndent(data, "", " ")
 	if err != nil {
 		return fmt.Errorf("error while marshalling json: %v", err)

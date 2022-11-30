@@ -28,7 +28,7 @@ import (
 // Parses input string `s` as a map of key-value pairs. It's expected that the
 // input string is of the form "key1=value1,key2=value2,..." etc. Return error
 // otherwise.
-func parseProfile(s string) (map[string]string, error) {
+func ParseMap(s string) (map[string]string, error) {
 	params := make(map[string]string)
 	if len(s) == 0 {
 		return params, nil
