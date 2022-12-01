@@ -413,7 +413,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					}
 				case InterleavedRenameColumn:
 					fkName, referCol := getFkAndReferColumn(spSchema, srcCol)
-					str := fmt.Sprintf(" %s rename %s primary key in table %s to match the foreign key %s refer column %s", IssueDB[i].Brief, srcCol, spSchema.Name, fkName, referCol)
+					str := fmt.Sprintf(" %s rename %s primary key in table %s to match the foreign key %s refer column \"%s\"", IssueDB[i].Brief, srcCol, spSchema.Name, fkName, referCol)
 
 					if !contains(l, str) {
 						l = append(l, str)
@@ -540,7 +540,7 @@ var IssueDB = map[SchemaIssue]struct {
 	Serial:                  {Brief: "Spanner does not support autoincrementing types", severity: warning},
 	AutoIncrement:           {Brief: "Spanner does not support auto_increment attribute", severity: warning},
 	Timestamp:               {Brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: suggestion, batch: true},
-	Datetime:                {Brief: "Spanner timestamp is closer to MySQL timestamp", severity: suggestion, batch: true},
+	Datetime:                {Brief: "Spanner timestamp is closer to MySQL timestamp", severity: warning, batch: true},
 	Time:                    {Brief: "Spanner does not support time/year types", severity: warning, batch: true},
 	Widened:                 {Brief: "Some columns will consume more storage in Spanner", severity: warning, batch: true},
 	StringOverflow:          {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
