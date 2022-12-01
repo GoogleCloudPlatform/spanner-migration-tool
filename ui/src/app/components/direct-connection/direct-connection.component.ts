@@ -47,6 +47,7 @@ export class DirectConnectionComponent implements OnInit {
     this.clickEvent.openDatabaseLoader('direct', this.connectForm.value.dbName)
     window.scroll(0, 0)
     this.data.resetStore()
+    localStorage.clear()
     const { dbEngine, hostName, port, userName, password, dbName } = this.connectForm.value
     const config: IDbConfig = { dbEngine, hostName, port, userName, password, dbName }
     this.fetch.connectTodb(config).subscribe({
