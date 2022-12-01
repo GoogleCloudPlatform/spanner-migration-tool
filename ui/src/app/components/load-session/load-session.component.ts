@@ -25,9 +25,9 @@ export class LoadSessionComponent implements OnInit {
   })
 
   dbEngineList = [
-    { value: 'mysql', displayName: 'MYSQL' },
+    { value: 'mysql', displayName: 'MySQL' },
     { value: 'sqlserver', displayName: 'SQL Server' },
-    { value: 'oracle', displayName: 'ORACLE' },
+    { value: 'oracle', displayName: 'Oracle' },
     { value: 'postgres', displayName: 'PostgreSQL' },
   ]
   fileToUpload: File | null = null
