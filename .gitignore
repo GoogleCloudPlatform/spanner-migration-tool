@@ -12,3 +12,6 @@ ui/node_modules
 
 # webv2 config
 webv2/config.json
+
+#file upload 
+upload-file/

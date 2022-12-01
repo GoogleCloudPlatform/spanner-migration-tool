@@ -62,7 +62,7 @@ export class FetchService {
       Database: dbName,
       User: userName,
       Password: password,
-    },)
+    })
   }
 
   getSchemaConversionFromSessionFile(payload: ISessionConfig) {
@@ -74,7 +74,9 @@ export class FetchService {
   }
 
   getConnectionProfiles(isSource: boolean) {
-    return this.http.get<IConnectionProfile[]>(`${this.url}/GetConnectionProfiles?source=${isSource}`)
+    return this.http.get<IConnectionProfile[]>(
+      `${this.url}/GetConnectionProfiles?source=${isSource}`
+    )
   }
 
   getGeneratedResources() {
@@ -214,7 +216,9 @@ export class FetchService {
   getProgress() {
     return this.http.get<IProgress>(`${this.url}/GetProgress`)
   }
-
+  uploadFile(payload: FormData) {
+    return this.http.post(`${this.url}/uploadFile`, payload)
+  }
   cleanUpStreamingJobs() {
     return this.http.post(`${this.url}/CleanUpStreamingJobs`, {})
   }
