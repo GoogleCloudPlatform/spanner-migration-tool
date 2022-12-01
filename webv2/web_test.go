@@ -1955,6 +1955,503 @@ func TestRemoveParentTable(t *testing.T) {
 	}
 }
 
+func TestApplyRule(t *testing.T) {
+	tcAddIndex := []struct {
+		name         string
+		input        internal.Rule
+		statusCode   int64
+		conv         *internal.Conv
+		expectedConv *internal.Conv
+	}{
+		{
+			name: "Add Index with unique name",
+			input: internal.Rule{
+				Name:              "rule-index1",
+				ObjectType:        "Table",
+				AssociatedObjects: "t1",
+				Enabled:           true,
+				Type:              constants.AddIndex,
+				Data: map[string]interface{}{
+					"Name":   "idx3",
+					"Table":  "t1",
+					"Unique": false,
+					"Keys":   []interface{}{map[string]interface{}{"Col": "b", "Desc": false}},
+				},
+			},
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{
+							{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}}},
+					}},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{
+							{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}},
+							{Id: "i1", Name: "idx3", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+						},
+					}},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true, "idx3": true},
+			},
+		},
+		{
+			name: "New name conflicts with an existing table",
+			input: internal.Rule{
+				Name:              "rule-index1",
+				ObjectType:        "Table",
+				AssociatedObjects: "t1",
+				Enabled:           true,
+				Type:              constants.AddIndex,
+				Data: map[string]interface{}{
+					"Name":   "t1",
+					"Table":  "t1",
+					"Unique": false,
+					"Keys":   []interface{}{map[string]interface{}{"Col": "b", "Desc": false}},
+				},
+			},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}}},
+					}},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
+			},
+		},
+		{
+			name: "New name conflicts with an existing index",
+			input: internal.Rule{
+				Name:              "rule-index1",
+				ObjectType:        "Table",
+				AssociatedObjects: "t1",
+				Enabled:           true,
+				Type:              constants.AddIndex,
+				Data: map[string]interface{}{
+					"Name":   "idx2",
+					"Table":  "t1",
+					"Unique": false,
+					"Keys":   []interface{}{map[string]interface{}{"Col": "b", "Desc": false}},
+				},
+			},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}}},
+					}},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
+			},
+		},
+		{
+			name: "Invalid input",
+			input: internal.Rule{
+				Name:              "rule-index1",
+				ObjectType:        "Table",
+				AssociatedObjects: "t1",
+				Enabled:           true,
+				Type:              constants.AddIndex,
+				Data:              []string{"test1"},
+			},
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}}},
+					}},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
+			},
+		},
+	}
+	for i, tc := range tcAddIndex {
+		if i != 0 {
+			continue
+		}
+		sessionState := session.GetSessionState()
+
+		sessionState.Driver = constants.MYSQL
+		sessionState.Conv = tc.conv
+
+		inputBytes, err := json.Marshal(tc.input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		buffer := bytes.NewBuffer(inputBytes)
+
+		req, err := http.NewRequest("POST", "/applyrule", buffer)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(applyRule)
+		handler.ServeHTTP(rr, req)
+		var res *internal.Conv
+		json.Unmarshal(rr.Body.Bytes(), &res)
+		if status := rr.Code; int64(status) != tc.statusCode {
+			t.Errorf("%s : handler returned wrong status code: got %v want %v",
+				tc.name, status, tc.statusCode)
+		}
+		if tc.statusCode == http.StatusOK {
+			tc.expectedConv.Rules = internal.MakeConv().Rules
+			tc.expectedConv.Rules = append(tc.expectedConv.Rules, tc.input)
+			assert.Equal(t, tc.expectedConv, res)
+		}
+	}
+
+	tcSetGlobalDataTypePostgres := []struct {
+		name           string
+		payload        string
+		statusCode     int64
+		expectedSchema ddl.CreateTable
+		expectedIssues map[string][]internal.SchemaIssue
+	}{
+		{
+			name: "Test type change",
+			payload: `{
+				"Name":              "rule1",
+				"Type":              "global_datatype_change",
+				"ObjectType":        "Column",
+				"AssociatedObjects": "All Columns",
+				"Enabled":           true,
+				"Data":
+	{
+	  	"bool":"STRING",
+		"int8":"STRING",
+		"float4":"STRING",
+		"varchar":"BYTES",
+		"numeric":"STRING",
+		"timestamptz":"STRING",
+		"bigserial":"STRING",
+		"bpchar":"BYTES",
+		"bytea":"STRING",
+		"date":"STRING",
+		"float8":"STRING",
+		"int4":"STRING",
+		"serial":"STRING",
+		"text":"BYTES",
+		"timestamp":"STRING"
+	}
+		}`,
+			statusCode: http.StatusOK,
+			expectedSchema: ddl.CreateTable{
+				Name:     "t1",
+				ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p"},
+				ColDefs: map[string]ddl.ColumnDef{
+					"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"d": {Name: "d", T: ddl.Type{Name: ddl.Bytes, Len: 6}},
+					"e": {Name: "e", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"f": {Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"g": {Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"h": {Name: "h", T: ddl.Type{Name: ddl.Bytes, Len: int64(1)}},
+					"i": {Name: "i", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"j": {Name: "j", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"k": {Name: "k", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"l": {Name: "l", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"m": {Name: "m", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"n": {Name: "n", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+					"o": {Name: "o", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"p": {Name: "p", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				},
+				Pks: []ddl.IndexKey{{Col: "a"}},
+			},
+			expectedIssues: map[string][]internal.SchemaIssue{
+				"a": {internal.Widened},
+				"b": {internal.Widened},
+				"c": {internal.Widened},
+				"e": {internal.Widened},
+				"f": {internal.Widened},
+				"g": {internal.Widened, internal.Serial},
+				"j": {internal.Widened},
+				"k": {internal.Widened},
+				"l": {internal.Widened},
+				"m": {internal.Widened, internal.Serial},
+				"o": {internal.Widened},
+				"p": {internal.Widened},
+			},
+		},
+		{
+			name: "Test type change 2",
+			payload: `{
+				"Name":              "rule1",
+				"Type":              "global_datatype_change",
+				"ObjectType":        "Column",
+				"AssociatedObjects": "All Columns",
+				"Enabled":           true,
+				"Data":
+		{
+		  	"bool":"INT64",
+			"int8":"STRING",
+			"float4":"STRING"
+		}
+			}`,
+			statusCode: http.StatusOK,
+			expectedSchema: ddl.CreateTable{
+				Name:     "t1",
+				ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p"},
+				ColDefs: map[string]ddl.ColumnDef{
+					"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"c": {Name: "c", T: ddl.Type{Name: ddl.Int64}},
+					"d": {Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
+					"e": {Name: "e", T: ddl.Type{Name: ddl.Numeric}},
+					"f": {Name: "f", T: ddl.Type{Name: ddl.Timestamp}},
+					"g": {Name: "g", T: ddl.Type{Name: ddl.Int64}},
+					"h": {Name: "h", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
+					"i": {Name: "i", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+					"j": {Name: "j", T: ddl.Type{Name: ddl.Date}},
+					"k": {Name: "k", T: ddl.Type{Name: ddl.Float64}},
+					"l": {Name: "l", T: ddl.Type{Name: ddl.Int64}},
+					"m": {Name: "m", T: ddl.Type{Name: ddl.Int64}},
+					"n": {Name: "n", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"o": {Name: "o", T: ddl.Type{Name: ddl.Timestamp}},
+					"p": {Name: "p", T: ddl.Type{Name: ddl.Int64}},
+				},
+				Pks: []ddl.IndexKey{{Col: "a"}},
+			},
+			expectedIssues: map[string][]internal.SchemaIssue{
+				"a": {internal.Widened},
+				"b": {internal.Widened},
+				"c": {internal.Widened},
+				"g": {internal.Serial},
+				"l": {internal.Widened},
+				"m": {internal.Serial},
+				"o": {internal.Timestamp},
+				"p": {internal.Widened},
+			},
+		},
+		{
+			name: "Test bad payload data request",
+			payload: `{
+				"Name":              "rule1",
+				"Type":              "global_datatype_change",
+				"ObjectType":        "Column",
+				"AssociatedObjects": "All Columns",
+				"Enabled":           true,
+				"Data":
+		{
+		  	"bool":"INT64",
+			"int8":"STRING",
+			"float4":"STRING",
+		}
+			}`,
+			statusCode: http.StatusBadRequest,
+		},
+	}
+	for _, tc := range tcSetGlobalDataTypePostgres {
+
+		sessionState := session.GetSessionState()
+
+		sessionState.Driver = constants.POSTGRES
+		sessionState.Conv = internal.MakeConv()
+		buildConvPostgres(sessionState.Conv)
+		payload := tc.payload
+		req, err := http.NewRequest("POST", "/applyrule", strings.NewReader(payload))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(applyRule)
+		handler.ServeHTTP(rr, req)
+		var res *internal.Conv
+		json.Unmarshal(rr.Body.Bytes(), &res)
+		if status := rr.Code; int64(status) != tc.statusCode {
+			t.Errorf("handler returned wrong status code: got %v want %v",
+				status, tc.statusCode)
+		}
+
+		if tc.statusCode == http.StatusOK {
+			assert.Equal(t, tc.expectedSchema, res.SpSchema["t1"])
+			assert.Equal(t, tc.expectedIssues, res.Issues["t1"])
+		}
+	}
+
+	tc := []struct {
+		name           string
+		payload        string
+		statusCode     int64
+		expectedSchema ddl.CreateTable
+		expectedIssues map[string][]internal.SchemaIssue
+	}{
+		{
+			name: "Test type change",
+			payload: `{
+			"Name":              "rule1",
+			"Type":              "global_datatype_change",
+			"ObjectType":        "Column",
+			"AssociatedObjects": "All Columns",
+			"Enabled":           true,
+			"Data":
+    {
+      	"bool":"STRING",
+		"smallint":"STRING",
+		"float":"STRING",
+		"varchar":"BYTES",
+		"numeric":"STRING",
+		"timestamp":"STRING",
+		"decimal":"STRING",
+		"json":"BYTES",
+		"binary":"STRING",
+		"blob":"STRING",
+		"double":"STRING",
+		"date":"STRING",
+		"time":"STRING",
+		"enum":"STRING",
+		"text":"BYTES"
+    }
+		}`,
+			statusCode: http.StatusOK,
+			expectedSchema: ddl.CreateTable{
+				Name:     "t1",
+				ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p"},
+				ColDefs: map[string]ddl.ColumnDef{
+					"a": {Name: "a", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"b": {Name: "b", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+					"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"d": {Name: "d", T: ddl.Type{Name: ddl.Bytes, Len: 6}},
+					"e": {Name: "e", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"f": {Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"g": {Name: "g", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+					"h": {Name: "h", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"i": {Name: "i", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"j": {Name: "j", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"k": {Name: "k", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"l": {Name: "l", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"m": {Name: "m", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"n": {Name: "n", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"o": {Name: "o", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"p": {Name: "p", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				},
+				Pks: []ddl.IndexKey{{Col: "a"}},
+			},
+			expectedIssues: map[string][]internal.SchemaIssue{
+				"a": {internal.Widened},
+				"c": {internal.Widened},
+				"e": {internal.Widened},
+				"j": {internal.Widened},
+				"k": {internal.Widened},
+				"l": {internal.Widened},
+				"m": {internal.Widened},
+				"n": {internal.Widened},
+				"o": {internal.Widened},
+				"p": {internal.Time},
+			},
+		},
+		{
+			name: "Test type change 2",
+			payload: `{
+				"Name":              "rule1",
+				"Type":              "global_datatype_change",
+				"ObjectType":        "Column",
+				"AssociatedObjects": "All Columns",
+				"Enabled":           true,
+				"Data":
+		{
+		  	"bool":"INT64",
+			"varchar":"BYTES"
+		}
+			}`,
+			statusCode: http.StatusOK,
+			expectedSchema: ddl.CreateTable{
+				Name:     "t1",
+				ColNames: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p"},
+				ColDefs: map[string]ddl.ColumnDef{
+					"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}},
+					"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"c": {Name: "c", T: ddl.Type{Name: ddl.Int64}},
+					"d": {Name: "d", T: ddl.Type{Name: ddl.Bytes, Len: 6}},
+					"e": {Name: "e", T: ddl.Type{Name: ddl.Numeric}},
+					"f": {Name: "f", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"g": {Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+					"h": {Name: "h", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+					"i": {Name: "i", T: ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}},
+					"j": {Name: "j", T: ddl.Type{Name: ddl.Int64}},
+					"k": {Name: "k", T: ddl.Type{Name: ddl.Float64}},
+					"l": {Name: "l", T: ddl.Type{Name: ddl.Float64}},
+					"m": {Name: "m", T: ddl.Type{Name: ddl.Numeric}},
+					"n": {Name: "n", T: ddl.Type{Name: ddl.Date}},
+					"o": {Name: "o", T: ddl.Type{Name: ddl.Timestamp}},
+					"p": {Name: "p", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+				},
+				Pks: []ddl.IndexKey{{Col: "a"}},
+			},
+			expectedIssues: map[string][]internal.SchemaIssue{
+				"a": {internal.Widened},
+				"c": {internal.Widened},
+				"j": {internal.Widened},
+				"l": {internal.Widened},
+				"o": {internal.Time},
+			},
+		},
+		{
+			name: "Test bad request",
+			payload: `{
+				"Name":              "rule1",
+				"Type":              "global_datatype_change",
+				"ObjectType":        "Column",
+				"AssociatedObjects": "All Columns",
+				"Enabled":           true,
+				"Data":
+		{
+		  	"bool":"INT64",
+			"smallint":"STRING",
+		}
+			}`,
+			statusCode: http.StatusBadRequest,
+		},
+	}
+	for _, tc := range tc {
+		sessionState := session.GetSessionState()
+
+		sessionState.Driver = constants.MYSQL
+		sessionState.Conv = internal.MakeConv()
+		buildConvMySQL(sessionState.Conv)
+		payload := tc.payload
+		req, err := http.NewRequest("POST", "/applyrule", strings.NewReader(payload))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(applyRule)
+		handler.ServeHTTP(rr, req)
+		var res *internal.Conv
+		json.Unmarshal(rr.Body.Bytes(), &res)
+		if status := rr.Code; int64(status) != tc.statusCode {
+			t.Errorf("handler returned wrong status code: got %v want %v",
+				status, tc.statusCode)
+		}
+
+		if tc.statusCode == http.StatusOK {
+			assert.Equal(t, tc.expectedSchema, res.SpSchema["t1"])
+			assert.Equal(t, tc.expectedIssues, res.Issues["t1"])
+		}
+	}
+}
+
 func buildConvMySQL(conv *internal.Conv) {
 	conv.SrcSchema = map[string]schema.Table{
 		"t1": {
