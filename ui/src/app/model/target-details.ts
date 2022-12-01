@@ -3,4 +3,6 @@ export default interface ITargetDetails {
     Dialect: string
     SourceConnProfile: string
     TargetConnProfile: string
+    ReplicationSlot: string
+    Publication: string
 }

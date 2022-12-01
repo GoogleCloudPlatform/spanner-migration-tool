@@ -8,3 +8,8 @@ export interface ICreateConnectionProfile{
     ValidateOnly: boolean
     IsSource: boolean
 }
+
+export interface ISetUpConnectionProfile{
+    IsSource: boolean
+    SourceDatabaseType: string
+}

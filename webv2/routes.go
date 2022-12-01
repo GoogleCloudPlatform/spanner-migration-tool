@@ -100,6 +100,8 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/SetSourceDBDetailsForDump", setSourceDBDetailsForDump).Methods("POST")
 	router.HandleFunc("/SetSourceDBDetailsForDirectConnect", setSourceDBDetailsForDirectConnect).Methods("POST")
 
+	router.HandleFunc("/uploadFile", uploadFile).Methods("POST")
+
 	router.PathPrefix("/").Handler(frontendStatic)
 	return router
 }
