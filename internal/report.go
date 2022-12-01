@@ -399,7 +399,8 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 						l = append(l, str)
 					}
 				case InterleavedOrder:
-					str := fmt.Sprintf("Table %s %s go to Interleave Table Tab", spSchema.Name, IssueDB[i].Brief)
+					parent := getParentForReport(conv, spSchema.Name)
+					str := fmt.Sprintf("Table %s %s %s go to Interleave Table Tab", spSchema.Name, IssueDB[i].Brief, parent)
 
 					if !contains(l, str) {
 						l = append(l, str)
@@ -468,6 +469,34 @@ func getFkAndReferColumn(spSchema ddl.CreateTable, col string) (fkName string, r
 		}
 	}
 	return fkName, referCol
+}
+
+func getParentForReport(conv *Conv, spTableName string) string {
+	table := conv.SpSchema[spTableName]
+	for _, fk := range table.Fks {
+		for i, col := range fk.Columns {
+			if col == fk.ReferColumns[i] {
+				colPkOrder, err1 := getPkOrderForReport(table.Pks, col)
+				refColPkOrder, err2 := getPkOrderForReport(table.Pks, fk.ReferColumns[i])
+				if err1 != nil || err2 != nil {
+					continue
+				}
+				if colPkOrder == 1 && refColPkOrder == 1 {
+					return fk.ReferTable
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func getPkOrderForReport(pks []ddl.IndexKey, spColName string) (int, error) {
+	for _, pk := range pks {
+		if pk.Col == spColName {
+			return pk.Order, nil
+		}
+	}
+	return 0, fmt.Errorf("column is not a part of primary key")
 }
 
 func fillRowStats(conv *Conv, srcTable string, badWrites map[string]int64, tr *tableReport) {
