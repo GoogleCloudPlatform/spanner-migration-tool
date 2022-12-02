@@ -1082,6 +1082,7 @@ export class ObjectDetailComponent implements OnInit {
           this.isObjectSelected = false
         }
         this.data.getConversionRate()
+        this.data.getDdl()
       })
 
     this.currentObject = null

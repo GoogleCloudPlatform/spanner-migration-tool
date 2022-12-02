@@ -134,11 +134,12 @@ func NewSourceProfileConnectionMySQL(params map[string]string) (SourceProfileCon
 }
 
 type SourceProfileConnectionPostgreSQL struct {
-	Host string // Same as PGHOST environment variable
-	Port string // Same as PGPORT environment variable
-	User string // Same as PGUSER environment variable
-	Db   string // Same as PGDATABASE environment variable
-	Pwd  string // Same as PGPASSWORD environment variable
+	Host            string // Same as PGHOST environment variable
+	Port            string // Same as PGPORT environment variable
+	User            string // Same as PGUSER environment variable
+	Db              string // Same as PGDATABASE environment variable
+	Pwd             string // Same as PGPASSWORD environment variable
+	StreamingConfig string
 }
 
 func NewSourceProfileConnectionPostgreSQL(params map[string]string) (SourceProfileConnectionPostgreSQL, error) {
@@ -148,6 +149,13 @@ func NewSourceProfileConnectionPostgreSQL(params map[string]string) (SourceProfi
 	db, dbOk := params["dbName"]
 	port, portOk := params["port"]
 	pwd, pwdOk := params["password"]
+
+	streamingConfig, cfgOk := params["streamingCfg"]
+	if cfgOk && streamingConfig == "" {
+		return pg, fmt.Errorf("specify a non-empty streaming config file path")
+	}
+	pg.StreamingConfig = streamingConfig
+
 	// We don't users to mix and match params from source-profile and environment variables.
 	// We either try to get all params from the source-profile and if none are set, we read from the env variables.
 	if !(hostOk || userOk || dbOk || portOk || pwdOk) {
@@ -380,6 +388,9 @@ func NewSourceProfileConnection(source string, params map[string]string) (Source
 			if err != nil {
 				return conn, err
 			}
+			if conn.Pg.StreamingConfig != "" {
+				conn.Streaming = true
+			}
 		}
 	case "dynamodb":
 		{
@@ -523,12 +534,11 @@ func (src SourceProfile) ToLegacyDriver(source string) (string, error) {
 // from envrironment variables.
 //
 // Format 3. Specify a config file that specifies source connection profile.
-//
 func NewSourceProfile(s string, source string) (SourceProfile, error) {
 	if source == "" {
 		return SourceProfile{}, fmt.Errorf("cannot leave -source flag empty, please specify source databases e.g., -source=postgres etc")
 	}
-	params, err := parseProfile(s)
+	params, err := ParseMap(s)
 	if err != nil {
 		return SourceProfile{}, fmt.Errorf("could not parse source-profile, error = %v", err)
 	}

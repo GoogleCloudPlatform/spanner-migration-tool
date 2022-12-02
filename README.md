@@ -34,6 +34,8 @@ HarbourBridge supports two types of data migrations:
 
 * Minimal Downtime migration - A minimal downtime migration consists of two components, migration of existing data from the database and the stream of changes (writes and updates) that are made to the source database during migration, referred to as change database capture (CDC). Using HarbourBridge, the entire process where Datastream reads data from the source database and writes to a GCS bucket and data flow reads data from GCS bucket and writes to spanner database can be orchestrated using a unified interface. Performing schema changes on the source database during the migration is not supported. This is the suggested mode of migration for most databases.
 
+  Please note that in order to perform minimal downtime migration for **PostgreSQL** database a user needs to create a publication and replication slot as mentioned [here](https://cloud.google.com/datastream/docs/configure-your-source-postgresql-database#selfhostedpostgresql)
+
 * Bulk Migration -  HarbourBridge reads data from source database and writes it to the database created in Cloud Spanner. Changes which happen to the source database during the bulk migration may or may not be written to Spanner. To achieve consistent version of data, stop writes on the source while migration is in progress, or use a read replica. Performing schema changes on the source database during the migration is not supported. While there is no technical limit on the size of the database, it is recommended for migrating moderate-size datasets to Spanner(up to about 100GB).
 
 For some quick starter examples on how to run HarbourBridge, take a look at
@@ -401,7 +403,7 @@ If not specified in case of direct connection to the source database, HarbourBri
 fetches it from the environment variables([Example usage](#21-generating-pgdump-file)).
 
 `streamingCfg` Optional flag. Specifies the file path for streaming config.
-Please note that streaming migration is only supported for MySQL and Oracle databases currently.
+Please note that streaming migration is only supported for MySQL, Oracle and PostgreSQL databases currently.
 
 ### Target Profile
 

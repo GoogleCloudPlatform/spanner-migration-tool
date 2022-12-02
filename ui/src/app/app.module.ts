@@ -7,7 +7,7 @@ import { ClipboardModule } from '@angular/cdk/clipboard'
 import { AppRoutingModule } from './app-routing.module'
 import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http'
 import { FormsModule } from '@angular/forms'
-import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner'
 
 import { AppComponent } from './app.component'
 import { HeaderComponent } from './components/header/header.component'
@@ -37,10 +37,10 @@ import { DropIndexOrTableDialogComponent } from './components/drop-index-or-tabl
 import { DatabaseLoaderComponent } from './components/database-loader/database-loader.component'
 import { PrepareMigrationComponent } from './components/prepare-migration/prepare-migration.component'
 import { TargetDetailsFormComponent } from './components/target-details-form/target-details-form.component'
-import { ConnectionProfileFormComponent } from './components/connection-profile-form/connection-profile-form.component';
+import { ConnectionProfileFormComponent } from './components/connection-profile-form/connection-profile-form.component'
 import { SourceDetailsFormComponent } from './components/source-details-form/source-details-form.component'
 import { SidenavReviewChangesComponent } from './components/sidenav-review-changes/sidenav-review-changes.component'
-import { TableColumnChangesPreviewComponent } from './components/table-column-changes-preview/table-column-changes-preview.component';
+import { TableColumnChangesPreviewComponent } from './components/table-column-changes-preview/table-column-changes-preview.component'
 import { EndMigrationComponent } from './components/end-migration/end-migration.component'
 
 @NgModule({
