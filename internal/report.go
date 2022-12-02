@@ -399,7 +399,8 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 						l = append(l, str)
 					}
 				case InterleavedOrder:
-					str := fmt.Sprintf("Table %s %s go to Interleave Table Tab", spSchema.Name, IssueDB[i].Brief)
+					parent := getParentForReport(conv, spSchema.Name)
+					str := fmt.Sprintf("Table %s %s %s go to Interleave Table Tab", spSchema.Name, IssueDB[i].Brief, parent)
 
 					if !contains(l, str) {
 						l = append(l, str)
@@ -412,7 +413,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					}
 				case InterleavedRenameColumn:
 					fkName, referCol := getFkAndReferColumn(spSchema, srcCol)
-					str := fmt.Sprintf(" %s rename %s primary key in table %s to match the foreign key %s refer column %s", IssueDB[i].Brief, srcCol, spSchema.Name, fkName, referCol)
+					str := fmt.Sprintf(" %s rename %s primary key in table %s to match the foreign key %s refer column \"%s\"", IssueDB[i].Brief, srcCol, spSchema.Name, fkName, referCol)
 
 					if !contains(l, str) {
 						l = append(l, str)
@@ -470,6 +471,34 @@ func getFkAndReferColumn(spSchema ddl.CreateTable, col string) (fkName string, r
 	return fkName, referCol
 }
 
+func getParentForReport(conv *Conv, spTableName string) string {
+	table := conv.SpSchema[spTableName]
+	for _, fk := range table.Fks {
+		for i, col := range fk.Columns {
+			if col == fk.ReferColumns[i] {
+				colPkOrder, err1 := getPkOrderForReport(table.Pks, col)
+				refColPkOrder, err2 := getPkOrderForReport(table.Pks, fk.ReferColumns[i])
+				if err1 != nil || err2 != nil {
+					continue
+				}
+				if colPkOrder == 1 && refColPkOrder == 1 {
+					return fk.ReferTable
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func getPkOrderForReport(pks []ddl.IndexKey, spColName string) (int, error) {
+	for _, pk := range pks {
+		if pk.Col == spColName {
+			return pk.Order, nil
+		}
+	}
+	return 0, fmt.Errorf("column is not a part of primary key")
+}
+
 func fillRowStats(conv *Conv, srcTable string, badWrites map[string]int64, tr *tableReport) {
 	rows := conv.Stats.Rows[srcTable]
 	goodConvRows := conv.Stats.GoodRows[srcTable]
@@ -511,17 +540,17 @@ var IssueDB = map[SchemaIssue]struct {
 	Serial:                  {Brief: "Spanner does not support autoincrementing types", severity: warning},
 	AutoIncrement:           {Brief: "Spanner does not support auto_increment attribute", severity: warning},
 	Timestamp:               {Brief: "Spanner timestamp is closer to PostgreSQL timestamptz", severity: suggestion, batch: true},
-	Datetime:                {Brief: "Spanner timestamp is closer to MySQL timestamp", severity: suggestion, batch: true},
+	Datetime:                {Brief: "Spanner timestamp is closer to MySQL timestamp", severity: warning, batch: true},
 	Time:                    {Brief: "Spanner does not support time/year types", severity: warning, batch: true},
 	Widened:                 {Brief: "Some columns will consume more storage in Spanner", severity: warning, batch: true},
 	StringOverflow:          {Brief: "String overflow issue might occur as maximum supported length in Spanner is 2621440", severity: warning},
 	HotspotTimestamp:        {Brief: "Timestamp Hotspot Occured", severity: warning},
 	HotspotAutoIncrement:    {Brief: "Autoincrement Hotspot Occured", severity: warning},
-	InterleavedOrder:        {Brief: "can be converted as Interleaved Table", severity: suggestion},
+	InterleavedOrder:        {Brief: "can be converted as Interleaved with Table", severity: suggestion},
 	RedundantIndex:          {Brief: "Redundant Index", severity: warning},
 	AutoIncrementIndex:      {Brief: "Auto increment column in Index can create a Hotspot", severity: warning},
 	InterleaveIndex:         {Brief: "can be converted to an Interleave Index", severity: suggestion},
-	InterleavedNotInOrder:   {Brief: "Can be converted to interleaved table if primary key order parameter is changed for the table", severity: suggestion},
+	InterleavedNotInOrder:   {Brief: "Can be converted to interleaved table if primary key order parameter is changed to 1 for the table", severity: suggestion},
 	InterleavedAddColumn:    {Brief: "Candidate for Interleaved Table", severity: suggestion},
 	IllegalName:             {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: warning},
 	InterleavedRenameColumn: {Brief: "Candidate for Interleaved Table", severity: suggestion},

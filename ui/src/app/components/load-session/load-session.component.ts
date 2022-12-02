@@ -36,6 +36,7 @@ export class LoadSessionComponent implements OnInit {
   convertFromSessionFile() {
     this.clickEvent.openDatabaseLoader('session', '')
     this.data.resetStore()
+    localStorage.clear()
     const { dbEngine, filePath } = this.connectForm.value
     const payload: ISessionConfig = {
       driver: dbEngine,

@@ -59,7 +59,6 @@ import (
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/typemap"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
@@ -1978,7 +1977,7 @@ func init() {
 	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			ty, issues := typemap.ToSpannerTypeMySQL(srcType, spType, []int64{})
+			ty, issues := mysql.ToSpannerTypeWeb(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		if srcType == "tinyint" {
@@ -1990,7 +1989,7 @@ func init() {
 	for _, srcType := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			ty, issues := typemap.ToSpannerTypePostgres(srcType, spType, []int64{})
+			ty, issues := postgres.ToSpannerTypeWeb(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		postgresTypeMap[srcType] = l
@@ -2000,7 +1999,7 @@ func init() {
 	for _, srcType := range []string{"int", "tinyint", "smallint", "bigint", "bit", "float", "real", "numeric", "decimal", "money", "smallmoney", "char", "nchar", "varchar", "nvarchar", "text", "ntext", "date", "datetime", "datetime2", "smalldatetime", "datetimeoffset", "time", "timestamp", "rowversion", "binary", "varbinary", "image", "xml", "geography", "geometry", "uniqueidentifier", "sql_variant", "hierarchyid"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			ty, issues := typemap.ToSpannerTypeSQLserver(srcType, spType, []int64{})
+			ty, issues := sqlserver.ToSpannerTypeWeb(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		sqlserverTypeMap[srcType] = l
