@@ -2,7 +2,7 @@ import { Component, Inject, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MigrationDetails, Profile, TargetDetails } from 'src/app/app.constants';
-import IConnectionProfile, { ICreateConnectionProfile } from 'src/app/model/profile';
+import IConnectionProfile, { ICreateConnectionProfile, ISetUpConnectionProfile } from 'src/app/model/profile';
 import { FetchService } from 'src/app/services/fetch/fetch.service';
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service';
 
@@ -25,15 +25,17 @@ export class ConnectionProfileFormComponent implements OnInit {
   profileName = ''
   errorMsg = ''
   isSource: boolean = false
+  sourceDatabaseType: string = ''
   testSuccess: boolean = false
   constructor(
     private fetch: FetchService,
     private snack: SnackbarService,
     private formBuilder: FormBuilder,
     private dialogRef: MatDialogRef<ConnectionProfileFormComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: boolean
+    @Inject(MAT_DIALOG_DATA) public data: ISetUpConnectionProfile
   ) {
-    this.isSource = data
+    this.isSource = data.IsSource
+    this.sourceDatabaseType = data.SourceDatabaseType
     if (!this.isSource) {
       this.profileType = Profile.TargetProfileType
     }
@@ -41,7 +43,15 @@ export class ConnectionProfileFormComponent implements OnInit {
       profileOption: ['', Validators.required],
       newProfile: [],
       existingProfile: [],
+      replicationSlot: [],
+      publication: [],
     })
+    if (this.sourceDatabaseType == 'postgres' && this.isSource) {
+      this.connectionProfileForm.get('replicationSlot')?.addValidators([Validators.required])
+      this.connectionProfileForm.controls['replicationSlot'].updateValueAndValidity()
+      this.connectionProfileForm.get('publication')?.addValidators([Validators.required])
+      this.connectionProfileForm.controls['publication'].updateValueAndValidity()
+    }
     this.getConnectionProfilesAndIps()
   }
 
@@ -79,6 +89,10 @@ export class ConnectionProfileFormComponent implements OnInit {
   }
   createConnectionProfile() {
     let formValue = this.connectionProfileForm.value
+    if (this.isSource) {
+      localStorage.setItem(TargetDetails.ReplicationSlot, formValue.replicationSlot)
+      localStorage.setItem(TargetDetails.Publication, formValue.publication)
+    }
     if (this.selectedOption === Profile.NewConnProfile) {
       let payload: ICreateConnectionProfile = {
         Id: formValue.newProfile,

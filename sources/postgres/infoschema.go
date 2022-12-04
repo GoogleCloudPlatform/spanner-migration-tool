@@ -29,22 +29,43 @@ import (
 	_ "github.com/lib/pq" // we will use database/sql package instead of using this package directly
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
+	"github.com/cloudspannerecosystem/harbourbridge/streaming"
 )
 
 // InfoSchemaImpl postgres specific implementation for InfoSchema.
 type InfoSchemaImpl struct {
-	Db *sql.DB
+	Db            *sql.DB
+	SourceProfile profiles.SourceProfile
+	TargetProfile profiles.TargetProfile
 }
 
-// We leave the 2 functions below empty to be able to pass this as an infoSchema interface. We don't need these for now.
+// StartChangeDataCapture is used for automatic triggering of Datastream job when
+// performing a streaming migration.
 func (isi InfoSchemaImpl) StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error) {
-	return nil, nil
+	mp := make(map[string]interface{})
+	streamingCfg, err := streaming.StartDatastream(ctx, isi.SourceProfile, isi.TargetProfile)
+	if err != nil {
+		err = fmt.Errorf("error starting datastream: %v", err)
+		return nil, err
+	}
+	mp["streamingCfg"] = streamingCfg
+	return mp, err
 }
 
+// StartStreamingMigration is used for automatic triggering of Dataflow job when
+// performing a streaming migration.
 func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamingInfo map[string]interface{}) error {
+	streamingCfg, _ := streamingInfo["streamingCfg"].(streaming.StreamingCfg)
+
+	err := streaming.StartDataflow(ctx, isi.SourceProfile, isi.TargetProfile, streamingCfg, conv)
+	if err != nil {
+		err = fmt.Errorf("error starting dataflow: %v", err)
+		return err
+	}
 	return nil
 }
 

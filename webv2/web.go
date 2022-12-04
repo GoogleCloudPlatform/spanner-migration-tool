@@ -130,6 +130,8 @@ type targetDetails struct {
 	TargetDB                    string `json:"TargetDB"`
 	SourceConnectionProfileName string `json:"SourceConnProfile"`
 	TargetConnectionProfileName string `json:"TargetConnProfile"`
+	ReplicationSlot             string `json:"ReplicationSlot"`
+	Publication                 string `json:"Publication"`
 }
 type StreamingCfg struct {
 	DatastreamCfg DatastreamCfg `json:"datastreamCfg"`
@@ -150,6 +152,7 @@ type DatastreamCfg struct {
 	StreamDisplayName      string           `json:"streamDisplayName"`
 	SourceConnectionConfig ConnectionConfig `json:"sourceConnectionConfig"`
 	TargetConnectionConfig ConnectionConfig `json:"destinationConnectionConfig"`
+	Properties             string           `json:properties`
 }
 
 // databaseConnection creates connection with database when using
@@ -374,7 +377,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	f, err := os.Open(dc.FilePath)
+	f, err := os.Open("upload-file/" + dc.FilePath)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to open dump file : %v, no such file or directory", dc.FilePath), http.StatusNotFound)
 		return
@@ -440,7 +443,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	conv := internal.MakeConv()
 	metadata := session.SessionMetadata{}
 
-	err = session.ReadSessionFileForSessionMetadata(&metadata, s.FilePath)
+	err = session.ReadSessionFileForSessionMetadata(&metadata, "upload-file/"+s.FilePath)
 	if err != nil {
 		switch err.(type) {
 		case *fs.PathError:
@@ -451,7 +454,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = conversion.ReadSessionFile(conv, s.FilePath)
+	err = conversion.ReadSessionFile(conv, "upload-file/"+s.FilePath)
 	if err != nil {
 		switch err.(type) {
 		case *fs.PathError:
@@ -1588,6 +1591,10 @@ func createStreamingCfgFile(sessionState *session.SessionState, targetDetails ta
 		TmpDir: "gs://" + sessionState.Bucket + sessionState.RootPath,
 	}
 
+	databaseType, _ := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
+	if databaseType == constants.POSTGRES {
+		data.DatastreamCfg.Properties = fmt.Sprintf("replicationSlot=%v,publication=%v", targetDetails.ReplicationSlot, targetDetails.Publication)
+	}
 	file, err := json.MarshalIndent(data, "", " ")
 	if err != nil {
 		return fmt.Errorf("error while marshalling json: %v", err)
@@ -1727,6 +1734,52 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
+}
+
+func uploadFile(w http.ResponseWriter, r *http.Request) {
+
+	r.ParseMultipartForm(10 << 20)
+	// FormFile returns the first file for the given key `myFile`
+	// it also returns the FileHeader so we can get the Filename,
+	// the Header and the size of the file
+	file, handlers, err := r.FormFile("myFile")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error retrieving the file"), http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// Remove the existing files
+	err = os.RemoveAll("upload-file/")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error removing existing files"), http.StatusBadRequest)
+		return
+	}
+
+	err = os.MkdirAll("upload-file", os.ModePerm)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error while creating directory"), http.StatusBadRequest)
+		return
+	}
+
+	f, err := os.Create("upload-file/" + handlers.Filename)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("not able to create file"), http.StatusBadRequest)
+		return
+	}
+
+	// read all of the contents of our uploaded file into a byte array
+	fileBytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error reading the file"), http.StatusBadRequest)
+		return
+	}
+	if _, err := f.Write(fileBytes); err != nil {
+		http.Error(w, fmt.Sprintf("error writing the file"), http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode("file uploaded successfully")
 }
 
 // rollback is used to get previous state of conversion in case

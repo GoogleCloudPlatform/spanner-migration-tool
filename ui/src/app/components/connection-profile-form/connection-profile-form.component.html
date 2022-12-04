@@ -27,10 +27,27 @@
                 <input matInput placeholder="Connection profile name" type="text" formControlName="newProfile"
                     required="true" />
             </mat-form-field>
+        </div>
+        <div *ngIf="isSource && sourceDatabaseType=='postgres'">
+            <mat-form-field appearance="outline">
+                <mat-label>Replication slot</mat-label>
+                <input matInput placeholder="Replication slot" type="text" formControlName="replicationSlot"
+                    required="true" />
+            </mat-form-field>
+            <br>
+            <mat-form-field appearance="outline">
+                <mat-label>Publication name</mat-label>
+                <input matInput placeholder="Publication name" type="text" formControlName="publication"
+                    required="true" />
+            </mat-form-field>
+        </div>
+        <div *ngIf="(selectedOption === 'new')">
             <div *ngIf="isSource">
                 <div><b>Copy the public IPs below, and use them to configure the network firewall to accept
                         connections
-                        from them.</b><a href="https://cloud.google.com/datastream/docs/network-connectivity-options#ipallowlists">Learn More</a></div>
+                        from them.</b><a
+                        href="https://cloud.google.com/datastream/docs/network-connectivity-options#ipallowlists">Learn
+                        More</a></div>
                 <br>
                 <li *ngFor="let ip of ipList" class="connection-form-container">
                     <span class="left-text">{{ip}}</span>
@@ -53,6 +70,7 @@
                 </mat-icon>
             </div>
         </div>
+
 
         <div mat-dialog-actions class="buttons-container">
             <button mat-button color="primary" mat-dialog-close>Cancel</button>

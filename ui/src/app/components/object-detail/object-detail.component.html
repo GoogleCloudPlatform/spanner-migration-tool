@@ -268,7 +268,7 @@
                       >
                         {{ t.T }}
                       </mat-option>
-                      <mat-option *ngIf="element.get('srcDataType').value==''" value="STRING">
+                      <mat-option *ngIf="element.get('srcDataType').value == ''" value="STRING">
                         STRING
                       </mat-option>
                     </mat-select>
@@ -713,7 +713,6 @@
                 <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
                 <mat-menu #menu="matMenu" xPosition="before">
                   <button
-
                     [disabled]="element.get('spName').value === ''"
                     mat-menu-item
                     (click)="dropFk(element)"
@@ -780,12 +779,12 @@
       </div>
     </mat-tab>
 
-    <mat-tab>
+    <mat-tab *ngIf="currentObject!.isSpannerNode && !currentObject!.isDeleted">
       <ng-template mat-tab-label>
-        <span *ngIf="currentObject!.isSpannerNode && !currentObject!.isDeleted">SQL</span>
+        <span>SQL</span>
       </ng-template>
       <div class="ddl_container">
-        <pre><code>{{ddlStmts[currentObject!.id]}}</code></pre>
+        <pre><code>{{ddlStmts[currentObject!.name]}}</code></pre>
       </div>
     </mat-tab>
   </mat-tab-group>

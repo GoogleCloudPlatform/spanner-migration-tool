@@ -17,7 +17,6 @@ package internal
 import (
 	"bufio"
 	"fmt"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -329,7 +328,8 @@ func buildTableReportBody(conv *Conv, tableId string, issues map[string][]Schema
 				if err != nil {
 					continue
 				}
-				if srcFk.Name != spFk.Name {
+				_, isChanged := FixName(srcFk.Name)
+				if isChanged && srcFk.Name != spFk.Name {
 					l = append(l, fmt.Sprintf("%s, Foreign Key '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcFk.Name, spFk.Name))
 				}
 			}
@@ -338,18 +338,14 @@ func buildTableReportBody(conv *Conv, tableId string, issues map[string][]Schema
 				if err != nil {
 					continue
 				}
-				if srcIdx.Name != spIdx.Name {
+				_, isChanged := FixName(srcIdx.Name)
+				if isChanged && srcIdx.Name != spIdx.Name {
 					l = append(l, fmt.Sprintf("%s, Index '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcIdx.Name, spIdx.Name))
 				}
 			}
 
-			for col, spColDef := range spSchema.ColDefs {
-				re := regexp.MustCompile("^[a-zA-Z0-9_]*$")
-				if (spColDef.Name != srcSchema.ColDefs[col].Name) && !(re.MatchString(srcSchema.ColDefs[col].Name)) {
-					l = append(l, fmt.Sprintf("%s, Column '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcSchema.ColDefs[col].Name, spColDef.Name))
-				}
-			}
-			if spSchema.Name != srcSchema.Name {
+			_, isChanged := FixName(srcSchema.Name)
+			if isChanged && (spSchema.Name != srcSchema.Name) {
 				l = append(l, fmt.Sprintf("%s, Table '%s' is mapped to '%s'", IssueDB[IllegalName].Brief, srcSchema.Name, spSchema.Name))
 			}
 		}

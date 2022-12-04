@@ -83,7 +83,8 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 		if srcCol.Ignored.ForeignKey {
 			issues = append(issues, internal.ForeignKey)
 		}
-		if srcCol.Name != colName {
+		_, isChanged := internal.FixName(srcCol.Name)
+		if isChanged && (srcCol.Name != colName) {
 			issues = append(issues, internal.IllegalName)
 		}
 		if srcCol.Ignored.Default {

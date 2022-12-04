@@ -440,4 +440,22 @@ export class DataService {
       }
     })
   }
+
+  uploadFile(file: FormData): Observable<string> {
+    return this.fetch.uploadFile(file).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data) => {
+        if (data.error) {
+          this.snackbar.openSnackBar('File upload failed', 'Close')
+          return data.error
+        } else {
+          this.snackbar.openSnackBar('File uploaded successfully', 'Close', 5)
+          return ''
+        }
+      })
+    )
+  }
 }
