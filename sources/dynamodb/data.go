@@ -25,14 +25,15 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
-func ProcessDataRow(m map[string]*dynamodb.AttributeValue, conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable) {
-	spVals, badCols, srcStrVals := cvtRow(m, srcSchema, spSchema, spCols)
-	srcTableName := conv.SrcSchema[tableId].Name
-	spTableName := conv.SpSchema[tableId].Name
-	spColNames := spCols
+func ProcessDataRow(m map[string]*dynamodb.AttributeValue, conv *internal.Conv, tableId string, srcSchema schema.Table, colIds []string, spSchema ddl.CreateTable) {
+	spVals, badCols, srcStrVals := cvtRow(m, srcSchema, spSchema, colIds)
+	srcTableName := srcSchema.Name
+	spTableName := spSchema.Name
+	spColNames := []string{}
 	srcColNames := []string{}
-	for _, colId := range conv.SrcSchema[tableId].ColIds {
-		srcColNames = append(srcColNames, conv.SrcSchema[tableId].ColDefs[colId].Name)
+	for _, colId := range colIds {
+		srcColNames = append(srcColNames, srcSchema.ColDefs[colId].Name)
+		spColNames = append(spColNames, spSchema.ColDefs[colId].Name)
 	}
 	if len(badCols) == 0 {
 		conv.WriteRow(srcTableName, spTableName, spColNames, spVals)
@@ -43,12 +44,12 @@ func ProcessDataRow(m map[string]*dynamodb.AttributeValue, conv *internal.Conv, 
 	}
 }
 
-func cvtRow(attrsMap map[string]*dynamodb.AttributeValue, srcSchema schema.Table, spSchema ddl.CreateTable, spCols []string) ([]interface{}, []string, []string) {
+func cvtRow(attrsMap map[string]*dynamodb.AttributeValue, srcSchema schema.Table, spSchema ddl.CreateTable, colIds []string) ([]interface{}, []string, []string) {
 	var err error
 	var srcStrVals []string
 	var spVals []interface{}
 	var badCols []string
-	for _, colId := range srcSchema.ColIds {
+	for _, colId := range colIds {
 		srcColName := srcSchema.ColDefs[colId].Name
 		var spVal interface{}
 		var srcStrVal string

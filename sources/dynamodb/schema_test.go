@@ -431,7 +431,7 @@ func TestInferDataTypes(t *testing.T) {
 		},
 		"empty_stats": {},
 	}
-	colDefs, colNames, err := inferDataTypes(stats, 1000, make([]string, 0))
+	colDefs, _, err := inferDataTypes(stats, 1000, make([]string, 0))
 	assert.Nil(t, err)
 	expectColNames := []string{
 		"all_rows_not_null", "err_row", "err_null_row", "enough_null_row",
@@ -439,8 +439,13 @@ func TestInferDataTypes(t *testing.T) {
 		"not_conflict_row_with_noise", "conflict_row_with_noise",
 		"equal_conflict_row_with_noise",
 	}
-	assert.ElementsMatch(t, expectColNames, colNames)
-	assert.Equal(t, map[string]schema.Column{
+	cnidMap := getSrcColNameIdMap(colDefs)
+	for _, ecn := range expectColNames {
+		acn := cnidMap[ecn]
+		assert.NotEqual(t, "", acn)
+	}
+
+	expColDefs := map[string]schema.Column{
 		"all_rows_not_null":             {Name: "all_rows_not_null", Type: schema.Type{Name: "Number"}, NotNull: true},
 		"err_row":                       {Name: "err_row", Type: schema.Type{Name: "Number"}, NotNull: true},
 		"err_null_row":                  {Name: "err_null_row", Type: schema.Type{Name: "Number"}, NotNull: true},
@@ -451,7 +456,13 @@ func TestInferDataTypes(t *testing.T) {
 		"not_conflict_row_with_noise":   {Name: "not_conflict_row_with_noise", Type: schema.Type{Name: "Number"}, NotNull: false},
 		"conflict_row_with_noise":       {Name: "conflict_row_with_noise", Type: schema.Type{Name: "String"}, NotNull: false},
 		"equal_conflict_row_with_noise": {Name: "equal_conflict_row_with_noise", Type: schema.Type{Name: "String"}, NotNull: false},
-	}, colDefs)
+	}
+
+	for key, ecd := range expColDefs {
+		acd := colDefs[cnidMap[key]]
+		acd.Id = ""
+		assert.Equal(t, ecd, acd)
+	}
 }
 
 func TestScanSampleData(t *testing.T) {
@@ -506,6 +517,14 @@ func TestScanSampleData(t *testing.T) {
 	assert.Equal(t, expectedStats, stats)
 }
 
+func getSrcColNameIdMap(cols map[string]schema.Column) map[string]string {
+	r := make(map[string]string)
+	for _, v := range cols {
+		r[v.Name] = v.Id
+	}
+	return r
+}
+
 func TestInfoSchemaImpl_GetIndexes(t *testing.T) {
 	tableName := "test"
 	attrNameA := "a"
@@ -551,13 +570,18 @@ func TestInfoSchemaImpl_GetIndexes(t *testing.T) {
 	dySchema := common.SchemaAndName{Name: "test"}
 	conv := internal.MakeConv()
 	isi := InfoSchemaImpl{client, nil, 10}
-	indexes, err := isi.GetIndexes(conv, dySchema)
+	colNameToId := map[string]string{attrNameC: "c1", attrNameD: "c2"}
+	indexes, err := isi.GetIndexes(conv, dySchema, colNameToId)
 	assert.Nil(t, err)
 
 	secIndexes := []schema.Index{
-		{Name: "secondary_index_c", Keys: []schema.Key{{ColId: "c"}}},
-		{Name: "secondary_index_d", Keys: []schema.Key{{ColId: "d"}}},
+		{Name: "secondary_index_c", Keys: []schema.Key{{ColId: "c1"}}},
+		{Name: "secondary_index_d", Keys: []schema.Key{{ColId: "c2"}}},
 	}
+	for i := range indexes {
+		indexes[i].Id = ""
+	}
+
 	assert.Equal(t, secIndexes, indexes)
 }
 
@@ -682,16 +706,26 @@ func TestInfoSchemaImpl_GetColumns(t *testing.T) {
 
 	isi := InfoSchemaImpl{client, nil, 10}
 
-	colDefs, colNames, err := isi.GetColumns(conv, dySchema, nil, nil)
+	colDefs, _, err := isi.GetColumns(conv, dySchema, nil, nil)
 	assert.Nil(t, err)
 	expectColNames := []string{
 		"a", "b",
 	}
-	assert.ElementsMatch(t, expectColNames, colNames)
-	assert.Equal(t, map[string]schema.Column{
+	expColDefs := map[string]schema.Column{
 		"a": {Name: "a", Type: schema.Type{Name: "String", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}},
-		"b": {Name: "b", Type: schema.Type{Name: "String", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}}},
-		colDefs)
+		"b": {Name: "b", Type: schema.Type{Name: "String", Mods: []int64(nil), ArrayBounds: []int64(nil)}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}}}
+
+	cnidMap := getSrcColNameIdMap(colDefs)
+	for _, ecn := range expectColNames {
+		acn := cnidMap[ecn]
+		assert.NotEqual(t, "", acn)
+	}
+
+	for key, ecd := range expColDefs {
+		acd := colDefs[cnidMap[key]]
+		acd.Id = ""
+		assert.Equal(t, ecd, acd)
+	}
 }
 
 func TestInfoSchemaImpl_GetForeignKeys(t *testing.T) {
@@ -829,7 +863,7 @@ func TestInfoSchemaImpl_ProcessData(t *testing.T) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
 	err := isi.ProcessData(conv, tableId, conv.SrcSchema[tableId],
-		cols, spSchema)
+		colIds, spSchema)
 	assert.Nil(t, err)
 	assert.Equal(t,
 		[]spannerData{

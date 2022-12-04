@@ -149,7 +149,7 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 	return foreignKeys, err
 }
 
-func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName) (indexes []schema.Index, err error) {
+func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName, colNameIdMap map[string]string) (indexes []schema.Index, err error) {
 	input := &dynamodb.DescribeTableInput{
 		TableName: aws.String(table.Name),
 	}
@@ -166,12 +166,12 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 
 	// Convert secondary indexes from GlobalSecondaryIndexes.
 	for _, i := range result.Table.GlobalSecondaryIndexes {
-		indexes = append(indexes, getSchemaIndexStruct(*i.IndexName, i.KeySchema))
+		indexes = append(indexes, getSchemaIndexStruct(*i.IndexName, i.KeySchema, colNameIdMap))
 	}
 
 	// Convert secondary indexes from LocalSecondaryIndexes.
 	for _, i := range result.Table.LocalSecondaryIndexes {
-		indexes = append(indexes, getSchemaIndexStruct(*i.IndexName, i.KeySchema))
+		indexes = append(indexes, getSchemaIndexStruct(*i.IndexName, i.KeySchema, colNameIdMap))
 	}
 	return indexes, nil
 }
@@ -181,7 +181,7 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 // on the source and Spanner schemas), and write it to Spanner. If we can't
 // get/process data for a table, we skip that table and process the remaining
 // tables.
-func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable) error {
+func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, colIds []string, spSchema ddl.CreateTable) error {
 	rows, err := isi.GetRowsFromTable(conv, tableId)
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Couldn't get data for table %s : err = %s", conv.SrcSchema[tableId].Name, err))
@@ -189,7 +189,7 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSc
 	}
 	// Iterate the items returned.
 	for _, attrsMap := range rows.([]map[string]*dynamodb.AttributeValue) {
-		ProcessDataRow(attrsMap, conv, tableId, srcSchema, spCols, spSchema)
+		ProcessDataRow(attrsMap, conv, tableId, srcSchema, colIds, spSchema)
 	}
 	return nil
 }
@@ -246,12 +246,14 @@ func (isi InfoSchemaImpl) StartStreamingMigration(ctx context.Context, client *s
 	return nil
 }
 
-func getSchemaIndexStruct(indexName string, keySchema []*dynamodb.KeySchemaElement) schema.Index {
+func getSchemaIndexStruct(indexName string, keySchema []*dynamodb.KeySchemaElement, colNameIdMap map[string]string) schema.Index {
 	var keys []schema.Key
 	for _, j := range keySchema {
-		keys = append(keys, schema.Key{ColId: *j.AttributeName})
+		keys = append(keys, schema.Key{ColId: colNameIdMap[*j.AttributeName]})
 	}
-	return schema.Index{Name: indexName, Keys: keys}
+	return schema.Index{
+		Id:   internal.GenerateIndexesId(),
+		Name: indexName, Keys: keys}
 }
 
 func scanSampleData(client dynamodbiface.DynamoDBAPI, sampleSize int64, table string) (map[string]map[string]int64, int64, error) {
@@ -348,7 +350,7 @@ type statItem struct {
 
 func inferDataTypes(stats map[string]map[string]int64, rows int64, primaryKeys []string) (map[string]schema.Column, []string, error) {
 	colDefs := make(map[string]schema.Column)
-	var colNames []string
+	var colIds []string
 
 	for col, countMap := range stats {
 		var statItems, candidates []statItem
@@ -391,20 +393,21 @@ func inferDataTypes(stats map[string]map[string]int64, rows int64, primaryKeys [
 			}
 		}
 
-		colNames = append(colNames, col)
+		colId := internal.GenerateColumnId()
+		colIds = append(colIds, colId)
 		if len(candidates) == 1 {
-			colDefs[col] = schema.Column{Name: col, Type: schema.Type{Name: candidates[0].Type}, NotNull: !nullable}
+			colDefs[colId] = schema.Column{Id: colId, Name: col, Type: schema.Type{Name: candidates[0].Type}, NotNull: !nullable}
 		} else {
 			// If there is no any candidate or more than a single candidate,
 			// this column has a significant conflict on data types and then
 			// defaults to a String type.
-			colDefs[col] = schema.Column{Name: col, Type: schema.Type{Name: typeString}, NotNull: !nullable}
+			colDefs[colId] = schema.Column{Id: colId, Name: col, Type: schema.Type{Name: typeString}, NotNull: !nullable}
 		}
 	}
 	// Sort column names in increasing order, because the server may return them
 	// in a random order.
-	sort.Strings(colNames)
-	return colDefs, colNames, nil
+	sort.Strings(colIds)
+	return colDefs, colIds, nil
 }
 
 // numericParsable determines whether its argument is a valid Spanner numeric

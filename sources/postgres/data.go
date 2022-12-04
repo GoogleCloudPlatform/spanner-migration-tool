@@ -35,9 +35,14 @@ import (
 // srcTable and srcCols are the source table and columns respectively,
 // and vals contains string data to be converted to appropriate types
 // to send to Spanner.  ProcessDataRow is only called in DataMode.
-func ProcessDataRow(conv *internal.Conv, tableId string, srcCols, vals []string) {
-	spTableName, spCols, spVals, err := ConvertData(conv, tableId, srcCols, vals)
-	srcTableName := conv.SrcSchema[tableId].Name
+func ProcessDataRow(conv *internal.Conv, tableId string, colIds, vals []string) {
+	spTableName, spCols, spVals, err := ConvertData(conv, tableId, colIds, vals)
+	srcTable := conv.SrcSchema[tableId]
+	srcTableName := srcTable.Name
+	srcCols := []string{}
+	for _, colId := range colIds {
+		srcCols = append(srcCols, srcTable.ColDefs[colId].Name)
+	}
 	if err != nil {
 		conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
 		conv.StatsAddBadRow(srcTableName, conv.DataMode())
@@ -51,7 +56,7 @@ func ProcessDataRow(conv *internal.Conv, tableId string, srcCols, vals []string)
 // based on the Spanner and source DB schemas. Note that since entries
 // in vals may be empty, we also return the list of columns (empty
 // cols are dropped).
-func ConvertData(conv *internal.Conv, tableId string, srcCols []string, vals []string) (string, []string, []interface{}, error) {
+func ConvertData(conv *internal.Conv, tableId string, colIds []string, vals []string) (string, []string, []interface{}, error) {
 	// Note: if there are many rows for the same srcTable/srcCols,
 	// then the following functionality will be (redundantly)
 	// repeated for every row converted. If this becomes a
@@ -62,28 +67,22 @@ func ConvertData(conv *internal.Conv, tableId string, srcCols []string, vals []s
 	if !ok1 || !ok2 {
 		return "", []string{}, []interface{}{}, fmt.Errorf("can't find table %s in schema", conv.SpSchema[tableId].Name)
 	}
-	spCols, err := internal.GetSpannerCols(conv, tableId, srcCols)
-	if err != nil {
-		return "", []string{}, []interface{}{}, fmt.Errorf("can't map source columns %v", srcCols)
-	}
 	var c []string
 	var v []interface{}
-	if len(spCols) != len(srcCols) || len(spCols) != len(vals) {
-		return "", []string{}, []interface{}{}, fmt.Errorf("ConvertData: spCols, srcCols and vals don't all have the same lengths: len(spCols)=%d, len(srcCols)=%d, len(vals)=%d", len(spCols), len(srcCols), len(vals))
+	if len(colIds) != len(vals) {
+		return "", []string{}, []interface{}{}, fmt.Errorf("ConvertData: colIds and vals don't all have the same lengths: len(colIds)=%d, len(vals)=%d", len(colIds), len(vals))
 	}
-	for i, spCol := range spCols {
-		srcCol := srcCols[i]
+	for i, colId := range colIds {
 		// "\\N" is for PostgreSQL representation of empty column in COPY-FROM blocks.
 		// TODO: Consider using NullString to differentiate between an actual column having "NULL" as a string
 		// and NULL values.
 		if vals[i] == "\\N" || vals[i] == "NULL" {
 			continue
 		}
-		colId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, srcCol)
 		spColDef, ok1 := spSchema.ColDefs[colId]
 		srcColDef, ok2 := srcSchema.ColDefs[colId]
 		if !ok1 || !ok2 {
-			return "", []string{}, []interface{}{}, fmt.Errorf("can't find Spanner and source-db schema for col %s", spCol)
+			return "", []string{}, []interface{}{}, fmt.Errorf("can't find Spanner and source-db schema for colId %s", colId)
 		}
 		var x interface{}
 		var err error
@@ -96,7 +95,7 @@ func ConvertData(conv *internal.Conv, tableId string, srcCols []string, vals []s
 			return "", []string{}, []interface{}{}, err
 		}
 		v = append(v, x)
-		c = append(c, spCol)
+		c = append(c, spColDef.Name)
 	}
 	if aux, ok := conv.SyntheticPKeys[tableId]; ok {
 		c = append(c, conv.SpSchema[tableId].ColDefs[aux.ColId].Name)

@@ -15,8 +15,6 @@
 package common
 
 import (
-	"fmt"
-
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 )
 
@@ -38,10 +36,6 @@ func ProcessDbDump(conv *internal.Conv, r *internal.Reader, dbDump DbDump) error
 	if conv.SchemaMode() {
 		initPrimaryKeyOrder(conv)
 		initIndexOrder(conv)
-		err := conv.AssignIdToSourceSchema()
-		if err != nil {
-			return fmt.Errorf("error while assigning id to source schema")
-		}
 		SchemaToSpannerDDL(conv, dbDump.GetToDdl())
 		conv.AddPrimaryKeys()
 	}

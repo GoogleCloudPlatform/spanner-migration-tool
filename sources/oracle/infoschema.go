@@ -100,7 +100,7 @@ func getSelectQuery(srcDb string, schemaName string, tableName string, colIds []
 }
 
 // ProcessData performs data conversion for source database.
-func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable) error {
+func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, commonColIds []string, spSchema ddl.CreateTable) error {
 	srcTableName := conv.SrcSchema[tableId].Name
 	rowsInterface, err := isi.GetRowsFromTable(conv, tableId)
 	if err != nil {
@@ -121,7 +121,14 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSc
 			continue
 		}
 		values := valsToStrings(v)
-		ProcessDataRow(conv, tableId, srcCols, srcSchema, spCols, spSchema, values)
+		newValues, err := common.PrepareValues(conv, tableId, commonColIds, srcCols, values)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
+			conv.StatsAddBadRow(srcTableName, conv.DataMode())
+			conv.CollectBadRow(srcTableName, srcCols, values)
+			continue
+		}
+		ProcessDataRow(conv, tableId, commonColIds, srcSchema, spSchema, newValues)
 	}
 	return nil
 }
@@ -184,7 +191,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		return nil, nil, fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
 	}
 	colDefs := make(map[string]schema.Column)
-	var colNames []string
+	var colIds []string
 	var colName, dataType string
 	var isNullable string
 	var colDefault, typecode, elementDataType sql.NullString
@@ -218,16 +225,18 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 		}
 
 		ignored.Default = colDefault.Valid
+		colId := internal.GenerateColumnId()
 		c := schema.Column{
+			Id:      colId,
 			Name:    colName,
 			Type:    toType(dataType, typecode, elementDataType, charMaxLen, numericPrecision, numericScale, elementCharMaxLen, elementNumericPrecision, elementNumericScale),
 			NotNull: strings.ToUpper(isNullable) == "N",
 			Ignored: ignored,
 		}
-		colDefs[colName] = c
-		colNames = append(colNames, colName)
+		colDefs[colId] = c
+		colIds = append(colIds, colId)
 	}
-	return colDefs, colNames, nil
+	return colDefs, colIds, nil
 }
 
 // GetConstraints returns a list of primary keys and by-column map of
@@ -324,10 +333,11 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 	for _, k := range keyNames {
 		foreignKeys = append(foreignKeys,
 			schema.ForeignKey{
-				Name:           fKeys[k].Name,
-				ColIds:         fKeys[k].Cols,
-				ReferTableId:   fKeys[k].Table,
-				ReferColumnIds: fKeys[k].Refcols})
+				Id:               internal.GenerateForeignkeyId(),
+				Name:             fKeys[k].Name,
+				ColumnNames:      fKeys[k].Cols,
+				ReferTableName:   fKeys[k].Table,
+				ReferColumnNames: fKeys[k].Refcols})
 	}
 	return foreignKeys, nil
 }
@@ -340,7 +350,7 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 // 4. Function-based indexes
 // 5.Domain indexes,
 // we are only considering normal index as of now.
-func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName) ([]schema.Index, error) {
+func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName, colNameIdMap map[string]string) ([]schema.Index, error) {
 	q := fmt.Sprintf(`
 					SELECT 
 						IC.index_name,
@@ -390,10 +400,15 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 
 		if _, found := indexMap[name]; !found {
 			indexNames = append(indexNames, name)
-			indexMap[name] = schema.Index{Name: name, Unique: (Unique == "UNIQUE")}
+			indexMap[name] = schema.Index{
+				Id:     internal.GenerateIndexesId(),
+				Name:   name,
+				Unique: (Unique == "UNIQUE")}
 		}
 		index := indexMap[name]
-		index.Keys = append(index.Keys, schema.Key{ColId: column, Desc: (collation.Valid && collation.String == "DESC")})
+		index.Keys = append(index.Keys, schema.Key{
+			ColId: colNameIdMap[column],
+			Desc:  (collation.Valid && collation.String == "DESC")})
 		indexMap[name] = index
 	}
 	for _, k := range indexNames {

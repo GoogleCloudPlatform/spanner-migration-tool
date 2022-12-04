@@ -767,10 +767,10 @@ func TestProcessMySQLDump_MultiCol(t *testing.T) {
 				spannerData{table: "test", cols: []string{"id", "a", "b", "c", "d"}, vals: []interface{}{int64(1), "my text", getTime(t, "2019-10-29T05:30:00+02:30"), getTimeWithoutTimezone(t, "2019-10-29 05:30:00"), "my varchar"}}},
 		},
 	}
-	for i, tc := range multiColTests {
-		if i != 1 {
-			continue
-		}
+	for _, tc := range multiColTests {
+		// if tc.name != "INSERT INTO with no primary key" {
+		// 	continue
+		// }
 
 		t.Run(tc.name, func(t *testing.T) {
 			conv, rows := runProcessMySQLDump(tc.input)
@@ -833,10 +833,7 @@ func TestProcessMySQLDump_DataError(t *testing.T) {
 			},
 		},
 	}
-	for i, tc := range dataErrorTests {
-		if i != 0 {
-			continue
-		}
+	for _, tc := range dataErrorTests {
 		conv, rows := runProcessMySQLDump(tc.input)
 		assert.Equal(t, tc.expectedData, rows, tc.name+": Data rows did not match")
 		assert.Equal(t, conv.BadRows(), int64(5), tc.name+": Error count did not match")

@@ -87,7 +87,7 @@ func TestProcessDataRow(t *testing.T) {
 			rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 		})
 	for _, attrsMap := range items {
-		ProcessDataRow(attrsMap, conv, tableId, conv.SrcSchema[tableId], cols, spSchema)
+		ProcessDataRow(attrsMap, conv, tableId, conv.SrcSchema[tableId], colIds, spSchema)
 	}
 	assert.Equal(t,
 		[]spannerData{
@@ -103,27 +103,27 @@ func TestProcessDataRow(t *testing.T) {
 
 func TestCvtRowWithError(t *testing.T) {
 	tableName := "testtable"
-	cols := []string{"a"}
+	colIds := []string{"c1"}
 	spSchema := ddl.CreateTable{
 		Name:   tableName,
-		ColIds: cols,
+		ColIds: colIds,
 		ColDefs: map[string]ddl.ColumnDef{
 			// Give a wrong target type.
-			"a": {Name: "a", T: ddl.Type{Name: ddl.Float64}},
+			"c1": {Name: "a", T: ddl.Type{Name: ddl.Float64}},
 		},
 	}
 	srcSchema := schema.Table{
 		Name:   tableName,
-		ColIds: cols,
+		ColIds: colIds,
 		ColDefs: map[string]schema.Column{
-			"a": {Name: "a", Type: schema.Type{Name: typeString}},
+			"c1": {Name: "a", Type: schema.Type{Name: typeString}},
 		},
 	}
 	strA := "str-1"
 	attrs := map[string]*dynamodb.AttributeValue{
 		"a": {S: &strA},
 	}
-	_, badCols, srcStrVals := cvtRow(attrs, srcSchema, spSchema, cols)
+	_, badCols, srcStrVals := cvtRow(attrs, srcSchema, spSchema, colIds)
 
 	assert.Equal(t, []string{"a"}, badCols)
 	assert.Equal(t, []string{attrs["a"].GoString()}, srcStrVals)

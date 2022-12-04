@@ -33,14 +33,15 @@ import (
 
 // Table represents a database table.
 type Table struct {
-	Name        string
-	Schema      string
-	ColIds      []string          // List of column Ids (for predictable iteration order e.g. printing).
-	ColDefs     map[string]Column // Details of columns.
-	PrimaryKeys []Key
-	ForeignKeys []ForeignKey
-	Indexes     []Index
-	Id          string
+	Name         string
+	Schema       string
+	ColIds       []string          // List of column Ids (for predictable iteration order e.g. printing).
+	ColDefs      map[string]Column // Details of columns.
+	ColNameIdMap map[string]string `json:"-"` // Computed every time just after conv is generated or after any column renaming
+	PrimaryKeys  []Key
+	ForeignKeys  []ForeignKey
+	Indexes      []Index
+	Id           string
 }
 
 // Column represents a database column.
@@ -60,13 +61,16 @@ type Column struct {
 // CASCADE, SET NULL, NO ACTION, and SET DEFAULT
 // (see https://dev.mysql.com/doc/refman/5.6/en/create-table-foreign-keys.html).
 type ForeignKey struct {
-	Name           string
-	ColIds         []string
-	ReferTableId   string
-	ReferColumnIds []string // len(ReferColumns) must be same as len(Columns)
-	OnDelete       string
-	OnUpdate       string
-	Id             string
+	Name             string
+	ColIds           []string
+	ColumnNames      []string `json:"-"`
+	ReferTableId     string
+	ReferTableName   string   `json:"-"`
+	ReferColumnIds   []string // len(ReferColumnIds) must be same as len(ColIds)
+	ReferColumnNames []string `json:"-"`
+	OnDelete         string
+	OnUpdate         string
+	Id               string
 }
 
 // Key respresents a primary key or index key.

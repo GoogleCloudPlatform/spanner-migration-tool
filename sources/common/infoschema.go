@@ -35,7 +35,7 @@ type InfoSchema interface {
 	GetRowCount(table SchemaAndName) (int64, error)
 	GetConstraints(conv *internal.Conv, table SchemaAndName) ([]string, map[string][]string, error)
 	GetForeignKeys(conv *internal.Conv, table SchemaAndName) (foreignKeys []schema.ForeignKey, err error)
-	GetIndexes(conv *internal.Conv, table SchemaAndName) ([]schema.Index, error)
+	GetIndexes(conv *internal.Conv, table SchemaAndName, colNameIdMp map[string]string) ([]schema.Index, error)
 	ProcessData(conv *internal.Conv, tableId string, srcSchema schema.Table, spCols []string, spSchema ddl.CreateTable) error
 	StartChangeDataCapture(ctx context.Context, conv *internal.Conv) (map[string]interface{}, error)
 	StartStreamingMigration(ctx context.Context, client *sp.Client, conv *internal.Conv, streamInfo map[string]interface{}) error
@@ -63,10 +63,6 @@ func ProcessSchema(conv *internal.Conv, infoSchema InfoSchema) error {
 	GenerateSrcSchema(conv, infoSchema)
 	initPrimaryKeyOrder(conv)
 	initIndexOrder(conv)
-	err := conv.AssignIdToSourceSchema()
-	if err != nil {
-		return fmt.Errorf("error while assigning id to source schema")
-	}
 	SchemaToSpannerDDL(conv, infoSchema.GetToDdl())
 	conv.AddPrimaryKeys()
 	return nil
@@ -82,6 +78,7 @@ func GenerateSrcSchema(conv *internal.Conv, infoSchema InfoSchema) error {
 			return err
 		}
 	}
+	internal.ResolveForeignKeyIds(conv.SrcSchema)
 	return err
 }
 
@@ -97,10 +94,6 @@ func ProcessData(conv *internal.Conv, infoSchema InfoSchema) {
 
 	for _, tableId := range tableIds {
 		srcSchema := conv.SrcSchema[tableId]
-		var spCols []string
-		for _, spColId := range srcSchema.ColIds {
-			spCols = append(spCols, conv.SpSchema[tableId].ColDefs[spColId].Name)
-		}
 		spSchema, ok := conv.SpSchema[tableId]
 		if !ok {
 			conv.Stats.BadRows[srcSchema.Name] += conv.Stats.Rows[srcSchema.Name]
@@ -108,7 +101,9 @@ func ProcessData(conv *internal.Conv, infoSchema InfoSchema) {
 				srcSchema.Name, ok))
 			continue
 		}
-		err := infoSchema.ProcessData(conv, tableId, srcSchema, spCols, spSchema)
+		// Extract common colIds.
+		colIds := IntersectionOfTwoStringSlices(spSchema.ColIds, srcSchema.ColIds)
+		err := infoSchema.ProcessData(conv, tableId, srcSchema, colIds, spSchema)
 		if err != nil {
 			return
 		}
@@ -137,6 +132,8 @@ func SetRowStats(conv *internal.Conv, infoSchema InfoSchema) {
 }
 
 func processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchema) error {
+	tblId := internal.GenerateTableId()
+
 	primaryKeys, constraints, err := infoSchema.GetConstraints(conv, table)
 	if err != nil {
 		return fmt.Errorf("couldn't get constraints for table %s.%s: %s", table.Schema, table.Name, err)
@@ -145,26 +142,36 @@ func processTable(conv *internal.Conv, table SchemaAndName, infoSchema InfoSchem
 	if err != nil {
 		return fmt.Errorf("couldn't get foreign key constraints for table %s.%s: %s", table.Schema, table.Name, err)
 	}
-	indexes, err := infoSchema.GetIndexes(conv, table)
-	if err != nil {
-		return fmt.Errorf("couldn't get indexes for table %s.%s: %s", table.Schema, table.Name, err)
-	}
-	colDefs, colNames, err := infoSchema.GetColumns(conv, table, constraints, primaryKeys)
+
+	colDefs, colIds, err := infoSchema.GetColumns(conv, table, constraints, primaryKeys)
 	if err != nil {
 		return fmt.Errorf("couldn't get schema for table %s.%s: %s", table.Schema, table.Name, err)
 	}
+	colNameIdMap := make(map[string]string)
+	for k, v := range colDefs {
+		colNameIdMap[v.Name] = k
+	}
+
+	indexes, err := infoSchema.GetIndexes(conv, table, colNameIdMap)
+	if err != nil {
+		return fmt.Errorf("couldn't get indexes for table %s.%s: %s", table.Schema, table.Name, err)
+	}
+
 	name := infoSchema.GetTableName(table.Schema, table.Name)
 	var schemaPKeys []schema.Key
 	for _, k := range primaryKeys {
-		schemaPKeys = append(schemaPKeys, schema.Key{ColId: k})
+		schemaPKeys = append(schemaPKeys, schema.Key{ColId: colNameIdMap[k]})
 	}
-	conv.SrcSchema[name] = schema.Table{
-		Name:        name,
-		Schema:      table.Schema,
-		ColIds:      colNames,
-		ColDefs:     colDefs,
-		PrimaryKeys: schemaPKeys,
-		Indexes:     indexes,
-		ForeignKeys: foreignKeys}
+	conv.SrcSchema[tblId] = schema.Table{
+		Id:           tblId,
+		Name:         name,
+		Schema:       table.Schema,
+		ColIds:       colIds,
+		ColNameIdMap: colNameIdMap,
+		ColDefs:      colDefs,
+		PrimaryKeys:  schemaPKeys,
+		Indexes:      indexes,
+		ForeignKeys:  foreignKeys}
+
 	return nil
 }

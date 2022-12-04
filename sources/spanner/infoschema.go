@@ -150,7 +150,7 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 	defer iter.Stop()
 
 	colDefs := make(map[string]schema.Column)
-	var colNames []string
+	var colIds []string
 	var colName, spannerType, isNullable string
 	for {
 		row, err := iter.Next()
@@ -173,15 +173,17 @@ func (isi InfoSchemaImpl) GetColumns(conv *internal.Conv, table common.SchemaAnd
 				// Nothing to do here -- these are handled elsewhere.
 			}
 		}
+		colId := internal.GenerateColumnId()
 		c := schema.Column{
+			Id:      colId,
 			Name:    colName,
 			Type:    toType(spannerType),
 			NotNull: common.ToNotNull(conv, isNullable),
 		}
-		colDefs[colName] = c
-		colNames = append(colNames, colName)
+		colDefs[colId] = c
+		colIds = append(colIds, colId)
 	}
-	return colDefs, colNames, nil
+	return colDefs, colIds, nil
 }
 
 // GetConstraints returns a list of primary keys and by-column map of
@@ -302,6 +304,7 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 		}
 		foreignKeys = append(foreignKeys,
 			schema.ForeignKey{
+				Id:             internal.GenerateForeignkeyId(),
 				Name:           fKeys[k].Name,
 				ColIds:         cols,
 				ReferTableId:   fKeys[k].Table,
@@ -311,7 +314,7 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 }
 
 // GetIndexes returns a list of Indexes per table.
-func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName) ([]schema.Index, error) {
+func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAndName, colNameIdMap map[string]string) ([]schema.Index, error) {
 	q := `SELECT distinct c.INDEX_NAME,c.COLUMN_NAME,c.ORDINAL_POSITION,c.COLUMN_ORDERING,i.IS_UNIQUE
 			FROM information_schema.index_columns AS c
 			JOIN information_schema.indexes AS i
@@ -354,10 +357,15 @@ func (isi InfoSchemaImpl) GetIndexes(conv *internal.Conv, table common.SchemaAnd
 		}
 		if _, found := indexMap[name]; !found {
 			indexNames = append(indexNames, name)
-			indexMap[name] = schema.Index{Name: name, Unique: isUnique}
+			indexMap[name] = schema.Index{
+				Id:     internal.GenerateIndexesId(),
+				Name:   name,
+				Unique: isUnique}
 		}
 		index := indexMap[name]
-		index.Keys = append(index.Keys, schema.Key{ColId: column, Desc: (ordering == "DESC")})
+		index.Keys = append(index.Keys, schema.Key{
+			ColId: colNameIdMap[column],
+			Desc:  (ordering == "DESC")})
 		indexMap[name] = index
 	}
 	for _, k := range indexNames {

@@ -136,3 +136,73 @@ func ComputeUsedNames(conv *Conv) map[string]bool {
 	}
 	return usedNames
 }
+
+func ComputeToSource(conv *Conv) map[string]NameAndCols {
+	toSource := make(map[string]NameAndCols)
+	for id, spTable := range conv.SpSchema {
+		if srcTable, ok := conv.SrcSchema[id]; ok {
+			colMap := make(map[string]string)
+			for colId, spCol := range spTable.ColDefs {
+				if srcCol, ok := srcTable.ColDefs[colId]; ok {
+					colMap[spCol.Name] = srcCol.Name
+				}
+			}
+			toSource[spTable.Name] = NameAndCols{Name: srcTable.Name, Cols: colMap}
+		}
+	}
+	return toSource
+}
+
+func ComputeToSpanner(conv *Conv) map[string]NameAndCols {
+	toSpanner := make(map[string]NameAndCols)
+	for id, srcTable := range conv.SrcSchema {
+		if spTable, ok := conv.SpSchema[id]; ok {
+			colMap := make(map[string]string)
+			for colId, srcCol := range srcTable.ColDefs {
+				if spCol, ok := spTable.ColDefs[colId]; ok {
+					colMap[srcCol.Name] = spCol.Name
+				}
+			}
+			toSpanner[srcTable.Name] = NameAndCols{Name: spTable.Name, Cols: colMap}
+		}
+	}
+	return toSpanner
+}
+
+func GetSrcTableByName(srcSchema map[string]schema.Table, name string) (*schema.Table, bool) {
+	for _, v := range srcSchema {
+		if v.Name == name {
+			return &v, true
+		}
+	}
+	return nil, false
+}
+
+func ResolveForeignKeyIds(schema map[string]schema.Table) {
+	for key, tbl := range schema {
+		for idx, fk := range tbl.ForeignKeys {
+			colIds := []string{}
+			for _, cn := range fk.ColumnNames {
+				colIds = append(colIds, tbl.ColNameIdMap[cn])
+			}
+			schema[key].ForeignKeys[idx].ColIds = colIds
+			// ColumnNames is used only to fetch the Ids. The collection is not maintained in the application
+			schema[key].ForeignKeys[idx].ColumnNames = nil
+
+			if refTbl, ok := GetSrcTableByName(schema, fk.ReferTableName); ok {
+				refColIds := []string{}
+				for _, cn := range fk.ReferColumnNames {
+					refColIds = append(refColIds, refTbl.ColNameIdMap[cn])
+				}
+				schema[key].ForeignKeys[idx].ReferTableId = refTbl.Id
+				// ReferTableName is used only to fetch the Id. This field is not maintained
+				schema[key].ForeignKeys[idx].ReferTableName = ""
+
+				schema[key].ForeignKeys[idx].ReferColumnIds = refColIds
+				// ReferColumnNames is used only to fetch the Id. This collection is not maintained
+				schema[key].ForeignKeys[idx].ReferColumnNames = nil
+
+			}
+		}
+	}
+}

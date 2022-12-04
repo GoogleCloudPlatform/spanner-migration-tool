@@ -75,20 +75,39 @@ func processPgDump(conv *internal.Conv, r *internal.Reader) error {
 		if ci != nil {
 			switch ci.stmt {
 			case copyFrom:
-				processCopyBlock(conv, ci.table, ci.cols, r)
+				commonColIds, err := common.PrepareColumns(conv, ci.table, ci.cols)
+				if err != nil && !conv.SchemaMode() {
+					return err
+				}
+				processCopyBlock(conv, ci.table, commonColIds, ci.cols, r)
 			case insert:
-				for _, vals := range ci.rows {
-					// Handle INSERT statements where columns are not
-					// specified i.e. an insert for all table columns.
-					if len(ci.cols) == 0 {
-						var colNames []string
-						for _, col := range conv.SrcSchema[ci.table].ColIds {
-							colNames = append(colNames, conv.SrcSchema[ci.table].ColDefs[col].Name)
-						}
-						ProcessDataRow(conv, ci.table, colNames, vals)
-					} else {
-						ProcessDataRow(conv, ci.table, ci.cols, vals)
+				if conv.SchemaMode() {
+					continue
+				}
+				// Handle INSERT statements where columns are not
+				// specified i.e. an insert for all table columns.
+				var colNames []string
+				if len(ci.cols) == 0 {
+					for _, col := range conv.SrcSchema[ci.table].ColIds {
+						colNames = append(colNames, conv.SrcSchema[ci.table].ColDefs[col].Name)
 					}
+				} else {
+					colNames = ci.cols
+				}
+				commonColIds, err := common.PrepareColumns(conv, ci.table, colNames)
+				if err != nil {
+					return err
+				}
+				for _, vals := range ci.rows {
+					newVals, err := common.PrepareValues(conv, ci.table, commonColIds, colNames, vals)
+					if err != nil {
+						srcTableName := conv.SrcSchema[ci.table].Name
+						conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
+						conv.StatsAddBadRow(srcTableName, conv.DataMode())
+						conv.CollectBadRow(srcTableName, colNames, vals)
+						continue
+					}
+					ProcessDataRow(conv, ci.table, commonColIds, newVals)
 				}
 			}
 		}
@@ -96,6 +115,7 @@ func processPgDump(conv *internal.Conv, r *internal.Reader) error {
 			break
 		}
 	}
+	internal.ResolveForeignKeyIds(conv.SrcSchema)
 	return nil
 }
 
@@ -135,7 +155,7 @@ func readAndParseChunk(conv *internal.Conv, r *internal.Reader) ([]byte, []*pg_q
 	}
 }
 
-func processCopyBlock(conv *internal.Conv, tableId string, srcCols []string, r *internal.Reader) {
+func processCopyBlock(conv *internal.Conv, tableId string, commonColIds, srcCols []string, r *internal.Reader) {
 	srcTableName := conv.SrcSchema[tableId].Name
 	internal.VerbosePrintf("Parsing COPY-FROM stdin block starting at line=%d/fpos=%d\n", r.LineNumber, r.Offset)
 	logger.Log.Debug(fmt.Sprintf("Parsing COPY-FROM stdin block starting at line=%d/fpos=%d\n", r.LineNumber, r.Offset))
@@ -166,7 +186,15 @@ func processCopyBlock(conv *internal.Conv, tableId string, srcCols []string, r *
 		// COPY-FROM blocks use tabs to separate data items. Note that space within data
 		// items is significant e.g. if a table row contains data items "a ", " b "
 		// it will be shown in the COPY-FROM block as "a \t b ".
-		ProcessDataRow(conv, tableId, srcCols, strings.Split(strings.Trim(s, "\r\n"), "\t"))
+		values := strings.Split(strings.Trim(s, "\r\n"), "\t")
+		newValues, err := common.PrepareValues(conv, tableId, commonColIds, srcCols, values)
+		if err != nil {
+			conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
+			conv.StatsAddBadRow(srcTableName, conv.DataMode())
+			conv.CollectBadRow(srcTableName, srcCols, values)
+			continue
+		}
+		ProcessDataRow(conv, tableId, commonColIds, newValues)
 	}
 }
 
@@ -221,13 +249,15 @@ func processIndexStmt(conv *internal.Conv, n *pg_query.IndexStmt) {
 		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
 		return
 	}
-	if ctable, ok := conv.SrcSchema[tableName]; ok {
+	if tbl, ok := internal.GetSrcTableByName(conv.SrcSchema, tableName); ok {
+		ctable := conv.SrcSchema[tbl.Id]
 		ctable.Indexes = append(ctable.Indexes, schema.Index{
+			Id:     internal.GenerateIndexesId(),
 			Name:   n.Idxname,
 			Unique: n.Unique,
-			Keys:   toIndexKeys(conv, n.Idxname, n.IndexParams),
+			Keys:   toIndexKeys(conv, n.Idxname, n.IndexParams, ctable.ColNameIdMap),
 		})
-		conv.SrcSchema[tableName] = ctable
+		conv.SrcSchema[tbl.Id] = ctable
 	} else {
 		conv.Unexpected(fmt.Sprintf("Table %s not found while processing index statement", tableName))
 		conv.SkipStatement(printNodeType(n))
@@ -239,12 +269,13 @@ func processAlterTableStmt(conv *internal.Conv, n *pg_query.AlterTableStmt) {
 		logStmtError(conv, n, fmt.Errorf("relation is nil"))
 		return
 	}
-	table, err := getTableName(conv, n.Relation)
+	tableName, err := getTableName(conv, n.Relation)
 	if err != nil {
 		logStmtError(conv, n, fmt.Errorf("can't get table name: %w", err))
 		return
 	}
-	if _, ok := conv.SrcSchema[table]; ok {
+
+	if tbl, ok := internal.GetSrcTableByName(conv.SrcSchema, tableName); ok {
 		for _, i := range n.Cmds {
 			cmd := i.GetNode()
 			switch t := cmd.(type) {
@@ -253,12 +284,12 @@ func processAlterTableStmt(conv *internal.Conv, n *pg_query.AlterTableStmt) {
 				switch {
 				case a.Subtype == pg_query.AlterTableType_AT_SetNotNull && a.Name != "":
 					c := constraint{ct: pg_query.ConstrType_CONSTR_NOTNULL, cols: []string{a.Name}}
-					updateSchema(conv, table, []constraint{c}, "ALTER TABLE")
+					updateSchema(conv, tbl.Id, []constraint{c}, "ALTER TABLE")
 					conv.SchemaStatement(strings.Join([]string{printNodeType(n), printNodeType(t)}, "."))
 				case a.Subtype == pg_query.AlterTableType_AT_AddConstraint && a.Def != nil:
 					switch at := a.Def.GetNode().(type) {
 					case *pg_query.Node_Constraint:
-						updateSchema(conv, table, extractConstraints(conv, printNodeType(n), table, []*pg_query.Node{a.Def}), "ALTER TABLE")
+						updateSchema(conv, tbl.Id, extractConstraints(conv, printNodeType(n), tableName, []*pg_query.Node{a.Def}), "ALTER TABLE")
 						conv.SchemaStatement(strings.Join([]string{printNodeType(n), printNodeType(t), printNodeType(at)}, "."))
 					default:
 						conv.SkipStatement(strings.Join([]string{printNodeType(n), printNodeType(t), printNodeType(at)}, "."))
@@ -277,13 +308,12 @@ func processAlterTableStmt(conv *internal.Conv, n *pg_query.AlterTableStmt) {
 		// For debugging purposes we log the lookup failure if we're
 		// in verbose mode, but otherwise  we just skip these statements.
 		conv.SkipStatement(printNodeType(n))
-		internal.VerbosePrintf("Processing %v statement: table %s not found", printNodeType(n), table)
-		logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s not found", printNodeType(n), table))
+		internal.VerbosePrintf("Processing %v statement: table %s not found", printNodeType(n), tableName)
+		logger.Log.Debug(fmt.Sprintf("Processing %v statement: table %s not found", printNodeType(n), tableName))
 	}
 }
 
 func processCreateStmt(conv *internal.Conv, n *pg_query.CreateStmt) {
-	var colNames []string
 	colDef := make(map[string]schema.Column)
 	if n.Relation == nil {
 		logStmtError(conv, n, fmt.Errorf("relation is nil"))
@@ -304,16 +334,20 @@ func processCreateStmt(conv *internal.Conv, n *pg_query.CreateStmt) {
 		return
 	}
 	var constraints []constraint
+	var colIds []string
+	colNameIdMap := make(map[string]string)
 	for _, te := range n.TableElts {
 		switch te.GetNode().(type) {
 		case *pg_query.Node_ColumnDef:
-			name, col, cdConstraints, err := processColumn(conv, te.GetColumnDef(), table)
+			_, col, cdConstraints, err := processColumn(conv, te.GetColumnDef(), table)
 			if err != nil {
 				logStmtError(conv, n, err)
 				return
 			}
-			colNames = append(colNames, name)
-			colDef[name] = col
+			col.Id = internal.GenerateColumnId()
+			colDef[col.Id] = col
+			colIds = append(colIds, col.Id)
+			colNameIdMap[col.Name] = col.Id
 			constraints = append(constraints, cdConstraints...)
 		case *pg_query.Node_Constraint:
 			// Note: there should be at most one Constraint node in
@@ -325,13 +359,17 @@ func processCreateStmt(conv *internal.Conv, n *pg_query.CreateStmt) {
 		}
 	}
 	conv.SchemaStatement(printNodeType(n))
-	conv.SrcSchema[table] = schema.Table{
-		Name:    table,
-		ColIds:  colNames,
-		ColDefs: colDef}
+	tableId := internal.GenerateTableId()
+	conv.SrcSchema[tableId] = schema.Table{
+		Id:           tableId,
+		Name:         table,
+		ColIds:       colIds,
+		ColNameIdMap: colNameIdMap,
+		ColDefs:      colDef,
+	}
 	// Note: constraints contains all info about primary keys, not-null keys
 	// and foreign keys.
-	updateSchema(conv, table, constraints, "CREATE TABLE")
+	updateSchema(conv, tableId, constraints, "CREATE TABLE")
 }
 
 func processColumn(conv *internal.Conv, n *pg_query.ColumnDef, table string) (string, schema.Column, []constraint, error) {
@@ -627,70 +665,72 @@ func analyzeColDefConstraints(conv *internal.Conv, stmtType, table string, l []*
 
 // updateSchema updates the schema for table based on the given constraints.
 // 's' is the statement type being processed, and is used for debug messages.
-func updateSchema(conv *internal.Conv, table string, cs []constraint, stmtType string) {
+func updateSchema(conv *internal.Conv, tableId string, cs []constraint, stmtType string) {
+	colNameIdMap := conv.SrcSchema[tableId].ColNameIdMap
 	for _, c := range cs {
 		switch c.ct {
 		case pg_query.ConstrType_CONSTR_PRIMARY:
-			ct := conv.SrcSchema[table]
+			ct := conv.SrcSchema[tableId]
 			checkEmpty(conv, ct.PrimaryKeys, stmtType)
-			ct.PrimaryKeys = toSchemaKeys(conv, table, c.cols) // Drop any previous primary keys.
+			ct.PrimaryKeys = toSchemaKeys(conv, tableId, c.cols, colNameIdMap) // Drop any previous primary keys.
 			// In Spanner, primary key columns are usually annotated with NOT NULL,
 			// but this can be omitted to allow NULL values in key columns.
 			// In PostgreSQL, the primary key constraint is a combination of
 			// NOT NULL and UNIQUE i.e. primary keys must be NOT NULL.
 			// We preserve PostgreSQL semantics and enforce NOT NULL.
-			updateCols(pg_query.ConstrType_CONSTR_NOTNULL, c.cols, ct.ColDefs)
-			conv.SrcSchema[table] = ct
+			updateCols(pg_query.ConstrType_CONSTR_NOTNULL, c.cols, ct.ColDefs, colNameIdMap)
+			conv.SrcSchema[tableId] = ct
 		case pg_query.ConstrType_CONSTR_FOREIGN:
-			ct := conv.SrcSchema[table]
+			ct := conv.SrcSchema[tableId]
 			ct.ForeignKeys = append(ct.ForeignKeys, toForeignKeys(c)) // Append to previous foreign keys.
-			conv.SrcSchema[table] = ct
+			conv.SrcSchema[tableId] = ct
 		case pg_query.ConstrType_CONSTR_UNIQUE:
 			// Convert unique column constraint in postgres to a corresponding unique index in Spanner since
 			// Spanner doesn't support unique constraints on columns.
 			// TODO: Avoid Spanner-specific schema transformations in this file -- they should only
 			// appear in toddl.go. This file should focus on generic transformation from source
 			// database schemas into schema.go.
-			ct := conv.SrcSchema[table]
-			ct.Indexes = append(ct.Indexes, schema.Index{Name: c.name, Unique: true, Keys: toSchemaKeys(conv, table, c.cols)})
-			conv.SrcSchema[table] = ct
+			ct := conv.SrcSchema[tableId]
+			ct.Indexes = append(ct.Indexes, schema.Index{Name: c.name, Unique: true, Keys: toSchemaKeys(conv, tableId, c.cols, colNameIdMap)})
+			conv.SrcSchema[tableId] = ct
 		default:
-			ct := conv.SrcSchema[table]
-			updateCols(c.ct, c.cols, ct.ColDefs)
-			conv.SrcSchema[table] = ct
+			ct := conv.SrcSchema[tableId]
+			updateCols(c.ct, c.cols, ct.ColDefs, colNameIdMap)
+			conv.SrcSchema[tableId] = ct
 		}
 	}
 }
 
 // updateCols updates colDef with new constraints. Specifically, we apply
 // 'ct' to each column in colNames.
-func updateCols(ct pg_query.ConstrType, colNames []string, colDef map[string]schema.Column) {
+func updateCols(ct pg_query.ConstrType, colNames []string, colDef map[string]schema.Column, colNameIdMap map[string]string) {
 	// TODO: add cases for other constraints.
-	for _, c := range colNames {
-		cd := colDef[c]
+	for _, cn := range colNames {
+		cid := colNameIdMap[cn]
+		cd := colDef[cid]
 		switch ct {
 		case pg_query.ConstrType_CONSTR_NOTNULL:
 			cd.NotNull = true
 		case pg_query.ConstrType_CONSTR_DEFAULT:
 			cd.Ignored.Default = true
 		}
-		colDef[c] = cd
+		colDef[cid] = cd
 	}
 }
 
 // toSchemaKeys converts a string list of PostgreSQL primary keys to
 // schema primary keys.
-func toSchemaKeys(conv *internal.Conv, table string, s []string) (l []schema.Key) {
-	for _, k := range s {
+func toSchemaKeys(conv *internal.Conv, tableId string, colNames []string, colNameIdMap map[string]string) (l []schema.Key) {
+	for _, cn := range colNames {
 		// PostgreSQL primary keys have no notation of ascending/descending.
 		// We map them all into ascending primarary keys.
-		l = append(l, schema.Key{ColId: k})
+		l = append(l, schema.Key{ColId: colNameIdMap[cn]})
 	}
 	return l
 }
 
 // toIndexKeys converts a list of PostgreSQL index keys to schema index keys.
-func toIndexKeys(conv *internal.Conv, idxName string, s []*pg_query.Node) (l []schema.Key) {
+func toIndexKeys(conv *internal.Conv, idxName string, s []*pg_query.Node, colNameIdMap map[string]string) (l []schema.Key) {
 	for _, k := range s {
 		switch e := k.GetNode().(type) {
 		case *pg_query.Node_IndexElem:
@@ -702,7 +742,7 @@ func toIndexKeys(conv *internal.Conv, idxName string, s []*pg_query.Node) (l []s
 			if e.IndexElem.Ordering == pg_query.SortByDir_SORTBY_DESC {
 				desc = true
 			}
-			l = append(l, schema.Key{ColId: e.IndexElem.Name, Desc: desc})
+			l = append(l, schema.Key{ColId: colNameIdMap[e.IndexElem.Name], Desc: desc})
 		}
 	}
 	return
@@ -712,10 +752,11 @@ func toIndexKeys(conv *internal.Conv, idxName string, s []*pg_query.Node) (l []s
 // foreign keys.
 func toForeignKeys(fk constraint) (fkey schema.ForeignKey) {
 	fkey = schema.ForeignKey{
-		Name:           fk.name,
-		ColIds:         fk.cols,
-		ReferTableId:   fk.referTable,
-		ReferColumnIds: fk.referCols}
+		Id:               internal.GenerateForeignkeyId(),
+		Name:             fk.name,
+		ColumnNames:      fk.cols,
+		ReferTableName:   fk.referTable,
+		ReferColumnNames: fk.referCols}
 	return fkey
 }
 

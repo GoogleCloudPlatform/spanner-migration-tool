@@ -83,3 +83,56 @@ func initIndexOrder(conv *internal.Conv) {
 		}
 	}
 }
+
+func IntersectionOfTwoStringSlices(a []string, b []string) []string {
+	set := make([]string, 0)
+	hash := make(map[string]struct{})
+
+	for _, v := range a {
+		hash[v] = struct{}{}
+	}
+
+	for _, v := range b {
+		if _, ok := hash[v]; ok {
+			set = append(set, v)
+		}
+	}
+
+	return set
+}
+
+func PrepareColumns(conv *internal.Conv, tableId string, srcCols []string) ([]string, error) {
+	spColIds := conv.SpSchema[tableId].ColIds
+	srcColIds := []string{}
+	for _, colName := range srcCols {
+		colId, err := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, colName)
+		if err != nil {
+			return []string{}, err
+		}
+		srcColIds = append(srcColIds, colId)
+	}
+	commonIds := IntersectionOfTwoStringSlices(spColIds, srcColIds)
+	if len(commonIds) == 0 {
+		return []string{}, fmt.Errorf("no common columns between source and spanner table")
+	}
+	return commonIds, nil
+}
+
+func PrepareValues(conv *internal.Conv, tableId string, commonColIds, srcCols []string, values []string) ([]string, error) {
+	if len(srcCols) != len(values) {
+		return []string{}, fmt.Errorf("PrepareValues: srcCols and vals don't all have the same lengths: len(srcCols)=%d, len(values)=%d", len(srcCols), len(values))
+	}
+
+	srcTable := conv.SrcSchema[tableId]
+	var newValues []string
+
+	mapSrcColNameToVal := map[string]string{}
+	for i, srcolName := range srcCols {
+		mapSrcColNameToVal[srcolName] = values[i]
+	}
+	for _, id := range commonColIds {
+		srcColName := srcTable.ColDefs[id].Name
+		newValues = append(newValues, mapSrcColNameToVal[srcColName])
+	}
+	return newValues, nil
+}

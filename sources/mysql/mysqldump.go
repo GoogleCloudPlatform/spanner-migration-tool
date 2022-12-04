@@ -83,6 +83,7 @@ func processMySQLDump(conv *internal.Conv, r *internal.Reader) error {
 			break
 		}
 	}
+	internal.ResolveForeignKeyIds(conv.SrcSchema)
 	return nil
 }
 
@@ -183,14 +184,16 @@ func processCreateIndex(conv *internal.Conv, stmt *ast.CreateIndexStmt) {
 		logStmtError(conv, stmt, fmt.Errorf("can't get table name: %w", err))
 		return
 	}
-	if _, ok := conv.SrcSchema[tableName]; ok {
-		ctable := conv.SrcSchema[tableName]
+
+	if tbl, ok := internal.GetSrcTableByName(conv.SrcSchema, tableName); ok {
+		ctable := conv.SrcSchema[tbl.Id]
 		ctable.Indexes = append(ctable.Indexes, schema.Index{
+			Id:     internal.GenerateIndexesId(),
 			Name:   stmt.IndexName,
 			Unique: (stmt.KeyType == ast.IndexKeyTypeUnique),
-			Keys:   toSchemaKeys(stmt.IndexPartSpecifications),
+			Keys:   toSchemaKeys(stmt.IndexPartSpecifications, tbl.ColNameIdMap),
 		})
-		conv.SrcSchema[tableName] = ctable
+		conv.SrcSchema[tbl.Id] = ctable
 	} else {
 		conv.Unexpected(fmt.Sprintf("Table %s not found while processing index statement", tableName))
 		conv.SkipStatement(NodeType(stmt))
@@ -227,6 +230,7 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 		logStmtError(conv, stmt, fmt.Errorf("table is nil"))
 		return
 	}
+	tableId := internal.GenerateTableId()
 	tableName, err := getTableName(stmt.Table)
 	internal.VerbosePrintf("processing create table elem=%s stmt=%v\n", tableName, stmt)
 	logger.Log.Debug(fmt.Sprintf("processing create table elem=%s stmt=%v\n", tableName, stmt))
@@ -235,23 +239,26 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 		logStmtError(conv, stmt, fmt.Errorf("can't get table name: %w", err))
 		return
 	}
-	var colNames []string
+	var colIds []string
 	colDef := make(map[string]schema.Column)
+	colNameIdMap := make(map[string]string)
 	var keys []schema.Key
 	var fkeys []schema.ForeignKey
 	var index []schema.Index
 	for _, element := range stmt.Cols {
-		colname, col, constraint, err := processColumn(conv, tableName, element)
+		_, col, constraint, err := processColumn(conv, tableName, element)
 		if err != nil {
 			logStmtError(conv, stmt, err)
 			return
 		}
-		colNames = append(colNames, colname)
-		colDef[colname] = col
+		col.Id = internal.GenerateColumnId() //assigns new id
+		colDef[col.Id] = col
+		colIds = append(colIds, col.Id)
+		colNameIdMap[col.Name] = col.Id
 		if constraint.isPk {
-			keys = append(keys, schema.Key{ColId: colname})
+			keys = append(keys, schema.Key{ColId: col.Id})
 		}
-		if constraint.fk.ColIds != nil {
+		if constraint.fk.ColumnNames != nil {
 			fkeys = append(fkeys, constraint.fk)
 		}
 		if constraint.isUniqueKey {
@@ -260,46 +267,57 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 			// TODO: Avoid Spanner-specific schema transformations in this file -- they should only
 			// appear in toddl.go. This file should focus on generic transformation from source
 			// database schemas into schema.go.
-			index = append(index, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{ColId: colname, Desc: false}}})
+			index = append(index, schema.Index{
+				Name:   "",
+				Unique: true,
+				Keys: []schema.Key{
+					{
+						ColId: col.Id,
+						Desc:  false,
+					},
+				},
+			})
 		}
 	}
 	conv.SchemaStatement(NodeType(stmt))
-	conv.SrcSchema[tableName] = schema.Table{
-		Name:        tableName,
-		ColIds:      colNames,
-		ColDefs:     colDef,
-		PrimaryKeys: keys,
-		ForeignKeys: fkeys,
-		Indexes:     index}
+	conv.SrcSchema[tableId] = schema.Table{
+		Id:           tableId,
+		Name:         tableName,
+		ColIds:       colIds,
+		ColNameIdMap: colNameIdMap,
+		ColDefs:      colDef,
+		PrimaryKeys:  keys,
+		ForeignKeys:  fkeys,
+		Indexes:      index}
 	for _, constraint := range stmt.Constraints {
-		processConstraint(conv, tableName, constraint, "CREATE TABLE")
+		processConstraint(conv, tableId, constraint, "CREATE TABLE", conv.SrcSchema[tableId].ColNameIdMap)
 	}
 }
 
-func processConstraint(conv *internal.Conv, table string, constraint *ast.Constraint, stmtType string) {
-	st := conv.SrcSchema[table]
+func processConstraint(conv *internal.Conv, tableId string, constraint *ast.Constraint, stmtType string, colNameToIdMap map[string]string) {
+	st := conv.SrcSchema[tableId]
 	switch ct := constraint.Tp; ct {
 	case ast.ConstraintPrimaryKey:
 		checkEmpty(conv, st.PrimaryKeys, stmtType) // Drop any previous primary keys.
-		st.PrimaryKeys = toSchemaKeys(constraint.Keys)
+		st.PrimaryKeys = toSchemaKeys(constraint.Keys, colNameToIdMap)
 		// In Spanner, primary key columns are usually annotated with NOT NULL,
 		// but this can be omitted to allow NULL values in key columns.
 		// In MySQL, the primary key constraint is a combination of
 		// NOT NULL and UNIQUE i.e. primary keys must be NOT NULL and UNIQUE.
 		// We preserve MySQL semantics and enforce NOT NULL and UNIQUE.
-		updateCols(conv, ast.ConstraintPrimaryKey, constraint.Keys, st.ColDefs, table)
+		updateCols(conv, ast.ConstraintPrimaryKey, constraint.Keys, st.ColDefs, colNameToIdMap)
 	case ast.ConstraintForeignKey:
 		st.ForeignKeys = append(st.ForeignKeys, toForeignKeys(conv, constraint))
 	case ast.ConstraintIndex:
-		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Keys: toSchemaKeys(constraint.Keys)})
+		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Keys: toSchemaKeys(constraint.Keys, colNameToIdMap)})
 	case ast.ConstraintUniq:
 		// Convert unique column constraint in mysql to a corresponding unique index in schema
 		// Note that schema represents all unique constraints as indexes.
-		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Unique: true, Keys: toSchemaKeys(constraint.Keys)})
+		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Unique: true, Keys: toSchemaKeys(constraint.Keys, colNameToIdMap)})
 	default:
-		updateCols(conv, ct, constraint.Keys, st.ColDefs, table)
+		updateCols(conv, ct, constraint.Keys, st.ColDefs, colNameToIdMap)
 	}
-	conv.SrcSchema[table] = st
+	conv.SrcSchema[tableId] = st
 }
 
 // toSchemaKeys converts a string list of MySQL keys to schema keys.
@@ -310,9 +328,12 @@ func processConstraint(conv *internal.Conv, table string, constraint *ast.Constr
 // order. Check this for more details:
 // https://github.com/cloudspannerecosystem/harbourbridge/issues/96
 // TODO: Resolve ordering issue for non-primary keys.
-func toSchemaKeys(columns []*ast.IndexPartSpecification) (keys []schema.Key) {
-	for _, colname := range columns {
-		keys = append(keys, schema.Key{ColId: colname.Column.Name.String()})
+func toSchemaKeys(columns []*ast.IndexPartSpecification, colNameToIdMap map[string]string) (keys []schema.Key) {
+	for _, spec := range columns {
+		specColName := spec.Column.OrigColName()
+		if colId, ok := colNameToIdMap[specColName]; ok {
+			keys = append(keys, schema.Key{ColId: colId})
+		}
 	}
 	return keys
 }
@@ -333,26 +354,28 @@ func toForeignKeys(conv *internal.Conv, fk *ast.Constraint) (fkey schema.Foreign
 		referColNames = append(referColNames, referColumns[i].Column.Name.String())
 	}
 	fkey = schema.ForeignKey{
-		Name:           fk.Name,
-		ColIds:         colNames,
-		ReferTableId:   referTable,
-		ReferColumnIds: referColNames,
-		OnDelete:       fk.Refer.OnDelete.ReferOpt.String(),
-		OnUpdate:       fk.Refer.OnUpdate.ReferOpt.String()}
+		Id:               internal.GenerateForeignkeyId(),
+		Name:             fk.Name,
+		ColumnNames:      colNames,
+		ReferTableName:   referTable,
+		ReferColumnNames: referColNames,
+		OnDelete:         fk.Refer.OnDelete.ReferOpt.String(),
+		OnUpdate:         fk.Refer.OnUpdate.ReferOpt.String()}
 	return fkey
 }
 
-func updateCols(conv *internal.Conv, ct ast.ConstraintType, colNames []*ast.IndexPartSpecification, colDef map[string]schema.Column, tableName string) {
+func updateCols(conv *internal.Conv, ct ast.ConstraintType, colNames []*ast.IndexPartSpecification, colDef map[string]schema.Column, colNameToIdMap map[string]string) {
 	for _, column := range colNames {
 		colName := column.Column.OrigColName()
-		cd := colDef[colName]
+		cid := colNameToIdMap[colName]
+		cd := colDef[cid]
 		switch ct {
 		case ast.ConstraintCheck:
 			cd.Ignored.Check = true
 		case ast.ConstraintPrimaryKey:
 			cd.NotNull = true
 		}
-		colDef[colName] = cd
+		colDef[cid] = cd
 	}
 }
 
@@ -362,15 +385,16 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 		return
 	}
 	tableName, err := getTableName(stmt.Table)
+
 	if err != nil {
 		logStmtError(conv, stmt, fmt.Errorf("can't get table name: %w", err))
 		return
 	}
-	if _, ok := conv.SrcSchema[tableName]; ok {
+	if tbl, ok := internal.GetSrcTableByName(conv.SrcSchema, tableName); ok {
 		for _, item := range stmt.Specs {
 			switch alterType := item.Tp; alterType {
 			case ast.AlterTableAddConstraint:
-				processConstraint(conv, tableName, item.Constraint, "ALTER TABLE")
+				processConstraint(conv, tbl.Id, item.Constraint, "ALTER TABLE", tbl.ColNameIdMap)
 				conv.SchemaStatement(NodeType(stmt))
 			case ast.AlterTableModifyColumn:
 				colname, col, constraint, err := processColumn(conv, tableName, item.NewColumns[0])
@@ -378,24 +402,25 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 					logStmtError(conv, stmt, err)
 					return
 				}
-				conv.SrcSchema[tableName].ColDefs[colname] = col
+				col.Id = tbl.ColNameIdMap[colname]
+				conv.SrcSchema[tbl.Id].ColDefs[col.Id] = col
 				if constraint.isPk {
-					ctable := conv.SrcSchema[tableName]
+					ctable := conv.SrcSchema[tbl.Id]
 					checkEmpty(conv, ctable.PrimaryKeys, "ALTER TABLE")
-					ctable.PrimaryKeys = []schema.Key{{ColId: colname}}
-					conv.SrcSchema[tableName] = ctable
+					ctable.PrimaryKeys = []schema.Key{{ColId: col.Id}}
+					conv.SrcSchema[tbl.Id] = ctable
 				}
 				if constraint.fk.ColIds != nil {
-					ctable := conv.SrcSchema[tableName]
+					ctable := conv.SrcSchema[tbl.Id]
 					ctable.ForeignKeys = append(ctable.ForeignKeys, constraint.fk)
-					conv.SrcSchema[tableName] = ctable
+					conv.SrcSchema[tbl.Id] = ctable
 				}
 				if constraint.isUniqueKey {
 					// Convert unique column constraint in mysql to a corresponding unique index in schema
 					// Note that schema represents all unique constraints as indexes.
-					ctable := conv.SrcSchema[tableName]
+					ctable := conv.SrcSchema[tbl.Id]
 					ctable.Indexes = append(ctable.Indexes, schema.Index{Name: "", Unique: true, Keys: []schema.Key{schema.Key{ColId: colname, Desc: false}}})
-					conv.SrcSchema[tableName] = ctable
+					conv.SrcSchema[tbl.Id] = ctable
 				}
 				conv.SchemaStatement(NodeType(stmt))
 			default:
@@ -499,11 +524,11 @@ func updateColsByOption(conv *internal.Conv, tableName string, col *ast.ColumnDe
 			// Note that foreign key constraints that are part of a column definition
 			// have no name, so we leave fkey.Name as the empty string.
 			fkey := schema.ForeignKey{
-				ColIds:         []string{column},
-				ReferTableId:   referTable,
-				ReferColumnIds: []string{referColumn},
-				OnDelete:       elem.Refer.OnDelete.ReferOpt.String(),
-				OnUpdate:       elem.Refer.OnUpdate.ReferOpt.String()}
+				ColumnNames:      []string{column},
+				ReferTableName:   referTable,
+				ReferColumnNames: []string{referColumn},
+				OnDelete:         elem.Refer.OnDelete.ReferOpt.String(),
+				OnUpdate:         elem.Refer.OnUpdate.ReferOpt.String()}
 			cc.fk = fkey
 		}
 	}
@@ -695,36 +720,45 @@ func processInsertStmt(conv *internal.Conv, stmt *ast.InsertStmt) {
 		conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
 		return
 	}
+	srcColIds := []string{}
 	srcCols, err2 := getCols(stmt)
 	if err2 != nil {
 		// In MySQL, column names might not be specified in insert statement so instead of
 		// throwing error we will try to retrieve columns from source schema.
 		for _, srcColId := range conv.SrcSchema[tableId].ColIds {
 			srcCols = append(srcCols, conv.SrcSchema[tableId].ColDefs[srcColId].Name)
+			srcColIds = append(srcColIds, srcColId)
 		}
-		if len(srcCols) == 0 {
+		if len(srcColIds) == 0 {
 			conv.Unexpected(fmt.Sprintf("Can't get columns for table %s", srcTable))
 			conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
 			return
 		}
+	} else {
+		for _, srcColName := range srcCols {
+			colId, _ := internal.GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, srcColName)
+			srcColIds = append(srcColIds, colId)
+		}
 	}
 
-	spCols, err3 := internal.GetSpannerCols(conv, tableId, srcCols)
-	if err3 != nil {
-		conv.Unexpected(fmt.Sprintf("Can't get spanner columns for table %s: err=%s", srcTable, err3))
-		conv.Stats.BadRows[srcTable] += conv.Stats.Rows[srcTable]
-		return
-	}
 	var values []string
 	if stmt.Lists == nil {
 		logStmtError(conv, stmt, fmt.Errorf("Can't get column values"))
 		return
 	}
-
+	commonColIds := common.IntersectionOfTwoStringSlices(conv.SpSchema[tableId].ColIds, srcColIds)
 	spSchema := conv.SpSchema[tableId]
 	for _, row := range stmt.Lists {
 		values, err = getVals(row)
-		ProcessDataRow(conv, tableId, srcCols, srcSchema, spCols, spSchema, values)
+		//prepare values
+		newValues, err2 := common.PrepareValues(conv, tableId, commonColIds, srcCols, values)
+		if err2 != nil {
+			conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
+			conv.StatsAddBadRow(srcSchema.Name, conv.DataMode())
+			conv.CollectBadRow(srcSchema.Name, srcCols, values)
+			continue
+		}
+		ProcessDataRow(conv, tableId, commonColIds, srcSchema, spSchema, newValues)
 	}
 }
 

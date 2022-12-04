@@ -136,9 +136,9 @@ jobs:
           sudo ldconfig
       - run: sqlplus SYS/oracle@127.0.0.1:1521/xe as sysdba @test_data/oracle.test.out
       # create a spanner instance
-      - uses: google-github-actions/setup-gcloud@v0
+      - uses: google-github-actions/setup-gcloud@v1
         with:
-          version: "290.0.1"
+          version: "410.0.0"
       - run: gcloud info
       - run: gcloud config configurations create emulator
       - run: gcloud config set auth/disable_credentials true

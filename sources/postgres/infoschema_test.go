@@ -54,25 +54,24 @@ func TestProcessSchema(t *testing.T) {
 				{"public", "product"},
 				{"public", "test"},
 				{"public", "test_ref"}},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"public", "user"},
 			cols:  []string{"column_name", "constraint_type"},
 			rows: [][]driver.Value{
 				{"user_id", "PRIMARY KEY"},
 				{"ref", "FOREIGN KEY"}},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
 			args:  []driver.Value{"public", "user"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 			rows: [][]driver.Value{
 				{"public", "test", "ref", "id", "fk_test"},
 			},
-		}, {
-			query: "SELECT (.+) FROM pg_index (.+)",
-			args:  []driver.Value{"public", "user"},
-			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "user"},
 			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -80,21 +79,41 @@ func TestProcessSchema(t *testing.T) {
 				{"user_id", "text", nil, "NO", nil, nil, nil, nil},
 				{"name", "text", nil, "NO", nil, nil, nil, nil},
 				{"ref", "bigint", nil, "YES", nil, nil, nil, nil}},
-		}, {
+		},
+		// db call to fetch index happens after fetching of column
+		{
+			query: "SELECT (.+) FROM pg_index (.+)",
+			args:  []driver.Value{"public", "user"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
+		},
+
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"public", "cart"},
 			cols:  []string{"column_name", "constraint_type"},
 			rows: [][]driver.Value{
 				{"productid", "PRIMARY KEY"},
 				{"userid", "PRIMARY KEY"}},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
 			args:  []driver.Value{"public", "cart"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 			rows: [][]driver.Value{
 				{"public", "product", "productid", "product_id", "fk_test2"},
 				{"public", "user", "userid", "user_id", "fk_test3"}},
-		}, {
+		},
+		{
+			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			args:  []driver.Value{"public", "cart"},
+			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			rows: [][]driver.Value{
+				{"productid", "text", nil, "NO", nil, nil, nil, nil},
+				{"userid", "text", nil, "NO", nil, nil, nil, nil},
+				{"quantity", "bigint", nil, "YES", nil, nil, 64, 0}},
+		},
+		// db call to fetch index happens after fetching of column
+		{
 			query: "SELECT (.+) FROM pg_index (.+)",
 			args:  []driver.Value{"public", "cart"},
 			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
@@ -104,36 +123,35 @@ func TestProcessSchema(t *testing.T) {
 				{"index3", "productid", 1, "true", "DESC"},
 				{"index3", "userid", 2, "true", "ASC"},
 			},
-		}, {
-			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
-			args:  []driver.Value{"public", "cart"},
-			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
-			rows: [][]driver.Value{
-				{"productid", "text", nil, "NO", nil, nil, nil, nil},
-				{"userid", "text", nil, "NO", nil, nil, nil, nil},
-				{"quantity", "bigint", nil, "YES", nil, nil, 64, 0}},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"public", "product"},
 			cols:  []string{"column_name", "constraint_type"},
 			rows: [][]driver.Value{
 				{"product_id", "PRIMARY KEY"}},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
 			args:  []driver.Value{"public", "product"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
-		}, {
-			query: "SELECT (.+) FROM pg_index (.+)",
-			args:  []driver.Value{"public", "product"},
-			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "product"},
 			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
 			rows: [][]driver.Value{
 				{"product_id", "text", nil, "NO", nil, nil, nil, nil},
 				{"product_name", "text", nil, "NO", nil, nil, nil, nil}},
-		}, {
+		},
+		// db call to fetch index happens after fetching of column
+		{
+			query: "SELECT (.+) FROM pg_index (.+)",
+			args:  []driver.Value{"public", "product"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
+		},
+
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"column_name", "constraint_type"},
@@ -144,11 +162,9 @@ func TestProcessSchema(t *testing.T) {
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 			rows: [][]driver.Value{{"public", "test_ref", "id", "ref_id", "fk_test4"},
 				{"public", "test_ref", "txt", "ref_txt", "fk_test4"}},
-		}, {
-			query: "SELECT (.+) FROM pg_index (.+)",
-			args:  []driver.Value{"public", "test"},
-			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
-		}, {
+		},
+
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -174,7 +190,15 @@ func TestProcessSchema(t *testing.T) {
 				{"txt", "text", nil, "NO", nil, nil, nil, nil},
 				{"vc", "character varying", nil, "YES", nil, nil, nil, nil},
 				{"vc6", "character varying", nil, "YES", nil, 6, nil, nil}},
-		}, {
+		},
+		// db call to fetch index happens after fetching of column
+		{
+			query: "SELECT (.+) FROM pg_index (.+)",
+			args:  []driver.Value{"public", "test"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
+		},
+
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"public", "test_ref"},
 			cols:  []string{"column_name", "constraint_type"},
@@ -185,11 +209,8 @@ func TestProcessSchema(t *testing.T) {
 			query: "SELECT (.+) FROM PG_CLASS (.+) JOIN PG_NAMESPACE (.+) JOIN PG_CONSTRAINT (.+)",
 			args:  []driver.Value{"public", "test_ref"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
-		}, {
-			query: "SELECT (.+) FROM pg_index (.+)",
-			args:  []driver.Value{"public", "test_ref"},
-			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "test_ref"},
 			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -197,6 +218,12 @@ func TestProcessSchema(t *testing.T) {
 				{"ref_id", "bigint", nil, "NO", nil, nil, 64, 0},
 				{"ref_txt", "text", nil, "NO", nil, nil, nil, nil},
 				{"abc", "text", nil, "NO", nil, nil, nil, nil}},
+		},
+		// db call to fetch index happens after fetching of column
+		{
+			query: "SELECT (.+) FROM pg_index (.+)",
+			args:  []driver.Value{"public", "test_ref"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
 		},
 	}
 	db := mkMockDB(t, ms)
@@ -339,8 +366,8 @@ func TestProcessData(t *testing.T) {
 
 	assert.Equal(t,
 		[]spannerData{
-			spannerData{table: "te_st", cols: []string{"a a", " b", " c "}, vals: []interface{}{float64(42.3), int64(3), "cat"}},
-			spannerData{table: "te_st", cols: []string{"a a", " b", " c "}, vals: []interface{}{float64(6.6), int64(22), "dog"}},
+			spannerData{table: "te_st", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(42.3), int64(3), "cat"}},
+			spannerData{table: "te_st", cols: []string{"a_a", "Ab", "Ac_"}, vals: []interface{}{float64(6.6), int64(22), "dog"}},
 		},
 		rows)
 	assert.Equal(t, conv.BadRows(), int64(1))
@@ -422,7 +449,7 @@ func TestConvertSqlRow_SingleCol(t *testing.T) {
 			Id:      tableId,
 			ColIds:  []string{columnId},
 			ColDefs: map[string]ddl.ColumnDef{columnId: ddl.ColumnDef{Name: col, Id: columnId, T: tc.spType}}}
-		ac, av, err := convertSQLRow(conv, tableId, cols, srcSchema, cols, spSchema, []interface{}{tc.in})
+		ac, av, err := convertSQLRow(conv, tableId, []string{columnId}, srcSchema, spSchema, []interface{}{tc.in})
 		assert.Equal(t, cols, ac)
 		assert.Equal(t, []interface{}{tc.e}, av)
 		assert.Nil(t, err)
@@ -452,10 +479,6 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 		},
 		{
-			query: "SELECT (.+) FROM pg_index (.+)",
-			args:  []driver.Value{"public", "test"},
-			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
-		}, {
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"public", "test"},
 			cols:  []string{"column_name", "data_type", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -463,7 +486,14 @@ func TestConvertSqlRow_MultiCol(t *testing.T) {
 				{"a", "text", nil, "NO", nil, nil, nil, nil},
 				{"b", "double precision", nil, "YES", nil, nil, 53, nil},
 				{"c", "bigint", nil, "YES", nil, nil, 64, 0}},
-		}, {
+		},
+		// db call to fetch index happens after fetching of column
+		{
+			query: "SELECT (.+) FROM pg_index (.+)",
+			args:  []driver.Value{"public", "test"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order"},
+		},
+		{
 			query: `SELECT [*] FROM "public"."test"`, // query is a regexp!
 			cols:  []string{"a", "b", "c"},
 			rows: [][]driver.Value{

@@ -1424,7 +1424,7 @@ func TestProcessPgDump_GetPGDDL(t *testing.T) {
 func TestProcessPgDump_Rows(t *testing.T) {
 	conv, _ := runProcessPgDump("CREATE TABLE cart (a text, n bigint);\n" +
 		"INSERT INTO cart (a, n) VALUES ('a42', 2);")
-	assert.Equal(t, int64(0), conv.Rows())
+	assert.Equal(t, int64(1), conv.Rows())
 }
 
 func TestProcessPgDump_BadRows(t *testing.T) {

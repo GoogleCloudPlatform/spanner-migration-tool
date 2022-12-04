@@ -51,25 +51,24 @@ func TestProcessSchema(t *testing.T) {
 				{"production", "product"},
 				{"dbo", "test_ref"},
 			},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"dbo", "user"},
 			cols:  []string{"column_name", "constraint_type"},
 			rows: [][]driver.Value{
 				{"user_id", "PRIMARY KEY"},
 				{"ref", "FOREIGN KEY"}},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
 			args:  []driver.Value{"dbo.user"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 			rows: [][]driver.Value{
 				{"dbo", "test", "ref", "Id", "fk_test"},
 			},
-		}, {
-			query: "SELECT (.+) FROM sys.indexes (.+)",
-			args:  []driver.Value{"user", "dbo"},
-			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"dbo", "user"},
 			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -77,7 +76,14 @@ func TestProcessSchema(t *testing.T) {
 				{"user_id", "text", "NO", nil, nil, nil, nil},
 				{"name", "text", "NO", nil, nil, nil, nil},
 				{"ref", "bigint", "YES", nil, nil, nil, nil}},
-		}, {
+		},
+		// db call to fetch index happens after fetching of column
+		{
+			query: "SELECT (.+) FROM sys.indexes (.+)",
+			args:  []driver.Value{"user", "dbo"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
+		},
+		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
 			args:  []driver.Value{"dbo", "test"},
 			cols:  []string{"column_name", "constraint_type"},
@@ -89,11 +95,8 @@ func TestProcessSchema(t *testing.T) {
 			args:  []driver.Value{"dbo.test"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 			rows:  [][]driver.Value{{"dbo", "test_ref", "Id", "ref_id", "fk_test4"}},
-		}, {
-			query: "SELECT (.+) FROM sys.indexes (.+)",
-			args:  []driver.Value{"test", "dbo"},
-			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"dbo", "test"},
 			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -137,6 +140,12 @@ func TestProcessSchema(t *testing.T) {
 				{"Xml", "xml", "YES", nil, -1, nil, nil},
 			},
 		},
+		// db call to fetch index happens after fetching of column
+		{
+			query: "SELECT (.+) FROM sys.indexes (.+)",
+			args:  []driver.Value{"test", "dbo"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
+		},
 
 		{
 			query: "SELECT (.+) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS (.+)",
@@ -146,14 +155,26 @@ func TestProcessSchema(t *testing.T) {
 				{"productid", "PRIMARY KEY"},
 				{"userid", "PRIMARY KEY"},
 			},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
 			args:  []driver.Value{"dbo.cart"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
 			rows: [][]driver.Value{
 				{"production", "product", "productid", "product_id", "fk_test2"},
 				{"dbo", "user", "userid", "user_id", "fk_test3"}},
-		}, {
+		},
+		{
+			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
+			args:  []driver.Value{"dbo", "cart"},
+			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
+			rows: [][]driver.Value{
+				{"productid", "text", "NO", nil, nil, nil, nil},
+				{"userid", "text", "NO", nil, nil, nil, nil},
+				{"quantity", "bigint", "YES", nil, nil, 64, 0}},
+		},
+		// db call to fetch index happens after fetching of column
+		{
 			query: "SELECT (.+) FROM sys.indexes (.+)",
 			args:  []driver.Value{"cart", "dbo"},
 			cols:  []string{"index_name", "column_name", "is_unique", "order", "is_included_column"},
@@ -163,14 +184,6 @@ func TestProcessSchema(t *testing.T) {
 				{"index3", "productid", "true", "DESC", "false"},
 				{"index3", "userid", "true", "ASC", "false"},
 			},
-		}, {
-			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
-			args:  []driver.Value{"dbo", "cart"},
-			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
-			rows: [][]driver.Value{
-				{"productid", "text", "NO", nil, nil, nil, nil},
-				{"userid", "text", "NO", nil, nil, nil, nil},
-				{"quantity", "bigint", "YES", nil, nil, 64, 0}},
 		},
 
 		{
@@ -180,15 +193,13 @@ func TestProcessSchema(t *testing.T) {
 			rows: [][]driver.Value{
 				{"product_id", "PRIMARY KEY"},
 			},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
 			args:  []driver.Value{"production.product"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
-		}, {
-			query: "SELECT (.+) FROM sys.indexes (.+)",
-			args:  []driver.Value{"product", "production"},
-			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"production", "product"},
 			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -196,6 +207,12 @@ func TestProcessSchema(t *testing.T) {
 				{"product_id", "text", "NO", nil, nil, nil, nil},
 				{"product_name", "text", "NO", nil, nil, nil, nil},
 			},
+		},
+		// db call to fetch index happens after fetching of column
+		{
+			query: "SELECT (.+) FROM sys.indexes (.+)",
+			args:  []driver.Value{"product", "production"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
 		},
 
 		{
@@ -206,15 +223,13 @@ func TestProcessSchema(t *testing.T) {
 				{"ref_id", "PRIMARY KEY"},
 				{"ref_txt", "PRIMARY KEY"},
 			},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM sys.foreign_keys AS FK (.+)",
 			args:  []driver.Value{"dbo.test_ref"},
 			cols:  []string{"TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "REF_COLUMN_NAME", "CONSTRAINT_NAME"},
-		}, {
-			query: "SELECT (.+) FROM sys.indexes (.+)",
-			args:  []driver.Value{"test_ref", "dbo"},
-			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
-		}, {
+		},
+		{
 			query: "SELECT (.+) FROM information_schema.COLUMNS (.+)",
 			args:  []driver.Value{"dbo", "test_ref"},
 			cols:  []string{"column_name", "data_type", "is_nullable", "column_default", "character_maximum_length", "numeric_precision", "numeric_scale"},
@@ -223,6 +238,12 @@ func TestProcessSchema(t *testing.T) {
 				{"ref_txt", "text", "NO", nil, nil, nil, nil},
 				{"abc", "text", "NO", nil, nil, nil, nil},
 			},
+		},
+		// db call to fetch index happens after fetching of column
+		{
+			query: "SELECT (.+) FROM sys.indexes (.+)",
+			args:  []driver.Value{"test_ref", "dbo"},
+			cols:  []string{"index_name", "column_name", "column_position", "is_unique", "order", "is_included_column"},
 		},
 	}
 	db := mkMockDB(t, ms)

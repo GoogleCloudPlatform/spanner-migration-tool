@@ -38,6 +38,7 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/metrics"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
 	"github.com/cloudspannerecosystem/harbourbridge/schema"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 )
 
 const (
@@ -355,7 +356,10 @@ func ProcessRecord(conv *internal.Conv, streamInfo *StreamingInfo, record *dynam
 	spTable := spSchema.Name
 	spCols := []string{}
 	srcCols := []string{}
-	for _, colId := range spSchema.ColIds {
+	srcColIds := srcSchema.ColIds
+	spColIds := spSchema.ColIds
+	commonIds := common.IntersectionOfTwoStringSlices(spColIds, srcColIds)
+	for _, colId := range commonIds {
 		spCols = append(spCols, spSchema.ColDefs[colId].Name)
 		srcCols = append(srcCols, srcSchema.ColDefs[colId].Name)
 	}
@@ -367,7 +371,7 @@ func ProcessRecord(conv *internal.Conv, streamInfo *StreamingInfo, record *dynam
 		srcImage = record.Dynamodb.NewImage
 	}
 
-	spVals, badCols, srcStrVals := cvtRow(srcImage, srcSchema, spSchema, spCols)
+	spVals, badCols, srcStrVals := cvtRow(srcImage, srcSchema, spSchema, commonIds)
 	if len(badCols) == 0 {
 		writeRecord(streamInfo, srcTable, spTable, eventName, spCols, spVals, srcSchema)
 	} else {

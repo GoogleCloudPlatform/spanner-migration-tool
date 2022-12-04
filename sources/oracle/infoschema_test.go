@@ -65,6 +65,16 @@ func TestProcessSchemaOracle(t *testing.T) {
 			},
 		},
 		{
+			query: "SELECT (.+) FROM all_tab_columns (.+)",
+			args:  []driver.Value{},
+			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale", "typecode", "element_type", "element_length", "element_precision", "element_scale"},
+			rows: [][]driver.Value{
+				{"USER_ID", "VARCHAR2", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
+				{"NAME", "VARCHAR2", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
+				{"REF", "NUMBER", "Y", nil, nil, nil, nil, nil, nil, nil, nil, nil}},
+		},
+		// db call to fetch index happens after fetching of column
+		{
 			query: `SELECT (.+) LEFT JOIN all_ind_expressions IE (.+) LEFT JOIN all_indexes I (.+)`,
 			args:  []driver.Value{},
 			cols:  []string{"name", "column_name", "column_position", "descend", "uniqueness", "column_expression", "index_type"},
@@ -76,15 +86,6 @@ func TestProcessSchemaOracle(t *testing.T) {
 				{"INDEX_TEST_2", "SYS_NC00007$", 1, "DESC", "NONUNIQUE", "\"NAME\"", "FUNCTION-BASED NORMAL"},
 				{"INDEX_TEST_2", "SYS_NC00009$", 2, "DESC", "NONUNIQUE", "\"USER_ID\"", "FUNCTION-BASED NORMAL"},
 			},
-		},
-		{
-			query: "SELECT (.+) FROM all_tab_columns (.+)",
-			args:  []driver.Value{},
-			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale", "typecode", "element_type", "element_length", "element_precision", "element_scale"},
-			rows: [][]driver.Value{
-				{"USER_ID", "VARCHAR2", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
-				{"NAME", "VARCHAR2", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil},
-				{"REF", "NUMBER", "Y", nil, nil, nil, nil, nil, nil, nil, nil, nil}},
 		},
 
 		// test table
@@ -102,17 +103,18 @@ func TestProcessSchemaOracle(t *testing.T) {
 			rows:  [][]driver.Value{},
 		},
 		{
-			query: `SELECT (.+) LEFT JOIN all_ind_expressions IE (.+) LEFT JOIN all_indexes I (.+)`,
-			args:  []driver.Value{},
-			cols:  []string{"name", "column_name", "column_position", "descend", "uniqueness", "column_expression", "index_type"},
-			rows:  [][]driver.Value{},
-		},
-		{
 			query: "SELECT (.+) FROM all_tab_columns (.+)",
 			args:  []driver.Value{},
 			cols:  []string{"column_name", "data_type", "nullable", "data_default", "data_length", "data_precision", "data_scale", "typecode", "element_type", "element_length", "element_precision", "element_scale"},
 			rows: [][]driver.Value{
 				{"ID", "NUMBER", "N", nil, nil, nil, nil, nil, nil, nil, nil, nil}},
+		},
+		// db call to fetch index happens after fetching of column
+		{
+			query: `SELECT (.+) LEFT JOIN all_ind_expressions IE (.+) LEFT JOIN all_indexes I (.+)`,
+			args:  []driver.Value{},
+			cols:  []string{"name", "column_name", "column_position", "descend", "uniqueness", "column_expression", "index_type"},
+			rows:  [][]driver.Value{},
 		},
 
 		// test2 table [json column test]
@@ -130,12 +132,7 @@ func TestProcessSchemaOracle(t *testing.T) {
 			cols:  []string{"ref_table", "column_name", "ref_column_name", "name"},
 			rows:  [][]driver.Value{},
 		},
-		{
-			query: `SELECT (.+) LEFT JOIN all_ind_expressions IE (.+) LEFT JOIN all_indexes I (.+)`,
-			args:  []driver.Value{},
-			cols:  []string{"name", "column_name", "column_position", "descend", "uniqueness", "column_expression", "index_type"},
-			rows:  [][]driver.Value{},
-		},
+
 		{
 			query: "SELECT (.+) FROM all_tab_columns (.+)",
 			args:  []driver.Value{},
@@ -149,7 +146,15 @@ func TestProcessSchemaOracle(t *testing.T) {
 				{"ARRAY_STRING", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "VARCHAR2", 15, nil, nil},
 				{"ARRAY_DATE", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "DATE", nil, nil, nil},
 				{"ARRAY_INT", "STUDENT", "N", nil, nil, nil, nil, "COLLECTION", "NUMBER", nil, 10, 0},
-				{"OBJECT", "CONTACTS", "N", nil, nil, nil, nil, "OBJECT", nil, nil, nil, nil}}},
+				{"OBJECT", "CONTACTS", "N", nil, nil, nil, nil, "OBJECT", nil, nil, nil, nil}},
+		},
+		// db call to fetch index happens after fetching of column
+		{
+			query: `SELECT (.+) LEFT JOIN all_ind_expressions IE (.+) LEFT JOIN all_indexes I (.+)`,
+			args:  []driver.Value{},
+			cols:  []string{"name", "column_name", "column_position", "descend", "uniqueness", "column_expression", "index_type"},
+			rows:  [][]driver.Value{},
+		},
 	}
 	db := mkMockDB(t, ms)
 	conv := internal.MakeConv()

@@ -72,7 +72,7 @@ func TestProcessDataRow(t *testing.T) {
 	conv.SetDataSink(func(table string, cols []string, vals []interface{}) {
 		rows = append(rows, spannerData{table: table, cols: cols, vals: vals})
 	})
-	ProcessDataRow(conv, tableId, cols, conv.SrcSchema[tableId], cols, conv.SpSchema[tableId], []string{"4.2", "6", "prisoner zero"})
+	ProcessDataRow(conv, tableId, colIds, conv.SrcSchema[tableId], conv.SpSchema[tableId], []string{"4.2", "6", "prisoner zero"})
 	assert.Equal(t, []spannerData{spannerData{table: tableName, cols: cols, vals: []interface{}{float64(4.2), int64(6), "prisoner zero"}}}, rows)
 }
 
@@ -114,13 +114,13 @@ func TestConvertData(t *testing.T) {
 			ddl.CreateTable{
 				Name:        tableName,
 				Id:          tableId,
-				ColIds:      []string{col},
+				ColIds:      []string{colId},
 				ColDefs:     map[string]ddl.ColumnDef{colId: ddl.ColumnDef{Name: col, Id: colId, T: tc.ty, NotNull: false}},
 				PrimaryKeys: []ddl.IndexKey{}},
 			schema.Table{Name: tableName, Id: tableId, ColIds: []string{col}, ColDefs: map[string]schema.Column{colId: schema.Column{Name: col, Id: colId, Type: schema.Type{Name: tc.srcTy}}}})
 		conv.TimezoneOffset = "+05:30"
 		t.Run(tc.in, func(t *testing.T) {
-			at, ac, av, err := ConvertData(conv, tableId, []string{col}, conv.SrcSchema["t1"], []string{col}, conv.SpSchema["t1"], []string{tc.in})
+			at, ac, av, err := ConvertData(conv, tableId, []string{colId}, conv.SrcSchema["t1"], conv.SpSchema["t1"], []string{tc.in})
 			checkResults(t, at, ac, av, err, tableName, []string{col}, []interface{}{tc.e}, tc.name)
 		})
 	}
@@ -145,16 +145,16 @@ func TestConvertTimestampData(t *testing.T) {
 			ddl.CreateTable{
 				Name:    tableName,
 				Id:      tableId,
-				ColIds:  []string{col},
+				ColIds:  []string{colId},
 				ColDefs: map[string]ddl.ColumnDef{colId: ddl.ColumnDef{Name: col, Id: colId, T: ddl.Type{Name: ddl.Timestamp}}}},
 			schema.Table{
 				Name:    tableName,
 				Id:      tableId,
-				ColIds:  []string{col},
+				ColIds:  []string{colId},
 				ColDefs: map[string]schema.Column{colId: schema.Column{Name: col, Id: colId, Type: schema.Type{Name: tc.srcTy}}}})
 		conv.TimezoneOffset = "+10:00" // Set offset so test is robust i.e. doesn't depent on local timezone.
 		t.Run(tc.in, func(t *testing.T) {
-			atable, ac, av, err := ConvertData(conv, tableId, []string{col}, conv.SrcSchema[tableId], []string{col}, conv.SpSchema[tableId], []string{tc.in})
+			atable, ac, av, err := ConvertData(conv, tableId, []string{colId}, conv.SrcSchema[tableId], conv.SpSchema[tableId], []string{tc.in})
 			assert.Nil(t, err, tc.name)
 			assert.Equal(t, atable, tableName, tc.name+": table mismatch")
 			assert.Equal(t, []string{col}, ac, tc.name+": column mismatch")
@@ -169,47 +169,53 @@ func TestConvertTimestampData(t *testing.T) {
 
 func TestConvertMultiColData(t *testing.T) {
 	multiColTests := []struct {
-		name  string
-		cols  []string      // Input columns.
-		vals  []string      // Input values.
-		ecols []string      // Expected columns.
-		evals []interface{} // Expected values.
+		name   string
+		cols   []string // Input columns.
+		colIds []string
+		vals   []string      // Input values.
+		ecols  []string      // Expected columns.
+		evals  []interface{} // Expected values.
 	}{
 		{
-			name:  "Cols in order",
-			cols:  []string{"a", "b", "c"},
-			vals:  []string{"6", "6.6", "1"},
-			ecols: []string{"a", "b", "c"},
-			evals: []interface{}{int64(6), float64(6.6), true},
+			name:   "Cols in order",
+			cols:   []string{"a", "b", "c"},
+			colIds: []string{"c1", "c2", "c3"},
+			vals:   []string{"6", "6.6", "1"},
+			ecols:  []string{"a", "b", "c"},
+			evals:  []interface{}{int64(6), float64(6.6), true},
 		},
 		{
-			name:  "Cols out of order",
-			cols:  []string{"b", "c", "a"},
-			vals:  []string{"6.6", "1", "6"},
-			ecols: []string{"b", "c", "a"},
-			evals: []interface{}{float64(6.6), true, int64(6)},
+			name:   "Cols out of order",
+			cols:   []string{"b", "c", "a"},
+			colIds: []string{"c2", "c3", "c1"},
+			vals:   []string{"6.6", "1", "6"},
+			ecols:  []string{"b", "c", "a"},
+			evals:  []interface{}{float64(6.6), true, int64(6)},
 		},
 		{
-			name:  "Null column",
-			cols:  []string{"a", "b", "c"},
-			vals:  []string{"6", "<nil>", "1"},
-			ecols: []string{"a", "c"},
-			evals: []interface{}{int64(6), true},
+			name:   "Null column",
+			cols:   []string{"a", "b", "c"},
+			colIds: []string{"c1", "c2", "c3"},
+			vals:   []string{"6", "<nil>", "1"},
+			ecols:  []string{"a", "c"},
+			evals:  []interface{}{int64(6), true},
 		},
 		{
-			name:  "Missing columns",
-			cols:  []string{"a"},
-			vals:  []string{"6"},
-			ecols: []string{"a"},
-			evals: []interface{}{int64(6)},
+			name:   "Missing columns",
+			cols:   []string{"a"},
+			colIds: []string{"c1"},
+			vals:   []string{"6"},
+			ecols:  []string{"a"},
+			evals:  []interface{}{int64(6)},
 		},
 	}
 	tableName := "testtable"
 	tableId := "t1"
+	colIds := []string{"c1", "c2", "c3"}
 	spTable := ddl.CreateTable{
 		Name:   tableName,
 		Id:     tableId,
-		ColIds: []string{"a", "b", "c"},
+		ColIds: colIds,
 		ColDefs: map[string]ddl.ColumnDef{
 			"c1": ddl.ColumnDef{Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
 			"c2": ddl.ColumnDef{Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
@@ -218,7 +224,7 @@ func TestConvertMultiColData(t *testing.T) {
 	srcTable := schema.Table{
 		Name:   tableName,
 		Id:     tableId,
-		ColIds: []string{"a", "b", "c"},
+		ColIds: colIds,
 		ColDefs: map[string]schema.Column{
 			"c1": schema.Column{Name: "a", Id: "c1", Type: schema.Type{Name: "int"}},
 			"c2": schema.Column{Name: "b", Id: "c2", Type: schema.Type{Name: "float"}},
@@ -227,7 +233,7 @@ func TestConvertMultiColData(t *testing.T) {
 	for _, tc := range multiColTests {
 		t.Run(tc.name, func(t *testing.T) {
 			conv := buildConv(spTable, srcTable)
-			atable, acols, avals, err := ConvertData(conv, srcTable.Id, tc.cols, conv.SrcSchema[tableId], tc.cols, conv.SpSchema[tableId], tc.vals)
+			atable, acols, avals, err := ConvertData(conv, srcTable.Id, tc.colIds, conv.SrcSchema[tableId], conv.SpSchema[tableId], tc.vals)
 			checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
 		})
 	}
@@ -261,10 +267,11 @@ func TestConvertError(t *testing.T) {
 		},
 	}
 	tableName := "testtable"
+	colIds := []string{"c1", "c2", "c3"}
 	spTable := ddl.CreateTable{
 		Name:   tableName,
 		Id:     "t1",
-		ColIds: []string{"c1", "c2", "c3"},
+		ColIds: colIds,
 		ColDefs: map[string]ddl.ColumnDef{
 			"c1": ddl.ColumnDef{Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
 			"c2": ddl.ColumnDef{Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
@@ -273,7 +280,7 @@ func TestConvertError(t *testing.T) {
 	srcTable := schema.Table{
 		Name:   tableName,
 		Id:     "t1",
-		ColIds: []string{"c1", "c2", "c3"},
+		ColIds: colIds,
 		ColDefs: map[string]schema.Column{
 			"c1": schema.Column{Name: "a", Id: "c1", Type: schema.Type{Name: "int"}},
 			"c2": schema.Column{Name: "b", Id: "c2", Type: schema.Type{Name: "float"}},
@@ -282,7 +289,7 @@ func TestConvertError(t *testing.T) {
 	for _, tc := range errorTests {
 		t.Run(tc.name, func(t *testing.T) {
 			conv := buildConv(spTable, srcTable)
-			_, _, _, err := ConvertData(conv, srcTable.Id, tc.cols, conv.SrcSchema[tableName], tc.cols, conv.SpSchema[tableName], tc.vals)
+			_, _, _, err := ConvertData(conv, srcTable.Id, colIds, conv.SrcSchema[tableName], conv.SpSchema[tableName], tc.vals)
 			assert.NotNil(t, err, tc.name)
 		})
 	}
@@ -290,25 +297,28 @@ func TestConvertError(t *testing.T) {
 
 func TestConvertsyntheticPKey(t *testing.T) {
 	syntheticPKeyTests := []struct {
-		name  string
-		cols  []string      // Input columns.
-		vals  []string      // Input values.
-		ecols []string      // Expected columns.
-		evals []interface{} // Expected values.
+		name   string
+		cols   []string // Input columns.
+		colIds []string
+		vals   []string      // Input values.
+		ecols  []string      // Expected columns.
+		evals  []interface{} // Expected values.
 	}{
 		{
-			name:  "Sequence 0",
-			cols:  []string{"a", "b", "c"},
-			vals:  []string{"6", "6.6", "true"},
-			ecols: []string{"a", "b", "c", "synth_id"},
-			evals: []interface{}{int64(6), float64(6.6), true, "0"},
+			name:   "Sequence 0",
+			cols:   []string{"a", "b", "c"},
+			colIds: []string{"c1", "c2", "c3"},
+			vals:   []string{"6", "6.6", "true"},
+			ecols:  []string{"a", "b", "c", "synth_id"},
+			evals:  []interface{}{int64(6), float64(6.6), true, "0"},
 		},
 		{
-			name:  "Sequence 1",
-			cols:  []string{"a"},
-			vals:  []string{"7"},
-			ecols: []string{"a", "synth_id"},
-			evals: []interface{}{int64(7), fmt.Sprintf("%d", int64(bits.Reverse64(1)))},
+			name:   "Sequence 1",
+			cols:   []string{"a"},
+			colIds: []string{"c1"},
+			vals:   []string{"7"},
+			ecols:  []string{"a", "synth_id"},
+			evals:  []interface{}{int64(7), fmt.Sprintf("%d", int64(bits.Reverse64(1)))},
 		},
 	}
 	tableName := "testtable"
@@ -337,7 +347,7 @@ func TestConvertsyntheticPKey(t *testing.T) {
 	conv.SyntheticPKeys[spTable.Id] = internal.SyntheticPKey{ColId: "c4", Sequence: 0}
 	for _, tc := range syntheticPKeyTests {
 		t.Run(tc.name, func(t *testing.T) {
-			atable, acols, avals, err := ConvertData(conv, srcTable.Id, tc.cols, conv.SrcSchema[tableId], tc.cols, conv.SpSchema[tableId], tc.vals)
+			atable, acols, avals, err := ConvertData(conv, srcTable.Id, tc.colIds, conv.SrcSchema[tableId], conv.SpSchema[tableId], tc.vals)
 			checkResults(t, atable, acols, avals, err, tableName, tc.ecols, tc.evals, tc.name)
 		})
 	}

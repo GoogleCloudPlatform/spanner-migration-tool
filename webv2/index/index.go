@@ -65,8 +65,6 @@ func checkRedundantIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) 
 
 	for i := 0; i < len(index); i++ {
 
-		keys := index[i].Keys
-
 		for i := range pks {
 			if pks[i].Order == 1 {
 				primaryKeyFirstColumnId = pks[i].ColId
@@ -77,13 +75,12 @@ func checkRedundantIndex(index []ddl.CreateIndex, spannerTable ddl.CreateTable) 
 		indexFirstColumnId := index[i].Keys[0].ColId
 
 		if primaryKeyFirstColumnId == indexFirstColumnId {
-			columnId := keys[i].ColId
+			columnId := indexFirstColumnId
 			sessionState := session.GetSessionState()
 			schemaissue := sessionState.Conv.SchemaIssues[spannerTable.Id][columnId]
 			schemaissue = append(schemaissue, internal.RedundantIndex)
 			sessionState.Conv.SchemaIssues[spannerTable.Id][columnId] = schemaissue
 		}
-
 	}
 }
 
