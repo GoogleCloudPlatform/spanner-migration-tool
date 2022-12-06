@@ -267,8 +267,10 @@ func processCreateTable(conv *internal.Conv, stmt *ast.CreateTableStmt) {
 			// TODO: Avoid Spanner-specific schema transformations in this file -- they should only
 			// appear in toddl.go. This file should focus on generic transformation from source
 			// database schemas into schema.go.
+			idxId := internal.GenerateIndexesId()
 			index = append(index, schema.Index{
 				Name:   "",
+				Id:     idxId,
 				Unique: true,
 				Keys: []schema.Key{
 					{
@@ -309,11 +311,13 @@ func processConstraint(conv *internal.Conv, tableId string, constraint *ast.Cons
 	case ast.ConstraintForeignKey:
 		st.ForeignKeys = append(st.ForeignKeys, toForeignKeys(conv, constraint))
 	case ast.ConstraintIndex:
-		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Keys: toSchemaKeys(constraint.Keys, colNameToIdMap)})
+		idxId := internal.GenerateIndexesId()
+		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Id: idxId, Keys: toSchemaKeys(constraint.Keys, colNameToIdMap)})
 	case ast.ConstraintUniq:
+		idxId := internal.GenerateIndexesId()
 		// Convert unique column constraint in mysql to a corresponding unique index in schema
 		// Note that schema represents all unique constraints as indexes.
-		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Unique: true, Keys: toSchemaKeys(constraint.Keys, colNameToIdMap)})
+		st.Indexes = append(st.Indexes, schema.Index{Name: constraint.Name, Id: idxId, Unique: true, Keys: toSchemaKeys(constraint.Keys, colNameToIdMap)})
 	default:
 		updateCols(conv, ct, constraint.Keys, st.ColDefs, colNameToIdMap)
 	}
