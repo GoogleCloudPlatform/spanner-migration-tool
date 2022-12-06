@@ -1243,7 +1243,7 @@ func updateForeignKeys(w http.ResponseWriter, r *http.Request) {
 	newNamesMap := map[string]bool{}
 	for _, newFk := range newFKs {
 		for _, oldFk := range sessionState.Conv.SpSchema[table].Fks {
-			if newFk.Id == oldFk.Id && newFk.Name != oldFk.Name {
+			if newFk.Id == oldFk.Id && newFk.Name != oldFk.Name && newFk.Name != "" {
 				newNames = append(newNames, strings.ToLower(newFk.Name))
 				newNamesMap[strings.ToLower(newFk.Name)] = true
 			}
