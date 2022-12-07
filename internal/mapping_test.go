@@ -246,7 +246,7 @@ func TestGetSpannerCol(t *testing.T) {
 		tableId, _ := GetTableIdFromSrcName(conv.SrcSchema, tc.srcTable)
 		_, err1 := GetSpannerTable(conv, tableId) // Ensure table is known.
 		colId, _ := GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, tc.srcCol)
-		spCol, err2 := GetSpannerCol(conv, tableId, colId, conv.SpSchema[tableId].ColDefs, false)
+		spCol, err2 := GetSpannerCol(conv, tableId, colId, conv.SpSchema[tableId].ColDefs)
 		if tc.error {
 			assert.True(t, err1 != nil || err2 != nil, tc.name)
 			continue
@@ -282,7 +282,7 @@ func TestGetSpannerCol(t *testing.T) {
 		tableId, _ := GetTableIdFromSrcName(conv.SrcSchema, tc.srcTable)
 		_, err1 := GetSpannerTable(conv, tableId) // Ensure table is known.
 		colId, _ := GetColIdFromSrcName(conv.SrcSchema[tableId].ColDefs, tc.srcCol)
-		spCol, err2 := GetSpannerCol(conv, tableId, colId, conv.SpSchema[tableId].ColDefs, false)
+		spCol, err2 := GetSpannerCol(conv, tableId, colId, conv.SpSchema[tableId].ColDefs)
 		if tc.error {
 			assert.True(t, err1 != nil || err2 != nil, tc.name)
 			continue
@@ -331,7 +331,7 @@ func TestGetSpannerID(t *testing.T) {
 		{"Bad name with different case collision", "IN\tDex", "IN_Dex_13"},
 	}
 	for _, tc := range basicTests {
-		spKeyName := getSpannerID(conv, tc.srcKeyName)
+		spKeyName := getSpannerValidName(conv, tc.srcKeyName)
 		assert.Equal(t, tc.spKeyName, spKeyName, tc.name)
 	}
 }

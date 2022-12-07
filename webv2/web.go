@@ -377,7 +377,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	f, err := os.Open(constants.Conv_Working_DIR + dc.FilePath)
+	f, err := os.Open(constants.UPLOAD_FILE_DIR + dc.FilePath)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to open dump file : %v, no such file or directory", dc.FilePath), http.StatusNotFound)
 		return
@@ -411,7 +411,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 	sessionState.SessionFile = ""
 	sessionState.SourceDB = nil
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
-		Path:           constants.Conv_Working_DIR + dc.FilePath,
+		Path:           constants.UPLOAD_FILE_DIR + dc.FilePath,
 		ConnectionType: helpers.DUMP_MODE,
 	}
 
@@ -443,7 +443,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	conv := internal.MakeConv()
 	metadata := session.SessionMetadata{}
 
-	err = session.ReadSessionFileForSessionMetadata(&metadata, constants.Conv_Working_DIR+s.FilePath)
+	err = session.ReadSessionFileForSessionMetadata(&metadata, constants.UPLOAD_FILE_DIR+s.FilePath)
 	if err != nil {
 		switch err.(type) {
 		case *fs.PathError:
@@ -454,7 +454,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = conversion.ReadSessionFile(conv, constants.Conv_Working_DIR+s.FilePath)
+	err = conversion.ReadSessionFile(conv, constants.UPLOAD_FILE_DIR+s.FilePath)
 	if err != nil {
 		switch err.(type) {
 		case *fs.PathError:
@@ -484,9 +484,9 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 
 	sessionState.SessionMetadata = sessionMetadata
 	sessionState.Driver = s.Driver
-	sessionState.SessionFile = constants.Conv_Working_DIR + s.FilePath
+	sessionState.SessionFile = constants.UPLOAD_FILE_DIR + s.FilePath
 	sessionState.SourceDBConnDetails = session.SourceDBConnDetails{
-		Path:           constants.Conv_Working_DIR + s.FilePath,
+		Path:           constants.UPLOAD_FILE_DIR + s.FilePath,
 		ConnectionType: helpers.SESSION_FILE_MODE,
 	}
 

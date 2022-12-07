@@ -13,12 +13,6 @@ export default interface IConv {
   DatabaseType: string
   DatabaseName: string
   EditorName: string
-  Audit: IAudit
-}
-
-export interface IAudit {
-  ToSpannerFkIdx: Record<string, IFkeyAndIdxs>
-  ToSourceFkIdx: Record<string, IFkeyAndIdxs>
 }
 
 export interface IFkeyAndIdxs {

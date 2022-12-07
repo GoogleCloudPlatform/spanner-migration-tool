@@ -277,7 +277,7 @@ export class ObjectDetailComponent implements OnInit {
         if (col.srcColName == this.tableData[j].srcColName) {
           let oldRow = this.tableData[j]
           updateData.UpdateCols[this.tableData[j].srcId] = {
-            Add: this.localTableData[j].spOrder == -1,
+            Add: this.tableData[j].spId == '',
             Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
             NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
             Removed: false,

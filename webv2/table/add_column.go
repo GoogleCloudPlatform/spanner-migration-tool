@@ -24,7 +24,7 @@ func addColumn(tableId string, colId string, conv *internal.Conv) {
 
 	sp := conv.SpSchema[tableId]
 
-	spColName, _ := internal.GetSpannerCol(conv, tableId, colId, conv.SpSchema[tableId].ColDefs, false)
+	spColName, _ := internal.GetSpannerCol(conv, tableId, colId, conv.SpSchema[tableId].ColDefs)
 
 	sp.ColDefs[colId] = ddl.ColumnDef{
 		Id:   colId,

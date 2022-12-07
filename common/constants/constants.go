@@ -65,6 +65,6 @@ const (
 	// Scheme used for GCS paths
 	GCS_SCHEME string = "gs"
 
-	//conversion working directory for dump and session load
-	Conv_Working_DIR string = "upload-file/"
+	// conversion working directory for dump and session load.
+	UPLOAD_FILE_DIR string = "upload-file/"
 )

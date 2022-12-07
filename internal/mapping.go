@@ -45,7 +45,7 @@ func GetSpannerTable(conv *Conv, tableId string) (string, error) {
 		return sp.Name, nil
 	}
 	srcTableName := conv.SrcSchema[tableId].Name
-	spTableName := getSpannerID(conv, srcTableName)
+	spTableName := getSpannerValidName(conv, srcTableName)
 	if spTableName != srcTableName {
 		VerbosePrintf("Mapping source DB table %s to Spanner table %s\n", srcTableName, spTableName)
 		logger.Log.Debug(fmt.Sprintf("Mapping source DB table %s to Spanner table %s\n", srcTableName, spTableName))
@@ -62,7 +62,7 @@ func GetSpannerTable(conv *Conv, tableId string) (string, error) {
 // a) the new col name is legal
 // b) the new col name doesn't clash with other col names in the same table
 // c) we consistently return the same name for the same col.
-func GetSpannerCol(conv *Conv, tableId, colId string, spColDef map[string]ddl.ColumnDef, mustExist bool) (string, error) {
+func GetSpannerCol(conv *Conv, tableId, colId string, spColDef map[string]ddl.ColumnDef) (string, error) {
 	if tableId == "" {
 		return "", fmt.Errorf("bad parameter: table id string is empty")
 	}
@@ -74,13 +74,11 @@ func GetSpannerCol(conv *Conv, tableId, colId string, spColDef map[string]ddl.Co
 	}
 	srcTable := conv.SrcSchema[tableId]
 	srcColName := srcTable.ColDefs[colId].Name
-	if mustExist {
-		return "", fmt.Errorf("table %s does not have a column %s", srcTable.Name, srcColName)
-	}
+
 	spColName, _ := FixName(srcColName)
-	usedColNames := map[string]struct{}{}
+	usedColNames := map[string]bool{}
 	for _, spCol := range spColDef {
-		usedColNames[spCol.Name] = struct{}{}
+		usedColNames[spCol.Name] = true
 	}
 	if _, found := usedColNames[spColName]; found {
 		// spColName has been used before i.e. FixName caused a collision.
@@ -113,7 +111,7 @@ func GetSpannerCols(conv *Conv, tableId string, srcCols []string) ([]string, err
 		if err != nil {
 			return nil, err
 		}
-		spCol, err := GetSpannerCol(conv, tableId, colId, conv.SpSchema[tableId].ColDefs, false)
+		spCol, err := GetSpannerCol(conv, tableId, colId, conv.SpSchema[tableId].ColDefs)
 		if err != nil {
 			return nil, err
 		}
@@ -135,11 +133,11 @@ func GetSpannerCols(conv *Conv, tableId string, srcCols []string) ([]string, err
 // (across the database). But in some source databases, such as PostgreSQL,
 // they only have to be unique for a table. Hence we must map each source
 // constraint name to a unique spanner constraint name.
-func ToSpannerForeignKey(conv *Conv, srcID string) string {
-	if srcID == "" {
+func ToSpannerForeignKey(conv *Conv, srcFkName string) string {
+	if srcFkName == "" {
 		return ""
 	}
-	return getSpannerID(conv, srcID)
+	return getSpannerValidName(conv, srcFkName)
 }
 
 // ToSpannerIndexName maps source index name to legal Spanner index name.
@@ -151,16 +149,16 @@ func ToSpannerForeignKey(conv *Conv, srcID string) string {
 // (across the database). But in some source databases, such as MySQL,
 // they only have to be unique for a table. Hence we must map each source
 // constraint name to a unique spanner constraint name.
-func ToSpannerIndexName(conv *Conv, srcID string) string {
-	return getSpannerID(conv, srcID)
+func ToSpannerIndexName(conv *Conv, srcIndexName string) string {
+	return getSpannerValidName(conv, srcIndexName)
 }
 
 // conv.UsedNames tracks Spanner names that have been used for table names, foreign key constraints
 // and indexes. We use this to ensure we generate unique names when
 // we map from source dbs to Spanner since Spanner requires all these names to be
 // distinct and should not differ only in case.
-func getSpannerID(conv *Conv, srcID string) string {
-	spKeyName, _ := FixName(srcID)
+func getSpannerValidName(conv *Conv, srcName string) string {
+	spKeyName, _ := FixName(srcName)
 	if _, found := conv.UsedNames[strings.ToLower(spKeyName)]; found {
 		// spKeyName has been used before.
 		// Add unique postfix: use number of keys so far.

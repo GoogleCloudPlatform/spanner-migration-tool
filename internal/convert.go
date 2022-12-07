@@ -43,7 +43,7 @@ type Conv struct {
 	TimezoneOffset string              // Timezone offset for timestamp conversion.
 	TargetDb       string              // The target database to which HarbourBridge is writing.
 	UniquePKey     map[string][]string // Maps Spanner table name to unique column name being used as primary key (if needed).
-	Audit          Audit               // Stores the audit information for the database conversion
+	Audit          Audit               `json:"-"` // Stores the audit information for the database conversion
 }
 
 type mode int
