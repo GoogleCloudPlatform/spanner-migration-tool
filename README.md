@@ -615,6 +615,7 @@ Please refer to the [issues section](https://github.com/cloudspannerecosystem/ha
 - Edits to primary keys and unique indexes are supported, but the user will 
 need to ensure that the new primary key/unique indexes retain uniqueness in
 the data. This is not verified during updation of the keys
+- When the Spanner table PKs are different from the source keys, updates on the spanner PK columns can potentially lead to data inconsistencies. The updates can be potentially treated as a new insert or update some different row
 - Interleaved rows and rows with foreign key constraints are retried 500 times.
  Exhaustion of retries results in these rows being pushed into a dead letter queue.
 - Conversion to Spanner ARRAY type is currently not supported
