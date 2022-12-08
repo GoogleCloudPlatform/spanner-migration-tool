@@ -13,147 +13,146 @@
 # limitations under the License.
 
 on:
-  schedule:
-    - cron:  '0 0 * * *'
-  push:
-    branches:
-      - master
-  pull_request:
+    schedule:
+        - cron: '0 0 * * *'
+    push:
+        branches:
+            - master
+    pull_request:
 name: integration-tests-against-emulator
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    env:
-      # set PostgreSQL related environment variables
-      PGHOST: localhost
-      PGPORT: 5432
-      PGUSER: postgres
-      PGDATABASE: postgres
-      PGPASSWORD: postgres
-
-      # set MySQL related environment variables
-      DB_HOST: localhost
-      MYSQLHOST: localhost
-      MYSQLPORT: 3306
-      MYSQLUSER: root
-      MYSQLDATABASE: test
-      MYSQLPWD: root
-
-      # set DynamoDB related environment variables
-      AWS_ACCESS_KEY_ID: dummyId
-      AWS_SECRET_ACCESS_KEY: dummyKey
-      AWS_REGION: dummyRegion
-      DYNAMODB_ENDPOINT_OVERRIDE: http://localhost:8000
-
-      # sql server envs
-      # Password for connection as SA
-      MSSQL_SA_PASSWORD : tCUE9c1&Ucp0 
-
-    services:
-      spanner_emulator:
-        image: gcr.io/cloud-spanner-emulator/emulator:1.4.0
-        ports:
-          - 9010:9010
-          - 9020:9020
-      postgres:
-        image: postgres:9.6
+    test:
+        runs-on: ubuntu-latest
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-        ports:
-        - 5432:5432
-        # needed because the postgres container does not provide a healthcheck
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
-      mariadb:
-        image: mariadb:10.3
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: test
-        ports:
-        - 3306:3306
-        # needed because the mysql container does not provide a healthcheck
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
-      dynamodb_emulator:
-        image: amazon/dynamodb-local:1.16.0
-        ports:
-        - 8000:8000
-        options: --workdir /home/dynamodblocal --health-cmd "curl --fail http://127.0.0.1:8000/shell/ || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
-      sqlserver:
-        image: mcr.microsoft.com/mssql/server
-        env:
-          SA_PASSWORD: ${{env.MSSQL_SA_PASSWORD}}
-          MSSQL_PID: Express
-          ACCEPT_EULA: Y
-        ports:
-          - 1433:1433
-        options:
-          --health-cmd "/opt/mssql-tools/bin/sqlcmd -U sa -P $SA_PASSWORD -Q 'select 1' -b -o /dev/null"
-          --health-interval 10s --health-timeout 5s --health-retries 3
-      oracle:
-        image: oracleinanutshell/oracle-xe-11g
-        ports: 
-          - 1521:1521
+            # set PostgreSQL related environment variables
+            PGHOST: localhost
+            PGPORT: 5432
+            PGUSER: postgres
+            PGDATABASE: postgres
+            PGPASSWORD: postgres
 
-    steps:
-      - uses: actions/checkout@v2
+            # set MySQL related environment variables
+            DB_HOST: localhost
+            MYSQLHOST: localhost
+            MYSQLPORT: 3306
+            MYSQLUSER: root
+            MYSQLDATABASE: test
+            MYSQLPWD: root
 
-      # init a PostgresSQL database from the test_data
-      - name: Install PostgreSQL 12 client required for loading .sql files
-        run: |
-          sudo bash -c "echo deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main >> /etc/apt/sources.list.d/pgdg.list"
-          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
-          sudo apt-get update
-          sudo apt-get -yq install libpq-dev postgresql-client-12
-      - run: psql --version
-      - run: psql -f test_data/pg_dump.test.out
+            # set DynamoDB related environment variables
+            AWS_ACCESS_KEY_ID: dummyId
+            AWS_SECRET_ACCESS_KEY: dummyKey
+            AWS_REGION: dummyRegion
+            DYNAMODB_ENDPOINT_OVERRIDE: http://localhost:8000
 
-      # init a MySQL database from the test_data
-      - run: mysql --version
-      - run: mysql -v -P 3306 --protocol=tcp -u root -proot test < test_data/mysqldump.test.out
-      - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_interleave_dump.test.out
+            # sql server envs
+            # Password for connection as SA
+            MSSQL_SA_PASSWORD: tCUE9c1&Ucp0
 
-      # init sql server with test_data
-      - name: Install sqlcmd required for loading .sql files
-        run: |
-          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-          curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
-          sudo apt-get update 
-          sudo apt-get install mssql-tools unixodbc-dev
-          echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bash_profile
-      - run: sqlcmd -?
-      - run: sqlcmd -U sa -P ${MSSQL_SA_PASSWORD} -i test_data/sqlserver.test.out
+        services:
+            spanner_emulator:
+                image: gcr.io/cloud-spanner-emulator/emulator:1.4.0
+                ports:
+                    - 9010:9010
+                    - 9020:9020
+            postgres:
+                image: postgres:9.6
+                env:
+                    POSTGRES_USER: postgres
+                    POSTGRES_PASSWORD: postgres
+                    POSTGRES_DB: postgres
+                ports:
+                    - 5432:5432
+                # needed because the postgres container does not provide a healthcheck
+                options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+            mariadb:
+                image: mariadb:10.3
+                env:
+                    MYSQL_ROOT_PASSWORD: root
+                    MYSQL_DATABASE: test
+                ports:
+                    - 3306:3306
+                # needed because the mysql container does not provide a healthcheck
+                options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+            dynamodb_emulator:
+                image: amazon/dynamodb-local:1.16.0
+                ports:
+                    - 8000:8000
+                options: --workdir /home/dynamodblocal --health-cmd "curl --fail http://127.0.0.1:8000/shell/ || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
+            sqlserver:
+                image: mcr.microsoft.com/mssql/server
+                env:
+                    SA_PASSWORD: ${{env.MSSQL_SA_PASSWORD}}
+                    MSSQL_PID: Express
+                    ACCEPT_EULA: Y
+                ports:
+                    - 1433:1433
+                options:
+                    --health-cmd "/opt/mssql-tools/bin/sqlcmd -U sa -P $SA_PASSWORD -Q 'select 1' -b -o /dev/null"
+                    --health-interval 10s --health-timeout 5s --health-retries 3
+            oracle:
+                image: oracleinanutshell/oracle-xe-11g
+                ports:
+                    - 1521:1521
 
-      # sqlplus set up init oracle db.
-      - name: Install sqlplus required for loading .sql files
-        run: |
-          sudo apt install alien libaio1
-          curl -O https://download.oracle.com/otn_software/linux/instantclient/215000/oracle-instantclient-basic-21.5.0.0.0-1.x86_64.rpm          
-          curl -O https://download.oracle.com/otn_software/linux/instantclient/215000/oracle-instantclient-sqlplus-21.5.0.0.0-1.x86_64.rpm
-          sudo alien -i oracle-instantclient-basic-21.5.0.0.0-1.x86_64.rpm
-          sudo alien -i oracle-instantclient-sqlplus-21.5.0.0.0-1.x86_64.rpm
-          sudo sh -c 'echo /usr/lib/oracle/21.5/client64/lib/ > /etc/ld.so.conf.d/oracle.conf'
-          sudo ldconfig
-      - run: sqlplus SYS/oracle@127.0.0.1:1521/xe as sysdba @test_data/oracle.test.out
-     
-      # create a spanner instance
-      - uses: google-github-actions/setup-gcloud@v0
-        with:
-          version: '290.0.1'
-      - run: gcloud info
-      - run: gcloud config configurations create emulator
-      - run: gcloud config set auth/disable_credentials true
-      - run: gcloud config set project emulator-test-project
-      - run: gcloud config set api_endpoint_overrides/spanner http://localhost:9020/
-      - run: gcloud spanner instances create test-instance --config=emulator-config --description="Test Instance" --nodes=1
+        steps:
+            - uses: actions/checkout@v2
 
-      # run tests
-      - uses: actions/setup-go@v2
-        with:
-          go-version: '1.16'
-      - run: go version
-      - run: go test -v ./...
-        env:
-          SPANNER_EMULATOR_HOST: localhost:9010
-          HARBOURBRIDGE_TESTS_GCLOUD_PROJECT_ID: emulator-test-project
-          HARBOURBRIDGE_TESTS_GCLOUD_INSTANCE_ID: test-instance
+            # init a PostgresSQL database from the test_data
+            - name: Install PostgreSQL 12 client required for loading .sql files
+              run: |
+                  sudo bash -c "echo deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main >> /etc/apt/sources.list.d/pgdg.list"
+                  wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+                  sudo apt-get update
+                  sudo apt-get -yq install libpq-dev postgresql-client-12
+            - run: psql --version
+            - run: psql -f test_data/pg_dump.test.out
+
+            # init a MySQL database from the test_data
+            - run: mysql --version
+            - run: mysql -v -P 3306 --protocol=tcp -u root -proot test < test_data/mysqldump.test.out
+            - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_interleave_dump.test.out
+
+            # init sql server with test_data
+            - name: Install sqlcmd required for loading .sql files
+              run: |
+                  curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+                  curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
+                  sudo apt-get update 
+                  sudo apt-get install mssql-tools unixodbc-dev
+                  echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bash_profile
+            - run: sqlcmd -?
+            - run: sqlcmd -U sa -P ${MSSQL_SA_PASSWORD} -i test_data/sqlserver.test.out
+
+            # sqlplus set up init oracle db.
+            - name: Install sqlplus required for loading .sql files
+              run: |
+                  sudo apt install alien libaio1
+                  curl -O https://download.oracle.com/otn_software/linux/instantclient/215000/oracle-instantclient-basic-21.5.0.0.0-1.x86_64.rpm          
+                  curl -O https://download.oracle.com/otn_software/linux/instantclient/215000/oracle-instantclient-sqlplus-21.5.0.0.0-1.x86_64.rpm
+                  sudo alien -i oracle-instantclient-basic-21.5.0.0.0-1.x86_64.rpm
+                  sudo alien -i oracle-instantclient-sqlplus-21.5.0.0.0-1.x86_64.rpm
+                  sudo sh -c 'echo /usr/lib/oracle/21.5/client64/lib/ > /etc/ld.so.conf.d/oracle.conf'
+                  sudo ldconfig
+            - run: sqlplus SYS/oracle@127.0.0.1:1521/xe as sysdba @test_data/oracle.test.out
+            # create a spanner instance
+            - uses: google-github-actions/setup-gcloud@v1
+              with:
+                  version: '410.0.0'
+            - run: gcloud info
+            - run: gcloud config configurations create emulator
+            - run: gcloud config set auth/disable_credentials true
+            - run: gcloud config set project emulator-test-project
+            - run: gcloud config set api_endpoint_overrides/spanner http://localhost:9020/
+            - run: gcloud spanner instances create test-instance --config=emulator-config --description="Test Instance" --nodes=1
+
+            # run tests
+            - uses: actions/setup-go@v2
+              with:
+                  go-version: '1.16'
+            - run: go version
+            - run: go test -v ./...
+              env:
+                  SPANNER_EMULATOR_HOST: localhost:9010
+                  HARBOURBRIDGE_TESTS_GCLOUD_PROJECT_ID: emulator-test-project
+                  HARBOURBRIDGE_TESTS_GCLOUD_INSTANCE_ID: test-instance
