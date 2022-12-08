@@ -397,13 +397,14 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 						l = append(l, str)
 					}
 				case InterleavedNotInOrder:
-					str := fmt.Sprintf(" Table %s  %s and Column %s", IssueDB[i].Brief, spSchema.Name, srcCol)
+					parent := getParentForReport(conv, spSchema.Name, i)
+					str := fmt.Sprintf(" Table %s can be interleaved with table %s %s  %s and Column %s", spSchema.Name, parent, IssueDB[i].Brief, spSchema.Name, srcCol)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 				case InterleavedOrder:
-					parent := getParentForReport(conv, spSchema.Name)
+					parent := getParentForReport(conv, spSchema.Name, i)
 					str := fmt.Sprintf("Table %s %s %s go to Interleave Table Tab", spSchema.Name, IssueDB[i].Brief, parent)
 
 					if !contains(l, str) {
@@ -475,7 +476,7 @@ func getFkAndReferColumn(spSchema ddl.CreateTable, col string) (fkName string, r
 	return fkName, referCol
 }
 
-func getParentForReport(conv *Conv, spTableName string) string {
+func getParentForReport(conv *Conv, spTableName string, issueType SchemaIssue) string {
 	table := conv.SpSchema[spTableName]
 	for _, fk := range table.Fks {
 		for i, col := range fk.Columns {
@@ -485,9 +486,20 @@ func getParentForReport(conv *Conv, spTableName string) string {
 				if err1 != nil || err2 != nil {
 					continue
 				}
-				if colPkOrder == 1 && refColPkOrder == 1 {
-					return fk.ReferTable
+
+				if issueType == InterleavedOrder {
+					if colPkOrder == 1 && refColPkOrder == 1 {
+						return fk.ReferTable
+					}
+				} else if issueType == InterleavedNotInOrder {
+					if colPkOrder != 1 {
+						return fk.ReferTable
+					}
+
+				} else {
+					return ""
 				}
+
 			}
 		}
 	}
@@ -554,7 +566,7 @@ var IssueDB = map[SchemaIssue]struct {
 	RedundantIndex:          {Brief: "Redundant Index", severity: warning},
 	AutoIncrementIndex:      {Brief: "Auto increment column in Index can create a Hotspot", severity: warning},
 	InterleaveIndex:         {Brief: "can be converted to an Interleave Index", severity: suggestion},
-	InterleavedNotInOrder:   {Brief: "Can be converted to interleaved table if primary key order parameter is changed to 1 for the table", severity: suggestion},
+	InterleavedNotInOrder:   {Brief: "if primary key order parameter is changed to 1 for the table", severity: suggestion},
 	InterleavedAddColumn:    {Brief: "Candidate for Interleaved Table", severity: suggestion},
 	IllegalName:             {Brief: "Names must adhere to the spanner regular expression {a-z|A-Z}[{a-z|A-Z|0-9|_}+]", severity: warning},
 	InterleavedRenameColumn: {Brief: "Candidate for Interleaved Table", severity: suggestion},
