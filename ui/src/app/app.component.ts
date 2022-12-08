@@ -12,7 +12,6 @@ export class AppComponent {
   sidenavComponent: string = ''
   constructor(private sidenavService: SidenavService) {}
   ngOnInit(): void {
-    localStorage.clear()
     this.sidenavService.isSidenav.subscribe((data) => {
       this.showSidenav = data
     })
