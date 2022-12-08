@@ -1971,11 +1971,11 @@ func TestApplyRule(t *testing.T) {
 				AssociatedObjects: "t1",
 				Enabled:           true,
 				Type:              constants.AddIndex,
-				Data: map[string]interface{}{
-					"Name":   "idx3",
-					"Table":  "t1",
-					"Unique": false,
-					"Keys":   []interface{}{map[string]interface{}{"Col": "b", "Desc": false}},
+				Data: ddl.CreateIndex{
+					Name:   "idx3",
+					Table:  "t1",
+					Unique: false,
+					Keys:   []ddl.IndexKey{{Col: "b", Desc: false, Order: 1}},
 				},
 			},
 			statusCode: http.StatusOK,
@@ -1997,7 +1997,7 @@ func TestApplyRule(t *testing.T) {
 						Indexes: []ddl.CreateIndex{
 							{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}},
-							{Id: "i1", Name: "idx3", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Id: "i1", Name: "idx3", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false, Order: 1}}},
 						},
 					}},
 				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true, "idx3": true},
@@ -2018,7 +2018,7 @@ func TestApplyRule(t *testing.T) {
 					"Keys":   []interface{}{map[string]interface{}{"Col": "b", "Desc": false}},
 				},
 			},
-			statusCode: http.StatusBadRequest,
+			statusCode: http.StatusInternalServerError,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
@@ -2046,7 +2046,7 @@ func TestApplyRule(t *testing.T) {
 					"Keys":   []interface{}{map[string]interface{}{"Col": "b", "Desc": false}},
 				},
 			},
-			statusCode: http.StatusBadRequest,
+			statusCode: http.StatusInternalServerError,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
@@ -2069,7 +2069,7 @@ func TestApplyRule(t *testing.T) {
 				Type:              constants.AddIndex,
 				Data:              []string{"test1"},
 			},
-			statusCode: http.StatusBadRequest,
+			statusCode: http.StatusInternalServerError,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
@@ -2083,10 +2083,7 @@ func TestApplyRule(t *testing.T) {
 			},
 		},
 	}
-	for i, tc := range tcAddIndex {
-		if i != 0 {
-			continue
-		}
+	for _, tc := range tcAddIndex {
 		sessionState := session.GetSessionState()
 
 		sessionState.Driver = constants.MYSQL
@@ -2115,6 +2112,22 @@ func TestApplyRule(t *testing.T) {
 		if tc.statusCode == http.StatusOK {
 			tc.expectedConv.Rules = internal.MakeConv().Rules
 			tc.expectedConv.Rules = append(tc.expectedConv.Rules, tc.input)
+
+			// Marshall and unmarshall the data field of rule with its proper type i.e ddl.CreateIndex.
+			// Else unmarshalling data field of rule as interface convert int to float64.
+			// In this particular case, order of index-key would be unmarshall to float64 instead of int.
+			dataBytes, err := json.Marshal(res.Rules[0].Data)
+			assert.Equal(t, err, nil)
+			var data ddl.CreateIndex
+			json.Unmarshal(dataBytes, &data)
+
+			// Removing random ids before comparison.
+			addedRule := res.Rules[0]
+			data.Id = ""
+			addedRule.Data = data
+			addedRule.Id = ""
+			res.Rules[0] = addedRule
+
 			assert.Equal(t, tc.expectedConv, res)
 		}
 	}
@@ -2289,7 +2302,7 @@ func TestApplyRule(t *testing.T) {
 		}
 	}
 
-	tc := []struct {
+	tcSetGlobalDataTypeMysql := []struct {
 		name           string
 		payload        string
 		statusCode     int64
@@ -2423,7 +2436,7 @@ func TestApplyRule(t *testing.T) {
 			statusCode: http.StatusBadRequest,
 		},
 	}
-	for _, tc := range tc {
+	for _, tc := range tcSetGlobalDataTypeMysql {
 		sessionState := session.GetSessionState()
 
 		sessionState.Driver = constants.MYSQL

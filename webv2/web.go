@@ -642,15 +642,19 @@ func applyRule(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
 			return
 		}
-		err = addIndex(newIdx)
+		addedIndex, err := addIndex(newIdx)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		rule.Data = addedIndex
 	} else {
 		http.Error(w, "Invalid rule type", http.StatusInternalServerError)
 		return
 	}
+
+	ruleId := uniqueid.GenerateRuleId()
+	rule.Id = ruleId
 
 	sessionState := session.GetSessionState()
 	sessionState.Conv.Rules = append(sessionState.Conv.Rules, rule)
@@ -693,17 +697,17 @@ func setGlobalDataType(typeMap map[string]string) {
 // addIndex checks the new name for spanner name validity, ensures the new name is already not used by existing tables
 // secondary indexes or foreign key constraints. If above checks passed then new indexes are added to the schema else appropriate
 // error thrown.
-func addIndex(newIndex ddl.CreateIndex) error {
+func addIndex(newIndex ddl.CreateIndex) (ddl.CreateIndex, error) {
 	// Check new name for spanner name validity.
 	newNames := []string{}
 	newNames = append(newNames, newIndex.Name)
 
 	if ok, invalidNames := utilities.CheckSpannerNamesValidity(newNames); !ok {
-		return fmt.Errorf("following names are not valid Spanner identifiers: %s", strings.Join(invalidNames, ","))
+		return ddl.CreateIndex{}, fmt.Errorf("following names are not valid Spanner identifiers: %s", strings.Join(invalidNames, ","))
 	}
 	// Check that the new names are not already used by existing tables, secondary indexes or foreign key constraints.
 	if ok, err := utilities.CanRename(newNames, newIndex.Table); !ok {
-		return err
+		return ddl.CreateIndex{}, err
 	}
 
 	sessionState := session.GetSessionState()
@@ -718,7 +722,7 @@ func addIndex(newIndex ddl.CreateIndex) error {
 	sessionState.Conv.UsedNames[newIndex.Name] = true
 	sp.Indexes = append(sp.Indexes, newIndexes...)
 	sessionState.Conv.SpSchema[newIndex.Table] = sp
-	return nil
+	return newIndexes[0], nil
 }
 
 // getConversionRate returns table wise color coded conversion rate.

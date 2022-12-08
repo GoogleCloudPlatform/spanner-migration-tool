@@ -174,6 +174,7 @@ type streamingStats struct {
 
 // Stores information related to rules during schema conversion
 type Rule struct {
+	Id                string
 	Name              string
 	Type              string
 	ObjectType        string
