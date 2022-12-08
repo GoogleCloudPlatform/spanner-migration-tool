@@ -10,9 +10,19 @@ import { DataService } from 'src/app/services/data/data.service'
 export class RuleComponent implements OnInit {
   dataSource: any = []
   currentDataSource: any = []
-  displayedColumns = ['order', 'name', 'type', 'objectType', 'associatedObject', 'enabled']
+  displayedColumns = [
+    'order',
+    'name',
+    'type',
+    'objectType',
+    'associatedObject',
+    'enabled',
+    'view',
+    'delete',
+  ]
   @Input() currentObject: any = {}
   @Output() lengthOfRules: EventEmitter<number> = new EventEmitter<number>()
+  @Output() currentRules: EventEmitter<any> = new EventEmitter<any>()
 
   constructor(private sidenavService: SidenavService, private data: DataService) {}
 
@@ -50,10 +60,16 @@ export class RuleComponent implements OnInit {
     }
 
     this.dataSource = [...globalData, ...currentData]
+    this.currentRules.emit(this.dataSource)
     this.lengthOfRules.emit(this.dataSource.length)
   }
 
   openSidenav(): void {
+    this.sidenavService.openSidenav()
+    this.sidenavService.setSidenavComponent('rule')
+  }
+
+  viewSidenavRule(): void {
     this.sidenavService.openSidenav()
     this.sidenavService.setSidenavComponent('rule')
   }
