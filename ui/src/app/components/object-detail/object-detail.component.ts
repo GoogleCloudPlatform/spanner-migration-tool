@@ -346,12 +346,60 @@ export class ObjectDetailComponent implements OnInit {
 
   dropColumn(element: any) {
     let colName = element.get('srcColName').value
-    this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
-      if (col.srcColName === colName) {
-        this.droppedColumns.push(col)
+    let associatedIndexes = this.getAssociatedIndexs(colName)
+    if (this.checkIfPkColumn(colName) || associatedIndexes.length != 0) {
+      let pkWarning: string = ''
+      let indexWaring: string = ''
+      let connectingString: string = ''
+      if (this.checkIfPkColumn(colName)) {
+        pkWarning = ` Primary key`
       }
-    })
-    this.dropColumnFromUI(colName)
+      if (associatedIndexes.length != 0) {
+        indexWaring = ` Index ${associatedIndexes}`
+      }
+      if (pkWarning != '' && indexWaring != '') {
+        connectingString = ` and`
+      }
+      this.dialog.open(InfodialogComponent, {
+        data: {
+          message: `Column ${colName} is a part of${pkWarning}${connectingString}${indexWaring}. Remove the dependencies from respective tabs before dropping the Column. `,
+          type: 'error',
+        },
+        maxWidth: '500px',
+      })
+    } else {
+      this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
+        if (col.srcColName === colName) {
+          this.droppedColumns.push(col)
+        }
+      })
+      this.dropColumnFromUI(colName)
+    }
+  }
+
+  checkIfPkColumn(colName: string) {
+    let isPkColumn = false
+    if (
+      this.conv.SpSchema[this.currentObject!.name].Pks != null &&
+      this.conv.SpSchema[this.currentObject!.name].Pks.map((pk: IIndexKey) => pk.Col).includes(
+        colName
+      )
+    ) {
+      isPkColumn = true
+    }
+    return isPkColumn
+  }
+
+  getAssociatedIndexs(colName: string) {
+    let indexes: string[] = []
+    if (this.conv.SpSchema[this.currentObject!.name].Indexes != null) {
+      this.conv.SpSchema[this.currentObject!.name].Indexes.forEach((ind: ICreateIndex) => {
+        if (ind.Keys.map((key) => key.Col).includes(colName)) {
+          indexes.push(ind.Name)
+        }
+      })
+    }
+    return indexes
   }
 
   dropColumnFromUI(colName: string) {
