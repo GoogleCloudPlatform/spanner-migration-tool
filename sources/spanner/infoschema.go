@@ -304,11 +304,11 @@ func (isi InfoSchemaImpl) GetForeignKeys(conv *internal.Conv, table common.Schem
 		}
 		foreignKeys = append(foreignKeys,
 			schema.ForeignKey{
-				Id:             internal.GenerateForeignkeyId(),
-				Name:           fKeys[k].Name,
-				ColIds:         cols,
-				ReferTableId:   fKeys[k].Table,
-				ReferColumnIds: refcols})
+				Id:               internal.GenerateForeignkeyId(),
+				Name:             fKeys[k].Name,
+				ColumnNames:      cols,
+				ReferTableName:   fKeys[k].Table,
+				ReferColumnNames: refcols})
 	}
 	return foreignKeys, nil
 }
