@@ -1848,6 +1848,17 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	delete(usedNames, sp.Indexes[position].Name)
 	index.RemoveIndexIssues(table, sp.Indexes[position])
 
+	indexId := sp.Indexes[position].Id
+	for i, rule := range sessionState.Conv.Rules {
+		if rule.Type == constants.AddIndex {
+			index := rule.Data.(ddl.CreateIndex)
+			if index.Id == indexId {
+				sessionState.Conv.Rules[i].Enabled = false
+				break
+			}
+		}
+	}
+
 	sp.Indexes = utilities.RemoveSecondaryIndex(sp.Indexes, position)
 	sessionState.Conv.SpSchema[table] = sp
 	session.UpdateSessionFile()
