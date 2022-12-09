@@ -411,14 +411,16 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 						l = append(l, str)
 					}
 				case InterleavedAddColumn:
-					str := fmt.Sprintf(" %s add %s as a primary key in table %s", IssueDB[i].Brief, srcCol, spSchema.Name)
+					parent := getParentForReport(conv, spSchema.Name, i)
+					str := fmt.Sprintf(" %s %s add %s as a primary key in table %s", IssueDB[i].Brief, parent, srcCol, spSchema.Name)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 				case InterleavedRenameColumn:
 					fkName, referCol := getFkAndReferColumn(spSchema, srcCol)
-					str := fmt.Sprintf(" %s rename %s primary key in table %s to match the foreign key %s refer column \"%s\"", IssueDB[i].Brief, srcCol, spSchema.Name, fkName, referCol)
+					parent := getParentForReport(conv, spSchema.Name, i)
+					str := fmt.Sprintf(" %s %s rename %s primary key in table %s to match the foreign key %s refer column \"%s\"", IssueDB[i].Brief, parent, srcCol, spSchema.Name, fkName, referCol)
 
 					if !contains(l, str) {
 						l = append(l, str)
@@ -480,26 +482,27 @@ func getParentForReport(conv *Conv, spTableName string, issueType SchemaIssue) s
 	table := conv.SpSchema[spTableName]
 	for _, fk := range table.Fks {
 		for i, col := range fk.Columns {
+			colPkOrder, err1 := getPkOrderForReport(table.Pks, col)
+			refColPkOrder, err2 := getPkOrderForReport(conv.SpSchema[fk.ReferTable].Pks, fk.ReferColumns[i])
+			if err2 != nil {
+				continue
+			}
 			if col == fk.ReferColumns[i] {
-				colPkOrder, err1 := getPkOrderForReport(table.Pks, col)
-				refColPkOrder, err2 := getPkOrderForReport(table.Pks, fk.ReferColumns[i])
-				if err1 != nil || err2 != nil {
-					continue
+
+				if issueType == InterleavedOrder && colPkOrder == 1 && refColPkOrder == 1 {
+					return fk.ReferTable
+
+				} else if issueType == InterleavedNotInOrder && err1 == nil && colPkOrder != 1 && refColPkOrder == 1 {
+					return fk.ReferTable
+
+				} else if issueType == InterleavedAddColumn && err1 != nil && refColPkOrder == 1 {
+					return fk.ReferTable
 				}
 
-				if issueType == InterleavedOrder {
-					if colPkOrder == 1 && refColPkOrder == 1 {
-						return fk.ReferTable
-					}
-				} else if issueType == InterleavedNotInOrder {
-					if colPkOrder != 1 {
-						return fk.ReferTable
-					}
-
-				} else {
-					return ""
+			} else {
+				if issueType == InterleavedRenameColumn && colPkOrder == 1 && refColPkOrder == 1 {
+					return fk.ReferTable
 				}
-
 			}
 		}
 	}
