@@ -346,12 +346,14 @@ export class ObjectDetailComponent implements OnInit {
 
   dropColumn(element: any) {
     let colName = element.get('srcColName').value
-    let associatedIndexes = this.getAssociatedIndexs(colName)
-    if (this.checkIfPkColumn(colName) || associatedIndexes.length != 0) {
+    let spColName = this.conv.ToSpanner[this.currentObject!.name].Cols[colName]
+    console.log(spColName, 'spColName')
+    let associatedIndexes = this.getAssociatedIndexs(spColName)
+    if (this.checkIfPkColumn(spColName) || associatedIndexes.length != 0) {
       let pkWarning: string = ''
       let indexWaring: string = ''
       let connectingString: string = ''
-      if (this.checkIfPkColumn(colName)) {
+      if (this.checkIfPkColumn(spColName)) {
         pkWarning = ` Primary key`
       }
       if (associatedIndexes.length != 0) {
@@ -362,7 +364,7 @@ export class ObjectDetailComponent implements OnInit {
       }
       this.dialog.open(InfodialogComponent, {
         data: {
-          message: `Column ${colName} is a part of${pkWarning}${connectingString}${indexWaring}. Remove the dependencies from respective tabs before dropping the Column. `,
+          message: `Column ${spColName} is a part of${pkWarning}${connectingString}${indexWaring}. Remove the dependencies from respective tabs before dropping the Column. `,
           type: 'error',
         },
         maxWidth: '500px',
