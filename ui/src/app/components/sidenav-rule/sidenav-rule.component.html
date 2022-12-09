@@ -1,6 +1,6 @@
 <div class="sidenav">
   <div class="sidenav-header">
-    <span class="header-title">Add rule</span>
+    <span class="header-title">{{ !viewRuleFlag ? 'Add Rule' : 'View Rule' }}</span>
     <button class="close-button" mat-icon-button color="primary" (click)="closeSidenav()">
       <mat-icon class="close-icon">close</mat-icon>
     </button>

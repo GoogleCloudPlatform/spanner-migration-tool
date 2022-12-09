@@ -16,8 +16,11 @@ export class SidenavRuleComponent implements OnInit {
     ruleName: new FormControl('', [Validators.required, Validators.pattern('^[a-zA-Z].{0,59}$')]),
     ruleType: new FormControl('', [Validators.required]),
   })
+
   rulename: string = ''
   ruletype: string = ''
+  viewRuleData: any = []
+  viewRuleFlag: boolean = false
 
   ngOnInit(): void {
     this.sidenav.sidenavRuleType.subscribe((res) => {
@@ -26,15 +29,33 @@ export class SidenavRuleComponent implements OnInit {
       }
     })
 
-    this.ruleForm.valueChanges.subscribe((val) => {
+    this.ruleForm.valueChanges.subscribe(() => {
       this.rulename = this.ruleForm.controls['ruleName']?.value
       this.ruletype = this.ruleForm.controls['ruleType']?.value
+    })
+
+    this.sidenav.passRules.subscribe(([data, flag]: any) => {
+      this.viewRuleData = data
+      this.viewRuleFlag = flag
+
+      if (this.viewRuleFlag) {
+        this.ruleForm.disable()
+        this.ruleForm.controls['ruleName'].setValue(this.viewRuleData?.Name)
+        this.ruleForm.controls['ruleType'].setValue(
+          this.viewRuleData?.Type === 'add_index' ? 'addIndex' : 'globalDataType'
+        )
+      } else {
+        this.ruleForm.enable()
+        this.ruleForm.controls['ruleName'].setValue('')
+        this.ruleForm.controls['ruleType'].setValue('')
+      }
     })
   }
 
   closeSidenav(): void {
     this.sidenav.closeSidenav()
   }
+
   get ruleType() {
     return this.ruleForm.get('ruleType')?.value
   }

@@ -20,6 +20,8 @@ export class AddIndexFormComponent implements OnInit {
   totalColumns: string[] = []
   addColumnsList: string[][] = []
   commonColumns: string[] = []
+  viewRuleData: any = []
+  viewRuleFlag: boolean = false
   conv: IConv = {} as IConv
   constructor(private fb: FormBuilder, private data: DataService, private sidenav: SidenavService) {
     this.addIndexForm = this.fb.group({
@@ -42,6 +44,28 @@ export class AddIndexFormComponent implements OnInit {
         if (res !== '') this.selectedTableChange(res)
       },
     })
+
+    this.sidenav.passRules.subscribe(([data, flag]: any) => {
+      this.viewRuleData = data
+      this.viewRuleFlag = flag
+
+      if (this.viewRuleFlag) {
+        this.addIndexForm.controls['tableName'].setValue(this.viewRuleData?.Data?.Table)
+        this.addIndexForm.controls['indexName'].setValue(this.viewRuleData?.Data?.Name)
+        this.setColArraysForViewRules(this.viewRuleData?.Data?.Keys)
+        this.addIndexForm.disable()
+      }
+    })
+  }
+
+  setColArraysForViewRules(data: any) {
+    for (let i = 0; i < data.length; i++) {
+      let newForm = this.fb.group({
+        columnName: [data[i].Col, Validators.required],
+        sort: [data[i].Desc, Validators.required],
+      })
+      this.ColsArray.push(newForm)
+    }
   }
 
   get ColsArray() {
@@ -128,4 +152,6 @@ export class AddIndexFormComponent implements OnInit {
     }
     this.data.applyRule(payload)
   }
+
+  deleteRule() {}
 }

@@ -23,6 +23,8 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
   conversionType: Record<string, IConvSourceType[]> = {}
   sourceType: string[] = []
   destinationType: string[] = []
+  viewRuleData: any = []
+  viewRuleFlag: boolean = false
   constructor(private fb: FormBuilder, private data: DataService, private sidenav: SidenavService) {
     this.addGlobalDataTypeForm = this.fb.group({
       objectType: ['column', Validators.required],
@@ -40,7 +42,22 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
         this.sourceType = Object.keys(this.conversionType)
       },
     })
+
+    this.sidenav.passRules.subscribe(([data, flag]: any) => {
+      this.viewRuleData = data
+      this.viewRuleFlag = flag
+
+      if (this.viewRuleFlag) {
+        this.addGlobalDataTypeForm.controls['sourceType'].setValue(
+          Object.keys(this.viewRuleData?.Data)[0]
+        )
+        this.addGlobalDataTypeForm.controls['destinationType'].setValue(
+          Object.values(this.viewRuleData?.Data)[0]
+        )
+      }
+    })
   }
+
   formSubmit(): void {
     const ruleValue = this.addGlobalDataTypeForm.value
     const source = ruleValue.sourceType
@@ -73,4 +90,6 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
 
     this.data.applyRule(payload)
   }
+
+  deleteRule() {}
 }
