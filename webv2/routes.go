@@ -43,6 +43,7 @@ func getRoutes() *mux.Router {
 	router.HandleFunc("/report", getReportFile).Methods("GET")
 	router.HandleFunc("/schema", getSchemaFile).Methods("GET")
 	router.HandleFunc("/applyrule", applyRule).Methods("POST")
+	router.HandleFunc("/dropRule", dropRule).Methods("POST")
 	router.HandleFunc("/typemap/table", table.UpdateTableSchema).Methods("POST")
 	router.HandleFunc("/typemap/reviewTableSchema", table.ReviewTableSchema).Methods("POST")
 

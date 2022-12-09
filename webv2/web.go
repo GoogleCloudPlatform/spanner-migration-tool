@@ -667,6 +667,67 @@ func applyRule(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
+func dropRule(w http.ResponseWriter, r *http.Request) {
+	ruleId := r.FormValue("id")
+	if ruleId == "" {
+		http.Error(w, fmt.Sprint("Rule id is empty"), http.StatusBadRequest)
+		return
+	}
+	sessionState := session.GetSessionState()
+	conv := sessionState.Conv
+	var rule internal.Rule
+	position := -1
+
+	for i, r := range conv.Rules {
+		if r.Id == ruleId {
+			rule = r
+			position = i
+			break
+		}
+	}
+	if position == -1 {
+		http.Error(w, fmt.Sprint("Rule to be deleted not found"), http.StatusBadRequest)
+		return
+	}
+
+	if rule.Type == constants.AddIndex {
+		tableName := rule.AssociatedObjects
+		index := rule.Data.(ddl.CreateIndex)
+		indexName := index.Name
+		err := dropSecondaryIndexHelper(tableName, indexName)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("%v", err), http.StatusBadRequest)
+			return
+		}
+	} else if rule.Type == constants.GlobalDataTypeChange {
+		d, err := json.Marshal(rule.Data)
+		if err != nil {
+			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+			return
+		}
+		typeMap := map[string]string{}
+		err = json.Unmarshal(d, &typeMap)
+		if err != nil {
+			http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+			return
+		}
+		revertGlobalDataType(typeMap)
+	} else {
+		http.Error(w, "Invalid rule type", http.StatusInternalServerError)
+		return
+	}
+
+	sessionState.Conv.Rules = append(conv.Rules[:position], conv.Rules[position+1:]...)
+	session.UpdateSessionFile()
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+
+}
+
 // setGlobalDataType allows to change Spanner type globally.
 // It takes a map from source type to Spanner type and updates
 // the Spanner schema accordingly.
@@ -689,6 +750,31 @@ func setGlobalDataType(typeMap map[string]string) {
 			// this process -- the mapping in typeMap always takes precendence.
 			if _, found := typeMap[srcColDef.Type.Name]; found {
 				utilities.UpdateDataType(sessionState.Conv, typeMap[srcColDef.Type.Name], t, col, srcTable)
+			}
+		}
+	}
+}
+
+// revertGlobalDataType revert back the spanner type to default
+// when the rule that is used to apply the data-type change is deleted.
+// It takes a map from source type to Spanner type and updates
+// the Spanner schema accordingly.
+func revertGlobalDataType(typeMap map[string]string) {
+	sessionState := session.GetSessionState()
+
+	for t, spSchema := range sessionState.Conv.SpSchema {
+		for colName, colDef := range spSchema.ColDefs {
+			srcTable := sessionState.Conv.ToSource[t].Name
+			srcCol := sessionState.Conv.ToSource[t].Cols[colName]
+			srcColDef := sessionState.Conv.SrcSchema[srcTable].ColDefs[srcCol]
+			spType, found := typeMap[srcColDef.Type.Name]
+
+			if !found {
+				continue
+			}
+
+			if colDef.T.Name == spType {
+				utilities.UpdateDataType(sessionState.Conv, "", t, colName, srcTable)
 			}
 		}
 	}
@@ -1828,20 +1914,36 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
-	if table == "" || dropDetail.Name == "" {
-		http.Error(w, fmt.Sprintf("Table name or position is empty"), http.StatusBadRequest)
+
+	err = dropSecondaryIndexHelper(table, dropDetail.Name)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("%v", err), http.StatusBadRequest)
+		return
 	}
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+}
+
+func dropSecondaryIndexHelper(table, indexName string) error {
+	if table == "" || indexName == "" {
+		return fmt.Errorf("Table name or index name is empty")
+	}
+	sessionState := session.GetSessionState()
 	sp := sessionState.Conv.SpSchema[table]
 	position := -1
 	for i, index := range sp.Indexes {
-		if dropDetail.Name == index.Name {
+		if indexName == index.Name {
 			position = i
 			break
 		}
 	}
 	if position < 0 || position >= len(sp.Indexes) {
-		http.Error(w, fmt.Sprintf("No secondary index found at position %d", position), http.StatusBadRequest)
-		return
+		return fmt.Errorf("No secondary index found at position %d", position)
 	}
 
 	usedNames := sessionState.Conv.UsedNames
@@ -1862,13 +1964,7 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	sp.Indexes = utilities.RemoveSecondaryIndex(sp.Indexes, position)
 	sessionState.Conv.SpSchema[table] = sp
 	session.UpdateSessionFile()
-
-	convm := session.ConvWithMetadata{
-		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
-	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(convm)
+	return nil
 }
 
 func uploadFile(w http.ResponseWriter, r *http.Request) {
