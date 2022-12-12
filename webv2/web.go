@@ -695,7 +695,7 @@ func dropRule(w http.ResponseWriter, r *http.Request) {
 		index := rule.Data.(ddl.CreateIndex)
 		indexName := index.Name
 		err := dropSecondaryIndexHelper(tableName, indexName)
-		if err != nil {
+		if err != nil && rule.Enabled {
 			http.Error(w, fmt.Sprintf("%v", err), http.StatusBadRequest)
 			return
 		}

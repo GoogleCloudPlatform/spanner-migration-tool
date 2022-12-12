@@ -219,4 +219,8 @@ export class FetchService {
   applyRule(payload: IRule) {
     return this.http.post(`${this.url}/applyrule`, payload)
   }
+
+  dropRule(ruleId: string) {
+    return this.http.post(`${this.url}/dropRule?id=${ruleId}`, {})
+  }
 }

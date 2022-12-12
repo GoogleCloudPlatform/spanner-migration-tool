@@ -31,7 +31,7 @@ export class DataService {
   private isOfflineSub = new BehaviorSubject<boolean>(false)
   private ruleMapSub = new BehaviorSubject<IRule[]>([])
 
-  rule = this.ruleMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
+  rule = this.ruleMapSub.asObservable()
   conv = this.convSubject.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   conversionRate = this.conversionRateSub
     .asObservable()
@@ -386,6 +386,7 @@ export class DataService {
         } else {
           this.convSubject.next(data)
           this.getDdl()
+          this.ruleMapSub.next(data?.Rules)
           this.snackbar.openSnackBar('Index dropped successfully', 'Close', 5)
           return ''
         }
@@ -443,5 +444,18 @@ export class DataService {
         }
       })
     )
+  }
+
+  dropRule(ruleId: string) {
+    return this.fetch.dropRule(ruleId).subscribe({
+      next: (res: any) => {
+        this.convSubject.next(res)
+        this.ruleMapSub.next(res?.Rules)
+        this.snackbar.openSnackBar('Rule deleted successfully', 'Close', 5)
+      },
+      error: (err: any) => {
+        this.snackbar.openSnackBar(err.error, 'Close')
+      },
+    })
   }
 }

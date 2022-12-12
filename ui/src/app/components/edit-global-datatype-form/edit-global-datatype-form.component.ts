@@ -25,6 +25,7 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
   destinationType: string[] = []
   viewRuleData: any = []
   viewRuleFlag: boolean = false
+  ruleId: string = ''
   constructor(private fb: FormBuilder, private data: DataService, private sidenav: SidenavService) {
     this.addGlobalDataTypeForm = this.fb.group({
       objectType: ['column', Validators.required],
@@ -48,6 +49,7 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
       this.viewRuleFlag = flag
 
       if (this.viewRuleFlag) {
+        this.ruleId = this.viewRuleData?.Id
         this.addGlobalDataTypeForm.controls['sourceType'].setValue(
           Object.keys(this.viewRuleData?.Data)[0]
         )
@@ -91,5 +93,9 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
     this.data.applyRule(payload)
   }
 
-  deleteRule() {}
+  deleteRule() {
+    this.data.dropRule(this.ruleId)
+    this.resetRuleType.emit('')
+    this.sidenav.closeSidenav()
+  }
 }

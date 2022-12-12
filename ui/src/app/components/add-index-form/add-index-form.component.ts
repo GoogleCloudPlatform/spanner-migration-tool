@@ -23,6 +23,7 @@ export class AddIndexFormComponent implements OnInit {
   viewRuleData: any = []
   viewRuleFlag: boolean = false
   conv: IConv = {} as IConv
+  ruleId: string = ''
   constructor(private fb: FormBuilder, private data: DataService, private sidenav: SidenavService) {
     this.addIndexForm = this.fb.group({
       tableName: ['', Validators.required],
@@ -50,6 +51,7 @@ export class AddIndexFormComponent implements OnInit {
       this.viewRuleFlag = flag
 
       if (this.viewRuleFlag) {
+        this.ruleId = this.viewRuleData?.Id
         this.addIndexForm.controls['tableName'].setValue(this.viewRuleData?.Data?.Table)
         this.addIndexForm.controls['indexName'].setValue(this.viewRuleData?.Data?.Name)
         this.setColArraysForViewRules(this.viewRuleData?.Data?.Keys)
@@ -153,5 +155,10 @@ export class AddIndexFormComponent implements OnInit {
     this.data.applyRule(payload)
   }
 
-  deleteRule() {}
+  deleteRule() {
+    this.data.dropRule(this.ruleId)
+    this.resetRuleType.emit('')
+    this.sidenav.setSidenavAddIndexTable('')
+    this.sidenav.closeSidenav()
+  }
 }
