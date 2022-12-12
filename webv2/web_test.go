@@ -2465,6 +2465,257 @@ func TestApplyRule(t *testing.T) {
 	}
 }
 
+func TestDropRule(t *testing.T) {
+	tc := []struct {
+		name         string
+		ruleId       string
+		statusCode   int64
+		conv         *internal.Conv
+		expectedConv *internal.Conv
+	}{
+		{
+			name:       "drop a valid add index rule",
+			ruleId:     "r101",
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"table1": {
+						Name: "table1",
+						Id:   "t1",
+						Indexes: []ddl.CreateIndex{
+							{Name: "idx1", Id: "i1", Table: "table1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Id: "i2", Table: "table1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}},
+							{Name: "idx3", Id: "i3", Table: "table1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false, Order: 1}}},
+						},
+					}},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+				UsedNames: map[string]bool{"table1": true, "idx1": true, "idx2": true, "idx3": true},
+				Rules: []internal.Rule{{
+					Id:                "r101",
+					Name:              "add_index",
+					Type:              constants.AddIndex,
+					ObjectType:        "table",
+					AssociatedObjects: "table1",
+					Enabled:           true,
+					Data:              ddl.CreateIndex{Name: "idx3", Id: "i3", Table: "table1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false, Order: 1}}},
+				}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"table1": {
+						Name: "table1",
+						Id:   "t1",
+						Indexes: []ddl.CreateIndex{
+							{Name: "idx1", Id: "i1", Table: "table1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Id: "i2", Table: "table1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}},
+						},
+					}},
+				UsedNames: map[string]bool{"table1": true, "idx1": true, "idx2": true},
+			},
+		},
+		{
+			name:       "drop a vaild add global data type rule",
+			ruleId:     "r101",
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				Issues: map[string]map[string][]internal.SchemaIssue{
+					"t1": {},
+				},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:     "t1",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]schema.Column{
+							"a": {Name: "a", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c4"},
+							"b": {Name: "b", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c2"},
+							"c": {Name: "c", Type: schema.Type{Name: "varchar"}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c3"},
+						},
+						PrimaryKeys: []schema.Key{{Column: "a", Desc: false, Order: 1}},
+						Id:          "id1",
+					},
+				},
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:     "t1",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": {Name: "b", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						Pks: []ddl.IndexKey{{Col: "a", Desc: false}},
+						Id:  "id1",
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": {
+						Name: "t1",
+						Cols: map[string]string{
+							"a": "a",
+							"b": "b",
+							"c": "c",
+						},
+					},
+				},
+				Rules: []internal.Rule{
+					{
+						Id:                "r101",
+						Name:              "bigint to BTYES",
+						Type:              constants.GlobalDataTypeChange,
+						ObjectType:        "Column",
+						AssociatedObjects: "All Columns",
+						Enabled:           true,
+						Data: map[string]string{
+							"bigint": ddl.String,
+						},
+					},
+				},
+			},
+			expectedConv: &internal.Conv{
+				Issues: map[string]map[string][]internal.SchemaIssue{
+					"t1": {},
+				},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:     "t1",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]schema.Column{
+							"a": {Name: "a", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c4"},
+							"b": {Name: "b", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c2"},
+							"c": {Name: "c", Type: schema.Type{Name: "varchar"}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c3"},
+						},
+						PrimaryKeys: []schema.Key{{Column: "a", Desc: false, Order: 1}},
+						Id:          "id1",
+					},
+				},
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:     "t1",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{
+							"a": {Name: "a", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": {Name: "b", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": {Name: "c", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						Pks: []ddl.IndexKey{{Col: "a", Desc: false}},
+						Id:  "id1",
+					},
+				},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": {
+						Name: "t1",
+						Cols: map[string]string{
+							"a": "a",
+							"b": "b",
+							"c": "c",
+						},
+					},
+				},
+			},
+		},
+		{
+			name:       "drop rule with an invalid rule-id",
+			ruleId:     "ABC",
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"table1": {
+						Name: "table1",
+						Id:   "t1",
+						Indexes: []ddl.CreateIndex{
+							{Name: "idx1", Id: "i1", Table: "table1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Id: "i2", Table: "table1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}},
+							{Name: "idx3", Id: "i3", Table: "table1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false, Order: 1}}},
+						},
+					}},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+				UsedNames: map[string]bool{"table1": true, "idx1": true, "idx2": true, "idx3": true},
+				Rules: []internal.Rule{{
+					Id:                "r101",
+					Name:              "add_index",
+					Type:              constants.AddIndex,
+					ObjectType:        "table",
+					AssociatedObjects: "table1",
+					Enabled:           true,
+					Data:              ddl.CreateIndex{Name: "idx3", Id: "i3", Table: "table1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false, Order: 1}}},
+				}},
+			},
+		},
+		{
+			name:       "drop a disabled valid add index rule",
+			ruleId:     "r101",
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"table1": {
+						Name: "table1",
+						Id:   "t1",
+						Indexes: []ddl.CreateIndex{
+							{Name: "idx1", Id: "i1", Table: "table1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Id: "i2", Table: "table1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}},
+						},
+					}},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+				UsedNames: map[string]bool{"table1": true, "idx1": true, "idx2": true},
+				Rules: []internal.Rule{{
+					Id:                "r101",
+					Name:              "add_index",
+					Type:              constants.AddIndex,
+					ObjectType:        "table",
+					AssociatedObjects: "table1",
+					Enabled:           false,
+					Data:              ddl.CreateIndex{Name: "idx3", Id: "i3", Table: "table1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false, Order: 1}}},
+				}},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"table1": {
+						Name: "table1",
+						Id:   "t1",
+						Indexes: []ddl.CreateIndex{
+							{Name: "idx1", Id: "i1", Table: "table1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
+							{Name: "idx2", Id: "i2", Table: "table1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false}, {Col: "d", Desc: false}}},
+						},
+					}},
+				UsedNames: map[string]bool{"table1": true, "idx1": true, "idx2": true},
+			},
+		},
+	}
+	for _, tc := range tc {
+		sessionState := session.GetSessionState()
+		sessionState.Driver = constants.MYSQL
+		sessionState.Conv = tc.conv
+		payload := `{}`
+		req, err := http.NewRequest("POST", "/dropRule?id="+tc.ruleId, strings.NewReader(payload))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(dropRule)
+		handler.ServeHTTP(rr, req)
+		var res *internal.Conv
+		json.Unmarshal(rr.Body.Bytes(), &res)
+		if status := rr.Code; int64(status) != tc.statusCode {
+			t.Errorf("%s : handler returned wrong status code: got %v want %v",
+				tc.name, status, tc.statusCode)
+		}
+		if tc.statusCode == http.StatusOK {
+			assert.Equal(t, tc.expectedConv, res)
+		}
+	}
+
+}
+
 func buildConvMySQL(conv *internal.Conv) {
 	conv.SrcSchema = map[string]schema.Table{
 		"t1": {

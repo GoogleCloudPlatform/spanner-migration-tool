@@ -718,6 +718,9 @@ func dropRule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionState.Conv.Rules = append(conv.Rules[:position], conv.Rules[position+1:]...)
+	if len(sessionState.Conv.Rules) == 0 {
+		sessionState.Conv.Rules = nil
+	}
 	session.UpdateSessionFile()
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,

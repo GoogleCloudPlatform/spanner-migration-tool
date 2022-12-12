@@ -36,7 +36,7 @@
   <mat-form-field appearance="outline" *ngIf="sourceField.selected">
     <mat-label>Destination data type</mat-label>
     <mat-select matSelect class="input-field" formControlName="destinationType" required="true">
-      <mat-option *ngFor="let type of destinationType" value="type">{{ type }}</mat-option>
+      <mat-option *ngFor="let type of destinationType" [value]="type">{{ type }}</mat-option>
     </mat-select>
   </mat-form-field>
 
