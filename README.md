@@ -620,5 +620,5 @@ the data. This is not verified during updation of the keys
  Exhaustion of retries results in these rows being pushed into a dead letter queue.
 - Conversion to Spanner ARRAY type is currently not supported
 - MySQL types BIT and TIME are not converted correctly
-
+- PostgreSQL types bit, bit varying, bytea and time not converted correctly.
 
