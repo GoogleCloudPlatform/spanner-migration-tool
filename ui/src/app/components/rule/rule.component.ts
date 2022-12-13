@@ -31,26 +31,28 @@ export class RuleComponent implements OnInit {
   }
 
   updateRules(): void {
-    let globalData: any = []
-    let currentData: any = []
-
-    globalData = this.currentDataSource.filter(
-      (index: any) => index?.Type === 'global_datatype_change'
-    )
-
-    if (
-      this.currentObject &&
-      (this.currentObject?.type === 'tableName' || this.currentObject?.type === 'indexName')
-    ) {
-      currentData = this.currentDataSource.filter(
-        (index: any) =>
-          index?.AssociatedObjects === this.currentObject?.name ||
-          index?.AssociatedObjects === this.currentObject?.parent
+    if (this.currentDataSource) {
+      let globalData: any = []
+      let currentData: any = []
+      globalData = this.currentDataSource.filter(
+        (index: any) => index?.Type === 'global_datatype_change'
       )
+      if (
+        this.currentObject &&
+        (this.currentObject?.type === 'tableName' || this.currentObject?.type === 'indexName')
+      ) {
+        currentData = this.currentDataSource.filter(
+          (index: any) =>
+            index?.AssociatedObjects === this.currentObject?.name ||
+            index?.AssociatedObjects === this.currentObject?.parent
+        )
+      }
+      this.dataSource = [...globalData, ...currentData]
+      this.lengthOfRules.emit(this.dataSource.length)
+    } else {
+      this.dataSource = []
+      this.lengthOfRules.emit(0)
     }
-
-    this.dataSource = [...globalData, ...currentData]
-    this.lengthOfRules.emit(this.dataSource.length)
   }
 
   openSidenav(): void {
