@@ -54,6 +54,7 @@ export class AddIndexFormComponent implements OnInit {
         this.ruleId = this.viewRuleData?.Id
         this.addIndexForm.controls['tableName'].setValue(this.viewRuleData?.Data?.Table)
         this.addIndexForm.controls['indexName'].setValue(this.viewRuleData?.Data?.Name)
+        this.selectedTableChange(this.viewRuleData?.Data?.Table)
         this.setColArraysForViewRules(this.viewRuleData?.Data?.Keys)
         this.addIndexForm.disable()
       }
@@ -61,12 +62,15 @@ export class AddIndexFormComponent implements OnInit {
   }
 
   setColArraysForViewRules(data: any) {
+    this.ColsArray.clear()
     for (let i = 0; i < data.length; i++) {
       let newForm = this.fb.group({
         columnName: [data[i].Col, Validators.required],
-        sort: [data[i].Desc, Validators.required],
+        sort: [data[i].Desc.toString(), Validators.required],
       })
+      this.updateCommonColumns()
       this.ColsArray.push(newForm)
+      this.addColumnsList.push([...this.commonColumns])
     }
   }
 

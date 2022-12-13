@@ -53,9 +53,11 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
         this.addGlobalDataTypeForm.controls['sourceType'].setValue(
           Object.keys(this.viewRuleData?.Data)[0]
         )
+        this.updateDestinationType(Object.keys(this.viewRuleData?.Data)[0])
         this.addGlobalDataTypeForm.controls['destinationType'].setValue(
           Object.values(this.viewRuleData?.Data)[0]
         )
+        this.addGlobalDataTypeForm.disable()
       }
     })
   }

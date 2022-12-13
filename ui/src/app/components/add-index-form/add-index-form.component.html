@@ -40,14 +40,14 @@
             </mat-select>
           </mat-form-field>
         </div>
-        <button mat-button color="primary" (click)="removeColumnForm(i)">
+        <button *ngIf="!viewRuleFlag" mat-button color="primary" (click)="removeColumnForm(i)">
           <mat-icon>remove</mat-icon>
           <span>REMOVE COLUMN</span>
         </button>
       </mat-card>
     </ng-container>
     <button
-      *ngIf="addColumnsList.length < totalColumns.length"
+      *ngIf="addColumnsList.length < totalColumns.length && !viewRuleFlag"
       mat-button
       color="primary"
       (click)="addNewColumnForm()"
