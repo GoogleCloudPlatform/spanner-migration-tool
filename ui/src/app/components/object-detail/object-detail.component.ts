@@ -288,8 +288,6 @@ export class ObjectDetailComponent implements OnInit {
       }
     })
 
-    console.log(this.droppedColumns, 'drop column')
-
     this.droppedColumns.forEach((col: IColumnTabData) => {
       updateData.UpdateCols[col.srcId] = {
         Add: false,

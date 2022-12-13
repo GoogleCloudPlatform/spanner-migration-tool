@@ -37,7 +37,7 @@ type Table struct {
 	Schema       string
 	ColIds       []string          // List of column Ids (for predictable iteration order e.g. printing).
 	ColDefs      map[string]Column // Details of columns.
-	ColNameIdMap map[string]string `json:"-"` // Computed every time just after conv is generated or after any column renaming
+	ColNameIdMap map[string]string
 	PrimaryKeys  []Key
 	ForeignKeys  []ForeignKey
 	Indexes      []Index

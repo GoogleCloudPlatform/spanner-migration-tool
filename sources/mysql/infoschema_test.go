@@ -282,7 +282,8 @@ func TestProcessData(t *testing.T) {
 				"c1": ddl.ColumnDef{Name: "a_a", Id: "c1", T: ddl.Type{Name: ddl.Float64}},
 				"c2": ddl.ColumnDef{Name: "Ab", Id: "c2", T: ddl.Type{Name: ddl.Int64}},
 				"c3": ddl.ColumnDef{Name: "Ac_", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
-			}},
+			},
+		},
 		schema.Table{
 			Name:   "te st",
 			Id:     "t1",
@@ -292,7 +293,13 @@ func TestProcessData(t *testing.T) {
 				"c1": schema.Column{Name: "a a", Id: "c1", Type: schema.Type{Name: "float"}},
 				"c2": schema.Column{Name: " b", Id: "c2", Type: schema.Type{Name: "int"}},
 				"c3": schema.Column{Name: " c ", Id: "c3", Type: schema.Type{Name: "text"}},
-			}})
+			},
+			ColNameIdMap: map[string]string{
+				"a a": "c1",
+				" b":  "c2",
+				" c ": "c3",
+			},
+		})
 
 	conv.SetDataMode()
 	var rows []spannerData

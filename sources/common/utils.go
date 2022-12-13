@@ -101,6 +101,20 @@ func IntersectionOfTwoStringSlices(a []string, b []string) []string {
 	return set
 }
 
+func RemoveSynthId(conv *internal.Conv, tableId string, colIds []string) []string {
+	synthPk, found := conv.SyntheticPKeys[tableId]
+	if !found {
+		return colIds
+	}
+	for i, colId := range colIds {
+		if synthPk.ColId == colId {
+			colIds = append(colIds[:i], colIds[i+1:]...)
+		}
+	}
+
+	return colIds
+}
+
 func PrepareColumns(conv *internal.Conv, tableId string, srcCols []string) ([]string, error) {
 	spColIds := conv.SpSchema[tableId].ColIds
 	srcColIds := []string{}
@@ -123,16 +137,14 @@ func PrepareValues(conv *internal.Conv, tableId string, commonColIds, srcCols []
 		return []string{}, fmt.Errorf("PrepareValues: srcCols and vals don't all have the same lengths: len(srcCols)=%d, len(values)=%d", len(srcCols), len(values))
 	}
 
-	srcTable := conv.SrcSchema[tableId]
 	var newValues []string
 
-	mapSrcColNameToVal := map[string]string{}
+	mapColIdToVal := map[string]string{}
 	for i, srcolName := range srcCols {
-		mapSrcColNameToVal[srcolName] = values[i]
+		mapColIdToVal[conv.SrcSchema[tableId].ColNameIdMap[srcolName]] = values[i]
 	}
 	for _, id := range commonColIds {
-		srcColName := srcTable.ColDefs[id].Name
-		newValues = append(newValues, mapSrcColNameToVal[srcColName])
+		newValues = append(newValues, mapColIdToVal[id])
 	}
 	return newValues, nil
 }

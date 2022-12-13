@@ -101,8 +101,8 @@ func ProcessData(conv *internal.Conv, infoSchema InfoSchema) {
 				srcSchema.Name, ok))
 			continue
 		}
-		// Extract common colIds.
-		colIds := IntersectionOfTwoStringSlices(spSchema.ColIds, srcSchema.ColIds)
+		// Extract spColds without synthetic primary key columnn id.
+		colIds := RemoveSynthId(conv, tableId, spSchema.ColIds)
 		err := infoSchema.ProcessData(conv, tableId, srcSchema, colIds, spSchema)
 		if err != nil {
 			return
