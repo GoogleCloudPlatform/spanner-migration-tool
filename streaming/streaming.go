@@ -368,7 +368,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 
 	launchParameter := &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
-		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner"},
+		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-us-central1/2022-10-25-00_RC00/flex/Cloud_Datastream_to_Spanner"},
 		Parameters: map[string]string{
 			"inputFilePattern":         inputFilePattern,
 			"streamName":               fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),

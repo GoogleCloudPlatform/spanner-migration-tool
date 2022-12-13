@@ -154,7 +154,7 @@ export class PrepareMigrationComponent implements OnInit {
         }
         this.sourceDatabaseName = res.SourceDatabaseName
         this.migrationModes = [MigrationModes.schemaOnly, MigrationModes.dataOnly, MigrationModes.schemaAndData]
-        if (res.DatabaseType == SourceDbNames.MySQL.toLowerCase() || res.DatabaseType == SourceDbNames.Oracle.toLowerCase() || res.DatabaseType == SourceDbNames.Postgres.toLowerCase()) {
+        if (res.DatabaseType == SourceDbNames.MySQL.toLowerCase() || res.DatabaseType == SourceDbNames.Oracle.toLowerCase()) {
           this.isStreamingSupported = true
         }
       },

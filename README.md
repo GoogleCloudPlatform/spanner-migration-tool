@@ -604,7 +604,7 @@ Please refer to the [issues section](https://github.com/cloudspannerecosystem/ha
 
 ### Minimal Downtime Data Migrations
 
-- Minimal downtime migrations for SQL Server and DynamoDB are not supported
+- Minimal downtime migrations for SQL Server, DynamoDB and PostgreSQL are not supported
 - Requires a direct connection to the database to run and hence will not be
  available while reading from Dump files.
 - Expected downtime will be in the order of a few minutes while the pipeline gets
