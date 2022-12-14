@@ -124,27 +124,31 @@ jobs:
             - run: sqlcmd -?
             - run: sqlcmd -U sa -P ${MSSQL_SA_PASSWORD} -i test_data/sqlserver.test.out
 
-            # sqlplus set up init oracle db.
-            - name: Install sqlplus required for loading .sql files
-              run: |
-                  sudo apt install alien libaio1
-                  curl -O https://download.oracle.com/otn_software/linux/instantclient/215000/oracle-instantclient-basic-21.5.0.0.0-1.x86_64.rpm          
-                  curl -O https://download.oracle.com/otn_software/linux/instantclient/215000/oracle-instantclient-sqlplus-21.5.0.0.0-1.x86_64.rpm
-                  sudo alien -i oracle-instantclient-basic-21.5.0.0.0-1.x86_64.rpm
-                  sudo alien -i oracle-instantclient-sqlplus-21.5.0.0.0-1.x86_64.rpm
-                  sudo sh -c 'echo /usr/lib/oracle/21.5/client64/lib/ > /etc/ld.so.conf.d/oracle.conf'
-                  sudo ldconfig
-            - run: sqlplus SYS/oracle@127.0.0.1:1521/xe as sysdba @test_data/oracle.test.out
-            # create a spanner instance
-            - uses: google-github-actions/setup-gcloud@v1
-              with:
-                  version: '410.0.0'
-            - run: gcloud info
-            - run: gcloud config configurations create emulator
-            - run: gcloud config set auth/disable_credentials true
-            - run: gcloud config set project emulator-test-project
-            - run: gcloud config set api_endpoint_overrides/spanner http://localhost:9020/
-            - run: gcloud spanner instances create test-instance --config=emulator-config --description="Test Instance" --nodes=1
+      # sqlplus set up init oracle db.
+      - name: Install sqlplus required for loading .sql files
+        run: |
+          sudo apt install alien libaio1
+          curl -O https://download.oracle.com/otn_software/linux/instantclient/215000/oracle-instantclient-basic-21.5.0.0.0-1.x86_64.rpm          
+          curl -O https://download.oracle.com/otn_software/linux/instantclient/215000/oracle-instantclient-sqlplus-21.5.0.0.0-1.x86_64.rpm
+          sudo alien -i oracle-instantclient-basic-21.5.0.0.0-1.x86_64.rpm
+          sudo alien -i oracle-instantclient-sqlplus-21.5.0.0.0-1.x86_64.rpm
+          sudo sh -c 'echo /usr/lib/oracle/21.5/client64/lib/ > /etc/ld.so.conf.d/oracle.conf'
+          sudo ldconfig
+      - run: sqlplus SYS/oracle@127.0.0.1:1521/xe as sysdba @test_data/oracle.test.out
+     
+      # create a spanner instance
+      - uses: actions/setup-python@v4
+        with:
+         python-version: '3.8'
+      - uses: google-github-actions/setup-gcloud@v0
+        with:
+          version: '410.0.0'
+      - run: gcloud info
+      - run: gcloud config configurations create emulator
+      - run: gcloud config set auth/disable_credentials true
+      - run: gcloud config set project emulator-test-project
+      - run: gcloud config set api_endpoint_overrides/spanner http://localhost:9020/
+      - run: gcloud spanner instances create test-instance --config=emulator-config --description="Test Instance" --nodes=1
 
             # run tests
             - uses: actions/setup-go@v2
