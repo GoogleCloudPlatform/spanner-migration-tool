@@ -578,7 +578,7 @@ func AnalyzeCols(conv *Conv, srcTable, spTable string) (map[string][]SchemaIssue
 // 'summary' indicates whether this is a per-table rating or an overall
 // summary rating.
 
-func rateSchema(cols, warnings int64, missingPKey, summary bool) string {
+func RateSchema(cols, warnings int64, missingPKey, summary bool) (string, string) {
 	pkMsg := "missing primary key"
 	s := fmt.Sprintf(" (%s%% of %d columns mapped cleanly)", pct(cols, warnings), cols)
 	if summary {
@@ -586,23 +586,23 @@ func rateSchema(cols, warnings int64, missingPKey, summary bool) string {
 	}
 	switch {
 	case cols == 0:
-		return "NONE (no schema found)"
+		return "NONE", "NONE (no schema found)"
 	case warnings == 0 && !missingPKey:
-		return fmt.Sprintf("EXCELLENT (all %d columns mapped cleanly)", cols)
+		return "EXCELLENT", fmt.Sprintf("EXCELLENT (all %d columns mapped cleanly)", cols)
 	case warnings == 0 && missingPKey:
-		return fmt.Sprintf("GOOD (all columns mapped cleanly, but %s)", pkMsg)
+		return "GOOD", fmt.Sprintf("GOOD (all columns mapped cleanly, but %s)", pkMsg)
 	case good(cols, warnings) && !missingPKey:
-		return "GOOD" + s
+		return "GOOD", "GOOD" + s
 	case good(cols, warnings) && missingPKey:
-		return "GOOD" + s + fmt.Sprintf(" + %s", pkMsg)
+		return "GOOD", "GOOD" + s + fmt.Sprintf(" + %s", pkMsg)
 	case ok(cols, warnings) && !missingPKey:
-		return "OK" + s
+		return "OK", "OK" + s
 	case ok(cols, warnings) && missingPKey:
-		return "OK" + s + fmt.Sprintf(" + %s", pkMsg)
+		return "OK", "OK" + s + fmt.Sprintf(" + %s", pkMsg)
 	case !missingPKey:
-		return "POOR" + s
+		return "POOR", "POOR" + s
 	default:
-		return "POOR" + s + fmt.Sprintf(" + %s", pkMsg)
+		return "POOR", "POOR" + s + fmt.Sprintf(" + %s", pkMsg)
 	}
 }
 
@@ -639,7 +639,8 @@ func ok(total, badCount int64) bool {
 func rateConversion(rows, badRows, cols, warnings int64, missingPKey, summary bool, schemaOnly bool, migrationType migration.MigrationData_MigrationType, dryRun bool) string {
 	rate := ""
 	if migrationType != migration.MigrationData_DATA_ONLY {
-		rate = rate + fmt.Sprintf("Schema conversion: %s.\n", rateSchema(cols, warnings, missingPKey, summary))
+		_, rateSchemaReport := RateSchema(cols, warnings, missingPKey, summary)
+		rate = rate + fmt.Sprintf("Schema conversion: %s.\n", rateSchemaReport)
 	}
 	if !schemaOnly {
 		rate = rate + fmt.Sprintf("Data conversion: %s.\n", rateData(rows, badRows, dryRun))
