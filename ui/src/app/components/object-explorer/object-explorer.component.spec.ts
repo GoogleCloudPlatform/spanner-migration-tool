@@ -30,7 +30,7 @@ xdescribe('ObjectExplorerComponent', () => {
       },
       conversionRates: {
         isFirstChange: () => false,
-        currentValue: { tab1: 'GREEN', pqr: 'ORANGE' },
+        currentValue: { tab1: 'EXCELLENT', pqr: 'POOR' },
         previousValue: [],
         firstChange: false,
       },

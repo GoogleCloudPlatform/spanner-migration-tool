@@ -32,7 +32,7 @@ fdescribe('SummaryComponent', () => {
       name: 'cart',
       parent: '',
       pos: -1,
-      status: 'GREEN',
+      status: 'EXCELLENT',
       type: ObjectExplorerNodeType.Table,
     }
     component.summaryRows = [

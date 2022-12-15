@@ -577,6 +577,7 @@ func AnalyzeCols(conv *Conv, srcTable, spTable string) (map[string][]SchemaIssue
 // 'missingPKey' indicates whether the source DB schema had a primary key.
 // 'summary' indicates whether this is a per-table rating or an overall
 // summary rating.
+
 func rateSchema(cols, warnings int64, missingPKey, summary bool) string {
 	pkMsg := "missing primary key"
 	s := fmt.Sprintf(" (%s%% of %d columns mapped cleanly)", pct(cols, warnings), cols)

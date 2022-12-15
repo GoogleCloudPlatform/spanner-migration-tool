@@ -1117,23 +1117,23 @@ func rateSchema(cols, warnings int64, missingPKey bool) string {
 	ok := func(total, badCount int64) bool { return badCount < total/3 }
 	switch {
 	case cols == 0:
-		return "GRAY"
+		return "NONE"
 	case warnings == 0 && !missingPKey:
-		return "GREEN"
+		return "EXCELLENT"
 	case warnings == 0 && missingPKey:
-		return "BLUE"
+		return "GOOD"
 	case good(cols, warnings) && !missingPKey:
-		return "BLUE"
+		return "GOOD"
 	case good(cols, warnings) && missingPKey:
-		return "BLUE"
+		return "GOOD"
 	case ok(cols, warnings) && !missingPKey:
 		return "YELLOW"
 	case ok(cols, warnings) && missingPKey:
 		return "YELLOW"
 	case !missingPKey:
-		return "ORANGE"
+		return "POOR"
 	default:
-		return "ORANGE"
+		return "POOR"
 	}
 }
 
