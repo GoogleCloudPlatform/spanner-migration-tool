@@ -657,7 +657,7 @@ func getConversionRate(w http.ResponseWriter, r *http.Request) {
 	reports := internal.AnalyzeTables(sessionState.Conv, nil)
 	rate := make(map[string]string)
 	for _, t := range reports {
-		rate[t.SpTable], _ = internal.RateSchema(t.Cols, t.Warnings, t.SyntheticPKey != "", false)
+		rate[t.SpTable] = internal.RateSchema(t.Cols, t.Warnings, t.SyntheticPKey != "")
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(rate)

@@ -578,31 +578,28 @@ func AnalyzeCols(conv *Conv, srcTable, spTable string) (map[string][]SchemaIssue
 // 'summary' indicates whether this is a per-table rating or an overall
 // summary rating.
 
-func RateSchema(cols, warnings int64, missingPKey, summary bool) (string, string) {
-	pkMsg := "missing primary key"
-	s := fmt.Sprintf(" (%s%% of %d columns mapped cleanly)", pct(cols, warnings), cols)
-	if summary {
-		pkMsg = "some missing primary keys"
-	}
+func RateSchema(cols, warnings int64, missingPKey bool) string {
+	good := func(total, badCount int64) bool { return badCount < total/20 }
+	ok := func(total, badCount int64) bool { return badCount < total/3 }
 	switch {
 	case cols == 0:
-		return "NONE", "NONE (no schema found)"
+		return "NONE"
 	case warnings == 0 && !missingPKey:
-		return "EXCELLENT", fmt.Sprintf("EXCELLENT (all %d columns mapped cleanly)", cols)
+		return "EXCELLENT"
 	case warnings == 0 && missingPKey:
-		return "GOOD", fmt.Sprintf("GOOD (all columns mapped cleanly, but %s)", pkMsg)
+		return "GOOD"
 	case good(cols, warnings) && !missingPKey:
-		return "GOOD", "GOOD" + s
+		return "GOOD"
 	case good(cols, warnings) && missingPKey:
-		return "GOOD", "GOOD" + s + fmt.Sprintf(" + %s", pkMsg)
+		return "GOOD"
 	case ok(cols, warnings) && !missingPKey:
-		return "OK", "OK" + s
+		return "OK"
 	case ok(cols, warnings) && missingPKey:
-		return "OK", "OK" + s + fmt.Sprintf(" + %s", pkMsg)
+		return "OK"
 	case !missingPKey:
-		return "POOR", "POOR" + s
+		return "POOR"
 	default:
-		return "POOR", "POOR" + s + fmt.Sprintf(" + %s", pkMsg)
+		return "POOR"
 	}
 }
 
@@ -639,7 +636,7 @@ func ok(total, badCount int64) bool {
 func rateConversion(rows, badRows, cols, warnings int64, missingPKey, summary bool, schemaOnly bool, migrationType migration.MigrationData_MigrationType, dryRun bool) string {
 	rate := ""
 	if migrationType != migration.MigrationData_DATA_ONLY {
-		_, rateSchemaReport := RateSchema(cols, warnings, missingPKey, summary)
+		rateSchemaReport := RateSchema(cols, warnings, missingPKey)
 		rate = rate + fmt.Sprintf("Schema conversion: %s.\n", rateSchemaReport)
 	}
 	if !schemaOnly {
