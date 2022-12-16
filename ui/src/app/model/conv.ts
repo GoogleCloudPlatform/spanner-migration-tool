@@ -89,6 +89,7 @@ export interface ISpannerForeignKey {
   ReferColumns: string[]
   OnDelete: string
   OnUpdate: string
+  Id: string
 }
 
 // source schema
