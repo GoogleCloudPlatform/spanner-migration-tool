@@ -3,11 +3,18 @@
     <div class="breadcrumb vertical-center">
       <a class="breadcrumb_source" mat-button [routerLink]="'/'">Select Source</a>
       <span>></span>
-      <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'"><b>Configure Schema</b></a>
+      <a class="breadcrumb_workspace" mat-button [routerLink]="'/workspace'"
+        ><b>Configure Schema</b></a
+      >
     </div>
     <div class="header_action">
-      <span matTooltip="Connect to a spanner instance to run migration" [matTooltipDisabled]="!isOfflineStatus">
-      <button mat-button (click)="prepareMigration()" [disabled]="isOfflineStatus">PREPARE MIGRATION</button>
+      <span
+        matTooltip="Connect to a spanner instance to run migration"
+        [matTooltipDisabled]="!isOfflineStatus"
+      >
+        <button mat-button (click)="prepareMigration()" [disabled]="isOfflineStatus">
+          PREPARE MIGRATION
+        </button>
       </span>
       <button mat-button (click)="openAssessment()">VIEW ASSESSMENT</button>
       <button mat-button (click)="openSaveSessionSidenav()" *ngIf="!isOfflineStatus">
@@ -22,8 +29,9 @@
       {{ conversionRatePercentages.good }}% of tables can be converted automatically,
       {{ conversionRatePercentages.ok }}% requires minimal conversion changes and
       {{ conversionRatePercentages.bad }}% requires high complexity conversion changes.
-      <br>
-      To make schema changes go to <a class="spanner-tab-link" (click)="spannerTab()">Spanner Draft</a> pane.
+      <br />
+      To make schema changes go to
+      <a class="spanner-tab-link" (click)="spannerTab()">Spanner Draft</a> pane.
     </div>
   </div>
   <div class="columns">
@@ -37,6 +45,7 @@
         (updateSpannerTable)="updateSpannerTable($event)"
         (updateSrcTable)="updateSrcTable($event)"
         (leftCollaspe)="leftColumnToggle()"
+        (middleCollapse)="middleColumnToggle()"
         [spannerTree]="spannerTree"
         [srcTree]="srcTree"
         [srcDbName]="srcDbName"
@@ -47,6 +56,7 @@
       [ngClass]="{
         'middle-column-expand': isLeftColumnCollapse,
         'middle-column-collapse': !isLeftColumnCollapse,
+        'middle-column-full': !isMiddleColumnCollapse,
         display: isRightColumnCollapse,
         hidden: !isRightColumnCollapse
       }"
@@ -63,26 +73,31 @@
       >
       </app-object-detail>
     </div>
+
     <div
       class="column-right"
       [ngClass]="{
         'right-column-half-expand': !isRightColumnCollapse && !isLeftColumnCollapse,
         'right-column-full-expand': !isRightColumnCollapse && isLeftColumnCollapse,
-        'right-column-collapse': isRightColumnCollapse
+        'right-column-collapse': isRightColumnCollapse,
+        'middle-column-hide': !isMiddleColumnCollapse,
+        display: isMiddleColumnCollapse,
+        hidden: !isMiddleColumnCollapse
       }"
     >
       <mat-tab-group mat-dialog-close="">
-        <mat-tab [ngClass]="{ 'blue-font-color': [updateIssuesLabel]}" [label]="issuesAndSuggestionsLabel">
-          <app-summary 
+        <mat-tab
+          [ngClass]="{ 'blue-font-color': [updateIssuesLabel] }"
+          [label]="issuesAndSuggestionsLabel"
+        >
+          <app-summary
             [currentObject]="currentObject"
             (changeIssuesLabel)="updateIssuesLabel($event)"
-            ></app-summary>
+          ></app-summary>
         </mat-tab>
-        <mat-tab [ngClass]="{ 'blue-font-color': [updateRulesLabel]}" [label]="rulesLabel" >
-          <app-rule    
-          [currentObject]="currentObject"
-          (lengthOfRules)="updateRulesLabel($event)"
-          > </app-rule>
+        <mat-tab [ngClass]="{ 'blue-font-color': [updateRulesLabel] }" [label]="rulesLabel">
+          <app-rule [currentObject]="currentObject" (lengthOfRules)="updateRulesLabel($event)">
+          </app-rule>
         </mat-tab>
       </mat-tab-group>
       <button id="right-column-toggle-button" (click)="rightColumnToggle()">

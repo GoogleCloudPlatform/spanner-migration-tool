@@ -1,8 +1,13 @@
 <div class="no-table-selected" *ngIf="!currentObject">
   <div class="title_container">
     <h3 class="title">OBJECT VIEWER</h3>
+    <button id="middle-column-toggle-button" (click)="middleColumnToggle()">
+      <mat-icon [ngClass]="[isMiddleColumnCollapse ? 'display' : 'hidden']">first_page</mat-icon>
+      <mat-icon [ngClass]="[isMiddleColumnCollapse ? 'hidden' : 'display']">last_page</mat-icon>
+    </button>
   </div>
   <mat-divider></mat-divider>
+
   <div class="select-table-message">
     <div class="image">
       <svg
@@ -125,6 +130,10 @@
         {{ interleaveParentName }}
       </div>
     </div>
+    <button id="middle-column-toggle-button" (click)="middleColumnToggle()">
+      <mat-icon [ngClass]="[isMiddleColumnCollapse ? 'display' : 'hidden']">first_page</mat-icon>
+      <mat-icon [ngClass]="[isMiddleColumnCollapse ? 'hidden' : 'display']">last_page</mat-icon>
+    </button>
   </div>
 
   <mat-tab-group
@@ -268,7 +277,7 @@
                       >
                         {{ t.T }}
                       </mat-option>
-                      <mat-option *ngIf="element.get('srcDataType').value==''" value="STRING">
+                      <mat-option *ngIf="element.get('srcDataType').value == ''" value="STRING">
                         STRING
                       </mat-option>
                     </mat-select>
@@ -380,7 +389,7 @@
       </div>
     </mat-tab>
 
-    <mat-tab >
+    <mat-tab>
       <ng-template mat-tab-label>
         <span>PRIMARY KEY </span>
       </ng-template>
@@ -713,7 +722,6 @@
                 <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
                 <mat-menu #menu="matMenu" xPosition="before">
                   <button
-
                     [disabled]="element.get('spName').value === ''"
                     mat-menu-item
                     (click)="dropFk(element)"
@@ -782,9 +790,9 @@
 
     <mat-tab *ngIf="currentObject!.isSpannerNode && !currentObject!.isDeleted">
       <ng-template mat-tab-label>
-        <span >SQL</span>
+        <span>SQL</span>
       </ng-template>
-       <div class="ddl_container">
+      <div class="ddl_container">
         <pre><code>{{ddlStmts[currentObject!.name]}}</code></pre>
       </div>
     </mat-tab>

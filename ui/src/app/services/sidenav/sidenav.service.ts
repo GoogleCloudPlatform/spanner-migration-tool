@@ -11,6 +11,7 @@ export class SidenavService {
   private sidenavAddIndexTableSub = new BehaviorSubject<string>('')
   private setSidenavDatabaseNameSub = new BehaviorSubject<string>('')
   private passRuleData = new BehaviorSubject<any>([[], false])
+  private setMiddleColumn = new BehaviorSubject<any>(false)
   constructor() {}
   isSidenav = this.sidenavOpenSub.asObservable()
   sidenavComponent = this.sidenavComponentSub.asObservable()
@@ -18,6 +19,7 @@ export class SidenavService {
   sidenavAddIndexTable = this.sidenavAddIndexTableSub.asObservable()
   sidenavDatabaseName = this.setSidenavDatabaseNameSub.asObservable()
   passRules = this.passRuleData.asObservable()
+  setMiddleColumnComponent = this.setMiddleColumn.asObservable()
 
   openSidenav() {
     this.sidenavOpenSub.next(true)
@@ -39,5 +41,8 @@ export class SidenavService {
   }
   passRule(data: any, flag: boolean) {
     this.passRuleData.next([data, flag])
+  }
+  setMiddleColComponent(flag: boolean) {
+    this.setMiddleColumn.next(flag)
   }
 }
