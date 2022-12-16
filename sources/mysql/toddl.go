@@ -32,7 +32,7 @@ type ToDdlImpl struct {
 // conversion issues encountered.
 // Functions below implement the common.ToDdl interface
 func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
-	ty, issues := toSpannerTypeInternal(conv, columnType.Name, columnType.Mods)
+	ty, issues := toSpannerTypeInternal(columnType.Name, "", columnType.Mods)
 	if conv.TargetDb == constants.TargetExperimentalPostgres {
 		ty = overrideExperimentalType(columnType, ty)
 	} else {
@@ -44,59 +44,150 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) 
 	}
 	return ty, issues
 }
+func ToSpannerTypeWeb(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
+	return toSpannerTypeInternal(srcType, spType, mods)
+}
 
-func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
-	switch id {
+func toSpannerTypeInternal(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
+	switch srcType {
 	case "bool", "boolean":
-		return ddl.Type{Name: ddl.Bool}, nil
-	case "tinyint":
-		// tinyint(1) is a bool in MySQL
-		if len(mods) > 0 && mods[0] == 1 {
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Int64:
+			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
+		default:
 			return ddl.Type{Name: ddl.Bool}, nil
 		}
-		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
-	case "double":
-		return ddl.Type{Name: ddl.Float64}, nil
-	case "float":
-		return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
-	case "numeric", "decimal":
-		// MySQL's NUMERIC type can store up to 65 digits, with up to 30 after the
-		// the decimal point. Spanner's NUMERIC type can store up to 29 digits before the
-		// decimal point and up to 9 after the decimal point -- it is equivalent to
-		// MySQL's NUMERIC(38,9) type.
-		//
-		// TODO: Generate appropriate SchemaIssue to warn of different precision
-		// capabilities between MySQL and Spanner NUMERIC.
-		return ddl.Type{Name: ddl.Numeric}, nil
-	case "bigint":
-		return ddl.Type{Name: ddl.Int64}, nil
-	case "smallint", "mediumint", "integer", "int":
-		return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
-	case "bit":
-		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
-	case "varchar", "char":
-		if len(mods) > 0 {
-			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
+	case "tinyint":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Int64:
+			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
+		default:
+			// tinyint(1) is a bool in MySQL
+			if len(mods) > 0 && mods[0] == 1 {
+				return ddl.Type{Name: ddl.Bool}, nil
+			}
+			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 		}
-		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+	case "double":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Float64}, nil
+		}
+	case "float":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
+		}
+	case "numeric", "decimal":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			// MySQL's NUMERIC type can store up to 65 digits, with up to 30 after the
+			// the decimal point. Spanner's NUMERIC type can store up to 29 digits before the
+			// decimal point and up to 9 after the decimal point -- it is equivalent to
+			// MySQL's NUMERIC(38,9) type.
+			//
+			// TODO: Generate appropriate SchemaIssue to warn of different precision
+			// capabilities between MySQL and Spanner NUMERIC.
+			return ddl.Type{Name: ddl.Numeric}, nil
+		}
+	case "bigint":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Int64}, nil
+		}
+	case "smallint", "mediumint", "integer", "int":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
+		}
+	case "bit":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		}
+	case "varchar", "char":
+		switch spType {
+		case ddl.Bytes:
+			if len(mods) > 0 {
+				return ddl.Type{Name: ddl.Bytes, Len: mods[0]}, nil
+			}
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		default:
+			if len(mods) > 0 {
+				return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
+			}
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		}
 	case "text", "tinytext", "mediumtext", "longtext":
-		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		switch spType {
+		case ddl.Bytes:
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		}
 	case "set", "enum":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "json":
-		return ddl.Type{Name: ddl.JSON}, nil
+		switch spType {
+		case ddl.Bytes:
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.JSON}, nil
+		}
 	case "binary", "varbinary":
-		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		}
 	case "tinyblob", "mediumblob", "blob", "longblob":
-		return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		}
 	case "date":
-		return ddl.Type{Name: ddl.Date}, nil
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Date}, nil
+		}
 	case "datetime":
-		return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Datetime}
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Datetime}
+		}
 	case "timestamp":
-		return ddl.Type{Name: ddl.Timestamp}, nil
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Timestamp}, nil
+		}
 	case "time", "year":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Time}
+
 	}
 	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 }

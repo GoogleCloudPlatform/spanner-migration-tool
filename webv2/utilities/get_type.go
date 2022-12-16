@@ -19,10 +19,12 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/postgres"
+	"github.com/cloudspannerecosystem/harbourbridge/sources/sqlserver"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/typemap"
 )
 
 func GetType(conv *internal.Conv, newType, table, colName string, srcTableName string) (ddl.CreateTable, ddl.Type, error) {
@@ -35,11 +37,11 @@ func GetType(conv *internal.Conv, newType, table, colName string, srcTableName s
 	var issues []internal.SchemaIssue
 	switch sessionState.Driver {
 	case constants.MYSQL, constants.MYSQLDUMP:
-		ty, issues = typemap.ToSpannerTypeMySQL(srcCol.Type.Name, newType, srcCol.Type.Mods)
+		ty, issues = mysql.ToSpannerTypeWeb(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	case constants.PGDUMP, constants.POSTGRES:
-		ty, issues = typemap.ToSpannerTypePostgres(srcCol.Type.Name, newType, srcCol.Type.Mods)
+		ty, issues = postgres.ToSpannerTypeWeb(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	case constants.SQLSERVER:
-		ty, issues = typemap.ToSpannerTypeSQLserver(srcCol.Type.Name, newType, srcCol.Type.Mods)
+		ty, issues = sqlserver.ToSpannerTypeWeb(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	case constants.ORACLE:
 		ty, issues = oracle.ToSpannerTypeWeb(conv, newType, srcCol.Type.Name, srcCol.Type.Mods)
 	default:

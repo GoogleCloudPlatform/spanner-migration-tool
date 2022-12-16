@@ -322,6 +322,7 @@ export class ConversionService {
           srcReferTable: data.SrcSchema[srcTableName].ForeignKeys[i].ReferTable,
           spReferColumns: [],
           srcReferColumns: data.SrcSchema[srcTableName].ForeignKeys[i].ReferColumns,
+          Id: data.SrcSchema[srcTableName].ForeignKeys[i].Id,
         }
       } else {
         return {
@@ -343,6 +344,7 @@ export class ConversionService {
               ? data.SpSchema[spTableName].Fks[i].ReferColumns
               : [],
           srcReferColumns: data.SrcSchema[srcTableName].ForeignKeys[i].ReferColumns,
+          Id: data.SrcSchema[srcTableName].ForeignKeys[i].Id,
         }
       }
     })
@@ -403,7 +405,7 @@ export class ConversionService {
         return index.Id
       })
       let tableDeletedIndexes = srcTable.Indexes?.filter((index: IIndex) => {
-        if (!spIndexIds.includes(index.Id)) {
+        if (!spIndexIds.includes(index?.Id)) {
           return true
         }
         return false

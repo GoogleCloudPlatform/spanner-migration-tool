@@ -268,7 +268,7 @@
                       >
                         {{ t.T }}
                       </mat-option>
-                      <mat-option *ngIf="element.get('srcDataType').value==''" value="STRING">
+                      <mat-option *ngIf="element.get('srcDataType').value == ''" value="STRING">
                         STRING
                       </mat-option>
                     </mat-select>
@@ -380,7 +380,7 @@
       </div>
     </mat-tab>
 
-    <mat-tab >
+    <mat-tab>
       <ng-template mat-tab-label>
         <span>PRIMARY KEY </span>
       </ng-template>
@@ -713,7 +713,6 @@
                 <mat-icon [matMenuTriggerFor]="menu">more_vert</mat-icon>
                 <mat-menu #menu="matMenu" xPosition="before">
                   <button
-
                     [disabled]="element.get('spName').value === ''"
                     mat-menu-item
                     (click)="dropFk(element)"
@@ -777,12 +776,26 @@
         >
           Convert Back to Foreign Key
         </button>
+        <br />
+        <div
+          *ngIf="
+            (interleaveStatus.tableInterleaveStatus &&
+              !interleaveStatus.tableInterleaveStatus.Possible) ||
+            this.interleaveParentName !== null
+          "
+        >
+          This table is interleaved with
+          <span class="interleave-parent-table">{{ interleaveParentName }}</span
+          >. Click on the above button to convert back to foreign key.
+        </div>
       </div>
     </mat-tab>
 
     <mat-tab *ngIf="currentObject!.isSpannerNode && !currentObject!.isDeleted">
       <ng-template mat-tab-label>
-        <span >SQL</span>
+        <span>
+          SQL
+        </span>
       </ng-template>
        <div class="ddl_container">
         <pre><code>{{ddlStmts[currentObject!.name]}}</code></pre>
@@ -952,9 +965,7 @@
       </button>
     </div>
     <div class="save-button" *ngIf="isFkEditMode && currentTabIndex === 2">
-      <button mat-raised-button color="primary" (click)="saveFk()" [disabled]="!fkArray.valid">
-        SAVE & CONVERT
-      </button>
+      <button mat-raised-button color="primary" (click)="saveFk()">SAVE & CONVERT</button>
       <button
         class="cancel-button"
         mat-raised-button
