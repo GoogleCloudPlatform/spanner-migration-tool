@@ -11,7 +11,13 @@ import { ObjectDetailNodeType, ObjectExplorerNodeType, StorageKeys } from 'src/a
 import FlatNode from 'src/app/model/schema-object-node'
 import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
-import IConv, { ICreateIndex, IIndexKey, IPkColumnDefs, IPrimaryKey } from 'src/app/model/conv'
+import IConv, {
+  ICreateIndex,
+  IForeignKey,
+  IIndexKey,
+  IPkColumnDefs,
+  IPrimaryKey,
+} from 'src/app/model/conv'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
 import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/drop-index-or-table-dialog.component'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
@@ -766,23 +772,64 @@ export class ObjectDetailComponent implements OnInit {
 
   setFkRows() {
     this.fkArray = new FormArray([])
+    var srcArr = new Array()
+    var spArr = new Array()
     this.fkData.forEach((fk) => {
+      srcArr.push({
+        srcName: fk.srcName,
+        srcColumns: fk.srcColumns,
+        srcRefTable: fk.srcReferTable,
+        srcRefColumns: fk.srcReferColumns,
+        Id: fk.Id,
+      })
+      if (fk.spName != '') {
+        spArr.push({
+          spName: fk.spName,
+          spColumns: fk.spColumns,
+          spRefTable: fk.spReferTable,
+          spRefColumns: fk.spReferColumns,
+          Id: fk.Id,
+        })
+      }
+    })
+    for (let i = 0; i < Math.min(srcArr.length, spArr.length); i++) {
       this.fkArray.push(
         new FormGroup({
-          spName: new FormControl(fk.spName, [
+          spName: new FormControl(spArr[i].spName, [
             Validators.required,
             Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?'),
           ]),
-          srcName: new FormControl(fk.srcName),
-          spColumns: new FormControl(fk.spColumns),
-          srcColumns: new FormControl(fk.srcColumns),
-          spReferTable: new FormControl(fk.spReferTable),
-          srcReferTable: new FormControl(fk.srcReferTable),
-          spReferColumns: new FormControl(fk.spReferColumns),
-          srcReferColumns: new FormControl(fk.srcReferColumns),
+          srcName: new FormControl(srcArr[i].srcName),
+          spColumns: new FormControl(spArr[i].spColumns),
+          srcColumns: new FormControl(srcArr[i].srcColumns),
+          spReferTable: new FormControl(spArr[i].spRefTable),
+          srcReferTable: new FormControl(srcArr[i].srcRefTable),
+          spReferColumns: new FormControl(spArr[i].spRefColumns),
+          srcReferColumns: new FormControl(srcArr[i].srcRefColumns),
+          Id: new FormControl(spArr[i].Id),
         })
       )
-    })
+    }
+
+    if (srcArr.length > Math.min(srcArr.length, spArr.length))
+      for (let i = Math.min(srcArr.length, spArr.length); i < srcArr.length; i++) {
+        this.fkArray.push(
+          new FormGroup({
+            spName: new FormControl('', [
+              Validators.required,
+              Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?'),
+            ]),
+            srcName: new FormControl(srcArr[i].srcName),
+            spColumns: new FormControl([]),
+            srcColumns: new FormControl(srcArr[i].srcColumns),
+            spReferTable: new FormControl(''),
+            srcReferTable: new FormControl(srcArr[i].srcRefTable),
+            spReferColumns: new FormControl([]),
+            srcReferColumns: new FormControl(srcArr[i].srcRefColumns),
+            Id: new FormControl(srcArr[i].Id),
+          })
+        )
+      }
     this.fkDataSource = this.fkArray.controls
   }
 
@@ -798,16 +845,18 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   saveFk() {
-    let updatedFkNames: Record<string, string> = {}
-
-    this.fkArray.value.forEach((fk: IFkTabData, i: number) => {
-      let oldFk = this.fkData[i]
-      if (oldFk.spName !== fk.spName) {
-        updatedFkNames[oldFk.spName] = fk.spName
-      }
+    let spFkArr: IForeignKey[] = []
+    this.fkArray.value.forEach((fk: IFkTabData) => {
+      spFkArr.push({
+        Name: fk.spName,
+        Columns: fk.spColumns,
+        ReferTable: fk.spReferTable,
+        ReferColumns: fk.spReferColumns,
+        Id: fk.Id,
+      })
     })
 
-    this.data.updateFkNames(this.currentObject!.name, updatedFkNames).subscribe({
+    this.data.updateFkNames(this.currentObject!.name, spFkArr).subscribe({
       next: (res: string) => {
         if (res == '') {
           this.isFkEditMode = false
@@ -822,23 +871,15 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropFk(element: any) {
-    this.data.dropFk(this.currentObject!.name, element.get('spName').value).subscribe({
-      next: (res: string) => {
-        if (res == '') {
-          this.data.getDdl()
-          this.snackbar.openSnackBar(
-            `${element.get('spName').value} Foreign key dropped successfully`,
-            'Close',
-            5
-          )
-        } else {
-          this.dialog.open(InfodialogComponent, {
-            data: { message: res, type: 'error' },
-            maxWidth: '500px',
-          })
-        }
-      },
+    this.fkData.forEach((fk) => {
+      if (fk.spName == element.get('spName').value) {
+        fk.spName = ''
+        fk.spColumns = []
+        fk.spReferTable = ''
+        fk.spReferColumns = []
+      }
     })
+    this.setFkRows()
   }
 
   getRemovedFkIndex(element: any) {
