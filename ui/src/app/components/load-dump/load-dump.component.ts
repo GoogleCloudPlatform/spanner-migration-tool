@@ -37,6 +37,7 @@ export class LoadDumpComponent implements OnInit {
   convertFromDump() {
     this.clickEvent.openDatabaseLoader('dump', '')
     this.data.resetStore()
+    localStorage.clear()
     const { dbEngine, filePath } = this.connectForm.value
     const payload: IDumpConfig = {
       Driver: dbEngine,
