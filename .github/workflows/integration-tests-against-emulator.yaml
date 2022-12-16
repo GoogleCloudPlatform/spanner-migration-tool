@@ -21,29 +21,29 @@ on:
   pull_request:
 name: integration-tests-against-emulator
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    env:
-      # set PostgreSQL related environment variables
-      PGHOST: localhost
-      PGPORT: 5432
-      PGUSER: postgres
-      PGDATABASE: postgres
-      PGPASSWORD: postgres
+    test:
+        runs-on: ubuntu-latest
+        env:
+            # set PostgreSQL related environment variables
+            PGHOST: localhost
+            PGPORT: 5432
+            PGUSER: postgres
+            PGDATABASE: postgres
+            PGPASSWORD: postgres
 
-      # set MySQL related environment variables
-      DB_HOST: localhost
-      MYSQLHOST: localhost
-      MYSQLPORT: 3306
-      MYSQLUSER: root
-      MYSQLDATABASE: test
-      MYSQLPWD: root
+            # set MySQL related environment variables
+            DB_HOST: localhost
+            MYSQLHOST: localhost
+            MYSQLPORT: 3306
+            MYSQLUSER: root
+            MYSQLDATABASE: test
+            MYSQLPWD: root
 
-      # set DynamoDB related environment variables
-      AWS_ACCESS_KEY_ID: dummyId
-      AWS_SECRET_ACCESS_KEY: dummyKey
-      AWS_REGION: dummyRegion
-      DYNAMODB_ENDPOINT_OVERRIDE: http://localhost:8000
+            # set DynamoDB related environment variables
+            AWS_ACCESS_KEY_ID: dummyId
+            AWS_SECRET_ACCESS_KEY: dummyKey
+            AWS_REGION: dummyRegion
+            DYNAMODB_ENDPOINT_OVERRIDE: http://localhost:8000
 
       # sql server envs
       # Password for connection as SA
@@ -95,34 +95,34 @@ jobs:
         ports:
           - 1521:1521
 
-    steps:
-      - uses: actions/checkout@v2
+        steps:
+            - uses: actions/checkout@v2
 
-      # init a PostgresSQL database from the test_data
-      - name: Install PostgreSQL 12 client required for loading .sql files
-        run: |
-          sudo bash -c "echo deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main >> /etc/apt/sources.list.d/pgdg.list"
-          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
-          sudo apt-get update
-          sudo apt-get -yq install libpq-dev postgresql-client-12
-      - run: psql --version
-      - run: psql -f test_data/pg_dump.test.out
+            # init a PostgresSQL database from the test_data
+            - name: Install PostgreSQL 12 client required for loading .sql files
+              run: |
+                  sudo bash -c "echo deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main >> /etc/apt/sources.list.d/pgdg.list"
+                  wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+                  sudo apt-get update
+                  sudo apt-get -yq install libpq-dev postgresql-client-12
+            - run: psql --version
+            - run: psql -f test_data/pg_dump.test.out
 
-      # init a MySQL database from the test_data
-      - run: mysql --version
-      - run: mysql -v -P 3306 --protocol=tcp -u root -proot test < test_data/mysqldump.test.out
-      - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_interleave_dump.test.out
+            # init a MySQL database from the test_data
+            - run: mysql --version
+            - run: mysql -v -P 3306 --protocol=tcp -u root -proot test < test_data/mysqldump.test.out
+            - run: mysql -v -P 3306 --protocol=tcp -u root -proot < test_data/mysql_interleave_dump.test.out
 
-      # init sql server with test_data
-      - name: Install sqlcmd required for loading .sql files
-        run: |
-          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-          curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
-          sudo apt-get update 
-          sudo apt-get install mssql-tools unixodbc-dev
-          echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bash_profile
-      - run: sqlcmd -?
-      - run: sqlcmd -U sa -P ${MSSQL_SA_PASSWORD} -i test_data/sqlserver.test.out
+            # init sql server with test_data
+            - name: Install sqlcmd required for loading .sql files
+              run: |
+                  curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+                  curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
+                  sudo apt-get update 
+                  sudo apt-get install mssql-tools unixodbc-dev
+                  echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bash_profile
+            - run: sqlcmd -?
+            - run: sqlcmd -U sa -P ${MSSQL_SA_PASSWORD} -i test_data/sqlserver.test.out
 
       # sqlplus set up init oracle db.
       - name: Install sqlplus required for loading .sql files
@@ -138,10 +138,10 @@ jobs:
       # create a spanner instance
       - uses: actions/setup-python@v4
         with:
-         python-version: '3.8'
+          python-version: "3.8"
       - uses: google-github-actions/setup-gcloud@v0
         with:
-          version: '410.0.0'
+          version: "410.0.0"
       - run: gcloud info
       - run: gcloud config configurations create emulator
       - run: gcloud config set auth/disable_credentials true

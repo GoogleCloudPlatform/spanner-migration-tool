@@ -31,7 +31,7 @@ type ToDdlImpl struct {
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
 func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
-	ty, issues := toSpannerTypeInternal(conv, columnType.Name, columnType.Mods)
+	ty, issues := toSpannerTypeInternal(columnType.Name, "", columnType.Mods)
 	if conv.TargetDb == constants.TargetExperimentalPostgres {
 		ty = overrideExperimentalType(columnType, ty)
 	} else {
@@ -44,11 +44,166 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) 
 	return ty, issues
 }
 
+func ToSpannerTypeWeb(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
+	return toSpannerTypeInternal(srcType, spType, mods)
+}
+
+// toSpannerTypeInternal defines the mapping of source types into Spanner
+// types. Each source type has a default Spanner type, as well as other potential
+// Spanner types it could map to. When calling toSpannerTypeInternal, you specify
+// the source type name (along with any modifiers), and optionally you specify
+// a target Spanner type name (empty string if you don't have one). If the target
+// Spanner type name is specified and is a potential mapping for this source type,
+// then it will be used to build the returned ddl.Type. If not, the default
+// Spanner type for this source type will be used.
+func toSpannerTypeInternal(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
+	switch srcType {
+	case "bool", "boolean":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		case ddl.Int64:
+			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Bool}, nil
+		}
+	case "bigserial":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened, internal.Serial}
+		default:
+			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Serial}
+		}
+	case "bpchar", "character": // Note: Postgres internal name for char is bpchar (aka blank padded char).
+		switch spType {
+		case ddl.Bytes:
+			if len(mods) > 0 {
+				return ddl.Type{Name: ddl.Bytes, Len: mods[0]}, nil
+			}
+			return ddl.Type{Name: ddl.Bytes, Len: 1}, nil
+		default:
+			if len(mods) > 0 {
+				return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
+			}
+			// Note: bpchar without length specifier is equivalent to bpchar(1)
+			return ddl.Type{Name: ddl.String, Len: 1}, nil
+		}
+	case "bytea":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		}
+	case "date":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Date}, nil
+		}
+	case "float8", "double precision":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Float64}, nil
+		}
+	case "float4", "real":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Float64}, []internal.SchemaIssue{internal.Widened}
+		}
+	case "int8", "bigint":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Int64}, nil
+		}
+	case "int4", "integer":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
+		}
+	case "int2", "smallint":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
+		}
+	case "numeric":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			// TODO: check mod[0] and mod[1] and generate a warning
+			// if this numeric won't fit in Spanner's NUMERIC.
+			return ddl.Type{Name: ddl.Numeric}, nil
+		}
+	case "serial":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened, internal.Serial}
+		default:
+			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Serial}
+		}
+	case "text":
+		switch spType {
+		case ddl.Bytes:
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		}
+	case "timestamptz", "timestamp with time zone":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Timestamp}, nil
+		}
+	case "timestamp", "timestamp without time zone":
+		// Map timestamp without timezone to Spanner timestamp.
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.Widened}
+		default:
+			return ddl.Type{Name: ddl.Timestamp}, []internal.SchemaIssue{internal.Timestamp}
+		}
+	case "json", "jsonb":
+		switch spType {
+		case ddl.String:
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		default:
+			return ddl.Type{Name: ddl.JSON}, nil
+		}
+	case "varchar", "character varying":
+		switch spType {
+		case ddl.Bytes:
+			if len(mods) > 0 {
+				return ddl.Type{Name: ddl.Bytes, Len: mods[0]}, nil
+			}
+			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
+		default:
+			if len(mods) > 0 {
+				return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
+			}
+			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
+		}
+	}
+	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
+}
+
 // toSpannerType maps a scalar source schema type (defined by id and
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
-func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
+func toSpannerTypeIntern(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
 	switch id {
 	case "bool", "boolean":
 		return ddl.Type{Name: ddl.Bool}, nil
