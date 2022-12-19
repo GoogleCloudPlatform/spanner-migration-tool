@@ -1127,9 +1127,9 @@ func rateSchema(cols, warnings int64, missingPKey bool) string {
 	case good(cols, warnings) && missingPKey:
 		return "GOOD"
 	case ok(cols, warnings) && !missingPKey:
-		return "YELLOW"
+		return "OK"
 	case ok(cols, warnings) && missingPKey:
-		return "YELLOW"
+		return "OK"
 	case !missingPKey:
 		return "POOR"
 	default:
