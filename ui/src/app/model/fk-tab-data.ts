@@ -9,4 +9,7 @@ export default interface IFkTabData {
   srcReferTable: string
   spReferColumns: string[]
   srcReferColumns: string[]
+  spColIds: string[]
+  spReferColumnIds: string[]
+  spReferTableId: string
 }

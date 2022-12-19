@@ -59,7 +59,6 @@ import (
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/typemap"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
@@ -791,7 +790,7 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 					usedNames := sessionState.Conv.UsedNames
 					delete(usedNames, sp.ForeignKeys[i].Name)
 					sp.ParentId = refTable
-					sp.ForeignKeys = utilities.RemoveFk(sp.ForeignKeys, i)
+					sp.ForeignKeys = utilities.RemoveFk(sp.ForeignKeys, sp.ForeignKeys[i].Id)
 				}
 				sessionState.Conv.SpSchema[table] = sp
 				break
@@ -1055,68 +1054,6 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
-func dropForeignKey(w http.ResponseWriter, r *http.Request) {
-	table := r.FormValue("table")
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-	}
-
-	var dropDetail struct{ Id string }
-	if err = json.Unmarshal(reqBody, &dropDetail); err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
-		return
-	}
-
-	sessionState := session.GetSessionState()
-	if sessionState.Conv == nil || sessionState.Driver == "" {
-		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
-		return
-	}
-	if table == "" || dropDetail.Id == "" {
-		http.Error(w, fmt.Sprintf("Table name or foreign key name is empty"), http.StatusBadRequest)
-	}
-	sp := sessionState.Conv.SpSchema[table]
-	position := -1
-	for i, fk := range sp.ForeignKeys {
-		if dropDetail.Id == fk.Id {
-			position = i
-			break
-		}
-	}
-
-	if position < 0 || position >= len(sp.ForeignKeys) {
-		http.Error(w, fmt.Sprintf("No foreign key found at position %d", position), http.StatusBadRequest)
-		return
-	}
-	//remove foreign key name from used-name map
-	usedNames := sessionState.Conv.UsedNames
-	delete(usedNames, sp.ForeignKeys[position].Name)
-
-	// To remove the interleavable suggestions if they exist on dropping fk
-	column := sp.ForeignKeys[position].ColIds[0]
-	schemaIssue := []internal.SchemaIssue{}
-	for _, v := range sessionState.Conv.SchemaIssues[table][column] {
-		if v != internal.InterleavedAddColumn && v != internal.InterleavedRenameColumn && v != internal.InterleavedNotInOrder {
-			schemaIssue = append(schemaIssue, v)
-		}
-	}
-	if _, ok := sessionState.Conv.SchemaIssues[table]; ok {
-		sessionState.Conv.SchemaIssues[table][column] = schemaIssue
-	}
-
-	sp.ForeignKeys = utilities.RemoveFk(sp.ForeignKeys, position)
-	sessionState.Conv.SpSchema[table] = sp
-	session.UpdateSessionFile()
-
-	convm := session.ConvWithMetadata{
-		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
-	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(convm)
-}
-
 func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	tableId := r.FormValue("tableId")
 	indexId := r.FormValue("indexId")
@@ -1173,7 +1110,7 @@ func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 // renameForeignKeys checks the new names for spanner name validity, ensures the new names are already not used by existing tables
 // secondary indexes or foreign key constraints. If above checks passed then foreignKey renaming reflected in the schema else appropriate
 // error thrown.
-func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
+func updateForeignKeys(w http.ResponseWriter, r *http.Request) {
 	tableId := r.FormValue("table")
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1186,8 +1123,8 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	renameMap := map[string]string{}
-	if err = json.Unmarshal(reqBody, &renameMap); err != nil {
+	newFKs := []ddl.Foreignkey{}
+	if err = json.Unmarshal(reqBody, &newFKs); err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
@@ -1195,10 +1132,15 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 	// Check new name for spanner name validity.
 	newNames := []string{}
 	newNamesMap := map[string]bool{}
-	for _, value := range renameMap {
-		newNames = append(newNames, strings.ToLower(value))
-		newNamesMap[strings.ToLower(value)] = true
+	for _, newFk := range newFKs {
+		for _, oldFk := range sessionState.Conv.SpSchema[tableId].ForeignKeys {
+			if newFk.Id == oldFk.Id && newFk.Name != oldFk.Name && newFk.Name != "" {
+				newNames = append(newNames, strings.ToLower(newFk.Name))
+				newNamesMap[strings.ToLower(newFk.Name)] = true
+			}
+		}
 	}
+
 	if len(newNames) != len(newNamesMap) {
 		http.Error(w, fmt.Sprintf("Found duplicate names in input : %s", strings.Join(newNames, ",")), http.StatusBadRequest)
 		return
@@ -1219,16 +1161,42 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 	usedNames := sessionState.Conv.UsedNames
 
 	// Update session with renamed foreignkeys.
-	newFKs := []ddl.Foreignkey{}
-	for _, foreignKey := range sp.ForeignKeys {
-		if newName, ok := renameMap[foreignKey.Id]; ok {
-			delete(usedNames, foreignKey.Name)
-			foreignKey.Name = newName
-		}
-		newFKs = append(newFKs, foreignKey)
-	}
-	sp.ForeignKeys = newFKs
+	updatedFKs := []ddl.Foreignkey{}
 
+	for _, foreignKey := range sp.ForeignKeys {
+		for _, updatedForeignkey := range newFKs {
+			if foreignKey.Id == updatedForeignkey.Id && len(updatedForeignkey.ColIds) != 0 && updatedForeignkey.ReferTableId != "" {
+				delete(usedNames, foreignKey.Name)
+				foreignKey.Name = updatedForeignkey.Name
+				updatedFKs = append(updatedFKs, foreignKey)
+			}
+		}
+	}
+
+	position := -1
+
+	for i, fk := range updatedFKs {
+		// Condition to check whether FK has to be dropped
+		if len(fk.ReferColumnIds) == 0 && fk.ReferTableId == "" {
+			position = i
+			dropFkId := fk.Id
+
+			// To remove the interleavable suggestions if they exist on dropping fk
+			colId := sp.ForeignKeys[position].ColIds[0]
+			schemaIssue := []internal.SchemaIssue{}
+			for _, v := range sessionState.Conv.SchemaIssues[tableId][colId] {
+				if v != internal.InterleavedAddColumn && v != internal.InterleavedRenameColumn && v != internal.InterleavedNotInOrder {
+					schemaIssue = append(schemaIssue, v)
+				}
+			}
+			if _, ok := sessionState.Conv.SchemaIssues[tableId]; ok {
+				sessionState.Conv.SchemaIssues[tableId][colId] = schemaIssue
+			}
+
+			sp.ForeignKeys = utilities.RemoveFk(updatedFKs, dropFkId)
+		}
+	}
+	sp.ForeignKeys = updatedFKs
 	sessionState.Conv.SpSchema[tableId] = sp
 	session.UpdateSessionFile()
 
@@ -1956,7 +1924,7 @@ func init() {
 	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			ty, issues := typemap.ToSpannerTypeMySQL(srcType, spType, []int64{})
+			ty, issues := mysql.ToSpannerTypeWeb(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		if srcType == "tinyint" {
@@ -1968,7 +1936,7 @@ func init() {
 	for _, srcType := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			ty, issues := typemap.ToSpannerTypePostgres(srcType, spType, []int64{})
+			ty, issues := postgres.ToSpannerTypeWeb(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		postgresTypeMap[srcType] = l
@@ -1978,7 +1946,7 @@ func init() {
 	for _, srcType := range []string{"int", "tinyint", "smallint", "bigint", "bit", "float", "real", "numeric", "decimal", "money", "smallmoney", "char", "nchar", "varchar", "nvarchar", "text", "ntext", "date", "datetime", "datetime2", "smalldatetime", "datetimeoffset", "time", "timestamp", "rowversion", "binary", "varbinary", "image", "xml", "geography", "geometry", "uniqueidentifier", "sql_variant", "hierarchyid"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			ty, issues := typemap.ToSpannerTypeSQLserver(srcType, spType, []int64{})
+			ty, issues := sqlserver.ToSpannerTypeWeb(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		sqlserverTypeMap[srcType] = l

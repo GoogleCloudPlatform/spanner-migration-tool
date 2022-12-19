@@ -5,6 +5,7 @@ import ISession, { ISaveSessionPayload } from '../../model/session'
 import IUpdateTable, { IReviewUpdateTable } from '../../model/update-table'
 import IConv, {
   ICreateIndex,
+  IForeignKey,
   IInterleaveStatus,
   IPrimaryKey,
   ISessionSummary,
@@ -129,8 +130,8 @@ export class FetchService {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/primaryKey`, pkObj)
   }
 
-  updateFk(tableId: string, payload: Record<string, string>): any {
-    return this.http.post<HttpResponse<IConv>>(`${this.url}/rename/fks?table=${tableId}`, payload)
+  updateFk(tableId: string, payload: IForeignKey[]): any {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/update/fks?table=${tableId}`, payload)
   }
 
   removeFk(tableId: string, fkId: string): any {

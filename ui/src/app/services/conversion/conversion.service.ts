@@ -294,6 +294,7 @@ export class ConversionService {
             return data.SpSchema[id].ColDefs[columnId].Name
           })
         : []
+      let spColIds = spFk ? spFk.ColIds : []
       let srcColumns = srcFk.ColIds.map((columnId: string) => {
         return data.SrcSchema[id].ColDefs[columnId].Name
       })
@@ -302,6 +303,7 @@ export class ConversionService {
             return data.SpSchema[srcFk.ReferTableId].ColDefs[referColId].Name
           })
         : []
+      let spReferColumnIds = spFk ? spFk.ReferColumnIds : []
       let srcReferColumns = srcFk.ReferColumnIds.map((referColId: string) => {
         return data.SrcSchema[srcFk.ReferTableId].ColDefs[referColId].Name
       })
@@ -317,6 +319,9 @@ export class ConversionService {
         srcReferTable: data.SrcSchema[srcFk.ReferTableId].Name,
         spReferColumns: spReferColumns,
         srcReferColumns: srcReferColumns,
+        spColIds: spColIds,
+        spReferColumnIds: spReferColumnIds,
+        spReferTableId: spFk ? spFk.ReferTableId : '',
       }
     })
   }

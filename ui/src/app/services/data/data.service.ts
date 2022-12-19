@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { FetchService } from '../fetch/fetch.service'
-import IConv, { ICreateIndex, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
+import IConv, { ICreateIndex, IForeignKey, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
 import IRuleContent from 'src/app/model/rule'
 import { BehaviorSubject, forkJoin, Observable, of } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
@@ -280,8 +280,8 @@ export class DataService {
     )
   }
 
-  updateFkNames(tableId: string, updatedFkNames: Record<string, string>): Observable<string> {
-    return this.fetch.updateFk(tableId, updatedFkNames).pipe(
+  updateFkNames(tableId: string, updatedFk: IForeignKey[]): Observable<string> {
+    return this.fetch.updateFk(tableId, updatedFk).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),

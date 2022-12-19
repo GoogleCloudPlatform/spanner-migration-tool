@@ -112,7 +112,7 @@ export interface IForeignKey {
   ColIds: string[]
   ReferTableId: string
   ReferColumnIds: string[]
-  Id: string
+  Id: string | undefined
 }
 
 export interface IIndexKey {

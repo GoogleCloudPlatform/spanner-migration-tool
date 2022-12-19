@@ -233,8 +233,15 @@ func RemovePk(slice []ddl.IndexKey, s int) []ddl.IndexKey {
 	return append(slice[:s], slice[s+1:]...)
 }
 
-func RemoveFk(slice []ddl.Foreignkey, s int) []ddl.Foreignkey {
-	return append(slice[:s], slice[s+1:]...)
+func RemoveFk(slice []ddl.Foreignkey, fkId string) []ddl.Foreignkey {
+	pos := -1
+	for i, fk := range slice {
+		if fk.Id == fkId {
+			pos = i
+			break
+		}
+	}
+	return append(slice[:pos], slice[pos+1:]...)
 }
 
 func RemoveSecondaryIndex(slice []ddl.CreateIndex, s int) []ddl.CreateIndex {
