@@ -59,7 +59,6 @@ import (
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/typemap"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
@@ -657,7 +656,7 @@ func getConversionRate(w http.ResponseWriter, r *http.Request) {
 	reports := internal.AnalyzeTables(sessionState.Conv, nil)
 	rate := make(map[string]string)
 	for _, t := range reports {
-		rate[t.SpTable] = utilities.RateSchema(t.Cols, t.Warnings, t.SyntheticPKey != "")
+		rate[t.SpTable], _ = internal.RateSchema(t.Cols, t.Warnings, t.SyntheticPKey != "", false)
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(rate)
@@ -778,98 +777,95 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 }
 
 func parentTableHelper(table string, update bool) *TableInterleaveStatus {
-	tableInterleaveStatus := &TableInterleaveStatus{Possible: true}
+	tableInterleaveStatus := &TableInterleaveStatus{
+		Possible: false,
+		Comment:  "No valid prefix",
+	}
 	sessionState := session.GetSessionState()
 
 	if _, found := sessionState.Conv.SyntheticPKeys[table]; found {
 		tableInterleaveStatus.Possible = false
 		tableInterleaveStatus.Comment = "Has synthetic pk"
 	}
-	if tableInterleaveStatus.Possible {
-		// Search this table's foreign keys for a suitable parent table.
-		// If there are several possible parent tables, we pick the first one.
-		// TODO: Allow users to pick which parent to use if more than one.
-		for i, fk := range sessionState.Conv.SpSchema[table].Fks {
-			refTable := fk.ReferTable
 
-			if _, found := sessionState.Conv.SyntheticPKeys[refTable]; found {
-				continue
-			}
+	possibleParents := []string{}
+	// Search this table's foreign keys for a suitable parent table.
+	// If there are several possible parent tables, we pick the first one.
+	// TODO: Allow users to pick which parent to use if more than one.
+	for i, fk := range sessionState.Conv.SpSchema[table].Fks {
+		refTable := fk.ReferTable
 
-			if checkPrimaryKeyPrefix(table, refTable, fk, tableInterleaveStatus) {
-
-				tableInterleaveStatus.Parent = refTable
-				sp := sessionState.Conv.SpSchema[table]
-				if update {
-					usedNames := sessionState.Conv.UsedNames
-					delete(usedNames, sp.Fks[i].Name)
-					sp.Parent = refTable
-					sp.Fks = utilities.RemoveFk(sp.Fks, i)
-				}
-				sessionState.Conv.SpSchema[table] = sp
-				break
-			}
+		if _, found := sessionState.Conv.SyntheticPKeys[refTable]; found {
+			continue
 		}
-		if tableInterleaveStatus.Parent == "" {
-			tableInterleaveStatus.Possible = false
-			tableInterleaveStatus.Comment = "No valid prefix"
+
+		if checkPrimaryKeyPrefix(table, refTable, fk, tableInterleaveStatus) {
+			possibleParents = append(possibleParents, refTable)
+			sp := sessionState.Conv.SpSchema[table]
+			if update {
+				usedNames := sessionState.Conv.UsedNames
+				delete(usedNames, sp.Fks[i].Name)
+				sp.Parent = refTable
+				sp.Fks = utilities.RemoveFk(sp.Fks, sp.Fks[i].Id)
+			}
+			sessionState.Conv.SpSchema[table] = sp
 		}
 	}
 
-	parentpks := sessionState.Conv.SpSchema[tableInterleaveStatus.Parent].Pks
+	for _, parent := range possibleParents {
+		parentpks := sessionState.Conv.SpSchema[parent].Pks
 
-	childPks := sessionState.Conv.SpSchema[table].Pks
+		childPks := sessionState.Conv.SpSchema[table].Pks
 
-	if len(parentpks) >= 1 {
+		if len(parentpks) >= 1 {
 
-		parentindex := utilities.GetPrimaryKeyIndexFromOrder(parentpks, 1)
+			parentindex := utilities.GetPrimaryKeyIndexFromOrder(parentpks, 1)
 
-		childindex := utilities.GetPrimaryKeyIndexFromOrder(childPks, 1)
+			childindex := utilities.GetPrimaryKeyIndexFromOrder(childPks, 1)
 
-		if parentindex != -1 && childindex != -1 {
+			if parentindex != -1 && childindex != -1 {
 
-			if (parentpks[parentindex].Order == childPks[childindex].Order) && (parentpks[parentindex].Col == childPks[childindex].Col) {
+				if (parentpks[parentindex].Order == childPks[childindex].Order) && (parentpks[parentindex].Col == childPks[childindex].Col) {
 
-				sessionState := session.GetSessionState()
-				schemaissue := []internal.SchemaIssue{}
+					sessionState := session.GetSessionState()
+					schemaissue := []internal.SchemaIssue{}
 
-				column := childPks[childindex].Col
-				schemaissue = sessionState.Conv.Issues[table][column]
+					column := childPks[childindex].Col
+					schemaissue = sessionState.Conv.Issues[table][column]
 
-				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
-				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
-				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
-				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
+					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
+					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
+					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 
-				sessionState.Conv.Issues[table][column] = schemaissue
-				tableInterleaveStatus.Possible = true
+					sessionState.Conv.Issues[table][column] = schemaissue
+					tableInterleaveStatus.Possible = true
+					tableInterleaveStatus.Parent = parent
+					tableInterleaveStatus.Comment = ""
 
+				}
+
+				if parentpks[parentindex].Col != childPks[childindex].Col {
+
+					sessionState := session.GetSessionState()
+
+					column := parentpks[parentindex].Col
+
+					schemaissue := []internal.SchemaIssue{}
+					schemaissue = sessionState.Conv.Issues[table][column]
+
+					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
+					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
+					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
+					schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
+
+					schemaissue = append(schemaissue, internal.InterleavedNotInOrder)
+
+					sessionState.Conv.Issues[table][column] = schemaissue
+
+				}
 			}
-
-			if parentpks[parentindex].Col != childPks[childindex].Col {
-
-				tableInterleaveStatus.Possible = false
-
-				sessionState := session.GetSessionState()
-
-				column := parentpks[parentindex].Col
-
-				schemaissue := []internal.SchemaIssue{}
-				schemaissue = sessionState.Conv.Issues[table][column]
-
-				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
-				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
-				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
-				schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
-
-				schemaissue = append(schemaissue, internal.InterleavedNotInOrder)
-
-				sessionState.Conv.Issues[table][column] = schemaissue
-
-			}
-
 		}
-
 	}
 
 	return tableInterleaveStatus
@@ -1139,65 +1135,6 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
-func dropForeignKey(w http.ResponseWriter, r *http.Request) {
-	table := r.FormValue("table")
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-	}
-
-	var dropDetail DropDetail
-	if err = json.Unmarshal(reqBody, &dropDetail); err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
-		return
-	}
-
-	sessionState := session.GetSessionState()
-	if sessionState.Conv == nil || sessionState.Driver == "" {
-		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
-		return
-	}
-	if table == "" || dropDetail.Name == "" {
-		http.Error(w, fmt.Sprintf("Table name or foreign key name is empty"), http.StatusBadRequest)
-	}
-	sp := sessionState.Conv.SpSchema[table]
-	position := -1
-	for i, fk := range sp.Fks {
-		if dropDetail.Name == fk.Name {
-			position = i
-			break
-		}
-	}
-
-	if position < 0 || position >= len(sp.Fks) {
-		http.Error(w, fmt.Sprintf("No foreign key found at position %d", position), http.StatusBadRequest)
-		return
-	}
-
-	// To remove the interleavable suggestions if they exist on dropping fk
-	column := sp.Fks[position].Columns[0]
-	schemaIssue := []internal.SchemaIssue{}
-	for _, v := range sessionState.Conv.Issues[table][column] {
-		if v != internal.InterleavedAddColumn && v != internal.InterleavedRenameColumn && v != internal.InterleavedNotInOrder {
-			schemaIssue = append(schemaIssue, v)
-		}
-	}
-	if _, ok := sessionState.Conv.Issues[table]; ok {
-		sessionState.Conv.Issues[table][column] = schemaIssue
-	}
-
-	sp.Fks = utilities.RemoveFk(sp.Fks, position)
-	sessionState.Conv.SpSchema[table] = sp
-	session.UpdateSessionFile()
-
-	convm := session.ConvWithMetadata{
-		SessionMetadata: sessionState.SessionMetadata,
-		Conv:            *sessionState.Conv,
-	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(convm)
-}
-
 func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	tableId := r.FormValue("tableId")
 	indexId := r.FormValue("indexId")
@@ -1279,7 +1216,7 @@ func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 // renameForeignKeys checks the new names for spanner name validity, ensures the new names are already not used by existing tables
 // secondary indexes or foreign key constraints. If above checks passed then foreignKey renaming reflected in the schema else appropriate
 // error thrown.
-func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
+func updateForeignKeys(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1292,8 +1229,8 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	renameMap := map[string]string{}
-	if err = json.Unmarshal(reqBody, &renameMap); err != nil {
+	newFKs := []ddl.Foreignkey{}
+	if err = json.Unmarshal(reqBody, &newFKs); err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
@@ -1301,10 +1238,15 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 	// Check new name for spanner name validity.
 	newNames := []string{}
 	newNamesMap := map[string]bool{}
-	for _, value := range renameMap {
-		newNames = append(newNames, strings.ToLower(value))
-		newNamesMap[strings.ToLower(value)] = true
+	for _, newFk := range newFKs {
+		for _, oldFk := range sessionState.Conv.SpSchema[table].Fks {
+			if newFk.Id == oldFk.Id && newFk.Name != oldFk.Name && newFk.Name != "" {
+				newNames = append(newNames, strings.ToLower(newFk.Name))
+				newNamesMap[strings.ToLower(newFk.Name)] = true
+			}
+		}
 	}
+
 	if len(newNames) != len(newNamesMap) {
 		http.Error(w, fmt.Sprintf("Found duplicate names in input : %s", strings.Join(newNames, ",")), http.StatusBadRequest)
 		return
@@ -1324,15 +1266,41 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 	sp := sessionState.Conv.SpSchema[table]
 
 	// Update session with renamed foreignkeys.
-	newFKs := []ddl.Foreignkey{}
-	for _, foreignKey := range sp.Fks {
-		if newName, ok := renameMap[foreignKey.Name]; ok {
-			foreignKey.Name = newName
-		}
-		newFKs = append(newFKs, foreignKey)
-	}
-	sp.Fks = newFKs
+	updatedFKs := []ddl.Foreignkey{}
 
+	for _, foreignKey := range sp.Fks {
+		for _, updatedForeignkey := range newFKs {
+			if foreignKey.Id == updatedForeignkey.Id && len(updatedForeignkey.Columns) != 0 && updatedForeignkey.ReferTable != "" {
+				foreignKey.Name = updatedForeignkey.Name
+				updatedFKs = append(updatedFKs, foreignKey)
+			}
+		}
+	}
+
+	position := -1
+
+	for i, fk := range updatedFKs {
+		// Condition to check whether FK has to be dropped
+		if len(fk.ReferColumns) == 0 && fk.ReferTable == "" {
+			position = i
+			dropFkId := fk.Id
+
+			// To remove the interleavable suggestions if they exist on dropping fk
+			column := sp.Fks[position].Columns[0]
+			schemaIssue := []internal.SchemaIssue{}
+			for _, v := range sessionState.Conv.Issues[table][column] {
+				if v != internal.InterleavedAddColumn && v != internal.InterleavedRenameColumn && v != internal.InterleavedNotInOrder {
+					schemaIssue = append(schemaIssue, v)
+				}
+			}
+			if _, ok := sessionState.Conv.Issues[table]; ok {
+				sessionState.Conv.Issues[table][column] = schemaIssue
+			}
+
+			sp.Fks = utilities.RemoveFk(updatedFKs, dropFkId)
+		}
+	}
+	sp.Fks = updatedFKs
 	sessionState.Conv.SpSchema[table] = sp
 	session.UpdateSessionFile()
 
@@ -2059,7 +2027,7 @@ func init() {
 	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			ty, issues := typemap.ToSpannerTypeMySQL(srcType, spType, []int64{})
+			ty, issues := mysql.ToSpannerTypeWeb(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		if srcType == "tinyint" {
@@ -2071,7 +2039,7 @@ func init() {
 	for _, srcType := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			ty, issues := typemap.ToSpannerTypePostgres(srcType, spType, []int64{})
+			ty, issues := postgres.ToSpannerTypeWeb(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		postgresTypeMap[srcType] = l
@@ -2081,7 +2049,7 @@ func init() {
 	for _, srcType := range []string{"int", "tinyint", "smallint", "bigint", "bit", "float", "real", "numeric", "decimal", "money", "smallmoney", "char", "nchar", "varchar", "nvarchar", "text", "ntext", "date", "datetime", "datetime2", "smalldatetime", "datetimeoffset", "time", "timestamp", "rowversion", "binary", "varbinary", "image", "xml", "geography", "geometry", "uniqueidentifier", "sql_variant", "hierarchyid"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			ty, issues := typemap.ToSpannerTypeSQLserver(srcType, spType, []int64{})
+			ty, issues := sqlserver.ToSpannerTypeWeb(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		sqlserverTypeMap[srcType] = l

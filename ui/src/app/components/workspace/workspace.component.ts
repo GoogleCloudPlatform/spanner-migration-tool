@@ -146,9 +146,9 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   updateConversionRatePercentages() {
     let tableCount: number = Object.keys(this.conversionRates).length
     for (const rate in this.conversionRates) {
-      if (this.conversionRates[rate] === 'GRAY' || this.conversionRates[rate] === 'GREEN') {
+      if (this.conversionRates[rate] === 'NONE' || this.conversionRates[rate] === 'EXCELLENT') {
         this.conversionRateCount.good += 1
-      } else if (this.conversionRates[rate] === 'BLUE' || this.conversionRates[rate] === 'YELLOW') {
+      } else if (this.conversionRates[rate] === 'GOOD' || this.conversionRates[rate] === 'OK') {
         this.conversionRateCount.ok += 1
       } else {
         this.conversionRateCount.bad += 1
