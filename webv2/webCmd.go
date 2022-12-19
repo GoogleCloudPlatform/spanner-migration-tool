@@ -21,15 +21,19 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/google/subcommands"
+	"go.uber.org/zap"
 )
 
 var FrontendDir embed.FS
 
 type WebCmd struct {
-	DistDir embed.FS
+	DistDir 	embed.FS
+	logLevel 	string
 }
 
 // Name returns the name of operation.
@@ -47,11 +51,19 @@ func (cmd *WebCmd) Usage() string {
 }
 
 func (cmd *WebCmd) SetFlags(f *flag.FlagSet) {
+	f.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to INFO")
 }
 
 func (cmd *WebCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	os.RemoveAll(os.TempDir() + constants.HB_TMP_DIR)
+	os.RemoveAll(filepath.Join(os.TempDir(), constants.HB_TMP_DIR))
 	FrontendDir = cmd.DistDir
-	App()
+	var err error
+	defer func() {
+		if err != nil {
+			logger.Log.Fatal("FATAL error", zap.Error(err))
+		}
+	}()
+	defer logger.Log.Sync()
+	App(cmd.logLevel)
 	return subcommands.ExitSuccess
 }

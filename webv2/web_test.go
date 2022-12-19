@@ -330,7 +330,7 @@ func TestGetTypeMapMySQL(t *testing.T) {
 			{T: ddl.String}},
 		"json": {
 			{T: ddl.Bytes},
-			{T: ddl.String}},
+			{T: ddl.JSON}},
 		"binary": {
 			{T: ddl.Bytes},
 			{T: ddl.String}},
@@ -535,7 +535,7 @@ func TestGetConversionMySQL(t *testing.T) {
 	assert.Contains(t, result, "t2")
 }
 
-//todo update SetParentTable with case III suggest interleve table column.
+// todo update SetParentTable with case III suggest interleve table column.
 func TestSetParentTable(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -828,9 +828,8 @@ func TestSetParentTable(t *testing.T) {
 			table:            "t1",
 			statusCode:       http.StatusOK,
 			expectedResponse: &TableInterleaveStatus{Possible: true, Parent: "t2"},
-			expectedFKs: []ddl.Foreignkey{
-				{Name: "fk1", Columns: []string{"c"}, ReferTable: "t3", ReferColumns: []string{"c"}}},
-			parentTable: "t2",
+			expectedFKs:      []ddl.Foreignkey{ddl.Foreignkey{Name: "fk1", Columns: []string{"a", "b"}, ReferTable: "t2", ReferColumns: []string{"a", "b"}, Id: ""}},
+			parentTable:      "t2",
 		},
 	}
 	for _, tc := range tests {
@@ -877,25 +876,27 @@ func TestSetParentTable(t *testing.T) {
 		}
 	}
 }
+
 func TestDropForeignKey(t *testing.T) {
 	tc := []struct {
 		name         string
 		table        string
-		payload      string
+		input        interface{}
 		statusCode   int64
 		conv         *internal.Conv
 		expectedConv *internal.Conv
 	}{
 		{
-			name:       "Test drop valid FK success",
-			table:      "t1",
-			payload:    `{"Name":"fk2"}`,
+			name:  "Test drop valid FK success",
+			table: "t1",
+			input: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"},
+				{Name: "", Columns: []string{}, ReferTable: "", ReferColumns: []string{}, Id: "f2"}},
 			statusCode: http.StatusOK,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
-							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f2"}},
 					}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -904,38 +905,8 @@ func TestDropForeignKey(t *testing.T) {
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}}},
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"}},
 					}},
-			},
-		},
-		{
-			name:       "Test drop FK invalid fkName",
-			table:      "t1",
-			payload:    `{"Name":""}`,
-			statusCode: http.StatusBadRequest,
-			conv: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}}},
-					}},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
-				},
-			},
-		},
-		{
-			name:       "Test drop FK invalid fkName 2",
-			table:      "t1",
-			payload:    `{"Name":"AB"}`,
-			statusCode: http.StatusBadRequest,
-			conv: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}}},
-					}},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
-				},
 			},
 		},
 	}
@@ -944,14 +915,21 @@ func TestDropForeignKey(t *testing.T) {
 
 		sessionState.Driver = constants.MYSQL
 		sessionState.Conv = tc.conv
-		payload := tc.payload
-		req, err := http.NewRequest("POST", "/drop/fk?table="+tc.table, strings.NewReader(payload))
+
+		inputBytes, err := json.Marshal(tc.input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		buffer := bytes.NewBuffer(inputBytes)
+
+		req, err := http.NewRequest("POST", "/update/fks?table="+tc.table, buffer)
+
 		if err != nil {
 			t.Fatal(err)
 		}
 		req.Header.Set("Content-Type", "application/json")
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(dropForeignKey)
+		handler := http.HandlerFunc(updateForeignKeys)
 		handler.ServeHTTP(rr, req)
 		var res *internal.Conv
 		json.Unmarshal(rr.Body.Bytes(), &res)
@@ -1255,15 +1233,14 @@ func TestRenameForeignKeys(t *testing.T) {
 		{
 			name:  "Test rename foreignkey",
 			table: "t1",
-			input: map[string]string{
-				"fk1": "foreignkey1",
-			},
+			input: []ddl.Foreignkey{{Name: "foreignkey1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"},
+				{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f2"}},
 			statusCode: http.StatusOK,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
-							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f2"}},
 					}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -1273,8 +1250,8 @@ func TestRenameForeignKeys(t *testing.T) {
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						Fks: []ddl.Foreignkey{{Name: "foreignkey1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
-							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+						Fks: []ddl.Foreignkey{{Name: "foreignkey1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f2"}},
 					}},
 				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
@@ -1282,16 +1259,14 @@ func TestRenameForeignKeys(t *testing.T) {
 		{
 			name:  "Test rename multiple foreignkeys",
 			table: "t1",
-			input: map[string]string{
-				"fk1": "foreignkey1",
-				"fk2": "foreignkey2",
-			},
+			input: []ddl.Foreignkey{{Name: "foreignkey1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"},
+				{Name: "foreignkey2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f2"}},
 			statusCode: http.StatusOK,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
-							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f2"}},
 					}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -1301,8 +1276,8 @@ func TestRenameForeignKeys(t *testing.T) {
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						Fks: []ddl.Foreignkey{{Name: "foreignkey1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
-							{Name: "foreignkey2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+						Fks: []ddl.Foreignkey{{Name: "foreignkey1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"},
+							{Name: "foreignkey2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f2"}},
 					}},
 				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
@@ -1310,15 +1285,14 @@ func TestRenameForeignKeys(t *testing.T) {
 		{
 			name:  "New name conflicts with an existing table",
 			table: "t1",
-			input: map[string]string{
-				"fk1": "t1",
-			},
+			input: []ddl.Foreignkey{{Name: "t1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"},
+				{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f2"}},
 			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
-							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f2"}},
 					}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -1328,8 +1302,8 @@ func TestRenameForeignKeys(t *testing.T) {
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						Fks: []ddl.Foreignkey{{Name: "foreignkey1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
-							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+						Fks: []ddl.Foreignkey{{Name: "foreignkey1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f2"}},
 					}},
 				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
@@ -1337,15 +1311,14 @@ func TestRenameForeignKeys(t *testing.T) {
 		{
 			name:  "New name conflicts with an existing foreignkey",
 			table: "t1",
-			input: map[string]string{
-				"fk1": "fk2",
-			},
+			input: []ddl.Foreignkey{{Name: "fk2", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"},
+				{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f2"}},
 			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
-							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f2"}},
 					}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -1355,8 +1328,8 @@ func TestRenameForeignKeys(t *testing.T) {
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						Fks: []ddl.Foreignkey{{Name: "foreignkey1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
-							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+						Fks: []ddl.Foreignkey{{Name: "foreignkey1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f2"}},
 					}},
 				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
 			},
@@ -1364,17 +1337,16 @@ func TestRenameForeignKeys(t *testing.T) {
 		{
 			name:  "New name conflicts with an existing indexes",
 			table: "t1",
-			input: map[string]string{
-				"fk1": "idx_1",
-			},
+			input: []ddl.Foreignkey{{Name: "idx_1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"},
+				{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f2"}},
 			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
 						Indexes: []ddl.CreateIndex{{Name: "idx_1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 							{Name: "idx_2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}}},
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
-							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f2"}},
 					}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -1419,58 +1391,6 @@ func TestRenameForeignKeys(t *testing.T) {
 			},
 		},
 		{
-			name:  "Given Foreignkey not available ",
-			table: "t1",
-			input: map[string]string{
-				"fkx": "foreignkeyx",
-			},
-			statusCode: http.StatusOK,
-			conv: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
-							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
-					}},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
-				},
-				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
-			},
-			expectedConv: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
-							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
-					}},
-				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
-			},
-		},
-		{
-			name:       "Input Empty Map ",
-			table:      "t1",
-			input:      map[string]string{},
-			statusCode: http.StatusOK,
-			conv: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
-							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
-					}},
-				Audit: internal.Audit{
-					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
-				},
-				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
-			},
-			expectedConv: &internal.Conv{
-				SpSchema: map[string]ddl.CreateTable{
-					"t1": {
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
-							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
-					}},
-				UsedNames: map[string]bool{"t1": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true},
-			},
-		},
-		{
 			name:       "Invalid input",
 			table:      "t1",
 			input:      []string{"test1", "test2"},
@@ -1496,19 +1416,20 @@ func TestRenameForeignKeys(t *testing.T) {
 			},
 		},
 		{
-			name:       "Check non usage in another table",
-			table:      "t1",
-			input:      map[string]string{"fk1": "t2_fk2"},
+			name:  "Check non usage in another table",
+			table: "t1",
+			input: []ddl.Foreignkey{{Name: "t2_fk2", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"},
+				{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f2"}},
 			statusCode: http.StatusBadRequest,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
-							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f2"}},
 					},
 					"t2": {
-						Fks: []ddl.Foreignkey{{Name: "t2_fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
-							{Name: "t2_fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+						Fks: []ddl.Foreignkey{{Name: "t2_fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f3"},
+							{Name: "t2_fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f4"}},
 					}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
@@ -1518,12 +1439,12 @@ func TestRenameForeignKeys(t *testing.T) {
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
-						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
-							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+						Fks: []ddl.Foreignkey{{Name: "fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f1"},
+							{Name: "fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f2"}},
 					},
 					"t2": {
-						Fks: []ddl.Foreignkey{{Name: "t2_fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}},
-							{Name: "t2_fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}}},
+						Fks: []ddl.Foreignkey{{Name: "t2_fk1", Columns: []string{"b"}, ReferTable: "reft1", ReferColumns: []string{"ref_b"}, Id: "f3"},
+							{Name: "t2_fk2", Columns: []string{"c", "d"}, ReferTable: "reft2", ReferColumns: []string{"ref_c", "ref_d"}, Id: "f4"}},
 					}},
 				UsedNames: map[string]bool{"t1": true, "t2": true, "fk1": true, "fk2": true, "reft1": true, "reft2": true, "t2_fk1": true, "t2_fk2": true},
 			},
@@ -1541,13 +1462,13 @@ func TestRenameForeignKeys(t *testing.T) {
 		}
 		buffer := bytes.NewBuffer(inputBytes)
 
-		req, err := http.NewRequest("POST", "/rename/fks?table="+tc.table, buffer)
+		req, err := http.NewRequest("POST", "/update/fks?table="+tc.table, buffer)
 		if err != nil {
 			t.Fatal(err)
 		}
 		req.Header.Set("Content-Type", "application/json")
 		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(renameForeignKeys)
+		handler := http.HandlerFunc(updateForeignKeys)
 		handler.ServeHTTP(rr, req)
 		var res *internal.Conv
 		json.Unmarshal(rr.Body.Bytes(), &res)
@@ -1623,7 +1544,7 @@ func TestAddIndexes(t *testing.T) {
 							{Id: "i1", Name: "idx3", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 						},
 					}},
-				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true, "idx3": true},
 			},
 		},
 		{
@@ -1654,7 +1575,7 @@ func TestAddIndexes(t *testing.T) {
 							{Id: "i3", Name: "idx4", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false}}},
 						},
 					}},
-				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
+				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true, "idx3": true, "idx4": true},
 			},
 		}, {
 			name:  "New name conflicts with an existing table",
@@ -1920,6 +1841,138 @@ func TestDropSecondaryIndex(t *testing.T) {
 	}
 }
 
+func TestRestoreSecondaryIndex(t *testing.T) {
+	tc := []struct {
+		name         string
+		tableId      string
+		indexId      string
+		statusCode   int64
+		conv         *internal.Conv
+		expectedConv *internal.Conv
+	}{
+		{
+			name:       "Test restore valid secondary index success",
+			tableId:    "t1",
+			indexId:    "i1",
+			statusCode: http.StatusOK,
+			conv: &internal.Conv{
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name: "t1",
+						Indexes: []schema.Index{
+							{Name: "idx1", Unique: false, Keys: []schema.Key{{Column: "b", Desc: false, Order: 1}}, Id: "i1"},
+							{Name: "idx2", Unique: false, Keys: []schema.Key{{Column: "c", Desc: false, Order: 1}}, Id: "i2"},
+						},
+						Id: "t1",
+					},
+				},
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name: "t1",
+						Indexes: []ddl.CreateIndex{
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false, Order: 1}}, Id: "i2"},
+						},
+						Id: "t1",
+					},
+				},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+					ToSourceFkIdx: map[string]internal.FkeyAndIdxs{
+						"t1": {
+							Name:       "t1",
+							ForeignKey: map[string]string{},
+							Index:      map[string]string{"idx2": "idx2"},
+						},
+					},
+					ToSpannerFkIdx: map[string]internal.FkeyAndIdxs{
+						"t1": {
+							Name:       "t1",
+							ForeignKey: map[string]string{},
+							Index:      map[string]string{"idx2": "idx2"},
+						},
+					},
+				},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+				},
+				ToSpanner: map[string]internal.NameAndCols{
+					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+				},
+				UsedNames: map[string]bool{"t1": true, "idx2": true},
+			},
+			expectedConv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name: "t1",
+						Indexes: []ddl.CreateIndex{
+							{Name: "idx2", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "c", Desc: false, Order: 1}}, Id: "i2"},
+							{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false, Order: 1}}, Id: "i1"},
+						},
+						Id: "t1",
+					},
+				},
+			},
+		},
+
+		{
+			name:       "Test restore secondary index invalid index id",
+			tableId:    "t1",
+			indexId:    "A",
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false, Order: 1}}, Id: "i1"}},
+					}},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+			},
+			expectedConv: &internal.Conv{},
+		},
+		{
+			name:       "Test drop secondary index invalid table id",
+			tableId:    "X",
+			indexId:    "i1",
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Indexes: []ddl.CreateIndex{{Name: "idx1", Table: "t1", Unique: false, Keys: []ddl.IndexKey{{Col: "b", Desc: false, Order: 1}}, Id: "i1"}},
+					}},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
+				},
+			},
+			expectedConv: &internal.Conv{},
+		},
+	}
+	for _, tc := range tc {
+		sessionState := session.GetSessionState()
+
+		sessionState.Driver = constants.MYSQL
+		sessionState.Conv = tc.conv
+		payload := `{}`
+		req, err := http.NewRequest("POST", "/restore/secondaryIndex?tableId="+tc.tableId+"&indexId="+tc.indexId, strings.NewReader(payload))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(restoreSecondaryIndex)
+		handler.ServeHTTP(rr, req)
+		var res *internal.Conv
+		json.Unmarshal(rr.Body.Bytes(), &res)
+		if status := rr.Code; int64(status) != tc.statusCode {
+			t.Errorf("handler returned wrong status code: got %v want %v",
+				status, tc.statusCode)
+		}
+		if tc.statusCode == http.StatusOK {
+			assert.Equal(t, tc.expectedConv.SpSchema, res.SpSchema)
+		}
+	}
+}
+
 func TestDropTable(t *testing.T) {
 	sessionState := session.GetSessionState()
 	sessionState.Driver = constants.MYSQL
@@ -2143,6 +2196,250 @@ func TestRestoreTable(t *testing.T) {
 	}
 	assert.Equal(t, expectedConv.SpSchema, res.SpSchema)
 
+}
+
+func TestRemoveParentTable(t *testing.T) {
+	tc := []struct {
+		name             string
+		tableId          string
+		statusCode       int64
+		conv             *internal.Conv
+		expectedSpSchema ddl.Schema
+	}{{
+		name:       "Remove interleaving with valid table id",
+		tableId:    "t1",
+		statusCode: http.StatusOK,
+		conv: &internal.Conv{
+			Issues: map[string]map[string][]internal.SchemaIssue{
+				"t1": {},
+				"t2": {},
+			},
+			SrcSchema: map[string]schema.Table{
+				"t1": {
+					Name:     "t1",
+					ColNames: []string{"a", "b", "c"},
+					ColDefs: map[string]schema.Column{
+						"a": {Name: "a", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c1"},
+						"b": {Name: "b", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c2"},
+						"c": {Name: "c", Type: schema.Type{Name: "varchar"}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c3"},
+					},
+					PrimaryKeys: []schema.Key{{Column: "a", Desc: false, Order: 1}, {Column: "b", Desc: false, Order: 2}},
+					ForeignKeys: []schema.ForeignKey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}, Id: "f1"}},
+					Id:          "t1",
+				},
+
+				"t2": {
+					Name:     "t2",
+					ColNames: []string{"a", "d"},
+					ColDefs: map[string]schema.Column{
+						"a": {Name: "a", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: true, AutoIncrement: false}, Id: "c4"},
+						"d": {Name: "d", Type: schema.Type{Name: "varchar"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c5"},
+					},
+					Id:          "t2",
+					PrimaryKeys: []schema.Key{{Column: "a", Desc: false, Order: 1}},
+				},
+			},
+			SpSchema: map[string]ddl.CreateTable{
+				"t1": {
+					Name:     "t1",
+					ColNames: []string{"a", "b", "c"},
+					ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"b": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"c": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+					},
+					Pks:    []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}, {Col: "b", Desc: false, Order: 2}},
+					Id:     "t1",
+					Parent: "t2",
+				},
+				"t2": {
+					Name:     "t2",
+					ColNames: []string{"a", "d"},
+					ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+						"d": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+					},
+					Pks: []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}},
+					Id:  "t2",
+				}},
+			Audit: internal.Audit{
+				MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+				ToSourceFkIdx: map[string]internal.FkeyAndIdxs{
+					"t1": {
+						Name:       "t1",
+						ForeignKey: map[string]string{"fk1": "fk1"},
+						Index:      map[string]string{},
+					},
+					"t2": {
+						Name:       "t2",
+						ForeignKey: map[string]string{},
+						Index:      map[string]string{},
+					},
+				},
+				ToSpannerFkIdx: map[string]internal.FkeyAndIdxs{
+					"t1": {
+						Name:       "t1",
+						ForeignKey: map[string]string{"fk1": "fk1"},
+						Index:      map[string]string{},
+					},
+					"t2": {
+						Name:       "t2",
+						ForeignKey: map[string]string{},
+						Index:      map[string]string{},
+					},
+				},
+			},
+			UsedNames: map[string]bool{"t1": true, "t2": true},
+			ToSource: map[string]internal.NameAndCols{
+				"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+				"t2": {Name: "t2", Cols: map[string]string{"a": "a", "d": "d"}},
+			},
+			ToSpanner: map[string]internal.NameAndCols{
+				"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+				"t2": {Name: "t2", Cols: map[string]string{"a": "a", "d": "d"}},
+			},
+		},
+		expectedSpSchema: ddl.Schema{
+			"t1": {
+				Name:     "t1",
+				ColNames: []string{"a", "b", "c"},
+				ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+					"b": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+					"c": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				},
+				Pks:    []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}, {Col: "b", Desc: false, Order: 2}},
+				Fks:    []ddl.Foreignkey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}, Id: "f1"}},
+				Id:     "t1",
+				Parent: "",
+			},
+			"t2": {
+				Name:     "t2",
+				ColNames: []string{"a", "d"},
+				ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+					"d": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+				},
+				Pks: []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}},
+				Id:  "t2",
+			},
+		},
+	},
+		{name: "Remove interleaving with invalid table id",
+			tableId:    "A",
+			statusCode: http.StatusBadRequest,
+			conv: &internal.Conv{
+				Issues: map[string]map[string][]internal.SchemaIssue{
+					"t1": {},
+					"t2": {},
+				},
+				SrcSchema: map[string]schema.Table{
+					"t1": {
+						Name:     "t1",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]schema.Column{
+							"a": {Name: "a", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c1"},
+							"b": {Name: "b", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c2"},
+							"c": {Name: "c", Type: schema.Type{Name: "varchar"}, NotNull: false, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c3"},
+						},
+						PrimaryKeys: []schema.Key{{Column: "a", Desc: false, Order: 1}, {Column: "b", Desc: false, Order: 2}},
+						ForeignKeys: []schema.ForeignKey{{Name: "fk1", Columns: []string{"a"}, ReferTable: "t2", ReferColumns: []string{"a"}, Id: "f1"}},
+						Id:          "t1",
+					},
+
+					"t2": {
+						Name:     "t2",
+						ColNames: []string{"a", "d"},
+						ColDefs: map[string]schema.Column{
+							"a": {Name: "a", Type: schema.Type{Name: "bigint"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: true, AutoIncrement: false}, Id: "c4"},
+							"d": {Name: "d", Type: schema.Type{Name: "varchar"}, NotNull: true, Ignored: schema.Ignored{Check: false, Identity: false, Default: false, Exclusion: false, ForeignKey: false, AutoIncrement: false}, Id: "c5"},
+						},
+						Id:          "t2",
+						PrimaryKeys: []schema.Key{{Column: "a", Desc: false, Order: 1}},
+					},
+				},
+				SpSchema: map[string]ddl.CreateTable{
+					"t1": {
+						Name:     "t1",
+						ColNames: []string{"a", "b", "c"},
+						ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"b": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"c": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						Pks:    []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}, {Col: "b", Desc: false, Order: 2}},
+						Id:     "t1",
+						Parent: "t2",
+					},
+					"t2": {
+						Name:     "t2",
+						ColNames: []string{"a", "d"},
+						ColDefs: map[string]ddl.ColumnDef{"a": {Name: "a", Id: "c4", T: ddl.Type{Name: ddl.Int64}, NotNull: true},
+							"d": {Name: "d", Id: "c5", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, NotNull: true},
+						},
+						Pks: []ddl.IndexKey{{Col: "a", Desc: false, Order: 1}},
+						Id:  "t2",
+					}},
+				Audit: internal.Audit{
+					MigrationType: migration.MigrationData_MIGRATION_TYPE_UNSPECIFIED.Enum(),
+					ToSourceFkIdx: map[string]internal.FkeyAndIdxs{
+						"t1": {
+							Name:       "t1",
+							ForeignKey: map[string]string{"fk1": "fk1"},
+							Index:      map[string]string{},
+						},
+						"t2": {
+							Name:       "t2",
+							ForeignKey: map[string]string{},
+							Index:      map[string]string{},
+						},
+					},
+					ToSpannerFkIdx: map[string]internal.FkeyAndIdxs{
+						"t1": {
+							Name:       "t1",
+							ForeignKey: map[string]string{"fk1": "fk1"},
+							Index:      map[string]string{},
+						},
+						"t2": {
+							Name:       "t2",
+							ForeignKey: map[string]string{},
+							Index:      map[string]string{},
+						},
+					},
+				},
+				UsedNames: map[string]bool{"t1": true, "t2": true},
+				ToSource: map[string]internal.NameAndCols{
+					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+					"t2": {Name: "t2", Cols: map[string]string{"a": "a", "d": "d"}},
+				},
+				ToSpanner: map[string]internal.NameAndCols{
+					"t1": {Name: "t1", Cols: map[string]string{"a": "a", "b": "b", "c": "c"}},
+					"t2": {Name: "t2", Cols: map[string]string{"a": "a", "d": "d"}},
+				},
+			},
+			expectedSpSchema: ddl.Schema{},
+		},
+	}
+
+	for _, tc := range tc {
+		sessionState := session.GetSessionState()
+		sessionState.Driver = constants.MYSQL
+
+		sessionState.Conv = tc.conv
+		payload := `{}`
+		req, err := http.NewRequest("POST", "/drop/removeParent?tableId="+tc.tableId, strings.NewReader(payload))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(removeParentTable)
+		handler.ServeHTTP(rr, req)
+		var res *internal.Conv
+		json.Unmarshal(rr.Body.Bytes(), &res)
+		if status := rr.Code; int64(status) != tc.statusCode {
+			t.Errorf("handler returned wrong status code: got %v want %v",
+				status, tc.statusCode)
+		}
+		if tc.statusCode == http.StatusOK {
+			assert.Equal(t, tc.expectedSpSchema, res.SpSchema)
+		}
+	}
 }
 
 func buildConvMySQL(conv *internal.Conv) {

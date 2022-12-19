@@ -22,9 +22,9 @@ import (
 	"time"
 
 	dataflow "cloud.google.com/go/dataflow/apiv1beta3"
-	datastream "cloud.google.com/go/datastream/apiv1alpha1"
+	datastream "cloud.google.com/go/datastream/apiv1"
 	"cloud.google.com/go/storage"
-	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1alpha1"
+	datastreampb "google.golang.org/genproto/googleapis/cloud/datastream/v1"
 	dataflowpb "google.golang.org/genproto/googleapis/dataflow/v1beta3"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 
@@ -35,8 +35,7 @@ import (
 )
 
 const (
-	numWorkers int32 = 10
-	maxWorkers int32 = 10
+	maxWorkers int32 = 50
 )
 
 type SrcConnCfg struct {
@@ -56,6 +55,7 @@ type DatastreamCfg struct {
 	StreamDisplayName           string
 	SourceConnectionConfig      SrcConnCfg
 	DestinationConnectionConfig DstConnCfg
+	Properties                  string
 }
 
 type DataflowCfg struct {
@@ -158,25 +158,49 @@ func ReadStreamingConfig(file, dbName string) (StreamingCfg, error) {
 
 func getMysqlSourceStreamConfig(dbName string) *datastreampb.SourceConfig_MysqlSourceConfig {
 	mydb := &datastreampb.MysqlDatabase{
-		DatabaseName: dbName,
+		Database: dbName,
 	}
 	mysqlSrcCfg := &datastreampb.MysqlSourceConfig{
-		Allowlist: &datastreampb.MysqlRdbms{MysqlDatabases: []*datastreampb.MysqlDatabase{mydb}},
+		IncludeObjects: &datastreampb.MysqlRdbms{MysqlDatabases: []*datastreampb.MysqlDatabase{mydb}},
 	}
 	return &datastreampb.SourceConfig_MysqlSourceConfig{MysqlSourceConfig: mysqlSrcCfg}
 }
 
 func getOracleSourceStreamConfig(dbName string) *datastreampb.SourceConfig_OracleSourceConfig {
 	oracledb := &datastreampb.OracleSchema{
-		SchemaName: dbName,
+		Schema: dbName,
 	}
 	oracleSrcCfg := &datastreampb.OracleSourceConfig{
-		Allowlist: &datastreampb.OracleRdbms{OracleSchemas: []*datastreampb.OracleSchema{oracledb}},
+		IncludeObjects: &datastreampb.OracleRdbms{OracleSchemas: []*datastreampb.OracleSchema{oracledb}},
 	}
 	return &datastreampb.SourceConfig_OracleSourceConfig{OracleSourceConfig: oracleSrcCfg}
 }
 
-func getSourceStreamConfig(srcCfg *datastreampb.SourceConfig, sourceProfile profiles.SourceProfile) error {
+func getPostgreSQLSourceStreamConfig(properties string) (*datastreampb.SourceConfig_PostgresqlSourceConfig, error) {
+	params, err := profiles.ParseMap(properties)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse properties: %v", err)
+	}
+	var excludeObjects []*datastreampb.PostgresqlSchema
+	for _, s := range []string{"information_schema", "postgres", "pg_catalog", "pg_temp_1", "pg_toast", "pg_toast_temp_1"} {
+		excludeObjects = append(excludeObjects, &datastreampb.PostgresqlSchema{
+			Schema: s,
+		})
+	}
+	replicationSlot, replicationSlotExists := params["replicationSlot"]
+	publication, publicationExists := params["publication"]
+	if !replicationSlotExists || !publicationExists {
+		return nil, fmt.Errorf("replication slot or publication not specified")
+	}
+	postgresSrcCfg := &datastreampb.PostgresqlSourceConfig{
+		ExcludeObjects:  &datastreampb.PostgresqlRdbms{PostgresqlSchemas: excludeObjects},
+		ReplicationSlot: replicationSlot,
+		Publication:     publication,
+	}
+	return &datastreampb.SourceConfig_PostgresqlSourceConfig{PostgresqlSourceConfig: postgresSrcCfg}, nil
+}
+
+func getSourceStreamConfig(srcCfg *datastreampb.SourceConfig, sourceProfile profiles.SourceProfile, datastreamCfg DatastreamCfg) error {
 	switch sourceProfile.Driver {
 	case constants.MYSQL:
 		srcCfg.SourceStreamConfig = getMysqlSourceStreamConfig(sourceProfile.Conn.Mysql.Db)
@@ -185,8 +209,14 @@ func getSourceStreamConfig(srcCfg *datastreampb.SourceConfig, sourceProfile prof
 		// For Oracle, the User name denotes the name of the schema while the dbName parameter has the SID.
 		srcCfg.SourceStreamConfig = getOracleSourceStreamConfig(sourceProfile.Conn.Oracle.User)
 		return nil
+	case constants.POSTGRES:
+		sourceStreamConfig, err := getPostgreSQLSourceStreamConfig(datastreamCfg.Properties)
+		if err == nil {
+			srcCfg.SourceStreamConfig = sourceStreamConfig
+		}
+		return err
 	default:
-		return fmt.Errorf("only MySQL and Oracle are supported as source streams")
+		return fmt.Errorf("only MySQL, Oracle and PostgreSQL are supported as source streams")
 	}
 }
 
@@ -205,13 +235,16 @@ func LaunchStream(ctx context.Context, sourceProfile profiles.SourceProfile, pro
 		FileFormat: &datastreampb.GcsDestinationConfig_AvroFileFormat{},
 	}
 	srcCfg := &datastreampb.SourceConfig{
-		SourceConnectionProfileName: fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectID, datastreamCfg.SourceConnectionConfig.Location, datastreamCfg.SourceConnectionConfig.Name),
+		SourceConnectionProfile: fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectID, datastreamCfg.SourceConnectionConfig.Location, datastreamCfg.SourceConnectionConfig.Name),
 	}
-	getSourceStreamConfig(srcCfg, sourceProfile)
+	err = getSourceStreamConfig(srcCfg, sourceProfile, datastreamCfg)
+	if err != nil {
+		return fmt.Errorf("could not get source stream config: %v", err)
+	}
 
 	dstCfg := &datastreampb.DestinationConfig{
-		DestinationConnectionProfileName: fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectID, datastreamCfg.DestinationConnectionConfig.Location, datastreamCfg.DestinationConnectionConfig.Name),
-		DestinationStreamConfig:          &datastreampb.DestinationConfig_GcsDestinationConfig{GcsDestinationConfig: gcsDstCfg},
+		DestinationConnectionProfile: fmt.Sprintf("projects/%s/locations/%s/connectionProfiles/%s", projectID, datastreamCfg.DestinationConnectionConfig.Location, datastreamCfg.DestinationConnectionConfig.Name),
+		DestinationStreamConfig:      &datastreampb.DestinationConfig_GcsDestinationConfig{GcsDestinationConfig: gcsDstCfg},
 	}
 	streamInfo := &datastreampb.Stream{
 		DisplayName:       datastreamCfg.StreamDisplayName,
@@ -327,7 +360,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 		return fmt.Errorf("could not get connection profiles: %v", err)
 	}
 	gcsProfile := res.Profile.(*datastreampb.ConnectionProfile_GcsProfile).GcsProfile
-	inputFilePattern := "gs://" + gcsProfile.BucketName + gcsProfile.RootPath + datastreamCfg.DestinationConnectionConfig.Prefix
+	inputFilePattern := "gs://" + gcsProfile.Bucket + gcsProfile.RootPath + datastreamCfg.DestinationConnectionConfig.Prefix
 	if inputFilePattern[len(inputFilePattern)-1] != '/' {
 		inputFilePattern = inputFilePattern + "/"
 	}
@@ -335,7 +368,7 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 
 	launchParameter := &dataflowpb.LaunchFlexTemplateParameter{
 		JobName:  dataflowCfg.JobName,
-		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates/latest/flex/Cloud_Datastream_to_Spanner"},
+		Template: &dataflowpb.LaunchFlexTemplateParameter_ContainerSpecGcsPath{ContainerSpecGcsPath: "gs://dataflow-templates-southamerica-west1/2022-12-13-00_RC01/flex/Cloud_Datastream_to_Spanner"},
 		Parameters: map[string]string{
 			"inputFilePattern":         inputFilePattern,
 			"streamName":               fmt.Sprintf("projects/%s/locations/%s/streams/%s", project, datastreamCfg.StreamLocation, datastreamCfg.StreamId),
@@ -345,8 +378,9 @@ func LaunchDataflowJob(ctx context.Context, targetProfile profiles.TargetProfile
 			"deadLetterQueueDirectory": inputFilePattern + "dlq",
 		},
 		Environment: &dataflowpb.FlexTemplateRuntimeEnvironment{
-			NumWorkers: numWorkers,
-			MaxWorkers: maxWorkers,
+			MaxWorkers:            maxWorkers,
+			AutoscalingAlgorithm:  2, // 2 corresponds to AUTOSCALING_ALGORITHM_BASIC
+			EnableStreamingEngine: true,
 		},
 	}
 
@@ -378,8 +412,10 @@ func getStreamingConfig(sourceProfile profiles.SourceProfile, targetProfile prof
 		return ReadStreamingConfig(sourceProfile.Conn.Mysql.StreamingConfig, targetProfile.Conn.Sp.Dbname)
 	case profiles.SourceProfileConnectionTypeOracle:
 		return ReadStreamingConfig(sourceProfile.Conn.Oracle.StreamingConfig, targetProfile.Conn.Sp.Dbname)
+	case profiles.SourceProfileConnectionTypePostgreSQL:
+		return ReadStreamingConfig(sourceProfile.Conn.Pg.StreamingConfig, targetProfile.Conn.Sp.Dbname)
 	default:
-		return StreamingCfg{}, fmt.Errorf("only MySQL and Oracle are supported as source streams")
+		return StreamingCfg{}, fmt.Errorf("only MySQL, Oracle and PostgreSQL are supported as source streams")
 	}
 }
 

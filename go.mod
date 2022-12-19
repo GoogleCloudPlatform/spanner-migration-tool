@@ -19,7 +19,7 @@ require (
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/lib/pq v1.9.0
-	github.com/pganalyze/pg_query_go/v2 v2.0.5
+	github.com/pganalyze/pg_query_go/v2 v2.2.0
 	github.com/pingcap/tidb v1.1.0-beta.0.20220411093434-32b9c14779c2
 	github.com/pingcap/tidb/parser v0.0.0-20220411093434-32b9c14779c2
 	github.com/sijms/go-ora/v2 v2.2.17

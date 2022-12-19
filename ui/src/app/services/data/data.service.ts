@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { FetchService } from '../fetch/fetch.service'
-import IConv, { ICreateIndex, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
+import IConv, { ICreateIndex, IForeignKey, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
 import IRuleContent from 'src/app/model/rule'
 import { BehaviorSubject, forkJoin, Observable, of } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
@@ -137,6 +137,12 @@ export class DataService {
     })
   }
 
+  getConversionRate() {
+    this.fetch.getConversionRate().subscribe((res) => {
+      this.conversionRateSub.next(res)
+    })
+  }
+
   getRateTypemapAndSummary() {
     return forkJoin({
       rates: this.fetch.getConversionRate(),
@@ -199,6 +205,25 @@ export class DataService {
     )
   }
 
+  removeInterleave(tableId: string): Observable<string> {
+    return this.fetch.removeInterleave(tableId).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data) => {
+        this.getDdl()
+        if (data.error) {
+          this.snackbar.openSnackBar(data.error, 'Close')
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          return ''
+        }
+      })
+    )
+  }
+
   restoreTable(tableId: string): Observable<string> {
     return this.fetch.restoreTable(tableId).pipe(
       catchError((e: any) => {
@@ -255,8 +280,8 @@ export class DataService {
     )
   }
 
-  updateFkNames(tableName: string, updatedFkNames: Record<string, string>): Observable<string> {
-    return this.fetch.updateFk(tableName, updatedFkNames).pipe(
+  updateFkNames(tableId: string, updatedFk: IForeignKey[]): Observable<string> {
+    return this.fetch.updateFk(tableId, updatedFk).pipe(
       catchError((e: any) => {
         return of({ error: e.error })
       }),
@@ -381,6 +406,25 @@ export class DataService {
     )
   }
 
+  restoreIndex(tableId: string, indexId: string): Observable<string> {
+    return this.fetch.restoreIndex(tableId, indexId).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data) => {
+        if (data.error) {
+          this.snackbar.openSnackBar(data.error, 'Close')
+          return data.error
+        } else {
+          this.convSubject.next(data)
+          this.snackbar.openSnackBar('Index restored successfully', 'Close', 5)
+          return ''
+        }
+      })
+    )
+  }
+
   getInterleaveConversionForATable(tableName: string) {
     this.fetch.getInterleaveStatus(tableName).subscribe((res: IInterleaveStatus) => {
       this.tableInterleaveStatusSub.next(res)
@@ -394,5 +438,23 @@ export class DataService {
         this.convSubject.next(res.sessionState as IConv)
       }
     })
+  }
+
+  uploadFile(file: FormData): Observable<string> {
+    return this.fetch.uploadFile(file).pipe(
+      catchError((e: any) => {
+        return of({ error: e.error })
+      }),
+      tap(console.log),
+      map((data) => {
+        if (data.error) {
+          this.snackbar.openSnackBar('File upload failed', 'Close')
+          return data.error
+        } else {
+          this.snackbar.openSnackBar('File uploaded successfully', 'Close', 5)
+          return ''
+        }
+      })
+    )
   }
 }

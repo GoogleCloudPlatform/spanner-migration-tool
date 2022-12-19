@@ -25,17 +25,22 @@ export class LoadSessionComponent implements OnInit {
   })
 
   dbEngineList = [
-    { value: 'mysql', displayName: 'MYSQL' },
+    { value: 'mysql', displayName: 'MySQL' },
     { value: 'sqlserver', displayName: 'SQL Server' },
-    { value: 'oracle', displayName: 'ORACLE' },
+    { value: 'oracle', displayName: 'Oracle' },
     { value: 'postgres', displayName: 'PostgreSQL' },
   ]
+  fileToUpload: File | null = null
+  uploadStart: boolean = false
+  uploadSuccess: boolean = false
+  uploadFail: boolean = false
 
   ngOnInit(): void {}
 
   convertFromSessionFile() {
     this.clickEvent.openDatabaseLoader('session', '')
     this.data.resetStore()
+    localStorage.clear()
     const { dbEngine, filePath } = this.connectForm.value
     const payload: ISessionConfig = {
       driver: dbEngine,
@@ -49,5 +54,31 @@ export class LoadSessionComponent implements OnInit {
       this.clickEvent.closeDatabaseLoader()
       this.router.navigate(['/workspace'])
     })
+  }
+  handleFileInput(e: Event) {
+    let files: FileList | null = (e.target as HTMLInputElement).files
+    if (files) {
+      this.fileToUpload = files.item(0)
+      this.connectForm.patchValue({ filePath: this.fileToUpload?.name })
+      if (this.fileToUpload) {
+        this.uploadFile()
+      }
+    }
+  }
+  uploadFile() {
+    if (this.fileToUpload) {
+      this.uploadStart = true
+      this.uploadFail = false
+      this.uploadSuccess = false
+      const uploadFormData = new FormData()
+      uploadFormData.append('myFile', this.fileToUpload, this.fileToUpload?.name)
+      this.data.uploadFile(uploadFormData).subscribe((res: string) => {
+        if (res == '') {
+          this.uploadSuccess = true
+        } else {
+          this.uploadFail = true
+        }
+      })
+    }
   }
 }

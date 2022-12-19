@@ -5,6 +5,7 @@ import ISession, { ISaveSessionPayload } from '../../model/session'
 import IUpdateTable, { IReviewUpdateTable } from '../../model/update-table'
 import IConv, {
   ICreateIndex,
+  IForeignKey,
   IInterleaveStatus,
   IPrimaryKey,
   ISessionSummary,
@@ -62,7 +63,7 @@ export class FetchService {
       Database: dbName,
       User: userName,
       Password: password,
-    },)
+    })
   }
 
   getSchemaConversionFromSessionFile(payload: ISessionConfig) {
@@ -74,7 +75,9 @@ export class FetchService {
   }
 
   getConnectionProfiles(isSource: boolean) {
-    return this.http.get<IConnectionProfile[]>(`${this.url}/GetConnectionProfiles?source=${isSource}`)
+    return this.http.get<IConnectionProfile[]>(
+      `${this.url}/GetConnectionProfiles?source=${isSource}`
+    )
   }
 
   getGeneratedResources() {
@@ -112,6 +115,10 @@ export class FetchService {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/typemap/table?table=${tableName}`, data)
   }
 
+  removeInterleave(tableId: string) {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/removeParent?tableId=${tableId}`, {})
+  }
+
   restoreTable(tableId: string) {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/restore/table?tableId=${tableId}`, {})
   }
@@ -123,8 +130,8 @@ export class FetchService {
     return this.http.post<HttpResponse<IConv>>(`${this.url}/primaryKey`, pkObj)
   }
 
-  updateFk(tableName: string, payload: Record<string, string>): any {
-    return this.http.post<HttpResponse<IConv>>(`${this.url}/rename/fks?table=${tableName}`, payload)
+  updateFk(tableId: string, payload: IForeignKey[]): any {
+    return this.http.post<HttpResponse<IConv>>(`${this.url}/update/fks?table=${tableId}`, payload)
   }
 
   removeFk(tableName: string, fkName: string): any {
@@ -185,6 +192,13 @@ export class FetchService {
     })
   }
 
+  restoreIndex(tableId: string, indexId: string) {
+    return this.http.post<HttpResponse<IConv>>(
+      `${this.url}/restore/secondaryIndex?tableId=${tableId}&indexId=${indexId}`,
+      {}
+    )
+  }
+
   getInterleaveStatus(tableName: string) {
     return this.http.get<IInterleaveStatus>(`${this.url}/setparent?table=${tableName}`)
   }
@@ -203,7 +217,9 @@ export class FetchService {
   getProgress() {
     return this.http.get<IProgress>(`${this.url}/GetProgress`)
   }
-
+  uploadFile(payload: FormData) {
+    return this.http.post(`${this.url}/uploadFile`, payload)
+  }
   cleanUpStreamingJobs() {
     return this.http.post(`${this.url}/CleanUpStreamingJobs`, {})
   }

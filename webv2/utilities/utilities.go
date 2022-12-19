@@ -22,6 +22,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 )
@@ -227,8 +228,15 @@ func RemovePk(slice []ddl.IndexKey, s int) []ddl.IndexKey {
 	return append(slice[:s], slice[s+1:]...)
 }
 
-func RemoveFk(slice []ddl.Foreignkey, s int) []ddl.Foreignkey {
-	return append(slice[:s], slice[s+1:]...)
+func RemoveFk(slice []ddl.Foreignkey, fkId string) []ddl.Foreignkey {
+	pos := -1
+	for i, fk := range slice {
+		if fk.Id == fkId {
+			pos = i
+			break
+		}
+	}
+	return append(slice[:pos], slice[pos+1:]...)
 }
 
 func RemoveSecondaryIndex(slice []ddl.CreateIndex, s int) []ddl.CreateIndex {
@@ -300,4 +308,15 @@ func UpdateType(conv *internal.Conv, newType, table, colName, srcTableName strin
 	colDef := sp.ColDefs[colName]
 	colDef.T = ty
 	sp.ColDefs[colName] = colDef
+}
+
+func GetInterleavedFk(conv *internal.Conv, srcTableName string, srcCol string) (schema.ForeignKey, error) {
+	for _, fk := range conv.SrcSchema[srcTableName].ForeignKeys {
+		for _, col := range fk.Columns {
+			if srcCol == col {
+				return fk, nil
+			}
+		}
+	}
+	return schema.ForeignKey{}, fmt.Errorf("interleaved Foreign key not found")
 }

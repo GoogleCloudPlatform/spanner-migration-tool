@@ -35,6 +35,8 @@ export class ConversionService {
       }
       return true
     })
+    let deletedIndexes = this.getDeletedIndexes(conv)
+
     let parentNode: ISchemaObjectNode = {
       name: `Tables (${srcTableNames.length})`,
       type: ObjectExplorerNodeType.Tables,
@@ -102,6 +104,25 @@ export class ConversionService {
         parentId: '',
       })
     })
+
+    // add deleted indexes
+    parentNode.children?.forEach((tableNode: ISchemaObjectNode, i: number) => {
+      if (deletedIndexes[tableNode.id]) {
+        deletedIndexes[tableNode.id].forEach((index: IIndex) => {
+          parentNode.children![i].children![0].children?.push({
+            name: index.Name.replace(/[^A-Za-z0-9_]/g, '_'),
+            type: ObjectExplorerNodeType.Index,
+            parent: conv.SpSchema[tableNode.name]?.Name,
+            pos: i,
+            isSpannerNode: true,
+            isDeleted: true,
+            id: index.Id,
+            parentId: tableNode.id,
+          })
+        })
+      }
+    })
+
     return [
       {
         name: conv.DatabaseName,
@@ -301,6 +322,7 @@ export class ConversionService {
           srcReferTable: data.SrcSchema[srcTableName].ForeignKeys[i].ReferTable,
           spReferColumns: [],
           srcReferColumns: data.SrcSchema[srcTableName].ForeignKeys[i].ReferColumns,
+          Id: data.SrcSchema[srcTableName].ForeignKeys[i].Id,
         }
       } else {
         return {
@@ -322,6 +344,7 @@ export class ConversionService {
               ? data.SpSchema[spTableName].Fks[i].ReferColumns
               : [],
           srcReferColumns: data.SrcSchema[srcTableName].ForeignKeys[i].ReferColumns,
+          Id: data.SrcSchema[srcTableName].ForeignKeys[i].Id,
         }
       }
     })
@@ -370,6 +393,29 @@ export class ConversionService {
       })
     }
     return res
+  }
+
+  getDeletedIndexes(conv: IConv): Record<string, IIndex[]> {
+    let deletedIndexes: Record<string, IIndex[]> = {}
+    Object.keys(conv.SpSchema).map((spTableName: string) => {
+      let spTable = conv.SpSchema[spTableName]
+      let srcTableName = this.getSourceTableNameFromId(spTable.Id, conv)
+      let srcTable = conv.SrcSchema[srcTableName]
+      let spIndexIds = spTable.Indexes?.map((index: ICreateIndex) => {
+        return index.Id
+      })
+      let tableDeletedIndexes = srcTable.Indexes?.filter((index: IIndex) => {
+        if (!spIndexIds.includes(index?.Id)) {
+          return true
+        }
+        return false
+      })
+      if (tableDeletedIndexes && tableDeletedIndexes.length > 0) {
+        deletedIndexes[spTable.Id] = tableDeletedIndexes
+      }
+    })
+
+    return deletedIndexes
   }
 
   getSpannerColDefFromId(tableName: string, id: string, data: IConv): IColumnDef | null {

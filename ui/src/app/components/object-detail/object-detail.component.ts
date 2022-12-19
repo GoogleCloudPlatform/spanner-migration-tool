@@ -11,11 +11,18 @@ import { ObjectDetailNodeType, ObjectExplorerNodeType, StorageKeys } from 'src/a
 import FlatNode from 'src/app/model/schema-object-node'
 import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
-import IConv, { ICreateIndex, IIndexKey, IPkColumnDefs, IPrimaryKey } from 'src/app/model/conv'
+import IConv, {
+  ICreateIndex,
+  IForeignKey,
+  IIndexKey,
+  IPkColumnDefs,
+  IPrimaryKey,
+} from 'src/app/model/conv'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
 import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/drop-index-or-table-dialog.component'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/table-update-pub-sub.service'
+import { extractSourceDbName } from 'src/app/utils/utils'
 
 @Component({
   selector: 'app-object-detail',
@@ -40,6 +47,7 @@ export class ObjectDetailComponent implements OnInit {
   @Input() tableData: IColumnTabData[] = []
   @Input() currentDatabase: string = 'spanner'
   @Input() indexData: IIndexData[] = []
+  @Input() srcDbName: String = localStorage.getItem(StorageKeys.SourceDbName) as string
   @Output() updateSidebar = new EventEmitter<boolean>()
   ObjectExplorerNodeType = ObjectExplorerNodeType
   conv: IConv = {} as IConv
@@ -107,7 +115,6 @@ export class ObjectDetailComponent implements OnInit {
   spRowArray: FormArray = new FormArray([])
   pkArray: FormArray = new FormArray([])
   fkArray: FormArray = new FormArray([])
-  srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
   isSpTableSuggesstionDisplay: boolean[] = []
   spTableSuggestion: string[] = []
   currentTabIndex: number = 0
@@ -269,11 +276,15 @@ export class ObjectDetailComponent implements OnInit {
     let updateData: IUpdateTable = { UpdateCols: {} }
 
     this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
-      for (let j = 0; j < this.localTableData.length; j++) {
-        if (col.srcColName == this.localTableData[j].srcColName) {
-          let oldRow = this.localTableData[j]
-          updateData.UpdateCols[this.localTableData[j].spColName] = {
-            Add: this.localTableData[j].spOrder == -1,
+      for (let j = 0; j < this.tableData.length; j++) {
+        if (col.srcColName == this.tableData[j].srcColName) {
+          let oldRow = this.tableData[j]
+          let columnName =
+            this.tableData[j].spColName == ''
+              ? this.tableData[j].srcColName
+              : this.tableData[j].spColName
+          updateData.UpdateCols[columnName] = {
+            Add: this.tableData[j].spColName == '',
             Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
             NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
             Removed: false,
@@ -309,6 +320,7 @@ export class ObjectDetailComponent implements OnInit {
             data: { message: res, type: 'error' },
             maxWidth: '500px',
           })
+          this.isEditMode = true
         }
       },
     })
@@ -319,16 +331,16 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   addColumn() {
-    let index = this.tableData.map((item) => item.srcColName).indexOf(this.addedColumnName)
+    let index = this.localTableData.map((item) => item.srcColName).indexOf(this.addedColumnName)
 
     let addedRowIndex = this.droppedColumns
       .map((item) => item.srcColName)
       .indexOf(this.addedColumnName)
-    this.tableData[index].spColName = this.droppedColumns[addedRowIndex].spColName
-    this.tableData[index].spDataType = this.droppedColumns[addedRowIndex].spDataType
-    this.tableData[index].spOrder = -1
-    this.tableData[index].spIsPk = this.droppedColumns[addedRowIndex].spIsPk
-    this.tableData[index].spIsNotNull = this.droppedColumns[addedRowIndex].spIsNotNull
+    this.localTableData[index].spColName = this.droppedColumns[addedRowIndex].spColName
+    this.localTableData[index].spDataType = this.droppedColumns[addedRowIndex].spDataType
+    this.localTableData[index].spOrder = -1
+    this.localTableData[index].spIsPk = this.droppedColumns[addedRowIndex].spIsPk
+    this.localTableData[index].spIsNotNull = this.droppedColumns[addedRowIndex].spIsNotNull
     let ind = this.droppedColumns
       .map((col: IColumnTabData) => col.spColName)
       .indexOf(this.addedColumnName)
@@ -340,12 +352,62 @@ export class ObjectDetailComponent implements OnInit {
 
   dropColumn(element: any) {
     let colName = element.get('srcColName').value
-    this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
-      if (col.srcColName === colName) {
-        this.droppedColumns.push(col)
+    let spColName = this.conv.ToSpanner[this.currentObject!.name].Cols[colName]
+    console.log(spColName, 'spColName')
+    let associatedIndexes = this.getAssociatedIndexs(spColName)
+    if (this.checkIfPkColumn(spColName) || associatedIndexes.length != 0) {
+      let pkWarning: string = ''
+      let indexWaring: string = ''
+      let connectingString: string = ''
+      if (this.checkIfPkColumn(spColName)) {
+        pkWarning = ` Primary key`
       }
-    })
-    this.dropColumnFromUI(colName)
+      if (associatedIndexes.length != 0) {
+        indexWaring = ` Index ${associatedIndexes}`
+      }
+      if (pkWarning != '' && indexWaring != '') {
+        connectingString = ` and`
+      }
+      this.dialog.open(InfodialogComponent, {
+        data: {
+          message: `Column ${spColName} is a part of${pkWarning}${connectingString}${indexWaring}. Remove the dependencies from respective tabs before dropping the Column. `,
+          type: 'error',
+        },
+        maxWidth: '500px',
+      })
+    } else {
+      this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
+        if (col.srcColName === colName) {
+          this.droppedColumns.push(col)
+        }
+      })
+      this.dropColumnFromUI(colName)
+    }
+  }
+
+  checkIfPkColumn(colName: string) {
+    let isPkColumn = false
+    if (
+      this.conv.SpSchema[this.currentObject!.name].Pks != null &&
+      this.conv.SpSchema[this.currentObject!.name].Pks.map((pk: IIndexKey) => pk.Col).includes(
+        colName
+      )
+    ) {
+      isPkColumn = true
+    }
+    return isPkColumn
+  }
+
+  getAssociatedIndexs(colName: string) {
+    let indexes: string[] = []
+    if (this.conv.SpSchema[this.currentObject!.name].Indexes != null) {
+      this.conv.SpSchema[this.currentObject!.name].Indexes.forEach((ind: ICreateIndex) => {
+        if (ind.Keys.map((key) => key.Col).includes(colName)) {
+          indexes.push(ind.Name)
+        }
+      })
+    }
+    return indexes
   }
 
   dropColumnFromUI(colName: string) {
@@ -507,7 +569,10 @@ export class ObjectDetailComponent implements OnInit {
       }
     })
     for (let i = 0; i < this.localTableData.length; i++) {
-      if (!currentPkColumns.includes(this.localTableData[i].spColName))
+      if (
+        !currentPkColumns.includes(this.localTableData[i].spColName) &&
+        this.localTableData[i].spColName !== ''
+      )
         this.pkColumnNames.push(this.localTableData[i].spColName)
     }
   }
@@ -645,7 +710,16 @@ export class ObjectDetailComponent implements OnInit {
         })
         dialogRef.afterClosed().subscribe((dialogResult) => {
           if (dialogResult) {
-            this.updatePk()
+            let interleavedChildId: string =
+              this.conv.SpSchema[this.currentObject!.name].Parent != ''
+                ? this.currentObject!.id
+                : this.conv.SpSchema[interleaveTable].Id
+            this.data
+              .removeInterleave(interleavedChildId)
+              .pipe(take(1))
+              .subscribe((res: string) => {
+                this.updatePk()
+              })
           }
         })
       } else {
@@ -698,23 +772,64 @@ export class ObjectDetailComponent implements OnInit {
 
   setFkRows() {
     this.fkArray = new FormArray([])
+    var srcArr = new Array()
+    var spArr = new Array()
     this.fkData.forEach((fk) => {
+      srcArr.push({
+        srcName: fk.srcName,
+        srcColumns: fk.srcColumns,
+        srcRefTable: fk.srcReferTable,
+        srcRefColumns: fk.srcReferColumns,
+        Id: fk.Id,
+      })
+      if (fk.spName != '') {
+        spArr.push({
+          spName: fk.spName,
+          spColumns: fk.spColumns,
+          spRefTable: fk.spReferTable,
+          spRefColumns: fk.spReferColumns,
+          Id: fk.Id,
+        })
+      }
+    })
+    for (let i = 0; i < Math.min(srcArr.length, spArr.length); i++) {
       this.fkArray.push(
         new FormGroup({
-          spName: new FormControl(fk.spName, [
+          spName: new FormControl(spArr[i].spName, [
             Validators.required,
             Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?'),
           ]),
-          srcName: new FormControl(fk.srcName),
-          spColumns: new FormControl(fk.spColumns),
-          srcColumns: new FormControl(fk.srcColumns),
-          spReferTable: new FormControl(fk.spReferTable),
-          srcReferTable: new FormControl(fk.srcReferTable),
-          spReferColumns: new FormControl(fk.spReferColumns),
-          srcReferColumns: new FormControl(fk.srcReferColumns),
+          srcName: new FormControl(srcArr[i].srcName),
+          spColumns: new FormControl(spArr[i].spColumns),
+          srcColumns: new FormControl(srcArr[i].srcColumns),
+          spReferTable: new FormControl(spArr[i].spRefTable),
+          srcReferTable: new FormControl(srcArr[i].srcRefTable),
+          spReferColumns: new FormControl(spArr[i].spRefColumns),
+          srcReferColumns: new FormControl(srcArr[i].srcRefColumns),
+          Id: new FormControl(spArr[i].Id),
         })
       )
-    })
+    }
+
+    if (srcArr.length > Math.min(srcArr.length, spArr.length))
+      for (let i = Math.min(srcArr.length, spArr.length); i < srcArr.length; i++) {
+        this.fkArray.push(
+          new FormGroup({
+            spName: new FormControl('', [
+              Validators.required,
+              Validators.pattern('^[a-zA-Z]([a-zA-Z0-9/_]*[a-zA-Z0-9])?'),
+            ]),
+            srcName: new FormControl(srcArr[i].srcName),
+            spColumns: new FormControl([]),
+            srcColumns: new FormControl(srcArr[i].srcColumns),
+            spReferTable: new FormControl(''),
+            srcReferTable: new FormControl(srcArr[i].srcRefTable),
+            spReferColumns: new FormControl([]),
+            srcReferColumns: new FormControl(srcArr[i].srcRefColumns),
+            Id: new FormControl(srcArr[i].Id),
+          })
+        )
+      }
     this.fkDataSource = this.fkArray.controls
   }
 
@@ -730,16 +845,18 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   saveFk() {
-    let updatedFkNames: Record<string, string> = {}
-
-    this.fkArray.value.forEach((fk: IFkTabData, i: number) => {
-      let oldFk = this.fkData[i]
-      if (oldFk.spName !== fk.spName) {
-        updatedFkNames[oldFk.spName] = fk.spName
-      }
+    let spFkArr: IForeignKey[] = []
+    this.fkArray.value.forEach((fk: IFkTabData) => {
+      spFkArr.push({
+        Name: fk.spName,
+        Columns: fk.spColumns,
+        ReferTable: fk.spReferTable,
+        ReferColumns: fk.spReferColumns,
+        Id: fk.Id,
+      })
     })
 
-    this.data.updateFkNames(this.currentObject!.name, updatedFkNames).subscribe({
+    this.data.updateFkNames(this.currentObject!.name, spFkArr).subscribe({
       next: (res: string) => {
         if (res == '') {
           this.isFkEditMode = false
@@ -754,23 +871,15 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropFk(element: any) {
-    this.data.dropFk(this.currentObject!.name, element.get('spName').value).subscribe({
-      next: (res: string) => {
-        if (res == '') {
-          this.data.getDdl()
-          this.snackbar.openSnackBar(
-            `${element.get('spName').value} Foreign key dropped successfully`,
-            'Close',
-            5
-          )
-        } else {
-          this.dialog.open(InfodialogComponent, {
-            data: { message: res, type: 'error' },
-            maxWidth: '500px',
-          })
-        }
-      },
+    this.fkData.forEach((fk) => {
+      if (fk.spName == element.get('spName').value) {
+        fk.spName = ''
+        fk.spColumns = []
+        fk.spReferTable = ''
+        fk.spReferColumns = []
+      }
     })
+    this.setFkRows()
   }
 
   getRemovedFkIndex(element: any) {
@@ -783,8 +892,21 @@ export class ObjectDetailComponent implements OnInit {
     })
     return ind
   }
-  convertToFk() {
-    alert('Feature comming soon!')
+
+  removeInterleave() {
+    let tableId = this.currentObject!.id
+    this.data
+      .removeInterleave(tableId)
+      .pipe(take(1))
+      .subscribe((res: string) => {
+        if (res === '') {
+          this.snackbar.openSnackBar(
+            'Interleave removed and foreign key restored successfully',
+            'Close',
+            5
+          )
+        }
+      })
   }
 
   checkIsInterleave() {
@@ -958,6 +1080,21 @@ export class ObjectDetailComponent implements OnInit {
       }
     })
   }
+
+  restoreIndex() {
+    let tableId = this.currentObject!.parentId
+    let indexId = this.currentObject!.id
+    this.data
+      .restoreIndex(tableId, indexId)
+      .pipe(take(1))
+      .subscribe((res: string) => {
+        if (res === '') {
+          this.isObjectSelected = false
+        }
+      })
+    this.currentObject = null
+  }
+
   dropIndexKey(index: number) {
     if (this.localIndexData[index].srcColName) {
       this.localIndexData[index].spColName = ''
@@ -994,7 +1131,10 @@ export class ObjectDetailComponent implements OnInit {
         if (res === '') {
           this.isObjectSelected = false
         }
+        this.data.getConversionRate()
+        this.data.getDdl()
       })
+
     this.currentObject = null
   }
 

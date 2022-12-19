@@ -41,8 +41,10 @@ import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/utils"
 	"github.com/cloudspannerecosystem/harbourbridge/conversion"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/logger"
 	"github.com/cloudspannerecosystem/harbourbridge/profiles"
 	"github.com/cloudspannerecosystem/harbourbridge/proto/migration"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/common"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/mysql"
 	"github.com/cloudspannerecosystem/harbourbridge/sources/oracle"
@@ -57,7 +59,6 @@ import (
 	instancepb "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
-	"github.com/cloudspannerecosystem/harbourbridge/webv2/typemap"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
@@ -130,6 +131,8 @@ type targetDetails struct {
 	TargetDB                    string `json:"TargetDB"`
 	SourceConnectionProfileName string `json:"SourceConnProfile"`
 	TargetConnectionProfileName string `json:"TargetConnProfile"`
+	ReplicationSlot             string `json:"ReplicationSlot"`
+	Publication                 string `json:"Publication"`
 }
 type StreamingCfg struct {
 	DatastreamCfg DatastreamCfg `json:"datastreamCfg"`
@@ -150,6 +153,7 @@ type DatastreamCfg struct {
 	StreamDisplayName      string           `json:"streamDisplayName"`
 	SourceConnectionConfig ConnectionConfig `json:"sourceConnectionConfig"`
 	TargetConnectionConfig ConnectionConfig `json:"destinationConnectionConfig"`
+	Properties             string           `json:properties`
 }
 
 // databaseConnection creates connection with database when using
@@ -378,7 +382,7 @@ func convertSchemaDump(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
-	f, err := os.Open(dc.FilePath)
+	f, err := os.Open("upload-file/" + dc.FilePath)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to open dump file : %v, no such file or directory", dc.FilePath), http.StatusNotFound)
 		return
@@ -447,7 +451,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 	conv := internal.MakeConv()
 	metadata := session.SessionMetadata{}
 
-	err = session.ReadSessionFileForSessionMetadata(&metadata, s.FilePath)
+	err = session.ReadSessionFileForSessionMetadata(&metadata, "upload-file/"+s.FilePath)
 	if err != nil {
 		switch err.(type) {
 		case *fs.PathError:
@@ -458,7 +462,7 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = conversion.ReadSessionFile(conv, s.FilePath)
+	err = conversion.ReadSessionFile(conv, "upload-file/"+s.FilePath)
 	if err != nil {
 		switch err.(type) {
 		case *fs.PathError:
@@ -758,9 +762,13 @@ func setParentTable(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	if update {
+		convm := session.ConvWithMetadata{
+			SessionMetadata: sessionState.SessionMetadata,
+			Conv:            *sessionState.Conv,
+		}
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"tableInterleaveStatus": tableInterleaveStatus,
-			"sessionState":          sessionState.Conv})
+			"sessionState":          convm})
 	} else {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"tableInterleaveStatus": tableInterleaveStatus,
@@ -792,8 +800,10 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 				tableInterleaveStatus.Parent = refTable
 				sp := sessionState.Conv.SpSchema[table]
 				if update {
+					usedNames := sessionState.Conv.UsedNames
+					delete(usedNames, sp.Fks[i].Name)
 					sp.Parent = refTable
-					sp.Fks = utilities.RemoveFk(sp.Fks, i)
+					sp.Fks = utilities.RemoveFk(sp.Fks, sp.Fks[i].Id)
 				}
 				sessionState.Conv.SpSchema[table] = sp
 				break
@@ -862,6 +872,98 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 	}
 
 	return tableInterleaveStatus
+}
+
+func removeParentTable(w http.ResponseWriter, r *http.Request) {
+	tableId := r.FormValue("tableId")
+	sessionState := session.GetSessionState()
+	if sessionState.Conv == nil || sessionState.Driver == "" {
+		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
+		return
+	}
+	if tableId == "" {
+		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
+		return
+	}
+
+	spTableName := ""
+	for _, value := range sessionState.Conv.SpSchema {
+		if value.Id == tableId {
+			spTableName = value.Name
+			break
+		}
+	}
+	if spTableName == "" {
+		http.Error(w, fmt.Sprintf("Spanner table not found"), http.StatusBadRequest)
+		return
+	}
+
+	srcTableName := ""
+	for _, value := range sessionState.Conv.SrcSchema {
+		if value.Id == tableId {
+			srcTableName = value.Name
+			break
+		}
+	}
+	if srcTableName == "" {
+		http.Error(w, fmt.Sprintf("Table not found"), http.StatusBadRequest)
+		return
+	}
+
+	conv := sessionState.Conv
+
+	if conv.SpSchema[spTableName].Parent == "" {
+		http.Error(w, fmt.Sprintf("Table is not interleaved"), http.StatusBadRequest)
+		return
+	}
+	spTable := conv.SpSchema[spTableName]
+
+	var firstOrderPk ddl.IndexKey
+
+	for _, pk := range spTable.Pks {
+		if pk.Order == 1 {
+			firstOrderPk = pk
+			break
+		}
+	}
+
+	spColId := conv.SpSchema[spTableName].ColDefs[firstOrderPk.Col].Id
+	var srcCol schema.Column
+	for _, col := range conv.SrcSchema[srcTableName].ColDefs {
+		if col.Id == spColId {
+			srcCol = col
+			break
+		}
+	}
+	interleavedFk, err := utilities.GetInterleavedFk(conv, srcTableName, srcCol.Name)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("%v", err), http.StatusBadRequest)
+		return
+	}
+
+	spFk, err := common.CvtForeignKeysHelper(conv, spTableName, srcTableName, interleavedFk, true)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Foreign key conversion fail"), http.StatusBadRequest)
+		return
+	}
+
+	spFks := spTable.Fks
+	spFks = append(spFks, spFk)
+	spTable.Fks = spFks
+	spTable.Parent = ""
+	conv.SpSchema[spTableName] = spTable
+
+	uniqueid.CopyUniqueIdToSpannerTable(conv, spTableName)
+
+	sessionState.Conv = conv
+
+	convm := session.ConvWithMetadata{
+		SessionMetadata: sessionState.SessionMetadata,
+		Conv:            *sessionState.Conv,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(convm)
+
 }
 
 type DropDetail struct {
@@ -1036,43 +1138,74 @@ func dropTable(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(convm)
 }
 
-func dropForeignKey(w http.ResponseWriter, r *http.Request) {
-	table := r.FormValue("table")
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Body Read Error : %v", err), http.StatusInternalServerError)
-	}
-
-	var dropDetail DropDetail
-	if err = json.Unmarshal(reqBody, &dropDetail); err != nil {
-		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
-		return
-	}
-
+func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
+	tableId := r.FormValue("tableId")
+	indexId := r.FormValue("indexId")
 	sessionState := session.GetSessionState()
 	if sessionState.Conv == nil || sessionState.Driver == "" {
 		http.Error(w, fmt.Sprintf("Schema is not converted or Driver is not configured properly. Please retry converting the database to Spanner."), http.StatusNotFound)
 		return
 	}
-	if table == "" || dropDetail.Name == "" {
-		http.Error(w, fmt.Sprintf("Table name or foreign key name is empty"), http.StatusBadRequest)
+	if tableId == "" {
+		http.Error(w, fmt.Sprintf("Table Id is empty"), http.StatusBadRequest)
+		return
 	}
-	sp := sessionState.Conv.SpSchema[table]
-	position := -1
-	for i, fk := range sp.Fks {
-		if dropDetail.Name == fk.Name {
-			position = i
+	if indexId == "" {
+		http.Error(w, fmt.Sprintf("Index Id is empty"), http.StatusBadRequest)
+		return
+	}
+
+	srcTableName := ""
+	for _, value := range sessionState.Conv.SrcSchema {
+		if value.Id == tableId {
+			srcTableName = value.Name
 			break
 		}
 	}
-
-	if position < 0 || position >= len(sp.Fks) {
-		http.Error(w, fmt.Sprintf("No foreign key found at position %d", position), http.StatusBadRequest)
+	if srcTableName == "" {
+		http.Error(w, fmt.Sprintf("Source Table not found"), http.StatusBadRequest)
 		return
 	}
-	sp.Fks = utilities.RemoveFk(sp.Fks, position)
-	sessionState.Conv.SpSchema[table] = sp
-	session.UpdateSessionFile()
+
+	spTableName := ""
+	for _, value := range sessionState.Conv.SpSchema {
+		if value.Id == tableId {
+			spTableName = value.Name
+			break
+		}
+	}
+	if spTableName == "" {
+		http.Error(w, fmt.Sprintf("Spanner Table not found"), http.StatusBadRequest)
+		return
+	}
+
+	var srcIndex schema.Index
+	srcIndexFound := false
+	for _, index := range sessionState.Conv.SrcSchema[srcTableName].Indexes {
+		if index.Id == indexId {
+			srcIndex = index
+			srcIndexFound = true
+			break
+		}
+	}
+	if !srcIndexFound {
+		http.Error(w, fmt.Sprintf("Source index not found"), http.StatusBadRequest)
+		return
+	}
+
+	conv := sessionState.Conv
+
+	spIndex := common.CvtIndexHelper(conv, spTableName, srcTableName, srcIndex)
+	spIndexes := conv.SpSchema[spTableName].Indexes
+	spIndexes = append(spIndexes, spIndex)
+	spTable := conv.SpSchema[spTableName]
+	spTable.Indexes = spIndexes
+	conv.SpSchema[spTableName] = spTable
+
+	uniqueid.CopyUniqueIdToSpannerTable(conv, spTable.Name)
+	sessionState.Conv = conv
+	index.AssignInitialOrders()
+	index.IndexSuggestion()
 
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
@@ -1080,12 +1213,13 @@ func dropForeignKey(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
+
 }
 
 // renameForeignKeys checks the new names for spanner name validity, ensures the new names are already not used by existing tables
 // secondary indexes or foreign key constraints. If above checks passed then foreignKey renaming reflected in the schema else appropriate
 // error thrown.
-func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
+func updateForeignKeys(w http.ResponseWriter, r *http.Request) {
 	table := r.FormValue("table")
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1098,8 +1232,8 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	renameMap := map[string]string{}
-	if err = json.Unmarshal(reqBody, &renameMap); err != nil {
+	newFKs := []ddl.Foreignkey{}
+	if err = json.Unmarshal(reqBody, &newFKs); err != nil {
 		http.Error(w, fmt.Sprintf("Request Body parse error : %v", err), http.StatusBadRequest)
 		return
 	}
@@ -1107,10 +1241,15 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 	// Check new name for spanner name validity.
 	newNames := []string{}
 	newNamesMap := map[string]bool{}
-	for _, value := range renameMap {
-		newNames = append(newNames, strings.ToLower(value))
-		newNamesMap[strings.ToLower(value)] = true
+	for _, newFk := range newFKs {
+		for _, oldFk := range sessionState.Conv.SpSchema[table].Fks {
+			if newFk.Id == oldFk.Id && newFk.Name != oldFk.Name && newFk.Name != "" {
+				newNames = append(newNames, strings.ToLower(newFk.Name))
+				newNamesMap[strings.ToLower(newFk.Name)] = true
+			}
+		}
 	}
+
 	if len(newNames) != len(newNamesMap) {
 		http.Error(w, fmt.Sprintf("Found duplicate names in input : %s", strings.Join(newNames, ",")), http.StatusBadRequest)
 		return
@@ -1130,15 +1269,41 @@ func renameForeignKeys(w http.ResponseWriter, r *http.Request) {
 	sp := sessionState.Conv.SpSchema[table]
 
 	// Update session with renamed foreignkeys.
-	newFKs := []ddl.Foreignkey{}
-	for _, foreignKey := range sp.Fks {
-		if newName, ok := renameMap[foreignKey.Name]; ok {
-			foreignKey.Name = newName
-		}
-		newFKs = append(newFKs, foreignKey)
-	}
-	sp.Fks = newFKs
+	updatedFKs := []ddl.Foreignkey{}
 
+	for _, foreignKey := range sp.Fks {
+		for _, updatedForeignkey := range newFKs {
+			if foreignKey.Id == updatedForeignkey.Id && len(updatedForeignkey.Columns) != 0 && updatedForeignkey.ReferTable != "" {
+				foreignKey.Name = updatedForeignkey.Name
+				updatedFKs = append(updatedFKs, foreignKey)
+			}
+		}
+	}
+
+	position := -1
+
+	for i, fk := range updatedFKs {
+		// Condition to check whether FK has to be dropped
+		if len(fk.ReferColumns) == 0 && fk.ReferTable == "" {
+			position = i
+			dropFkId := fk.Id
+
+			// To remove the interleavable suggestions if they exist on dropping fk
+			column := sp.Fks[position].Columns[0]
+			schemaIssue := []internal.SchemaIssue{}
+			for _, v := range sessionState.Conv.Issues[table][column] {
+				if v != internal.InterleavedAddColumn && v != internal.InterleavedRenameColumn && v != internal.InterleavedNotInOrder {
+					schemaIssue = append(schemaIssue, v)
+				}
+			}
+			if _, ok := sessionState.Conv.Issues[table]; ok {
+				sessionState.Conv.Issues[table][column] = schemaIssue
+			}
+
+			sp.Fks = utilities.RemoveFk(updatedFKs, dropFkId)
+		}
+	}
+	sp.Fks = updatedFKs
 	sessionState.Conv.SpSchema[table] = sp
 	session.UpdateSessionFile()
 
@@ -1252,17 +1417,16 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 
 	sp := sessionState.Conv.SpSchema[table]
-
+	usedNames := sessionState.Conv.UsedNames
 	index.CheckIndexSuggestion(newIndexes, sp)
 	for i := 0; i < len(newIndexes); i++ {
 		newIndexes[i].Id = uniqueid.GenerateIndexesId()
+		usedNames[newIndexes[i].Name] = true
 	}
 
 	sp.Indexes = append(sp.Indexes, newIndexes...)
-
 	sessionState.Conv.SpSchema[table] = sp
 	session.UpdateSessionFile()
-
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
 		Conv:            *sessionState.Conv,
@@ -1270,7 +1434,6 @@ func addIndexes(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
 }
-
 func getSourceDestinationSummary(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
 	var sessionSummary sessionSummary
@@ -1503,6 +1666,10 @@ func createStreamingCfgFile(sessionState *session.SessionState, targetDetails ta
 		TmpDir: "gs://" + sessionState.Bucket + sessionState.RootPath,
 	}
 
+	databaseType, _ := helpers.GetSourceDatabaseFromDriver(sessionState.Driver)
+	if databaseType == constants.POSTGRES {
+		data.DatastreamCfg.Properties = fmt.Sprintf("replicationSlot=%v,publication=%v", targetDetails.ReplicationSlot, targetDetails.Publication)
+	}
 	file, err := json.MarshalIndent(data, "", " ")
 	if err != nil {
 		return fmt.Errorf("error while marshalling json: %v", err)
@@ -1627,6 +1794,8 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	usedNames := sessionState.Conv.UsedNames
+	delete(usedNames, sp.Indexes[position].Name)
 	index.RemoveIndexIssues(table, sp.Indexes[position])
 
 	sp.Indexes = utilities.RemoveSecondaryIndex(sp.Indexes, position)
@@ -1639,6 +1808,52 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(convm)
+}
+
+func uploadFile(w http.ResponseWriter, r *http.Request) {
+
+	r.ParseMultipartForm(10 << 20)
+	// FormFile returns the first file for the given key `myFile`
+	// it also returns the FileHeader so we can get the Filename,
+	// the Header and the size of the file
+	file, handlers, err := r.FormFile("myFile")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error retrieving the file"), http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// Remove the existing files
+	err = os.RemoveAll("upload-file/")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error removing existing files"), http.StatusBadRequest)
+		return
+	}
+
+	err = os.MkdirAll("upload-file", os.ModePerm)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error while creating directory"), http.StatusBadRequest)
+		return
+	}
+
+	f, err := os.Create("upload-file/" + handlers.Filename)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("not able to create file"), http.StatusBadRequest)
+		return
+	}
+
+	// read all of the contents of our uploaded file into a byte array
+	fileBytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error reading the file"), http.StatusBadRequest)
+		return
+	}
+	if _, err := f.Write(fileBytes); err != nil {
+		http.Error(w, fmt.Sprintf("error writing the file"), http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode("file uploaded successfully")
 }
 
 // rollback is used to get previous state of conversion in case
@@ -1814,8 +2029,8 @@ func init() {
 	// Initialize mysqlTypeMap.
 	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
 		var l []typeIssue
-		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
-			ty, issues := typemap.ToSpannerTypeMySQL(srcType, spType, []int64{})
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
+			ty, issues := mysql.ToSpannerTypeWeb(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		if srcType == "tinyint" {
@@ -1826,8 +2041,8 @@ func init() {
 	// Initialize postgresTypeMap.
 	for _, srcType := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying"} {
 		var l []typeIssue
-		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
-			ty, issues := typemap.ToSpannerTypePostgres(srcType, spType, []int64{})
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
+			ty, issues := postgres.ToSpannerTypeWeb(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		postgresTypeMap[srcType] = l
@@ -1836,8 +2051,8 @@ func init() {
 	// Initialize sqlserverTypeMap.
 	for _, srcType := range []string{"int", "tinyint", "smallint", "bigint", "bit", "float", "real", "numeric", "decimal", "money", "smallmoney", "char", "nchar", "varchar", "nvarchar", "text", "ntext", "date", "datetime", "datetime2", "smalldatetime", "datetimeoffset", "time", "timestamp", "rowversion", "binary", "varbinary", "image", "xml", "geography", "geometry", "uniqueidentifier", "sql_variant", "hierarchyid"} {
 		var l []typeIssue
-		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
-			ty, issues := typemap.ToSpannerTypeSQLserver(srcType, spType, []int64{})
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
+			ty, issues := sqlserver.ToSpannerTypeWeb(srcType, spType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		sqlserverTypeMap[srcType] = l
@@ -1846,7 +2061,7 @@ func init() {
 	// Initialize oracleTypeMap.
 	for _, srcType := range []string{"NUMBER", "BFILE", "BLOB", "CHAR", "CLOB", "DATE", "BINARY_DOUBLE", "BINARY_FLOAT", "FLOAT", "LONG", "RAW", "LONG RAW", "NCHAR", "NVARCHAR2", "VARCHAR", "VARCHAR2", "NCLOB", "ROWID", "UROWID", "XMLTYPE", "TIMESTAMP", "INTERVAL", "SDO_GEOMETRY"} {
 		var l []typeIssue
-		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
+		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
 			ty, issues := oracle.ToSpannerTypeWeb(sessionState.Conv, spType, srcType, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
@@ -1859,7 +2074,11 @@ func init() {
 }
 
 // App connects to the web app v2.
-func App() {
+func App(logLevel string) {
+	err := logger.InitializeLogger(logLevel)
+	if err != nil {
+		log.Fatal("Error initialising webapp, did you specify a valid log-level? [DEBUG, INFO, WARN, ERROR, FATAL]")
+	}
 	addr := ":8080"
 	router := getRoutes()
 	fmt.Println("Harbourbridge UI started at:", fmt.Sprintf("http://localhost%s", addr))
