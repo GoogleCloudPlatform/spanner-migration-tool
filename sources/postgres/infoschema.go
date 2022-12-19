@@ -125,6 +125,7 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSc
 	defer rows.Close()
 	srcCols, _ := rows.Columns()
 	v, iv := buildVals(len(srcCols))
+	colNameIdMap := internal.GetSrcColNameIdMap(conv.SrcSchema[tableId])
 	for rows.Next() {
 		err := rows.Scan(iv...)
 		if err != nil {
@@ -133,7 +134,7 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSc
 			conv.StatsAddBadRow(srcTableName, conv.DataMode())
 			continue
 		}
-		newValues, err1 := prepareValues(conv, tableId, colIds, srcCols, v)
+		newValues, err1 := common.PrepareValues(conv, tableId, colNameIdMap, colIds, srcCols, v)
 		cvtCols, cvtVals, err2 := convertSQLRow(conv, tableId, colIds, srcSchema, spSchema, newValues)
 		if err1 != nil || err2 != nil {
 			conv.Unexpected(fmt.Sprintf("Couldn't process sql data row: %s", err))
@@ -144,26 +145,6 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSc
 		conv.WriteRow(srcTableName, conv.SpSchema[tableId].Name, cvtCols, cvtVals)
 	}
 	return nil
-}
-
-// Remove the values that will not be migrated to spanner.
-func prepareValues(conv *internal.Conv, tableId string, commonColIds, srcCols []string, values []interface{}) ([]interface{}, error) {
-	if len(srcCols) != len(values) {
-		return []interface{}{}, fmt.Errorf("prepareValues: srcCols and vals don't all have the same lengths: len(srcCols)=%d, len(values)=%d", len(srcCols), len(values))
-	}
-
-	srcTable := conv.SrcSchema[tableId]
-	var newValues []interface{}
-
-	mapSrcColNameToVal := map[string]interface{}{}
-	for i, srcolName := range srcCols {
-		mapSrcColNameToVal[srcolName] = values[i]
-	}
-	for _, id := range commonColIds {
-		srcColName := srcTable.ColDefs[id].Name
-		newValues = append(newValues, mapSrcColNameToVal[srcColName])
-	}
-	return newValues, nil
 }
 
 // ConvertSQLRow performs data conversion for a single row of data

@@ -66,5 +66,5 @@ const (
 	GCS_SCHEME string = "gs"
 
 	// File upload prefix for dump and session load.
-	UPLOAD_FILE_DIR string = "upload-file/"
+	UPLOAD_FILE_DIR string = "upload-file"
 )

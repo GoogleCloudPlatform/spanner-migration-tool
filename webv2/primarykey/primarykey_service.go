@@ -16,23 +16,10 @@ package primarykey
 
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
 	utilities "github.com/cloudspannerecosystem/harbourbridge/webv2/utilities"
 )
-
-// getColumnId return ColumnId for given columnName.
-func getColumnId(spannerTable ddl.CreateTable, columnName string) string {
-
-	var id string
-	for _, col := range spannerTable.ColDefs {
-		if col.Name == columnName {
-			id = col.Id
-		}
-	}
-	return id
-}
 
 // getSpannerTable return spannerTable for given TableId.
 func getSpannerTable(sessionState *session.SessionState, pkRequest PrimaryKeyRequest) (spannerTable ddl.CreateTable, found bool) {
@@ -45,18 +32,6 @@ func getSpannerTable(sessionState *session.SessionState, pkRequest PrimaryKeyReq
 		}
 	}
 	return spannerTable, found
-}
-
-// getColumnName return columnName for given columnId.
-func getColumnName(spannerTable ddl.CreateTable, columnId string) string {
-
-	var columnName string
-	for _, col := range spannerTable.ColDefs {
-		if col.Id == columnId {
-			columnName = col.Name
-		}
-	}
-	return columnName
 }
 
 // getColumnIdListFromPrimaryKeyRequest return list of column Id from PrimaryKeyRequest.
@@ -138,60 +113,4 @@ func isValidColumnOrder(pkRequest PrimaryKeyRequest) bool {
 	}
 
 	return true
-}
-
-// updateSpannerTableIndexKeyOrder Update Primary Key Order as columnId.
-func UpdateSpannerTableIndexKeyOrder(conv *internal.Conv) {
-
-	for _, spannerTable := range conv.SpSchema {
-		for i := 0; i < len(spannerTable.PrimaryKeys); i++ {
-			for spannercolumnid, _ := range spannerTable.ColDefs {
-				if spannerTable.PrimaryKeys[i].ColId == spannercolumnid {
-
-					o := getSpannerColumnIndex(spannerTable, spannercolumnid)
-					spannerTable.PrimaryKeys[i].Order = o
-
-				}
-			}
-		}
-	}
-}
-
-// updateSourceTableIndexKeyOrder Update Primary Key Order as columnId.
-func UpdateSourceTableIndexKeyOrder(conv *internal.Conv) {
-
-	for _, sourceTable := range conv.SrcSchema {
-
-		for i := 0; i < len(sourceTable.PrimaryKeys); i++ {
-			for sourcecolumnid, _ := range sourceTable.ColDefs {
-				if sourceTable.PrimaryKeys[i].ColId == sourcecolumnid {
-
-					o := getSourceColumnIndex(sourceTable, sourcecolumnid)
-					sourceTable.PrimaryKeys[i].Order = o
-				}
-			}
-		}
-	}
-}
-
-// getSpannerColumnIndex return columnn index as Inserted Order.
-func getSpannerColumnIndex(spannertable ddl.CreateTable, columnId string) int {
-
-	for i := 0; i < len(spannertable.ColIds); i++ {
-		if spannertable.ColIds[i] == columnId {
-			return i + 1
-		}
-	}
-	return 0
-}
-
-// getColumnIndex return columnn index as Inserted Order.
-func getSourceColumnIndex(sourcetable schema.Table, columnId string) int {
-
-	for i := 0; i < len(sourcetable.ColIds); i++ {
-		if sourcetable.ColIds[i] == columnId {
-			return i + 1
-		}
-	}
-	return 0
 }

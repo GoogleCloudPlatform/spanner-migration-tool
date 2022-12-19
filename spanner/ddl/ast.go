@@ -200,19 +200,10 @@ type IndexKey struct {
 	Order int
 }
 
-// PrintIndexKey unparses the index keys.
-func (idx IndexKey) PrintIndexKey(ct CreateTable, c Config) string {
+// PrintPkOrIndexKey unparses the primary or index keys.
+func (idx IndexKey) PrintPkOrIndexKey(ct CreateTable, c Config) string {
 	col := c.quote(ct.ColDefs[idx.ColId].Name)
 	if idx.Desc {
-		return fmt.Sprintf("%s DESC", col)
-	}
-	// Don't print out ASC -- that's the default.
-	return col
-}
-
-func (pk IndexKey) PrintPkKey(ct CreateTable, c Config) string {
-	col := c.quote(ct.ColDefs[pk.ColId].Name)
-	if pk.Desc {
 		return fmt.Sprintf("%s DESC", col)
 	}
 	// Don't print out ASC -- that's the default.
@@ -261,12 +252,11 @@ type CreateTable struct {
 }
 
 // PrintCreateTable unparses a CREATE TABLE statement.
-func (ct CreateTable) PrintCreateTable(s Schema, config Config) string {
+func (ct CreateTable) PrintCreateTable(spSchema Schema, config Config) string {
 	var col []string
 	var colComment []string
 	var keys []string
 	for _, colId := range ct.ColIds {
-
 		s, c := ct.ColDefs[colId].PrintColumnDef(config)
 		s = "\t" + s + ","
 		col = append(col, s)
@@ -290,7 +280,7 @@ func (ct CreateTable) PrintCreateTable(s Schema, config Config) string {
 	})
 
 	for _, p := range orderedPks {
-		keys = append(keys, p.PrintPkKey(ct, config))
+		keys = append(keys, p.PrintPkOrIndexKey(ct, config))
 	}
 	var tableComment string
 	if config.Comments && len(ct.Comment) > 0 {
@@ -299,7 +289,7 @@ func (ct CreateTable) PrintCreateTable(s Schema, config Config) string {
 
 	var interleave string
 	if ct.ParentId != "" {
-		parent := s[ct.ParentId].Name
+		parent := spSchema[ct.ParentId].Name
 		if config.TargetDb == constants.TargetExperimentalPostgres {
 			// PG spanner only supports PRIMARY KEY() inside the CREATE TABLE()
 			// and thus INTERLEAVE follows immediately after closing brace.
@@ -343,7 +333,7 @@ func (ci CreateIndex) PrintCreateIndex(ct CreateTable, c Config) string {
 	})
 
 	for _, p := range orderedKeys {
-		keys = append(keys, p.PrintIndexKey(ct, c))
+		keys = append(keys, p.PrintPkOrIndexKey(ct, c))
 	}
 	var unique, stored, storingClause string
 	if ci.Unique {

@@ -747,15 +747,16 @@ func processInsertStmt(conv *internal.Conv, stmt *ast.InsertStmt) {
 
 	var values []string
 	if stmt.Lists == nil {
-		logStmtError(conv, stmt, fmt.Errorf("Can't get column values"))
+		logStmtError(conv, stmt, fmt.Errorf("can't get column values"))
 		return
 	}
 	commonColIds := common.IntersectionOfTwoStringSlices(conv.SpSchema[tableId].ColIds, srcColIds)
 	spSchema := conv.SpSchema[tableId]
+	colNameIdMap := internal.GetSrcColNameIdMap(conv.SrcSchema[tableId])
 	for _, row := range stmt.Lists {
 		values, err = getVals(row)
 		//prepare values
-		newValues, err2 := common.PrepareValues(conv, tableId, commonColIds, srcCols, values)
+		newValues, err2 := common.PrepareValues(conv, tableId, colNameIdMap, commonColIds, srcCols, values)
 		if err2 != nil {
 			conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
 			conv.StatsAddBadRow(srcSchema.Name, conv.DataMode())

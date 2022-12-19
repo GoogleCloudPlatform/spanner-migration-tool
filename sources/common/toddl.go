@@ -147,7 +147,6 @@ func cvtForeignKeys(conv *internal.Conv, spTableName string, srcTableId string, 
 	return spKeys
 }
 
-// todo handle for case when the refer table is dropped
 func CvtForeignKeysHelper(conv *internal.Conv, spTableName string, srcTableId string, srcKey schema.ForeignKey, isRestore bool) (ddl.Foreignkey, error) {
 	if len(srcKey.ColIds) != len(srcKey.ReferColumnIds) {
 		conv.Unexpected(fmt.Sprintf("ConvertForeignKeys: ColIds and referColumns don't have the same lengths: len(columns)=%d, len(referColumns)=%d for source tableId: %s, referenced table: %s", len(srcKey.ColIds), len(srcKey.ReferColumnIds), srcTableId, srcKey.ReferTableId))

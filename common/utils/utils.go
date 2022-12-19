@@ -574,10 +574,12 @@ func ReadSpannerSchema(ctx context.Context, conv *internal.Conv, client *sp.Clie
 		conv.Unexpected(fmt.Sprintf("error trying to fetch interleave table info from schema: %v", err))
 	}
 	// Assign parents if any.
-	for table, parent := range parentTables {
-		spTable := conv.SpSchema[table]
-		spTable.ParentId = parent
-		conv.SpSchema[table] = spTable
+	for tableName, parentName := range parentTables {
+		tableId, _ := internal.GetTableIdFromSpName(conv.SpSchema, tableName)
+		parentTableId, _ := internal.GetTableIdFromSpName(conv.SpSchema, parentName)
+		spTable := conv.SpSchema[tableId]
+		spTable.ParentId = parentTableId
+		conv.SpSchema[tableId] = spTable
 	}
 	return nil
 }

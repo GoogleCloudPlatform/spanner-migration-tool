@@ -98,8 +98,9 @@ func processPgDump(conv *internal.Conv, r *internal.Reader) error {
 				if err != nil {
 					return err
 				}
+				colNameIdMap := internal.GetSrcColNameIdMap(conv.SrcSchema[ci.table])
 				for _, vals := range ci.rows {
-					newVals, err := common.PrepareValues(conv, ci.table, commonColIds, colNames, vals)
+					newVals, err := common.PrepareValues(conv, ci.table, colNameIdMap, commonColIds, colNames, vals)
 					if err != nil {
 						srcTableName := conv.SrcSchema[ci.table].Name
 						conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
@@ -187,7 +188,8 @@ func processCopyBlock(conv *internal.Conv, tableId string, commonColIds, srcCols
 		// items is significant e.g. if a table row contains data items "a ", " b "
 		// it will be shown in the COPY-FROM block as "a \t b ".
 		values := strings.Split(strings.Trim(s, "\r\n"), "\t")
-		newValues, err := common.PrepareValues(conv, tableId, commonColIds, srcCols, values)
+		colNameIdMap := internal.GetSrcColNameIdMap(conv.SrcSchema[tableId])
+		newValues, err := common.PrepareValues(conv, tableId, colNameIdMap, commonColIds, srcCols, values)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
 			conv.StatsAddBadRow(srcTableName, conv.DataMode())

@@ -104,6 +104,7 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSc
 	defer rows.Close()
 	srcCols, _ := rows.Columns()
 	v, scanArgs := buildVals(len(srcCols))
+	colNameIdMap := internal.GetSrcColNameIdMap(conv.SrcSchema[tableId])
 	for rows.Next() {
 		// get RawBytes from data.
 		err := rows.Scan(scanArgs...)
@@ -115,7 +116,7 @@ func (isi InfoSchemaImpl) ProcessData(conv *internal.Conv, tableId string, srcSc
 		}
 		values := valsToStrings(v)
 
-		newValues, err := common.PrepareValues(conv, tableId, commonColIds, srcCols, values)
+		newValues, err := common.PrepareValues(conv, tableId, colNameIdMap, commonColIds, srcCols, values)
 		if err != nil {
 			conv.Unexpected(fmt.Sprintf("Error while converting data: %s\n", err))
 			conv.StatsAddBadRow(srcTableName, conv.DataMode())

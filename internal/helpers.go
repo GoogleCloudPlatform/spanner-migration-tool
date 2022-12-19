@@ -70,6 +70,17 @@ func GenerateIndexesId() string {
 	return GenerateId("i")
 }
 
+func GetSrcColNameIdMap(srcs schema.Table) map[string]string {
+	if len(srcs.ColNameIdMap) > 0 {
+		return srcs.ColNameIdMap
+	}
+	m := make(map[string]string)
+	for _, v := range srcs.ColDefs {
+		m[v.Name] = v.Id
+	}
+	return m
+}
+
 func GetColIdFromSrcName(srcColDef map[string]schema.Column, columnName string) (string, error) {
 	for _, v := range srcColDef {
 		if v.Name == columnName {

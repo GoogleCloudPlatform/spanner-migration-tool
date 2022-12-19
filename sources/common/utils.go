@@ -132,16 +132,14 @@ func PrepareColumns(conv *internal.Conv, tableId string, srcCols []string) ([]st
 	return commonIds, nil
 }
 
-func PrepareValues(conv *internal.Conv, tableId string, commonColIds, srcCols []string, values []string) ([]string, error) {
+func PrepareValues[T interface{}](conv *internal.Conv, tableId string, colNameIdMap map[string]string, commonColIds, srcCols []string, values []T) ([]T, error) {
 	if len(srcCols) != len(values) {
-		return []string{}, fmt.Errorf("PrepareValues: srcCols and vals don't all have the same lengths: len(srcCols)=%d, len(values)=%d", len(srcCols), len(values))
+		return []T{}, fmt.Errorf("PrepareValues: srcCols and vals don't all have the same lengths: len(srcCols)=%d, len(values)=%d", len(srcCols), len(values))
 	}
-
-	var newValues []string
-
-	mapColIdToVal := map[string]string{}
+	var newValues []T
+	mapColIdToVal := map[string]T{}
 	for i, srcolName := range srcCols {
-		mapColIdToVal[conv.SrcSchema[tableId].ColNameIdMap[srcolName]] = values[i]
+		mapColIdToVal[colNameIdMap[srcolName]] = values[i]
 	}
 	for _, id := range commonColIds {
 		newValues = append(newValues, mapColIdToVal[id])

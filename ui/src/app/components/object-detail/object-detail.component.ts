@@ -1048,7 +1048,6 @@ export class ObjectDetailComponent implements OnInit {
   saveIndex() {
     let payload: ICreateIndex[] = []
     this.setIndexOrder()
-    console.log(this.localIndexData, 'localIndex data')
 
     payload.push({
       Name: this.currentObject?.name || '',

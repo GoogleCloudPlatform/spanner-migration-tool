@@ -106,38 +106,39 @@ func BuildConv(t *testing.T, numCols, numFks int, makeEmpty bool) *internal.Conv
 	if makeEmpty {
 		return conv
 	}
-	colNames := []string{}
+	colIds := []string{}
 	colDefs := map[string]ddl.ColumnDef{}
 	for i := 1; i <= numCols; i++ {
 		currColName := fmt.Sprintf("col%d", i)
-		colNames = append(colNames, currColName)
-		colDefs[currColName] = ddl.ColumnDef{Name: currColName, T: ddl.Type{Name: ddl.String, Len: int64(10)}}
+		currColId := fmt.Sprintf("c%d", i)
+		colIds = append(colIds, currColId)
+		colDefs[currColId] = ddl.ColumnDef{Name: currColName, T: ddl.Type{Name: ddl.String, Len: int64(10)}}
 	}
 
 	var foreignKeys []ddl.Foreignkey
 	for i := 1; i <= numFks; i++ {
 		foreignKey := ddl.Foreignkey{
 			Name:           fmt.Sprintf("fk_%d", i),
-			ColIds:         []string{fmt.Sprintf("col%d", i)},
-			ReferTableId:   "table_b",
-			ReferColumnIds: []string{fmt.Sprintf("col%d", i)}}
+			ColIds:         []string{fmt.Sprintf("c%d", i)},
+			ReferTableId:   "t2",
+			ReferColumnIds: []string{fmt.Sprintf("c%d", i)}}
 		foreignKeys = append(foreignKeys, foreignKey)
 	}
 
-	conv.SpSchema["table_a"] = ddl.CreateTable{
+	conv.SpSchema["t1"] = ddl.CreateTable{
 		Name:        "table_a",
-		ColIds:      colNames,
+		ColIds:      colIds,
 		ColDefs:     colDefs,
-		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "col1"}},
+		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1"}},
 		ForeignKeys: foreignKeys,
-		Id:          "table_a",
+		Id:          "t1",
 	}
-	conv.SpSchema["table_b"] = ddl.CreateTable{
+	conv.SpSchema["t2"] = ddl.CreateTable{
 		Name:        "table_b",
-		ColIds:      colNames,
+		ColIds:      colIds,
 		ColDefs:     colDefs,
-		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "col1"}},
-		Id:          "table_b",
+		PrimaryKeys: []ddl.IndexKey{ddl.IndexKey{ColId: "c1"}},
+		Id:          "t2",
 	}
 	return conv
 }

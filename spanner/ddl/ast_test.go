@@ -96,7 +96,7 @@ func TestPrintColumnDefPG(t *testing.T) {
 	}
 }
 
-func TestPrintIndexKey(t *testing.T) {
+func TestPrintPkOrIndexKey(t *testing.T) {
 	ct := CreateTable{
 		Name:   "table1",
 		Id:     "t1",
@@ -118,7 +118,7 @@ func TestPrintIndexKey(t *testing.T) {
 		{in: IndexKey{ColId: "c1"}, protectIds: true, targetDb: constants.TargetExperimentalPostgres, expected: "col1"},
 	}
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, tc.in.PrintIndexKey(ct, Config{ProtectIds: tc.protectIds, TargetDb: tc.targetDb}))
+		assert.Equal(t, tc.expected, tc.in.PrintPkOrIndexKey(ct, Config{ProtectIds: tc.protectIds, TargetDb: tc.targetDb}))
 	}
 }
 

@@ -58,7 +58,6 @@ func cvtRow(attrsMap map[string]*dynamodb.AttributeValue, srcSchema schema.Table
 			srcStrVal = "null"
 		} else {
 			// Convert data to the target type.
-			// spCols := spCols[i]
 			spColDef := spSchema.ColDefs[colId]
 			srcColDef := srcSchema.ColDefs[colId]
 			if spColDef.T.IsArray {
