@@ -397,21 +397,21 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 						l = append(l, str)
 					}
 				case InterleavedNotInOrder:
-					parent := getParentForReport(conv, spSchema.Name, i)
+					parent := getParentForReport(conv, spSchema.Name, spCol, i)
 					str := fmt.Sprintf(" Table %s can be interleaved with table %s %s  %s and Column %s", spSchema.Name, parent, IssueDB[i].Brief, spSchema.Name, srcCol)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 				case InterleavedOrder:
-					parent := getParentForReport(conv, spSchema.Name, i)
+					parent := getParentForReport(conv, spSchema.Name, spCol, i)
 					str := fmt.Sprintf("Table %s %s %s go to Interleave Table Tab", spSchema.Name, IssueDB[i].Brief, parent)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 				case InterleavedAddColumn:
-					parent := getParentForReport(conv, spSchema.Name, i)
+					parent := getParentForReport(conv, spSchema.Name, spCol, i)
 					str := fmt.Sprintf(" %s %s add %s as a primary key in table %s", IssueDB[i].Brief, parent, srcCol, spSchema.Name)
 
 					if !contains(l, str) {
@@ -419,7 +419,7 @@ func buildTableReportBody(conv *Conv, srcTable string, issues map[string][]Schem
 					}
 				case InterleavedRenameColumn:
 					fkName, referCol := getFkAndReferColumn(spSchema, srcCol)
-					parent := getParentForReport(conv, spSchema.Name, i)
+					parent := getParentForReport(conv, spSchema.Name, srcCol, i)
 					str := fmt.Sprintf(" %s %s rename %s primary key in table %s to match the foreign key %s refer column \"%s\"", IssueDB[i].Brief, parent, srcCol, spSchema.Name, fkName, referCol)
 
 					if !contains(l, str) {
@@ -478,29 +478,35 @@ func getFkAndReferColumn(spSchema ddl.CreateTable, col string) (fkName string, r
 	return fkName, referCol
 }
 
-func getParentForReport(conv *Conv, spTableName string, issueType SchemaIssue) string {
+func getParentForReport(conv *Conv, spTableName string, spColName string, issueType SchemaIssue) string {
 	table := conv.SpSchema[spTableName]
 	for _, fk := range table.Fks {
 		for i, col := range fk.Columns {
-			colPkOrder, err1 := getPkOrderForReport(table.Pks, col)
-			refColPkOrder, err2 := getPkOrderForReport(conv.SpSchema[fk.ReferTable].Pks, fk.ReferColumns[i])
-			if err2 != nil {
+			if col != spColName {
 				continue
 			}
-			if col == fk.ReferColumns[i] {
+			colPkOrder, err1 := getPkOrderForReport(table.Pks, col)
+			refColPkOrder, err2 := getPkOrderForReport(conv.SpSchema[fk.ReferTable].Pks, fk.ReferColumns[i])
 
-				if issueType == InterleavedOrder && colPkOrder == 1 && refColPkOrder == 1 {
-					return fk.ReferTable
+			if err2 != nil || refColPkOrder != 1 {
+				continue
+			}
 
-				} else if issueType == InterleavedNotInOrder && err1 == nil && colPkOrder != 1 && refColPkOrder == 1 {
-					return fk.ReferTable
-
-				} else if issueType == InterleavedAddColumn && err1 != nil && refColPkOrder == 1 {
+			switch issueType {
+			case InterleavedOrder:
+				if colPkOrder == 1 && err1 == nil {
 					return fk.ReferTable
 				}
-
-			} else {
-				if issueType == InterleavedRenameColumn && colPkOrder == 1 && refColPkOrder == 1 {
+			case InterleavedNotInOrder:
+				if err1 == nil && colPkOrder != 1 {
+					return fk.ReferTable
+				}
+			case InterleavedRenameColumn:
+				if err1 == nil {
+					return fk.ReferTable
+				}
+			case InterleavedAddColumn:
+				if err1 != nil {
 					return fk.ReferTable
 				}
 			}

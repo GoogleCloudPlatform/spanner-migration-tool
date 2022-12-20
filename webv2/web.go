@@ -1877,11 +1877,9 @@ func checkPrimaryKeyPrefix(table string, refTable string, fk ddl.Foreignkey, tab
 	parentPks := sessionState.Conv.SpSchema[refTable].Pks
 
 	parentIndex := utilities.GetPrimaryKeyIndexFromOrder(parentPks, 1)
-
 	if parentIndex == -1 {
 		return false
 	}
-
 	parentFirstOrderPkCol := parentPks[parentIndex].Col
 	possibleInterleave := false
 	for _, referFkName := range fk.ReferColumns {
@@ -2004,23 +2002,25 @@ func removeInterleaveSuggestions(columns []string, table string) {
 
 		schemaissue = sessionState.Conv.Issues[table][columns[i]]
 
+		if len(schemaissue) == 0 {
+			continue
+		}
+
 		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedOrder)
 		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedNotInOrder)
 		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedAddColumn)
 		schemaissue = utilities.RemoveSchemaIssue(schemaissue, internal.InterleavedRenameColumn)
 
-		if len(schemaissue) > 0 {
+		if sessionState.Conv.Issues[table] == nil {
 
-			if sessionState.Conv.Issues[table] == nil {
-
-				s := map[string][]internal.SchemaIssue{
-					columns[i]: schemaissue,
-				}
-				sessionState.Conv.Issues[table] = s
-			} else {
-				sessionState.Conv.Issues[table][columns[i]] = schemaissue
+			s := map[string][]internal.SchemaIssue{
+				columns[i]: schemaissue,
 			}
+			sessionState.Conv.Issues[table] = s
+		} else {
+			sessionState.Conv.Issues[table][columns[i]] = schemaissue
 		}
+
 	}
 }
 
