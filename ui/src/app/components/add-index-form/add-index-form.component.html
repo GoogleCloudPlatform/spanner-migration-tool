@@ -40,14 +40,14 @@
             </mat-select>
           </mat-form-field>
         </div>
-        <button mat-button color="primary" (click)="removeColumnForm(i)">
+        <button *ngIf="!viewRuleFlag" mat-button color="primary" (click)="removeColumnForm(i)">
           <mat-icon>remove</mat-icon>
           <span>REMOVE COLUMN</span>
         </button>
       </mat-card>
     </ng-container>
     <button
-      *ngIf="addColumnsList.length < totalColumns.length"
+      *ngIf="addColumnsList.length < totalColumns.length && !viewRuleFlag"
       mat-button
       color="primary"
       (click)="addNewColumnForm()"
@@ -60,15 +60,29 @@
 
     <br />
 
-    <button
-      class="add-column-btn"
-      mat-raised-button
-      type="submit"
-      color="primary"
-      [disabled]="!(addIndexForm.valid && ruleNameValid && ColsArray.controls.length > 0)"
-      (click)="addIndex()"
-    >
-      ADD RULE
-    </button>
+    <div *ngIf="!viewRuleFlag">
+      <button
+        class="add-column-btn"
+        mat-raised-button
+        type="submit"
+        color="primary"
+        [disabled]="!(addIndexForm.valid && ruleNameValid && ColsArray.controls.length > 0)"
+        (click)="addIndex()"
+      >
+        ADD RULE
+      </button>
+    </div>
+
+    <div *ngIf="viewRuleFlag">
+      <button
+        class="add-column-btn"
+        mat-raised-button
+        type="submit"
+        color="primary"
+        (click)="deleteRule()"
+      >
+        DELETE RULE
+      </button>
+    </div>
   </ng-container>
 </div>

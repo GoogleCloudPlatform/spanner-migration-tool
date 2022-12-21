@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core'
 import { FetchService } from '../fetch/fetch.service'
 import IConv, { ICreateIndex, IForeignKey, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
-import IRuleContent from 'src/app/model/rule'
+import IRuleContent, { IRule } from 'src/app/model/rule'
 import { BehaviorSubject, forkJoin, Observable, of } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
 import IUpdateTable from 'src/app/model/update-table'
@@ -29,9 +29,9 @@ export class DataService {
   // currentSessionSub not using any where
   private currentSessionSub = new BehaviorSubject({} as ISession)
   private isOfflineSub = new BehaviorSubject<boolean>(false)
-  private ruleMapSub = new BehaviorSubject<IRuleContent>({})
+  private ruleMapSub = new BehaviorSubject<IRule[]>([])
 
-  rule = this.ruleMapSub.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
+  rule = this.ruleMapSub.asObservable()
   conv = this.convSubject.asObservable().pipe(filter((res) => Object.keys(res).length !== 0))
   conversionRate = this.conversionRateSub
     .asObservable()
@@ -95,6 +95,7 @@ export class DataService {
     this.fetch.getLastSessionDetails().subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
+        this.ruleMapSub.next(res?.Rules)
       },
       error: (err: any) => {
         this.snackbar.openSnackBar(err.error, 'Close')
@@ -106,6 +107,7 @@ export class DataService {
     this.fetch.getSchemaConversionFromDump(payload).subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
+        this.ruleMapSub.next(res?.Rules)
       },
       error: (err: any) => {
         this.clickEvent.closeDatabaseLoader()
@@ -118,6 +120,7 @@ export class DataService {
     this.fetch.getSchemaConversionFromSessionFile(payload).subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
+        this.ruleMapSub.next(res?.Rules)
       },
       error: (err: any) => {
         this.snackbar.openSnackBar(err.error, 'Close')
@@ -130,6 +133,7 @@ export class DataService {
     this.fetch.resumeSession(versionId).subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
+        this.ruleMapSub.next(res?.Rules)
       },
       error: (err: any) => {
         this.snackbar.openSnackBar(err.error, 'Close')
@@ -332,42 +336,25 @@ export class DataService {
     })
   }
 
-  updateGlobalType(types: Record<string, string>): void {
-    this.fetch.updateGlobalType(types).subscribe({
-      next: (data: any) => {
-        this.convSubject.next(data)
-        this.snackbar.openSnackBar('Global datatype updated successfully', 'Close', 5)
-        this.getSummary()
-        this.getDdl()
-      },
-      error: (err: any) => {
-        this.snackbar.openSnackBar('Unable to add rule', 'Close')
-      },
-    })
-  }
-
-  addRule(nextData: IRuleContent): void {
-    this.ruleMapSub.next(nextData)
-  }
-
   updateIsOffline() {
     this.fetch.getIsOffline().subscribe((res: boolean) => {
       this.isOfflineSub.next(res)
     })
   }
 
-  addIndex(tableName: string, payload: ICreateIndex[]) {
-    this.fetch.addIndex(tableName, payload).subscribe({
-      next: (res: IConv) => {
+  applyRule(payload: IRule) {
+    this.fetch.applyRule(payload).subscribe({
+      next: (res: any) => {
         this.convSubject.next(res)
-        this.getDdl()
-        this.snackbar.openSnackBar('Added new index.', 'Close', 5)
+        this.ruleMapSub.next(res?.Rules)
+        this.snackbar.openSnackBar('Added new rule.', 'Close', 5)
       },
       error: (err: any) => {
         this.snackbar.openSnackBar(err.error, 'Close')
       },
     })
   }
+
   updateIndex(tableName: string, payload: ICreateIndex[]) {
     return this.fetch.updateIndex(tableName, payload).pipe(
       catchError((e: any) => {
@@ -399,6 +386,7 @@ export class DataService {
         } else {
           this.convSubject.next(data)
           this.getDdl()
+          this.ruleMapSub.next(data?.Rules)
           this.snackbar.openSnackBar('Index dropped successfully', 'Close', 5)
           return ''
         }
@@ -456,5 +444,18 @@ export class DataService {
         }
       })
     )
+  }
+
+  dropRule(ruleId: string) {
+    return this.fetch.dropRule(ruleId).subscribe({
+      next: (res: any) => {
+        this.convSubject.next(res)
+        this.ruleMapSub.next(res?.Rules)
+        this.snackbar.openSnackBar('Rule deleted successfully', 'Close', 5)
+      },
+      error: (err: any) => {
+        this.snackbar.openSnackBar(err.error, 'Close')
+      },
+    })
   }
 }

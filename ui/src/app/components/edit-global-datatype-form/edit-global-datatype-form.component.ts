@@ -1,5 +1,6 @@
 import { Component, Input, OnInit, Output, EventEmitter } from '@angular/core'
 import { FormBuilder, FormGroup, Validators } from '@angular/forms'
+import { IRule } from 'src/app/model/rule'
 import { DataService } from 'src/app/services/data/data.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 
@@ -15,11 +16,16 @@ interface IConvSourceType {
 })
 export class EditGlobalDatatypeFormComponent implements OnInit {
   @Input() ruleNameValid: boolean = false
+  @Input() ruleType: string = ''
+  @Input() ruleName: string = ''
   @Output() resetRuleType: EventEmitter<any> = new EventEmitter<any>()
   addGlobalDataTypeForm: FormGroup
   conversionType: Record<string, IConvSourceType[]> = {}
   sourceType: string[] = []
   destinationType: string[] = []
+  viewRuleData: any = []
+  viewRuleFlag: boolean = false
+  ruleId: string = ''
   constructor(private fb: FormBuilder, private data: DataService, private sidenav: SidenavService) {
     this.addGlobalDataTypeForm = this.fb.group({
       objectType: ['column', Validators.required],
@@ -37,13 +43,31 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
         this.sourceType = Object.keys(this.conversionType)
       },
     })
+
+    this.sidenav.passRules.subscribe(([data, flag]: any) => {
+      this.viewRuleData = data
+      this.viewRuleFlag = flag
+
+      if (this.viewRuleFlag) {
+        this.ruleId = this.viewRuleData?.Id
+        this.addGlobalDataTypeForm.controls['sourceType'].setValue(
+          Object.keys(this.viewRuleData?.Data)[0]
+        )
+        this.updateDestinationType(Object.keys(this.viewRuleData?.Data)[0])
+        this.addGlobalDataTypeForm.controls['destinationType'].setValue(
+          Object.values(this.viewRuleData?.Data)[0]
+        )
+        this.addGlobalDataTypeForm.disable()
+      }
+    })
   }
+
   formSubmit(): void {
     const ruleValue = this.addGlobalDataTypeForm.value
     const source = ruleValue.sourceType
     const payload: Record<string, string> = {}
     payload[source] = ruleValue.destinationType
-    this.data.updateGlobalType(payload)
+    this.applyRule(payload)
     this.resetRuleType.emit('')
     this.sidenav.closeSidenav()
   }
@@ -56,5 +80,24 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
       desType.push(item.T)
     })
     this.destinationType = desType
+  }
+
+  applyRule(data: Record<string, string>) {
+    let payload: IRule = {
+      name: this.ruleName,
+      type: 'global_datatype_change',
+      objectType: 'Column',
+      associatedObjects: 'All Columns',
+      enabled: true,
+      data: data,
+    }
+
+    this.data.applyRule(payload)
+  }
+
+  deleteRule() {
+    this.data.dropRule(this.ruleId)
+    this.resetRuleType.emit('')
+    this.sidenav.closeSidenav()
   }
 }

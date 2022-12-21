@@ -1,6 +1,6 @@
 <div class="sidenav">
   <div class="sidenav-header">
-    <span class="header-title">Add rule</span>
+    <span class="header-title">{{ !viewRuleFlag ? 'Add Rule' : 'View Rule' }}</span>
     <button class="close-button" mat-icon-button color="primary" (click)="closeSidenav()">
       <mat-icon class="close-icon">close</mat-icon>
     </button>
@@ -38,12 +38,16 @@
       <app-edit-global-datatype-form
         [ruleNameValid]="ruleForm.valid"
         (resetRuleType)="resetRuleType()"
+        [ruleName]="rulename"
+        [ruleType]="ruletype"
       ></app-edit-global-datatype-form>
     </div>
     <div *ngIf="ruleType.value === 'addIndex'">
       <app-add-index-form
         [ruleNameValid]="ruleForm.valid"
         (resetRuleType)="resetRuleType()"
+        [ruleName]="rulename"
+        [ruleType]="ruletype"
       ></app-add-index-form>
     </div>
   </div>

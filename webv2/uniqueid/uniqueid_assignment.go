@@ -204,6 +204,15 @@ func GenerateIndexesId() string {
 	return indexesId
 }
 
+func GenerateRuleId() string {
+
+	rulePrefix := "r"
+	id := GenerateId()
+
+	ruleId := rulePrefix + id
+	return ruleId
+}
+
 func InitObjectId() {
 
 	sessionState := session.GetSessionState()
