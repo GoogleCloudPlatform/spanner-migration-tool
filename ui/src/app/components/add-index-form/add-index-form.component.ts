@@ -169,11 +169,12 @@ export class AddIndexFormComponent implements OnInit {
 
   applyRule(data: ICreateIndex) {
     let idxData = this.addIndexForm.value
+    let tableId: string = this.conversion.getTableIdFromSpName(idxData.tableName, this.conv)
     let payload: IRule = {
       name: this.ruleName,
       type: 'add_index',
       objectType: 'Table',
-      associatedObjects: idxData.tableName,
+      associatedObjects: tableId,
       enabled: true,
       data: data,
     }

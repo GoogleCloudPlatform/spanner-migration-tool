@@ -76,7 +76,7 @@ export class EditGlobalDatatypeFormComponent implements OnInit {
   updateDestinationType(key: string): void {
     const desTypeDetail = this.conversionType[key]
     const desType: string[] = []
-    desTypeDetail.forEach((item: IConvSourceType) => {
+    desTypeDetail?.forEach((item: IConvSourceType) => {
       desType.push(item.T)
     })
     this.destinationType = desType

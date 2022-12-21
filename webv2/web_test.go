@@ -1804,6 +1804,8 @@ func TestApplyRule(t *testing.T) {
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
+						Name: "table1",
+						Id:   "t1",
 						Indexes: []ddl.CreateIndex{
 							{Name: "idx1", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c2", Desc: false}}},
 							{Name: "idx2", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c3", Desc: false}, {ColId: "c4", Desc: false}}}},
@@ -1811,11 +1813,13 @@ func TestApplyRule(t *testing.T) {
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
-				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
+				UsedNames: map[string]bool{"table1": true, "idx1": true, "idx2": true},
 			},
 			expectedConv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
+						Name: "table1",
+						Id:   "t1",
 						Indexes: []ddl.CreateIndex{
 							{Name: "idx1", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c2", Desc: false}}},
 							{Name: "idx2", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c3", Desc: false}, {ColId: "c4", Desc: false}}},
@@ -1833,23 +1837,25 @@ func TestApplyRule(t *testing.T) {
 				Enabled:           true,
 				Type:              constants.AddIndex,
 				Data: map[string]interface{}{
-					"Name":   "t1",
-					"Table":  "t1",
-					"Unique": false,
-					"Keys":   []interface{}{map[string]interface{}{"Col": "c2", "Desc": false}},
+					"Name":    "table1",
+					"TableId": "t1",
+					"Unique":  false,
+					"Keys":    []interface{}{map[string]interface{}{"ColId": "c2", "Desc": false}},
 				},
 			},
 			statusCode: http.StatusInternalServerError,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
+						Name: "table1",
+						Id:   "t1",
 						Indexes: []ddl.CreateIndex{{Name: "idx1", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c2", Desc: false}}},
 							{Name: "idx2", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c3", Desc: false}, {ColId: "c4", Desc: false}}}},
 					}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
-				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
+				UsedNames: map[string]bool{"table1": true, "idx1": true, "idx2": true},
 			},
 		},
 		{
@@ -1861,23 +1867,25 @@ func TestApplyRule(t *testing.T) {
 				Enabled:           true,
 				Type:              constants.AddIndex,
 				Data: map[string]interface{}{
-					"Name":   "idx2",
-					"Table":  "t1",
-					"Unique": false,
-					"Keys":   []interface{}{map[string]interface{}{"Col": "c2", "Desc": false}},
+					"Name":    "idx2",
+					"TableId": "t1",
+					"Unique":  false,
+					"Keys":    []interface{}{map[string]interface{}{"ColId": "c2", "Desc": false}},
 				},
 			},
 			statusCode: http.StatusInternalServerError,
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
+						Name: "table1",
+						Id:   "t1",
 						Indexes: []ddl.CreateIndex{{Name: "idx1", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c2", Desc: false}}},
 							{Name: "idx2", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c3", Desc: false}, {ColId: "c4", Desc: false}}}},
 					}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
-				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
+				UsedNames: map[string]bool{"table1": true, "idx1": true, "idx2": true},
 			},
 		},
 		{
@@ -1894,13 +1902,15 @@ func TestApplyRule(t *testing.T) {
 			conv: &internal.Conv{
 				SpSchema: map[string]ddl.CreateTable{
 					"t1": {
+						Name: "table1",
+						Id:   "t1",
 						Indexes: []ddl.CreateIndex{{Name: "idx1", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c2", Desc: false}}},
 							{Name: "idx2", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c3", Desc: false}, {ColId: "c4", Desc: false}}}},
 					}},
 				Audit: internal.Audit{
 					MigrationType: migration.MigrationData_SCHEMA_ONLY.Enum(),
 				},
-				UsedNames: map[string]bool{"t1": true, "idx1": true, "idx2": true},
+				UsedNames: map[string]bool{"table1": true, "idx1": true, "idx2": true},
 			},
 		},
 	}
@@ -2322,7 +2332,7 @@ func TestDropRule(t *testing.T) {
 					Name:              "add_index",
 					Type:              constants.AddIndex,
 					ObjectType:        "table",
-					AssociatedObjects: "table1",
+					AssociatedObjects: "t1",
 					Enabled:           true,
 					Data:              ddl.CreateIndex{Name: "idx3", Id: "i3", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c2", Desc: false, Order: 1}}},
 				}},
@@ -2446,7 +2456,7 @@ func TestDropRule(t *testing.T) {
 					Name:              "add_index",
 					Type:              constants.AddIndex,
 					ObjectType:        "table",
-					AssociatedObjects: "table1",
+					AssociatedObjects: "t1",
 					Enabled:           true,
 					Data:              ddl.CreateIndex{Name: "idx3", Id: "i3", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c2", Desc: false, Order: 1}}},
 				}},
@@ -2475,7 +2485,7 @@ func TestDropRule(t *testing.T) {
 					Name:              "add_index",
 					Type:              constants.AddIndex,
 					ObjectType:        "table",
-					AssociatedObjects: "table1",
+					AssociatedObjects: "t1",
 					Enabled:           false,
 					Data:              ddl.CreateIndex{Name: "idx3", Id: "i3", TableId: "t1", Unique: false, Keys: []ddl.IndexKey{{ColId: "c2", Desc: false, Order: 1}}},
 				}},
