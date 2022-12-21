@@ -15,28 +15,38 @@
 
       <ng-container matColumnDef="name">
         <th mat-header-cell *matHeaderCellDef class="table-header">Rule name</th>
-        <td mat-cell *matCellDef="let element">{{ element.name }}</td>
+        <td mat-cell *matCellDef="let element">{{ element?.Name }}</td>
       </ng-container>
 
       <ng-container matColumnDef="type">
         <th mat-header-cell *matHeaderCellDef class="table-header">Rule type</th>
-        <td mat-cell *matCellDef="let element">{{ element.type }}</td>
+        <td mat-cell *matCellDef="let element">
+          {{ element?.Type === 'add_index' ? 'Add Index' : 'Global Datatype Change' }}
+        </td>
       </ng-container>
 
       <ng-container matColumnDef="objectType">
         <th mat-header-cell *matHeaderCellDef class="table-header">Object type</th>
-        <td mat-cell *matCellDef="let element">{{ element.objectType }}</td>
+        <td mat-cell *matCellDef="let element">{{ element?.ObjectType }}</td>
       </ng-container>
 
       <ng-container matColumnDef="associatedObject">
-        <th mat-header-cell *matHeaderCellDef class="table-header">Associated objects</th>
-        <td mat-cell *matCellDef="let element">{{ element.associatedObject }}</td>
+        <th mat-header-cell *matHeaderCellDef class="table-header">Associated object</th>
+        <td mat-cell *matCellDef="let element">{{ element?.AssociatedObjects }}</td>
       </ng-container>
 
       <ng-container matColumnDef="enabled">
         <th mat-header-cell *matHeaderCellDef class="table-header">Enabled</th>
-        <td mat-cell *matCellDef="let element">{{ element.enabled }}</td>
+        <td mat-cell *matCellDef="let element">{{ element?.Enabled ? 'Yes' : 'No' }}</td>
       </ng-container>
+
+      <ng-container matColumnDef="view">
+        <th mat-header-cell *matHeaderCellDef class="table-header">View Rule</th>
+        <td mat-cell *matCellDef="let element">
+          <button mat-button color="primary" (click)="viewSidenavRule(element?.Id)">View</button>
+        </td>
+      </ng-container>
+
       <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
       <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
     </table>

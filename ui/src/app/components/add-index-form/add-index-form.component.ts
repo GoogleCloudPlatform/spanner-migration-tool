@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core'
 import { FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms'
 import IConv, { ICreateIndex } from 'src/app/model/conv'
+import { IRule } from 'src/app/model/rule'
 import { DataService } from 'src/app/services/data/data.service'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { ConversionService } from 'src/app/services/conversion/conversion.service'
@@ -12,13 +13,18 @@ import { ConversionService } from 'src/app/services/conversion/conversion.servic
 })
 export class AddIndexFormComponent implements OnInit {
   @Input() ruleNameValid: boolean = false
+  @Input() ruleName: string = ''
+  @Input() ruleType: string = ''
   @Output() resetRuleType: EventEmitter<any> = new EventEmitter<any>()
   addIndexForm: FormGroup
   tableNames: string[] = []
   totalColumns: string[] = []
   addColumnsList: string[][] = []
   commonColumns: string[] = []
+  viewRuleData: any = []
+  viewRuleFlag: boolean = false
   conv: IConv = {} as IConv
+  ruleId: string = ''
   constructor(
     private fb: FormBuilder,
     private data: DataService,
@@ -47,6 +53,33 @@ export class AddIndexFormComponent implements OnInit {
         if (res !== '') this.selectedTableChange(res)
       },
     })
+
+    this.sidenav.passRules.subscribe(([data, flag]: any) => {
+      this.viewRuleData = data
+      this.viewRuleFlag = flag
+
+      if (this.viewRuleFlag) {
+        this.ruleId = this.viewRuleData?.Id
+        this.addIndexForm.controls['tableName'].setValue(this.viewRuleData?.Data?.Table)
+        this.addIndexForm.controls['indexName'].setValue(this.viewRuleData?.Data?.Name)
+        this.selectedTableChange(this.viewRuleData?.Data?.Table)
+        this.setColArraysForViewRules(this.viewRuleData?.Data?.Keys)
+        this.addIndexForm.disable()
+      }
+    })
+  }
+
+  setColArraysForViewRules(data: any) {
+    this.ColsArray.clear()
+    for (let i = 0; i < data.length; i++) {
+      let newForm = this.fb.group({
+        columnName: [data[i].Col, Validators.required],
+        sort: [data[i].Desc.toString(), Validators.required],
+      })
+      this.updateCommonColumns()
+      this.ColsArray.push(newForm)
+      this.addColumnsList.push([...this.commonColumns])
+    }
   }
 
   get ColsArray() {
@@ -127,7 +160,28 @@ export class AddIndexFormComponent implements OnInit {
       }),
       Id: '',
     })
-    this.data.addIndex(tableId, payload)
+
+    this.applyRule(payload[0])
+    this.resetRuleType.emit('')
+    this.sidenav.setSidenavAddIndexTable('')
+    this.sidenav.closeSidenav()
+  }
+
+  applyRule(data: ICreateIndex) {
+    let idxData = this.addIndexForm.value
+    let payload: IRule = {
+      name: this.ruleName,
+      type: 'add_index',
+      objectType: 'Table',
+      associatedObjects: idxData.tableName,
+      enabled: true,
+      data: data,
+    }
+    this.data.applyRule(payload)
+  }
+
+  deleteRule() {
+    this.data.dropRule(this.ruleId)
     this.resetRuleType.emit('')
     this.sidenav.setSidenavAddIndexTable('')
     this.sidenav.closeSidenav()

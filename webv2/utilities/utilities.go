@@ -16,7 +16,6 @@ package utilities
 
 import (
 	"fmt"
-	"net/http"
 	"reflect"
 
 	"time"
@@ -304,15 +303,15 @@ func GetFilePrefix(now time.Time) (string, error) {
 	return dbName + ".", nil
 }
 
-func UpdateType(conv *internal.Conv, newType, table, colName, srcTableName string, w http.ResponseWriter) {
-	sp, ty, err := GetType(conv, newType, table, colName)
+func UpdateDataType(conv *internal.Conv, newType, tableId, colId string) error {
+	sp, ty, err := GetType(conv, newType, tableId, colId)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return err
 	}
-	colDef := sp.ColDefs[colName]
+	colDef := sp.ColDefs[colId]
 	colDef.T = ty
-	sp.ColDefs[colName] = colDef
+	sp.ColDefs[colId] = colDef
+	return nil
 }
 
 func GetInterleavedFk(conv *internal.Conv, tableId string, srcColId string) (schema.ForeignKey, error) {

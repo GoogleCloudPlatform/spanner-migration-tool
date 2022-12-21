@@ -1,6 +1,9 @@
 .no-table-selected {
   height: 90%;
   background-color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
 }
 
 .select-table-message {
@@ -17,10 +20,7 @@
 .title_container {
   display: flex;
   justify-content: space-between;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: left;
-  padding: 10px 20px;
+  padding: 10px 0px 10px 20px;
   border-bottom: 1px solid #cccccc;
   .title {
     display: flex;
@@ -269,5 +269,5 @@ p {
   margin-right: 10px;
 }
 .scr-column-data-edit-mode {
-  height: 58.3px;
+  height: 58.3;
 }

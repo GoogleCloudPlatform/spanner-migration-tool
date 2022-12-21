@@ -1,8 +1,13 @@
 <div class="no-table-selected" *ngIf="!currentObject">
   <div class="title_container">
     <h3 class="title">OBJECT VIEWER</h3>
+    <button id="middle-column-toggle-button" (click)="middleColumnToggle()">
+      <mat-icon [ngClass]="[isMiddleColumnCollapse ? 'display' : 'hidden']">first_page</mat-icon>
+      <mat-icon [ngClass]="[isMiddleColumnCollapse ? 'hidden' : 'display']">last_page</mat-icon>
+    </button>
   </div>
   <mat-divider></mat-divider>
+
   <div class="select-table-message">
     <div class="image">
       <svg
@@ -125,6 +130,10 @@
         {{ interleaveParentName }}
       </div>
     </div>
+    <button id="middle-column-toggle-button" (click)="middleColumnToggle()">
+      <mat-icon [ngClass]="[isMiddleColumnCollapse ? 'display' : 'hidden']">first_page</mat-icon>
+      <mat-icon [ngClass]="[isMiddleColumnCollapse ? 'hidden' : 'display']">last_page</mat-icon>
+    </button>
   </div>
 
   <mat-tab-group

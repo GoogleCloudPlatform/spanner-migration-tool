@@ -15,6 +15,7 @@ import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
 import IMigrationDetails, { IGeneratedResources, IProgress } from 'src/app/model/migrate'
 import IConnectionProfile, { ICreateConnectionProfile } from 'src/app/model/profile'
+import IRule from 'src/app/model/rule'
 
 @Injectable({
   providedIn: 'root',
@@ -170,16 +171,8 @@ export class FetchService {
     return this.http.post<ISession>(`${this.url}/InitiateSession`, {})
   }
 
-  updateGlobalType(types: Record<string, string>): any {
-    return this.http.post<HttpResponse<IConv>>(`${this.url}/typemap/global`, types)
-  }
-
   getIsOffline() {
     return this.http.get<boolean>(`${this.url}/IsOffline`)
-  }
-
-  addIndex(tableId: string, payload: ICreateIndex[]) {
-    return this.http.post<IConv>(`${this.url}/add/indexes?table=${tableId}`, payload)
   }
 
   updateIndex(tableId: string, payload: ICreateIndex[]) {
@@ -222,5 +215,13 @@ export class FetchService {
   }
   cleanUpStreamingJobs() {
     return this.http.post(`${this.url}/CleanUpStreamingJobs`, {})
+  }
+
+  applyRule(payload: IRule) {
+    return this.http.post(`${this.url}/applyrule`, payload)
+  }
+
+  dropRule(ruleId: string) {
+    return this.http.post(`${this.url}/dropRule?id=${ruleId}`, {})
   }
 }
