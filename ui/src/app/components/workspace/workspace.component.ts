@@ -218,7 +218,6 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
 
   middleColumnToggle() {
-    console.log('changed')
     this.isMiddleColumnCollapse = !this.isMiddleColumnCollapse
   }
 
