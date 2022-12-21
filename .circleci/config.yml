@@ -7,9 +7,8 @@ orbs:
 jobs:
   build_and_test:
     docker:
-      - image: circleci/golang:1.16
-
-    working_directory: /go/src/github.com/cloudspannerecosystem/harbourbridge
+      - image: cimg/go:1.19
+    working_directory: /home/circleci/go/src/github.com/cloudspannerecosystem/harbourbridge
     resource_class: large
     steps:
       - checkout
