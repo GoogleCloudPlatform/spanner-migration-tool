@@ -37,11 +37,13 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   ddlObj!: Subscription
   isLeftColumnCollapse: boolean = false
   isRightColumnCollapse: boolean = true
+  isMiddleColumnCollapse: boolean = true
   ddlStmts: any
   isOfflineStatus: boolean = false
   spannerTree: ISchemaObjectNode[] = []
   srcTree: ISchemaObjectNode[] = []
   issuesAndSuggestionsLabel: string = 'ISSUES AND SUGGESTIONS'
+  rulesLabel: string = 'RULES (0)'
   objectExplorerInitiallyRender: boolean = false
   srcDbName: string = localStorage.getItem(StorageKeys.SourceDbName) as string
   conversionRateCount: ConversionRate = { good: 0, ok: 0, bad: 0 }
@@ -67,6 +69,10 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
 
     this.ddlObj = this.data.ddl.subscribe((res) => {
       this.ddlStmts = res
+    })
+
+    this.sidenav.setMiddleColumnComponent.subscribe((flag: boolean) => {
+      this.isMiddleColumnCollapse = !flag
     })
 
     this.convObj = this.data.conv.subscribe((data: IConv) => {
@@ -202,9 +208,17 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
       this.issuesAndSuggestionsLabel = `ISSUES AND SUGGESTIONS (${count})`
     })
   }
-
+  updateRulesLabel(count: number) {
+    setTimeout(() => {
+      this.rulesLabel = `RULES (${count})`
+    })
+  }
   leftColumnToggle() {
     this.isLeftColumnCollapse = !this.isLeftColumnCollapse
+  }
+
+  middleColumnToggle() {
+    this.isMiddleColumnCollapse = !this.isMiddleColumnCollapse
   }
 
   rightColumnToggle() {

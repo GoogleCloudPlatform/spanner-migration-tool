@@ -342,3 +342,12 @@ body {
   color:  #1967d2;
   font-weight: 400;
 }
+#middle-column-toggle-button {
+  z-index: 100;
+  border: none;
+  background-color: inherit;
+}
+#middle-column-toggle-button:hover {
+  cursor: pointer;
+}
+

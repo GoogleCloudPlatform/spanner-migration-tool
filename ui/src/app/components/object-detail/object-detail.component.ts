@@ -56,6 +56,7 @@ export class ObjectDetailComponent implements OnInit {
   interleaveParentName: string | null = null
   localTableData: IColumnTabData[] = []
   localIndexData: IIndexData[] = []
+  isMiddleColumnCollapse: boolean = false
   ngOnInit(): void {
     this.data.conv.subscribe({
       next: (res: IConv) => {
@@ -353,7 +354,6 @@ export class ObjectDetailComponent implements OnInit {
   dropColumn(element: any) {
     let colName = element.get('srcColName').value
     let spColName = this.conv.ToSpanner[this.currentObject!.name].Cols[colName]
-    console.log(spColName, 'spColName')
     let associatedIndexes = this.getAssociatedIndexs(spColName)
     if (this.checkIfPkColumn(spColName) || associatedIndexes.length != 0) {
       let pkWarning: string = ''
@@ -1166,6 +1166,11 @@ export class ObjectDetailComponent implements OnInit {
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
     this.currentTabIndex = tabChangeEvent.index
+  }
+
+  middleColumnToggle() {
+    this.isMiddleColumnCollapse = !this.isMiddleColumnCollapse
+    this.sidenav.setMiddleColComponent(this.isMiddleColumnCollapse)
   }
 
   tableInterleaveWith(table: string): string {
