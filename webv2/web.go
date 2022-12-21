@@ -965,7 +965,17 @@ func parentTableHelper(table string, update bool) *TableInterleaveStatus {
 		if checkPrimaryKeyPrefix(table, refTable, fk, tableInterleaveStatus) {
 			possibleParents = append(possibleParents, refTable)
 			sp := sessionState.Conv.SpSchema[table]
-			if update {
+			setInterleave := false
+
+			pkFirstColumnIndex := utilities.GetPrimaryKeyIndexFromOrder(sessionState.Conv.SpSchema[table].Pks, 1)
+			childFirstOrderPkCol := sessionState.Conv.SpSchema[table].Pks[pkFirstColumnIndex].Col
+			for _, fkColumn := range fk.Columns {
+				if childFirstOrderPkCol == fkColumn {
+					setInterleave = true
+				}
+			}
+
+			if update && sp.Parent == "" && setInterleave {
 				usedNames := sessionState.Conv.UsedNames
 				delete(usedNames, sp.Fks[i].Name)
 				sp.Parent = refTable
