@@ -16,7 +16,6 @@ package utilities
 
 import (
 	"fmt"
-	"net/http"
 	"reflect"
 	"time"
 
@@ -299,17 +298,6 @@ func GetFilePrefix(now time.Time) (string, error) {
 	return dbName + ".", nil
 }
 
-//Remove after implementing rules display
-func UpdateType(conv *internal.Conv, newType, table, colName, srcTableName string, w http.ResponseWriter) {
-	sp, ty, err := GetType(conv, newType, table, colName, srcTableName)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	colDef := sp.ColDefs[colName]
-	colDef.T = ty
-	sp.ColDefs[colName] = colDef
-}
 
 func UpdateDataType(conv *internal.Conv, newType, table, colName, srcTableName string) error {
 	sp, ty, err := GetType(conv, newType, table, colName, srcTableName)
