@@ -1123,7 +1123,7 @@ func removeParentTable(w http.ResponseWriter, r *http.Request) {
 	spTable.Parent = ""
 	conv.SpSchema[spTableName] = spTable
 
-	uniqueid.CopyUniqueIdToSpannerTable(conv, spTableName)
+	uniqueid.CopyUniqueIdToSpannerTable(conv, spTableName, true)
 
 	sessionState.Conv = conv
 
@@ -1189,7 +1189,7 @@ func restoreTable(w http.ResponseWriter, r *http.Request) {
 	}
 	conv.AddPrimaryKeys()
 	for _, spTable := range conv.SpSchema {
-		uniqueid.CopyUniqueIdToSpannerTable(conv, spTable.Name)
+		uniqueid.CopyUniqueIdToSpannerTable(conv, spTable.Name, false)
 	}
 	sessionState.Conv = conv
 	primarykey.DetectHotspot()
@@ -1372,7 +1372,7 @@ func restoreSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 	spTable.Indexes = spIndexes
 	conv.SpSchema[spTableName] = spTable
 
-	uniqueid.CopyUniqueIdToSpannerTable(conv, spTable.Name)
+	uniqueid.CopyUniqueIdToSpannerTable(conv, spTable.Name, false)
 	sessionState.Conv = conv
 	index.AssignInitialOrders()
 	index.IndexSuggestion()

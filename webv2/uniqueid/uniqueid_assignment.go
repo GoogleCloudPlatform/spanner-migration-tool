@@ -219,8 +219,8 @@ func InitObjectId() {
 	sessionState.Counter.ObjectId = "0"
 }
 
-//CopyUniqueIdToSpannerTable copy ids from source table to spanner table content
-func CopyUniqueIdToSpannerTable(conv *internal.Conv, spannertablename string) {
+// CopyUniqueIdToSpannerTable copy ids from source table to spanner table content
+func CopyUniqueIdToSpannerTable(conv *internal.Conv, spannertablename string, isFkRestore bool) {
 	sourcetablename := conv.ToSource[spannertablename].Name
 	spannertable := conv.SpSchema[spannertablename]
 	sourcetable := conv.SrcSchema[sourcetablename]
@@ -261,7 +261,8 @@ func CopyUniqueIdToSpannerTable(conv *internal.Conv, spannertablename string) {
 			}
 		}
 	}
-
-	updateSpannerTableIndexKeyOrder(spannertable)
+	if !isFkRestore {
+		updateSpannerTableIndexKeyOrder(spannertable)
+	}
 	conv.SpSchema[spannertablename] = spannertable
 }
