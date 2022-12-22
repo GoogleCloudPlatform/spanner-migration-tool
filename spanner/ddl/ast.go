@@ -50,7 +50,7 @@ const (
 	Numeric string = "NUMERIC"
 	// Json represent JSON type.
 	JSON string = "JSON"
-	// Jsonb reprents the JSONB type
+	// Jsonb represents the PG.JSONB type
 	JSONB string = "JSONB"
 	// MaxLength is a sentinel for Type's Len field, representing the MAX value.
 	MaxLength = math.MaxInt64
