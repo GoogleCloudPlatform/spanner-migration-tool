@@ -476,7 +476,7 @@ func processColumn(conv *internal.Conv, tableName string, col *ast.ColumnDef) (s
 	ty := schema.Type{
 		Name:        tid,
 		Mods:        mods,
-		ArrayBounds: getArrayBounds(col.Tp.String(), col.Tp.Elems)}
+		ArrayBounds: getArrayBounds(col.Tp.String(), col.Tp.GetElems())}
 	column := schema.Column{Name: name, Type: ty}
 	return name, column, updateColsByOption(conv, tableName, col, &column), nil
 }

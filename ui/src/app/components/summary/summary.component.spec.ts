@@ -33,7 +33,7 @@ fdescribe('SummaryComponent', () => {
       parent: '',
       parentId: '',
       pos: -1,
-      status: 'GREEN',
+      status: 'EXCELLENT',
       type: ObjectExplorerNodeType.Table,
       id: '',
       isDeleted: true,

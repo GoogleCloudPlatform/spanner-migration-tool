@@ -76,16 +76,16 @@ export const initSchemaScreenTasks = () => {
 export const panelBorderClass = (color) => {
   var borderClass = "";
   switch (color) {
-    case "ORANGE":
+    case "POOR":
       borderClass = " orange-border-bottom";
       break;
-    case "GREEN":
+    case "EXCELLENT":
       borderClass = " green-border-bottom";
       break;
-    case "BLUE":
+    case "GOOD":
       borderClass = " blue-border-bottom";
       break;
-    case "YELLOW":
+    case "OK":
       borderClass = " yellow-border-bottom";
       break;
   }
@@ -95,16 +95,16 @@ export const panelBorderClass = (color) => {
 export const mdcCardBorder = (color) => {
   var cardBorderClass = "";
   switch (color) {
-    case "ORANGE":
+    case "POOR":
       cardBorderClass = " card-orange-border";
       break;
-    case "GREEN":
+    case "EXCELLENT":
       cardBorderClass = " card-green-border";
       break;
-    case "BLUE":
+    case "GOOD":
       cardBorderClass = " card-blue-border";
       break;
-    case "YELLOW":
+    case "OK":
       cardBorderClass = " card-yellow-border";
   }
   return cardBorderClass;

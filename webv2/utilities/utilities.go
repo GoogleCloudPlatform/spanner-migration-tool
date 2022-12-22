@@ -289,6 +289,15 @@ func GetPrimaryKeyIndexFromOrder(pk []ddl.IndexKey, order int) int {
 	return -1
 }
 
+func GetRefColIndexFromFk(fk ddl.Foreignkey, colId string) int {
+	for i, id := range fk.ReferColumnIds {
+		if colId == id {
+			return i
+		}
+	}
+	return -1
+}
+
 func GetFilePrefix(now time.Time) (string, error) {
 	sessionState := session.GetSessionState()
 

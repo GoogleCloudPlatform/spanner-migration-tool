@@ -406,30 +406,29 @@ func buildTableReportBody(conv *Conv, tableId string, issues map[string][]Schema
 						l = append(l, str)
 					}
 				case InterleavedNotInOrder:
-					parent := getParentForReport(conv, tableId, i)
+					parent, _, _ := getInterleaveDetail(conv, tableId, colId, i)
 					str := fmt.Sprintf(" Table %s can be interleaved with table %s %s  %s and Column %s", spSchema.Name, parent, IssueDB[i].Brief, spSchema.Name, spColName)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 				case InterleavedOrder:
-					parent := getParentForReport(conv, tableId, i)
+					parent, _, _ := getInterleaveDetail(conv, tableId, colId, i)
 					str := fmt.Sprintf("Table %s %s %s go to Interleave Table Tab", spSchema.Name, IssueDB[i].Brief, parent)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 				case InterleavedAddColumn:
-					parent := getParentForReport(conv, tableId, i)
+					parent, _, _ := getInterleaveDetail(conv, tableId, colId, i)
 					str := fmt.Sprintf(" %s %s add %s as a primary key in table %s", IssueDB[i].Brief, parent, spColName, spSchema.Name)
 
 					if !contains(l, str) {
 						l = append(l, str)
 					}
 				case InterleavedRenameColumn:
-					fkName, referCol := getFkAndReferColumn(spSchema, srcColName)
-					parent := getParentForReport(conv, tableId, i)
-					str := fmt.Sprintf(" %s %s rename %s primary key in table %s to match the foreign key %s refer column \"%s\"", IssueDB[i].Brief, parent, srcColName, spSchema.Name, fkName, referCol)
+					parent, fkName, referColName := getInterleaveDetail(conv, tableId, colId, i)
+					str := fmt.Sprintf(" %s %s rename %s primary key in table %s to match the foreign key %s refer column \"%s\"", IssueDB[i].Brief, parent, spColName, spSchema.Name, fkName, referColName)
 
 					if !contains(l, str) {
 						l = append(l, str)
@@ -476,46 +475,42 @@ func buildTableReportBody(conv *Conv, tableId string, issues map[string][]Schema
 	return body
 }
 
-func getFkAndReferColumn(spSchema ddl.CreateTable, col string) (fkName string, referCol string) {
-	for _, fk := range spSchema.ForeignKeys {
-		for k, v := range fk.ColIds {
-			if col == v {
-				return fk.Name, fk.ReferColumnIds[k]
-			}
-		}
-	}
-	return fkName, referCol
-}
-
-func getParentForReport(conv *Conv, tableId string, issueType SchemaIssue) string {
+func getInterleaveDetail(conv *Conv, tableId string, colId string, issueType SchemaIssue) (parent, fkName, referColName string) {
 	table := conv.SpSchema[tableId]
 	for _, fk := range table.ForeignKeys {
-		for i, colId := range fk.ColIds {
-			colPkOrder, err1 := getPkOrderForReport(table.PrimaryKeys, colId)
-			refColPkOrder, err2 := getPkOrderForReport(conv.SpSchema[fk.ReferTableId].PrimaryKeys, fk.ReferColumnIds[i])
-			if err2 != nil {
+		for i, columnId := range fk.ColIds {
+			if columnId != colId {
 				continue
 			}
-			if colId == fk.ReferColumnIds[i] {
+			colPkOrder, err1 := getPkOrderForReport(table.PrimaryKeys, columnId)
+			refColPkOrder, err2 := getPkOrderForReport(conv.SpSchema[fk.ReferTableId].PrimaryKeys, fk.ReferColumnIds[i])
 
-				if issueType == InterleavedOrder && colPkOrder == 1 && refColPkOrder == 1 {
-					return conv.SpSchema[fk.ReferTableId].Name
+			if err2 != nil || refColPkOrder != 1 {
+				continue
+			}
 
-				} else if issueType == InterleavedNotInOrder && err1 == nil && colPkOrder != 1 && refColPkOrder == 1 {
-					return conv.SpSchema[fk.ReferTableId].Name
-
-				} else if issueType == InterleavedAddColumn && err1 != nil && refColPkOrder == 1 {
-					return conv.SpSchema[fk.ReferTableId].Name
+			switch issueType {
+			case InterleavedOrder:
+				if colPkOrder == 1 && err1 == nil {
+					return conv.SpSchema[fk.ReferTableId].Name, "", ""
 				}
-
-			} else {
-				if issueType == InterleavedRenameColumn && colPkOrder == 1 && refColPkOrder == 1 {
-					return conv.SpSchema[fk.ReferTableId].Name
+			case InterleavedNotInOrder:
+				if err1 == nil && colPkOrder != 1 {
+					return conv.SpSchema[fk.ReferTableId].Name, "", ""
+				}
+			case InterleavedRenameColumn:
+				if err1 == nil {
+					parentTable := conv.SpSchema[fk.ReferTableId]
+					return conv.SpSchema[fk.ReferTableId].Name, fk.Name, parentTable.ColDefs[fk.ReferColumnIds[i]].Name
+				}
+			case InterleavedAddColumn:
+				if err1 != nil {
+					return conv.SpSchema[fk.ReferTableId].Name, "", ""
 				}
 			}
 		}
 	}
-	return ""
+	return "", "", ""
 }
 
 func getPkOrderForReport(pks []ddl.IndexKey, colId string) (int, error) {
@@ -630,7 +625,8 @@ func AnalyzeCols(conv *Conv, tableId string) (map[string][]SchemaIssue, int64, i
 // 'missingPKey' indicates whether the source DB schema had a primary key.
 // 'summary' indicates whether this is a per-table rating or an overall
 // summary rating.
-func rateSchema(cols, warnings int64, missingPKey, summary bool) string {
+
+func RateSchema(cols, warnings int64, missingPKey, summary bool) (string, string) {
 	pkMsg := "missing primary key"
 	s := fmt.Sprintf(" (%s%% of %d columns mapped cleanly)", pct(cols, warnings), cols)
 	if summary {
@@ -638,23 +634,23 @@ func rateSchema(cols, warnings int64, missingPKey, summary bool) string {
 	}
 	switch {
 	case cols == 0:
-		return "NONE (no schema found)"
+		return "NONE", "NONE (no schema found)"
 	case warnings == 0 && !missingPKey:
-		return fmt.Sprintf("EXCELLENT (all %d columns mapped cleanly)", cols)
+		return "EXCELLENT", fmt.Sprintf("EXCELLENT (all %d columns mapped cleanly)", cols)
 	case warnings == 0 && missingPKey:
-		return fmt.Sprintf("GOOD (all columns mapped cleanly, but %s)", pkMsg)
+		return "GOOD", fmt.Sprintf("GOOD (all columns mapped cleanly, but %s)", pkMsg)
 	case good(cols, warnings) && !missingPKey:
-		return "GOOD" + s
+		return "GOOD", "GOOD" + s
 	case good(cols, warnings) && missingPKey:
-		return "GOOD" + s + fmt.Sprintf(" + %s", pkMsg)
+		return "GOOD", "GOOD" + s + fmt.Sprintf(" + %s", pkMsg)
 	case ok(cols, warnings) && !missingPKey:
-		return "OK" + s
+		return "OK", "OK" + s
 	case ok(cols, warnings) && missingPKey:
-		return "OK" + s + fmt.Sprintf(" + %s", pkMsg)
+		return "OK", "OK" + s + fmt.Sprintf(" + %s", pkMsg)
 	case !missingPKey:
-		return "POOR" + s
+		return "POOR", "POOR" + s
 	default:
-		return "POOR" + s + fmt.Sprintf(" + %s", pkMsg)
+		return "POOR", "POOR" + s + fmt.Sprintf(" + %s", pkMsg)
 	}
 }
 
@@ -691,7 +687,8 @@ func ok(total, badCount int64) bool {
 func rateConversion(rows, badRows, cols, warnings int64, missingPKey, summary bool, schemaOnly bool, migrationType migration.MigrationData_MigrationType, dryRun bool) string {
 	rate := ""
 	if migrationType != migration.MigrationData_DATA_ONLY {
-		rate = rate + fmt.Sprintf("Schema conversion: %s.\n", rateSchema(cols, warnings, missingPKey, summary))
+		_, rateSchemaReport := RateSchema(cols, warnings, missingPKey, summary)
+		rate = rate + fmt.Sprintf("Schema conversion: %s.\n", rateSchemaReport)
 	}
 	if !schemaOnly {
 		rate = rate + fmt.Sprintf("Data conversion: %s.\n", rateData(rows, badRows, dryRun))
