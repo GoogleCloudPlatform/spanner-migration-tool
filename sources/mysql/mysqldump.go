@@ -410,13 +410,17 @@ func processAlterTable(conv *internal.Conv, stmt *ast.AlterTableStmt) {
 // getTableName extracts the table name from *ast.TableName table, and returns
 // the raw extracted name (the MySQL table name).
 // *ast.TableName is used to represent table names. It consists of two components:
-//  Schema: schemas in MySQL db often unspecified;
-//  Name: name of the table
+//
+//	Schema: schemas in MySQL db often unspecified;
+//	Name: name of the table
+//
 // We build a table name from these components as follows:
 // a) nil components are dropped.
 // b) if more than one component is specified, they are joined using "."
-//    (Note that Spanner doesn't allow "." in table names, so this
-//    will eventually get re-mapped when we construct the Spanner table name).
+//
+//	(Note that Spanner doesn't allow "." in table names, so this
+//	will eventually get re-mapped when we construct the Spanner table name).
+//
 // c) return error if Table is nil or "".
 func getTableName(table *ast.TableName) (string, error) {
 	var l []string
@@ -443,7 +447,7 @@ func processColumn(conv *internal.Conv, tableName string, col *ast.ColumnDef) (s
 	ty := schema.Type{
 		Name:        tid,
 		Mods:        mods,
-		ArrayBounds: getArrayBounds(col.Tp.String(), col.Tp.Elems)}
+		ArrayBounds: getArrayBounds(col.Tp.String(), col.Tp.GetElems())}
 	column := schema.Column{Name: name, Type: ty}
 	return name, column, updateColsByOption(conv, tableName, col, &column), nil
 }
@@ -589,8 +593,10 @@ func handleParseError(conv *internal.Conv, chunk string, err error, l [][]byte) 
 
 // handleInsertStatement handles error in parsing the insert statement.
 // Likely causes of failing to parse Insert statement:
-// 	a) Due to some invalid value.
-// 	b) chunk size is more than what pingcap parser could handle (more than 40MB in size).
+//
+//	a) Due to some invalid value.
+//	b) chunk size is more than what pingcap parser could handle (more than 40MB in size).
+//
 // We deal with this cases by extracting all rows and creating
 // extended insert statements. Then we parse one Insert statement
 // at a time, ensuring no size issue and skipping only invalid entries.
