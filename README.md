@@ -110,6 +110,27 @@ variable if it is not already configured, and
 
 ### Installing HarbourBridge
 
+#### HarbourBridge on gCloud
+You can directly run HarbourBridge from the gCloud CLI instead of building it from source. In order to start using HarbourBridge via Gcloud, the user can install the harbourbridge component of gcloud by executing the below command:
+
+```sh
+gcloud components install harbourbridge
+```
+
+Once installed, the Harbourbridge commands will be available under the `gcloud alpha spanner migration` surface. For example, to start the HarbourBridge UI, run the following command:
+
+```sh
+gcloud alpha spanner migration web
+```
+
+The complete CLI reference for the `spanner migration` gCloud surface can be found [here](https://cloud.google.com/sdk/gcloud/reference/alpha/spanner/migration).
+
+
+Note: Detailed instructions on how to install a new component in gCloud can be found [here](https://cloud.google.com/sdk/docs/install#installation_instructions). 
+
+
+#### HarbourBridge from Source
+
 You can make a copy of the HarbourBridge codebase from the github repository
 and use "go run".
 
