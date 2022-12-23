@@ -111,10 +111,18 @@ variable if it is not already configured, and
 ### Installing HarbourBridge
 
 #### HarbourBridge on gCloud
-You can directly run HarbourBridge from the gCloud CLI instead of building it from source. In order to start using HarbourBridge via Gcloud, the user can install the harbourbridge component of gcloud by executing the below command:
+You can directly run HarbourBridge from the gCloud CLI instead of building it from source. In order to start using HarbourBridge via Gcloud, the user can [install the harbourbridge component](https://cloud.google.com/sdk/docs/components#installing_components) of gcloud by executing the below command:
+
+Note: HarbourBridge on gCloud is currently only supported on the Linux platform.
 
 ```sh
 gcloud components install harbourbridge
+```
+
+Note: If you installed the gcloud CLI through the apt or yum package managers, you can also install additional gcloud CLI components using those same package managers. For example, so install with `apt`, run the following:
+
+```sh
+sudo apt-get install google-cloud-sdk-harbourbridge
 ```
 
 Once installed, the HarbourBridge commands will be available under the `gcloud alpha spanner migration` surface. For example, to start the HarbourBridge UI, run the following command:
