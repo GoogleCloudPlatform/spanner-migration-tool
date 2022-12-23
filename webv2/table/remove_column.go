@@ -53,6 +53,8 @@ func removeColumn(tableId string, colId string, conv *internal.Conv) {
 				} else {
 					delete(conv.UsedNames, sp.ForeignKeys[j].Name)
 				}
+			} else {
+				updatedFks = append(updatedFks, sp.ForeignKeys[j])
 			}
 		}
 
