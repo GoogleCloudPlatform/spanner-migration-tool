@@ -119,7 +119,7 @@ Note: HarbourBridge on gCloud is currently only supported on the Linux platform.
 gcloud components install harbourbridge
 ```
 
-Note: If you installed the gcloud CLI through the apt or yum package managers, you can also install additional gcloud CLI components using those same package managers. For example, so install with `apt`, run the following:
+Note: If you installed the gcloud CLI through the apt or yum package managers, you can also install additional gcloud CLI components using those same package managers. For example, to install with `apt`, run the following:
 
 ```sh
 sudo apt-get install google-cloud-sdk-harbourbridge
