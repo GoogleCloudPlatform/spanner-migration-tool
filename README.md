@@ -117,7 +117,7 @@ You can directly run HarbourBridge from the gCloud CLI instead of building it fr
 gcloud components install harbourbridge
 ```
 
-Once installed, the Harbourbridge commands will be available under the `gcloud alpha spanner migration` surface. For example, to start the HarbourBridge UI, run the following command:
+Once installed, the HarbourBridge commands will be available under the `gcloud alpha spanner migration` surface. For example, to start the HarbourBridge UI, run the following command:
 
 ```sh
 gcloud alpha spanner migration web
