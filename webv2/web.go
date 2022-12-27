@@ -453,6 +453,18 @@ func loadSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	dbType := metadata.DatabaseType
+	switch dbType {
+	case constants.PGDUMP:
+		dbType = constants.POSTGRES
+	case constants.MYSQLDUMP:
+		dbType = constants.MYSQL
+	}
+	if dbType != s.Driver {
+		http.Error(w, fmt.Sprintf("Not a valid %v session file", dbType), http.StatusBadRequest)
+		return
+	}
+
 	err = conversion.ReadSessionFile(conv, constants.UPLOAD_FILE_DIR+"/"+s.FilePath)
 	if err != nil {
 		switch err.(type) {

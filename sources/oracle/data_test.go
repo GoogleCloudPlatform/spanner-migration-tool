@@ -158,27 +158,27 @@ func TestConvertsyntheticPKey(t *testing.T) {
 	}
 	tableName := "testtable"
 	tableId := "t1"
-	colIds := []string{"c1", "c2", "c3"}
 	spTable := ddl.CreateTable{
 		Name:   tableName,
 		Id:     tableId,
-		ColIds: colIds,
+		ColIds: []string{"c1", "c2", "c3", "c4"},
 		ColDefs: map[string]ddl.ColumnDef{
 			"c1": {Name: "a", Id: "c1", T: ddl.Type{Name: ddl.Int64}},
 			"c2": {Name: "b", Id: "c2", T: ddl.Type{Name: ddl.Float64}},
 			"c3": {Name: "c", Id: "c3", T: ddl.Type{Name: ddl.String, Len: int64(1)}},
+			"c4": {Name: "synth_id", Id: "c4", T: ddl.Type{Name: ddl.String, Len: 50}},
 		}}
 	srcTable := schema.Table{
 		Name:   tableName,
 		Id:     tableId,
-		ColIds: colIds,
+		ColIds: []string{"c1", "c2", "c3"},
 		ColDefs: map[string]schema.Column{
 			"c1": {Name: "a", Id: "c1", Type: schema.Type{Name: "NUMBER"}},
 			"c2": {Name: "b", Id: "c2", Type: schema.Type{Name: "FLOAT"}},
 			"c3": {Name: "c", Id: "c3", Type: schema.Type{Name: "CHAR", Mods: []int64{1}}},
 		}}
 	conv := buildConv(spTable, srcTable)
-	conv.SyntheticPKeys[tableId] = internal.SyntheticPKey{ColId: "synth_id", Sequence: 0}
+	conv.SyntheticPKeys[tableId] = internal.SyntheticPKey{ColId: "c4", Sequence: 0}
 	for _, tc := range syntheticPKeyTests {
 		t.Run(tc.name, func(t *testing.T) {
 			atable, acols, avals, err := convertData(conv, tableId, tc.colIds, conv.SrcSchema[tableId], conv.SpSchema[tableId], tc.vals)

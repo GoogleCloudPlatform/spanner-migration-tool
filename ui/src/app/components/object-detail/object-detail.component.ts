@@ -1069,24 +1069,28 @@ export class ObjectDetailComponent implements OnInit {
       Id: this.currentObject!.id,
     })
 
-    this.data.updateIndex(this.currentObject?.parentId!, payload).subscribe({
-      next: (res: string) => {
-        if (res == '') {
-          this.isEditMode = false
-        } else {
-          this.dialog.open(InfodialogComponent, {
-            data: { message: res, type: 'error' },
-            maxWidth: '500px',
-          })
-          this.isIndexEditMode = true
-        }
-      },
-    })
-    this.addIndexKeyForm.controls['columnName'].setValue('')
-    this.addIndexKeyForm.controls['ascOrDesc'].setValue('')
-    this.addIndexKeyForm.markAsUntouched()
-    this.data.getSummary()
-    this.isIndexEditMode = false
+    if (payload[0].Keys.length == 0) {
+      this.dropIndex()
+    } else {
+      this.data.updateIndex(this.currentObject?.parentId!, payload).subscribe({
+        next: (res: string) => {
+          if (res == '') {
+            this.isEditMode = false
+          } else {
+            this.dialog.open(InfodialogComponent, {
+              data: { message: res, type: 'error' },
+              maxWidth: '500px',
+            })
+            this.isIndexEditMode = true
+          }
+        },
+      })
+      this.addIndexKeyForm.controls['columnName'].setValue('')
+      this.addIndexKeyForm.controls['ascOrDesc'].setValue('')
+      this.addIndexKeyForm.markAsUntouched()
+      this.data.getSummary()
+      this.isIndexEditMode = false
+    }
   }
 
   dropIndex() {
