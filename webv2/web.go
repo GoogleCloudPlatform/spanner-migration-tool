@@ -690,13 +690,25 @@ func dropRule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if rule.Type == constants.AddIndex {
-		index := rule.Data.(ddl.CreateIndex)
-		tableId := index.TableId
-		indexId := index.Id
-		err := dropSecondaryIndexHelper(tableId, indexId)
-		if err != nil && rule.Enabled {
-			http.Error(w, fmt.Sprintf("%v", err), http.StatusBadRequest)
-			return
+		if rule.Enabled {
+			d, err := json.Marshal(rule.Data)
+			if err != nil {
+				http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+				return
+			}
+			var index ddl.CreateIndex
+			err = json.Unmarshal(d, &index)
+			if err != nil {
+				http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+				return
+			}
+			tableId := index.TableId
+			indexId := index.Id
+			err = dropSecondaryIndexHelper(tableId, indexId)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("%v", err), http.StatusBadRequest)
+				return
+			}
 		}
 	} else if rule.Type == constants.GlobalDataTypeChange {
 		d, err := json.Marshal(rule.Data)
@@ -1809,6 +1821,28 @@ func dropSecondaryIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// To set enabled value to false for the rule associated with the dropped index.
+	indexId := dropDetail.Id
+	for i, rule := range sessionState.Conv.Rules {
+		if rule.Type == constants.AddIndex {
+			d, err := json.Marshal(rule.Data)
+			if err != nil {
+				http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+				return
+			}
+			var index ddl.CreateIndex
+			err = json.Unmarshal(d, &index)
+			if err != nil {
+				http.Error(w, "Invalid rule data", http.StatusInternalServerError)
+				return
+			}
+			if index.Id == indexId {
+				sessionState.Conv.Rules[i].Enabled = false
+				break
+			}
+		}
+	}
+
 	convm := session.ConvWithMetadata{
 		SessionMetadata: sessionState.SessionMetadata,
 		Conv:            *sessionState.Conv,
@@ -1837,17 +1871,6 @@ func dropSecondaryIndexHelper(tableId, idxId string) error {
 	usedNames := sessionState.Conv.UsedNames
 	delete(usedNames, sp.Indexes[position].Name)
 	index.RemoveIndexIssues(tableId, sp.Indexes[position])
-
-	indexId := sp.Indexes[position].Id
-	for i, rule := range sessionState.Conv.Rules {
-		if rule.Type == constants.AddIndex {
-			index := rule.Data.(ddl.CreateIndex)
-			if index.Id == indexId {
-				sessionState.Conv.Rules[i].Enabled = false
-				break
-			}
-		}
-	}
 
 	sp.Indexes = utilities.RemoveSecondaryIndex(sp.Indexes, position)
 	sessionState.Conv.SpSchema[tableId] = sp

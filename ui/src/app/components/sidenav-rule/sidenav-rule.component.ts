@@ -2,6 +2,7 @@ import { Component, Input, OnInit } from '@angular/core'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { FormControl, FormGroup, Validators } from '@angular/forms'
 import { DataService } from 'src/app/services/data/data.service'
+import IRule from 'src/app/model/rule'
 
 @Component({
   selector: 'app-sidenav-rule',
@@ -23,33 +24,36 @@ export class SidenavRuleComponent implements OnInit {
   viewRuleFlag: boolean = false
 
   ngOnInit(): void {
-    this.sidenav.sidenavRuleType.subscribe((res) => {
-      if (res === 'addIndex') {
-        this.ruleForm.controls['ruleType'].setValue('addIndex')
-      }
-    })
-
     this.ruleForm.valueChanges.subscribe(() => {
       this.rulename = this.ruleForm.controls['ruleName']?.value
       this.ruletype = this.ruleForm.controls['ruleType']?.value
     })
 
-    this.sidenav.passRules.subscribe(([data, flag]: any) => {
-      this.viewRuleData = data
+    this.sidenav.displayRuleFlag.subscribe((flag: boolean) => {
       this.viewRuleFlag = flag
-
       if (this.viewRuleFlag) {
-        this.ruleForm.disable()
-        this.ruleForm.controls['ruleName'].setValue(this.viewRuleData?.Name)
-        this.ruleForm.controls['ruleType'].setValue(
-          this.viewRuleData?.Type === 'add_index' ? 'addIndex' : 'globalDataType'
-        )
+        this.sidenav.ruleData.subscribe((data: IRule) => {
+          this.viewRuleData = data
+          this.setViewRuleData(this.viewRuleData)
+        })
       } else {
         this.ruleForm.enable()
-        this.ruleForm.controls['ruleName'].setValue('')
         this.ruleForm.controls['ruleType'].setValue('')
+        this.sidenav.sidenavRuleType.subscribe((res) => {
+          if (res === 'addIndex') {
+            this.ruleForm.controls['ruleType'].setValue('addIndex')
+          }
+        })
       }
     })
+  }
+
+  setViewRuleData(data: IRule) {
+    this.ruleForm.disable()
+    this.ruleForm.controls['ruleName'].setValue(data?.Name)
+    this.ruleForm.controls['ruleType'].setValue(
+      this.viewRuleData?.Type === 'add_index' ? 'addIndex' : 'globalDataType'
+    )
   }
 
   closeSidenav(): void {

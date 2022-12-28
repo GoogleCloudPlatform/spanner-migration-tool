@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core'
 import { FetchService } from '../fetch/fetch.service'
 import IConv, { ICreateIndex, IForeignKey, IInterleaveStatus, IPrimaryKey } from '../../model/conv'
-import IRuleContent, { IRule } from 'src/app/model/rule'
+import IRule from 'src/app/model/rule'
 import { BehaviorSubject, forkJoin, Observable, of } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
 import IUpdateTable from 'src/app/model/update-table'

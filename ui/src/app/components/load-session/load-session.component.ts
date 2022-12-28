@@ -20,7 +20,7 @@ export class LoadSessionComponent implements OnInit {
   ) {}
 
   connectForm = new FormGroup({
-    dbEngine: new FormControl('sqlserver', [Validators.required]),
+    dbEngine: new FormControl('mysql', [Validators.required]),
     filePath: new FormControl('', [Validators.required]),
   })
 

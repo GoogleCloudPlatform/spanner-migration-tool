@@ -72,7 +72,9 @@ export class RuleComponent implements OnInit {
   openSidenav(): void {
     this.sidenavService.openSidenav()
     this.sidenavService.setSidenavComponent('rule')
-    this.sidenavService.passRule([], false)
+    this.sidenavService.setSidenavRuleType('')
+    this.sidenavService.setRuleData({})
+    this.sidenavService.setDisplayRuleFlag(false)
   }
 
   viewSidenavRule(Id: any): void {
@@ -86,6 +88,7 @@ export class RuleComponent implements OnInit {
 
     this.sidenavService.openSidenav()
     this.sidenavService.setSidenavComponent('rule')
-    this.sidenavService.passRule(selectedRule, true)
+    this.sidenavService.setRuleData(selectedRule)
+    this.sidenavService.setDisplayRuleFlag(true)
   }
 }

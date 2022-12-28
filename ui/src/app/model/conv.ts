@@ -1,4 +1,4 @@
-import { IRule } from './rule'
+import IRule from './rule'
 
 export default interface IConv {
   SpSchema: Record<string, ICreateTable>

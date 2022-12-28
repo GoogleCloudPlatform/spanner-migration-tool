@@ -153,7 +153,8 @@ export class ObjectExplorerComponent implements OnInit {
     this.sidenav.setSidenavRuleType('addIndex')
     this.sidenav.openSidenav()
     this.sidenav.setSidenavComponent('rule')
-    this.sidenav.passRule([], false)
+    this.sidenav.setRuleData([])
+    this.sidenav.setDisplayRuleFlag(false)
   }
 
   shouldHighlight(data: FlatNode) {
