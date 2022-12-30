@@ -84,6 +84,26 @@ export const Profile = {
   ExistingConnProfile: 'existing',
 }
 
+export const Dialect = {
+  PostgreSQLDialect: 'experimental_postgres'
+}
+
+export const PGSQLDatatype = {
+  Bytea: 'BYTEA',
+  Float8: 'FLOAT8',
+  Int8: 'INT8',
+  Varchar: 'VARCHAR',
+  TimestampTZ: 'TIMESTAMPTZ'
+}
+
+export const GoogleSQLDatatype = {
+  Bytes: 'BYTES',
+  Float64: 'FLOAT64',
+  Int64: 'INT64',
+  String: 'STRING',
+  Timestamp: 'TIMESTAMP'
+}
+
 export enum ProgressStatus {
 	SchemaMigrationComplete = 1,
 	SchemaCreationInProgress = 2,

@@ -25,7 +25,7 @@ export class FetchService {
   constructor(private http: HttpClient) {}
 
   connectTodb(payload: IDbConfig) {
-    const { dbEngine, hostName, port, dbName, userName, password } = payload
+    const { dbEngine, hostName, port, dbName, userName, password, dialect } = payload
     return this.http.post<HttpResponse<null>>(
       `${this.url}/connect`,
       {
@@ -35,6 +35,7 @@ export class FetchService {
         Database: dbName,
         User: userName,
         Password: password,
+        Dialect: dialect,
       },
       { observe: 'response' }
     )

@@ -9,7 +9,7 @@ import IConv, {
 } from '../../model/conv'
 import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import { ObjectExplorerNodeType } from 'src/app/app.constants'
+import { Dialect, GoogleSQLDatatype, ObjectExplorerNodeType, PGSQLDatatype } from 'src/app/app.constants'
 
 @Injectable({
   providedIn: 'root',
@@ -240,7 +240,7 @@ export class ConversionService {
           spOrder: spannerColDef ? i + 1 : '',
           srcOrder: i + 1,
           spColName: spannerColDef ? spColName : '',
-          spDataType: spannerColDef ? spannerColDef.T.Name : '',
+          spDataType: spannerColDef ? (data.TargetDb === Dialect.PostgreSQLDialect ? this.getPGSQLDatatype(spannerColDef.T.Name) : spannerColDef.T.Name) : '',
           srcColName: name,
           srcDataType: data.SrcSchema[srcTableName].ColDefs[name].Type.Name,
           spIsPk:
@@ -445,5 +445,38 @@ export class ConversionService {
       }
     })
     return spName
+  }
+  getPGSQLDatatype(spType: string) {
+    switch (spType) {
+      case GoogleSQLDatatype.Bytes:
+        return PGSQLDatatype.Bytea
+      case GoogleSQLDatatype.Float64:
+        return PGSQLDatatype.Float8
+      case GoogleSQLDatatype.Int64:
+        return PGSQLDatatype.Int8
+      case GoogleSQLDatatype.String:
+        return PGSQLDatatype.Varchar
+      case GoogleSQLDatatype.Timestamp:
+        return PGSQLDatatype.TimestampTZ
+      default:
+        return spType
+    }
+  }
+
+  getGoogleSQLDatatype(pgType: string): string {
+    switch (pgType) {
+      case PGSQLDatatype.Bytea:
+        return GoogleSQLDatatype.Bytes
+      case PGSQLDatatype.Float8:
+        return GoogleSQLDatatype.Float64
+      case PGSQLDatatype.Int8:
+        return GoogleSQLDatatype.Int64
+      case PGSQLDatatype.Varchar:
+        return GoogleSQLDatatype.String
+      case PGSQLDatatype.TimestampTZ:
+        return GoogleSQLDatatype.Timestamp
+      default:
+        return pgType
+    }
   }
 }

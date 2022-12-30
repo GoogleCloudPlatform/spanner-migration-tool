@@ -128,7 +128,7 @@ func ReviewTableSchema(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	ddl := GetSpannerTableDDL(conv.SpSchema[table])
+	ddl := GetSpannerTableDDL(conv.SpSchema[table], conv.TargetDb)
 
 	interleaveTableSchema = trimRedundantInterleaveTableSchema(interleaveTableSchema)
 	// update interleaveTableSchema by filling the missing fields.

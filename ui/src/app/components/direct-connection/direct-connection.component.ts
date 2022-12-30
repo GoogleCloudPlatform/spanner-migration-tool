@@ -23,6 +23,7 @@ export class DirectConnectionComponent implements OnInit {
     userName: new FormControl('', [Validators.required]),
     password: new FormControl(''),
     dbName: new FormControl('', [Validators.required]),
+    dialect: new FormControl('', [Validators.required]),
   })
 
   dbEngineList = [
@@ -30,6 +31,11 @@ export class DirectConnectionComponent implements OnInit {
     { value: 'sqlserver', displayName: 'SQL Server' },
     { value: 'oracle', displayName: 'Oracle' },
     { value: 'postgres', displayName: 'PostgreSQL' },
+  ]
+
+  dialect = [
+    { value: 'google_standard_sql', displayName: 'Google Standard SQL Dialect' },
+    { value: 'postgresql', displayName: 'PostgreSQL SQL Dialect' },
   ]
 
   constructor(
@@ -48,8 +54,8 @@ export class DirectConnectionComponent implements OnInit {
     window.scroll(0, 0)
     this.data.resetStore()
     localStorage.clear()
-    const { dbEngine, hostName, port, userName, password, dbName } = this.connectForm.value
-    const config: IDbConfig = { dbEngine, hostName, port, userName, password, dbName }
+    const { dbEngine, hostName, port, userName, password, dbName, dialect } = this.connectForm.value
+    const config: IDbConfig = { dbEngine, hostName, port, userName, password, dbName, dialect }
     this.fetch.connectTodb(config).subscribe({
       next: () => {
         this.data.getSchemaConversionFromDb()

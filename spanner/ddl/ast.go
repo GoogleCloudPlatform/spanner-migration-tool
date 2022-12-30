@@ -106,24 +106,27 @@ func (ty Type) PrintColumnDefType() string {
 	return str
 }
 
-func (ty Type) PGPrintColumnDefType() string {
-	var str string
-	switch ty.Name {
+func GetPGType(spType string) string {
+	switch spType {
 	case Bytes:
-		str = PGBytea
+		return PGBytea
 	case Float64:
-		str = PGFloat8
+		return PGFloat8
 	case Int64:
-		str = PGInt8
+		return PGInt8
 	case String:
-		str = PGVarchar
+		return PGVarchar
 	case Timestamp:
-		str = PGTimestamptz
+		return PGTimestamptz
 	case JSON:
-		str = PGJSONB
+		return PGJSONB
 	default:
-		str = ty.Name
+		return spType
 	}
+}
+
+func (ty Type) PGPrintColumnDefType() string {
+	str := GetPGType(ty.Name)
 	// PG doesn't support array types, and we don't expect to receive a type
 	// with IsArray set to true. In the unlikely event, set to string type.
 	if ty.IsArray {
