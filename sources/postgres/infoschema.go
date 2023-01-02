@@ -566,6 +566,13 @@ func cvtSQLScalar(conv *internal.Conv, srcCd schema.Column, spCd ddl.ColumnDef, 
 		case []uint8:
 			return string(v), nil
 		}
+	case ddl.JSONB:
+		switch v := val.(type) {
+		case string:
+			return string(v), nil
+		case []uint8:
+			return string(v), nil
+		}
 	}
 	return nil, fmt.Errorf("can't convert value of type %s to Spanner type %s", reflect.TypeOf(val), reflect.TypeOf(spCd.T))
 }

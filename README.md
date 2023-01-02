@@ -652,8 +652,3 @@ the data. This is not verified during updation of the keys
 - Conversion to Spanner ARRAY type is currently not supported
 - MySQL types BIT and TIME are not converted correctly
 - PostgreSQL types bit, bit varying, bytea and time not converted correctly.
-### Data Types
-
-**PG Spanner JSONB type** 
- - Harbourbridge does not support the PG Spanner's JSONB type. HB will convert any source Postgres database columns of type JSON or JSONB into strings representing the JSON value.
-- As a workaround, after schema conversion, users can drop the `string` column created for the JSONB type, and manually add a new column of `jsonb` type. This can be on the Cloud Spanner console.
