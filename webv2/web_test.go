@@ -70,51 +70,51 @@ func TestGetTypeMapPostgres(t *testing.T) {
 	}
 	expectedTypemap := map[string][]typeIssue{
 		"bool": {
-			{T: ddl.Bool},
-			{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
+			{T: ddl.Bool, DisplayT: ddl.Bool},
+			{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"bigserial": {
-			{T: ddl.Int64, Brief: internal.IssueDB[internal.Serial].Brief},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief + ", " + internal.IssueDB[internal.Serial].Brief}},
+			{T: ddl.Int64, Brief: internal.IssueDB[internal.Serial].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief + ", " + internal.IssueDB[internal.Serial].Brief, DisplayT: ddl.String}},
 		"bpchar": {
-			{T: ddl.Bytes},
-			{T: ddl.String}},
+			{T: ddl.Bytes, DisplayT: ddl.Bytes},
+			{T: ddl.String, DisplayT: ddl.String}},
 		"bytea": {
-			{T: ddl.Bytes},
-			{T: ddl.String}},
+			{T: ddl.Bytes, DisplayT: ddl.Bytes},
+			{T: ddl.String, DisplayT: ddl.String}},
 		"date": {
-			{T: ddl.Date},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
+			{T: ddl.Date, DisplayT: ddl.Date},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"float8": {
-			{T: ddl.Float64},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
+			{T: ddl.Float64, DisplayT: ddl.Float64},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"float4": {
-			{T: ddl.Float64, Brief: internal.IssueDB[internal.Widened].Brief},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
+			{T: ddl.Float64, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float64},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"int8": {
-			{T: ddl.Int64},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
+			{T: ddl.Int64, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"int4": {
-			{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
+			{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"numeric": {
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-			{T: ddl.Numeric}},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Numeric, DisplayT: ddl.Numeric}},
 		"serial": {
-			{T: ddl.Int64, Brief: internal.IssueDB[internal.Serial].Brief},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief + ", " + internal.IssueDB[internal.Serial].Brief}},
+			{T: ddl.Int64, Brief: internal.IssueDB[internal.Serial].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief + ", " + internal.IssueDB[internal.Serial].Brief, DisplayT: ddl.String}},
 		"text": {
-			{T: ddl.Bytes},
-			{T: ddl.String}},
+			{T: ddl.Bytes, DisplayT: ddl.Bytes},
+			{T: ddl.String, DisplayT: ddl.String}},
 		"timestamptz": {
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-			{T: ddl.Timestamp}},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Timestamp, DisplayT: ddl.Timestamp}},
 		"timestamp": {
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-			{T: ddl.Timestamp, Brief: internal.IssueDB[internal.Timestamp].Brief}},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Timestamp, Brief: internal.IssueDB[internal.Timestamp].Brief, DisplayT: ddl.Timestamp}},
 		"varchar": {
-			{T: ddl.Bytes},
-			{T: ddl.String}},
+			{T: ddl.Bytes, DisplayT: ddl.Bytes},
+			{T: ddl.String, DisplayT: ddl.String}},
 	}
 	assert.Equal(t, expectedTypemap, typemap)
 
@@ -165,52 +165,52 @@ func TestGetTypeMapMySQL(t *testing.T) {
 	}
 	expectedTypemap := map[string][]typeIssue{
 		"bool": {
-			{T: ddl.Bool},
-			{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
+			{T: ddl.Bool, DisplayT: ddl.Bool},
+			{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"varchar": {
-			{T: ddl.Bytes},
-			{T: ddl.String}},
+			{T: ddl.Bytes, DisplayT: ddl.Bytes},
+			{T: ddl.String, DisplayT: ddl.String}},
 		"text": {
-			{T: ddl.Bytes},
-			{T: ddl.String}},
+			{T: ddl.Bytes, DisplayT: ddl.Bytes},
+			{T: ddl.String, DisplayT: ddl.String}},
 		"enum": {
-			{T: ddl.String}},
+			{T: ddl.String, DisplayT: ddl.String}},
 		"json": {
-			{T: ddl.Bytes},
-			{T: ddl.JSON}},
+			{T: ddl.Bytes, DisplayT: ddl.Bytes},
+			{T: ddl.JSON, DisplayT: ddl.JSON}},
 		"binary": {
-			{T: ddl.Bytes},
-			{T: ddl.String}},
+			{T: ddl.Bytes, DisplayT: ddl.Bytes},
+			{T: ddl.String, DisplayT: ddl.String}},
 		"blob": {
-			{T: ddl.Bytes},
-			{T: ddl.String}},
+			{T: ddl.Bytes, DisplayT: ddl.Bytes},
+			{T: ddl.String, DisplayT: ddl.String}},
 		"integer": {
-			{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
+			{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"smallint": {
-			{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
+			{T: ddl.Int64, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.Int64},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"double": {
-			{T: ddl.Float64},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
+			{T: ddl.Float64, DisplayT: ddl.Float64},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"float": {
-			{T: ddl.Float64, Brief: internal.IssueDB[internal.Widened].Brief},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
+			{T: ddl.Float64, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.Float64},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"numeric": {
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-			{T: ddl.Numeric}},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Numeric, DisplayT: ddl.Numeric}},
 		"decimal": {
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-			{T: ddl.Numeric}},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Numeric, DisplayT: ddl.Numeric}},
 		"date": {
-			{T: ddl.Date},
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief}},
+			{T: ddl.Date, DisplayT: ddl.Date},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String}},
 		"timestamp": {
-			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief},
-			{T: ddl.Timestamp}},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Widened].Brief, DisplayT: ddl.String},
+			{T: ddl.Timestamp, DisplayT: ddl.Timestamp}},
 		"time": {
-			{T: ddl.String, Brief: internal.IssueDB[internal.Time].Brief}},
+			{T: ddl.String, Brief: internal.IssueDB[internal.Time].Brief, DisplayT: ddl.String}},
 	}
 	assert.Equal(t, expectedTypemap, typemap)
 
