@@ -7,7 +7,7 @@ import { InfodialogComponent } from '../infodialog/infodialog.component'
 import IColumnTabData, { IIndexData } from '../../model/edit-table'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import IFkTabData from 'src/app/model/fk-tab-data'
-import { ObjectDetailNodeType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
+import { Dialect, ObjectDetailNodeType, ObjectExplorerNodeType, StorageKeys } from 'src/app/app.constants'
 import FlatNode from 'src/app/model/schema-object-node'
 import { Subscription, take } from 'rxjs'
 import { MatTabChangeEvent } from '@angular/material/tabs/tab-group'
@@ -289,7 +289,7 @@ export class ObjectDetailComponent implements OnInit {
             Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
             NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
             Removed: false,
-            ToType: col.spDataType,
+            ToType: (this.conv.TargetDb === Dialect.PostgreSQLDialect) ? this.conversion.getGoogleSQLDatatype(col.spDataType) : col.spDataType,
           }
           break
         }
@@ -431,7 +431,7 @@ export class ObjectDetailComponent implements OnInit {
       const spDataType = item.spDataType
       let brief: string = ''
       this.typeMap[srDataType]?.forEach((type: any) => {
-        if (spDataType == type.T) brief = type.Brief
+        if (spDataType == type.DiplayT) brief = type.Brief
       })
       this.isSpTableSuggesstionDisplay.push(brief !== '')
       this.spTableSuggestion.push(brief)
@@ -441,7 +441,7 @@ export class ObjectDetailComponent implements OnInit {
     const srDataType = this.localTableData[index].srcDataType
     let brief: string = ''
     this.typeMap[srDataType].forEach((type: any) => {
-      if (spDataType == type.T) brief = type.Brief
+      if (spDataType == type.DisplayT) brief = type.Brief
     })
     this.isSpTableSuggesstionDisplay[index] = brief !== ''
     this.spTableSuggestion[index] = brief

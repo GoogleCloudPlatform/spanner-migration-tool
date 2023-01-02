@@ -4,7 +4,7 @@ import IConv, { ICreateIndex, IForeignKey, IInterleaveStatus, IPrimaryKey } from
 import IRuleContent, { IRule } from 'src/app/model/rule'
 import { BehaviorSubject, forkJoin, Observable, of } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
-import IUpdateTable from 'src/app/model/update-table'
+import IUpdateTable, { IReviewInterleaveTableChanges, ITableColumnChanges } from 'src/app/model/update-table'
 import IDumpConfig from 'src/app/model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISession from 'src/app/model/session'
@@ -13,6 +13,8 @@ import { SnackbarService } from '../snackbar/snackbar.service'
 import ISummary from 'src/app/model/summary'
 import { ClickEventService } from '../click-event/click-event.service'
 import { TableUpdatePubSubService } from '../table-update-pub-sub/table-update-pub-sub.service'
+import { ConversionService } from '../conversion/conversion.service'
+import { Dialect } from 'src/app/app.constants'
 
 @Injectable({
   providedIn: 'root',
@@ -51,7 +53,8 @@ export class DataService {
     private fetch: FetchService,
     private snackbar: SnackbarService,
     private clickEvent: ClickEventService,
-    private tableUpdatePubSub: TableUpdatePubSubService
+    private tableUpdatePubSub: TableUpdatePubSubService,
+    private conversion: ConversionService
   ) {
     this.getLastSessionDetails()
     this.getConfig()
@@ -184,6 +187,16 @@ export class DataService {
         if (data.error) {
           return data.error
         } else {
+          this.conv.subscribe((convData: IConv) => {
+            if (convData.TargetDb === Dialect.PostgreSQLDialect) {
+              data.Changes.forEach((table: IReviewInterleaveTableChanges)=> {
+                table.InterleaveColumnChanges.forEach((column: ITableColumnChanges)=>{
+                  column.Type = this.conversion.getPGSQLDatatype(column.Type)
+                  column.UpdateType = this.conversion.getPGSQLDatatype(column.UpdateType)
+                })
+              })
+            }
+          })
           this.tableUpdatePubSub.setTableReviewChanges(data)
           return ''
         }

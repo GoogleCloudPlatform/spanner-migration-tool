@@ -46,6 +46,7 @@ export class SourceDetailsFormComponent implements OnInit {
     let payload: IDumpConfig = {
       Driver: this.sourceDatabaseEngine,
       Path: filePath,
+      Dialect: '',
     }
     this.fetch.setSourceDBDetailsForDump(payload).subscribe({
       next: () => {
@@ -66,7 +67,8 @@ export class SourceDetailsFormComponent implements OnInit {
       port: port,
       userName: userName,
       password: password,
-      dbName: dbName
+      dbName: dbName,
+      dialect: '',
     }
     this.fetch.setSourceDBDetailsForDirectConnect(payload).subscribe({
       next: () => {

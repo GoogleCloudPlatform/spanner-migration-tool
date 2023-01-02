@@ -189,6 +189,13 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 }
 
+func overrideExperimentalTypeWeb(columnType string, originalType ddl.Type) ddl.Type {
+	if columnType == "json" {
+		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+	}
+	return originalType
+}
+
 // Override the types to map to experimental postgres types.
 func overrideExperimentalType(srcType schema.Type, originalType ddl.Type) ddl.Type {
 	if len(srcType.ArrayBounds) > 0 {

@@ -21,10 +21,15 @@ export class LoadDumpComponent implements OnInit {
   connectForm = new FormGroup({
     dbEngine: new FormControl('mysqldump', [Validators.required]),
     filePath: new FormControl('', [Validators.required]),
+    dialect: new FormControl('', [Validators.required]),
   })
   dbEngineList = [
     { value: 'mysqldump', displayName: 'MySQL' },
     { value: 'pg_dump', displayName: 'PostgreSQL' },
+  ]
+  dialect = [
+    { value: 'google_standard_sql', displayName: 'Google Standard SQL Dialect' },
+    { value: 'postgresql', displayName: 'PostgreSQL SQL Dialect' },
   ]
   fileToUpload: File | null = null
 
@@ -38,10 +43,11 @@ export class LoadDumpComponent implements OnInit {
     this.clickEvent.openDatabaseLoader('dump', '')
     this.data.resetStore()
     localStorage.clear()
-    const { dbEngine, filePath } = this.connectForm.value
+    const { dbEngine, filePath, dialect } = this.connectForm.value
     const payload: IDumpConfig = {
       Driver: dbEngine,
       Path: filePath,
+      Dialect: dialect,
     }
     this.data.getSchemaConversionFromDump(payload)
     this.data.conv.subscribe((res) => {
