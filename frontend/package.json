@@ -27,7 +27,12 @@
         ]
     },
     "dependencies": {
-        "downloads-folder": "^3.0.1",
+        "downloads-folder": "^3.0.3",
         "puppeteer": "^9.1.1"
-    }
+    },
+    "overrides": {
+        "downloads-folder": {
+          "strip-ansi": "~6.0.1"
+        }
+      }
 }
