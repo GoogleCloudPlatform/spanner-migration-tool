@@ -201,5 +201,5 @@ func overrideExperimentalType(srcType schema.Type, originalType ddl.Type) ddl.Ty
 	if len(srcType.ArrayBounds) > 0 {
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 	}
-	return originalType
+	return overrideExperimentalTypeWeb(columnType.Name, originalType)
 }
