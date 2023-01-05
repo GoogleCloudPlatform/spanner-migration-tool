@@ -352,8 +352,10 @@ export class ObjectDetailComponent implements OnInit {
   }
 
   dropColumn(element: any) {
-    let colName = element.get('srcColName').value
-    let colId = element.get('srcId').value
+    let srcColName = element.get('srcColName').value
+    let srcColId = element.get('srcId').value
+    let spColId = element.get('spId').value
+    let colId = srcColId != '' ? srcColId : spColId
     let spColName = this.conv.SpSchema[this.currentObject!.id].ColDefs[colId].Name
 
     let associatedIndexes = this.getAssociatedIndexs(colId)
@@ -379,11 +381,11 @@ export class ObjectDetailComponent implements OnInit {
       })
     } else {
       this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
-        if (col.srcColName === colName) {
+        if (col.srcColName === srcColName) {
           this.droppedColumns.push(col)
         }
       })
-      this.dropColumnFromUI(colName)
+      this.dropColumnFromUI(srcColName)
     }
   }
 
@@ -548,11 +550,14 @@ export class ObjectDetailComponent implements OnInit {
 
   addPkColumn() {
     let index = this.localTableData.map((item) => item.spColName).indexOf(this.addedPkColumnName)
+    let toAddCol = this.localTableData[index]
     let newColumnOrder = 1
     this.localTableData[index].spIsPk = true
     this.pkData = []
     this.pkData = this.conversion.getPkMapping(this.localTableData)
-    index = this.pkData.findIndex((item) => item.srcOrder === index + 1)
+    index = this.pkData.findIndex(
+      (item) => item.srcId === toAddCol.srcId || item.spId == toAddCol.spId
+    )
     this.pkArray.value.forEach((pk: IColumnTabData) => {
       if (pk.spIsPk) {
         newColumnOrder = newColumnOrder + 1
@@ -757,7 +762,30 @@ export class ObjectDetailComponent implements OnInit {
 
   dropPk(element: any) {
     let index = this.localTableData.map((item) => item.spColName).indexOf(element.value.spColName)
-    let removedOrder = element.value.spOrder
+    let colId = this.localTableData[index].spId
+    let synthColId = this.conv.SyntheticPKeys[this.currentObject!.id]
+      ? this.conv.SyntheticPKeys[this.currentObject!.id].ColId
+      : ''
+    if (colId == synthColId) {
+      const dialogRef = this.dialog.open(InfodialogComponent, {
+        data: {
+          message:
+            'Removing this synthetic id column from primary key will drop the column from the table',
+          title: 'Confirm removal of synthetic id',
+          type: 'warning',
+        },
+        maxWidth: '500px',
+      })
+      dialogRef.afterClosed().subscribe((dialogResult) => {
+        if (dialogResult) {
+          this.dropPkHelper(index, element.value.spOrder)
+        }
+      })
+    } else {
+      this.dropPkHelper(index, element.value.spOrder)
+    }
+  }
+  dropPkHelper(index: number, removedOrder: number) {
     this.localTableData[index].spIsPk = false
     this.pkData = []
     this.pkData = this.conversion.getPkMapping(this.localTableData)

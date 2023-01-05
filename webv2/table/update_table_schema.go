@@ -84,7 +84,7 @@ func UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
 
 		if v.Removed {
 
-			removeColumn(tableId, colId, conv)
+			RemoveColumn(tableId, colId, conv)
 
 		}
 

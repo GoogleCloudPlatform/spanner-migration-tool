@@ -23,9 +23,9 @@ import (
 
 // updateprimaryKey insert or delete primary key column.
 // updateprimaryKey also update desc and order for primaryKey column.
-func updatePrimaryKey(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) ddl.CreateTable {
+func updatePrimaryKey(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable, synthColId string) (ddl.CreateTable, bool) {
 
-	spannerTable = insertOrRemovePrimarykey(pkRequest, spannerTable)
+	spannerTable, isSynthPkRemoved := insertOrRemovePrimarykey(pkRequest, spannerTable, synthColId)
 
 	for i := 0; i < len(pkRequest.Columns); i++ {
 
@@ -40,12 +40,12 @@ func updatePrimaryKey(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable)
 		}
 	}
 
-	return spannerTable
+	return spannerTable, isSynthPkRemoved
 }
 
 // insertOrRemovePrimarykey performs insert or remove primary key operation based on
 // difference of two pkRequest and spannerTable.PrimaryKeys.
-func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable) ddl.CreateTable {
+func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.CreateTable, synthColId string) (ddl.CreateTable, bool) {
 
 	cidRequestList := getColumnIdListFromPrimaryKeyRequest(pkRequest)
 	cidSpannerTableList := getColumnIdListOfSpannerTablePrimaryKey(spannerTable)
@@ -63,6 +63,13 @@ func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 	// hence remove primary key from  spannertable.PrimaryKeys
 	rightjoin := utilities.Difference(cidSpannerTableList, cidRequestList)
 
+	isSynthPkRemoved := false
+	for _, colId := range rightjoin {
+		if colId == synthColId {
+			isSynthPkRemoved = true
+		}
+	}
+
 	if len(rightjoin) > 0 {
 		nlist := removePrimaryKey(rightjoin, spannerTable)
 		spannerTable.PrimaryKeys = nlist
@@ -71,7 +78,7 @@ func insertOrRemovePrimarykey(pkRequest PrimaryKeyRequest, spannerTable ddl.Crea
 
 	cidRequestList = []string{}
 	cidSpannerTableList = []string{}
-	return spannerTable
+	return spannerTable, isSynthPkRemoved
 }
 
 // addPrimaryKey insert primary key into list of IndexKey.

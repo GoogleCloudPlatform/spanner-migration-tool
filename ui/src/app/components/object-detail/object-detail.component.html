@@ -361,7 +361,11 @@
           </table>
         </div>
 
-        <div [formGroup]="addColumnForm" *ngIf="isEditMode" class="add-column">
+        <div
+          [formGroup]="addColumnForm"
+          *ngIf="isEditMode && srcDataSource.length != spDataSource.length"
+          class="add-column"
+        >
           <mat-form-field appearance="outline" class="column-list">
             <mat-label>Column Name</mat-label>
             <mat-select

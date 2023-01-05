@@ -23,6 +23,7 @@ import (
 
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/index"
 	"github.com/cloudspannerecosystem/harbourbridge/webv2/session"
+	"github.com/cloudspannerecosystem/harbourbridge/webv2/table"
 
 	"github.com/google/uuid"
 )
@@ -82,6 +83,8 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 
 	}
 
+	tableId := spannerTable.Id
+
 	if len(pkRequest.Columns) == 0 {
 		log.Println("Empty columm error")
 		http.Error(w, fmt.Sprintf("empty columm error"), http.StatusBadRequest)
@@ -102,8 +105,26 @@ func PrimaryKey(w http.ResponseWriter, r *http.Request) {
 		return
 
 	}
+	synthColId := ""
+	if synthCol, found := sessionState.Conv.SyntheticPKeys[tableId]; found {
+		synthColId = synthCol.ColId
+	}
 
-	spannerTable = updatePrimaryKey(pkRequest, spannerTable)
+	spannerTable, isSynthPkRemoved := updatePrimaryKey(pkRequest, spannerTable, synthColId)
+
+	if isSynthPkRemoved {
+		synthPks := sessionState.Conv.SyntheticPKeys
+		delete(synthPks, tableId)
+		sessionState.Conv.SyntheticPKeys = synthPks
+		table.RemoveColumn(tableId, synthColId, sessionState.Conv)
+		colIds := []string{}
+		for _, colId := range spannerTable.ColIds {
+			if colId != synthColId {
+				colIds = append(colIds, colId)
+			}
+		}
+		spannerTable.ColIds = colIds
+	}
 
 	//update spannerTable into sessionState.Conv.SpSchema.
 	for _, table := range sessionState.Conv.SpSchema {

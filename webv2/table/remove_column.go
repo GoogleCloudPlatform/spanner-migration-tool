@@ -21,7 +21,7 @@ import (
 )
 
 // removeColumn remove given column from schema.
-func removeColumn(tableId string, colId string, conv *internal.Conv) {
+func RemoveColumn(tableId string, colId string, conv *internal.Conv) {
 
 	sp := conv.SpSchema[tableId]
 

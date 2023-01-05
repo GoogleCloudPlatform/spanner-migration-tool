@@ -1328,14 +1328,16 @@ func updateForeignKeys(w http.ResponseWriter, r *http.Request) {
 		for _, oldFk := range sessionState.Conv.SpSchema[tableId].ForeignKeys {
 			if newFk.Id == oldFk.Id && newFk.Name != oldFk.Name && newFk.Name != "" {
 				newNames = append(newNames, strings.ToLower(newFk.Name))
-				newNamesMap[strings.ToLower(newFk.Name)] = true
 			}
 		}
 	}
 
-	if len(newNames) != len(newNamesMap) {
-		http.Error(w, fmt.Sprintf("Found duplicate names in input : %s", strings.Join(newNames, ",")), http.StatusBadRequest)
-		return
+	for _, newFk := range newFKs {
+		if _, ok := newNamesMap[strings.ToLower(newFk.Name)]; ok {
+			http.Error(w, fmt.Sprintf("Found duplicate names in input : %s", strings.ToLower(newFk.Name)), http.StatusBadRequest)
+			return
+		}
+		newNamesMap[strings.ToLower(newFk.Name)] = true
 	}
 
 	if ok, invalidNames := utilities.CheckSpannerNamesValidity(newNames); !ok {

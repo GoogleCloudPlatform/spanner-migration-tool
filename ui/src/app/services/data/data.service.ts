@@ -347,6 +347,7 @@ export class DataService {
       next: (res: any) => {
         this.convSubject.next(res)
         this.ruleMapSub.next(res?.Rules)
+        this.getDdl()
         this.snackbar.openSnackBar('Added new rule.', 'Close', 5)
       },
       error: (err: any) => {
@@ -451,6 +452,7 @@ export class DataService {
       next: (res: any) => {
         this.convSubject.next(res)
         this.ruleMapSub.next(res?.Rules)
+        this.getDdl()
         this.snackbar.openSnackBar('Rule deleted successfully', 'Close', 5)
       },
       error: (err: any) => {
