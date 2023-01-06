@@ -32,6 +32,9 @@ export class DirectConnectionComponent implements OnInit {
     { value: 'postgres', displayName: 'PostgreSQL' },
   ]
 
+  connectRequest: any = null
+  getSchemaRequest: any = null
+
   constructor(
     private router: Router,
     private fetch: FetchService,
@@ -41,7 +44,16 @@ export class DirectConnectionComponent implements OnInit {
     private clickEvent: ClickEventService
   ) {}
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.clickEvent.cancelDbLoad.subscribe({
+      next: (res: boolean) => {
+        if (res) {
+          this.connectRequest.unsubscribe()
+          this.getSchemaRequest.unsubscribe()
+        }
+      },
+    })
+  }
 
   connectToDb() {
     this.clickEvent.openDatabaseLoader('direct', this.connectForm.value.dbName)
@@ -50,9 +62,9 @@ export class DirectConnectionComponent implements OnInit {
     localStorage.clear()
     const { dbEngine, hostName, port, userName, password, dbName } = this.connectForm.value
     const config: IDbConfig = { dbEngine, hostName, port, userName, password, dbName }
-    this.fetch.connectTodb(config).subscribe({
+    this.connectRequest = this.fetch.connectTodb(config).subscribe({
       next: () => {
-        this.data.getSchemaConversionFromDb()
+        this.getSchemaRequest = this.data.getSchemaConversionFromDb()
         this.data.conv.subscribe((res) => {
           localStorage.setItem(
             StorageKeys.Config,

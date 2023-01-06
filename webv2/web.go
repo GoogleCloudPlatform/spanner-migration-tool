@@ -521,8 +521,8 @@ func fetchLastLoadedSessionDetails(w http.ResponseWriter, r *http.Request) {
 
 // getDDL returns the Spanner DDL for each table in alphabetical order.
 // Unlike internal/convert.go's GetDDL, it does not print tables in a way that
-// respects the parent/child ordering of interleaved tables, also foreign keys
-// and secondary indexes are skipped. This means that getDDL cannot be used to
+// respects the parent/child ordering of interleaved tables.
+// Though foreign keys and secondary indexes are displayed, getDDL cannot be used to
 // build DDL to send to Spanner.
 func getDDL(w http.ResponseWriter, r *http.Request) {
 	sessionState := session.GetSessionState()
@@ -534,7 +534,22 @@ func getDDL(w http.ResponseWriter, r *http.Request) {
 	sort.Strings(tables)
 	ddl := make(map[string]string)
 	for _, t := range tables {
-		ddl[t] = sessionState.Conv.SpSchema[t].PrintCreateTable(sessionState.Conv.SpSchema, c)
+		table := sessionState.Conv.SpSchema[t]
+		tableDdl := table.PrintCreateTable(sessionState.Conv.SpSchema, c) + ";"
+		if len(table.Indexes) > 0 {
+			tableDdl = tableDdl + "\n"
+		}
+		for _, index := range table.Indexes {
+			tableDdl = tableDdl + "\n" + index.PrintCreateIndex(table, c) + ";"
+		}
+		if len(table.ForeignKeys) > 0 {
+			tableDdl = tableDdl + "\n"
+		}
+		for _, fk := range table.ForeignKeys {
+			tableDdl = tableDdl + "\n" + fk.PrintForeignKeyAlterTable(sessionState.Conv.SpSchema, c, t) + ";"
+		}
+
+		ddl[t] = tableDdl
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(ddl)

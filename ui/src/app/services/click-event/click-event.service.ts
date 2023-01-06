@@ -17,11 +17,15 @@ export class ClickEventService {
     conversionRates: { good: 0, ok: 0, bad: 0 },
   })
   private tabToSpannerSub = new BehaviorSubject<boolean>(false)
+  private cancelDbLoadSub = new BehaviorSubject<boolean>(false)
+
   constructor() {}
   spannerConfig = this.spannerConfigSub.asObservable()
   databaseLoader = this.datebaseLoaderSub.asObservable()
   viewAssesment = this.viewAssesmentSub.asObservable()
   tabToSpanner = this.tabToSpannerSub.asObservable()
+  cancelDbLoad = this.cancelDbLoadSub.asObservable()
+
   openSpannerConfig() {
     this.spannerConfigSub.next(true)
   }
@@ -36,5 +40,8 @@ export class ClickEventService {
   }
   setTabToSpanner() {
     this.tabToSpannerSub.next(true)
+  }
+  cancelDbLoading() {
+    this.cancelDbLoadSub.next(true)
   }
 }

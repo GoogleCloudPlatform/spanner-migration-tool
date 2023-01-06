@@ -32,7 +32,17 @@ export class LoadDumpComponent implements OnInit {
   uploadSuccess: boolean = false
   uploadFail: boolean = false
 
-  ngOnInit(): void {}
+  getSchemaRequest: any = null
+
+  ngOnInit(): void {
+    this.clickEvent.cancelDbLoad.subscribe({
+      next: (res: boolean) => {
+        if (res) {
+          this.getSchemaRequest.unsubscribe()
+        }
+      },
+    })
+  }
 
   convertFromDump() {
     this.clickEvent.openDatabaseLoader('dump', '')
@@ -43,7 +53,7 @@ export class LoadDumpComponent implements OnInit {
       Driver: dbEngine,
       Path: filePath,
     }
-    this.data.getSchemaConversionFromDump(payload)
+    this.getSchemaRequest = this.data.getSchemaConversionFromDump(payload)
     this.data.conv.subscribe((res) => {
       localStorage.setItem(StorageKeys.Config, JSON.stringify(payload))
       localStorage.setItem(StorageKeys.Type, InputType.DumpFile)

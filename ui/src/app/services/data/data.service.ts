@@ -74,7 +74,7 @@ export class DataService {
   }
 
   getSchemaConversionFromDb() {
-    this.fetch.getSchemaConversionFromDirectConnect().subscribe((res: IConv) => {
+    return this.fetch.getSchemaConversionFromDirectConnect().subscribe((res: IConv) => {
       this.convSubject.next(res)
     })
   }
@@ -104,7 +104,7 @@ export class DataService {
   }
 
   getSchemaConversionFromDump(payload: IDumpConfig) {
-    this.fetch.getSchemaConversionFromDump(payload).subscribe({
+    return this.fetch.getSchemaConversionFromDump(payload).subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
         this.ruleMapSub.next(res?.Rules)
@@ -117,7 +117,7 @@ export class DataService {
   }
 
   getSchemaConversionFromSession(payload: ISessionConfig) {
-    this.fetch.getSchemaConversionFromSessionFile(payload).subscribe({
+    return this.fetch.getSchemaConversionFromSessionFile(payload).subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
         this.ruleMapSub.next(res?.Rules)
