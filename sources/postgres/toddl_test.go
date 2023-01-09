@@ -157,7 +157,7 @@ func TestToExperimentalSpannerType(t *testing.T) {
 			"d": ddl.ColumnDef{Name: "d", T: ddl.Type{Name: ddl.String, Len: int64(6)}},
 			"e": ddl.ColumnDef{Name: "e", T: ddl.Type{Name: ddl.Numeric}},
 			"f": ddl.ColumnDef{Name: "f", T: ddl.Type{Name: ddl.Date}},
-			"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"g": ddl.ColumnDef{Name: "g", T: ddl.Type{Name: ddl.JSONB}},
 		},
 		Pks: []ddl.IndexKey{ddl.IndexKey{Col: "a"}},
 		Fks: []ddl.Foreignkey{ddl.Foreignkey{Name: "fk_test", Columns: []string{"d"}, ReferTable: "ref_table", ReferColumns: []string{"dref"}},
