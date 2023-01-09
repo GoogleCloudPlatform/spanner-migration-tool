@@ -118,7 +118,7 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, T
 		return val, nil
 	case ddl.Timestamp:
 		return convTimestamp(srcTypeName, TimezoneOffset, val)
-	case ddl.JSON:
+	case ddl.JSON, ddl.JSONB:
 		return val, nil
 	default:
 		return val, fmt.Errorf("data conversion not implemented for type %v", spannerType.Name)

@@ -197,7 +197,7 @@ func overrideExperimentalType(columnType schema.Type, originalType ddl.Type) ddl
 	if len(columnType.ArrayBounds) > 0 {
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 	} else if columnType.Name == "json" {
-		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+		return ddl.Type{Name: ddl.JSONB}
 	}
 	return originalType
 }
