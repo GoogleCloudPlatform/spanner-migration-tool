@@ -76,6 +76,7 @@ export class DataService {
   getSchemaConversionFromDb() {
     return this.fetch.getSchemaConversionFromDirectConnect().subscribe((res: IConv) => {
       this.convSubject.next(res)
+      this.ruleMapSub.next(res?.Rules)
     })
   }
 
