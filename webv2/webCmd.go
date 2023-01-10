@@ -32,8 +32,9 @@ import (
 var FrontendDir embed.FS
 
 type WebCmd struct {
-	DistDir 	embed.FS
-	logLevel 	string
+	DistDir  embed.FS
+	logLevel string
+	open     bool
 }
 
 // Name returns the name of operation.
@@ -52,6 +53,7 @@ func (cmd *WebCmd) Usage() string {
 
 func (cmd *WebCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&cmd.logLevel, "log-level", "INFO", "Configure the logging level for the command (INFO, DEBUG), defaults to INFO")
+	f.BoolVar(&cmd.open, "open", true, "Opens the Harbourbridge web interface in the default browser, defaults to true")
 }
 
 func (cmd *WebCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -64,6 +66,6 @@ func (cmd *WebCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{
 		}
 	}()
 	defer logger.Log.Sync()
-	App(cmd.logLevel)
+	App(cmd.logLevel, cmd.open)
 	return subcommands.ExitSuccess
 }
