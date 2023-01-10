@@ -184,7 +184,7 @@ func TestToExperimentalSpannerType(t *testing.T) {
 			"c6":  {Name: "f", Id: "c6", T: ddl.Type{Name: ddl.Timestamp}},
 			"c7":  {Name: "g", Id: "c7", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			"c8":  {Name: "h", Id: "c8", T: ddl.Type{Name: ddl.Int64}},
-			"c9":  {Name: "i", Id: "c9", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
+			"c9":  {Name: "i", Id: "c9", T: ddl.Type{Name: ddl.JSONB}},
 			"c10": {Name: "j", Id: "c10", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 			"c11": {Name: "k", Id: "c11", T: ddl.Type{Name: ddl.String, Len: ddl.MaxLength}},
 		},
