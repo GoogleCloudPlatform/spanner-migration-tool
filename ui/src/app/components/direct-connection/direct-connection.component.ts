@@ -47,9 +47,11 @@ export class DirectConnectionComponent implements OnInit {
   ngOnInit(): void {
     this.clickEvent.cancelDbLoad.subscribe({
       next: (res: boolean) => {
-        if (res) {
+        if (res && this.connectRequest) {
           this.connectRequest.unsubscribe()
-          this.getSchemaRequest.unsubscribe()
+          if (this.getSchemaRequest) {
+            this.getSchemaRequest.unsubscribe()
+          }
         }
       },
     })

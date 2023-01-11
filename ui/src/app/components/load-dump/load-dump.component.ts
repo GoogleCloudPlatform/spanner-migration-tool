@@ -37,7 +37,7 @@ export class LoadDumpComponent implements OnInit {
   ngOnInit(): void {
     this.clickEvent.cancelDbLoad.subscribe({
       next: (res: boolean) => {
-        if (res) {
+        if (res && this.getSchemaRequest) {
           this.getSchemaRequest.unsubscribe()
         }
       },
