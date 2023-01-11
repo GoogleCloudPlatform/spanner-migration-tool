@@ -14,7 +14,6 @@ export class SidenavViewAssessmentComponent implements OnInit {
   connectionDetail: string = ''
   conversionRateCount: ConversionRate = { good: 0, ok: 0, bad: 0 }
   conversionRatePercentage: ConversionRate = { good: 0, ok: 0, bad: 0 }
-  badPc = 50
   constructor(private sidenav: SidenavService, private clickEvent: ClickEventService) {}
 
   dbDataSource: { title: string; source: string; destination: string }[] = []

@@ -242,7 +242,9 @@ export class ObjectDetailComponent implements OnInit {
             srcIsNotNull: new FormControl(col.srcIsNotNull),
             spOrder: new FormControl(col.srcOrder),
             spColName: new FormControl(col.srcColName),
-            spDataType: new FormControl(this.typeMap[col.srcDataType][0].T),
+            spDataType: new FormControl(
+              this.typeMap[col.srcDataType] ? this.typeMap[col.srcDataType][0].T : ''
+            ),
             spIsPk: new FormControl(col.srcIsPk),
             spIsNotNull: new FormControl(col.srcIsNotNull),
           })
@@ -1224,6 +1226,7 @@ export class ObjectDetailComponent implements OnInit {
           .subscribe((res: string) => {
             if (res === '') {
               this.isObjectSelected = false
+              this.data.getConversionRate()
               this.updateSidebar.emit(true)
             }
           })
