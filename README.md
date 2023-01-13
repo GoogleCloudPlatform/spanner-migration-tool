@@ -1,7 +1,5 @@
 # HarbourBridge: Spanner Evaluation and Migration
 
-[![cloudspannerecosystem](https://circleci.com/gh/cloudspannerecosystem/harbourbridge.svg?style=svg)](https://circleci.com/gh/cloudspannerecosystem/harbourbridge)
-
 [![integration-tests-against-emulator](https://github.com/cloudspannerecosystem/harbourbridge/actions/workflows/integration-tests-against-emulator.yaml/badge.svg)](https://github.com/cloudspannerecosystem/harbourbridge/actions/workflows/integration-tests-against-emulator.yaml) [![code-coverage-check](https://github.com/cloudspannerecosystem/harbourbridge/actions/workflows/test-coverage.yaml/badge.svg)](https://github.com/cloudspannerecosystem/harbourbridge/actions/workflows/test-coverage.yaml) 
 
 HarbourBridge is a stand-alone open source tool for Cloud Spanner evaluation and

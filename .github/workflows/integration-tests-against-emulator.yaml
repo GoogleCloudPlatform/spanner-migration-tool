@@ -21,7 +21,7 @@ on:
   pull_request:
 name: integration-tests-against-emulator
 jobs:
-  test:
+  integration-tests:
     runs-on: ubuntu-latest
     env:
       # set PostgreSQL related environment variables
@@ -127,6 +127,7 @@ jobs:
       # sqlplus set up init oracle db.
       - name: Install sqlplus required for loading .sql files
         run: |
+          sudo apt-get update
           sudo apt install alien libaio1
           curl -O https://download.oracle.com/otn_software/linux/instantclient/215000/oracle-instantclient-basic-21.5.0.0.0-1.x86_64.rpm          
           curl -O https://download.oracle.com/otn_software/linux/instantclient/215000/oracle-instantclient-sqlplus-21.5.0.0.0-1.x86_64.rpm
