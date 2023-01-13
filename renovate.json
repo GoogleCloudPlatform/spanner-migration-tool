@@ -15,5 +15,9 @@
         "patch"
       ]
     }
-  ]
+  ],
+  "schedule": [
+    "before 3am on Monday"
+  ],
+  "timezone": "Asia/Calcutta"
 }
