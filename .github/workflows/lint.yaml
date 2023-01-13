@@ -19,7 +19,7 @@ on:
   pull_request:
 name: lint
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

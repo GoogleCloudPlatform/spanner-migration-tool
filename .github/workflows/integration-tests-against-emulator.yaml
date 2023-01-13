@@ -21,7 +21,7 @@ on:
   pull_request:
 name: integration-tests-against-emulator
 jobs:
-  test:
+  integration-tests:
     runs-on: ubuntu-latest
     env:
       # set PostgreSQL related environment variables
