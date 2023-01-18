@@ -1,5 +1,12 @@
+import { ISpannerDetails } from "./target-details"
+
+
 export default interface IDumpConfig {
   Driver: string
   Path: string
-  Dialect: string
+}
+
+export interface IConvertFromDumpRequest {
+  Config: IDumpConfig
+  SpannerDetails: ISpannerDetails
 }

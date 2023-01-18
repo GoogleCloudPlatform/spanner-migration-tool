@@ -21,6 +21,7 @@ type SessionMetadata struct {
 	EditorName   string
 	DatabaseType string
 	DatabaseName string
+	Dialect      string
 	Notes        []string
 	Tags         []string
 }

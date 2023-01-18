@@ -4,6 +4,7 @@ export default interface ISession {
   EditorName: string
   DatabaseType: string
   DatabaseName: string
+  Dialect: string
   Notes: string[]
   CreateTimestamp: string[]
 }

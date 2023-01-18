@@ -5,7 +5,7 @@ import IRuleContent, { IRule } from 'src/app/model/rule'
 import { BehaviorSubject, forkJoin, Observable, of } from 'rxjs'
 import { catchError, filter, map, tap } from 'rxjs/operators'
 import IUpdateTable, { IReviewInterleaveTableChanges, ITableColumnChanges } from 'src/app/model/update-table'
-import IDumpConfig from 'src/app/model/dump-config'
+import IDumpConfig, { IConvertFromDumpRequest } from 'src/app/model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISession from 'src/app/model/session'
 import ISpannerConfig from '../../model/spanner-config'
@@ -48,7 +48,6 @@ export class DataService {
   currentSession = this.currentSessionSub
     .asObservable()
     .pipe(filter((res) => Object.keys(res).length !== 0))
-
   constructor(
     private fetch: FetchService,
     private snackbar: SnackbarService,
@@ -106,7 +105,7 @@ export class DataService {
     })
   }
 
-  getSchemaConversionFromDump(payload: IDumpConfig) {
+  getSchemaConversionFromDump(payload: IConvertFromDumpRequest) {
     this.fetch.getSchemaConversionFromDump(payload).subscribe({
       next: (res: IConv) => {
         this.convSubject.next(res)
@@ -187,12 +186,18 @@ export class DataService {
         if (data.error) {
           return data.error
         } else {
+          let googleSQLToPGSQLTypemap: Map<String, String>;
+          this.conversion.googleSQLToPGSQLTypeMap.subscribe((typemap) => {
+            googleSQLToPGSQLTypemap = typemap
+          })
           this.conv.subscribe((convData: IConv) => {
             if (convData.TargetDb === Dialect.PostgreSQLDialect) {
-              data.Changes.forEach((table: IReviewInterleaveTableChanges)=> {
-                table.InterleaveColumnChanges.forEach((column: ITableColumnChanges)=>{
-                  column.Type = this.conversion.getPGSQLDatatype(column.Type)
-                  column.UpdateType = this.conversion.getPGSQLDatatype(column.UpdateType)
+              data.Changes.forEach((table: IReviewInterleaveTableChanges) => {
+                table.InterleaveColumnChanges.forEach((column: ITableColumnChanges) => {
+                  let pgSQLType = googleSQLToPGSQLTypemap.get(column.Type)
+                  let pgSQLUpdateType = googleSQLToPGSQLTypemap.get(column.UpdateType)
+                  column.Type = pgSQLType === undefined? column.Type: pgSQLType 
+                  column.UpdateType = pgSQLUpdateType === undefined? column.UpdateType: pgSQLUpdateType
                 })
               })
             }

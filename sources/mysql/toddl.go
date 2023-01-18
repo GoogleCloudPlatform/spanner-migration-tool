@@ -191,7 +191,7 @@ func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []inte
 
 func overrideExperimentalTypeWeb(columnType string, originalType ddl.Type) ddl.Type {
 	if columnType == "json" {
-		return ddl.Type{Name: ddl.JSONB, Len: ddl.MaxLength}
+		return ddl.Type{Name: ddl.JSONB}
 	}
 	return originalType
 }

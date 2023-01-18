@@ -3,14 +3,14 @@ interface IUpdateCol {
   Removed: boolean
   Rename: string
   NotNull: string
-  ToType: string
+  ToType: string | String
 }
 export interface ITableColumnChanges {
   ColumnId: string
   ColumnName: string
-  Type: string
+  Type: string | String
   UpdateColumnName: string
-  UpdateType: string
+  UpdateType: string | String
 }
 export interface IReviewInterleaveTableChanges {
   InterleaveColumnChanges: ITableColumnChanges[]

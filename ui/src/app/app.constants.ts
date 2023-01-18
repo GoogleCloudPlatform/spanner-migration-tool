@@ -85,23 +85,8 @@ export const Profile = {
 }
 
 export const Dialect = {
-  PostgreSQLDialect: 'experimental_postgres'
-}
-
-export const PGSQLDatatype = {
-  Bytea: 'BYTEA',
-  Float8: 'FLOAT8',
-  Int8: 'INT8',
-  Varchar: 'VARCHAR',
-  TimestampTZ: 'TIMESTAMPTZ'
-}
-
-export const GoogleSQLDatatype = {
-  Bytes: 'BYTES',
-  Float64: 'FLOAT64',
-  Int64: 'INT64',
-  String: 'STRING',
-  Timestamp: 'TIMESTAMP'
+  PostgreSQLDialect: 'experimental_postgres',
+  GoogleStandardSQLDialect: 'spanner'
 }
 
 export enum ProgressStatus {
@@ -112,3 +97,8 @@ export enum ProgressStatus {
 	ForeignKeyUpdateInProgress = 5,
   ForeignKeyUpdateComplete = 6
 }
+
+export const DialectList = [
+  { value: 'google_standard_sql', displayName: 'Google Standard SQL Dialect' },
+  { value: 'postgresql', displayName: 'PostgreSQL Dialect' },
+]

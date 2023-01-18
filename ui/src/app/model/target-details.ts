@@ -5,3 +5,7 @@ export default interface ITargetDetails {
     ReplicationSlot: string
     Publication: string
 }
+
+export interface ISpannerDetails {
+    Dialect: string
+}

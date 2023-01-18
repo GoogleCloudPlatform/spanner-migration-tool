@@ -5,7 +5,7 @@ import IDbConfig from 'src/app/model/db-config'
 import { FetchService } from 'src/app/services/fetch/fetch.service'
 import { DataService } from 'src/app/services/data/data.service'
 import { LoaderService } from '../../services/loader/loader.service'
-import { InputType, StorageKeys } from 'src/app/app.constants'
+import { DialectList, InputType, StorageKeys } from 'src/app/app.constants'
 import { SnackbarService } from 'src/app/services/snackbar/snackbar.service'
 import { extractSourceDbName } from 'src/app/utils/utils'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
@@ -33,10 +33,7 @@ export class DirectConnectionComponent implements OnInit {
     { value: 'postgres', displayName: 'PostgreSQL' },
   ]
 
-  dialect = [
-    { value: 'google_standard_sql', displayName: 'Google Standard SQL Dialect' },
-    { value: 'postgresql', displayName: 'PostgreSQL SQL Dialect' },
-  ]
+  dialect = DialectList
 
   constructor(
     private router: Router,
@@ -55,8 +52,8 @@ export class DirectConnectionComponent implements OnInit {
     this.data.resetStore()
     localStorage.clear()
     const { dbEngine, hostName, port, userName, password, dbName, dialect } = this.connectForm.value
-    const config: IDbConfig = { dbEngine, hostName, port, userName, password, dbName, dialect }
-    this.fetch.connectTodb(config).subscribe({
+    const config: IDbConfig = { dbEngine, hostName, port, userName, password, dbName}
+    this.fetch.connectTodb(config, dialect).subscribe({
       next: () => {
         this.data.getSchemaConversionFromDb()
         this.data.conv.subscribe((res) => {

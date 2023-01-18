@@ -5,5 +5,4 @@ export default interface IDbConfig {
   userName: string
   password: string
   dbName: string
-  dialect: string
 }

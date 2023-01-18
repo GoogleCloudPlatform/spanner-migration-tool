@@ -22,7 +22,6 @@ import { ConversionService } from 'src/app/services/conversion/conversion.servic
 import { DropIndexOrTableDialogComponent } from '../drop-index-or-table-dialog/drop-index-or-table-dialog.component'
 import { SidenavService } from 'src/app/services/sidenav/sidenav.service'
 import { TableUpdatePubSubService } from 'src/app/services/table-update-pub-sub/table-update-pub-sub.service'
-import { extractSourceDbName } from 'src/app/utils/utils'
 
 @Component({
   selector: 'app-object-detail',
@@ -37,8 +36,8 @@ export class ObjectDetailComponent implements OnInit {
     private snackbar: SnackbarService,
     private conversion: ConversionService,
     private sidenav: SidenavService,
-    private tableUpdatePubSub: TableUpdatePubSubService
-  ) {}
+    private tableUpdatePubSub: TableUpdatePubSubService,
+  ) { }
 
   @Input() currentObject: FlatNode | null = null
   @Input() typeMap: any = {}
@@ -276,6 +275,10 @@ export class ObjectDetailComponent implements OnInit {
     this.isEditMode = false
     let updateData: IUpdateTable = { UpdateCols: {} }
 
+    let pgSQLToGoogleSQLTypemap: Map<String, String>;
+    this.conversion.pgSQLToGoogleSQLTypeMap.subscribe((typemap) => {
+      pgSQLToGoogleSQLTypemap = typemap
+    })
     this.spRowArray.value.forEach((col: IColumnTabData, i: number) => {
       for (let j = 0; j < this.tableData.length; j++) {
         if (col.srcColName == this.tableData[j].srcColName) {
@@ -284,12 +287,13 @@ export class ObjectDetailComponent implements OnInit {
             this.tableData[j].spColName == ''
               ? this.tableData[j].srcColName
               : this.tableData[j].spColName
+          let googleSQLDataType = pgSQLToGoogleSQLTypemap.get(col.spDataType)
           updateData.UpdateCols[columnName] = {
             Add: this.tableData[j].spColName == '',
             Rename: oldRow.spColName !== col.spColName ? col.spColName : '',
             NotNull: col.spIsNotNull ? 'ADDED' : 'REMOVED',
             Removed: false,
-            ToType: (this.conv.TargetDb === Dialect.PostgreSQLDialect) ? this.conversion.getGoogleSQLDatatype(col.spDataType) : col.spDataType,
+            ToType: (this.conv.TargetDb === Dialect.PostgreSQLDialect) ? (googleSQLDataType === undefined ? col.spDataType: googleSQLDataType) : col.spDataType,
           }
           break
         }
@@ -651,8 +655,8 @@ export class ObjectDetailComponent implements OnInit {
               ({ Col }) => Col === row.spColName
             ) !== 'undefined'
               ? this.conv.SpSchema[this.currentObject!.name].Pks.find(
-                  ({ Col }) => Col === row.spColName
-                )!.Desc
+                ({ Col }) => Col === row.spColName
+              )!.Desc
               : false,
           Order: parseInt(row.spOrder as string),
         })
@@ -1162,7 +1166,7 @@ export class ObjectDetailComponent implements OnInit {
     })
   }
 
-  selectedColumnChange(tableName: string) {}
+  selectedColumnChange(tableName: string) { }
 
   tabChanged(tabChangeEvent: MatTabChangeEvent): void {
     this.currentTabIndex = tabChangeEvent.index

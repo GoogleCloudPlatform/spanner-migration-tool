@@ -73,6 +73,22 @@ const (
 	PGMaxLength = 2621440
 )
 
+var GOOGLE_SQL_TO_PGSQL_TYPEMAP = map[string]string{
+	Bytes:     PGBytea,
+	Float64:   PGFloat8,
+	Int64:     PGInt8,
+	String:    PGVarchar,
+	Timestamp: PGTimestamptz,
+}
+
+var PGSQL_TO_GOOGLE_SQL_TYPEMAP = map[string]string{
+	PGBytea:       Bytes,
+	PGFloat8:      Float64,
+	PGInt8:        Int64,
+	PGVarchar:     String,
+	PGTimestamptz: Timestamp,
+}
+
 // Type represents the type of a column.
 //
 //	type:
@@ -107,22 +123,11 @@ func (ty Type) PrintColumnDefType() string {
 }
 
 func GetPGType(spType string) string {
-	switch spType {
-	case Bytes:
-		return PGBytea
-	case Float64:
-		return PGFloat8
-	case Int64:
-		return PGInt8
-	case String:
-		return PGVarchar
-	case Timestamp:
-		return PGTimestamptz
-	case JSON:
-		return PGJSONB
-	default:
-		return spType
+	pgType, ok := GOOGLE_SQL_TO_PGSQL_TYPEMAP[spType]
+	if ok {
+		return pgType
 	}
+	return spType
 }
 
 func (ty Type) PGPrintColumnDefType() string {

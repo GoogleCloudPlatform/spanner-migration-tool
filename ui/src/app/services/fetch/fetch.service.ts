@@ -10,7 +10,7 @@ import IConv, {
   IPrimaryKey,
   ISessionSummary,
 } from '../../model/conv'
-import IDumpConfig from '../../model/dump-config'
+import IDumpConfig, { IConvertFromDumpRequest } from '../../model/dump-config'
 import ISessionConfig from '../../model/session-config'
 import ISpannerConfig from '../../model/spanner-config'
 import IMigrationDetails, { IGeneratedResources, IProgress } from 'src/app/model/migrate'
@@ -24,8 +24,8 @@ export class FetchService {
   private url: string = window.location.origin
   constructor(private http: HttpClient) {}
 
-  connectTodb(payload: IDbConfig) {
-    const { dbEngine, hostName, port, dbName, userName, password, dialect } = payload
+  connectTodb(payload: IDbConfig, dialect: string) {
+    const { dbEngine, hostName, port, dbName, userName, password } = payload
     return this.http.post<HttpResponse<null>>(
       `${this.url}/connect`,
       {
@@ -48,7 +48,7 @@ export class FetchService {
     return this.http.get<IConv>(`${this.url}/convert/infoschema`)
   }
 
-  getSchemaConversionFromDump(payload: IDumpConfig) {
+  getSchemaConversionFromDump(payload: IConvertFromDumpRequest) {
     return this.http.post<IConv>(`${this.url}/convert/dump`, payload)
   }
 
@@ -220,5 +220,11 @@ export class FetchService {
 
   dropRule(ruleId: string) {
     return this.http.post(`${this.url}/dropRule?id=${ruleId}`, {})
+  }
+  getGoogleSQLToPGSQLTypemap() {
+    return this.http.get<Map<string,string>>(`${this.url}/typemap/GetGoogleSQLToPGSQLTypemap`)
+  }
+  getPGSQLToGoogleSQLTypemap() {
+    return this.http.get<Map<string,string>>(`${this.url}/typemap/GetPGSQLToGoogleSQLTypemap`)
   }
 }

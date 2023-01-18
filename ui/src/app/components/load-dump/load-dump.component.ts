@@ -1,11 +1,12 @@
 import { Component, OnInit } from '@angular/core'
 import { FormControl, FormGroup, Validators } from '@angular/forms'
-import IDumpConfig from 'src/app/model/dump-config'
+import IDumpConfig, { IConvertFromDumpRequest } from 'src/app/model/dump-config'
 import { DataService } from 'src/app/services/data/data.service'
 import { Router } from '@angular/router'
-import { InputType, StorageKeys } from 'src/app/app.constants'
+import { DialectList, InputType, StorageKeys } from 'src/app/app.constants'
 import { extractSourceDbName } from 'src/app/utils/utils'
 import { ClickEventService } from 'src/app/services/click-event/click-event.service'
+import { ISpannerDetails } from 'src/app/model/target-details'
 
 @Component({
   selector: 'app-load-dump',
@@ -27,10 +28,7 @@ export class LoadDumpComponent implements OnInit {
     { value: 'mysqldump', displayName: 'MySQL' },
     { value: 'pg_dump', displayName: 'PostgreSQL' },
   ]
-  dialect = [
-    { value: 'google_standard_sql', displayName: 'Google Standard SQL Dialect' },
-    { value: 'postgresql', displayName: 'PostgreSQL SQL Dialect' },
-  ]
+  dialect = DialectList
   fileToUpload: File | null = null
 
   uploadStart: boolean = false
@@ -44,10 +42,16 @@ export class LoadDumpComponent implements OnInit {
     this.data.resetStore()
     localStorage.clear()
     const { dbEngine, filePath, dialect } = this.connectForm.value
-    const payload: IDumpConfig = {
+    const dumpConfig: IDumpConfig = {
       Driver: dbEngine,
       Path: filePath,
+    }
+    const spannerDetails: ISpannerDetails = {
       Dialect: dialect,
+    }
+    const payload: IConvertFromDumpRequest = {
+      Config: dumpConfig,
+      SpannerDetails: spannerDetails
     }
     this.data.getSchemaConversionFromDump(payload)
     this.data.conv.subscribe((res) => {
