@@ -18,7 +18,6 @@ package mysql
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -31,21 +30,18 @@ type ToDdlImpl struct {
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
 // Functions below implement the common.ToDdl interface
-func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
-	ty, issues := toSpannerTypeInternal(columnType.Name, "", columnType.Mods)
+func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType string, mods, arrayBounds []int64) (ddl.Type, []internal.SchemaIssue) {
+	ty, issues := toSpannerTypeInternal(srcType, spType, mods)
 	if conv.TargetDb == constants.TargetExperimentalPostgres {
-		ty = overrideExperimentalType(columnType, ty)
+		ty = overrideExperimentalType(arrayBounds, ty)
 	} else {
-		if len(columnType.ArrayBounds) > 1 {
+		if len(arrayBounds) > 1 {
 			ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 			issues = append(issues, internal.MultiDimensionalArray)
 		}
-		ty.IsArray = len(columnType.ArrayBounds) == 1
+		ty.IsArray = len(arrayBounds) == 1
 	}
 	return ty, issues
-}
-func ToSpannerTypeWeb(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
-	return toSpannerTypeInternal(srcType, spType, mods)
 }
 
 func toSpannerTypeInternal(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
@@ -193,11 +189,9 @@ func toSpannerTypeInternal(srcType string, spType string, mods []int64) (ddl.Typ
 }
 
 // Override the types to map to experimental postgres types.
-func overrideExperimentalType(columnType schema.Type, originalType ddl.Type) ddl.Type {
-	if len(columnType.ArrayBounds) > 0 {
+func overrideExperimentalType(arrayBounds []int64, originalType ddl.Type) ddl.Type {
+	if len(arrayBounds) > 0 {
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-	} else if columnType.Name == "json" {
-		return ddl.Type{Name: ddl.JSONB}
 	}
 	return originalType
 }

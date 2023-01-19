@@ -18,9 +18,7 @@ package oracle
 import (
 	"regexp"
 
-	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -37,23 +35,15 @@ type ToDdlImpl struct {
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
-func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType string, mods, arrayBounds []int64) (ddl.Type, []internal.SchemaIssue) {
 	// passing empty spType to execute default case.will get other spType from web pkg
-	ty, issues := toSpannerTypeInternal(conv, "", columnType.Name, columnType.Mods)
-	if conv.TargetDb == constants.TargetExperimentalPostgres {
-		ty = overrideExperimentalType(columnType, ty)
-	} else {
-		if len(columnType.ArrayBounds) > 1 {
-			ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-			issues = append(issues, internal.MultiDimensionalArray)
-		}
-		ty.IsArray = len(columnType.ArrayBounds) == 1
+	ty, issues := toSpannerTypeInternal(conv, spType, srcType, mods)
+	if len(arrayBounds) > 1 {
+		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
+		issues = append(issues, internal.MultiDimensionalArray)
 	}
+	ty.IsArray = len(arrayBounds) == 1
 	return ty, issues
-}
-
-func ToSpannerTypeWeb(conv *internal.Conv, spType string, srcType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
-	return toSpannerTypeInternal(conv, spType, srcType, mods)
 }
 
 func toSpannerTypeInternal(conv *internal.Conv, spType string, srcType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
@@ -165,12 +155,4 @@ func toSpannerTypeInternal(conv *internal.Conv, spType string, srcType string, m
 	default:
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 	}
-}
-
-// Override the types to map to experimental postgres types.
-func overrideExperimentalType(columnType schema.Type, originalType ddl.Type) ddl.Type {
-	if columnType.Name == "JSON" {
-		return ddl.Type{Name: ddl.JSONB}
-	}
-	return originalType
 }

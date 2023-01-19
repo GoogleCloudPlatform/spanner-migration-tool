@@ -1077,7 +1077,8 @@ func getType(newType, table, colName string, srcTableName string) (ddl.CreateTab
 	case constants.SQLSERVER:
 		ty, issues = toSpannerTypeSQLserver(srcCol.Type.Name, newType, srcCol.Type.Mods)
 	case constants.ORACLE:
-		ty, issues = oracle.ToSpannerTypeWeb(sessionState.conv, newType, srcCol.Type.Name, srcCol.Type.Mods)
+		toddl := oracle.InfoSchemaImpl{}.GetToDdl()
+		ty, issues = toddl.ToSpannerType(sessionState.conv, newType, srcCol.Type.Name, srcCol.Type.Mods, []int64{})
 	default:
 		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.driver)
 	}
@@ -1217,10 +1218,11 @@ func init() {
 	}
 
 	// Initialize oracleTypeMap.
+	toddl := oracle.InfoSchemaImpl{}.GetToDdl()
 	for _, srcType := range []string{"NUMBER", "BFILE", "BLOB", "CHAR", "CLOB", "DATE", "BINARY_DOUBLE", "BINARY_FLOAT", "FLOAT", "LONG", "RAW", "LONG RAW", "NCHAR", "NVARCHAR2", "VARCHAR", "VARCHAR2", "NCLOB", "ROWID", "UROWID", "XMLTYPE", "TIMESTAMP", "INTERVAL", "SDO_GEOMETRY"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric} {
-			ty, issues := oracle.ToSpannerTypeWeb(sessionState.conv, spType, srcType, []int64{})
+			ty, issues := toddl.ToSpannerType(sessionState.conv, spType, srcType, []int64{}, []int64{})
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
 		oracleTypeMap[srcType] = l

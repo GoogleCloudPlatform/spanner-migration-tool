@@ -17,7 +17,6 @@ package sqlserver
 
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -29,13 +28,9 @@ type ToDdlImpl struct {
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
-func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
-	ty, issues := toSpannerTypeInternal(columnType.Name, "", columnType.Mods)
+func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType string, mods, arrayBounds []int64) (ddl.Type, []internal.SchemaIssue) {
+	ty, issues := toSpannerTypeInternal(srcType, spType, mods)
 	return ty, issues
-}
-
-func ToSpannerTypeWeb(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
-	return toSpannerTypeInternal(srcType, spType, mods)
 }
 
 // toSpannerTypeInternal defines the mapping of source types into Spanner

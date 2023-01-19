@@ -17,7 +17,6 @@ package spanner
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
-	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -29,12 +28,12 @@ type ToDdlImpl struct {
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
 // Functions below implement the common.ToDdl interface
-func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
-	ty, issues := toSpannerTypeInternal(conv, columnType.Name, columnType.Mods)
+func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType string, mods, arrayBounds []int64) (ddl.Type, []internal.SchemaIssue) {
+	ty, issues := toSpannerTypeInternal(conv, srcType, mods)
 	if conv.TargetDb == constants.TargetExperimentalPostgres {
-		ty, issues = overrideExperimentalType(columnType, ty, issues)
+		ty, issues = overrideExperimentalType(srcType, ty, issues)
 	} else {
-		ty.IsArray = len(columnType.ArrayBounds) == 1
+		ty.IsArray = len(arrayBounds) == 1
 	}
 	return ty, issues
 }
@@ -68,8 +67,8 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 }
 
 // Override the types to map to experimental postgres types.
-func overrideExperimentalType(columnType schema.Type, originalType ddl.Type, issues []internal.SchemaIssue) (ddl.Type, []internal.SchemaIssue) {
-	switch columnType.Name {
+func overrideExperimentalType(columnType string, originalType ddl.Type, issues []internal.SchemaIssue) (ddl.Type, []internal.SchemaIssue) {
+	switch columnType {
 	case "PG.NUMERIC":
 		return ddl.Type{Name: ddl.Numeric}, nil
 	case "PG.JSONB":
