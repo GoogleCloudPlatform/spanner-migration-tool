@@ -19,6 +19,7 @@ import (
 	"regexp"
 
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -35,22 +36,22 @@ type ToDdlImpl struct {
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
-func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType string, mods, arrayBounds []int64) (ddl.Type, []internal.SchemaIssue) {
+func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	// passing empty spType to execute default case.will get other spType from web pkg
-	ty, issues := toSpannerTypeInternal(conv, spType, srcType, mods)
-	if len(arrayBounds) > 1 {
+	ty, issues := toSpannerTypeInternal(conv, spType, srcType)
+	if len(srcType.ArrayBounds) > 1 {
 		ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 		issues = append(issues, internal.MultiDimensionalArray)
 	}
-	ty.IsArray = len(arrayBounds) == 1
+	ty.IsArray = len(srcType.ArrayBounds) == 1
 	return ty, issues
 }
 
-func toSpannerTypeInternal(conv *internal.Conv, spType string, srcType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
+func toSpannerTypeInternal(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
 	// Oracle returns some datatype with the precision,
 	// So will get TIMESTAMP as TIMESTAMP(6),TIMESTAMP(6) WITH TIME ZONE,TIMESTAMP(6) WITH LOCAL TIME ZONE.
 	// To match this case timestampReg Regex defined.
-	if TimestampReg.MatchString(srcType) {
+	if TimestampReg.MatchString(srcType.Name) {
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
@@ -60,35 +61,35 @@ func toSpannerTypeInternal(conv *internal.Conv, spType string, srcType string, m
 	}
 
 	// Matching cases like INTERVAL YEAR(2) TO MONTH, INTERVAL DAY(2) TO SECOND(6),etc.
-	if IntervalReg.MatchString(srcType) {
+	if IntervalReg.MatchString(srcType.Name) {
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
-			if len(mods) > 0 {
+			if len(srcType.Mods) > 0 {
 				return ddl.Type{Name: ddl.String, Len: 30}, nil
 			}
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		}
 	}
 
-	switch srcType {
+	switch srcType.Name {
 	case "NUMBER":
 		switch spType {
 		case ddl.String:
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		default:
-			modsLen := len(mods)
+			modsLen := len(srcType.Mods)
 			if modsLen == 0 {
 				return ddl.Type{Name: ddl.Numeric}, nil
 			} else if modsLen == 1 { // Only precision is available.
-				if mods[0] > 29 {
+				if srcType.Mods[0] > 29 {
 					// Max precision in Oracle is 38. String representation of the number should not have more than 50 characters
 					// https://docs.oracle.com/cd/B19306_01/server.102/b14237/limits001.htm#i287903
 					return ddl.Type{Name: ddl.String, Len: 50}, nil
 				}
 				return ddl.Type{Name: ddl.Int64}, nil
-			} else if mods[0] > 29 || mods[1] > 9 { // When both precision and scale are available and within limit
+			} else if srcType.Mods[0] > 29 || srcType.Mods[1] > 9 { // When both precision and scale are available and within limit
 				// Max precision in Oracle is 38. String representation of the number should not have more than 50 characters
 				// https://docs.oracle.com/cd/B19306_01/server.102/b14237/limits001.htm#i287903
 				return ddl.Type{Name: ddl.String, Len: 50}, nil
@@ -105,8 +106,8 @@ func toSpannerTypeInternal(conv *internal.Conv, spType string, srcType string, m
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}
 	case "CHAR":
-		if len(mods) > 0 {
-			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
+		if len(srcType.Mods) > 0 {
+			return ddl.Type{Name: ddl.String, Len: srcType.Mods[0]}, nil
 		}
 		return ddl.Type{Name: ddl.String}, nil
 	case "CLOB":
@@ -135,8 +136,8 @@ func toSpannerTypeInternal(conv *internal.Conv, spType string, srcType string, m
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		}
 	case "NCHAR", "NVARCHAR2", "VARCHAR", "VARCHAR2":
-		if len(mods) > 0 {
-			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
+		if len(srcType.Mods) > 0 {
+			return ddl.Type{Name: ddl.String, Len: srcType.Mods[0]}, nil
 		}
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "NCLOB":
@@ -144,8 +145,8 @@ func toSpannerTypeInternal(conv *internal.Conv, spType string, srcType string, m
 	case "ROWID":
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "UROWID":
-		if len(mods) > 0 {
-			return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
+		if len(srcType.Mods) > 0 {
+			return ddl.Type{Name: ddl.String, Len: srcType.Mods[0]}, nil
 		}
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 	case "XMLTYPE":

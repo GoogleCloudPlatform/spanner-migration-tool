@@ -18,6 +18,7 @@ package postgres
 import (
 	"github.com/cloudspannerecosystem/harbourbridge/common/constants"
 	"github.com/cloudspannerecosystem/harbourbridge/internal"
+	"github.com/cloudspannerecosystem/harbourbridge/schema"
 	"github.com/cloudspannerecosystem/harbourbridge/spanner/ddl"
 )
 
@@ -29,16 +30,16 @@ type ToDdlImpl struct {
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
-func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType string, mods, arrayBounds []int64) (ddl.Type, []internal.SchemaIssue) {
-	ty, issues := toSpannerTypeInternal(srcType, spType, mods)
+func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+	ty, issues := toSpannerTypeInternal(srcType, spType)
 	if conv.TargetDb == constants.TargetExperimentalPostgres {
-		ty = overrideExperimentalType(arrayBounds, ty)
+		ty = overrideExperimentalType(srcType, ty)
 	} else {
-		if len(arrayBounds) > 1 {
+		if len(srcType.ArrayBounds) > 1 {
 			ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 			issues = append(issues, internal.MultiDimensionalArray)
 		}
-		ty.IsArray = len(arrayBounds) == 1
+		ty.IsArray = len(srcType.ArrayBounds) == 1
 	}
 	return ty, issues
 }
@@ -51,8 +52,8 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType s
 // Spanner type name is specified and is a potential mapping for this source type,
 // then it will be used to build the returned ddl.Type. If not, the default
 // Spanner type for this source type will be used.
-func toSpannerTypeInternal(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
-	switch srcType {
+func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []internal.SchemaIssue) {
+	switch srcType.Name {
 	case "bool", "boolean":
 		switch spType {
 		case ddl.String:
@@ -72,13 +73,13 @@ func toSpannerTypeInternal(srcType string, spType string, mods []int64) (ddl.Typ
 	case "bpchar", "character": // Note: Postgres internal name for char is bpchar (aka blank padded char).
 		switch spType {
 		case ddl.Bytes:
-			if len(mods) > 0 {
-				return ddl.Type{Name: ddl.Bytes, Len: mods[0]}, nil
+			if len(srcType.Mods) > 0 {
+				return ddl.Type{Name: ddl.Bytes, Len: srcType.Mods[0]}, nil
 			}
 			return ddl.Type{Name: ddl.Bytes, Len: 1}, nil
 		default:
-			if len(mods) > 0 {
-				return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
+			if len(srcType.Mods) > 0 {
+				return ddl.Type{Name: ddl.String, Len: srcType.Mods[0]}, nil
 			}
 			// Note: bpchar without length specifier is equivalent to bpchar(1)
 			return ddl.Type{Name: ddl.String, Len: 1}, nil
@@ -180,13 +181,13 @@ func toSpannerTypeInternal(srcType string, spType string, mods []int64) (ddl.Typ
 	case "varchar", "character varying":
 		switch spType {
 		case ddl.Bytes:
-			if len(mods) > 0 {
-				return ddl.Type{Name: ddl.Bytes, Len: mods[0]}, nil
+			if len(srcType.Mods) > 0 {
+				return ddl.Type{Name: ddl.Bytes, Len: srcType.Mods[0]}, nil
 			}
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		default:
-			if len(mods) > 0 {
-				return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
+			if len(srcType.Mods) > 0 {
+				return ddl.Type{Name: ddl.String, Len: srcType.Mods[0]}, nil
 			}
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		}
@@ -194,8 +195,8 @@ func toSpannerTypeInternal(srcType string, spType string, mods []int64) (ddl.Typ
 	return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, []internal.SchemaIssue{internal.NoGoodType}
 }
 
-func overrideExperimentalType(arrayBounds []int64, originalType ddl.Type) ddl.Type {
-	if len(arrayBounds) > 0 {
+func overrideExperimentalType(srcType schema.Type, originalType ddl.Type) ddl.Type {
+	if len(srcType.ArrayBounds) > 0 {
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 	}
 	return originalType

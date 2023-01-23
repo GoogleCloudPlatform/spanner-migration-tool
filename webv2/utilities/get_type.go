@@ -40,16 +40,16 @@ func GetType(conv *internal.Conv, newType, table, colName string, srcTableName s
 	switch sessionState.Driver {
 	case constants.MYSQL, constants.MYSQLDUMP:
 		toddl = mysql.InfoSchemaImpl{}.GetToDdl()
-		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type.Name, srcCol.Type.Mods, []int64{})
+		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type)
 	case constants.PGDUMP, constants.POSTGRES:
 		toddl = postgres.InfoSchemaImpl{}.GetToDdl()
-		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type.Name, srcCol.Type.Mods, []int64{})
+		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type)
 	case constants.SQLSERVER:
 		toddl = sqlserver.InfoSchemaImpl{}.GetToDdl()
-		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type.Name, srcCol.Type.Mods, []int64{})
+		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type)
 	case constants.ORACLE:
 		toddl = oracle.InfoSchemaImpl{}.GetToDdl()
-		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type.Name, srcCol.Type.Mods, []int64{})
+		ty, issues = toddl.ToSpannerType(conv, newType, srcCol.Type)
 	default:
 		return sp, ty, fmt.Errorf("driver : '%s' is not supported", sessionState.Driver)
 	}
