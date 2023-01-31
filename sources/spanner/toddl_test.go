@@ -52,7 +52,7 @@ func TestToSpannerType(t *testing.T) {
 		if tc.pgTarget {
 			conv.TargetDb = constants.TargetExperimentalPostgres
 		}
-		ty, err := toDDLImpl.ToSpannerType(conv, tc.columnType)
+		ty, err := toDDLImpl.ToSpannerType(conv, "", tc.columnType)
 		assert.Nil(t, err, tc.name)
 		assert.Equal(t, tc.expDDLType, ty, tc.name)
 	}

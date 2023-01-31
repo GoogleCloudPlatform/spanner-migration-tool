@@ -113,7 +113,7 @@ func convScalar(conv *internal.Conv, spannerType ddl.Type, srcTypeName string, T
 		return val, nil
 	case ddl.Timestamp:
 		return convTimestamp(srcTypeName, val)
-	case ddl.JSON, ddl.JSONB:
+	case ddl.JSON:
 		if srcTypeName == "OBJECT" {
 			return convertXmlToJson(val)
 		}

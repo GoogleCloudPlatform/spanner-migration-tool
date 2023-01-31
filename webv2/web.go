@@ -2211,50 +2211,61 @@ func init() {
 	sessionState := session.GetSessionState()
 
 	uniqueid.InitObjectId()
-
+	sessionState.Conv = internal.MakeConv()
+	var toddl common.ToDdl
 	// Initialize mysqlTypeMap.
-	for _, srcType := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
+	toddl = mysql.InfoSchemaImpl{}.GetToDdl()
+	for _, srcTypeName := range []string{"bool", "boolean", "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "set", "enum", "json", "bit", "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "double", "float", "numeric", "decimal", "date", "datetime", "timestamp", "time", "year", "geometrycollection", "multipoint", "multilinestring", "multipolygon", "point", "linestring", "polygon", "geometry"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			ty, issues := mysql.ToSpannerTypeWeb(srcType, spType, []int64{})
+			srcType := schema.MakeType()
+			srcType.Name = srcTypeName
+			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType)
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
-		if srcType == "tinyint" {
+		if srcTypeName == "tinyint" {
 			l = append(l, typeIssue{T: ddl.Bool, Brief: "Only tinyint(1) can be converted to BOOL, for any other mods it will be converted to INT64"})
 		}
-		mysqlTypeMap[srcType] = l
+		mysqlTypeMap[srcTypeName] = l
 	}
 	// Initialize postgresTypeMap.
-	for _, srcType := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying"} {
+	toddl = postgres.InfoSchemaImpl{}.GetToDdl()
+	for _, srcTypeName := range []string{"bool", "boolean", "bigserial", "bpchar", "character", "bytea", "date", "float8", "double precision", "float4", "real", "int8", "bigint", "int4", "integer", "int2", "smallint", "numeric", "serial", "text", "timestamptz", "timestamp with time zone", "timestamp", "timestamp without time zone", "varchar", "character varying"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			ty, issues := postgres.ToSpannerTypeWeb(srcType, spType, []int64{})
+			srcType := schema.MakeType()
+			srcType.Name = srcTypeName
+			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType)
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
-		postgresTypeMap[srcType] = l
+		postgresTypeMap[srcTypeName] = l
 	}
 
 	// Initialize sqlserverTypeMap.
-	for _, srcType := range []string{"int", "tinyint", "smallint", "bigint", "bit", "float", "real", "numeric", "decimal", "money", "smallmoney", "char", "nchar", "varchar", "nvarchar", "text", "ntext", "date", "datetime", "datetime2", "smalldatetime", "datetimeoffset", "time", "timestamp", "rowversion", "binary", "varbinary", "image", "xml", "geography", "geometry", "uniqueidentifier", "sql_variant", "hierarchyid"} {
+	toddl = sqlserver.InfoSchemaImpl{}.GetToDdl()
+	for _, srcTypeName := range []string{"int", "tinyint", "smallint", "bigint", "bit", "float", "real", "numeric", "decimal", "money", "smallmoney", "char", "nchar", "varchar", "nvarchar", "text", "ntext", "date", "datetime", "datetime2", "smalldatetime", "datetimeoffset", "time", "timestamp", "rowversion", "binary", "varbinary", "image", "xml", "geography", "geometry", "uniqueidentifier", "sql_variant", "hierarchyid"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			ty, issues := sqlserver.ToSpannerTypeWeb(srcType, spType, []int64{})
+			srcType := schema.MakeType()
+			srcType.Name = srcTypeName
+			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType)
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
-		sqlserverTypeMap[srcType] = l
+		sqlserverTypeMap[srcTypeName] = l
 	}
 
 	// Initialize oracleTypeMap.
-	for _, srcType := range []string{"NUMBER", "BFILE", "BLOB", "CHAR", "CLOB", "DATE", "BINARY_DOUBLE", "BINARY_FLOAT", "FLOAT", "LONG", "RAW", "LONG RAW", "NCHAR", "NVARCHAR2", "VARCHAR", "VARCHAR2", "NCLOB", "ROWID", "UROWID", "XMLTYPE", "TIMESTAMP", "INTERVAL", "SDO_GEOMETRY"} {
+	toddl = oracle.InfoSchemaImpl{}.GetToDdl()
+	for _, srcTypeName := range []string{"NUMBER", "BFILE", "BLOB", "CHAR", "CLOB", "DATE", "BINARY_DOUBLE", "BINARY_FLOAT", "FLOAT", "LONG", "RAW", "LONG RAW", "NCHAR", "NVARCHAR2", "VARCHAR", "VARCHAR2", "NCLOB", "ROWID", "UROWID", "XMLTYPE", "TIMESTAMP", "INTERVAL", "SDO_GEOMETRY"} {
 		var l []typeIssue
 		for _, spType := range []string{ddl.Bool, ddl.Bytes, ddl.Date, ddl.Float64, ddl.Int64, ddl.String, ddl.Timestamp, ddl.Numeric, ddl.JSON} {
-			ty, issues := oracle.ToSpannerTypeWeb(sessionState.Conv, spType, srcType, []int64{})
+			srcType := schema.MakeType()
+			srcType.Name = srcTypeName
+			ty, issues := toddl.ToSpannerType(sessionState.Conv, spType, srcType)
 			l = addTypeToList(ty.Name, spType, issues, l)
 		}
-		oracleTypeMap[srcType] = l
+		oracleTypeMap[srcTypeName] = l
 	}
-
-	sessionState.Conv = internal.MakeConv()
 	config := config.TryInitializeSpannerConfig()
 	session.SetSessionStorageConnectionState(config.GCPProjectID, config.SpannerInstanceID)
 }
