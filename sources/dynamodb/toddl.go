@@ -31,16 +31,16 @@ type ToDdlImpl struct {
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
-func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
-	ty, issues := toSpannerTypeInternal(conv, columnType.Name)
+func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+	ty, issues := toSpannerTypeInternal(conv, srcType)
 	if conv.TargetDb == constants.TargetExperimentalPostgres {
 		ty = overrideExperimentalType(ty)
 	}
 	return ty, issues
 }
 
-func toSpannerTypeInternal(conv *internal.Conv, id string) (ddl.Type, []internal.SchemaIssue) {
-	switch id {
+func toSpannerTypeInternal(conv *internal.Conv, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+	switch srcType.Name {
 	case typeNumber:
 		return ddl.Type{Name: ddl.Numeric}, nil
 	case typeNumberString, typeString, typeList, typeMap:

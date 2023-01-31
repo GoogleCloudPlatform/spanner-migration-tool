@@ -50,8 +50,6 @@ const (
 	Numeric string = "NUMERIC"
 	// Json represent JSON type.
 	JSON string = "JSON"
-	// Jsonb represents the PG.JSONB type
-	JSONB string = "JSONB"
 	// MaxLength is a sentinel for Type's Len field, representing the MAX value.
 	MaxLength = math.MaxInt64
 	// StringMaxLength represents maximum allowed STRING length.
@@ -69,6 +67,8 @@ const (
 	PGVarchar string = "VARCHAR"
 	// PGTimestamptz represent TIMESTAMPTZ, which is TIMESTAMP type in PG.
 	PGTimestamptz string = "TIMESTAMPTZ"
+	// Jsonb represents the PG.JSONB type
+	PGJSONB string = "JSONB"
 	// PGMaxLength represents sentinel for Type's Len field in PG.
 	PGMaxLength = 2621440
 )
@@ -119,6 +119,8 @@ func (ty Type) PGPrintColumnDefType() string {
 		str = PGVarchar
 	case Timestamp:
 		str = PGTimestamptz
+	case JSON:
+		str = PGJSONB
 	default:
 		str = ty.Name
 	}

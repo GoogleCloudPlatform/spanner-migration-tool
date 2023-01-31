@@ -44,7 +44,7 @@ import (
 // type expected. In case a particular source to target transoformation is not
 // supported, an error is to be returned by the corresponding method.
 type ToDdl interface {
-	ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue)
+	ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue)
 }
 
 // SchemaToSpannerDDL performs schema conversion from the source DB schema to
@@ -76,7 +76,7 @@ func SchemaToSpannerDDLHelper(conv *internal.Conv, toddl ToDdl, srcTable schema.
 			continue
 		}
 		spColNames = append(spColNames, colName)
-		ty, issues := toddl.ToSpannerType(conv, srcCol.Type)
+		ty, issues := toddl.ToSpannerType(conv, "", srcCol.Type)
 		// TODO(hengfeng): add issues for all elements of srcCol.Ignored.
 		if srcCol.Ignored.ForeignKey {
 			issues = append(issues, internal.ForeignKey)

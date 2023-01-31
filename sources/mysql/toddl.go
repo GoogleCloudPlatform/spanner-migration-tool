@@ -31,25 +31,22 @@ type ToDdlImpl struct {
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
 // Functions below implement the common.ToDdl interface
-func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
-	ty, issues := toSpannerTypeInternal(columnType.Name, "", columnType.Mods)
+func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+	ty, issues := toSpannerTypeInternal(srcType, spType)
 	if conv.TargetDb == constants.TargetExperimentalPostgres {
-		ty = overrideExperimentalType(columnType, ty)
+		ty = overrideExperimentalType(srcType, ty)
 	} else {
-		if len(columnType.ArrayBounds) > 1 {
+		if len(srcType.ArrayBounds) > 1 {
 			ty = ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
 			issues = append(issues, internal.MultiDimensionalArray)
 		}
-		ty.IsArray = len(columnType.ArrayBounds) == 1
+		ty.IsArray = len(srcType.ArrayBounds) == 1
 	}
 	return ty, issues
 }
-func ToSpannerTypeWeb(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
-	return toSpannerTypeInternal(srcType, spType, mods)
-}
 
-func toSpannerTypeInternal(srcType string, spType string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
-	switch srcType {
+func toSpannerTypeInternal(srcType schema.Type, spType string) (ddl.Type, []internal.SchemaIssue) {
+	switch srcType.Name {
 	case "bool", "boolean":
 		switch spType {
 		case ddl.String:
@@ -67,7 +64,7 @@ func toSpannerTypeInternal(srcType string, spType string, mods []int64) (ddl.Typ
 			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
 		default:
 			// tinyint(1) is a bool in MySQL
-			if len(mods) > 0 && mods[0] == 1 {
+			if len(srcType.Mods) > 0 && srcType.Mods[0] == 1 {
 				return ddl.Type{Name: ddl.Bool}, nil
 			}
 			return ddl.Type{Name: ddl.Int64}, []internal.SchemaIssue{internal.Widened}
@@ -124,13 +121,13 @@ func toSpannerTypeInternal(srcType string, spType string, mods []int64) (ddl.Typ
 	case "varchar", "char":
 		switch spType {
 		case ddl.Bytes:
-			if len(mods) > 0 {
-				return ddl.Type{Name: ddl.Bytes, Len: mods[0]}, nil
+			if len(srcType.Mods) > 0 {
+				return ddl.Type{Name: ddl.Bytes, Len: srcType.Mods[0]}, nil
 			}
 			return ddl.Type{Name: ddl.Bytes, Len: ddl.MaxLength}, nil
 		default:
-			if len(mods) > 0 {
-				return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
+			if len(srcType.Mods) > 0 {
+				return ddl.Type{Name: ddl.String, Len: srcType.Mods[0]}, nil
 			}
 			return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}, nil
 		}
@@ -193,11 +190,9 @@ func toSpannerTypeInternal(srcType string, spType string, mods []int64) (ddl.Typ
 }
 
 // Override the types to map to experimental postgres types.
-func overrideExperimentalType(columnType schema.Type, originalType ddl.Type) ddl.Type {
-	if len(columnType.ArrayBounds) > 0 {
+func overrideExperimentalType(srcType schema.Type, originalType ddl.Type) ddl.Type {
+	if len(srcType.ArrayBounds) > 0 {
 		return ddl.Type{Name: ddl.String, Len: ddl.MaxLength}
-	} else if columnType.Name == "json" {
-		return ddl.Type{Name: ddl.JSONB}
 	}
 	return originalType
 }

@@ -29,12 +29,12 @@ type ToDdlImpl struct {
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
 // Functions below implement the common.ToDdl interface
-func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) (ddl.Type, []internal.SchemaIssue) {
-	ty, issues := toSpannerTypeInternal(conv, columnType.Name, columnType.Mods)
+func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, spType string, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+	ty, issues := toSpannerTypeInternal(conv, srcType)
 	if conv.TargetDb == constants.TargetExperimentalPostgres {
-		ty, issues = overrideExperimentalType(columnType, ty, issues)
+		ty, issues = overrideExperimentalType(srcType, ty, issues)
 	} else {
-		ty.IsArray = len(columnType.ArrayBounds) == 1
+		ty.IsArray = len(srcType.ArrayBounds) == 1
 	}
 	return ty, issues
 }
@@ -43,12 +43,12 @@ func (tdi ToDdlImpl) ToSpannerType(conv *internal.Conv, columnType schema.Type) 
 // mods) into a Spanner type. This is the core source-to-Spanner type
 // mapping.  toSpannerType returns the Spanner type and a list of type
 // conversion issues encountered.
-func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Type, []internal.SchemaIssue) {
-	switch id {
+func toSpannerTypeInternal(conv *internal.Conv, srcType schema.Type) (ddl.Type, []internal.SchemaIssue) {
+	switch srcType.Name {
 	case "BOOL":
 		return ddl.Type{Name: ddl.Bool}, nil
 	case "BYTES":
-		return ddl.Type{Name: ddl.Bytes, Len: mods[0]}, nil
+		return ddl.Type{Name: ddl.Bytes, Len: srcType.Mods[0]}, nil
 	case "DATE":
 		return ddl.Type{Name: ddl.Date}, nil
 	case "FLOAT64":
@@ -60,7 +60,7 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 	case "NUMERIC":
 		return ddl.Type{Name: ddl.Numeric}, nil
 	case "STRING":
-		return ddl.Type{Name: ddl.String, Len: mods[0]}, nil
+		return ddl.Type{Name: ddl.String, Len: srcType.Mods[0]}, nil
 	case "TIMESTAMP":
 		return ddl.Type{Name: ddl.Timestamp}, nil
 	}
@@ -68,8 +68,8 @@ func toSpannerTypeInternal(conv *internal.Conv, id string, mods []int64) (ddl.Ty
 }
 
 // Override the types to map to experimental postgres types.
-func overrideExperimentalType(columnType schema.Type, originalType ddl.Type, issues []internal.SchemaIssue) (ddl.Type, []internal.SchemaIssue) {
-	switch columnType.Name {
+func overrideExperimentalType(srcType schema.Type, originalType ddl.Type, issues []internal.SchemaIssue) (ddl.Type, []internal.SchemaIssue) {
+	switch srcType.Name {
 	case "PG.NUMERIC":
 		return ddl.Type{Name: ddl.Numeric}, nil
 	case "PG.JSONB":

@@ -138,3 +138,11 @@ func (ty Type) Print() string {
 	}
 	return s
 }
+
+func MakeType() Type {
+	return Type{
+		Name:        "",
+		Mods:        []int64{},
+		ArrayBounds: []int64{},
+	}
+}
