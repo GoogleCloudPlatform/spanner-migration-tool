@@ -21,7 +21,8 @@ require (
 	github.com/lib/pq v1.9.0
 	github.com/pganalyze/pg_query_go/v2 v2.2.0
 	github.com/pingcap/tidb v1.1.0-beta.0.20221126021158-6b02a5d8ba7d
-	github.com/pingcap/tidb/parser v0.0.0-20221126021158-6b02a5d8ba7d
+	github.com/pingcap/tidb/parser v0.0.0-20230131125755-6a18630c53f6
+	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/sijms/go-ora/v2 v2.2.17
 	github.com/stretchr/testify v1.8.1
 	go.uber.org/zap v1.21.0
@@ -46,6 +47,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cncf/udpa/go v0.0.0-20220112060539-c52dc94e7fbe // indirect
 	github.com/cncf/xds/go v0.0.0-20221128185840-c261a164b73d // indirect
+	github.com/cznic/mathutil v0.0.0-20181122101859-297441e03548 // indirect
 	github.com/danjacques/gofslock v0.0.0-20191023191349-0a45f885bc37 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/envoyproxy/go-control-plane v0.10.3 // indirect
@@ -69,7 +71,6 @@ require (
 	github.com/pingcap/kvproto v0.0.0-20220517085838-12e2f5a9d167 // indirect
 	github.com/pingcap/log v1.1.1-0.20221116035753-734d527bc87c // indirect
 	github.com/pingcap/tipb v0.0.0-20220314125451-bfb5c2c55188 // indirect
-	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
@@ -77,6 +78,7 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
+	github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0 // indirect
 	github.com/shirou/gopsutil/v3 v3.21.12 // indirect
 	github.com/tikv/client-go/v2 v2.0.1-0.20221012074928-624e0ed3cc67 // indirect
 	github.com/tikv/pd/client v0.0.0-20220307081149-841fa61e9710 // indirect
@@ -86,7 +88,7 @@ require (
 	go.opencensus.io v0.24.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
-	golang.org/x/exp v0.0.0-20220426173459-3bcf042a4bf5 // indirect
+	golang.org/x/exp v0.0.0-20220428152302-39d4317da171 // indirect
 	golang.org/x/oauth2 v0.3.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.3.0 // indirect
