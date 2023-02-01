@@ -79,6 +79,7 @@ var GOOGLE_SQL_TO_PGSQL_TYPEMAP = map[string]string{
 	Int64:     PGInt8,
 	String:    PGVarchar,
 	Timestamp: PGTimestamptz,
+	JSON:      PGJSONB,
 }
 
 var PGSQL_TO_GOOGLE_SQL_TYPEMAP = map[string]string{
@@ -87,6 +88,7 @@ var PGSQL_TO_GOOGLE_SQL_TYPEMAP = map[string]string{
 	PGInt8:        Int64,
 	PGVarchar:     String,
 	PGTimestamptz: Timestamp,
+	PGJSONB:       JSON,
 }
 
 // Type represents the type of a column.

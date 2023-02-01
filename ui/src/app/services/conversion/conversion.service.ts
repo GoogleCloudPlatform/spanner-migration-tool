@@ -268,7 +268,7 @@ export class ConversionService {
           spOrder: spannerColDef ? i + 1 : '',
           srcOrder: i + 1,
           spColName: spannerColDef ? spColName : '',
-          spDataType: spannerColDef ? (data.TargetDb === Dialect.PostgreSQLDialect ? pgSQLDatatype === undefined ? spannerColDef.T.Name : pgSQLDatatype : spannerColDef.T.Name) : '',
+          spDataType: spannerColDef ? (data.TargetDb === Dialect.PostgreSQLDialect ? (pgSQLDatatype === undefined ? spannerColDef.T.Name : pgSQLDatatype) : spannerColDef.T.Name) : '',
           srcColName: name,
           srcDataType: data.SrcSchema[srcTableName].ColDefs[name].Type.Name,
           spIsPk:
@@ -288,11 +288,12 @@ export class ConversionService {
       data.SpSchema[spTableName]?.ColNames.forEach((name: string, i: number) => {
         if (spTableName && srcTableIds.indexOf(data.SpSchema[spTableName].ColDefs[name].Id) < 0) {
           let spannerColDef = spTableName ? data.SpSchema[spTableName].ColDefs[name] : null
+          let pgSQLDatatype = spannerColDef ? googleSQLToPGSQLTypemap.get(spannerColDef.T.Name) : ''
           res.push({
             spOrder: i + 1,
             srcOrder: '',
             spColName: name,
-            spDataType: spannerColDef ? spannerColDef.T.Name : '',
+            spDataType: spannerColDef ? (data.TargetDb === Dialect.PostgreSQLDialect ? (pgSQLDatatype === undefined ? spannerColDef.T.Name : pgSQLDatatype) : spannerColDef.T.Name) : '',
             srcColName: '',
             srcDataType: '',
             spIsPk:

@@ -56,10 +56,12 @@ export class ObjectDetailComponent implements OnInit {
   localTableData: IColumnTabData[] = []
   localIndexData: IIndexData[] = []
   isMiddleColumnCollapse: boolean = false
+  isPostgreSQLDialect: boolean = false
   ngOnInit(): void {
     this.data.conv.subscribe({
       next: (res: IConv) => {
         this.conv = res
+        this.isPostgreSQLDialect = this.conv.TargetDb === Dialect.PostgreSQLDialect
       },
     })
   }

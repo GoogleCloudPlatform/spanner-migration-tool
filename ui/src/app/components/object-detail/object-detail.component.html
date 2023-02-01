@@ -278,8 +278,11 @@
                       >
                         {{ t.DisplayT }}
                       </mat-option>
-                      <mat-option *ngIf="element.get('srcDataType').value == ''" value="STRING">
+                      <mat-option *ngIf="element.get('srcDataType').value == '' && !isPostgreSQLDialect" value="STRING">
                         STRING
+                      </mat-option>
+                      <mat-option *ngIf="element.get('srcDataType').value == '' && isPostgreSQLDialect" value="VARCHAR">
+                        VARCHAR
                       </mat-option>
                     </mat-select>
                   </mat-form-field>
